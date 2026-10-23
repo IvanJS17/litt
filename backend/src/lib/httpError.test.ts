@@ -157,4 +157,28 @@ describe("sendInternalError", () => {
       expect(res.body.code).toBe("internal_error");
     }
   });
+
+  // /download/:token carries an HMAC-signed download token as a PATH segment,
+  // so dropping the query is not enough: the operator log and the report must
+  // not contain a working credential.
+  it("keeps a download grant token out of the log and the report", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = express();
+    app.use((_req, res, next) => {
+      res.locals.requestId = "req-dl";
+      next();
+    });
+    const downloads = express.Router();
+    downloads.get("/:token", (_req, res) => {
+      sendInternalError(res, new Error("storage unavailable"));
+    });
+    app.use("/download", downloads);
+
+    const res = await request(app).get("/download/signed-token-abc?expires=99");
+
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("signed-token-abc");
+    expect(JSON.stringify(reportError.mock.calls)).not.toContain("signed-token-abc");
+    expect(JSON.stringify(consoleError.mock.calls)).toContain("/download/[redacted]");
+  });
 });

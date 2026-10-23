@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import { reportError, requestRoutePattern } from "./observability/sentry";
+import { safeRequestPath } from "./safeRequestPath";
 
 export const INTERNAL_ERROR_CODE = "internal_error";
 export const RATE_LIMITED_CODE = "rate_limited";
@@ -132,7 +133,7 @@ export function sendInternalError(
       // as one issue instead of one per project.
       http_route: requestRoutePattern(res.req),
     },
-    extra: { path: res.req?.originalUrl?.split("?")[0] },
+    extra: { path: safeRequestPath(res.req?.originalUrl) },
   });
 
   if (schemaCode) {
@@ -149,7 +150,7 @@ export function sendInternalError(
   console.error("[http/internal-error]", {
     requestId,
     method: res.req?.method,
-    path: res.req?.originalUrl?.split("?")[0],
+    path: safeRequestPath(res.req?.originalUrl),
     error: error,
   });
 

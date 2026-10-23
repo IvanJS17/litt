@@ -13,6 +13,7 @@ import {
   reportMessage,
   requestRoutePattern,
 } from "../lib/observability/sentry";
+import { safeRequestPath } from "../lib/safeRequestPath";
 
 type ErrorBody = {
   code?: unknown;
@@ -71,14 +72,14 @@ export function protectInternalErrorResponses(
           http_method: req.method,
           http_route: route,
         },
-        extra: { path: req.originalUrl.split("?")[0], body: errorBody ?? body },
+        extra: { path: safeRequestPath(req.originalUrl), body: errorBody ?? body },
         fingerprint: ["sanitized-5xx", req.method, route ?? ""],
       },
     );
     console.error("[http/sanitized-internal-error]", {
       requestId,
       method: req.method,
-      path: req.originalUrl.split("?")[0],
+      path: safeRequestPath(req.originalUrl),
       status: res.statusCode,
       error: errorBody?.detail ?? body,
     });
