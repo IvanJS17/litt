@@ -202,9 +202,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     upload_target_busy: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
-    // LiTT governed BYOK: a conversation keeps the route it was started on
-    chat_route_pinned: "conflict",
-    chat_route_credential_unavailable: "conflict",
+    // LiTT governed BYOK: a conversation keeps the route it was started on.
+    // Retrying cannot help (the fix is a new conversation), so these read as
+    // validation: the server's detail is shown and no Retry is offered.
+    chat_route_pinned: "validation",
+    chat_route_credential_unavailable: "validation",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

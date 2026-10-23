@@ -296,3 +296,34 @@ describe("support URL privacy", () => {
         expect(body).not.toMatch(/secret|hidden|password|user@/);
     });
 });
+
+describe("describeError for the fixed chat route and custom endpoints", () => {
+    beforeEach(() => {
+        vi.stubGlobal("navigator", { onLine: true, userAgent: "vitest" });
+    });
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it.each([
+        [409, "chat_route_pinned", "validation", "This conversation is fixed to the model it was started with. Start a new conversation to use a different model."],
+        [409, "chat_route_credential_unavailable", "validation", "The key this conversation was started with is no longer available. Start a new conversation with a key you can use."],
+        [400, "chat_route_credential_required", "validation", "Choose which key this conversation should use."],
+    ])("shows the server's own %s %s message without retry", (status, code, kind, message) => {
+        const described = describeError(
+            new FakeApiError({ status, code, message }),
+            { action: "send your message" },
+        );
+        expect(described).toMatchObject({ kind, message, code, retryable: false, supportable: false });
+    });
+
+    it("shows a rejected custom endpoint URL as a validation message", () => {
+        const message =
+            "A public https base URL (for example https://llm.example.com/v1) is required with an OpenAI-compatible endpoint key.";
+        const described = describeError(
+            new FakeApiError({ status: 400, message }),
+            { action: "save your key" },
+        );
+        expect(described).toMatchObject({ kind: "validation", message, retryable: false });
+    });
+});
