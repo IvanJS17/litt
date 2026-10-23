@@ -129,8 +129,10 @@ unless it breaks a LiTT invariant, in which case it is reverted or gated.
 - BYOK provider matrix and model registry, with every upstream provider
   visible (owner decision of 2026-10-23). Route resolution stays fail-closed
   and pinned per conversation, with no silent fallback; a user's own endpoint
-  and operator-declared OpenAI-compatible endpoints cannot reach loopback,
-  private, link-local or cloud-metadata addresses, checked on every hop.
+  (`custom`) cannot reach loopback, private, link-local or cloud-metadata
+  addresses, checked on every hop. Operator-declared endpoints
+  (`openai-compatible`, Ollama) may be internal, cannot be set by users and
+  write egress provenance.
 - Unified connectors with protected write actions, and upstream playbooks. The
   Mexican Civil/Mercantile playbook keeps its provenance in the governed catalog.
 - PDF extraction for pages without a text layer, provider error and deadline
