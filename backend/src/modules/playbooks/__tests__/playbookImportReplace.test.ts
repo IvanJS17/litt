@@ -8,7 +8,7 @@ const { getUserApiKeys, deleteFile, uploadFile } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../user/user.service", async () =>
-  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+  (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
 );
 vi.mock("../../../lib/storage", () => ({ deleteFile, uploadFile }));
 

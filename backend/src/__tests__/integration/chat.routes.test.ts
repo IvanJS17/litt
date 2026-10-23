@@ -1338,8 +1338,16 @@ describe("POST /chat — streaming endpoint", () => {
         // never reaches the server. The audit job below is the one permitted
         // write — it records THAT a Word turn happened, deliberately without
         // the prompt text (see the title it carries).
-        expect(dbInserts.map(({ table }) => table)).toEqual(["db_jobs"]);
-        const auditJob = dbInserts[0].value as {
+        // No chat rows; the only writes are the queued job and the
+        // insert-only egress record of the pinned route (governed BYOK).
+        expect(dbInserts.map(({ table }) => table).sort()).toEqual([
+            "audit_events",
+            "db_jobs",
+        ]);
+        expect(
+            dbInserts.find(({ table }) => table === "audit_events")?.value,
+        ).toMatchObject({ action: "llm.egress", chat_id: null });
+        const auditJob = dbInserts.find(({ table }) => table === "db_jobs")!.value as {
             kind: string;
             payload: { base: { surface: string; title: string | null } };
         };

@@ -16,7 +16,7 @@ vi.mock("../../../lib/llm", async (original) => ({
   completeText,
 }));
 vi.mock("../../user/user.service", async () =>
-  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+  (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
 );
 vi.mock("../../../lib/audit", () => ({ recordAudit }));
 vi.mock("../../../lib/storage", async (original) => ({
@@ -401,7 +401,7 @@ const importPayload = {
   name: null,
   model: MODEL,
   orgId: null,
-  route: { provider: "claude", model: MODEL, credentialRef: "env:claude" },
+  route: { provider: "claude" as const, model: MODEL, credentialRef: "env:claude" },
   replacePlaybookId: null,
   newPlaybookId: "new-book",
   startedAt: new Date().toISOString(),

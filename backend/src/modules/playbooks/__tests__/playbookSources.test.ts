@@ -30,7 +30,7 @@ vi.mock("../../../lib/llm", async (original) => ({
   streamChatWithTools,
 }));
 vi.mock("../../user/user.service", async () =>
-  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+  (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
 );
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
