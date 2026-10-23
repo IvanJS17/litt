@@ -2078,39 +2078,120 @@ describe("listAccessibleProjectIds with capped deny responses", () => {
 });
 
 
-describe("explicit private organization access", () => {
-    it("adds only viewer standing across all five kinds and loses it when revoked", async () => {
+describe("explicit private organization access (not part of LiTT, C2)", () => {
+    it("gives an admin no standing on a member's private item, even if the database would open it", async () => {
         const row = { id: "item", user_id: "member", org_id: "org", project_id: null, visibility: "private" };
         const db = makeDb({
             organizations: [{ id: "org", kind: "team" }],
             org_members: [{ org_id: "org", user_id: "admin", role: "admin" }, { org_id: "org", user_id: "member", role: "member" }],
             projects: [row], workflows: [row],
         });
-        let opened = false;
-        db.rpc = vi.fn(async (name: string) => ({ data: name === "org_private_document_access" ? opened : opened ? "viewer" : null, error: null }));
-        const checks = [
+        const original = db.rpc;
+        db.rpc = vi.fn((name: string, args?: Record<string, unknown>) =>
+            name === "org_private_document_access" ? Promise.resolve({ data: true, error: null })
+            : name === "org_private_access_role" ? Promise.resolve({ data: "viewer", error: null })
+            : original(name, args));
+        for (const check of [
             () => checkProjectAccess("item", "admin", "admin@example.test", db),
             () => checkWorkflowAccess("item", "admin", "admin@example.test", db),
             () => ensureChatAccess(row, "admin", "admin@example.test", db),
             () => ensureReviewAccess(row, "admin", "admin@example.test", db),
             () => ensureDocAccess(row, "admin", "admin@example.test", db),
-        ];
-        for (const check of checks) expect(await check()).toMatchObject({ ok: false });
-        opened = true;
-        for (const check of checks) expect(await check()).toMatchObject({ ok: true, projectRole: "viewer", isCreator: false });
-        opened = false;
-        for (const check of checks) expect(await check()).toMatchObject({ ok: false });
+        ]) expect(await check()).toMatchObject({ ok: false });
     });
-    it("includes an explicitly opened project in the accessible-ID list", async () => {
+    it("lists no member's private project for an admin, even if the database would open it", async () => {
         const db = makeDb({
             organizations: [{ id: "org", kind: "team" }],
             org_members: [{ org_id: "org", user_id: "admin", role: "admin" }, { org_id: "org", user_id: "member", role: "member" }],
-            projects: [{ id: "private", org_id: "org", user_id: "member", visibility: "private" }, { id: "unopened", org_id: "org", user_id: "member", visibility: "private" }],
+            projects: [{ id: "private", org_id: "org", user_id: "member", visibility: "private" }],
         });
         const original = db.rpc;
-        db.rpc = vi.fn((name: string, args: Record<string, unknown>) => name === "list_org_private_content_access"
+        db.rpc = vi.fn((name: string, args?: Record<string, unknown>) => name === "list_org_private_content_access"
             ? Promise.resolve({ data: [{ kind: "project", item_id: "private" }], error: null }) : original(name, args));
-        expect(await listAccessibleProjectIds("admin", "admin@example.test", db)).toEqual(["private"]);
+        expect(await listAccessibleProjectIds("admin", "admin@example.test", db)).toEqual([]);
+    });
+});
+
+describe("private matters (LiTT C2)", () => {
+    // A firm with an owner, an admin, the project's creator and a matter
+    // member. "open" is visible to the whole organization and "ghost" has no
+    // Owner left — upstream would give the owner both. Both are bound to a
+    // private matter whose team is only "team".
+    const tables = () => ({
+        organizations: [{ id: "org", kind: "team" }],
+        org_members: [
+            { org_id: "org", user_id: "owner", role: "owner" },
+            { org_id: "org", user_id: "admin", role: "admin" },
+            { org_id: "org", user_id: "creator", role: "member" },
+            { org_id: "org", user_id: "team", role: "member" },
+        ],
+        projects: [
+            { id: "open", org_id: "org", user_id: "creator", visibility: "organization" },
+            { id: "ghost", org_id: "org", user_id: "departed", visibility: "private" },
+            { id: "plain", org_id: "org", user_id: "creator", visibility: "organization" },
+        ],
+        project_org_access_overrides: [
+            { project_id: "open", org_id: "org", user_id: "admin", role: "editor" },
+        ],
+        workspaces: [{ id: "ws", organization_id: "org" }],
+        matters: [
+            { id: "m1", workspace_id: "ws", project_id: "open", visibility: "private" },
+            { id: "m2", workspace_id: "ws", project_id: "ghost", visibility: "private" },
+        ],
+        matter_memberships: [
+            { matter_id: "m1", user_id: "team", role: "editor", status: "active" },
+            { matter_id: "m2", user_id: "team", role: "editor", status: "active" },
+        ],
+    });
+
+    it.each(["owner", "admin", "creator"])(
+        "%s cannot open a private matter's project, however it is shared",
+        async (user) => {
+            const db = makeDb(tables());
+            for (const id of ["open", "ghost"])
+                expect(await checkProjectAccess(id, user, `${user}@example.test`, db)).toEqual({ ok: false });
+            // An ordinary organization project is unaffected.
+            expect(await checkProjectAccess("plain", user, `${user}@example.test`, db)).toMatchObject({ ok: true });
+        },
+    );
+
+    it("the matter team keeps access", async () => {
+        const db = makeDb(tables());
+        expect(await checkProjectAccess("open", "team", "team@example.test", db)).toMatchObject({ ok: true });
+    });
+
+    it("a revoked matter membership no longer admits", async () => {
+        const t = tables();
+        t.matter_memberships[0].status = "revoked";
+        expect(await checkProjectAccess("open", "team", "team@example.test", makeDb(t))).toEqual({ ok: false });
+    });
+
+    it.each(["owner", "admin", "creator"])("%s does not get a private matter's project listed", async (user) => {
+        expect(await listAccessibleProjectIds(user, `${user}@example.test`, makeDb(tables()))).toEqual(["plain"]);
+    });
+
+    it("documents, chats and reviews inside the matter follow it", async () => {
+        const db = makeDb(tables());
+        const child = { id: "x", user_id: "owner", project_id: "open", org_id: "org" };
+        expect(await ensureDocAccess(child, "owner", "owner@example.test", db)).toEqual({ ok: false });
+        expect(await ensureChatAccess(child, "owner", "owner@example.test", db)).toEqual({ ok: false });
+        expect(await ensureReviewAccess(child, "owner", "owner@example.test", db)).toEqual({ ok: false });
+        expect(await filterAccessibleDocumentIds(["d"], "owner", "owner@example.test", makeDb({
+            ...tables(), documents: [{ id: "d", user_id: "owner", project_id: "open" }],
+        }))).toEqual([]);
+    });
+
+    it("fails closed when the matter lookup cannot be answered", async () => {
+        const db = makeDb(tables());
+        const original = db.rpc;
+        db.rpc = vi.fn((name: string, args?: Record<string, unknown>) =>
+            name === "private_matter_denied_project_ids"
+                ? Promise.resolve({ data: null, error: { message: "timeout" } })
+                : original(name, args));
+        expect(await checkProjectAccess("plain", "owner", "owner@example.test", db)).toEqual({ ok: false });
+        await expect(listAccessibleProjectIds("owner", "owner@example.test", db)).rejects.toThrow(
+            /Private matter access lookup failed/,
+        );
     });
 });
 

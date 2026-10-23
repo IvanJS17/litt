@@ -123,6 +123,41 @@ begin
   end;
 end $$;
 
+-- C2, lists, ownerless and departure (20261023_13) -------------------------
+do $$
+declare ids uuid[];
+begin
+  begin
+    select array_agg(x order by x) into ids from public.private_matter_denied_project_ids(
+      '00000000-0000-4000-8000-0000000000a1',
+      array['00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000c2']::uuid[]) x;
+    perform pg_temp.check('C2 list filter denies both private-matter projects to the org owner',
+      ids = array['00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000c2']::uuid[],
+      coalesce(ids::text, 'null'));
+    select array_agg(x) into ids from public.private_matter_denied_project_ids(
+      '00000000-0000-4000-8000-0000000000a3',
+      array['00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000c2']::uuid[]) x;
+    perform pg_temp.check('C2 list filter denies nothing to the matter member', ids is null, coalesce(ids::text, 'null'));
+  exception when others then
+    perform pg_temp.check('C2 list filter', false, sqlerrm);
+  end;
+  begin
+    perform pg_temp.check('C2 a matter project is never ownerless',
+      not public.project_is_ownerless('00000000-0000-4000-8000-0000000000c2', null,
+        '00000000-0000-4000-8000-0000000000b1'));
+  exception when others then
+    perform pg_temp.check('C2 a matter project is never ownerless', false, sqlerrm);
+  end;
+  begin
+    perform pg_temp.check('C2 a departing creator does not take a matter project out of the team',
+      not exists (select 1 from public.org_members_departure_items(
+        '00000000-0000-4000-8000-0000000000b1', array['00000000-0000-4000-8000-0000000000a4']::uuid[]) i
+        where i.item_id = '00000000-0000-4000-8000-0000000000c1'));
+  exception when others then
+    perform pg_temp.check('C2 a departing creator does not take a matter project out of the team', false, sqlerrm);
+  end;
+end $$;
+
 -- C3 ---------------------------------------------------------------------
 insert into public.audit_events(user_id, org_id, action)
 values ('00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000b1', 'litt.test');

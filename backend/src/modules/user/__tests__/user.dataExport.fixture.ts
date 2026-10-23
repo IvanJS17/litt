@@ -1,3 +1,5 @@
+import { ownerlessRpcResult } from "../../../__tests__/helpers/ownerlessRpc";
+
 export type Row = Record<string, unknown>;
 
 // Read-only fake supporting the query subset buildUserAccountExport uses
@@ -64,5 +66,16 @@ export function makeExportDb(
         };
         return builder;
     }
-    return { db: { from: (t: string) => query(t) } as any, reads };
+    return {
+        db: {
+            from: (t: string) => query(t),
+            // LiTT C2 access functions, answered from the same tables.
+            rpc: async (name: string, args?: Record<string, unknown>) =>
+                ownerlessRpcResult(tables, name, args) ?? {
+                    data: null,
+                    error: { message: `unexpected rpc ${name}` },
+                },
+        } as any,
+        reads,
+    };
 }

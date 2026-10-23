@@ -16,6 +16,7 @@ import {
   getOrgRole,
   isOrgRole,
   loadOwnerlessOrgItemIds,
+  loadPrivateMatterDeniedProjectIds,
   parseContentVisibility,
   resolveOrgContentRole,
 } from "../../lib/access";
@@ -379,6 +380,16 @@ export async function searchProjectDirectory(
       if (role) projectsById.set(projectId, project);
       else projectsById.delete(projectId);
     }
+  }
+  // LiTT C2: a private matter's project is not offered outside its team,
+  // whichever branch above admitted it. Fail closed on an unanswered read.
+  try {
+    const denied = await loadPrivateMatterDeniedProjectIds(db, userId, [
+      ...projectsById.keys(),
+    ]);
+    for (const projectId of denied) projectsById.delete(projectId);
+  } catch (error) {
+    return { ok: false, error };
   }
   // Narrowed last, over projects the caller may already see: the workspace
   // never admits anything, it only leaves out what is filed elsewhere.

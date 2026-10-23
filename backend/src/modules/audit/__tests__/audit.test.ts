@@ -262,6 +262,11 @@ function makeDb(
     }
 
     const db = {
+        // LiTT C2 list filter: none of these projects is in a private matter.
+        rpc: async (name: string) =>
+            name === "private_matter_denied_project_ids"
+                ? { data: [], error: null }
+                : { data: null, error: { message: `unexpected rpc ${name}` } },
         from(table: string) {
             if (table === "projects") return filterBuilder(projectsResolver);
             if (table === "project_access_grants")

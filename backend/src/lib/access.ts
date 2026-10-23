@@ -1,9 +1,5 @@
 import type { Db } from "./supabase";
 import { chunkArray } from "./arrays";
-import {
-    hasOrgPrivateContentAccess,
-    listOrgPrivateContentAccess,
-} from "./orgPrivateContent";
 
 /**
  * Project / document access helpers.
@@ -61,8 +57,9 @@ export {
  * the organization: they alone delete it and appoint or remove admins and
  * other owners. Admins run it day to day (members, invitations, settings).
  * Members collaborate. Owners manage public and ownerless projects/workflows.
- * For private items still owned by another member, owners and permitted admins
- * must explicitly open read-only access through the audited private-content path.
+ * In LiTT there is no administrative path into a member's private item, and a
+ * private matter is reachable only by its team (C2,
+ * docs/UPSTREAM_SYNC_PLAN.md §3).
  */
 export type OrgRole = "owner" | "admin" | "member";
 
@@ -233,6 +230,57 @@ export async function loadOwnerlessOrgItemIds(
     return ownerless;
 }
 
+/**
+ * LiTT C2 (docs/UPSTREAM_SYNC_PLAN.md §3): of `projectIds`, the ones bound to
+ * a private matter the caller is not an active member of. Such a project is
+ * invisible to them whatever any other rule says — creator, organization
+ * owner, "ownerless" takeover, organization visibility or a direct grant.
+ *
+ * Asked of the database (private_matter_denied_project_ids), the batch twin
+ * of the first branch of public.project_access_role, so every read path and
+ * every list RPC reach one answer. Throws when it cannot be answered: an
+ * unanswered question must not admit anyone.
+ */
+export async function loadPrivateMatterDeniedProjectIds(
+    db: Db,
+    userId: string,
+    projectIds: string[],
+): Promise<Set<string>> {
+    const denied = new Set<string>();
+    for (const batch of chunkArray([...new Set(projectIds)], 500)) {
+        const { data, error } = await db.rpc("private_matter_denied_project_ids", {
+            p_user_id: userId,
+            p_project_ids: batch,
+        });
+        if (error || !Array.isArray(data))
+            throw new Error("Private matter access lookup failed", {
+                cause: error ?? undefined,
+            });
+        for (const row of data as unknown[]) {
+            const id =
+                typeof row === "string"
+                    ? row
+                    : (row as { private_matter_denied_project_ids?: unknown } | null)
+                          ?.private_matter_denied_project_ids;
+            if (typeof id === "string") denied.add(id);
+        }
+    }
+    return denied;
+}
+
+/** Single-project form of loadPrivateMatterDeniedProjectIds; fails closed. */
+async function privateMatterDenied(
+    db: Db,
+    userId: string,
+    projectId: string,
+): Promise<boolean> {
+    try {
+        return (await loadPrivateMatterDeniedProjectIds(db, userId, [projectId])).has(projectId);
+    } catch {
+        return true;
+    }
+}
+
 /** Normalize an email the way every grant/invitation row stores it. */
 export function normalizeEmail(
     email: string | null | undefined,
@@ -384,6 +432,10 @@ export async function checkProjectAccess(
     if (!project || project.archived_at) return { ok: false };
     const proj = project as ProjectRow;
 
+    // LiTT C2: a private matter's project exists only for its team, before
+    // every branch below (creator, owner, ownerless, public, direct grant).
+    if (await privateMatterDenied(db, userId, proj.id)) return { ok: false };
+
     const isCreator = !!proj.user_id && proj.user_id === userId;
 
     // Organization scope is exclusive, and only a current member is in it:
@@ -416,7 +468,7 @@ export async function checkProjectAccess(
         // Fail closed: an unreadable override table must not admit a member
         // who may have been walled off.
         if (!override.ok) return { ok: false };
-        let projectRole = resolveOrgContentRole({
+        const projectRole = resolveOrgContentRole({
             isCreator: false,
             orgRole,
             override: override.role,
@@ -428,10 +480,6 @@ export async function checkProjectAccess(
                     ? await isOrgItemOwnerless(db, "project", proj.id)
                     : false,
         });
-        if (
-            !projectRole && isOrgAdmin(orgRole) &&
-            await hasOrgPrivateContentAccess(db, proj.org_id, userId, "project", proj.id)
-        ) projectRole = "viewer";
         if (!projectRole) return { ok: false };
         return {
             ok: true,
@@ -534,7 +582,7 @@ async function organizationResourceAccess(
         userId,
     );
     if (!override.ok) return { ok: false };
-    let role = resolveOrgContentRole({
+    const role = resolveOrgContentRole({
         isCreator: false,
         orgRole,
         override: override.role,
@@ -544,10 +592,6 @@ async function organizationResourceAccess(
                 ? await isOrgItemOwnerless(db, kind, row.id)
                 : false,
     });
-    if (
-        !role && isOrgAdmin(orgRole) &&
-        await hasOrgPrivateContentAccess(db, row.org_id, userId, kind, row.id)
-    ) role = "viewer";
     return role ? resourceAccessFor(role, orgRole, false) : { ok: false };
 }
 
@@ -687,11 +731,8 @@ export async function ensureDocAccess(
     // implicit access. Departure transfers referenced files or archives
     // unshared files. In a team organization the uploader must still be a member.
     const isCreator = !!doc.user_id && doc.user_id === userId;
-    if (!isCreator) {
-        return await hasOrgPrivateContentAccess(db, doc.org_id, userId, "document", doc.id)
-            ? resourceAccessFor("viewer", null, false)
-            : { ok: false };
-    }
+    // LiTT C2: no administrative path reaches another member's document.
+    if (!isCreator) return { ok: false };
     const teamOrgId = await teamOrgIdOf(db, doc.org_id);
     if (!teamOrgId) return resourceAccessFor("owner", null, true);
     const orgRole = await getOrgRole(userId, teamOrgId, db);
@@ -753,10 +794,8 @@ async function ensureSharedRowAccess(
             row.id,
             userEmail,
         );
-        const privateAccess = !granted && isOrgAdmin(orgRole)
-            && await hasOrgPrivateContentAccess(db, orgId, userId, kind, row.id);
-        return granted || privateAccess
-            ? resourceAccessFor(granted || "viewer", orgRole, false)
+        return granted
+            ? resourceAccessFor(granted, orgRole, false)
             : { ok: false };
     }
     if (isCreator) return resourceAccessFor("owner", null, true);
@@ -1059,11 +1098,6 @@ export async function listAccessibleProjectIds(
         orgIds.filter((orgId) => orgRoleByOrgId.get(orgId) === "owner"),
     );
 
-    const privateAccess = await listOrgPrivateContentAccess(
-        db,
-        orgIds.filter(id => ["owner", "admin"].includes(orgRoleByOrgId.get(id) ?? "")),
-        userId,
-    );
     const ids = new Set<string>();
     for (const project of personalOwned) ids.add(project.id);
     for (const project of personalGranted) ids.add(project.id);
@@ -1079,7 +1113,10 @@ export async function listAccessibleProjectIds(
             visibility: project.visibility,
             ownerless: ownerless.projects.has(project.id),
         });
-        if (role || privateAccess.get("project")?.has(project.id)) ids.add(project.id);
+        if (role) ids.add(project.id);
     }
-    return [...ids];
+    // LiTT C2: whatever admitted it, a private matter's project leaves the
+    // list for everyone outside its team. Throws like the reads above.
+    const denied = await loadPrivateMatterDeniedProjectIds(db, userId, [...ids]);
+    return [...ids].filter((id) => !denied.has(id));
 }

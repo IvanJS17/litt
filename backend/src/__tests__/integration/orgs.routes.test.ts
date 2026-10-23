@@ -1151,6 +1151,44 @@ describe("GET /projects/:projectId admin contacts", () => {
 // proj-1 is seeded public. owner-1 created it and owns the organization;
 // member-1 is a plain member with no override.
 
+describe("a private matter over HTTP (LiTT C2)", () => {
+    // proj-1 is open to the whole organization; binding it to a private
+    // matter whose team is only member-1 hides it from everyone else,
+    // the organization owner who created it included.
+    beforeEach(() => {
+        tables.workspaces = [{ id: "ws-1", organization_id: "org-1" }];
+        tables.matters = [
+            { id: "matter-1", workspace_id: "ws-1", project_id: "proj-1", visibility: "private" },
+        ];
+        tables.matter_memberships = [
+            { matter_id: "matter-1", user_id: "member-1", role: "editor", status: "active" },
+        ];
+    });
+
+    it("answers 404 to the organization owner, as if it did not exist", async () => {
+        for (const path of ["/projects/proj-1", "/projects/proj-1/people"]) {
+            const res = await request(app).get(path).set(...AUTH);
+            expect(res.status).toBe(404);
+            expect(JSON.stringify(res.body)).not.toContain("Matter Alpha");
+        }
+    });
+
+    it("keeps working for the matter team", async () => {
+        as("member-1", "member@firm.example");
+        const res = await request(app).get("/projects/proj-1").set(...AUTH);
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBe("proj-1");
+    });
+
+    it("leaves it out of the owner's document picker", async () => {
+        const res = await request(app)
+            .get("/projects?view=directory-search&search=Matter")
+            .set(...AUTH);
+        expect(res.status).toBe(200);
+        expect(JSON.stringify(res.body)).not.toContain("proj-1");
+    });
+});
+
 describe("project visibility over HTTP", () => {
     const setVisibility = (visibility: unknown) =>
         request(app)

@@ -29,7 +29,6 @@
 // recipient's consent, not just the inviter's intent.
 
 import type { OrgMemberHandover } from "@mike/contracts";
-import { listOrgPrivateContentAccess } from "./orgPrivateContent";
 import type { Db } from "./supabase";
 import { recordAudit } from "./audit";
 import {
@@ -39,6 +38,7 @@ import {
     isOrgOwner,
     isOrgRole,
     loadOwnerlessOrgItemIds,
+    loadPrivateMatterDeniedProjectIds,
     normalizeEmail,
     resolveOrgContentRole,
     strongerOrgRole,
@@ -373,9 +373,6 @@ export async function listOrgResources(
         isOrgOwner(role) ? [params.orgId] : [],
     );
 
-    const privateAccess = await listOrgPrivateContentAccess(
-        db, isOrgAdmin(role) ? [params.orgId] : [], params.userId,
-    );
 
     const visible = <
         T extends { id?: unknown; user_id?: unknown; visibility?: unknown },
@@ -383,7 +380,6 @@ export async function listOrgResources(
         rows: T[],
         overrideById: Map<string, unknown>,
         ownerlessIds: Set<string>,
-        privateIds?: Set<string>,
     ) =>
         rows.filter((row) => {
             const override =
@@ -398,24 +394,34 @@ export async function listOrgResources(
                     visibility: row.visibility,
                     ownerless:
                         typeof row.id === "string" && ownerlessIds.has(row.id),
-                }) !== null || (typeof row.id === "string" && privateIds?.has(row.id) === true)
+                }) !== null
             );
         });
 
     type Row = { id?: unknown; user_id?: unknown; visibility?: unknown };
+    // LiTT C2: no private matter's project is listed outside its team.
+    const projectRows = (projectsResult.data ?? []) as Row[];
+    let deniedProjects: Set<string>;
+    try {
+        deniedProjects = await loadPrivateMatterDeniedProjectIds(
+            db,
+            params.userId,
+            projectRows.map((row) => row.id).filter((id): id is string => typeof id === "string"),
+        );
+    } catch {
+        return { ok: false, kind: "db_error", detail: "Failed to resolve private matter access" };
+    }
     return {
         ok: true,
         projects: visible(
-            (projectsResult.data ?? []) as Row[],
+            projectRows.filter((row) => !(typeof row.id === "string" && deniedProjects.has(row.id))),
             projectOverrideById,
             ownerless.projects,
-            privateAccess.get("project"),
         ),
         workflows: visible(
             (workflowsResult.data ?? []) as Row[],
             workflowOverrideById,
             ownerless.workflows,
-            privateAccess.get("workflow"),
         ),
     };
 }
