@@ -724,9 +724,13 @@ describe("deleteUserAccountData", () => {
         expect(tables.workflow_open_source_submissions).toEqual([]);
         expect(ids(tables.workflows)).toEqual(["w-other"]);
 
-        // Audit rows carry PII (email, titles, prompt excerpts) and must be
-        // purged on account deletion — only the other user's row survives.
-        expect(ids(tables.audit_events)).toEqual(["a-other"]);
+        // audit_events is insert-only in LiTT (C3): the cascade leaves every
+        // audit row as it was; TD-008 decides what erasure may do with them.
+        expect(tables.audit_events).toEqual([
+            { id: "a1", user_id: "u1" },
+            { id: "a2", user_id: "u1" },
+            { id: "a-other", user_id: "u2" },
+        ]);
 
         // Private app memory and personal-project memory are emptied under
         // their row locks before their owner rows cascade. A colleague's

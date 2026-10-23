@@ -15,6 +15,7 @@ import {
     type AccountDeletionOrgBlocker,
 } from "./user.dataCleanup";
 import { type Db, errorMessage } from "./user.shared";
+import { accountDeletionAvailable } from "./user.retentionGate";
 
 /** Explain which organizations need an owner before account deletion. */
 export function describeAccountDeletionBlockers(
@@ -52,8 +53,12 @@ export async function deleteUserAccount(
           blockers: AccountDeletionOrgBlocker[];
           error?: undefined;
       }
+    | { ok: false; kind: "account_deletion_unavailable"; error?: undefined }
     | { ok: false; kind?: undefined; error: unknown }
 > {
+    // TD-008 (user.retentionGate.ts): refuse before the first read or write.
+    if (!accountDeletionAvailable())
+        return { ok: false, kind: "account_deletion_unavailable" };
     try {
         // ORGANIZATIONS FIRST. An account that is the only owner of an
         // team organization cannot be deleted, even when it is empty:

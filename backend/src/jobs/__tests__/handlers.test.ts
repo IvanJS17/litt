@@ -34,6 +34,15 @@ vi.mock("../../modules/user/user.dataCleanup", () => ({
     listOrgsBlockingAccountDeletion: () => listOrgsBlockingAccountDeletion(),
 }));
 
+// TD-008 retention gate: closed for real (see the refusal test below); the
+// upstream cascade tests open it.
+const accountDeletionGate = vi.hoisted(() => ({ open: true }));
+vi.mock("../../modules/user/user.retentionGate", async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import("../../modules/user/user.retentionGate")>();
+    return { ...actual, accountDeletionAvailable: () => accountDeletionGate.open };
+});
+
 const buildUserAccountExport =
     vi.fn<
         (
@@ -275,6 +284,26 @@ describe("handleChatTurnAudit", () => {
 });
 
 describe("handleAccountDelete", () => {
+    it("refuses, terminally, before any read or write while TD-008 is open", async () => {
+        accountDeletionGate.open = false;
+        try {
+            const db = makeDb([]);
+            await expect(
+                handleAccountDelete(
+                    db as never,
+                    JOB("account.delete", { userId: "u1", userEmail: "u@x.test" }),
+                ),
+            ).rejects.toThrow(new NonRetryableJobError("account_deletion_unavailable"));
+            expect(listOrgsBlockingAccountDeletion).not.toHaveBeenCalled();
+            expect(deleteUserAccountData).not.toHaveBeenCalled();
+            expect(db.auth.admin.deleteUser).not.toHaveBeenCalled();
+            expect(db.deletes).toHaveLength(0);
+            expect(db.selects).toHaveLength(0);
+        } finally {
+            accountDeletionGate.open = true;
+        }
+    });
+
     it("refuses, terminally, before destroying anything when an org blocks it", async () => {
         // The route answers 409 for this account, but an org can gain a
         // member between the request and the job, and old rows can be

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 
 // ---------------------------------------------------------------------------
@@ -198,6 +198,15 @@ function mockSupabase() {
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(() => mockSupabase()),
 }));
+
+// TD-008 retention gate. The real gate answers false, which is what the
+// refusal tests below exercise; the upstream cascade tests open it.
+const accountDeletionGate = vi.hoisted(() => ({ open: false }));
+vi.mock("../../modules/user/user.retentionGate", async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import("../../modules/user/user.retentionGate")>();
+    return { ...actual, accountDeletionAvailable: () => accountDeletionGate.open };
+});
 
 // The DB-queue runner's enabled flag is what the account-delete and export
 // routes branch on; keep the rest of the module real.
@@ -1780,127 +1789,158 @@ describe("user.routes", () => {
             );
         });
 
-        // ERASURE ORDERING. documents.user_id references auth.users ON DELETE
-        // CASCADE (and document_versions cascades from documents), so deleting
-        // the auth user is what destroys the rows recording where the account's
-        // files live. It must therefore happen LAST — inside the job, after the
-        // cascade — never in this request.
-        it("DELETE /user/account schedules the cascade and does NOT delete the auth user yet", async () => {
-            supabaseState.tables.db_jobs = {
-                data: { id: "job-1" },
-                error: null,
-            };
+        // TD-008 / ledger §16.2 item 4: account deletion refuses before its
+        // first mutation, in both the queued and the inline path.
+        it.each([true, false])(
+            "DELETE /user/account is refused before any read or write (runner enabled: %s)",
+            async (runner) => {
+                accountDeletionGate.open = false;
+                dbJobsEnabled.mockReturnValue(runner);
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+                expect(res.status).toBe(405);
+                expect(res.body.detail).toMatch(/Account deletion is not available yet/);
+                expect(listOrgsBlockingAccountDeletion).not.toHaveBeenCalled();
+                expect(supabaseRpc).not.toHaveBeenCalled();
+                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
+                expect(adminSignOut).not.toHaveBeenCalled();
+                expect(deleteUserAccountData).not.toHaveBeenCalled();
+                expect(adminDeleteUser).not.toHaveBeenCalled();
+            },
+        );
 
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
-
-            expect(res.status).toBe(204);
-            expect(supabaseRpc).toHaveBeenCalledWith("request_account_deletion", {
-                p_user_id: "u1", p_user_email: "u1@test.local",
+        describe("once the retention gate opens (upstream cascade)", () => {
+            beforeEach(() => {
+                accountDeletionGate.open = true;
             });
-            // ...auth user still present, so the cascade can still read the
-            // storage paths it is about to delete.
-            expect(adminDeleteUser).not.toHaveBeenCalled();
-            // Sessions are revoked immediately all the same: the account is
-            // unusable from the moment this returns.
-            expect(adminSignOut).toHaveBeenCalledWith("test-token", "global");
-        });
-
-        // SOLE-ADMIN REFUSAL. Deleting this account would either hand the
-        // organization to an arbitrary successor or strand it with no members
-        // at all, so the product refuses and names the organizations.
-        it("DELETE /user/account returns 409 for the sole owner of a live org", async () => {
-            listOrgsBlockingAccountDeletion.mockResolvedValue([
-                { org_id: "o1", name: "Org A", reason: "members" },
-                { org_id: "o2", name: "Org B", reason: "content" },
-            ]);
-
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
-
-            expect(res.status).toBe(409);
-            expect(res.body.code).toBe("org_successor_required");
-            expect(res.body.detail).toBe(
-                "You are the only owner of Org A. Make another member an owner, or delete the organization, before deleting your account. You are the only owner of Org B, and must appoint another owner or explicitly delete the organization before deleting your account.",
-            );
-            expect(res.body.organizations).toEqual([
-                { org_id: "o1", name: "Org A", reason: "members" },
-                { org_id: "o2", name: "Org B", reason: "content" },
-            ]);
-            // Nothing was scheduled, nothing was revoked, nothing was
-            // destroyed — the user is still signed in and can appoint an
-            // owner. The old behaviour answered 204, revoked the session and
-            // then failed the job forever.
-            expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
-            expect(adminSignOut).not.toHaveBeenCalled();
-            expect(deleteUserAccountData).not.toHaveBeenCalled();
-        });
-
-        it("DELETE /user/account refuses the inline path for a sole owner too", async () => {
-            // The no-runner fallback runs the cascade synchronously, so the
-            // check must gate it as well.
-            dbJobsEnabled.mockReturnValue(false);
-            listOrgsBlockingAccountDeletion.mockResolvedValue([
-                { org_id: "o1", name: "Org A", reason: "members" },
-            ]);
-
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
-
-            expect(res.status).toBe(409);
-            expect(deleteUserAccountData).not.toHaveBeenCalled();
-            expect(adminDeleteUser).not.toHaveBeenCalled();
-        });
-
-        it("DELETE /user/account runs inline when no runner will drain the queue", async () => {
-            dbJobsEnabled.mockReturnValue(false);
-
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
-
-            expect(res.status).toBe(204);
-            // Data first, auth last — main's ordering, done synchronously.
-            expect(deleteUserAccountData).toHaveBeenCalledWith(
-                expect.anything(),
-                "u1",
-                "u1@test.local",
-            );
-            expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
-        });
-
-        it("DELETE /user/account returns 500 when the inline auth-user delete errors", async () => {
-            dbJobsEnabled.mockReturnValue(false);
-            supabaseState.adminDeleteUser = { error: { message: "auth boom" } };
-
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
-
-            expect(res.status).toBe(500);
-            expect(res.body.detail).toBe(
-                "Something went wrong. Please try again.",
-            );
-        });
-
-        it("DELETE /user/account returns 500 when the cascade cannot be scheduled", async () => {
-            // Nothing has been destroyed yet, so the request is cleanly
-            // retriable — it must not answer 204.
-            supabaseRpc.mockResolvedValueOnce({
-                data: null,
-                error: { code: "08006", message: "connection lost" },
+            afterEach(() => {
+                accountDeletionGate.open = false;
             });
 
-            const res = await request(app)
-                .delete("/user/account")
-                .set(...AUTH);
+            // ERASURE ORDERING. documents.user_id references auth.users ON DELETE
+            // CASCADE (and document_versions cascades from documents), so deleting
+            // the auth user is what destroys the rows recording where the account's
+            // files live. It must therefore happen LAST — inside the job, after the
+            // cascade — never in this request.
+            it("DELETE /user/account schedules the cascade and does NOT delete the auth user yet", async () => {
+                supabaseState.tables.db_jobs = {
+                    data: { id: "job-1" },
+                    error: null,
+                };
 
-            expect(res.status).toBe(500);
-            expect(deleteUserAccountData).not.toHaveBeenCalled();
-            expect(adminSignOut).not.toHaveBeenCalled();
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(204);
+                expect(supabaseRpc).toHaveBeenCalledWith("request_account_deletion", {
+                    p_user_id: "u1", p_user_email: "u1@test.local",
+                });
+                // ...auth user still present, so the cascade can still read the
+                // storage paths it is about to delete.
+                expect(adminDeleteUser).not.toHaveBeenCalled();
+                // Sessions are revoked immediately all the same: the account is
+                // unusable from the moment this returns.
+                expect(adminSignOut).toHaveBeenCalledWith("test-token", "global");
+            });
+
+            // SOLE-ADMIN REFUSAL. Deleting this account would either hand the
+            // organization to an arbitrary successor or strand it with no members
+            // at all, so the product refuses and names the organizations.
+            it("DELETE /user/account returns 409 for the sole owner of a live org", async () => {
+                listOrgsBlockingAccountDeletion.mockResolvedValue([
+                    { org_id: "o1", name: "Org A", reason: "members" },
+                    { org_id: "o2", name: "Org B", reason: "content" },
+                ]);
+
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(409);
+                expect(res.body.code).toBe("org_successor_required");
+                expect(res.body.detail).toBe(
+                    "You are the only owner of Org A. Make another member an owner, or delete the organization, before deleting your account. You are the only owner of Org B, and must appoint another owner or explicitly delete the organization before deleting your account.",
+                );
+                expect(res.body.organizations).toEqual([
+                    { org_id: "o1", name: "Org A", reason: "members" },
+                    { org_id: "o2", name: "Org B", reason: "content" },
+                ]);
+                // Nothing was scheduled, nothing was revoked, nothing was
+                // destroyed — the user is still signed in and can appoint an
+                // owner. The old behaviour answered 204, revoked the session and
+                // then failed the job forever.
+                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
+                expect(adminSignOut).not.toHaveBeenCalled();
+                expect(deleteUserAccountData).not.toHaveBeenCalled();
+            });
+
+            it("DELETE /user/account refuses the inline path for a sole owner too", async () => {
+                // The no-runner fallback runs the cascade synchronously, so the
+                // check must gate it as well.
+                dbJobsEnabled.mockReturnValue(false);
+                listOrgsBlockingAccountDeletion.mockResolvedValue([
+                    { org_id: "o1", name: "Org A", reason: "members" },
+                ]);
+
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(409);
+                expect(deleteUserAccountData).not.toHaveBeenCalled();
+                expect(adminDeleteUser).not.toHaveBeenCalled();
+            });
+
+            it("DELETE /user/account runs inline when no runner will drain the queue", async () => {
+                dbJobsEnabled.mockReturnValue(false);
+
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(204);
+                // Data first, auth last — main's ordering, done synchronously.
+                expect(deleteUserAccountData).toHaveBeenCalledWith(
+                    expect.anything(),
+                    "u1",
+                    "u1@test.local",
+                );
+                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
+            });
+
+            it("DELETE /user/account returns 500 when the inline auth-user delete errors", async () => {
+                dbJobsEnabled.mockReturnValue(false);
+                supabaseState.adminDeleteUser = { error: { message: "auth boom" } };
+
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(500);
+                expect(res.body.detail).toBe(
+                    "Something went wrong. Please try again.",
+                );
+            });
+
+            it("DELETE /user/account returns 500 when the cascade cannot be scheduled", async () => {
+                // Nothing has been destroyed yet, so the request is cleanly
+                // retriable — it must not answer 204.
+                supabaseRpc.mockResolvedValueOnce({
+                    data: null,
+                    error: { code: "08006", message: "connection lost" },
+                });
+
+                const res = await request(app)
+                    .delete("/user/account")
+                    .set(...AUTH);
+
+                expect(res.status).toBe(500);
+                expect(deleteUserAccountData).not.toHaveBeenCalled();
+                expect(adminSignOut).not.toHaveBeenCalled();
+            });
+
         });
 
         it("DELETE /user/chats returns 500 when cleanup throws", async () => {

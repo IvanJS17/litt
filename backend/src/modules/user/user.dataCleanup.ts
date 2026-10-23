@@ -976,10 +976,9 @@ export async function deleteUserAccountData(
                   .delete()
                   .eq("shared_with_email", userEmail.trim().toLowerCase())
             : Promise.resolve({ error: null }),
-        // Personal history is erased; organization history keeps its action
-        // evidence without the departing account identifier or email.
-        db.from("audit_events").delete().eq("user_id", userId).is("org_id", null),
-        db.from("audit_events").update({ user_id: null, user_email: null }).eq("user_id", userId).not("org_id", "is", null),
+        // audit_events is insert-only in LiTT (migration 20261023_11, C3):
+        // no cleanup deletes or rewrites it. What account erasure may do with
+        // audit history is TD-008's decision (user.retentionGate.ts).
         db.from("quick_actions").delete().eq("user_id", userId),
         db
             .from("default_workflow_installations")

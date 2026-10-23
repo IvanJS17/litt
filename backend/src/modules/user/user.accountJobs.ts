@@ -6,11 +6,17 @@ import {
 import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { deleteFile } from "../../lib/storage";
 import { type Db, type DbJob } from "../../lib/dbq/types";
+import { accountDeletionAvailable } from "./user.retentionGate";
 
 export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
     const userId = job.payload.userId as string | undefined;
     if (!userId) return;
     const userEmail = (job.payload.userEmail as string | undefined) ?? null;
+
+    // TD-008 (user.retentionGate.ts): a queued or requeued deletion refuses
+    // before its first read or write, terminally.
+    if (!accountDeletionAvailable())
+        throw new NonRetryableJobError("account_deletion_unavailable");
 
     // REFUSAL BEFORE DESTRUCTION. The route already answered 409 for an
     // account that is the sole owner of an organization with members or

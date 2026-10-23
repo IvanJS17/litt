@@ -668,120 +668,45 @@ describe("org membership", () => {
     });
 });
 
-describe("organization workspace", () => {
-    it("lists only organization-scoped projects and workflows", async () => {
-        as("member-1", "member@firm.example");
-        const res = await request(app)
-            .get("/orgs/org-1/resources")
-            .set(...AUTH);
-        expect(res.status).toBe(200);
-        expect(res.body.projects).toEqual([
-            expect.objectContaining({ id: "proj-1", org_id: "org-1" }),
-        ]);
-        expect(res.body.workflows).toEqual([
-            expect.objectContaining({ id: "workflow-1", org_id: "org-1" }),
-        ]);
-        expect(res.body).not.toHaveProperty("chats");
-        expect(res.body).not.toHaveProperty("reviews");
-    });
+describe("unsupported organization endpoints", () => {
+    // LiTT C5 and the matrix row "Account and organization deletion"
+    // (docs/UPSTREAM_SYNC_PLAN.md §3, docs/UPSTREAM_COMPATIBILITY_LEDGER.md
+    // §16.2.4): until the retention decision (TD-008) these answer 405 before
+    // their first mutation. The organization-wide resource list also stays
+    // closed until it filters by matter membership. Changing this block needs
+    // an explicit Reviewer verdict, not a slice adjustment.
+    const UNSUPPORTED = [
+        ["delete", "/orgs/org-1"],
+        ["get", "/orgs/org-1/resources"],
+        ["delete", "/orgs/org-1/data/chats"],
+        ["delete", "/orgs/org-1/data/tabular-reviews"],
+        ["delete", "/orgs/org-1/data/projects"],
+        ["delete", "/orgs/org-1/data/memories"],
+        ["delete", "/orgs/org-1/data/playbooks"],
+        ["delete", "/orgs/org-1/data/everything"],
+    ] as const;
 
-    it("hides the resource inventory from non-members", async () => {
-        as("stranger", "stranger@example.com");
-        const res = await request(app)
-            .get("/orgs/org-1/resources")
-            .set(...AUTH);
-        expect(res.status).toBe(404);
-    });
+    it.each(UNSUPPORTED)(
+        "%s %s answers 405 to an owner and touches no row",
+        async (method, path) => {
+            const before = JSON.stringify(tables);
+            const res = await request(app)[method](path).set(...AUTH);
+            expect(res.status).toBe(405);
+            expect(res.body).toEqual({ detail: "Not supported" });
+            expect(JSON.stringify(tables)).toBe(before);
+        },
+    );
 
-    it("soft-deletes a nonempty organization without purging its content", async () => {
-        const before = JSON.stringify(tables.projects);
-        const res = await request(app).delete("/orgs/org-1").set(...AUTH);
-        expect(res.status).toBe(204);
-        expect(tables.organizations[0].deleted_at).toBeTruthy();
-        expect(JSON.stringify(tables.projects)).toBe(before);
-    });
-
-    it("reports a failed lifecycle transaction as an error", async () => {
-        writeErrors.organizations = { message: "boom" };
-        const res = await request(app).delete("/orgs/org-1").set(...AUTH);
-        expect(res.status).toBe(500);
-        expect(JSON.stringify(res.body)).not.toContain("boom");
-        expect(tables.organizations[0].deleted_at).toBeUndefined();
-    });
-
-    it.each([
-        ["chats", "chats"],
-        ["tabular-reviews", "tabular_reviews"],
-        ["projects", "projects"],
-        ["playbooks", "playbooks"],
-    ])("lets an owner delete all organization %s", async (kind, table) => {
-        expect(
-            tables[table].filter((row) => row.org_id === "org-1").length,
-        ).toBeGreaterThan(0);
-        const res = await request(app)
-            .delete(`/orgs/org-1/data/${kind}`)
-            .set(...AUTH);
-        expect(res.status).toBe(204);
-        expect(tables[table].filter((row) => row.org_id === "org-1")).toEqual([]);
-        expect(tables.organizations).toHaveLength(1);
-        expect(tables.audit_events.at(-1)).toMatchObject({
-            action: "org.data.deleted",
-        });
-    });
-
-    it("refuses organization data deletion to anyone but an owner", async () => {
-        tables.org_members[1].role = "admin";
-        as("member-1", "member@firm.example");
-        const res = await request(app)
-            .delete("/orgs/org-1/data/projects")
-            .set(...AUTH);
-        expect(res.status).toBe(403);
-        expect(res.body.detail).toBe("Only an organization owner can do that.");
-        expect(
-            tables.projects.filter((row) => row.org_id === "org-1").length,
-        ).toBeGreaterThan(0);
-    });
-
-    it("refuses organization playbook deletion to an admin", async () => {
-        tables.org_members[1].role = "admin";
-        as("member-1", "member@firm.example");
-        const res = await request(app)
-            .delete("/orgs/org-1/data/playbooks")
-            .set(...AUTH);
-        expect(res.status).toBe(403);
-        expect(tables.playbooks.map((row) => row.id)).toEqual(["playbook-1"]);
-    });
-
-    it("answers 404 for a kind of organization data that does not exist", async () => {
-        const res = await request(app)
-            .delete("/orgs/org-1/data/everything")
-            .set(...AUTH);
-        expect(res.status).toBe(404);
-    });
-
-    it("refuses organization deletion to a plain member", async () => {
-        as("member-1", "member@firm.example");
-        const res = await request(app)
-            .delete("/orgs/org-1")
-            .set(...AUTH);
-        expect(res.status).toBe(403);
-        expect(tables.organizations).toHaveLength(1);
-    });
-
-    it("refuses organization deletion to an admin, even an empty one", async () => {
-        tables.org_members[1].role = "admin";
-        tables.projects = [];
-        tables.chats = [];
-        tables.tabular_reviews = [];
-        tables.workflows = [];
-        as("member-1", "member@firm.example");
-        const res = await request(app)
-            .delete("/orgs/org-1")
-            .set(...AUTH);
-        expect(res.status).toBe(403);
-        expect(res.body.detail).toBe("Only an organization owner can do that.");
-        expect(tables.organizations).toHaveLength(1);
-    });
+    it.each(UNSUPPORTED)(
+        "%s %s answers 405 to a plain member too",
+        async (method, path) => {
+            as("member-1", "member@firm.example");
+            const before = JSON.stringify(tables);
+            const res = await request(app)[method](path).set(...AUTH);
+            expect(res.status).toBe(405);
+            expect(JSON.stringify(tables)).toBe(before);
+        },
+    );
 });
 
 // ---------------------------------------------------------------------------
@@ -1271,11 +1196,6 @@ describe("project visibility over HTTP", () => {
             .get("/projects/proj-1/people")
             .set(...AUTH);
         expect(people.status).toBe(404);
-        // Nor does it appear among the organization's projects for them.
-        const resources = await request(app)
-            .get("/orgs/org-1/resources")
-            .set(...AUTH);
-        expect(resources.body.projects).toEqual([]);
     });
 
     it("admits a member to a private project at the role it was shared with them", async () => {

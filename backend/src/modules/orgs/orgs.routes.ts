@@ -19,19 +19,12 @@ import { isPersonalOrg } from "../../lib/personalOrgs";
 import { parsePaginationQuery } from "../../lib/pagination";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import {
-    listPrivateContent,
-    setPrivateContentPermission,
-    changePrivateContentAccess,
     listDeletedOrganizations,
     restoreOrganization,
     listMyOrgs,
     createOrg,
     getOrg,
     updateOrg,
-    deleteOrg,
-    deleteOrgData,
-    isOrgDataKind,
-    listOrgResources,
     listMembers,
     updateMember,
     removeMember,
@@ -74,41 +67,17 @@ function refusePersonalOrg(req: Request, res: Response, next: NextFunction) {
 }
 const requireOrgAuth = [requireAuth, refusePersonalOrg];
 
-orgsRouter.get("/:orgId/private-content", requireOrgAuth, asyncRoute(async (req, res) => {
-    const result = await listPrivateContent(createServerSupabase(), {
-        orgId: req.params.orgId, userId: res.locals.userId,
-        ...parsePaginationQuery(req.query), search: req.query.search,
-    });
-    if (!result.ok) return sendServiceFailure(res, result);
-    res.json(result.data);
-}));
-
-orgsRouter.put("/:orgId/members/:userId/private-content-permission", requireOrgAuth, asyncRoute(async (req, res) => {
-    const result = await setPrivateContentPermission(createServerSupabase(), {
-        orgId: req.params.orgId, userId: res.locals.userId,
-        targetUserId: req.params.userId, enabled: req.body?.enabled,
-    });
-    if (!result.ok) return sendServiceFailure(res, result);
-    res.status(204).send();
-}));
-
-orgsRouter.post("/:orgId/private-content/:kind/:itemId/open", requireOrgAuth, asyncRoute(async (req, res) => {
-    const result = await changePrivateContentAccess(createServerSupabase(), {
-        orgId: req.params.orgId, userId: res.locals.userId,
-        kind: req.params.kind, itemId: req.params.itemId, open: true,
-    });
-    if (!result.ok) return sendServiceFailure(res, result);
-    res.status(204).send();
-}));
-
-orgsRouter.delete("/:orgId/private-content/:kind/:itemId", requireOrgAuth, asyncRoute(async (req, res) => {
-    const result = await changePrivateContentAccess(createServerSupabase(), {
-        orgId: req.params.orgId, userId: res.locals.userId,
-        kind: req.params.kind, itemId: req.params.itemId, open: false,
-    });
-    if (!result.ok) return sendServiceFailure(res, result);
-    res.status(204).send();
-}));
+// Administrative access to members' private content is not part of LiTT
+// (C2, docs/UPSTREAM_SYNC_PLAN.md §3 and §4.2): organization owners and admins
+// have no standing on private work, so these routes answer 405 and reach no
+// RPC. can_access_org_private_content is also false in SQL (20261023_10).
+function notSupported(_req: Request, res: Response) {
+    res.status(405).json({ detail: "Not supported" });
+}
+orgsRouter.get("/:orgId/private-content", requireOrgAuth, notSupported);
+orgsRouter.put("/:orgId/members/:userId/private-content-permission", requireOrgAuth, notSupported);
+orgsRouter.post("/:orgId/private-content/:kind/:itemId/open", requireOrgAuth, notSupported);
+orgsRouter.delete("/:orgId/private-content/:kind/:itemId", requireOrgAuth, notSupported);
 
 orgsRouter.get("/deleted", requireAuth, asyncRoute(async (_req, res) => {
     const result = await listDeletedOrganizations(createServerSupabase(), res.locals.userId);
@@ -255,61 +224,17 @@ orgsRouter.delete("/:orgId/logo", requireOrgAuth, asyncRoute(async (req, res) =>
     res.json({ logo_updated_at: result.logo_updated_at });
 }));
 
-// DELETE /orgs/:orgId/data/:kind — permanently delete one kind of content
-// across the organization (owner only): chats, tabular-reviews, projects,
-// memories or playbooks. The organization-level twin of the DELETE /user/*
-// routes.
-orgsRouter.delete(
-    "/:orgId/data/:kind",
-    requireOrgAuth,
-    requireMfaIfEnrolled,
-    asyncRoute(async (req, res) => {
-        const kind = req.params.kind;
-        if (!isOrgDataKind(kind))
-            return void res.status(404).json({ detail: "Not found" });
-        const db = createServerSupabase();
-        const result = await deleteOrgData(db, {
-            userId: res.locals.userId as string,
-            userEmail: res.locals.userEmail as string | undefined,
-            orgId: req.params.orgId,
-            kind,
-        });
-        if (!result.ok) return sendOrgFailure(res, result);
-        res.status(204).send();
-    }),
-);
+// DELETE /orgs/:orgId/data/:kind, DELETE /orgs/:orgId — NOT SUPPORTED in
+// LiTT until the retention decision (TD-008): both destroy content and
+// evidence across the organization, private matters included, which no
+// owner can see (C2, C3, C5). They answer 405 before any mutation.
+orgsRouter.delete("/:orgId/data/:kind", requireOrgAuth, notSupported);
+orgsRouter.delete("/:orgId", requireOrgAuth, notSupported);
 
-// DELETE /orgs/:orgId — delete an org and everything it owns (owner only).
-// Organization-owned resources are destroyed with it; they never become
-// anyone's personal data as a side effect.
-orgsRouter.delete("/:orgId", requireOrgAuth, requireMfaIfEnrolled, asyncRoute(async (req, res) => {
-    const userId = res.locals.userId as string;
-    const db = createServerSupabase();
-    const result = await deleteOrg(db, {
-        userId,
-        userEmail: res.locals.userEmail as string | undefined,
-        orgId: req.params.orgId,
-    });
-    if (!result.ok) return sendOrgFailure(res, result);
-    res.status(204).send();
-}));
-
-// GET /orgs/:orgId/resources — every organization-scoped project and workflow.
-// Chats and tabular reviews only inherit organization access from projects and
-// are browsed inside those projects rather than as independent org resources.
-orgsRouter.get("/:orgId/resources", requireOrgAuth, asyncRoute(async (req, res) => {
-    const userId = res.locals.userId as string;
-    const db = createServerSupabase();
-    const result = await listOrgResources(db, {
-        userId,
-        orgId: req.params.orgId,
-    });
-    if (!result.ok) return sendOrgFailure(res, result);
-    res.json({
-        projects: result.projects,
-        workflows: result.workflows,
-    });
-}));
+// GET /orgs/:orgId/resources — NOT SUPPORTED in LiTT (C5) until listing
+// filters by matter membership and a Reviewer verdict accepts that filter;
+// enabled earlier it would list other teams' private matters.
+orgsRouter.get("/:orgId/resources", requireOrgAuth, notSupported);
 
 // GET /orgs/:orgId/members — the accepted roster (any member).
 orgsRouter.get("/:orgId/members", requireOrgAuth, asyncRoute(async (req, res) => {

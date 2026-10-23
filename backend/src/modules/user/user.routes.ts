@@ -32,6 +32,7 @@ import { sendServiceFailure } from "../../lib/serviceResult";
 import { dbJobsEnabled } from "../../lib/dbq/runner";
 import { buildContentDisposition } from "../../lib/storage";
 import { normalizeApiKeyProvider } from "./user.apiKeyStore";
+import { ACCOUNT_DELETION_REFUSAL } from "./user.retentionGate";
 import { completeUserMcpConnectorOAuth } from "../../lib/mcpConnectors";
 import { conciseMcpErrorMessage } from "../../lib/mcp/errors";
 import {
@@ -1352,6 +1353,10 @@ userRouter.delete(
         const db = createServerSupabase();
         const result = await deleteUserAccount(db, userId, userEmail, token);
         if (!result.ok) {
+            if (result.kind === "account_deletion_unavailable")
+                return void res
+                    .status(405)
+                    .json({ detail: ACCOUNT_DELETION_REFUSAL });
             if ("kind" in result && result.kind === "org_successor_required")
                 return void res.status(409).json({
                     code: "org_successor_required",
