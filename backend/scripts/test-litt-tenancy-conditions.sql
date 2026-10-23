@@ -158,6 +158,17 @@ begin
   end;
 end $$;
 
+-- Identity: sign-in MFA defaults on (20261023_14) --------------------------
+do $$ begin
+  perform pg_temp.check('MFA on sign-in defaults on for new profiles',
+    (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'user_profiles'
+        and column_name = 'mfa_on_login') = 'true',
+    (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'user_profiles'
+        and column_name = 'mfa_on_login'));
+end $$;
+
 -- C3 ---------------------------------------------------------------------
 insert into public.audit_events(user_id, org_id, action)
 values ('00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000b1', 'litt.test');

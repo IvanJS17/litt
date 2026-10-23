@@ -53,7 +53,8 @@ async function enforceLoginMfaIfEnabled(
       error: error.message,
       code: error.code,
     });
-    if (error.code === "42703") return true;
+    // LiTT: fail closed. An unreadable preference (a missing column
+    // included) is not "MFA is off".
     sendInternalError(res, error);
     return false;
   }

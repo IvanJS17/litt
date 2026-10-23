@@ -15891,6 +15891,19 @@ select 'tabular_review'::text kind,item.id item_id,
   ) select * from roots union all select * from documents;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 20261023_14_litt_mfa_on_login_default.sql
+-- ---------------------------------------------------------------------------
+--
+-- MFA on sign-in is on by default (LiTT sync 2026-10-23, S2; ledger §16.3
+-- "Sign-in, MFA and identity": the LiTT variant wins on MFA). It only takes
+-- effect for an account that has enrolled a factor: sign-in then requires
+-- it. Existing rows keep the choice already made.
+--
+-- Re-runnable: set default is idempotent.
+
+alter table public.user_profiles alter column mfa_on_login set default true;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -16066,5 +16079,6 @@ insert into public.schema_migrations (filename) values
   ('20261023_10_litt_private_matter_access.sql'),
   ('20261023_11_litt_append_only_audit.sql'),
   ('20261023_12_litt_no_org_purge.sql'),
-  ('20261023_13_litt_private_matter_lists.sql')
+  ('20261023_13_litt_private_matter_lists.sql'),
+  ('20261023_14_litt_mfa_on_login_default.sql')
 on conflict (filename) do nothing;
