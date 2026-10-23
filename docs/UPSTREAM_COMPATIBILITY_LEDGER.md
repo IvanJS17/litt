@@ -620,3 +620,213 @@ lands.
 | S6 CI and e2e | pending | | |
 | S7 reverts | pending | | |
 | S8 documentation and merge | pending | | |
+
+## 16. Compatibility matrix for the 2026-10-23 sync
+
+This matrix governs slices S2–S7 of
+[`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md). It plays the role that §4 and
+§7 played in the August–September recovery: one row per capability present in
+LiTT, upstream or both, with the side that wins when they collide. The §4 and
+§7 resolutions stay in force unless a row below says that upstream changed the
+capability.
+
+Inputs: upstream `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` and the LiTT tag
+`pre-sync-20261023` (`e3672b5954d2d3f8348fdbf2dcbe034a2725df4f`), read with
+`git show <ref>:<path>`. Upstream has moved on since the intake (its `main`
+was `18035cf6` when this matrix was written); those commits belong to the next
+intake, not to this sync.
+
+### 16.1 How to read the dispositions
+
+The 72 capability groups of the intake (backend `G01`–`G25`, web `FR-01`–`FR-20`
+and `§14-A`–`§14-G`, Word, CI and other `other-01`–`other-20`) were classified
+while strategy A (port upstream into LiTT) was still open, so many of them say
+`defer` because porting was expensive. Under strategy B every upstream
+capability arrives with the base. The matrix therefore re-expresses each group
+with one of five dispositions:
+
+| Disposition | Meaning under strategy B |
+| --- | --- |
+| adopt | The upstream behavior stays as it arrives; at most LiTT branding or wiring is reapplied |
+| port | LiTT-only behavior (no upstream counterpart) is reapplied on the upstream layout |
+| combine | Upstream mechanism plus LiTT policy; the column "Target architecture" names which part wins |
+| gate | The code arrives but stays disabled until the named checks pass and, where stated, the owner decides |
+| reject | The capability is reverted or emptied in the slice named (the content reverts of §4.2 of the plan) |
+
+The column holds exactly one of these five values. When a `combine` row
+inherits a winner from §4 or §7, or when one side's part is only reapplied
+LiTT code, the "Target architecture" column names which part wins.
+
+### 16.2 Corrections to the proposed resolutions
+
+The twelve resolutions proposed for this matrix were checked against both
+trees. Seven hold as written (tenancy, audit, Word, chat, migrations, CI and
+the reject list). Four needed a correction, recorded here with the evidence.
+The provider resolution was replaced by an owner decision of 2026-10-23
+(item 1):
+
+1. **Providers (owner decision, 2026-10-23).** The proposed resolution kept
+   every provider outside six approved families hidden. The owner decided
+   instead that the providers upstream adds are enabled and visible: Google
+   Vertex AI, Azure OpenAI, Azure AI Foundry, Amazon Bedrock, xAI, Mistral,
+   the user's own OpenAI-compatible endpoint (`custom`) and the
+   operator-declared `openai-compatible` endpoints. They sit next to the
+   providers LiTT already has: OpenAI, Anthropic, Gemini, OpenRouter, the
+   Vercel AI Gateway, OpenCode Go and Ollama. The upstream `Provider` union has
+   15 values; LiTT's has 7 (`backend/src/lib/llm/types.ts`, both refs).
+   Governed BYOK still applies to every one of them: provider + model +
+   credential is chosen when the conversation is created and pinned on it,
+   there is no silent fallback, and every call writes egress provenance. Two
+   facts from the code shape the target. First, neither side has a direct
+   DeepSeek adapter or an OpenCode Zen route: DeepSeek models are reachable
+   only as `opencode-go` or OpenRouter models (`backend/src/lib/llm/models.ts`)
+   and the only OpenCode base URL is `https://opencode.ai/zen/go/v1`; they
+   become fixed-host entries on the shared OpenAI-compatible adapter. Second,
+   only part of upstream's egress to configurable addresses is guarded. In
+   `e7ab6bd4:backend/src/lib/llm/providers.ts`, `custom` goes through
+   `customEndpointFetch` → `guardedFetch` (lines 427–467), which validates
+   every redirect hop like the MCP client, but `createConfiguredAdapter` for
+   `openai-compatible` passes `aiSdkFetch` directly (lines 491–517), with no
+   address check. Azure endpoints are limited to Azure host names
+   (`modules/user/user.apiKeys.ts`) and Bedrock and Vertex derive their host
+   from a region or location. The owner's condition applies to a base URL
+   configured by a user: it can never reach loopback, private ranges,
+   link-local or cloud-metadata addresses, checked on every hop. Only `custom`
+   has such a URL: it is saved with the user's key settings
+   (`modules/user/user.apiKeyStore.ts`). Target: `custom` keeps going through
+   `guardedFetch` on every hop, with a RED test. `openai-compatible` is not a
+   user endpoint: its `baseUrl` is declared by the operator in
+   `MIKE_MODEL_CONFIG_JSON` (`backend/src/lib/llm/registry.ts:26`, read by
+   `createConfiguredAdapter`, `providers.ts:479–517`), no user-facing field
+   accepts it (`ProviderSettings` in `lib/llm/types.ts` has
+   `custom: { baseUrl }` and no `openai-compatible` entry), and it may
+   legitimately point at an internal or local
+   inference server. Target for it: the address stays operator-only, with a
+   RED test that no user request or saved setting can set or change it, and
+   every call writes egress provenance with the declared host. Guarding
+   operator endpoints as well would need an explicit owner decision; it is not
+   part of the condition of 2026-10-23. Ollama follows the same operator-only
+   rule as both sides have it today: its address comes only from the
+   deployment environment (`OLLAMA_BASE_URL`, default
+   `http://localhost:11434/v1`), never from a user, and its models are listed
+   only when that server answers (`GET /models/ollama`).
+2. **Playbooks.** Upstream playbooks are not a second system catalog: they are
+   user- or organization-authored rule sets in their own `playbooks` table with
+   no version or content hash (only the user's source file:
+   `source_filename`, `source_storage_key`, `import_model`), and upstream
+   seeds none. Correction:
+   `mike_workflows` stays the only seeded, governed catalog and the Mexican
+   Civil/Mercantile playbook stays there; the `playbooks` table may hold only
+   user-authored content. `playbook_runs` records only `model`, so runs must
+   pin the full route and write evidence, and the import step (`import_model`)
+   is model egress that needs the same provenance.
+3. **DOCX editor.** The license question is answered by the lockfile:
+   `@docx-editor.dev/core`, `react` and `i18n` 2.31.0 are Apache-2.0 and
+   `fonts` is Apache-2.0 AND OFL-1.1 AND the GUST font license, all compatible
+   with AGPL-3.0-only. What remains open is the version contract: upstream
+   autosave replaces the file of the current version
+   (`useDocxAutosave` → `replaceDocumentVersionFile`, upload purpose
+   `document_version_replace` with an expected SHA-256). The same purpose
+   already exists in LiTT. The gate therefore requires that no version
+   referenced by an AI execution, review or approved artifact is ever replaced;
+   if that cannot be proven, editor saves create a new version instead.
+4. **Account deletion.** Organization deletion is already an explicit 405 in
+   LiTT, but account deletion is not fail-closed: `DELETE /user/account` runs the
+   upstream-style cleanup (`backend/src/lib/userDataCleanup.ts`), which deletes
+   `audit_events` by a `user_id` column that LiTT's insert-only table does not
+   have. The deletions run concurrently (`Promise.all`), so on a real database
+   other rows are already gone when the audit delete fails: a partial erasure
+   followed by a 500. Neither test sees it: the unit test
+   (`backend/src/lib/__tests__/userDataCleanup.test.ts`) models an
+   `audit_events.user_id` column and checks the delete, and the integration
+   test (`backend/src/__tests__/integration/user.routes.test.ts`) mocks
+   `deleteUserAccountData` and expects 204.
+   Correction: account deletion, and any other path that would erase evidence,
+   refuses before its first mutation until TD-008 is implemented.
+5. **Drive.** Group `G24` was classified as a whole reject, but upstream #691
+   adds a useful switch: `GOOGLE_WORKSPACE_DISABLED_PROVIDERS` now accepts
+   `google-drive`, after which OAuth start and the Picker answer 404 and the
+   assistant gets no Drive tools. Correction: the switch is kept, with Drive
+   disabled by default; only the CourtListener half of #691 is reverted.
+
+Two findings from the tenancy analysis are also binding here: LiTT has no
+`WorkspaceContext` today (the `FR-09` rationale was wrong), and LiTT enforces
+private-matter denial only in TypeScript, never in the SQL mirror of project
+access, which S2 must close.
+
+### 16.3 Matrix
+
+| Capability | Upstream behavior (e7ab6bd4) | LiTT behavior / invariant | Disposition | Target architecture | Slice | Shared/conflict files | Tests protecting it | Upstream groups |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Backend layout and dead-code cleanup | #295 moves routes into `backend/src/modules/<domain>/` (19 modules) with `architecture.test.ts` (no `src/routes/`, `lib/` may not import `modules/`); later commits delete routes, aliases and helpers without upstream callers | Flat `routes/` + `lib/`; LiTT-only routers (`aiRecovery.ts`, `matterSettings.ts`, upload sessions) and `lib/recovery/**` | adopt | Upstream layout and architecture test become binding. LiTT routers become modules (`modules/ai-recovery`, `modules/matters`). An endpoint removed by the cleanup is restored only where a LiTT client still calls it, with a route-contract test. | S3 | 11 route files split into 24–28 module files (`tabular`, `user`, `projects`, `workflows`, `documents`, `chat`, `projectChat`, `dbq/handlers`, `quickActions`, `orgs`, `downloads`); `backend/src/app.ts` | `backend/src/__tests__/architecture.test.ts`; route integration suites under `backend/src/__tests__/integration/` | G02, G18 |
+| Migrations, schema and ledger | 160 migrations; `schema_migrations` ledger with `backend/scripts/migrate.sh` (advisory lock, transaction by default); clean-install reordering of `schema.sql` | `schema.sql` plus 22 `_recovery_` migrations ordered by hand (`SUPPORTED_RECOVERY_MIGRATION_ORDER`, `KNOWN_SUPPORTED_MIGRATIONS`); fresh and upgraded databases converge | adopt | Upstream runner and ledger are the only mechanism. The 10 LiTT re-issues of upstream migrations are dropped; the 12 LiTT-owned migrations are renumbered after `20261021_04`; `schema.sql` is regenerated with the ledger seeded; the custom ordering is retired. | S1 | `backend/schema.sql`, `backend/migrations/**`, `backend/src/lib/recovery/migrationOrder.ts`, `.github/workflows/schema-drift.yml` | `backend/src/__tests__/migrationLedger.test.ts`; Schema drift fresh-versus-upgraded fingerprint | G23, other-12 |
+| Organizations, workspaces and matters | Two levels: `organizations` + `org_members` (`owner`, `admin`, `member`, no status) and content `org_id`; "workspace" is a list filter; personal organizations (`kind='personal'`); owners and admins can list and open private content (`org_private_content_access`); "ownerless" takeover; creator always owner | Organization → workspace → matter → project; 5/4/4 closed roles with `active`, `inactive`, `revoked`; private matter needs explicit matter membership, creator included; owners and admins get no standing; outsiders get a generic 404; onboarding creates one organization and no personal organization | combine | LiTT policy on upstream tables: `org_members` gains `status` and the epoch; `workspaces`, `workspace_memberships` (decision D1 option b), `matters` (1:1 `project_id` UNIQUE) and `matter_memberships` are re-added. The matter gate runs before the creator branch in `resolveOrgContentRole` and in SQL `project_access_role` and `project_access_scope`. `can_access_private_content` never true, private-content routes absent, ownerless resolves false, personal organizations not provisioned, upstream roles remapped to least privilege. `GET /orgs/:id/resources` answers 405 (C5). Upstream workspace UI (one active workspace, selector, invitations, departed members) is mounted on LiTT workspaces. | S2 (backend), S4 (UI) | `backend/src/lib/access.ts`, `backend/src/lib/orgs.ts`, `backend/src/modules/orgs/orgs.routes.ts`, `backend/schema.sql`, `frontend/src/app/contexts/WorkspaceContext.tsx`, `AppSidebar.tsx` | `backend/src/lib/__tests__/access.test.ts` (creator without membership denied, listing excludes); `recoveryTenancy.migration.test.ts`; `recoveryTenancy.runtime.test.ts`; `orgs.routes.test.ts` (both 405s); new RED: an organization owner gets 404 on another team's private matter in every listing | G20, FR-09 |
+| Organization sharing and access labels | Content `visibility` `private` or `organization` (organization gives `editor` to every member); Public/Private column, access pill, "Organisational Access"; sharing with named people; document text search and History per workspace (#645) | No membership-inherited content role; sharing by grant or override only; private matters never inherited | combine | Labels and sharing apply only to projects and workflows outside a private matter. A private matter never offers or honors `organization` visibility, owner rows or public pills. Grants by email keep the confirmed-email rule. | S2, S4 | `NewProjectModal.tsx`, `ProjectWorkspace.tsx`, `ProjectsOverview.tsx`, `NewWorkflowModal.tsx`, `shared/types.ts`, `mikeApi.ts` | `access.test.ts` ("does not inherit any content role from membership alone"); `NewWorkflowModal.test.tsx`; new RED: organization visibility refused on a private matter | FR-11, §14-F |
+| Access fixes already ported in §14 | Email grants follow address changes; read-only paths cannot write; directory search, workflow-share revocation and audit export scoped; `filterAccessibleDocumentIds` chunked with per-container cache; review cells preserved | Same fixes ported, plus LiTT extensions: exports keep only cells from readable rows; tabular chat messages carry source provenance (`20261022_03`) | combine | Upstream originals arrive with the base; LiTT re-issue migrations are dropped (S1); LiTT extensions (export filtering, tabular chat provenance, TD-023 withholding) are reapplied on the modules. | S2, S3 | `backend/src/lib/access.ts`, `modules/tabular/**`, `modules/projects/**`, `lib/auditExport.ts` | `emailChangeMovesGrants.migration.test.ts`; `canManageDocument.test.ts`; `tabular.routes.test.ts`; `auditExport.test.ts`; `projects.directorySearch.routes.test.ts` | G17, G25, §14-A |
+| Private memory boundary | #452: memory learns only from the actor's own conversation; memory files gain `org_id` | Same boundary ported (`20261022_02`) plus `scope` | adopt | Upstream original kept; LiTT re-issue dropped (S1). Memory inside a private matter follows the matter gate. | S1, S2 | `backend/src/lib/memory/**`, `backend/schema.sql` | `memoryPrivateChatBoundary.migration.test.ts`; `memory.routes.test.ts` | G05 |
+| Audit | Mutable `audit_events` (uuid, `user_id`, `action`, `detail`); `audit_event_org` rewrites attribution on insert or update; organization activity log with actor filter, pagination and display names; audited access to private content; recoverable deletion and purge | Insert-only `audit_events` (bigint, `actor_user_id`, `event_type`, `event_detail`) with `audit_events_insert_only`; attributed `organization_id`; AI evidence insert-only | combine | LiTT table shape and insert-only trigger win. `recordAudit` regains `orgId` and a throwing variant for durable jobs; upstream SQL writers are renamed to the LiTT columns; `audit_event_org` fires on insert only. Upstream activity log, actor filter, pagination and display names are adopted on top. Private-content access logging, recoverable deletion and purge are not adopted (C2, C3). | S2 (backend), S4 (UI) | `backend/src/lib/audit.ts`, `modules/audit/**`, `lib/auditExport.ts`, `backend/schema.sql`, `(pages)/history/page.tsx` | `backend/src/lib/__tests__/recoveryAudit.test.ts`; `audit.test.ts`; `auditExport.test.ts`; `appendOnlyEvidence.test.ts`; new RED: UPDATE and DELETE on `audit_events` raise on the converged schema | G21, FR-12 |
+| Account and organization deletion, member departure | Organization soft delete and purge after 30 days; offboarding with departure archives; account cleanup deletes audit rows; `chats.user_id` set null so organization content survives its author | Organization deletion 405; account deletion runs a cleanup that fails part-way against the insert-only audit (§16.2 item 4) | combine | Every destructive path that touches evidence refuses before its first mutation until TD-008: `DELETE /orgs/:id` 405, account deletion refused with an intentional message, no purge job. Member departure keeps content with the organization (upstream detach semantics) and bumps the authorization epoch; it never deletes evidence. | S2 | `backend/src/lib/userDataCleanup.ts`, `modules/user/user.account.ts`, `modules/orgs/**`, `backend/schema.sql` | `orgs.routes.test.ts` ("unsupported organization endpoints"); `user.routes.test.ts` (account deletion, rewritten to the refusal); new RED: account deletion leaves every row untouched | G20, G21 |
+| Authorization epochs and revocation | None; revocation deletes the `org_members` row | `organizations.authorization_epoch`, bump triggers, `ai_assert_active_matter_access` with `for update`; stale epochs fail sessions and jobs | port | Epoch column and bump triggers on `org_members` (insert, update, delete) and `matter_memberships`; fresh revalidation before sensitive writes and before claiming queued jobs (C4). | S2 | `backend/schema.sql`, tenancy read port, `evaluateAccess.ts` | `tenancyModel.test.ts`; `recoveryTenancy.migration.test.ts`; new RED: a job queued before revocation fails on claim | — |
+| Sign-in, MFA and identity | #529 reworks sign-in messages and recovery; `requireMfaIfEnrolled`; the profile read returns true on a missing column | MFA default-on; `mfa_satisfied` in the request identity; profile read fails closed; Bearer only for named non-browser clients | combine | Upstream flows and messages; LiTT `middleware/auth.ts` variant wins on MFA, fail-closed profile read and the Bearer allowlist; one initial organization at onboarding. | S2 | `backend/src/middleware/auth.ts`, `frontend/src/app/login/**`, `verify-mfa/page.tsx`, `AuthContext.tsx` | `authStateMatrix.test.ts`; `AuthContext.test.tsx`; `authApi.test.ts`; `authRedirects.test.ts` | §14-D |
+| Provider runtime | Tool-call recovery, `read_document` loop cut, provider access and quota explanations, chunk timeouts and per-provider deadlines, reasoning replay for opt-in models, provider-chosen output limit unless `LLM_MAX_OUTPUT_TOKENS` | Governed route resolved before dispatch; explicit and pinned routes fail closed; egress provenance and receipts; fake interception in tests | combine | Upstream runtime as is; LiTT route resolution, typed failures and receipt writing reapplied in front of it. The operator's explicit output limit wins; reasoning is replayed only for models that declare it. | S3 | `backend/src/lib/llm/aiSdk.ts`, `providers.ts`, `types.ts`, `modules/chat/engine/**` | `chat.routes.test.ts`; `tabular.routes.test.ts`; `llmModels.test.ts`; `providerDeadlines.test.ts`; `providerErrors.test.ts` | G06, G14 |
+| Provider catalog, credentials and model selection | Model registry and provider matrix; masked saved keys; personal key overrides; Vertex, Azure, Azure Foundry, Bedrock, xAI, Mistral, custom and OpenAI-compatible endpoints (`custom` guarded per hop, `openai-compatible` not); organization keys and router models (`org_api_keys`, `org_router_models`); `chats` without `credential_ref` or `model_provider` | Seven providers (OpenAI, Anthropic, Gemini, OpenRouter, Vercel AI Gateway, OpenCode Go with DeepSeek models, operator-run Ollama); route = provider + model + versioned `credential_ref`, fixed on the conversation; no silent fallback | combine | Upstream registry, matrix and masked-key UI, with every upstream provider visible (owner decision of 2026-10-23, §16.2 item 1): Vertex, Azure OpenAI, Azure AI Foundry, Bedrock, xAI, Mistral, Vercel, OpenCode Go, the user's own endpoint (`custom`) and the operator-declared `openai-compatible`, next to OpenAI, Anthropic, Gemini, OpenRouter and the operator-run Ollama that LiTT already has. `chats.credential_ref` and `chats.model_provider` restored and used by routing (S3 acceptance), for every provider. DeepSeek and OpenCode Zen are added as fixed-host entries on the OpenAI-compatible adapter. `custom`, the only provider whose base URL a user configures, sends every request through `guardedFetch`, which refuses loopback, private, link-local and cloud-metadata addresses on every hop. `openai-compatible` and Ollama keep operator-only addresses (`MIKE_MODEL_CONFIG_JSON`, `OLLAMA_BASE_URL`) that may be internal; no user field can set or change them, and their calls write egress provenance with the declared host. Organization keys are selectable only as an explicit institutional credential with its own `credential_ref`, never resolved implicitly. | S3 (backend), S4 (UI) | `backend/src/lib/llm/**`, `modules/user/user.apiKeyStore.ts`, `backend/schema.sql`, `(pages)/settings/byok/page.tsx`, `(pages)/settings/models/page.tsx`, `ModelToggle.tsx`, `RouterSettingsSection.tsx` | `user.apiKeyStore.test.ts`; `providers.byok.test.ts`; `modelSelection.test.ts`; `UserProfileContext.test.tsx`; `modelAvailability.test.ts`; `lib/mcp/__tests__/client.ssrf.test.ts`; `lib/__tests__/privateIp.test.ts`; new RED: a `custom` base URL that resolves, directly or after a redirect, to `127.0.0.1`, `10.0.0.0/8`, `169.254.169.254` or `::1` is refused before any request leaves; new RED: no user request or saved setting can set or change the `baseUrl` of an `openai-compatible` model; a pinned chat never changes route | G19, FR-16, §14-E |
+| Chat turns, server runs and two chats | Answers are server-owned runs (`streamRuns.ts`, `assistantTurnRuns.ts`) that survive refresh and resume by sequence number; explicit Stop; inactivity deadline; per-turn retry with mapped errors; second chat side by side and side panel; streaming render fixes; project-chat IDE workspace | Own `lib/chat/streaming.ts` + `sseHeartbeat.ts`; matter- and document-scoped assistant; errors pass through `userFacingError` | adopt | Upstream runs, retry, two chats and side panel. A run carries the conversation's pinned route and writes the same receipts as a direct stream; retry never changes the route. LiTT matter scoping and error mapping reapplied on the upstream components. | S3 (backend), S4 (web), S5 (Word) | `modules/chat/**`, `modules/project-chat/**`, `useAssistantChat.ts`, `ChatHistoryContext.tsx`, `ChatView.tsx`, `AssistantSidePanel.tsx`, `word-addin/src/taskpane/App.tsx` | `chat.routes.test.ts`; `projectChat.routes.test.ts`; `wordChat.routes.test.ts`; `useAssistantChat.sse.test.ts`; `userFacingError.test.ts`; `AssistantSidePanel.test.ts` | G12, FR-01, FR-03, other-20, §14-B |
+| Answer rendering and citations | Passage selection and quoting shared by web and Word; copyable text cards; subagent pills; uploaded documents as pills; PDF citation highlights; citation document order with page breaks | Verified citations resolve to document, version, span and hash | combine | Upstream rendering; LiTT citation verification and provenance stay authoritative for "verified" marks. | S4 | `AssistantMessage.tsx`, `message/EventBlocks.tsx`, `CitationQuotesSection.tsx`, `frontend/src/shared/ui/**` | `CitationSources.test.tsx`; `CitationQuotesSection.test.tsx`; `PdfView.test.ts`; `citations.test.ts` | FR-02, §14-C, G06 |
+| Web search and subagents in chat | Provider-native web search per user (`user_profiles.web_search`); delegation to subagents with their own `subagent_model` | Not present; every model call follows the pinned route with recorded egress | gate | Both arrive disabled. Web search sends the query to the provider's search service and subagents can use a model other than the pinned one, so each needs an owner decision; a subagent, if enabled, must use the conversation's route. | S3 | `modules/chat/engine/**`, `backend/schema.sql` (`chat_subagent_runs`) | new RED: with defaults, no web-search tool and no subagent is offered | G15 |
+| Documents, uploads and storage | Visual-layout PDF extraction, AcroForm values, `textless_page_count` per version with a warning; startup names the missing switch and exits if it cannot bind; storage deletion reported once, only NoSuchKey counts as gone; storage adapter seam; signed downloads with the browser-reachable client; per-file upload results; document text search | Matter-private access, version hashes, single-use download grants, upload quarantine | combine | Upstream document and storage core; LiTT tenancy, grants and hashes reapplied. The textless warning is additive and leaves version hashes unchanged. | S3 (backend), S4 (UI) | `modules/documents/**`, `modules/uploads/**`, `backend/src/lib/storage.ts`, `DocTable.tsx`, `NewTRModal.tsx` | `documentVersions.test.ts`; `uploadProcessing.test.ts`; `storage.test.ts`; `storageSignedDownload.test.ts`; `documentUploadValidation.test.ts`; `workerEntrypoint.test.ts` (LiTT variant kept) | G03, G10, G16, FR-13, §14-F |
+| DOCX viewer and editor | `@docx-editor.dev` 2.31.0 replaces `docx-preview`: toolbar, read and edit modes, comments, autosave that replaces the current version file | `docx-preview` viewer; versions hashed and referenced by evidence; approval is human and recorded | gate | Viewer adopted. Editing and autosave stay off until: no network fetch by the editor at runtime (fonts self-hosted), and no replacement of a version referenced by an AI execution, review or approved artifact (otherwise saves create a new version). An editor save never produces an approved version. | S4 (behind the gate), check before the S8 merge | `frontend/package.json`, `DocxView.tsx`, `useDocxAutosave.ts`, `DocPanel.tsx`, `uploads.processing.ts` | `PdfView.test.ts`; `DocPanel.test.tsx`; new RED: replacing a version referenced by evidence is refused | FR-04 |
+| Workflow catalog, add-ons and playbooks | DB-backed `mike_workflows` with packs and add-ons (assets loaded in one batch); workflow metadata service-role only; playbooks: user-authored rule sets with editor, sources, import from a file by a model, runs, history, sharing and organization overrides | `mike_workflows` is the sole governed catalog with key, version, source commit, content hash and approval provenance; Mexican Civil/Mercantile playbook stored there (TD-006) | combine | Upstream playbook UI and runs adopted. `playbooks` holds only user-authored content and nothing is seeded there; governed content, the Mexican playbook included, stays in `mike_workflows`. A playbook run pins provider, model and `credential_ref` and writes evidence; playbook import records its model egress; playbook sharing and overrides pass the matter gate. | S3 (backend), S4 (UI) | `modules/workflows/**`, `modules/playbooks/**`, `backend/schema.sql`, `(pages)/playbooks/**`, `WorkflowPickerContent.tsx` | `governedWorkflowCatalog.test.ts`; `mxCivilCommercialPlaybook.test.ts`; `workflowCatalogSync.test.ts`; `workflowAddons.routes.test.ts`; new RED: no system row in `playbooks`; a playbook run without a pinned route is refused | G11, G15, FR-17 |
+| Template library | Preset contract templates (`presetTemplates.json`: US forms such as Bonterms and Common Paper) shown as a document table | No US content presented as a base for Mexican practice | reject | Library mechanism kept, preset catalog shipped empty until a reviewed Mexican set with provenance exists. | S7 | `frontend/src/app/components/library/presetTemplates.json`, `LibraryWorkspace.tsx` | new RED: the shipped preset catalog is empty | FR-05 |
+| AI evidence, human review and approved artifacts | None | Append-only `ai_*` evidence, reviewer separation, approved DOCX and redline bundles, receipts with hashes | port | Reapplied unchanged as modules on the upstream layout, with the matter gate and epochs from S2. | S3 | `aiRecovery.ts` → `modules/ai-recovery/**`, `backend/schema.sql` | `appendOnlyEvidence.test.ts`; `ai*` route tests under `backend/src/routes/__tests__/` | — |
+| Connectors, MCP and Google Workspace | Unified connector management; write approvals before external mutations; OAuth hardening (no generic client); redirects revalidated per hop for SSRF; Gmail (`gmail.readonly` + `gmail.compose`) and Calendar with inline approvals, legacy `gmail.modify` and full Drive accepted as implied; Drive with `drive.file` and Picker; Drive switch-off; suggested third-party connectors (Lawve) | MCP egress through one choke point; no third party suggested by default; Drive publication fail-closed | combine | Upstream mechanism, approvals and SSRF checks. LiTT policy: Drive disabled by default through `GOOGLE_WORKSPACE_DISABLED_PROVIDERS`; Gmail requests only `gmail.readonly` and `gmail.compose`, and legacy broader scopes are not recognized because LiTT never issued them; the suggested list ships empty. | S3 (backend), S4 (UI), S7 (suggested list) | `backend/src/lib/mcp/**`, `lib/integrations/googleWorkspaceAuth.ts`, `lib/integrations/googleDrive.ts`, `(pages)/settings/connectors/page.tsx`, `mikeApi.ts` | `connectors.routes.test.ts`; `privateIp.test.ts`; `oauth.test.ts`; `connectors/page.test.tsx`; new RED: Drive offered nowhere with default config; no suggested connector rendered | G04, G07, G13, G15, G24, FR-19, other-12, §14-G |
+| Approved publication to Drive | Drive writes from the assistant through the connector | Matter-bound publication of approved artifacts only, idempotent, fake Drive by default (TD-010) | port | LiTT publication service is the only Drive write path; assistant Drive write tools stay off with the Drive switch. | S3 | `lib/recovery/drive/**`, `matterSettings.ts` → `modules/matters/**` | `approvedArtifactPublication.test.ts`; `aiDrivePublicationWrites.test.ts`; `recoveryDrivePublication.runtime.test.ts`; `ApprovedDrivePublication.test.tsx` | G13, G24 |
+| Profile, organization settings and web shell | Custom instructions, response style and language, profile photos, organization logo, organization settings area and Members table, settings reorganization, crash recovery screen, single design-token source shared with Word, dropdown and table primitives consolidated, Ladle catalog, typography and focus polish, self-hosted Inter and EB Garamond | LiTT branding, error mapping through `userFacingError`, documented design system | adopt | Upstream shell, settings and primitives; LiTT brand tokens and visible names reapplied on top of the shared token file. Custom instructions keep their length caps and section separation. | S4 | `globals.css`, `frontend/src/shared/ui/DesignTokensUI.css`, `(pages)/settings/**`, `UserProfileContext.tsx`, `mikeApi.ts`, `frontend/src/app/layout.tsx` | `userPersonalisationPrompt.test.ts`; `useMemoryAutosave.test.tsx`; `DesignTokensUI.test.ts`; `theme.test.ts`; `TablePrimitive.test.tsx` | G22, FR-06, FR-07, FR-08, FR-10, FR-12, FR-15, FR-18, other-13 |
+| Word add-in | Document-scoped taskpane with session recovery, failed-answer retry, device-only saves and replayed edits; hermetic e2e in 4 workers | Approved-redline contract (`approvedRedline.ts` and panel); LiTT login card and model catalog | combine | Upstream shell (as in §4) with LiTT `approvedRedline.ts`, its panel and the approved bundle fetched from the backend; LiTT e2e assertions kept over upstream's. | S5 | `word-addin/src/taskpane/hooks/useWordDoc.ts`, `api/mikeApi.ts`, `lib/redline.ts`, `App.tsx`, `word-addin/e2e/**` | `word-addin/e2e/approved-redline*`; `history.spec.ts`; `chat.spec.ts`; `auth.spec.ts` | other-09, other-11, other-12 |
+| Third-party telemetry | Sentry in backend, web and add-in, reporting by default to the upstream organization; diagnostic grouping series | No third-party telemetry by default (invariant 11) | reject | SDKs, init files, DSNs and environment entries removed; the error-classification pieces without SDK may return later as local work. | S7 | `backend/src/instrument.ts`, `backend/src/lib/observability/**`, `frontend/sentry.*.config.ts`, `frontend/src/instrumentation*.ts`, `word-addin/src/taskpane/lib/errorReporting.ts`, three `package.json` | new RED: no `@sentry/*` dependency and no default DSN anywhere | G08, G09, FR-14, other-15 |
+| CourtListener | Connector listed in Discover, research tools, two index tables | Removed (TD-013); not a Mexican authority | reject | Files, tools, index tables, key type and UI entry removed; historical upstream migrations stay and the LiTT removal migrations (`20260905_01_recovery_core_convergence`, `20260909_03_recovery_remove_us_research_preference`) are carried into the renumbered series. | S7 (S1 for the migrations) | `backend/src/lib/courtlistener.ts`, `modules/chat/engine/tools/courtlistener*.ts`, `CourtListenerConnector.tsx`, `docs/courtlistener.md` | `courtlistenerExclusion.test.ts`; `recoveryCoreConvergence.runtime.test.ts` | G24, FR-20 |
+| Desktop app | macOS Electron app with a self-contained local database, filesystem storage driver and two `macos-15` CI jobs | Single governed data plane; Actions budget (TD-024) | reject | `desktop/` and `desktop.yml` removed; revisit 2026-11-20 as a product decision. | S7 | `desktop/**`, `.github/workflows/desktop.yml`, `backend/src/lib/storage.ts` | new RED: no `desktop/` tree and no macOS job | other-14 |
+| CI workflows | Evals job removed; backend coverage ratchet; Stryker scope; PR triggers and `workflow_dispatch`; spec typecheck; Supabase ports `21320-21322`; run cancellation; Docker image builds on every PR; e2e split into several Supabase jobs; nightly stress; stack-script workflow; add-in e2e in 4 workers; `loadtest.yml` deleted | TD-024 reductions: superseded runs cancelled, docs-only changes skip e2e, Stack and CodeQL, weekly scheduled e2e; `loadtest.yml` kept | combine | Adopt the savings and fixes (evals removal, coverage ratchet, spec typecheck, port move, 4 add-in workers, architecture test for test files outside images). Revert `docker-images.yml` (image builds move to the deployment gate), `stack-script.yml` (the script stays), the e2e job split and nightly stress. Keep `loadtest.yml`. | S6 | `.github/workflows/**` | Exact-head CI on the draft PR; `frontend/src/__tests__/architecture.test.ts`; `docs/e2e-ci.md` census | other-01, other-02, other-03, other-04, other-07, other-08, other-09, other-10 |
+| Browser e2e harness | Per-worker accounts; stable locators; local Anthropic-protocol stub so chat flows run without a key | Default CI and local e2e make no real provider or Google call (invariant 11) | adopt | Adopted on LiTT specs; the stub keeps the zero-real-call rule while turning skipped chat specs into coverage. | S6 | `e2e/**`, `.github/workflows/e2e.yml`, `docs/e2e-ci.md` | `e2e/chat-management.spec.ts`; `e2e/critical-path.spec.ts`; `anthropic-stub.check.mjs` | other-05, other-06 |
+| Dependencies and supply chain | Upstream lockfiles, Dependabot groups `priority-1/2/3`, action bumps, audit step in `security.yml`, dev-only advisory allowlist | §14 patched floors; actions pinned by SHA with a version comment; allowlist with written reasons | adopt | Upstream dependency set is the base; each slice regenerates its lockfile after its reverts (Sentry removed); §14 floors and LiTT's allowlist reasons kept; actions stay pinned by SHA; the allowlist reasons are re-checked if `office-addin-debugging` or `office-addin-dev-certs` change major. | S6 (root and actions), each slice for its package | four `package-lock.json`, `scripts/audit-allowlist.json`, `.github/dependabot.yml`, `.github/workflows/security.yml` | `security` workflow (`audit-gate`); `npm ci` per package | G01, FR-15, other-12, other-16, other-17, other-18, other-19 |
+| Repository texts | Upstream README, `SECURITY.md`, telemetry section, branch-name rule in `AGENTS.md` | LiTT README with upstream attribution, LiTT `SECURITY.md` and `AGENTS.md` | reject | LiTT texts reapplied; the rule changes of the plan land in S8 with the merge commit. | S8 | `README.md`, `SECURITY.md`, `AGENTS.md`, `docs/**` | review of the S8 snapshot | other-11 |
+| Staging, recovery and cleanup harness | Upstream local stack | Loopback-only staging, backup and restore harness, attributed cleanup | port | Reapplied on the converged schema and runner. | S6 | `compose.staging.yml`, `backend/scripts/**`, `scripts/**` | recovery runtime suites; contract smoke | — |
+
+### 16.4 Coverage
+
+Every intake group is mapped to at least one row above: 72 of 72 (backend 25,
+web 20 plus 7 §14 groups, Word/CI/other 20), checked by parsing the "Upstream
+groups" column against the ids in the three classification files (no missing
+id, no unknown id). Several groups appear in more than one row because they
+span capabilities; `G15`, for example, bundles playbooks, web search,
+subagents and Gmail retention. The rows with disposition `reject` are the content
+reverts of §4.2 of the plan (telemetry, CourtListener, desktop app, US preset
+templates, upstream repository texts). The §4.2 policy inversions
+(organization-visible defaults, owner access to private matters, audit
+deletion and purge, suggested MCP servers, workflows that push images,
+`loadtest.yml`) live in the corresponding `combine` and `gate` rows.
+
+### 16.5 Owner-visible changes
+
+What a lawyer will notice after the sync, with the recommendation applied
+unless the owner objects. None of these changes uses real client data.
+
+| What the lawyer sees | Recommendation |
+| --- | --- |
+| Two conversations can be open side by side, and an answer keeps running if the page is reloaded | Adopt |
+| A **Playbooks** page to write a firm's review rules and run them against a document, with history | Adopt; each run records the AI provider, model and key used, and a playbook inside a private matter follows the matter team. The Mexican Civil/Mercantile playbook stays in the governed catalog |
+| Editing a Word document inside the browser, with autosave | Show the document now; turn editing on only after it is proven that saving never overwrites a version that an AI answer, a review or an approved document relies on |
+| Organization settings: members table, roles, logo, profile photos; the activity log shows people's names instead of email addresses | Adopt |
+| One active workspace at a time, chosen from the sidebar | Adopt, on LiTT's own workspaces (internal units of one firm) |
+| "Public" and "Private" labels and sharing with the whole organization | Allow them only for work outside a private matter. A private matter stays visible only to its team, and partners or administrators who are not on the team do not see that it exists |
+| Personal organizations created for every user | Not offered: onboarding still creates one organization |
+| AI provider settings show saved keys masked and warn when a model is unavailable; new AI companies to choose from: Google Vertex AI, Azure OpenAI, Azure AI Foundry, Amazon Bedrock, xAI, Mistral and the firm's own compatible endpoint | Adopt, as decided by the owner on 2026-10-23. Every company is chosen when a conversation is created and stays fixed for it; nothing switches silently. The firm's own endpoint cannot point at internal network addresses. DeepSeek and OpenCode Zen are added directly |
+| Gmail and Google Calendar connectors that ask for approval before sending or changing anything | Adopt with the narrowest Google permissions. Google Drive stays off; approved documents still reach Drive only through **Approve and publish** |
+| Suggested third-party connectors and CourtListener in the connectors page | Not shown |
+| Web search and helper "subagents" inside a chat | Off until the owner decides: web search sends the question to the provider's search service, and a subagent could use a model other than the one chosen for the conversation |
+| A warning when a PDF has pages without readable text (scans) | Adopt |
+| Custom instructions, answer style and answer language in the profile | Adopt |
+| A recovery screen instead of a blank page after an error, and visual polish | Adopt |
+| **Delete my account** | Answers "not available yet" until the retention decision (TD-008) is implemented. Today the button starts deleting and then fails part-way |
+| A catalog of preset contract templates | Shipped empty: the upstream set is US law |
+| A Mac desktop app | Not offered; revisit on 2026-11-20 |
+| The Word add-in recovers its session, retries a failed answer and replays edits that were not applied | Adopt, keeping the approved-redline panel |
