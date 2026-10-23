@@ -596,3 +596,27 @@ Schema drift runtime suites rebuild the upgraded database only from that
 series. On 2026-10-22 both suites passed 14/14 against PostgreSQL 16.14 (local
 instance; Docker replaced by a test shim) and failed 3/14 on the previous
 commit without the registration.
+
+## 15. Full intake 2026-10-23
+
+Intake from `7e3607e765e199f824808e1598cc44b3f99cd690` to
+`e7ab6bd46cb4b3c22f150e184080d29c941df5c0`: 442 commits, 367 without merges,
+2,012 paths. All 367 commits are classified exactly once (backend 118, frontend
+172, Word/CI/other 77). The §14 security subset keeps its rows.
+
+The sync follows strategy B of [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md):
+upstream becomes the base, the LiTT delta is reapplied in reviewed slices, the
+rejected capabilities of §4.2 of the plan are reverted, and a merge commit
+restores shared history. Results per slice are appended here when each slice
+lands.
+
+| Slice | State | LiTT tree | Reviewer |
+| --- | --- | --- | --- |
+| S1 migrations and schema | pending | | |
+| S2 tenancy and access | pending | | |
+| S3 backend LiTT delta | pending | | |
+| S4 frontend LiTT delta | pending | | |
+| S5 Word add-in | pending | | |
+| S6 CI and e2e | pending | | |
+| S7 reverts | pending | | |
+| S8 documentation and merge | pending | | |
