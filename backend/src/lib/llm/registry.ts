@@ -16,7 +16,69 @@ type ModelRegistryConfig = {
   committees: CommitteeModel[];
 };
 
-const EMPTY_CONFIG: ModelRegistryConfig = { models: [], committees: [] };
+// LiTT governed BYOK (ledger 16.3): DeepSeek and OpenCode Zen are offered as
+// fixed-host entries on the OpenAI-compatible adapter. The host is part of
+// the code, never of a user setting; the key is the user's (or the firm's)
+// saved key for that company, chosen like any other credential. An operator
+// declaration with the same id replaces the built-in one.
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1";
+// https://opencode.ai/docs/zen/ — "Endpoints", @ai-sdk/openai-compatible rows.
+const OPENCODE_ZEN_BASE_URL = "https://opencode.ai/inference/openai/v1";
+
+export const BUILTIN_COMPATIBLE_MODELS: readonly ConfiguredModel[] = [
+  {
+    id: "deepseek/deepseek-chat",
+    label: "DeepSeek Chat",
+    provider: "openai-compatible",
+    location: "cloud",
+    apiModel: "deepseek-chat",
+    baseUrl: DEEPSEEK_BASE_URL,
+    apiKeyProvider: "deepseek",
+  },
+  {
+    id: "deepseek/deepseek-reasoner",
+    label: "DeepSeek Reasoner",
+    provider: "openai-compatible",
+    location: "cloud",
+    apiModel: "deepseek-reasoner",
+    baseUrl: DEEPSEEK_BASE_URL,
+    apiKeyProvider: "deepseek",
+  },
+  {
+    id: "opencode-zen/deepseek-v4-pro",
+    label: "DeepSeek V4 Pro (OpenCode Zen)",
+    provider: "openai-compatible",
+    location: "cloud",
+    apiModel: "deepseek-v4-pro",
+    baseUrl: OPENCODE_ZEN_BASE_URL,
+    apiKeyProvider: "opencode-zen",
+  },
+  {
+    id: "opencode-zen/deepseek-v4.1-flash",
+    label: "DeepSeek V4.1 Flash (OpenCode Zen)",
+    provider: "openai-compatible",
+    location: "cloud",
+    apiModel: "deepseek-v4.1-flash",
+    baseUrl: OPENCODE_ZEN_BASE_URL,
+    apiKeyProvider: "opencode-zen",
+  },
+];
+
+function withBuiltins(config: ModelRegistryConfig): ModelRegistryConfig {
+  const declared = new Set(config.models.map((model) => model.id));
+  return {
+    ...config,
+    models: [
+      ...config.models,
+      ...BUILTIN_COMPATIBLE_MODELS.filter((model) => !declared.has(model.id)),
+    ],
+  };
+}
+
+const EMPTY_CONFIG: ModelRegistryConfig = withBuiltins({
+  models: [],
+  committees: [],
+});
 
 let cached: ModelRegistryConfig | undefined;
 
@@ -44,7 +106,7 @@ export function loadModelRegistry(): ModelRegistryConfig {
     parsed && typeof parsed === "object" && !Array.isArray(parsed)
       ? (parsed as Record<string, unknown>)
       : {};
-  cached = {
+  cached = withBuiltins({
     models: Array.isArray(record.models)
       ? record.models.flatMap((value) => {
           const model = parseConfiguredModel(value);
@@ -54,7 +116,7 @@ export function loadModelRegistry(): ModelRegistryConfig {
     committees: Array.isArray(record.committees)
       ? record.committees.filter(isCommitteeModel)
       : [],
-  };
+  });
   return cached;
 }
 

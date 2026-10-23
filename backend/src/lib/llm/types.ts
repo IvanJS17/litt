@@ -108,6 +108,7 @@ export type UserApiKeys = {
     openrouter?: string | null;
     vercel?: string | null;
     "opencode-go"?: string | null;
+    "opencode-zen"?: string | null;
     bedrock?: string | null;
     azure?: string | null;
     "azure-foundry"?: string | null;

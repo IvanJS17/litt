@@ -25,6 +25,7 @@ export type ApiKeyProvider =
     | "openrouter"
     | "vercel"
     | "opencode-go"
+    | "opencode-zen"
     | "bedrock"
     | "azure"
     | "azure-foundry"
@@ -87,6 +88,7 @@ const PROVIDERS: ApiKeyProvider[] = [
     "openrouter",
     "vercel",
     "opencode-go",
+    "opencode-zen",
     "bedrock",
     "azure",
     "azure-foundry",
@@ -168,6 +170,8 @@ export function envApiKey(provider: ApiKeyProvider): string | null {
             );
         case "opencode-go":
             return process.env.OPENCODE_API_KEY?.trim() || null;
+        case "opencode-zen":
+            return process.env.OPENCODE_ZEN_API_KEY?.trim() || null;
         // A cloud key without its region/endpoint cannot be used, so the
         // environment only counts as configured when both halves are set.
         case "bedrock":
@@ -340,6 +344,7 @@ function envApiKeyStatus(): ApiKeyStatus {
         openrouter: false,
         vercel: false,
         "opencode-go": false,
+        "opencode-zen": false,
         bedrock: false,
         azure: false,
         "azure-foundry": false,
@@ -358,6 +363,7 @@ function envApiKeyStatus(): ApiKeyStatus {
             openrouter: null,
             vercel: null,
             "opencode-go": null,
+            "opencode-zen": null,
             bedrock: null,
             azure: null,
             "azure-foundry": null,
@@ -428,6 +434,7 @@ export function envApiKeys(): UserApiKeys {
         openrouter: envApiKey("openrouter"),
         vercel: envApiKey("vercel"),
         "opencode-go": envApiKey("opencode-go"),
+        "opencode-zen": envApiKey("opencode-zen"),
         bedrock: envApiKey("bedrock"),
         azure: envApiKey("azure"),
         "azure-foundry": envApiKey("azure-foundry"),

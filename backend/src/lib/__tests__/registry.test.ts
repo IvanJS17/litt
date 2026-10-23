@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
     apiKeyForConfiguredModel,
+    BUILTIN_COMPATIBLE_MODELS,
     configuredEndpointSummaries,
     configuredModelRequiresApiKey,
     configuredModelSummaries,
@@ -31,6 +32,13 @@ const CLOUD_DEEPSEEK: ConfiguredModel = {
     apiKeyEnv: "DEEPSEEK_API_KEY",
 };
 
+// LiTT fixed-host entries (DeepSeek, OpenCode Zen) are always present; these
+// tests are about what the operator declares, so they look past them.
+const BUILTIN_IDS = new Set(BUILTIN_COMPATIBLE_MODELS.map((model) => model.id));
+function declared<T extends { id: string }>(entries: T[]): T[] {
+    return entries.filter((entry) => !BUILTIN_IDS.has(entry.id));
+}
+
 function configure(value: unknown) {
     process.env.MIKE_MODEL_CONFIG_JSON = JSON.stringify(value);
     resetModelRegistryCache();
@@ -55,7 +63,10 @@ describe("loadModelRegistry", () => {
     it("returns an empty registry when nothing is configured", () => {
         delete process.env.MIKE_MODEL_CONFIG_JSON;
         resetModelRegistryCache();
-        expect(loadModelRegistry()).toEqual({ models: [], committees: [] });
+        const registry = loadModelRegistry();
+        expect(declared(registry.models)).toEqual([]);
+        expect(registry.committees).toEqual([]);
+        expect(registry.models.map((model) => model.id)).toEqual([...BUILTIN_IDS]);
     });
 
     it("rejects invalid JSON with an actionable message", () => {
@@ -93,7 +104,7 @@ describe("loadModelRegistry", () => {
                 },
             ],
         });
-        expect(configuredModelSummaries().map((summary) => summary.id)).toEqual([
+        expect(declared(configuredModelSummaries()).map((summary) => summary.id)).toEqual([
             "local-qwen",
         ]);
     });
@@ -155,7 +166,7 @@ describe("replaysReasoning", () => {
         configure({
             models: [{ ...LOCAL_QWEN, replayReasoning: "yes" }, CLOUD_DEEPSEEK],
         });
-        expect(configuredModelSummaries().map((summary) => summary.id)).toEqual([
+        expect(declared(configuredModelSummaries()).map((summary) => summary.id)).toEqual([
             "cloud-deepseek",
         ]);
     });
@@ -176,7 +187,7 @@ describe("getConfiguredModel", () => {
 
 describe("configuredModelSummaries", () => {
     it("labels each entry, falling back to the id", () => {
-        expect(configuredModelSummaries()).toEqual([
+        expect(declared(configuredModelSummaries())).toEqual([
             {
                 id: "local-qwen",
                 label: "Local Qwen",
@@ -230,7 +241,7 @@ describe("configured endpoint availability", () => {
         configure({ models: [keylessCloud] });
 
         expect(configuredModelRequiresApiKey(keylessCloud)).toBe(false);
-        expect(configuredEndpointSummaries()).toEqual([
+        expect(declared(configuredEndpointSummaries())).toEqual([
             {
                 id: "keyless-cloud",
                 label: "keyless-cloud",
