@@ -49,6 +49,9 @@ function MockRenderer({ bytes, mode, toolbarVisible = true, onChange, onReady, o
 
 const originalScrollTo = HTMLElement.prototype.scrollTo;
 beforeEach(() => {
+    // These cases exercise upstream editing and autosave, which LiTT keeps
+    // behind docxEditingGate; they run as an operator who turned it on.
+    vi.stubEnv("NEXT_PUBLIC_LITT_DOCX_EDITING", "enabled");
     // jsdom ArrayBuffers belong to a different realm than Node's WebCrypto.
     vi.stubGlobal("crypto", { subtle: { digest: (algorithm: string, bytes: ArrayBuffer) =>
         webcrypto.subtle.digest(algorithm, Buffer.from(new Uint8Array(bytes))) } });
@@ -71,6 +74,7 @@ afterEach(async () => {
     HTMLElement.prototype.scrollTo = originalScrollTo;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
 });
 
 /**
