@@ -209,6 +209,79 @@ export function reportedUpstreamMessage(code: string): string | null {
         : null;
 }
 
+export type MatterDriveFolderRole =
+    | "matter_owner"
+    | "editor"
+    | "viewer"
+    | "technical_operator"
+    | "org_owner"
+    | "workspace_admin";
+
+export interface MatterDriveFolderSettings {
+    matter_id: string;
+    project_id: string;
+    drive_folder_id: string | null;
+    role: MatterDriveFolderRole;
+    can_edit: boolean;
+}
+
+export async function getMatterDriveFolder(
+    projectId: string,
+    matterId: string,
+): Promise<MatterDriveFolderSettings> {
+    return apiRequest<MatterDriveFolderSettings>(
+        `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(matterId)}/drive-folder`,
+    );
+}
+
+export async function updateMatterDriveFolder(
+    projectId: string,
+    matterId: string,
+    driveFolderId: string | null,
+): Promise<MatterDriveFolderSettings> {
+    return apiRequest<MatterDriveFolderSettings>(
+        `/projects/${encodeURIComponent(projectId)}/matters/${encodeURIComponent(matterId)}/drive-folder`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ drive_folder_id: driveFolderId }),
+        },
+    );
+}
+
+export type DrivePublicationOutcome =
+    | "pending"
+    | "uploaded"
+    | "unknown_outcome"
+    | "reconciled"
+    | "failed";
+
+export interface DrivePublicationStatus {
+    publication_id: string;
+    export_id: string;
+    execution_id: string;
+    review_revision: number;
+    revision: number;
+    outcome: DrivePublicationOutcome;
+    attempts: number;
+    approved_artifact_sha256: string;
+    provider_file_id: string | null;
+    failure_code: string | null;
+}
+
+export type DrivePublicationDisposition =
+    | "uploaded"
+    | "replayed"
+    | "reconciled"
+    | "failed"
+    | "unknown_outcome";
+
+export interface DrivePublicationWriteResult {
+    outcome: DrivePublicationOutcome;
+    disposition: DrivePublicationDisposition;
+    publication: DrivePublicationStatus;
+}
+
 export function isMfaRequiredError(error: unknown) {
     return (
         error instanceof MikeApiError &&
@@ -1550,6 +1623,100 @@ export async function createGoogleDrivePickerSession(): Promise<GoogleDrivePicke
 
 export async function getProject(projectId: string): Promise<Project> {
     return apiRequest<Project>(`/projects/${projectId}`);
+}
+
+/** Read persisted review data; consumers must validate scope and runtime shape. */
+export async function getHumanReviewState(
+    projectId: string,
+    executionId: string,
+): Promise<unknown> {
+    return apiRequest<unknown>(
+        `/projects/${encodeURIComponent(projectId)}/ai-executions/${encodeURIComponent(executionId)}/review`,
+    );
+}
+
+export type ApprovedReviewReportResult = {
+    export_id: string;
+    artifact: {
+        idempotency_key: string;
+        review_id: string;
+        review_revision: number;
+        execution_id: string;
+        organization_id: string;
+        matter_id: string;
+        project_id: string;
+        document_id: string;
+        document_version_id: string;
+        source_document_sha256: string;
+        evidence_receipt_sha256: string;
+        filename: string;
+        mime_type: string;
+        artifact_sha256: string;
+    };
+    receipt: {
+        disposition: "applied" | "replayed";
+        review_id: string;
+        review_revision: number;
+        execution_id: string;
+        artifact_sha256: string;
+        idempotency_key: string;
+    };
+};
+
+export async function createApprovedReviewReport(
+    projectId: string,
+    executionId: string,
+    expectedReviewRevision: number,
+    idempotencyKey: string,
+): Promise<ApprovedReviewReportResult> {
+    const path = `/projects/${encodeURIComponent(projectId)}/ai-executions/${encodeURIComponent(executionId)}/review/approved-report`;
+    return apiRequest<ApprovedReviewReportResult>(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            expected_review_revision: expectedReviewRevision,
+            idempotency_key: idempotencyKey,
+        }),
+    });
+}
+
+export async function getDrivePublicationStatus(
+    projectId: string,
+    executionId: string,
+    publicationId: string,
+): Promise<DrivePublicationStatus> {
+    const path = `/projects/${encodeURIComponent(projectId)}/ai-executions/${encodeURIComponent(executionId)}/review/drive-publications/${encodeURIComponent(publicationId)}`;
+    return apiRequest<DrivePublicationStatus>(path);
+}
+
+export async function publishDrivePublication(
+    projectId: string,
+    executionId: string,
+    exportId: string,
+    expectedReviewRevision: number,
+): Promise<DrivePublicationWriteResult> {
+    const path = `/projects/${encodeURIComponent(projectId)}/ai-executions/${encodeURIComponent(executionId)}/review/drive-publications`;
+    return apiRequest<DrivePublicationWriteResult>(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            export_id: exportId,
+            expected_review_revision: expectedReviewRevision,
+        }),
+    });
+}
+
+export async function reconcileDrivePublication(
+    projectId: string,
+    executionId: string,
+    publicationId: string,
+): Promise<DrivePublicationWriteResult> {
+    const path = `/projects/${encodeURIComponent(projectId)}/ai-executions/${encodeURIComponent(executionId)}/review/drive-publications/${encodeURIComponent(publicationId)}/reconcile`;
+    return apiRequest<DrivePublicationWriteResult>(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+    });
 }
 
 export async function updateProject(
