@@ -8,21 +8,18 @@
 
 import { downloadFile } from "../../lib/storage";
 import { attachActiveVersionPaths } from "../../lib/documentVersions";
-import { filterAccessibleDocumentIds } from "../../lib/access";
 import { extractDocumentMarkdown } from "./tabular.extract";
 import { type Db } from "./tabular.shared";
+import { loadReviewRows, type ReviewRow } from "../../lib/tabularReadAccess";
 
-export type ReviewRow = {
-    id: string;
-    review_id: string;
-    label: string;
-    row_type: "document" | "folder";
-    folder_id: string | null;
-    library_folder_id: string | null;
-    document_id: string | null;
-    sort_index: number;
-    source_document_ids?: string[];
-};
+// Row readability lives in lib so the account export applies the same rule
+// without importing this module (see lib/tabularReadAccess.ts).
+export {
+    filterReadableReviewRows,
+    loadReviewRows,
+    type ReviewRow,
+} from "../../lib/tabularReadAccess";
+
 
 export type SourceDocument = {
     id: string;
@@ -64,72 +61,6 @@ export async function fetchSourceDocuments(
         .sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
 }
 
-/**
- * Narrow a review's rows to those the CALLER may read. Review access is not
- * document access: a review in project Y can be built from project X's
- * documents, and a Y member without X access must not read X's filenames
- * (row labels) or the text extracted from them (cells). A row is visible only
- * when the caller can read every source document feeding it — the same rule
- * generation applies before extracting. Also returns the readable document
- * ids so callers can filter document metadata with the same verdict.
- */
-export async function filterReadableReviewRows(
-    db: Db,
-    rows: ReviewRow[],
-    extraDocumentIds: string[],
-    userId: string,
-    userEmail: string | null | undefined,
-): Promise<{ rows: ReviewRow[]; readableDocumentIds: Set<string> }> {
-    const ids = [
-        ...new Set([
-            ...rows.flatMap((row) => row.source_document_ids ?? []),
-            ...extraDocumentIds,
-        ]),
-    ];
-    const readableDocumentIds = new Set(
-        await filterAccessibleDocumentIds(ids, userId, userEmail, db),
-    );
-    return {
-        rows: rows.filter((row) =>
-            (row.source_document_ids ?? []).every((id) =>
-                readableDocumentIds.has(id),
-            ),
-        ),
-        readableDocumentIds,
-    };
-}
-
-export async function loadReviewRows(
-    db: Db,
-    reviewId: string,
-): Promise<ReviewRow[]> {
-    const { data, error } = await db
-        .from("tabular_review_rows")
-        .select("*")
-        .eq("review_id", reviewId)
-        .order("sort_index", { ascending: true });
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as ReviewRow[];
-    if (!rows.length) return rows;
-    const { data: sources, error: sourceError } = await db
-        .from("tabular_review_row_sources")
-        .select("row_id, document_id")
-        .in("row_id", rows.map((row) => row.id))
-        .order("sort_index", { ascending: true });
-    if (sourceError) throw new Error(sourceError.message);
-    const byRow = new Map<string, string[]>();
-    for (const source of sources ?? []) {
-        byRow.set(source.row_id, [
-            ...(byRow.get(source.row_id) ?? []),
-            source.document_id,
-        ]);
-    }
-    return rows.map((row) => ({
-        ...row,
-        source_document_ids:
-            byRow.get(row.id) ?? (row.document_id ? [row.document_id] : []),
-    }));
-}
 
 /** Load one row of a review (with its source ids resolved), or null. */
 export async function loadReviewRow(

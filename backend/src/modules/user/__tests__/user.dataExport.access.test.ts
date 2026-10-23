@@ -57,12 +57,30 @@ function fixtures(): Record<string, Row[]> {
         chats,
         chat_messages: chats.map((row) => ({ id: `message-${row.id}`, chat_id: row.id })),
         tabular_reviews: reviews,
-        tabular_cells: reviews.map((row) => ({ id: `cell-${row.id}`, review_id: row.id })),
+        // A review row is fed by one document and a cell belongs to that row:
+        // the export narrows cells to rows whose documents the caller reads.
+        tabular_review_rows: reviews.map((row) => ({
+            id: `row-${row.id}`,
+            review_id: row.id,
+            document_id: `document-${String(row.id).replace("review-", "")}`,
+            sort_index: 0,
+        })),
+        tabular_cells: reviews.map((row) => ({
+            id: `cell-${row.id}`,
+            review_id: row.id,
+            row_id: `row-${row.id}`,
+        })),
         tabular_review_chats: [
             ...reviews.map((row) => resource(`thread-${row.id}`, { review_id: row.id })),
             resource("orphan-thread", { review_id: "missing-review" }),
         ],
-        tabular_review_chat_messages: reviews.map((row) => ({ id: `message-${row.id}`, chat_id: `thread-${row.id}` })),
+        // Explicit empty provenance: these turns were not derived from any
+        // document. A missing/null set means "unknown" and is withheld.
+        tabular_review_chat_messages: reviews.map((row) => ({
+            id: `message-${row.id}`,
+            chat_id: `thread-${row.id}`,
+            source_document_ids: [],
+        })),
     };
 }
 
@@ -107,14 +125,26 @@ describe("exports enforce current read access", () => {
             tabular_reviews: [resource("shared-review", { user_id: "colleague", org_id: "org" })],
             tabular_review_access_grants: [{ tabular_review_id: "shared-review", email, role: "viewer" }],
             tabular_review_chats: [resource("thread", { review_id: "shared-review" })],
-            tabular_review_chat_messages: [{ id: "message", chat_id: "thread", content: "Retained team discussion" }],
+            tabular_review_chat_messages: [
+                {
+                    id: "message",
+                    chat_id: "thread",
+                    content: "Retained team discussion",
+                    source_document_ids: [],
+                },
+            ],
         };
         const { db } = makeExportDb(tables);
         const before = await buildUserChatsExport(db, userId, email);
         expect(ids(before.tabular_review_chats.messages)).toEqual(["message"]);
 
         tables.org_members = [];
-        tables.tabular_review_chat_messages.push({ id: "after-removal", chat_id: "thread", content: "Written after removal" });
+        tables.tabular_review_chat_messages.push({
+            id: "after-removal",
+            chat_id: "thread",
+            content: "Written after removal",
+            source_document_ids: [],
+        });
         const after = await buildUserChatsExport(db, userId, email);
         const account = await buildUserAccountExport(db, userId, email);
         expect(after.tabular_review_chats).toEqual({ chats: [], messages: [] });
@@ -124,6 +154,47 @@ describe("exports enforce current read access", () => {
         tables.org_members = [{ org_id: "org", user_id: userId, role: "member" }];
         tables.tabular_review_access_grants = [];
         expect((await buildUserChatsExport(db, userId, email)).tabular_review_chats).toEqual({ chats: [], messages: [] });
+    });
+
+    // TD-023: review access is not document access. A review can be built from
+    // another project's documents, and its cells hold text extracted from them.
+    // The export reads through the service role, so it must apply the same
+    // readable-row rule the review screen and its chat apply.
+    it("exports only the cells of rows whose source documents the caller can read", async () => {
+        const tables: Record<string, Row[]> = {
+            tabular_reviews: [resource("review-own")],
+            tabular_review_rows: [
+                {
+                    id: "row-readable",
+                    review_id: "review-own",
+                    document_id: "document-personal",
+                    sort_index: 0,
+                },
+                {
+                    id: "row-elsewhere",
+                    review_id: "review-own",
+                    document_id: "document-elsewhere",
+                    sort_index: 1,
+                },
+            ],
+            tabular_cells: [
+                { id: "cell-readable", review_id: "review-own", row_id: "row-readable" },
+                { id: "cell-elsewhere", review_id: "review-own", row_id: "row-elsewhere" },
+            ],
+            documents: [
+                resource("document-personal"),
+                resource("document-elsewhere", {
+                    user_id: "colleague",
+                    org_id: "other-org",
+                }),
+            ],
+            organizations: [{ id: "other-org", kind: "team" }],
+        };
+        const { db } = makeExportDb(tables);
+        const result = await buildUserTabularReviewsExport(db, userId, email);
+
+        expect(ids(result.tabular_reviews)).toEqual(["review-own"]);
+        expect(ids(result.tabular_cells)).toEqual(["cell-readable"]);
     });
 
     it("does not treat stale direct project grants as organization membership", async () => {

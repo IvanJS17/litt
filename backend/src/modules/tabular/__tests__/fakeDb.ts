@@ -12,7 +12,7 @@
 
 import type { Db } from "../tabular.shared";
 
-export type QueryResult = { data: unknown; error: unknown };
+export type QueryResult = { data: unknown; error: unknown; count?: number };
 
 export type RecordedCall = {
     table: string;

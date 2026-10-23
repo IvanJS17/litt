@@ -46,6 +46,13 @@ import {
 import { generateChatTitle } from "./tabular.extract";
 import { filterReadableReviewRows, loadReviewRows } from "./tabular.rows";
 import {
+    filterReadableChatMessages,
+    nextTurnSourceDocumentIds,
+    selectCompleteChatMessages,
+    withReadableTitles,
+} from "../../lib/tabularReadAccess";
+import { extractDelimitedBlock } from "../../lib/textBlocks";
+import {
     parseCellContent,
     statusFailure,
     type Db,
@@ -64,13 +71,20 @@ export type TabularParsedCitation = {
     quote: string;
 };
 
-const TABULAR_CITATIONS_BLOCK_RE = /<CITATIONS>\s*([\s\S]*?)\s*<\/CITATIONS>/;
+// The block is parsed on every streamed chunk (extractCitations), so the scan
+// is linear: see lib/textBlocks.ts for why the equivalent regex is not.
+const TABULAR_CITATIONS_OPEN_TAG = "<CITATIONS>";
+const TABULAR_CITATIONS_CLOSE_TAG = "</CITATIONS>";
 
 export function parseTabularCitations(text: string): TabularParsedCitation[] {
-    const match = text.match(TABULAR_CITATIONS_BLOCK_RE);
-    if (!match) return [];
+    const raw = extractDelimitedBlock(
+        text,
+        TABULAR_CITATIONS_OPEN_TAG,
+        TABULAR_CITATIONS_CLOSE_TAG,
+    );
+    if (raw === null) return [];
     try {
-        return JSON.parse(match[1]) as TabularParsedCitation[];
+        return JSON.parse(raw) as TabularParsedCitation[];
     } catch {
         return [];
     }
@@ -111,7 +125,7 @@ export function buildTabularMessages(
         .map((c, i) => `- COL:${i} "${c.name}"`)
         .join("\n");
 
-    const systemContent = `You are Mike, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
+    const systemContent = `You are LiTT, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
 
 The review extracts specific fields from multiple legal documents into a structured table.
 You do NOT have the cell content yet — call read_table_cells to fetch the cells you need before answering.
@@ -201,7 +215,27 @@ export async function listTabularReviewChats(
         .eq("review_id", reviewId)
         .order("updated_at", { ascending: false });
 
-    return { ok: true, data: (chats ?? []) as ReviewChatSummary[] };
+    // A title is generated from the chat's own first message, so it carries
+    // that message's provenance: show it only when the caller can read the
+    // whole transcript (see lib/tabularReadAccess.ts).
+    let titled = (chats ?? []) as ReviewChatSummary[];
+    try {
+        const complete = await selectCompleteChatMessages(
+            db,
+            titled.map((chat) => chat.id),
+            "id, chat_id, source_document_ids",
+        );
+        const readable = await filterReadableChatMessages(
+            db,
+            complete,
+            userId,
+            userEmail,
+        );
+        titled = withReadableTitles(titled, complete, readable);
+    } catch (error) {
+        return internalFailure(error);
+    }
+    return { ok: true, data: titled };
 }
 
 /**
@@ -468,13 +502,33 @@ export async function listTabularReviewChatMessages(
     );
     if (!gate.ok) return gate;
 
-    const { data: messages } = await db
-        .from("tabular_review_chat_messages")
-        .select("id, role, content, annotations, created_at")
-        .eq("chat_id", chatId)
-        .order("created_at", { ascending: true });
+    // One chat's rows, read completely and then narrowed per message: a turn
+    // can carry text extracted from a document this reader cannot open, and
+    // review access alone must not hand it over. A message whose provenance is
+    // unknown (written before it was recorded) is withheld, not shown.
+    let messages: Record<string, unknown>[];
+    try {
+        const complete = await selectCompleteChatMessages(
+            db,
+            [chatId],
+            "id, role, content, annotations, created_at, source_document_ids",
+        );
+        messages = await filterReadableChatMessages(
+            db,
+            complete,
+            userId,
+            userEmail,
+        );
+    } catch (error) {
+        return internalFailure(error);
+    }
 
-    return { ok: true, data: (messages ?? []) as Record<string, unknown>[] };
+    return {
+        ok: true,
+        data: messages.map(
+            ({ source_document_ids: _provenance, ...message }) => message,
+        ),
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +554,9 @@ export type PreparedTabularChat = {
     /** The id of the user turn just persisted — the assistant row links back
      *  to it through `memory_input_message_id`. */
     inputMessageId: string;
+    /** Documents whose derived text could have reached this turn, inherited
+     *  across the chat; null when an earlier turn's provenance is unknown. */
+    sourceDocumentIds: string[] | null;
     /** The project whose memory may be READ into this turn's prompt. */
     readableMemoryProjectId: string | null;
     /** The project whose memory this turn may CURATE, if any. */
@@ -707,6 +764,7 @@ export async function prepareTabularChat(
         if (updateError) return internalFailure(updateError);
     }
 
+    const continuingChat = chatId !== null;
     if (!chatId) {
         const { data: newChat, error: newChatError } = await db
             .from("tabular_review_chats")
@@ -724,6 +782,27 @@ export async function prepareTabularChat(
         chatTitle = newChat?.title ?? null;
     }
 
+    // Both messages of this turn carry the documents their text may derive
+    // from: the rows the caller just read, plus everything an earlier turn
+    // already saw, because the transcript is replayed to the model. An earlier
+    // message with unknown provenance makes this turn's provenance unknown
+    // too — otherwise a later answer would launder its taint.
+    const turnDocumentIds = [
+        ...new Set(rows.flatMap((row) => row.source_document_ids ?? [])),
+    ].sort();
+    let sourceDocumentIds: string[] | null = turnDocumentIds;
+    if (continuingChat && chatId) {
+        try {
+            sourceDocumentIds = await nextTurnSourceDocumentIds(
+                db,
+                chatId,
+                turnDocumentIds,
+            );
+        } catch (error) {
+            return internalFailure(error);
+        }
+    }
+
     let memoryTurn: MemoryConversationTurn | null = null;
     const inputMessageId = randomUUID();
 
@@ -737,6 +816,7 @@ export async function prepareTabularChat(
                 role: "user",
                 content: lastUserContent,
                 author_user_id: userId,
+                source_document_ids: sourceDocumentIds,
             });
         if (userMessageError) return internalFailure(userMessageError);
     }
@@ -785,6 +865,7 @@ export async function prepareTabularChat(
             orgId: review.org_id ?? null,
             apiMessages,
             inputMessageId,
+            sourceDocumentIds,
             readableMemoryProjectId,
             writableMemoryProjectId,
             memorySharedAudience,
@@ -820,6 +901,8 @@ export async function saveTabularChatTurn(
         memoryInputMessageId: string;
         content: unknown[];
         annotations: unknown[];
+        /** The turn's provenance, as recorded on its user message. */
+        sourceDocumentIds: string[] | null;
         touch: "when-saved" | "always" | "never";
     },
 ): Promise<{ saved: boolean; error: unknown }> {
@@ -831,6 +914,7 @@ export async function saveTabularChatTurn(
         annotations: args.annotations.length ? args.annotations : null,
         author_user_id: args.authorUserId,
         memory_input_message_id: args.memoryInputMessageId,
+        source_document_ids: args.sourceDocumentIds,
     });
     const saved = !error;
     if (args.touch === "always" || (args.touch === "when-saved" && saved)) {

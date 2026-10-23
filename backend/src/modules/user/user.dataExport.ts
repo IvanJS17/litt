@@ -14,6 +14,13 @@ import {
     resolvePlaybookRoles,
     type PlaybookAccessRow,
 } from "../playbooks/playbooks.service";
+import {
+    filterReadableChatMessages,
+    filterReadableReviewRows,
+    loadReviewRows,
+    selectCompleteChatMessages,
+    withReadableTitles,
+} from "../../lib/tabularReadAccess";
 import { throwIfError, uniqueStrings } from "./user.shared";
 
 const PAGE_SIZE = 1000;
@@ -97,6 +104,63 @@ async function readableRows(
             : false,
     );
     return rows.filter((_, index) => allowed[index]);
+}
+
+/**
+ * Cells of reviews the caller may open, narrowed to the rows whose source
+ * documents the caller can read right now. Review access is not document
+ * access: a review can be built from another project's documents, and its
+ * cells hold text extracted from them. GET /tabular-review/:id and the review
+ * chat apply the same rule (filterReadableReviewRows); the export, which reads
+ * through the service role and may run long after it was queued, must not be
+ * the one path that still carries those cells out.
+ */
+async function loadReadableReviewCells(
+    db: Db,
+    reviewIds: string[],
+    userId: string,
+    userEmail?: string | null,
+) {
+    if (reviewIds.length === 0) return [];
+    const rowsByReview = await mapWithConcurrency(reviewIds, 8, (reviewId) =>
+        loadReviewRows(db, reviewId),
+    );
+    const { rows } = await filterReadableReviewRows(
+        db,
+        rowsByReview.flat(),
+        [],
+        userId,
+        userEmail,
+    );
+    const visibleRowIds = new Set(rows.map((row) => row.id));
+    const cells = await selectByIds(db, "tabular_cells", "review_id", reviewIds);
+    return cells.filter(
+        (cell) =>
+            typeof cell.row_id === "string" && visibleRowIds.has(cell.row_id),
+    );
+}
+
+/**
+ * Transcripts of review chats the caller may list, narrowed per message to
+ * the source documents the caller can read now — the rule GET
+ * /tabular-review/:id/chats/:chatId/messages applies. A transcript can carry
+ * text derived from another project's documents; review access alone must
+ * not carry it out (see lib/tabularReadAccess.ts).
+ */
+async function loadReadableTabularTranscripts(
+    db: Db,
+    chats: Record<string, unknown>[],
+    userId: string,
+    userEmail?: string | null,
+) {
+    const all = await selectCompleteChatMessages(db, idsFrom(chats), "*");
+    const messages = await filterReadableChatMessages(
+        db,
+        all,
+        userId,
+        userEmail,
+    );
+    return { chats: withReadableTitles(chats, all, messages), messages };
 }
 
 async function loadUserReviews(db: Db, userId: string, userEmail?: string | null) {
@@ -217,17 +281,16 @@ async function loadUserTabularChats(
         ensureReviewAccess(row, userId, userEmail, db),
     );
     const reviewIds = new Set(idsFrom(readableReviews));
-    const chats = candidates.filter(
-        (chat) => typeof chat.review_id === "string" && reviewIds.has(chat.review_id),
-    );
-    const chatIds = idsFrom(chats);
-    const messages = await selectByIds(
+    return loadReadableTabularTranscripts(
         db,
-        "tabular_review_chat_messages",
-        "chat_id",
-        chatIds,
+        candidates.filter(
+            (chat) =>
+                typeof chat.review_id === "string" &&
+                reviewIds.has(chat.review_id),
+        ),
+        userId,
+        userEmail,
     );
-    return { chats, messages };
 }
 
 /**
@@ -358,15 +421,14 @@ export async function buildUserTabularReviewsExport(
     const reviewIds = idsFrom(tabularReviews);
 
     const [cells, chats] = await Promise.all([
-        selectByIds(db, "tabular_cells", "review_id", reviewIds),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail),
         selectByIds(db, "tabular_review_chats", "review_id", reviewIds),
     ]);
-    const chatIds = idsFrom(chats);
-    const messages = await selectByIds(
+    const transcript = await loadReadableTabularTranscripts(
         db,
-        "tabular_review_chat_messages",
-        "chat_id",
-        chatIds,
+        chats,
+        userId,
+        userEmail,
     );
 
     return {
@@ -374,10 +436,7 @@ export async function buildUserTabularReviewsExport(
         user: { id: userId, email: userEmail ?? null },
         tabular_reviews: tabularReviews,
         tabular_cells: cells,
-        tabular_review_chats: {
-            chats,
-            messages,
-        },
+        tabular_review_chats: transcript,
     };
 }
 

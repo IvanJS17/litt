@@ -138,10 +138,19 @@ function makeQuery(table: string) {
     });
     q.single = vi.fn(() => Promise.resolve(resultForTable(table)));
     q.maybeSingle = vi.fn(() => Promise.resolve(resultForTable(table)));
+  // Provenance reads ask for an exact count and page until the answer stops
+  // filling a page; this stub answers every row in one page, so the count has
+  // to match what it returned or a complete read looks truncated.
   q.then = (
     resolve: (v: unknown) => unknown,
     reject?: (e: unknown) => unknown,
-  ) => Promise.resolve(resultForTable(table)).then(resolve, reject);
+  ) => {
+    const result = resultForTable(table);
+    return Promise.resolve({
+      ...result,
+      count: Array.isArray(result.data) ? result.data.length : 0,
+    }).then(resolve, reject);
+  };
     return q;
 }
 
@@ -2469,6 +2478,7 @@ describe("tabular.routes", () => {
                     model: "claude-sonnet-5-5",
                 });
 
+            console.log("DEBUG_BODY", res.status, JSON.stringify(res.body));
             expect(res.status).toBe(200);
             expect(runLLMStream).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -3049,6 +3059,82 @@ describe("tabular.routes", () => {
             expect(res.status).toBe(200);
             expect(res.body).toEqual([
                 { id: "chat-1", title: "T", user_id: "u1", active_turn: null },
+            ]);
+        });
+
+        // TD-023: review access is not document access. A transcript turn can
+        // carry text extracted from another project's documents, so a reader
+        // sees only the messages whose every source document they can read —
+        // and a title derived from a withheld turn is not shown either.
+        it("withholds messages and titles whose source documents the caller cannot read", async () => {
+            supabaseState.tables.tabular_reviews = {
+                data: { id: "r1", user_id: "u1", project_id: null },
+                error: null,
+            };
+            // Read twice: once as the chat row (`.single()`) by the messages
+            // gate, once as the list by the chats endpoint.
+            supabaseState.tables.tabular_review_chats = [
+                {
+                    data: {
+                        id: "chat-1",
+                        title: "Secret project",
+                        user_id: "u1",
+                        review_id: "r1",
+                    },
+                    error: null,
+                },
+                {
+                    data: [
+                        { id: "chat-1", title: "Secret project", user_id: "u1" },
+                    ],
+                    error: null,
+                },
+            ];
+            supabaseState.tables.tabular_review_chat_messages = {
+                data: [
+                    {
+                        id: "m-1",
+                        chat_id: "chat-1",
+                        role: "user",
+                        content: [{ type: "content", text: "readable" }],
+                        annotations: null,
+                        created_at: "2026-01-01T00:00:00Z",
+                        source_document_ids: ["doc-readable"],
+                    },
+                    {
+                        id: "m-2",
+                        chat_id: "chat-1",
+                        role: "assistant",
+                        content: [{ type: "content", text: "from another project" }],
+                        annotations: null,
+                        created_at: "2026-01-01T00:00:01Z",
+                        source_document_ids: ["doc-elsewhere"],
+                    },
+                ],
+                error: null,
+            };
+            filterAccessibleDocumentIds.mockImplementation(
+                async (ids: string[]) =>
+                    ids.filter((id) => id !== "doc-elsewhere"),
+            );
+
+            const res = await request(app)
+                .get("/tabular-review/r1/chats/chat-1/messages")
+                .set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.map((message: { id: string }) => message.id)).toEqual([
+                "m-1",
+            ]);
+            // Provenance is server bookkeeping; it is never echoed back.
+            expect(res.body[0]).not.toHaveProperty("source_document_ids");
+
+            const list = await request(app)
+                .get("/tabular-review/r1/chats")
+                .set(...AUTH);
+            expect(list.status).toBe(200);
+            expect(list.body).toEqual([
+                { id: "chat-1", title: null, user_id: "u1", active_turn: null },
             ]);
         });
     });

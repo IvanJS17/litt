@@ -59,10 +59,22 @@ export function makeExportDb(
             },
             maybeSingle: async () => ({ data: error ? null : rows[0] ?? null, error }),
             single: async () => ({ data: error ? null : rows[0] ?? null, error }),
+            // Every read answers its own exact count: the review-chat
+            // transcript read pages until it sees a short page and refuses to
+            // decide on a subset it cannot prove complete.
             then: (
-                resolve: (v: { data: Row[] | null; error: { message: string } | null }) => unknown,
+                resolve: (v: {
+                    data: Row[] | null;
+                    error: { message: string } | null;
+                    count: number | null;
+                }) => unknown,
                 reject?: (e: unknown) => unknown,
-            ) => Promise.resolve({ data: error ? null : rows.slice(from, to + 1), error }).then(resolve, reject),
+            ) =>
+                Promise.resolve({
+                    data: error ? null : rows.slice(from, to + 1),
+                    error,
+                    count: rows.length,
+                }).then(resolve, reject),
         };
         return builder;
     }

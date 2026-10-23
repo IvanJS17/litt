@@ -1010,6 +1010,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         readableMemoryProjectId,
         reasoningLevel: selectedReasoningLevel,
         reviewTitle,
+        sourceDocumentIds,
         tabularStore,
         titleModel,
         writableMemoryProjectId,
@@ -1114,6 +1115,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                 memoryInputMessageId: inputMessageId,
                 content: persistedEvents,
                 annotations,
+                sourceDocumentIds,
                 touch: "when-saved",
             });
             if (saved.error)
@@ -1182,6 +1184,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                     memoryInputMessageId: inputMessageId,
                     content: partial.events,
                     annotations: partial.citations,
+                    sourceDocumentIds,
                     touch: "always",
                 });
                 if (saveError)
@@ -1218,6 +1221,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                         errorFullText,
                         tabularStore,
                     ),
+                    sourceDocumentIds,
                     touch: "never",
                 });
                 if (saveError)

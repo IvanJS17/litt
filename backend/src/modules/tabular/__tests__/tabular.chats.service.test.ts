@@ -127,6 +127,11 @@ describe("listTabularReviewChats", () => {
                     data: [{ id: "chat-1", user_id: "someone-else" }],
                     error: null,
                 },
+                tabular_review_chat_messages: {
+                    data: [{ id: "m1", chat_id: "chat-1", source_document_ids: [] }],
+                    error: null,
+                    count: 1,
+                },
             },
         });
         const result = await listTabularReviewChats(db, {
@@ -430,8 +435,9 @@ describe("listTabularReviewChatMessages", () => {
                     error: null,
                 },
                 tabular_review_chat_messages: {
-                    data: [{ id: "m1", role: "user" }],
+                    data: [{ id: "m1", role: "user", source_document_ids: [] }],
                     error: null,
+                    count: 1,
                 },
             },
         });
