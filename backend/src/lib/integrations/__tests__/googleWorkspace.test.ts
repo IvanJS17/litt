@@ -777,7 +777,6 @@ describe("additional Google service regression coverage", () => {
   const gmailScope = (name: string) =>
     `https://www.googleapis.com/auth/gmail.${name}`;
   it.each([
-    ["a legacy gmail.modify grant", gmailScope("modify"), true],
     [
       "gmail.readonly with gmail.compose",
       `${gmailScope("readonly")} ${gmailScope("compose")}`,
@@ -819,6 +818,37 @@ describe("additional Google service regression coverage", () => {
       ),
     ).toBe(writeEnabled);
   });
+  it("refuses a legacy gmail.modify grant instead of treating it as the narrower scopes", async () => {
+    const s = workspaceDb();
+    const start = await startWorkspaceOAuth(
+      s.db,
+      "u1",
+      "gmail",
+      "https://mike.test",
+    );
+    fetchMock.mockResolvedValueOnce(
+      json({
+        access_token: "a",
+        refresh_token: "r",
+        expires_in: 3600,
+        scope: gmailScope("modify"),
+      }),
+    );
+    await expect(
+      completeWorkspaceOAuth(
+        s.db,
+        "u1",
+        "gmail",
+        new URL(start.authorizationUrl).searchParams.get("state")!,
+        "code",
+      ),
+    ).rejects.toThrow(/reconnect/i);
+    expect(await workspaceStatus(s.db, "u1", "gmail")).toMatchObject({
+      connected: false,
+      writeEnabled: false,
+    });
+  });
+
   it("uses the exact encrypted PKCE verifier and redirect, and rejects an unverified account", async () => {
     const s = workspaceDb();
     const started = await startWorkspaceOAuth(

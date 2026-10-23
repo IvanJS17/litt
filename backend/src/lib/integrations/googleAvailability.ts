@@ -9,6 +9,12 @@
  *
  * Shared by the Drive and Gmail/Calendar integrations, which otherwise keep
  * separate OAuth clients, grants and tools.
+ *
+ * LiTT policy: Google Drive is not offered by default. Approved artifacts are
+ * published to Drive by the matter-bound publication service (which needs no
+ * OAuth client and no connector), so the connector's Drive surface stays closed
+ * until an operator opts in by defining the variable — an explicit list,
+ * including an empty one, replaces this default.
  */
 export const GOOGLE_SERVICES = {
   "google-drive": "Google Drive",
@@ -17,8 +23,13 @@ export const GOOGLE_SERVICES = {
 } as const;
 export type GoogleService = keyof typeof GOOGLE_SERVICES;
 
+/** Services that stay off when the operator defines no list. */
+const DEFAULT_DISABLED_SERVICES: readonly GoogleService[] = ["google-drive"];
+
 export function disabledGoogleServices(): GoogleService[] {
-  const ids = (process.env.GOOGLE_WORKSPACE_DISABLED_PROVIDERS ?? "")
+  const configured = process.env.GOOGLE_WORKSPACE_DISABLED_PROVIDERS;
+  if (configured === undefined) return [...DEFAULT_DISABLED_SERVICES];
+  const ids = configured
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);

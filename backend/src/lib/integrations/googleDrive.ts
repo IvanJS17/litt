@@ -74,27 +74,23 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
  * created or the user picked in the Google Picker.
  */
 export const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-/** Full Drive access, held by connections made before drive.file. */
-export const GOOGLE_DRIVE_FULL_SCOPE = "https://www.googleapis.com/auth/drive";
-/** Read-only Drive access, held by the earliest connections. */
-export const GOOGLE_DRIVE_READONLY_SCOPE =
-    "https://www.googleapis.com/auth/drive.readonly";
 
 /**
  * The one place that says what each Drive scope Mike has requested allows.
  * `picker`: the scope is per-file, so an access token carrying it may be
- * handed to the browser for the Google Picker. The whole-Drive scopes of
- * earlier connections keep working for server-side tools but never leave
- * the server.
+ * handed to the browser for the Google Picker.
+ *
+ * Only the per-file scope is recognized. LiTT never asked for whole-Drive
+ * access, so a grant carrying it (a row restored from an upstream-shaped
+ * database, or a hand-edited one) grants nothing here: the connection reads as
+ * needing a reconnect instead of silently keeping broader reach than the
+ * product ever requested. The scope strings stay exported so the refusal is
+ * testable by name.
  */
 const DRIVE_SCOPE_ACCESS = new Map<
     string,
     { read: boolean; write: boolean; picker: boolean }
->([
-    [GOOGLE_DRIVE_SCOPE, { read: true, write: true, picker: true }],
-    [GOOGLE_DRIVE_FULL_SCOPE, { read: true, write: true, picker: false }],
-    [GOOGLE_DRIVE_READONLY_SCOPE, { read: true, write: false, picker: false }],
-]);
+>([[GOOGLE_DRIVE_SCOPE, { read: true, write: true, picker: true }]]);
 
 /** Whether a space-separated OAuth scope string grants Drive `access`. */
 export function driveScopeGrants(

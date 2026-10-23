@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-    GOOGLE_DRIVE_FULL_SCOPE,
-    GOOGLE_DRIVE_READONLY_SCOPE,
     GOOGLE_DRIVE_SCOPE,
     buildGoogleDriveTools,
     createGoogleDrivePickerSession,
@@ -43,6 +41,9 @@ const PRIOR_ENV = {
 };
 
 beforeEach(() => {
+    // Drive is off by default in LiTT; these tests exercise the operator who
+    // opted in. The default-off policy has its own test file.
+    process.env.GOOGLE_WORKSPACE_DISABLED_PROVIDERS = "";
     process.env.GOOGLE_DRIVE_OAUTH_CLIENT_ID = "drive-client-id";
     process.env.GOOGLE_DRIVE_OAUTH_CLIENT_SECRET = "drive-client-secret";
     delete process.env.GOOGLE_MCP_OAUTH_CLIENT_ID;
@@ -103,7 +104,7 @@ describe("startGoogleDriveOAuth", () => {
         expect(requested).toContain(
             "https://www.googleapis.com/auth/drive.file",
         );
-        expect(requested).not.toContain(GOOGLE_DRIVE_FULL_SCOPE);
+        expect(requested).not.toContain("https://www.googleapis.com/auth/drive");
         expect(url.searchParams.get("code_challenge_method")).toBe("S256");
         // Without these two params Google never issues a refresh token and the
         // connection silently dies when the first access token expires.
@@ -119,8 +120,10 @@ describe("startGoogleDriveOAuth", () => {
 describe("driveScopeGrants", () => {
     it.each([
         [GOOGLE_DRIVE_SCOPE, true, true, true],
-        [GOOGLE_DRIVE_FULL_SCOPE, true, true, false],
-        [GOOGLE_DRIVE_READONLY_SCOPE, true, false, false],
+        // Whole-Drive scopes are never recognized: LiTT never requested them,
+        // so a connection carrying one has to be remade.
+        ["https://www.googleapis.com/auth/drive", false, false, false],
+        ["https://www.googleapis.com/auth/drive.readonly", false, false, false],
         ["openid email https://www.googleapis.com/auth/gmail.modify", false, false, false],
     ])("%s grants read=%s write=%s picker=%s", (scope, read, write, picker) => {
         expect(driveScopeGrants(`openid email ${scope}`, "read")).toBe(read);
@@ -171,7 +174,10 @@ describe("createGoogleDrivePickerSession", () => {
         vi.stubEnv("GOOGLE_DRIVE_PICKER_APP_ID", "123456789");
         const fetchSpy = vi.fn();
         vi.stubGlobal("fetch", fetchSpy);
-        for (const scope of [GOOGLE_DRIVE_FULL_SCOPE, GOOGLE_DRIVE_READONLY_SCOPE]) {
+        for (const scope of [
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/drive.readonly",
+        ]) {
             const db = makeDb({
                 tokenRow: encryptedTokenRow({
                     grant_id: "grant-1",
@@ -209,8 +215,14 @@ describe("getGoogleDriveStatus", () => {
                 makeDb({ tokenRow: encryptedTokenRow({ scope: `openid email ${scope}` }) }),
             );
         expect((await statusFor(GOOGLE_DRIVE_SCOPE)).pickerAvailable).toBe(true);
-        expect((await statusFor(GOOGLE_DRIVE_FULL_SCOPE)).pickerAvailable).toBe(false);
-        expect((await statusFor(GOOGLE_DRIVE_READONLY_SCOPE)).pickerAvailable).toBe(false);
+        expect(
+            (await statusFor("https://www.googleapis.com/auth/drive"))
+                .pickerAvailable,
+        ).toBe(false);
+        expect(
+            (await statusFor("https://www.googleapis.com/auth/drive.readonly"))
+                .pickerAvailable,
+        ).toBe(false);
     });
 
     it("reports the schema as ready and the client as configured", async () => {

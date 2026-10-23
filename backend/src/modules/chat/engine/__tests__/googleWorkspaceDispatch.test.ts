@@ -5,6 +5,9 @@ import { driveDb } from "../../../../lib/integrations/__tests__/googleDriveDb";
 import { encryptFields } from "../../../../lib/integrations/googleWorkspaceAuth";
 beforeEach(() => {
   vi.stubEnv("MCP_CONNECTORS_ENCRYPTION_SECRET", "test-secret");
+  // Drive is off by default in LiTT; these tests exercise an operator who
+  // opted in (googleDriveDefaultOff.test.ts covers the default).
+  vi.stubEnv("GOOGLE_WORKSPACE_DISABLED_PROVIDERS", "");
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
@@ -27,7 +30,7 @@ const send = {
 
 it.each([false, true])("dispatches Drive writes with approval required: %s", async (requiresApproval) => {
   const store = driveDb({ tokenRow: {
-    user_id: "u1", grant_id: "drive-grant", scope: "https://www.googleapis.com/auth/drive",
+    user_id: "u1", grant_id: "drive-grant", scope: "https://www.googleapis.com/auth/drive.file",
     require_write_approval: requiresApproval, expires_at: "2099-01-01",
     ...encryptFields("access_token", "test-token"),
   } });

@@ -44,6 +44,9 @@ function store(overrides: Record<string, unknown> = {}) {
 }
 beforeEach(() => {
   vi.stubEnv("MCP_CONNECTORS_ENCRYPTION_SECRET", "synthetic-secret");
+  // Drive is off by default in LiTT; these tests exercise an operator who
+  // opted in (googleDriveDefaultOff.test.ts covers the default).
+  vi.stubEnv("GOOGLE_WORKSPACE_DISABLED_PROVIDERS", "");
   vi.spyOn(console, "error").mockImplementation(() => {});
   current = { ...original };
   calls.length = 0;

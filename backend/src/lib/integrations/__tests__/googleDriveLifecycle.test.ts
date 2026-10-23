@@ -17,6 +17,9 @@ import { decryptString } from "../../mcp/client";
 import { driveDb } from "./googleDriveDb";
 
 beforeEach(() => {
+    // This file runs as the operator who offered Drive; see
+    // googleDriveDefaultOff.test.ts for the shipped default.
+    vi.stubEnv("GOOGLE_WORKSPACE_DISABLED_PROVIDERS", "");
     vi.stubEnv("GOOGLE_DRIVE_OAUTH_CLIENT_ID", "test-client");
     vi.stubEnv("GOOGLE_DRIVE_OAUTH_CLIENT_SECRET", "test-secret");
     vi.stubEnv("MCP_CONNECTORS_ENCRYPTION_SECRET", "test-encryption-key");
@@ -456,7 +459,7 @@ describe("Google Drive OAuth lifecycle", () => {
             setGoogleDriveToolEnabled("u1", "google_drive_delete", false, store.db),
         ).rejects.toThrow("Unknown");
     });
-    it("keeps a connection made with the earlier read-only permission working", async () => {
+    it("refuses the whole-Drive read-only permission LiTT never requested", async () => {
         const store = driveDb();
         const state = await begin(store);
         vi.stubGlobal(
@@ -468,9 +471,12 @@ describe("Google Drive OAuth lifecycle", () => {
                 }),
             ),
         );
-        await completeGoogleDriveOAuth("u1", state, "code", store.db);
+        await expect(
+            completeGoogleDriveOAuth("u1", state, "code", store.db),
+        ).rejects.toThrow(/reconnect/i);
+        expect(store.tokens).toHaveLength(0);
         expect((await getGoogleDriveStatus("u1", store.db)).connected).toBe(
-            true,
+            false,
         );
     });
     it("refuses a grant without any Drive permission", async () => {

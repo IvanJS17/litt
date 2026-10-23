@@ -88,15 +88,15 @@ export function requestedScopes(provider: GoogleProvider): string[] {
   return ["openid", "email", ...config.read, ...config.write];
 }
 /**
- * Broader scopes that cover narrower ones Mike checks for. gmail.modify was
- * Mike's Gmail write scope before gmail.compose; listing it keeps those grants
- * readable and writable without a reconnect.
+ * Broader scopes that cover narrower ones Mike checks for.
+ *
+ * LiTT never requested `gmail.modify`, so it is not listed: a grant that
+ * carries it does not count as `gmail.readonly` + `gmail.compose`, and the
+ * connection has to be remade with the scopes the product actually asks for.
+ * The calendar implication stays — it is the same family of access and
+ * upstream has always requested both scopes together.
  */
 const IMPLIED_SCOPES: Record<string, readonly string[]> = {
-  "https://www.googleapis.com/auth/gmail.modify": [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.compose",
-  ],
   "https://www.googleapis.com/auth/calendar.events": [
     "https://www.googleapis.com/auth/calendar.events.readonly",
   ],
