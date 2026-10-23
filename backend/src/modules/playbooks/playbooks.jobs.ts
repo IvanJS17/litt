@@ -341,6 +341,7 @@ export async function queuePlaybookReview(args: PlaybookReviewRequest) {
     instructions: work.instructions,
     userEmail: work.userEmail,
     expectedVersion: work.expectedVersion,
+    authorization: work.authorization ?? null,
   };
   await dispatch(
     db,

@@ -29,7 +29,9 @@ vi.mock("../../../lib/llm", async (original) => ({
   completeText,
   streamChatWithTools,
 }));
-vi.mock("../../user/user.service", () => ({ getUserApiKeys }));
+vi.mock("../../user/user.service", async () =>
+  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+);
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   uploadFile,

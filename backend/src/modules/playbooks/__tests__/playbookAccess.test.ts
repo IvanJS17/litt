@@ -8,7 +8,9 @@ vi.mock("../../../lib/llm", async (original) => ({
   ...(await original<typeof import("../../../lib/llm")>()),
   completeText,
 }));
-vi.mock("../../user/user.service", () => ({ getUserApiKeys }));
+vi.mock("../../user/user.service", async () =>
+  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+);
 const docs = vi.hoisted(() => ({
   applyTrackedEditsToDocument: vi.fn(),
   loadCurrentVersionBytes: vi.fn(),

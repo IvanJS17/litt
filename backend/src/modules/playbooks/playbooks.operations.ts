@@ -34,7 +34,22 @@ import {
 } from "../../lib/llm/models";
 import type { Provider } from "../../lib/llm/types";
 import { hasApiKeyForModel } from "../../lib/modelSelection";
-import { getUserApiKeys, getEffectiveApiKeys } from "../user/user.service";
+import {
+  chatRouteColumns,
+  chatRouteOf,
+  getUserApiKeys,
+  getEffectiveApiKeys,
+  loadPinnedChatRoute,
+  pinChatRoute,
+  recordChatEgress,
+  type ChatRoute,
+  type ResolvedChatRoute,
+} from "../user/user.service";
+import {
+  assertAuthorizationStamp,
+  readAuthorizationStamp,
+  type AuthorizationStamp,
+} from "../../lib/authorizationEpoch";
 import { deleteFile, uploadFile } from "../../lib/storage";
 import { getFileStreamSource } from "../documents/documents.service";
 import { liveDbJobDedupeKeys } from "../../lib/dbq/enqueue";
@@ -603,6 +618,41 @@ async function assertPlaybookModelAvailable(
   if (!availability.available)
     throw new PlaybookRequestError(availability.reason);
   return apiKeys;
+}
+
+/**
+ * Governed BYOK for playbook work (ledger 16.3, "Workflow catalog, add-ons
+ * and playbooks"): a review or an import is fixed, when it is requested, to
+ * one provider + model + credential, stored with it; the work that runs later
+ * (a queued job, a retry) uses exactly that route and fails closed if the
+ * credential is gone. Only the pinned credential reaches the model layer.
+ */
+async function pinPlaybookRoute(
+  db: Db,
+  userId: string,
+  model: string,
+  orgId: string | null,
+): Promise<ResolvedChatRoute> {
+  await assertPlaybookModelAvailable(userId, model, db, orgId);
+  const pinned = await pinChatRoute(db, { userId, orgId, model });
+  if (!pinned.ok) throw new PlaybookRequestError(pinned.detail, 409);
+  return pinned;
+}
+
+async function loadPlaybookRoute(
+  db: Db,
+  userId: string,
+  orgId: string | null,
+  route: ChatRoute | null | undefined,
+): Promise<ResolvedChatRoute> {
+  if (!route)
+    throw new PlaybookRequestError(
+      "This work was recorded without a fixed AI model and key. Start it again.",
+      409,
+    );
+  const loaded = await loadPinnedChatRoute(db, { userId, orgId, route });
+  if (!loaded.ok) throw new PlaybookRequestError(loaded.detail, 409);
+  return loaded;
 }
 
 async function availablePlaybookModels(
@@ -1314,6 +1364,10 @@ export type PlaybookImportWork = {
   targetUpdatedAt?: string | null;
   newPlaybookId: string;
   startedAt: string;
+  /** The provider + model + credential fixed when the import was requested. */
+  route?: ChatRoute | null;
+  /** LiTT C4: the organization epoch the import was requested under. */
+  authorization?: AuthorizationStamp | null;
 };
 
 /** An import whose file is already in memory. */
@@ -1469,7 +1523,9 @@ export async function beginPlaybookImport(
       target_updated_at: targetUpdatedAt,
     });
     validateModel(model);
-    await assertPlaybookModelAvailable(args.userId, model, db, row.org_id);
+    const pinned = await pinPlaybookRoute(db, args.userId, model, row.org_id);
+    await updateImportAttempt(db, attemptId, chatRouteColumns(pinned.route));
+    const authorization = await readAuthorizationStamp(db, row.org_id);
     return {
       attempt: publicImport(row, new Set()),
       work: {
@@ -1484,6 +1540,8 @@ export async function beginPlaybookImport(
         targetUpdatedAt,
         newPlaybookId: crypto.randomUUID(),
         startedAt: now,
+        route: pinned.route,
+        authorization,
       },
     };
   } catch (error) {
@@ -1534,12 +1592,17 @@ export async function compilePlaybookImport(
     const replacing = work.replacePlaybookId
       ? await editablePlaybook(userId, work.replacePlaybookId, db, work.userEmail)
       : null;
-    const apiKeys = await assertPlaybookModelAvailable(
+    await assertAuthorizationStamp(db, work.orgId, work.authorization);
+    const resolved = await loadPlaybookRoute(db, userId, work.orgId, work.route);
+    const apiKeys = resolved.apiKeys;
+    await recordChatEgress(db, {
       userId,
-      model,
-      db,
-      work.orgId,
-    );
+      orgId: work.orgId,
+      chatId: null,
+      surface: "playbook_import",
+      resolved,
+      extra: { playbook_import_id: attemptId },
+    });
 
     stage = "extracting_text";
     await updateImportAttempt(db, attemptId, { stage });
@@ -1622,6 +1685,8 @@ export async function compilePlaybookImport(
     uploadedStorageKey = storageKey;
 
     stage = "saving_playbook";
+    // C4 again before the write: the compile may outlast a membership change.
+    await assertAuthorizationStamp(db, work.orgId, work.authorization);
     await updateImportAttempt(db, attemptId, { stage });
     // Review runs retain their own content snapshot when the source changes.
     const { data: replaced, error } = replacing
@@ -2078,16 +2143,18 @@ async function loadReviewDocument(
   if (!doc) throw missing();
   const access = await ensureDocAccess(doc, userId, userEmail, db);
   if (!access.ok) throw missing();
+  const orgId = (doc.org_id as string | null) ?? null;
   const version = await loadActiveVersion(documentId, db);
   if (!version) throw missing();
   const filename = version.filename?.trim() || "Untitled document";
   const isDocx = version.file_type === "docx" || /\.docx$/i.test(filename);
-  if (!isDocx) return { filename, isDocx, text: null };
+  if (!isDocx) return { filename, isDocx, text: null, orgId };
   const current = await loadCurrentVersionBytes(documentId, db, version.id);
   if (!current) throw missing();
   return {
     filename, isDocx, text: await extractDocxBodyText(current.bytes),
     version: { id: version.id, storagePath: current.storage_path },
+    orgId,
   };
 }
 
@@ -2240,10 +2307,18 @@ export type PlaybookReviewInput = {
   instructions: string | null;
   userEmail: string | null;
   expectedVersion: { id: string; storagePath: string } | null;
+  /**
+   * LiTT C4: the organization epoch of the reviewed content (the stored
+   * document's organization, else the playbook's) when the review was
+   * requested. Null for personal content.
+   */
+  authorization?: AuthorizationStamp | null;
 };
 
 /** A review as runPlaybookReview performs it: its row plus its input. */
 export type PlaybookReviewWork = PlaybookReviewInput & {
+  /** The provider + model + credential fixed on the run row. */
+  route: ChatRoute | null;
   playbookId: string;
   content: PlaybookContent;
   model: string;
@@ -2261,6 +2336,7 @@ export function playbookReviewWork(
 ): PlaybookReviewWork {
   return {
     ...input,
+    route: chatRouteOf(row as Parameters<typeof chatRouteOf>[0]),
     userId: String(row.user_id),
     playbookId: String(row.playbook_id),
     content: (parseJson(row.content_json) ?? row.content_json) as PlaybookContent,
@@ -2305,11 +2381,15 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
       "Complete the playbook name, rules, and positions before running a review.",
     );
   const content = stableIds(parsedContent.data);
-  const apiKeys = await assertPlaybookModelAvailable(
+  const pinned = await pinPlaybookRoute(
+    db,
     args.userId,
     args.model,
-    db,
     playbook.orgId,
+  );
+  const authorization = await readAuthorizationStamp(
+    db,
+    stored ? stored.orgId : playbook.orgId,
   );
   if (JSON.stringify(content).length > 100_000)
     throw new PlaybookRequestError(
@@ -2322,7 +2402,7 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     playbook_id: args.playbookId,
     content_json: content,
     user_id: args.userId,
-    model: args.model,
+    ...chatRouteColumns(pinned.route),
     document_name: documentName || null,
     document_id: args.documentId ?? null,
     edited_version_id: null,
@@ -2346,11 +2426,12 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     instructions: args.instructions ?? null,
     userEmail: args.userEmail ?? null,
     expectedVersion: stored?.version ?? null,
+    authorization,
   };
   return {
     run: publicRun(row, new Set()),
     work: playbookReviewWork(row, input),
-    apiKeys,
+    resolved: pinned,
     db,
   };
 }
@@ -2362,8 +2443,8 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
  * the chat tool, which waits for the findings, runs it here.
  */
 export async function startPlaybookReview(args: PlaybookReviewRequest) {
-  const { run, work, apiKeys, db } = await beginPlaybookReview(args);
-  return { run, done: runPlaybookReview(db, work, apiKeys) };
+  const { run, work, resolved, db } = await beginPlaybookReview(args);
+  return { run, done: runPlaybookReview(db, work, resolved) };
 }
 
 /**
@@ -2381,6 +2462,22 @@ async function playbookKeyScope(db: Db, playbookId: string) {
   return (data.org_id as string | null) ?? null;
 }
 
+/** The organization of the content a review acts on, read live. */
+async function reviewContentOrg(
+  db: Db,
+  work: PlaybookReviewWork,
+  playbookOrg: string | null,
+): Promise<string | null> {
+  if (!work.documentId) return playbookOrg;
+  const { data, error } = await db
+    .from("documents")
+    .select("org_id")
+    .eq("id", work.documentId)
+    .maybeSingle();
+  if (error) throw error;
+  return ((data as { org_id?: string | null } | null)?.org_id ?? null);
+}
+
 /**
  * Runs a recorded review and stores its outcome. Safe to run again for the
  * same run, which is what a job re-claimed after its worker died does: the
@@ -2393,7 +2490,7 @@ async function playbookKeyScope(db: Db, playbookId: string) {
 export async function runPlaybookReview(
   db: Db,
   work: PlaybookReviewWork,
-  apiKeys?: UserApiKeys,
+  resolvedRoute?: ResolvedChatRoute,
 ) {
   const { runId } = work;
   const stopHeartbeat = keepPlaybookWorkAttended(db, "playbook_runs", runId);
@@ -2403,14 +2500,23 @@ export async function runPlaybookReview(
     // playbook can be lost while a job waits, as compilePlaybookImport
     // checks its target.
     await getPlaybook(work.userId, work.playbookId, db, work.userEmail);
-    const keys =
-      apiKeys ??
-      (await assertPlaybookModelAvailable(
-        work.userId,
-        work.model,
-        db,
-        await playbookKeyScope(db, work.playbookId),
-      ));
+    const keyScope = await playbookKeyScope(db, work.playbookId);
+    // LiTT C4: work queued before an authorization change does not run.
+    const contentOrg = await reviewContentOrg(db, work, keyScope);
+    await assertAuthorizationStamp(db, contentOrg, work.authorization);
+    // The route fixed when the review was requested; never re-resolved.
+    const resolved =
+      resolvedRoute ??
+      (await loadPlaybookRoute(db, work.userId, keyScope, work.route));
+    const keys = resolved.apiKeys;
+    await recordChatEgress(db, {
+      userId: work.userId,
+      orgId: contentOrg,
+      chatId: null,
+      surface: "playbook",
+      resolved,
+      extra: { playbook_run_id: runId },
+    });
     const sources = await listPlaybookSourceRows(db, work.playbookId);
     const scope = work.reviewScope;
     const prompt = reviewPrompt(
@@ -2450,6 +2556,8 @@ export async function runPlaybookReview(
         ? normalized.filter((finding) => ISSUE_STATUSES.has(finding.status))
         : normalized;
     stage = "review.apply_edits";
+    // C4 again before writing tracked changes or the outcome.
+    await assertAuthorizationStamp(db, contentOrg, work.authorization);
     const { findings, version } =
       work.documentId && work.expectedVersion
         ? await applyReviewEdits({

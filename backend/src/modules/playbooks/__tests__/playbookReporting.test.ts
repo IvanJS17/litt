@@ -17,7 +17,9 @@ vi.mock("../../../lib/llm", async (original) => ({
   ...(await original<typeof import("../../../lib/llm")>()),
   completeText,
 }));
-vi.mock("../../user/user.service", () => ({ getUserApiKeys }));
+vi.mock("../../user/user.service", async () =>
+  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+);
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   ...storage,
@@ -68,6 +70,8 @@ function runRow(): Row {
     playbook_id: "book",
     user_id: "owner",
     model: MODEL,
+    model_provider: "claude",
+    credential_ref: "env:claude",
     document_name: "msa.txt",
     document_id: null,
     review_mode: "strict",
@@ -117,6 +121,7 @@ const importPayload = {
   name: null,
   model: MODEL,
   orgId: null,
+  route: { provider: "claude", model: MODEL, credentialRef: "env:claude" },
   replacePlaybookId: null,
   newPlaybookId: "new-book",
   startedAt: new Date().toISOString(),

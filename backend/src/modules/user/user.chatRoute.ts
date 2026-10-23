@@ -507,6 +507,8 @@ export async function recordChatEgress(
         projectId?: string | null;
         surface: string;
         resolved: ResolvedChatRoute;
+        /** Identifiers of the work this egress belongs to (never content). */
+        extra?: Record<string, string>;
     },
 ): Promise<void> {
     const { route, apiKeys } = args.resolved;
@@ -522,6 +524,7 @@ export async function recordChatEgress(
             provider: route.provider,
             credential_ref: route.credentialRef,
             host: chatRouteHost(route, apiKeys),
+            ...(args.extra ?? {}),
         },
     });
 }

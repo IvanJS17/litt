@@ -15,7 +15,9 @@ vi.mock("../../../lib/llm", async (original) => ({
   ...(await original<typeof import("../../../lib/llm")>()),
   completeText,
 }));
-vi.mock("../../user/user.service", () => ({ getUserApiKeys }));
+vi.mock("../../user/user.service", async () =>
+  (await import("./routeMock")).userServiceMock(getUserApiKeys),
+);
 vi.mock("../../../lib/audit", () => ({ recordAudit }));
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
@@ -38,7 +40,7 @@ import {
   queuePlaybookImport,
   queuePlaybookReview,
 } from "../playbooks.jobs";
-import { database, type Row } from "./playbookTestDb";
+import { database, ORG, type Row } from "./playbookTestDb";
 
 const MODEL = "claude-opus-5";
 const STAGED_KEY =
@@ -69,6 +71,8 @@ function runRow(overrides: Row = {}): Row {
     playbook_id: "book",
     user_id: "owner",
     model: MODEL,
+    model_provider: "claude",
+    credential_ref: "env:claude",
     document_name: "msa.txt",
     document_id: null,
     review_mode: "strict",
@@ -397,6 +401,7 @@ const importPayload = {
   name: null,
   model: MODEL,
   orgId: null,
+  route: { provider: "claude", model: MODEL, credentialRef: "env:claude" },
   replacePlaybookId: null,
   newPlaybookId: "new-book",
   startedAt: new Date().toISOString(),
@@ -634,5 +639,73 @@ describe("a playbook job that runs out of attempts", () => {
         detail: expect.objectContaining({ stage: "checking_model" }),
       }),
     ]);
+  });
+});
+
+describe("governed playbook work (LiTT)", () => {
+  it("records the pinned route on a new run", async () => {
+    const { db, tables } = database([book()]);
+    await queuePlaybookReview({
+      userId: "owner",
+      playbookId: "book",
+      documentText: "Contract",
+      model: MODEL,
+      reviewMode: "strict",
+      db,
+    });
+    expect(tables.playbook_runs[0]).toMatchObject({
+      model: MODEL,
+      model_provider: "claude",
+      credential_ref: "env:claude",
+    });
+  });
+
+  it("refuses a queued review that carries no pinned route", async () => {
+    const { db, tables } = database([book()]);
+    tables.playbook_runs.push(
+      runRow({ model_provider: null, credential_ref: null }),
+    );
+    await handlePlaybookReview(db, job("playbook.review", reviewPayload)).catch(
+      () => undefined,
+    );
+    expect(completeText).not.toHaveBeenCalled();
+    expect(tables.playbook_runs[0]).toMatchObject({ status: "failed" });
+  });
+
+  it("fails a queued review once its organization's authorization epoch moved", async () => {
+    const { db, tables } = database(
+      [book({ org_id: ORG, visibility: "org" })],
+      [{ org_id: ORG, user_id: "owner", role: "owner" }],
+    );
+    tables.organizations[0].authorization_epoch = 3;
+    tables.playbook_runs.push(runRow());
+    await handlePlaybookReview(
+      db,
+      job("playbook.review", {
+        ...reviewPayload,
+        authorization: { orgId: ORG, epoch: 2 },
+      }),
+    ).catch(() => undefined);
+    expect(completeText).not.toHaveBeenCalled();
+    expect(tables.playbook_runs[0]).toMatchObject({ status: "failed" });
+  });
+
+  it("fails a queued import once its organization's authorization epoch moved", async () => {
+    const { db, tables } = database([], [{ org_id: ORG, user_id: "owner", role: "owner" }]);
+    tables.organizations[0].authorization_epoch = 3;
+    tables.playbook_imports = [importRow({ org_id: ORG })];
+    storage.downloadFile.mockResolvedValue(await sourceDocx());
+    completeText.mockResolvedValue(compiled("Standards"));
+    await handlePlaybookImport(
+      db,
+      job("playbook.import", {
+        ...importPayload,
+        orgId: ORG,
+        authorization: { orgId: ORG, epoch: 2 },
+      }),
+    ).catch(() => undefined);
+    expect(completeText).not.toHaveBeenCalled();
+    expect(tables.playbook_imports[0]).toMatchObject({ status: "failed" });
+    expect(tables.playbooks).toEqual([]);
   });
 });
