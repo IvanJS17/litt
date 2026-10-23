@@ -24,11 +24,15 @@
 - **Browser E2E:** failed from 2026-09-25 because the MinIO image was no longer
   pullable. PR #51 moves it to RustFS pinned by digest; only a run of the
   browser E2E workflow can show that the move works.
-- **Upstream:** pin `7e3607e7…`; `upstream/main` `795f9608…` is 439 commits
-  ahead and the last intake was 2026-09-14, so the stop-the-line threshold in
-  [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md) is active: no feature expansion
-  until an approved sync plan. The security subset was classified on
-  2026-10-21 ([`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §14).
+- **Upstream (2026-10-23):** pin `7e3607e7…`; the sync target is
+  `upstream/main` `e7ab6bd4…`, 442 commits ahead (367 without merges). All 367
+  are classified exactly once, superseding the 2026-10-21 security subset
+  ([`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §14
+  and §15), and the sync plan is approved
+  ([`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), strategy B). That clears
+  the classification thresholds in [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md);
+  feature expansion stays paused while the sync executes (TD-019) until the
+  merge commit lands and the pin advances.
 - **Release candidate** `fix/release-candidate-20261021` (PR #51, the commits
   from `2eb27db8` to the pull request head): dependency security updates,
   browser E2E storage on RustFS, visible LiTT branding, the security ports
@@ -202,7 +206,7 @@ remote staging, a real provider/Drive canary or production.
 | Remote staging | Not verified |
 | Real Shared Drive canary | Blocked pending dedicated account/token/folder and authorization |
 | Production deployment package | Versioned by PR #50 (`2eb27db8`); deployment not verified |
-| Upstream intake 2026-10-21 | Security subset classified (ledger §14); 439 commits otherwise unclassified; stop-the-line active |
+| Upstream intake 2026-10-23 | 442 commits to `e7ab6bd4…` (367 without merges) fully classified (ledger §15); sync plan approved (strategy B); slices S1–S8 pending on `sync/upstream-20261023`; feature expansion paused until the merge (TD-019) |
 | Release candidate `fix/release-candidate-20261021` | Local verification complete; awaiting one exact-snapshot Reviewer verdict; push/PR/merge not authorized |
 | Production | Not deployed or verified |
 
@@ -230,8 +234,12 @@ As of 2026-10-21: one Reviewer verdict on the exact snapshot of
 `fix/release-candidate-20261021`. After PASS, the owner decides push/PR; the
 exact-head CI must include the RustFS browser E2E, Stack tests and Schema drift
 before merge. Production deployment then follows `deploy/prod/README.md` with
-the owner's inputs and its own authorization. Feature expansion stays paused
-until an approved upstream sync plan clears the stop-the-line threshold.
+the owner's inputs and its own authorization.
+
+As of 2026-10-23 the upstream sync plan is approved; the next upstream gate is
+the Reviewer verdict on each slice of
+[`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), starting with S1. Feature
+expansion stays paused until the sync merge commit lands (TD-019).
 
 Historical gate (2026-09-14):
 

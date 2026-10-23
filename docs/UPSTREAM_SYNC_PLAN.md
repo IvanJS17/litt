@@ -29,11 +29,17 @@ Two strategies were measured.
 
 | | A. Port upstream into LiTT | B. Reapply LiTT on upstream (chosen) |
 | --- | --- | --- |
-| Conflicts to resolve now | 332 shared paths | 315 merge-tree conflict paths from the pin |
+| Conflicts to resolve now | 548 conflicting paths (`git merge-tree` of LiTT `main` and upstream) | 315 conflicting paths (`git merge-tree` from the pin) |
 | Backend layout | translate upstream `backend/src/modules/**` (312 files; `src/routes/` no longer exists upstream) back into LiTT routes on every sync | adopt the modular layout and its architecture test |
 | Migrations | re-author every new upstream migration by hand (72 this cycle) | converge once on upstream's migration runner |
 | Next syncs | another manual port of every commit | an ordinary reviewed `git merge upstream/main` |
 | Estimated effort | 170–470 h now and again each cycle | 186–498 h once; 25–70 h per later cycle |
+
+Both conflict counts are distinct paths reported by
+`git merge-tree --write-tree --name-only` (git 2.56): A merges `HEAD` with
+`upstream/main` on their real merge-base `204d2d53`; B uses
+`--merge-base 7e3607e7`. They are not the 332 paths changed by both sides (§1),
+which counts edits, not conflicts.
 
 B is chosen because A never converges: upstream ships about 90 commits a week
 and keeps restructuring, so every manual port costs as much as this one. B costs
@@ -63,10 +69,10 @@ sharing, but no workspace or matter entity. Most LiTT content access is already
 a port of upstream's organization-access model (53 of 69 tables are shared).
 Reconciliation is feasible under these conditions:
 
-- **C1 — workspaces and matters stay.** They are an approved product decision:
-  workspaces are internal units of one firm, and matter teams are chosen by the
-  partner who creates the matter. Both remain a LiTT extension on top of upstream
-  organizations.
+- **C1 — workspaces and matters stay.** They are an approved product decision
+  (decision D1, §3.1): workspaces are internal units of one firm, and matter
+  teams are chosen by the partner who creates the matter. Both remain a LiTT
+  extension on top of upstream organizations.
 - **C2 — no standing access to private matters.** Organization owners and admins
   do not see or open private matters, in TypeScript and in SQL. Upstream's
   "ownerless" project takeover is not applied to private matters. The SQL mirror
@@ -77,10 +83,34 @@ Reconciliation is feasible under these conditions:
   purge do not apply.
 - **C4 — authorization epochs.** Revocation keeps invalidating old sessions and
   jobs, with triggers covering deletes.
-- **C5 — no organization deletion.** `DELETE /orgs/:id` answers 405 until the
-  retention decision is implemented (TD-008).
+- **C5 — no organization deletion and no organization-wide listing.**
+  `DELETE /orgs/:id` answers 405 until the retention decision is implemented
+  (TD-008). `GET /orgs/:id/resources`, live upstream, also answers 405 until
+  `project_access_role` and `project_access_scope` filter by matter membership:
+  enabled earlier, it would list the titles of other teams' private matters.
+  The existing regression in
+  `backend/src/__tests__/integration/orgs.routes.test.ts` ("unsupported
+  organization endpoints") keeps both 405s. Changing that test requires an
+  explicit Reviewer verdict on the matter filter, not a slice adjustment.
 
 Each condition gets a RED regression before its implementation.
+
+### 3.1 Decision D1: what a workspace is
+
+Upstream has no workspace level, so the evidence analysis asked for this
+decision before the tenancy schema slice.
+
+| Option | Effect | Cost |
+| --- | --- | --- |
+| (a) Collapse: workspace = organization, matters hang from the organization | Smallest tenancy delta; recommended by the evidence analysis because LiTT has no workspace endpoint or screen yet | Baseline |
+| (b) Keep `workspaces` and `workspace_memberships` as a LiTT extension under upstream `organizations` (**chosen**) | One firm can hold several internal units with their own members, library and workflows; a workspace admin gets no automatic access to matters | About +800 LOC and +2 tables: `is_workspace_admin` rewritten over `org_members`, RLS of both tables re-issued, four roles remapped, `projects.workspace_id` |
+
+Decision: **(b)**. Source: the owner's register of approved decisions (§19 of
+the private product contract), which approves an internal unit as a workspace
+of the same firm rather than a separate tenant, and private matters whose team
+is chosen by the partner who creates them. Cost (b) is accepted. This record
+replaces a separate ADR; a change of D1 needs a new owner decision recorded
+here before S2 is reviewed.
 
 ## 4. Dispositions under strategy B
 
@@ -136,6 +166,25 @@ pull request.
 | S6 | CI and e2e: RustFS, Actions reductions, LiTT workflows |
 | S7 | Reverts of §4.2 |
 | S8 | Documentation: policy, `AGENTS.md`, status, ledger and debt; final aggregate review; merge commit; pull request with exact-head CI; merge with a merge commit; new pin recorded |
+
+Acceptance criteria named for specific slices, in addition to their content:
+
+- **S2:** RLS and grants keep LiTT's posture, not upstream's (56 tables with RLS,
+  no policies, `revoke all` from `anon` and `authenticated`): RLS on every table
+  of the converged schema, `anon` and `authenticated` revoked by default, and
+  only LiTT's policies re-issued over the converged tables: six select-only
+  tenancy policies with `select` granted to `authenticated`, and ten AI-evidence
+  policies limited to `service_role`. No browser DML policy. A schema regression
+  asserts it.
+- **S3:** `chats.credential_ref` and `chats.model_provider`, dropped upstream,
+  are restored and used by routing. S3 does not close without them: otherwise
+  the release ships breaking the governed BYOK invariant.
+- **S6:** policy invariant 11 holds: default CI and local e2e make no real
+  provider or Google call.
+- **S8:** the rule changes in `AGENTS.md` ("Never merge upstream wholesale") and
+  `UPSTREAM_POLICY.md` are in the same reviewed snapshot as the merge commit and
+  are verified before the merge commit is created, so `main` never holds a tree
+  produced under a rule it contradicts.
 
 Open Dependabot pull requests are closed or rebased after S8, against the merged
 dependency set.
