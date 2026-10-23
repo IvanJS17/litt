@@ -92,7 +92,7 @@ describe("GoogleAuthButton", () => {
         expect(onError).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 message:
-                    "Mike couldn't reach the server. Check your connection and try again.",
+                    "LiTT couldn't reach the server. Check your connection and try again.",
             }),
         );
     });

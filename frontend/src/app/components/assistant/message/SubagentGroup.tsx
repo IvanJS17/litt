@@ -54,7 +54,7 @@ function subagentStatus(event: DelegationEvent): { text: string; failed: boolean
         case "needs_input":
             return line(
                 resumed,
-                event.approval_ids?.length ? "Waiting for your approval" : "Asked Mike a question",
+                event.approval_ids?.length ? "Waiting for your approval" : "Asked LiTT a question",
                 steps,
             );
         case "failed":
@@ -198,7 +198,7 @@ function SubagentDetails({
                 {status.text}
             </p>
             <DetailDisclosureRow
-                label="Task from Mike"
+                label="Task from LiTT"
                 showConnector={streaming || hasSteps || hasBrief || hasQuestion}
             >
                 <p className="mt-2 whitespace-pre-wrap text-gray-600 [overflow-wrap:anywhere]">
@@ -219,8 +219,8 @@ function SubagentDetails({
                 <DetailDisclosureRow
                     label={
                         event.status === "incomplete"
-                            ? "Returned a partial brief to Mike"
-                            : "Returned a brief to Mike"
+                            ? "Returned a partial brief to LiTT"
+                            : "Returned a brief to LiTT"
                     }
                     showConnector={hasQuestion}
                 >
@@ -229,14 +229,14 @@ function SubagentDetails({
             )}
             {hasQuestion && (
                 <EventBlock dotColor="gray">
-                    <EventLabel>Asked Mike</EventLabel>
+                    <EventLabel>Asked LiTT</EventLabel>
                     <p className="mt-0.5 whitespace-pre-wrap text-gray-800 [overflow-wrap:anywhere]">
                         {event.question}
                     </p>
                 </EventBlock>
             )}
             {/* Settings > Features > Response details, at the right end like
-                the details under Mike's own answer. */}
+                the details under LiTT's own answer. */}
             {details && (
                 <p className="self-end text-right font-serif text-sm text-gray-400 [overflow-wrap:anywhere]">
                     {details}

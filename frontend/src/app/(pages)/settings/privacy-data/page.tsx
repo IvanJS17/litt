@@ -121,7 +121,7 @@ export default function PrivacyDataPage() {
       const status = await getUserExportStatus(export_id);
       if (status.status === "failed") {
         throw new UserVisibleError(
-          "Mike couldn't build the export. Try again, and contact support if it keeps happening.",
+          "LiTT couldn't build the export. Try again, and contact support if it keeps happening.",
           { retryable: true },
         );
       }
@@ -145,7 +145,7 @@ export default function PrivacyDataPage() {
         setPendingMfaAction("export-account");
         return;
       }
-      await runAsyncExport("account", "mike-account-export.json");
+      await runAsyncExport("account", "litt-account-export.json");
     } catch (error) {
       devLog("[privacy-data/mfa] export account failed", {
         isMfaRequired: isMfaRequiredError(error),
@@ -172,7 +172,7 @@ export default function PrivacyDataPage() {
         setPendingMfaAction("export-chats");
         return;
       }
-      await runAsyncExport("chats", "mike-chat-export.json");
+      await runAsyncExport("chats", "litt-chat-export.json");
     } catch (error) {
       devLog("[privacy-data/mfa] export chats failed", {
         isMfaRequired: isMfaRequiredError(error),
@@ -201,7 +201,7 @@ export default function PrivacyDataPage() {
       }
       await runAsyncExport(
         "tabular-reviews",
-        "mike-tabular-reviews-export.json",
+        "litt-tabular-reviews-export.json",
       );
     } catch (error) {
       devLog("[privacy-data/mfa] export tabular reviews failed", {
@@ -229,7 +229,7 @@ export default function PrivacyDataPage() {
         setPendingMfaAction("export-memory");
         return;
       }
-      await runAsyncExport("memory-zip", "mike-memory-export.zip");
+      await runAsyncExport("memory-zip", "litt-memory-export.zip");
     } catch (error) {
       devLog("[privacy-data/mfa] export memory failed", {
         isMfaRequired: isMfaRequiredError(error),

@@ -252,7 +252,7 @@ describe("SettingsPage Google email changes", () => {
 
         expect(
             await screen.findByText(
-                "Mike couldn't reach the server. Check your connection and try again.",
+                "LiTT couldn't reach the server. Check your connection and try again.",
             ),
         ).toBeInTheDocument();
     });

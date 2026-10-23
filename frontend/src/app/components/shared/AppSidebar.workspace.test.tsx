@@ -161,7 +161,7 @@ describe("AppSidebar workspace switcher", () => {
     const user = userEvent.setup();
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
-    expect(heading()).toHaveTextContent("Mike");
+    expect(heading()).toHaveTextContent("LiTT");
     await openAccountMenu(user);
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeVisible();
     expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();
@@ -174,7 +174,7 @@ describe("AppSidebar workspace switcher", () => {
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
     expect(heading()).toHaveTextContent("Acme LLP");
-    expect(heading()).not.toHaveTextContent("Mike");
+    expect(heading()).not.toHaveTextContent("LiTT");
     // Still the way home, whatever it is called.
     expect(screen.getByRole("link", { name: "Acme LLP" })).toHaveAttribute(
       "href",
@@ -182,16 +182,16 @@ describe("AppSidebar workspace switcher", () => {
     );
   });
 
-  it("heads the sidebar with plain Mike for personal work, even with organizations to switch to", () => {
+  it("heads the sidebar with plain LiTT for personal work, even with organizations to switch to", () => {
     state.organizations = [ACME, BETA];
     state.workspaceId = "personal";
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
-    expect(heading()).toHaveTextContent("Mike");
+    expect(heading()).toHaveTextContent("LiTT");
     expect(screen.queryByText("Personal")).not.toBeInTheDocument();
   });
 
-  it("shows a placeholder, not Mike, while a remembered organization's name loads", () => {
+  it("shows a placeholder, not LiTT, while a remembered organization's name loads", () => {
     // "Mike" means personal work. Saying it for the moment before the
     // organization's name arrives would name the wrong workspace.
     state.organizations = null;
@@ -201,10 +201,10 @@ describe("AppSidebar workspace switcher", () => {
     expect(
       screen.getByRole("status", { name: "Loading workspace" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Mike")).not.toBeInTheDocument();
+    expect(screen.queryByText("LiTT")).not.toBeInTheDocument();
   });
 
-  it("sets an organization's name at the size Mike is, in the same fixed header row", () => {
+  it("sets an organization's name at the size LiTT is, in the same fixed header row", () => {
     state.organizations = [ACME];
     state.workspaceId = ACME.id;
     const { unmount } = render(<AppSidebar isOpen onToggle={vi.fn()} />);
@@ -560,6 +560,6 @@ describe("AppSidebar workspace switcher", () => {
     expect(
       vi.mocked(listProjectsPage).mock.calls[0][0]?.workspace,
     ).toBeUndefined();
-    expect(heading()).toHaveTextContent("Mike");
+    expect(heading()).toHaveTextContent("LiTT");
   });
 });

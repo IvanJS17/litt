@@ -12,7 +12,7 @@ vi.mock("@/app/lib/authApi", () => ({
 }));
 
 vi.mock("@/app/components/site-logo", () => ({
-    SiteLogo: () => <div>Mike</div>,
+    SiteLogo: () => <div>LiTT</div>,
 }));
 
 describe("ForgotPasswordPage", () => {
@@ -77,7 +77,7 @@ describe("ForgotPasswordPage", () => {
         );
 
         expect(await screen.findByRole("alert")).toHaveTextContent(
-            "Mike couldn't reach the server. Check your connection and try again.",
+            "LiTT couldn't reach the server. Check your connection and try again.",
         );
         expect(
             screen.queryByRole("heading", { name: "Check your email" }),

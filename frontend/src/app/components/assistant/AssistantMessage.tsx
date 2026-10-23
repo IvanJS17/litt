@@ -334,7 +334,7 @@ export function AssistantMessage({
             notifyError(err, {
                 action: "copy this answer",
                 fallback:
-                    "Mike couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
+                    "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
                 support: false,
             });
         }

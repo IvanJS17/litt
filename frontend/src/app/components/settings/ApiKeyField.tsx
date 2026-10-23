@@ -170,7 +170,7 @@ export function ApiKeyField({
         // The caller reports failure as `false`, with no error to classify.
         notifyError(
           new UserVisibleError(
-            `Mike couldn't save your ${label}. The key was not changed.`,
+            `LiTT couldn't save your ${label}. The key was not changed.`,
             { retryable: true },
           ),
           {
@@ -209,7 +209,7 @@ export function ApiKeyField({
       } else {
         notifyError(
           new UserVisibleError(
-            `Mike couldn't remove your ${label}. The key is still saved.`,
+            `LiTT couldn't remove your ${label}. The key is still saved.`,
             { retryable: true },
           ),
           {
