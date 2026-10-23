@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 
 vi.mock("@/app/lib/mikeApi", () => ({
+    // LiTT key picker: no key offered in these composer tests.
+    getChatCredentialOptions: vi.fn(async () => ({ provider: "openai", options: [], default: null })),
     listWorkflows: vi.fn(async () => []),
     uploadProjectDocument: vi.fn(),
     uploadStandaloneDocument: vi.fn(),
