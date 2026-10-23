@@ -242,6 +242,12 @@ vi.mock("../../lib/documentVersions", () => ({
     attachLatestVersionNumbers: vi.fn(async () => {}),
 }));
 
+// Governed BYOK pins each new conversation to one credential. These suites
+// run on the deployment's keys (env:<provider>); the personal and
+// organization credential paths are covered in user.chatRoute.test.ts.
+process.env.GEMINI_API_KEY ??= "test-key";
+process.env.OPENAI_API_KEY ??= "test-key";
+process.env.ANTHROPIC_API_KEY ??= "test-key";
 import { app } from "../../app";
 import { resetStreamRunsForTests } from "../../lib/streamRuns";
 import { REVIEW_EDIT_FORBIDDEN } from "../../modules/tabular/tabular.service";

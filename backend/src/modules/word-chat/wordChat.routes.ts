@@ -41,6 +41,7 @@ import {
   submitClientToolResult,
 } from "../chat/chat.service";
 import { enqueueChatTurnAudit } from "../../lib/audit";
+import { parseCredentialRef } from "../user/user.service";
 import {
   persistWordDocumentEdits,
   WORD_EDIT_FORMATS,
@@ -665,6 +666,10 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
   if (!parsedStorage.ok) {
     return void res.status(400).json({ detail: parsedStorage.detail });
   }
+  const parsedCredentialRef = parseCredentialRef(body.credential_ref);
+  if (!parsedCredentialRef.ok) {
+    return void res.status(400).json({ detail: parsedCredentialRef.detail });
+  }
   const parsedEditApplyMode = parseEditApplyMode(body.edit_apply_mode);
   if (!parsedEditApplyMode.ok) {
     return void res.status(400).json({ detail: parsedEditApplyMode.detail });
@@ -690,6 +695,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     persistChat,
     clientToolsEnabled,
     requestedModel: parsedModel.value,
+    requestedCredentialRef: parsedCredentialRef.value,
     requestedReasoning: parsedReasoning.value,
     requestedTimeZone: req.body?.time_zone,
   });

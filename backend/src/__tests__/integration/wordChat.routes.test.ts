@@ -195,6 +195,12 @@ vi.mock("../../middleware/auth", () => ({
     next(),
 }));
 
+// Governed BYOK pins each new conversation to one credential. These suites
+// run on the deployment's keys (env:<provider>); the personal and
+// organization credential paths are covered in user.chatRoute.test.ts.
+process.env.GEMINI_API_KEY ??= "test-key";
+process.env.OPENAI_API_KEY ??= "test-key";
+process.env.ANTHROPIC_API_KEY ??= "test-key";
 import { app } from "../../app";
 
 const DOCUMENT_ID = "123e4567-e89b-42d3-a456-426614174000";
@@ -1104,5 +1110,70 @@ describe("server-owned Word turns", () => {
     // The keep-alive comments the adapter wrote while the call was
     // outstanding were never buffered, so they cannot be replayed either.
     expect(settledReplay.text).not.toContain("tool-wait");
+  });
+});
+
+describe("POST /word-chat — governed BYOK route", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    recordedQueries.length = 0;
+    resetDbState();
+    runLLMStream.mockResolvedValue({
+      events: [{ type: "content", text: "Response" }],
+      citations: [],
+    });
+  });
+
+  it("pins a new cloud chat to provider, model and credential", async () => {
+    dbState.chatDetail = {
+      data: { id: CHAT_ID, title: null, user_id: "u1" },
+      error: null,
+    };
+    const res = await request(app)
+      .post("/word-chat")
+      .set(...AUTH)
+      .send({
+        messages: [{ role: "user", content: "Revise this clause" }],
+        document_id: DOCUMENT_ID,
+        document_name: "Contract.docx",
+        storage: "cloud",
+        model: "gemini-3-flash-preview",
+      });
+    expect(res.status).toBe(200);
+    const chatInsert = recordedQueries.find(
+      ({ table, op }) => table === "word_chats" && op === "insert",
+    );
+    expect(chatInsert?.payload).toMatchObject({
+      model_provider: "gemini",
+      credential_ref: "env:gemini",
+    });
+  });
+
+  it("refuses another model on a pinned cloud chat before anything streams", async () => {
+    dbState.chatDetail = {
+      data: {
+        id: CHAT_ID,
+        title: null,
+        user_id: "u1",
+        model: "gemini-3.8-flash",
+        model_provider: "gemini",
+        credential_ref: "env:gemini",
+      },
+      error: null,
+    };
+    const res = await request(app)
+      .post("/word-chat")
+      .set(...AUTH)
+      .send({
+        messages: [{ role: "user", content: "Revise this clause" }],
+        document_id: DOCUMENT_ID,
+        document_name: "Contract.docx",
+        storage: "cloud",
+        chat_id: CHAT_ID,
+        model: "gpt-6.1-sol",
+      });
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe("chat_route_pinned");
+    expect(runLLMStream).not.toHaveBeenCalled();
   });
 });

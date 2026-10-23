@@ -56,6 +56,11 @@ vi.mock("../tabular.rows", async (importOriginal) => ({
     loadReviewRows,
 }));
 
+// Governed BYOK pins each new review chat to one credential; these tests run
+// on the deployment's key (env:claude). The credential paths themselves are
+// covered in user.chatRoute.test.ts.
+process.env.ANTHROPIC_API_KEY ??= "test-key";
+
 import {
     deleteTabularReviewChat,
     listTabularReviewChatMessages,
@@ -593,6 +598,60 @@ describe("prepareTabularChat", () => {
             chatId: "chat-foreign",
         });
         expect(result.ok && result.data.chatId).toBe("chat-new");
+    });
+
+    it("pins a new review chat to provider, model and credential", async () => {
+        const fake = makeFakeDb({
+            tables: {
+                tabular_reviews: { data: REVIEW, error: null },
+                tabular_review_chats: { data: { id: "chat-new", title: null }, error: null },
+            },
+        });
+        const result = await prepareTabularChat(fake.db, base);
+        expect(result.ok).toBe(true);
+        expect(callTo(fake.calls, "tabular_review_chats")).toMatchObject({
+            op: "insert",
+            payload: {
+                model: "claude-sonnet-5",
+                model_provider: "claude",
+                credential_ref: "env:claude",
+            },
+        });
+        // Only the pinned credential is handed to the model layer.
+        if (result.ok) {
+            expect(result.data.apiKeys.claude).toBe("test-key");
+            expect(result.data.apiKeys.disabledProviders).toContain("openai");
+        }
+    });
+
+    it("refuses another model on a pinned review chat", async () => {
+        const fake = makeFakeDb({
+            tables: {
+                tabular_reviews: { data: REVIEW, error: null },
+                tabular_review_chats: {
+                    data: {
+                        id: "chat-1",
+                        review_id: "rev-1",
+                        user_id: "user-1",
+                        model: "claude-sonnet-5",
+                        model_provider: "claude",
+                        credential_ref: "env:claude",
+                    },
+                    error: null,
+                },
+            },
+        });
+        const result = await prepareTabularChat(fake.db, {
+            ...base,
+            chatId: "chat-1",
+            requestedModel: "gpt-6.1-sol",
+        });
+        expect(result).toMatchObject({
+            ok: false,
+            kind: "status",
+            status: 409,
+            body: { code: "chat_route_pinned" },
+        });
     });
 
     it("500s with its own wording when the chat row cannot be created", async () => {

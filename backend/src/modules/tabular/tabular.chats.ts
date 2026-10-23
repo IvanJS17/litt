@@ -34,8 +34,13 @@ import {
     type ServiceFailure,
 } from "../../lib/serviceResult";
 import {
+    chatRouteColumns,
+    chatRouteOf,
     getUserModelSettings,
+    governChatRoute,
+    recordChatEgress,
     resolveUserChatSelection,
+    titleModelForRoute,
     persistLastSelectedChatModel,
     persistLastSelectedReasoningLevel,
 } from "../user/user.service";
@@ -417,13 +422,25 @@ export async function updateTabularReviewChat(
     // Scoped by chat + review only — mirrors the delete above.
     const { data: chat, error: chatError } = await db
         .from("tabular_review_chats")
-        .select("id, model")
+        .select("id, model, model_provider, credential_ref")
         .eq("id", chatId)
         .eq("review_id", reviewId)
         .single();
     if (chatError || !chat) return failure("not_found", "Chat not found");
 
     let selectedModel: string | undefined;
+    // Governed BYOK: a conversation keeps the route it was started with.
+    const pinnedRoute = chatRouteOf(chat);
+    if (
+        hasModel &&
+        pinnedRoute &&
+        (!parsedModel.ok || parsedModel.value !== pinnedRoute.model)
+    ) {
+        return statusFailure(409, {
+            code: "chat_route_pinned",
+            detail: "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+        });
+    }
     if (hasModel) {
         const settings = await getUserModelSettings(userId, db, {
             orgId: gate.orgId,
@@ -589,6 +606,8 @@ export async function prepareTabularChat(
         /** Continue this thread when it is the caller's and this review's. */
         chatId: string | undefined;
         requestedModel: string | undefined;
+        /** The credential chosen for a NEW chat; refused on a pinned one. */
+        requestedCredentialRef?: string | null;
         requestedReasoning: string | undefined;
         /** The browser's IANA time zone; unvalidated request input. */
         requestedTimeZone?: unknown;
@@ -702,6 +721,7 @@ export async function prepareTabularChat(
     let chatId = args.chatId ?? null;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
+    let chatRouteRow: Parameters<typeof chatRouteOf>[0] | null = null;
     let chatReasoningLevel: string | null = null;
     const isFirstExchange =
         messages.filter((m) => m.role === "user").length === 1;
@@ -712,7 +732,9 @@ export async function prepareTabularChat(
         // of their chats from a different review in this route.
         const { data: existing } = await db
             .from("tabular_review_chats")
-            .select("id, title, model, reasoning_level, review_id, user_id")
+            .select(
+                "id, title, model, model_provider, credential_ref, reasoning_level, review_id, user_id",
+            )
             .eq("id", chatId)
             .single();
         const canUse =
@@ -723,6 +745,7 @@ export async function prepareTabularChat(
         else {
             chatTitle = existing.title;
             chatModel = existing.model;
+            chatRouteRow = existing;
             chatReasoningLevel = existing.reasoning_level;
         }
     }
@@ -731,7 +754,12 @@ export async function prepareTabularChat(
         userId,
         chatModel,
         chatReasoningLevel,
-        requestedModel,
+        // A pinned chat resolves its own model; a different one is refused by
+        // governChatRoute below with chat_route_pinned.
+        requestedModel:
+            chatId && chatRouteRow && chatRouteOf(chatRouteRow)
+                ? undefined
+                : requestedModel,
         requestedReasoning,
         orgId: review.org_id ?? null,
     });
@@ -740,21 +768,34 @@ export async function prepareTabularChat(
             code: selection.code,
             detail: selection.detail,
         });
-    const {
-        modelSettings,
-        selectedModel: selectedChatModel,
-        selectedReasoningLevel,
-    } = selection;
+    const { modelSettings, selectedReasoningLevel } = selection;
+
+    // Governed BYOK: the review chat's provider + model + credential are fixed
+    // when it is created; later turns use exactly that route.
+    const governed = await governChatRoute(db, {
+        userId,
+        orgId: review.org_id ?? null,
+        chat: chatId ? chatRouteRow : null,
+        requestedModel,
+        selectedModel: selection.selectedModel,
+        requestedCredentialRef: args.requestedCredentialRef,
+    });
+    if (!governed.ok)
+        return statusFailure(governed.status, {
+            code: governed.code,
+            detail: governed.detail,
+        });
+    const { route } = governed;
+    const selectedChatModel = route.model;
 
     if (
         chatId &&
-        (chatModel !== selectedChatModel ||
-            chatReasoningLevel !== selectedReasoningLevel)
+        (governed.pinNow || chatReasoningLevel !== selectedReasoningLevel)
     ) {
         const { error: updateError } = await db
             .from("tabular_review_chats")
             .update({
-                model: selectedChatModel,
+                ...(governed.pinNow ? chatRouteColumns(route) : {}),
                 reasoning_level: selectedReasoningLevel,
                 updated_at: new Date().toISOString(),
             })
@@ -771,7 +812,7 @@ export async function prepareTabularChat(
             .insert({
                 review_id: reviewId,
                 user_id: userId,
-                model: selectedChatModel,
+                ...chatRouteColumns(route),
                 reasoning_level: selectedReasoningLevel,
             })
             .select("id, title")
@@ -781,6 +822,14 @@ export async function prepareTabularChat(
         chatId = newChat?.id ?? null;
         chatTitle = newChat?.title ?? null;
     }
+    await recordChatEgress(db, {
+        userId,
+        orgId: review.org_id ?? null,
+        chatId,
+        projectId: review.project_id ?? null,
+        surface: "tabular",
+        resolved: governed,
+    });
 
     // Both messages of this turn carry the documents their text may derive
     // from: the rows the caller just read, plus everything an earlier turn
@@ -859,9 +908,10 @@ export async function prepareTabularChat(
             reasoningLevel: selectedReasoningLevel,
             titleModel: titleModelForChat(
                 selectedChatModel,
-                modelSettings.title_model,
+                titleModelForRoute(route, modelSettings.title_model),
             ),
-            apiKeys: modelSettings.api_keys,
+            // Only the pinned credential leaves this function.
+            apiKeys: governed.apiKeys,
             orgId: review.org_id ?? null,
             apiMessages,
             inputMessageId,

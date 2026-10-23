@@ -29,6 +29,7 @@ import { openAssistantSse } from "../../lib/assistantSse";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { recordAudit } from "../../lib/audit";
+import { parseCredentialRef } from "../user/user.service";
 import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import {
@@ -981,6 +982,10 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
             .json({ detail: "messages must include a user message" });
     }
 
+    const parsedCredentialRef = parseCredentialRef(req.body?.credential_ref);
+    if (!parsedCredentialRef.ok) {
+        return void res.status(400).json({ detail: parsedCredentialRef.detail });
+    }
     const db = createServerSupabase();
     // Everything before the first SSE byte: the review and its grid, the chat
     // record, the model policy, the persisted user turn, the prompt.
@@ -992,6 +997,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         lastUserContent: lastUser.content,
         chatId: existingChatId,
         requestedModel: parsedModel.value,
+        requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
     });

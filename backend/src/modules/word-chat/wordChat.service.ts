@@ -36,7 +36,11 @@ import {
   type ChatMessage,
 } from "../chat/chat.service";
 import {
+  chatRouteColumns,
+  chatRouteOf,
   getUserModelSettings,
+  governChatRoute,
+  recordChatEgress,
   resolveUserChatSelection,
   persistLastSelectedChatModel,
   persistLastSelectedReasoningLevel,
@@ -373,6 +377,20 @@ export async function updateWordChatModel(
     return { ok: false, kind: "error" };
   }
   if (!chatLookup.value) return { ok: false, kind: "not_found" };
+  // Governed BYOK: a conversation keeps the route it was started with.
+  const pinnedRoute = chatRouteOf(
+    chatLookup.value as Parameters<typeof chatRouteOf>[0],
+  );
+  if (pinnedRoute && pinnedRoute.model !== args.requestedModel) {
+    return {
+      ok: false,
+      kind: "model",
+      status: 409,
+      code: "chat_route_pinned",
+      detail:
+        "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+    };
+  }
 
   const settings = await getUserModelSettings(args.userId, db);
   const resolution = await resolveEffectiveChatModel({
@@ -622,6 +640,8 @@ export async function prepareWordChatStream(
     // protocol so they are never handed tool calls they would ignore.
     clientToolsEnabled: boolean;
     requestedModel: string | null | undefined;
+    /** The credential chosen for a NEW chat; refused on a pinned one. */
+    requestedCredentialRef?: string | null;
     requestedReasoning:
       ReturnType<typeof resolveEffectiveReasoningLevel> | undefined;
     /** The task pane's IANA time zone; unvalidated request input. */
@@ -642,6 +662,7 @@ export async function prepareWordChatStream(
   let chatId = args.chatId;
   let chatTitle: string | null = null;
   let chatModel: string | null = null;
+  let chatRouteRow: Parameters<typeof chatRouteOf>[0] | null = null;
   let chatReasoningLevel: string | null = null;
   let wordDocumentRowId: string | null = null;
   const lastUser = [...messages]
@@ -713,32 +734,50 @@ export async function prepareWordChatStream(
     }
     chatTitle = typeof existing.title === "string" ? existing.title : null;
     chatModel = typeof existing.model === "string" ? existing.model : null;
+    chatRouteRow = existing as Parameters<typeof chatRouteOf>[0];
     chatReasoningLevel =
       typeof existing.reasoning_level === "string"
         ? existing.reasoning_level
         : null;
   }
 
+  const pinnedRow = chatId && chatRouteRow && chatRouteOf(chatRouteRow);
   const selection = await resolveUserChatSelection(db, {
     userId,
     chatModel,
     chatReasoningLevel,
-    requestedModel: args.requestedModel,
+    // A pinned chat resolves its own model; a different one is refused by
+    // governChatRoute below with chat_route_pinned.
+    requestedModel: pinnedRow ? undefined : args.requestedModel,
     requestedReasoning: args.requestedReasoning,
   });
   if (!selection.ok) return selection;
-  const { modelSettings, selectedModel, selectedReasoningLevel } = selection;
+  const { modelSettings, selectedReasoningLevel } = selection;
+
+  // Governed BYOK: a Word conversation stored in the cloud is fixed to the
+  // provider + model + credential it was created with. A local-only chat
+  // keeps no server record, so each of its turns is resolved afresh.
+  const governed = await governChatRoute(db, {
+    userId,
+    orgId: null,
+    chat: chatId && persistChat ? chatRouteRow : null,
+    requestedModel: args.requestedModel,
+    selectedModel: selection.selectedModel,
+    requestedCredentialRef: args.requestedCredentialRef,
+  });
+  if (!governed.ok) return governed;
+  const { route } = governed;
+  const selectedModel = route.model;
 
   if (
     chatId &&
     persistChat &&
-    (chatModel !== selectedModel ||
-      chatReasoningLevel !== selectedReasoningLevel)
+    (governed.pinNow || chatReasoningLevel !== selectedReasoningLevel)
   ) {
     const { error } = await db
       .from("word_chats")
       .update({
-        model: selectedModel,
+        ...(governed.pinNow ? chatRouteColumns(route) : {}),
         reasoning_level: selectedReasoningLevel,
       })
       .eq("id", chatId)
@@ -754,7 +793,7 @@ export async function prepareWordChatStream(
       .insert({
         user_id: userId,
         word_document_id: wordDocumentRowId,
-        model: selectedModel,
+        ...chatRouteColumns(route),
         reasoning_level: selectedReasoningLevel,
       })
       .select("id, title")
@@ -767,6 +806,14 @@ export async function prepareWordChatStream(
     chatTitle = (data.title as string | null) ?? null;
   }
   if (!chatId) chatId = randomUUID();
+  await recordChatEgress(db, {
+    userId,
+    orgId: null,
+    // A local-only chat has no word_chats row to name.
+    chatId: persistChat ? chatId : null,
+    surface: "word",
+    resolved: governed,
+  });
 
   const inputMessageId = persistChat ? randomUUID() : null;
   let memoryTurn: MemoryConversationTurn | null = null;
@@ -858,8 +905,9 @@ export async function prepareWordChatStream(
       "word_chat_messages",
       timeZone,
     );
-    const { api_keys: configuredApiKeys, personalisation } = modelSettings;
-    const apiKeys = { ...configuredApiKeys };
+    const { personalisation } = modelSettings;
+    // Only the pinned credential leaves this function.
+    const apiKeys = { ...governed.apiKeys };
     delete apiKeys.courtlistener;
     const personalisationPrompt = buildUserPersonalisationPrompt(
       personalisation,

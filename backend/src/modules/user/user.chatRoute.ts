@@ -502,7 +502,8 @@ export async function recordChatEgress(
     args: {
         userId: string;
         orgId: string | null;
-        chatId: string;
+        /** Null for a conversation with no server record (local Word chat). */
+        chatId: string | null;
         projectId?: string | null;
         surface: string;
         resolved: ResolvedChatRoute;
