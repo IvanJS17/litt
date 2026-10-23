@@ -18,6 +18,10 @@ import { DbJobDeferredError, type Db, type DbJob } from "../../lib/dbq/types";
 import { ensureMemoryFile, getMemoryCurrentForFile, MemoryConversationNotQuietError, MemoryDisabledError, MemoryEpochSupersededError, MemoryJobSupersededError, MemoryValidationError, writeMemoryFile, type MemoryFileRow, type MemoryScope, type MemorySurface } from "../../lib/memory/files";
 import { MEMORY_INACTIVITY_MS } from "../../lib/memory/schedule";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
+import {
+  createGovernedCuratorStream,
+  curatorEgressAllowed,
+} from "./memory.curatorEgress";
 
 const TRANSCRIPT_MESSAGE_LIMIT = 120;
 const TRANSCRIPT_CHARACTER_LIMIT = 48_000;
@@ -666,8 +670,10 @@ export type CuratorScopeServices = {
   checkProject: typeof checkProjectAccess;
 };
 
+// LiTT: the default stream is governed and fails closed for every provider
+// host EGRESS_POLICY does not allowlist (memory.curatorEgress.ts).
 const defaultCuratorScopeServices: CuratorScopeServices = {
-  stream: streamChatWithTools,
+  stream: createGovernedCuratorStream(streamChatWithTools),
   write: writeMemoryFile,
   checkProject: checkProjectAccess,
 };
@@ -1242,6 +1248,22 @@ export async function handleMemoryConsolidation(
   });
 
   const conversation = await loadConversation(db, state);
+  // LiTT: curator egress is governed. A conversation whose provider host is
+  // not allowlisted stops here, before any memory file, credential read
+  // (getUserModelSettings decrypts the stored keys) or provider request.
+  if (conversation && !curatorEgressAllowed(conversation.model)) {
+    const finalized = await setStatus({
+      db,
+      stateId,
+      generation: requestedGeneration,
+      status: "idle",
+      markProcessed: true,
+    });
+    if (finalized) {
+      await refreshJobFileStatuses({ db, job, state, status: "idle" });
+    }
+    return { skipped: "egress_blocked" };
+  }
   const files: Array<{
     file: MemoryFileRow;
     transcript: string;
