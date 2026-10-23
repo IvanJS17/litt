@@ -14,6 +14,7 @@
 //                      read_document stops paying for LibreOffice per call
 //   memory.consolidate — curate scoped Markdown after chat inactivity
 import { recordAudit } from "../../lib/audit";
+import { assertAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { buildUserAccountExport, buildUserChatsExport, buildUserTabularReviewsExport, userExportFilename } from "./user.dataExport";
 import { AUDIT_CSV_FILENAME, buildAuditCsv, type AuditQuery } from "../../lib/auditExport";
 import { ensureDocAccess } from "../../lib/access";
@@ -170,6 +171,16 @@ export async function handleExportBuild(
     db: Db,
     job: DbJob,
 ): Promise<Record<string, unknown>> {
+    // LiTT C4: an organization audit export runs only under the epoch it was
+    // queued with. Personal exports carry no stamp — they are the caller's own
+    // data, and every resource they read is re-authorized while building.
+    const exportOrgId =
+        (job.payload.query as AuditQuery | undefined)?.orgId ?? null;
+    await assertAuthorizationStamp(
+        db,
+        exportOrgId,
+        job.payload.authorization,
+    );
     const userId = job.payload.userId as string | undefined;
     const type = job.payload.type as ExportType | undefined;
     if (!userId || !type || !EXPORT_TYPES.includes(type)) {

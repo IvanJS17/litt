@@ -6,6 +6,7 @@
 
 import { AUDIT_EXPORT_LIMIT, canReadOrgAudit, parseQuery, type AuditQuery } from "../../lib/auditExport";
 import { enqueueDbJob } from "../../lib/dbq/enqueue";
+import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
 import {
     EXPORT_TYPES,
     MAX_ZIP_EXPORT_DOCUMENTS,
@@ -97,6 +98,15 @@ export async function startUserExport(
     const orgId = (payload.query as AuditQuery | undefined)?.orgId;
     if (orgId && !(await canReadOrgAudit(db, userId, orgId)))
         return { ok: false, forbidden: true, detail: "Only organization owners and admins can export its audit log." };
+    // LiTT C4: an export bound to one organization is queued under the epoch
+    // of the authority that started it. The build re-checks every resource it
+    // reads; the epoch makes the job itself fail when that authority has
+    // changed, instead of producing an artifact whose scope nobody re-approved.
+    try {
+        if (orgId) payload.authorization = await readAuthorizationStamp(db, orgId);
+    } catch (err) {
+        return { ok: false, detail: errorMessage(err) };
+    }
     try {
         // Deduped per (user, type) for the whole-account exports: double
         // clicks and impatient retries collapse into the already-running
