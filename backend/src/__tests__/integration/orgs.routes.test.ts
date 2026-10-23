@@ -1180,6 +1180,22 @@ describe("a private matter over HTTP (LiTT C2)", () => {
         expect(res.body.id).toBe("proj-1");
     });
 
+    it("refuses to open the matter's project to the whole organization", async () => {
+        tables.projects[0].visibility = "private";
+        tables.project_org_access_overrides.push({
+            project_id: "proj-1", org_id: "org-1", user_id: "member-1", role: "owner",
+        });
+        as("member-1", "member@firm.example");
+        const before = JSON.stringify(tables.projects);
+        const res = await request(app)
+            .patch("/projects/proj-1")
+            .set(...AUTH)
+            .send({ visibility: "organization" });
+        expect(res.status).toBe(400);
+        expect(res.body.detail).toMatch(/private matter/);
+        expect(JSON.stringify(tables.projects)).toBe(before);
+    });
+
     it("leaves it out of the owner's document picker", async () => {
         const res = await request(app)
             .get("/projects?view=directory-search&search=Matter")

@@ -888,6 +888,23 @@ export async function updateProject(
       kind: "validation",
       detail: requestedVisibility.detail,
     };
+  // LiTT C2: a private matter's team is its membership; its project is
+  // never opened to the whole organization. Fail closed on a failed read.
+  if (requestedVisibility.visibility === "organization") {
+    const { data: privateMatter, error: matterError } = await db
+      .from("matters")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("visibility", "private")
+      .maybeSingle();
+    if (matterError) return { ok: false, kind: "db_error", error: matterError };
+    if (privateMatter)
+      return {
+        ok: false,
+        kind: "validation",
+        detail: "A private matter's project cannot be shared with the whole organization.",
+      };
+  }
   if (requestedVisibility.visibility)
     updates.visibility = requestedVisibility.visibility;
 
