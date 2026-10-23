@@ -30,6 +30,7 @@
 // (`finishGenerationIfIdle`). The two cases where no worker will ever run —
 // nothing outstanding, or every enqueue failing — release the lease here.
 
+import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
 import IORedis from "ioredis";
 import type { Response } from "express";
 import { REDIS_URL } from "../../lib/queue/connection";
@@ -475,6 +476,18 @@ export async function streamTabularGenerateAsync(args: {
         return true;
     }
 
+    // LiTT C4: one stamp for the whole run, read before any cell is claimed.
+    const { data: reviewOrg, error: reviewOrgError } = await db
+        .from("tabular_reviews")
+        .select("org_id")
+        .eq("id", reviewId)
+        .single();
+    if (reviewOrgError) throw reviewOrgError;
+    const authorization = await readAuthorizationStamp(
+        db,
+        (reviewOrg as { org_id?: string | null } | null)?.org_id ?? null,
+    );
+
     await claimCellsForGeneration({
         db,
         reviewId,
@@ -499,6 +512,7 @@ export async function streamTabularGenerateAsync(args: {
                         userId,
                         rowId,
                         generationId,
+                        authorization,
                     });
                     enqueued++;
                 } catch (err) {

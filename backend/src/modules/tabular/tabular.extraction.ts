@@ -1,4 +1,5 @@
 // extraction body — implementation behind the module facade.
+import { assertAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { type ExtractionJobData } from "../../lib/queue/extractionQueue";
 import { publishCellUpdate as defaultPublish, type RunProgressUpdate } from "../../lib/queue/runProgress";
 import { assistantStreamErrorPayload } from "../chat/chat.service";
@@ -87,6 +88,15 @@ export async function runExtractionJob(
             .select("columns_config, model, org_id")
             .eq("id", reviewId)
             .single();
+        // LiTT C4: work queued under an authorization that has since changed
+        // (a member or matter member removed, a matter made private) does not
+        // run, on its first attempt or a retry. Not settled: the failure
+        // path turns the row's cells to "error".
+        await assertAuthorizationStamp(
+            db,
+            (review as { org_id?: string | null } | null)?.org_id ?? null,
+            data.authorization,
+        );
         let columns: Column[] = (review?.columns_config as Column[]) ?? [];
         if (columnIndex != null)
             columns = columns.filter((c) => c.index === columnIndex);

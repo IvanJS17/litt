@@ -423,6 +423,32 @@ describe("regenerateTabularCell", () => {
         ]);
     });
 
+    it("stamps the queued job with the organization's authorization epoch (LiTT C4)", async () => {
+        process.env.ASYNC_TABULAR_EXTRACTION = "true";
+        enqueueExtraction.mockResolvedValue(undefined);
+        awaitCellTerminal.mockResolvedValue(null);
+        const fake = makeFakeDb({
+            tables: {
+                tabular_reviews: { data: { ...REVIEW, org_id: "org-1" }, error: null },
+                organizations: { data: { authorization_epoch: 7 }, error: null },
+            },
+            rpc: (fn) =>
+                fn === "begin_tabular_review_generation"
+                    ? started()
+                    : { data: null, error: null },
+        });
+        await regenerateTabularCell(fake.db, {
+            reviewId: "rev-1",
+            ...WHO,
+            rowId: "row-1",
+            columnIndex: 0,
+            log: LOG,
+        });
+        expect(enqueueExtraction).toHaveBeenCalledWith(
+            expect.objectContaining({ authorization: { orgId: "org-1", epoch: 7 } }),
+        );
+    });
+
     it("takes the cell terminal itself when the enqueue fails", async () => {
         process.env.ASYNC_TABULAR_EXTRACTION = "true";
         enqueueExtraction.mockRejectedValue(new Error("no redis"));

@@ -93,6 +93,10 @@ function makeDb(responses: Record<string, { select?: SelectResponse }>) {
                 calls.push({ ...state, filters: { ...state.filters } });
                 return Promise.resolve(resolveRead());
             },
+            maybeSingle() {
+                calls.push({ ...state, filters: { ...state.filters } });
+                return Promise.resolve(resolveRead());
+            },
             then(onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) {
                 calls.push({ ...state, filters: { ...state.filters } });
                 const value =
@@ -470,6 +474,62 @@ describe("runExtractionJob", () => {
 
         expect(queryTabularAllColumns).not.toHaveBeenCalled();
         expect(db.calls.some((c) => c.table === "tabular_cells")).toBe(false);
+    });
+});
+
+describe("runExtractionJob authorization epoch (LiTT C4)", () => {
+    // The review belongs to org-1, whose authorization epoch is now 4.
+    const orgDb = () =>
+        makeDb({
+            tabular_reviews: {
+                select: {
+                    data: { columns_config: COLUMNS, model: "claude-test", org_id: "org-1" },
+                },
+            },
+            organizations: { select: { data: { authorization_epoch: 4 } } },
+            tabular_cells: { select: { data: [] } },
+        });
+    const publish = async () => {};
+
+    it.each([
+        ["queued before a revocation (epoch 3)", { orgId: "org-1", epoch: 3 }],
+        ["queued without a stamp", undefined],
+        ["stamped for another organization", { orgId: "org-2", epoch: 4 }],
+    ])("a job %s fails terminally before any extraction", async (_label, authorization) => {
+        const db = orgDb();
+        await expect(
+            runExtractionJob({ ...DATA, authorization } as ExtractionJobData, {
+                db: db as never,
+                publish,
+            }),
+        ).rejects.toMatchObject({
+            name: "StaleAuthorizationError",
+            message: expect.stringMatching(/^stale_authorization_epoch/),
+        });
+        // A retry carries the same stamp and fails the same way.
+        await expect(
+            runExtractionJob({ ...DATA, authorization } as ExtractionJobData, {
+                db: db as never,
+                publish,
+            }),
+        ).rejects.toThrow(/stale_authorization_epoch/);
+        expect(queryTabularAllColumns).not.toHaveBeenCalled();
+        expect(validateSelectedModel).not.toHaveBeenCalled();
+        expect(db.calls.filter((c) => c.op !== "select")).toEqual([]);
+    });
+
+    it("a job stamped with the current epoch runs", async () => {
+        const db = orgDb();
+        queryTabularAllColumns.mockImplementation(
+            async (_m, _f, _t, cols, onResult) => {
+                for (const c of cols) await onResult(c.index, CELL(c.index, {}));
+            },
+        );
+        await runExtractionJob(
+            { ...DATA, authorization: { orgId: "org-1", epoch: 4 } },
+            { db: db as never, publish },
+        );
+        expect(queryTabularAllColumns).toHaveBeenCalled();
     });
 });
 

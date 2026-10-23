@@ -8,6 +8,7 @@
 // heartbeat that keeps it alive, the queue hand-off and the guarded terminal
 // writes are one indivisible piece of behavior, and none of it needs `res`.
 
+import { readAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { randomUUID } from "node:crypto";
 import {
     ensureReviewAccess,
@@ -329,6 +330,10 @@ export async function regenerateTabularCell(
                     rowId: row.id,
                     columnIndex,
                     generationId,
+                    authorization: await readAuthorizationStamp(
+                        db,
+                        review.org_id ?? null,
+                    ),
                 });
                 leaseHandedOff = true;
             } catch (err) {
