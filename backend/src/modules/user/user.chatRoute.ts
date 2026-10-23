@@ -32,6 +32,7 @@ import type { Provider, UserApiKeys } from "../../lib/llm";
 import { providerForModel } from "../../lib/llm/models";
 import { getConfiguredModel } from "../../lib/llm/registry";
 import { recordAudit } from "../../lib/audit";
+import { checkProjectAccess, resolveStandaloneOrgId } from "../../lib/access";
 import {
     OWNER_TABLE,
     decrypt,
@@ -185,6 +186,119 @@ function envCredential(keyProvider: ApiKeyProvider) {
             ? { [keyProvider]: settings[keyProvider] }
             : {},
     };
+}
+
+export type ChatCredentialOption = {
+    credential_ref: string;
+    /** Whose credential it is; never the secret. */
+    source: "personal" | "organization" | "deployment" | "operator";
+};
+
+/**
+ * The credentials a NEW conversation on `model` can be pinned to, for the
+ * selector shown when the conversation is created. The same rules as
+ * pinChatRoute: a person's key only if the organization allows personal
+ * keys, an organization's key only for its members (offered, never chosen
+ * implicitly), the deployment's key when configured, and an operator route
+ * for models that authenticate on the operator's side. `default` is what
+ * pinChatRoute picks without an explicit choice (null: the user must choose).
+ * Returns null for a model the catalog does not know.
+ */
+export async function listChatCredentialOptions(
+    db: Db,
+    args: { userId: string; orgId: string | null; model: string },
+): Promise<{
+    provider: Provider;
+    options: ChatCredentialOption[];
+    default: string | null;
+} | null> {
+    let provider: Provider;
+    try {
+        provider = providerForModel(args.model);
+    } catch {
+        return null;
+    }
+    const keyProvider = keyProviderFor(provider, args.model);
+    if (!keyProvider) {
+        const ref = `operator:${provider}`;
+        return {
+            provider,
+            options: [{ credential_ref: ref, source: "operator" }],
+            default: ref,
+        };
+    }
+    const scope = args.orgId
+        ? await loadOrgKeyScope(args.userId, args.orgId, db)
+        : null;
+    const options: ChatCredentialOption[] = [];
+    let personal: string | null = null;
+    if (!args.orgId || !scope || scope.allowPersonal) {
+        const own = usableRow(
+            await savedKey(db, { kind: "user", id: args.userId }, keyProvider),
+            keyProvider,
+        );
+        if (own) {
+            personal = `user:${args.userId}:${own.ref}`;
+            options.push({ credential_ref: personal, source: "personal" });
+        }
+    }
+    if (args.orgId && scope) {
+        const firm = usableRow(
+            await savedKey(db, { kind: "org", id: args.orgId }, keyProvider),
+            keyProvider,
+        );
+        if (firm) {
+            options.push({
+                credential_ref: `org:${args.orgId}:${firm.ref}`,
+                source: "organization",
+            });
+        }
+    }
+    const env = envCredential(keyProvider) ? `env:${keyProvider}` : null;
+    if (env) options.push({ credential_ref: env, source: "deployment" });
+    return { provider, options, default: personal ?? env };
+}
+
+/**
+ * HTTP-facing form of listChatCredentialOptions: the organization is the one
+ * the new conversation will belong to, resolved exactly as the first turn
+ * resolves it (the project's, or the named workspace the caller belongs to).
+ */
+export async function chatCredentialChoices(
+    db: Db,
+    args: {
+        userId: string;
+        userEmail?: string;
+        model: unknown;
+        projectId: unknown;
+        orgId: unknown;
+    },
+): Promise<
+    | { ok: true; body: NonNullable<Awaited<ReturnType<typeof listChatCredentialOptions>>> }
+    | { ok: false; status: 400 | 404; detail: string }
+> {
+    if (typeof args.model !== "string" || !args.model.trim())
+        return { ok: false, status: 400, detail: "model is required" };
+    let orgId: string | null;
+    if (typeof args.projectId === "string" && args.projectId) {
+        const access = await checkProjectAccess(args.projectId, args.userId, args.userEmail, db);
+        if (!access.ok) return { ok: false, status: 404, detail: "Project not found" };
+        orgId = access.project.org_id ?? null;
+    } else {
+        const standalone = await resolveStandaloneOrgId(db, {
+            userId: args.userId,
+            orgId: args.orgId,
+        });
+        if (!standalone.ok) return { ok: false, status: 400, detail: standalone.detail };
+        orgId = standalone.orgId;
+    }
+    const listed = await listChatCredentialOptions(db, {
+        userId: args.userId,
+        orgId,
+        model: args.model.trim(),
+    });
+    if (!listed) return { ok: false, status: 400, detail: "Unknown model" };
+    return { ok: true, body: listed };
 }
 
 /**

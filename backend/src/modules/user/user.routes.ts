@@ -56,6 +56,7 @@ import {
     deleteUserProjectsData,
     deleteUserTabularReviews,
     errorMessage,
+    chatCredentialChoices,
     getApiKeyStatus,
     getCustomInstructions,
     getResponseStyle,
@@ -441,6 +442,21 @@ userRouter.get("/api-keys", requireAuth, asyncRoute(async (_req, res) => {
     const db = createServerSupabase();
     const status = await getApiKeyStatus(db, userId);
     res.json(status);
+}));
+
+// GET /user/chat-credentials?model=&project_id=|org_id= — the credentials a
+// NEW conversation on that model can be pinned to (references, never keys).
+userRouter.get("/chat-credentials", requireAuth, asyncRoute(async (req, res) => {
+    const result = await chatCredentialChoices(createServerSupabase(), {
+        userId: res.locals.userId as string,
+        userEmail: res.locals.userEmail as string | undefined,
+        model: req.query.model,
+        projectId: req.query.project_id,
+        orgId: req.query.org_id,
+    });
+    if (!result.ok)
+        return void res.status(result.status).json({ detail: result.detail });
+    res.json(result.body);
 }));
 
 // PUT /user/api-keys/:provider

@@ -63,6 +63,11 @@ interface Props {
   onNoModelsClick?: (reason: NoModelsReason) => void;
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
+  /**
+   * LiTT governed BYOK: the conversation is fixed to `value`, so no other
+   * model is offered. The reasoning level can still change.
+   */
+  locked?: boolean;
 }
 
 export function ModelToggle({
@@ -79,6 +84,7 @@ export function ModelToggle({
   onNoModelsClick,
   reasoningLevel,
   onReasoningChange,
+  locked = false,
 }: Props) {
   const ollamaModels = useOllamaModels();
   const configuredModels = useConfiguredModels();
@@ -92,6 +98,7 @@ export function ModelToggle({
     })),
   ]);
   const availableModels = models.filter((model) => {
+    if (locked) return model.id === value;
     if (model.source === "Configured") return true;
     if (model.group === "Local") return true;
     if (apiKeysLoading) return false; // nothing offered until known

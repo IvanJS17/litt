@@ -76,6 +76,11 @@ import {
     type MessageExcerpt,
 } from "@/shared/lib/messageExcerpts";
 import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
+import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
+import {
+    ChatCredentialPicker,
+    useChatCredentialChoice,
+} from "./ChatCredentialPicker";
 import {
     type NoModelsReason,
 } from "@/shared/lib/modelCatalog";
@@ -136,6 +141,11 @@ interface Props {
     chatModel?: string | null;
     chatReasoningLevel?: ReasoningLevel | null;
     chatKey?: string | null;
+    /**
+     * LiTT: whether a new conversation offers the key picker. Review chats
+     * run on the server's default key for their review and do not.
+     */
+    offerCredentialChoice?: boolean;
 }
 
 /**
@@ -182,6 +192,7 @@ function ChatInputForChatImpl(
         chatModel,
         chatReasoningLevel,
         chatKey,
+        offerCredentialChoice = true,
     }: Props,
     ref: ForwardedRef<ChatInputHandle>,
 ) {
@@ -235,6 +246,17 @@ function ChatInputForChatImpl(
                 : null,
         apiKeys,
         configuredModelIds,
+    });
+    // LiTT governed BYOK: a conversation that already has a model is fixed
+    // to its provider, model and key (the server pinned them with its first
+    // answer). Before that, the composer also offers which key to use.
+    const routeFixed = !!chatKey && typeof chatModel === "string" && chatModel !== "";
+    const workspaceOrgId = useWorkspaceOrgId();
+    const credential = useChatCredentialChoice({
+        model,
+        enabled: offerCredentialChoice && !routeFixed && canSend === true,
+        projectId,
+        orgId: workspaceOrgId,
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const controlsRef = useRef<HTMLDivElement>(null);
@@ -294,6 +316,7 @@ function ChatInputForChatImpl(
 
     const handleModelChange = useCallback(
         (nextModel: string) => {
+            if (routeFixed) return;
             setModel(nextModel);
             // Keep rapid picker changes ordered so the final database value
             // always matches the final visible selection.
@@ -301,7 +324,7 @@ function ChatInputForChatImpl(
                 .catch(() => false)
                 .then(() => persistChatModelSelection(nextModel, chatKey));
         },
-        [chatKey, persistChatModelSelection, setModel],
+        [chatKey, persistChatModelSelection, routeFixed, setModel],
     );
 
     const handleReasoningChange = useCallback(
@@ -660,6 +683,9 @@ function ChatInputForChatImpl(
             workflow: workflow ?? undefined,
             playbook: selectedPlaybook ?? undefined,
             model,
+            ...(offerCredentialChoice && !routeFixed && credential.value
+                ? { credential_ref: credential.value }
+                : {}),
             reasoning: reasoningLevel,
         });
     };
@@ -926,6 +952,15 @@ function ChatInputForChatImpl(
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}
                                     onReasoningChange={handleReasoningChange}
+                                    locked={routeFixed}
+                                />
+                            )}
+                            {!chatSettingsLoading && offerCredentialChoice && !routeFixed && composerOpen && (
+                                <ChatCredentialPicker
+                                    options={credential.options}
+                                    value={credential.value}
+                                    onChange={credential.setValue}
+                                    compact={compactControls}
                                 />
                             )}
                             <button

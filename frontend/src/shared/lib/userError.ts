@@ -188,6 +188,7 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     missing_api_key: "validation",
     model_unavailable: "validation",
     model_required: "validation",
+    chat_route_credential_required: "validation",
     // Identity
     authentication_failed: "unauthenticated",
     session_expired: "unauthenticated",
@@ -201,6 +202,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     upload_target_busy: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
+    // LiTT governed BYOK: a conversation keeps the route it was started on
+    chat_route_pinned: "conflict",
+    chat_route_credential_unavailable: "conflict",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

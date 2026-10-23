@@ -1204,6 +1204,38 @@ export interface RouterCatalogModel {
     };
 }
 
+/**
+ * LiTT governed BYOK: the credentials a NEW conversation on `model` can be
+ * pinned to, as references (never keys). `default` is what the server picks
+ * without an explicit choice; null means the user has to choose one.
+ */
+export type ChatCredentialSource =
+    | "personal"
+    | "organization"
+    | "deployment"
+    | "operator";
+
+export interface ChatCredentialOptions {
+    provider: string;
+    options: { credential_ref: string; source: ChatCredentialSource }[];
+    default: string | null;
+}
+
+export async function getChatCredentialOptions(params: {
+    model: string;
+    projectId?: string | null;
+    orgId?: string | null;
+    signal?: AbortSignal;
+}): Promise<ChatCredentialOptions> {
+    const qs = new URLSearchParams({ model: params.model });
+    if (params.projectId) qs.set("project_id", params.projectId);
+    else if (params.orgId) qs.set("org_id", params.orgId);
+    return apiRequest<ChatCredentialOptions>(
+        `/user/chat-credentials?${qs}`,
+        { signal: params.signal },
+    );
+}
+
 export async function getOllamaModels(): Promise<OllamaModelOption[]> {
     const { models } = await apiRequest<{ models: OllamaModelOption[] }>(
         "/models/ollama",
@@ -3028,6 +3060,8 @@ export async function streamChat(payload: {
      */
     org_id?: string;
     model?: string;
+    /** LiTT: the credential a NEW chat is pinned to (ignored once pinned). */
+    credential_ref?: string;
     reasoning?: Message["reasoning"];
     ask_inputs_response?: AskInputsResponsePayload;
     signal?: AbortSignal;
@@ -3056,6 +3090,8 @@ export async function streamProjectChat(payload: {
     messages: StreamChatMessage[];
     chat_id?: string;
     model?: string;
+    /** LiTT: the credential a NEW chat is pinned to (ignored once pinned). */
+    credential_ref?: string;
     reasoning?: Message["reasoning"];
     displayed_doc?: { filename: string; document_id: string };
     attached_documents?: { filename: string; document_id: string }[];

@@ -404,6 +404,8 @@ export interface Message {
   /** The playbook the user picked to run, shown as a pill. */
   playbook?: { id: string; title: string };
   model?: string;
+  /** LiTT: the credential chosen for a NEW conversation's first turn. */
+  credential_ref?: string;
   reasoning?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
   citations?: Citation[];
   citationStatus?: "started" | "partial" | "final";

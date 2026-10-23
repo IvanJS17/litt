@@ -1023,6 +1023,23 @@ describe("user.routes", () => {
         });
     });
 
+    // ── GET /user/chat-credentials (LiTT governed BYOK) ──────────────────
+    describe("GET /user/chat-credentials", () => {
+        it("needs the model the new conversation will run on", async () => {
+            const res = await request(app).get("/user/chat-credentials").set(...AUTH);
+            expect(res.status).toBe(400);
+            expect(res.body).toEqual({ detail: "model is required" });
+        });
+
+        it("refuses a model the catalog does not know", async () => {
+            const res = await request(app)
+                .get("/user/chat-credentials?model=no-such-model")
+                .set(...AUTH);
+            expect(res.status).toBe(400);
+            expect(res.body).toEqual({ detail: "Unknown model" });
+        });
+    });
+
     describe("PATCH /user/api-keys/:provider", () => {
         it.each([false, true])("sets enabled=%s without rewriting the encrypted key", async (enabled) => {
             supabaseState.tables.user_api_keys = { data: [{ provider: "openai" }], error: null };

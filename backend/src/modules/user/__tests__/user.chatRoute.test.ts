@@ -4,6 +4,7 @@ import { saveApiKeyFor } from "../user.apiKeyStore";
 import {
     chatRouteHost,
     governChatRoute,
+    listChatCredentialOptions,
     loadPinnedChatRoute,
     pinChatRoute,
     titleModelForRoute,
@@ -311,5 +312,72 @@ describe("route provenance", () => {
         const route = { provider: "claude" as const, model: "claude-sonnet-5-5", credentialRef: "env:claude" };
         expect(titleModelForRoute(route, "claude-haiku-4-5")).toBe("claude-haiku-4-5");
         expect(titleModelForRoute(route, "gpt-6-luna")).toBeNull();
+    });
+});
+
+describe("listChatCredentialOptions", () => {
+    it("offers the person's key, the firm's key and the deployment's, defaulting like pinChatRoute", async () => {
+        vi.stubEnv("ANTHROPIC_API_KEY", "sk-deploy");
+        const { db } = fakeDb({
+            org_members: [{ org_id: "o1", user_id: "u1" }],
+            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            user_api_keys: [await keyRow({ kind: "user", id: "u1" }, "claude", "sk-own", 2)],
+            org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm", 5)],
+        });
+        const listed = await listChatCredentialOptions(db, {
+            userId: "u1",
+            orgId: "o1",
+            model: "claude-sonnet-5-5",
+        });
+        expect(listed).toEqual({
+            provider: "claude",
+            options: [
+                { credential_ref: "user:u1:claude:v2", source: "personal" },
+                { credential_ref: "org:o1:claude:v5", source: "organization" },
+                { credential_ref: "env:claude", source: "deployment" },
+            ],
+            default: "user:u1:claude:v2",
+        });
+        // Never a secret.
+        expect(JSON.stringify(listed)).not.toMatch(/sk-/);
+    });
+
+    it("offers no personal key where the firm refuses them, and no default without one", async () => {
+        const { db } = fakeDb({
+            org_members: [{ org_id: "o1", user_id: "u1" }],
+            organizations: [{ id: "o1", allow_personal_api_keys: false }],
+            user_api_keys: [await keyRow({ kind: "user", id: "u1" }, "claude", "sk-own")],
+            org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
+        });
+        const listed = await listChatCredentialOptions(db, {
+            userId: "u1",
+            orgId: "o1",
+            model: "claude-sonnet-5-5",
+        });
+        expect(listed?.options).toEqual([
+            { credential_ref: "org:o1:claude:v1", source: "organization" },
+        ]);
+        // The organization's key is offered, never chosen implicitly.
+        expect(listed?.default).toBeNull();
+    });
+
+    it("offers a firm's key only to its members", async () => {
+        const { db } = fakeDb({
+            organizations: [{ id: "o1", allow_personal_api_keys: true }],
+            org_api_keys: [await keyRow({ kind: "org", id: "o1" }, "claude", "sk-firm")],
+        });
+        const listed = await listChatCredentialOptions(db, {
+            userId: "outsider",
+            orgId: "o1",
+            model: "claude-sonnet-5-5",
+        });
+        expect(listed?.options).toEqual([]);
+    });
+
+    it("refuses a model the catalog does not know", async () => {
+        const { db } = fakeDb({});
+        expect(
+            await listChatCredentialOptions(db, { userId: "u1", orgId: null, model: "no-such-model" }),
+        ).toBeNull();
     });
 });

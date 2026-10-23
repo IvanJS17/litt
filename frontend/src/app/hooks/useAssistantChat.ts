@@ -540,6 +540,10 @@ export function useAssistantChat({
 
       const model = message.model;
       const reasoning = message.reasoning;
+      // LiTT: the composer names a credential only before the conversation
+      // is pinned (its first turn); the server pins it and refuses another
+      // one afterwards.
+      const credentialRef = message.credential_ref;
 
       const displayedDoc = opts?.displayedDoc ?? null;
 
@@ -562,6 +566,7 @@ export function useAssistantChat({
               messages: apiMessages,
               chat_id: sendChatId,
               model,
+              credential_ref: credentialRef,
               reasoning,
               displayed_doc: displayedDoc
                 ? {
@@ -580,6 +585,7 @@ export function useAssistantChat({
               // Where a new chat is filed: the workspace it is started in.
               org_id: workspaceOrgId,
               model,
+              credential_ref: credentialRef,
               reasoning,
               ask_inputs_response: opts?.askInputsResponse,
               signal: controller.signal,

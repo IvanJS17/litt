@@ -2344,6 +2344,7 @@ export function TRChatPanel({
                     canSend={canSend}
                     hideAddDocButton
                     hideWorkflowButton
+                    offerCredentialChoice={false}
                     chatModel={currentChatModel}
                     chatReasoningLevel={currentChatReasoningLevel}
                     chatKey={
