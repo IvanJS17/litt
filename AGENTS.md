@@ -202,23 +202,23 @@ or local test artifacts.
 
 ## LiTT fork
 
-This repository is LiTT, a fork of MikeOSS (`open-legal-products/mike`) maintained
-for Mexican legal practice. These rules complement the sections above and win
-where they conflict.
+This repository is LiTT (`IvanJS17/litt`), derived from MikeOSS
+(`open-legal-products/mike`) and maintained for Mexican legal practice. Since
+2026-10-23 it is a standalone GitHub repository, outside the upstream fork
+network. These rules complement the sections above and win where they conflict.
 
 - **Identity and license.** LiTT is the user-visible product name. Keep
   AGPL-3.0-only, `LICENSE`, upstream copyright notices and the upstream
   attribution in `README.md`. A hosted modified version must offer its
   Corresponding Source (AGPL §13; tracked as TD-016 in
   `docs/TECHNICAL_DEBT.md`). Do not rename internal identifiers (`mikeApi.ts`,
-  `MikeApiError`, file and directory names, the repository or its remotes) for
+  `MikeApiError`, file and directory names, the `upstream` remote) for
   branding.
 - **Upstream.** Treat `upstream` as read-only input. Follow
   `docs/UPSTREAM_POLICY.md` (weekly intake, full-OID pin,
   adopt/port/reject/defer, stop-the-line thresholds) and record decisions in
-  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`. Never merge upstream wholesale. In
-  this fork `gh` can resolve to the upstream repository: pass
-  `--repo IvanJS17/mike`.
+  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`. Never merge upstream wholesale. Pass
+  `--repo IvanJS17/litt` to `gh` in scripts.
 - **Migrations.** Name LiTT-owned migrations `YYYYMMDD_NN_recovery_<name>.sql`
   on a date/ordinal stem that upstream has not used, and append them to
   `SUPPORTED_RECOVERY_MIGRATION_ORDER` with their source hash in
