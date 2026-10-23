@@ -11,7 +11,10 @@ declare
   before_jobs integer;
 begin
   insert into auth.users(id, email) values(actor, 'playbook-lifecycle@example.invalid');
-  insert into public.organizations(id, name) values(org, 'Playbook lifecycle test');
+  -- LiTT: a team organization cannot be deleted (20261023_12_litt_no_org_purge),
+  -- so the organization cascade is exercised on the actor's personal one.
+  select o.id into org from public.organizations o where o.personal_user_id = actor;
+  assert org is not null, 'personal organization';
   insert into public.playbooks(id, user_id, org_id, name, content_json, source_storage_key)
     values(book, actor, org, 'Lifecycle test', '{}', 'test/playbook-import.docx');
   insert into public.playbook_sources(id, playbook_id, filename, file_type, storage_key, size_bytes)

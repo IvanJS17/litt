@@ -159,6 +159,12 @@ jobs:
       - name: Playbook storage cleanup transactions
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/scripts/test-playbook-lifecycle.sql
 
+      # LiTT: private matters, insert-only audit, authorization epochs and
+      # no organization deletion hold on the fresh schema (conditions C2-C5
+      # of docs/UPSTREAM_SYNC_PLAN.md).
+      - name: LiTT tenancy conditions
+        run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/scripts/test-litt-tenancy-conditions.sql
+
       - name: Document text search and backfill transactions
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/src/modules/documents/__tests__/documents.textSearch.sql
 

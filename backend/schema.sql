@@ -15508,6 +15508,261 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------------
+-- 20261023_10_litt_private_matter_access.sql
+-- ---------------------------------------------------------------------------
+--
+-- Private matters in SQL (LiTT sync 2026-10-23, S1; condition C2 of
+-- docs/UPSTREAM_SYNC_PLAN.md §3). Organization owners and admins have no
+-- standing access to private matters, and the SQL mirror of project access
+-- enforces matter privacy, not only the TypeScript resolver.
+--
+-- 1. project_private_matter_denied(project, user) is true when the project is
+--    bound to a private matter and the user has no active membership of that
+--    matter while still a member of its organization. A null user is denied.
+-- 2. project_access_role keeps upstream's body unchanged and evaluates that
+--    gate first, so the creator, an organization owner, upstream's
+--    "ownerless" takeover, organization visibility and the administrative
+--    private-content path all yield no role on a private matter. Chats,
+--    reviews and documents inside a project resolve through this function.
+-- 3. project_access_scope labels a private matter's project 'private'.
+-- 4. can_access_org_private_content always answers false: upstream's
+--    owner/admin access to members' private content is not part of LiTT
+--    (plan §4.2), so org_private_access_role, org_private_document_access and
+--    list_org_private_content grant and list nothing.
+--
+-- Re-runnable: create or replace.
+
+create or replace function public.project_private_matter_denied(
+  p_project_id uuid,
+  p_user_id text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.matters mt
+    where mt.project_id = p_project_id
+      and mt.visibility = 'private'
+      and not exists (
+        select 1
+        from public.matter_memberships mm
+        join public.workspaces w on w.id = mt.workspace_id
+        join public.org_members m
+          on m.org_id = w.organization_id and m.user_id = mm.user_id
+        where mm.matter_id = mt.id
+          and mm.user_id::text = p_user_id
+          and mm.status = 'active'
+      )
+  );
+$$;
+
+revoke all on function public.project_private_matter_denied(uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.project_private_matter_denied(uuid, text)
+  to service_role;
+
+create or replace function public.project_access_role(
+  p_project_id uuid,
+  p_project_user_id uuid,
+  p_org_id uuid,
+  p_user_id text,
+  p_user_email text
+)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select case
+    -- LiTT C2: a project bound to a private matter is invisible to
+    -- everyone without an active membership of that matter, before
+    -- any upstream branch (creator, organization owner, ownerless,
+    -- organization visibility, administrative private access).
+    when public.project_private_matter_denied(p_project_id, p_user_id) then null
+    else coalesce((case
+    when not public.org_is_active(p_org_id) then null
+    when exists(select 1 from public.projects where id=p_project_id and archived_at is not null) then null
+    when p_org_id is not null then (
+      select case
+        when p_project_user_id::text = p_user_id then 'owner'
+        -- An organization owner owns what is public, and what has no Owner
+        -- left. A private item with an Owner is not theirs unless shared.
+        when m.role = 'owner' and (
+          (
+            select project.visibility from public.projects project
+            where project.id = p_project_id
+          ) = 'organization'
+          or public.project_is_ownerless(
+            p_project_id, p_project_user_id, p_org_id
+          )
+        ) then 'owner'
+        when o.role = 'deny' then null
+        when o.role in ('owner', 'editor', 'viewer') then o.role
+        when (
+          select project.visibility from public.projects project
+          where project.id = p_project_id
+        ) = 'organization' then 'editor'
+        else null
+      end
+      from public.org_members m
+      left join public.project_org_access_overrides o
+        on o.project_id = p_project_id
+       and o.org_id = p_org_id
+       and o.user_id = m.user_id
+      where m.org_id = p_org_id and m.user_id::text = p_user_id
+    )
+    when p_project_user_id::text = p_user_id then 'owner'
+    else (
+      select g.role from public.project_access_grants g
+      where g.project_id = p_project_id
+        and coalesce(p_user_email, '') <> ''
+        and g.email = lower(p_user_email)
+      limit 1
+    )
+  end), public.org_private_access_role(p_org_id,'project',p_project_id,p_user_id))
+  end;
+$$;
+
+create or replace function public.project_access_scope(
+  p_project_id uuid,
+  p_org_id uuid,
+  p_visibility text
+)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select case
+    -- LiTT C2: a private matter's project is private whatever its own
+    -- visibility says; its team is the matter membership.
+    when exists (
+      select 1 from public.matters mt
+      where mt.project_id = p_project_id and mt.visibility = 'private'
+    ) then 'private'
+    when p_org_id is not null and p_visibility = 'organization'
+      then 'organization'
+    when p_org_id is not null and exists (
+      select 1 from public.project_org_access_overrides o
+      where o.project_id = p_project_id and o.role <> 'deny'
+    ) then 'shared'
+    when p_org_id is null and exists (
+      select 1 from public.project_access_grants g
+      where g.project_id = p_project_id
+    ) then 'shared'
+    else 'private'
+  end;
+$$;
+
+create or replace function public.can_access_org_private_content(p_org_id uuid,p_user_id uuid)
+returns boolean language sql stable set search_path=public,pg_temp as $$
+  -- LiTT: no standing owner/admin access to private content (plan §4.2, C2).
+  select false;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 20261023_11_litt_append_only_audit.sql
+-- ---------------------------------------------------------------------------
+--
+-- Audit is insert-only (LiTT sync 2026-10-23, S1; condition C3 of
+-- docs/UPSTREAM_SYNC_PLAN.md §3). LiTT keeps upstream's audit_events shape
+-- (user_id, org_id, action, detail) so every upstream writer keeps working,
+-- and restores LiTT's guarantee that a recorded event is never changed or
+-- removed:
+--
+--   * audit_events_insert_only rejects every UPDATE and DELETE, including
+--     upstream's account-cleanup rewrite and deletion of audit rows. With it,
+--     deleting an account that has audit history fails closed until the
+--     retention decision (TD-008) defines what may be anonymized.
+--   * audit_event_org fixes the organization attribution when the row is
+--     inserted; it no longer runs on UPDATE, which this table no longer
+--     allows anyway.
+--
+-- AI evidence relations are already insert-only (20261023_03).
+-- Re-runnable: create or replace, drop-before-create triggers.
+
+create or replace function public.audit_events_insert_only()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  raise exception 'audit_events is insert-only; % is not allowed', tg_op
+    using errcode = '55000';
+end;
+$$;
+
+revoke all on function public.audit_events_insert_only() from public, anon, authenticated;
+
+drop trigger if exists audit_events_insert_only_trigger on public.audit_events;
+create trigger audit_events_insert_only_trigger
+  before update or delete on public.audit_events
+  for each row execute function public.audit_events_insert_only();
+
+drop trigger if exists audit_event_org on public.audit_events;
+create trigger audit_event_org before insert on public.audit_events
+  for each row execute function public.audit_event_org();
+
+-- ---------------------------------------------------------------------------
+-- 20261023_12_litt_no_org_purge.sql
+-- ---------------------------------------------------------------------------
+--
+-- No organization deletion or purge (LiTT sync 2026-10-23, S1; conditions C3
+-- and C5 of docs/UPSTREAM_SYNC_PLAN.md §3). Upstream soft-deletes a team
+-- organization and purges it, with its projects, workflows, documents,
+-- reviews, chats and memory, 30 days later. LiTT has no retention decision
+-- yet (TD-008), so a firm's organization is never deleted:
+--
+--   * soft_delete_organization raises feature_not_supported; the API keeps
+--     answering 405 (S2).
+--   * purge_expired_organizations purges nothing and reports 0, so the
+--     scheduled sweep stays harmless.
+--   * a BEFORE DELETE trigger rejects deleting a team organization by any
+--     path. A personal organization still goes with its user, as upstream.
+--
+-- Re-runnable: create or replace, drop-before-create trigger.
+
+create or replace function public.soft_delete_organization(p_org_id uuid,p_actor_id uuid)
+returns void language plpgsql set search_path = public, pg_temp as $$
+begin
+  raise exception 'Organization deletion is not available'
+    using errcode = '0A000';
+end;
+$$;
+
+create or replace function public.purge_expired_organizations(p_limit integer default 10)
+returns integer language plpgsql set search_path = public, pg_temp as $$
+begin
+  return 0;
+end;
+$$;
+
+create or replace function public.organizations_no_team_delete()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if old.kind = 'team' then
+    raise exception 'Organization deletion is not available'
+      using errcode = '0A000';
+  end if;
+  return old;
+end;
+$$;
+
+revoke all on function public.organizations_no_team_delete() from public, anon, authenticated;
+
+drop trigger if exists organizations_no_team_delete on public.organizations;
+create trigger organizations_no_team_delete
+  before delete on public.organizations
+  for each row execute function public.organizations_no_team_delete();
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -15679,5 +15934,8 @@ insert into public.schema_migrations (filename) values
   ('20261023_06_litt_rls_every_table.sql'),
   ('20261023_07_litt_tabular_chat_source_provenance.sql'),
   ('20261023_08_litt_workflow_provenance.sql'),
-  ('20261023_09_litt_memory_opt_in.sql')
+  ('20261023_09_litt_memory_opt_in.sql'),
+  ('20261023_10_litt_private_matter_access.sql'),
+  ('20261023_11_litt_append_only_audit.sql'),
+  ('20261023_12_litt_no_org_purge.sql')
 on conflict (filename) do nothing;
