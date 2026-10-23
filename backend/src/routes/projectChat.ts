@@ -455,6 +455,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
             docStore,
             docIndex,
             userId,
+            userEmail,
             db,
             write,
             extraTools: PROJECT_EXTRA_TOOLS,

@@ -29,6 +29,13 @@ export type McpOAuthProviderQuirks = {
      */
     envPrefix: string;
     /**
+     * Whether a pre-configured client is incomplete without its secret. A
+     * provider that expects a confidential client cannot authorize with a
+     * bare client id, so a half-configured deployment must be told to finish
+     * the setup instead of starting a flow that is guaranteed to fail.
+     */
+    requiresClientSecret?: boolean;
+    /**
      * Non-standard authorization-request query parameters the provider
      * requires. The MCP SDK builds a spec-compliant authorization URL and has
      * no hook for extras, so these are applied to the finished URL just before
@@ -59,6 +66,7 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
             hostname === "googleapis.com" ||
             hostname.endsWith(".googleapis.com"),
         envPrefix: "GOOGLE_MCP_OAUTH",
+        requiresClientSecret: true,
         // Google only returns a refresh token when the request opts into
         // offline access (`access_type=offline`), and only re-issues one when
         // it is forced to re-prompt for consent (`prompt=consent`). Google
@@ -76,7 +84,7 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
             "then set GOOGLE_MCP_OAUTH_CLIENT_ID and GOOGLE_MCP_OAUTH_CLIENT_SECRET in " +
             "backend/.env (see .env.example) and restart the backend. The redirect URI " +
             "is derived from API_PUBLIC_URL, so fix that first if it is not the address " +
-            "browsers use to reach Mike.",
+            "browsers use to reach LiTT.",
         // Google's MCP endpoints are versioned, and their discovery metadata
         // advertises the UNversioned path (`…/mcp`), so hitting the advertised
         // path yields an opaque generic 400. Users who copy the URL from the
@@ -100,6 +108,7 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
         matches: (hostname) =>
             hostname === "slack.com" || hostname.endsWith(".slack.com"),
         envPrefix: "SLACK_MCP_OAUTH",
+        requiresClientSecret: true,
         // No extra authorization parameters: unlike classic Slack OAuth
         // (which splits bot `scope` from user `user_scope`), the MCP
         // authorization endpoint `slack.com/oauth/v2_user/authorize` takes
@@ -115,7 +124,7 @@ const PROVIDERS: McpOAuthProviderQuirks[] = [
             "SLACK_MCP_OAUTH_CLIENT_ID and SLACK_MCP_OAUTH_CLIENT_SECRET in backend/.env " +
             "(see .env.example) and restart the backend. The redirect URI is derived from " +
             "API_PUBLIC_URL, so fix that first if it is not the HTTPS address browsers " +
-            "use to reach Mike.",
+            "use to reach LiTT.",
         // Slack serves exactly one MCP endpoint. Anything else on the
         // slack.com zone answers with a 302 redirect or an HTML page — the
         // SDK then fails with an opaque non-2xx error, so point the user at

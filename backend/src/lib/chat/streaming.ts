@@ -229,6 +229,13 @@ export async function runLLMStream(params: {
   docStore: DocStore;
   docIndex: DocIndex;
   userId: string;
+  /**
+   * The caller's authenticated email. Direct (email-keyed) grants are part of
+   * the per-document role check edit_document runs before it writes, so a
+   * surface that omits it only lets the model edit documents the caller
+   * reaches as creator or organization member.
+   */
+  userEmail?: string | null;
   db: ReturnType<typeof createServerSupabase>;
   write: (s: string) => void;
   extraTools?: unknown[];
@@ -290,6 +297,7 @@ export async function runLLMStream(params: {
     docStore,
     docIndex,
     userId,
+    userEmail,
     db,
     write: unsafeWrite,
     extraTools,
@@ -611,6 +619,7 @@ export async function runLLMStream(params: {
           turnReadState,
           projectId,
           nonce,
+          userEmail,
         );
         throwIfAborted(signal);
         for (const r of docsRead) {

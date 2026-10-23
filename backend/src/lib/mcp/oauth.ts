@@ -236,18 +236,27 @@ export function providerAuthorizationParams(
 }
 
 function oauthClientEnvFor(serverUrl: string) {
-    const prefix = mcpOAuthProviderFor(serverUrl)?.envPrefix ?? "MCP_OAUTH";
+    // Only a recognized provider has an OAuth client this deployment can own.
+    // Unknown hosts must go through RFC 7591 dynamic client registration: a
+    // generic MCP_OAUTH_* client would offer one connector's identity to
+    // whatever server the URL points at, and break providers that expect
+    // their own registered client.
+    const provider = mcpOAuthProviderFor(serverUrl);
+    const prefix = provider?.envPrefix;
     return {
-        clientId:
-            process.env[`${prefix}_CLIENT_ID`] ||
-            process.env.MCP_OAUTH_CLIENT_ID,
-        clientSecret:
-            process.env[`${prefix}_CLIENT_SECRET`] ||
-            process.env.MCP_OAUTH_CLIENT_SECRET,
+        clientId: prefix ? process.env[`${prefix}_CLIENT_ID`] : undefined,
+        clientSecret: prefix
+            ? process.env[`${prefix}_CLIENT_SECRET`]
+            : undefined,
         scope:
-            process.env[`${prefix}_SCOPE`] ||
+            (prefix ? process.env[`${prefix}_SCOPE`] : undefined) ||
             process.env.MCP_OAUTH_DEFAULT_SCOPE,
     };
+}
+
+/** A credential counts only when it has non-whitespace content. */
+function hasConfiguredCredential(value: string | undefined): value is string {
+    return typeof value === "string" && value.trim().length > 0;
 }
 
 async function registerOAuthClient(
@@ -262,7 +271,7 @@ async function registerOAuthClient(
             "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            client_name: "Mike",
+            client_name: "LiTT",
             redirect_uris: [redirectUri],
             grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],
@@ -502,11 +511,13 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
     get clientMetadata(): OAuthClientMetadata {
         const env = oauthClientEnvFor(this.connector.server_url);
         return {
-            client_name: "Mike",
+            client_name: "LiTT",
             redirect_uris: [this.redirectUri],
             grant_types: ["authorization_code", "refresh_token"],
             response_types: ["code"],
-            token_endpoint_auth_method: env.clientSecret
+            token_endpoint_auth_method: hasConfiguredCredential(
+                env.clientSecret,
+            )
                 ? "client_secret_post"
                 : "none",
             ...(env.scope ? { scope: env.scope } : {}),
@@ -531,10 +542,12 @@ export class DbMcpOAuthProvider implements OAuthClientProvider {
             };
         }
         const env = oauthClientEnvFor(this.connector.server_url);
-        if (!env.clientId) return undefined;
+        if (!hasConfiguredCredential(env.clientId)) return undefined;
         return {
             client_id: env.clientId,
-            ...(env.clientSecret ? { client_secret: env.clientSecret } : {}),
+            ...(hasConfiguredCredential(env.clientSecret)
+                ? { client_secret: env.clientSecret }
+                : {}),
         };
     }
 
@@ -764,9 +777,17 @@ export async function startUserMcpConnectorOAuth(
     // exact setup instructions — including the redirect URI this deployment
     // needs, so it can be copy-pasted into the provider's console form.
     const providerQuirks = mcpOAuthProviderFor(connector.server_url);
-    if (!env.clientId && providerQuirks?.setupInstructions) {
+    const clientConfigured =
+        hasConfiguredCredential(env.clientId) &&
+        (!providerQuirks?.requiresClientSecret ||
+            hasConfiguredCredential(env.clientSecret));
+    if (providerQuirks?.setupInstructions && !clientConfigured) {
         const stored = await loadOAuthToken(connector.id, db);
-        if (!stored?.client_id) {
+        if (
+            !stored?.client_id ||
+            (providerQuirks.requiresClientSecret &&
+                !stored.encrypted_client_secret)
+        ) {
             throw new ConnectorSetupError(
                 providerQuirks.setupInstructions(redirectUri),
             );

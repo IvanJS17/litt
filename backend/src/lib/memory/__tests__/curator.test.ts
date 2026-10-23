@@ -6,7 +6,7 @@
  * default is built in `curator.ts`), plus the LiTT-only terminal branch: a
  * governed-egress block fails the consolidation without retrying.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamChatParams } from "../../llm";
 import {
   handleMemoryConsolidation,
@@ -21,14 +21,24 @@ import {
   type MemoryCurrent,
   type MemoryFileRow,
 } from "../files";
-import { ensureChatAccess } from "../../access";
+import {
+  checkProjectAccess,
+  ensureChatAccess,
+  projectHasSharedAudience,
+} from "../../access";
+import { hasDirectContentGrants } from "../../contentAccess";
 import { createGovernedCuratorStream } from "../curatorEgress";
 import type { DbJob } from "../../dbq/types";
+
+vi.mock("../../contentAccess", () => ({
+  hasDirectContentGrants: vi.fn(async () => false),
+}));
 
 vi.mock("../../access", () => ({
   checkProjectAccess: vi.fn(),
   ensureChatAccess: vi.fn(async () => ({ ok: true })),
   ensureReviewAccess: vi.fn(async () => ({ ok: true })),
+  filterAccessibleDocumentIds: vi.fn(async (ids: string[]) => ids),
   projectHasSharedAudience: vi.fn(async () => false),
 }));
 
@@ -452,5 +462,308 @@ describe("memory curator governed egress terminal branch", () => {
 
     // Terminal: one governed stream attempt, no scope retry / no rethrow.
     expect(vi.mocked(createGovernedCuratorStream)).toHaveBeenCalledTimes(1);
+  });
+});
+
+type ConsolidationDbOptions = {
+  surface: "chat" | "tabular";
+  tables?: Record<string, unknown>;
+  messageTable?: string;
+  messages?: MemoryCuratorStoredMessage[];
+  documents?: Array<{ id: string; project_id: string | null }>;
+};
+
+/**
+ * Minimal db double for `handleMemoryConsolidation`: one row per table plus the
+ * two query shapes its loader and status helpers use. `memory_consolidation_results`
+ * answers the skip receipt written when app memory is out of scope.
+ */
+function consolidationDb(options: ConsolidationDbOptions) {
+  const messages = options.messages ?? [
+    {
+      id: "input-1",
+      role: "user",
+      content: "Confidential client note",
+      author_user_id: "actor",
+      memory_input_message_id: null,
+      memory_eligible_at: null,
+      memory_app_eligible_at: null,
+      created_at: "2026-09-05T00:00:01.000Z",
+    },
+    {
+      id: "assistant-1",
+      role: "assistant",
+      content: [{ type: "content", text: "Understood" }],
+      author_user_id: "actor",
+      memory_input_message_id: "input-1",
+      memory_eligible_at: "2026-09-05T00:00:02.000Z",
+      memory_app_eligible_at: "2026-09-05T00:00:02.000Z",
+      created_at: "2026-09-05T00:00:02.000Z",
+    },
+  ] satisfies MemoryCuratorStoredMessage[];
+  const tables: Record<string, unknown> = {
+    memory_consolidation_states: {
+      id: "state-1",
+      surface: options.surface,
+      conversation_id: "chat-1",
+      actor_user_id: "actor",
+      project_id: null,
+      generation: 4,
+      processed_generation: 0,
+      latest_turn_id: null,
+      status: "processing",
+    },
+    memory_conversation_activity: {
+      generation: 11,
+      quiet_until: null,
+      deleted_at: null,
+    },
+    memory_conversation_turn_leases: null,
+    memory_files: { id: "file-1", epoch: 7 },
+    ...options.tables,
+  };
+  const rpcCalls: Array<{ name: string; params: Record<string, unknown> }> = [];
+  const db = {
+    auth: {
+      admin: {
+        getUserById: async () => ({
+          data: { user: { email: "actor@example.com" } },
+          error: null,
+        }),
+      },
+    },
+    from: (table: string) => {
+      if (table === (options.messageTable ?? "chat_messages")) {
+        return chatMessageBuilder(messages);
+      }
+      if (table === "documents") {
+        return chatMessageBuilder(
+          (options.documents ?? []) as unknown as MemoryCuratorStoredMessage[],
+        );
+      }
+      if (table === "memory_consolidation_results") {
+        return {
+          ...singleRowBuilder(null),
+          upsert: async () => ({ error: null }),
+        };
+      }
+      return singleRowBuilder(tables[table] ?? null);
+    },
+    rpc: async (name: string, params: Record<string, unknown>) => {
+      rpcCalls.push({ name, params });
+      return name === "set_memory_consolidation_status"
+        ? { data: true, error: null }
+        : { data: null, error: null };
+    },
+  };
+  return { db, rpcCalls };
+}
+
+function consolidationJob(): DbJob {
+  return {
+    id: "job",
+    kind: "memory.consolidate",
+    payload: {
+      stateId: "state-1",
+      generation: 4,
+      appEpoch: 7,
+      sourceEpoch: 2,
+      conversationGeneration: 11,
+      actorUserId: "actor",
+      projectId: null,
+      terminalAt: null,
+      turnId: null,
+    },
+    status: "running",
+    attempts: 0,
+    max_attempts: 3,
+    run_at: "2026-09-05T00:00:00.000Z",
+    claimed_at: null,
+    finished_at: null,
+    last_error: null,
+    dedupe_key: null,
+    result: null,
+    created_at: "2026-09-05T00:00:00.000Z",
+  };
+}
+
+describe("private conversation boundary for app memory", () => {
+  const privateChat = {
+    id: "chat-1",
+    user_id: "actor",
+    project_id: null,
+    org_id: null,
+    model: "openai:gpt-test",
+  };
+
+  beforeEach(() => {
+    vi.mocked(hasDirectContentGrants).mockReset();
+    vi.mocked(hasDirectContentGrants).mockResolvedValue(false);
+    vi.mocked(projectHasSharedAudience).mockResolvedValue(false);
+    vi.mocked(checkProjectAccess).mockReset();
+    vi.mocked(createGovernedCuratorStream).mockClear();
+    vi.mocked(ensureChatAccess).mockResolvedValue({ ok: true } as never);
+    vi.mocked(ensureMemoryFile).mockResolvedValue(memoryFile("user"));
+  });
+
+  it("keeps a shared standalone chat out of the owner's private app memory", async () => {
+    vi.mocked(hasDirectContentGrants).mockResolvedValue(true);
+    const { db } = consolidationDb({ surface: "chat", tables: { chats: privateChat } });
+
+    const result = await handleMemoryConsolidation(db as never, consolidationJob());
+
+    expect(result).toEqual({ skipped: "no_enabled_scope" });
+    expect(vi.mocked(createGovernedCuratorStream)).not.toHaveBeenCalled();
+  });
+
+  it("keeps another user's chat out of the reader's private app memory", async () => {
+    const { db } = consolidationDb({
+      surface: "chat",
+      tables: { chats: { ...privateChat, user_id: "owner" } },
+    });
+
+    const result = await handleMemoryConsolidation(db as never, consolidationJob());
+
+    expect(result).toEqual({ skipped: "no_enabled_scope" });
+    expect(vi.mocked(createGovernedCuratorStream)).not.toHaveBeenCalled();
+  });
+
+  it("still learns from the actor's own private standalone chat", async () => {
+    const { db } = consolidationDb({ surface: "chat", tables: { chats: privateChat } });
+
+    const result = await handleMemoryConsolidation(db as never, consolidationJob());
+
+    expect(result).toEqual({
+      skipped: "egress_blocked",
+      outcomes: { user: "egress_blocked" },
+    });
+    expect(vi.mocked(createGovernedCuratorStream)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(hasDirectContentGrants)).toHaveBeenCalledWith(
+      expect.anything(),
+      "chat",
+      "chat-1",
+    );
+  });
+
+  it("keeps a granted tabular review out of private app memory", async () => {
+    vi.mocked(hasDirectContentGrants).mockResolvedValue(true);
+    vi.mocked(checkProjectAccess).mockResolvedValue({
+      ok: true,
+      projectRole: "editor",
+      project: { id: "project", org_id: null },
+    } as never);
+    const { db } = consolidationDb({
+      surface: "tabular",
+      messageTable: "tabular_review_chat_messages",
+      tables: {
+        tabular_review_chats: {
+          id: "chat-1",
+          review_id: "review-1",
+          model: "openai:gpt-test",
+        },
+        tabular_reviews: {
+          id: "review-1",
+          user_id: "actor",
+          project_id: "project",
+          org_id: null,
+        },
+      },
+    });
+
+    const result = await handleMemoryConsolidation(db as never, consolidationJob());
+
+    expect(result).toEqual({ skipped: "no_enabled_scope" });
+    expect(vi.mocked(createGovernedCuratorStream)).not.toHaveBeenCalled();
+    expect(vi.mocked(hasDirectContentGrants)).toHaveBeenCalledWith(
+      expect.anything(),
+      "tabular_review",
+      "review-1",
+    );
+  });
+});
+
+/**
+ * A tabular transcript can carry text derived from another project's
+ * documents. Project memory is read by the whole project, so it learns only
+ * from messages whose every source document belongs to that project and that
+ * the actor can still read; unknown (legacy) provenance never teaches memory.
+ */
+describe("tabular transcript provenance for memory", () => {
+  const sourced = (sources: string[] | null) =>
+    [
+      {
+        id: "input-1",
+        role: "user",
+        content: "SECRET FROM X question",
+        author_user_id: "actor",
+        memory_input_message_id: null,
+        memory_eligible_at: null,
+        memory_app_eligible_at: null,
+        created_at: "2026-09-05T00:00:01.000Z",
+        source_document_ids: sources,
+      },
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [{ type: "content", text: "SECRET FROM X" }],
+        author_user_id: "actor",
+        memory_input_message_id: "input-1",
+        memory_eligible_at: "2026-09-05T00:00:02.000Z",
+        memory_app_eligible_at: "2026-09-05T00:00:02.000Z",
+        created_at: "2026-09-05T00:00:02.000Z",
+        source_document_ids: sources,
+      },
+    ] as unknown as MemoryCuratorStoredMessage[];
+
+  const run = (sources: string[] | null) => {
+    const { db } = consolidationDb({
+      surface: "tabular",
+      messageTable: "tabular_review_chat_messages",
+      messages: sourced(sources),
+      documents: [
+        { id: "doc-y", project_id: "project-y" },
+        { id: "doc-x", project_id: "project-x" },
+      ],
+      tables: {
+        tabular_review_chats: {
+          id: "chat-1",
+          review_id: "review-1",
+          model: "openai:gpt-test",
+        },
+        tabular_reviews: {
+          id: "review-1",
+          user_id: "actor",
+          project_id: "project-y",
+          org_id: null,
+        },
+      },
+    });
+    return handleMemoryConsolidation(db as never, consolidationJob());
+  };
+
+  beforeEach(() => {
+    vi.mocked(hasDirectContentGrants).mockResolvedValue(false);
+    vi.mocked(projectHasSharedAudience).mockResolvedValue(false);
+    vi.mocked(checkProjectAccess).mockResolvedValue({
+      ok: true,
+      projectRole: "editor",
+      project: { id: "project-y", org_id: null },
+    } as never);
+    vi.mocked(ensureMemoryFile).mockResolvedValue(memoryFile("user"));
+    vi.mocked(createGovernedCuratorStream).mockClear();
+  });
+
+  it("learns from a turn sourced only from the review's own project", async () => {
+    await run(["doc-y"]);
+    expect(vi.mocked(createGovernedCuratorStream)).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["another project's document", ["doc-x", "doc-y"]],
+    ["unknown provenance", null],
+  ])("keeps a turn derived from %s out of memory", async (_label, sources) => {
+    const result = await run(sources);
+    expect(vi.mocked(createGovernedCuratorStream)).not.toHaveBeenCalled();
+    expect(JSON.stringify(result)).not.toContain("SECRET");
   });
 });

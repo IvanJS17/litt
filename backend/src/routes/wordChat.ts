@@ -1142,6 +1142,7 @@ wordChatRouter.post("/", requireAuth, async (req, res) => {
       docStore,
       docIndex,
       userId,
+      userEmail,
       db,
       write,
       workflowStore,

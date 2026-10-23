@@ -149,11 +149,137 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  old_email text := lower(btrim(coalesce(old.email, '')));
+  new_email text := lower(btrim(coalesce(new.email, '')));
 begin
   update public.user_profiles
   set email = lower(new.email),
       updated_at = now()
   where user_id = new.id;
+
+  -- Direct grants are keyed by normalized email, so they belong to whoever
+  -- holds that address. When this account's address changes, its grants
+  -- follow it: left behind, the person silently loses their shares and
+  -- whoever later registers the old address (a reassigned mailbox) inherits
+  -- them, Owner grants included. A grant already held by the new address is
+  -- kept at the stronger of the two roles.
+  if old_email = '' or old_email = new_email then
+    return new;
+  end if;
+
+  if new_email = '' then
+    delete from public.project_access_grants where email = old_email;
+    delete from public.chat_access_grants where email = old_email;
+    delete from public.tabular_review_access_grants where email = old_email;
+    delete from public.workflow_shares where shared_with_email = old_email;
+    update public.projects
+       set shared_with = shared_with - old_email
+     where shared_with ? old_email;
+    update public.tabular_reviews
+       set shared_with = shared_with - old_email
+     where shared_with ? old_email;
+    return new;
+  end if;
+
+  update public.project_access_grants as kept
+     set role = moved.role, updated_at = now()
+    from public.project_access_grants as moved
+   where moved.email = old_email
+     and kept.email = new_email
+     and kept.project_id = moved.project_id
+     and (case moved.role when 'owner' then 2 when 'editor' then 1 else 0 end)
+       > (case kept.role when 'owner' then 2 when 'editor' then 1 else 0 end);
+  delete from public.project_access_grants as moved
+   where moved.email = old_email
+     and exists (
+       select 1 from public.project_access_grants as kept
+        where kept.project_id = moved.project_id
+          and kept.email = new_email
+     );
+  update public.project_access_grants
+     set email = new_email, updated_at = now()
+   where email = old_email;
+
+  update public.chat_access_grants as kept
+     set role = moved.role, updated_at = now()
+    from public.chat_access_grants as moved
+   where moved.email = old_email
+     and kept.email = new_email
+     and kept.chat_id = moved.chat_id
+     and (case moved.role when 'owner' then 2 when 'editor' then 1 else 0 end)
+       > (case kept.role when 'owner' then 2 when 'editor' then 1 else 0 end);
+  delete from public.chat_access_grants as moved
+   where moved.email = old_email
+     and exists (
+       select 1 from public.chat_access_grants as kept
+        where kept.chat_id = moved.chat_id
+          and kept.email = new_email
+     );
+  update public.chat_access_grants
+     set email = new_email, updated_at = now()
+   where email = old_email;
+
+  update public.tabular_review_access_grants as kept
+     set role = moved.role, updated_at = now()
+    from public.tabular_review_access_grants as moved
+   where moved.email = old_email
+     and kept.email = new_email
+     and kept.tabular_review_id = moved.tabular_review_id
+     and (case moved.role when 'owner' then 2 when 'editor' then 1 else 0 end)
+       > (case kept.role when 'owner' then 2 when 'editor' then 1 else 0 end);
+  delete from public.tabular_review_access_grants as moved
+   where moved.email = old_email
+     and exists (
+       select 1 from public.tabular_review_access_grants as kept
+        where kept.tabular_review_id = moved.tabular_review_id
+          and kept.email = new_email
+     );
+  update public.tabular_review_access_grants
+     set email = new_email, updated_at = now()
+   where email = old_email;
+
+  -- LiTT's workflow_shares carries `allow_edit` instead of a role ladder:
+  -- the merged share keeps editing when either address could edit.
+  update public.workflow_shares as kept
+     set allow_edit = kept.allow_edit or moved.allow_edit
+    from public.workflow_shares as moved
+   where moved.shared_with_email = old_email
+     and kept.shared_with_email = new_email
+     and kept.workflow_id = moved.workflow_id;
+  delete from public.workflow_shares as moved
+   where moved.shared_with_email = old_email
+     and exists (
+       select 1 from public.workflow_shares as kept
+        where kept.workflow_id = moved.workflow_id
+          and kept.shared_with_email = new_email
+     );
+  update public.workflow_shares
+     set shared_with_email = new_email
+   where shared_with_email = old_email;
+
+  -- The legacy email arrays still feed the overview RPCs
+  -- (get_projects_overview / get_tabular_reviews_overview): a project or
+  -- review shared with the old address must follow the account too, or the
+  -- person loses the list entry and the old address's next holder sees it.
+  update public.projects
+     set shared_with = (
+       select coalesce(jsonb_agg(distinct value), '[]'::jsonb)
+       from jsonb_array_elements_text(
+         (shared_with - old_email) || to_jsonb(new_email)
+       ) as value
+     )
+   where shared_with ? old_email;
+
+  update public.tabular_reviews
+     set shared_with = (
+       select coalesce(jsonb_agg(distinct value), '[]'::jsonb)
+       from jsonb_array_elements_text(
+         (shared_with - old_email) || to_jsonb(new_email)
+       ) as value
+     )
+   where shared_with ? old_email;
+
   return new;
 end;
 $$;
@@ -8828,6 +8954,11 @@ alter table public.tabular_review_chat_messages
   add column if not exists memory_eligible_at timestamptz,
   add column if not exists memory_app_eligible_at timestamptz;
 
+-- Source documents behind each tabular transcript message; NULL = unknown
+-- (pre-provenance) and withheld. See tabular.chatProvenance.ts.
+alter table public.tabular_review_chat_messages
+  add column if not exists source_document_ids uuid[];
+
 create index if not exists chat_messages_chat_created_id_idx
   on public.chat_messages(chat_id, created_at, id);
 create index if not exists chat_messages_author_idx
@@ -9402,8 +9533,32 @@ create index if not exists db_jobs_failed_cleanup_run_at_idx
   where status = 'failed'
     and kind = 'storage.cleanup';
 
+create or replace function public.memory_project_is_private(
+  p_project_id uuid
+)
+returns boolean
+language sql
+volatile
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.projects project
+    where project.id = p_project_id
+      and project.org_id is null
+      and not exists (
+        select 1
+        from public.project_access_grants grant_row
+        where grant_row.project_id = project.id
+      )
+  );
+$$;
+
 create or replace function public.memory_source_allows_app_memory(
   p_surface text,
+  p_conversation_id uuid,
+  p_actor_user_id uuid,
   p_project_id uuid
 )
 returns boolean
@@ -9414,20 +9569,46 @@ volatile
 security definer
 set search_path = public
 as $$
+  -- App memory is private to one user, so it may only learn from a
+  -- conversation nobody else can read. That is a property of the
+  -- conversation itself (its owner, organization, and direct grants) and,
+  -- when it lives in a project, of the project too. The read path in the
+  -- routes applies the same three tests before showing app memory.
   select case
     when p_surface = 'word' then p_project_id is null
-    when p_surface = 'chat' and p_project_id is null then true
-    when p_surface in ('chat', 'tabular') and p_project_id is not null then exists (
-      select 1
-      from public.projects project
-      where project.id = p_project_id
-        and project.org_id is null
-        and not exists (
-          select 1
-          from public.project_access_grants grant_row
-          where grant_row.project_id = project.id
-        )
-    )
+    when p_surface = 'chat' then
+      exists (
+        select 1
+        from public.chats chat
+        where chat.id = p_conversation_id
+          and chat.user_id = p_actor_user_id
+          and chat.org_id is null
+          and not exists (
+            select 1
+            from public.chat_access_grants grant_row
+            where grant_row.chat_id = chat.id
+          )
+      )
+      and (
+        p_project_id is null
+        or public.memory_project_is_private(p_project_id)
+      )
+    when p_surface = 'tabular' then
+      p_project_id is not null
+      and exists (
+        select 1
+        from public.tabular_review_chats chat
+        join public.tabular_reviews review on review.id = chat.review_id
+        where chat.id = p_conversation_id
+          and review.user_id = p_actor_user_id
+          and review.org_id is null
+          and not exists (
+            select 1
+            from public.tabular_review_access_grants grant_row
+            where grant_row.tabular_review_id = review.id
+          )
+      )
+      and public.memory_project_is_private(p_project_id)
     else false
   end;
 $$;
@@ -9547,7 +9728,7 @@ begin
     end if;
     if target.scope = 'user'
       and not public.memory_source_allows_app_memory(
-        p_source_surface, activity.project_id
+        p_source_surface, p_source_chat_id, p_updated_by, activity.project_id
       )
     then
       raise exception using errcode = '40001', message = 'memory_scope_ineligible';
@@ -9814,7 +9995,7 @@ begin
     raise exception using errcode = '22023', message = 'invalid_memory_project';
   end if;
   app_turn_eligible := public.memory_source_allows_app_memory(
-    p_surface, canonical_project_id
+    p_surface, p_conversation_id, p_actor_user_id, canonical_project_id
   );
 
   insert into public.memory_conversation_activity(
@@ -9987,7 +10168,8 @@ begin
       and memory_file.user_id = queued_state.actor_user_id;
     app_enabled := coalesce(app_file.enabled, false)
       and public.memory_source_allows_app_memory(
-        p_surface, activity.project_id
+        p_surface, p_conversation_id, queued_state.actor_user_id,
+        activity.project_id
       );
     project_enabled := false;
     if activity.project_id is not null
@@ -10178,7 +10360,9 @@ revoke all on function public.initialize_new_user_memory()
   from public, anon, authenticated;
 revoke all on function public.lock_memory_conversation_source(text, uuid, uuid)
   from public, anon, authenticated;
-revoke all on function public.memory_source_allows_app_memory(text, uuid)
+revoke all on function public.memory_project_is_private(uuid)
+  from public, anon, authenticated;
+revoke all on function public.memory_source_allows_app_memory(text, uuid, uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.fence_memory_conversation_delete()
   from public, anon, authenticated;
@@ -10211,6 +10395,10 @@ grant execute on function public.create_project_with_memory(uuid, text, text, te
 grant execute on function public.initialize_new_user_memory()
   to service_role;
 grant execute on function public.lock_memory_conversation_source(text, uuid, uuid)
+  to service_role;
+grant execute on function public.memory_project_is_private(uuid)
+  to service_role;
+grant execute on function public.memory_source_allows_app_memory(text, uuid, uuid, uuid)
   to service_role;
 grant execute on function public.fence_memory_conversation_delete()
   to service_role;

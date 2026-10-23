@@ -9,6 +9,8 @@ import {
   streamChatWithTools,
   type OpenAIToolSchema,
 } from "../llm";
+import { hasDirectContentGrants } from "../contentAccess";
+import { filterMemoryEvidenceMessages } from "../tabular/tabular.chatProvenance";
 import {
   createGovernedCuratorStream,
   MemoryCuratorEgressBlockedError,
@@ -444,7 +446,7 @@ async function loadConversation(
   let model: string | null = null;
   let projectId: string | null = null;
   let projectWritable = false;
-  let appMemoryEligible = state.surface !== "tabular";
+  let appMemoryEligible = false;
   let messages: MemoryCuratorStoredMessage[] = [];
 
   if (state.surface === "chat") {
@@ -468,6 +470,14 @@ async function loadConversation(
     );
     if (!access.ok) return null;
     projectId = (data.project_id as string | null) ?? null;
+    // App memory may only learn from a conversation nobody else can read:
+    // the chat must be the actor's own, outside any organization, with no
+    // direct grants. This mirrors memory_source_allows_app_memory and the
+    // routes' read-side audience check.
+    appMemoryEligible =
+      data.user_id === state.actor_user_id &&
+      !data.org_id &&
+      !(await hasDirectContentGrants(db, "chat", state.conversation_id));
     if (projectId) {
       const projectAccess = await checkProjectAccess(
         projectId,
@@ -477,13 +487,14 @@ async function loadConversation(
       );
       projectWritable =
         projectAccess.ok && can(projectAccess.projectRole, "content.edit");
-      appMemoryEligible = projectAccess.ok
-        ? !(await projectHasSharedAudience(
-            db,
-            projectId,
-            projectAccess.project.org_id,
-          ))
-        : false;
+      appMemoryEligible =
+        appMemoryEligible &&
+        projectAccess.ok &&
+        !(await projectHasSharedAudience(
+          db,
+          projectId,
+          projectAccess.project.org_id,
+        ));
     }
     model = (data.model as string | null) ?? null;
     messages = await loadEligibleMemoryMessages(
@@ -501,6 +512,8 @@ async function loadConversation(
       .maybeSingle();
     if (error) throw new Error("Memory curator could not load the Word chat");
     if (!data || data.user_id !== state.actor_user_id) return null;
+    // A Word chat has no share surface: only its owner can read it.
+    appMemoryEligible = true;
     model = (data.model as string | null) ?? null;
     messages = await loadEligibleMemoryMessages(
       db,
@@ -539,6 +552,19 @@ async function loadConversation(
     );
     if (!access.ok) return null;
     projectId = (review.project_id as string | null) ?? null;
+    // Same boundary as chat: a tabular review learns app memory only when it
+    // is the actor's own private review inside a private project.
+    appMemoryEligible =
+      projectId !== null &&
+      review.user_id === state.actor_user_id &&
+      !review.org_id &&
+      !(
+        await hasDirectContentGrants(
+          db,
+          "tabular_review",
+          review.id as string,
+        )
+      );
     if (projectId) {
       const projectAccess = await checkProjectAccess(
         projectId,
@@ -548,21 +574,30 @@ async function loadConversation(
       );
       projectWritable =
         projectAccess.ok && can(projectAccess.projectRole, "content.edit");
-      appMemoryEligible = projectAccess.ok
-        ? !(await projectHasSharedAudience(
-            db,
-            projectId,
-            projectAccess.project.org_id,
-          ))
-        : false;
+      appMemoryEligible =
+        appMemoryEligible &&
+        projectAccess.ok &&
+        !(await projectHasSharedAudience(
+          db,
+          projectId,
+          projectAccess.project.org_id,
+        ));
     }
     model = (chat.model as string | null) ?? null;
-    messages = await loadEligibleMemoryMessages(
+    // Review access is not document access: a transcript may carry text from
+    // another project's documents (see tabular.chatProvenance).
+    messages = await filterMemoryEvidenceMessages(
       db,
-      "tabular_review_chat_messages",
-      state.conversation_id,
+      await loadEligibleMemoryMessages(
+        db,
+        "tabular_review_chat_messages",
+        state.conversation_id,
+        state.actor_user_id,
+        projectId !== null,
+      ),
       state.actor_user_id,
-      projectId !== null,
+      email,
+      projectId,
     );
   }
 

@@ -98,7 +98,7 @@ export default function PrivacyDataPage() {
                 return;
             }
             const { blob, filename } = await exportAccountData();
-            downloadBlob(blob, filename ?? "mike-account-export.json");
+            downloadBlob(blob, filename ?? "litt-account-export.json");
         } catch (error) {
             devLog("[privacy-data/mfa] export account failed", {
                 isMfaRequired: isMfaRequiredError(error),
@@ -123,7 +123,7 @@ export default function PrivacyDataPage() {
                 return;
             }
             const { blob, filename } = await exportChatData();
-            downloadBlob(blob, filename ?? "mike-chat-export.json");
+            downloadBlob(blob, filename ?? "litt-chat-export.json");
         } catch (error) {
             devLog("[privacy-data/mfa] export chats failed", {
                 isMfaRequired: isMfaRequiredError(error),
@@ -148,7 +148,7 @@ export default function PrivacyDataPage() {
                 return;
             }
             const { blob, filename } = await exportTabularReviewsData();
-            downloadBlob(blob, filename ?? "mike-tabular-reviews-export.json");
+            downloadBlob(blob, filename ?? "litt-tabular-reviews-export.json");
         } catch (error) {
             devLog("[privacy-data/mfa] export tabular reviews failed", {
                 isMfaRequired: isMfaRequiredError(error),
@@ -173,7 +173,7 @@ export default function PrivacyDataPage() {
                 return;
             }
             const { blob, filename } = await exportMemoryData();
-            downloadBlob(blob, filename ?? "mike-memory-export.zip");
+            downloadBlob(blob, filename ?? "litt-memory-export.zip");
         } catch (error) {
             devLog("[privacy-data/mfa] export memory failed", {
                 isMfaRequired: isMfaRequiredError(error),

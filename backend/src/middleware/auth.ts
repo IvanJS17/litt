@@ -226,7 +226,15 @@ export async function requireAuth(
   }
 
   res.locals.userId = user.id;
-  res.locals.userEmail = user.email?.toLowerCase() ?? "";
+  // `userEmail` is an AUTHORIZATION input, not a display value: direct grants
+  // (projects, chats, reviews, workflows) and organization invitations are all
+  // matched against it. An address the account has not proved it owns must
+  // therefore match nothing — otherwise registering someone else's address
+  // (before they do) inherits whatever was shared or offered to it. Such a
+  // session still authenticates; it only stops matching email-keyed grants
+  // until the address is confirmed.
+  res.locals.userEmail =
+    user.email && user.email_confirmed_at ? user.email.toLowerCase() : "";
   res.locals.token = token;
   const syncError = await syncProfileEmail(admin, user.id, user.email);
   if (syncError) {

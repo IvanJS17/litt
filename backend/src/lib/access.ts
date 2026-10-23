@@ -348,6 +348,26 @@ export function creatorScopedAllowed(
     return !creatorId && can(access.projectRole, "container.delete");
 }
 
+/**
+ * May the caller replace or delete this document (or one of its versions)?
+ *
+ * Two conditions, both required. The operation is authorship-scoped
+ * (creatorScopedAllowed: the creator, or the container's Owners once the
+ * creator's account is gone; workflow documents are managed at the workflow
+ * share's edit tier instead). AND the caller must still hold content.edit
+ * where the document lives now: being the author is provenance, not standing,
+ * so a creator whose project role was reduced to Viewer — or whose access to
+ * the project was revoked — has lost the right to destroy content there like
+ * every other Viewer.
+ */
+export function canManageDocument(
+    access: { isCreator: boolean; projectRole: ProjectRole },
+    doc: { user_id: string | null; workflow_id?: string | null },
+): boolean {
+    if (!can(access.projectRole, "content.edit")) return false;
+    return creatorScopedAllowed(access, doc.user_id) || !!doc.workflow_id;
+}
+
 /** Build the ResourceAccess for a derived project role. */
 function resourceAccessFor(
     projectRole: ProjectRole,

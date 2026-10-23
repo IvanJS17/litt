@@ -284,6 +284,59 @@ export async function setOrgAccessOverride(
     return { ok: true, override: data as OrgAccessOverride };
 }
 
+/**
+ * Persist one explicit exception per target in a SINGLE statement.
+ *
+ * The per-target sibling above is fine for a single person. A batch is not
+ * just N of those: interleaving validation and writes leaves the rows ahead
+ * of a refusal already persisted, so a 400 answers "nothing happened" while
+ * access silently changed for some of the named people. Validate everything
+ * first, then let one upsert decide — a trigger that refuses a row rolls the
+ * whole batch back.
+ */
+export async function setOrgAccessOverrides(
+    db: Db,
+    params: {
+        kind: OrgResourceKind;
+        resourceId: string;
+        orgId: string;
+        userIds: string[];
+        role: OrgAssignableRole;
+        assignedBy: string;
+    },
+): Promise<
+    | { ok: true; overrides: OrgAccessOverride[] }
+    | { ok: false; detail: string }
+> {
+    const config = CONFIG[params.kind];
+    // One row per (resource, user): a duplicate in the same statement makes
+    // Postgres refuse the whole upsert.
+    const userIds = [...new Set(params.userIds)];
+    if (userIds.length === 0) return { ok: true, overrides: [] };
+    const updatedAt = new Date().toISOString();
+    const rows = userIds.map((userId) => ({
+        [config.resourceColumn]: params.resourceId,
+        org_id: params.orgId,
+        user_id: userId,
+        role: params.role,
+        assigned_by: params.assignedBy,
+        updated_at: updatedAt,
+    }));
+    const { data, error } = await db
+        .from(config.table)
+        .upsert(rows, { onConflict: `${config.resourceColumn},user_id` })
+        .select("id, user_id, role, assigned_by, created_at, updated_at");
+    if (error) {
+        return {
+            ok: false,
+            detail:
+                error.message ??
+                "Failed to save organization access overrides",
+        };
+    }
+    return { ok: true, overrides: (data ?? []) as OrgAccessOverride[] };
+}
+
 export async function deleteOrgAccessOverride(
     db: Db,
     params: {

@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+# Cancel PR runs that a newer push to the same PR has superseded. Pushes to
+# main each get their own group (keyed by sha) and are never cancelled.
+concurrency:
+  group: security-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
 jobs:
   # Blocking for EVERY tree in the matrix below: high/critical advisories
   # fail the build unless their GHSA id is documented (with a reason) in

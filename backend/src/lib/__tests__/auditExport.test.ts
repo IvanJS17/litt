@@ -6,8 +6,10 @@ import {
     queryEvents,
 } from "../auditExport";
 
-// Chainable Supabase double: no accessible projects, and one fixed page of
-// audit rows for the export query. Enough to exercise CSV assembly.
+// Chainable Supabase double: no accessible projects (the access-scope reads
+// answer empty, so the export falls back to the caller's own events), and one
+// fixed page of audit rows for the export query. Enough to exercise CSV
+// assembly.
 function makeDb(events: Record<string, unknown>[], error?: { message: string }) {
     const ranges: [number, number][] = [];
     function builder() {
@@ -15,11 +17,16 @@ function makeDb(events: Record<string, unknown>[], error?: { message: string }) 
             select: () => b,
             or: () => b,
             eq: () => b,
+            neq: () => b,
+            in: () => b,
+            is: () => b,
+            limit: () => b,
             ilike: () => b,
             gte: () => b,
             lte: () => b,
             contains: () => b,
             order: () => b,
+            maybeSingle: () => Promise.resolve({ data: null, error: null }),
             range: (from: number, to: number) => {
                 ranges.push([from, to]);
                 return Promise.resolve({
@@ -92,7 +99,9 @@ describe("buildAuditCsv", () => {
 });
 
 // Table-aware double for the display-name path: `projects` (nothing shared),
-// `audit_events` (one fixed page) and `user_profiles` (the name lookup).
+// `audit_events` (one fixed page) and `user_profiles` (the name lookup). The
+// access-scope reads answer empty through `then`, so the trail falls back to
+// the caller's own events.
 function makeProfileDb(
     events: Record<string, unknown>[],
     profiles: Record<string, unknown>[],
@@ -103,6 +112,9 @@ function makeProfileDb(
             select: () => b,
             or: () => b,
             eq: () => b,
+            neq: () => b,
+            is: () => b,
+            limit: () => b,
             ilike: () => b,
             gte: () => b,
             lte: () => b,

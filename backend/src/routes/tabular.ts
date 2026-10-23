@@ -61,6 +61,13 @@ import {
     filterAccessibleDocumentIds,
     projectHasSharedAudience,
 } from "../lib/access";
+import { filterReadableReviewRows } from "../lib/tabular/tabular.rows";
+import {
+    filterReadableChatMessages,
+    nextTurnSourceDocumentIds,
+    selectCompleteChatMessages,
+    withReadableTitles,
+} from "../lib/tabular/tabular.chatProvenance";
 import { can } from "../lib/permissions";
 import { hasDirectContentGrants } from "../lib/contentAccess";
 import {
@@ -880,11 +887,25 @@ tabularRouter.get("/:reviewId", requireAuth, async (req, res) => {
         .select("*")
         .eq("review_id", reviewId);
     if (cellsError) return void sendInternalError(res, cellsError);
-    const rows = await loadReviewRows(db, reviewId);
-    const rowDocIds = rows.flatMap((row) => row.source_document_ids ?? []);
-    const docIds = Array.isArray(review.document_ids)
+    const allRows = await loadReviewRows(db, reviewId);
+    const allRowDocIds = allRows.flatMap(
+        (row) => row.source_document_ids ?? [],
+    );
+    const allDocIds = Array.isArray(review.document_ids)
         ? (review.document_ids as string[])
-        : rowDocIds;
+        : allRowDocIds;
+    // Review access says who may open the grid, not whose documents they may
+    // read. Rows, cells, and document metadata are narrowed to the caller's
+    // own document access (see filterReadableReviewRows).
+    const { rows, readableDocumentIds } = await filterReadableReviewRows(
+        db,
+        allRows,
+        allDocIds,
+        userId,
+        userEmail,
+    );
+    const visibleRowIds = new Set(rows.map((row) => row.id));
+    const docIds = allDocIds.filter((id) => readableDocumentIds.has(id));
     const docsResult =
         docIds.length > 0
             ? await db.from("documents").select("*").in("id", docIds)
@@ -904,10 +925,14 @@ tabularRouter.get("/:reviewId", requireAuth, async (req, res) => {
             is_owner: access.projectRole === "owner",
             is_running: isReviewGenerationRunning(review),
         },
-        cells: (cells ?? []).map((cell) => ({
-            ...cell,
-            content: parseCellContent(cell.content),
-        })),
+        cells: (cells ?? [])
+            .filter((cell: { row_id?: string }) =>
+                visibleRowIds.has(cell.row_id as string),
+            )
+            .map((cell: { row_id?: string; content?: unknown }) => ({
+                ...cell,
+                content: parseCellContent(cell.content),
+            })),
         rows,
         documents: docs,
     });
@@ -1080,7 +1105,7 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
         );
         if (missingSharedUsers.length > 0) {
             return void res.status(400).json({
-                detail: `${missingSharedUsers[0]} does not belong to a Mike user.`,
+                detail: `${missingSharedUsers[0]} does not belong to a LiTT user.`,
             });
         }
         updates.shared_with = sharedWithUpdate;
@@ -1089,6 +1114,15 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
         if (access.projectRole !== "owner") {
             return void res.status(403).json({
                 detail: "Only the review owner can move a review",
+            });
+        }
+        // Authorship is not standing. A creator whose role on the review's
+        // current project was reduced to Viewer must not be able to pull the
+        // review (cells, document list) out of that matter into personal
+        // scope, so moving needs write access where the review lives now…
+        if (!can(access.projectRole, "content.edit")) {
+            return void res.status(403).json({
+                detail: "You do not have permission to move this review.",
             });
         }
         if (projectIdUpdate) {
@@ -1102,6 +1136,14 @@ tabularRouter.patch("/:reviewId", requireAuth, async (req, res) => {
                 return void res
                     .status(404)
                     .json({ detail: "Target project not found" });
+            }
+            // …and where it is going: a move contributes the review to the
+            // destination's members exactly as creating it there would, so it
+            // takes the same content.edit gate as the create path.
+            if (!can(projectAccess.projectRole, "content.edit")) {
+                return void res.status(403).json({
+                    detail: "You do not have permission to write in this project.",
+                });
             }
         }
         updates.project_id = projectIdUpdate;
@@ -1825,7 +1867,8 @@ tabularRouter.get("/:reviewId/chats", requireAuth, async (req, res) => {
         return void res.status(404).json({ detail: "Review not found" });
 
     // Show every member's chats for the review (collaborative), not just
-    // the requester's. Per-chat access is gated above by review access.
+    // the requester's. Review access lists them; a title derived from source
+    // documents the caller cannot read is withheld (see tabular.chatProvenance).
     const { data: chats } = await db
         .from("tabular_review_chats")
         .select(
@@ -1833,8 +1876,28 @@ tabularRouter.get("/:reviewId/chats", requireAuth, async (req, res) => {
         )
         .eq("review_id", reviewId)
         .order("updated_at", { ascending: false });
+    const chatIds = (chats ?? []).map((chat: { id: string }) => chat.id);
+    let titled = chats ?? [];
+    if (chatIds.length) {
+        try {
+            const provenance = await selectCompleteChatMessages(
+                db,
+                chatIds,
+                "id, chat_id, source_document_ids",
+            );
+            const readable = await filterReadableChatMessages(
+                db,
+                provenance,
+                userId,
+                userEmail,
+            );
+            titled = withReadableTitles(titled, provenance, readable);
+        } catch (err) {
+            return void sendInternalError(res, err);
+        }
+    }
 
-    res.json(chats ?? []);
+    res.json(titled);
 });
 
 // DELETE /tabular-review/:reviewId/chats/:chatId — delete a single chat
@@ -2007,13 +2070,29 @@ tabularRouter.get(
         if (chatError || !chat || chat.review_id !== reviewId)
             return void res.status(404).json({ detail: "Chat not found" });
 
-        const { data: messages } = await db
-            .from("tabular_review_chat_messages")
-            .select("id, role, content, annotations, created_at")
-            .eq("chat_id", chatId)
-            .order("created_at", { ascending: true });
-
-        res.json(messages ?? []);
+        // Review access shows the thread; each message also needs read access
+        // to the documents its text was derived from (tabular.chatProvenance).
+        let readable;
+        try {
+            const messages = await selectCompleteChatMessages(
+                db,
+                [chatId],
+                "id, role, content, annotations, created_at, source_document_ids",
+            );
+            readable = await filterReadableChatMessages(
+                db,
+                messages,
+                userId,
+                userEmail,
+            );
+        } catch (err) {
+            return void sendInternalError(res, err);
+        }
+        res.json(
+            readable.map(
+                ({ source_document_ids: _sources, ...message }) => message,
+            ),
+        );
     },
 );
 
@@ -2072,7 +2151,7 @@ function buildTabularMessages(
         .map((c, i) => `- COL:${i} "${c.name}"`)
         .join("\n");
 
-    const systemContent = `You are Mike, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
+    const systemContent = `You are LiTT, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
 
 The review extracts specific fields from multiple legal documents into a structured table.
 You do NOT have the cell content yet — call read_table_cells to fetch the cells you need before answering.
@@ -2200,12 +2279,28 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
         }
     }
 
-    // Fetch all cells and logical review rows for this review.
-    const { data: cells } = await db
+    // Fetch all cells and logical review rows for this review, narrowed to
+    // the rows whose source documents the caller can read: the model answers
+    // the caller, so it must not be handed filenames or extracted text the
+    // caller could not open themselves (see filterReadableReviewRows).
+    const { data: allCells } = await db
         .from("tabular_cells")
         .select("*")
         .eq("review_id", reviewId);
-    const rows = await loadReviewRows(db, reviewId);
+    const { rows } = await filterReadableReviewRows(
+        db,
+        await loadReviewRows(db, reviewId),
+        [],
+        userId,
+        userEmail,
+    );
+    const visibleRowIds = new Set(rows.map((row) => row.id));
+    const cells = (allCells ?? []).filter((c: { row_id?: string }) =>
+        visibleRowIds.has(c.row_id as string),
+    );
+    const turnDocumentIds = [
+        ...new Set(rows.flatMap((row) => row.source_document_ids ?? [])),
+    ].sort();
 
     const sortedColumns = (
         (review.columns_config ?? []) as { index: number; name: string }[]
@@ -2316,6 +2411,21 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
         chatTitle = newChat?.title ?? null;
     }
 
+    // Both messages of this turn carry the documents their text may derive
+    // from, inherited across the chat because earlier turns are replayed.
+    let sourceDocumentIds: string[] | null = turnDocumentIds;
+    if (chatId && existingChatId === chatId) {
+        try {
+            sourceDocumentIds = await nextTurnSourceDocumentIds(
+                db,
+                chatId,
+                turnDocumentIds,
+            );
+        } catch (err) {
+            return void sendInternalError(res, err);
+        }
+    }
+
     let memoryTurn: MemoryConversationTurn | null = null;
     let memoryTurnScheduled = false;
     const inputMessageId = randomUUID();
@@ -2330,6 +2440,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                 role: "user",
                 content: lastUser.content,
                 author_user_id: userId,
+                source_document_ids: sourceDocumentIds,
             });
         if (userMessageError) {
             return void sendInternalError(res, userMessageError);
@@ -2379,6 +2490,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
             docStore: new Map(),
             docIndex: {},
             userId,
+            userEmail,
             db,
             write,
             extraTools: TABULAR_TOOLS,
@@ -2409,6 +2521,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                     annotations: annotations.length ? annotations : null,
                     author_user_id: userId,
                     memory_input_message_id: inputMessageId,
+                    source_document_ids: sourceDocumentIds,
                 });
             if (saveError) {
                 console.error(
@@ -2486,6 +2599,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                         annotations: annotations.length ? annotations : null,
                         author_user_id: userId,
                         memory_input_message_id: inputMessageId,
+                        source_document_ids: sourceDocumentIds,
                     });
                 if (saveError) {
                     console.error(
@@ -2524,6 +2638,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                         annotations: annotations.length ? annotations : null,
                         author_user_id: userId,
                         memory_input_message_id: inputMessageId,
+                        source_document_ids: sourceDocumentIds,
                     });
                 if (saveError)
                     console.error(

@@ -102,6 +102,9 @@ describe("recovery migration ordering contract", () => {
       "20260910_05_recovery_upstream_workflow_assets.sql",
   "20260910_06_recovery_scoped_memory_files.sql",
   "20260910_07_recovery_memory_safety_boundaries.sql",
+  "20261022_01_recovery_email_change_moves_grants.sql",
+  "20261022_02_recovery_memory_private_chat_boundary.sql",
+  "20261022_03_recovery_tabular_chat_source_provenance.sql",
     ]);
   });
 
@@ -156,6 +159,9 @@ describe("recovery migration ledger state", () => {
       "20260910_05_recovery_upstream_workflow_assets.sql",
   "20260910_06_recovery_scoped_memory_files.sql",
   "20260910_07_recovery_memory_safety_boundaries.sql",
+  "20261022_01_recovery_email_change_moves_grants.sql",
+  "20261022_02_recovery_memory_private_chat_boundary.sql",
+  "20261022_03_recovery_tabular_chat_source_provenance.sql",
     ];
     const candidate = "20260905_02_recovery_approved_artifact_storage.sql";
     const beforeDrive = integrated.filter((name) => name <= candidate);

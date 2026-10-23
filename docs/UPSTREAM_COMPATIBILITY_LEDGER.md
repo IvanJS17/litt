@@ -547,3 +547,52 @@ The candidate gate closed as follows:
 - post-merge push workflows: 5/5 PASS;
 - this separate closeout transition reconciles the five canonical documents only
   after that acceptance, without changing product code or starting writers.
+
+## 14. Security intake 2026-10-21
+
+Upstream `7e3607e765e199f824808e1598cc44b3f99cd690` → `795f96083b6833c6c7b0d58dfa40336b0a335d52`
+(439 commits). This intake classifies only the security, access, credential,
+storage and schema subset, by static analysis against LiTT (no live database).
+The rest stays unclassified, so the stop-the-line threshold remains active and
+the pin is unchanged (TD-019). Ports land in `fix/release-candidate-20261021`
+with a regression test that fails without the fix.
+
+| Upstream | LiTT finding | Disposition | Candidate change |
+| --- | --- | --- | --- |
+| #603 `d146998d` `4cc88fa3` `1f831f07`: email-keyed grants, read-only write paths, confirmed email | Vulnerable: grants stayed on the old address; viewers could edit through the assistant; creators kept delete/copy/move rights after a downgrade; review grids exposed rows from unreadable documents; `userEmail` ignored confirmation | port | Migration `20261022_01_recovery_email_change_moves_grants` + schema; `canManageDocument`; per-document edit check; review row filtering; confirmed-email rule |
+| `d91a657e` (backend part): export access | Vulnerable: exports selected by `user_id` through the service role | port | Every exported resource re-checked with the route access rules |
+| #563 `e38827e4`: workflow metadata tables | Already enforced: RLS and service-role-only grants in schema and `20260905_01` | reject | None (optional `revoke` parity only) |
+| #584 `76b09848`: signed download endpoint | Latent: production sets no public endpoint | port | Downloads signed with the browser-reachable client |
+| #607 `74985991`: signing client rename | Cosmetic | reject | None |
+| #594, `7dc80169`, `57009979` and Next.js advisories | Dependency advisories | adopt | Patched versions; `node-forge` and `braces` allowlisted (dev-only, no patched release) |
+| Browser E2E storage (RustFS) | MinIO image no longer pullable | adopt | RustFS pinned by digest + upstream bucket CORS file |
+| #463 `7b14ab32`: directory search, workflow share revocation, audit export | Vulnerable (P1 directory search; P2 others) | port | Directory search intersected with `listAccessibleProjectIds`; workflow share revocation answers 404/500 instead of a false 204 and batch overrides are validated first, then written in one upsert; audit export scoped by `listAccessibleProjectIds`. Deferred: chat document context by creator (fail-closed, P3) and the account-deletion/admin-promotion paths (not conclusive) |
+| #452 `72f2579d`: private memory from shared chats | Vulnerable (P1) | port | Migration `20261022_02_recovery_memory_private_chat_boundary` + schema and curator mirror: app memory learns only from the actor's own conversation, outside any organization, without direct grants, and inside a private project. Memory already learned is not purged (TD-008) |
+| #434 `ada0326c`: full URLs in error logs | Vulnerable (P2) | port | `safeRequestPath` drops the query/fragment and masks `/download/<token>` in internal-error logs |
+| #520 `9de02492`: generic MCP OAuth client fallback | Vulnerable (P2) | port | Generic `MCP_OAUTH_CLIENT_ID/_SECRET` fallback removed (unknown hosts use dynamic client registration); Google/Slack require client id and secret |
+| #649 `49e0d399`: workspace limits in the workflow store | Vulnerable (P2): shares resolved by email without organization | defer | Needs the owner to define "workspace" in LiTT; next review 2026-11-04 |
+| #609/#614: migration ledger and lock | Absent | defer | Reconcile with the LiTT recovery upgrade path in the next sync plan |
+| #295: backend modularization | Absent | defer | Dedicated batch (TD-022) |
+| #483, #499, #529, #613/#608, #645, #403, #569, #558, #532 | Partial, absent or not conclusive; no bypass found | defer | Next sync plan; #645 needs RLS/retention review first |
+| #630 personal organizations; #450/#682 Sentry | Conflicts with the LiTT access model and invariant 11 | reject | Remove any telemetry default if a later sync brings it |
+| #673, #683, #661, #669, #671, #653 | Features absent in LiTT | reject | Reassess if those features are adopted |
+
+`GOTRUE_MAILER_AUTOCONFIRM=true` (all stacks, production included) keeps the
+confirmed-email rule inert until mail confirmation exists (TD-020).
+
+The candidate's independent review extended the #603 tabular boundary past
+upstream. Exports (tabular reviews, account and the queued `export.build` job)
+keep only cells whose source rows are readable today. Tabular review chat
+messages record their source documents
+(`20261022_03_recovery_tabular_chat_source_provenance`): a reader receives a
+message, and a chat title, only with current access to every source, checked
+against the complete chat (paginated with an exact count, fail-closed). Messages
+written before provenance existed stay withheld (TD-023).
+
+LiTT-owned migrations keep the `_recovery_` tag on stems upstream has not used
+(upstream already ships `20261021_01`–`04`) and are registered in
+`SUPPORTED_RECOVERY_MIGRATION_ORDER` and `KNOWN_SUPPORTED_MIGRATIONS`: the
+Schema drift runtime suites rebuild the upgraded database only from that
+series. On 2026-10-22 both suites passed 14/14 against PostgreSQL 16.14 (local
+instance; Docker replaced by a test shim) and failed 3/14 on the previous
+commit without the registration.

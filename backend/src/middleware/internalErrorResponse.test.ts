@@ -48,6 +48,27 @@ describe("protectInternalErrorResponses", () => {
     },
   );
 
+  it("omits query credentials and path tokens from sanitized 5xx logs", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const app = express();
+    app.use(protectInternalErrorResponses);
+    app.get("/download/:token", (_req, res) =>
+      res.status(500).json({ detail: "stream failed" }),
+    );
+
+    const res = await request(app).get(
+      "/download/private-signed-download-token?code=private-oauth-code&state=private-oauth-state",
+    );
+
+    expect(res.status).toBe(500);
+    const logged = JSON.stringify(consoleError.mock.calls);
+    expect(logged).not.toContain("private-signed-download-token");
+    expect(logged).not.toContain("private-oauth");
+    expect(logged).toContain("/download/[redacted]");
+  });
+
   it("does not rewrite intentional client errors", async () => {
     const body = { code: "invalid_filename", detail: "Filename is required" };
     const res = await request(testApp(400, body)).get("/test");

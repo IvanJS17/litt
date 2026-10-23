@@ -171,7 +171,7 @@ function mcpOAuthPopupHtml(
   <body>
     <main>
       <h1>${payload.success ? "Authorization complete" : "Authorization failed"}</h1>
-      <p>${payload.success ? "You can return to Mike." : "Return to Mike and try connecting again."}</p>
+      <p>${payload.success ? "You can return to LiTT." : "Return to LiTT and try connecting again."}</p>
     </main>
     <script nonce="${nonce}">
       const message = ${message};
@@ -1993,7 +1993,7 @@ userRouter.get(
 // per-type exports synchronous like /user/chats/export, so this builds and
 // returns the archive inline. The archive is produced by the same
 // buildMemoryArchive used by the durable handler, so it keeps the
-// mike-memory-export.zip name and the
+// litt-memory-export.zip name and the
 // app/memory.md + projects/<name>--<id>/memory.md layout.
 userRouter.get(
     "/memory/export",
@@ -2012,7 +2012,7 @@ userRouter.get(
             res.setHeader("Content-Type", "application/zip");
             res.setHeader(
                 "Content-Disposition",
-                'attachment; filename="mike-memory-export.zip"',
+                'attachment; filename="litt-memory-export.zip"',
             );
             void recordAudit(createServerSupabase(), {
                 userId,

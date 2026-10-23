@@ -258,8 +258,11 @@ describe("startUserMcpConnectorOAuth", () => {
     // way for the same reason.
     const ENV_KEYS = [
         "GOOGLE_MCP_OAUTH_CLIENT_ID",
+        "GOOGLE_MCP_OAUTH_CLIENT_SECRET",
         "SLACK_MCP_OAUTH_CLIENT_ID",
+        "SLACK_MCP_OAUTH_CLIENT_SECRET",
         "MCP_OAUTH_CLIENT_ID",
+        "MCP_OAUTH_CLIENT_SECRET",
     ] as const;
     const PRIOR_ENV = Object.fromEntries(
         ENV_KEYS.map((key) => [key, process.env[key]]),
@@ -268,6 +271,7 @@ describe("startUserMcpConnectorOAuth", () => {
         vi.clearAllMocks();
         process.env.GOOGLE_MCP_OAUTH_CLIENT_ID =
             "test-client.apps.googleusercontent.com";
+        process.env.GOOGLE_MCP_OAUTH_CLIENT_SECRET = "google-client-secret";
     });
     afterEach(() => {
         for (const key of ENV_KEYS) {
@@ -386,6 +390,103 @@ describe("startUserMcpConnectorOAuth", () => {
         expect(authMock).not.toHaveBeenCalled();
     });
 
+    it("does not fall back to the generic MCP OAuth client for a provider without its own client", async () => {
+        // The generic client exists for no host in particular. Offering its
+        // identity to a provider that expects its own registered client breaks
+        // the flow, and it leaks one connector's client identity to whatever
+        // server the URL points at.
+        process.env.SLACK_MCP_OAUTH_CLIENT_ID = "";
+        process.env.SLACK_MCP_OAUTH_CLIENT_SECRET = "";
+        process.env.MCP_OAUTH_CLIENT_ID = "generic-client-id";
+        process.env.MCP_OAUTH_CLIENT_SECRET = "generic-client-secret";
+        const connector = makeConnector("https://mcp.slack.com/mcp");
+        loadConnectorMock.mockResolvedValue(connector);
+        const { db } = makeRowStoreDb();
+
+        await expect(
+            startUserMcpConnectorOAuth(
+                "user-1",
+                connector.id,
+                "https://app.test/callback",
+                db,
+            ),
+        ).rejects.toMatchObject({
+            name: "ConnectorSetupError",
+            code: "connector_setup_required",
+        });
+        expect(authMock).not.toHaveBeenCalled();
+    });
+
+    it("treats blank provider credentials as unconfigured", async () => {
+        process.env.SLACK_MCP_OAUTH_CLIENT_ID = "   ";
+        process.env.SLACK_MCP_OAUTH_CLIENT_SECRET = "slack-client-secret";
+        const connector = makeConnector("https://mcp.slack.com/mcp");
+        loadConnectorMock.mockResolvedValue(connector);
+        const { db } = makeRowStoreDb();
+
+        await expect(
+            startUserMcpConnectorOAuth(
+                "user-1",
+                connector.id,
+                "https://app.test/callback",
+                db,
+            ),
+        ).rejects.toMatchObject({
+            name: "ConnectorSetupError",
+            code: "connector_setup_required",
+        });
+        expect(authMock).not.toHaveBeenCalled();
+    });
+
+    it("requires the provider client secret when the provider needs one", async () => {
+        process.env.SLACK_MCP_OAUTH_CLIENT_ID = "slack-client-id";
+        process.env.SLACK_MCP_OAUTH_CLIENT_SECRET = "   ";
+        const connector = makeConnector("https://mcp.slack.com/mcp");
+        loadConnectorMock.mockResolvedValue(connector);
+        const { db } = makeRowStoreDb();
+
+        await expect(
+            startUserMcpConnectorOAuth(
+                "user-1",
+                connector.id,
+                "https://app.test/callback",
+                db,
+            ),
+        ).rejects.toMatchObject({
+            name: "ConnectorSetupError",
+            code: "connector_setup_required",
+        });
+        expect(authMock).not.toHaveBeenCalled();
+    });
+
+    it("offers no client credentials to an unrecognized MCP host", async () => {
+        // A host outside the provider registry must go through RFC 7591
+        // dynamic client registration: no pre-configured id/secret from
+        // MCP_OAUTH_* may reach it.
+        process.env.MCP_OAUTH_CLIENT_ID = "generic-client-id";
+        process.env.MCP_OAUTH_CLIENT_SECRET = "generic-client-secret";
+        const connector = makeConnector("https://mcp.example.com/mcp");
+        loadConnectorMock.mockResolvedValue(connector);
+        const { db } = makeRowStoreDb();
+        let seen: DbMcpOAuthProvider | undefined;
+        authMock.mockImplementation(
+            async (provider: DbMcpOAuthProvider) => {
+                seen = provider;
+                return "AUTHORIZED";
+            },
+        );
+
+        await startUserMcpConnectorOAuth(
+            "user-1",
+            connector.id,
+            "https://app.test/callback",
+            db,
+        );
+
+        expect(seen?.clientMetadata.token_endpoint_auth_method).toBe("none");
+        await expect(seen?.clientInformation()).resolves.toBeUndefined();
+    });
+
     it("seeds the SDK with the resource-metadata URL advertised via WWW-Authenticate", async () => {
         // The SDK's own RFC 9728 discovery tries the path-aware well-known
         // form first and only falls back to the root form on a 4xx. Slack
@@ -394,6 +495,7 @@ describe("startUserMcpConnectorOAuth", () => {
         // rejects ("No scopes requested"). The server's 401 challenge names
         // the real metadata URL; assert we hand it to the SDK.
         process.env.SLACK_MCP_OAUTH_CLIENT_ID = "slack-client-id";
+        process.env.SLACK_MCP_OAUTH_CLIENT_SECRET = "slack-client-secret";
         const metadataUrl =
             "https://mcp.slack.com/.well-known/oauth-protected-resource";
         guardedFetchMock.mockImplementation(

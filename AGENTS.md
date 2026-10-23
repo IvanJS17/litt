@@ -199,3 +199,53 @@ descriptions in Markdown and include:
 
 Do not commit secrets, API keys, private documents, `.env` files, build output,
 or local test artifacts.
+
+## LiTT fork
+
+This repository is LiTT, a fork of MikeOSS (`open-legal-products/mike`) maintained
+for Mexican legal practice. These rules complement the sections above and win
+where they conflict.
+
+- **Identity and license.** LiTT is the user-visible product name. Keep
+  AGPL-3.0-only, `LICENSE`, upstream copyright notices and the upstream
+  attribution in `README.md`. A hosted modified version must offer its
+  Corresponding Source (AGPL §13; tracked as TD-016 in
+  `docs/TECHNICAL_DEBT.md`). Do not rename internal identifiers (`mikeApi.ts`,
+  `MikeApiError`, file and directory names, the repository or its remotes) for
+  branding.
+- **Upstream.** Treat `upstream` as read-only input. Follow
+  `docs/UPSTREAM_POLICY.md` (weekly intake, full-OID pin,
+  adopt/port/reject/defer, stop-the-line thresholds) and record decisions in
+  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`. Never merge upstream wholesale. In
+  this fork `gh` can resolve to the upstream repository: pass
+  `--repo IvanJS17/mike`.
+- **Migrations.** Name LiTT-owned migrations `YYYYMMDD_NN_recovery_<name>.sql`
+  on a date/ordinal stem that upstream has not used, and append them to
+  `SUPPORTED_RECOVERY_MIGRATION_ORDER` with their source hash in
+  `KNOWN_SUPPORTED_MIGRATIONS` (`backend/src/lib/recovery/`). The Schema drift
+  runtime suites rebuild upgraded databases only from that series; an
+  unregistered migration breaks fresh/upgrade convergence.
+- **Invariants to preserve in every change or port:** organization, workspace
+  and matter tenancy with explicit membership for private matters; RLS and
+  authorization epochs; insert-only audit and AI evidence records; governed
+  BYOK (provider, model and credential fixed per conversation, no silent
+  fallback); CourtListener removed; Google Drive publication fail-closed until
+  an approved connector exists; no telemetry to third parties by default.
+- **User-controlled integrations.** AI provider keys and Google accounts are
+  optional and configured by each user inside the app. Never hardcode or commit
+  them.
+- **Retention.** Retention and erasure are not yet decided (TD-008). Destructive
+  operations on evidence stay fail-closed; do not add automatic deletion of
+  real data without an approved, recorded decision.
+- **Environments.** Local stacks are disposable and use synthetic documents
+  only (`docs/safe-local-testing.md`). Production is defined by
+  `deploy/prod/README.md`, not by host names, and is never inferred from CI, a
+  merge or a local smoke test.
+- **Toolchain.** Use Node 22 locally for parity with CI.
+- **Delivery.** Follow `docs/RELEASE_GATES.md`: one independent review of the
+  exact snapshot before integration; commit, push, PR, merge and deploy are
+  separate authorizations. Update `docs/PROJECT_STATUS.md` when integration or
+  deployment state changes.
+- **Private material.** Product strategy, commercial documents and Mexican
+  legal content live in a private companion repository. Never copy them, client
+  data or secrets into this repository.

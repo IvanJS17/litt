@@ -362,7 +362,11 @@ export async function getSignedUrl(
 ): Promise<string | null> {
   if (!storageEnabled) return null;
   try {
-    const client = getClient();
+    // The only caller hands this URL straight to the browser, so it has to be
+    // signed for the endpoint the browser can reach — the same client the
+    // direct-upload URLs use. Signing with R2_ENDPOINT_URL sent Compose stacks
+    // to http://storage:9000, a name only the backend network resolves.
+    const client = getUploadSigningClient();
     // Override the response Content-Disposition so the browser uses this
     // filename on download, instead of the last path segment of the R2 key
     // (which includes the document UUID). The `download` attribute on <a>

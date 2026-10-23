@@ -6,6 +6,7 @@
 // router would drag in the whole HTTP surface.
 
 import type { createServerSupabase } from "./supabase";
+import { listAccessibleProjectIds } from "./access";
 import { normalizeDisplayName } from "./userLookup";
 
 type Db = ReturnType<typeof createServerSupabase>;
@@ -19,33 +20,28 @@ const MAX_PAGE = 100_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Which projects' audit rows this user may read.
+ * Which projects' audit rows this caller may read.
  *
- * Direct project sharing is resolved from project_access_grants, the same
- * source used by the project access checks.
+ * Answers through listAccessibleProjectIds — the same verdict every other
+ * collection read uses (creator + direct grant + organization access, minus
+ * per-project `deny` overrides, minus private matters the caller is not an
+ * active member of). The copy that used to live here was a second, older
+ * definition: it unioned projects.user_id with project_access_grants and
+ * stopped, so an organization editor or admin saw no audit trail for a
+ * colleague's matter and a granted-then-denied project still counted. A
+ * helper that keeps its own definition of "may see" drifts from the one the
+ * bytes are served under.
+ *
+ * Fail-closed by construction: listAccessibleProjectIds answers [] when one
+ * of its access reads fails, so an unreadable override table narrows the page
+ * instead of widening it.
  */
 export async function accessibleProjectIds(
     db: Db,
     userId: string,
     email: string | undefined,
 ): Promise<string[]> {
-    const ids = new Set<string>();
-    const own = await db.from("projects").select("id").eq("user_id", userId);
-    for (const row of (own.data ?? []) as { id: string }[]) ids.add(row.id);
-    if (email) {
-        // Direct sharing is `project_access_grants`: one row per recipient,
-        // keyed on normalized email. This query gates access to an audit trail.
-        const shared = await db
-            .from("project_access_grants")
-            .select("project_id")
-            .eq("email", email.trim().toLowerCase());
-        for (const row of (shared.data ?? []) as {
-            project_id: string | null;
-        }[]) {
-            if (row.project_id) ids.add(row.project_id);
-        }
-    }
-    return [...ids];
+    return listAccessibleProjectIds(userId, email, db);
 }
 
 export type AuditQuery = {

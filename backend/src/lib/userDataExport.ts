@@ -1,6 +1,23 @@
 import { createHash } from "node:crypto";
+import {
+    checkProjectAccess,
+    checkWorkflowAccess,
+    ensureChatAccess,
+    ensureDocAccess,
+    ensureReviewAccess,
+} from "./access";
+import { mapWithConcurrency } from "./concurrency";
 import { sealManifest } from "./manifestSigning";
 import { createServerSupabase } from "./supabase";
+import {
+    filterReadableReviewRows,
+    loadReviewRows,
+} from "./tabular/tabular.rows";
+import {
+    filterReadableChatMessages,
+    selectCompleteChatMessages,
+    withReadableTitles,
+} from "./tabular/tabular.chatProvenance";
 
 type Db = ReturnType<typeof createServerSupabase>;
 
@@ -14,7 +31,7 @@ export function userExportFilename(
     kind: "account" | "chats" | "tabular-reviews",
     userId: string,
 ) {
-    return `mike-${kind}-export-${userId.slice(0, 8)}-${nowStamp()}.json`;
+    return `litt-${kind}-export-${userId.slice(0, 8)}-${nowStamp()}.json`;
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
@@ -69,6 +86,82 @@ function idsFrom(rows: Record<string, unknown>[], column = "id"): string[] {
         rows.map((row) =>
             typeof row[column] === "string" ? (row[column] as string) : null,
         ),
+    );
+}
+
+type ExportResourceRow = Record<string, unknown> & {
+    id: string;
+    user_id: string | null;
+    project_id: string | null;
+    org_id?: string | null;
+    workflow_id?: string | null;
+};
+
+/**
+ * Exports read through the service-role client, so `user_id = caller` only
+ * nominates candidates: it is creator provenance, not permission. A membership,
+ * a matter membership, an organization override or a direct grant can be
+ * revoked while the row keeps its creator, and a creator who left the firm must
+ * not carry the matter out with them. The same read rule the routes use decides
+ * what may leave the app, re-checked here because a queued export outlives the
+ * access it was started with.
+ */
+async function readableRows(
+    rows: Record<string, unknown>[],
+    authorize: (row: ExportResourceRow) => Promise<{ ok: boolean }>,
+): Promise<Record<string, unknown>[]> {
+    const allowed = await mapWithConcurrency(rows, 8, async (row) =>
+        typeof row.id === "string"
+            ? (await authorize(row as ExportResourceRow)).ok
+            : false,
+    );
+    return rows.filter((_, index) => allowed[index]);
+}
+
+async function loadUserReviews(
+    db: Db,
+    userId: string,
+    userEmail?: string | null,
+) {
+    const reviews = await selectAll(db, "tabular_reviews", (query) =>
+        query.eq("user_id", userId).order("created_at", { ascending: true }),
+    );
+    return readableRows(reviews, (row) =>
+        ensureReviewAccess(row, userId, userEmail, db),
+    );
+}
+
+/**
+ * Cells of reviews the caller may open, narrowed to the rows whose source
+ * documents the caller can read right now. Review access is not document
+ * access: a review can be built from another project's documents, and its
+ * cells hold text extracted from them. GET /tabular-review/:id and the review
+ * chat apply the same rule (filterReadableReviewRows); the export, which reads
+ * through the service role and may run long after it was queued, must not be
+ * the one path that still carries those cells out.
+ */
+async function loadReadableReviewCells(
+    db: Db,
+    reviewIds: string[],
+    userId: string,
+    userEmail?: string | null,
+) {
+    if (reviewIds.length === 0) return [];
+    const rowsByReview = await mapWithConcurrency(reviewIds, 8, (reviewId) =>
+        loadReviewRows(db, reviewId),
+    );
+    const { rows } = await filterReadableReviewRows(
+        db,
+        rowsByReview.flat(),
+        [],
+        userId,
+        userEmail,
+    );
+    const visibleRowIds = new Set(rows.map((row) => row.id));
+    const cells = await selectByIds(db, "tabular_cells", "review_id", reviewIds);
+    return cells.filter(
+        (cell) =>
+            typeof cell.row_id === "string" && visibleRowIds.has(cell.row_id),
     );
 }
 
@@ -133,9 +226,12 @@ async function loadMemoryExport(
     };
 }
 
-async function loadUserChats(db: Db, userId: string) {
-    const chats = await selectAll(db, "chats", (query) =>
+async function loadUserChats(db: Db, userId: string, userEmail?: string | null) {
+    const candidates = await selectAll(db, "chats", (query) =>
         query.eq("user_id", userId).order("created_at", { ascending: true }),
+    );
+    const chats = await readableRows(candidates, (row) =>
+        ensureChatAccess(row, userId, userEmail, db),
     );
     const chatIds = idsFrom(chats);
     const messages = await selectByIds(db, "chat_messages", "chat_id", chatIds);
@@ -158,18 +254,59 @@ async function loadUserWordChats(db: Db, userId: string) {
     return { documents, chats, messages };
 }
 
-async function loadUserTabularChats(db: Db, userId: string) {
-    const chats = await selectAll(db, "tabular_review_chats", (query) =>
+async function loadUserTabularChats(
+    db: Db,
+    userId: string,
+    userEmail?: string | null,
+) {
+    const candidates = await selectAll(db, "tabular_review_chats", (query) =>
         query.eq("user_id", userId).order("created_at", { ascending: true }),
     );
-    const chatIds = idsFrom(chats);
-    const messages = await selectByIds(
+    // A review transcript keeps its creator after that person leaves the team.
+    // Its parent review, not that creator id, controls access to the text.
+    const reviews = await selectByIds(
         db,
-        "tabular_review_chat_messages",
-        "chat_id",
-        chatIds,
+        "tabular_reviews",
+        "id",
+        idsFrom(candidates, "review_id"),
     );
-    return { chats, messages };
+    const readableReviews = await readableRows(reviews, (row) =>
+        ensureReviewAccess(row, userId, userEmail, db),
+    );
+    const reviewIds = new Set(idsFrom(readableReviews));
+    return loadReadableTabularTranscripts(
+        db,
+        candidates.filter(
+            (chat) =>
+                typeof chat.review_id === "string" &&
+                reviewIds.has(chat.review_id),
+        ),
+        userId,
+        userEmail,
+    );
+}
+
+/**
+ * Transcripts of review chats the caller may list, narrowed per message to
+ * the source documents the caller can read now — the rule GET
+ * /tabular-review/:id/chats/:chatId/messages applies. A transcript can carry
+ * text derived from another project's documents; review access alone must
+ * not carry it out (see tabular.chatProvenance).
+ */
+async function loadReadableTabularTranscripts(
+    db: Db,
+    chats: Record<string, unknown>[],
+    userId: string,
+    userEmail?: string | null,
+) {
+    const all = await selectCompleteChatMessages(db, idsFrom(chats), "*");
+    const messages = await filterReadableChatMessages(
+        db,
+        all,
+        userId,
+        userEmail,
+    );
+    return { chats: withReadableTitles(chats, all, messages), messages };
 }
 
 async function loadApiKeyStatus(db: Db, userId: string) {
@@ -193,9 +330,9 @@ export async function buildUserChatsExport(
     userEmail?: string | null,
 ) {
     const [assistant, wordAddin, tabular] = await Promise.all([
-        loadUserChats(db, userId),
+        loadUserChats(db, userId, userEmail),
         loadUserWordChats(db, userId),
-        loadUserTabularChats(db, userId),
+        loadUserTabularChats(db, userId, userEmail),
     ]);
 
     return {
@@ -212,37 +349,28 @@ export async function buildUserTabularReviewsExport(
     userId: string,
     userEmail?: string | null,
 ) {
-    const tabularReviews = await selectAll(db, "tabular_reviews", (query) =>
-        query.eq("user_id", userId).order("created_at", { ascending: true }),
-    );
+    const tabularReviews = await loadUserReviews(db, userId, userEmail);
     const reviewIds = idsFrom(tabularReviews);
 
-    const [cells, chats] = await Promise.all([
-        selectByIds(db, "tabular_cells", "review_id", reviewIds),
-        selectByIds(db, "tabular_review_chats", "review_id", reviewIds),
+    const [cells, transcripts] = await Promise.all([
+        loadReadableReviewCells(db, reviewIds, userId, userEmail),
+        selectByIds(db, "tabular_review_chats", "review_id", reviewIds).then(
+            (chats) =>
+                loadReadableTabularTranscripts(db, chats, userId, userEmail),
+        ),
     ]);
-    const chatIds = idsFrom(chats);
-    const messages = await selectByIds(
-        db,
-        "tabular_review_chat_messages",
-        "chat_id",
-        chatIds,
-    );
 
     return {
         exported_at: new Date().toISOString(),
         user: { id: userId, email: userEmail ?? null },
         tabular_reviews: tabularReviews,
         tabular_cells: cells,
-        tabular_review_chats: {
-            chats,
-            messages,
-        },
+        tabular_review_chats: transcripts,
     };
 }
 
 export function projectManifestFilename(projectId: string) {
-    return `mike-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
+    return `litt-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
 }
 
 /**
@@ -389,6 +517,10 @@ export async function buildUserAccountExport(
         ),
         selectAll(db, "projects", (query) =>
             query.eq("user_id", userId).order("created_at", { ascending: true }),
+        ).then((rows) =>
+            readableRows(rows, (row) =>
+                checkProjectAccess(row.id, userId, userEmail, db),
+            ),
         ),
         selectAll(db, "documents", (query) =>
             query
@@ -398,6 +530,10 @@ export async function buildUserAccountExport(
         ),
         selectAll(db, "workflows", (query) =>
             query.eq("user_id", userId).order("created_at", { ascending: true }),
+        ).then((rows) =>
+            readableRows(rows, (row) =>
+                checkWorkflowAccess(row.id, userId, userEmail, db),
+            ),
         ),
         selectAll(db, "default_workflow_installations", (query) =>
             query.eq("user_id", userId).order("installed_at", { ascending: true }),
@@ -425,11 +561,9 @@ export async function buildUserAccountExport(
                       .order("created_at", { ascending: true }),
               )
             : Promise.resolve([]),
-        loadUserChats(db, userId),
-        loadUserTabularChats(db, userId),
-        selectAll(db, "tabular_reviews", (query) =>
-            query.eq("user_id", userId).order("created_at", { ascending: true }),
-        ),
+        loadUserChats(db, userId, userEmail),
+        loadUserTabularChats(db, userId, userEmail),
+        loadUserReviews(db, userId, userEmail),
         userEmail
             ? (async () => {
                   // Shared projects come from the grant table so the export
@@ -458,6 +592,10 @@ export async function buildUserAccountExport(
                           .neq("user_id", userId)
                           .order("created_at", { ascending: true }),
                       "id, user_id, name, cm_number, created_at, updated_at",
+                  ).then((rows) =>
+                      readableRows(rows, (row) =>
+                          checkProjectAccess(row.id, userId, userEmail, db),
+                      ),
                   );
               })()
             : Promise.resolve([]),
@@ -490,6 +628,10 @@ export async function buildUserAccountExport(
                           .neq("user_id", userId)
                           .order("created_at", { ascending: true }),
                       "id, user_id, project_id, title, practice, created_at, updated_at",
+                  ).then((rows) =>
+                      readableRows(rows, (row) =>
+                          ensureReviewAccess(row, userId, userEmail, db),
+                      ),
                   );
               })()
             : Promise.resolve([]),
@@ -531,7 +673,10 @@ export async function buildUserAccountExport(
         "project_id",
         projectIds,
     );
-    const documents = [...standaloneDocuments, ...projectDocuments];
+    const documents = await readableRows(
+        [...standaloneDocuments, ...projectDocuments],
+        (row) => ensureDocAccess(row, userId, userEmail, db),
+    );
     const documentIds = idsFrom(documents);
     const reviewIds = idsFrom(tabularReviews);
 
@@ -539,7 +684,7 @@ export async function buildUserAccountExport(
         selectByIds(db, "project_subfolders", "project_id", projectIds),
         selectByIds(db, "document_versions", "document_id", documentIds),
         selectByIds(db, "document_edits", "document_id", documentIds),
-        selectByIds(db, "tabular_cells", "review_id", reviewIds),
+        loadReadableReviewCells(db, reviewIds, userId, userEmail),
     ]);
 
     return {

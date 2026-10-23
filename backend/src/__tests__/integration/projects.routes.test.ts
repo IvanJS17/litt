@@ -1093,7 +1093,7 @@ describe("projects.routes", () => {
 
             expect(res.status).toBe(200);
             expect(res.headers["content-disposition"]).toMatch(
-                /attachment; filename="mike-project-manifest-p1-/,
+                /attachment; filename="litt-project-manifest-p1-/,
             );
             expect(res.body.manifest_version).toBe(1);
             expect(res.body.project.name).toBe("Alpha");

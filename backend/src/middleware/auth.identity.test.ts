@@ -258,3 +258,57 @@ describe("requireAuth — governed request identity", () => {
     expect(next).not.toHaveBeenCalled();
   });
 });
+
+describe("requireAuth — email trust", () => {
+  // `res.locals.userEmail` is what every direct grant and organization
+  // invitation is matched against, so it must be an address the account has
+  // proved it owns. An unconfirmed address authenticates the session but
+  // matches nothing: otherwise signing up as someone else's address before
+  // they do inherits whatever was shared or offered to it.
+  // Both transports resolve the user through GoTrue, so the rule must hold on
+  // each: the cookie session (request client) and an allowlisted Bearer client
+  // (admin client).
+  const transports = [
+    ["cookie session", () => request()],
+    [
+      "allowlisted Bearer client",
+      () =>
+        request({
+          authorization: "Bearer test-access-token",
+          clientName: "loadtest",
+        }),
+    ],
+  ] as const;
+
+  function authenticateAs(user: Record<string, unknown>) {
+    admin.auth.getUser.mockResolvedValue({ data: { user }, error: null });
+    requestClient.auth.getUser.mockResolvedValue({
+      data: { user },
+      error: null,
+    });
+  }
+
+  it.each(transports)(
+    "exposes a confirmed email for grant and invitation matching (%s)",
+    async (_transport, makeRequest) => {
+      authenticateAs({ ...USER, email_confirmed_at: "2026-10-21T00:00:00.000Z" });
+      const { res, next } = await run(makeRequest());
+
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.locals.userEmail).toBe("lawyer@example.test");
+    },
+  );
+
+  it.each(transports)(
+    "withholds an unconfirmed email so it matches no grant or invitation (%s)",
+    async (_transport, makeRequest) => {
+      authenticateAs({ ...USER, email_confirmed_at: null });
+      const { res, next } = await run(makeRequest());
+
+      // The session itself is still valid — authentication is not a claim
+      // about the address.
+      expect(next).toHaveBeenCalledOnce();
+      expect(res.locals.userEmail).toBe("");
+    },
+  );
+});

@@ -22,7 +22,10 @@ import {
 import { convertedPdfKey } from "../lib/convert";
 import {
   checkProjectAccess,
+  creatorScopedAllowed,
+  ensureDocAccess,
   getOrgRole,
+  listAccessibleProjectIds,
   listUserOrgIds,
   normalizeEmail,
   resolveContentOrgId,
@@ -552,6 +555,22 @@ async function handleProjectDirectorySearch(req: Request, res: Response) {
     for (const project of result.data ?? []) {
       projectsById.set(project.id as string, project);
     }
+  }
+  // Membership is not an access verdict. The branches above collect a
+  // CANDIDATE set (mine, granted to me, in an org I belong to); a per-project
+  // `deny` override, or a project linked to a `private` matter the caller has
+  // no active membership on, makes checkProjectAccess answer "no access".
+  // Without the same verdict here the picker still handed a walled-off member
+  // the matter's name, cm_number and its document filenames — bytes were
+  // refused, the wall leaked. listAccessibleProjectIds is the one definition
+  // of "projects this caller can see", so ask it instead of re-deriving.
+  // Fail-closed by construction: that helper answers [] when one of its
+  // access reads fails, so an unreadable override table hides rows.
+  const verdictProjectIds = new Set(
+    await listAccessibleProjectIds(userId, userEmail, db),
+  );
+  for (const projectId of [...projectsById.keys()]) {
+    if (!verdictProjectIds.has(projectId)) projectsById.delete(projectId);
   }
   const accessibleProjectIds = [...projectsById.keys()];
   if (accessibleProjectIds.length === 0) return void res.json([]);
@@ -1258,6 +1277,24 @@ projectsRouter.post(
       .single();
     if (!doc)
       return void res.status(404).json({ detail: "Document not found" });
+    // Authorship is provenance, not access. A document created inside an
+    // organization matter stays the firm's: once its author leaves the org, is
+    // denied the project, or loses their grant, `user_id = me` alone would
+    // still let them copy the bytes into a personal project. Require the
+    // caller's CURRENT access to wherever the document lives now.
+    const sourceAccess = await ensureDocAccess(
+      doc as {
+        user_id: string | null;
+        project_id: string | null;
+        org_id?: string | null;
+        workflow_id?: string | null;
+      },
+      userId,
+      userEmail,
+      db,
+    );
+    if (!sourceAccess.ok)
+      return void res.status(404).json({ detail: "Document not found" });
     await attachActiveVersionPaths(db, [
       doc as { id: string; current_version_id?: string | null },
     ]);
@@ -1717,6 +1754,9 @@ projectsRouter.patch(
 );
 
 // DELETE /projects/:projectId/folders/:folderId
+const FOLDER_DELETE_FOREIGN_DOCUMENTS_FORBIDDEN =
+  "This folder contains documents added by other people. Only the project owner can delete it.";
+
 projectsRouter.delete(
   "/:projectId/folders/:folderId",
   requireAuth,
@@ -1726,10 +1766,13 @@ projectsRouter.delete(
   const { projectId, folderId } = req.params;
   const db = createServerSupabase();
 
-  // Folder deletion cascades into every nested document and its storage
-  // objects — but so does deleting those documents one at a time, which a
-  // member may already do. Gating the folder higher bought no safety, only a
-  // confusing extra tier.
+  // Folder deletion cascades into every nested document, all its versions,
+  // and their storage objects. Deleting a single document is creator-scoped
+  // (DELETE /single-documents/:documentId), so an Editor may only cascade
+  // over a subtree whose documents they could each delete themselves; one
+  // colleague's document anywhere below refuses the whole delete rather than
+  // leaving a half-deleted tree. Owners may already delete the whole project
+  // and with it every document, so they may clear a subtree too.
   const access = await checkProjectAccess(projectId, userId, userEmail, db);
   if (!access.ok || !can(access.projectRole, "docs.organize"))
     return void res.status(404).json({ detail: "Project not found" });
@@ -1763,11 +1806,30 @@ projectsRouter.delete(
 
   const { data: docs, error: docsError } = await db
     .from("documents")
-    .select("id")
+    .select("id, user_id")
     .eq("project_id", projectId)
     .in("folder_id", [...folderIds]);
     if (docsError)
       return void sendInternalError(res, docsError);
+
+  if (!can(access.projectRole, "container.delete")) {
+    const foreign = (docs ?? []).some(
+      (d: { user_id?: string | null }) => {
+        const creatorId = (d.user_id as string | null) ?? null;
+        return !creatorScopedAllowed(
+          {
+            isCreator: !!creatorId && creatorId === userId,
+            projectRole: access.projectRole,
+          },
+          creatorId,
+        );
+      },
+    );
+    if (foreign)
+      return void res.status(403).json({
+        detail: FOLDER_DELETE_FOREIGN_DOCUMENTS_FORBIDDEN,
+      });
+  }
 
   const docIds = (docs ?? []).map((d) => d.id as string);
   const deleteDocsError = await deleteProjectDocumentsAndVersionFiles(

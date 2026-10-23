@@ -161,7 +161,7 @@ export function UserMemoryPage() {
                             <div className="space-y-1">
                                 <FieldLabel as="p">App-wide memory</FieldLabel>
                                 <p className="text-sm text-gray-500">
-                                    Let Mike curate useful details after saved
+                                    Let LiTT curate useful details after saved
                                     conversations and use them in future
                                     answers.
                                 </p>

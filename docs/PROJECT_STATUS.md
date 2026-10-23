@@ -3,11 +3,47 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-09-14<br>
+**Last reconciled:** 2026-10-21<br>
 **Repository:** `IvanJS17/mike`<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
+
+### Reconciliation 2026-10-21
+
+- **Main base:** `2eb27db8da9d0bf8a66c9fff5b73618aadc4f0f2` (PR #50, production
+  deployment package for the shared VPS described in
+  [`../deploy/prod/README.md`](../deploy/prod/README.md)). PR #50's push
+  workflows passed: CI, CodeQL, Schema drift, Scorecard, Secret scan, security
+  and Stack tests. PR #51 (the release candidate below) targets this base; its
+  review, check and merge state is tracked on the pull request, not in this
+  file.
+- **Production:** the package is versioned; no deployment is verified. Deploying
+  needs the owner's domain, R2 bucket/credentials and SMTP inputs plus explicit
+  authorization.
+- **Browser E2E:** failed from 2026-09-25 because the MinIO image was no longer
+  pullable. PR #51 moves it to RustFS pinned by digest; only a run of the
+  browser E2E workflow can show that the move works.
+- **Upstream:** pin `7e3607e7…`; `upstream/main` `795f9608…` is 439 commits
+  ahead and the last intake was 2026-09-14, so the stop-the-line threshold in
+  [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md) is active: no feature expansion
+  until an approved sync plan. The security subset was classified on
+  2026-10-21 ([`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §14).
+- **Release candidate** `fix/release-candidate-20261021` (PR #51, the commits
+  from `2eb27db8` to the pull request head): dependency security updates,
+  browser E2E storage on RustFS, visible LiTT branding, the security ports
+  listed in §14 of the ledger and the tabular export and transcript access
+  fixes required by its independent review.
+  Local verification on Node 22 with synthetic data and no external network
+  for tests: backend, frontend and Word add-in unit/integration suites, lint,
+  builds, typecheck, the Word add-in Playwright suite (Chromium, Office/API
+  mocks) and the Schema drift runtime suites against PostgreSQL 16.14 (local
+  instance, Docker replaced by a test shim). Not run locally: Docker stack
+  tests (`test:stack`), web E2E and the WebKit Word suite, which the pull
+  request workflows are configured to run, and image builds, which no CI
+  workflow runs: they belong to the deployment gate.
+
+The sections below are the reconciliation history up to 2026-09-14.
 
 Phase 2 recovery has been assembled on `recovery/upstream-1b58-phase2`, based on
 the pinned MikeOSS core and ported LiTT invariants, not a monolithic upstream merge.
@@ -165,6 +201,9 @@ remote staging, a real provider/Drive canary or production.
 | Local staging harness | Versioned; historical local smokes are not current remote proof |
 | Remote staging | Not verified |
 | Real Shared Drive canary | Blocked pending dedicated account/token/folder and authorization |
+| Production deployment package | Versioned by PR #50 (`2eb27db8`); deployment not verified |
+| Upstream intake 2026-10-21 | Security subset classified (ledger §14); 439 commits otherwise unclassified; stop-the-line active |
+| Release candidate `fix/release-candidate-20261021` | Local verification complete; awaiting one exact-snapshot Reviewer verdict; push/PR/merge not authorized |
 | Production | Not deployed or verified |
 
 ## Current blockers and risks
@@ -186,6 +225,15 @@ Remaining release decisions/debt:
 The actionable owner/exit ledger is in [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md).
 
 ## Current decision and next gate
+
+As of 2026-10-21: one Reviewer verdict on the exact snapshot of
+`fix/release-candidate-20261021`. After PASS, the owner decides push/PR; the
+exact-head CI must include the RustFS browser E2E, Stack tests and Schema drift
+before merge. Production deployment then follows `deploy/prod/README.md` with
+the owner's inputs and its own authorization. Feature expansion stays paused
+until an approved upstream sync plan clears the stop-the-line threshold.
+
+Historical gate (2026-09-14):
 
 Finish the candidate's 16 gates and consume one exact-snapshot Reviewer verdict.
 Only after PASS may the already-authorized recovery-only publication occur.

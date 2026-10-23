@@ -230,6 +230,18 @@ export const KNOWN_SUPPORTED_MIGRATIONS: Readonly<
         "begin;\n",
     ),
   },
+  "20261022_01_recovery_email_change_moves_grants.sql": {
+    sha256: "a4cdd4c82581732c883a801cb060524c73a58fb2187f09fdb7a234704f2e2e34",
+    envelope: { kind: "bare" },
+  },
+  "20261022_02_recovery_memory_private_chat_boundary.sql": {
+    sha256: "aa7e3d90b898b8d4372bbc254c99a0150c2f2c15fbf06f89880132ffe9e84137",
+    envelope: { kind: "bare" },
+  },
+  "20261022_03_recovery_tabular_chat_source_provenance.sql": {
+    sha256: "906d61ce386092bc5b6dd4a02a621de170b438c537490cf262e562debf061a2d",
+    envelope: { kind: "bare" },
+  },
 };
 
 function sha256(source: string): string {

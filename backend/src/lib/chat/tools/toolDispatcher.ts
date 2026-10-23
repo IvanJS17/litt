@@ -168,6 +168,12 @@ export async function runToolCalls(
   turnReadState?: TurnReadState,
   projectId?: string | null,
   nonce?: string,
+  /**
+   * The caller's authenticated email, for the per-document write check
+   * edit_document runs (direct grants are keyed by email). Omitted by a
+   * surface that has none, which fails closed to creator/org access.
+   */
+  userEmail?: string | null,
 ): Promise<{
   toolResults: unknown[];
   docsRead: {
@@ -729,6 +735,7 @@ export async function runToolCalls(
         const result = await runEditDocument({
           documentId: indexed.document_id,
           userId,
+          userEmail: userEmail ?? null,
           edits,
           db,
           reuseVersion,

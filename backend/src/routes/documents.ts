@@ -33,6 +33,7 @@ import {
 import { can } from "../lib/permissions";
 import {
   checkProjectAccess,
+  canManageDocument,
   creatorScopedAllowed,
   ensureDocAccess,
 } from "../lib/access";
@@ -135,16 +136,23 @@ documentsRouter.get("/:documentId", requireAuth, async (req, res) => {
 // DELETE /single-documents/:documentId
 documentsRouter.delete("/:documentId", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;
+  const userEmail = res.locals.userEmail as string | undefined;
   const { documentId } = req.params;
   const db = createServerSupabase();
 
   const { data: doc, error } = await db
     .from("documents")
-    .select("id")
+    .select("id, user_id, project_id, org_id, workflow_id")
     .eq("id", documentId)
-    .eq("user_id", userId)
     .single();
   if (error || !doc)
+    return void res.status(404).json({ detail: "Document not found" });
+  // Authorship is provenance, not standing: the creator must still hold
+  // content.edit where the document lives now, so a creator downgraded to
+  // Viewer — or one whose project access was revoked — cannot destroy the
+  // container's content like every other Viewer.
+  const access = await ensureDocAccess(doc, userId, userEmail, db);
+  if (!access.ok || !canManageDocument(access, doc))
     return void res.status(404).json({ detail: "Document not found" });
 
   await deleteDocumentAndVersionFiles(db, documentId);
@@ -948,11 +956,7 @@ documentsRouter.delete(
     if (!doc)
       return void res.status(404).json({ detail: "Document not found" });
     const access = await ensureDocAccess(doc, userId, userEmail, db);
-    if (
-      !access.ok ||
-      (!creatorScopedAllowed(access, doc.user_id) &&
-        !(doc.workflow_id && can(access.projectRole, "content.edit")))
-    )
+    if (!access.ok || !canManageDocument(access, doc))
       return void res.status(404).json({ detail: "Document not found" });
 
     const { data: versions, error: versionsErr } = await db

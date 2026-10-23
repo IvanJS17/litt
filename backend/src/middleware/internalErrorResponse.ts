@@ -9,6 +9,7 @@ import {
   INTERNAL_ERROR_MESSAGE,
   sendInternalError,
 } from "../lib/httpError";
+import { safeRequestPath } from "../lib/safeRequestPath";
 
 type ErrorBody = {
   code?: unknown;
@@ -53,7 +54,7 @@ export function protectInternalErrorResponses(
     console.error("[http/sanitized-internal-error]", {
       requestId,
       method: req.method,
-      path: req.originalUrl,
+      path: safeRequestPath(req.originalUrl),
       status: res.statusCode,
       error: errorBody?.detail ?? body,
     });

@@ -16,6 +16,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel PR runs that a newer push to the same PR has superseded. Pushes to
+# main each get their own group (keyed by sha) and are never cancelled.
+concurrency:
+  group: ci-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
 jobs:
   backend:
     name: Backend build and tests
