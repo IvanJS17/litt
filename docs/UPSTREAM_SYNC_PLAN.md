@@ -126,8 +126,11 @@ unless it breaks a LiTT invariant, in which case it is reverted or gated.
 - DOCX viewer and editor. Before the final merge: license, egress and the
   version, hash and audit contract are checked.
 - Organization settings, profile images and logos, audit with names.
-- BYOK provider matrix and model registry. Route resolution stays fail-closed
-  and pinned per conversation; providers outside the approved list stay hidden.
+- BYOK provider matrix and model registry, with every upstream provider
+  visible (owner decision of 2026-10-23). Route resolution stays fail-closed
+  and pinned per conversation, with no silent fallback; a user's own endpoint
+  and operator-declared OpenAI-compatible endpoints cannot reach loopback,
+  private, link-local or cloud-metadata addresses, checked on every hop.
 - Unified connectors with protected write actions, and upstream playbooks. The
   Mexican Civil/Mercantile playbook keeps its provenance in the governed catalog.
 - PDF extraction for pages without a text layer, provider error and deadline
