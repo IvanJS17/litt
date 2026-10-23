@@ -389,7 +389,7 @@ describe("Google connector settings", () => {
       s.db,
     );
     expect(refused.event.status).toBe("error");
-    expect(refused.content).toContain("Gmail is not offered on this Mike server.");
+    expect(refused.content).toContain("Gmail is not offered on this LiTT server.");
     expect(
       (await planGoogleWorkspaceCall("u1", "gmail_send", email, s.db)).type,
     ).toBe("result");

@@ -518,10 +518,10 @@ describe("handleExportBuild", () => {
         );
         const [path, , contentType] = uploadFile.mock.calls[0];
         expect(path).toBe(
-            "exports/u1/job-1-mike-memory-export.zip",
+            "exports/u1/job-1-litt-memory-export.zip",
         );
         expect(contentType).toBe("application/zip");
-        expect(out.filename).toBe("mike-memory-export.zip");
+        expect(out.filename).toBe("litt-memory-export.zip");
         expect(recordAudit).toHaveBeenCalledWith(
             db,
             expect.objectContaining({ action: "export.memory" }),

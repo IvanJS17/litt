@@ -502,7 +502,7 @@ describe("Google Drive OAuth lifecycle", () => {
         expect(await buildGoogleDriveTools("u1", store.db)).toEqual([]);
         await expect(begin(store)).rejects.toMatchObject({
             code: "connector_unavailable",
-            message: "Google Drive is not offered on this Mike server.",
+            message: "Google Drive is not offered on this LiTT server.",
         });
         await expect(
             createGoogleDrivePickerSession("u1", store.db),
@@ -513,7 +513,7 @@ describe("Google Drive OAuth lifecycle", () => {
         ] as const) {
             const refused = await executeGoogleDriveToolCall("u1", name, args, store.db);
             expect(refused.event.status).toBe("error");
-            expect(refused.content).toContain("not offered on this Mike server");
+            expect(refused.content).toContain("not offered on this LiTT server");
         }
         expect(
             (await planGoogleDriveCall("u1", "google_drive_create_folder", { name: "x" }, store.db)).type,

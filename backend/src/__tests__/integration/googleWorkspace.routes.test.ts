@@ -220,7 +220,7 @@ describe("Google Workspace routes", () => {
     expect(res.status).toBe(404);
     expect(res.body).toEqual({
       code: "connector_unavailable",
-      detail: "Gmail is not offered on this Mike server.",
+      detail: "Gmail is not offered on this LiTT server.",
     });
     expect(mocks.start).not.toHaveBeenCalled();
     mocks.start.mockResolvedValue({ authorizationUrl: "https://accounts.google.com/x" });
@@ -313,7 +313,7 @@ describe("Google Drive picker session", () => {
     expect(res.status).toBe(404);
     expect(res.body).toEqual({
       code: "connector_unavailable",
-      detail: "Google Drive is not offered on this Mike server.",
+      detail: "Google Drive is not offered on this LiTT server.",
     });
   });
 

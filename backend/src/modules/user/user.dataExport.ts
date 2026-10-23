@@ -33,7 +33,7 @@ export function userExportFilename(
     kind: "account" | "chats" | "tabular-reviews",
     userId: string,
 ) {
-    return `mike-${kind}-export-${userId.slice(0, 8)}-${nowStamp()}.json`;
+    return `litt-${kind}-export-${userId.slice(0, 8)}-${nowStamp()}.json`;
 }
 
 async function selectAll(
@@ -441,7 +441,7 @@ export async function buildUserTabularReviewsExport(
 }
 
 export function projectManifestFilename(projectId: string) {
-    return `mike-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
+    return `litt-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
 }
 
 /**

@@ -299,7 +299,7 @@ describe("POST /user/integrations/google-drive/oauth/start", () => {
         expect(res.status).toBe(404);
         expect(res.body).toEqual({
             code: "connector_unavailable",
-            detail: "Google Drive is not offered on this Mike server.",
+            detail: "Google Drive is not offered on this LiTT server.",
         });
     });
 
