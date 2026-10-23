@@ -46,6 +46,22 @@ describe("ProjectDetailsModal", () => {
         ]);
     });
 
+    it("does not offer organisation-wide access on a private matter", async () => {
+        render(
+            <ProjectDetailsModal
+                open
+                project={{ ...project, visibility: "private", private_matter: true }}
+                canEdit
+                onClose={vi.fn()}
+                onSave={vi.fn()}
+            />,
+        );
+        expect(
+            await screen.findByText(/Private matter\. Only the people on this matter's team can open it\./),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("Public")).toBeNull();
+    });
+
     it("shows the current organisation in project details", async () => {
         render(
             <ProjectDetailsModal

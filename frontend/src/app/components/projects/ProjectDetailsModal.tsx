@@ -255,7 +255,16 @@ export function ProjectDetailsModal({
                     />
                 </div>
 
-                {project.org_id ? (
+                {project.private_matter ? (
+                    // LiTT: a private matter is never opened to the whole
+                    // organization, so the Private/Public choice is not offered.
+                    <div data-slot="private-matter-access">
+                        <FieldLabel as="p">Organisational Access</FieldLabel>
+                        <p className="text-xs leading-4 text-gray-500">
+                            Private matter. Only the people on this matter&apos;s team can open it.
+                        </p>
+                    </div>
+                ) : project.org_id ? (
                     <AccessVisibilityField
                         visibility={visibilityDraft}
                         onChange={(next) => {

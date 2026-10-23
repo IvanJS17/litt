@@ -490,7 +490,11 @@ export function ProjectWorkspaceProvider({
                       name: updated.name,
                       cm_number: updated.cm_number,
                       practice: updated.practice,
-                      visibility: updated.visibility ?? prev.visibility,
+                      // A private matter stays private whatever the row's
+                      // own column says (LiTT C2).
+                      visibility: prev.private_matter
+                          ? "private"
+                          : (updated.visibility ?? prev.visibility),
                   }
                 : updated,
         );

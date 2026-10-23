@@ -678,6 +678,26 @@ export type ProjectDetailResult =
   | { ok: false; kind: "not_found" }
   | { ok: false; kind: "db_error"; error: unknown };
 
+/**
+ * LiTT C2: whether a project is bound to a private matter. Such a project is
+ * private whatever its own `visibility` column says (the SQL access scope
+ * agrees), so the API never presents it as open to the organization. Fails
+ * closed: a failed read is an error, never "not a matter".
+ */
+async function loadPrivateMatter(
+  db: Db,
+  projectId: string,
+): Promise<{ ok: true; value: boolean } | { ok: false; error: unknown }> {
+  const { data, error } = await db
+    .from("matters")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("visibility", "private")
+    .maybeSingle();
+  if (error) return { ok: false, error };
+  return { ok: true, value: !!data };
+}
+
 export async function getProjectDetail(
   db: Db,
   args: { projectId: string; userId: string; userEmail?: string },
@@ -715,10 +735,15 @@ export async function getProjectDetail(
     project as { id: string; memory_enabled?: boolean },
   ]);
   if (withMemory.error) return { ok: false, kind: "db_error", error: withMemory.error };
+  const privateMatter = await loadPrivateMatter(db, projectId);
+  if (!privateMatter.ok)
+    return { ok: false, kind: "db_error", error: privateMatter.error };
   return {
     ok: true,
     body: {
       ...withMemory.rows[0],
+      ...(privateMatter.value ? { visibility: "private" } : {}),
+      private_matter: privateMatter.value,
       is_owner: access.isCreator,
       access_role: access.projectRole,
       org_role: access.orgRole,
@@ -762,12 +787,18 @@ export async function getProjectPeople(
   const project = access.project;
 
   if (project.org_id) {
+    // A private matter's roster never shows the organization's members or
+    // owners as holding access by membership (LiTT C2).
+    const privateMatter = await loadPrivateMatter(db, projectId);
+    if (!privateMatter.ok)
+      return { ok: false, kind: "db_error", error: privateMatter.error };
     const listed = await listOrgAccessPeople(db, {
       kind: "project",
       resourceId: projectId,
       orgId: project.org_id,
       creatorId: project.user_id,
-      visibility: project.visibility,
+      visibility: privateMatter.value ? "private" : project.visibility,
+      ownerlessTakeover: !privateMatter.value,
     });
     if (!listed.ok) return { ok: false, kind: "db_error", error: listed.detail };
     const creator = listed.people.find(
@@ -891,14 +922,10 @@ export async function updateProject(
   // LiTT C2: a private matter's team is its membership; its project is
   // never opened to the whole organization. Fail closed on a failed read.
   if (requestedVisibility.visibility === "organization") {
-    const { data: privateMatter, error: matterError } = await db
-      .from("matters")
-      .select("id")
-      .eq("project_id", projectId)
-      .eq("visibility", "private")
-      .maybeSingle();
-    if (matterError) return { ok: false, kind: "db_error", error: matterError };
-    if (privateMatter)
+    const privateMatter = await loadPrivateMatter(db, projectId);
+    if (!privateMatter.ok)
+      return { ok: false, kind: "db_error", error: privateMatter.error };
+    if (privateMatter.value)
       return {
         ok: false,
         kind: "validation",

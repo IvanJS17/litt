@@ -1180,6 +1180,34 @@ describe("a private matter over HTTP (LiTT C2)", () => {
         expect(res.body.id).toBe("proj-1");
     });
 
+    it("never presents the matter's project as open to the organization", async () => {
+        // proj-1's own column still says "organization"; the matter wins.
+        tables.project_org_access_overrides.push({
+            project_id: "proj-1", org_id: "org-1", user_id: "member-1", role: "editor",
+        });
+        as("member-1", "member@firm.example");
+        const detail = await request(app).get("/projects/proj-1").set(...AUTH);
+        expect(detail.status).toBe(200);
+        expect(detail.body.private_matter).toBe(true);
+        expect(detail.body.visibility).toBe("private");
+
+        const people = await request(app).get("/projects/proj-1/people").set(...AUTH);
+        expect(people.status).toBe(200);
+        const roles = Object.fromEntries(
+            people.body.members.map((m: { email: string; role: string }) => [m.email, m.role]),
+        );
+        // Only what the team was given; nobody holds it by membership.
+        expect(roles).toEqual({ "member@firm.example": "editor" });
+    });
+
+    it("tells an ordinary project's reader it is not a private matter", async () => {
+        tables.matters = [];
+        const detail = await request(app).get("/projects/proj-1").set(...AUTH);
+        expect(detail.status).toBe(200);
+        expect(detail.body.private_matter).toBe(false);
+        expect(detail.body.visibility).toBe("organization");
+    });
+
     it("refuses to open the matter's project to the whole organization", async () => {
         tables.projects[0].visibility = "private";
         tables.project_org_access_overrides.push({

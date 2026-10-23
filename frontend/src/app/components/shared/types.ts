@@ -63,6 +63,11 @@ export interface Project {
   /** Present on the detail payload; the lists carry `access_scope` instead. */
   visibility?: ContentVisibility;
   access_scope?: ResourceAccessScope;
+  /**
+   * Detail payload: the project belongs to a private matter (LiTT). Only the
+   * matter's team can open it and it is never offered to the organization.
+   */
+  private_matter?: boolean;
   organization_name?: string | null;
   direct_grant_count?: number;
   owner_display_name?: string | null;
