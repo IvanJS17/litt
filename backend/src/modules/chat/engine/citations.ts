@@ -4,6 +4,7 @@ import {
   sourceDocumentType,
   type SourceDocumentQuote,
 } from "../../../lib/sourceDocuments";
+import { extractDelimitedBlock } from "../../../lib/textBlocks";
 
 // ---------------------------------------------------------------------------
 // Internal citation parse types
@@ -182,7 +183,6 @@ function normalizeCaseCitationQuotes(c: Record<string, unknown>) {
 // Citation block constants and parsers
 // ---------------------------------------------------------------------------
 
-export const CITATIONS_BLOCK_RE = /<CITATIONS>\s*([\s\S]*?)\s*<\/CITATIONS>/;
 export const CITATIONS_OPEN_TAG = "<CITATIONS>";
 export const CITATIONS_CLOSE_TAG = "</CITATIONS>";
 
@@ -196,11 +196,14 @@ export function parseCitationsWithDiagnostics(text: string): {
   citations: ParsedCitation[];
   diagnostics: CitationParseDiagnostics;
 } {
-  const match = text.match(CITATIONS_BLOCK_RE);
-  if (!match) {
+  const raw = extractDelimitedBlock(
+    text,
+    CITATIONS_OPEN_TAG,
+    CITATIONS_CLOSE_TAG,
+  );
+  if (raw === null) {
     return { citations: [], diagnostics: { hasBlock: false, rawLength: 0, error: null } };
   }
-  const raw = match[1] ?? "";
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {

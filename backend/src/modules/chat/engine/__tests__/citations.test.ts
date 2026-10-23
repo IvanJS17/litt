@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
+import { join } from "node:path";
 import {
     parseCitations,
     parseCitationsWithDiagnostics,
@@ -41,6 +43,35 @@ describe("parseCitationsWithDiagnostics", () => {
         );
         expect(citations).toEqual([]);
         expect(diagnostics.error).toBe("CITATIONS block JSON was not an array.");
+    });
+
+    // The block is parsed again on every streamed chunk, so a missing close
+    // tag over a long answer must cost linear time. The regex form
+    // (<CITATIONS>\s*([\s\S]*?)\s*</CITATIONS>) backtracks the whitespace run
+    // one character at a time and never returns here; this proves the scan
+    // terminates by running it in a child process with a hard timeout.
+    it("does not spend unbounded time on a missing close tag", () => {
+        const steps = [
+            "const { parseCitationsWithDiagnostics } = require(process.argv[1]);",
+            "process.stdout.write(JSON.stringify(parseCitationsWithDiagnostics('<CITATIONS>' + '\\t'.repeat(20000))));",
+        ].join("\n");
+        const output = execFileSync(
+            process.execPath,
+            [
+                "--import",
+                "tsx",
+                "-e",
+                steps,
+                // Test files are typechecked as CommonJS here, where import.meta
+                // is unavailable; vitest runs from the backend package root.
+                join(process.cwd(), "src/modules/chat/engine/citations.ts"),
+            ],
+            { timeout: 5000, encoding: "utf8", stdio: "pipe" },
+        );
+        expect(JSON.parse(output)).toEqual({
+            citations: [],
+            diagnostics: { hasBlock: false, rawLength: 0, error: null },
+        });
     });
 });
 
