@@ -49,6 +49,7 @@ import { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { titleModelForChat } from "../../lib/modelSelection";
+import { parseCredentialRef } from "../user/user.service";
 import {
     releaseMemoryConversationTurn,
     scheduleMemoryConsolidation,
@@ -456,6 +457,7 @@ chatRouter.patch("/:chatId", requireAuth, asyncRoute(async (req, res) => {
         chatId,
         userId,
         chatModel: access.chat.model,
+        chatRow: access.chat,
         orgId: access.chat.org_id ?? null,
         ...(title !== undefined ? { title } : {}),
         ...(hasModel
@@ -530,6 +532,10 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     if (!parsedReasoning.ok) {
         return void res.status(400).json({ detail: parsedReasoning.detail });
     }
+    const parsedCredentialRef = parseCredentialRef(body.credential_ref);
+    if (!parsedCredentialRef.ok) {
+        return void res.status(400).json({ detail: parsedCredentialRef.detail });
+    }
     const parsedAskInputsResponse = parseOptionalAskInputsResponse(
         body.ask_inputs_response,
     );
@@ -571,6 +577,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         projectId: parsedProjectId.value.projectId,
         askInputsResponse,
         requestedModel: model,
+        requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
         requestedOrgId: req.body?.org_id,

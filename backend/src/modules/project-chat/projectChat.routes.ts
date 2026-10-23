@@ -43,6 +43,7 @@ import {
     logChatTitleFailure,
 } from "../chat/chat.service";
 import { titleModelForChat } from "../../lib/modelSelection";
+import { parseCredentialRef } from "../user/user.service";
 import {
     releaseMemoryConversationTurn,
     scheduleMemoryConsolidation,
@@ -102,6 +103,10 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
             .json({ detail: parsedAskInputsResponse.detail });
     }
 
+    const parsedCredentialRef = parseCredentialRef(req.body?.credential_ref);
+    if (!parsedCredentialRef.ok) {
+        return void res.status(400).json({ detail: parsedCredentialRef.detail });
+    }
     const messages = parsedMessages.value;
     const chat_id = parsedChatId.value;
     const model = parsedModel.value;
@@ -126,6 +131,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         attached_documents,
         askInputsResponse,
         requestedModel: model,
+        requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
     });

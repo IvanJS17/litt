@@ -33,7 +33,16 @@ import {
     type ChatMessage,
     type SubagentDefaults,
 } from "../chat/chat.service";
-import { getUserModelSettings, resolveUserChatSelection } from "../user/user.service";
+import {
+    chatRouteColumns,
+    chatRouteOf,
+    getUserModelSettings,
+    governChatRoute,
+    recordChatEgress,
+    resolveUserChatSelection,
+    titleModelForRoute,
+    type ChatRoute,
+} from "../user/user.service";
 import {
     checkProjectAccess,
     ensureChatAccess,
@@ -133,7 +142,10 @@ export type PreparedProjectChatStream = {
     workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
     legalResearchUs: boolean;
     webSearch: WebSearchPlan | null;
+    /** Only the conversation's pinned credential (see user.chatRoute). */
     apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
+    /** The provider + model + credential this conversation is fixed to. */
+    route: ChatRoute;
     /** The organization the chat belongs to, whose keys and model lists apply. */
     orgId: string | null;
     titleModel: Awaited<ReturnType<typeof getUserModelSettings>>["title_model"];
@@ -165,6 +177,8 @@ export async function prepareProjectChatStream(
         // instead of being stored as a new user message.
         askInputsResponse: AskInputsResponseRequest | null;
         requestedModel: string | null | undefined;
+        /** The credential chosen for a NEW chat; refused on a pinned one. */
+        requestedCredentialRef?: string | null;
         requestedReasoning:
             | ReturnType<typeof resolveEffectiveReasoningLevel>
             | undefined;
@@ -233,6 +247,11 @@ export async function prepareProjectChatStream(
     let chatId = args.chatId;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
+    let chatRouteRow: {
+        model?: string | null;
+        model_provider?: string | null;
+        credential_ref?: string | null;
+    } | null = null;
     let chatReasoningLevel: string | null = null;
 
     // The role this write is judged against. Starting a NEW chat is judged
@@ -245,7 +264,7 @@ export async function prepareProjectChatStream(
         const { data: existing } = await db
             .from("chats")
             .select(
-                "id, title, model, reasoning_level, project_id, user_id, org_id",
+                "id, title, model, model_provider, credential_ref, reasoning_level, project_id, user_id, org_id",
             )
             .eq("id", chatId)
             .maybeSingle();
@@ -254,6 +273,7 @@ export async function prepareProjectChatStream(
         else {
             chatTitle = existing!.title;
             chatModel = (existing!.model as string | null) ?? null;
+            chatRouteRow = existing;
             chatReasoningLevel =
                 (existing!.reasoning_level as string | null) ?? null;
             // Exactly the derivation GET /chat uses, so the two routes can
@@ -325,23 +345,41 @@ export async function prepareProjectChatStream(
         userId,
         chatModel,
         chatReasoningLevel,
-        requestedModel: args.requestedModel,
+        // A pinned chat resolves its own model; a different one is refused
+        // by governChatRoute below with chat_route_pinned.
+        requestedModel:
+            chatId && chatRouteRow && chatRouteOf(chatRouteRow)
+                ? undefined
+                : args.requestedModel,
         requestedReasoning: args.requestedReasoning,
         // The project's organization pays for its chats.
         orgId: projectAccess.project.org_id ?? null,
     });
     if (!selection.ok) return selection;
-    const { modelSettings, selectedModel, selectedReasoningLevel } = selection;
+    const { modelSettings, selectedReasoningLevel } = selection;
+
+    // Governed BYOK: the conversation's provider + model + credential are
+    // fixed when it is created; later turns use exactly that route.
+    const governed = await governChatRoute(db, {
+        userId,
+        orgId: projectAccess.project.org_id ?? null,
+        chat: chatId ? chatRouteRow : null,
+        requestedModel: args.requestedModel,
+        selectedModel: selection.selectedModel,
+        requestedCredentialRef: args.requestedCredentialRef,
+    });
+    if (!governed.ok) return governed;
+    const { route } = governed;
+    const selectedModel = route.model;
 
     if (
         chatId &&
-        (chatModel !== selectedModel ||
-            chatReasoningLevel !== selectedReasoningLevel)
+        (governed.pinNow || chatReasoningLevel !== selectedReasoningLevel)
     ) {
         const { error } = await db
             .from("chats")
             .update({
-                model: selectedModel,
+                ...(governed.pinNow ? chatRouteColumns(route) : {}),
                 reasoning_level: selectedReasoningLevel,
             })
             .eq("id", chatId);
@@ -364,7 +402,7 @@ export async function prepareProjectChatStream(
             .insert({
                 user_id: userId,
                 project_id: projectId,
-                model: selectedModel,
+                ...chatRouteColumns(route),
                 reasoning_level: selectedReasoningLevel,
                 org_id: resolvedOrg.orgId,
             })
@@ -375,6 +413,14 @@ export async function prepareProjectChatStream(
         chatId = newChat.id as string;
         chatTitle = newChat.title;
     }
+    await recordChatEgress(db, {
+        userId,
+        orgId: projectAccess.project.org_id ?? null,
+        chatId,
+        projectId,
+        surface: "project",
+        resolved: governed,
+    });
 
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let completedTurnPersisted = true;
@@ -537,10 +583,11 @@ export async function prepareProjectChatStream(
             systemPromptExtra += `\n\nUSER-ATTACHED DOCUMENTS FOR THIS TURN:\nThe user has attached the following document(s) directly to their latest message. Treat these as the primary focus of the request unless their message clearly says otherwise.\n${lines.join("\n")}`;
         }
 
+        // Only the pinned credential leaves this function.
+        const apiKeys = governed.apiKeys;
+        const titleModel = titleModelForRoute(route, modelSettings.title_model);
         const {
-            api_keys: apiKeys,
             legal_research_us: legalResearchUs,
-            title_model: titleModel,
             personalisation,
         } = modelSettings;
         const personalisationPrompt = buildUserPersonalisationPrompt(
@@ -592,6 +639,7 @@ export async function prepareProjectChatStream(
                     apiKeys,
                 ),
                 apiKeys,
+                route,
                 orgId: projectAccess.project.org_id ?? null,
                 titleModel,
                 subagentDefaults: {

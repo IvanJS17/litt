@@ -60,6 +60,8 @@ const {
         // the eq/not/order/limit chain genuinely applied (a mini query
         // engine), so tests can prove which assistant row a query picks.
         assistantMessageRows: null as Record<string, unknown>[] | null,
+        // Route columns merged into the default chat row (governed BYOK).
+        chatRoute: null as Record<string, unknown> | null,
     },
 }));
 
@@ -126,6 +128,7 @@ function makeQuery(table: string) {
             title: null,
             user_id: "u1",
             project_id: null,
+            ...(dbControl.chatRoute ?? {}),
         },
         error: null,
     };
@@ -432,6 +435,11 @@ vi.mock("../../lib/llm", async (importOriginal) => {
     };
 });
 
+// Governed BYOK pins each new conversation to one credential. These suites
+// run on the deployment's keys (env:<provider>); the personal and
+// organization credential paths are covered in user.chatRoute.test.ts.
+process.env.GEMINI_API_KEY ??= "test-key";
+process.env.OPENAI_API_KEY ??= "test-key";
 import { app } from "../../app";
 import { resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
 import { createServerSupabase } from "../../lib/supabase";
@@ -469,6 +477,7 @@ describe("POST /chat — streaming endpoint", () => {
         dbControl.wordChatMissing = false;
         dbControl.failContentGrantLookup = false;
         dbControl.assistantMessageRows = null;
+        dbControl.chatRoute = null;
         runLLMStream.mockResolvedValue({
             fullText: "hi there",
             events: [],
@@ -3739,5 +3748,84 @@ describe("server-owned turns: resume, stop, concurrency", () => {
         expect(unknown.body.code).toBe("turn_not_found");
         held.release();
         await firstDone;
+    });
+});
+
+describe("POST /chat — governed BYOK route", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        runLLMStream.mockReset();
+        dbInserts.length = 0;
+        dbUpdates.length = 0;
+        dbControl.chatRoute = null;
+        runLLMStream.mockResolvedValue({
+            fullText: "hi there",
+            events: [{ type: "content", text: "hi there" }],
+            citations: [],
+        });
+    });
+
+    it("pins a new chat to provider, model and credential when it is created", async () => {
+        const res = await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send(VALID_BODY);
+        expect(res.status).toBe(200);
+        const chatInsert = dbInserts.find(({ table }) => table === "chats");
+        expect(chatInsert?.value).toMatchObject({
+            model: "gemini-3.8-flash",
+            model_provider: "gemini",
+            credential_ref: "env:gemini",
+        });
+        // The provider layer receives only the pinned credential.
+        const streamArgs = runLLMStream.mock.calls[0]?.[0] as {
+            apiKeys?: { gemini?: string; disabledProviders?: string[] };
+        };
+        expect(streamArgs.apiKeys?.gemini).toBe("test-key");
+        expect(streamArgs.apiKeys?.disabledProviders).toContain("openai");
+        // Egress provenance is written before the provider is called.
+        const egress = dbInserts.find(
+            ({ table, value }) =>
+                table === "audit_events" &&
+                (value as { action?: string }).action === "llm.egress",
+        );
+        expect(egress?.value).toMatchObject({
+            model: "gemini-3.8-flash",
+            detail: {
+                provider: "gemini",
+                credential_ref: "env:gemini",
+                host: "generativelanguage.googleapis.com",
+            },
+        });
+    });
+
+    it("refuses another model on a pinned chat before anything streams", async () => {
+        dbControl.chatRoute = {
+            model: "gemini-3.8-flash",
+            model_provider: "gemini",
+            credential_ref: "env:gemini",
+        };
+        const res = await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, chat_id: "chat-1", model: "gpt-6.1-sol" });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe("chat_route_pinned");
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when the pinned credential is gone, without another key", async () => {
+        dbControl.chatRoute = {
+            model: "gemini-3.8-flash",
+            model_provider: "gemini",
+            credential_ref: "user:u1:gemini:v4",
+        };
+        const res = await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, chat_id: "chat-1" });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe("chat_route_credential_unavailable");
+        expect(runLLMStream).not.toHaveBeenCalled();
     });
 });

@@ -200,6 +200,11 @@ vi.mock("../../lib/access", () => ({
   resolveContentOrgId: vi.fn(async () => ({ ok: true, orgId: null })),
 }));
 
+// Governed BYOK pins each new conversation to one credential. These suites
+// run on the deployment's keys (env:<provider>); the personal and
+// organization credential paths are covered in user.chatRoute.test.ts.
+process.env.GEMINI_API_KEY ??= "test-key";
+process.env.OPENAI_API_KEY ??= "test-key";
 import { app } from "../../app";
 import { getActiveAssistantTurn, resetAssistantTurnRunsForTests } from "../../lib/assistantTurnRuns";
 import { spotlight } from "../../modules/chat/engine/index";

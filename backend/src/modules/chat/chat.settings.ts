@@ -13,7 +13,7 @@
 // DB preparation live here. `prepareChatStream` returns the prepared data the
 // route needs to run the stream; it does not stream.
 import { type Db } from "../../lib/supabase";
-import { getUserModelSettings, persistLastSelectedChatModel, persistLastSelectedReasoningLevel } from "../user/user.service";
+import { chatRouteOf, getUserModelSettings, persistLastSelectedChatModel, persistLastSelectedReasoningLevel } from "../user/user.service";
 import { resolveEffectiveChatModel, resolveEffectiveReasoningLevel } from "../../lib/modelSelection";
 
 // PATCH /chat/:chatId — title and/or per-chat model + reasoning selection.
@@ -29,6 +29,12 @@ export async function updateChatSettings(
         userId: string;
         /** The chat's currently stored model, for model resolution. */
         chatModel: string | null;
+        /** The stored route columns: a pinned chat never changes model. */
+        chatRow?: {
+            model?: string | null;
+            model_provider?: string | null;
+            credential_ref?: string | null;
+        };
         /** The chat's organization, whose keys decide which models it has. */
         orgId?: string | null;
         title?: string;
@@ -53,7 +59,17 @@ export async function updateChatSettings(
     const updates: Record<string, unknown> = {};
     if (hasTitle) updates.title = args.title;
 
-    if (hasModel) {
+    const pinned = args.chatRow ? chatRouteOf(args.chatRow) : null;
+    if (hasModel && pinned && args.requestedModel !== pinned.model) {
+        return {
+            ok: false,
+            kind: "model",
+            status: 409,
+            code: "chat_route_pinned",
+            detail: "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+        };
+    }
+    if (hasModel && !pinned) {
         const settings = await getUserModelSettings(args.userId, db, {
             orgId: args.orgId,
         });

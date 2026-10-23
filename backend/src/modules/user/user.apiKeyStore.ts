@@ -44,7 +44,7 @@ export type ApiKeyOwner =
     | { kind: "user"; id: string }
     | { kind: "org"; id: string };
 
-const OWNER_TABLE = {
+export const OWNER_TABLE = {
     user: { table: "user_api_keys", column: "user_id" },
     org: { table: "org_api_keys", column: "org_id" },
 } as const;
@@ -70,7 +70,7 @@ export type ApiKeyStatus = Record<ApiKeyProvider, boolean> & {
     settings: ProviderSettings;
 };
 
-type EncryptedKeyRow = {
+export type EncryptedKeyRow = {
     provider: ApiKeyProvider;
     encrypted_key: string;
     iv: string;
@@ -144,7 +144,7 @@ export function normalizeProviderSettings(
     return baseUrl ? { custom: { baseUrl } } : null;
 }
 
-function envApiKey(provider: ApiKeyProvider): string | null {
+export function envApiKey(provider: ApiKeyProvider): string | null {
     switch (provider) {
         case "claude":
             return (
@@ -236,7 +236,7 @@ function encrypt(value: string): Omit<EncryptedKeyRow, "provider"> {
     };
 }
 
-function decrypt(row: EncryptedKeyRow): string | null {
+export function decrypt(row: EncryptedKeyRow): string | null {
     try {
         const decipher = crypto.createDecipheriv(
             "aes-256-gcm",
@@ -419,7 +419,7 @@ function overlayStatusRows(
 }
 
 /** The deployment's own keys: what everybody has before any saved key. */
-function envApiKeys(): UserApiKeys {
+export function envApiKeys(): UserApiKeys {
     const apiKeys: UserApiKeys = {
         claude: envApiKey("claude"),
         gemini: envApiKey("gemini"),
@@ -491,7 +491,7 @@ function isMissingOrgKeySchema(error: unknown): boolean {
  * the person is not a member, or the organization is gone — and otherwise
  * whether their own keys may sit beneath the organization's.
  */
-async function loadOrgKeyScope(
+export async function loadOrgKeyScope(
     userId: string,
     orgId: string,
     db: Db,

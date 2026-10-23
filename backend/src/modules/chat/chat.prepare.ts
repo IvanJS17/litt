@@ -21,7 +21,16 @@ import {
 import { resolveRequestTimeZone } from "../../lib/userTime";
 import { attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentDefaults } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
-import { getUserModelSettings, resolveUserChatSelection } from "../user/user.service";
+import {
+    chatRouteColumns,
+    chatRouteOf,
+    getUserModelSettings,
+    governChatRoute,
+    recordChatEgress,
+    resolveUserChatSelection,
+    titleModelForRoute,
+    type ChatRoute,
+} from "../user/user.service";
 import {
     checkProjectAccess,
     projectHasSharedAudience,
@@ -80,7 +89,10 @@ export type PreparedChatStream = {
     workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
     legalResearchUs: boolean;
     webSearch: WebSearchPlan | null;
+    /** Only the conversation's pinned credential (see user.chatRoute). */
     apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
+    /** The provider + model + credential this conversation is fixed to. */
+    route: ChatRoute;
     /** The organization the chat belongs to, whose keys and model lists apply. */
     orgId: string | null;
     titleModel: Awaited<
@@ -113,6 +125,8 @@ export async function prepareChatStream(
         // instead of being stored as a new user message.
         askInputsResponse: AskInputsResponseRequest | null;
         requestedModel: string | null | undefined;
+        /** The credential chosen for a NEW chat; refused on a pinned one. */
+        requestedCredentialRef?: string | null;
         requestedReasoning:
             | ReturnType<typeof resolveEffectiveReasoningLevel>
             | undefined;
@@ -137,6 +151,11 @@ export async function prepareChatStream(
     let chatId = args.chatId;
     let chatTitle: string | null = null;
     let chatModel: string | null = null;
+    let chatRouteRow: {
+        model?: string | null;
+        model_provider?: string | null;
+        credential_ref?: string | null;
+    } | null = null;
     let chatReasoningLevel: string | null = null;
     let resolvedProjectId: string | null = args.projectId;
     let canReadProjectMemory = false;
@@ -204,6 +223,7 @@ export async function prepareChatStream(
         }
         chatTitle = existing.title;
         chatModel = existing.model;
+        chatRouteRow = existing;
         chatReasoningLevel = existing.reasoning_level;
         contentOrgId = existing.org_id ?? null;
         if (existingProjectId) {
@@ -308,22 +328,40 @@ export async function prepareChatStream(
         userId,
         chatModel,
         chatReasoningLevel,
-        requestedModel: args.requestedModel,
+        // A pinned chat resolves its own model; a different one is refused
+        // by governChatRoute below with chat_route_pinned.
+        requestedModel:
+            chatId && chatRouteRow && chatRouteOf(chatRouteRow)
+                ? undefined
+                : args.requestedModel,
         requestedReasoning: args.requestedReasoning,
         orgId: contentOrgId,
     });
     if (!selection.ok) return selection;
-    const { modelSettings, selectedModel, selectedReasoningLevel } = selection;
+    const { modelSettings, selectedReasoningLevel } = selection;
+
+    // Governed BYOK: the conversation's provider + model + credential are
+    // fixed when it is created; later turns use exactly that route.
+    const governed = await governChatRoute(db, {
+        userId,
+        orgId: contentOrgId,
+        chat: chatId ? chatRouteRow : null,
+        requestedModel: args.requestedModel,
+        selectedModel: selection.selectedModel,
+        requestedCredentialRef: args.requestedCredentialRef,
+    });
+    if (!governed.ok) return governed;
+    const { route } = governed;
+    const selectedModel = route.model;
 
     if (
         chatId &&
-        (chatModel !== selectedModel ||
-            chatReasoningLevel !== selectedReasoningLevel)
+        (governed.pinNow || chatReasoningLevel !== selectedReasoningLevel)
     ) {
         const { error } = await db
             .from("chats")
             .update({
-                model: selectedModel,
+                ...(governed.pinNow ? chatRouteColumns(route) : {}),
                 reasoning_level: selectedReasoningLevel,
             })
             .eq("id", chatId);
@@ -350,7 +388,7 @@ export async function prepareChatStream(
             .insert({
                 user_id: userId,
                 project_id: resolvedProjectId,
-                model: selectedModel,
+                ...chatRouteColumns(route),
                 reasoning_level: selectedReasoningLevel,
                 org_id: contentOrgId,
             })
@@ -380,6 +418,14 @@ export async function prepareChatStream(
     }
 
     devLog("[chat/stream] resolved chatId", chatId);
+    await recordChatEgress(db, {
+        userId,
+        orgId: contentOrgId,
+        chatId,
+        projectId: resolvedProjectId,
+        surface: resolvedProjectId ? "project" : "assistant",
+        resolved: governed,
+    });
 
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let completedTurnPersisted = true;
@@ -493,12 +539,14 @@ export async function prepareChatStream(
             "chat_messages",
             timeZone,
         );
+        // Only the pinned credential leaves this function: titles, tools and
+        // helpers of this turn cannot reach another key or provider.
+        const apiKeys = governed.apiKeys;
         const {
-            api_keys: apiKeys,
             legal_research_us: legalResearchUs,
-            title_model: titleModel,
             personalisation,
         } = modelSettings;
+        const titleModel = titleModelForRoute(route, modelSettings.title_model);
         const personalisationPrompt = buildUserPersonalisationPrompt(
             personalisation,
             nonce,
@@ -548,6 +596,7 @@ export async function prepareChatStream(
                     apiKeys,
                 ),
                 apiKeys,
+                route,
                 orgId: contentOrgId,
                 titleModel,
                 subagentDefaults: {

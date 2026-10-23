@@ -125,6 +125,19 @@ export {
 } from "./user.apiKeyStore";
 
 export { resolveUserChatSelection } from "./user.chatSelection";
+export {
+    chatRouteColumns,
+    chatRouteOf,
+    governChatRoute,
+    loadPinnedChatRoute,
+    parseCredentialRef,
+    pinChatRoute,
+    recordChatEgress,
+    titleModelForRoute,
+    type ChatRoute,
+    type ChatRouteFailure,
+    type ResolvedChatRoute,
+} from "./user.chatRoute";
 
 export { handleAccountDelete } from "./user.accountJobs";
 export { handleExportBuild } from "./user.exportJobs";
