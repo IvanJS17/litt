@@ -39,6 +39,10 @@ vi.mock("../../../../lib/webSearch", async () => ({
   searchWeb,
 }));
 
+// These suites exercise the mechanism as an operator who switched it on
+// (lib/chatFeatureGates.ts); the shipped default is chatFeatureGates.test.ts.
+process.env.LITT_CHAT_WEB_SEARCH = "enabled";
+
 import { runLLMStream, sanitizeAssistantSseChunk } from "../streaming";
 
 type StreamChatCall = {

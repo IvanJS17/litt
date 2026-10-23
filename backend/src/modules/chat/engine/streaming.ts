@@ -13,12 +13,15 @@ import {
 import { resolveRequestedModel } from "../../../lib/routerModels";
 import {
   resolveEffectiveChatModel,
-  sameProviderModels,
 } from "../../../lib/modelSelection";
 import { UserFacingError } from "../../../lib/userFacingError";
 import { InvalidApiKeyError } from "../../../lib/llm/apiKeyErrors";
 import { reportError } from "../../../lib/observability/sentry";
 import { safeError } from "../../../lib/safeError";
+import {
+  chatSubagentsEnabled,
+  chatWebSearchEnabled,
+} from "../../../lib/chatFeatureGates";
 import type { Db } from "../../../lib/supabase";
 import { buildUserMcpTools } from "../../../lib/mcpConnectors";
 import { buildGoogleDriveTools } from "../../../lib/integrations/googleDrive";
@@ -348,7 +351,7 @@ export async function runLLMStream(params: {
     write: unsafeWrite,
     extraTools,
     includeResearchTools = true,
-    webSearch = null,
+    webSearch: requestedWebSearch = null,
     includeAskInputs = true,
     connectorApprovals = false,
     allowDocumentMutation = true,
@@ -366,10 +369,14 @@ export async function runLLMStream(params: {
     memorySharedAudience = false,
     nonce,
     conversationId,
-    subagentRuns = null,
+    subagentRuns: requestedSubagentRuns = null,
     subagentDefaults,
     subagentRun,
   } = params;
+  // LiTT gates (lib/chatFeatureGates.ts): off unless the operator turns them
+  // on, whatever the user's own settings say.
+  const webSearch = chatWebSearchEnabled() ? requestedWebSearch : null;
+  const subagentRuns = chatSubagentsEnabled() ? requestedSubagentRuns : null;
   const write = (chunk: string) =>
     unsafeWrite(sanitizeAssistantSseChunk(chunk));
   const isSubagent = subagentRun !== undefined;
@@ -404,7 +411,8 @@ export async function runLLMStream(params: {
     ...PLAYBOOK_TOOLS,
     ...webTools,
     ...(subagentRuns && chatModel
-      ? [delegateTool(chatModel, sameProviderModels(chatModel, apiKeys ?? {}))]
+      ? // A subagent runs on the conversation's pinned route only.
+        [delegateTool(chatModel, [chatModel])]
       : []),
   ];
   const advertisedTools = [
@@ -633,6 +641,9 @@ export async function runLLMStream(params: {
     docIndex,
     runStore,
     checkModel: async (requested) => {
+      // The conversation is fixed to one model and credential: a subagent
+      // may name only that model.
+      if (requested !== selectedModel) return null;
       const checked = await resolveEffectiveChatModel({
         requested,
         apiKeys: apiKeys ?? {},

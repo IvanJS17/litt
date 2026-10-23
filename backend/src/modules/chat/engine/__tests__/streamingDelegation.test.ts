@@ -39,6 +39,10 @@ vi.mock("../tools/toolDispatcher", () => ({ runToolCalls }));
 
 import type { DelegationEvent } from "@mike/contracts";
 import { buildMessages, spotlight } from "../contextBuilders";
+// These suites exercise the mechanism as an operator who switched it on
+// (lib/chatFeatureGates.ts); the shipped default is chatFeatureGates.test.ts.
+process.env.LITT_CHAT_SUBAGENTS = "enabled";
+
 import { runLLMStream } from "../streaming";
 import {
   createDelegateTurnState,
@@ -158,20 +162,23 @@ describe("runLLMStream delegation", () => {
     expect(subagentResults[0].content).toContain("not available");
   });
 
-  it("offers the chat provider's models and runs a subagent on the one it names", async () => {
-    let subagentModel = "";
-    parentDelegates([delegate("d1", { model: "gemini-3.1-pro-preview" })], async (params) => {
-      subagentModel = params.model;
-      return { fullText: "Brief." };
-    });
+  it("runs a subagent on the chat's own pinned model, whatever model or tier it names (LiTT)", async () => {
+    const subagentModels: string[] = [];
+    parentDelegates(
+      [delegate("d1", { model: "gemini-3.1-pro-preview" }), delegate("d2", { model: "light" })],
+      async (params) => {
+        subagentModels.push(params.model);
+        return { fullText: "Brief." };
+      },
+    );
 
     await runLLMStream({ ...baseParams(), apiKeys: { gemini: "key", openrouter: "key" } });
 
     const parentTools = streamChatWithTools.mock.calls[0][0].tools;
     const schema = JSON.stringify(parentTools.find((t) => t.function.name === "delegate"));
-    expect(schema).toContain("gemini-3.1-pro-preview");
+    expect(schema).not.toContain("gemini-3.1-pro-preview");
     expect(schema).not.toContain("openrouter");
-    expect(subagentModel).toBe("gemini-3.1-pro-preview");
+    expect(subagentModels).toEqual(["gemini-3.8-flash", "gemini-3.8-flash"]);
   });
 
   it("tells the assistant the user's subagent defaults and runs at the reasoning it asks for", async () => {

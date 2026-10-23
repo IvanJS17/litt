@@ -13,7 +13,7 @@ import type {
     TokenUsage,
 } from "../../../../lib/llm";
 import { REASONING_LEVELS, type ReasoningLevel } from "../../../../lib/llm/types";
-import { DELEGATION_MODEL_TIERS, subagentModelFor } from "../../../../lib/modelSelection";
+import { DELEGATION_MODEL_TIERS } from "../../../../lib/modelSelection";
 import { CITATIONS_OPEN_TAG } from "../citations";
 import { spotlight, withDocumentList } from "../contextBuilders";
 import { resolveDocLabel, type DocIndex, type DocStore } from "../types";
@@ -592,7 +592,7 @@ export async function runDelegateCall(
         ctx.state.started -= 1;
         return refusal(delegation.error);
     }
-    const { task, continuedFrom, earlier, title, documents, effort, tier } = delegation;
+    const { task, continuedFrom, earlier, title, documents, effort } = delegation;
     const scoped = documents !== undefined;
     const { docStore, docIndex } = scoped
         ? scopedDocuments(ctx.docStore, ctx.docIndex, documents)
@@ -601,7 +601,9 @@ export async function runDelegateCall(
         ? withDocumentList(ctx.systemPrompt, docStore, ctx.nonce)
         : ctx.systemPrompt;
     const preset = EFFORT_PRESETS[effort];
-    const model = delegation.model ?? subagentModelFor(ctx.chatModel, tier);
+    // LiTT: every model call of a conversation follows its pinned route, so
+    // a subagent runs on the chat's own model whatever tier it names.
+    const model = delegation.model ?? ctx.chatModel;
     const reasoning =
         delegation.reasoning ??
         (preset.reasoning
