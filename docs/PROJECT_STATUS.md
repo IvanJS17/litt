@@ -4,7 +4,7 @@
 > not the project roadmap or source of truth.
 
 **Last reconciled:** 2026-10-21<br>
-**Repository:** `IvanJS17/mike`<br>
+**Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
