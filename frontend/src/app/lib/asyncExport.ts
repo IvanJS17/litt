@@ -9,6 +9,7 @@ import {
     startUserExport,
     type UserExportType,
 } from "@/app/lib/mikeApi";
+import { UserVisibleError } from "@/shared/lib/userError";
 
 // Tests drive the loop with fake-fast polling; 2s is the interactive rate.
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;
@@ -22,11 +23,18 @@ export async function runUserExport(
     for (let i = 0; i < POLL_LIMIT; i++) {
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
         const status = await getUserExportStatus(export_id);
-        if (status.status === "failed") throw new Error("Export build failed");
+        if (status.status === "failed")
+            throw new UserVisibleError(
+                "LiTT couldn't build the export. Try again, and contact support if it keeps happening.",
+                { retryable: true },
+            );
         if (status.status === "done") {
             const { blob, filename } = await downloadUserExport(export_id);
             return { blob, filename: filename ?? status.filename };
         }
     }
-    throw new Error("Export timed out");
+    throw new UserVisibleError(
+        "The export is taking longer than expected. It may still be building, so try again in a few minutes.",
+        { retryable: true },
+    );
 }

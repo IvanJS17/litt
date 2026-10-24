@@ -1030,8 +1030,8 @@ export async function deleteUserAccountData(
                   .eq("shared_with_email", userEmail.trim().toLowerCase())
             : Promise.resolve({ error: null }),
         // audit_events is insert-only in LiTT (migration 20261023_11, C3):
-        // no cleanup deletes or rewrites it. What account erasure may do with
-        // audit history is TD-008's decision (user.retentionGate.ts).
+        // no cleanup deletes or rewrites it. Account erasure keeps it and the
+        // rows show "Deleted user" (owner decision 2026-10-24, TD-008).
         db.from("quick_actions").delete().eq("user_id", userId),
         db
             .from("default_workflow_installations")

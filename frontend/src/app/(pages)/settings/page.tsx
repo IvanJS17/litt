@@ -10,7 +10,8 @@ import { FieldLabel } from "@/app/components/ui/form-field";
 import { SettingsTextInput } from "@/app/components/settings/SettingsTextInput";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
-import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
+import { DeleteAccountModal } from "@/app/components/settings/DeleteAccountModal";
+import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
 import {
   MfaVerificationPopup,
   needsMfaVerification,
@@ -59,7 +60,7 @@ const EMAIL_RATE_LIMIT_CODES = new Set([
 /** Composes authenticated account settings, including profile-photo editing and account security controls. */
 export default function SettingsPage() {
   const router = useRouter();
-  const { user, signOut, updateEmail } = useAuth();
+  const { user, updateEmail } = useAuth();
   const { profile, updateDisplayName } = useUserProfile();
   const [displayName, setDisplayName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
@@ -115,9 +116,11 @@ export default function SettingsPage() {
         setIsDeleting(false);
         return;
       }
-      await deleteAccount();
-      await signOut();
-      router.push("/");
+      const { receipt_token } = await deleteAccount();
+      // The session is revoked server-side; /account-deleted follows the
+      // erasure with this token and signs out after showing the receipt.
+      sessionStorage.setItem(ACCOUNT_DELETION_TOKEN_KEY, receipt_token);
+      router.push("/account-deleted");
     } catch (error) {
       setIsDeleting(false);
       devLog("[account/mfa] delete account failed", {
@@ -341,7 +344,7 @@ export default function SettingsPage() {
             <div className="min-w-0 space-y-1">
               <SettingsLabel>Delete account</SettingsLabel>
               <SettingsDescription>
-                Permanently delete your account and personal workspace. Organization work follows the member removal policy.
+                Permanently delete your account and everything you keep outside your firm&rsquo;s matters. You can download your data first.
               </SettingsDescription>
             </div>
             <PillButtonUI
@@ -358,18 +361,11 @@ export default function SettingsPage() {
           </SettingsRow>
         </GlassCardUI>
       </section>
-      <ConfirmPopup
+      <DeleteAccountModal
         open={deleteConfirm}
-        title="Delete account?"
-        message="This permanently deletes your account and personal workspace. In each organization, shared work without another owner transfers to a remaining organization owner. Unshared private work is retained for 30 days for organization owners to recover or delete. You must appoint another owner or delete any organization you solely own first."
-        confirmLabel="Delete"
-        confirmVariant="danger"
-        confirmStatus={isDeleting ? "loading" : "idle"}
-        cancelLabel="Cancel"
-        onCancel={() => {
-          if (isDeleting) return;
-          setDeleteConfirm(false);
-        }}
+        email={user.email}
+        deleting={isDeleting}
+        onCancel={() => setDeleteConfirm(false)}
         onConfirm={() => void handleDeleteAccount()}
       />
       <WarningPopup

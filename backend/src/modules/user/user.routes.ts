@@ -32,7 +32,6 @@ import { sendServiceFailure } from "../../lib/serviceResult";
 import { dbJobsEnabled } from "../../lib/dbq/runner";
 import { buildContentDisposition } from "../../lib/storage";
 import { normalizeApiKeyProvider } from "./user.apiKeyStore";
-import { ACCOUNT_DELETION_REFUSAL } from "./user.retentionGate";
 import { completeUserMcpConnectorOAuth } from "../../lib/mcpConnectors";
 import { conciseMcpErrorMessage } from "../../lib/mcp/errors";
 import {
@@ -62,6 +61,7 @@ import {
     deletePrivateMemories,
     deleteUserAccount,
     describeAccountDeletionBlockers,
+    readAccountDeletionReceipt,
     deleteUserChats,
     deleteUserProjectsData,
     deleteUserTabularReviews,
@@ -1415,23 +1415,20 @@ userRouter.patch(
     }),
 );
 
-// DELETE /user/account
+// DELETE /user/account — start erasing the caller's account. 202 with the
+// receipt token: the session is revoked here, so the token is how the page
+// follows progress and shows the receipt before signing out.
 userRouter.delete(
     "/account",
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (_req, res) => {
         const userId = res.locals.userId as string;
-        const userEmail = res.locals.userEmail as string | undefined;
         const token = res.locals.token as string | undefined;
         const db = createServerSupabase();
-        const result = await deleteUserAccount(db, userId, userEmail, token);
+        const result = await deleteUserAccount(db, userId, token);
         if (!result.ok) {
-            if (result.kind === "account_deletion_unavailable")
-                return void res
-                    .status(405)
-                    .json({ detail: ACCOUNT_DELETION_REFUSAL });
-            if ("kind" in result && result.kind === "org_successor_required")
+            if (result.kind === "org_successor_required")
                 return void res.status(409).json({
                     code: "org_successor_required",
                     detail: describeAccountDeletionBlockers(result.blockers),
@@ -1439,7 +1436,31 @@ userRouter.delete(
                 });
             return void sendInternalError(res, result.error);
         }
-        res.status(204).send();
+        res.status(202).json({ receipt_token: result.receiptToken });
+    }),
+);
+
+// POST /user/account/deletion-receipt — no session: the account's sessions
+// were revoked when deletion started. The bearer token from DELETE
+// /user/account is the credential (a POST body, so it never lands in a URL
+// or an access log).
+userRouter.post(
+    "/account/deletion-receipt",
+    asyncRoute(async (req, res) => {
+        const token = (req.body as { token?: unknown } | undefined)?.token;
+        if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token))
+            return void res.status(400).json({
+                code: "invalid_request",
+                detail: "A deletion receipt token is required.",
+            });
+        const result = await readAccountDeletionReceipt(createServerSupabase(), token);
+        if (!result.ok) return void sendInternalError(res, result.error);
+        if (!result.receipt)
+            return void res.status(404).json({
+                code: "account_deletion_receipt_not_found",
+                detail: "This deletion receipt is no longer available.",
+            });
+        res.json(result.receipt);
     }),
 );
 

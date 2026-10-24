@@ -105,9 +105,8 @@ maybeDescribe("workspace list isolation", () => {
         // refused, so the disposable stack keeps these synthetic organizations.
         expect((await db.from("organizations").delete().in("id", orgs)).error?.code).toBe("0A000");
         if (reader) expect((await db.auth.admin.deleteUser(reader)).error).toBeNull();
-        // The owner has audit history, and audit_events is insert-only (C3),
-        // so deleting that account is refused as well (TD-008); it stays with
-        // its organizations.
+        // The owner still owns these organizations, which cannot be deleted
+        // (C5), so the owner's account stays with them.
     });
 
     const ids = async (rpc: string, args: Record<string, unknown>) => {

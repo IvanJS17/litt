@@ -168,6 +168,16 @@ describe("audit event presentation", () => {
     expect(
       auditActor({ ...event, user_display_name: null, user_email: null }),
     ).toBe("Unknown user");
+    // An erased account has no profile left: it reads as deleted, whatever
+    // an older audit row recorded.
+    expect(
+      auditActor({
+        ...event,
+        user_display_name: null,
+        user_email: null,
+        user_deleted: true,
+      }),
+    ).toBe("Deleted user");
     expect(auditTimestamp(event.created_at, true)).toBe(
       new Date(event.created_at).toLocaleString(undefined, {
         day: "numeric",

@@ -34,15 +34,6 @@ vi.mock("../../modules/user/user.dataCleanup", () => ({
     listOrgsBlockingAccountDeletion: () => listOrgsBlockingAccountDeletion(),
 }));
 
-// TD-008 retention gate: closed for real (see the refusal test below); the
-// upstream cascade tests open it.
-const accountDeletionGate = vi.hoisted(() => ({ open: true }));
-vi.mock("../../modules/user/user.retentionGate", async (importOriginal) => {
-    const actual =
-        await importOriginal<typeof import("../../modules/user/user.retentionGate")>();
-    return { ...actual, accountDeletionAvailable: () => accountDeletionGate.open };
-});
-
 const buildUserAccountExport =
     vi.fn<
         (
@@ -136,6 +127,7 @@ vi.mock("../../lib/storage", () => ({
     downloadFile: (...a: unknown[]) => downloadFile(...a),
 }));
 
+import { ACCOUNT_DELETION_RECEIPT } from "../../modules/user/user.service";
 import {
     handleChatTurnAudit,
     handleAccountDelete,
@@ -223,12 +215,39 @@ function makeDb(selectData: unknown[] = []) {
         };
         return b;
     }
+    const rpc = vi.fn(
+        async (
+            name: string,
+            _args?: Record<string, unknown>,
+        ): Promise<{ data: null; error: { message: string } | null }> => {
+            trace.push(`rpc:${name}`);
+            return { data: null, error: null };
+        },
+    );
+    const getUserById = vi.fn(
+        async (
+            _id: string,
+        ): Promise<{
+            data: { user: Record<string, unknown> | null };
+            error: { message: string } | null;
+        }> => ({
+            data: {
+                user: {
+                    id: "u1",
+                    email: "U@X.test",
+                    email_confirmed_at: "2026-01-01T00:00:00Z",
+                },
+            },
+            error: null,
+        }),
+    );
     return {
         deletes,
         selects,
         trace,
         from,
-        auth: { admin: { deleteUser: authDeleteUser } },
+        rpc,
+        auth: { admin: { deleteUser: authDeleteUser, getUserById } },
     };
 }
 
@@ -290,24 +309,76 @@ describe("handleChatTurnAudit", () => {
 });
 
 describe("handleAccountDelete", () => {
-    it("refuses, terminally, before any read or write while TD-008 is open", async () => {
-        accountDeletionGate.open = false;
-        try {
-            const db = makeDb([]);
-            await expect(
-                handleAccountDelete(
-                    db as never,
-                    JOB("account.delete", { userId: "u1", userEmail: "u@x.test" }),
-                ),
-            ).rejects.toThrow(new NonRetryableJobError("account_deletion_unavailable"));
-            expect(listOrgsBlockingAccountDeletion).not.toHaveBeenCalled();
-            expect(deleteUserAccountData).not.toHaveBeenCalled();
-            expect(db.auth.admin.deleteUser).not.toHaveBeenCalled();
-            expect(db.deletes).toHaveLength(0);
-            expect(db.selects).toHaveLength(0);
-        } finally {
-            accountDeletionGate.open = true;
-        }
+    it("reads the address from the confirmed Auth user, never from the job payload", async () => {
+        const db = makeDb([]);
+        await handleAccountDelete(
+            db as never,
+            JOB("account.delete", { userId: "u1" }),
+        );
+        expect(db.auth.admin.getUserById).toHaveBeenCalledWith("u1");
+        expect(deleteUserAccountData).toHaveBeenCalledWith(db, "u1", "u@x.test");
+    });
+
+    it("does not match grants by an address the account never confirmed", async () => {
+        const db = makeDb([]);
+        db.auth.admin.getUserById.mockResolvedValue({
+            data: { user: { id: "u1", email: "u@x.test", email_confirmed_at: null } },
+            error: null,
+        });
+        await handleAccountDelete(
+            db as never,
+            JOB("account.delete", { userId: "u1" }),
+        );
+        expect(deleteUserAccountData).toHaveBeenCalledWith(db, "u1", null);
+    });
+
+    it("closes the receipt only after the Auth user is gone", async () => {
+        const db = makeDb([]);
+        await handleAccountDelete(
+            db as never,
+            JOB("account.delete", { userId: "u1" }),
+        );
+        expect(db.trace.slice(-2)).toEqual([
+            "auth.deleteUser",
+            "rpc:complete_account_deletion",
+        ]);
+        const [, args] = db.rpc.mock.calls.at(-1)!;
+        expect(args).toEqual({
+            p_user_id: "u1",
+            p_receipt: ACCOUNT_DELETION_RECEIPT,
+        });
+        // What was deleted, and what was kept and why.
+        expect(ACCOUNT_DELETION_RECEIPT.deleted.length).toBeGreaterThan(0);
+        expect(ACCOUNT_DELETION_RECEIPT.retained.map((r) => r.item)).toEqual(
+            expect.arrayContaining([
+                expect.stringMatching(/matter/i),
+                expect.stringMatching(/audit/i),
+                expect.stringMatching(/backup/i),
+            ]),
+        );
+    });
+
+    it("resumes an erasure whose Auth user is already gone by only closing the receipt", async () => {
+        const db = makeDb([]);
+        db.auth.admin.getUserById.mockResolvedValue({
+            data: { user: null },
+            error: { message: "User not found" },
+        });
+        await handleAccountDelete(
+            db as never,
+            JOB("account.delete", { userId: "u1" }),
+        );
+        expect(deleteUserAccountData).not.toHaveBeenCalled();
+        expect(db.auth.admin.deleteUser).not.toHaveBeenCalled();
+        expect(db.trace).toEqual(["rpc:complete_account_deletion"]);
+    });
+
+    it("retries when the receipt cannot be closed", async () => {
+        const db = makeDb([]);
+        db.rpc.mockResolvedValue({ data: null, error: { message: "db down" } });
+        await expect(
+            handleAccountDelete(db as never, JOB("account.delete", { userId: "u1" })),
+        ).rejects.toThrow(/receipt/);
     });
 
     it("refuses, terminally, before destroying anything when an org blocks it", async () => {
@@ -324,7 +395,7 @@ describe("handleAccountDelete", () => {
         await expect(
             handleAccountDelete(
                 db as never,
-                JOB("account.delete", { userId: "u1", userEmail: "u@x.test" }),
+                JOB("account.delete", { userId: "u1" }),
             ),
         ).rejects.toThrow(NonRetryableJobError);
 
@@ -337,7 +408,7 @@ describe("handleAccountDelete", () => {
         const db = makeDb([]);
         await handleAccountDelete(
             db as never,
-            JOB("account.delete", { userId: "u1", userEmail: "u@x.test" }),
+            JOB("account.delete", { userId: "u1" }),
         );
         expect(deleteUserAccountData).toHaveBeenCalledWith(db, "u1", "u@x.test");
         // Three purge deletes (direct user, audit base, and memory actor),
@@ -364,12 +435,13 @@ describe("handleAccountDelete", () => {
 
         await handleAccountDelete(
             db as never,
-            JOB("account.delete", { userId: "u1", userEmail: "u@x.test" }),
+            JOB("account.delete", { userId: "u1" }),
         );
 
         expect(db.auth.admin.deleteUser).toHaveBeenCalledWith("u1");
         expect(db.trace[0]).toBe("cascade");
-        expect(db.trace.at(-1)).toBe("auth.deleteUser");
+        // Only the receipt is closed after it.
+        expect(db.trace.at(-2)).toBe("auth.deleteUser");
     });
 
     it("treats an already-deleted auth user as success (a retry got this far)", async () => {
