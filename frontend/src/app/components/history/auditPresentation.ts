@@ -130,6 +130,7 @@ function detailText(event: AuditEvent, key: string): string | null {
 }
 
 export function auditActor(event: AuditEvent): string {
+  if (event.user_deleted) return "Deleted user";
   return (
     event.user_display_name ||
     event.user_email ||

@@ -1,15 +1,20 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import SettingsPage from "./page";
 import { deleteAccount } from "@/app/lib/mikeApi";
 import { ToastViewportUI, clearToasts } from "@/shared/ui/ToastUI";
+import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
+import { needsMfaVerification } from "@/app/components/popups/MfaVerificationPopup";
 
 const state = vi.hoisted(() => ({
     push: vi.fn(),
     signOut: vi.fn(),
     deleteAccount: vi.fn(),
+    startUserExport: vi.fn(),
+    getUserExportStatus: vi.fn(),
+    downloadUserExport: vi.fn(),
     updateEmail: vi.fn(),
     updateDisplayName: vi.fn(),
     updateOrganisation: vi.fn(),
@@ -56,6 +61,9 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
     deleteAccount: state.deleteAccount,
+    startUserExport: state.startUserExport,
+    getUserExportStatus: state.getUserExportStatus,
+    downloadUserExport: state.downloadUserExport,
     isMfaRequiredError: vi.fn(() => false),
 }));
 
@@ -76,7 +84,11 @@ describe("SettingsPage Google email changes", () => {
         state.updateOrganisation.mockReset();
         state.updateOrganisation.mockResolvedValue(true);
         state.deleteAccount.mockReset();
-        state.deleteAccount.mockResolvedValue(undefined);
+        state.deleteAccount.mockResolvedValue({ receipt_token: "token" });
+        state.startUserExport.mockReset();
+        state.getUserExportStatus.mockReset();
+        state.downloadUserExport.mockReset();
+        sessionStorage.clear();
         state.updateEmail.mockResolvedValue({
             ...state.user,
             email: "alex@example.com",
@@ -175,10 +187,81 @@ describe("SettingsPage Google email changes", () => {
         expect(screen.queryByText(/not saved/i)).not.toBeInTheDocument();
     });
 
+    /** Open "Delete account", skip the download and confirm with `email`. */
+    async function confirmDeletion(user: ReturnType<typeof userEvent.setup>, email: string) {
+        await user.click(
+            screen.getByRole("button", { name: "Delete account" }),
+        );
+        const dialog = await screen.findByRole("dialog", { name: "Delete account" });
+        await user.click(within(dialog).getByRole("button", { name: "Continue" }));
+        const confirm = within(dialog).getByRole("button", { name: "Delete my account" });
+        expect(confirm).toBeDisabled();
+        await user.type(
+            within(dialog).getByLabelText("Type your email to confirm"),
+            email,
+        );
+        return { dialog, confirm };
+    }
+
+    it("offers a download of the personal data before anything is deleted", async () => {
+        state.startUserExport.mockResolvedValue({ export_id: "e1" });
+        state.getUserExportStatus.mockResolvedValue({ status: "done", filename: "litt.json" });
+        state.downloadUserExport.mockResolvedValue({ blob: new Blob(["{}"]), filename: "litt.json" });
+        const createObjectURL = vi.fn(() => "blob:litt");
+        Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+        const user = userEvent.setup();
+        render(<SettingsPage />);
+
+        await user.click(screen.getByRole("button", { name: "Delete account" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete account" });
+        await user.click(within(dialog).getByRole("button", { name: "Download my data" }));
+
+        await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+        expect(state.startUserExport).toHaveBeenCalledWith("account", { workspace: "personal" });
+        expect(state.deleteAccount).not.toHaveBeenCalled();
+    });
+
+    it("asks for two-factor verification before downloading when the session needs it", async () => {
+        vi.mocked(needsMfaVerification).mockResolvedValueOnce(true);
+        const user = userEvent.setup();
+        render(<SettingsPage />);
+
+        await user.click(screen.getByRole("button", { name: "Delete account" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete account" });
+        await user.click(within(dialog).getByRole("button", { name: "Download my data" }));
+
+        await waitFor(() => expect(needsMfaVerification).toHaveBeenCalled());
+        expect(state.startUserExport).not.toHaveBeenCalled();
+    });
+
+    it("deletes only once the email is typed, then shows progress and the receipt before signing out", async () => {
+        state.deleteAccount.mockResolvedValue({ receipt_token: "token-1" });
+        const user = userEvent.setup();
+        render(<SettingsPage />);
+
+        const { confirm } = await confirmDeletion(user, "ALEX@example.com ");
+        expect(confirm).toBeEnabled();
+        await user.click(confirm);
+
+        await waitFor(() => expect(state.push).toHaveBeenCalledWith("/account-deleted"));
+        expect(sessionStorage.getItem(ACCOUNT_DELETION_TOKEN_KEY)).toBe("token-1");
+        // The receipt page signs out once the receipt has been shown.
+        expect(state.signOut).not.toHaveBeenCalled();
+    });
+
+    it("keeps the button disabled for a different email", async () => {
+        const user = userEvent.setup();
+        render(<SettingsPage />);
+
+        const { confirm } = await confirmDeletion(user, "someone@example.com");
+        expect(confirm).toBeDisabled();
+        expect(state.deleteAccount).not.toHaveBeenCalled();
+    });
+
     it("keeps the session and shows the reason when deletion is refused", async () => {
         const user = userEvent.setup();
         const detail =
-            "You are the only owner of Elite Law LLP. Make another member an owner, or delete the organization, before deleting your account.";
+            "You are the only owner of Elite Law LLP. Transfer ownership to another member first, then delete your account.";
         state.deleteAccount.mockRejectedValue(
             new MikeApiError({
                 status: 409,
@@ -188,10 +271,8 @@ describe("SettingsPage Google email changes", () => {
         );
         render(<><SettingsPage /><ToastViewportUI /></>);
 
-        await user.click(
-            screen.getByRole("button", { name: "Delete account" }),
-        );
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const { confirm } = await confirmDeletion(user, "alex@example.com");
+        await user.click(confirm);
 
         // The 409 detail names the blocking organization; a generic "Failed to
         // delete account" would leave the user with no way to unblock it.
@@ -201,6 +282,7 @@ describe("SettingsPage Google email changes", () => {
         ).toBeInTheDocument();
         expect(state.signOut).not.toHaveBeenCalled();
         expect(state.push).not.toHaveBeenCalled();
+        expect(sessionStorage.getItem(ACCOUNT_DELETION_TOKEN_KEY)).toBeNull();
     });
 
     it("allows an existing display name to be cleared", async () => {
@@ -272,10 +354,8 @@ describe("SettingsPage Google email changes", () => {
             </>,
         );
 
-        await user.click(
-            screen.getByRole("button", { name: "Delete account" }),
-        );
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const { confirm } = await confirmDeletion(user, "alex@example.com");
+        await user.click(confirm);
 
         const toast = await screen.findByRole("alert");
         expect(toast).toHaveTextContent("Couldn't delete your account");
@@ -301,19 +381,24 @@ describe("SettingsPage Google email changes", () => {
             </>,
         );
 
-        await user.click(
-            screen.getByRole("button", { name: "Delete account" }),
-        );
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const first = await confirmDeletion(user, "alex@example.com");
+        await user.click(first.confirm);
         expect(deleteAccount).toHaveBeenCalledTimes(1);
 
         await user.click(await screen.findByRole("button", { name: "Retry" }));
 
-        // Retry re-opens the confirmation instead of deleting outright.
+        // Retry re-opens the dialog from the start, with the email still to
+        // be typed: a notice button never deletes outright.
         expect(deleteAccount).toHaveBeenCalledTimes(1);
-        expect(await screen.findByText("Delete account?")).toBeInTheDocument();
-
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete account" });
+        await user.click(within(dialog).getByRole("button", { name: "Continue" }));
+        const confirm = within(dialog).getByRole("button", { name: "Delete my account" });
+        expect(confirm).toBeDisabled();
+        await user.type(
+            within(dialog).getByLabelText("Type your email to confirm"),
+            "alex@example.com",
+        );
+        await user.click(confirm);
         expect(deleteAccount).toHaveBeenCalledTimes(2);
         clearToasts();
     });

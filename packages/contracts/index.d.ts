@@ -660,7 +660,9 @@ export interface AccountDeletionReceiptContent {
  * `DELETE /user/account` returned, after their session has been revoked.
  */
 export type AccountDeletionReceipt =
-  | { status: "pending" | "running" | "failed"; requested_at: string }
+  | { status: "pending"; requested_at: string }
+  | { status: "running"; requested_at: string }
+  | { status: "failed"; requested_at: string }
   | ({
       status: "completed";
       requested_at: string;

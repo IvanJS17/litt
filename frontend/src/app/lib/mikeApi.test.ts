@@ -26,6 +26,7 @@ import {
     createTabularReview,
     createWorkflow,
     deleteAccount,
+    getAccountDeletionReceipt,
     deleteAllChats,
     deleteAllMemories,
     setOrgMemberDataPolicy,
@@ -2332,6 +2333,13 @@ describe("thin endpoint wrappers", () => {
             call: () => deleteAccount(),
             url: "/user/account",
             method: "DELETE",
+        },
+        {
+            name: "getAccountDeletionReceipt",
+            call: () => getAccountDeletionReceipt("token-1"),
+            url: "/user/account/deletion-receipt",
+            method: "POST",
+            body: { token: "token-1" },
         },
         {
             name: "deleteAllProjects",

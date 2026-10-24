@@ -5,6 +5,8 @@ import type {
     OrgMemberHandover,
     OrgDepartureList,
     OrgDepartureResolution,
+    AccountDeletionReceipt,
+    AccountDeletionStarted,
 } from "@mike/contracts";
 export type {
     AuditActor,
@@ -629,8 +631,28 @@ export async function createProject(
     });
 }
 
-export async function deleteAccount(): Promise<void> {
-    return apiRequest<void>("/user/account", { method: "DELETE" });
+/**
+ * Start erasing the account. The session is revoked server-side; the token
+ * is how `/account-deleted` follows progress and shows the receipt.
+ */
+export async function deleteAccount(): Promise<AccountDeletionStarted> {
+    return apiRequest<AccountDeletionStarted>("/user/account", {
+        method: "DELETE",
+    });
+}
+
+/** Read a deletion receipt by its token; no session is needed or sent. */
+export async function getAccountDeletionReceipt(
+    token: string,
+): Promise<AccountDeletionReceipt> {
+    return apiRequest<AccountDeletionReceipt>(
+        "/user/account/deletion-receipt",
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+        },
+    );
 }
 
 // Settings' "Delete all" actions clear one workspace: `workspace` is
@@ -906,6 +928,8 @@ export interface AuditEvent {
     /** Current photo of an actor in the authorized organization audit page. */
     user_profile_photo?: string | null;
     user_email: string | null;
+    /** The actor's account has been erased (no profile is left). */
+    user_deleted?: boolean;
     action: string;
     status: string;
     title: string | null;
