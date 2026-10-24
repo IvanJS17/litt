@@ -7,8 +7,9 @@
 #
 # A new outside dependency needs a COPY here and a tsconfig alias that
 # resolves to the same path; frontend/src/__tests__/architecture.test.ts
-# checks that the two agree, and .github/workflows/docker-images.yml builds
-# this file in CI so a miss fails the pull request, not the next fresh install.
+# checks that the two agree. No CI workflow builds this image: building it
+# from the repository root at the deployment gate (deploy/prod/README.md) is
+# the check that catches a missing COPY.
 FROM node:22-slim
 
 WORKDIR /app

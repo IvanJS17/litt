@@ -609,10 +609,14 @@ Each image reads only what its Dockerfile copies: the frontend image contains
 `frontend/` and `packages/contracts`; the add-in image adds `frontend/src/shared`
 and `frontend/public/icons`, which its bundle includes. In the frontend image
 `next build` type-checks `frontend/tsconfig.build.json`, which excludes test
-files, so test fixtures and sibling applications never become build inputs. CI builds all three
-images on every pull request (`.github/workflows/docker-images.yml`), so a
-source change that reaches outside a build context fails before merge instead
-of on the next fresh install.
+files, so test fixtures and sibling applications never become build inputs. LiTT
+CI builds no images (to limit Actions usage): build every image you deploy
+from the repository root before the deployment (LiTT's production package
+builds the backend and frontend in
+[`../deploy/prod/README.md`](../deploy/prod/README.md) §1), so a source change
+that reaches outside a build context fails there instead of on the target.
+`frontend/src/__tests__/architecture.test.ts` is the fast check that runs on
+every change.
 
 ## Deployment safety
 

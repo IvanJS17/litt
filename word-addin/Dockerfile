@@ -3,8 +3,9 @@
 # reached through webpack aliases, tsconfig paths, and Tailwind @source
 # entries), the web app's icons (frontend/public/icons, the @icons alias), and
 # the @mike/contracts declarations. Nothing else outside word-addin/ is read.
-# .github/workflows/docker-images.yml builds this file in CI so a new outside
-# dependency fails the pull request, not the next deploy.
+# No CI workflow builds this image: build it from the repository root at the
+# deployment gate (deploy/prod/README.md) so a new outside dependency fails
+# there, not after the deploy.
 FROM node:22-slim AS build
 
 WORKDIR /app
