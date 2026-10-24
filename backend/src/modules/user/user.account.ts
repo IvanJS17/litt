@@ -123,9 +123,10 @@ export async function deleteUserAccount(
 export async function deleteUserChats(
     db: Db,
     userId: string,
+    orgId: string | null,
 ): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
-        await deleteAllUserChats(db, userId);
+        await deleteAllUserChats(db, userId, orgId);
         return { ok: true };
     } catch (err) {
         const detail = errorMessage(err);
@@ -140,9 +141,11 @@ export async function deleteUserChats(
 export async function deleteUserProjectsData(
     db: Db,
     userId: string,
+    orgId: string | null,
+    userEmail?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
-        await deleteUserProjects(db, userId);
+        await deleteUserProjects(db, userId, orgId, userEmail);
         return { ok: true };
     } catch (err) {
         const detail = errorMessage(err);
@@ -157,9 +160,10 @@ export async function deleteUserProjectsData(
 export async function deleteUserTabularReviews(
     db: Db,
     userId: string,
+    orgId: string | null,
 ): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
-        await deleteAllUserTabularReviews(db, userId);
+        await deleteAllUserTabularReviews(db, userId, orgId);
         return { ok: true };
     } catch (err) {
         const detail = errorMessage(err);
@@ -172,16 +176,18 @@ export async function deleteUserTabularReviews(
 }
 
 /**
- * Wipe the user's app memory and the memories of private projects they
- * created. Organization and merely shared projects are intentionally outside
- * this account-level destructive action.
+ * Wipe the user's own memory for one workspace (`orgId` null is Personal)
+ * and, in Personal, the memories of private projects they created.
+ * Organization and merely shared projects are intentionally outside this
+ * destructive action.
  */
 export async function deletePrivateMemories(
     db: Db,
     userId: string,
+    orgId: string | null,
 ): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
-        await deleteUserPrivateMemories(db, userId);
+        await deleteUserPrivateMemories(db, userId, orgId);
         return { ok: true };
     } catch (err) {
         console.error("[user/memories] delete failed", {

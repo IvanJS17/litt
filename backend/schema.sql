@@ -405,6 +405,11 @@ create table if not exists public.organizations (
   -- Whether work in this organization may run on a member's own provider
   -- key when the organization has none for that provider (org_api_keys).
   allow_personal_api_keys boolean not null default true,
+  -- Whether members other than its owners may export, and bulk-delete, their
+  -- own work in this organization from Settings > Privacy & Data. Off until
+  -- an owner allows it.
+  allow_member_exports boolean not null default false,
+  allow_member_deletes boolean not null default false,
   -- When the organization's logo (org_logos) was last set, or null for none.
   -- Kept in step by a trigger on org_logos; clients read it to know whether
   -- there is a logo and when to fetch it again.
@@ -880,6 +885,9 @@ $$;
 create table if not exists public.user_mcp_connectors (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  -- The workspace this connection is for: an organization, or null for
+  -- Personal. Tied to the membership, so it goes when the person leaves.
+  org_id uuid,
   name text not null,
   transport text not null default 'streamable_http'
     check (transport in ('streamable_http')),
@@ -896,11 +904,16 @@ create table if not exists public.user_mcp_connectors (
   auth_config_iv text,
   auth_config_tag text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint user_mcp_connectors_workspace_member_fkey
+    foreign key (org_id, user_id)
+    references public.org_members(org_id, user_id) on delete cascade
 );
 
-create index if not exists idx_user_mcp_connectors_user
-  on public.user_mcp_connectors(user_id);
+create index if not exists idx_user_mcp_connectors_user_workspace
+  on public.user_mcp_connectors(user_id, org_id);
+create index if not exists idx_user_mcp_connectors_org
+  on public.user_mcp_connectors(org_id) where org_id is not null;
 
 alter table public.user_mcp_connectors enable row level security;
 
@@ -6851,10 +6864,16 @@ begin
 end;
 $$;
 
--- Account-level deletion is all-or-nothing and deliberately excludes every
--- organization project and every personal project with a direct grant.
+-- Settings' "Delete all memory" clears one workspace. With p_org_id null that
+-- is Personal: the person's Personal memory and the memories of the private
+-- projects they created, all-or-nothing, excluding every organization project
+-- and every personal project with a direct grant. With an organization it is
+-- only the person's own memory there; the organization's project memories
+-- are its own, cleared from its Privacy & Data settings.
+drop function if exists public.delete_user_private_memories(uuid);
 create or replace function public.delete_user_private_memories(
-  p_user_id uuid
+  p_user_id uuid,
+  p_org_id uuid default null
 )
 returns integer
 language plpgsql
@@ -6865,6 +6884,21 @@ declare
   target record;
   deleted_projects integer := 0;
 begin
+  if p_org_id is not null then
+    -- One file per person per workspace; none for a non-member, since the
+    -- file is tied to the membership.
+    for target in
+      select file.id
+      from public.memory_files file
+      where file.scope = 'user'
+        and file.user_id = p_user_id
+        and file.org_id = p_org_id
+    loop
+      perform public.wipe_memory_file(target.id, null, p_user_id, 'wipe');
+    end loop;
+    return 0;
+  end if;
+
   -- Lock the caller's own private projects rather than the whole table.
   -- FOR UPDATE on a project row blocks both a move into an organization (an
   -- UPDATE of that row) and a new access grant (the grant's foreign key takes
@@ -6877,18 +6911,22 @@ begin
   order by project.id
   for update;
 
+  -- LiTT: memory is opt-in (20261023_09_litt_memory_opt_in), so a file
+  -- created here starts off.
   insert into public.memory_files(scope, user_id, enabled)
-  values ('user', p_user_id, true)
+  values ('user', p_user_id, false)
   on conflict do nothing;
 
   for target in
     select eligible.id, eligible.scope
     from (
-      -- Every memory that is this person's own: Personal, and the one
-      -- they have in each organization they belong to.
+      -- The person's Personal memory. Their memory in each organization is
+      -- that workspace's, deleted from it.
       select file.id, file.scope
       from public.memory_files file
-      where file.scope = 'user' and file.user_id = p_user_id
+      where file.scope = 'user'
+        and file.user_id = p_user_id
+        and file.org_id is null
       union all
       select file.id, file.scope
       from public.memory_files file
@@ -8018,7 +8056,7 @@ revoke all on function public.write_memory_file(uuid, bigint, bigint, text, text
   from public, anon, authenticated;
 revoke all on function public.wipe_memory_file(uuid, boolean, uuid, text)
   from public, anon, authenticated;
-revoke all on function public.delete_user_private_memories(uuid)
+revoke all on function public.delete_user_private_memories(uuid, uuid)
   from public, anon, authenticated;
 revoke all on function public.append_chat_assistant_events(uuid, uuid, uuid, jsonb, jsonb)
   from public, anon, authenticated;
@@ -8136,7 +8174,7 @@ grant execute
   on function public.wipe_memory_file(uuid, boolean, uuid, text)
   to service_role;
 grant execute
-  on function public.delete_user_private_memories(uuid)
+  on function public.delete_user_private_memories(uuid, uuid)
   to service_role;
 grant execute
   on function public.append_chat_assistant_events(uuid, uuid, uuid, jsonb, jsonb)
@@ -8685,7 +8723,11 @@ grant execute on function public.document_cache_writer_active(text[])
 -- backend (service key) can read the encrypted tokens.
 
 CREATE TABLE IF NOT EXISTS public.user_google_drive_tokens (
-  user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  -- One grant per person per workspace: an organization, or null for
+  -- Personal (20261022_01).
+  org_id uuid,
   encrypted_access_token text,
   access_token_iv text,
   access_token_tag text,
@@ -8702,8 +8744,17 @@ CREATE TABLE IF NOT EXISTS public.user_google_drive_tokens (
   -- The Google account this connection signed in as; display only.
   account_email text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT user_google_drive_tokens_pkey PRIMARY KEY (id),
+  CONSTRAINT user_google_drive_tokens_workspace_key
+    UNIQUE NULLS NOT DISTINCT (user_id, org_id),
+  CONSTRAINT user_google_drive_tokens_workspace_member_fkey
+    FOREIGN KEY (org_id, user_id)
+    REFERENCES public.org_members(org_id, user_id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_user_google_drive_tokens_org
+  ON public.user_google_drive_tokens(org_id) WHERE org_id IS NOT NULL;
 
 ALTER TABLE public.user_google_drive_tokens ENABLE ROW LEVEL SECURITY;
 
@@ -8726,26 +8777,29 @@ create or replace function public.complete_google_drive_oauth(p_state_hash text,
 returns boolean language plpgsql security definer set search_path = '' as $$
 declare
   v_user_id uuid;
+  v_org_id uuid;
 begin
   select user_id into v_user_id from public.google_workspace_oauth_states
     where state_hash = p_state_hash and provider = 'google-drive';
   if not found then return false; end if;
   perform 1 from auth.users where id = v_user_id for update;
   if not found then return false; end if;
+  -- The workspace the sign-in was started in.
   delete from public.google_workspace_oauth_states
     where state_hash = p_state_hash and provider = 'google-drive'
-      and user_id = v_user_id and expires_at > now();
+      and user_id = v_user_id and expires_at > now()
+    returning org_id into v_org_id;
   if not found then return false; end if;
   insert into public.user_google_drive_tokens (
-    user_id, account_email, encrypted_access_token, access_token_iv, access_token_tag,
+    user_id, org_id, account_email, encrypted_access_token, access_token_iv, access_token_tag,
     encrypted_refresh_token, refresh_token_iv, refresh_token_tag, scope, expires_at
   ) values (
-    v_user_id, p_tokens->>'account_email', p_tokens->>'encrypted_access_token',
+    v_user_id, v_org_id, p_tokens->>'account_email', p_tokens->>'encrypted_access_token',
     p_tokens->>'access_token_iv', p_tokens->>'access_token_tag',
     p_tokens->>'encrypted_refresh_token', p_tokens->>'refresh_token_iv',
     p_tokens->>'refresh_token_tag', p_tokens->>'scope',
     (p_tokens->>'expires_at')::timestamptz
-  ) on conflict (user_id) do update set
+  ) on conflict (user_id, org_id) do update set
     grant_id = gen_random_uuid(),
     account_email = excluded.account_email,
     encrypted_access_token = excluded.encrypted_access_token,
@@ -8759,25 +8813,30 @@ $$;
 revoke all on function public.complete_google_drive_oauth(text, jsonb) from public, anon, authenticated;
 grant execute on function public.complete_google_drive_oauth(text, jsonb) to service_role;
 
-create or replace function public.disconnect_google_drive(p_user_id uuid)
+create or replace function public.disconnect_google_drive(p_user_id uuid, p_org_id uuid default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v_token jsonb;
 begin
   perform 1 from auth.users where id = p_user_id for update;
   if not found then return null; end if;
   delete from public.google_workspace_oauth_states
-    where user_id = p_user_id and provider = 'google-drive';
-  delete from public.user_google_drive_tokens where user_id = p_user_id
+    where user_id = p_user_id and provider = 'google-drive'
+      and org_id is not distinct from p_org_id;
+  delete from public.user_google_drive_tokens
+    where user_id = p_user_id and org_id is not distinct from p_org_id
     returning to_jsonb(user_google_drive_tokens) into v_token;
   return v_token;
 end;
 $$;
-revoke all on function public.disconnect_google_drive(uuid) from public, anon, authenticated;
-grant execute on function public.disconnect_google_drive(uuid) to service_role;
+revoke all on function public.disconnect_google_drive(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.disconnect_google_drive(uuid, uuid) to service_role;
 -- Migration date: 2026-09-22
 -- Independent Gmail/Calendar grants. Connector settings survive reconnects.
 create table if not exists public.user_google_workspace_tokens (
+  id uuid not null default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  -- An organization, or null for Personal (20261022_01).
+  org_id uuid,
   provider text not null check (provider in ('gmail', 'google-calendar')),
   grant_id uuid not null default gen_random_uuid(),
   account_email text not null, account_id text not null,
@@ -8789,16 +8848,28 @@ create table if not exists public.user_google_workspace_tokens (
   require_write_approval boolean not null default false,
   read_only boolean not null default false,
   disabled_tools text[] not null default '{}',
-  primary key (user_id, provider)
+  constraint user_google_workspace_tokens_pkey primary key (id),
+  constraint user_google_workspace_tokens_workspace_key
+    unique nulls not distinct (user_id, org_id, provider),
+  constraint user_google_workspace_tokens_workspace_member_fkey
+    foreign key (org_id, user_id)
+    references public.org_members(org_id, user_id) on delete cascade
 );
+create index if not exists idx_user_google_workspace_tokens_org
+  on public.user_google_workspace_tokens(org_id) where org_id is not null;
 create table if not exists public.google_workspace_oauth_states (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  -- The workspace the sign-in was started in; the callback completes its grant.
+  org_id uuid,
   -- Every Google connection's pending OAuth sign-ins, including Drive's.
   provider text not null check (provider in ('gmail', 'google-calendar', 'google-drive')),
   state_hash text not null unique,
   encrypted_state_config text not null, state_config_iv text not null, state_config_tag text not null,
-  expires_at timestamptz not null
+  expires_at timestamptz not null,
+  constraint google_workspace_oauth_states_workspace_member_fkey
+    foreign key (org_id, user_id)
+    references public.org_members(org_id, user_id) on delete cascade
 );
 create index if not exists google_workspace_states_owner on public.google_workspace_oauth_states(user_id, provider);
 alter table public.user_google_workspace_tokens enable row level security;
@@ -8816,9 +8887,9 @@ begin
   if not found then return false; end if;
   delete from public.google_workspace_oauth_states where state_hash = p_state_hash and provider = p_provider and expires_at > now() returning * into v_state;
   if not found then return false; end if;
-  insert into public.user_google_workspace_tokens(user_id, provider, account_email, account_id, encrypted_access_token, access_token_iv, access_token_tag, encrypted_refresh_token, refresh_token_iv, refresh_token_tag, scope, expires_at, write_enabled)
-  values (v_state.user_id, p_provider, p_tokens->>'account_email', p_tokens->>'account_id', p_tokens->>'encrypted_access_token', p_tokens->>'access_token_iv', p_tokens->>'access_token_tag', p_tokens->>'encrypted_refresh_token', p_tokens->>'refresh_token_iv', p_tokens->>'refresh_token_tag', p_tokens->>'scope', (p_tokens->>'expires_at')::timestamptz, coalesce((p_tokens->>'write_enabled')::boolean, false))
-  on conflict (user_id, provider) do update set
+  insert into public.user_google_workspace_tokens(user_id, org_id, provider, account_email, account_id, encrypted_access_token, access_token_iv, access_token_tag, encrypted_refresh_token, refresh_token_iv, refresh_token_tag, scope, expires_at, write_enabled)
+  values (v_state.user_id, v_state.org_id, p_provider, p_tokens->>'account_email', p_tokens->>'account_id', p_tokens->>'encrypted_access_token', p_tokens->>'access_token_iv', p_tokens->>'access_token_tag', p_tokens->>'encrypted_refresh_token', p_tokens->>'refresh_token_iv', p_tokens->>'refresh_token_tag', p_tokens->>'scope', (p_tokens->>'expires_at')::timestamptz, coalesce((p_tokens->>'write_enabled')::boolean, false))
+  on conflict (user_id, org_id, provider) do update set
     grant_id = gen_random_uuid(), account_email = excluded.account_email, account_id = excluded.account_id, encrypted_access_token = excluded.encrypted_access_token,
     access_token_iv = excluded.access_token_iv, access_token_tag = excluded.access_token_tag,
     encrypted_refresh_token = excluded.encrypted_refresh_token, refresh_token_iv = excluded.refresh_token_iv, refresh_token_tag = excluded.refresh_token_tag,
@@ -8827,18 +8898,22 @@ begin
 end;
 $$;
 
-create or replace function public.disconnect_google_workspace(p_user_id uuid, p_provider text)
+create or replace function public.disconnect_google_workspace(p_user_id uuid, p_provider text, p_org_id uuid default null)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
   perform 1 from auth.users where id = p_user_id for update;
   if not found then return; end if;
-  delete from public.google_workspace_oauth_states where user_id = p_user_id and provider = p_provider;
-  delete from public.user_google_workspace_tokens where user_id = p_user_id and provider = p_provider;
+  delete from public.google_workspace_oauth_states
+    where user_id = p_user_id and provider = p_provider
+      and org_id is not distinct from p_org_id;
+  delete from public.user_google_workspace_tokens
+    where user_id = p_user_id and provider = p_provider
+      and org_id is not distinct from p_org_id;
 end;
 $$;
 
-revoke all on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text) from public, anon, authenticated;
-grant execute on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text) to service_role;
+revoke all on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) from public, anon, authenticated;
+grant execute on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) to service_role;
 
 -- Organization departure recovery and expiry.
 
@@ -15038,66 +15113,6 @@ begin
 end;
 $$;
 
-create or replace function public.delete_user_private_memories(
-  p_user_id uuid
-)
-returns integer
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  target record;
-  deleted_projects integer := 0;
-begin
-  -- Lock the caller's own private projects rather than the whole table.
-  -- FOR UPDATE on a project row blocks both a move into an organization (an
-  -- UPDATE of that row) and a new access grant (the grant's foreign key takes
-  -- KEY SHARE on the project, which FOR UPDATE excludes), so eligibility
-  -- cannot change between this check and the wipe. A table-level SHARE lock
-  -- did the same job by stalling every project write in the system for as
-  -- long as this user's files took to wipe.
-  perform project.id from public.projects project
-  where project.user_id = p_user_id and project.org_id is null
-  order by project.id
-  for update;
-
-  insert into public.memory_files(scope, user_id, enabled)
-  values ('user', p_user_id, false)
-  on conflict do nothing;
-
-  for target in
-    select eligible.id, eligible.scope
-    from (
-      -- Every memory that is this person's own: Personal, and the one
-      -- they have in each organization they belong to.
-      select file.id, file.scope
-      from public.memory_files file
-      where file.scope = 'user' and file.user_id = p_user_id
-      union all
-      select file.id, file.scope
-      from public.memory_files file
-      join public.projects project on project.id = file.project_id
-      where file.scope = 'project'
-        and project.user_id = p_user_id
-        and project.org_id is null
-        and not exists (
-          select 1 from public.project_access_grants grant_row
-          where grant_row.project_id = project.id
-        )
-    ) eligible
-    order by eligible.id
-  loop
-    perform public.wipe_memory_file(target.id, null, p_user_id, 'wipe');
-    if target.scope = 'project' then
-      deleted_projects := deleted_projects + 1;
-    end if;
-  end loop;
-
-  return deleted_projects;
-end;
-$$;
-
 create or replace function public.schedule_memory_consolidation(
   p_surface text,
   p_conversation_id uuid,
@@ -16184,6 +16199,7 @@ insert into public.schema_migrations (filename) values
   ('20261021_02_user_subagent_defaults.sql'),
   ('20261021_03_user_response_details.sql'),
   ('20261021_04_word_chat_message_playbook.sql'),
+  ('20261022_01_workspace_connectors.sql'),
   ('20261023_01_litt_tenancy.sql'),
   ('20261023_02_litt_onboarding_organization.sql'),
   ('20261023_03_litt_ai_evidence.sql'),
@@ -16201,5 +16217,9 @@ insert into public.schema_migrations (filename) values
   ('20261023_15_litt_pinned_chat_route.sql'),
   ('20261023_16_litt_pinned_word_tabular_route.sql'),
   ('20261023_17_litt_pinned_playbook_route.sql'),
-  ('20261023_18_litt_remove_courtlistener.sql')
+  ('20261023_18_litt_remove_courtlistener.sql'),
+  ('20261024_02_workspace_scoped_data_deletion.sql'),
+  ('20261024_03_backfill_project_child_org_id.sql'),
+  ('20261024_04_org_member_data_policy.sql'),
+  ('20261024_50_litt_memory_delete_opt_in.sql')
 on conflict (filename) do nothing;

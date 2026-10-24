@@ -406,7 +406,6 @@ describe("per-workspace memory SQL", () => {
     "initialize_new_user_memory",
     "memory_source_allows_app_memory",
     "write_memory_file",
-    "delete_user_private_memories",
     "schedule_memory_consolidation",
     "refresh_memory_file_status",
   ])("a fresh install defines %s exactly as the migration does", (name) => {
@@ -560,5 +559,78 @@ describe("per-workspace memory SQL", () => {
         `create or replace function public.${name}(`,
       );
     }
+  });
+});
+
+const scopedDeletionMigration = readFileSync(
+  resolve(backendRoot, "migrations/20261024_02_workspace_scoped_data_deletion.sql"),
+  "utf8",
+);
+
+describe("workspace-scoped memory deletion SQL", () => {
+  // LiTT: the final shape is the one 20261024_50_litt_memory_delete_opt_in
+  // leaves (upstream's function with memory created off).
+  it("a fresh install defines delete_user_private_memories exactly as the last migration does", () => {
+    expect(functionBody(schemaSql, "delete_user_private_memories")).toBe(
+      functionBody(
+        readFileSync(
+          resolve(backendRoot, "migrations/20261024_50_litt_memory_delete_opt_in.sql"),
+          "utf8",
+        ),
+        "delete_user_private_memories",
+      ),
+    );
+  });
+
+  it.each([
+    ["schema", schemaSql],
+    ["migration", scopedDeletionMigration],
+  ] as const)("%s wipes one workspace's memory, never every workspace's", (_name, sql) => {
+    const body = functionBody(sql, "delete_user_private_memories");
+    expect(body).toContain("p_org_id uuid default null");
+    // An organization: only the person's own file there.
+    expect(body).toMatch(
+      /if p_org_id is not null then[\s\S]*and file\.org_id = p_org_id[\s\S]*return 0;\s+end if;/,
+    );
+    // Personal: the Personal file alone, not one per organization.
+    expect(body).toMatch(
+      /where file\.scope = 'user'\s+and file\.user_id = p_user_id\s+and file\.org_id is null/,
+    );
+    // The one-argument form is replaced, not left beside it to make a
+    // one-argument call ambiguous.
+    expect(sql).toContain(
+      "drop function if exists public.delete_user_private_memories(uuid);",
+    );
+    expect(sql).toContain(
+      "revoke all on function public.delete_user_private_memories(uuid, uuid)\n  from public, anon, authenticated;",
+    );
+    expect(sql).toMatch(
+      /grant execute\s+on function public\.delete_user_private_memories\(uuid, uuid\)\s+to service_role;/,
+    );
+  });
+});
+
+// LiTT: memory is opt-in (20261023_09_litt_memory_opt_in). Upstream's
+// workspace-scoped "Delete all memory" (20261024_02) creates a missing
+// Personal file switched on; schema.sql and the LiTT follow-up migration
+// keep it off, with one overload only.
+describe.each([
+  ["schema", schemaSql],
+  [
+    "migration",
+    readFileSync(
+      resolve(backendRoot, "migrations/20261024_50_litt_memory_delete_opt_in.sql"),
+      "utf8",
+    ),
+  ],
+] as const)("%s workspace-scoped memory delete", (_name, sql) => {
+  it("creates a missing Personal memory file switched off", () => {
+    const body = functionBody(sql, "delete_user_private_memories");
+    expect(body).toContain("p_org_id uuid default null");
+    expect(body).toContain("values ('user', p_user_id, false)");
+    expect(body).not.toContain("values ('user', p_user_id, true)");
+    expect(
+      sql.match(/create or replace function public\.delete_user_private_memories\(/g),
+    ).toHaveLength(1);
   });
 });

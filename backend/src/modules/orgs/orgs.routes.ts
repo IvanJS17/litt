@@ -36,6 +36,7 @@ import {
     getOrgApiKeySettings,
     saveOrgApiKey,
     setOrgApiKeyEnabled,
+    setOrgMemberDataPolicy,
     setOrgPersonalApiKeysAllowed,
     getOrgLogo,
     saveOrgLogo,
@@ -388,6 +389,26 @@ orgsRouter.get("/:orgId/api-keys", requireOrgAuth, asyncRoute(async (req, res) =
     if (!result.ok) return sendOrgFailure(res, result);
     res.json(result.settings);
 }));
+
+// PUT /orgs/:orgId/member-data-policy — whether members may export, and
+// bulk-delete, their own work in the organization (owners only).
+orgsRouter.put(
+    "/:orgId/member-data-policy",
+    requireOrgAuth,
+    requireMfaIfEnrolled,
+    asyncRoute(async (req, res) => {
+        const db = createServerSupabase();
+        const result = await setOrgMemberDataPolicy(db, {
+            actorId: res.locals.userId as string,
+            actorEmail: res.locals.userEmail as string | undefined,
+            orgId: req.params.orgId,
+            allowExports: req.body?.allow_member_exports,
+            allowDeletes: req.body?.allow_member_deletes,
+        });
+        if (!result.ok) return sendOrgFailure(res, result);
+        res.json(result.policy);
+    }),
+);
 
 // PUT /orgs/:orgId/api-keys/policy — whether members' own keys may be used
 // for a provider the organization has no key for (owner or admin).

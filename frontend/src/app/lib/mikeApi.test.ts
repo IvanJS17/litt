@@ -28,6 +28,7 @@ import {
     deleteAccount,
     deleteAllChats,
     deleteAllMemories,
+    setOrgMemberDataPolicy,
     deleteAllProjects,
     deleteAllTabularReviews,
     deleteChat,
@@ -2351,6 +2352,41 @@ describe("thin endpoint wrappers", () => {
             method: "DELETE",
         },
         {
+            name: "deleteAllChats in an organization workspace",
+            call: () => deleteAllChats("org-1"),
+            url: "/user/chats?workspace=org-1",
+            method: "DELETE",
+        },
+        {
+            name: "deleteAllProjects in Personal",
+            call: () => deleteAllProjects("personal"),
+            url: "/user/projects?workspace=personal",
+            method: "DELETE",
+        },
+        {
+            name: "deleteAllTabularReviews in an organization workspace",
+            call: () => deleteAllTabularReviews("org-1"),
+            url: "/user/tabular-reviews?workspace=org-1",
+            method: "DELETE",
+        },
+        {
+            name: "deleteAllMemories in an organization workspace",
+            call: () => deleteAllMemories("org-1"),
+            url: "/user/memories?workspace=org-1",
+            method: "DELETE",
+        },
+        {
+            name: "setOrgMemberDataPolicy",
+            call: () =>
+                setOrgMemberDataPolicy("org-1", {
+                    allow_member_exports: true,
+                    allow_member_deletes: false,
+                }),
+            url: "/orgs/org-1/member-data-policy",
+            method: "PUT",
+            body: { allow_member_exports: true, allow_member_deletes: false },
+        },
+        {
             name: "getUserMemory",
             call: () => getUserMemory(),
             url: "/user/memory",
@@ -2601,6 +2637,28 @@ describe("thin endpoint wrappers", () => {
         { name: "updateGoogleDriveSettings", call: () => updateGoogleDriveSettings({ enabled: false }), url: "/user/integrations/google-drive", method: "PATCH", body: { enabled: false } },
         { name: "setGoogleDriveToolEnabled", call: () => setGoogleDriveToolEnabled("google_drive_read_file", true), url: "/user/integrations/google-drive/tools/google_drive_read_file", method: "PATCH", body: { enabled: true } },
         { name: "createGoogleDrivePickerSession", call: () => createGoogleDrivePickerSession(), url: "/user/integrations/google-drive/picker-session", method: "POST" },
+        // Connections are per workspace: each call names the one it is in.
+        { name: "listMcpConnectors (workspace)", call: () => listMcpConnectors("org-1"), url: "/user/mcp-connectors?workspace=org-1" },
+        {
+            name: "createMcpConnector (workspace)",
+            call: () => createMcpConnector({ name: "Slack", serverUrl: "https://mcp.slack.com/mcp" }, "org-1"),
+            url: "/user/mcp-connectors?workspace=org-1",
+            method: "POST",
+            body: { name: "Slack", serverUrl: "https://mcp.slack.com/mcp" },
+        },
+        { name: "getGoogleDriveStatus (workspace)", call: () => getGoogleDriveStatus("org-1"), url: "/user/integrations/google-drive?workspace=org-1" },
+        { name: "startGoogleDriveOAuth (workspace)", call: () => startGoogleDriveOAuth("personal"), url: "/user/integrations/google-drive/oauth/start?workspace=personal", method: "POST" },
+        { name: "cancelGoogleDriveOAuth (workspace)", call: () => cancelGoogleDriveOAuth("state", "org-1"), url: "/user/integrations/google-drive/oauth/cancel?workspace=org-1", method: "POST", body: { state: "state" } },
+        { name: "disconnectGoogleDrive (workspace)", call: () => disconnectGoogleDrive("org-1"), url: "/user/integrations/google-drive?workspace=org-1", method: "DELETE" },
+        { name: "updateGoogleDriveSettings (workspace)", call: () => updateGoogleDriveSettings({ readOnly: true }, "org-1"), url: "/user/integrations/google-drive?workspace=org-1", method: "PATCH", body: { readOnly: true } },
+        { name: "setGoogleDriveToolEnabled (workspace)", call: () => setGoogleDriveToolEnabled("google_drive_read_file", false, "org-1"), url: "/user/integrations/google-drive/tools/google_drive_read_file?workspace=org-1", method: "PATCH", body: { enabled: false } },
+        { name: "createGoogleDrivePickerSession (workspace)", call: () => createGoogleDrivePickerSession("org-1"), url: "/user/integrations/google-drive/picker-session?workspace=org-1", method: "POST" },
+        { name: "getGoogleWorkspaceStatus (workspace)", call: () => getGoogleWorkspaceStatus("gmail", "org-1"), url: "/user/integrations/gmail?workspace=org-1" },
+        { name: "startGoogleWorkspaceOAuth (workspace)", call: () => startGoogleWorkspaceOAuth("google-calendar", "org-1"), url: "/user/integrations/google-calendar/oauth/start?workspace=org-1", method: "POST" },
+        { name: "cancelGoogleWorkspaceOAuth (workspace)", call: () => cancelGoogleWorkspaceOAuth("gmail", "state", "org-1"), url: "/user/integrations/gmail/oauth/cancel?workspace=org-1", method: "POST", body: { state: "state" } },
+        { name: "disconnectGoogleWorkspace (workspace)", call: () => disconnectGoogleWorkspace("gmail", "org-1"), url: "/user/integrations/gmail?workspace=org-1", method: "DELETE" },
+        { name: "updateGoogleWorkspaceSettings (workspace)", call: () => updateGoogleWorkspaceSettings("gmail", { enabled: false }, "org-1"), url: "/user/integrations/gmail?workspace=org-1", method: "PATCH", body: { enabled: false } },
+        { name: "setGoogleWorkspaceToolEnabled (workspace)", call: () => setGoogleWorkspaceToolEnabled("gmail", "gmail_send", true, "org-1"), url: "/user/integrations/gmail/tools/gmail_send?workspace=org-1", method: "PATCH", body: { enabled: true } },
         // Projects
         {
             name: "getProject",
