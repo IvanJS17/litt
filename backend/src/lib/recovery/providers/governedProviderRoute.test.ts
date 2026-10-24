@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,9 +10,8 @@ import {
   type GovernedCredentialRecord,
 } from "./governedProviderRoute";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const IMPL_SOURCE = readFileSync(
-  join(HERE, "governedProviderRoute.ts"),
+  resolve(process.cwd(), "src/lib/recovery/providers/governedProviderRoute.ts"),
   "utf8",
 );
 
@@ -481,7 +479,7 @@ describe("secret hygiene and provenance", () => {
 
 describe("runtime export lock and import boundary", () => {
   it("exposes exactly the governed boundary", async () => {
-    const mod = await import("./governedProviderRoute");
+    const mod = await import("./governedProviderRoute.js");
     expect(Object.keys(mod).sort()).toEqual(
       [
         "resolveExplicitProviderRoute",

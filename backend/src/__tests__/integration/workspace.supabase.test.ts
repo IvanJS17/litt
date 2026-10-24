@@ -101,7 +101,9 @@ maybeDescribe("workspace list isolation", () => {
         for (const [table, items] of [["chats", chats], ["tabular_reviews", reviews], ["projects", projects]] as const) {
             if (items.length) expect((await db.from(table).delete().in("id", items.map(item => item.id))).error).toBeNull();
         }
-        expect((await db.from("organizations").delete().in("id", orgs)).error).toBeNull();
+        // LiTT closes team-organization deletion (condition C5): the delete is
+        // refused, so the disposable stack keeps these synthetic organizations.
+        expect((await db.from("organizations").delete().in("id", orgs)).error?.code).toBe("0A000");
         if (reader) expect((await db.auth.admin.deleteUser(reader)).error).toBeNull();
         if (colleague) expect((await db.auth.admin.deleteUser(colleague)).error).toBeNull();
     });

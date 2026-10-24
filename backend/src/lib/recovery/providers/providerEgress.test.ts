@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GovernedCredentialRecord } from "./governedProviderRoute";
@@ -9,8 +8,10 @@ import {
   resolveProviderEgressTarget,
 } from "./providerEgress";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const IMPL_SOURCE = readFileSync(join(HERE, "providerEgress.ts"), "utf8");
+const IMPL_SOURCE = readFileSync(
+  resolve(process.cwd(), "src/lib/recovery/providers/providerEgress.ts"),
+  "utf8",
+);
 
 function record(
   overrides: Partial<GovernedCredentialRecord> = {},
@@ -293,7 +294,7 @@ describe("fake sender gating", () => {
 
 describe("runtime export lock and import boundary", () => {
   it("exposes exactly the egress boundary", async () => {
-    const mod = await import("./providerEgress");
+    const mod = await import("./providerEgress.js");
     expect(Object.keys(mod).sort()).toEqual(
       ["executeGovernedProviderCall", "resolveProviderEgressTarget"].sort(),
     );
