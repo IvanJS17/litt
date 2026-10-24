@@ -18,8 +18,22 @@ name: Stack tests
 on:
   push:
     branches: [main]
+    # Documentation-only changes skip this suite; docs/playbooks/ seeds the
+    # workflow catalog and still runs it (TD-024).
+    paths:
+      - "**"
+      - "!docs/**"
+      - "docs/playbooks/**"
+      - "!*.md"
   # Include stacked PRs whose base is another feature branch.
   pull_request:
+    # Documentation-only changes skip this suite; docs/playbooks/ seeds the
+    # workflow catalog and still runs it (TD-024).
+    paths:
+      - "**"
+      - "!docs/**"
+      - "docs/playbooks/**"
+      - "!*.md"
   workflow_dispatch:
 
 # Booting a Supabase stack is the slowest job in the repo, so cancel runs

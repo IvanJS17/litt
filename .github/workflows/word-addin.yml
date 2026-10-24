@@ -11,8 +11,10 @@
 # under webkit — a chromium-only run would silently pass with the scroll fix
 # reverted.
 #
-# Every PR runs this gate: shared UI, auth and API changes can affect the add-in.
-# Pushes to main retain a path filter to avoid unrelated post-merge runs.
+# The add-in bundles shared code from frontend/src/shared, frontend/public/icons
+# and packages/ through its webpack/tsconfig aliases, so pull requests and
+# pushes use the same path filter: anything else cannot change what this job
+# proves, and skipping it saves Actions minutes (TD-024).
 name: Word add-in
 
 on:
@@ -25,12 +27,14 @@ on:
       - "frontend/public/icons/**"
       - "packages/**"
       - ".github/workflows/word-addin.yml"
-  # Run on every PR, including stacked auth/API changes consumed by Word.
+  # Include stacked PRs whose base is another feature branch.
   pull_request:
-  # Nightly development-stress run (see the job below). Offset from e2e.yml's
-  # 03:47 so the two stress suites don't compete for runners.
-  schedule:
-    - cron: "17 4 * * *"
+    paths:
+      - "word-addin/**"
+      - "frontend/src/shared/**"
+      - "frontend/public/icons/**"
+      - "packages/**"
+      - ".github/workflows/word-addin.yml"
 
 # Don't pile up runs on rapid pushes to the same PR; pushes to main each get
 # their own group (keyed by sha) and are never cancelled.
@@ -39,42 +43,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
 jobs:
-  streaming-development:
-    name: Development stress (chromium + webkit)
-    # ~18-24 min against ~8 for the production job, so it stays off the PR
-    # path: it runs on push to main, nightly, on manual dispatch, and on PRs
-    # labelled `stress` (takes effect on the next push; see e2e.yml for why
-    # there is no `labeled` trigger).
-    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'stress')
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    defaults:
-      run:
-        working-directory: word-addin
-    env:
-      WORD_E2E_DEVELOPMENT: "1"
-      REACT_STRESS: "1"
-      E2E_WORKERS: "4"
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: word-addin/package-lock.json
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
-      # Production React omits the passive-update-depth warning. Exercise the
-      # real development bundle too, using the same hermetic Office/API mocks.
-      - run: npx playwright test --retries=0 --trace=retain-on-failure
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: word-addin-streaming-development
-          path: word-addin/test-results/
-          retention-days: 14
-          if-no-files-found: ignore
-
   playwright:
     name: Typecheck and Playwright (chromium + webkit)
     runs-on: ubuntu-latest

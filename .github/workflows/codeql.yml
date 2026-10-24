@@ -11,14 +11,35 @@ name: CodeQL
 on:
   push:
     branches: [main]
+    # Documentation-only changes skip this suite; docs/playbooks/ seeds the
+    # workflow catalog and still runs it (TD-024).
+    paths:
+      - "**"
+      - "!docs/**"
+      - "docs/playbooks/**"
+      - "!*.md"
   pull_request:
     # Validate stacked PRs targeting feature branches as well as main.
+    # Documentation-only changes skip this suite; docs/playbooks/ seeds the
+    # workflow catalog and still runs it (TD-024).
+    paths:
+      - "**"
+      - "!docs/**"
+      - "docs/playbooks/**"
+      - "!*.md"
   schedule:
     # Mondays 04:30 UTC.
     - cron: "30 4 * * 1"
 
 permissions:
   contents: read
+
+# Cancel only PR runs that a newer push to the same PR has superseded. Pushes
+# to main get their own group (keyed by sha) and scheduled runs one per run
+# (keyed by run_id), so neither is ever cancelled or replaced while pending.
+concurrency:
+  group: codeql-${{ github.event_name == 'pull_request' && github.ref || github.event_name == 'push' && github.sha || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:

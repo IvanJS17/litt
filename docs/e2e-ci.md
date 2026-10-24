@@ -7,14 +7,15 @@ makes that check *required*.
 
 ## What the workflow does
 
-On every `pull_request`, including stacked PRs targeting another feature branch,
-on manual `workflow_dispatch`, and **nightly at 03:47 UTC** (a `schedule` cron,
-so drift that lands between PRs — dependency bumps, Supabase CLI changes,
-selector-breaking UI tweaks — is caught within a day), the `e2e / playwright`
-matrix:
+On every `pull_request` that changes more than documentation (including
+stacked PRs targeting another feature branch), on manual `workflow_dispatch`,
+and **weekly on Mondays at 03:47 UTC** (a `schedule` cron, so drift that lands
+between PRs — dependency bumps, Supabase CLI changes, selector-breaking UI
+tweaks — still surfaces), the single `e2e / playwright` job:
 
 1. installs the root (Playwright), `backend/`, and `frontend/` dependencies;
-2. boots **RustFS** (S3-compatible object storage — several specs upload documents);
+2. boots **RustFS** (S3-compatible object storage — several specs upload
+   documents), pinned by image digest;
 3. boots **local Supabase** (Auth + Postgres) via the Supabase CLI and loads the
    current fresh-install shape from `backend/schema.sql`. It intentionally does
    not replay historical migrations on top: doing so can replace current
@@ -24,15 +25,18 @@ matrix:
 4. writes `backend/.env` and `frontend/.env.local` from the live Supabase values;
 5. builds the backend and runs the pinned `sync:workflows` release job, matching
    production ordering so the default and add-on catalog exists before startup;
-6. serves the production build (`next build` / `next start`) in one job and
-   the development renderer (`next dev`) in another. The development job warms
-   static routes, sets `REACT_STRESS=1` for 4x Chromium CPU pressure, and fails
-   on React/observer loop diagnostics. Development overlays remain observable;
-   they are not suppressed to make selectors pass. Both jobs use the backend
-   API (`:3001`) and web server (`:3000`) with isolated disposable services;
-7. runs `npx playwright test --project=chromium` on three parallel workers and
-   uploads the HTML report + traces as an artifact (`playwright-report-production` /
-   `playwright-report-development`) on pass, fail, or timeout.
+6. serves the production build (`next build` / `next start`) with the backend
+   API (`:3001`) and web server (`:3000`) on isolated disposable services;
+7. runs `npx playwright test --project=chromium` on three parallel workers,
+   then the `synthetic` project on two workers against the same web server,
+   and uploads the HTML report + traces as the **`playwright-report`**
+   artifact on pass, fail, or timeout.
+
+Documentation-only changes (`docs/**` and root `*.md`) skip the suite;
+`docs/playbooks/**` still runs it because it seeds the workflow catalog. A newer
+push to the same PR cancels the superseded run; scheduled and dispatched runs
+are never cancelled. These limits keep Actions usage down (TD-024 in
+`docs/TECHNICAL_DEBT.md`).
 
 ### Test users and parallel workers
 
@@ -57,43 +61,27 @@ details takes the `e2eAccount` fixture instead of hardcoding an email.
 
 `e2e/assistant-streaming.spec.ts` and `e2e/tabular-chat-lifecycle.spec.ts` form
 the Playwright **`synthetic`** project. They mock every `/api` call in the
-browser and need no backend, database, account or model-provider key, so CI
-runs them in a separate job that serves only the web app. The streaming tests
-are slow by design (4x CPU throttling and hundreds of SSE chunks, up to two
-minutes each), and four of them on one 4-vCPU runner slowed each other about
-2.5x, so the job is a matrix of three runners split by chat scope: `assistant`,
-`project` and `rest` (every other synthetic test, so a new one is never
-dropped), each on two workers. On every PR they report as **Assistant streaming
-(production, assistant | project | rest)**; the `development` renderer against
-`next dev` is a stress job. Keeping them out of the full-stack job is what
-keeps that job short. See [frontend-testing.md](frontend-testing.md#assistant-streaming-regressions)
+browser and need no backend, database, account or model-provider key. The
+streaming tests are slow by design (4x CPU throttling and hundreds of SSE
+chunks, up to two minutes each). Upstream runs them on three extra runners
+split by chat scope, each repeating the installs and the web build; LiTT runs
+them as a second step of the `e2e / playwright` job instead, on two workers
+against the production web server that job already started, so they add test
+time but no extra runner. See [frontend-testing.md](frontend-testing.md#assistant-streaming-regressions)
 for a standalone local command.
 
 The full-stack chat flows use a local Anthropic-protocol fixture in CI. No paid
 model key or repository secret is required, including on fork PRs. A missing
 fixture key fails test discovery instead of silently skipping chat coverage.
 
-### Development stress jobs
+### No development-stress jobs
 
-Three jobs run against React's development renderer, which is 3-4x slower than
-the production build: **`e2e / Playwright (development stress)`** (~25-35 min),
-**`e2e / Assistant streaming (development, …)`** (~20-27 min before the split) and **`Word add-in /
-Development stress (chromium + webkit)`** (~18-24 min). They were the last checks
-to finish on every slow PR, so they are off the default PR path. They run:
-
-- nightly (e2e at 03:47 UTC, the Word add-in at 04:17 UTC) and on manual
-  dispatch;
-- on every push to `main` (Word add-in only);
-- on any PR carrying the **`stress`** label.
-
-Add `stress` to PRs that touch streaming, render loops or effect dependencies.
-The label is read when a run starts, so push a commit (or close and reopen the
-PR) after adding it. There is deliberately no `labeled` trigger: a run started
-by an unrelated label would report every check as skipped, and GitHub treats a
-skipped required check as passing, which would hide an earlier red run.
-
-Because these checks are absent on unlabelled PRs, do **not** mark them as
-required status checks: a required check that never reports blocks the merge.
+Upstream also runs the suites against React's development renderer (nightly,
+on pushes to `main` and on PRs labelled `stress`). LiTT does not adopt those
+jobs or their nightly crons: they cost about an hour of runner time per run
+for coverage the production suites already provide (TD-024). The
+`REACT_STRESS=1` and `WORD_E2E_DEVELOPMENT=1` modes remain available for a
+local run.
 
 ## Accessibility scans
 
@@ -107,13 +95,10 @@ that backlog is cleared. The scans need no LLM key and run on every trigger.
 
 ## Failure artifacts
 
-The production suite retries failed specs up to twice on CI and records a
-**trace** on the first retry. Development stress uses **zero retries** and
-retains traces on failure, so an intermittent loop cannot pass on a retry.
-On pass, fail, or timeout, each full-stack job uploads `playwright-report/`,
-`test-results/`, the web-server log and the model-fixture log as **`playwright-report-production`** or
-**`playwright-report-development`** (14-day retention). The focused development
-job uploads **`assistant-streaming-development`** with the same failure evidence.
+The suite retries failed specs up to twice on CI and records a **trace** on
+the first retry. On pass, fail, or timeout, the job uploads
+`playwright-report/`, `test-results/`, the web-server log and the
+model-fixture log as **`playwright-report`** (14-day retention).
 From the failed run's page in the Actions tab, download its artifact, then
 `npx playwright show-report playwright-report` locally to see per-spec results,
 screenshots, and step-by-step traces of what the browser did.
@@ -186,12 +171,14 @@ suite go green a few times (it is environment-sensitive by nature):
    `main`).
 2. Enable **Require status checks to pass before merging**.
 3. Enable **Require branches to be up to date before merging**.
-4. In the checks search box add **`e2e / playwright`**,
-   the three **`e2e / Assistant streaming (production, assistant|project|rest)`** checks and
+4. In the checks search box add **`e2e / playwright`** and
    **`Word add-in / Typecheck and Playwright (chromium + webkit)`**. Jobs appear
-   in the list after they have run at least once on a PR. Do not require the
-   development-stress checks; they only run on PRs labelled `stress` (see
-   [Development stress jobs](#development-stress-jobs)).
+   in the list after they have run at least once on a PR. Both workflows are
+   path-filtered (documentation-only PRs skip e2e; the add-in check runs only
+   when `word-addin/`, the shared UI it bundles, `packages/` or its workflow
+   change). A required check whose workflow a path filter skipped never
+   reports and leaves the merge pending, so require them only if that
+   trade-off is acceptable for docs-only PRs.
 5. Keep the existing unit/build, security and `license/cla` requirements.
 6. Save. From now on a red e2e run blocks the **Merge** button.
 
