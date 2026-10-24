@@ -145,7 +145,6 @@ describe("noModelsReason", () => {
             vertex: none,
             xai: none,
             custom: none,
-            courtlistener: none,
             ...entries,
         }) satisfies ProviderKeyStates;
 
@@ -171,12 +170,6 @@ describe("noModelsReason", () => {
         expect(
             noModelsReason(state({ bedrock: on, claude: off }), { bedrock: [] }),
         ).toBe("router-models");
-    });
-
-    it("ignores a switched-off CourtListener key, which serves no models", () => {
-        expect(noModelsReason(state({ courtlistener: off }), {})).toBe(
-            "api-keys",
-        );
     });
 
     describe("inside an organization", () => {

@@ -75,8 +75,6 @@ async function dispatchDocumentTool(
         undefined,
         turnReadState,
         undefined,
-        undefined,
-        undefined,
         NONCE,
     );
 }
@@ -102,8 +100,6 @@ it("refuses a scoped subagent's search across the project", async () => {
         undefined,
         undefined,
         "project-1",
-        undefined,
-        undefined,
         NONCE,
         { documentsScoped: true },
     );

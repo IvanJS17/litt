@@ -242,8 +242,7 @@ remaining inline queries per routes file and only ever goes down.
 
 - **Infrastructure:** `supabase`, `storage`, `queue/`, `dbq/` (durable jobs),
   `llm/`, `mcp/`, `httpError`, `serviceResult`, `pagination`, `search`,
-  `privateIp`, `origins`, `runtimeConfig`, `courtlistener` (an external API
-  client), `webSearch/` (Mike's own web search and page reader), `convert`,
+  `privateIp`, `origins`, `runtimeConfig`, `webSearch/` (Mike's own web search and page reader), `convert`,
   `pdfjs`, `zipExport`, `concurrency`.
 - **Cross-domain primitives** that several modules and the job handlers share:
   `access` (project/document authorization), `audit` (audit-row writes),

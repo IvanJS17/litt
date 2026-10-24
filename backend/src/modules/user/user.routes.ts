@@ -504,7 +504,6 @@ userRouter.patch(
         const provider = normalizeApiKeyProvider(req.params.provider);
         if (
             !provider ||
-            provider === "courtlistener" ||
             isWebSearchBackend(provider) ||
             typeof req.body?.enabled !== "boolean"
         ) {

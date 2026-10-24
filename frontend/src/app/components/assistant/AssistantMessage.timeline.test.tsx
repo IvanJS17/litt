@@ -270,10 +270,7 @@ describe("AssistantMessage timeline", () => {
             task: "List every rent review clause in lease.pdf.",
             status: "completed",
             brief: "Clause 4.2 sets an annual review.",
-            events: [
-                { type: "doc_read", filename: "lease.pdf" },
-                { type: "case_citation", cluster_id: 1, case_name: null, citation: null, url: "" },
-            ],
+            events: [{ type: "doc_read", filename: "lease.pdf" }],
             model: "claude-haiku-4-5",
             effort: "standard",
             usage: { input_tokens: 1000, output_tokens: 200 },
@@ -492,25 +489,6 @@ describe("AssistantMessage timeline", () => {
             expect(laneIcon("Recheck the guarantee").tint).toBe("violet");
         });
 
-        it("finds a nested citation check's cases among the subagent's own steps", () => {
-            render(
-                <AssistantMessage
-                    events={[
-                        delegation({
-                            events: [
-                                { type: "courtlistener_verify_citations", citation_count: 1, match_count: 1 },
-                                { type: "case_citation", cluster_id: 7, case_name: "Roe v. Wade", citation: "410 U.S. 113", url: "" },
-                            ],
-                        }),
-                        { type: "content", text: "Done." },
-                    ]}
-                />,
-            );
-            openTimeline();
-            fireEvent.click(pill("Review the lease"));
-            fireEvent.click(screen.getByRole("button", { name: /Verified 1 citation/ }));
-            expect(screen.getByText("Roe v. Wade, 410 U.S. 113")).toBeVisible();
-        });
     });
 });
 

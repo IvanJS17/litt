@@ -14,8 +14,8 @@ keys the chat runs on.
 ## What a subagent can do
 
 A subagent works with the user's access and nothing more. It has the same
-tools as the answer that started it: the chat's documents, CourtListener and
-the web when they are on, workflows and playbooks, document generation and
+tools as the answer that started it: the chat's documents and
+the web when it is on, workflows and playbooks, document generation and
 editing, and the user's connectors (MCP servers, Google Drive and Workspace).
 Where the answer may not write documents, for example a project viewer's
 chat, neither may its subagents. It cannot ask the user questions or start

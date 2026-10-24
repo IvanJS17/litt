@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getEffectiveApiKeys, getEffectiveRouterModels } = vi.hoisted(() => ({
     getEffectiveApiKeys: vi.fn(),
@@ -37,7 +37,6 @@ const NO_KEYS = {
     openai: null,
     openrouter: "env-openrouter-key",
     vercel: null,
-    courtlistener: null,
 };
 
 beforeEach(() => {
@@ -57,7 +56,6 @@ describe("getUserModelSettings router-model allowlist", () => {
             profileDb({
                 title_model: "claude-haiku-4-5",
                 tabular_model: "claude-sonnet-5-5",
-                legal_research_us: true,
                 display_name: "Ada",
                 organisation: "Acme LLP",
                 jurisdiction: "Singapore",
@@ -100,7 +98,6 @@ describe("getUserModelSettings router-model allowlist", () => {
                 title_model: "openrouter/allowed/model",
                 tabular_model: "openrouter/allowed/model",
                 memory_curator_model: "openrouter/allowed/model",
-                legal_research_us: true,
             }),
         );
 
@@ -116,7 +113,6 @@ describe("getUserModelSettings router-model allowlist", () => {
                 title_model: "openrouter/pricy/frontier-model",
                 tabular_model: "vercel/pricy/frontier-model",
                 memory_curator_model: "openrouter/pricy/frontier-model",
-                legal_research_us: true,
             }),
         );
 
@@ -132,7 +128,6 @@ describe("getUserModelSettings router-model allowlist", () => {
                 title_model: "claude-haiku-4-5",
                 tabular_model: "claude-sonnet-5-5",
                 memory_curator_model: "gpt-6-luna",
-                legal_research_us: true,
             }),
         );
 
@@ -229,7 +224,6 @@ describe("getUserModelSettings on an un-migrated database", () => {
                         tabular_model: "claude-sonnet-5-5",
                         last_selected_chat_model: "claude-sonnet-5-5",
                         last_selected_reasoning_level: "high",
-                        legal_research_us: true,
                     },
                     error: null,
                 },
@@ -257,7 +251,6 @@ describe("getUserModelSettings on an un-migrated database", () => {
                     data: {
                         title_model: "claude-haiku-4-5",
                         tabular_model: "claude-sonnet-5-5",
-                        legal_research_us: false,
                     },
                     error: null,
                 },
@@ -266,7 +259,6 @@ describe("getUserModelSettings on an un-migrated database", () => {
 
         expect(settings.title_model).toBe("claude-haiku-4-5");
         expect(settings.tabular_model).toBe("claude-sonnet-5-5");
-        expect(settings.legal_research_us).toBe(false);
         expect(settings.personalisation).toMatchObject({
             displayName: null,
             practiceAreas: [],
@@ -274,10 +266,6 @@ describe("getUserModelSettings on an un-migrated database", () => {
     });
 
     it("returns empty optional preferences when the retry also fails", async () => {
-        getEffectiveApiKeys.mockResolvedValue({
-            ...NO_KEYS,
-            courtlistener: "user-courtlistener-token",
-        });
         const settings = await getUserModelSettings(
             "user-1",
             retryingProfileDb(
@@ -296,35 +284,7 @@ describe("getUserModelSettings on an un-migrated database", () => {
             ),
         );
 
-        expect(settings.legal_research_us).toBe(true);
         expect(settings.title_model).toBeNull();
         expect(settings.tabular_model).toBeNull();
-    });
-});
-
-describe("getUserModelSettings CourtListener connector", () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
-    });
-    const settingsWith = (courtlistener: string | null, enabled = true) => {
-        getEffectiveApiKeys.mockResolvedValue({ ...NO_KEYS, courtlistener });
-        return getUserModelSettings(
-            "user-1",
-            profileDb({ legal_research_us: enabled }),
-        );
-    };
-
-    it("offers research tools only with a saved token or the bulk index", async () => {
-        expect((await settingsWith(null)).legal_research_us).toBe(false);
-        expect((await settingsWith("saved-token")).legal_research_us).toBe(true);
-        vi.stubEnv("COURTLISTENER_BULK_DATA_ENABLED", "true");
-        expect((await settingsWith(null)).legal_research_us).toBe(true);
-    });
-
-    it("keeps the user's switch off whatever is configured", async () => {
-        vi.stubEnv("COURTLISTENER_BULK_DATA_ENABLED", "true");
-        expect((await settingsWith("saved-token", false)).legal_research_us).toBe(
-            false,
-        );
     });
 });

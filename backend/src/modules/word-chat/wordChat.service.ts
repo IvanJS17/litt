@@ -908,7 +908,6 @@ export async function prepareWordChatStream(
     const { personalisation } = modelSettings;
     // Only the pinned credential leaves this function.
     const apiKeys = { ...governed.apiKeys };
-    delete apiKeys.courtlistener;
     const personalisationPrompt = buildUserPersonalisationPrompt(
       personalisation,
       nonce,
@@ -932,7 +931,6 @@ export async function prepareWordChatStream(
       docAvailability,
       wordSystemPrompt,
       docIndex,
-      false,
       nonce,
       "replace",
       { timeZone, now: new Date(), userSentAt },

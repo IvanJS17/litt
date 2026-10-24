@@ -407,7 +407,7 @@ export type ModelProvider =
   | RouterSlug
   | "ollama";
 
-/** Key providers that serve chat models (CourtListener does not). */
+/** Key providers that serve chat models. */
 const MODEL_KEY_PROVIDERS = [
   "claude",
   "gemini",

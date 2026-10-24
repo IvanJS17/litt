@@ -35,7 +35,6 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
                 vertex: notConfigured,
                 xai: notConfigured,
                 custom: notConfigured,
-                courtlistener: notConfigured,
             },
             apiKeySettings: { azure: { endpoint: "contoso-openai" } },
         },

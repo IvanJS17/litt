@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "../prompts";
-import { COURTLISTENER_SYSTEM_PROMPT } from "../tools/courtlistenerTools";
 
 describe("buildSystemPrompt", () => {
     it("always contains the core identity and rules", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain(
                 "You are LiTT, an AI legal assistant for lawyers and legal professionals.",
             );
@@ -21,7 +20,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("always contains the citation contract the parser depends on", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain("<CITATIONS>");
             expect(prompt).toContain("</CITATIONS>");
             expect(prompt).toContain(
@@ -34,7 +33,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("requires renderable tables and formulas", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain("RESPONSE FORMATTING:");
             // The chat renders GFM pipe tables; grid tables show as raw text.
             expect(prompt).toContain("use Markdown pipe tables only");
@@ -51,7 +50,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("keeps the text of a created or edited document out of text cards", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain(
                 "Never put the text of a document you created or edited into a card",
             );
@@ -62,7 +61,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("never instructs the model to fabricate citation quotes", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).not.toContain("TESTING ONLY");
             expect(prompt).not.toContain("deliberately false text");
             expect(prompt).not.toContain("Make 50% of document citation quotes");
@@ -70,7 +69,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("always contains the doc-label hygiene and reasoning-trace safety rules", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain("REASONING TRACE SAFETY:");
             expect(prompt).toContain(
                 `Never show "doc-N" labels to the user in prose`,
@@ -79,7 +78,7 @@ describe("buildSystemPrompt", () => {
     });
 
     it("separates workflows and Library Templates with copy-before-edit rules", () => {
-        for (const prompt of [buildSystemPrompt(true), buildSystemPrompt(false)]) {
+        for (const prompt of [buildSystemPrompt()]) {
             expect(prompt).toContain("WORKFLOWS:");
             expect(prompt).toContain("LIBRARY TEMPLATES:");
             expect(prompt).toContain(
@@ -108,28 +107,14 @@ describe("buildSystemPrompt", () => {
         }
     });
 
-    it("splices the CourtListener instructions between the two base sections when research is on", () => {
-        const prompt = buildSystemPrompt(true);
-        expect(prompt).toContain(COURTLISTENER_SYSTEM_PROMPT);
-        const researchIdx = prompt.indexOf("US CASE LAW RESEARCH:");
-        const editingIdx = prompt.indexOf("DOCUMENT EDITING:");
-        const afterIdx = prompt.indexOf("DOCUMENT NAMES IN PROSE:");
-        expect(editingIdx).toBeLessThan(researchIdx);
-        expect(researchIdx).toBeLessThan(afterIdx);
-    });
-
-    it("omits the CourtListener instructions entirely when research is off", () => {
-        const prompt = buildSystemPrompt(false);
+    it("carries no case-law research instructions", () => {
+        const prompt = buildSystemPrompt();
         expect(prompt).not.toContain("US CASE LAW RESEARCH");
-        expect(prompt).not.toContain("courtlistener");
-        // Both base sections are still present and in order.
+        expect(prompt).not.toContain("CITATION REMINDER");
+        // The document sections survive, and the policy sections follow them.
         const editingIdx = prompt.indexOf("DOCUMENT EDITING:");
-        const afterIdx = prompt.indexOf("DOCUMENT NAMES IN PROSE:");
+        const namesIdx = prompt.indexOf("DOCUMENT NAMES IN PROSE:");
         expect(editingIdx).toBeGreaterThan(-1);
-        expect(editingIdx).toBeLessThan(afterIdx);
-    });
-
-    it("defaults to including research tools", () => {
-        expect(buildSystemPrompt()).toBe(buildSystemPrompt(true));
+        expect(editingIdx).toBeLessThan(namesIdx);
     });
 });

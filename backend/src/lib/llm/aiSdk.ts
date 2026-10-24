@@ -203,19 +203,6 @@ export async function aiSdkFetch(
   });
 }
 
-const COURTLISTENER_CITATION_REMINDER_TOOL_NAMES = new Set([
-  "courtlistener_find_in_case",
-  "courtlistener_read_case",
-]);
-
-const COURTLISTENER_CITATION_REMINDER = `COURTLISTENER CITATION REMINDER:
-If your final answer relies on any CourtListener case, every such case reference must have BOTH a clickable markdown case link and an inline [N] marker.
-Include the clickable case link only the first time you cite that case; later references to the same case should reuse the existing inline [N] marker without repeating the link unless clarity requires it.
-Assign new refs in first-use order as much as possible: [1], then [2], then [3]. Reuse an existing ref when citing the same case/passage again, even if that means a later sentence cites [3] and then [1] again.
-End the response with a <CITATIONS> block containing one matching case entry per [N] marker:
-{"ref": N, "cluster_id": 123, "quotes": [{"opinion_id": 456, "quote": "exact verbatim opinion text"}]}.
-Do not use doc_id, page, top-level quote, case_name, or citation fields for CourtListener case entries.`;
-
 export type AiSdkAdapterConfig = {
   provider: Provider;
   label: string;
@@ -223,8 +210,6 @@ export type AiSdkAdapterConfig = {
   modelId: string;
   /** Some protocol-compatible gateways reject reasoning request fields. */
   supportsReasoning?: boolean;
-  /** OpenAI's CourtListener tools require an extra instruction after use. */
-  courtlistenerCitationReminder?: boolean;
   /** The provider's own web search tool. */
   webSearchTool?: (options: { maxUses: number }) => ToolSet[string];
   /** Send stored reasoning on earlier assistant turns; see ConfiguredModel. */
@@ -388,16 +373,6 @@ function webSearchQueryFrom(input: unknown, output?: unknown): string | undefine
   ];
   return candidates.find(
     (value): value is string => typeof value === "string" && value !== "",
-  );
-}
-
-function usesCourtlistenerTool(
-  steps: Array<{ toolCalls: Array<{ toolName: string }> }>,
-) {
-  return steps.some((step) =>
-    step.toolCalls.some((call) =>
-      COURTLISTENER_CITATION_REMINDER_TOOL_NAMES.has(call.toolName),
-    ),
   );
 }
 
@@ -589,33 +564,14 @@ export async function streamAiSdk(
       // fields that are safe to keep (MIKE-BACKEND-C). Every failure still
       // arrives through fullStream.
       onError: () => {},
-      ...(config.courtlistenerCitationReminder ||
-      params.finishWithoutToolsOnLastStep
+      ...(params.finishWithoutToolsOnLastStep
         ? {
-            prepareStep: ({
-              steps,
-              stepNumber,
-            }: {
-              steps: Array<{ toolCalls: Array<{ toolName: string }> }>;
-              stepNumber: number;
-            }) => {
-              const step: { system?: string; toolChoice?: "none" } = {};
-              if (
-                config.courtlistenerCitationReminder &&
-                usesCourtlistenerTool(steps)
-              ) {
-                step.system = `${params.systemPrompt}\n\n${COURTLISTENER_CITATION_REMINDER}`;
-              }
+            prepareStep: ({ stepNumber }: { stepNumber: number }) =>
               // Removing tools instead would break providers that reject a
               // history of calls to a tool the request no longer defines.
-              if (
-                params.finishWithoutToolsOnLastStep &&
-                stepNumber === maxIterations - 1
-              ) {
-                step.toolChoice = "none";
-              }
-              return Object.keys(step).length ? step : undefined;
-            },
+              stepNumber === maxIterations - 1
+                ? { toolChoice: "none" as const }
+                : undefined,
           }
         : {}),
     });

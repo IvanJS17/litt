@@ -8,7 +8,6 @@ import type {
     AssistantEvent,
     Citation,
     EditAnnotation,
-    PanelDocument,
 } from "../shared/types";
 import { ConnectorSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { notifyError } from "@/app/lib/userFacingError";
@@ -36,14 +35,13 @@ import {
     toolCallLabel,
     withDelegationEvents,
 } from "./message/eventUtils";
-import { preprocessCitations, internalCaseHref } from "./message/citationUtils";
+import { preprocessCitations } from "./message/citationUtils";
 import { useSmoothedReveal } from "./message/useSmoothedReveal";
 import { MarkdownContent } from "./message/MarkdownContent";
 import { CitationsBlock, buildCitationAppendix } from "./message/CitationSources";
 import { EditCardsSection } from "./message/EditCardsSection";
 import {
     AskInputsBlock,
-    CourtListenerBlock,
     DocCreatedBlock,
     DocDownloadBlock,
     DocEditBlock,
@@ -53,7 +51,6 @@ import {
     EventBlock,
     ReasoningBlock,
     WorkflowAppliedBlock,
-    type CourtListenerBlockItem,
 } from "./message/EventBlocks";
 
 interface Props {
@@ -73,9 +70,6 @@ interface Props {
     activeCitation?: Citation | null;
     onCitationClick?: (citation: Citation) => void;
     onOpenCitationSource?: (citation: Citation) => void;
-    onCaseClick?: (
-        citation: Extract<AssistantEvent, { type: "case_citation" }>,
-    ) => void;
     minHeight?: string;
     onWorkflowClick?: (workflowId: string) => void;
     onEditViewClick?: (
@@ -145,7 +139,6 @@ export function AssistantMessage({
     activeCitation,
     onCitationClick,
     onOpenCitationSource,
-    onCaseClick,
     minHeight = "0px",
     onWorkflowClick,
     onEditViewClick,
@@ -240,23 +233,10 @@ export function AssistantMessage({
     // to exactly one citation (models are instructed to use shared refs
     // only for cross-page continuations via the [[PAGE_BREAK]] sentinel).
     const inlineCitationTargets: Citation[] = [];
-    const caseCitations = new Map<
-        string,
-        Extract<AssistantEvent, { type: "case_citation" }>
-    >();
-    const caseDocuments = new Map<number, PanelDocument>();
     const processedTexts: string[] = [];
     if (events) {
         for (let i = 0; i < events.length; i++) {
             const event = events[i];
-            if (event.type === "case_citation") {
-                const hrefKey = internalCaseHref(event.cluster_id);
-                if (hrefKey) caseCitations.set(hrefKey, event);
-            } else if (event.type === "case_opinions") {
-                if (event.document) {
-                    caseDocuments.set(event.cluster_id, event.document);
-                }
-            }
             processedTexts.push(
                 event.type === "content"
                     ? preprocessCitations(
@@ -667,224 +647,6 @@ export function AssistantMessage({
                 />
             );
         }
-        if (event.type === "courtlistener_search_case_law") {
-            const count = event.result_count ?? 0;
-            const detail = event.isStreaming
-                ? event.query
-                    ? `for "${event.query}"`
-                    : undefined
-                : event.error
-                  ? event.error
-                  : `${count} ${count === 1 ? "result" : "results"}${event.query ? ` for "${event.query}"` : ""}`;
-            return (
-                <CourtListenerBlock
-                    key={globalIdx}
-                    label={
-                        event.isStreaming
-                            ? "Searching case law"
-                            : event.error
-                              ? "Case law search failed"
-                              : "Searched case law"
-                    }
-                    detail={detail}
-                    isStreaming={!!event.isStreaming}
-                    hasError={!!event.error}
-                    showConnector={showConnector}
-                />
-            );
-        }
-        if (event.type === "courtlistener_get_cases") {
-            const caseCount = event.case_count ?? event.cluster_ids.length;
-            const displayLabel = `${caseCount} ${
-                caseCount === 1 ? "case" : "cases"
-            }`;
-            const detail = event.error ? event.error : undefined;
-            const items: CourtListenerBlockItem[] =
-                event.cases?.map((caseItem) => ({
-                    caseName: caseItem.case_name,
-                    citation: caseItem.citation,
-                    url: caseItem.url ?? null,
-                })) ??
-                event.cluster_ids.map((clusterId) => {
-                    const citation = caseCitations.get(`us-case-${clusterId}`);
-                    return {
-                        caseName: citation?.case_name ?? null,
-                        citation: citation?.citation ?? `Cluster ${clusterId}`,
-                        url: citation?.url ?? null,
-                    };
-                });
-            return (
-                <CourtListenerBlock
-                    key={globalIdx}
-                    label={
-                        event.isStreaming
-                            ? `Fetching ${displayLabel}`
-                            : event.error
-                              ? "Case fetch failed"
-                              : `Fetched ${displayLabel}`
-                    }
-                    detail={detail}
-                    isStreaming={!!event.isStreaming}
-                    hasError={!!event.error}
-                    showConnector={showConnector}
-                    items={items.length > 0 ? items : undefined}
-                />
-            );
-        }
-        if (event.type === "courtlistener_find_in_case") {
-            const searches = event.searches ?? [];
-            if (searches.length > 0) {
-                const matches =
-                    event.total_matches ??
-                    searches.reduce(
-                        (sum, search) => sum + (search.total_matches ?? 0),
-                        0,
-                    );
-                const caseIds = new Set(
-                    searches.map(
-                        (search) =>
-                            search.cluster_id ??
-                            `${search.case_name ?? ""}|${search.citation ?? ""}`,
-                    ),
-                );
-                const caseCount = caseIds.size || searches.length;
-                const searchLabel = `${searches.length} ${
-                    searches.length === 1 ? "search" : "searches"
-                } in ${caseCount} ${caseCount === 1 ? "case" : "cases"}`;
-                const detail = event.isStreaming
-                    ? undefined
-                    : event.error
-                      ? event.error
-                      : `(${matches} ${matches === 1 ? "match" : "matches"})`;
-                const items: CourtListenerBlockItem[] = searches.map(
-                    (search) => ({
-                        caseName: search.case_name ?? null,
-                        citation:
-                            search.citation ??
-                            (search.cluster_id
-                                ? `Cluster ${search.cluster_id}`
-                                : null),
-                        url: null,
-                        query: search.query,
-                        totalMatches: search.total_matches ?? 0,
-                        hasError: !!search.error,
-                    }),
-                );
-                return (
-                    <CourtListenerBlock
-                        key={globalIdx}
-                        label={
-                            event.isStreaming
-                                ? `Running ${searchLabel}`
-                                : event.error
-                                  ? "Case searches failed"
-                                  : `Ran ${searchLabel}`
-                        }
-                        detail={detail}
-                        isStreaming={!!event.isStreaming}
-                        hasError={!!event.error}
-                        showConnector={showConnector}
-                        items={items.length > 0 ? items : undefined}
-                    />
-                );
-            }
-            const matches = event.total_matches ?? 0;
-            const caseLabel =
-                [event.case_name, event.citation].filter(Boolean).join(", ") ||
-                (event.cluster_id ? `cluster ${event.cluster_id}` : "case");
-            const detail = event.isStreaming
-                ? event.query
-                    ? `for "${event.query}" in ${caseLabel}`
-                    : caseLabel
-                : event.error
-                  ? event.error
-                  : `${matches} ${matches === 1 ? "match" : "matches"}${event.query ? ` for "${event.query}"` : ""} in ${caseLabel}`;
-            return (
-                <CourtListenerBlock
-                    key={globalIdx}
-                    label={
-                        event.isStreaming
-                            ? "Searching case"
-                            : event.error
-                              ? "Case search failed"
-                              : "Searched case"
-                    }
-                    detail={detail}
-                    isStreaming={!!event.isStreaming}
-                    hasError={!!event.error}
-                    showConnector={showConnector}
-                />
-            );
-        }
-        if (event.type === "courtlistener_read_case") {
-            const count = event.opinion_count ?? 0;
-            const caseLabel =
-                [event.case_name, event.citation].filter(Boolean).join(", ") ||
-                "case";
-            const detail = event.isStreaming
-                ? undefined
-                : event.error
-                  ? event.error
-                  : count > 0
-                    ? `(${count} ${count === 1 ? "opinion" : "opinions"})`
-                    : undefined;
-            return (
-                <CourtListenerBlock
-                    key={globalIdx}
-                    label={
-                        event.isStreaming
-                            ? `Reading case ${caseLabel}`
-                            : event.error
-                              ? `Case read failed ${caseLabel}`
-                              : `Read case ${caseLabel}`
-                    }
-                    detail={detail}
-                    isStreaming={!!event.isStreaming}
-                    hasError={!!event.error}
-                    showConnector={showConnector}
-                />
-            );
-        }
-        if (event.type === "courtlistener_verify_citations") {
-            const citations = event.citation_count ?? 0;
-            const matches = event.match_count ?? 0;
-            const citationLabel = `${citations} ${citations === 1 ? "citation" : "citations"}`;
-            const detail = event.isStreaming
-                ? undefined
-                : event.error
-                  ? event.error
-                  : `(${matches} ${matches === 1 ? "match" : "matches"})`;
-            // Adjacent `case_citation` events are emitted between the start
-            // and final verify_citations events (one per matched citation) —
-            // collect them so the user can expand to see resolved cases.
-            const items: CourtListenerBlockItem[] = [];
-            for (let j = globalIdx + 1; j < timeline.length; j++) {
-                const e = timeline[j];
-                if (e.type !== "case_citation") break;
-                items.push({
-                    caseName: e.case_name,
-                    citation: e.citation,
-                    url: e.url || null,
-                });
-            }
-            return (
-                <CourtListenerBlock
-                    key={globalIdx}
-                    label={
-                        event.isStreaming
-                            ? `Verifying ${citationLabel}`
-                            : event.error
-                              ? "Citation verification failed"
-                              : `Verified ${citationLabel}`
-                    }
-                    detail={detail}
-                    isStreaming={!!event.isStreaming}
-                    hasError={!!event.error}
-                    showConnector={showConnector}
-                    items={items.length > 0 ? items : undefined}
-                />
-            );
-        }
         return null;
     };
 
@@ -959,11 +721,8 @@ export function AssistantMessage({
                                             inlineCitationTargets={
                                                 inlineCitationTargets
                                             }
-                                            caseCitations={caseCitations}
-                                            caseDocuments={caseDocuments}
                                             activeCitation={activeCitation}
                                             onCitationClick={onCitationClick}
-                                            onCaseClick={onCaseClick}
                                             divRef={
                                                 isLastContent
                                                     ? contentDivRef

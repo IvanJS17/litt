@@ -836,9 +836,6 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       db,
       write,
       workflowStore,
-      // CourtListener is intentionally unavailable in document-scoped Word
-      // chats. Legal research remains a web-assistant capability.
-      includeResearchTools: false,
       includeAskInputs: false,
       ...(clientToolsEnabled
         ? {

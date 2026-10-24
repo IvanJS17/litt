@@ -58,7 +58,6 @@ create table if not exists public.user_profiles (
   subagent_reasoning text check (subagent_reasoning in ('none', 'low', 'medium', 'high', 'xhigh', 'max')),
   quote_model text,
   mfa_on_login boolean not null default false,
-  legal_research_us boolean not null default true,
   quick_actions_visible boolean not null default true,
   -- Whether each response and subagent shows the model, reasoning effort and
   -- token count it used (Settings > Features).
@@ -629,7 +628,7 @@ $$;
 create table if not exists public.user_api_keys (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  provider text not null check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'courtlistener', 'brave', 'tavily', 'deepseek')),
+  provider text not null check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek')),
   encrypted_key text not null,
   iv text not null,
   auth_tag text not null,
@@ -667,7 +666,7 @@ create table if not exists public.org_api_keys (
   org_id uuid not null references public.organizations(id) on delete cascade,
   provider text not null
     constraint org_api_keys_provider_check
-    check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'courtlistener', 'brave', 'tavily', 'deepseek')),
+    check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek')),
   encrypted_key text not null,
   iv text not null,
   auth_tag text not null,
@@ -3760,45 +3759,6 @@ create index if not exists tabular_review_chat_messages_chat_idx
   on public.tabular_review_chat_messages(chat_id, created_at);
 create index if not exists tabular_review_chat_messages_author_idx
   on public.tabular_review_chat_messages(author_user_id) where author_user_id is not null;
-
--- ---------------------------------------------------------------------------
--- CourtListener bulk-data indexes
--- ---------------------------------------------------------------------------
-
-create table if not exists public.courtlistener_citation_index (
-  id bigint primary key,
-  volume text not null,
-  reporter text not null,
-  page text not null,
-  type integer,
-  cluster_id bigint not null,
-  date_created timestamptz,
-  date_modified timestamptz
-);
-
-create index if not exists courtlistener_citation_lookup_idx
-  on public.courtlistener_citation_index(volume, reporter, page);
-
-create index if not exists courtlistener_citation_cluster_idx
-  on public.courtlistener_citation_index(cluster_id);
-
-alter table public.courtlistener_citation_index enable row level security;
-
-create table if not exists public.courtlistener_opinion_cluster_index (
-  id bigint primary key,
-  case_name text,
-  case_name_short text,
-  case_name_full text,
-  slug text,
-  date_filed date,
-  citation_count integer,
-  precedential_status text,
-  filepath_pdf_harvard text,
-  filepath_json_harvard text,
-  docket_id bigint
-);
-
-alter table public.courtlistener_opinion_cluster_index enable row level security;
 
 -- ---------------------------------------------------------------------------
 -- Library search and lightweight overview facets
@@ -8013,8 +7973,6 @@ revoke all on public.user_mcp_oauth_tokens from anon, authenticated;
 revoke all on public.user_mcp_oauth_states from anon, authenticated;
 revoke all on public.user_mcp_connector_tools from anon, authenticated;
 revoke all on public.user_mcp_tool_audit_logs from anon, authenticated;
-revoke all on public.courtlistener_citation_index from anon, authenticated;
-revoke all on public.courtlistener_opinion_cluster_index from anon, authenticated;
 revoke all on public.audit_events from anon, authenticated;
 revoke all on public.db_jobs from anon, authenticated;
 revoke all on public.playbooks from anon, authenticated;
@@ -15984,10 +15942,10 @@ create trigger assign_org_api_key_credential_ref
 
 alter table public.user_api_keys drop constraint if exists user_api_keys_provider_check;
 alter table public.user_api_keys add constraint user_api_keys_provider_check
-  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'courtlistener', 'brave', 'tavily', 'deepseek'));
+  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek'));
 alter table public.org_api_keys drop constraint if exists org_api_keys_provider_check;
 alter table public.org_api_keys add constraint org_api_keys_provider_check
-  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'courtlistener', 'brave', 'tavily', 'deepseek'));
+  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek'));
 
 alter table public.chats add column if not exists model_provider text;
 alter table public.chats add column if not exists credential_ref text;
@@ -16242,5 +16200,6 @@ insert into public.schema_migrations (filename) values
   ('20261023_14_litt_mfa_on_login_default.sql'),
   ('20261023_15_litt_pinned_chat_route.sql'),
   ('20261023_16_litt_pinned_word_tabular_route.sql'),
-  ('20261023_17_litt_pinned_playbook_route.sql')
+  ('20261023_17_litt_pinned_playbook_route.sql'),
+  ('20261023_18_litt_remove_courtlistener.sql')
 on conflict (filename) do nothing;

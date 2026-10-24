@@ -51,8 +51,8 @@ export default defineConfig({
       // documentVersions, userDataCleanup, docxTrackedChanges,
       // documentTypes, chat prompts, workflow catalog ingestion), the
       // route/service layer the integration and service suites drive,
-      // and the large still-untested feature libs (courtlistener, mcp,
-      // chat tool dispatch, llm providers, spreadsheet handling) — so
+      // and the large still-untested feature libs (mcp, chat tool
+      // dispatch, llm providers, spreadsheet handling) — so
       // the global number stays modest.
       //
       // Measured on THIS tree with the widened src/** scope: 60.59%

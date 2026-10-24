@@ -16,12 +16,6 @@ import {
   ConnectorCardSkeleton,
 } from "@/app/components/settings/ConnectorCard";
 import {
-  COURTLISTENER_NAME,
-  CourtListenerIcon,
-  CourtListenerTokenModal,
-  useCourtListenerConnector,
-} from "@/app/components/settings/CourtListenerConnector";
-import {
   McpConnectorForm,
   type McpConnectorFormDraft,
 } from "@/app/components/settings/McpConnectorForm";
@@ -440,8 +434,6 @@ export default function ConnectorsPage() {
     "Google Calendar",
   );
   const googleConnectors = [googleDrive, gmail, googleCalendar];
-  const courtListener = useCourtListenerConnector();
-  const [courtListenerOpen, setCourtListenerOpen] = useState(false);
   const drivePicker = useGoogleDrivePicker();
   const [selectedGoogleProvider, setSelectedGoogleProvider] =
     useState<GoogleConnectorProvider | null>(null);
@@ -1304,9 +1296,7 @@ export default function ConnectorsPage() {
   // answered. Until then both lists show placeholders, so no card appears in
   // Discover only to move to Installed or vanish (a service the operator
   // switched off) a moment later.
-  const initialLoading =
-    !connectorsLoaded || googleLoading || courtListener.loading;
-  const discoverCourtListener = !courtListener.installed;
+  const initialLoading = !connectorsLoaded || googleLoading;
   const googleAdding = googleConnectors.some(
     (connector) => connector.phase !== "idle",
   );
@@ -1368,18 +1358,6 @@ export default function ConnectorsPage() {
               }
             />
           ))}
-          {!initialLoading && courtListener.installed && (
-            <ConnectorRow
-              name={COURTLISTENER_NAME}
-              icon={<CourtListenerIcon />}
-              enabled={courtListener.enabled}
-              busy={courtListener.busy}
-              onOpen={() => setCourtListenerOpen(true)}
-              onEnabledChange={(enabled) =>
-                void courtListener.setEnabled(enabled)
-              }
-            />
-          )}
           {!initialLoading &&
             !loading &&
             connectors.map((connector) => {
@@ -1406,8 +1384,7 @@ export default function ConnectorsPage() {
           {!initialLoading &&
             !loading &&
             connectors.length === 0 &&
-            installedGoogle.length === 0 &&
-            !courtListener.installed && (
+            installedGoogle.length === 0 && (
               <div className="@min-[32rem]:col-span-2">
                 <GlassCardUI>
                   <div className="p-4">
@@ -1428,7 +1405,6 @@ export default function ConnectorsPage() {
         </div>
         {!initialLoading &&
           discoverGoogle.length === 0 &&
-          !discoverCourtListener &&
           discoverPresets.length === 0 && (
             <SettingsDescription>
               Every available connector is installed.
@@ -1455,18 +1431,6 @@ export default function ConnectorsPage() {
               onCancel={connector.cancel}
             />
           ))}
-          {!initialLoading && discoverCourtListener && (
-            <DiscoverCard
-              name={COURTLISTENER_NAME}
-              icon={<CourtListenerIcon />}
-              adding={false}
-              authorizing={false}
-              loading={false}
-              disabled={busyKey !== null || googleAdding}
-              onAdd={() => setCourtListenerOpen(true)}
-              onCancel={() => setCourtListenerOpen(false)}
-            />
-          )}
           {!initialLoading && discoverPresets.map((preset) => {
             const isAdding =
               busyKey === "create" &&
@@ -1494,11 +1458,6 @@ export default function ConnectorsPage() {
           })}
         </div>
       </section>
-
-      <CourtListenerTokenModal
-        open={courtListenerOpen}
-        onClose={() => setCourtListenerOpen(false)}
-      />
 
       <NewCustomMcpModal
         open={addOpen}

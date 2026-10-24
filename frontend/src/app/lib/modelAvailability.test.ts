@@ -29,7 +29,6 @@ const keys = (configured: {
             configured: !!configured.opencodego,
             source: null,
         },
-        courtlistener: { configured: false, source: null },
     }) as ApiKeyState;
 
 describe("getModelProvider", () => {

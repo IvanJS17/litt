@@ -117,7 +117,6 @@ export type UserApiKeys = {
     xai?: string | null;
     /** The key for the user's own OpenAI-compatible endpoint. */
     custom?: string | null;
-    courtlistener?: string | null;
     /** Search API keys for Mike's own web search (see lib/webSearch). */
     brave?: string | null;
     tavily?: string | null;

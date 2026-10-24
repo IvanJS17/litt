@@ -54,7 +54,6 @@ function keys(configured: Partial<Record<keyof ApiKeyState, boolean>>) {
         "openrouter",
         "vercel",
         "opencode-go",
-        "courtlistener",
     ] as const;
     return Object.fromEntries(
         providers.map((provider) => [

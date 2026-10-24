@@ -13,8 +13,6 @@ const { streamChatWithTools, runToolCalls, searchWeb } = vi.hoisted(() => ({
     workflowsApplied: [],
     docsEdited: [],
     askInputsEvents: [],
-    courtlistenerEvents: [],
-    caseCitationEvents: [],
     mcpEvents: [],
   })),
   searchWeb: vi.fn(),

@@ -714,7 +714,6 @@ export function buildMessages(
   }[],
   systemPromptExtra?: string,
   docIndex?: DocIndex,
-  includeResearchTools = true,
   nonce?: string,
   systemPromptMode: "append" | "replace" = "append",
   time?: MessageTimeContext,
@@ -723,7 +722,7 @@ export function buildMessages(
   let systemContent =
     systemPromptMode === "replace"
       ? (systemPromptExtra?.trim() ?? "")
-      : buildSystemPrompt(includeResearchTools);
+      : buildSystemPrompt();
 
   if (systemPromptMode === "append" && systemPromptExtra) {
     systemContent += `\n\n${systemPromptExtra.trim()}`;
@@ -883,9 +882,7 @@ export function extractCitations(
   docIndex: DocIndex,
   docStore?: DocStore,
 ): unknown[] {
-  return parseCitations(fullText).map((c) =>
-    createCitation(c, docIndex, undefined, docStore),
-  );
+  return parseCitations(fullText).map((c) => createCitation(c, docIndex, docStore));
 }
 
 export function stripTransientAssistantEvents(events: AssistantEvent[]) {
@@ -908,12 +905,6 @@ const COMPLETES_TEXTLESS_TURN = {
   doc_replicated: true,
   workflow_applied: true,
   doc_edited: true,
-  case_citation: false,
-  courtlistener_search_case_law: false,
-  courtlistener_get_cases: false,
-  courtlistener_find_in_case: false,
-  courtlistener_read_case: false,
-  courtlistener_verify_citations: false,
   mcp_tool_call: false,
   web_search: false,
   web_read: false,

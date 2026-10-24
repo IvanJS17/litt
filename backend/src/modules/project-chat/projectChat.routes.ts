@@ -153,7 +153,6 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         docStore,
         apiMessages,
         workflowStore,
-        legalResearchUs,
         webSearch,
         apiKeys,
         orgId,
@@ -266,11 +265,10 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 write,
                 extraTools: PROJECT_EXTRA_TOOLS,
                 // Read-only collaborators keep the conversational surface
-                // (read_document, find_in_document, list/fetch_documents, the
-                // workflow and research tools) and lose only the writers.
+                // (read_document, find_in_document, list/fetch_documents and the
+                // workflow tools) and lose only the writers.
                 allowDocumentMutation,
                 workflowStore,
-                includeResearchTools: legalResearchUs,
                 webSearch,
                 subagentRuns,
                 subagentDefaults,

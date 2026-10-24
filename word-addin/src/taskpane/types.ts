@@ -238,7 +238,6 @@ export type ApiKeyProvider =
   | "vertex"
   | "xai"
   | "custom"
-  | "courtlistener"
   | "brave"
   | "tavily"
   | "deepseek";

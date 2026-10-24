@@ -53,8 +53,6 @@ it("lands two concurrent edits to one document, the second on top of the first",
       undefined,
       undefined,
       undefined,
-      undefined,
-      undefined,
       { documentLocks },
     );
 

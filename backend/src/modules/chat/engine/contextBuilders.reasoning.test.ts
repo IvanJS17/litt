@@ -287,7 +287,6 @@ describe("buildMessages reasoning passthrough", () => {
       [],
       undefined,
       undefined,
-      true,
       undefined,
       "append",
       {

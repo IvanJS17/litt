@@ -140,7 +140,6 @@ export type PreparedProjectChatStream = {
     docStore: Awaited<ReturnType<typeof buildProjectDocContext>>["docStore"];
     apiMessages: ReturnType<typeof buildMessages>;
     workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
-    legalResearchUs: boolean;
     webSearch: WebSearchPlan | null;
     /** Only the conversation's pinned credential (see user.chatRoute). */
     apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
@@ -586,10 +585,7 @@ export async function prepareProjectChatStream(
         // Only the pinned credential leaves this function.
         const apiKeys = governed.apiKeys;
         const titleModel = titleModelForRoute(route, modelSettings.title_model);
-        const {
-            legal_research_us: legalResearchUs,
-            personalisation,
-        } = modelSettings;
+        const { personalisation } = modelSettings;
         const personalisationPrompt = buildUserPersonalisationPrompt(
             personalisation,
             nonce,
@@ -609,7 +605,6 @@ export async function prepareProjectChatStream(
             docAvailability,
             systemPromptExtra,
             undefined,
-            legalResearchUs,
             nonce,
             "append",
             { timeZone, now: new Date(), userSentAt },
@@ -632,7 +627,6 @@ export async function prepareProjectChatStream(
                 docStore,
                 apiMessages,
                 workflowStore,
-                legalResearchUs,
                 webSearch: webSearchPlanFor(
                     modelSettings.web_search,
                     selectedModel,

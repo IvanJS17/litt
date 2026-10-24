@@ -170,7 +170,6 @@ interface Props {
         citation: Citation,
         showQuotes?: boolean,
     ) => void | Promise<void>;
-    onCaseClick: NonNullable<AssistantMessageProps["onCaseClick"]>;
     onOpenDocument: NonNullable<AssistantMessageProps["onOpenDocument"]>;
     onEditViewClick: NonNullable<AssistantMessageProps["onEditViewClick"]>;
     onEditResolveStart: NonNullable<
@@ -225,7 +224,6 @@ export function ProjectChatPanel({
     resolvedEditStatuses,
     onDocClick,
     onCitationClick,
-    onCaseClick,
     onOpenDocument,
     onEditViewClick,
     onEditResolveStart,
@@ -916,7 +914,6 @@ export function ProjectChatPanel({
                                         citationStatus={msg.citationStatus}
                                         activeCitation={activeCitation}
                                         onCitationClick={onCitationClick}
-                                        onCaseClick={onCaseClick}
                                         onOpenCitationSource={(citation) => {
                                             void onCitationClick(
                                                 citation,

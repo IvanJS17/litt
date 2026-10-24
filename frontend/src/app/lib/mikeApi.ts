@@ -853,12 +853,6 @@ export interface UserProfile extends RouterProfileLists {
     lastSelectedChatModel: string | null;
     lastSelectedReasoningLevel: NonNullable<Message["reasoning"]>;
     mfaOnLogin: boolean;
-    legalResearchUs: boolean;
-    /**
-     * The deployment answers CourtListener lookups from its bulk index, so
-     * the connector is installed for everyone without a token.
-     */
-    courtlistenerBulkData?: boolean;
     quickActionsVisible: boolean;
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible?: boolean;
@@ -985,7 +979,6 @@ export async function updateUserProfile(payload: {
     subagentReasoning?: NonNullable<Message["reasoning"]> | null;
     lastSelectedChatModel?: string | null;
     lastSelectedReasoningLevel?: NonNullable<Message["reasoning"]>;
-    legalResearchUs?: boolean;
     quickActionsVisible?: boolean;
     responseDetailsVisible?: boolean;
     darkMode?: boolean;
@@ -1159,7 +1152,6 @@ export type ApiKeyProvider =
     | "vertex"
     | "xai"
     | "custom"
-    | "courtlistener"
     | WebSearchBackend;
 /**
  * Whose key a provider runs on: the person's own, their organization's, or

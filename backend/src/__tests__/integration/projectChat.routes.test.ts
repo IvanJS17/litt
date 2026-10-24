@@ -161,7 +161,6 @@ vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
 
 vi.mock("../../modules/user/user.settings", () => ({
     getUserModelSettings: vi.fn(async () => ({
-        legal_research_us: false,
         web_search: DEFAULT_WEB_SEARCH_SETTINGS,
         title_model: "test-model",
         tabular_model: "test-model",
@@ -427,7 +426,6 @@ describe("POST /projects/:projectId/chat", () => {
     it("uses the shared last-selected model when a new project chat omits model", async () => {
         const userSettings = await import("../../modules/user/user.settings.js");
         vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
-            legal_research_us: false,
             web_search: DEFAULT_WEB_SEARCH_SETTINGS,
             title_model: null,
             memory_curator_model: null,
@@ -633,12 +631,11 @@ describe("POST /projects/:projectId/chat", () => {
                 ],
             });
 
-    const [messages, , systemPromptExtra, , , nonce] = buildMessages.mock
+    const [messages, , systemPromptExtra, , nonce] = buildMessages.mock
       .calls[0] as unknown as [
                 { content: string }[],
                 unknown,
                 string,
-                unknown,
                 unknown,
                 string,
             ];

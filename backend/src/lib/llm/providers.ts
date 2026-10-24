@@ -333,7 +333,6 @@ async function createAzureAdapter(
     // get reasoning controls and arbitrary names run without them.
     model: azure.responses(azureDeploymentName(model)),
     modelId: model,
-    courtlistenerCitationReminder: true,
   };
 }
 
@@ -603,7 +602,6 @@ async function createProviderAdapter(
       label: "OpenAI",
       model: openai.responses(model),
       modelId: model,
-      courtlistenerCitationReminder: true,
       webSearchTool: () => openai.tools.webSearch({}),
     };
   }

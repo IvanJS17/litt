@@ -1557,7 +1557,6 @@ for (const model of [
       openrouter: false,
       vercel: false,
       "opencode-go": false,
-      courtlistener: false,
     });
     await addin.mockChatStream(["Using the selected model."]);
     await addin.gotoTaskpane({ documentText: "Current Word document" });

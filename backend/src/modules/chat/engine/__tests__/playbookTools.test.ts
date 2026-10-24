@@ -60,8 +60,6 @@ function dispatch(
     undefined,
     undefined,
     undefined,
-    undefined,
-    undefined,
     { userEmail: "u1@example.com", model: model ?? undefined },
   );
 }
@@ -203,8 +201,6 @@ it("reviews the open Word document from its request text, without saving a versi
     undefined,
     {} as never,
     new Map() as never,
-    undefined,
-    undefined,
     undefined,
     undefined,
     undefined,

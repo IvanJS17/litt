@@ -24,7 +24,6 @@ import {
 import type { Db } from "../../../lib/supabase";
 import { buildUserMcpTools } from "../../../lib/mcpConnectors";
 import { buildGoogleDriveTools } from "../../../lib/integrations/googleDrive";
-import { COURTLISTENER_TOOLS } from "./tools/courtlistenerTools";
 import { createProviderWebSearchTracker } from "./tools/providerWebSearch";
 import {
   MIKE_WEB_SEARCH_SYSTEM_PROMPT,
@@ -79,10 +78,6 @@ import { addApprovalItems } from "./tools/connectorApprovals";
 import { createKeyedLock, type KeyedLock } from "./tools/documentLocks";
 import type { SubagentRunStore } from "./tools/delegateRuns";
 import { documentSearchError } from "./tools/documentSearchErrors";
-import {
-  getCachedCaseOpinionTexts,
-  type CourtlistenerTurnState,
-} from "./tools/courtlistenerTurnState";
 import {
   readDocumentContent,
   type TurnEditState,
@@ -253,7 +248,6 @@ export async function runLLMStream(params: {
   write: (s: string) => void;
   onActivity?: () => void;
   extraTools?: unknown[];
-  includeResearchTools?: boolean;
   /** How this turn may search the web; null or omitted means it may not. */
   webSearch?: WebSearchPlan | null;
   /** Expose ask_inputs only to clients that can render and answer it. */
@@ -320,11 +314,10 @@ export async function runLLMStream(params: {
   conversationId?: string | null;
   subagentRuns?: SubagentRunStore | null;
   subagentDefaults?: SubagentDefaults;
-  /** Shares its answer's connector tools, web pages, case cache and document edits. */
+  /** Shares its answer's connector tools, web pages and document edits. */
   subagentRun?: {
     connectorTools: unknown[];
     webTurnState: WebTurnState;
-    courtlistenerTurnState: CourtlistenerTurnState;
     turnEditState: TurnEditState;
     documentLocks: KeyedLock;
     documentsScoped: boolean;
@@ -349,7 +342,6 @@ export async function runLLMStream(params: {
     db,
     write: unsafeWrite,
     extraTools,
-    includeResearchTools = true,
     webSearch: requestedWebSearch = null,
     includeAskInputs = true,
     connectorApprovals = false,
@@ -379,7 +371,6 @@ export async function runLLMStream(params: {
   const write = (chunk: string) =>
     unsafeWrite(sanitizeAssistantSseChunk(chunk));
   const isSubagent = subagentRun !== undefined;
-  const researchTools = includeResearchTools ? COURTLISTENER_TOOLS : [];
   // Account-owned credentials are enabled only in Personal.
   const connectorTools =
     subagentRun?.connectorTools ??
@@ -405,7 +396,6 @@ export async function runLLMStream(params: {
   const chatModel = resolveModel(model, "");
   const baseTools = [
     ...conversationTools,
-    ...researchTools,
     ...WORKFLOW_TOOLS,
     ...PLAYBOOK_TOOLS,
     ...webTools,
@@ -494,8 +484,6 @@ export async function runLLMStream(params: {
   // one assistant response. The guard is invalidated when edit_document
   // changes that document so a post-edit verification read can still happen.
   const turnReadState: TurnReadState = new Map();
-  const courtlistenerTurnState: CourtlistenerTurnState =
-    subagentRun?.courtlistenerTurnState ?? { casesByClusterId: new Map() };
   const webTurnState =
     subagentRun?.webTurnState ??
     createWebTurnState(
@@ -535,12 +523,7 @@ export async function runLLMStream(params: {
     if (partial.length <= streamedCitationCount) return;
     streamedCitationCount = partial.length;
     const citations = partial.map((c) =>
-      createCitation(
-        c,
-        docIndex,
-        courtlistenerTurnState.casesByClusterId,
-        docStore,
-      ),
+      createCitation(c, docIndex, docStore),
     );
     emitCitationStreamSnapshot("partial", citations);
   };
@@ -683,7 +666,6 @@ export async function runLLMStream(params: {
         apiKeys,
         nonce,
         webSearch,
-        includeResearchTools,
         onActivity: params.onActivity,
         write: () => {},
         model: spawn.model,
@@ -693,7 +675,6 @@ export async function runLLMStream(params: {
         subagentRun: {
           connectorTools,
           webTurnState: spawn.webTurnState,
-          courtlistenerTurnState,
           turnEditState,
           documentLocks,
           documentsScoped: spawn.documentsScoped,
@@ -924,8 +905,6 @@ export async function runLLMStream(params: {
           docsEdited,
           askInputsEvents,
           textCardEvents,
-          courtlistenerEvents,
-          caseCitationEvents,
           mcpEvents,
         } = await runToolCalls(
           toolCalls,
@@ -939,8 +918,6 @@ export async function runLLMStream(params: {
           turnEditState,
           turnReadState,
           projectId,
-          courtlistenerTurnState,
-          apiKeys,
           nonce,
           {
             connectorApprovals: canPauseForApproval,
@@ -1010,13 +987,7 @@ export async function runLLMStream(params: {
             annotations: e.annotations,
           });
         }
-        for (const event of courtlistenerEvents) {
-          events.push(event);
-        }
         for (const event of mcpEvents) {
-          events.push(event);
-        }
-        for (const event of caseCitationEvents) {
           events.push(event);
         }
 
@@ -1130,17 +1101,11 @@ export async function runLLMStream(params: {
     citations = buildCitations(fullText);
   } else {
     const rawCitations = parsedCitations.map((c) =>
-      createCitation(
-        c,
-        docIndex,
-        courtlistenerTurnState.casesByClusterId,
-        docStore,
-      ),
+      createCitation(c, docIndex, docStore),
     );
     // Server-side quote verification. Fetch each document's extracted source
     // text at most once per turn (memoized by doc_id), reading only bytes
-    // already in storage with emitEvents:false. Case citations are matched
-    // against the opinion text cached during this turn.
+    // already in storage with emitEvents:false.
     const sourceTextByDocId = new Map<string, Promise<string>>();
     const getSourceText = (docId: string): Promise<string> => {
       let pending = sourceTextByDocId.get(docId);
@@ -1155,12 +1120,7 @@ export async function runLLMStream(params: {
       }
       return pending;
     };
-    citations = await verifyCitations(
-      rawCitations,
-      getSourceText,
-      async (clusterId) =>
-        getCachedCaseOpinionTexts(courtlistenerTurnState, clusterId),
-    );
+    citations = await verifyCitations(rawCitations, getSourceText);
   }
   devLog("[chat/stream] final citations", {
     hasCitationsBlock: citationDiagnostics.hasBlock,

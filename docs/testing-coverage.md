@@ -48,7 +48,7 @@ Per-area statement coverage from `npm run test:coverage`:
 | `modules/chat/engine/contextBuilders.ts`, `modules/chat/engine/tools/toolDispatcher.ts` |        37–38 |               partial               |
 | `lib/userApiKeys.ts`                                                                    |           13 | partial — provider/env helpers only |
 | `modules/chat/engine/tools/documentOps.ts`                                              |           10 |               partial               |
-| `lib/convert.ts`, `modules/chat/engine/streaming.ts`, `lib/courtlistener.ts`            |          2–5 |               minimal               |
+| `lib/convert.ts`, `modules/chat/engine/streaming.ts`                                    |          2–5 |               minimal               |
 | `lib/llm/**`                                                                            |            5 |     minimal outside `models.ts`     |
 | `lib/mcp/**`                                                                            |            6 |               minimal               |
 | `lib/userSettings.ts`, `lib/officeText.ts`, `lib/spreadsheet.ts`                        |            0 |                  ✗                  |
@@ -58,7 +58,7 @@ jobs, not `src/lib/**` alone): **60.59% statements / 51.98% branches / 64.77%
 functions / 63.18% lines**. The floors in `backend/vitest.config.mts` sit just
 below those. The global number is held
 down by a few very large feature libs (toolDispatcher, documentOps,
-courtlistener, MCP, provider adapters) that are still untested and dominate the
+MCP, provider adapters) that are still untested and dominate the
 line count, and by the worker/job entry points that only the stack suites
 exercise.
 
@@ -94,8 +94,6 @@ Size is a rough guess: S ≈ an hour, M ≈ an afternoon.
 - [x] `lib/docxTrackedChanges.ts` — tracked-changes XML round-trip on a minimal
       docx fixture: insert/delete runs, accept/reject. High value: document
       integrity. (M)
-- [ ] `lib/courtlistener.ts` — API client with mocked fetch: query building,
-      pagination, and error paths. Legal-research correctness. (M)
 - [x] `lib/workflowCatalogSource.ts`, `lib/workflowCatalogSync.ts` — validate
       downloaded workflow definitions, temporary-file cleanup, asset uploads,
       and the transactional import payload. (M)

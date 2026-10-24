@@ -230,7 +230,6 @@ const USER_API_KEY_PROVIDERS = new Set<keyof UserApiKeys>([
   "openrouter",
   "vercel",
   "opencode-go",
-  "courtlistener",
 ]);
 
 function optionalString(

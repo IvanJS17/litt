@@ -1,14 +1,10 @@
 import type { RefObject } from "react";
-import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
+import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import type {
-    AssistantEvent,
-    Citation,
-    PanelDocument,
-} from "../../shared/types";
+import type { Citation } from "../../shared/types";
 import { CitationPillUI } from "@/shared/ui/CitationPillUI";
 import { withoutMarkdownNode } from "./messageStyles";
 import { citationTooltip } from "./CitationSources";
@@ -16,7 +12,6 @@ import {
     citationVerificationAriaLabel,
     citationVerificationPillClassName,
 } from "./citationVerification";
-import { internalCaseHref } from "./citationUtils";
 import { EXCERPT_SOURCE_PROPS } from "@/shared/ui/ResponseSelectionMenuUI";
 
 function isSameOrigin(url: string): boolean {
@@ -33,11 +28,8 @@ function isSameOrigin(url: string): boolean {
 export function MarkdownContent({
     text,
     inlineCitationTargets,
-    caseCitations,
-    caseDocuments,
     activeCitation,
     onCitationClick,
-    onCaseClick,
     divRef,
     excerptSource = false,
 }: {
@@ -45,21 +37,10 @@ export function MarkdownContent({
     excerptSource?: boolean;
     text: string;
     inlineCitationTargets: Citation[];
-    caseCitations: Map<
-        string,
-        Extract<AssistantEvent, { type: "case_citation" }>
-    >;
-    caseDocuments: Map<number, PanelDocument>;
     activeCitation?: Citation | null;
     onCitationClick?: (c: Citation) => void;
-    onCaseClick?: (
-        c: Extract<AssistantEvent, { type: "case_citation" }>,
-    ) => void;
     divRef?: RefObject<HTMLDivElement | null>;
 }) {
-    function findCaseCitation(href: string) {
-        return caseCitations.get(internalCaseHref(href) ?? "");
-    }
 
     return (
         <div
@@ -73,9 +54,6 @@ export function MarkdownContent({
                     remarkGfm,
                 ]}
                 rehypePlugins={[rehypeKatex]}
-                urlTransform={(url) =>
-                    /^us-case-\d+$/.test(url) ? url : defaultUrlTransform(url)
-                }
                 components={{
                     pre: (props) => (
                         <pre
@@ -245,49 +223,6 @@ export function MarkdownContent({
                         const { href, children, ...anchorProps } =
                             withoutMarkdownNode(props);
                         if (href) {
-                            const isInternalCaseHref = !!internalCaseHref(href);
-                            const citation = findCaseCitation(href);
-                            if (citation && onCaseClick) {
-                                return (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onCaseClick({
-                                                ...citation,
-                                                document:
-                                                    citation.cluster_id !== null
-                                                        ? (caseDocuments.get(
-                                                              citation.cluster_id,
-                                                          ) ??
-                                                          citation.document)
-                                                        : citation.document,
-                                            })
-                                        }
-                                        className="text-left text-blue-600 hover:text-blue-700 underline"
-                                    >
-                                        {children}
-                                    </button>
-                                );
-                            }
-                            if (citation) {
-                                return (
-                                    <a
-                                        href={citation.url}
-                                        className="text-blue-600 hover:text-blue-700 underline"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {children}
-                                    </a>
-                                );
-                            }
-                            if (isInternalCaseHref) {
-                                return (
-                                    <span className="text-blue-600 underline">
-                                        {children}
-                                    </span>
-                                );
-                            }
                             return (
                                 <a
                                     href={href}

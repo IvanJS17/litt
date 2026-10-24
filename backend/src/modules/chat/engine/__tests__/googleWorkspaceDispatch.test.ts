@@ -39,7 +39,7 @@ it.each([false, true])("dispatches Drive writes with approval required: %s", asy
   const result = await runToolCalls(
     [{ id: "create-folder", function: { name: "google_drive_create_folder", arguments: JSON.stringify({ name: "Matter" }) } }],
     new Map(), "u1", store.db, vi.fn(),
-    undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined,
     { connectorApprovals: true },
   );
   expect(fetchMock).toHaveBeenCalledTimes(requiresApproval ? 0 : 1);
@@ -81,8 +81,6 @@ async function dispatch(
     "u1",
     store.db,
     write,
-    undefined,
-    undefined,
     undefined,
     undefined,
     undefined,

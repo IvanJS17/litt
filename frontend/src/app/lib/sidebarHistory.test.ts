@@ -12,6 +12,13 @@ const review = (id: string, day: number, projectId: string | null = null) => ({
 const ids = (items: ReturnType<typeof mergeSidebarHistory>) => items.map(({ item }) => item.id);
 
 describe("sidebar history", () => {
+    it("lists an item without a readable activity time last", () => {
+        const undated = { id: "undated" } as Chat;
+        const invalid = { id: "invalid", updated_at: "not a date" } as Chat;
+        expect(ids(mergeSidebarHistory([undated, chat("dated", 3), invalid], [], false, false)))
+            .toEqual(["dated", "invalid", "undated"]);
+    });
+
     it("interleaves chats and both review scopes by updated time, regardless of creation time", () => {
         expect(ids(mergeSidebarHistory(
             [chat("chat", 14)], [review("standalone", 12), review("project", 15, "p1")], false, false,

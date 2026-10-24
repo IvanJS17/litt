@@ -312,76 +312,6 @@ export type AssistantEvent =
       error?: string;
       isStreaming?: boolean;
     })
-  | (Omit<
-      WireActivity<"courtlistener_search_case_law">,
-      "result_count" | "error" | "isStreaming"
-    > & { result_count?: number; error?: string; isStreaming?: boolean })
-  | (Omit<
-      WireActivity<"courtlistener_get_cases">,
-      "case_count" | "opinion_count" | "cases" | "error" | "isStreaming"
-    > & {
-      case_count?: number;
-      opinion_count?: number;
-      cases?: {
-        cluster_id: number;
-        case_name: string | null;
-        citation: string | null;
-        dateFiled?: string | null;
-        url?: string | null;
-      }[];
-      error?: string;
-      isStreaming?: boolean;
-    })
-  | (Omit<
-      WireActivity<"courtlistener_find_in_case">,
-      | "total_matches"
-      | "case_name"
-      | "citation"
-      | "searches"
-      | "error"
-      | "isStreaming"
-    > & {
-      total_matches?: number;
-      case_name?: string | null;
-      citation?: string | null;
-      searches?: {
-        cluster_id: number | null;
-        query: string;
-        total_matches?: number;
-        case_name?: string | null;
-        citation?: string | null;
-        error?: string;
-      }[];
-      error?: string;
-      isStreaming?: boolean;
-    })
-  | (Omit<
-      WireActivity<"courtlistener_read_case">,
-      "case_name" | "citation" | "opinion_count" | "error" | "isStreaming"
-    > & {
-      case_name?: string | null;
-      citation?: string | null;
-      opinion_count?: number;
-      error?: string;
-      isStreaming?: boolean;
-    })
-  | (Omit<
-      WireActivity<"courtlistener_verify_citations">,
-      "citation_count" | "match_count" | "error" | "isStreaming"
-    > & {
-      citation_count?: number;
-      match_count?: number;
-      error?: string;
-      isStreaming?: boolean;
-    })
-  | (Omit<
-      WireActivity<"case_citation">,
-      "pdfUrl" | "dateFiled" | "document"
-    > & {
-      pdfUrl?: string | null;
-      dateFiled?: string | null;
-      document?: PanelDocument;
-    })
   | (Omit<WireActivity<"case_opinions">, "document"> & {
       document?: PanelDocument;
     })
@@ -483,8 +413,8 @@ export type CaseCitation = {
 
 /**
  * A citation emitted by the assistant. Document citations have doc/page
- * anchors. Case citations anchor to a CourtListener cluster and include a
- * quoted opinion passage.
+ * anchors. Case citations anchor to an opinion cluster and include a quoted
+ * opinion passage.
  */
 export type Citation = DocumentCitation | CaseCitation;
 
@@ -597,25 +527,6 @@ export function panelDocumentFromCitation(
     version_id: citation.version_id ?? null,
     version_number: citation.version_number ?? null,
   };
-}
-
-export function panelDocumentFromCaseEvent(
-  event: Extract<AssistantEvent, { type: "case_citation" }>,
-): PanelDocument | null {
-  if (event.document) return event.document;
-  if (!event.cluster_id) return null;
-  return panelDocumentFromCitation({
-    type: "citation_data",
-    kind: "case",
-    ref: 0,
-    cluster_id: event.cluster_id,
-    case_name: event.case_name,
-    citation: event.citation,
-    url: event.url,
-    pdfUrl: event.pdfUrl,
-    dateFiled: event.dateFiled,
-    quotes: [],
-  });
 }
 
 const PAGE_BREAK_SENTINEL = "[[PAGE_BREAK]]";

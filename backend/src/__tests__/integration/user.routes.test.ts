@@ -331,7 +331,6 @@ function profileRow(overrides: Record<string, unknown> = {}) {
         subagent_reasoning: null,
         last_selected_chat_model: null,
         mfa_on_login: false,
-        legal_research_us: true,
         quick_actions_visible: true,
         response_details_visible: false,
         dark_mode: false,
@@ -415,7 +414,7 @@ describe("user.routes", () => {
             "subagent_model", "memory_curator_model", "project_memory_default",
             "last_selected_reasoning_level", "last_selected_chat_model",
             "dark_mode", "password_set_at", "onboarding_version",
-            "quick_actions_visible", "legal_research_us", "mfa_on_login", "title_model",
+            "quick_actions_visible", "mfa_on_login", "title_model",
         ])("keeps the saved photo on profile reload when %s is absent", async (column) => {
             supabaseState.missingColumns = [column];
             supabaseState.tables.user_profiles = {
@@ -517,7 +516,6 @@ describe("user.routes", () => {
                 passwordSet: false,
                 messageCreditsUsed: 3,
                 tier: "Pro",
-                legalResearchUs: true,
                 quickActionsVisible: true,
                 mfaOnLogin: false,
                 openRouterModels: [
@@ -618,9 +616,9 @@ describe("user.routes", () => {
         it("keeps saved preferences on a database without the onboarding migration", async () => {
             // Replicated live (PR #365 review): with the 20260821 columns
             // dropped, the profile select failed on "jurisdiction", skipped
-            // every fallback tier, and silently reset legal_research_us and
-            // quick_actions_visible to defaults. The retry tier must preserve
-            // the user's saved values and report legacy-exempt onboarding.
+            // every fallback tier, and silently reset quick_actions_visible to
+            // its default. The retry tier must preserve the user's saved
+            // values and report legacy-exempt onboarding.
             const preMigrationRow = {
                 display_name: "Ada",
                 organisation: "Acme",
@@ -630,7 +628,6 @@ describe("user.routes", () => {
                 title_model: null,
                 tabular_model: "gemini-3.8-flash",
                 mfa_on_login: false,
-                legal_research_us: false,
                 quick_actions_visible: false,
             };
             supabaseState.tables.user_profiles = [
@@ -651,7 +648,6 @@ describe("user.routes", () => {
 
             expect(res.status).toBe(200);
             expect(res.body).toMatchObject({
-                legalResearchUs: false,
                 quickActionsVisible: false,
                 onboardingComplete: true,
                 onboardingVersion: 0,

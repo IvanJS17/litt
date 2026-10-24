@@ -87,7 +87,6 @@ export type PreparedChatStream = {
     docStore: Awaited<ReturnType<typeof buildDocContext>>["docStore"];
     apiMessages: ReturnType<typeof buildMessages>;
     workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
-    legalResearchUs: boolean;
     webSearch: WebSearchPlan | null;
     /** Only the conversation's pinned credential (see user.chatRoute). */
     apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
@@ -542,10 +541,7 @@ export async function prepareChatStream(
         // Only the pinned credential leaves this function: titles, tools and
         // helpers of this turn cannot reach another key or provider.
         const apiKeys = governed.apiKeys;
-        const {
-            legal_research_us: legalResearchUs,
-            personalisation,
-        } = modelSettings;
+        const { personalisation } = modelSettings;
         const titleModel = titleModelForRoute(route, modelSettings.title_model);
         const personalisationPrompt = buildUserPersonalisationPrompt(
             personalisation,
@@ -563,7 +559,6 @@ export async function prepareChatStream(
             docAvailability,
             personalisationPrompt || undefined,
             undefined,
-            legalResearchUs,
             nonce,
             "append",
             { timeZone, now: new Date(), userSentAt },
@@ -589,7 +584,6 @@ export async function prepareChatStream(
                 docStore,
                 apiMessages,
                 workflowStore,
-                legalResearchUs,
                 webSearch: webSearchPlanFor(
                     modelSettings.web_search,
                     selectedModel,

@@ -25,8 +25,6 @@ const maybeDescribe = url && serviceKey && anonKey ? describe : describe.skip;
 const PUBLIC_TABLES = [
   "chat_messages",
   "chats",
-  "courtlistener_citation_index",
-  "courtlistener_opinion_cluster_index",
   "document_edits",
   "document_versions",
   "documents",

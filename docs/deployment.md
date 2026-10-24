@@ -10,8 +10,6 @@ storage instead of the infrastructure bundled with Docker Compose.
 - A Supabase project
 - A Cloudflare R2, MinIO, or other S3-compatible bucket
 - At least one supported model-provider API key, or an accessible Ollama server
-- Optional: CourtListener bulk data for case-law tools without a token (each
-  user can instead add their own CourtListener token in Settings > Connectors)
 - LibreOffice when DOC/DOCX-to-PDF conversion is required
 
 ## Database setup
@@ -298,10 +296,7 @@ Deployments must therefore run `backend/src/index.ts`
 without starting its worker.
 
 Model-provider keys can be configured globally in `backend/.env` or per user
-under **Settings > API Keys**. CourtListener tokens are never read from
-`backend/.env`: each user saves their own under **Settings > Connectors**, or an
-organization admin saves one for its members; see
-[CourtListener](courtlistener.md). A personal key takes
+under **Settings > API Keys**. A personal key takes
 precedence over the matching globally configured key; removing the personal
 key restores the global key as the fallback.
 

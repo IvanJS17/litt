@@ -89,14 +89,13 @@ import { useSidebar } from "@/app/contexts/SidebarContext";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import type {
     Chat,
-    AssistantEvent,
     PanelDocument,
     Citation,
     Document,
     EditAnnotation,
     Project,
 } from "@/app/components/shared/types";
-import { panelDocumentFromCitation, panelDocumentFromCaseEvent, panelDocumentType } from "@/app/components/shared/types";
+import { panelDocumentFromCitation, panelDocumentType } from "@/app/components/shared/types";
 import { panelDocumentAtVersion } from "@/app/lib/panelDocumentAtVersion";
 import { resolvePanelDocumentVersionResult } from "@/app/components/assistant/panelDocumentVersion";
 import type { DocumentContentMode } from "@/app/components/shared/DocumentContent";
@@ -526,21 +525,6 @@ export default function ProjectAssistantChatPage({ params }: Props) {
             document.type,
             document,
         );
-    };
-
-    const handleCaseClick = (
-        event: Extract<AssistantEvent, { type: "case_citation" }>,
-    ) => {
-        const document = panelDocumentFromCaseEvent(event);
-        if (document)
-            openTab(
-                document.document_id,
-                document.title,
-                undefined,
-                null,
-                document.type,
-                document,
-            );
     };
 
     const handleOpenDocument = (args: {
@@ -1311,7 +1295,6 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         resolvedEditStatuses,
         onDocClick: handleDocClick,
         onCitationClick: handleCitationClick,
-        onCaseClick: handleCaseClick,
         onOpenDocument: handleOpenDocument,
         onEditViewClick: handleEditViewClick,
         onEditResolveStart: handleEditResolveStart,

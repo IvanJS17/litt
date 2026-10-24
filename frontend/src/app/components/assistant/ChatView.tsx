@@ -55,7 +55,6 @@ import type {
     Message,
 } from "../shared/types";
 import {
-    panelDocumentFromCaseEvent,
     panelDocumentFromCitation,
     panelDocumentType,
 } from "../shared/types";
@@ -405,19 +404,6 @@ export function AssistantChatColumn({
             });
         },
         [reportUnresolvedDocument, upsertTab],
-    );
-
-    const openCase = useCallback(
-        (citation: Extract<AssistantEvent, { type: "case_citation" }>) => {
-            const document = panelDocumentFromCaseEvent(citation);
-            if (!document) return;
-            upsertTab({
-                kind: "document",
-                id: assistantSidePanelTabId(document),
-                document,
-            });
-        },
-        [upsertTab],
     );
 
     /**
@@ -1184,9 +1170,6 @@ export function AssistantChatColumn({
                                                                     showQuotes: false,
                                                                 },
                                                             )
-                                                        }
-                                                        onCaseClick={(citation) =>
-                                                            openCase(citation)
                                                         }
                                                         minHeight={
                                                             i === lastAssistantIndex

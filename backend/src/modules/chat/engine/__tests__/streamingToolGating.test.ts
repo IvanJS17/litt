@@ -21,8 +21,6 @@ const { streamChatWithTools, runToolCalls } = vi.hoisted(() => ({
     workflowsApplied: [],
     docsEdited: [],
     askInputsEvents: [],
-    courtlistenerEvents: [],
-    caseCitationEvents: [],
     mcpEvents: [],
   })),
 }));
@@ -122,8 +120,6 @@ describe("runLLMStream document-mutation gating", () => {
       workflowsApplied: [],
       docsEdited: [],
       askInputsEvents: [askInputsEvent],
-      courtlistenerEvents: [],
-      caseCitationEvents: [],
       mcpEvents: [],
     } as never);
     streamChatWithTools.mockImplementationOnce(
@@ -235,8 +231,7 @@ it.each([
   const search = { type: "doc_search" as const, search_id: "search", scope: "library", query: "assignment", offset: 0, ...details };
   runToolCalls.mockResolvedValueOnce({
     toolResults: [], docsRead: [], docsFound: [], docsCreated: [], docsReplicated: [],
-    workflowsApplied: [], docsEdited: [], askInputsEvents: [], courtlistenerEvents: [],
-    caseCitationEvents: [], mcpEvents: [],
+    workflowsApplied: [], docsEdited: [], askInputsEvents: [], mcpEvents: [],
     documentSearchEvents: [details.error ? { ...search, error: "private database details" } : search],
   } as never);
   streamChatWithTools.mockImplementationOnce(async (params) => {

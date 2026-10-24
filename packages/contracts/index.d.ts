@@ -222,70 +222,6 @@ export type EditAnnotation = {
   status: "pending" | "accepted" | "rejected";
 };
 
-export type CourtlistenerToolEvent =
-  | {
-      type: "courtlistener_search_case_law";
-      query: string;
-      result_count: number;
-      error?: string;
-    }
-  | {
-      type: "courtlistener_get_cases";
-      cluster_ids: number[];
-      case_count: number;
-      opinion_count: number;
-      cases?: {
-        cluster_id: number;
-        case_name: string | null;
-        citation: string | null;
-        dateFiled?: string | null;
-        url?: string | null;
-      }[];
-      error?: string;
-    }
-  | {
-      type: "courtlistener_find_in_case";
-      cluster_id: number | null;
-      query: string;
-      total_matches: number;
-      case_name?: string | null;
-      citation?: string | null;
-      searches?: {
-        cluster_id: number | null;
-        query: string;
-        total_matches: number;
-        case_name?: string | null;
-        citation?: string | null;
-        error?: string;
-      }[];
-      error?: string;
-    }
-  | {
-      type: "courtlistener_read_case";
-      cluster_id: number | null;
-      case_name?: string | null;
-      citation?: string | null;
-      opinion_count: number;
-      error?: string;
-    }
-  | {
-      type: "courtlistener_verify_citations";
-      citation_count: number;
-      match_count: number;
-      error?: string;
-    };
-
-export type CaseCitationEvent = {
-  type: "case_citation";
-  cluster_id: number | null;
-  case_name: string | null;
-  citation: string | null;
-  url: string;
-  pdfUrl?: string | null;
-  dateFiled?: string | null;
-  document: SourceDocument;
-};
-
 export type McpToolEvent = {
   type: "mcp_tool_call";
   connector_id: string;
@@ -483,8 +419,6 @@ export type AssistantEvent =
       download_url: string;
       annotations: EditAnnotation[];
     }
-  | CaseCitationEvent
-  | CourtlistenerToolEvent
   | McpToolEvent
   | WebToolEvent
   | DelegationEvent

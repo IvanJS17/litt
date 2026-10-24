@@ -18,7 +18,6 @@ const { apiKeyState } = vi.hoisted(() => ({
         openrouter: { configured: false, source: null },
         vercel: { configured: false, source: null },
         "opencode-go": { configured: false, source: null },
-        courtlistener: { configured: false, source: null },
     },
 }));
 

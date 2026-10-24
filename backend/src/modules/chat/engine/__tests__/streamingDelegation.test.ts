@@ -12,8 +12,6 @@ function toolBatch(calls: DispatchedCall[], askInputsEvents: unknown[] = []) {
     workflowsApplied: [],
     docsEdited: [],
     askInputsEvents,
-    courtlistenerEvents: [],
-    caseCitationEvents: [],
     mcpEvents: [],
   };
 }
@@ -273,7 +271,7 @@ describe("runLLMStream delegation", () => {
     const result = await runLLMStream(params);
 
     const subagentDispatch = runToolCalls.mock.calls.find(([calls]) => isSend(calls));
-    expect(subagentDispatch?.[14]).toMatchObject({ connectorApprovals: true });
+    expect(subagentDispatch?.[12]).toMatchObject({ connectorApprovals: true });
     const [delegation] = delegationsIn(result.events);
     expect(delegation).toMatchObject({ status: "needs_input", approval_ids: ["approval-1"] });
     expect(delegation.events.map((e) => e.type)).not.toContain("ask_inputs");
@@ -499,7 +497,7 @@ describe("runDelegateCall", () => {
       { doc_id: "doc-0", filename: "Lease.pdf" },
       { doc_id: "doc-1", filename: "Will.pdf" },
     ];
-    const [system] = buildMessages([], docs, "Base prompt.", undefined, false, "n", "replace") as {
+    const [system] = buildMessages([], docs, "Base prompt.", undefined, "n", "replace") as {
       content: string;
     }[];
     const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Done.", events: [], citations: [] }));

@@ -82,7 +82,6 @@ const PROFILE_ROW = {
     title_model: null,
     tabular_model: "gemini-3-flash-preview",
     mfa_on_login: false,
-    legal_research_us: true,
     quick_actions_visible: true,
 };
 
@@ -122,7 +121,6 @@ const API_KEY_STATUS = {
     openrouter: true,
     vercel: true,
     "opencode-go": true,
-    courtlistener: false,
     sources: {
         claude: null,
         gemini: null,
@@ -130,7 +128,6 @@ const API_KEY_STATUS = {
         openrouter: "user",
         vercel: "user",
         "opencode-go": "user",
-        courtlistener: null,
     },
 };
 

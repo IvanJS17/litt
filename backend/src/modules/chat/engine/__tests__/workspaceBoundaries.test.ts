@@ -51,7 +51,7 @@ describe("assistant workspace boundaries", () => {
 
   it.each(["mcp_secret_search", "google_drive_search", "gmail_search"])("refuses unadvertised connector tool %s before credential lookup", async name => {
     const fake = scriptedDb([{ table: "organizations", data: { kind: "team" } }]);
-    const result = await runToolCalls([{ id: "call", function: { name, arguments: "{}" } }], new Map(), "u", fake.db, vi.fn(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, { orgId: "firm" });
+    const result = await runToolCalls([{ id: "call", function: { name, arguments: "{}" } }], new Map(), "u", fake.db, vi.fn(), undefined, undefined, undefined, undefined, undefined, undefined, undefined, { orgId: "firm" });
     expect(JSON.stringify(result.toolResults)).toContain("Personal workspace");
     fake.done();
   });

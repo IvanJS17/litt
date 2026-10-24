@@ -9,8 +9,6 @@ describe("MarkdownContent images", () => {
             <MarkdownContent
                 text={`![Chart](${src})`}
                 inlineCitationTargets={[]}
-                caseCitations={new Map()}
-                caseDocuments={new Map()}
             />,
         );
 

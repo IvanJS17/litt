@@ -412,7 +412,6 @@ describe("active Word document context", () => {
             [],
             prompt,
             undefined,
-            false,
             undefined,
       "replace",
     ) as { role: string; content: string }[];
@@ -557,8 +556,6 @@ describe("active Word document context", () => {
             undefined,
             new Map(),
             undefined,
-            undefined,
-            undefined,
             nonce,
         );
 
@@ -611,8 +608,6 @@ describe("active Word document context", () => {
             undefined,
             undefined,
             new Map(),
-            undefined,
-            undefined,
             undefined,
             "word-inline-nonce",
         );

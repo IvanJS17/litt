@@ -70,7 +70,6 @@ function apiProfile(darkMode: boolean) {
         lastSelectedChatModel: null,
         lastSelectedReasoningLevel: "high",
         mfaOnLogin: false,
-        legalResearchUs: true,
         emailIntegrationEnabled: false,
         darkMode,
         featureFlags: {},
@@ -81,7 +80,6 @@ function apiProfile(darkMode: boolean) {
             gemini: false,
             openai: false,
             openrouter: false,
-            courtlistener: false,
             sources: {},
         },
     };

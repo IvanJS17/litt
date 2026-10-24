@@ -314,7 +314,6 @@ interface UserProfile extends Partial<RouterProfileLists> {
   lastSelectedChatModel: string | null;
   lastSelectedReasoningLevel: ReasoningLevel;
   mfaOnLogin: boolean;
-  legalResearchUs: boolean;
   apiKeyStatus: ApiKeyStatus;
 }
 

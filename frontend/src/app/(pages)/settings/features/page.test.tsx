@@ -21,13 +21,6 @@ vi.mock("@/app/components/settings/WebSearchSection", () => ({
     WebSearchSection: () => null,
 }));
 
-describe("FeaturesPage CourtListener", () => {
-    it("is managed from Connectors, not here", () => {
-        render(<FeaturesPage />);
-        expect(screen.queryByText(/CourtListener/)).not.toBeInTheDocument();
-    });
-});
-
 describe("FeaturesPage response details", () => {
     it("starts off and saves the user's choice", async () => {
         state.updateResponseDetailsVisible.mockResolvedValue(true);

@@ -14,7 +14,6 @@ export const API_KEY_PROVIDERS: readonly ApiKeyProvider[] = [
     "vertex",
     "xai",
     "custom",
-    "courtlistener",
     "brave",
     "tavily",
     "deepseek",

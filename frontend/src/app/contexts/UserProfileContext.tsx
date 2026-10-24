@@ -77,12 +77,6 @@ interface UserProfile extends RouterProfileLists {
     lastSelectedChatModel: string | null;
     lastSelectedReasoningLevel: NonNullable<Message["reasoning"]>;
     mfaOnLogin: boolean;
-    legalResearchUs: boolean;
-    /**
-     * The deployment answers CourtListener lookups from its bulk index, so
-     * the connector is installed for everyone without a token.
-     */
-    courtlistenerBulkData: boolean;
     quickActionsVisible: boolean;
     /** Whether responses and subagents show the model, effort and tokens they used. */
     responseDetailsVisible: boolean;
@@ -134,7 +128,6 @@ interface UserProfileContextType {
         chatId?: string | null,
     ) => Promise<boolean>;
     updateMfaOnLogin: (enabled: boolean) => Promise<boolean>;
-    updateLegalResearchUs: (enabled: boolean) => Promise<boolean>;
     updateQuickActionsVisible: (visible: boolean) => Promise<boolean>;
     updateResponseDetailsVisible: (visible: boolean) => Promise<boolean>;
     /** Save one router's Model Selections. */
@@ -173,7 +166,6 @@ function emptyApiKeys(): ApiKeyState {
         vertex: { configured: false, source: null },
         xai: { configured: false, source: null },
         custom: { configured: false, source: null },
-        courtlistener: { configured: false, source: null },
         brave: { configured: false, source: null },
         tavily: { configured: false, source: null },
         deepseek: { configured: false, source: null },
@@ -204,7 +196,6 @@ function toProfile(data: ApiUserProfile): UserProfile {
         lastSelectedReasoningLevel:
             profile.lastSelectedReasoningLevel ?? "high",
         mfaOnLogin: profile.mfaOnLogin === true,
-        courtlistenerBulkData: profile.courtlistenerBulkData === true,
         responseDetailsVisible: profile.responseDetailsVisible === true,
         projectMemoryDefault: profile.projectMemoryDefault !== false,
         ...routerProfileLists(profile),
@@ -304,8 +295,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 lastSelectedChatModel: null,
                 lastSelectedReasoningLevel: "high",
                 mfaOnLogin: false,
-                legalResearchUs: true,
-                courtlistenerBulkData: false,
                 quickActionsVisible: true,
                 responseDetailsVisible: false,
                 ...routerProfileLists({}),
@@ -595,31 +584,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         [reportFailure, user],
     );
 
-    const updateLegalResearchUs = useCallback(
-        async (enabled: boolean): Promise<boolean> => {
-            if (!user) return false;
-            try {
-                const updated = await updateUserProfile({
-                    legalResearchUs: enabled,
-                });
-                setProfile((prev) =>
-                    prev ? { ...prev, ...toProfile(updated) } : null,
-                );
-                return true;
-            } catch (error) {
-                reportFailure(
-                    error,
-                    "update your case law research setting",
-                    () => {
-                        void retryRef.current?.updateLegalResearchUs(enabled);
-                    },
-                );
-                return false;
-            }
-        },
-        [reportFailure, user],
-    );
-
     const updateQuickActionsVisible = useCallback(
         async (visible: boolean): Promise<boolean> => {
             if (!user) return false;
@@ -830,7 +794,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             persistChatModelSelection,
             persistChatReasoningSelection,
             updateMfaOnLogin,
-            updateLegalResearchUs,
             updateQuickActionsVisible,
             updateResponseDetailsVisible,
             updateRouterModels,
@@ -855,7 +818,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             persistChatModelSelection,
             persistChatReasoningSelection,
             updateMfaOnLogin,
-            updateLegalResearchUs,
             updateQuickActionsVisible,
             updateResponseDetailsVisible,
             updateRouterModels,

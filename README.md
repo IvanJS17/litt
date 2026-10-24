@@ -18,7 +18,6 @@ Website: [mikeoss.com](https://mikeoss.com)
 - Review documents and apply suggested edits
 - Run reusable assistant and tabular-review workflows
 - Organize projects, folders, and a document library
-- Verify citations and research US case law with CourtListener
 - Work from Microsoft Word with the task-pane add-in
 - Run supported language models locally through Ollama
 
@@ -85,7 +84,6 @@ locally by each process.
 - [Troubleshooting](docs/troubleshooting.md)
 - [MCP connectors](docs/connectors.md)
 - [Google Workspace: Drive, Gmail, and Calendar](docs/google-workspace.md)
-- [CourtListener integration](docs/courtlistener.md)
 - [Microsoft Word add-in](word-addin/README.md)
 - [Tamper-evident exports](docs/tamper-evident-exports.md)
 - [Safe local testing](docs/safe-local-testing.md)

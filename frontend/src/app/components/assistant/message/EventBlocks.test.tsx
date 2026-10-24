@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     AskInputsBlock,
-    CourtListenerBlock,
     DocDownloadBlock,
     ReasoningBlock,
 } from "./EventBlocks";
@@ -236,26 +235,5 @@ describe("event line consistency", () => {
         expect(toggle).toHaveAttribute("aria-expanded", "false");
         expect(container.querySelector("svg.-rotate-90")).not.toBeNull();
         unmount();
-
-        const research = render(
-            <CourtListenerBlock
-                label="Searched case law"
-                items={[
-                    {
-                        caseName: "Donoghue v Stevenson",
-                        citation: "[1932] AC 562",
-                        url: "https://x.test",
-                    },
-                ]}
-            />,
-        );
-        const search = screen.getByRole("button", {
-            name: /Searched case law/,
-        });
-        // This one used to ship without any expansion state at all.
-        expect(search).toHaveAttribute("aria-expanded", "false");
-        expect(
-            research.container.querySelector("svg.-rotate-90"),
-        ).not.toBeNull();
     });
 });

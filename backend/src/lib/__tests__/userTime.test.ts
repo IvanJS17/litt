@@ -76,7 +76,6 @@ describe("message time stamps", () => {
             [],
             undefined,
             undefined,
-            false,
             undefined,
             "append",
             {
@@ -98,7 +97,7 @@ describe("message time stamps", () => {
     it("keeps earlier turns byte-identical between requests for prompt caching", () => {
         const sentAt = ["2026-09-30T08:00:00Z", "2026-10-01T13:04:00Z"];
         const build = (now: Date) =>
-            buildMessages(history, [], undefined, undefined, false, undefined, "append", {
+            buildMessages(history, [], undefined, undefined, undefined, "append", {
                 timeZone: "Europe/London",
                 now,
                 userSentAt: sentAt,
@@ -113,7 +112,6 @@ describe("message time stamps", () => {
             [],
             undefined,
             undefined,
-            false,
             undefined,
             "append",
             { timeZone: "UTC", now: NOW, userSentAt: [null, null] },

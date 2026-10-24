@@ -24,7 +24,6 @@ export type UserProfileRow = {
     last_selected_chat_model?: string | null;
     last_selected_reasoning_level?: string | null;
     mfa_on_login: boolean | null;
-    legal_research_us: boolean | null;
     quick_actions_visible: boolean | null;
     response_details_visible?: boolean | null;
     dark_mode: boolean | null;
@@ -32,41 +31,41 @@ export type UserProfileRow = {
 };
 
 const PROFILE_SELECT_NEWEST =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, legal_research_us, quick_actions_visible, response_details_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, response_details_visible, dark_mode, project_memory_default";
 
 const PROFILE_SELECT_NO_RESPONSE_DETAILS =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, legal_research_us, quick_actions_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
 
 const PROFILE_SELECT_NO_SUBAGENT_DEFAULTS =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, legal_research_us, quick_actions_visible, dark_mode, project_memory_default";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
 
 // memory_curator_model and project_memory_default arrive in the same
 // migration, so the deploy-before-migrate retry must drop both.
 const PROFILE_SELECT_NO_MEMORY_CURATOR_MODEL =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, legal_research_us, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode";
 
 const PROFILE_SELECT_WITH_LAST_SELECTED_CHAT_MODEL =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, mfa_on_login, legal_research_us, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, last_selected_chat_model, mfa_on_login, quick_actions_visible, dark_mode";
 
 const PROFILE_SELECT =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, legal_research_us, quick_actions_visible, dark_mode";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible, dark_mode";
 
 // Deploy-before-migrate tolerance is per column: a database that already has
 // the 20260821 onboarding/password columns but not yet dark_mode must keep
 // them rather than fall all the way back to a lower tier. This is exactly
 // PROFILE_SELECT minus dark_mode.
 const PROFILE_SELECT_NO_DARK_MODE =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, legal_research_us, quick_actions_visible";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible";
 
 // PROFILE_SELECT minus the 20260821 onboarding / password-capability columns,
 // for databases that have not applied those migrations yet. Migration 02
 // (password_set_at) gets its own tier so a database that applied 01 but not
 // 02 keeps its live onboarding/personalisation columns.
 const PROFILE_SELECT_NO_PASSWORD =
-    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, legal_research_us, quick_actions_visible";
+    "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible";
 
 const PROFILE_SELECT_NO_ONBOARDING =
-    "display_name, organisation, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, legal_research_us, quick_actions_visible";
+    "display_name, organisation, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, quick_actions_visible";
 
 const ONBOARDING_PROFILE_COLUMNS = [
     "jurisdiction",
@@ -77,9 +76,6 @@ const ONBOARDING_PROFILE_COLUMNS = [
 ];
 
 const PROFILE_SELECT_NO_QUICK_ACTIONS =
-    "display_name, organisation, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login, legal_research_us";
-
-const PROFILE_SELECT_NO_LEGAL =
     "display_name, organisation, message_credits_used, credits_reset_date, tier, title_model, tabular_model, mfa_on_login";
 
 const LEGACY_PROFILE_SELECT =
@@ -228,8 +224,8 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
     // A database that predates the 20260821 migrations rejects the full
     // select on the first of the new columns, which would otherwise skip
     // every tier below (they key on *their* new column's name) and land on
-    // a select that silently resets the legal-research and quick-action
-    // preferences to defaults. Two retry tiers, most-migrated first:
+    // a select that silently resets the quick-action preference to its
+    // default. Two retry tiers, most-migrated first:
     // missing only password_set_at (migration 02) keeps the live
     // onboarding columns; missing the migration-01 columns drops them all,
     // and serializeProfile treats the absent fields as legacy-exempt —
@@ -265,9 +261,6 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
     const legacy = await selectProfileLegacy(read);
     if (legacy.data && typeof legacy.data === "object") {
         const row = legacy.data as Record<string, unknown>;
-        if (!("legal_research_us" in row)) {
-            Object.assign(row, { legal_research_us: true });
-        }
         Object.assign(row, { quick_actions_visible: true });
         if (!("dark_mode" in row)) {
             Object.assign(row, { dark_mode: false });
@@ -279,7 +272,7 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
 async function selectProfileLegacy(
     read: ReturnType<typeof createProfileReader>,
 ) {
-    const result = await read(PROFILE_SELECT_NO_LEGAL);
+    const result = await read(PROFILE_SELECT_NO_QUICK_ACTIONS);
     if (!result.error) {
         return result;
     }

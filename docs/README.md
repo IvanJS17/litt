@@ -20,8 +20,6 @@
   asynchronous learning, deletion, and operations
 - [Google Workspace](google-workspace.md) — Drive, Gmail, and Calendar
   connectors: setup, permissions, approvals, limits, and acceptance tests
-- [CourtListener integration](courtlistener.md) — live US case-law tools and
-  optional bulk data
 - [Web search](web-search.md) — provider search and search services, page
   reading, keys, and safety
 - [Subagents](subagents.md) — delegated tasks, what they may do, approvals,

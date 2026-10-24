@@ -405,7 +405,6 @@ vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
 
 vi.mock("../../modules/user/user.settings", () => ({
     getUserModelSettings: vi.fn(async () => ({
-        legal_research_us: false,
         web_search: DEFAULT_WEB_SEARCH_SETTINGS,
         title_model: "test-model",
         tabular_model: "test-model",
@@ -602,7 +601,7 @@ describe("POST /chat — streaming endpoint", () => {
       .send({ ...VALID_BODY, time_zone: "Europe/London" });
     expect(res.status).toBe(200);
     const call = vi.mocked(chatLib.buildMessages).mock.calls.at(-1)!;
-    const time = call[7] as { timeZone: string; now: Date; userSentAt: unknown[] };
+    const time = call[6] as { timeZone: string; now: Date; userSentAt: unknown[] };
     expect(time.timeZone).toBe("Europe/London");
     expect(time.now).toBeInstanceOf(Date);
     expect(time.userSentAt).toHaveLength(1);
@@ -623,7 +622,7 @@ describe("POST /chat — streaming endpoint", () => {
       .send({ ...VALID_BODY, time_zone: "Not/AZone" });
     expect(invalid.status).toBe(200);
     expect(
-      (vi.mocked(chatLib.buildMessages).mock.calls.at(-1)![7] as { timeZone: string })
+      (vi.mocked(chatLib.buildMessages).mock.calls.at(-1)![6] as { timeZone: string })
         .timeZone,
     ).toBe("UTC");
   });
@@ -704,7 +703,6 @@ describe("POST /chat — streaming endpoint", () => {
     it("uses the profile last-selected model when a new chat omits model", async () => {
         const userSettings = await import("../../modules/user/user.settings.js");
         vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
-            legal_research_us: false,
             web_search: DEFAULT_WEB_SEARCH_SETTINGS,
             title_model: null,
             memory_curator_model: null,
@@ -1271,7 +1269,6 @@ describe("POST /chat — streaming endpoint", () => {
     it("uses the shared last-selected model for a local Word chat", async () => {
         const userSettings = await import("../../modules/user/user.settings.js");
         vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
-            legal_research_us: false,
             web_search: DEFAULT_WEB_SEARCH_SETTINGS,
             title_model: null,
             memory_curator_model: null,
@@ -1917,46 +1914,6 @@ describe("POST /chat — streaming endpoint", () => {
     );
     });
 
-    it("keeps CourtListener disabled for Word chats even when legal research is enabled", async () => {
-        const chatLib = await import("../../modules/chat/engine/index.js");
-        const userSettings = await import("../../modules/user/user.settings.js");
-        vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
-            title_model: "test-model",
-            memory_curator_model: null,
-            subagent_model: null,
-            subagent_reasoning: null,
-            last_selected_reasoning_level: null,
-            tabular_model: "test-model",
-            last_selected_chat_model: null,
-            legal_research_us: true,
-            web_search: DEFAULT_WEB_SEARCH_SETTINGS,
-            api_keys: {
-                gemini: "test-key",
-                courtlistener: "configured-but-unused",
-            },
-        });
-
-        const res = await request(app)
-            .post("/word-chat")
-            .set("Authorization", "Bearer test")
-            .send({
-                ...VALID_BODY,
-                document_id: "6f783e59-35c4-4ddc-896a-94aa4d05a767",
-                document_context: "Contract text",
-            });
-
-        expect(res.status).toBe(200);
-    const buildMessagesCall = vi.mocked(chatLib.buildMessages).mock.calls[0];
-        expect(buildMessagesCall[4]).toBe(false);
-        expect(buildMessagesCall[6]).toBe("replace");
-        expect(runLLMStream).toHaveBeenCalledWith(
-            expect.objectContaining({ includeResearchTools: false }),
-        );
-        const streamArgs = runLLMStream.mock.calls[0]?.[0] as {
-            apiKeys?: { courtlistener?: string };
-        };
-        expect(streamArgs.apiKeys?.courtlistener).toBeUndefined();
-    });
 });
 
 describe("PATCH /chat/:chatId", () => {
@@ -2311,7 +2268,6 @@ function chatInsertsOf(db: ReturnType<typeof makeRbacDb>): unknown[] {
 async function seedResolvableModel() {
     const userSettings = await import("../../modules/user/user.settings.js");
     vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
-        legal_research_us: false,
         web_search: DEFAULT_WEB_SEARCH_SETTINGS,
         title_model: null,
         memory_curator_model: null,

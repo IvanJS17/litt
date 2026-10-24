@@ -157,15 +157,12 @@ describe("word add-in model catalog", () => {
         for (const configured of providers) {
             const addinStatus = {
                 ...Object.fromEntries(
-                    [...providers, "courtlistener"].map((provider) => [
-                        provider,
-                        false,
-                    ]),
+                    providers.map((provider) => [provider, false]),
                 ),
                 [configured]: true,
             } as unknown as ApiKeyStatus;
             const webState = Object.fromEntries(
-                [...providers, "courtlistener"].map((provider) => [
+                providers.map((provider) => [
                     provider,
                     {
                         configured: provider === configured,

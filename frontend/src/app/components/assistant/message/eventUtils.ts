@@ -4,7 +4,6 @@ export function isRenderableEvent(event: AssistantEvent): boolean {
     return (
         event.type !== "error" &&
         event.type !== "ask_inputs_response" &&
-        event.type !== "case_citation" &&
         event.type !== "case_opinions" &&
         event.type !== "web_sources" &&
         event.type !== "response_details"
@@ -62,13 +61,6 @@ export function toolCallLabel(name: string): string {
     if (name === "read_workflow") return "Reading workflow...";
     if (name === "list_workflows") return "Loading workflows...";
     if (name === "list_documents") return "Loading documents...";
-    if (name === "courtlistener_search_case_law")
-        return "Searching case law...";
-    if (name === "courtlistener_get_cases") return "Fetching cases...";
-    if (name === "courtlistener_find_in_case") return "Searching case...";
-    if (name === "courtlistener_read_case") return "Reading case...";
-    if (name === "courtlistener_verify_citations")
-        return "Verifying citations...";
     if (name === "web_search") return "Searching the web...";
     if (name === "read_webpage") return "Reading web page...";
     if (name === "delegate") return "Starting a subagent...";

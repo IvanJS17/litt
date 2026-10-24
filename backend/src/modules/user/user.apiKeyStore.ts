@@ -32,7 +32,6 @@ export type ApiKeyProvider =
     | "vertex"
     | "xai"
     | "custom"
-    | "courtlistener"
     | WebSearchBackend;
 export type ApiKeySource = "user" | "org" | "env" | null;
 
@@ -95,7 +94,6 @@ const PROVIDERS: ApiKeyProvider[] = [
     "vertex",
     "xai",
     "custom",
-    "courtlistener",
     ...WEB_SEARCH_BACKENDS,
 ];
 
@@ -187,10 +185,6 @@ export function envApiKey(provider: ApiKeyProvider): string | null {
         // A custom endpoint is always the user's own; deployments declare
         // shared endpoints in MIKE_MODEL_CONFIG_JSON.
         case "custom":
-            return null;
-        // CourtListener is a connector: each user (or their organization)
-        // saves its own token, as with every other connection.
-        case "courtlistener":
             return null;
         case "brave":
             return process.env.BRAVE_SEARCH_API_KEY?.trim() || null;
@@ -351,7 +345,6 @@ function envApiKeyStatus(): ApiKeyStatus {
         vertex: false,
         xai: false,
         custom: false,
-        courtlistener: false,
         brave: false,
         tavily: false,
         deepseek: false,
@@ -370,7 +363,6 @@ function envApiKeyStatus(): ApiKeyStatus {
             vertex: null,
             xai: null,
             custom: null,
-            courtlistener: null,
             brave: null,
             tavily: null,
             deepseek: null,
@@ -441,7 +433,6 @@ export function envApiKeys(): UserApiKeys {
         vertex: envApiKey("vertex"),
         xai: envApiKey("xai"),
         custom: envApiKey("custom"),
-        courtlistener: envApiKey("courtlistener"),
         brave: envApiKey("brave"),
         tavily: envApiKey("tavily"),
         deepseek: envApiKey("deepseek"),
