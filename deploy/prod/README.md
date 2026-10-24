@@ -128,6 +128,13 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
    El script verifica los secretos fail-closed (regulares, modo 600, dueño
    confiable) e integridad (`restic check` diario; `--read-data-subset=10%` el
    día 01).
+6. **Retención: 30 respaldos diarios** (`restic forget --keep-daily 30
+   --prune`), sin semanales ni mensuales (decisión del dueño, 2026-10-24). Es
+   lo que hace verdadero el recibo de borrado de cuenta: los respaldos nunca se
+   editan, y la última copia que contiene una cuenta borrada se elimina 30 días
+   después del borrado. `keep-daily` cuenta días *con* respaldo: si el cron
+   deja de correr, las copias viejas sobreviven esos días de más, así que una
+   falla del respaldo se atiende el mismo día.
 
 ## 8. Verificación final (con Iván en el navegador)
 

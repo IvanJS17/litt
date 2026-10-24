@@ -46,4 +46,7 @@ if [ "$(date +%d)" = "01" ]; then
 else
   restic check
 fi
-restic forget --keep-daily 30 --keep-weekly 8 --keep-monthly 12 --prune
+# Retención: 30 respaldos diarios y nada más (decisión del dueño, 2026-10-24).
+# El recibo de borrado de cuenta promete que la última copia desaparece a los
+# 30 días; respaldos semanales o mensuales la conservarían hasta un año.
+restic forget --keep-daily 30 --prune
