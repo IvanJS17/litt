@@ -237,8 +237,8 @@ crosses an application boundary must be verified by building the affected
 image from the repository root, for example
 `docker build -f frontend/Dockerfile .`. The host-side build cannot catch a
 missing build-context file because every sibling directory exists on the
-host; `.github/workflows/docker-images.yml` builds all three images on every
-pull request for the same reason.
+host. LiTT does not build images on every pull request (Actions budget, TD-024),
+so run that build locally before handing off such a change.
 
 Use targeted Vitest files while iterating, for example:
 
@@ -275,3 +275,59 @@ descriptions in Markdown and include:
 
 Do not commit secrets, API keys, private documents, `.env` files, build output,
 or local test artifacts.
+
+## LiTT fork
+
+This repository is LiTT (`IvanJS17/litt`), derived from MikeOSS
+(`open-legal-products/mike`) and maintained for Mexican legal practice. Since
+2026-10-23 it is a standalone GitHub repository, outside the upstream fork
+network, that shares Git history with upstream. These rules complement the
+sections above and win where they conflict.
+
+- **Identity and license.** LiTT is the user-visible product name. Keep
+  AGPL-3.0-only, `LICENSE`, upstream copyright notices and the upstream
+  attribution in `README.md`. A hosted modified version must offer its
+  Corresponding Source (AGPL §13; tracked as TD-016 in
+  `docs/TECHNICAL_DEBT.md`). Do not rename internal identifiers (`mikeApi.ts`,
+  `MikeApiError`, file and directory names, the `upstream` remote) for
+  branding.
+- **Upstream.** Treat `upstream` as read-only input. Since the 2026-10-23
+  sync, LiTT shares history with upstream: a cycle is a reviewed merge of a
+  pinned `upstream/main` commit, never a rebuild. Follow
+  `docs/UPSTREAM_POLICY.md` (weekly intake, full-OID pin,
+  adopt/port/reject/defer, stop-the-line thresholds), judge every capability
+  against the compatibility matrix (§16 of
+  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`) and record the decisions there. Pass
+  `--repo IvanJS17/litt` to `gh` in scripts.
+- **Migrations.** LiTT uses upstream's migration runner and ledger (see
+  "Database Migrations" above). Name LiTT-owned migrations
+  `YYYYMMDD_NN_litt_<name>.sql` on a date/ordinal stem that upstream has not
+  used, so an upstream merge never collides with them. The historical
+  `*_recovery_*` series and its registry were retired in the sync; their
+  documents are kept only as history.
+- **Invariants to preserve in every change or port:** organization, workspace
+  and matter tenancy with explicit membership for private matters; RLS and
+  authorization epochs; insert-only audit and AI evidence records; governed
+  BYOK (provider, model and credential fixed per conversation, no silent
+  fallback; a user-configured endpoint never reaches internal addresses);
+  CourtListener removed; Google Drive publication fail-closed until an
+  approved connector exists; no telemetry to third parties (Sentry removed);
+  no desktop app; the preset template catalog ships empty.
+- **User-controlled integrations.** AI provider keys and Google accounts are
+  optional and configured by each user inside the app. Never hardcode or commit
+  them.
+- **Retention.** Retention and erasure are not yet decided (TD-008). Destructive
+  operations on evidence stay fail-closed; do not add automatic deletion of
+  real data without an approved, recorded decision.
+- **Environments.** Local stacks are disposable and use synthetic documents
+  only (`docs/safe-local-testing.md`). Production is defined by
+  `deploy/prod/README.md`, not by host names, and is never inferred from CI, a
+  merge or a local smoke test.
+- **Toolchain.** Use Node 22 locally for parity with CI.
+- **Delivery.** Follow `docs/RELEASE_GATES.md`: one independent review of the
+  exact snapshot before integration; commit, push, PR, merge and deploy are
+  separate authorizations. Update `docs/PROJECT_STATUS.md` when integration or
+  deployment state changes.
+- **Private material.** Product strategy, commercial documents and Mexican
+  legal content live in a private companion repository. Never copy them, client
+  data or secrets into this repository.
