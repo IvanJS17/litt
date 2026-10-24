@@ -87,7 +87,7 @@ describe("listenOrFail (MIKE-BACKEND-7 root cause)", () => {
     await new Promise((resolve) => server.close(resolve));
   });
 
-  it("binds only to the requested host for the desktop local stack", async () => {
+  it("binds only to the requested host", async () => {
     const effects = fakeEffects();
     const onListening = vi.fn();
     const server = listenOrFail(express(), 0, onListening, effects, "127.0.0.1");

@@ -2,14 +2,14 @@
  * Object storage facade for Mike document management.
  *
  * The transport lives behind the StorageAdapter interface
- * (./storage/adapter.ts); the default is the S3-protocol adapter
+ * (./storage/adapter.ts); the only driver is the S3-protocol adapter
  * (./storage/s3.ts — Cloudflare R2, RustFS, MinIO). This module owns the
  * policy every backend shares: not-configured degradation (reads return
  * null/empty, writes throw), error logging, StorageOperationError wrapping,
  * Content-Disposition building, and the storage-key layout.
  *
- * Deployments on a different object store implement StorageAdapter in one
- * file and call setStorageAdapter() at boot; no call sites change.
+ * setStorageAdapter() lets a test (or a future deployment on a different
+ * object store) swap the transport in one place; no call site changes.
  */
 
 import { bestEffort } from "./bestEffort";
@@ -19,9 +19,7 @@ import type {
   StoredObjectMetadata,
 } from "./storage/adapter";
 import { createS3StorageAdapter } from "./storage/s3";
-import { createFilesystemStorageAdapter } from "./storage/filesystem";
 import { buildContentDisposition } from "./storage/filenames";
-export { BlobUploadSizeError } from "./storage/filesystem";
 export {
   buildContentDisposition,
   encodeRFC5987,
@@ -31,9 +29,7 @@ export {
 
 export type { StorageAdapter, StoredObjectMetadata } from "./storage/adapter";
 
-let adapter: StorageAdapter = process.env.STORAGE_DRIVER === "fs"
-  ? createFilesystemStorageAdapter()
-  : createS3StorageAdapter();
+let adapter: StorageAdapter = createS3StorageAdapter();
 
 export let storageEnabled = adapter.enabled;
 
@@ -275,7 +271,6 @@ export async function getSignedUrl(
       key,
       expiresIn,
       responseContentDisposition,
-      downloadFilename,
     );
   } catch (error) {
     console.error("[storage] getSignedUrl failed", {
@@ -330,31 +325,4 @@ function storageExtension(filename: string, fallback: string): string {
   if (lastDot < 0) return fallback;
   const ext = filename.slice(lastDot).toLowerCase();
   return /^\.[a-z0-9]{1,16}$/.test(ext) ? ext : fallback;
-}
-
-// ---------------------------------------------------------------------------
-// Streamed signed uploads (filesystem driver)
-// ---------------------------------------------------------------------------
-
-/**
- * Redeem a backend-minted upload capability by streaming the request body
- * into storage. Only the filesystem driver mints those capabilities (an S3
- * store takes the browser's presigned PUT directly), so a transport without
- * writeBlobFromStream rejects the call rather than silently dropping bytes.
- */
-export async function writeBlobFromStream(
-  key: string,
-  body: Readable,
-  maxBytes: number,
-): Promise<number> {
-  if (!adapter.writeBlobFromStream) {
-    throw new Error("writeBlobFromStream is only available on the fs driver");
-  }
-  requireStorageConfig();
-  return adapter.writeBlobFromStream(key, body, maxBytes);
-}
-
-/** Remove a partially written blob after a failed or oversized upload. */
-export async function discardBlob(key: string): Promise<void> {
-  await adapter.discardBlob?.(key);
 }

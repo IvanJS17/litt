@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AuthApiError, login, signup } from "@/app/lib/authApi";
-import { completeUserOnboarding, getUserProfile } from "@/app/lib/mikeApi";
+import { login } from "@/app/lib/authApi";
 import { InputUI } from "@/shared/ui/InputUI";
 import { PillButtonUI } from "@/shared/ui/PillButtonUI";
 import Link from "next/link";
@@ -65,20 +64,6 @@ function describeLoginError(error: unknown): UserFacingError {
         : described;
 }
 
-// The Mac desktop shell's preload bridge. Only its local ("everything on
-// this Mac") mode answers guestCredentials with a value — in a browser the
-// bridge doesn't exist, and against a hosted server it returns null — so
-// gating the guest button on the answer keeps this page byte-identical in
-// behavior everywhere else.
-type GuestCredentials = { email: string; password: string };
-declare global {
-    interface Window {
-        mikeDesktop?: {
-            guestCredentials?: () => Promise<GuestCredentials | null>;
-        };
-    }
-}
-
 export default function LoginPage() {
     const router = useRouter();
     const {
@@ -104,8 +89,6 @@ export default function LoginPage() {
         setSessionError(null);
         setSessionWarningDismissed(false);
     }
-    const [loginMode, setLoginMode] = useState<"account" | "guest" | null>(null);
-    const [guest, setGuest] = useState<GuestCredentials | null>(null);
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -113,23 +96,7 @@ export default function LoginPage() {
         }
     }, [authLoading, isAuthenticated, router]);
 
-    useEffect(() => {
-        let cancelled = false;
-        window.mikeDesktop
-            ?.guestCredentials?.()
-            .then((creds) => {
-                if (!cancelled && creds?.email && creds?.password) {
-                    setGuest(creds);
-                }
-            })
-            .catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
     const submitLogin = async () => {
-        setLoginMode("account");
         setLoading(true);
         setError(null);
         try {
@@ -168,71 +135,15 @@ export default function LoginPage() {
         }
     };
 
-    const handleGuestLogin = async () => {
-        if (!guest) return;
-        setLoginMode("guest");
-        setLoading(true);
-        setError(null);
-
-        try {
-            try {
-                await login(guest.email, guest.password);
-            } catch (loginError) {
-                if (
-                    !(loginError instanceof AuthApiError) ||
-                    loginError.code !== "invalid_credentials"
-                ) {
-                    throw loginError;
-                }
-                // First use: the guest account doesn't exist yet. Local mode
-                // autoconfirms signups, so /signup returns a session directly
-                // and requiresEmailConfirmation is false; if a deployment ever
-                // did require confirmation there is no inbox to confirm from,
-                // so surface that as an error rather than a dead end.
-                const result = await signup(
-                    guest.email,
-                    guest.password,
-                    "/onboarding/profile",
-                );
-                if (result.requiresEmailConfirmation) {
-                    throw new Error(
-                        "Guest sign-in needs an auto-confirming local stack.",
-                    );
-                }
-            }
-            // A local workspace needs no cloud account or practice questionnaire.
-            // These optional details remain editable in Settings.
-            const profile = await getUserProfile();
-            if (!profile.onboardingComplete) await completeUserOnboarding();
-            // Session lives in the httpOnly cookie the auth routes set, so the
-            // context has to re-read it before any gated route will let us in.
-            await refreshSession();
-            router.push("/assistant");
-        } catch (error: unknown) {
-            setError(
-                describeError(error, {
-                    action: "open your local workspace",
-                    codeMessages: LOGIN_ERROR_MESSAGES,
-                    fallback: "Unable to continue as guest right now. Please try again.",
-                }),
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
-
     // One warning at a time: the form's own failure first, then the session's.
     const sessionWarningOpen =
         !error && !!authError && !sessionWarningDismissed;
     const shownError = error ?? (sessionWarningOpen ? sessionError : null);
     const retryAction = error
-        ? error.retryable && loginMode
+        ? error.retryable
             ? {
                   label: "Retry",
-                  onClick: () =>
-                      void (loginMode === "guest"
-                          ? handleGuestLogin()
-                          : submitLogin()),
+                  onClick: () => void submitLogin(),
                   disabled: loading,
               }
             : undefined
@@ -253,100 +164,62 @@ export default function LoginPage() {
                 {/* Login Form */}
                 <div className={cn(authGlassCardUIClassName, "mb-4")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
-                        {guest ? "Your workspace on this Mac" : "Log In"}
+                        Log In
                     </h2>
-                    {guest && (
-                        <div className="mb-6 space-y-3">
-                            <p className="text-sm text-muted-foreground">
-                                Start without an account. Your work is saved on
-                                this Mac. You can add your practice details
-                                later in Settings.
-                            </p>
+                    <form onSubmit={handleLogin} className="space-y-4">
+                        <div>
+                            <FieldLabel htmlFor="email">Email</FieldLabel>
+                            <InputUI
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                className={`w-full ${authInputUIClassName}`}
+                            />
+                        </div>
+
+                        <div>
+                            <div className="flex items-start justify-between gap-3">
+                                <FieldLabel htmlFor="password">
+                                    Password
+                                </FieldLabel>
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
+                                >
+                                    Forgot password?
+                                </Link>
+                            </div>
+                            <InputUI
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className={`w-full ${authInputUIClassName}`}
+                            />
+                        </div>
+
+                        <div className="pt-2">
                             <PillButtonUI
-                                type="button"
+                                type="submit"
                                 tone="black"
                                 size="normal"
-                                className="w-full"
-                                onClick={handleGuestLogin}
                                 disabled={loading}
+                                className="w-full"
                             >
-                                {loading
-                                    ? "Opening workspace…"
-                                    : "Continue on this Mac"}
+                                {loading ? "Logging in..." : "Log in"}
                             </PillButtonUI>
                         </div>
-                    )}
-                    <details open={!guest}>
-                        <summary
-                            hidden={!guest}
-                            className="mb-4 cursor-pointer text-sm text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                        >
-                            Use a separate local account
-                        </summary>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <div>
-                                <FieldLabel htmlFor="email">Email</FieldLabel>
-                                <InputUI
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                    className={`w-full ${authInputUIClassName}`}
-                                />
-                            </div>
-
-                            <div>
-                                <div className="flex items-start justify-between gap-3">
-                                    <FieldLabel htmlFor="password">
-                                        Password
-                                    </FieldLabel>
-                                    <Link
-                                        href="/forgot-password"
-                                        className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
-                                    >
-                                        Forgot password?
-                                    </Link>
-                                </div>
-                                <InputUI
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                    required
-                                    className={`w-full ${authInputUIClassName}`}
-                                />
-                            </div>
-
-                            <div className="pt-2">
-                                <PillButtonUI
-                                    type="submit"
-                                    tone="black"
-                                    size="normal"
-                                    disabled={loading}
-                                    className="w-full"
-                                >
-                                    {loading ? "Logging in..." : "Log in"}
-                                </PillButtonUI>
-                            </div>
-                            {!guest && (
-                                <>
-                                    <AuthDividerUI />
-                                    <GoogleAuthButton
-                                        onError={(nextError) => {
-                                            setLoginMode(null);
-                                            setError(nextError);
-                                        }}
-                                        disabled={loading}
-                                        onLoadingChange={setLoading}
-                                    />
-                                    <SsoAuthButton disabled={loading} />
-                                </>
-                            )}
-                        </form>
-                    </details>
+                        <AuthDividerUI />
+                        <GoogleAuthButton
+                            onError={(nextError) => setError(nextError)}
+                            disabled={loading}
+                            onLoadingChange={setLoading}
+                        />
+                        <SsoAuthButton disabled={loading} />
+                    </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">
                     Don&apos;t have an account?{" "}

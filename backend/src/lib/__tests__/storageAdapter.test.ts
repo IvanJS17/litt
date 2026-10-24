@@ -128,11 +128,10 @@ describe("setStorageAdapter", () => {
       "k",
       60,
       `attachment; filename="Contract v2.pdf"; filename*=UTF-8''Contract%20v2.pdf`,
-      "Contract v2.pdf",
     );
 
     await storage.getSignedUrl("k", 60);
-    expect(adapter.getSignedUrl).toHaveBeenLastCalledWith("k", 60, undefined, undefined);
+    expect(adapter.getSignedUrl).toHaveBeenLastCalledWith("k", 60, undefined);
   });
 });
 

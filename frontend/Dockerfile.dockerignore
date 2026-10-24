@@ -10,7 +10,6 @@
 .git
 backend
 word-addin
-desktop
 docs
 e2e
 **/.env

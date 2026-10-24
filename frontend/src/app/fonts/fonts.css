@@ -4,7 +4,7 @@
  * next/font/google downloads these files while `next build` runs. When that
  * download fails (it did on CI runners twice on 2026-10-04), the build fails
  * with "Can't resolve '@vercel/turbopack-next/internal/font/google/font'".
- * Serving them from the repository makes every build, CI, Docker, the Mac app
+ * Serving them from the repository makes every build, CI, Docker
  * and offline installs, independent of fonts.googleapis.com.
  *
  * The faces below are Google's own stylesheet for the fonts layout.tsx used to

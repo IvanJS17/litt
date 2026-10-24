@@ -6,26 +6,20 @@ import { AuthApiError } from "@/app/lib/authApi";
 
 const {
     login,
-    signup,
     startGoogleOAuth,
     refreshSession,
     retrySession,
     authState,
     replace,
     push,
-    getUserProfile,
-    completeUserOnboarding,
 } = vi.hoisted(() => ({
     login: vi.fn(),
-    signup: vi.fn(),
     startGoogleOAuth: vi.fn(),
     refreshSession: vi.fn(),
     retrySession: vi.fn(),
     authState: { error: null as string | null },
     replace: vi.fn(),
     push: vi.fn(),
-    getUserProfile: vi.fn(),
-    completeUserOnboarding: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -35,14 +29,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/lib/authApi", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/lib/authApi")>()),
     login,
-    signup,
     startGoogleOAuth,
-}));
-
-vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
-    getUserProfile,
-    completeUserOnboarding,
 }));
 
 vi.mock("@/app/contexts/AuthContext", () => ({
@@ -64,19 +51,11 @@ describe("LoginPage", () => {
         authState.error = null;
         retrySession.mockReset();
         login.mockReset();
-        signup.mockReset();
         startGoogleOAuth.mockReset();
-        delete (window as { mikeDesktop?: unknown }).mikeDesktop;
         refreshSession.mockReset();
         refreshSession.mockResolvedValue(null);
         replace.mockReset();
         push.mockReset();
-        getUserProfile
-            .mockReset()
-            .mockResolvedValue({ onboardingComplete: true });
-        completeUserOnboarding
-            .mockReset()
-            .mockResolvedValue({ onboardingComplete: true });
     });
 
     it("allows an existing account to submit a password shorter than the new minimum", async () => {
@@ -171,104 +150,7 @@ describe("LoginPage", () => {
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
     });
-    it("hides the guest button outside the Mac desktop shell", async () => {
-        // window.mikeDesktop only exists inside the Electron shell, and only
-        // its local ("everything on this Mac") mode answers with credentials.
-        // In a browser and against Mike Cloud this page must be unchanged.
-        render(<LoginPage />);
-        expect(
-            screen.queryByRole("button", { name: "Continue on this Mac" }),
-        ).toBeNull();
-    });
-
-    it("signs a returning guest in with the shell's credentials", async () => {
-        (window as unknown as Record<string, unknown>).mikeDesktop = {
-            guestCredentials: () =>
-                Promise.resolve({
-                    email: "guest@mike.local",
-                    password: "per-install-secret",
-                }),
-        };
-        login.mockResolvedValue({ user: { id: "guest-1" } });
-        const user = userEvent.setup();
-        render(<LoginPage />);
-
-        const button = await screen.findByRole("button", {
-            name: "Continue on this Mac",
-        });
-        await user.click(button);
-
-        expect(login).toHaveBeenCalledWith(
-            "guest@mike.local",
-            "per-install-secret",
-        );
-        expect(signup).not.toHaveBeenCalled();
-        // The session lives in an httpOnly cookie, so the context must re-read
-        // it before the router leaves for a gated route.
-        expect(refreshSession).toHaveBeenCalled();
-        expect(push).toHaveBeenCalledWith("/assistant");
-        expect(completeUserOnboarding).not.toHaveBeenCalled();
-    });
-
-    it("falls back to signup the first time a guest ever clicks", async () => {
-        (window as unknown as Record<string, unknown>).mikeDesktop = {
-            guestCredentials: () =>
-                Promise.resolve({
-                    email: "guest@mike.local",
-                    password: "per-install-secret",
-                }),
-        };
-        // No such account yet: /auth/login 401s, and the local stack
-        // autoconfirms the signup that follows.
-        login.mockRejectedValue(
-            new AuthApiError(401, "invalid_credentials", "Invalid credentials"),
-        );
-        getUserProfile.mockResolvedValue({ onboardingComplete: false });
-        signup.mockResolvedValue({
-            user: { id: "guest-1" },
-            requiresEmailConfirmation: false,
-        });
-        const user = userEvent.setup();
-        render(<LoginPage />);
-
-        await user.click(
-            await screen.findByRole("button", { name: "Continue on this Mac" }),
-        );
-
-        expect(signup).toHaveBeenCalledWith(
-            "guest@mike.local",
-            "per-install-secret",
-            "/onboarding/profile",
-        );
-        expect(completeUserOnboarding).toHaveBeenCalledWith();
-        expect(push).toHaveBeenCalledWith("/assistant");
-    });
-
-    it("does not register an account after a network failure", async () => {
-        window.mikeDesktop = {
-            guestCredentials: async () => ({
-                email: "guest@mike.local",
-                password: "secret",
-            }),
-        };
-        login.mockRejectedValue(new TypeError("Failed to fetch"));
-        render(<LoginPage />);
-        await userEvent.click(
-            await screen.findByRole("button", { name: "Continue on this Mac" }),
-        );
-        expect(signup).not.toHaveBeenCalled();
-        expect(push).not.toHaveBeenCalled();
-        expect(screen.getByRole("alert")).toHaveTextContent(
-            "LiTT couldn't reach the server",
-        );
-        login.mockResolvedValueOnce({ user: { id: "guest-1" } });
-        await userEvent.click(screen.getByRole("button", { name: "Retry" }));
-        expect(login).toHaveBeenLastCalledWith("guest@mike.local", "secret");
-        expect(signup).not.toHaveBeenCalled();
-        expect(push).toHaveBeenCalledWith("/assistant");
-    });
 });
-
 
 it("retries a failed session refresh without submitting the empty login form", async () => {
     authState.error = "Unable to check your session.";

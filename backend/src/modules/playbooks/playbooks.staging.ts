@@ -5,10 +5,10 @@
 //
 // Each key lives under a per-user prefix, but a prefix check alone is not an
 // ownership boundary: "playbooks/<me>/imports/../../../documents/<them>/…"
-// starts with the right prefix and, on the filesystem driver, resolves to
-// another account's file. So a staged key must be exactly what the upload-URL
-// route minted — the caller's prefix, a random UUID, a known extension —
-// with nothing else in it.
+// starts with the right prefix and, on a store that resolves dot segments in
+// keys, names another account's object. So a staged key must be exactly what
+// the upload-URL route minted — the caller's prefix, a random UUID, a known
+// extension — with nothing else in it.
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const STAGED_IMPORT_NAME = new RegExp(`^${UUID}\\.(?:docx|pdf)$`);

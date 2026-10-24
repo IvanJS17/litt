@@ -7,12 +7,11 @@
  * Implementations may assume their methods are called only while `enabled` is
  * true, and should let errors propagate to the facade.
  *
- * To ship Mike on a different object store (Azure Blob, GCS, local disk),
- * implement this type in one file and pass it to setStorageAdapter() from
+ * The shipped implementation is the S3-protocol adapter (./s3.ts). A
+ * deployment that must ship on a different object store (Azure Blob, GCS)
+ * implements this type in one file and passes it to setStorageAdapter() from
  * ../storage.ts before the first request is served. No call site changes.
  */
-
-import type { Readable } from "node:stream";
 
 export type StoredObjectMetadata = {
   size: number;
@@ -83,31 +82,11 @@ export type StorageAdapter = {
    * A URL a browser can fetch directly for `expiresIn` seconds.
    * `responseContentDisposition` is a complete Content-Disposition header
    * value the storage service must echo on its response (S3
-   * response-content-disposition, Azure SAS rscd). `downloadFilename` is the
-   * raw name it was built from, for transports that serve the download
-   * themselves and set the header on their own response (the filesystem
-   * driver's backend-served URL).
+   * response-content-disposition, Azure SAS rscd).
    */
   getSignedUrl(
     key: string,
     expiresIn: number,
     responseContentDisposition?: string,
-    downloadFilename?: string,
   ): Promise<string | null>;
-
-  /**
-   * Optional: redeem a backend-minted upload capability by streaming a
-   * request body to `key`, rejecting any body that is not exactly `maxBytes`
-   * long, and resolve with the byte count written. Needed only by transports
-   * whose getSignedUploadUrl points the browser back at this backend (the
-   * filesystem driver); stores that accept presigned PUTs leave it out.
-   * Must commit atomically: a rejected body leaves any existing object intact.
-   */
-  writeBlobFromStream?(
-    key: string,
-    body: Readable,
-    maxBytes: number,
-  ): Promise<number>;
-  /** Optional companion to writeBlobFromStream: best-effort removal. */
-  discardBlob?(key: string): Promise<void>;
 };

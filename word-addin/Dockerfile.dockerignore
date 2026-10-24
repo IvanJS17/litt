@@ -12,7 +12,6 @@
 **/playwright-report
 .git
 backend
-desktop
 docs
 e2e
 word-addin/e2e
