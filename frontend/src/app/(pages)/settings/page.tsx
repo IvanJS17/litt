@@ -30,6 +30,7 @@ import {
 import { GlassCardUI } from "@/shared/ui/GlassCardUI";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
+import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
 
 const isDev = process.env.NODE_ENV !== "production";
 const devLog = (...args: Parameters<typeof console.log>) => {
@@ -332,6 +333,23 @@ export default function SettingsPage() {
             <p className="text-base font-medium text-gray-500 capitalize">
               {profile?.tier || "Free"}
             </p>
+          </SettingsRow>
+        </GlassCardUI>
+      </section>
+
+      {/* About: AGPL-3.0 §13 source offer for the running version */}
+      <section className="space-y-3">
+        <SettingsHeading>Acerca de</SettingsHeading>
+        <GlassCardUI>
+          <SettingsRow>
+            <div className="min-w-0">
+              <SettingsLabel>Código fuente</SettingsLabel>
+              <SettingsDescription>
+                LiTT es software libre bajo la licencia AGPL-3.0. Consulta el
+                código de la versión exacta que estás usando.
+              </SettingsDescription>
+            </div>
+            <SourceCodeLink className="self-start sm:self-auto" />
           </SettingsRow>
         </GlassCardUI>
       </section>

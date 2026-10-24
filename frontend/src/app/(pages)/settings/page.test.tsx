@@ -111,6 +111,25 @@ describe("SettingsPage Google email changes", () => {
         expect(state.updateOrganisation).not.toHaveBeenCalled();
     });
 
+    it("links the source of the running commit under Acerca de", () => {
+        const sha = "0123456789abcdef0123456789abcdef01234567";
+        vi.stubEnv("LITT_SOURCE_COMMIT", sha);
+        try {
+            render(<SettingsPage />);
+            expect(
+                screen.getByRole("heading", { name: "Acerca de" }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole("link", { name: /^Código fuente/ }),
+            ).toHaveAttribute(
+                "href",
+                `https://github.com/IvanJS17/litt/tree/${sha}`,
+            );
+        } finally {
+            vi.unstubAllEnvs();
+        }
+    });
+
     it("directs Google-created accounts without a password to Security", async () => {
         const user = userEvent.setup();
         render(<SettingsPage />);

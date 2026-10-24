@@ -64,6 +64,9 @@
       "@mike/toggle-switch-ui": [
         "../frontend/src/shared/ui/ToggleSwitchUI.tsx"
       ],
+      "@mike/source-code-link-ui": [
+        "../frontend/src/shared/ui/SourceCodeLinkUI.tsx"
+      ],
       "@mike/dropdown-ui": [
         "../frontend/src/shared/ui/dropdown.tsx"
       ],

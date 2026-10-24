@@ -15,6 +15,7 @@ const validProduction = {
   SUPABASE_SECRET_KEY: "service-role-key",
   FRONTEND_URL: "https://app.example.test",
   API_PUBLIC_URL: "https://app.example.test/api",
+  GIT_SHA: "0123456789abcdef0123456789abcdef01234567",
 } as NodeJS.ProcessEnv;
 
 describe("runtime authentication configuration", () => {
@@ -64,6 +65,21 @@ describe("runtime authentication configuration", () => {
         API_PUBLIC_URL: "http://localhost:3000/api",
       }),
     ).toThrow(/FRONTEND_URL must use https in production/);
+  });
+
+  it("refuses to run a production build without its full commit SHA", () => {
+    for (const GIT_SHA of [undefined, "", "0123456"]) {
+      expect(() =>
+        validateRuntimeConfiguration({ ...validProduction, GIT_SHA }),
+      ).toThrow(/GIT_SHA \(the full commit SHA of the build\) is required/);
+    }
+    expect(() =>
+      validateRuntimeConfiguration({
+        ...validProduction,
+        NODE_ENV: "development",
+        GIT_SHA: undefined,
+      }),
+    ).not.toThrow();
   });
 
   it("accepts local http URLs outside production", () => {
@@ -227,7 +243,7 @@ it("identifies invalid configuration fields without keeping their values", () =>
   expect(tags).toEqual({
     failure_code: "configuration_invalid",
     configuration_fields:
-      "API_PUBLIC_URL,FRONTEND_URL,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL",
+      "API_PUBLIC_URL,FRONTEND_URL,GIT_SHA,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL",
   });
   expect(JSON.stringify(tags)).not.toContain("PRIVATE");
 });

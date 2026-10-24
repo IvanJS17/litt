@@ -13,6 +13,15 @@ COPY backend/ ./
 COPY packages/contracts /packages/contracts
 RUN npm run build
 
+# AGPL-3.0 §13: the full SHA of the published commit this image is built from.
+# /health reports it, and production refuses to start without it, so the build
+# fails here instead of after the deploy.
+ARG GIT_SHA=
+RUN echo "$GIT_SHA" | grep -Eqx '[0-9a-f]{40}' \
+  || { echo "GIT_SHA must be the full 40-character commit SHA (--build-arg GIT_SHA=\$(git rev-parse HEAD))" >&2; exit 1; }
+ENV GIT_SHA=$GIT_SHA
+LABEL org.opencontainers.image.revision=$GIT_SHA
+
 # --enable-source-maps: every entrypoint in this image (API, worker,
 # sync:workflows) reports stack frames as src/*.ts lines, not dist/*.js.
 ENV NODE_ENV=production NODE_OPTIONS=--enable-source-maps

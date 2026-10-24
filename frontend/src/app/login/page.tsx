@@ -29,6 +29,7 @@ import {
     TOO_MANY_ATTEMPTS_MESSAGE,
     authMessages,
 } from "@/app/lib/authMessages";
+import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
 
 /**
  * The shared auth table (`@/app/lib/authMessages`) with this screen's
@@ -230,6 +231,9 @@ export default function LoginPage() {
                         Sign up
                     </Link>
                 </div>
+                <footer className="mt-6 flex justify-center">
+                    <SourceCodeLink />
+                </footer>
             </div>
             <WarningPopup
                 open={!!error || sessionWarningOpen}

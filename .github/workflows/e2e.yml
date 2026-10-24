@@ -208,6 +208,8 @@ jobs:
       # text locators.
       - name: Build web (production)
         run: npm run build --prefix frontend
+        env:
+          GIT_SHA: ${{ github.sha }}
 
       - name: Wire env from Supabase
         run: |

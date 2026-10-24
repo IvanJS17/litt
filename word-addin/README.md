@@ -84,7 +84,7 @@ Run commands from `word-addin/` unless noted otherwise.
 | `npm run typecheck`        | Check application and E2E TypeScript                                |
 | `npm run build:e2e`        | Build with the hermetic test environment                            |
 | `npm run test:e2e`         | Run the mocked Office.js Playwright suite                           |
-| `npm run build`            | Create a production bundle and rewritten manifest                   |
+| `npm run build`            | Create a production bundle and rewritten manifest (needs `GIT_SHA`) |
 | `npm run start:production` | Serve `dist/` and proxy `/api` using `WORD_ADDIN_BACKEND_ORIGIN`    |
 
 ## Manual sideloading
