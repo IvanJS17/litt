@@ -88,18 +88,25 @@ describe("runUserExport", () => {
     it("throws without downloading when the backend build fails", async () => {
         getUserExportStatusMock.mockResolvedValue({ status: "failed" });
 
-        await expect(runUserExport("documents-zip")).rejects.toThrow(
-            "Export build failed",
-        );
+        // The wording is shown as is: say what failed and that retrying helps.
+        await expect(runUserExport("documents-zip")).rejects.toMatchObject({
+            name: "UserVisibleError",
+            message:
+                "LiTT couldn't build the export. Try again, and contact support if it keeps happening.",
+            retryable: true,
+        });
         expect(downloadUserExportMock).not.toHaveBeenCalled();
     });
 
     it("gives up after the poll limit instead of polling forever", async () => {
         getUserExportStatusMock.mockResolvedValue({ status: "pending" });
 
-        await expect(runUserExport("tabular-reviews")).rejects.toThrow(
-            "Export timed out",
-        );
+        await expect(runUserExport("tabular-reviews")).rejects.toMatchObject({
+            name: "UserVisibleError",
+            message:
+                "The export is taking longer than expected. It may still be building, so try again in a few minutes.",
+            retryable: true,
+        });
         expect(getUserExportStatusMock).toHaveBeenCalledTimes(150);
         expect(downloadUserExportMock).not.toHaveBeenCalled();
     });

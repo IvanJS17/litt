@@ -12,7 +12,7 @@ import {
 } from "@/app/components/popups/MfaVerificationPopup";
 import { isMfaRequiredError } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { runUserExport } from "@/app/lib/userExportDownload";
+import { saveUserExport } from "@/app/lib/userExportDownload";
 
 /**
  * "Delete my account", before anything is deleted: offer the personal data
@@ -62,7 +62,7 @@ export function DeleteAccountModal({
         setMfaOpen(true);
         return;
       }
-      await runUserExport(
+      await saveUserExport(
         "account",
         { workspace: "personal" },
         "litt-account-export.json",

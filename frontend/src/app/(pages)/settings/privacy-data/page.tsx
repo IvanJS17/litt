@@ -33,7 +33,7 @@ import {
   type UserExportType,
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { runUserExport } from "@/app/lib/userExportDownload";
+import { saveUserExport } from "@/app/lib/userExportDownload";
 
 type DeleteDataAction = "chats" | "tabular-reviews" | "projects" | "memory";
 type ExportDataAction =
@@ -160,7 +160,7 @@ function PrivacyData({
   const [isExportingMemory, setIsExportingMemory] = useState(false);
 
   const runAsyncExport = (type: UserExportType, fallbackFilename: string) =>
-    runUserExport(type, { workspace }, fallbackFilename);
+    saveUserExport(type, { workspace }, fallbackFilename);
 
   const handleExportAccountData = async () => {
     devLog("[privacy-data/mfa] export account requested");

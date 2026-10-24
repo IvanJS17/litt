@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountDeletionReceipt } from "@mike/contracts";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -25,6 +25,9 @@ function formatDate(value: string) {
   });
 }
 
+// The token is written before navigating here and only removed when leaving.
+const subscribeToNothing = () => () => {};
+
 /**
  * Progress and receipt of an account erasure. Public on purpose: the
  * session was revoked when deletion started, and the receipt token from
@@ -34,12 +37,13 @@ function formatDate(value: string) {
 export default function AccountDeletedPage() {
   const router = useRouter();
   const { signOut } = useAuth();
-  const [token, setToken] = useState<string | null | undefined>(undefined);
+  // undefined while prerendering; the stored token (or null) in the browser.
+  const token = useSyncExternalStore<string | null | undefined>(
+    subscribeToNothing,
+    () => sessionStorage.getItem(ACCOUNT_DELETION_TOKEN_KEY),
+    () => undefined,
+  );
   const [receipt, setReceipt] = useState<AccountDeletionReceipt | null>(null);
-
-  useEffect(() => {
-    setToken(sessionStorage.getItem(ACCOUNT_DELETION_TOKEN_KEY));
-  }, []);
 
   useEffect(() => {
     if (!token) return;
