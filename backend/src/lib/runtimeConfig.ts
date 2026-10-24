@@ -191,6 +191,20 @@ export function authHandoffEncryptionSecret(
   return secret;
 }
 
+const FULL_COMMIT = /^[0-9a-f]{40}$/;
+
+/**
+ * The full commit SHA this build was made from (`GIT_SHA`, baked into the
+ * image by backend/Dockerfile), or null. AGPL-3.0 §13: /health reports it so
+ * the source a deployment offers can be checked against the running server.
+ */
+export function sourceCommit(
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const value = env.GIT_SHA?.trim() ?? "";
+  return FULL_COMMIT.test(value) ? value : null;
+}
+
 /**
  * Fail before the HTTP listener starts when the authentication boundary is not
  * usable. This deliberately lives outside app.ts so unit tests can import the
@@ -248,6 +262,12 @@ export function validateRuntimeConfiguration(
       );
     }
 
+    if (!sourceCommit(env)) {
+      errors.push(
+        "GIT_SHA (the full commit SHA of the build) is required in production",
+      );
+    }
+
     const wordAddin = env.WORD_ADDIN_URL?.trim();
     if (wordAddin) {
       requireHttps(
@@ -266,7 +286,8 @@ export function validateRuntimeConfiguration(
     const hint =
       errors.length > errorsBeforeProductionChecks
         ? "\n\nNODE_ENV=production requires the public https URLs above " +
-          "(FRONTEND_URL, API_PUBLIC_URL, and WORD_ADDIN_URL when set). " +
+          "(FRONTEND_URL, API_PUBLIC_URL, and WORD_ADDIN_URL when set) " +
+          "and the GIT_SHA the image was built with. " +
           "For a local run over http, set NODE_ENV=development instead; " +
           "docker compose does this by default. See docs/deployment.md."
         : "";

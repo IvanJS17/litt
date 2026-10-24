@@ -6,6 +6,7 @@ import { PillButtonUI as PillButton } from "@mike/pill-button-ui";
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 import { Modal } from "../primitives/Modal";
 import { GlassCardUI } from "@mike/glass-card-ui";
+import { SourceCodeLinkUI } from "@mike/source-code-link-ui";
 import { userMessage } from "../../lib/notify";
 
 interface SettingsPageProps {
@@ -93,6 +94,21 @@ export function SettingsPage({
               <Trash2 className="h-3.5 w-3.5" />
               Delete
             </PillButton>
+          </div>
+        </GlassCardUI>
+      </section>
+
+      <section className="mt-3">
+        <GlassCardUI>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
+            <div className="min-w-0">
+              <h2 className="text-sm font-medium text-gray-900">Acerca de</h2>
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                LiTT es software libre bajo la licencia AGPL-3.0. Consulta el
+                código de la versión exacta que estás usando.
+              </p>
+            </div>
+            <SourceCodeLinkUI commit={process.env.REACT_APP_GIT_SHA} />
           </div>
         </GlassCardUI>
       </section>

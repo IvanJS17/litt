@@ -1,4 +1,7 @@
+import { execFileSync } from "node:child_process";
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { resolveSourceCommit } from "./src/shared/lib/sourceCommit.mjs";
 
 const nextConfig: NextConfig = {
     /* config options here */
@@ -43,4 +46,19 @@ const nextConfig: NextConfig = {
     skipTrailingSlashRedirect: true,
 };
 
-export default nextConfig;
+export default function config(phase: string): NextConfig {
+    // AGPL-3.0 §13: the commit this build serves, inlined for the "Código
+    // fuente" link. `next build` fails without GIT_SHA; `next dev` falls back
+    // to the checkout's HEAD.
+    const sourceCommit = resolveSourceCommit({
+        explicit: process.env.GIT_SHA,
+        production: phase === PHASE_PRODUCTION_BUILD,
+        readGitHead: () =>
+            execFileSync("git", ["rev-parse", "HEAD"], {
+                cwd: __dirname,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"],
+            }),
+    });
+    return { ...nextConfig, env: { LITT_SOURCE_COMMIT: sourceCommit } };
+}

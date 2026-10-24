@@ -252,7 +252,7 @@ and [first-sheet-only CSV export](https://developers.google.com/workspace/drive/
    If testing Mike email/password login only, set
    `GOTRUE_EXTERNAL_GOOGLE_ENABLED=false` in root `.env`.
 8. Follow [local development](local-development.md) for a new stack, preserving
-   existing env files, then run `docker compose up --build -d`. Confirm `db-init`
+   existing env files, then run `GIT_SHA=$(git rev-parse HEAD) docker compose up --build -d`. Confirm `db-init`
    succeeded with `docker compose ps -a` and its logs. Fresh installs include the
    schema; existing installations need the Drive migration **before** the new
    backend code. If you previously applied an earlier draft of this unmerged
@@ -358,7 +358,7 @@ npm run typecheck:contracts --prefix backend
 npm run test:coverage --prefix backend
 npm run test:coverage --prefix frontend
 npm run lint --prefix frontend
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 git diff --check
 ```
 

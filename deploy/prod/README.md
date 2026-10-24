@@ -34,27 +34,52 @@ de 2026-10-23 la construcción pertenece a este gate de despliegue
 imágenes verificadas del árbol sincronizado; los IDs de imagen de releases
 anteriores no aplican.
 
+**Código fuente correspondiente (AGPL-3.0 §13).** Quien use LiTT por la red
+debe poder obtener el código de la versión exacta que corre. Cada imagen lleva
+el SHA completo del commit del que se construyó (`--build-arg GIT_SHA`); el
+backend lo reporta en `/health` y el frontend lo enlaza como **Código fuente**
+(`https://github.com/IvanJS17/litt/tree/<SHA>`) en el pie del inicio de sesión
+y en Ajustes → Acerca de. Sin `GIT_SHA` válido, los tres builds (backend,
+frontend, add-in de Word) fallan, y el backend en producción no arranca. Por
+eso el SHA debe ser un commit **publicado** en `IvanJS17/litt` y el checkout
+debe estar limpio: lo construido es exactamente lo que el enlace ofrece.
+
 ```bash
-# En la máquina de build, desde la raíz de un checkout limpio en <SHA-de-main>:
-docker build -f backend/Dockerfile  -t litt-backend:<RELEASE> .
-docker build -f frontend/Dockerfile --build-arg GIT_SHA=<SHA-de-main> -t litt-frontend:<RELEASE> .
-docker image inspect --format '{{.Id}}' litt-backend:<RELEASE>    # anotar en el recibo
-docker image inspect --format '{{.Id}}' litt-frontend:<RELEASE>   # anotar en el recibo
-docker save litt-backend:<RELEASE>  | gzip > /tmp/litt-backend.tgz
-docker save litt-frontend:<RELEASE> | gzip > /tmp/litt-frontend.tgz
+# En la máquina de build, desde la raíz de un checkout limpio del commit a desplegar:
+SHA=$(git rev-parse HEAD)
+test -z "$(git status --porcelain)"                                   # árbol limpio
+git fetch origin && git merge-base --is-ancestor "$SHA" origin/main   # publicado en main
+gh api "repos/IvanJS17/litt/commits/$SHA" --jq .sha                   # == $SHA (visible en GitHub)
+docker build -f backend/Dockerfile  --build-arg GIT_SHA="$SHA" -t "litt-backend:$SHA" .
+docker build -f frontend/Dockerfile --build-arg GIT_SHA="$SHA" -t "litt-frontend:$SHA" .
+for i in backend frontend; do                                          # revisión == SHA; anotar el Id en el recibo
+  docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}} {{.Id}}' "litt-$i:$SHA"
+done
+docker save "litt-backend:$SHA"  | gzip > /tmp/litt-backend.tgz
+docker save "litt-frontend:$SHA" | gzip > /tmp/litt-frontend.tgz
 scp /tmp/litt-*.tgz staging-apps-dev:/tmp/
 # En el VPS:
 gzip -dc /tmp/litt-backend.tgz  | docker load
 gzip -dc /tmp/litt-frontend.tgz | docker load
-docker image inspect --format '{{.Id}}' litt-backend:<RELEASE>   # == ID anotado
-docker image inspect --format '{{.Id}}' litt-frontend:<RELEASE>  # == ID anotado
+docker image inspect --format '{{.Id}}' litt-backend:<SHA>   # == ID anotado
+docker image inspect --format '{{.Id}}' litt-frontend:<SHA>  # == ID anotado
 ```
 
-`<RELEASE>` = sha corto del commit de `main` desplegado (queda en `.env` como
-`LITT_RELEASE`). El contexto de build es la raíz del repositorio (los
-Dockerfiles copian `packages/contracts`). El deploy NO compila en el VPS; la
-comparación de IDs tras `docker load` ata el deploy a los bytes construidos y
-verificados.
+La etiqueta de las imágenes es el SHA completo y queda en `.env` como
+`LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build
+es la raíz del repositorio (los Dockerfiles copian `packages/contracts`). El
+deploy NO compila en el VPS; la comparación de IDs tras `docker load` ata el
+deploy a los bytes construidos y verificados. Si se publica el add-in de Word,
+su imagen se construye igual (`docker build -f word-addin/Dockerfile
+--build-arg GIT_SHA="$SHA" …`, más las URLs de `docs/word-addin-development.md`)
+y su enlace está en Ajustes del panel.
+
+**Sin secretos en lo que se ofrece.** El código ofrecido es el árbol público de
+GitHub en ese SHA. Los secretos viven solo en `/srv/litt/.env` (fuera de Git,
+§3) y el workflow `Secret scan` ([`.github/workflows/gitleaks.yml`](../../.github/workflows/gitleaks.yml))
+escanea con gitleaks todo el historial en cada PR y en cada push a `main`.
+Antes de construir, comprobar que su corrida en el commit desplegado está en
+verde: `gh run list --repo IvanJS17/litt --workflow gitleaks.yml --commit "$SHA"`.
 
 ## 2. Árbol del release (VPS)
 
@@ -133,8 +158,11 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com.mx          # 200 (login)
-curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com.mx/api/health
+curl -s https://litt.asteroitt.com.mx/api/health                     # {"ok":true,"commit":"<SHA>"}
+curl -s https://litt.asteroitt.com.mx/login | grep -o 'github.com/IvanJS17/litt/tree/[0-9a-f]*' | sort -u   # == <SHA>
 ```
+Ambos deben mostrar el `LITT_SOURCE_COMMIT` desplegado; el enlace **Código
+fuente** del inicio de sesión debe abrir ese árbol en GitHub.
 Luego: abrir en el navegador, crear la cuenta del owner, dar de alta la llave
 de IA (Ajustes) y subir un documento de prueba.
 

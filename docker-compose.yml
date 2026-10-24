@@ -236,6 +236,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        # The full commit SHA; images refuse to build without it (AGPL §13).
+        GIT_SHA: ${GIT_SHA:-}
     image: mike-backend:local
     env_file:
       - path: ./backend/.env
@@ -262,6 +265,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        # The full commit SHA; images refuse to build without it (AGPL §13).
+        GIT_SHA: ${GIT_SHA:-}
     image: mike-backend:local
     ports:
       - "${BACKEND_PORT:-3001}:3001"

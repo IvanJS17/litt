@@ -515,8 +515,12 @@ process manager or deployment platform:
 
 ```bash
 npm run build --prefix backend
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 ```
+
+A production frontend build needs the full commit SHA in `GIT_SHA` for the
+"Código fuente" link (AGPL §13); build from a clean, committed tree so the
+link points at the code that runs. See `deploy/prod/README.md`.
 
 If port 3001 (or `PORT`) is already taken, for example by the Docker Compose
 backend, the backend reports the bind failure and exits instead of starting

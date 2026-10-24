@@ -35,7 +35,7 @@ import {
   protectInternalErrorResponses,
 } from "./middleware/internalErrorResponse";
 import { configuredAllowedOrigins } from "./lib/origins";
-import { envInt } from "./lib/runtimeConfig";
+import { envInt, sourceCommit } from "./lib/runtimeConfig";
 
 export const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -327,7 +327,10 @@ app.use("/audit", auditRouter);
 app.use("/playbooks", playbooksRouter);
 app.use("/upload-sessions", uploadSessionsRouter);
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+// `commit` is the source this server runs (AGPL-3.0 §13), null in a dev build.
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, commit: sourceCommit() }),
+);
 
 // The Ed25519 public key this deployment signs project export manifests with,
 // or null when no key is configured. Deliberately open: whoever checks a
