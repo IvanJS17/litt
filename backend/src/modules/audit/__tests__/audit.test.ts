@@ -421,45 +421,63 @@ describe("queryEvents visibility scoping", () => {
         ]);
     });
 
-    it("resolves display names for only the users on the requested page", async () => {
+    it("resolves names and addresses from the live profile, for only the users on the page", async () => {
         const events = [
-            {
-                id: "event-1",
-                user_id: "u1",
-                user_email: "one@example.com",
-            },
-            {
-                id: "event-2",
-                user_id: "u2",
-                user_email: "two@example.com",
-            },
+            // Rows written before 20261024_51 still carry an address; newer
+            // rows carry none. Either way the profile is the source.
+            { id: "event-1", user_id: "u1", user_email: "stale@example.com" },
+            { id: "event-2", user_id: "u3", user_email: null },
         ];
         const { db, calls } = makeDb([], [], events, [
-            { user_id: "u1", display_name: "  Alex Lawyer  " },
+            { user_id: "u1", display_name: "  Alex Lawyer  ", email: "one@example.com" },
+            { user_id: "u3", display_name: null, email: "three@example.com" },
         ]);
 
         const result = await queryEvents(db, "u1", "one@example.com", query);
 
-        expect(calls.profileUserIds).toEqual(["u1", "u2"]);
+        expect(calls.profileUserIds).toEqual(["u1", "u3"]);
         expect(result.data).toEqual([
             {
                 id: "event-1",
                 user_email: "one@example.com",
                 user_display_name: "Alex Lawyer",
+                user_deleted: false,
             },
             {
                 id: "event-2",
-                user_email: "two@example.com",
+                user_email: "three@example.com",
                 user_display_name: null,
+                user_deleted: false,
             },
         ]);
     });
 
-    it("can skip profile resolution for the larger export query", async () => {
+    it("shows a deleted account as deleted, never with the address its old rows recorded", async () => {
+        const { db } = makeDb(
+            [],
+            [],
+            [
+                { id: "event-1", user_id: "gone", user_email: "former@example.com" },
+                { id: "event-2", user_id: null, user_email: null },
+            ],
+            [],
+        );
+
+        const result = await queryEvents(db, "u1", "one@example.com", query);
+
+        expect(result.data).toEqual([
+            { id: "event-1", user_email: null, user_display_name: null, user_deleted: true },
+            // A system event has no actor; it is not a deleted one.
+            { id: "event-2", user_email: null, user_display_name: null, user_deleted: false },
+        ]);
+    });
+
+    it("still resolves the actor for the larger export query", async () => {
         const { db, calls } = makeDb(
             [],
             [],
-            [{ id: "event-1", user_id: "u1", user_email: "one@example.com" }],
+            [{ id: "event-1", user_id: "u1", user_email: null }],
+            [{ user_id: "u1", display_name: null, email: "one@example.com" }],
         );
 
         const result = await queryEvents(
@@ -470,12 +488,13 @@ describe("queryEvents visibility scoping", () => {
             false,
         );
 
-        expect(calls.profileUserIds).toBeUndefined();
+        expect(calls.profileUserIds).toEqual(["u1"]);
         expect(result.data).toEqual([
             {
                 id: "event-1",
                 user_email: "one@example.com",
                 user_display_name: null,
+                user_deleted: false,
             },
         ]);
     });

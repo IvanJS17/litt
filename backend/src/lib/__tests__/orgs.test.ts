@@ -285,7 +285,6 @@ describe("orgs.service roles", () => {
         expect(events[0]).toMatchObject({
             user_id: "owner1",
             user_email: "owner1@example.com",
-            title: "member1@example.com",
             detail: {
                 org_id: "o1",
                 target_user_id: "member1",
@@ -294,6 +293,9 @@ describe("orgs.service roles", () => {
             },
         });
         expect(events[1].detail).toMatchObject({ role: "admin" });
+        // The member is named by ID and resolved from the live profile, so an
+        // erased account leaves no address behind in insert-only rows.
+        expect(JSON.stringify(events)).not.toContain("member1@example.com");
     });
 
     it("audits a self-removal as leaving, not as being removed", async () => {
@@ -1498,6 +1500,13 @@ describe("org invitations", () => {
             "org.invite.created",
             "org.invite.accepted",
         ]);
+        // The address stays in the firm's invitation record, which the audit
+        // row points to; the insert-only row itself does not copy it.
+        const events = db._tables.audit_events as Row[];
+        for (const event of events) {
+            expect(event.title ?? null).toBeNull();
+            expect(event.detail).toMatchObject({ invitation_id: created.invitation.id });
+        }
     });
 });
 

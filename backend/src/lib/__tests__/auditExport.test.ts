@@ -45,21 +45,25 @@ const QUERY = parseQuery({}, AUDIT_EXPORT_LIMIT);
 const query = QUERY.ok ? QUERY.query : (undefined as never);
 
 describe("buildAuditCsv", () => {
-    // Display names are not resolved for the export (queryEvents is called
-    // with resolveDisplayNames=false), so the "user" column is the email.
+    // The "user" column is the actor's live address from their profile
+    // (names are not resolved for the export; see "audit CSV user column").
     it("emits the header and one row per event", async () => {
-        const { db } = makeDb([
-            {
-                created_at: "2026-08-10T08:30:00.000Z",
-                user_email: "lawyer@example.com",
-                action: "document.edited",
-                status: "completed",
-                title: "Share purchase agreement",
-                surface: "project",
-                project_id: "p1",
-                model: "gpt-5",
-            },
-        ]);
+        const { db } = makeProfileDb(
+            [
+                {
+                    created_at: "2026-08-10T08:30:00.000Z",
+                    user_id: "u1",
+                    user_email: null,
+                    action: "document.edited",
+                    status: "completed",
+                    title: "Share purchase agreement",
+                    surface: "project",
+                    project_id: "p1",
+                    model: "gpt-5",
+                },
+            ],
+            [{ user_id: "u1", email: "lawyer@example.com" }],
+        );
         const csv = await buildAuditCsv(db, "u1", "u1@example.com", query);
         expect(csv.split("\n")).toEqual([
             "created_at,user,action,status,title,application,project_id,model",
@@ -149,73 +153,78 @@ describe("queryEvents display names", () => {
         { id: "e2", user_id: "u2", user_email: "other@example.com" },
     ];
 
-    it("attaches a trimmed display name and drops the raw user_id", async () => {
+    it("attaches a trimmed display name and the live address, and drops the raw user_id", async () => {
         const { db } = makeProfileDb(events, [
-            { user_id: "u1", display_name: "  Ada Lovelace  " },
+            { user_id: "u1", display_name: "  Ada Lovelace  ", email: "ada@example.com" },
         ]);
         const { data } = await queryEvents(db, "u1", undefined, query);
         expect(data).toEqual([
             {
                 id: "e1",
-                user_email: "lawyer@example.com",
+                user_email: "ada@example.com",
                 user_display_name: "Ada Lovelace",
+                user_deleted: false,
             },
-            // No profile row for u2, so the JSON listing gets an explicit null
-            // and the client falls back to the email.
+            // No profile row for u2: the account was erased. The address its
+            // row recorded is not shown.
             {
                 id: "e2",
-                user_email: "other@example.com",
+                user_email: null,
                 user_display_name: null,
+                user_deleted: true,
             },
         ]);
     });
 
-    it("skips the profile lookup when display names are not requested", async () => {
+    it("reads only the actor's address when display names are not requested", async () => {
         const { db, wasProfileLookupRun } = makeProfileDb(events, [
-            { user_id: "u1", display_name: "Ada Lovelace" },
+            { user_id: "u1", email: "ada@example.com" },
         ]);
         const { data } = await queryEvents(db, "u1", undefined, query, false);
-        expect(wasProfileLookupRun()).toBe(false);
+        expect(wasProfileLookupRun()).toBe(true);
         // queryEvents short-circuits to the raw page only on the error/empty
         // paths, so its return type is a union and only one member carries
         // user_display_name. This fixture always yields rows, so narrow to the
         // enriched member rather than reaching through the union.
         const rows = data as
-            | { user_display_name: string | null }[]
+            | { user_display_name: string | null; user_email: string | null }[]
             | null
             | undefined;
         expect(rows?.map((e) => e.user_display_name)).toEqual([null, null]);
+        expect(rows?.map((e) => e.user_email)).toEqual(["ada@example.com", null]);
     });
 });
 
 describe("audit CSV user column", () => {
-    // The export deliberately skips display-name resolution, so the "user"
-    // column is the email even when the author has a profile name. The
-    // "audit-csv" export job renders through buildAuditCsv, so pinning this
-    // here pins the export.
-    it("falls back to the email and never resolves profile names", async () => {
-        const { db, wasProfileLookupRun } = makeProfileDb(
+    // The export does not resolve display names: the "user" column is the
+    // actor's live address even when they have a profile name, and an erased
+    // account reads "Deleted user" even where its row recorded an address.
+    // The "audit-csv" export job renders through buildAuditCsv, so pinning
+    // this here pins the export.
+    it("is the live address, or Deleted user for an erased account", async () => {
+        const row = {
+            created_at: "2026-08-10T08:30:00.000Z",
+            action: "document.edited",
+            status: "completed",
+            title: "Share purchase agreement",
+            surface: "project",
+            project_id: "p1",
+            model: "gpt-5",
+        };
+        const { db } = makeProfileDb(
             [
-                {
-                    created_at: "2026-08-10T08:30:00.000Z",
-                    user_id: "u1",
-                    user_email: "lawyer@example.com",
-                    action: "document.edited",
-                    status: "completed",
-                    title: "Share purchase agreement",
-                    surface: "project",
-                    project_id: "p1",
-                    model: "gpt-5",
-                },
+                { ...row, user_id: "u1", user_email: null },
+                { ...row, user_id: "gone", user_email: "former@example.com" },
             ],
-            [{ user_id: "u1", display_name: "Ada Lovelace" }],
+            [{ user_id: "u1", display_name: "Ada Lovelace", email: "lawyer@example.com" }],
         );
         const csv = await buildAuditCsv(db, "u1", undefined, query);
-        expect(wasProfileLookupRun()).toBe(false);
         expect(csv.split("\n")).toEqual([
             "created_at,user,action,status,title,application,project_id,model",
             "2026-08-10T08:30:00.000Z,lawyer@example.com,document.edited,completed,Share purchase agreement,project,p1,gpt-5",
+            "2026-08-10T08:30:00.000Z,Deleted user,document.edited,completed,Share purchase agreement,project,p1,gpt-5",
         ]);
+        expect(csv).not.toContain("former@example.com");
     });
 });
 

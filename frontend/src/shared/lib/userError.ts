@@ -197,6 +197,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     untrusted_origin: "forbidden",
     // An organization's owners have not allowed this in its workspace.
     member_data_action_disabled: "forbidden",
+    // Account deletion: the last owner of an organization must hand it on
+    // first; a receipt token that expired or never existed.
+    org_successor_required: "conflict",
+    account_deletion_receipt_not_found: "not_found",
     // Something else changed first
     review_running: "conflict",
     review_stale: "conflict",

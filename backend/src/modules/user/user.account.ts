@@ -1,104 +1,92 @@
-// Account / data deletion (destructive — exact call args + ordering preserved).
+// Account / data deletion (destructive).
 //
 // Service layer behind user.routes.ts — see user.shared.ts for the module's
-// contract. The userDataCleanup helpers + auth-admin deleteUser call are
-// invoked with identical args and ordering.
+// contract. Account erasure itself runs in user.accountJobs.ts.
 
+import { createHash, randomBytes } from "node:crypto";
+import type { AccountDeletionReceipt } from "@mike/contracts";
 import { deleteUserPrivateMemories } from "../../lib/memory/bulk";
 import { dbJobsEnabled } from "../../lib/dbq/runner";
 import {
     deleteAllUserChats,
     deleteAllUserTabularReviews,
-    deleteUserAccountData,
     deleteUserProjects,
     listOrgsBlockingAccountDeletion,
     type AccountDeletionOrgBlocker,
 } from "./user.dataCleanup";
+import { eraseAccount } from "./user.accountJobs";
 import { type Db, errorMessage } from "./user.shared";
-import { accountDeletionAvailable } from "./user.retentionGate";
 
 /** Explain which organizations need an owner before account deletion. */
 export function describeAccountDeletionBlockers(
     blockers: AccountDeletionOrgBlocker[],
 ): string {
-    const named = (reason: AccountDeletionOrgBlocker["reason"]) =>
-        blockers
-            .filter((blocker) => blocker.reason === reason)
-            .map((blocker) => blocker.name)
-            .join(", ");
-    const sentences: string[] = [];
-    const withMembers = named("members");
-    if (withMembers)
-        sentences.push(
-            `You are the only owner of ${withMembers}. Make another member an owner, or delete the organization, before deleting your account.`,
-        );
-    const withContent = named("content");
-    if (withContent)
-        sentences.push(
-            `You are the only owner of ${withContent}, and must appoint another owner or explicitly delete the organization before deleting your account.`,
-        );
-    return sentences.join(" ");
+    // LiTT never deletes an organization (C5), so the only way forward is
+    // another owner.
+    return blockers
+        .map((blocker) =>
+            blocker.reason === "members"
+                ? `You are the only owner of ${blocker.name}. Transfer ownership to another member first, then delete your account.`
+                : `You are the only member of ${blocker.name}. Invite someone and make them an owner first, then delete your account.`,
+        )
+        .join(" ");
 }
 
+function sha256(value: string): string {
+    return createHash("sha256").update(value).digest("hex");
+}
+
+/**
+ * Start erasing the caller's account (owner decision 2026-10-24).
+ *
+ * One transaction removes the account from its organizations (advancing
+ * their authorization epochs), flags it so requireAuth refuses it, opens the
+ * receipt and queues the erasure job; sessions are then revoked. The caller
+ * gets the receipt token: the only way to read the receipt once the session
+ * is gone, stored server-side as its hash.
+ */
 export async function deleteUserAccount(
     db: Db,
     userId: string,
-    userEmail: string | undefined,
     token: string | undefined,
 ): Promise<
-    | { ok: true }
+    | { ok: true; receiptToken: string }
     | {
           ok: false;
           kind: "org_successor_required";
           blockers: AccountDeletionOrgBlocker[];
           error?: undefined;
       }
-    | { ok: false; kind: "account_deletion_unavailable"; error?: undefined }
     | { ok: false; kind?: undefined; error: unknown }
 > {
-    // TD-008 (user.retentionGate.ts): refuse before the first read or write.
-    if (!accountDeletionAvailable())
-        return { ok: false, kind: "account_deletion_unavailable" };
     try {
-        // ORGANIZATIONS FIRST. An account that is the only owner of an
-        // team organization cannot be deleted, even when it is empty:
-        // promoting an arbitrary successor hands a firm's matters to whoever
-        // joined first (and silently clears their `deny` overrides), while
-        // removing the member outright is refused by the last-owner guard
-        // (org_members_protect_last_owner), and would otherwise leave the
-        // organization memberless, invisible and undeletable. Answer 409 and let the user
-        // choose a successor. This check runs BEFORE the enqueue so nothing
-        // is scheduled, revoked, or destroyed.
+        // ORGANIZATIONS FIRST. An account that is the only owner of a team
+        // organization cannot be deleted: promoting an arbitrary successor
+        // hands a firm's matters to whoever joined first, and the last-owner
+        // guard refuses to leave the organization ownerless. Answer 409
+        // BEFORE anything is scheduled, revoked or destroyed. The request
+        // transaction asks again under lock (23514).
         const blockers = await listOrgsBlockingAccountDeletion(db, userId);
         if (blockers.length > 0)
             return { ok: false, kind: "org_successor_required", blockers };
 
-        // Queue insertion, organization handover, membership removal and the
-        // authentication fence commit together. No accepted request leaves a
-        // usable account waiting for a background worker.
-        const { data: jobId, error: requestError } = await db.rpc("request_account_deletion", {
-            p_user_id: userId,
-            p_user_email: userEmail ?? null,
-        });
+        const receiptToken = randomBytes(32).toString("base64url");
+        const { data: jobId, error: requestError } = await db.rpc(
+            "request_account_deletion",
+            { p_user_id: userId, p_token_sha256: sha256(receiptToken) },
+        );
         if (requestError) {
             if (requestError.code === "23514") {
-                const currentBlockers = await listOrgsBlockingAccountDeletion(db, userId);
-                if (currentBlockers.length) return { ok: false, kind: "org_successor_required", blockers: currentBlockers };
+                const current = await listOrgsBlockingAccountDeletion(db, userId);
+                if (current.length)
+                    return { ok: false, kind: "org_successor_required", blockers: current };
             }
             return { ok: false, error: requestError };
         }
-        if (!dbJobsEnabled()) {
-            await deleteUserAccountData(db, userId, userEmail);
-            const { error } = await db.auth.admin.deleteUser(userId);
-            if (error) return { ok: false, error };
-            const completed = await db.from("db_jobs").update({ status: "done", finished_at: new Date().toISOString() }).eq("id", jobId);
-            if (completed.error) return { ok: false, error: completed.error };
-            return { ok: true };
-        }
 
-        // Best-effort session revocation. A failure here only means the
-        // token may remain valid at the auth provider, but requireAuth already
-        // denies this account using its durable deletion flag.
+        // Best-effort session revocation. requireAuth already refuses this
+        // account by its durable deletion flag, whatever the auth provider
+        // does with the token.
         if (token) {
             try {
                 await db.auth.admin.signOut(token, "global");
@@ -109,15 +97,76 @@ export async function deleteUserAccount(
                 });
             }
         }
-        return { ok: true };
+
+        if (!dbJobsEnabled()) {
+            // No runner will drain the queue: erase now, as the job would.
+            await eraseAccount(db, userId, jobId as string);
+            const done = await db
+                .from("db_jobs")
+                .update({ status: "done", finished_at: new Date().toISOString() })
+                .eq("id", jobId);
+            if (done.error) return { ok: false, error: done.error };
+        }
+        return { ok: true, receiptToken };
     } catch (err) {
-        const detail = errorMessage(err);
         console.error("[user/account] delete failed", {
             userId,
-            error: detail,
+            error: errorMessage(err),
         });
         return { ok: false, error: err };
     }
+}
+
+/** How long a receipt token stays readable after the request. */
+const RECEIPT_TOKEN_DAYS = 7;
+
+/** The receipt a bearer token unlocks, or null for an unknown/expired one. */
+export async function readAccountDeletionReceipt(
+    db: Db,
+    token: string,
+): Promise<{ ok: true; receipt: AccountDeletionReceipt | null } | { ok: false; error: unknown }> {
+    const { data, error } = await db
+        .from("account_deletion_receipts")
+        .select("job_id, status, requested_at, completed_at, backups_expire_on, receipt")
+        .eq("token_sha256", sha256(token))
+        .maybeSingle();
+    if (error) return { ok: false, error };
+    const row = data as {
+        job_id: string;
+        status: "pending" | "completed";
+        requested_at: string;
+        completed_at: string | null;
+        backups_expire_on: string | null;
+        receipt: { deleted: string[]; retained: { item: string; reason: string }[] } | null;
+    } | null;
+    const ageMs = row ? Date.now() - Date.parse(row.requested_at) : Infinity;
+    if (!row || !(ageMs <= RECEIPT_TOKEN_DAYS * 24 * 60 * 60 * 1000))
+        return { ok: true, receipt: null };
+
+    if (row.status === "completed" && row.receipt && row.completed_at && row.backups_expire_on) {
+        return {
+            ok: true,
+            receipt: {
+                status: "completed",
+                requested_at: row.requested_at,
+                completed_at: row.completed_at,
+                backups_expire_on: row.backups_expire_on,
+                deleted: row.receipt.deleted,
+                retained: row.receipt.retained,
+            },
+        };
+    }
+    // Not finished: the job says whether it is running or gave up.
+    const job = await db.from("db_jobs").select("status").eq("id", row.job_id).maybeSingle();
+    if (job.error) return { ok: false, error: job.error };
+    const jobStatus = (job.data as { status?: string } | null)?.status;
+    return {
+        ok: true,
+        receipt: {
+            status: jobStatus === "running" ? "running" : jobStatus === "failed" ? "failed" : "pending",
+            requested_at: row.requested_at,
+        },
+    };
 }
 
 export async function deleteUserChats(

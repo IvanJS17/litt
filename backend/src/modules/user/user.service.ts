@@ -142,12 +142,19 @@ export {
     type ResolvedChatRoute,
 } from "./user.chatRoute";
 
-export { handleAccountDelete } from "./user.accountJobs";
+export {
+    ACCOUNT_DELETION_RECEIPT,
+    eraseAccount,
+    handleAccountDelete,
+} from "./user.accountJobs";
 export { handleExportBuild } from "./user.exportJobs";
 export { handleMcpRefreshToken, MCP_TOKEN_REFRESH_WINDOW_MS } from "./user.mcpJobs";
 export { MAX_ZIP_EXPORT_DOCUMENTS, isWorkspaceExportType } from "./user.exportContracts";
 
 export { deleteProjectsByIds } from "./user.dataCleanup";
-export { describeAccountDeletionBlockers } from "./user.account";
+export {
+    describeAccountDeletionBlockers,
+    readAccountDeletionReceipt,
+} from "./user.account";
 
 export { projectManifestFilename, buildProjectExportManifest } from "./user.dataExport";

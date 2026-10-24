@@ -38,6 +38,9 @@ describe("audit event presentation", () => {
     expect(auditSubject(named).name).toBe("Jamie Morgan");
     expect(auditSubjectEmail(named)).toBe("jamie@example.com");
     expect(auditSubject({ ...named, affected_user_display_name: " " }).name).toBe("jamie@example.com");
+    const erased = { ...event, action, affected_user_deleted: true };
+    expect(auditSubject(erased).name).toBe("Deleted user");
+    expect(auditSubjectEmail(erased)).toBeNull();
   });
   it("never replaces an affected document's title with a person's name", () => {
     const document = { ...event, action: "document.edited", title: "NDA.docx", affected_user_display_name: "Jamie Morgan" };
@@ -168,6 +171,16 @@ describe("audit event presentation", () => {
     expect(
       auditActor({ ...event, user_display_name: null, user_email: null }),
     ).toBe("Unknown user");
+    // An erased account has no profile left: it reads as deleted, whatever
+    // an older audit row recorded.
+    expect(
+      auditActor({
+        ...event,
+        user_display_name: null,
+        user_email: null,
+        user_deleted: true,
+      }),
+    ).toBe("Deleted user");
     expect(auditTimestamp(event.created_at, true)).toBe(
       new Date(event.created_at).toLocaleString(undefined, {
         day: "numeric",

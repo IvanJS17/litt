@@ -648,3 +648,30 @@ export interface AuditActorPage {
   users: AuditActor[];
   nextOffset: number | null;
 }
+
+/** What account erasure removed, and what it kept and why. */
+export interface AccountDeletionReceiptContent {
+  deleted: string[];
+  retained: { item: string; reason: string }[];
+}
+
+/**
+ * `POST /user/account/deletion-receipt`. The person reads it with the token
+ * `DELETE /user/account` returned, after their session has been revoked.
+ */
+export type AccountDeletionReceipt =
+  | { status: "pending"; requested_at: string }
+  | { status: "running"; requested_at: string }
+  | { status: "failed"; requested_at: string }
+  | ({
+      status: "completed";
+      requested_at: string;
+      completed_at: string;
+      /** The date (UTC) by which the last backup copy has been deleted. */
+      backups_expire_on: string;
+    } & AccountDeletionReceiptContent);
+
+/** `DELETE /user/account` (202). */
+export interface AccountDeletionStarted {
+  receipt_token: string;
+}
