@@ -159,10 +159,18 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com.mx          # 200 (login)
 curl -s https://litt.asteroitt.com.mx/api/health                     # {"ok":true,"commit":"<SHA>"}
-curl -s https://litt.asteroitt.com.mx/login | grep -o 'github.com/IvanJS17/litt/tree/[0-9a-f]*' | sort -u   # == <SHA>
 ```
-Ambos deben mostrar el `LITT_SOURCE_COMMIT` desplegado; el enlace **Código
-fuente** del inicio de sesión debe abrir ese árbol en GitHub.
+`/api/health` debe mostrar el `LITT_SOURCE_COMMIT` desplegado.
+
+El enlace **Código fuente** no se comprueba con `curl`: `/login` se entrega
+como una página que el navegador arma al cargar, así que el HTML que devuelve
+`curl` no contiene el enlace. Se comprueba en el navegador:
+
+1. Abrir `https://litt.asteroitt.com.mx/login`.
+2. Al pie, el enlace **Código fuente** debe abrir
+   `https://github.com/IvanJS17/litt/tree/<SHA>` con el mismo
+   `LITT_SOURCE_COMMIT`, y GitHub debe mostrar ese commit (no un 404).
+3. Repetir en Ajustes → Acerca de y en el add-in de Word (Ajustes).
 Luego: abrir en el navegador, crear la cuenta del owner, dar de alta la llave
 de IA (Ajustes) y subir un documento de prueba.
 
