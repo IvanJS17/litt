@@ -158,7 +158,9 @@ services:
       start_period: 5s
 
   backend:
-    image: litt-backend:${LITT_RELEASE:?required}
+    # Tag = SHA completo del commit publicado del que se construyó la imagen
+    # (AGPL §13: /health y el enlace "Código fuente" lo reportan; README §1).
+    image: litt-backend:${LITT_SOURCE_COMMIT:?required}
     restart: unless-stopped
     mem_limit: 768m
     memswap_limit: 1088m
@@ -204,7 +206,7 @@ services:
     - egress
 
   frontend:
-    image: litt-frontend:${LITT_RELEASE:?required}
+    image: litt-frontend:${LITT_SOURCE_COMMIT:?required}
     restart: unless-stopped
     mem_limit: 320m
     memswap_limit: 512m
