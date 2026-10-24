@@ -36,6 +36,7 @@ export {
   getOrgApiKeySettings,
   saveOrgApiKey,
   setOrgApiKeyEnabled,
+  setOrgPersonalApiKeysAllowed,
     saveOrgRouterModels,
     normalizeOrgRouterSlug,
   type OrgApiKeySettings,

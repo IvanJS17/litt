@@ -37,6 +37,7 @@ import {
     saveOrgApiKey,
     setOrgApiKeyEnabled,
     setOrgMemberDataPolicy,
+    setOrgPersonalApiKeysAllowed,
     getOrgLogo,
     saveOrgLogo,
     removeOrgLogo,
@@ -371,7 +372,7 @@ orgsRouter.post(
 );
 
 // ---------------------------------------------------------------------------
-// Provider keys
+// Provider keys and the personal-key setting
 // ---------------------------------------------------------------------------
 //
 // Writes carry requireMfaIfEnrolled, as the personal key routes do: saving a
@@ -406,6 +407,26 @@ orgsRouter.put(
         });
         if (!result.ok) return sendOrgFailure(res, result);
         res.json(result.policy);
+    }),
+);
+
+// PUT /orgs/:orgId/api-keys/policy — whether members' own keys may be used
+// for a provider the organization has no key for (owner or admin).
+// Declared before /:provider so "policy" is never read as a provider name.
+orgsRouter.put(
+    "/:orgId/api-keys/policy",
+    requireOrgAuth,
+    requireMfaIfEnrolled,
+    asyncRoute(async (req, res) => {
+        const db = createServerSupabase();
+        const result = await setOrgPersonalApiKeysAllowed(db, {
+            actorId: res.locals.userId as string,
+            actorEmail: res.locals.userEmail as string | undefined,
+            orgId: req.params.orgId,
+            allowed: req.body?.allow_personal_api_keys,
+        });
+        if (!result.ok) return sendOrgFailure(res, result);
+        res.json(result.settings);
     }),
 );
 

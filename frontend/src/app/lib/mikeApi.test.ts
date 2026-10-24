@@ -109,6 +109,7 @@ import {
     saveOrgApiKey,
     saveOrgRouterModels,
     setOrgApiKeyEnabled,
+    setOrgPersonalApiKeysAllowed,
     getOrgMemberHandover,
     declineOrgInvitation,
     getOrg,
@@ -3280,6 +3281,10 @@ describe("thin endpoint wrappers", () => {
         {
             name: "setOrgApiKeyEnabled", call: () => setOrgApiKeyEnabled("org-1", "openai", false),
             url: "/orgs/org-1/api-keys/openai", method: "PATCH", body: { enabled: false },
+        },
+        {
+            name: "setOrgPersonalApiKeysAllowed", call: () => setOrgPersonalApiKeysAllowed("org-1", false),
+            url: "/orgs/org-1/api-keys/policy", method: "PUT", body: { allow_personal_api_keys: false },
         },
         {
             name: "getOrgMemberHandover", call: () => getOrgMemberHandover("org-1", "user-2"),

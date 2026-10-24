@@ -427,6 +427,7 @@ describe("a personal organization", () => {
         ["delete", "/orgs/mine/invitations/inv-1", undefined],
         ["post", "/orgs/mine/invitations/inv-1/resend", undefined],
         ["get", "/orgs/mine/api-keys", undefined],
+        ["put", "/orgs/mine/api-keys/policy", { allow_personal: false }],
         ["put", "/orgs/mine/api-keys/openrouter/models", { models: [] }],
         ["put", "/orgs/mine/api-keys/openai", { api_key: "sk-test" }],
         ["patch", "/orgs/mine/api-keys/openai", { enabled: false }],
@@ -1432,6 +1433,7 @@ describe("organization provider keys", () => {
             savedEnv[name] = process.env[name];
             delete process.env[name];
         }
+        tables.organizations[0].allow_personal_api_keys = true;
         tables.org_api_keys = [];
         tables.user_api_keys = [];
         tables.org_router_models = [];
@@ -1458,6 +1460,7 @@ describe("organization provider keys", () => {
         expect(res.body).toMatchObject({
             keys: { openai: true, sources: { openai: "org" } },
             effective: { openai: true, sources: { openai: "org" } },
+            allow_personal_api_keys: true,
             can_manage: true,
         });
         expect(JSON.stringify(res.body)).not.toContain(SECRET);
@@ -1492,7 +1495,16 @@ describe("organization provider keys", () => {
                     .send({ enabled: false })
             ).status,
         ).toBe(403);
+        expect(
+            (
+                await request(app)
+                    .put("/orgs/org-1/api-keys/policy")
+                    .set(...AUTH)
+                    .send({ allow_personal_api_keys: false })
+            ).status,
+        ).toBe(403);
         expect(tables.org_api_keys).toEqual([]);
+        expect(tables.organizations[0].allow_personal_api_keys).toBe(true);
         expect(tables.audit_events).toEqual([]);
     });
 
@@ -1580,19 +1592,31 @@ describe("organization provider keys", () => {
                     .send({ enabled: "no" })
             ).status,
         ).toBe(400);
+        expect(
+            (
+                await request(app)
+                    .put("/orgs/org-1/api-keys/policy")
+                    .set(...AUTH)
+                    .send({ allow_personal_api_keys: "no" })
+            ).status,
+        ).toBe(400);
     });
 
-    it("offers no setting to let members' own keys in", async () => {
+    it("reads \"policy\" as the setting, not as a provider", async () => {
         const res = await request(app)
             .put("/orgs/org-1/api-keys/policy")
             .set(...AUTH)
-            .send({ allow_personal_api_keys: true });
+            .send({ allow_personal_api_keys: false });
 
-        expect(res.status).toBe(400);
-        expect(tables.audit_events).toEqual([]);
+        expect(res.status).toBe(200);
+        expect(res.body.allow_personal_api_keys).toBe(false);
+        expect(tables.organizations[0].allow_personal_api_keys).toBe(false);
+        expect(tables.audit_events).toEqual([
+            expect.objectContaining({ action: "org.personal_api_keys.blocked" }),
+        ]);
     });
 
-    it("never offers a member's own key for the organization's work", async () => {
+    it("takes a member's own key out of play once personal keys are blocked", async () => {
         // The member has saved a key of their own for a provider the
         // organization has none for.
         tables.user_api_keys.push({
@@ -1601,16 +1625,29 @@ describe("organization provider keys", () => {
             enabled: true,
             settings: {},
         });
-        as("member-1", "member@firm.example");
+        const asMember = async () => {
+            as("member-1", "member@firm.example");
+            const res = await request(app)
+                .get("/orgs/org-1/api-keys")
+                .set(...AUTH);
+            as("owner-1", "owner@firm.example");
+            return res.body.effective;
+        };
 
-        const res = await request(app).get("/orgs/org-1/api-keys").set(...AUTH);
+        expect(await asMember()).toMatchObject({
+            mistral: true,
+            sources: { mistral: "user" },
+        });
 
-        expect(res.status).toBe(200);
-        expect(res.body.effective).toMatchObject({
+        await request(app)
+            .put("/orgs/org-1/api-keys/policy")
+            .set(...AUTH)
+            .send({ allow_personal_api_keys: false });
+
+        expect(await asMember()).toMatchObject({
             mistral: false,
             sources: { mistral: null },
         });
-        expect(res.body).not.toHaveProperty("allow_personal_api_keys");
     });
 
     // -- The models an organization's key may run ---------------------------
