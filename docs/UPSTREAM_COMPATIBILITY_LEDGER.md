@@ -607,19 +607,19 @@ Intake from `7e3607e765e199f824808e1598cc44b3f99cd690` to
 The sync follows strategy B of [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md):
 upstream becomes the base, the LiTT delta is reapplied in reviewed slices, the
 rejected capabilities of §4.2 of the plan are reverted, and a merge commit
-restores shared history. Results per slice are appended here when each slice
-lands.
+restores shared history. The per-slice receipt, with exact snapshots, trees
+and Reviewer cards, is §17.
 
 | Slice | State | LiTT tree | Reviewer |
 | --- | --- | --- | --- |
-| S1 migrations and schema | pending | | |
-| S2 tenancy and access | pending | | |
-| S3 backend LiTT delta | pending | | |
-| S4 frontend LiTT delta | pending | | |
-| S5 Word add-in | pending | | |
-| S6 CI and e2e | pending | | |
-| S7 reverts | pending | | |
-| S8 documentation and merge | pending | | |
+| S1 migrations and schema | landed on the sync branch | `7d66e67b` | `t_c515b92e` PASS |
+| S2 tenancy and access | landed on the sync branch | `d1639a07` | `t_0f4ad497` PASS |
+| S3 backend LiTT delta | landed on the sync branch | `451897c5` | `t_f79a7b96` PASS |
+| S4 frontend LiTT delta | landed on the sync branch | `3604ac5e` | `t_99c299c9` PASS |
+| S5 Word add-in | landed on the sync branch (reviewed with S6) | `9be56c8c` | `t_87e481c3` PASS |
+| S6 CI and e2e | landed on the sync branch (reviewed with S5) | `9be56c8c` | `t_87e481c3` PASS |
+| S7 reverts | landed on the sync branch | `15923538` | `t_48cf81dd` PASS |
+| S8 documentation and merge | S8a (deployment package and documents) in review; S8b (`AGENTS.md`, merge commit) pending | | |
 
 ## 16. Compatibility matrix for the 2026-10-23 sync
 
@@ -764,7 +764,7 @@ access, which S2 must close.
 | Organization sharing and access labels | Content `visibility` `private` or `organization` (organization gives `editor` to every member); Public/Private column, access pill, "Organisational Access"; sharing with named people; document text search and History per workspace (#645) | No membership-inherited content role; sharing by grant or override only; private matters never inherited | combine | Labels and sharing apply only to projects and workflows outside a private matter. A private matter never offers or honors `organization` visibility, owner rows or public pills. Grants by email keep the confirmed-email rule. | S2, S4 | `NewProjectModal.tsx`, `ProjectWorkspace.tsx`, `ProjectsOverview.tsx`, `NewWorkflowModal.tsx`, `shared/types.ts`, `mikeApi.ts` | `access.test.ts` ("does not inherit any content role from membership alone"); `NewWorkflowModal.test.tsx`; new RED: organization visibility refused on a private matter | FR-11, §14-F |
 | Access fixes already ported in §14 | Email grants follow address changes; read-only paths cannot write; directory search, workflow-share revocation and audit export scoped; `filterAccessibleDocumentIds` chunked with per-container cache; review cells preserved | Same fixes ported, plus LiTT extensions: exports keep only cells from readable rows; tabular chat messages carry source provenance (`20261022_03`) | combine | Upstream originals arrive with the base; LiTT re-issue migrations are dropped (S1); LiTT extensions (export filtering, tabular chat provenance, TD-023 withholding) are reapplied on the modules. | S2, S3 | `backend/src/lib/access.ts`, `modules/tabular/**`, `modules/projects/**`, `lib/auditExport.ts` | `emailChangeMovesGrants.migration.test.ts`; `canManageDocument.test.ts`; `tabular.routes.test.ts`; `auditExport.test.ts`; `projects.directorySearch.routes.test.ts` | G17, G25, §14-A |
 | Private memory boundary | #452: memory learns only from the actor's own conversation; memory files gain `org_id` | Same boundary ported (`20261022_02`) plus `scope` | adopt | Upstream original kept; LiTT re-issue dropped (S1). Memory inside a private matter follows the matter gate. | S1, S2 | `backend/src/lib/memory/**`, `backend/schema.sql` | `memoryPrivateChatBoundary.migration.test.ts`; `memory.routes.test.ts` | G05 |
-| Audit | Mutable `audit_events` (uuid, `user_id`, `action`, `detail`); `audit_event_org` rewrites attribution on insert or update; organization activity log with actor filter, pagination and display names; audited access to private content; recoverable deletion and purge | Insert-only `audit_events` (bigint, `actor_user_id`, `event_type`, `event_detail`) with `audit_events_insert_only`; attributed `organization_id`; AI evidence insert-only | combine | LiTT table shape and insert-only trigger win. `recordAudit` regains `orgId` and a throwing variant for durable jobs; upstream SQL writers are renamed to the LiTT columns; `audit_event_org` fires on insert only. Upstream activity log, actor filter, pagination and display names are adopted on top. Private-content access logging, recoverable deletion and purge are not adopted (C2, C3). | S2 (backend), S4 (UI) | `backend/src/lib/audit.ts`, `modules/audit/**`, `lib/auditExport.ts`, `backend/schema.sql`, `(pages)/history/page.tsx` | `backend/src/lib/__tests__/recoveryAudit.test.ts`; `audit.test.ts`; `auditExport.test.ts`; `appendOnlyEvidence.test.ts`; new RED: UPDATE and DELETE on `audit_events` raise on the converged schema | G21, FR-12 |
+| Audit | Mutable `audit_events` (uuid, `user_id`, `action`, `detail`); `audit_event_org` rewrites attribution on insert or update; organization activity log with actor filter, pagination and display names; audited access to private content; recoverable deletion and purge | Insert-only `audit_events` (bigint, `actor_user_id`, `event_type`, `event_detail`) with `audit_events_insert_only`; attributed `organization_id`; AI evidence insert-only | combine | As implemented in S1–S2: upstream's `audit_events` shape stays (uuid `id`, `user_id`, `org_id`, `action`, `detail`), so every upstream writer keeps working, and LiTT's insert-only guarantee wins: `audit_events_insert_only` rejects every UPDATE and DELETE (`20261023_11_litt_append_only_audit`) and `audit_event_org` fills `org_id` on insert only. `recordAudit` carries `orgId`. Upstream activity log, actor filter, pagination and display names are adopted on top. Private-content access logging, recoverable deletion and purge are not adopted (C2, C3). The earlier target (LiTT's bigint table with `actor_user_id`, `event_type`, `event_detail`) was not adopted. | S2 (backend), S4 (UI) | `backend/src/lib/audit.ts`, `modules/audit/**`, `lib/auditExport.ts`, `backend/schema.sql`, `(pages)/history/page.tsx` | `backend/src/__tests__/auditInsertOnly.test.ts` (UPDATE and DELETE on `audit_events` raise on the converged schema); `audit.test.ts`; `auditExport.test.ts`; `appendOnlyEvidence.test.ts` | G21, FR-12 |
 | Account and organization deletion, member departure | Organization soft delete and purge after 30 days; offboarding with departure archives; account cleanup deletes audit rows; `chats.user_id` set null so organization content survives its author | Organization deletion 405; account deletion runs a cleanup that fails part-way against the insert-only audit (§16.2 item 4) | combine | Every destructive path that touches evidence refuses before its first mutation until TD-008: `DELETE /orgs/:id` 405, account deletion refused with an intentional message, no purge job. Member departure keeps content with the organization (upstream detach semantics) and bumps the authorization epoch; it never deletes evidence. | S2 | `backend/src/lib/userDataCleanup.ts`, `modules/user/user.account.ts`, `modules/orgs/**`, `backend/schema.sql` | `orgs.routes.test.ts` ("unsupported organization endpoints"); `user.routes.test.ts` (account deletion, rewritten to the refusal); new RED: account deletion leaves every row untouched | G20, G21 |
 | Authorization epochs and revocation | None; revocation deletes the `org_members` row | `organizations.authorization_epoch`, bump triggers, `ai_assert_active_matter_access` with `for update`; stale epochs fail sessions and jobs | port | Epoch column and bump triggers on `org_members` (insert, update, delete) and `matter_memberships`; fresh revalidation before sensitive writes and before claiming queued jobs (C4). | S2 | `backend/schema.sql`, tenancy read port, `evaluateAccess.ts` | `tenancyModel.test.ts`; `recoveryTenancy.migration.test.ts`; new RED: a job queued before revocation fails on claim | — |
 | Sign-in, MFA and identity | #529 reworks sign-in messages and recovery; `requireMfaIfEnrolled`; the profile read returns true on a missing column | MFA default-on; `mfa_satisfied` in the request identity; profile read fails closed; Bearer only for named non-browser clients | combine | Upstream flows and messages; LiTT `middleware/auth.ts` variant wins on MFA, fail-closed profile read and the Bearer allowlist; one initial organization at onboarding. | S2 | `backend/src/middleware/auth.ts`, `frontend/src/app/login/**`, `verify-mfa/page.tsx`, `AuthContext.tsx` | `authStateMatrix.test.ts`; `AuthContext.test.tsx`; `authApi.test.ts`; `authRedirects.test.ts` | §14-D |
@@ -783,7 +783,7 @@ access, which S2 must close.
 | Profile, organization settings and web shell | Custom instructions, response style and language, profile photos, organization logo, organization settings area and Members table, settings reorganization, crash recovery screen, single design-token source shared with Word, dropdown and table primitives consolidated, Ladle catalog, typography and focus polish, self-hosted Inter and EB Garamond | LiTT branding, error mapping through `userFacingError`, documented design system | adopt | Upstream shell, settings and primitives; LiTT brand tokens and visible names reapplied on top of the shared token file. Custom instructions keep their length caps and section separation. | S4 | `globals.css`, `frontend/src/shared/ui/DesignTokensUI.css`, `(pages)/settings/**`, `UserProfileContext.tsx`, `mikeApi.ts`, `frontend/src/app/layout.tsx` | `userPersonalisationPrompt.test.ts`; `useMemoryAutosave.test.tsx`; `DesignTokensUI.test.ts`; `theme.test.ts`; `TablePrimitive.test.tsx` | G22, FR-06, FR-07, FR-08, FR-10, FR-12, FR-15, FR-18, other-13 |
 | Word add-in | Document-scoped taskpane with session recovery, failed-answer retry, device-only saves and replayed edits; hermetic e2e in 4 workers | Approved-redline contract (`approvedRedline.ts` and panel); LiTT login card and model catalog | combine | Upstream shell (as in §4) with LiTT `approvedRedline.ts`, its panel and the approved bundle fetched from the backend; LiTT e2e assertions kept over upstream's. | S5 | `word-addin/src/taskpane/hooks/useWordDoc.ts`, `api/mikeApi.ts`, `lib/redline.ts`, `App.tsx`, `word-addin/e2e/**` | `word-addin/e2e/approved-redline*`; `history.spec.ts`; `chat.spec.ts`; `auth.spec.ts` | other-09, other-11, other-12 |
 | Third-party telemetry | Sentry in backend, web and add-in, reporting by default to the upstream organization; diagnostic grouping series | No third-party telemetry by default (invariant 11) | reject | SDKs, init files, DSNs and environment entries removed; the error-classification pieces without SDK may return later as local work. | S7 | `backend/src/instrument.ts`, `backend/src/lib/observability/**`, `frontend/sentry.*.config.ts`, `frontend/src/instrumentation*.ts`, `word-addin/src/taskpane/lib/errorReporting.ts`, three `package.json` | new RED: no `@sentry/*` dependency and no default DSN anywhere | G08, G09, FR-14, other-15 |
-| CourtListener | Connector listed in Discover, research tools, two index tables | Removed (TD-013); not a Mexican authority | reject | Files, tools, index tables, key type and UI entry removed; historical upstream migrations stay and the LiTT removal migrations (`20260905_01_recovery_core_convergence`, `20260909_03_recovery_remove_us_research_preference`) are carried into the renumbered series. | S7 (S1 for the migrations) | `backend/src/lib/courtlistener.ts`, `modules/chat/engine/tools/courtlistener*.ts`, `CourtListenerConnector.tsx`, `docs/courtlistener.md` | `courtlistenerExclusion.test.ts`; `recoveryCoreConvergence.runtime.test.ts` | G24, FR-20 |
+| CourtListener | Connector listed in Discover, research tools, two index tables | Removed (TD-013); not a Mexican authority | reject | As implemented in S7: files, tools, key type and UI entry removed; the historical upstream migrations stay in the series, and one LiTT migration, `20261023_18_litt_remove_courtlistener`, drops the two index tables and `user_profiles.legal_research_us` and removes the key provider, stopping for an owner decision if a saved CourtListener key exists. The pre-sync removal migrations (`20260905_01_recovery_core_convergence`, `20260909_03_recovery_remove_us_research_preference`) were not carried over. | S7 | `backend/src/lib/courtlistener.ts`, `modules/chat/engine/tools/courtlistener*.ts`, `CourtListenerConnector.tsx`, `docs/courtlistener.md`, `backend/migrations/20261023_18_litt_remove_courtlistener.sql` | `courtlistenerExclusion.test.ts`; `migrationLedger.test.ts` | G24, FR-20 |
 | Desktop app | macOS Electron app with a self-contained local database, filesystem storage driver and two `macos-15` CI jobs | Single governed data plane; Actions budget (TD-024) | reject | `desktop/` and `desktop.yml` removed; revisit 2026-11-20 as a product decision. | S7 | `desktop/**`, `.github/workflows/desktop.yml`, `backend/src/lib/storage.ts` | new RED: no `desktop/` tree and no macOS job | other-14 |
 | CI workflows | Evals job removed; backend coverage ratchet; Stryker scope; PR triggers and `workflow_dispatch`; spec typecheck; Supabase ports `21320-21322`; run cancellation; Docker image builds on every PR; e2e split into several Supabase jobs; nightly stress; stack-script workflow; add-in e2e in 4 workers; `loadtest.yml` deleted | TD-024 reductions: superseded runs cancelled, docs-only changes skip e2e, Stack and CodeQL, weekly scheduled e2e; `loadtest.yml` kept | combine | Adopt the savings and fixes (evals removal, coverage ratchet, spec typecheck, port move, 4 add-in workers, architecture test for test files outside images). Revert `docker-images.yml` (image builds move to the deployment gate), `stack-script.yml` (the script stays), the e2e job split and nightly stress. Keep `loadtest.yml`. | S6 | `.github/workflows/**` | Exact-head CI on the draft PR; `frontend/src/__tests__/architecture.test.ts`; `docs/e2e-ci.md` census | other-01, other-02, other-03, other-04, other-07, other-08, other-09, other-10 |
 | Browser e2e harness | Per-worker accounts; stable locators; local Anthropic-protocol stub so chat flows run without a key | Default CI and local e2e make no real provider or Google call (invariant 11) | adopt | Adopted on LiTT specs; the stub keeps the zero-real-call rule while turning skipped chat specs into coverage. | S6 | `e2e/**`, `.github/workflows/e2e.yml`, `docs/e2e-ci.md` | `e2e/chat-management.spec.ts`; `e2e/critical-path.spec.ts`; `anthropic-stub.check.mjs` | other-05, other-06 |
@@ -830,3 +830,51 @@ unless the owner objects. None of these changes uses real client data.
 | A catalog of preset contract templates | Shipped empty: the upstream set is US law |
 | A Mac desktop app | Not offered; revisit on 2026-11-20 |
 | The Word add-in recovers its session, retries a failed answer and replays edits that were not applied | Adopt, keeping the approved-redline panel |
+
+## 17. Receipt of the 2026-10-23 sync
+
+Upstream target and new pin: `e7ab6bd46cb4b3c22f150e184080d29c941df5c0`.
+Branch: `sync/upstream-20261023`, created from that commit (strategy B of
+[`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md)); LiTT `main` before the sync
+is tagged `pre-sync-20261023` (`e3672b5954d2d3f8348fdbf2dcbe034a2725df4f`).
+The branch is linear on top of the pin (no merge commits) and every snapshot
+below is an ancestor of its head. Each slice was reviewed on its exact snapshot
+by one Reviewer-profile card; the verdict, its non-blocking reservations and
+the evidence live on that card and in the sync evidence kept outside the
+repository.
+
+| Slice | Card | Snapshot with PASS | Tree | Verdict |
+| --- | --- | --- | --- | --- |
+| S1 migrations and schema | `t_c515b92e` | `917813a3e64e5936cbe89f05fceeaac81b5aa5ab` | `7d66e67b3fbccb8e305504856bc7d59cadffe34e` | PASS with non-blocking reservations |
+| S2 tenancy and access | `t_0f4ad497` | `543489a1ce3548c37b6f617d886ca0f2356eb05a` | `d1639a07c8e8dbe7614ebbec9b6ea5d9c2c2ae21` | PASS with non-blocking reservations |
+| S3 backend LiTT delta | `t_f79a7b96` | `d580112187f0bf7c8e4dfc625a6918f8b8281ddf` | `451897c57fc8628fc3d6b0745be0ec7c1c0b26b6` | PASS with non-blocking reservations |
+| S4 frontend LiTT delta | `t_99c299c9` | `7cc4da632eba6191dfe82f1f067b546ca122ddde` | `3604ac5e088003b6245ef8b06ed77c5e6bc43bb7` | PASS with non-blocking reservations |
+| S5+S6 Word add-in, CI and e2e | `t_87e481c3` | `20f43fc1d563e9db85e55617b420f74684368ac8` | `9be56c8cf812a5ec49b571535a9c0a4432242c3e` | PASS with non-blocking reservations |
+| S7 reverts of §4.2 | `t_48cf81dd` | `6342e94c571df394028fadc6e3f928699bce6638` | `15923538147d4bb129c7e3306f2b20ee847ffc33` | PASS with non-blocking reservations |
+| S8a deployment package and documents | this snapshot's review card | recorded on the card | | pending |
+| S8b `AGENTS.md`, merge commit, pin | coordinator | | | pending |
+
+Exact-head CI of the S7 snapshot. The draft pull request #14 is
+`CONFLICTING` with `main` by design (strategy B), so GitHub starts no
+`pull_request` checks; the evidence is `workflow_dispatch` on the exact head
+`6342e94c`: CI `40061382451`, Schema drift `40061383918`, Stack tests
+`40061385387`, Word add-in `40061386834` and e2e `40061388294`, all `success`.
+
+The reservations became debt rows TD-021 and TD-025–TD-039 in
+[`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md). Two of them describe how the synced
+tree behaves and are repeated here because they qualify rows of §16.3:
+
+- **Authorization epochs (C4).** S2 stamped queued tabular extraction; S3
+  extended the stamp to the organization audit export and to playbook runs
+  and imports. Other queued jobs that read organization content (document
+  text extraction and conversion, memory consolidation, other export builds)
+  carry no stamp; they do not widen a revoked user's access (TD-037).
+- **Matter membership is a gate, not a grant.** A member of a private
+  matter's team still needs project access (a grant or a
+  `project_org_access_overrides` row) to open the project; a private matter's
+  project with `visibility='organization'` gives `editor` to its team through
+  that branch; a matter whose last member leaves the organization has no
+  defined successor (TD-038).
+
+From now on, upstream arrives by an ordinary reviewed merge of `upstream/main`
+on a sync branch, checked against §16 ([`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md)).

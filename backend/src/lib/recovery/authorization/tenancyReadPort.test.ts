@@ -9,10 +9,10 @@ import {
   type MatterRecord,
   type OrganizationMembership,
 } from "../tenancy/tenancyModel";
+import type { AuthorizationScope } from "./evaluateAccess";
 import * as tenancyReadPortModule from "./tenancyReadPort";
 import {
   evaluateInitialAccess,
-  loadFreshRecheckState,
   recheckFreshAccessViaPort,
   type TenancyReadPort,
 } from "./tenancyReadPort";
@@ -523,7 +523,7 @@ describe("recheckFreshAccessViaPort — mutation-time fresh recheck over the rea
 
   it("loads matter membership only when the granted scope requires explicit membership", async () => {
     const scope = await grantedPrivateScope();
-    const publicScope = {
+    const publicScope: AuthorizationScope = {
       ...scope,
       requires_explicit_matter_membership: false,
       membership_role: "editor",

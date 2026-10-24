@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import type { createServerSupabase } from "./supabase";
+import type { Db } from "./supabase";
 
-type Supa = ReturnType<typeof createServerSupabase>;
+type Supa = Db;
 
 /**
  * SHA-256 hex digest of a version's file bytes. Stored on
@@ -34,6 +34,8 @@ interface VersionPathRow extends DocRow {
     /** Set from document_versions.pdf_storage_path of the active version. */
     pdf_storage_path?: string | null;
     current_version_id?: string | null;
+    /** Content hash of the active version, including in-place byte updates. */
+    content_sha256?: string | null;
     /** Set from document_versions.version_number of the active version. */
     active_version_number?: number | null;
     /** Active-version file metadata. */
@@ -41,6 +43,7 @@ interface VersionPathRow extends DocRow {
     file_type?: string | null;
     size_bytes?: number | null;
     page_count?: number | null;
+    textless_page_count?: number | null;
 }
 
 export interface ActiveVersion {
@@ -53,6 +56,7 @@ export interface ActiveVersion {
     file_type: string | null;
     size_bytes: number | null;
     page_count: number | null;
+    textless_page_count: number | null;
 }
 
 /**
@@ -82,7 +86,7 @@ export async function loadActiveVersion(
     const { data: v } = await db
         .from("document_versions")
         .select(
-            "id, document_id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count",
+            "id, document_id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count",
         )
         .eq("id", targetVersionId)
         .is("deleted_at", null)
@@ -98,6 +102,8 @@ export async function loadActiveVersion(
         file_type: (v.file_type as string | null) ?? null,
         size_bytes: (v.size_bytes as number | null) ?? null,
         page_count: (v.page_count as number | null) ?? null,
+        textless_page_count:
+            (v.textless_page_count as number | null) ?? null,
     };
 }
 
@@ -144,13 +150,15 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             d.file_type = null;
             d.size_bytes = null;
             d.page_count = null;
+            d.textless_page_count = null;
+            d.content_sha256 = null;
         }
         return docs;
     }
     const { data: rows } = await db
         .from("document_versions")
         .select(
-            "id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count",
+            "id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count, content_sha256",
         )
         .in("id", versionIds)
         .is("deleted_at", null);
@@ -165,6 +173,8 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             file_type: string | null;
             size_bytes: number | null;
             page_count: number | null;
+            textless_page_count: number | null;
+            content_sha256: string | null;
         }
     >();
     for (const r of (rows ?? []) as {
@@ -177,6 +187,8 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         file_type: string | null;
         size_bytes: number | null;
         page_count: number | null;
+        textless_page_count: number | null;
+        content_sha256: string | null;
     }[]) {
         byId.set(r.id, {
             storage_path: r.storage_path ?? null,
@@ -187,6 +199,8 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             file_type: r.file_type ?? null,
             size_bytes: r.size_bytes ?? null,
             page_count: r.page_count ?? null,
+            textless_page_count: r.textless_page_count ?? null,
+            content_sha256: r.content_sha256 ?? null,
         });
     }
     for (const d of docs) {
@@ -199,6 +213,8 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         d.file_type = v?.file_type ?? null;
         d.size_bytes = v?.size_bytes ?? null;
         d.page_count = v?.page_count ?? null;
+        d.textless_page_count = v?.textless_page_count ?? null;
+        d.content_sha256 = v?.content_sha256 ?? null;
     }
     return docs;
 }

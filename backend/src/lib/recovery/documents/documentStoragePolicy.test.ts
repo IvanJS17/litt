@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import {
   authorizeObjectKey,
@@ -309,7 +308,7 @@ describe("SHA and ownership mismatch", () => {
 
 describe("runtime export lock and zero legacy imports", () => {
   it("exposes exactly the governed storage-policy surface", async () => {
-    const module = await import("./documentStoragePolicy");
+    const module = await import("./documentStoragePolicy.js");
     expect(Object.keys(module).sort()).toEqual(
       [
         "DOCUMENT_STORAGE_SEGMENT_MAX_LENGTH",
@@ -323,8 +322,11 @@ describe("runtime export lock and zero legacy imports", () => {
   });
 
   it("imports DocumentStorageOwnership without legacy storage or AWS clients", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const source = readFileSync(join(here, "documentStoragePolicy.ts"), "utf8");
+    // `npm test` runs from backend/, like every other source-reading test.
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/recovery/documents/documentStoragePolicy.ts"),
+      "utf8",
+    );
     expect(source).toContain("DocumentStorageOwnership");
     expect(source).not.toMatch(/@aws-sdk/);
     expect(source).not.toMatch(/from\s+["']\.\.\/storage["']/);

@@ -5,6 +5,7 @@
 // export serialization, pdf parsing), and the seam to a fully separate
 // worker process/machine (src/worker.ts) stays identical.
 
+import "dotenv/config";
 import { parentPort } from "node:worker_threads";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
 
@@ -14,9 +15,9 @@ console.log("[worker-thread] background workers started");
 parentPort?.on("message", (message: unknown) => {
     if (message === "shutdown") {
         void stopAllWorkers()
-            .catch((err) =>
-                console.error("[worker-thread] shutdown error", err),
-            )
+            .catch((err) => {
+                console.error("[worker-thread] shutdown error", err);
+            })
             .finally(() => process.exit(0));
     }
 });

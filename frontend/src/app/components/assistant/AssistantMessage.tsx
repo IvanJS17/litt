@@ -1,16 +1,40 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { TextCardUI } from "@/shared/ui/TextCardUI";
+import { useRef, useState, type ReactNode } from "react";
+import type { WebSource } from "@mike/contracts";
 import { Check, Copy } from "lucide-react";
 import type {
     AssistantEvent,
     Citation,
     EditAnnotation,
 } from "../shared/types";
+import { ConnectorSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
+import { notifyError } from "@/app/lib/userFacingError";
+import { useOptionalUserProfile } from "@/app/contexts/UserProfileContext";
 import { EditCard } from "./EditCard";
 import { PreResponseWrapper } from "./PreResponseWrapper";
 import { ResponseStatus, type StatusState } from "./message/ResponseStatus";
-import { eventErrorMessage, toolCallLabel } from "./message/eventUtils";
+import { DocSearchBlock } from "./message/DocSearchBlock";
+import {
+    WebReadBlock,
+    WebSearchBlock,
+    WebSourcesBlock,
+} from "./message/WebActivityBlock";
+import {
+    SubagentGroup,
+    subagentTints,
+    timelineStepCount,
+    type DelegationEvent,
+} from "./message/SubagentGroup";
+import { responseDetailsText, subagentUsage } from "./message/responseDetails";
+import {
+    connectorToolLabel,
+    eventErrorMessage,
+    isRenderableEvent,
+    toolCallLabel,
+    withDelegationEvents,
+} from "./message/eventUtils";
 import { preprocessCitations } from "./message/citationUtils";
 import { useSmoothedReveal } from "./message/useSmoothedReveal";
 import { MarkdownContent } from "./message/MarkdownContent";
@@ -32,6 +56,12 @@ import {
 interface Props {
     events?: AssistantEvent[];
     isStreaming?: boolean;
+    /**
+     * The response has paused to ask the user for input or approval and is
+     * still waiting. Nothing has been delivered yet, so the status icon holds
+     * a neutral state and the copy button stays hidden.
+     */
+    awaitingInput?: boolean;
     isError?: boolean;
     /** Human-readable error text rendered alongside the red Mike icon. */
     errorMessage?: string;
@@ -101,6 +131,7 @@ interface Props {
 export function AssistantMessage({
     events,
     isStreaming = false,
+    awaitingInput = false,
     isError = false,
     errorMessage,
     citations = [],
@@ -143,29 +174,26 @@ export function AssistantMessage({
         onEditResolved?.(args);
     };
 
-    const eventErrorMessages = (events ?? [])
-        .map(eventErrorMessage)
-        .filter((message): message is string => !!message);
-    const topLevelErrorMessage =
-        errorMessage ??
-        (
-            (events ?? []).find((event) => event.type === "error") as
-                | Extract<AssistantEvent, { type: "error" }>
-                | undefined
-        )?.message ??
-        null;
+    // Only a failed response turns the mark red: an explicit error event, or
+    // the caller telling us the turn produced nothing / was interrupted. A
+    // tool call that failed mid-turn still reports itself — its own block
+    // keeps a red dot and its message — but the model usually recovers and
+    // answers, so it must not brand the whole response an error.
+    const errorEvent = (events ?? []).find(
+        (event) => event.type === "error",
+    ) as Extract<AssistantEvent, { type: "error" }> | undefined;
     const effectiveErrorMessage =
-        topLevelErrorMessage ?? eventErrorMessages[0] ?? null;
+        errorMessage ??
+        (errorEvent ? eventErrorMessage(errorEvent) : null) ??
+        null;
     const hasError = isError || !!effectiveErrorMessage;
     const status: StatusState = hasError
         ? "error"
         : isStreaming
           ? "active"
-          : null;
-
-    const isRenderableEvent = (event: AssistantEvent) =>
-        event.type !== "error" &&
-        event.type !== "ask_inputs_response";
+          : awaitingInput
+            ? "waiting"
+            : null;
 
     // Find the last content event so its raw text can be smoothed before
     // citation preprocessing — slicing already-preprocessed text would risk
@@ -225,7 +253,7 @@ export function AssistantMessage({
             onOpenCitationSource(citation);
             return;
         }
-        if (!onOpenDocument) return;
+        if (citation.kind === "case" || !onOpenDocument) return;
         onOpenDocument({
             documentId: citation.document_id,
             filename: citation.filename,
@@ -233,8 +261,23 @@ export function AssistantMessage({
             versionNumber: citation.version_number ?? null,
         });
     };
-    const canOpenCitationSource = () =>
-        !!onOpenCitationSource || !!onOpenDocument;
+    const canOpenCitationSource = (citation: Citation) =>
+        !!onOpenCitationSource ||
+        (citation.kind !== "case" && !!onOpenDocument);
+    const eventsWithDelegated = withDelegationEvents(events ?? []);
+    // The pages an answer cites follow the answer, not the steps before it.
+    // Several provider steps can cite the same page, so list each URL once.
+    const webSourcesByUrl = new Map<string, WebSource>();
+    for (const event of events ?? []) {
+        if (event.type !== "web_sources") continue;
+        for (const source of event.sources) {
+            const existing = webSourcesByUrl.get(source.url);
+            if (!existing || (!existing.title && source.title)) {
+                webSourcesByUrl.set(source.url, source);
+            }
+        }
+    }
+    const webSources = [...webSourcesByUrl.values()];
     const showCitationBlock =
         !!citationStatus || (!isStreaming && citations.length > 0);
     const handleCopy = async () => {
@@ -265,8 +308,15 @@ export function AssistantMessage({
             await navigator.clipboard.write([item]);
             setIsCopied(true);
             setTimeout(() => setIsCopied(false), 2000);
-        } catch {
-            // ignore
+        } catch (err) {
+            // A clipboard refusal is a browser permission the user controls,
+            // so support cannot help and a retry needs a fresh click.
+            notifyError(err, {
+                action: "copy this answer",
+                fallback:
+                    "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
+                support: false,
+            });
         }
     };
 
@@ -276,6 +326,11 @@ export function AssistantMessage({
     // model has already streamed some prose gets its own wrapper.
     type EventGroup =
         | { kind: "pre"; events: AssistantEvent[]; indices: number[] }
+        | {
+              kind: "text_card";
+              event: Extract<AssistantEvent, { type: "text_card" }>;
+              index: number;
+          }
         | {
               kind: "content";
               event: Extract<AssistantEvent, { type: "content" }>;
@@ -287,15 +342,31 @@ export function AssistantMessage({
         let current: Extract<EventGroup, { kind: "pre" }> | null = null;
         events.forEach((e, i) => {
             if (!isRenderableEvent(e)) return;
-            if (e.type === "content") {
+            if (e.type === "content" || e.type === "text_card") {
                 if (current) {
                     groups.push(current);
                     current = null;
                 }
-                groups.push({ kind: "content", event: e, index: i });
+                if (e.type === "text_card") {
+                    groups.push({ kind: "text_card", event: e, index: i });
+                } else {
+                    groups.push({ kind: "content", event: e, index: i });
+                }
             } else {
                 if (!current)
                     current = { kind: "pre", events: [], indices: [] };
+                const previous = current.events.at(-1);
+                if (e.type === "reasoning" && previous?.type === "reasoning") {
+                    // The model emits a fresh reasoning event per pass, but a
+                    // run of them is one continuous thought: separate blocks
+                    // read as separate thoughts and stack up the timeline.
+                    current.events[current.events.length - 1] = {
+                        ...previous,
+                        text: `${previous.text}\n\n${e.text}`.trim(),
+                        isStreaming: e.isStreaming,
+                    };
+                    return;
+                }
                 current.events.push(e);
                 current.indices.push(i);
             }
@@ -306,7 +377,10 @@ export function AssistantMessage({
     const hasContentAfter = (groupIdx: number): boolean => {
         for (let i = groupIdx + 1; i < groups.length; i++) {
             const g = groups[i];
-            if (g.kind === "content" && g.event.text.length > 0) return true;
+            if (
+                (g.kind === "content" || g.kind === "text_card") &&
+                g.event.text.length > 0
+            ) return true;
         }
         return false;
     };
@@ -333,10 +407,14 @@ export function AssistantMessage({
         i: number,
         allEvents: AssistantEvent[],
         globalIdx: number,
+        timeline: AssistantEvent[] = events ?? [],
+        connectsToNextRow = false,
     ) => {
         const nextEvent = allEvents[i + 1];
         const showConnector =
-            nextEvent !== undefined && nextEvent.type !== "content";
+            nextEvent !== undefined
+                ? nextEvent.type !== "content"
+                : connectsToNextRow;
 
         if (event.type === "reasoning") {
             return (
@@ -375,17 +453,23 @@ export function AssistantMessage({
         if (event.type === "mcp_tool_call") {
             const isError = event.status === "error";
             const label = event.connector_name
-                ? `${event.connector_name}: ${event.tool_name}`
+                ? `${event.connector_name}: ${connectorToolLabel(event.tool_name, event.tool_title)}`
                 : toolCallLabel(event.openai_tool_name);
             return (
                 <EventBlock
                     key={globalIdx}
                     showConnector={showConnector}
                     isStreaming={event.isStreaming}
-                    dotColor={isError ? "red" : "gray"}
+                    dotColor={isError ? "red" : "green"}
                 >
-                    <span className="font-medium">
-                        {event.isStreaming ? "Using connector..." : label}
+                    <span className="flex min-w-0 items-center gap-1.5 font-medium">
+                        <ConnectorSkeuoIcon
+                            data-testid="connector-event-icon"
+                            className="h-3.5 w-3.5 shrink-0"
+                        />
+                        <span className="min-w-0 break-words">
+                            {event.isStreaming ? "Using connector..." : label}
+                        </span>
                     </span>
                     {isError && event.error && (
                         <p className="mt-0.5 text-xs text-red-600">
@@ -397,7 +481,7 @@ export function AssistantMessage({
         }
         if (event.type === "doc_read") {
             const ann = citations.find(
-                (a) => a.filename === event.filename,
+                (a) => a.kind !== "case" && a.filename === event.filename,
             );
             return (
                 <DocReadBlock
@@ -423,6 +507,18 @@ export function AssistantMessage({
                     showConnector={showConnector}
                 />
             );
+        }
+        if (event.type === "doc_search") {
+            return <DocSearchBlock key={globalIdx} event={event}
+                isStreaming={event.isStreaming} showConnector={showConnector} />;
+        }
+        if (event.type === "web_search") {
+            return <WebSearchBlock key={globalIdx} event={event}
+                isStreaming={event.isStreaming} showConnector={showConnector} />;
+        }
+        if (event.type === "web_read") {
+            return <WebReadBlock key={globalIdx} event={event}
+                isStreaming={event.isStreaming} showConnector={showConnector} />;
         }
         if (event.type === "doc_find") {
             return (
@@ -554,6 +650,50 @@ export function AssistantMessage({
         return null;
     };
 
+    // Mike's steps in a pre-answer group. Consecutive delegations are
+    // subagents Mike ran in parallel; they render as one group.
+    const tints = subagentTints(events ?? []);
+    // Settings > Features > Response details: the model, effort and tokens
+    // under the answer and in each subagent's details. Off without a profile.
+    const showDetails =
+        useOptionalUserProfile()?.profile?.responseDetailsVisible === true;
+    const answerDetails = showDetails
+        ? (events ?? []).findLast((e) => e.type === "response_details")
+        : undefined;
+    const renderPreEvents = (g: Extract<EventGroup, { kind: "pre" }>) => {
+        const rows: ReactNode[] = [];
+        for (let i = 0; i < g.events.length; i++) {
+            if (g.events[i].type !== "delegation") {
+                rows.push(renderEvent(g.events[i], i, g.events, g.indices[i]));
+                continue;
+            }
+            let end = i;
+            while (g.events[end + 1]?.type === "delegation") end++;
+            rows.push(
+                <SubagentGroup
+                    key={`s-${g.indices[i]}`}
+                    delegations={g.events.slice(i, end + 1) as DelegationEvent[]}
+                    tints={tints}
+                    showDetails={showDetails}
+                    showConnectorAfter={end + 1 < g.events.length}
+                    renderSteps={renderTimeline}
+                />,
+            );
+            i = end;
+        }
+        return rows;
+    };
+
+    // A subagent's steps; the last one connects to the row its details put
+    // after them (its brief) when there is one.
+    const renderTimeline = (steps: AssistantEvent[], connectsToNextRow: boolean) => {
+        const indices = steps.flatMap((step, i) => (isRenderableEvent(step) ? [i] : []));
+        const renderable = indices.map((i) => steps[i]);
+        return renderable.map((step, i) =>
+            renderEvent(step, i, renderable, indices[i], steps, connectsToNextRow),
+        );
+    };
+
     return (
         <div style={{ minHeight }}>
             <ResponseStatus status={status} />
@@ -561,12 +701,22 @@ export function AssistantMessage({
                 {events && events.length > 0 ? (
                     <div className="flex flex-col gap-4">
                         {groups.map((g, gIdx) => {
+                            if (g.kind === "text_card") {
+                                return (
+                                    <TextCardUI
+                                        key={`card-${g.event.card_id}`}
+                                        title={g.event.title}
+                                        text={g.event.text}
+                                    />
+                                );
+                            }
                             if (g.kind === "content") {
                                 const isLastContent =
                                     g.index === lastContentIdx;
                                 return (
                                     <div key={`c-${g.index}`}>
                                         <MarkdownContent
+                                            excerptSource
                                             text={processedTexts[g.index]}
                                             inlineCitationTargets={
                                                 inlineCitationTargets
@@ -593,7 +743,12 @@ export function AssistantMessage({
                             return (
                                 <PreResponseWrapper
                                     key={`p-${g.indices[0]}`}
-                                    stepCount={g.events.length}
+                                    stepCount={timelineStepCount(g.events)}
+                                    subagentCount={
+                                        g.events.filter(
+                                            (event) => event.type === "delegation",
+                                        ).length
+                                    }
                                     shouldMinimize={
                                         pendingAskInput
                                             ? false
@@ -602,14 +757,7 @@ export function AssistantMessage({
                                     isStreaming={wrapperIsStreaming}
                                     forceOpen={pendingAskInput}
                                 >
-                                    {g.events.map((event, i) =>
-                                        renderEvent(
-                                            event,
-                                            i,
-                                            g.events,
-                                            g.indices[i],
-                                        ),
-                                    )}
+                                    {renderPreEvents(g)}
                                 </PreResponseWrapper>
                             );
                         })}
@@ -618,7 +766,7 @@ export function AssistantMessage({
                             rendered above the download card. */}
                         {!isStreaming &&
                             (() => {
-                                const editedEvents = events.filter(
+                                const editedEvents = eventsWithDelegated.filter(
                                     (e) =>
                                         e.type === "doc_edited" &&
                                         !e.isStreaming,
@@ -733,9 +881,9 @@ export function AssistantMessage({
                     </div>
                 ) : null}
 
-                {topLevelErrorMessage && (
+                {effectiveErrorMessage && (
                     <p className="mt-2 text-base font-serif leading-7 text-red-700">
-                        {topLevelErrorMessage}
+                        {effectiveErrorMessage}
                     </p>
                 )}
 
@@ -744,7 +892,7 @@ export function AssistantMessage({
                 {events &&
                     !isStreaming &&
                     (() => {
-                        const edited = events.filter(
+                        const edited = eventsWithDelegated.filter(
                             (
                                 e,
                             ): e is Extract<
@@ -804,15 +952,15 @@ export function AssistantMessage({
 
                 {/* Download cards for created docs — generated docs now
                     persist as first-class documents, so clicking opens
-                    them in the DocPanel (like edited docs). */}
+                    them in the DocumentContent (like edited docs). */}
                 {events &&
                     !isStreaming &&
-                    events.some(
+                    eventsWithDelegated.some(
                         (e) => e.type === "doc_created" && e.download_url,
                     ) && (
                         <div className="flex flex-col gap-2 mt-2 mb-3">
                             {(
-                                events.filter(
+                                eventsWithDelegated.filter(
                                     (e) =>
                                         e.type === "doc_created" &&
                                         e.download_url,
@@ -850,6 +998,12 @@ export function AssistantMessage({
                         </div>
                     )}
 
+                {webSources.length > 0 && (
+                    <div className="mt-2 mb-3">
+                        <WebSourcesBlock sources={webSources} />
+                    </div>
+                )}
+
                 {showCitationBlock && (
                     <CitationsBlock
                         citations={citations}
@@ -865,15 +1019,16 @@ export function AssistantMessage({
                     />
                 )}
 
-                {/* Copy button */}
-                <div className="flex items-center gap-2 py-2 font-sans justify-start">
-                    {!isStreaming && (
+                {/* Copy button on the left; what the answer ran on, when the
+                    user asked to see it, at the right end of the same row. */}
+                <div className="flex flex-wrap items-center gap-x-2 font-sans justify-start">
+                    {!isStreaming && !awaitingInput && (
                         <button
                             type="button"
                             aria-label={
                                 isCopied ? "Response copied" : "Copy response"
                             }
-                            className="p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            className="-ml-1.5 p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                             onClick={handleCopy}
                         >
                             {isCopied ? (
@@ -882,6 +1037,11 @@ export function AssistantMessage({
                                 <Copy className="h-3 w-3" />
                             )}
                         </button>
+                    )}
+                    {!isStreaming && answerDetails?.type === "response_details" && (
+                        <span className="ml-auto min-w-0 text-right font-serif text-sm text-gray-400 [overflow-wrap:anywhere]">
+                            {responseDetailsText(answerDetails, subagentUsage(events ?? []))}
+                        </span>
                     )}
                 </div>
             </div>

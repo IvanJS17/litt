@@ -9,13 +9,19 @@ afterAll(() => {
     delete process.env.QUEUE_DRIVER;
 });
 
-const enqueueAppJobDelivery = vi.fn(async () => ({}));
+// Typed with the real enqueueAppJobDelivery's argument list so the recorded
+// calls are a proper tuple rather than an untyped rest array.
+type DeliveryOpts = { delayMs?: number; attempt?: number };
+const enqueueAppJobDelivery = vi.fn<
+    (dbJobId: string, opts?: DeliveryOpts) => Promise<unknown>
+>(async () => ({}));
 vi.mock("../../lib/queue/appJobsQueue", async (importOriginal) => {
     const actual =
         await importOriginal<typeof import("../../lib/queue/appJobsQueue")>();
     return {
         ...actual,
-        enqueueAppJobDelivery: (...a: unknown[]) => enqueueAppJobDelivery(...a),
+        enqueueAppJobDelivery: (dbJobId: string, opts?: DeliveryOpts) =>
+            enqueueAppJobDelivery(dbJobId, opts),
     };
 });
 vi.mock("../../lib/supabase", () => ({ createServerSupabase: vi.fn() }));
@@ -128,6 +134,26 @@ describe("runAppJobDelivery", () => {
         const db = makeDb({ claimError: "connection refused" });
         await runAppJobDelivery({ dbJobId: "row-1" }, db as never);
         expect(db.updates).toHaveLength(0);
+    });
+
+    it("logs a claim error once, with the Error object carrying its code", async () => {
+        // A PostgREST failure is a plain object; wrapped as an Error it gets a
+        // stack and keeps its code on the cause chain, which the log line
+        // carries.
+        const consoleError = vi
+            .spyOn(console, "error")
+            .mockImplementation(() => {});
+        try {
+            const db = makeDb({ claimError: "connection refused" });
+            await runAppJobDelivery({ dbJobId: "row-1" }, db as never);
+            expect(consoleError).toHaveBeenCalledTimes(1);
+            const [label, payload] = consoleError.mock.calls[0]!;
+            expect(label).toBe("[app-jobs] claim failed");
+            const error = (payload as { error: unknown }).error;
+            expect(error).toBeInstanceOf(Error);
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 });
 

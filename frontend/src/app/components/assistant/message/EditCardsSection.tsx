@@ -1,8 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { EditCardsSectionUI } from "@/shared/ui/EditCardsSectionUI";
-import { GLASS_CARD_SURFACE_CLASS } from "@/app/components/ui/glass-card";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
+import { RESPONSE_GLASS_SURFACE } from "./messageStyles";
 import { resolveDocumentEdit } from "@/app/lib/mikeApi";
 import type { EditAnnotation } from "../../shared/types";
 import { applyOptimisticResolution } from "../EditCard";
@@ -133,51 +132,33 @@ function BulkEditActions({
 
     return (
         <div className="flex w-full items-center gap-2">
-            <PillButton
+            <PillButtonUI
                 tone="blue"
-                size="sm"
+                size="xs"
                 onClick={() => handleAll("accept")}
                 disabled={!!busy}
+                loading={busy === "accept"}
             >
-                {busy === "accept" ? (
-                    <>
-                        <Loader2
-                            aria-hidden="true"
-                            className="h-3 w-3 animate-spin"
-                        />
-                        Accepting all...
-                    </>
-                ) : (
-                    "Accept all"
-                )}
-            </PillButton>
-            <PillButton
+                {busy === "accept" ? "Accepting all..." : "Accept all"}
+            </PillButtonUI>
+            <PillButtonUI
                 tone="white"
-                size="sm"
+                size="xs"
                 onClick={() => handleAll("reject")}
                 disabled={!!busy}
+                loading={busy === "reject"}
             >
-                {busy === "reject" ? (
-                    <>
-                        <Loader2
-                            aria-hidden="true"
-                            className="h-3 w-3 animate-spin"
-                        />
-                        Rejecting all...
-                    </>
-                ) : (
-                    "Reject all"
-                )}
-            </PillButton>
+                {busy === "reject" ? "Rejecting all..." : "Reject all"}
+            </PillButtonUI>
             {progress && (
                 <span className="text-xs font-sans text-gray-500">
                     {progress.done}/{progress.total}
                 </span>
             )}
             {onViewClick && first && (
-                <PillButton
+                <PillButtonUI
                     tone="black"
-                    size="sm"
+                    size="xs"
                     onClick={() =>
                         onViewClick(first.annotation, first.filename)
                     }
@@ -185,7 +166,7 @@ function BulkEditActions({
                     className="ml-auto"
                 >
                     View
-                </PillButton>
+                </PillButtonUI>
             )}
         </div>
     );
@@ -248,7 +229,7 @@ export function EditCardsSection({
     return (
         <EditCardsSectionUI
             summary={summary}
-            className={`${GLASS_CARD_SURFACE_CLASS} overflow-hidden`}
+            className={`${RESPONSE_GLASS_SURFACE} overflow-hidden`}
             actions={
                 pending.length > 0 ? (
                     <BulkEditActions

@@ -19,7 +19,7 @@ vi.mock("@/app/contexts/AuthContext", () => ({
 }));
 
 vi.mock("@/app/components/site-logo", () => ({
-    SiteLogo: () => <div>Mike</div>,
+    SiteLogo: () => <div>LiTT</div>,
 }));
 
 describe("SsoLoginPage", () => {
@@ -65,5 +65,23 @@ describe("SsoLoginPage", () => {
             "Single sign-on is not available for this email domain.",
         );
         expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
+    });
+
+    it("says the connection failed instead of blaming the domain", async () => {
+        startSso.mockRejectedValue(new TypeError("Failed to fetch"));
+        const user = userEvent.setup();
+        render(<SsoLoginPage />);
+
+        await user.type(
+            screen.getByRole("textbox", { name: "Email" }),
+            "lawyer@example.com",
+        );
+        await user.click(screen.getByRole("button", { name: "Continue" }));
+
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "LiTT couldn't reach the server. Check your connection and try again.",
+        );
+        await user.click(screen.getByRole("button", { name: "Retry" }));
+        expect(startSso).toHaveBeenCalledTimes(2);
     });
 });

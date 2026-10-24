@@ -1,11 +1,12 @@
 import { Worker, type Job } from "bullmq";
 import { getRedisConnection } from "../lib/queue/connection";
+import { asReportableError } from "../lib/httpError";
 import {
     APP_JOBS_QUEUE,
     type AppJobDelivery,
 } from "../lib/queue/appJobsQueue";
 import { processClaimedJob } from "../lib/dbq/runner";
-import { DB_JOB_HANDLERS } from "../lib/dbq/handlers";
+import { DB_JOB_HANDLERS, DB_JOB_FAILURE_HOOKS } from "../jobs/registry";
 import { createServerSupabase } from "../lib/supabase";
 import type { Db, DbJob } from "../lib/dbq/types";
 
@@ -32,16 +33,18 @@ export async function runAppJobDelivery(
     });
     if (error) {
         // Claim failure (transient DB trouble): do nothing — the row is
-        // untouched and the poll backstop will claim it.
+        // untouched and the poll backstop will claim it. Logged as an Error
+        // with its PostgREST code on the cause chain (failure_code).
+        const failure = asReportableError(error, runAppJobDelivery);
         console.error("[app-jobs] claim failed", {
             dbJobId: data.dbJobId,
-            error: error.message,
+            error: failure,
         });
         return;
     }
     const job = ((rows ?? []) as DbJob[])[0];
     if (!job) return; // already claimed/finished elsewhere, or not yet due
-    await processClaimedJob(db, DB_JOB_HANDLERS, job);
+    await processClaimedJob(db, DB_JOB_HANDLERS, job, DB_JOB_FAILURE_HOOKS);
 }
 
 let worker: Worker<AppJobDelivery> | null = null;

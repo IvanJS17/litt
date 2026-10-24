@@ -13,7 +13,8 @@ import type { Document, LibraryFolder, Project } from "./types";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { ProjectSvgIcon, SubfolderSvgIcon } from "./FolderSvgIcon";
 import { SearchBar } from "@/app/components/ui/search-bar";
-import { TabPillButton } from "@/app/components/ui/tab-pill-button";
+import { SelectionCheckbox as DirectorySelectionCheckbox } from "@/app/components/ui/selection-checkbox";
+import { TabPillButtonUI } from "@/shared/ui/TabPillButtonUI";
 import { SkeletonLine } from "./TablePrimitive";
 import { TableLoadMoreRow } from "./TableLoadMoreRow";
 import { useDirectoryData, type DirectoryTab } from "./useDirectoryData";
@@ -22,6 +23,7 @@ import {
   searchLibraryDocuments,
   searchProjectDirectory,
 } from "@/app/lib/mikeApi";
+import { useDocumentWorkspace } from "@/app/contexts/WorkspaceContext";
 import {
     LIQUID_GLASS_MODAL_ROW_HOVER_CLASS,
     LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS,
@@ -36,11 +38,9 @@ const DIRECTORY_GRID_CLASS =
     "grid grid-cols-[14px_14px_minmax(0,1fr)_48px_84px_64px] items-center gap-2";
 const DIRECTORY_ROW_ACTION_CLASS =
     "col-span-5 grid min-w-0 grid-cols-[14px_minmax(0,1fr)_48px_84px_64px] items-center gap-2 text-left";
-const DIRECTORY_CHECKBOX_CLASS =
-    "h-2.5 w-2.5 shrink-0 justify-self-center cursor-pointer rounded border-gray-200 accent-black disabled:cursor-not-allowed";
 
 const DIRECTORY_TABS: { value: DirectoryTab; label: string }[] = [
-    { value: "files", label: "Files" },
+    { value: "files", label: "Documents" },
     { value: "templates", label: "Templates" },
     { value: "projects", label: "Projects" },
 ];
@@ -57,41 +57,6 @@ const EMPTY_LEVEL_STATE: Record<
   Record<string, boolean>
 > = { files: {}, templates: {} };
 const DIRECTORY_SEARCH_PAGE_SIZE = 40;
-
-function DirectorySelectionCheckbox({
-  checked,
-  disabled,
-  indeterminate,
-  label,
-  onChange,
-}: {
-  checked: boolean;
-  disabled: boolean;
-  indeterminate: boolean;
-  label: string;
-  onChange: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.indeterminate = indeterminate;
-    }
-  }, [indeterminate]);
-
-  return (
-    <input
-      ref={inputRef}
-      type="checkbox"
-      checked={checked}
-      disabled={disabled}
-      onChange={onChange}
-      aria-checked={indeterminate ? "mixed" : checked}
-      aria-label={label}
-      className={DIRECTORY_CHECKBOX_CLASS}
-    />
-  );
-}
 
 function mergeDirectoryRows<T extends { id: string }>(current: T[], next: T[]) {
   const rows = new Map(current.map((row) => [row.id, row]));
@@ -148,9 +113,24 @@ interface FileDirectoryProps {
   /** Documents already attached to the target resource. They remain visible
    * and checked, but cannot be toggled again. */
   disabledDocumentIds?: ReadonlySet<string>;
+  /** Freezes the whole selection: rows and folder select-alls still show what
+   * is picked, but nothing can be added or removed. For callers whose target
+   * has stopped accepting a changed document set. */
+  selectionDisabled?: boolean;
 }
 
-export function FileDirectory({
+/**
+ * One workspace's documents per mount. A parent that keeps this mounted
+ * across a change of workspace gets a fresh directory rather than the last
+ * workspace's rows under the new one's name; what is selected lives with the
+ * parent and is unaffected.
+ */
+export function FileDirectory(props: FileDirectoryProps) {
+  const workspace = useDocumentWorkspace();
+  return <WorkspaceFileDirectory key={workspace ?? "unscoped"} {...props} />;
+}
+
+function WorkspaceFileDirectory({
     documents = EMPTY_DOCUMENTS,
     loading: externalLoading = false,
     selectedDocuments,
@@ -172,6 +152,7 @@ export function FileDirectory({
   loadingMoreRootDocuments = false,
   onLoadMoreRootDocuments,
   disabledDocumentIds,
+  selectionDisabled = false,
 }: FileDirectoryProps) {
   const autoLoadTriggeredRef = useRef(false);
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
@@ -225,6 +206,8 @@ export function FileDirectory({
     loadProjectLevel = async () => {},
     loadMoreProjectDocuments = async () => {},
     } = useDirectoryData(showTabs, initialDirectoryTab);
+  // Searching looks in the same workspace the tabs list.
+  const workspace = useDocumentWorkspace();
 
   useEffect(() => {
     const term = debouncedSearch.trim();
@@ -244,12 +227,15 @@ export function FileDirectory({
         ? searchProjectDirectory({
             search: term,
             limit: DIRECTORY_SEARCH_PAGE_SIZE + 1,
+            workspace,
             signal: controller.signal,
           }).then((rows) => {
             setSearchProjects(rows.slice(0, DIRECTORY_SEARCH_PAGE_SIZE));
             setSearchHasMore(rows.length > DIRECTORY_SEARCH_PAGE_SIZE);
           })
-        : searchLibraryDocuments(selectedTab, {
+        : searchLibraryDocuments(
+          { kind: selectedTab, workspace },
+          {
             search: term,
             limit: DIRECTORY_SEARCH_PAGE_SIZE + 1,
             signal: controller.signal,
@@ -269,7 +255,7 @@ export function FileDirectory({
         if (!controller.signal.aborted) setSearchLoading(false);
       });
     return () => controller.abort();
-  }, [debouncedSearch, selectedTab, showTabs]);
+  }, [debouncedSearch, selectedTab, showTabs, workspace]);
 
   async function loadMoreSearchResults() {
     const term = debouncedSearch.trim();
@@ -282,6 +268,7 @@ export function FileDirectory({
           search: term,
           limit: DIRECTORY_SEARCH_PAGE_SIZE + 1,
           offset,
+          workspace,
         });
         const page = rows.slice(0, DIRECTORY_SEARCH_PAGE_SIZE);
         setSearchProjects((current) =>
@@ -290,7 +277,9 @@ export function FileDirectory({
         setSearchHasMore(rows.length > DIRECTORY_SEARCH_PAGE_SIZE);
       } else {
         const offset = searchDocuments?.length ?? 0;
-        const result = await searchLibraryDocuments(selectedTab, {
+        const result = await searchLibraryDocuments(
+          { kind: selectedTab, workspace },
+          {
           search: term,
           limit: DIRECTORY_SEARCH_PAGE_SIZE,
           offset,
@@ -480,7 +469,7 @@ export function FileDirectory({
   }
 
     function toggle(doc: Document) {
-        if (disabledDocumentIds?.has(doc.id)) return;
+        if (selectionDisabled || disabledDocumentIds?.has(doc.id)) return;
 
         const next = new Map(
             selectedDocuments.map((document) => [document.id, document]),
@@ -508,6 +497,7 @@ export function FileDirectory({
     }
 
     function toggleDocuments(docs: Document[]) {
+        if (selectionDisabled) return;
         const selectableDocs = docs.filter(
             (doc) => !disabledDocumentIds?.has(doc.id),
         );
@@ -620,7 +610,8 @@ export function FileDirectory({
 
     function renderDocumentRow(doc: Document, depth = 0) {
         const selected = checkedIds.has(doc.id);
-        const disabled = disabledDocumentIds?.has(doc.id) ?? false;
+        const disabled =
+            selectionDisabled || (disabledDocumentIds?.has(doc.id) ?? false);
         return (
             <label
                 key={doc.id}
@@ -692,6 +683,7 @@ export function FileDirectory({
                             checked={allSelected}
                             indeterminate={someSelected}
                             disabled={
+                                selectionDisabled ||
                                 !folderSelectionReady ||
                                 docsInFolder.length === 0
                             }
@@ -1129,6 +1121,7 @@ export function FileDirectory({
                                                 someProjectDocsSelected
                                             }
                                             disabled={
+                                                selectionDisabled ||
                                                 !projectSelectionReady ||
                                                 docs.length === 0
                                             }
@@ -1312,13 +1305,13 @@ function FileDirectoryControls({
                     {tabs.map((tab) => {
                         const active = activeTab === tab.value;
                         return (
-                            <TabPillButton
+                            <TabPillButtonUI
                                 key={tab.value}
                                 active={active}
                                 onClick={() => onChange(tab.value)}
                             >
                                 {tab.label}
-                            </TabPillButton>
+                            </TabPillButtonUI>
                         );
                     })}
                 </div>

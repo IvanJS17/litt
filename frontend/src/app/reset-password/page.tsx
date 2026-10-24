@@ -4,19 +4,45 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Input } from "@/app/components/ui/input";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { InputUI } from "@/shared/ui/InputUI";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
+import { pillButtonUIClassName } from "@/shared/ui/PillButtonUI.styles";
 import { SiteLogo } from "@/app/components/site-logo";
 import {
-    authGlassCardClassName,
-    authInputClassName,
-} from "@/app/components/auth/authStyles";
+    authGlassCardUIClassName,
+    authInputUIClassName,
+} from "@/shared/ui/AuthStylesUI";
 import {
     MIN_PASSWORD_LENGTH,
+    isPasswordTooLong,
+    maximumPasswordMessage,
     minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
+import {
+    PASSWORD_LENGTH_MESSAGE,
+    authMessages,
+} from "@/app/lib/authMessages";
 import { getAuthSession, updateAuthPassword } from "@/app/lib/authApi";
 import { FieldLabel } from "@/app/components/ui/form-field";
+import {
+    describeError,
+    supportMailtoFor,
+    type UserFacingError,
+} from "@/app/lib/userFacingError";
+
+/** The shared auth table with this screen's deltas: here every session-
+ *  shaped failure is really "your reset link is no longer usable". */
+const RESET_ERROR_MESSAGES = authMessages({
+    validation_failed: PASSWORD_LENGTH_MESSAGE,
+    invalid_request: PASSWORD_LENGTH_MESSAGE,
+    otp_expired: "This password-reset link has expired. Request a new one.",
+    session_expired: "This password-reset link has expired. Request a new one.",
+    session_not_found:
+        "This password-reset link is invalid or has expired. Request a new one.",
+    cookie_session_required:
+        "This password-reset link is invalid or has expired. Request a new one.",
+    reauthentication_needed: "Log in again before changing your password.",
+});
 
 function ResetPasswordContent() {
     const searchParams = useSearchParams();
@@ -26,6 +52,7 @@ function ResetPasswordContent() {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [failure, setFailure] = useState<UserFacingError | null>(null);
     const preview =
         process.env.NODE_ENV !== "production"
             ? searchParams.get("preview")
@@ -54,9 +81,23 @@ function ResetPasswordContent() {
                 }
                 setReady(true);
             })
-            .catch(() => {
+            .catch((caught: unknown) => {
                 if (cancelled) return;
-                setError("This password-reset link is invalid or has expired.");
+                // A 401 means the link is spent; a dropped connection does
+                // not, and telling the user to request a new link then would
+                // send them round a loop that cannot work.
+                const described = describeError(caught, {
+                    action: "check your reset link",
+                    fallback:
+                        "This password-reset link is invalid or has expired.",
+                });
+                setError(
+                    described.kind === "unauthenticated" ||
+                        described.kind === "not_found" ||
+                        described.kind === "validation"
+                        ? "This password-reset link is invalid or has expired."
+                        : described.message,
+                );
                 setReady(true);
             });
         return () => {
@@ -67,8 +108,13 @@ function ResetPasswordContent() {
     async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
         setError(null);
+        setFailure(null);
         if (password.length < MIN_PASSWORD_LENGTH) {
             setError(`${minimumPasswordMessage}.`);
+            return;
+        }
+        if (isPasswordTooLong(password)) {
+            setError(maximumPasswordMessage);
             return;
         }
         if (password !== confirmPassword) {
@@ -80,8 +126,14 @@ function ResetPasswordContent() {
         try {
             await updateAuthPassword(password, true);
             setSuccess(true);
-        } catch {
-            setError("Unable to update your password. Please try again.");
+        } catch (caught) {
+            const described = describeError(caught, {
+                action: "update your password",
+                codeMessages: RESET_ERROR_MESSAGES,
+                fallback: "Unable to update your password. Try again.",
+            });
+            setFailure(described);
+            setError(described.message);
         } finally {
             setLoading(false);
         }
@@ -99,7 +151,7 @@ function ResetPasswordContent() {
                 <SiteLogo size="lg" asLink />
             </div>
             <div className="w-full max-w-md">
-                <div className={authGlassCardClassName}>
+                <div className={authGlassCardUIClassName}>
                     {!displayedReady ? (
                         <div>
                             <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
@@ -119,14 +171,16 @@ function ResetPasswordContent() {
                                 Your password has been changed. Log in again
                                 with your new password.
                             </p>
-                            <PillButton
-                                asChild
-                                tone="black"
-                                size="normal"
-                                className="mt-6"
+                            <Link
+                                href="/login"
+                                className={pillButtonUIClassName({
+                                    tone: "black",
+                                    size: "normal",
+                                    className: "mt-6",
+                                })}
                             >
-                                <Link href="/login">Log in</Link>
-                            </PillButton>
+                                Log in
+                            </Link>
                         </div>
                     ) : resetUnavailable ? (
                         <div>
@@ -136,16 +190,16 @@ function ResetPasswordContent() {
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
                                 {displayedError}
                             </p>
-                            <PillButton
-                                asChild
-                                tone="black"
-                                size="normal"
-                                className="mt-6"
+                            <Link
+                                href="/forgot-password"
+                                className={pillButtonUIClassName({
+                                    tone: "black",
+                                    size: "normal",
+                                    className: "mt-6",
+                                })}
                             >
-                                <Link href="/forgot-password">
-                                    Request another link
-                                </Link>
-                            </PillButton>
+                                Request another link
+                            </Link>
                         </div>
                     ) : (
                         <>
@@ -163,7 +217,7 @@ function ResetPasswordContent() {
                                     <FieldLabel htmlFor="password">
                                         New password
                                     </FieldLabel>
-                                    <Input
+                                    <InputUI
                                         id="password"
                                         type="password"
                                         autoComplete="new-password"
@@ -172,14 +226,14 @@ function ResetPasswordContent() {
                                             setPassword(event.target.value)
                                         }
                                         required
-                                        className={`w-full ${authInputClassName}`}
+                                        className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="confirmPassword">
                                         Confirm new password
                                     </FieldLabel>
-                                    <Input
+                                    <InputUI
                                         id="confirmPassword"
                                         type="password"
                                         autoComplete="new-password"
@@ -190,15 +244,29 @@ function ResetPasswordContent() {
                                             )
                                         }
                                         required
-                                        className={`w-full ${authInputClassName}`}
+                                        className={`w-full ${authInputUIClassName}`}
                                     />
                                 </div>
                                 {error && (
-                                    <div className="rounded bg-red-50 p-3 text-sm text-red-600">
+                                    <div
+                                        role="alert"
+                                        className="rounded bg-red-50 p-3 text-sm text-red-600"
+                                    >
                                         {error}
+                                        {failure?.supportable && (
+                                            <a
+                                                href={supportMailtoFor(
+                                                    failure,
+                                                    "Failed to update a password from a reset link.",
+                                                )}
+                                                className="ml-2 underline underline-offset-2"
+                                            >
+                                                Contact support
+                                            </a>
+                                        )}
                                     </div>
                                 )}
-                                <PillButton
+                                <PillButtonUI
                                     type="submit"
                                     tone="black"
                                     size="normal"
@@ -210,7 +278,7 @@ function ResetPasswordContent() {
                                     {loading
                                         ? "Updating password..."
                                         : "Update password"}
-                                </PillButton>
+                                </PillButtonUI>
                             </form>
                         </>
                     )}

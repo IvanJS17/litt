@@ -11,9 +11,10 @@
 # under webkit — a chromium-only run would silently pass with the scroll fix
 # reverted.
 #
-# Unlike ci.yml/e2e.yml this workflow is path-filtered: the add-in is fully
-# self-contained under word-addin/ (own lockfile, own tsconfigs, mocked
-# backend), so nothing outside that directory can change what this job proves.
+# The add-in bundles shared code from frontend/src/shared, frontend/public/icons
+# and packages/ through its webpack/tsconfig aliases, so pull requests and
+# pushes use the same path filter: anything else cannot change what this job
+# proves, and skipping it saves Actions minutes (TD-024).
 name: Word add-in
 
 on:
@@ -22,13 +23,17 @@ on:
     branches: [main]
     paths:
       - "word-addin/**"
+      - "frontend/src/shared/**"
+      - "frontend/public/icons/**"
+      - "packages/**"
       - ".github/workflows/word-addin.yml"
+  # Include stacked PRs whose base is another feature branch.
   pull_request:
-    # `main` is the destination upstream; `upstream-main` is the fork's mirror
-    # of it (same pairing as e2e.yml / stack-tests.yml).
-    branches: [main, upstream-main]
     paths:
       - "word-addin/**"
+      - "frontend/src/shared/**"
+      - "frontend/public/icons/**"
+      - "packages/**"
       - ".github/workflows/word-addin.yml"
 
 # Don't pile up runs on rapid pushes to the same PR; pushes to main each get
@@ -42,13 +47,17 @@ jobs:
     name: Typecheck and Playwright (chromium + webkit)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Hermetic specs (per-page Office shim and API mocks) on the runner's
+      # 4 vCPUs; see word-addin/playwright.config.ts.
+      E2E_WORKERS: "4"
     defaults:
       run:
         working-directory: word-addin
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
           cache: npm

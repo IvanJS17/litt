@@ -1,5 +1,6 @@
 "use client";
 
+import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import {
   useCallback,
   useEffect,
@@ -11,31 +12,36 @@ import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Check,
-  ChevronDown,
   Download,
   Globe,
   Pencil,
   Play,
   Plus,
   Trash2,
-  Upload,
   Users,
 } from "lucide-react";
 import {
   deleteWorkflowShare,
   deleteWorkflow,
   getWorkflow,
+  getWorkflowPeople,
   listWorkflowShares,
-  lookupUserByEmail,
   shareWorkflow,
   updateWorkflow,
   type ProjectPeople,
 } from "@/app/lib/mikeApi";
+import { can, roleFromLoaded } from "@/app/lib/permissions";
+import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useAssignLatest, useLatestRef } from "@/app/hooks/useLatestRef";
 import { UseWorkflowModal } from "@/app/components/workflows/UseWorkflowModal";
 import { WFEditColumnModal } from "@/app/components/workflows/WFEditColumnModal";
 import { WFColumnViewModal } from "@/app/components/workflows/WFColumnViewModal";
 import { AddColumnModal } from "@/app/components/tabular/AddColumnModal";
-import type { ColumnConfig, Workflow } from "@/app/components/shared/types";
+import type {
+  ColumnConfig,
+  Document,
+  Workflow,
+} from "@/app/components/shared/types";
 import {
   formatIcon,
   formatIconClassName,
@@ -46,15 +52,15 @@ import {
   HeaderActionsMenu,
   type HeaderActionsMenuItem,
 } from "@/app/components/shared/HeaderActionsMenu";
-import { PeopleModal } from "@/app/components/modals/PeopleModal";
+import { AccessModal } from "@/app/components/modals/AccessModal";
+import { AddDocumentsModal } from "@/app/components/modals/AddDocumentsModal";
 import { OpenSourceWorkflowModal } from "@/app/components/workflows/OpenSourceWorkflowModal";
 import { PageHeader } from "@/app/components/shared/PageHeader";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { PillButton } from "@/app/components/ui/pill-button";
-import { TabPillButton } from "@/app/components/ui/tab-pill-button";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
+import { TabPillButtonUI } from "@/shared/ui/TabPillButtonUI";
 import {
-  LIQUID_GLASS_FLOAT_CLASS,
-  LIQUID_TABLE_SURFACE_CLASS,
+  EDITOR_SURFACE_CLASS,
 } from "@/app/components/ui/liquid-surface";
 import { NewWorkflowModal } from "@/app/components/workflows/NewWorkflowModal";
 import { TabularReviewSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
@@ -71,21 +77,31 @@ import {
   TableRow,
   TableScrollArea,
   TableStickyCell,
+  selectedIdsAfterRangeClick,
+  selectedIdsAfterShiftClick,
 } from "@/app/components/shared/TablePrimitive";
 import { TableToolbar } from "@/app/components/shared/TableToolbar";
-import { RowActions } from "@/app/components/shared/RowActions";
+import { RowActions, RowActionMenuItems } from "@/app/components/shared/RowActions";
 import { TRExpandedCellSurface } from "@/app/components/tabular/TRExpandedCellSurface";
 import { UploadOverlay } from "@/app/components/assistant/UploadOverlay";
+import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
+import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
 import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
+import {
+  describeError,
+  isAbortError,
+  notifyError,
+} from "@/app/lib/userFacingError";
 import { downloadWorkflowZip } from "./workflowZipExport";
 import { WorkflowAssets, type WorkflowAssetsHandle } from "./WorkflowAssets";
 // dynamic import keeps Tiptap (browser-only) out of the SSR bundle
-const WorkflowPromptEditor = dynamic(
+const MarkdownEditor = dynamic(
   () =>
-    import("@/app/components/workflows/WorkflowPromptEditor").then((m) => ({
-      default: m.WorkflowPromptEditor,
+    import("@/app/components/ui/markdown-editor").then((m) => ({
+      default: m.MarkdownEditor,
     })),
   { ssr: false },
 );
@@ -95,7 +111,7 @@ interface Props {
   workflowType: Workflow["metadata"]["type"];
 }
 
-type SaveStatus = "idle" | "saving" | "saved";
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 type DeleteStatus = "idle" | "loading" | "complete";
 type AssistantTab = "prompt" | "assets";
 type WorkflowShare = Awaited<ReturnType<typeof listWorkflowShares>>[number];
@@ -115,20 +131,42 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
   const { user } = useAuth();
   const { profile } = useUserProfile();
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  // Opening a workflow opens its workspace. A built-in one belongs to none.
+  useItemWorkspace(
+    workflow?.id,
+    workflow && !workflow.is_system ? (workflow.org_id ?? null) : undefined,
+  );
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  // A load that failed for a reason other than "this does not exist". The
+  // screen must not claim the workflow is missing when the request never
+  // arrived.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  // Setters only, so a stale closure is harmless here.
+  const retryLoad = useCallback(() => {
+    // Without this the screen falls through to "Workflow not found." until
+    // the retry answers.
+    setLoading(true);
+    setLoadFailed(false);
+    setReloadToken((token) => token + 1);
+  }, []);
+  const lastColumnsAttemptRef = useRef<ColumnConfig[] | null>(null);
 
+  const workflowRole = roleFromLoaded(workflow);
   const readOnly =
-    (workflow?.is_system ?? false) || workflow?.allow_edit === false;
-  const canShare = !readOnly && (workflow?.is_owner ?? true);
+    (workflow?.is_system ?? false) || !can(workflowRole, "content.edit");
+  const canShare = can(workflowRole, "access.manage");
   const canOpenSource =
     WORKFLOW_CONTRIBUTIONS_ENABLED && canShare && workflow?.is_system !== true;
 
   // Editor state
   const [promptMd, setPromptMd] = useState("");
+  const promptMdRef = useLatestRef(promptMd);
   const [columns, setColumns] = useState<ColumnConfig[]>([]);
   const [assetsUploading, setAssetsUploading] = useState(false);
   const [draggingAssets, setDraggingAssets] = useState(false);
+  const [addSavedAssetsOpen, setAddSavedAssetsOpen] = useState(false);
   const assetsRef = useRef<WorkflowAssetsHandle>(null);
   const pendingAssetsRef = useRef<File[] | null>(null);
   const searchParams = useSearchParams();
@@ -143,10 +181,24 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
 
   // Save status
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  // Every save-status change goes through here, so an earlier save's
+  // "Saved" fade cannot clear a later "Saving…" or "Couldn't save".
+  const showSaveStatus = useCallback((status: SaveStatus) => {
+    if (saveStatusTimerRef.current) clearTimeout(saveStatusTimerRef.current);
+    saveStatusTimerRef.current =
+      status === "saved"
+        ? setTimeout(() => setSaveStatus("idle"), 2000)
+        : null;
+    setSaveStatus(status);
+  }, []);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Column selection
   const [selectedColIndices, setSelectedColIndices] = useState<number[]>([]);
+  const columnSelectionAnchorRef = useRef<number | null>(null);
   const [expandedPromptIndex, setExpandedPromptIndex] = useState<number | null>(
     null,
   );
@@ -158,7 +210,12 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
 
   // Share / use / details popovers
   const [shareOpen, setShareOpen] = useState(false);
-  const [workflowSharedWith, setWorkflowSharedWith] = useState<string[]>([]);
+  const [workflowShares, setWorkflowShares] = useState<WorkflowShare[]>([]);
+  // A roster re-read that failed after a change the server accepted. Shown
+  // beside the list rather than in place of the success.
+  const [shareRefreshError, setShareRefreshError] = useState<string | null>(
+    null,
+  );
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [useOpen, setUseOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -167,20 +224,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
 
   // Column actions dropdown
   const [colActionsOpen, setColActionsOpen] = useState(false);
-  const colActionsRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (
-        colActionsRef.current &&
-        !colActionsRef.current.contains(e.target as Node)
-      ) {
-        setColActionsOpen(false);
-      }
-    }
-    if (colActionsOpen) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [colActionsOpen]);
 
   useEffect(() => {
     if (assistantTab !== "assets" || !pendingAssetsRef.current) return;
@@ -208,9 +252,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
   }
 
   function handleAssetDragLeave(event: DragEvent<HTMLDivElement>) {
-    if (
-      !event.currentTarget.contains(event.relatedTarget as Node | null)
-    ) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
       setDraggingAssets(false);
     }
   }
@@ -242,6 +284,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
   useEffect(() => {
     getWorkflow(id)
       .then((wf) => {
+        setLoadFailed(false);
         if (wf.metadata.type !== workflowType) {
           setNotFound(true);
           return;
@@ -252,96 +295,97 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
           (wf.columns_config ?? []).slice().sort((a, b) => a.index - b.index),
         );
       })
-      .catch(() => setNotFound(true))
+      .catch((error) => {
+        // A transient failure would otherwise render as "Workflow not found",
+        // which tells the user the wrong thing about their own data.
+        // A 404 is answered by the "Workflow not found." screen itself; a
+        // notice on top would say the same thing twice.
+        if (describeError(error).kind === "not_found") {
+          setNotFound(true);
+          return;
+        }
+        // A cancelled request is not a failure the user needs to hear about.
+        if (isAbortError(error)) {
+          setNotFound(true);
+          return;
+        }
+        // The whole screen could not render, so the screen itself says so
+        // with its own "Try again"; a notice with a second Retry for the same
+        // failure would only repeat it. The API client has already reported
+        // any server fault.
+        setLoadFailed(true);
+      })
       .finally(() => setLoading(false));
-  }, [id, workflowType]);
+  }, [id, workflowType, reloadToken, retryLoad]);
 
   const fetchWorkflowShares = useCallback(async () => {
     const shares = await listWorkflowShares(id);
-    setWorkflowSharedWith(
-      shares.map((share) => share.shared_with_email.trim().toLowerCase()),
-    );
+    setWorkflowShares(shares);
     return shares;
   }, [id]);
 
-  const fetchWorkflowPeople = useCallback(async (): Promise<ProjectPeople> => {
-    const shares = await fetchWorkflowShares();
-    const members = await Promise.all(
-      shares.map(async (share) => {
-        const email = share.shared_with_email.trim().toLowerCase();
-        const userResult = await lookupUserByEmail(email).catch(() => null);
-        return {
-          email,
-          display_name:
-            userResult?.exists === true ? userResult.display_name : null,
-        };
-      }),
-    );
-    return {
-      owner: {
-        user_id: user?.id ?? workflow?.user_id ?? "",
-        email: user?.email ?? null,
-        display_name: profile?.displayName ?? null,
-      },
-      members,
-    };
-  }, [
-    fetchWorkflowShares,
-    profile?.displayName,
-    user?.email,
-    user?.id,
-    workflow?.user_id,
-  ]);
-
-  async function handleWorkflowSharedWithChange(nextSharedWith: string[]) {
-    const nextEmails = [
-      ...new Set(
-        nextSharedWith
-          .map((email) => email.trim().toLowerCase())
-          .filter(Boolean),
-      ),
-    ];
-    const currentShares = await listWorkflowShares(id);
-    const currentByEmail = new Map<string, WorkflowShare>();
-    for (const share of currentShares) {
-      currentByEmail.set(share.shared_with_email.trim().toLowerCase(), share);
+  /**
+   * Re-read the roster after a change the server has already accepted, and
+   * say so when that read fails instead of leaving the modal showing the
+   * roles as they were before the change.
+   */
+  const refreshShares = useCallback(async () => {
+    try {
+      await fetchWorkflowShares();
+      setShareRefreshError(null);
+    } catch (error) {
+      setShareRefreshError(
+        userFacingApiError(
+          error,
+          "The change was saved, but this list could not be reloaded. Reopen Access to see the current one.",
+        ),
+      );
     }
+  }, [fetchWorkflowShares]);
 
-    const added = nextEmails.filter((email) => !currentByEmail.has(email));
-    const removed = currentShares.filter(
-      (share) =>
-        !nextEmails.includes(share.shared_with_email.trim().toLowerCase()),
-    );
+  const fetchWorkflowAccess = useCallback(async (): Promise<ProjectPeople> => {
+    return getWorkflowPeople(id);
+  }, [id]);
 
-    await Promise.all([
-      ...removed.map((share) => deleteWorkflowShare(id, share.id)),
-      ...(added.length > 0
-        ? [shareWorkflow(id, { emails: added, allow_edit: false })]
-        : []),
-    ]);
-
-    await fetchWorkflowShares();
-  }
-
+  const retryRef = useRef<{
+    savePrompt: () => void;
+    saveColumns: () => void;
+  } | null>(null);
   // ---------------------------------------------------------------------------
   // Debounced auto-save for prompt
   // ---------------------------------------------------------------------------
+  const persistPrompt = useCallback(
+    async (newPromptMd: string) => {
+      showSaveStatus("saving");
+      try {
+        await updateWorkflow(id, { skill_md: newPromptMd });
+        showSaveStatus("saved");
+      } catch (error) {
+        // An autosave that fails silently loses the user's writing without
+        // ever saying so. One notice per workflow however many ticks fail,
+        // and "Retry" saves what is in the editor *now*, not the draft this
+        // tick happened to carry.
+        showSaveStatus("error");
+        notifyError(error, {
+          action: "save your changes",
+          dedupeKey: `workflow-autosave:${id}`,
+          onRetry: () => retryRef.current?.savePrompt(),
+        });
+      }
+    },
+    [id, showSaveStatus],
+  );
+
   const save = useCallback(
     (newPromptMd: string) => {
       if (readOnly) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      setSaveStatus("saving");
-      debounceRef.current = setTimeout(async () => {
-        try {
-          await updateWorkflow(id, { skill_md: newPromptMd });
-          setSaveStatus("saved");
-          setTimeout(() => setSaveStatus("idle"), 2000);
-        } catch {
-          setSaveStatus("idle");
-        }
+      showSaveStatus("saving");
+      debounceRef.current = setTimeout(() => {
+        void persistPrompt(newPromptMd);
       }, 800);
     },
-    [id, readOnly],
+    [persistPrompt, readOnly, showSaveStatus],
   );
 
   async function handleDeleteWorkflow() {
@@ -351,8 +395,17 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
       await deleteWorkflow(id);
       setDeleteStatus("complete");
       setTimeout(() => router.push("/workflows"), 600);
-    } catch {
+    } catch (error) {
+      // The dialog otherwise just returns to its resting state and the
+      // workflow is still there, which reads as "nothing happened".
       setDeleteStatus("idle");
+      notifyError(error, {
+        action: "delete this workflow",
+        dedupeKey: `workflow-delete:${id}`,
+        // Retry re-opens the confirmation rather than deleting from the
+        // notice: a destructive action is always confirmed.
+        onRetry: () => setDeleteOpen(true),
+      });
     }
   }
 
@@ -367,9 +420,18 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
   // ---------------------------------------------------------------------------
   async function saveColumns(next: ColumnConfig[]) {
     if (readOnly) return;
-    setSaveStatus("saving");
+    // Captured before the request: every caller sets `columns` optimistically
+    // and then calls this, so this closure still holds the pre-edit list.
+    const previous = columns;
+    lastColumnsAttemptRef.current = next;
+    // A newer column save carries this edit too (each caller builds on the
+    // list on screen) and settles the table and status itself. Letting this
+    // one roll back or report would undo or contradict it.
+    const superseded = () => lastColumnsAttemptRef.current !== next;
+    showSaveStatus("saving");
     try {
       const updated = await updateWorkflow(id, { columns_config: next });
+      if (superseded()) return;
       setWorkflow((current) => ({
         ...updated,
         open_source_submission:
@@ -377,12 +439,35 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
           current?.open_source_submission ??
           null,
       }));
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch {
-      setSaveStatus("idle");
+      showSaveStatus("saved");
+    } catch (error) {
+      if (superseded()) return;
+      // Put the table back before saying so, so the screen never shows a
+      // column layout the server never accepted.
+      setColumns(previous);
+      showSaveStatus("error");
+      notifyError(error, {
+        action: "save the columns",
+        dedupeKey: `workflow-columns:${id}`,
+        onRetry: () => retryRef.current?.saveColumns(),
+      });
     }
   }
+
+  // "Retry" re-enters the current closures (see useLatestRef): the prompt
+  // retry must save what the editor holds now, not the draft the failing
+  // tick carried.
+  useAssignLatest(retryRef, {
+    savePrompt: () => void persistPrompt(promptMdRef.current),
+    saveColumns: () => {
+      const attempted = lastColumnsAttemptRef.current;
+      if (!attempted) return;
+      // Like every other column change: show it, then save it. The failure
+      // put the old list back on screen.
+      setColumns(attempted);
+      void saveColumns(attempted);
+    },
+  });
 
   function handleColumnsAdded(added: ColumnConfig[]) {
     const next = [
@@ -394,14 +479,31 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
     setAddColumnOpen(false);
   }
 
-  function handleDeleteSelectedColumns() {
+  function deleteColumns(indices: number[]) {
+    if (readOnly) return;
     const next = columns
-      .filter((column) => !selectedColIndices.includes(column.index))
+      .filter((column) => !indices.includes(column.index))
       .map((column, index) => ({ ...column, index }));
     setColumns(next);
     saveColumns(next);
     setSelectedColIndices([]);
     setColActionsOpen(false);
+  }
+
+  function columnActions(col: ColumnConfig | undefined, indices: number[]) {
+    return {
+      onView:
+        col && indices.length === 1
+          ? () => {
+              setExpandedPromptIndex(null);
+              if (readOnly) setViewingColumn(col);
+              else setEditingColumn(col);
+            }
+          : undefined,
+      onDelete: readOnly ? undefined : () => deleteColumns(indices),
+      deleteLabel:
+        indices.length > 1 ? `Delete ${indices.length} columns` : undefined,
+    };
   }
 
   function handleColumnSaved(updated: ColumnConfig) {
@@ -435,6 +537,28 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
             <AssistantWorkflowEditorSkeleton />
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (loadFailed && !workflow) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <EmptyState
+          tone="error"
+          title="Couldn't load this workflow"
+          description="The workflow could not be loaded. It has not been changed."
+          action={
+            <PillButtonUI
+              type="button"
+              tone="black"
+              size="sm"
+              onClick={retryLoad}
+            >
+              Try again
+            </PillButtonUI>
+          }
+        />
       </div>
     );
   }
@@ -519,12 +643,41 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                 {
                   type: "custom",
                   render: (
-                    <span className="inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-sm text-gray-500">
+                    <span
+                      className={`inline-flex h-7 items-center gap-1.5 rounded-full px-3 text-sm ${
+                        saveStatus === "error"
+                          ? "text-red-600"
+                          : "text-gray-500"
+                      }`}
+                      aria-live="polite"
+                    >
                       {saveStatus === "saved" ? (
                         <Check className="h-3.5 w-3.5 text-green-600" />
                       ) : null}
-                      {saveStatus === "saving" ? "Saving…" : "Saved"}
+                      {saveStatus === "saving"
+                        ? "Saving…"
+                        : saveStatus === "error"
+                          ? "Couldn't save"
+                          : "Saved"}
                     </span>
+                  ),
+                },
+              ]
+            : [],
+          workflow.metadata.type === "assistant" &&
+          assistantTab === "assets" &&
+          !readOnly
+            ? [
+                {
+                  type: "custom",
+                  render: (
+                    <DocumentUploadMenu
+                      onSavedFiles={() => setAddSavedAssetsOpen(true)}
+                      onUploadFiles={() =>
+                        assetsRef.current?.openUploadPicker()
+                      }
+                      disabled={assetsUploading}
+                    />
                   ),
                 },
               ]
@@ -532,8 +685,11 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
           [
             canShare
               ? {
-                  onClick: () => setShareOpen(true),
-                  title: "Open workflow people",
+                  onClick: () => {
+                    setShareRefreshError(null);
+                    setShareOpen(true);
+                  },
+                  title: "Open workflow access",
                   iconOnly: true,
                   icon: <Users className="h-4 w-4" />,
                 }
@@ -562,6 +718,23 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
         onClose={() => setUseOpen(false)}
         skipSelect
       />
+      <DocumentWorkspaceScope orgId={workflow.org_id ?? null}>
+        <AddDocumentsModal
+          open={addSavedAssetsOpen}
+          onClose={() => setAddSavedAssetsOpen(false)}
+          onSelect={(documents: Document[]) => {
+            assetsRef.current?.addSavedDocuments(documents);
+            setAddSavedAssetsOpen(false);
+          }}
+          breadcrumb={[
+            "Workflows",
+            workflow.metadata.title,
+            "Assets",
+            "Add Assets",
+          ]}
+          keepMounted
+        />
+      </DocumentWorkspaceScope>
       <NewWorkflowModal
         open={detailsOpen}
         editWorkflow={workflow}
@@ -587,14 +760,51 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
         }}
       />
       {shareOpen && (
-        <PeopleModal
+        <AccessModal
           open={shareOpen}
           onClose={() => setShareOpen(false)}
-          resource={{ id, shared_with: workflowSharedWith }}
-          fetchPeople={fetchWorkflowPeople}
+          resource={{ id }}
+          fetchAccess={fetchWorkflowAccess}
           currentUserEmail={user?.email ?? null}
-          breadcrumb={["Workflows", workflow.metadata.title, "People"]}
-          onSharedWithChange={handleWorkflowSharedWithChange}
+          // Both identifiers, so a roster row without an email still cannot
+          // offer the caller a Remove that locks them out of their own row.
+          currentUserId={user?.id ?? null}
+          breadcrumb={["Workflows", workflow.metadata.title, "Access"]}
+          access={{
+            grants: workflowShares.map((share) => ({
+              email: share.shared_with_email,
+              role: share.role,
+            })),
+            orgId: workflow.org_id ?? null,
+            ownerLabel: "Workflow owners",
+            canManage: canShare,
+            visibility: workflow.visibility ?? "private",
+            error: shareRefreshError,
+            // The refresh is deliberately not part of the mutation's result:
+            // AccessModal reports a rejection as "Could not change that role"
+            // / "Could not remove access", so a failing re-read would blame
+            // the grant that actually succeeded.
+            //
+            // It is not nothing, either. `.catch(() => {})` left the list
+            // showing the roles as they were BEFORE a change the server had
+            // accepted, with no sign that the screen had stopped tracking the
+            // server — the next click would then be aimed at a row whose role
+            // is not the role it shows. The mutation still reads as a
+            // success; the stale list says it is stale.
+            onGrant: async (email, role) => {
+              await shareWorkflow(id, { emails: [email], role });
+              await refreshShares();
+            },
+            onRevoke: async (email) => {
+              const share = workflowShares.find(
+                (entry) =>
+                  entry.shared_with_email.trim().toLowerCase() ===
+                  email.trim().toLowerCase(),
+              );
+              if (share) await deleteWorkflowShare(id, share.id);
+              await refreshShares();
+            },
+          }}
         />
       )}
       <ConfirmPopup
@@ -606,6 +816,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
             : "This workflow will be permanently deleted."
         }
         confirmLabel="Delete"
+        confirmVariant="danger"
         confirmStatus={deleteStatus}
         onConfirm={() => void handleDeleteWorkflow()}
         onCancel={() => {
@@ -644,23 +855,11 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
               ]}
               active={assistantTab}
               onChange={setAssistantTab}
-              actions={
-                assistantTab === "assets" && !readOnly ? (
-                  <TabPillButton
-                    disabled={assetsUploading}
-                    onClick={() =>
-                      assetsRef.current?.openUploadPicker()
-                    }
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    {assetsUploading ? "Uploading…" : "Upload files"}
-                  </TabPillButton>
-                ) : undefined
-              }
             />
             {assistantTab === "prompt" ? (
               <div className="mx-4 mb-2 min-h-0 min-w-0 flex-1 md:mx-8 md:mb-3">
-                <WorkflowPromptEditor
+                <MarkdownEditor
+                  ariaLabel="Workflow prompt"
                   value={promptMd}
                   onChange={readOnly ? undefined : handlePromptChange}
                   readOnly={readOnly}
@@ -684,40 +883,16 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                   <div className="flex items-center gap-2">
                     {visibleColumns.length > 0 &&
                       selectedColIndices.length > 0 && (
-                        <>
-                          <div
-                            ref={colActionsRef}
-                            className="relative max-md:hidden"
-                          >
-                            <TabPillButton
-                              onClick={() => setColActionsOpen((open) => !open)}
-                            >
-                              Actions
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </TabPillButton>
-                            {colActionsOpen && (
-                              <div className={`absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-lg ${LIQUID_GLASS_FLOAT_CLASS} backdrop-blur-2xl`}>
-                                <button
-                                  onClick={handleDeleteSelectedColumns}
-                                  className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                          <TabPillButton
-                            onClick={handleDeleteSelectedColumns}
-                            className="text-red-600 md:hidden"
-                          >
-                            Delete
-                          </TabPillButton>
-                        </>
+                        <SelectionActionsMenu
+                          open={colActionsOpen}
+                          onOpenChange={setColActionsOpen}
+                          renderItems={(close) => <RowActionMenuItems onClose={close} {...columnActions(columns.find((column) => column.index === selectedColIndices[0]), selectedColIndices)} />}
+                        />
                       )}
-                    <TabPillButton onClick={() => setAddColumnOpen(true)}>
+                    <TabPillButtonUI onClick={() => setAddColumnOpen(true)}>
                       <Plus className="h-3.5 w-3.5" />
                       Add Column
-                    </TabPillButton>
+                    </TabPillButtonUI>
                   </div>
                 }
               />
@@ -746,13 +921,14 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                               selectedColIndices.length > 0 &&
                               selectedColIndices.length < visibleColumns.length;
                         }}
-                        onChange={() =>
+                        onChange={() => {
+                          columnSelectionAnchorRef.current = null;
                           setSelectedColIndices(
                             selectedColIndices.length === visibleColumns.length
                               ? []
                               : visibleColumns.map((column) => column.index),
-                          )
-                        }
+                          );
+                        }}
                         className={TABLE_CHECKBOX_CLASS}
                       />
                     ) : (
@@ -784,15 +960,14 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                     description="Add columns to define what this tabular review workflow extracts from each document."
                     action={
                       !readOnly && (
-                        <PillButton
+                        <PillButtonUI
                           tone="black"
                           size="sm"
                           onClick={() => setAddColumnOpen(true)}
-                          className="px-3"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Add Column
-                        </PillButton>
+                        </PillButtonUI>
                       )
                     }
                   />
@@ -806,7 +981,31 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                       <TableRow
                         key={col.index}
                         selected={isChecked}
-                        onClick={() => {
+                        rightClickDropdown={(close) => <RowActionMenuItems onClose={close} {...columnActions(col, isChecked ? selectedColIndices : [col.index])} />}
+                        onClick={(event) => {
+                          if (event.shiftKey) {
+                            event.preventDefault();
+                            const anchorIndex =
+                              columnSelectionAnchorRef.current;
+                            setSelectedColIndices((current) =>
+                              selectedIdsAfterRangeClick(
+                                col.index,
+                                visibleColumns.map((column) => column.index),
+                                current,
+                                anchorIndex,
+                              ),
+                            );
+                            columnSelectionAnchorRef.current = col.index;
+                            return;
+                          }
+                          if (event.ctrlKey || event.metaKey) {
+                            event.preventDefault();
+                            setSelectedColIndices((current) =>
+                              selectedIdsAfterShiftClick(col.index, current),
+                            );
+                            columnSelectionAnchorRef.current = col.index;
+                            return;
+                          }
                           setExpandedPromptIndex(null);
                           if (readOnly) setViewingColumn(col);
                           else setEditingColumn(col);
@@ -817,13 +1016,14 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                           widthClassName={NAME_COL_W}
                           selected={isChecked}
                           onSelectionChange={() =>
-                            setSelectedColIndices((previous) =>
-                              previous.includes(col.index)
+                            setSelectedColIndices((previous) => {
+                              columnSelectionAnchorRef.current = col.index;
+                              return previous.includes(col.index)
                                 ? previous.filter(
                                     (index) => index !== col.index,
                                   )
-                                : [...previous, col.index],
-                            )
+                                : [...previous, col.index];
+                            })
                           }
                           label={col.name}
                         />
@@ -872,27 +1072,12 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
                             </TRExpandedCellSurface>
                           )}
                         </TableCell>
-                        {!readOnly && (
-                          <div
-                            className="flex w-8 shrink-0 justify-end"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <RowActions
-                              onDelete={() => {
-                                const next = columns
-                                  .filter(
-                                    (column) => column.index !== col.index,
-                                  )
-                                  .map((column, index) => ({
-                                    ...column,
-                                    index,
-                                  }));
-                                setColumns(next);
-                                saveColumns(next);
-                              }}
-                            />
-                          </div>
-                        )}
+                        <div
+                          className="flex w-8 shrink-0 justify-end"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <RowActions {...columnActions(col, [col.index])} />
+                        </div>
                       </TableRow>
                     );
                   })}
@@ -950,7 +1135,7 @@ function AssistantWorkflowEditorSkeleton() {
         active="prompt"
       />
       <div className="mx-4 mb-2 min-h-0 min-w-0 flex-1 md:mx-8 md:mb-3">
-        <div className={`h-full px-5 py-4 ${LIQUID_TABLE_SURFACE_CLASS}`}>
+        <div className={`h-full px-5 py-4 ${EDITOR_SURFACE_CLASS}`}>
           <div className="space-y-3">
             <div className="h-3 w-24 animate-pulse rounded bg-gray-100" />
             <div className="h-3 w-5/6 animate-pulse rounded bg-gray-100" />

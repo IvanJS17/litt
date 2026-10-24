@@ -8,6 +8,17 @@
  * `select("*")`, no cache/retry/fallback, and every user/org/matter filter is
  * applied before `maybeSingle()`.
  *
+ * Converged tenancy (20261023): the organization membership row lives in
+ * `org_members` with the upstream three-role vocabulary (`owner`, `admin`,
+ * `member`) and no status column; the authorization epoch lives on
+ * `organizations`. The LiTT domain model keeps its own closed vocabulary, so
+ * this adapter maps the upstream content role to LiTT's: every active member
+ * of an organization-visible space has `editor` content rights (the same
+ * answer `resolveOrgContentRole` gives for `visibility = organization`), and
+ * no organization role ever yields `org_owner`/`workspace_admin` standing on
+ * content. Private matters still require explicit matter membership, where
+ * the matter role is read verbatim from `matter_memberships`.
+ *
  * Fail-closed normalization: Supabase/PostgREST joined relations arrive as
  * one object or a one-element array — only those two shapes (plus a missing
  * row) are valid. Any other relation shape, a malformed row, an out-of-range
@@ -34,6 +45,18 @@ type Db = ReturnType<typeof createServerSupabase>;
 
 /** The single constant redacted message every adapter failure throws. */
 const ADAPTER_ERROR_MESSAGE = "authorization read adapter failed";
+
+/**
+ * Upstream organization role → LiTT content role. `org_members` rows are
+ * always current (revocation deletes the row and bumps the epoch), so the
+ * domain `status` is always `active` here. See the module comment: an
+ * organization-visible space gives every member `editor` and nothing more.
+ */
+const CONTENT_ROLE_BY_ORG_ROLE: Record<string, string> = {
+  owner: "editor",
+  admin: "editor",
+  member: "editor",
+};
 
 function adapterError(): Error {
   return new Error(ADAPTER_ERROR_MESSAGE);
@@ -123,23 +146,28 @@ export function createSupabaseTenancyReadPort(db: Db): TenancyReadPort {
     ): Promise<OrganizationMembership | null> {
       const row = await maybeReadRow(() =>
         db
-          .from("organization_memberships")
+          .from("org_members")
           .select(
-            "user_id, organization_id, role, status, organizations!inner(authorization_epoch)",
+            "user_id, org_id, role, organizations!inner(authorization_epoch)",
           )
           .eq("user_id", input.user_id)
-          .eq("organization_id", input.organization_id)
+          .eq("org_id", input.organization_id)
           .maybeSingle(),
       );
       if (!row) {
         return null;
       }
       const organization = requireSingleRelation(row.organizations);
+      const orgRole = requireNonEmptyString(row.role);
+      const role = CONTENT_ROLE_BY_ORG_ROLE[orgRole];
+      if (!role) {
+        throw adapterError();
+      }
       return {
         user_id: requireNonEmptyString(row.user_id),
-        organization_id: requireNonEmptyString(row.organization_id),
-        role: requireVocabulary(row.role, ORGANIZATION_ROLES),
-        status: requireVocabulary(row.status, ORG_MEMBERSHIP_STATUSES),
+        organization_id: requireNonEmptyString(row.org_id),
+        role: requireVocabulary(role, ORGANIZATION_ROLES),
+        status: requireVocabulary("active", ORG_MEMBERSHIP_STATUSES),
         authorization_epoch: requireEpoch(organization.authorization_epoch),
       };
     },

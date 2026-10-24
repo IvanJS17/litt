@@ -10,17 +10,20 @@ type RawStreamEntry = {
   payload: unknown;
 };
 
+// These logs contain the verbatim prompt and completion — privileged client
+// content — so they are a development-only aid. Both entry points hard-refuse
+// to run under NODE_ENV=production regardless of how the env is configured.
+function rawStreamLoggingAllowed(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
 function rawStreamLogDir(): string | null {
+  if (!rawStreamLoggingAllowed()) return null;
   return process.env.RAW_LLM_STREAM_LOG_DIR?.trim() || null;
 }
 
-export function safeFilePart(value: string) {
-  const result = value.replace(/[^a-zA-Z0-9._-]+/g, "-");
-  let start = 0;
-  while (start < result.length && result[start] === "-") start += 1;
-  let end = result.length;
-  while (end > start && result[end - 1] === "-") end -= 1;
-  return result.slice(start, end);
+function safeFilePart(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
 function stringifyJson(value: unknown) {
@@ -49,6 +52,7 @@ export function logRawLlmStream(args: {
   label: string;
   payload: unknown;
 }) {
+  if (!rawStreamLoggingAllowed()) return;
   if (process.env.LOG_RAW_LLM_STREAM !== "true") return;
 
   console.log(
@@ -61,6 +65,7 @@ export function createRawLlmStreamRecorder(args: {
   provider: string;
   model: string;
 }) {
+  if (!rawStreamLoggingAllowed()) return null;
   const dir = rawStreamLogDir();
   if (!dir) return null;
   const logDir = dir;

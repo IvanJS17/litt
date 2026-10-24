@@ -1,131 +1,61 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
+import {
+    supabaseState,
+    resetSupabaseState,
+    mockSupabase,
+} from "../helpers/supabaseMock";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock fns we want to reconfigure per-test.
 // ---------------------------------------------------------------------------
-const { checkProjectAccess, deleteUserProjects } = vi.hoisted(() => ({
-    checkProjectAccess: vi.fn(),
-    deleteUserProjects: vi.fn(),
-}));
+const { checkProjectAccess, checkWorkflowAccess, deleteUserProjects, getOrgRole } = vi.hoisted(
+    () => ({
+        checkProjectAccess: vi.fn(),
+        checkWorkflowAccess: vi.fn(),
+        deleteUserProjects: vi.fn(),
+        getOrgRole: vi.fn(),
+    }),
+);
 
 // ---------------------------------------------------------------------------
-// Configurable Supabase stub — same shape as projects.routes.test.ts's, since
-// both exercise the same `app` import (which loads every router).
+// Supabase + auth stubs, shared with the other route suites via ../helpers/.
+// Every suite here mounts `app`, which loads every router, so they all need the
+// same fakes; see helpers/supabaseMock.ts for how `supabaseState` (seeded in
+// beforeEach below) drives the responses.
+//
+// `vi.mock` factories are hoisted above the imports, so they cannot close over
+// a top-level import binding — they pull the helper in dynamically instead. The
+// explicit ".js" is what TypeScript's node16 module resolution requires of a
+// dynamic (ECMAScript) import; Vite resolves it back to the .ts source, and
+// both specifiers resolve to the same module instance as the static import
+// above, so the state object the tests mutate is the one the stub reads.
 // ---------------------------------------------------------------------------
-type QueryResult = { data: unknown; error: unknown };
+vi.mock("../../lib/supabase", async () => {
+    const { mockSupabase } = await import("../helpers/supabaseMock.js");
+    return { createServerSupabase: vi.fn(() => mockSupabase()) };
+});
 
-let supabaseState: {
-    rpc: QueryResult;
-    tables: Record<string, QueryResult>;
-    inserts: { table: string; payload: unknown }[];
-};
+vi.mock("../../middleware/auth", async () => {
+    const { authMock } = await import("../helpers/authMock.js");
+    return authMock();
+});
 
-function resetSupabaseState() {
-    supabaseState = {
-        rpc: { data: [], error: null },
-        tables: {},
-        inserts: [],
-    };
-}
-resetSupabaseState();
-
-function resultForTable(table: string): QueryResult {
-    return supabaseState.tables[table] ?? { data: null, error: null };
-}
-
-function makeQuery(table: string) {
-    const q: Record<string, unknown> = {};
-    const chain = [
-    "select",
-    "update",
-    "delete",
-    "upsert",
-    "eq",
-    "neq",
-    "in",
-    "is",
-    "or",
-    "not",
-    "lt",
-    "gt",
-    "gte",
-    "lte",
-    "filter",
-    "order",
-    "limit",
-    "range",
-    "contains",
-    ];
-    for (const m of chain) q[m] = vi.fn(() => q);
-    q.insert = vi.fn((payload: unknown) => {
-        supabaseState.inserts.push({ table, payload });
-        return q;
-    });
-    q.single = vi.fn(() => Promise.resolve(resultForTable(table)));
-    q.maybeSingle = vi.fn(() => Promise.resolve(resultForTable(table)));
-  q.then = (
-    resolve: (v: unknown) => unknown,
-    reject?: (e: unknown) => unknown,
-  ) => Promise.resolve(resultForTable(table)).then(resolve, reject);
-    return q;
-}
-
-function mockSupabase() {
-    return {
-        from: vi.fn((table: string) => makeQuery(table)),
-        rpc: vi.fn(() => Promise.resolve(supabaseState.rpc)),
-        auth: {
-            getUser: () =>
-                Promise.resolve({ data: { user: { id: "u1" } }, error: null }),
-        },
-    };
-}
-
-vi.mock("../../lib/supabase", () => ({
-    createServerSupabase: vi.fn(() => mockSupabase()),
-}));
-
-vi.mock("../../middleware/auth", () => ({
-    requireAuth: (
-        _req: unknown,
-        res: { locals: Record<string, unknown> },
-        next: () => void,
-    ) => {
-        res.locals.userId = "u1";
-        res.locals.userEmail = "u1@test.local";
-        next();
-    },
-    requireMfaIfEnrolled: (_req: unknown, _res: unknown, next: () => void) =>
-        next(),
-}));
-
-vi.mock("../../lib/access", () => ({
+vi.mock("../../lib/access", async (importOriginal) => ({
+    // Pure helpers (visibility parsing) come from the real module; only the
+    // database-backed checks are stubbed.
+    ...(await importOriginal<typeof import("../../lib/access")>()),
     checkProjectAccess: (...args: unknown[]) => checkProjectAccess(...args),
-    ensureDocAccess: vi.fn(async () => ({ ok: true, isCreator: true, orgRole: null, projectRole: "owner" })),
-    ensureReviewAccess: vi.fn(async () => ({ ok: true, isCreator: true, orgRole: null, projectRole: "owner" })),
+    checkWorkflowAccess: (...args: unknown[]) => checkWorkflowAccess(...args),
+    ensureDocAccess: vi.fn(async () => ({ ok: true, isCreator: true })),
+    ensureReviewAccess: vi.fn(async () => ({ ok: true, isCreator: true })),
     filterAccessibleDocumentIds: vi.fn(async (ids: string[]) => ids),
     listAccessibleProjectIds: vi.fn(async () => []),
-    getOrgRole: vi.fn(async () => null),
-    listUserOrgIds: vi.fn(async () => []),
-    getProjectGrantRole: vi.fn(async () => null),
-    resolveContentOrgId: vi.fn(async () => ({ ok: true, orgId: null })),
-    projectHasSharedAudience: vi.fn(async () => false),
-    creatorScopedAllowed: vi.fn(() => true),
-    checkWorkflowAccess: vi.fn(async () => ({ ok: false })),
-    ensureChatAccess: vi.fn(async () => ({ ok: true, isCreator: true, orgRole: null, projectRole: "owner" })),
-    normalizeEmail: (email: unknown) =>
-        typeof email === "string" && email.trim() ? email.trim().toLowerCase() : null,
-    isOrgRole: vi.fn(() => false),
-    isOrgAdmin: vi.fn(() => false),
-    can: vi.fn(() => true),
-    isProjectRole: vi.fn(() => true),
-    ORG_ROLES: ["org_owner", "workspace_admin", "editor", "viewer", "technical_operator"],
+    getOrgRole: (...args: unknown[]) => getOrgRole(...args),
 }));
 
-vi.mock("../../lib/userDataCleanup", () => ({
+vi.mock("../../modules/user/user.dataCleanup", () => ({
     deleteUserProjects: (...args: unknown[]) => deleteUserProjects(...args),
-    deleteProjectsByIds: vi.fn(async () => 1),
     deleteAllUserChats: vi.fn(async () => {}),
     deleteAllUserTabularReviews: vi.fn(async () => {}),
     deleteUserAccountData: vi.fn(async () => {}),
@@ -139,8 +69,8 @@ vi.mock("../../lib/documentVersions", () => ({
 }));
 
 import { app } from "../../app";
-import { createServerSupabase } from "../../lib/supabase";
-import { checkWorkflowAccess } from "../../lib/access";
+import { ensureDocAccess } from "../../lib/access";
+import { createServerSupabase, type Db } from "../../lib/supabase";
 import { resetEnsuredDefaultUsersForTests } from "../../lib/workflowCatalog";
 
 const AUTH = ["Authorization", "Bearer test"] as const;
@@ -158,7 +88,7 @@ function captureRpcArgs(): { args: unknown; name: string | undefined } {
             captured.args = args;
             return originalRpc(name, args as never);
         });
-        return db as unknown as ReturnType<typeof createServerSupabase>;
+        return db as unknown as Db;
     });
     return captured;
 }
@@ -168,13 +98,51 @@ describe("workflows.routes", () => {
         vi.clearAllMocks();
         resetSupabaseState();
         resetEnsuredDefaultUsersForTests();
+        // Default: the caller belongs to no organization.
+        getOrgRole.mockResolvedValue(null);
+        checkWorkflowAccess.mockImplementation(
+            async (_workflowId: string, userId: string) => {
+                const workflow = supabaseState.tables.workflows?.data as
+                    | { id: string; user_id: string | null; org_id?: string | null }
+                    | null
+                    | undefined;
+                if (!workflow) return { ok: false };
+                const isCreator = workflow.user_id === userId;
+                if (isCreator)
+                    return {
+                        ok: true,
+                        isCreator: true,
+                        orgRole: null,
+                        projectRole: "owner",
+                        workflow,
+                    };
+                if (!workflow.org_id) return { ok: false };
+                const orgRole = await getOrgRole(userId, workflow.org_id);
+                if (!orgRole) return { ok: false };
+                return {
+                    ok: true,
+                    isCreator: false,
+                    orgRole,
+                    projectRole: orgRole === "admin" ? "owner" : "editor",
+                    workflow,
+                };
+            },
+        );
     });
 
     // ── GET /workflows (overview) ─────────────────────────────────────────
     describe("GET /workflows", () => {
         it("returns the user's installed workflows when no pagination params are present", async () => {
             supabaseState.rpc = {
-                data: [{ id: "w1", title: "My workflow" }],
+                data: [
+                    {
+                        id: "w1",
+                        title: "My workflow",
+                        org_id: "org-1",
+                        access_scope: "organization",
+                        organization_name: "Elite Law LLP",
+                    },
+                ],
                 error: null,
             };
 
@@ -188,7 +156,41 @@ describe("workflows.routes", () => {
             expect(res.body.at(-1)).toMatchObject({
                 id: "w1",
                 is_system: false,
+                org_id: "org-1",
+                access_scope: "organization",
+                organization_name: "Elite Law LLP",
                 metadata: { title: "My workflow" },
+            });
+        });
+
+        it("backfills organization access when the overview RPC is stale", async () => {
+            supabaseState.rpc = {
+                data: [{ id: "w1", title: "Firm workflow", is_owner: true }],
+                error: null,
+            };
+            supabaseState.tables.workflows = {
+                data: [{ id: "w1", org_id: "org-1" }],
+                error: null,
+            };
+            supabaseState.tables.workflow_shares = {
+                data: [],
+                error: null,
+            };
+            supabaseState.tables.organizations = {
+                data: [{ id: "org-1", name: "Elite Law LLP" }],
+                error: null,
+            };
+
+            const res = await request(app)
+                .get("/workflows?type=assistant")
+                .set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.at(-1)).toMatchObject({
+                id: "w1",
+                org_id: "org-1",
+                access_scope: "organization",
+                organization_name: "Elite Law LLP",
             });
         });
 
@@ -308,6 +310,21 @@ describe("workflows.routes", () => {
         });
     });
 
+    it("keeps instructions and tabular columns in workspace-only picker responses", async () => {
+        const workflow = { id: "w1", user_id: "u1", org_id: null, access_scope: "private", title: "Scoped template", type: "tabular", prompt_md: "Full instructions", columns_config: [{ index: 0, name: "Clause", prompt: "Find clause" }] };
+        checkWorkflowAccess.mockResolvedValue({ ok: true, workflow });
+        const overview = vi.fn(async (_name: string, args: Record<string, unknown>) => ({ data: args.p_offset === 0 ? [workflow] : [], error: null }));
+        vi.mocked(createServerSupabase).mockImplementationOnce(() => {
+            const db = mockSupabase();
+            db.rpc = vi.fn((name: string, args: Record<string, unknown>) => name === "get_workflows_overview" ? overview(name, args) : Promise.resolve({ data: null, error: null })) as typeof db.rpc;
+            return db as unknown as Db;
+        });
+        const res = await request(app).get("/workflows?workspace=personal&type=tabular").set(...AUTH);
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([expect.objectContaining({ skill_md: workflow.prompt_md, columns_config: workflow.columns_config })]);
+        expect(overview.mock.calls[0][1]).toMatchObject({ p_workspace: "personal", p_type: "tabular" });
+    });
+
     // ── GET /workflows/ids (select-all-matching support) ──────────────────
     describe("GET /workflows/ids", () => {
         it("pages through the RPC until an empty page is returned", async () => {
@@ -322,7 +339,7 @@ describe("workflows.routes", () => {
             vi.mocked(createServerSupabase).mockImplementationOnce(() => {
                 const db = mockSupabase();
                 db.rpc = rpcMock;
-                return db as unknown as ReturnType<typeof createServerSupabase>;
+                return db as unknown as Db;
             });
 
       const res = await request(app)
@@ -405,22 +422,645 @@ describe("workflows.routes", () => {
         },
         error: null,
       };
-      vi.mocked(checkWorkflowAccess).mockResolvedValueOnce({
-        ok: true,
-        isCreator: true,
-        orgRole: null,
-        projectRole: "owner",
-      } as never);
 
       const res = await request(app)
         .post("/workflows/workflow-1/assets/from-documents")
         .set(...AUTH)
         .send({ document_ids: ["document-1"] });
 
-      expect(res.status, JSON.stringify(res.body)).toBe(400);
+      expect(res.status).toBe(400);
       expect(res.body).toEqual({
         detail: "Assets are only available for assistant workflows",
       });
+    });
+  });
+
+  // ── Organization workflows ────────────────────────────────────────────
+  // Before this, org workflows were write-dead: POST hardcoded org_id null so
+  // no API call could create one, and the org arm of the list RPC reported
+  // allow_edit false so even an org admin could not change one that already
+  // existed. The only way to get an org workflow at all was the account
+  // -deletion detach path — a firm's shared workflow that nobody could make
+  // and nobody could edit.
+  describe("organization workflows", () => {
+    const create = (body: Record<string, unknown>) =>
+      request(app)
+        .post("/workflows")
+        .set(...AUTH)
+        .send({
+          metadata: { title: "Firm playbook", type: "assistant" },
+          ...body,
+        });
+
+    it("files a workflow under an organization the caller belongs to", async () => {
+      getOrgRole.mockResolvedValue("member");
+      supabaseState.tables.workflows = {
+        data: { id: "w-org", user_id: "u1", org_id: "org-1" },
+        error: null,
+      };
+
+      const res = await create({ org_id: "org-1" });
+
+      expect(res.status).toBe(201);
+      // It belongs to the organization, but is private until shared.
+      expect(res.body).toMatchObject({
+        org_id: "org-1",
+        access_scope: "private",
+        organization_name: null,
+      });
+      expect(
+        supabaseState.inserts.find((i) => i.table === "workflows")?.payload,
+      ).toMatchObject({
+        org_id: "org-1",
+        user_id: "u1",
+        visibility: "private",
+      });
+    });
+
+    it("opens a new organization workflow to everyone when asked", async () => {
+      getOrgRole.mockResolvedValue("member");
+      supabaseState.tables.workflows = {
+        data: {
+          id: "w-org",
+          user_id: "u1",
+          org_id: "org-1",
+          visibility: "organization",
+        },
+        error: null,
+      };
+
+      const res = await create({ org_id: "org-1", visibility: "organization" });
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({ access_scope: "organization" });
+      expect(
+        supabaseState.inserts.find((i) => i.table === "workflows")?.payload,
+      ).toMatchObject({ visibility: "organization" });
+    });
+
+    it("400s an attempt to open a personal workflow to an organization", async () => {
+      const res = await create({ visibility: "organization" });
+
+      expect(res.status).toBe(400);
+      expect(supabaseState.inserts).toEqual([]);
+    });
+
+    it("400s an org the caller does not belong to, and writes nothing", async () => {
+      getOrgRole.mockResolvedValue(null);
+
+      const res = await create({ org_id: "org-elsewhere" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.detail).toBe(
+        "You are not a member of that organization.",
+      );
+      expect(supabaseState.inserts).toEqual([]);
+    });
+
+    it("keeps a workflow personal when no org is named", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w1", user_id: "u1", org_id: null },
+        error: null,
+      };
+
+      const res = await create({});
+
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({
+        org_id: null,
+        access_scope: "private",
+        organization_name: null,
+      });
+      expect(
+        supabaseState.inserts.find((i) => i.table === "workflows")?.payload,
+      ).toMatchObject({ org_id: null });
+    });
+
+    it("lets a colleague in the same org edit an org workflow", async () => {
+      // The workflow belongs to the organization, not to whoever drafted it.
+      // Both org roles sit at member or above on the ladder, where editing
+      // content is a member capability.
+      supabaseState.tables.workflows = {
+        data: {
+          id: "w-org",
+          user_id: "someone-else",
+          org_id: "org-1",
+          title: "Firm playbook",
+        },
+        error: null,
+      };
+      supabaseState.tables.workflow_shares = { data: null, error: null };
+      getOrgRole.mockResolvedValue("member");
+
+      const res = await request(app)
+        .patch("/workflows/w-org")
+        .set(...AUTH)
+        .send({ metadata: { title: "Firm playbook v2" } });
+
+      expect(res.status).toBe(200);
+      // Editable, but not owned: share and delete stay with the creator.
+      expect(res.body.allow_edit).toBe(true);
+      expect(res.body.is_owner).toBe(false);
+    });
+
+    it("still refuses an org workflow to somebody outside the org", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w-org", user_id: "someone-else", org_id: "org-1" },
+        error: null,
+      };
+      supabaseState.tables.workflow_shares = { data: null, error: null };
+      getOrgRole.mockResolvedValue(null);
+
+      const res = await request(app)
+        .patch("/workflows/w-org")
+        .set(...AUTH)
+        .send({ metadata: { title: "Nope" } });
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("workflow direct grants", () => {
+    it("rejects a personal grant for an email that has not registered", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w-personal", user_id: "u1", org_id: null },
+        error: null,
+      };
+      supabaseState.tables.user_profiles = { data: [], error: null };
+
+      const res = await request(app)
+        .post("/workflows/w-personal/share")
+        .set(...AUTH)
+        .send({ emails: ["future@firm.test"], role: "viewer" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.detail).toBe(
+        "future@firm.test does not belong to a LiTT user.",
+      );
+    });
+
+    it("stores a personal grant for an existing user", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w-personal", user_id: "u1", org_id: null },
+        error: null,
+      };
+      supabaseState.tables.user_profiles = {
+        data: [{ email: "colleague@firm.test" }],
+        error: null,
+      };
+      supabaseState.tables.workflow_shares = { data: null, error: null };
+
+      const res = await request(app)
+        .post("/workflows/w-personal/share")
+        .set(...AUTH)
+        .send({ emails: ["colleague@firm.test"], role: "editor" });
+
+      expect(res.status).toBe(204);
+    });
+
+    // Revoking used to fire the delete and ignore its result: a failed
+    // delete and an unknown share id both answered 204, so the client
+    // dropped the row from the list while the person kept access.
+    describe("DELETE /workflows/:workflowId/shares/:shareId", () => {
+      beforeEach(() => {
+        supabaseState.tables.workflows = {
+          data: { id: "w-personal", user_id: "u1", org_id: null },
+          error: null,
+        };
+      });
+
+      it("returns 204 when a row was actually removed", async () => {
+        supabaseState.tables.workflow_shares = {
+          data: [{ id: "s1" }],
+          error: null,
+        };
+
+        const res = await request(app)
+          .delete("/workflows/w-personal/shares/s1")
+          .set(...AUTH);
+
+        expect(res.status).toBe(204);
+      });
+
+      it("returns 404 when the share id matched nothing", async () => {
+        supabaseState.tables.workflow_shares = { data: [], error: null };
+
+        const res = await request(app)
+          .delete("/workflows/w-personal/shares/s-unknown")
+          .set(...AUTH);
+
+        expect(res.status).toBe(404);
+        expect(res.body.detail).toBe("Access grant not found");
+      });
+
+      it("reports a failed delete instead of a false 204", async () => {
+        supabaseState.tables.workflow_shares = {
+          data: null,
+          error: { message: "boom" },
+        };
+
+        const res = await request(app)
+          .delete("/workflows/w-personal/shares/s1")
+          .set(...AUTH);
+
+        expect(res.status).toBe(500);
+        expect(res.body.detail).toBe("Something went wrong. Please try again.");
+      });
+    });
+
+    // ── organization overrides are written as ONE statement ─────────────
+    // The loop used to validate and write one email at a time, so a bad
+    // third address returned 400 with the first two overrides already
+    // persisted: the caller read "nothing happened" while access had
+    // silently changed for two people. Validation now completes first, and
+    // the write is a single bulk upsert so a trigger refusal rolls the whole
+    // batch back rather than stopping half way.
+    function orgShareDb(options: { upsertError?: string } = {}) {
+      const upserts: { payload: unknown; options: unknown }[] = [];
+      const build = (resolve: (filters: Record<string, unknown>) => unknown) => {
+        const filters: Record<string, unknown> = {};
+        const b: Record<string, unknown> = {};
+        for (const method of ["select", "order", "limit", "in", "is"])
+          b[method] = () => b;
+        b.eq = (column: string, value: unknown) => {
+          filters[column] = value;
+          return b;
+        };
+        b.upsert = (payload: unknown, upsertOptions?: unknown) => {
+          upserts.push({ payload, options: upsertOptions });
+          return b;
+        };
+        const settle = () => ({
+          data: resolve(filters),
+          error:
+            upserts.length && options.upsertError
+              ? { message: options.upsertError }
+              : null,
+        });
+        b.single = () => Promise.resolve(settle());
+        b.maybeSingle = b.single;
+        b.then = (onResolve: (v: unknown) => unknown) =>
+          Promise.resolve(settle()).then(onResolve);
+        return b;
+      };
+      const db = {
+        from: (table: string) => {
+          if (table === "workflows")
+            return build(() => ({
+              id: "w-org",
+              user_id: "u1",
+              org_id: "org-1",
+            }));
+          if (table === "user_profiles")
+            return build((filters) => {
+              const email = String(filters.email ?? "");
+              return email
+                ? { user_id: `u-${email.split("@")[0]}`, email }
+                : null;
+            });
+          if (table === "org_members")
+            return build((filters) =>
+              // The third address belongs to a real user who is not in this
+              // organization.
+              filters.user_id === "u-third"
+                ? null
+                : { user_id: filters.user_id, role: "member" },
+            );
+          return build(() => null);
+        },
+        rpc: () => Promise.resolve({ data: null, error: null }),
+        auth: {
+          getUser: () =>
+            Promise.resolve({ data: { user: { id: "u1" } }, error: null }),
+        },
+      } as unknown as ReturnType<typeof createServerSupabase>;
+      return { db, upserts };
+    }
+
+    function shareOrgWorkflow(emails: string[]) {
+      supabaseState.tables.workflows = {
+        data: { id: "w-org", user_id: "u1", org_id: "org-1" },
+        error: null,
+      };
+      return request(app)
+        .post("/workflows/w-org/share")
+        .set(...AUTH)
+        .send({ emails, role: "viewer" });
+    }
+
+    it("writes no org override when a later email in the batch is invalid", async () => {
+      const { db, upserts } = orgShareDb();
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => db);
+
+      const res = await shareOrgWorkflow([
+        "first@firm.test",
+        "second@firm.test",
+        "third@firm.test",
+      ]);
+
+      // SOFT, both of them: "nothing was written" is the claim that matters,
+      // and a plain assertion on the status would abandon the run before it
+      // was ever checked — so a regression that wrote the first two rows AND
+      // changed the status code would have been reported as a status bug.
+      expect.soft(res.status).toBe(400);
+      expect.soft(upserts).toEqual([]);
+    });
+
+    it("writes the whole batch in exactly one upsert", async () => {
+      // One statement, so a trigger refusal on any row rolls back the rest.
+      // Three separate upserts would be three separate transactions.
+      const { db, upserts } = orgShareDb();
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => db);
+
+      const res = await shareOrgWorkflow([
+        "first@firm.test",
+        "second@firm.test",
+      ]);
+
+      expect(res.status).toBe(204);
+      expect(upserts).toHaveLength(1);
+      expect(upserts[0].payload).toEqual([
+        expect.objectContaining({
+          workflow_id: "w-org",
+          org_id: "org-1",
+          user_id: "u-first",
+          role: "viewer",
+          assigned_by: "u1",
+        }),
+        expect.objectContaining({
+          workflow_id: "w-org",
+          org_id: "org-1",
+          user_id: "u-second",
+          role: "viewer",
+          assigned_by: "u1",
+        }),
+      ]);
+      // Upsert, not insert: re-sharing with somebody who already has an
+      // override must change their role rather than fail on the key.
+      expect(upserts[0].options).toEqual({
+        onConflict: "workflow_id,user_id",
+      });
+    });
+
+    it("answers 500 and writes nothing when the bulk upsert is refused", async () => {
+      // The org-membership triggers can still refuse a row after validation
+      // passed. That is a database failure, not a bad request, and the whole
+      // statement rolls back.
+      const { db, upserts } = orgShareDb({
+        upsertError: "org_members_protect_last_owner",
+      });
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => db);
+
+      const res = await shareOrgWorkflow([
+        "first@firm.test",
+        "second@firm.test",
+      ]);
+
+      expect.soft(res.status).toBe(500);
+      expect.soft(res.body.detail).toBe(
+        "Something went wrong. Please try again.",
+      );
+      // One attempt, all-or-nothing — not two rows written and a third
+      // refused.
+      expect.soft(upserts).toHaveLength(1);
+    });
+  });
+
+  describe("organization workflow Owner operations", () => {
+    const detached = {
+      id: "w-orphan",
+      user_id: null,
+      org_id: "org-1",
+      title: "Orphaned firm playbook",
+    };
+
+    function captureWorkflowQueries() {
+      const queries: { table: string; q: Record<string, unknown> }[] = [];
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => {
+        const db = mockSupabase();
+        const originalFrom = db.from;
+        db.from = vi.fn((table: string) => {
+          const q = originalFrom(table);
+          queries.push({ table, q: q as Record<string, unknown> });
+          return q;
+        });
+        return db as unknown as ReturnType<typeof createServerSupabase>;
+      });
+      return queries;
+    }
+
+    it("lets an org admin delete a workflow whose creator's account is gone", async () => {
+      supabaseState.tables.workflows = { data: detached, error: null };
+      supabaseState.tables.workflow_reference_documents = {
+        data: [],
+        error: null,
+      };
+      getOrgRole.mockResolvedValue("admin");
+      const queries = captureWorkflowQueries();
+
+      const res = await request(app)
+        .delete("/workflows/w-orphan")
+        .set(...AUTH);
+
+      expect(res.status).toBe(204);
+      expect(getOrgRole).toHaveBeenCalledWith("u1", "org-1");
+      // The delete must be keyed by id alone: nothing can match a NULL
+      // creator, so any user_id filter would turn this into a silent no-op.
+      for (const { table, q } of queries) {
+        if (table !== "workflows") continue;
+        const eq = q.eq as ReturnType<typeof vi.fn>;
+        const columns = eq.mock.calls.map((c) => c[0]);
+        expect(columns).not.toContain("user_id");
+      }
+    });
+
+    it("does not extend Owner operations to org Members", async () => {
+      supabaseState.tables.workflows = { data: detached, error: null };
+      getOrgRole.mockResolvedValue("member");
+
+      const res = await request(app)
+        .delete("/workflows/w-orphan")
+        .set(...AUTH);
+
+      expect(res.status).toBe(404);
+    });
+
+    it("lets an org Admin manage a workflow with a living creator", async () => {
+      supabaseState.tables.workflows = {
+        data: { ...detached, user_id: "someone-else" },
+        error: null,
+      };
+      getOrgRole.mockResolvedValue("admin");
+
+      const res = await request(app)
+        .delete("/workflows/w-orphan")
+        .set(...AUTH);
+
+      expect(res.status).toBe(204);
+    });
+
+    it("applies the same Owner rule to the sharing surface", async () => {
+      supabaseState.tables.workflows = { data: detached, error: null };
+      supabaseState.tables.workflow_shares = { data: [], error: null };
+      getOrgRole.mockResolvedValue("admin");
+
+      const res = await request(app)
+        .get("/workflows/w-orphan/shares")
+        .set(...AUTH);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([]);
+    });
+
+    it("keeps the sharing surface closed to org members", async () => {
+      supabaseState.tables.workflows = { data: detached, error: null };
+      getOrgRole.mockResolvedValue("member");
+
+      const res = await request(app)
+        .get("/workflows/w-orphan/shares")
+        .set(...AUTH);
+
+      expect(res.status).toBe(404);
+    });
+  });
+  // ── POST /workflows/:workflowId/assets/from-documents ─────────────────
+  // ensureDocAccess resolves a document through its project, then its
+  // workflow, then its ORG. A row selected without org_id therefore looks
+  // container-less and is refused — so every organization-library file was
+  // unattachable, answering "One or more files could not be found" for a
+  // file the caller is looking straight at.
+  describe("POST /workflows/:workflowId/assets/from-documents", () => {
+    const DOC_ID = "55555555-5555-4555-8555-555555555555";
+
+    /**
+     * PROJECTS the row to the columns the caller selected, which is what
+     * makes a missing column in the select string observable at all. The
+     * shared stub hands back whole rows regardless of `.select()`, so under
+     * it this bug is invisible.
+     */
+    function projectingDb(row: Record<string, unknown>) {
+      const selects: Record<string, string> = {};
+      const build = (table: string, resolve: () => unknown) => {
+        let columns = "*";
+        const b: Record<string, unknown> = {};
+        for (const method of ["eq", "in", "is", "order", "limit"])
+          b[method] = () => b;
+        b.select = (value?: string) => {
+          columns = value ?? "*";
+          selects[table] = columns;
+          return b;
+        };
+        const project = (value: unknown) => {
+          if (columns === "*" || !value || typeof value !== "object")
+            return value;
+          const wanted = columns.split(",").map((column) => column.trim());
+          return Object.fromEntries(
+            Object.entries(value as Record<string, unknown>).filter(
+              ([column]) => wanted.includes(column),
+            ),
+          );
+        };
+        const settle = () => {
+          const value = resolve();
+          return {
+            data: Array.isArray(value) ? value.map(project) : project(value),
+            error: null,
+          };
+        };
+        b.single = () => Promise.resolve(settle());
+        b.maybeSingle = b.single;
+        b.then = (onResolve: (v: unknown) => unknown) =>
+          Promise.resolve(settle()).then(onResolve);
+        return b;
+      };
+      const db = {
+        from: (table: string) => {
+          if (table === "workflows")
+            return build(table, () => ({
+              id: "w-org",
+              user_id: "u1",
+              org_id: "org-1",
+              type: "assistant",
+            }));
+          if (table === "documents") return build(table, () => [row]);
+          return build(table, () => []);
+        },
+        rpc: () => Promise.resolve({ data: null, error: null }),
+        auth: {
+          getUser: () =>
+            Promise.resolve({ data: { user: { id: "u1" } }, error: null }),
+        },
+      } as unknown as ReturnType<typeof createServerSupabase>;
+      return { db, selects };
+    }
+
+    it("selects org_id, so an org-library file attaches", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w-org", user_id: "u1", org_id: "org-1", type: "assistant" },
+        error: null,
+      };
+      // Mirrors the real fall-through: a row with no project, no workflow and
+      // no org has no container to grant access, so it is refused.
+      vi.mocked(ensureDocAccess).mockImplementation(
+        (async (document: unknown) => ({
+          ok: Boolean(
+            (document as Record<string, unknown>).project_id ??
+              (document as Record<string, unknown>).workflow_id ??
+              (document as Record<string, unknown>).org_id,
+          ),
+        })) as unknown as typeof ensureDocAccess,
+      );
+      const { db, selects } = projectingDb({
+        id: DOC_ID,
+        user_id: "u2",
+        project_id: null,
+        workflow_id: null,
+        // Filed straight in the organization's library.
+        org_id: "org-1",
+        current_version_id: null,
+      });
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => db);
+
+      const res = await request(app)
+        .post("/workflows/w-org/assets/from-documents")
+        .set(...AUTH)
+        .send({ document_ids: [DOC_ID] });
+
+      // Past the access gate. (409 because the fixture has no ready version,
+      // which is a later guard entirely — the point is that it is no longer
+      // "could not be found".)
+      expect(res.status).toBe(409);
+      expect(res.body.detail).toBe("One or more files are not ready");
+      expect(selects.documents).toContain("org_id");
+      expect(selects.documents).toContain("workflow_id");
+    });
+
+    it("refuses a file from another workspace, however readable", async () => {
+      supabaseState.tables.workflows = {
+        data: { id: "w-org", user_id: "u1", org_id: "org-1", type: "assistant" },
+        error: null,
+      };
+      vi.mocked(ensureDocAccess).mockResolvedValue({
+        ok: true,
+      } as unknown as Awaited<ReturnType<typeof ensureDocAccess>>);
+      const { db } = projectingDb({
+        id: DOC_ID,
+        user_id: "u1",
+        project_id: null,
+        workflow_id: null,
+        // The caller's own, filed in Personal.
+        org_id: null,
+        current_version_id: "v1",
+      });
+      vi.mocked(createServerSupabase).mockImplementationOnce(() => db);
+
+      const res = await request(app)
+        .post("/workflows/w-org/assets/from-documents")
+        .set(...AUTH)
+        .send({ document_ids: [DOC_ID] });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("document_workspace_mismatch");
     });
   });
 });

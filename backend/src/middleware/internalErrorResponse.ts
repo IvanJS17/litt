@@ -51,6 +51,10 @@ export function protectInternalErrorResponses(
       return originalJson(publicBody);
     }
 
+    // A handler wrote its own 5xx body instead of going through
+    // sendInternalError: still a server failure, still logged. The detail is
+    // the developer's message (never shown to the client), so it is the best
+    // label we have.
     console.error("[http/sanitized-internal-error]", {
       requestId,
       method: req.method,

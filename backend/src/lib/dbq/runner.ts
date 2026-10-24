@@ -14,6 +14,7 @@
 // backend replicas partition the work safely.
 
 import { createServerSupabase } from "../supabase";
+import { jobErrorMessage } from "./jobError";
 import { deleteFile } from "../storage";
 import { enqueueAppJobDelivery } from "../queue/appJobsQueue";
 import { redisEnabled } from "./driver";
@@ -23,6 +24,11 @@ import {
     type DbJob,
     type DbJobHandlers,
 } from "./types";
+import {
+    createPollFailureGate,
+    type PollFailureGate,
+} from "../observability/pollFailureGate";
+import { asReportableError } from "../httpError";
 
 /**
  * Poll cadence depends on the driver: with Redis configured, BullMQ delivers
@@ -35,14 +41,38 @@ function pollMs(): number {
     if (Number.isFinite(raw) && raw >= 250) return raw;
     return redisEnabled() ? 60_000 : 5_000;
 }
+/** Ceiling for the claim interval while every claim keeps failing. */
+const CLAIM_MAX_BACKOFF_MS = 60_000;
+
+/**
+ * The claim fails identically on every tick while its cause lasts (RPC
+ * missing because migrations were not applied, database unreachable). One
+ * report per failure class, quiet repeats with a once-a-minute count, and a
+ * backed-off poll — reporting every tick filed 1,167 events plus 1,227
+ * console duplicates from one worker thread (MIKE-BACKEND-P / -3).
+ */
+export function createDbJobClaimGate(): PollFailureGate {
+    return createPollFailureGate({
+        label: "[dbq] claim",
+        baseDelayMs: pollMs,
+        maxDelayMs: CLAIM_MAX_BACKOFF_MS,
+    });
+}
+const defaultClaimGate = createDbJobClaimGate();
+
 const CLAIM_BATCH = 5;
-/** A "running" job whose claim is older than this is presumed crashed. */
-const STALE_SECONDS = 600;
+/**
+ * A "running" job whose claim is older than this is presumed crashed.
+ * Exported because a handler that claims sibling rows of its own kind (the
+ * document.cleanup coalescer) has to use the same stale threshold this loop
+ * does, or the two disagree about who owns a row.
+ */
+export const STALE_SECONDS = 600;
 /** Retention: how long finished rows are kept for inspection. */
 const DONE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
-const RETRY_UNTIL_SUCCESS_KINDS = new Set(["storage.cleanup"]);
+const RETRY_UNTIL_SUCCESS_KINDS = new Set(["storage.cleanup", "document.cleanup"]);
 
 /**
  * Exponential backoff for retries: 30s, 90s, 270s, ... capped at 30 min.
@@ -62,13 +92,32 @@ export function retryDelayMs(attempts: number): number {
  * contained: the row still lands in "failed" for inspection.
  */
 export type DbJobFailureHook = (db: Db, job: DbJob) => Promise<void>;
-export const DB_JOB_FAILURE_HOOKS: Record<string, DbJobFailureHook> = {};
+
+
+/**
+ * "Retrying cannot fix this." A handler throws it when the job is refused by
+ * a rule, not defeated by a transient fault — and the state machine skips
+ * straight to `failed`, the same way an unknown kind does.
+ *
+ * The retry budget is for flaky networks and busy databases. Spending 20
+ * attempts over hours on a job the domain will refuse identically every time
+ * (account deletion for the only owner of an organization that still has
+ * members) buries the real reason under a wall of repeats and leaves the
+ * user's request in limbo far longer than it needs to be.
+ */
+export class NonRetryableJobError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "NonRetryableJobError";
+    }
+}
 
 /**
  * Run one claimed job through its handler and persist the outcome:
  *   handler resolves        -> done (+ optional result)
  *   handler throws, retries -> pending again with run_at pushed back
  *   handler throws, spent   -> failed (terminal, kept for inspection)
+ *   handler throws NonRetryableJobError -> failed immediately
  *   unknown kind            -> failed immediately (retrying can't fix it)
  * Exported for unit tests; the poll loop below is just claim + fan-in.
  */
@@ -76,6 +125,7 @@ export async function processClaimedJob(
     db: Db,
     handlers: DbJobHandlers,
     job: DbJob,
+    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
 ): Promise<void> {
     /**
      * FENCING TOKEN. Every write below is addressed to "the job as THIS claim
@@ -112,7 +162,13 @@ export async function processClaimedJob(
                 last_error: `unknown job kind: ${job.kind}`,
             }),
         );
-        console.error("[dbq] unknown job kind", { id: job.id, kind: job.kind });
+        const unknownKind = new Error(`Unknown db_jobs kind: ${job.kind}`);
+        // Carry the Error object so the log keeps its stack and the job ids.
+        console.error("[dbq] unknown job kind", {
+            id: job.id,
+            kind: job.kind,
+            error: unknownKind,
+        });
         return;
     }
 
@@ -128,17 +184,19 @@ export async function processClaimedJob(
             }),
         );
     } catch (err) {
-        const message =
-            err instanceof Error ? err.message : String(err ?? "unknown");
+        const message = jobErrorMessage(err);
         // Destructive memory operations remove version metadata only after a
         // cleanup job owns the object path. That job is the last durable
         // pointer, so storage cleanup must retry until success rather than
         // becoming a finite-attempt failed row that a later sweep can erase.
+        // A NonRetryableJobError is the handler saying the job can never
+        // succeed, which wins over both the retry budget and retry-until-success.
         const deferred = err instanceof DbJobDeferredError;
         const spent =
-            !deferred &&
-            job.attempts >= job.max_attempts &&
-            !retryUntilSuccess;
+            err instanceof NonRetryableJobError ||
+            (!deferred &&
+                job.attempts >= job.max_attempts &&
+                !retryUntilSuccess);
         const deferredAt = deferred ? Date.parse(err.runAt) : Number.NaN;
         const delayMs = deferred
             ? Math.max(
@@ -171,7 +229,7 @@ export async function processClaimedJob(
             ),
         );
         if (spent) {
-            const hook = DB_JOB_FAILURE_HOOKS[job.kind];
+            const hook = failureHooks[job.kind];
             if (hook) {
                 try {
                     await hook(db, job);
@@ -201,14 +259,28 @@ export async function processClaimedJob(
                 );
             }
         }
-        console.error(
-            deferred
-                ? "[dbq] job deferred"
-                : spent
-                  ? "[dbq] job permanently failed"
-                  : "[dbq] job failed; will retry",
-            { id: job.id, kind: job.kind, attempts: job.attempts, message },
-        );
+        // Every failed attempt is logged — a bug shows up on attempt one,
+        // not after the backoff ladder has burned an hour. A deferral is the
+        // handler asking to run later, not a failure, so it is logged at info
+        // level and never at error level.
+        // A handler can reject with a PostgREST plain object: give it a stack
+        // and keep its code on the cause chain (failure_code), as the claim
+        // path does. Errors pass through unchanged.
+        const reportable = asReportableError(err, processClaimedJob);
+        const summary = { id: job.id, kind: job.kind, attempts: job.attempts, message };
+        if (deferred) {
+            // Not a failure: console.error is reserved for real ones.
+            console.log("[dbq] job deferred", summary);
+        } else {
+            // The Error object, not a message string: the log keeps the
+            // stack, the PostgREST code and the job ids together.
+            console.error(
+                spent
+                    ? "[dbq] job permanently failed"
+                    : "[dbq] job failed; will retry",
+                { ...summary, error: reportable },
+            );
+        }
     }
 }
 
@@ -216,6 +288,8 @@ export async function processClaimedJob(
 export async function runDbJobTick(
     db: Db,
     handlers: DbJobHandlers,
+    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
+    claimGate: PollFailureGate = defaultClaimGate,
 ): Promise<number> {
     const { data, error } = await db.rpc("claim_db_jobs", {
         p_limit: CLAIM_BATCH,
@@ -223,15 +297,25 @@ export async function runDbJobTick(
     });
     if (error) {
         // Table/function missing (migration not applied yet) or transient DB
-        // trouble: log and try again next tick — never crash the server.
-        console.error("[dbq] claim failed", error.message);
+        // trouble: log and try again later — never crash the server.
+        //
+        // asReportableError keeps the PostgREST object as the cause, so its
+        // `code` (PGRST202 = RPC missing) reaches failure_code and the log
+        // line says why; re-wrapping `error.message` in a new Error lost it.
+        const failure = asReportableError(error, runDbJobTick);
+        if (claimGate.failure(failure).report) {
+            // The Error object, not a string: the log keeps the stack and the
+            // PostgREST code on its cause chain.
+            console.error("[dbq] claim failed", failure);
+        }
         return 0;
     }
+    claimGate.success();
     const jobs = (data ?? []) as DbJob[];
     // allSettled defensively: processClaimedJob handles its own errors, but
     // one job's unexpected rejection must never abandon the rest of a batch.
     await Promise.allSettled(
-        jobs.map((job) => processClaimedJob(db, handlers, job)),
+        jobs.map((job) => processClaimedJob(db, handlers, job, failureHooks)),
     );
     return jobs.length;
 }
@@ -301,7 +385,17 @@ export async function runDbJobRetentionSweep(
         .delete()
         .eq("status", "failed")
         .neq("kind", "storage.cleanup")
+        .neq("kind", "document.cleanup")
         .lt("finished_at", failedCutoff);
+
+    // 3. Curator receipts. memory_consolidation_results rows exist so a
+    //    retried memory.consolidate job applies each scope once; they are
+    //    useless after the job row itself has been swept, and nothing else
+    //    deletes them.
+    await db
+        .from("memory_consolidation_results")
+        .delete()
+        .lt("created_at", doneCutoff);
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -316,7 +410,7 @@ export function dbJobsEnabled(): boolean {
  * Start the poll loop (idempotent). Ticks never overlap: a tick that is
  * still running when the next interval fires simply skips that interval.
  */
-export function startDbJobRunner(handlers: DbJobHandlers): void {
+export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly<Record<string, DbJobFailureHook>> = {}): void {
     if (!dbJobsEnabled()) {
         console.log("[dbq] disabled via DB_JOBS_ENABLED=false");
         return;
@@ -325,9 +419,13 @@ export function startDbJobRunner(handlers: DbJobHandlers): void {
     const db = createServerSupabase();
 
     const tick = () => {
-        if (inFlight) return;
-        inFlight = runDbJobTick(db, handlers)
-            .catch((err) => console.error("[dbq] tick failed", err))
+        // While claims keep failing, skip ticks until the backed-off retry
+        // time instead of hitting the broken dependency every interval.
+        if (inFlight || !defaultClaimGate.ready()) return;
+        inFlight = runDbJobTick(db, handlers, failureHooks)
+            .catch((err) => {
+                console.error("[dbq] tick failed", err);
+            })
             .finally(() => {
                 inFlight = null;
             });
@@ -339,9 +437,9 @@ export function startDbJobRunner(handlers: DbJobHandlers): void {
     setTimeout(tick, 1_000).unref();
 
     const sweep = () =>
-        void runDbJobRetentionSweep(db).catch((err) =>
-            console.error("[dbq] retention sweep failed", err),
-        );
+        void runDbJobRetentionSweep(db).catch((err) => {
+            console.error("[dbq] retention sweep failed", err);
+        });
     sweepTimer = setInterval(sweep, SWEEP_EVERY_MS);
     sweepTimer.unref();
     setTimeout(sweep, 60_000).unref();

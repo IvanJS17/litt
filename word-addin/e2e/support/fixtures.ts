@@ -63,6 +63,11 @@ interface ChatStreamOpts {
   deferred?: boolean;
   /** Stable chat identity emitted in the leading `chat_id` SSE event. */
   chatId?: string;
+  /**
+   * The server-owned run this turn belongs to, emitted in the same `chat_id`
+   * event. It is what the pane stops and what it reattaches to.
+   */
+  turnId?: string;
   /** Stable assistant-message UUID used to persist Word edit anchors. */
   assistantMessageId?: string;
   /** Emit model-triggered read start/completion frames before answer content. */
@@ -158,9 +163,35 @@ export interface Addin {
     status: number,
     message?: string,
   ): Promise<void>;
+  /** Mock a successful direct-upload session for one standalone document. */
+  mockStandaloneDocumentUpload(document: Record<string, unknown>): Promise<void>;
 }
 
 export const test = base.extend<{ addin: Addin }>({
+  page: async ({ page, browserName }, use) => {
+    if (process.env.REACT_STRESS !== "1") {
+      await use(page);
+      return;
+    }
+
+    // Apply the same scheduler pressure to every UI flow, including error and
+    // recovery paths. Those paths intentionally log other errors, so match the
+    // feedback-loop diagnostics specifically instead of suppressing all logs.
+    const diagnostics: string[] = [];
+    const record = (message: string) => {
+      if (/maximum update depth|too many re-renders|getSnapshot.*cached|ResizeObserver loop/i.test(message)) {
+        diagnostics.push(message);
+      }
+    };
+    page.on("console", (message) => record(message.text()));
+    page.on("pageerror", (error) => record(error.message));
+    if (browserName === "chromium") {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    }
+    await use(page);
+    expect(diagnostics, "React/observer feedback-loop diagnostics").toEqual([]);
+  },
   addin: async ({ page }, use) => {
     let seed: OfficeSeed = {};
 
@@ -634,10 +665,11 @@ export const test = base.extend<{ addin: Addin }>({
           }
           if (opts?.deferred) await responseGate;
           let body = "";
-          if (opts?.chatId || opts?.assistantMessageId) {
+          if (opts?.chatId || opts?.turnId || opts?.assistantMessageId) {
             body += `data: ${JSON.stringify({
               type: "chat_id",
               ...(opts.chatId ? { chatId: opts.chatId } : {}),
+              ...(opts.turnId ? { turnId: opts.turnId } : {}),
               ...(opts.assistantMessageId
                 ? { assistantMessageId: opts.assistantMessageId }
                 : {}),
@@ -700,6 +732,90 @@ export const test = base.extend<{ addin: Addin }>({
       async mockApiError(method, urlGlob, status, message) {
         await routeJson(method, urlGlob, status, {
           error: message ?? `${status} error`,
+        });
+      },
+
+      async mockStandaloneDocumentUpload(document) {
+        const sessionId = "e2e-upload-session";
+        let clientId = "e2e-upload-file";
+        let filename = String(document.filename ?? "document.pdf");
+
+        await page.route("**/upload-sessions", async (route, request) => {
+          if (request.method() !== "POST") return route.fallback();
+          const body = request.postDataJSON() as {
+            files?: Array<{ client_id?: string; filename?: string }>;
+          };
+          clientId = body.files?.[0]?.client_id ?? clientId;
+          filename = body.files?.[0]?.filename ?? filename;
+          return route.fulfill({
+            status: 201,
+            contentType: "application/json",
+            body: JSON.stringify({
+              session: { id: sessionId, status: "pending_upload" },
+              files: [
+                {
+                  id: clientId,
+                  client_id: clientId,
+                  filename,
+                  status: "pending_upload",
+                  error_code: null,
+                  result: null,
+                  upload: {
+                    method: "PUT",
+                    url: `https://storage.test/${clientId}`,
+                    headers: {},
+                  },
+                },
+              ],
+            }),
+          });
+        });
+        await page.route("https://storage.test/**", (route, request) => {
+          if (request.method() !== "PUT") return route.fallback();
+          return route.fulfill({ status: 200, body: "" });
+        });
+        await page.route(
+          `**/upload-sessions/${sessionId}/files/*/complete`,
+          (route, request) => {
+            if (request.method() !== "POST") return route.fallback();
+            return route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({
+                session: { id: sessionId, status: "processing" },
+                files: [
+                  {
+                    id: clientId,
+                    client_id: clientId,
+                    filename,
+                    status: "processing",
+                    error_code: null,
+                    result: null,
+                  },
+                ],
+              }),
+            });
+          },
+        );
+        await page.route(`**/upload-sessions/${sessionId}`, (route, request) => {
+          if (request.method() !== "GET") return route.fallback();
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              session: { id: sessionId, status: "completed" },
+              files: [
+                {
+                  id: clientId,
+                  client_id: clientId,
+                  filename,
+                  status: "completed",
+                  error_code: null,
+                  result: document,
+                },
+              ],
+            }),
+          });
         });
       },
     };

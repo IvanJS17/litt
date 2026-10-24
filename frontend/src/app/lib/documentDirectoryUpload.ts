@@ -5,16 +5,25 @@ export type DocumentUploadEntry = {
 
 // Pre-flight ceiling for one drop/selection. The upload client chunks large
 // selections into <=50-file sessions itself, so this is not the session limit —
-// it only stops a mis-drop (for example a home directory) from queueing
-// hundreds of sessions against the 50-session hourly cap. 500 files = at most
-// 10 sessions.
+// it only stops a mis-drop (say, a home directory) from queueing hundreds of
+// sessions against the 50-session hourly cap. 500 files = at most 10 sessions.
 export const MAX_DOCUMENTS_PER_DIRECTORY_UPLOAD = 500;
 export const DOCUMENT_UPLOAD_CONCURRENCY = 2;
 
 export type DocumentUploadProgressEntry = {
     kind: "file" | "folder";
     name: string;
+    sourceName: string;
 };
+
+export function folderUploadProgressLabel(
+    statuses: readonly string[],
+): string {
+    const uploadedCount = statuses.filter((status) =>
+        ["uploaded", "processing", "completed"].includes(status),
+    ).length;
+    return `${uploadedCount} of ${statuses.length} uploaded`;
+}
 
 export type DocumentUploadFolderPathResolution<TFolder> =
     | {
@@ -29,10 +38,6 @@ export type DocumentUploadFolderPathResolution<TFolder> =
           resolved_name: string;
           folders: TFolder[];
       };
-
-// Re-exported from the shared client so existing importers keep one path while
-// the upload-session client and the DocTable share a single implementation.
-export { settleWithConcurrency } from "@/shared/lib/settleWithConcurrency";
 
 export async function resolveDocumentUploadRootFolder<TFolder>({
     rootFolderName,
@@ -147,13 +152,18 @@ export function documentUploadProgressEntries(
             const folderName = segments[0];
             if (!folderNames.has(folderName)) {
                 folderNames.add(folderName);
-                progressEntries.push({ kind: "folder", name: folderName });
+                progressEntries.push({
+                    kind: "folder",
+                    name: folderName,
+                    sourceName: folderName,
+                });
             }
             continue;
         }
         progressEntries.push({
             kind: "file",
             name: segments[0] ?? entry.file.name,
+            sourceName: segments[0] ?? entry.file.name,
         });
     }
 

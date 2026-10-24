@@ -12,17 +12,23 @@ import {
     useRef,
     useState,
 } from "react";
+import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, FolderUp, Plus, Upload } from "lucide-react";
+import { BookOpen, ChevronLeft, Plus } from "lucide-react";
 import { DocTable } from "@/app/components/documents/DocTable";
+import { NO_ROLE_MODEL } from "@/app/lib/permissions";
 import type {
   DocTableFolderBreadcrumb,
   DocTableFolder,
   DocTableQuery,
+  DocTableSelectionActions,
 } from "@/app/components/documents/DocTable";
+import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import { PageHeader } from "@/app/components/shared/PageHeader";
+import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { TableToolbar } from "@/app/components/shared/TableToolbar";
-import { TabPillButton } from "@/app/components/ui/tab-pill-button";
+import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
+import { TabPillButtonUI } from "@/shared/ui/TabPillButtonUI";
 import {
   bulkDeleteLibraryDocuments,
     createLibraryFolder,
@@ -40,10 +46,15 @@ import {
   resolveLibraryFolderPath,
   searchLibraryDocuments,
     uploadLibraryDocument,
+    uploadLibraryDocuments,
     type LibraryKind,
+    type LibraryScope,
 } from "@/app/lib/mikeApi";
+import { useWorkspaceParam } from "@/app/contexts/WorkspaceContext";
 import type { Document } from "@/app/components/shared/types";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
+import { notifyError } from "@/app/lib/userFacingError";
+import { useAssignLatest } from "@/app/hooks/useLatestRef";
 
 type LibraryViewCollection = {
     documents: Document[];
@@ -78,7 +89,7 @@ type LibraryWorkspaceContextValue = {
 };
 
 const LIBRARY_TABS: { id: LibraryKind; label: string }[] = [
-    { id: "files", label: "Files" },
+    { id: "files", label: "Documents" },
     { id: "templates", label: "Templates" },
 ];
 
@@ -100,7 +111,17 @@ function libraryLevelKey(parentId: string | null): string {
 const LibraryWorkspaceContext =
     createContext<LibraryWorkspaceContextValue | null>(null);
 
-function useLibraryWorkspace() {
+/**
+ * The library of one kind in the active workspace, which is what every call
+ * on this page is about: the library is per workspace, and shows a person
+ * their own documents and folders there.
+ */
+function useScopedLibrary(): (kind: LibraryKind) => LibraryScope {
+    const workspace = useWorkspaceParam();
+    return useCallback((kind) => ({ kind, workspace }), [workspace]);
+}
+
+export function useLibraryWorkspace() {
     const context = useContext(LibraryWorkspaceContext);
     if (!context) {
         throw new Error(
@@ -115,6 +136,7 @@ export function LibraryWorkspaceProvider({
 }: {
     children: ReactNode;
 }) {
+    const scoped = useScopedLibrary();
     const [collections, setCollections] = useState<
         Record<LibraryKind, LibraryViewCollection | null>
     >({
@@ -167,6 +189,11 @@ export function LibraryWorkspaceProvider({
         new Map(),
     );
 
+    const retryRef = useRef<{
+        loadLibrary: (kind: LibraryKind) => void;
+        loadFolderChildren: (kind: LibraryKind, folderId: string) => void;
+        loadMoreDocuments: (kind: LibraryKind, parentId: string | null) => void;
+    } | null>(null);
     // Refetches root-level content plus every folder level already lazy-loaded
     // for this kind (each level re-requested at its current page size), so a
     // refresh (e.g. after uploading a new document version) doesn't drop the
@@ -180,7 +207,7 @@ export function LibraryWorkspaceProvider({
             try {
                 const loadedFolderIds = [...loadedFolderIdsByKind[kind]];
                 const limits = documentLimitByKind[kind];
-        const response = await getLibraryLevels(kind, [
+        const response = await getLibraryLevels(scoped(kind), [
           {
             parentId: null,
                         limit: limits[ROOT_LEVEL_KEY] ?? DOCUMENT_PAGE_SIZE,
@@ -246,7 +273,14 @@ export function LibraryWorkspaceProvider({
           },
         }));
             } catch (error) {
-                console.error("[library] failed to load", error);
+                // Everything below resets this kind to an empty shelf. That
+                // is indistinguishable from "you have no files", so the user
+                // has to be told which one it is.
+                notifyError(error, {
+                    action: `load your ${kind}`,
+                    dedupeKey: `library:${kind}`,
+                    onRetry: () => retryRef.current?.loadLibrary(kind),
+                });
                 setCollections((prev) => ({
                     ...prev,
                     [kind]: EMPTY_COLLECTION,
@@ -263,7 +297,7 @@ export function LibraryWorkspaceProvider({
                 }
             }
         },
-        [loadedFolderIdsByKind, documentLimitByKind],
+        [loadedFolderIdsByKind, documentLimitByKind, scoped],
     );
 
     const loadFolderChildren = useCallback(
@@ -275,7 +309,7 @@ export function LibraryWorkspaceProvider({
 
             const request = (async () => {
                 try {
-          const children = await getLibraryFolderChildren(kind, folderId, {
+          const children = await getLibraryFolderChildren(scoped(kind), folderId, {
             limit: DOCUMENT_PAGE_SIZE,
           });
                     setCollections((prev) => {
@@ -318,7 +352,15 @@ export function LibraryWorkspaceProvider({
                         },
                     }));
                 } catch (error) {
-          console.error("[library] failed to load folder children", error);
+                    notifyError(error, {
+                        action: "open the folder",
+                        dedupeKey: `library-folder:${kind}:${folderId}`,
+                        onRetry: () =>
+                            retryRef.current?.loadFolderChildren(
+                                kind,
+                                folderId,
+                            ),
+                    });
                 } finally {
                     folderChildrenRequestsRef.current.delete(key);
                 }
@@ -326,7 +368,7 @@ export function LibraryWorkspaceProvider({
             folderChildrenRequestsRef.current.set(key, request);
             return request;
         },
-        [loadedFolderIdsByKind],
+        [loadedFolderIdsByKind, scoped],
     );
 
   // Fetches a fixed-size next page for one level. The old implementation
@@ -349,11 +391,11 @@ export function LibraryWorkspaceProvider({
                 try {
                     const page =
                         parentId === null
-              ? await getLibrary(kind, {
+              ? await getLibrary(scoped(kind), {
                   limit: DOCUMENT_PAGE_SIZE,
                   offset,
                 })
-                            : await getLibraryFolderChildren(kind, parentId, {
+                            : await getLibraryFolderChildren(scoped(kind), parentId, {
                   limit: DOCUMENT_PAGE_SIZE,
                   offset,
                               });
@@ -395,7 +437,12 @@ export function LibraryWorkspaceProvider({
                         },
                     }));
                 } catch (error) {
-          console.error("[library] failed to load more documents", error);
+                    notifyError(error, {
+                        action: `load more ${kind}`,
+                        dedupeKey: `library-more:${kind}:${levelKey}`,
+                        onRetry: () =>
+                            retryRef.current?.loadMoreDocuments(kind, parentId),
+                    });
                 } finally {
                     setLoadingMoreDocumentsByKind((prev) => ({
                         ...prev,
@@ -407,8 +454,17 @@ export function LibraryWorkspaceProvider({
             loadMoreDocumentsRequestsRef.current.set(requestKey, request);
             return request;
         },
-        [documentLimitByKind],
+        [documentLimitByKind, scoped],
     );
+
+    // "Retry" on a failed load re-enters the latest loader (see useLatestRef).
+    useAssignLatest(retryRef, {
+        loadLibrary: (kind: LibraryKind) => void loadLibrary(kind),
+        loadFolderChildren: (kind: LibraryKind, folderId: string) =>
+            void loadFolderChildren(kind, folderId),
+        loadMoreDocuments: (kind: LibraryKind, parentId: string | null) =>
+            void loadMoreDocuments(kind, parentId),
+    });
 
     const setSearchForKind = useCallback((kind: LibraryKind, value: string) => {
         setSearchByKind((prev) => ({ ...prev, [kind]: value }));
@@ -489,7 +545,15 @@ export function LibraryWorkspaceProvider({
 }
 
 export function LibraryWorkspaceLayout({ children }: { children: ReactNode }) {
-    return <LibraryWorkspaceProvider>{children}</LibraryWorkspaceProvider>;
+    // Keyed by workspace: switching starts the library again from nothing,
+    // so one workspace's folders and documents are never shown, or filed
+    // into, under another's name.
+    const identity = useWorkspaceIdentity();
+    return (
+        <LibraryWorkspaceProvider key={identity}>
+            {children}
+        </LibraryWorkspaceProvider>
+    );
 }
 
 export function LibraryCollectionPage({
@@ -500,6 +564,8 @@ export function LibraryCollectionPage({
     folderId?: string | null;
 }) {
     const router = useRouter();
+    const identity = useWorkspaceIdentity();
+    const scoped = useScopedLibrary();
     const {
         collections,
         loadingByKind,
@@ -518,7 +584,8 @@ export function LibraryCollectionPage({
     const search = searchByKind[kind];
     const collectionRootPath = kind === "files" ? "/library" : "/library/templates";
   const debouncedSearch = useDebouncedValue(search, 250);
-    const title = kind === "files" ? "Files" : "Templates";
+    const title = kind === "files" ? "Documents" : "Templates";
+    const [selectionActions, setSelectionActions] = useState<DocTableSelectionActions | null>(null);
   const [documentTypeOptions, setDocumentTypeOptions] = useState<string[]>([]);
   const [tableQuery, setTableQuery] = useState<DocTableQuery>({
     search: "",
@@ -532,6 +599,7 @@ export function LibraryCollectionPage({
   const [serverQueryLoadingMore, setServerQueryLoadingMore] = useState(false);
   const [serverQueryHasMore, setServerQueryHasMore] = useState(false);
   const [serverQueryRefreshVersion, setServerQueryRefreshVersion] = useState(0);
+  const [filterOptionsAttempt, setFilterOptionsAttempt] = useState(0);
   const serverQueryRequestRef = useRef(0);
     const loadedFolderRouteRef = useRef<string | null>(null);
     const loadFolderChildrenRef = useRef(loadFolderChildren);
@@ -561,7 +629,7 @@ export function LibraryCollectionPage({
 
         const loadRoute = folderAvailableRef.current
             ? Promise.resolve()
-            : getLibraryFolderPath(kind, folderId).then(
+            : getLibraryFolderPath(scoped(kind), folderId).then(
                   ({ folders: path }) => {
                       if (cancelled) return;
                       setFoldersForKind(kind, (current) => {
@@ -591,17 +659,28 @@ export function LibraryCollectionPage({
                 return loadFolderChildrenRef.current(kind, folderId);
             })
             .catch((error) => {
-                console.error("[library] failed to load folder route", error);
                 loadedFolderRouteRef.current = null;
                 if (!cancelled) {
                     router.replace(collectionRootPath, { scroll: false });
                 }
+                // The user asked for a folder and landed at the root
+                // instead; say why, and let Retry navigate back into it.
+                notifyError(error, {
+                    action: "open the folder",
+                    dedupeKey: `library-route:${kind}:${folderId}`,
+                    onRetry: () =>
+                        router.push(
+                            `${collectionRootPath}/folders/${encodeURIComponent(folderId)}`,
+                            { scroll: false },
+                        ),
+                });
             });
 
         return () => {
             cancelled = true;
         };
     }, [
+        scoped,
         collectionLoaded,
         collectionRootPath,
         folderId,
@@ -618,6 +697,20 @@ export function LibraryCollectionPage({
             router.push(nextPath, { scroll: false });
         },
         [collectionRootPath, router],
+    );
+
+    const openPresets = useCallback(() => {
+        router.push(
+            `${
+                folderId
+                    ? `${collectionRootPath}/folders/${encodeURIComponent(folderId)}`
+                    : collectionRootPath
+            }/presets`,
+        );
+    }, [collectionRootPath, folderId, router]);
+    const presetsEmptyStateAction = useMemo(
+        () => ({ label: "Presets", onClick: openPresets }),
+        [openPresets],
     );
 
     const setDocuments: Dispatch<SetStateAction<Document[]>> = useCallback(
@@ -651,8 +744,6 @@ export function LibraryCollectionPage({
     >([]);
     const loading =
         !collection || loadingByKind[kind] || !folderAvailable;
-    const addCollectionLabel = kind === "templates" ? "Templates" : "Files";
-
     const handleAddDocumentsActionChange = useCallback(
         (action: (() => void) | null) => {
             setAddDocumentsAction(() => action);
@@ -708,26 +799,34 @@ export function LibraryCollectionPage({
 
   const handleSelectAllMatching = useCallback(
     (query: DocTableQuery) =>
-      listLibraryDocumentIds(kind, {
+      listLibraryDocumentIds(scoped(kind), {
         search: query.search.trim() || undefined,
         fileType: query.fileType ?? undefined,
       }),
-    [kind],
+    [kind, scoped],
   );
 
   useEffect(() => {
     let cancelled = false;
-    void getLibraryFilterOptions(kind)
+    void getLibraryFilterOptions(scoped(kind))
       .then((options) => {
         if (!cancelled) setDocumentTypeOptions(options.fileTypes);
       })
-      .catch(() => {
-        if (!cancelled) setDocumentTypeOptions([]);
+      .catch((error) => {
+        if (cancelled) return;
+        // An empty type filter reads as "this library has one file type",
+        // so the user is told the list is missing rather than wrong.
+        setDocumentTypeOptions([]);
+        notifyError(error, {
+          action: "load the file type filter",
+          dedupeKey: `library-filter-options:${kind}`,
+          onRetry: () => setFilterOptionsAttempt((attempt) => attempt + 1),
+        });
       });
     return () => {
       cancelled = true;
     };
-  }, [kind]);
+  }, [filterOptionsAttempt, kind, scoped]);
 
   const serverQueryActive =
     debouncedSearch.trim().length > 0 ||
@@ -748,7 +847,7 @@ export function LibraryCollectionPage({
     setServerDocuments([]);
     setServerQueryLoading(true);
     setServerQueryLoadingMore(false);
-    void searchLibraryDocuments(kind, {
+    void searchLibraryDocuments(scoped(kind), {
       limit: DOCUMENT_PAGE_SIZE,
       search: debouncedSearch.trim() || undefined,
       fileType: tableQuery.fileType ?? undefined,
@@ -766,9 +865,15 @@ export function LibraryCollectionPage({
           !controller.signal.aborted &&
           requestVersion === serverQueryRequestRef.current
         ) {
-          console.error("[library] failed to search", error);
           setServerDocuments([]);
           setServerQueryHasMore(false);
+          // No results and a failed search look identical in the table.
+          notifyError(error, {
+            action: "search this library",
+            dedupeKey: `library-search:${kind}`,
+            onRetry: () =>
+              setServerQueryRefreshVersion((version) => version + 1),
+          });
         }
       })
       .finally(() => {
@@ -781,6 +886,7 @@ export function LibraryCollectionPage({
       });
     return () => controller.abort();
   }, [
+    scoped,
     debouncedSearch,
     kind,
     serverQueryActive,
@@ -789,6 +895,8 @@ export function LibraryCollectionPage({
     tableQuery.sort,
   ]);
 
+  // "Retry" re-enters the latest loader; a callback cannot reference itself.
+  const loadMoreServerDocumentsRef = useRef<(() => void) | null>(null);
   const handleLoadMoreServerDocuments = useCallback(async () => {
     if (
       !serverQueryActive ||
@@ -802,7 +910,7 @@ export function LibraryCollectionPage({
     const offset = serverDocuments?.length ?? 0;
     setServerQueryLoadingMore(true);
     try {
-      const result = await searchLibraryDocuments(kind, {
+      const result = await searchLibraryDocuments(scoped(kind), {
         limit: DOCUMENT_PAGE_SIZE,
         offset,
         search: debouncedSearch.trim() || undefined,
@@ -822,7 +930,11 @@ export function LibraryCollectionPage({
       setServerQueryHasMore(result.documentsHasMore);
     } catch (error) {
       if (requestVersion === serverQueryRequestRef.current) {
-        console.error("[library] failed to load more search results", error);
+        notifyError(error, {
+          action: "load more search results",
+          dedupeKey: `library-search-more:${kind}`,
+          onRetry: () => loadMoreServerDocumentsRef.current?.(),
+        });
       }
     } finally {
       if (requestVersion === serverQueryRequestRef.current) {
@@ -830,6 +942,7 @@ export function LibraryCollectionPage({
       }
     }
   }, [
+    scoped,
     debouncedSearch,
     kind,
     serverDocuments?.length,
@@ -841,40 +954,60 @@ export function LibraryCollectionPage({
     tableQuery.sort,
   ]);
 
+  // "Retry" re-enters the latest loader; a callback cannot reference itself.
+  useAssignLatest(loadMoreServerDocumentsRef, () => void handleLoadMoreServerDocuments());
+
     const operations = useMemo(
         () => ({
             uploadDocument: (file: File, folderId?: string | null) =>
-                uploadLibraryDocument(kind, file, folderId),
+                uploadLibraryDocument(scoped(kind), file, folderId),
+            uploadDocuments: (
+                files: Array<{
+                    file: File;
+                    folderId: string | null;
+                    clientId: string;
+                }>,
+                options?: Parameters<typeof uploadLibraryDocuments>[2],
+            ) =>
+                uploadLibraryDocuments(
+                    scoped(kind),
+                    files.map(({ file, folderId, clientId }) => ({
+                        file,
+                        folderId,
+                        clientId,
+                    })),
+                    options,
+                ),
       refreshCollection: async () => {
         await loadLibrary(kind);
         setServerQueryRefreshVersion((current) => current + 1);
       },
             createFolder: (name: string, parentFolderId?: string | null) =>
-                createLibraryFolder(kind, name, parentFolderId),
+                createLibraryFolder(scoped(kind), name, parentFolderId),
             resolveFolderPath: (
                 segments: string[],
                 baseFolderId: string | null,
                 conflictResolution?: "error" | "reuse" | "rename",
             ) =>
                 resolveLibraryFolderPath(
-                    kind,
+                    scoped(kind),
                     segments,
                     baseFolderId,
                     conflictResolution,
                 ),
             renameFolder: (folderId: string, name: string) =>
-                renameLibraryFolder(kind, folderId, name),
-      deleteFolder: (folderId: string) => deleteLibraryFolder(kind, folderId),
+                renameLibraryFolder(scoped(kind), folderId, name),
+      deleteFolder: (folderId: string) => deleteLibraryFolder(scoped(kind), folderId),
             moveFolder: (folderId: string, parentFolderId: string | null) =>
-                moveLibraryFolder(kind, folderId, parentFolderId),
+                moveLibraryFolder(scoped(kind), folderId, parentFolderId),
             moveDocument: (documentId: string, folderId: string | null) =>
-                moveLibraryDocument(kind, documentId, folderId),
+                moveLibraryDocument(scoped(kind), documentId, folderId),
             renameDocument: (documentId: string, filename: string) =>
-                renameLibraryDocument(kind, documentId, filename),
+                renameLibraryDocument(scoped(kind), documentId, filename),
       bulkDeleteDocuments: (documentIds: string[]) =>
-        bulkDeleteLibraryDocuments(kind, documentIds),
+        bulkDeleteLibraryDocuments(scoped(kind), documentIds),
         }),
-        [kind, loadLibrary],
+        [kind, loadLibrary, scoped],
     );
 
     return (
@@ -900,16 +1033,34 @@ export function LibraryCollectionPage({
                 onChange: (value) => setSearchForKind(kind, value),
                                 placeholder: `Search ${title.toLowerCase()}...`,
                             },
+                            kind === "templates" && {
+                                type: "custom",
+                                render: (
+                                    <HeaderActionsMenu
+                                        title="More actions"
+                                        items={[
+                                            {
+                                                label: "Add preset templates",
+                                                icon: BookOpen,
+                                                onSelect: openPresets,
+                                            },
+                                        ]}
+                                    />
+                                ),
+                            },
                         ],
                     },
                     {
                         actions: [
                             {
-                                icon: <Upload className="h-3.5 w-3.5" />,
-                                iconOnly: true,
-                                title: `Add ${addCollectionLabel}`,
-                                onClick: addDocumentsAction ?? undefined,
-                                disabled: !addDocumentsAction || loading,
+                                type: "custom",
+                                render: (
+                                    <DocumentUploadMenu
+                                        onUploadFiles={addDocumentsAction}
+                                        onUploadFolder={uploadFolderAction}
+                                        disabled={loading}
+                                    />
+                                ),
                             },
                         ],
                     },
@@ -918,42 +1069,40 @@ export function LibraryCollectionPage({
 
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <TableToolbar
-                    items={LIBRARY_TABS}
+                    items={folderBackAction ? [] : LIBRARY_TABS}
                     active={kind}
                     onChange={(next) =>
                         router.push(
                             next === "files" ? "/library" : "/library/templates",
                         )
                     }
+                    leading={
+                        folderBackAction ? (
+                            <TabPillButtonUI onClick={folderBackAction} className="pl-2">
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                                Back
+                            </TabPillButtonUI>
+                        ) : undefined
+                    }
                     actions={
                         <>
-                            {folderBackAction && (
-                                <TabPillButton onClick={folderBackAction}>
-                                    <ChevronLeft className="h-3.5 w-3.5" />
-                                    Back
-                                </TabPillButton>
+                            {selectionActions && (
+                                <SelectionActionsMenu renderItems={selectionActions.renderMenuItems} />
                             )}
-                            <TabPillButton
-                                onClick={uploadFolderAction ?? undefined}
-                                disabled={!uploadFolderAction || loading}
-                            >
-                                <FolderUp className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">
-                                    Upload folder
-                                </span>
-                            </TabPillButton>
-                            <TabPillButton
+                            <TabPillButtonUI
                                 onClick={createFolderAction ?? undefined}
                                 disabled={!createFolderAction || loading}
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">Folder</span>
-                            </TabPillButton>
+                            </TabPillButtonUI>
                         </>
                     }
                 />
                 <DocTable
-                    scopeKey={kind}
+                    onSelectionActionsChange={setSelectionActions}
+                    key={`${identity}:${kind}`}
+                    scopeKey={`${identity}:${kind}`}
                     documents={collection?.documents ?? []}
                     setDocuments={setDocuments}
                     folders={collection?.folders ?? []}
@@ -962,6 +1111,11 @@ export function LibraryCollectionPage({
                     search={search}
                     operations={operations}
                     emptyStateTitle={title}
+                    emptyStateSecondaryAction={
+                        kind === "templates"
+                            ? presetsEmptyStateAction
+                            : undefined
+                    }
                     onAddDocumentsActionChange={handleAddDocumentsActionChange}
                     onUploadFolderActionChange={
                         handleUploadFolderActionChange
@@ -989,6 +1143,11 @@ export function LibraryCollectionPage({
           autoLoadOnScroll
                     enableHeaderFilters
                     defaultSort={{ key: "updated", direction: "desc" }}
+                    // The library is the caller's own shelf: there is no
+                    // project, so no project role. Stated rather than left
+                    // implicit, so a surface that DOES have a role and forgot
+                    // to pass it stands out instead of silently opening.
+                    canDo={NO_ROLE_MODEL}
                 />
             </div>
         </div>

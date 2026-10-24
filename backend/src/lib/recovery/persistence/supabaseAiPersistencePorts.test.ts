@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createSupabaseAiPersistencePorts,
   type AiPersistenceContext,
+  type SupabaseRpcClient,
 } from "./supabaseAiPersistencePorts";
 
-function client(result: unknown) {
-  return { rpc: vi.fn(async () => result) };
+function client(result: unknown): SupabaseRpcClient {
+  return { rpc: vi.fn(async () => result as { data: unknown; error: unknown }) };
 }
 
 const context: AiPersistenceContext = {

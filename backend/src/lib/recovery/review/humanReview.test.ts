@@ -154,13 +154,13 @@ function tenancy(overrides: Record<string, unknown> = {}): TenancyReadPort {
       workspace_id: "ws",
       organization_id: "org",
       visibility: "private",
-    })),
+    })) as TenancyReadPort["getMatter"],
     getMatterMembership: vi.fn(async () => ({
       user_id: "reviewer",
       matter_id: "matter",
       role: "matter_owner",
       status: "active",
-    })),
+    })) as TenancyReadPort["getMatterMembership"],
   };
 }
 

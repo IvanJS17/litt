@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { FieldLabel, FormTextInput } from "@/app/components/ui/form-field";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { PillButtonUI as PillButton } from "@/shared/ui/PillButtonUI";
 import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-surface";
 import { errorCode } from "@/app/lib/userFacingError";
 import {

@@ -1,133 +1,56 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
-import express from "express";
 
 // ---------------------------------------------------------------------------
-// #463 (i) — the document picker must not out-vote the access verdict.
+// GET /projects?view=directory-search — the document picker's own access
+// branches.
 //
-// GET /projects?view=directory-search used to answer with every project in
-// every organization the caller belongs to. In LiTT membership is not a
-// verdict: a `deny` override on a project, or a project linked to a `private`
-// matter the caller has no active membership on, makes checkProjectAccess
-// answer "no access". listAccessibleProjectIds is the single place that
-// encodes the verdict set, so the picker must ask it instead of trusting the
-// membership sweep. Otherwise a walled-off member reads the matter's name,
-// cm_number and its document filenames out of the picker.
+// This route resolves the same project three different ways (created by me,
+// granted to me, in one of my orgs) and the shared per-table stub used by
+// projects.routes.test.ts cannot tell those reads apart. So this file drives
+// a FILTER-AWARE db instead, and records the filters each read was issued
+// with — the shape of the override query is itself one of the things under
+// test, not just its answer.
 // ---------------------------------------------------------------------------
 
-const { listAccessibleProjectIds, listUserOrgIds } = vi.hoisted(() => ({
-    listAccessibleProjectIds: vi.fn(),
-    listUserOrgIds: vi.fn(),
-}));
-
-type Row = Record<string, any>;
-
-let tables: {
-    own: Row[];
-    granted: Row[];
-    org: Row[];
-    versions: Row[];
-    documents: Row[];
-    profiles: Row[];
-};
-
-function projectsBuilder() {
-    let rows: Row[] = [];
-    const b: any = {
-        select: () => b,
-        eq: (column: string) => {
-            rows = column === "user_id" ? tables.own : [];
-            return b;
-        },
-        in: (column: string) => {
-            rows =
-                column === "id"
-                    ? tables.granted
-                    : column === "org_id"
-                      ? tables.org
-                      : [];
-            return b;
-        },
-        then: (resolve: (value: unknown) => unknown) =>
-            Promise.resolve({ data: rows, error: null }).then(resolve),
-    };
-    return b;
-}
-
-function versionsBuilder() {
-    const b: any = {
-        select: () => b,
-        ilike: () => b,
-        is: () => b,
-        then: (resolve: (value: unknown) => unknown) =>
-            Promise.resolve({ data: tables.versions, error: null }).then(resolve),
-    };
-    return b;
-}
-
-function documentsBuilder() {
-    let projectIds: string[] = [];
-    let versionIds: string[] = [];
-    const b: any = {
-        select: () => b,
-        in: (column: string, values: string[]) => {
-            if (column === "project_id") projectIds = values;
-            if (column === "current_version_id") versionIds = values;
-            return b;
-        },
-        then: (resolve: (value: unknown) => unknown) =>
-            Promise.resolve({
-                data: tables.documents.filter(
-                    (doc) =>
-                        projectIds.includes(doc.project_id) &&
-                        versionIds.includes(doc.current_version_id),
-                ),
-                error: null,
-            }).then(resolve),
-    };
-    return b;
-}
-
-function profilesBuilder() {
-    const b: any = {
-        select: () => b,
-        in: () => b,
-        then: (resolve: (value: unknown) => unknown) =>
-            Promise.resolve({ data: tables.profiles, error: null }).then(resolve),
-    };
-    return b;
-}
-
-function grantsBuilder() {
-    const b: any = {
-        select: () => b,
-        eq: () => b,
-        then: (resolve: (value: unknown) => unknown) =>
-            Promise.resolve({
-                data: tables.granted.map((project) => ({
-                    project_id: project.id,
-                })),
-                error: null,
-            }).then(resolve),
-    };
-    return b;
-}
-
-function makeDb() {
+function mockSupabase() {
     return {
-        from: (table: string) => {
-            if (table === "projects") return projectsBuilder();
-            if (table === "project_access_grants") return grantsBuilder();
-            if (table === "document_versions") return versionsBuilder();
-            if (table === "documents") return documentsBuilder();
-            if (table === "user_profiles") return profilesBuilder();
-            throw new Error(`unexpected table in picker test: ${table}`);
+        from: vi.fn(() => {
+            const q: Record<string, unknown> = {};
+            for (const method of [
+                "select",
+                "update",
+                "delete",
+                "upsert",
+                "insert",
+                "eq",
+                "neq",
+                "in",
+                "is",
+                "or",
+                "not",
+                "ilike",
+                "order",
+                "limit",
+                "range",
+            ])
+                q[method] = vi.fn(() => q);
+            q.single = vi.fn(() => Promise.resolve({ data: null, error: null }));
+            q.maybeSingle = q.single;
+            q.then = (resolve: (v: unknown) => unknown) =>
+                Promise.resolve({ data: [], error: null }).then(resolve);
+            return q;
+        }),
+        rpc: vi.fn(() => Promise.resolve({ data: [], error: null })),
+        auth: {
+            getUser: () =>
+                Promise.resolve({ data: { user: { id: "u1" } }, error: null }),
         },
     };
 }
 
 vi.mock("../../lib/supabase", () => ({
-    createServerSupabase: vi.fn(() => makeDb()),
+    createServerSupabase: vi.fn(() => mockSupabase()),
 }));
 
 vi.mock("../../middleware/auth", () => ({
@@ -136,174 +59,296 @@ vi.mock("../../middleware/auth", () => ({
         res: { locals: Record<string, unknown> },
         next: () => void,
     ) => {
-        res.locals.userId = "member-1";
-        res.locals.userEmail = "Member@Firm.example";
+        res.locals.userId = "u1";
+        res.locals.userEmail = "u1@test.local";
         next();
     },
     requireMfaIfEnrolled: (_req: unknown, _res: unknown, next: () => void) =>
         next(),
 }));
 
-// Keep the real helper implementations, but control the two the picker asks
-// for: the verdict set and the membership sweep.
-vi.mock("../../lib/access", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("../../lib/access")>();
-    return {
-        ...actual,
-        listAccessibleProjectIds: (...args: unknown[]) =>
-            listAccessibleProjectIds(...args),
-        listUserOrgIds: (...args: unknown[]) => listUserOrgIds(...args),
-    };
-});
-
-vi.mock("../../lib/documentVersions", () => ({
-    attachLatestVersionNumbers: vi.fn(async () => {}),
-    attachActiveVersionPaths: vi.fn(async () => {}),
-    contentSha256: vi.fn(() => "0".repeat(64)),
+// Every export of lib/access must survive — the other routers mounted by the
+// app import from it at load time.
+vi.mock("../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/access")>()),
+    checkProjectAccess: vi.fn(async () => ({ ok: false })),
+    ensureDocAccess: vi.fn(async () => ({ ok: true, isOwner: true })),
+    ensureReviewAccess: vi.fn(async () => ({ ok: true, isOwner: true })),
+    filterAccessibleDocumentIds: vi.fn(async (ids: string[]) => ids),
+    listAccessibleProjectIds: vi.fn(async () => []),
+    getOrgRole: vi.fn(async () => null),
+    resolveContentOrgId: vi.fn(async () => null),
 }));
 
-import { projectsRouter } from "../../routes/projects";
+vi.mock("../../lib/documentVersions", () => ({
+    attachActiveVersionPaths: vi.fn(async () => {}),
+    attachLatestVersionNumbers: vi.fn(async () => {}),
+    contentSha256: vi.fn(() => "0".repeat(64)),
+    loadActiveVersion: vi.fn(async () => null),
+}));
 
-const app = express();
-app.use(express.json());
-app.use("/projects", projectsRouter);
+import { app } from "../../app";
+import { createServerSupabase } from "../../lib/supabase";
 
 const AUTH = ["Authorization", "Bearer test"] as const;
 
-const OWN_PROJECT = {
-    id: "p-own",
-    name: "Own matter",
-    cm_number: "CM-1",
-    user_id: "member-1",
-    org_id: null,
-    updated_at: "2026-10-01T00:00:00.000Z",
-};
-const REACHABLE = {
-    id: "p-ok",
-    name: "Shared merger",
-    cm_number: "CM-2",
-    user_id: "someone-else",
-    org_id: "org-1",
-    updated_at: "2026-10-02T00:00:00.000Z",
-};
-const DENIED = {
-    id: "p-secret",
-    name: "Secret merger",
-    cm_number: "CM-777",
-    user_id: "someone-else",
-    org_id: "org-1",
-    updated_at: "2026-10-03T00:00:00.000Z",
-};
-const PRIVATE_MATTER = {
-    id: "p-private",
-    name: "Private merger",
-    cm_number: "CM-888",
-    user_id: "someone-else",
-    org_id: "org-1",
-    updated_at: "2026-10-04T00:00:00.000Z",
-};
+type Project = Record<string, unknown>;
 
-const VERSIONS = [
-    { id: "v-own", filename: "merger-notes.docx" },
-    { id: "v-ok", filename: "merger-draft.docx" },
-    { id: "v-denied", filename: "secret-merger-agreement.docx" },
-    { id: "v-private", filename: "private-merger-terms.docx" },
-];
+/**
+ * A db that answers per (table, filters) and records what it was asked.
+ * `reads` holds one entry per query with its filters in the order they were
+ * applied, which is how the override-query shape is asserted.
+ */
+function directorySearchDb(options: {
+    /** Rows the `projects` read scoped by `eq:user_id` returns. */
+    created?: Project[];
+    /** Rows the `projects` read scoped by `in:org_id` returns. */
+    orgProjects?: Project[];
+    memberships?: { org_id: string; role: string }[];
+    denies?: string[];
+}) {
+    const created = options.created ?? [];
+    const orgProjects = options.orgProjects ?? [];
+    const memberships = options.memberships ?? [];
+    const denied = new Set(options.denies ?? []);
+    const reads: { table: string; filters: string[] }[] = [];
 
-const DOCUMENTS = [
-    { id: "d-own", project_id: "p-own", current_version_id: "v-own" },
-    { id: "d-ok", project_id: "p-ok", current_version_id: "v-ok" },
-    { id: "d-denied", project_id: "p-secret", current_version_id: "v-denied" },
-    {
-        id: "d-private",
-        project_id: "p-private",
-        current_version_id: "v-private",
-    },
-];
+    const build = (
+        table: string,
+        resolve: (filters: Record<string, unknown>) => unknown[],
+    ) => {
+        const filters: Record<string, unknown> = {};
+        const record = { table, filters: [] as string[] };
+        reads.push(record);
+        const b: Record<string, unknown> = {};
+        for (const method of ["select", "order", "limit", "range", "ilike"])
+            b[method] = () => b;
+        b.is = () => b;
+        b.eq = (column: string, value: unknown) => {
+            filters[`eq:${column}`] = value;
+            record.filters.push(`eq:${column}`);
+            return b;
+        };
+        b.in = (column: string, value: unknown) => {
+            filters[`in:${column}`] = value;
+            record.filters.push(`in:${column}`);
+            return b;
+        };
+        b.single = () =>
+            Promise.resolve({ data: resolve(filters)[0] ?? null, error: null });
+        b.maybeSingle = b.single;
+        b.then = (onResolve: (v: unknown) => unknown) =>
+            Promise.resolve({ data: resolve(filters), error: null }).then(
+                onResolve,
+            );
+        return b;
+    };
 
-function search() {
-    return request(app)
-        .get("/projects?view=directory-search&search=merger")
-        .set(...AUTH);
+    const db = {
+        from: (table: string) => {
+            if (table === "projects")
+                return build(table, (filters) => {
+                    if (filters["in:org_id"]) return orgProjects;
+                    if (filters["in:id"]) return [];
+                    return created;
+                });
+            if (table === "project_org_access_overrides")
+                return build(table, (filters) => {
+                    const orgIds =
+                        (filters["in:org_id"] as string[] | undefined) ?? [];
+                    return orgProjects
+                        .filter(
+                            (project) =>
+                                denied.has(project.id as string) &&
+                                orgIds.includes(project.org_id as string),
+                        )
+                        .map((project) => ({
+                            project_id: project.id,
+                            role: "deny",
+                        }));
+                });
+            if (table === "org_members") return build(table, () => memberships);
+            return build(table, () => []);
+        },
+        rpc: () => Promise.resolve({ data: [], error: null }),
+        auth: {
+            getUser: () =>
+                Promise.resolve({
+                    data: { user: { id: "u1" } },
+                    error: null,
+                }),
+        },
+    };
+    return { db, reads };
 }
 
-beforeEach(() => {
-    vi.clearAllMocks();
-    tables = {
-        own: [],
-        granted: [],
-        org: [REACHABLE, DENIED, PRIVATE_MATTER],
-        versions: VERSIONS,
-        documents: DOCUMENTS,
-        profiles: [],
-    };
-    listUserOrgIds.mockResolvedValue(["org-1"]);
-    listAccessibleProjectIds.mockResolvedValue([]);
-});
+function useDb(handle: { db: unknown }) {
+    vi.mocked(createServerSupabase).mockImplementationOnce(
+        () => handle.db as ReturnType<typeof createServerSupabase>,
+    );
+}
 
-describe("GET /projects?view=directory-search — access verdict", () => {
-    it("drops an organization matter the caller is denied", async () => {
-        // The caller is an org member, and the org branch of the picker
-        // therefore loads the denied matter. The verdict set says no.
-        listAccessibleProjectIds.mockResolvedValue(["p-ok"]);
+const search = () =>
+    request(app).get("/projects?view=directory-search&search=Matter").set(...AUTH);
+
+// The caller created this org matter and then left the firm. The
+// projects.user_id row survives their departure; their access does not.
+const CREATED_ORG_PROJECT = {
+    id: "p-firm",
+    name: "Matter Firm",
+    cm_number: "2026-0001",
+    org_id: "o1",
+    user_id: "u1",
+    updated_at: "2026-09-01T00:00:00Z",
+};
+
+describe("GET /projects?view=directory-search", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("hides an org project whose creator has left the organization", async () => {
+        // "I created it" is not a verdict on its own. checkProjectAccess —
+        // which every other read path uses — answers "no access" for a
+        // non-member, so the picker was the one surface still offering a
+        // matter that 404s the moment it is opened.
+        const handle = directorySearchDb({
+            created: [CREATED_ORG_PROJECT],
+            memberships: [],
+        });
+        useDb(handle);
 
         const res = await search();
 
         expect(res.status).toBe(200);
-        expect(res.body.map((project: Row) => project.id)).toEqual(["p-ok"]);
-        expect(JSON.stringify(res.body)).not.toContain("secret-merger");
-        expect(JSON.stringify(res.body)).not.toContain("CM-777");
-        expect(JSON.stringify(res.body)).not.toContain("Secret merger");
+        expect(res.body).toEqual([]);
     });
 
-    it("drops a private matter the caller is not an active member of", async () => {
-        // Same org membership, but the matter's membership list does not
-        // include the caller: listAccessibleProjectIds omits it.
-        listAccessibleProjectIds.mockResolvedValue(["p-ok"]);
+    it("keeps that project while its creator is still a member", async () => {
+        // The control. The org branch re-admits it, so leaving the org is
+        // what removes it — not the change itself.
+        const handle = directorySearchDb({
+            created: [CREATED_ORG_PROJECT],
+            orgProjects: [CREATED_ORG_PROJECT],
+            memberships: [{ org_id: "o1", role: "member" }],
+        });
+        useDb(handle);
 
         const res = await search();
 
         expect(res.status).toBe(200);
-        expect(JSON.stringify(res.body)).not.toContain("private-merger-terms");
-        expect(JSON.stringify(res.body)).not.toContain("CM-888");
+        expect(res.body.map((project: { id: string }) => project.id)).toEqual([
+            "p-firm",
+        ]);
     });
 
-    it("keeps listing a project the caller can reach", async () => {
-        // Guard against the cheap "return nothing" fix: an admitted project
-        // still comes back with its matching documents. The org branch holds
-        // only that project, so this case is green before and after.
-        tables.org = [REACHABLE];
-        listAccessibleProjectIds.mockResolvedValue(["p-ok"]);
+    it("keeps a personal project the caller created, org membership or not", async () => {
+        const handle = directorySearchDb({
+            created: [
+                {
+                    id: "p-personal",
+                    name: "Matter Personal",
+                    org_id: null,
+                    user_id: "u1",
+                    updated_at: "2026-09-01T00:00:00Z",
+                },
+            ],
+            memberships: [],
+        });
+        useDb(handle);
 
         const res = await search();
 
         expect(res.status).toBe(200);
-        expect(res.body).toHaveLength(1);
-        expect(res.body[0].id).toBe("p-ok");
-        expect(
-            (res.body[0].documents as Row[]).map((doc) => doc.id),
-        ).toEqual(["d-ok"]);
+        expect(res.body.map((project: { id: string }) => project.id)).toEqual([
+            "p-personal",
+        ]);
     });
 
-    it("keeps the caller's own project in the picker", async () => {
-        tables.own = [OWN_PROJECT];
-        tables.org = [];
-        listAccessibleProjectIds.mockResolvedValue(["p-own"]);
+    it("asks for the caller's overrides by org, never by a list of project ids", async () => {
+        // The candidate-id list grows with the firm's matters and is spliced
+        // verbatim into the PostgREST query string, so a large tenant sent a
+        // URL past the server's request-line limit; the read then failed and
+        // the picker — which fails closed — went blank. org_id is bounded by
+        // the caller's memberships instead.
+        const handle = directorySearchDb({
+            created: [],
+            orgProjects: [CREATED_ORG_PROJECT],
+            memberships: [{ org_id: "o1", role: "member" }],
+        });
+        useDb(handle);
 
         const res = await search();
 
         expect(res.status).toBe(200);
-        expect(res.body.map((project: Row) => project.id)).toEqual(["p-own"]);
-        expect(res.body[0].is_owner).toBe(true);
-    });
-
-    it("asks the verdict helper with the caller's identity", async () => {
-        await search();
-
-        expect(listAccessibleProjectIds).toHaveBeenCalledWith(
-            "member-1",
-            "Member@Firm.example",
-            expect.anything(),
+        const overrideReads = handle.reads.filter(
+            (read) => read.table === "project_org_access_overrides",
         );
+        expect(overrideReads).toHaveLength(1);
+        // Every override the caller holds, not only the denials: a grant is
+        // what admits them to a private project.
+        expect(overrideReads[0].filters).toEqual(["in:org_id", "eq:user_id"]);
+        expect(overrideReads[0].filters).not.toContain("in:project_id");
+    });
+
+    describe("narrowed to a workspace", () => {
+        // The picker offers documents to attach, and a chat or review takes
+        // documents from its own workspace only — so it searches that one.
+        const FIRM = "11111111-1111-4111-8111-111111111111";
+        const firmProject = { ...CREATED_ORG_PROJECT, org_id: FIRM };
+        const personalProject = {
+            id: "p-personal",
+            name: "Matter Personal",
+            org_id: null,
+            user_id: "u1",
+            updated_at: "2026-08-01T00:00:00Z",
+        };
+        const both = () =>
+            directorySearchDb({
+                created: [firmProject, personalProject],
+                orgProjects: [firmProject],
+                memberships: [{ org_id: FIRM, role: "member" }],
+            });
+        const searchIn = (workspace: string) =>
+            request(app)
+                .get(
+                    `/projects?view=directory-search&search=Matter&workspace=${workspace}`,
+                )
+                .set(...AUTH);
+        const ids = (res: { body: { id: string }[] }) =>
+            res.body.map((project) => project.id);
+
+        it("finds both when no workspace is named", async () => {
+            useDb(both());
+            const res = await search();
+            expect(res.status).toBe(200);
+            expect(ids(res)).toEqual(["p-firm", "p-personal"]);
+        });
+
+        it("leaves an organization's projects out of Personal", async () => {
+            useDb(both());
+            const res = await searchIn("personal");
+            expect(res.status).toBe(200);
+            expect(ids(res)).toEqual(["p-personal"]);
+        });
+
+        it("leaves personal projects out of an organization", async () => {
+            useDb(both());
+            const res = await searchIn(FIRM);
+            expect(res.status).toBe(200);
+            expect(ids(res)).toEqual(["p-firm"]);
+        });
+
+        it("404s a workspace the caller is not in", async () => {
+            useDb(
+                directorySearchDb({
+                    created: [personalProject],
+                    memberships: [],
+                }),
+            );
+            const res = await searchIn(FIRM);
+            expect(res.status).toBe(404);
+            expect(res.body.code).toBe("workspace_not_found");
+        });
     });
 });

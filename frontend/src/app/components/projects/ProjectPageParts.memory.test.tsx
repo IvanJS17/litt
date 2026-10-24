@@ -45,23 +45,27 @@ vi.mock("@/app/components/shared/HeaderActionsMenu", () => ({
     ),
 }));
 
-function renderHeader(overrides: { project?: null } = {}) {
+vi.mock("@/app/components/shared/DocumentUploadMenu", () => ({
+    DocumentUploadMenu: () => <button>Upload</button>,
+}));
+
+function renderHeader(overrides: { roleKnown?: boolean } = {}) {
     const onOpenMemory = vi.fn();
     render(
         <ProjectPageHeader
             project={{ id: "project-1", name: "Matter" } as never}
             search=""
             activeSection="documents"
-            creatingChat={false}
             creatingReview={false}
-            isOwner
+            canManageProject
+            roleKnown
             onBackToProjects={vi.fn()}
             onProjectRoot={vi.fn()}
             onOpenDetails={vi.fn()}
             onOpenMemory={onOpenMemory}
             onDeleteProject={vi.fn()}
             onSearchChange={vi.fn()}
-            onOpenPeople={vi.fn()}
+            onOpenAccess={vi.fn()}
             onNewChat={vi.fn()}
             onNewReview={vi.fn()}
             {...overrides}
@@ -80,8 +84,8 @@ describe("ProjectPageHeader memory action", () => {
         expect(onOpenMemory).toHaveBeenCalledTimes(1);
     });
 
-    it("disables memory until the project row has loaded", () => {
-        renderHeader({ project: null });
+    it("waits for the caller's role before offering memory", () => {
+        renderHeader({ roleKnown: false });
 
         expect(screen.getByRole("button", { name: "Memory" })).toBeDisabled();
     });

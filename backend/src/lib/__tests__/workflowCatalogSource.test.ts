@@ -101,7 +101,10 @@ function githubFetch(zipBytes: Buffer) {
         headers: { "content-type": "application/json" },
       });
     }
-    return new Response(zipBytes, {
+    // BodyInit wants an ArrayBuffer-backed view; Node's Buffer is typed over
+    // ArrayBufferLike (it may sit on a SharedArrayBuffer), so hand Response a
+    // plain Uint8Array over the same bytes.
+    return new Response(new Uint8Array(zipBytes), {
       status: 200,
       headers: { "content-length": String(zipBytes.byteLength) },
     });
@@ -132,15 +135,15 @@ describe("GitHub workflow catalog preparation", () => {
         default_sort_order: 0,
         quick_action_name: "Proofread",
       });
-      const reference = document.workflows.find(
+      const asset = document.workflows.find(
         (workflow) => workflow.workflow_key === "proofread",
-      )!.reference_files[0];
-      expect(reference).toMatchObject({
+      )!.assets[0];
+      expect(asset).toMatchObject({
         filename: "template.docx",
         file_type: "docx",
         size_bytes: 13,
       });
-      await expect(readFile(reference.temporary_path, "utf8")).resolves.toBe(
+      await expect(readFile(asset.temporary_path, "utf8")).resolves.toBe(
         "test template",
       );
 

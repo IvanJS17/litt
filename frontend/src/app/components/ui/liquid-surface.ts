@@ -4,16 +4,20 @@ import {
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@/shared/ui/LiquidGlassUI";
 
-export const LIQUID_TABLE_SURFACE_CLASS =
-    `rounded-2xl ${LIQUID_GLASS_FLAT_CLASS}`;
+export const TABLE_SURFACE_CLASS = "table-surface";
 
+/**
+ * The container for a text editor. It deliberately does NOT use
+ * `TABLE_SURFACE_CLASS`: table containers are intentionally transparent, while
+ * a surface someone is typing into remains visually raised.
+ */
 export const EDITOR_SURFACE_CLASS = `rounded-2xl ${LIQUID_GLASS_FLAT_CLASS}`;
 
 export const LIQUID_FLOAT_PANEL_SURFACE_CLASS =
-    `rounded-2xl ${LIQUID_GLASS_FLOAT_CLASS} backdrop-blur-2xl`;
+    `rounded-2xl ${LIQUID_GLASS_FLOAT_CLASS}`;
 
 export const LIQUID_SUBTLE_PANEL_SURFACE_CLASS =
-    `rounded-2xl ${LIQUID_GLASS_SUBTLE_CLASS} backdrop-blur-2xl`;
+    `rounded-2xl ${LIQUID_GLASS_SUBTLE_CLASS}`;
 
 export {
     LIQUID_GLASS_FLAT_CLASS,

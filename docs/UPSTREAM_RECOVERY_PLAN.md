@@ -1,5 +1,14 @@
 # LiTT Upstream Recovery Plan
 
+> **Historical document (since the upstream sync of 2026-10-23).** It describes
+> the August–September 2026 recovery and its `*_recovery_*` migration series,
+> applied in a hand-maintained order. Slice S1 of
+> [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) replaced that series with
+> upstream's migration runner (`backend/scripts/migrate.sh` and the
+> `public.schema_migrations` ledger). The text below is kept unchanged as a
+> record; it is not current procedure. Current state:
+> [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
 > **For Hermes:** Execute this plan through bounded worktrees and atomic snapshots.
 > Use one governing Reviewer-profile verdict per immutable integration snapshot.
 

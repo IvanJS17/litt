@@ -123,9 +123,10 @@ function orgRow(
 ): Record<string, unknown> {
   return {
     user_id: USER,
-    organization_id: ORG,
-    role: "editor",
-    status: "active",
+    org_id: ORG,
+    // Converged `org_members` vocabulary; the adapter maps it to the LiTT
+    // content role (every current member is an editor of org-visible space).
+    role: "member",
     organizations: { authorization_epoch: 7 },
     ...overrides,
   };
@@ -333,7 +334,7 @@ describe("getMatterMembership — exact query contract", () => {
 });
 
 describe("getOrganizationMembership — exact query contract", () => {
-  it("reads organization_memberships filtered by both user_id and organization_id with an explicit inner epoch relation and no select star", async () => {
+  it("reads org_members filtered by both user_id and org_id with an explicit inner epoch relation and no select star", async () => {
     const state: ClientState = { queries: [], results: [orgRow()] };
     const port = createSupabaseTenancyReadPort(fakeDb(state));
 
@@ -344,14 +345,14 @@ describe("getOrganizationMembership — exact query contract", () => {
 
     expect(state.queries.length).toBe(1);
     const q = query(state, 0);
-    expect(q.table).toBe("organization_memberships");
+    expect(q.table).toBe("org_members");
     expect(q.columns).toBe(
-      "user_id, organization_id, role, status, organizations!inner(authorization_epoch)",
+      "user_id, org_id, role, organizations!inner(authorization_epoch)",
     );
     expect(q.columns).not.toMatch(/\*/);
     expect(q.filters).toEqual([
       { column: "user_id", op: "eq", value: USER },
-      { column: "organization_id", op: "eq", value: ORG },
+      { column: "org_id", op: "eq", value: ORG },
     ]);
     expect(q.terminal).toBe("maybeSingle");
 
@@ -423,11 +424,10 @@ describe("fail-closed normalization — org membership", () => {
       orgRow({ user_id: null }),
       orgRow({ user_id: 123 }),
       orgRow({ user_id: "" }),
-      orgRow({ organization_id: undefined }),
-      orgRow({ role: "admin" }),
+      orgRow({ org_id: undefined }),
+      orgRow({ role: "superuser" }),
       orgRow({ role: null }),
-      orgRow({ status: "pending" }),
-      orgRow({ status: 42 }),
+      orgRow({ role: "" }),
     ]) {
       const state: ClientState = { queries: [], results: [broken] };
       const port = createSupabaseTenancyReadPort(fakeDb(state));
@@ -438,7 +438,7 @@ describe("fail-closed normalization — org membership", () => {
   });
 
   it("rejects a Supabase error with the constant redacted error and no provider detail", async () => {
-    const RAW = 'relation "organization_memberships" does not exist';
+    const RAW = 'relation "org_members" does not exist';
     const state: ClientState = {
       queries: [],
       results: [null],
@@ -470,10 +470,10 @@ describe("fail-closed normalization — org membership", () => {
     ).rejects.toThrow(REDACTED_ERROR);
   });
 
-  it("never returns an invented default for malformed rows", async () => {
+  it("never returns an invented default for an out-of-vocabulary row", async () => {
     const state: ClientState = {
       queries: [],
-      results: [orgRow({ role: "admin" })],
+      results: [orgRow({ role: "superuser" })],
     };
     const port = createSupabaseTenancyReadPort(fakeDb(state));
     await expect(
@@ -481,24 +481,36 @@ describe("fail-closed normalization — org membership", () => {
     ).rejects.toThrow(REDACTED_ERROR);
   });
 
-  it("propagates the typed membership shape with valid closed-vocabulary values", async () => {
-    const state: ClientState = {
-      queries: [],
-      results: [orgRow({ role: "org_owner", status: "revoked" })],
-    };
-    const port = createSupabaseTenancyReadPort(fakeDb(state));
-    const membership: OrganizationMembership | null =
-      await port.getOrganizationMembership({
+  it("maps every current upstream role to the editor content role and an active status", async () => {
+    for (const role of ["owner", "admin", "member"]) {
+      const state: ClientState = { queries: [], results: [orgRow({ role })] };
+      const port = createSupabaseTenancyReadPort(fakeDb(state));
+      const membership: OrganizationMembership | null =
+        await port.getOrganizationMembership({
+          user_id: USER,
+          organization_id: ORG,
+        });
+      expect(membership).toEqual({
+        user_id: USER,
+        organization_id: ORG,
+        role: "editor",
+        status: "active",
+        authorization_epoch: 7,
+      });
+    }
+  });
+
+  it("never grants organization-owner or workspace-admin standing on content", async () => {
+    for (const role of ["owner", "admin", "member"]) {
+      const state: ClientState = { queries: [], results: [orgRow({ role })] };
+      const port = createSupabaseTenancyReadPort(fakeDb(state));
+      const membership = await port.getOrganizationMembership({
         user_id: USER,
         organization_id: ORG,
       });
-    expect(membership).toEqual({
-      user_id: USER,
-      organization_id: ORG,
-      role: "org_owner",
-      status: "revoked",
-      authorization_epoch: 7,
-    });
+      expect(membership?.role).not.toBe("org_owner");
+      expect(membership?.role).not.toBe("workspace_admin");
+    }
   });
 });
 
@@ -566,10 +578,7 @@ describe("integration — adapter-backed orchestration", () => {
       requiresMfa: false,
     });
     expect(state.queries.length).toBe(2);
-    expect(state.queries.map((q) => q.table)).toEqual([
-      "organization_memberships",
-      "matters",
-    ]);
+    expect(state.queries.map((q) => q.table)).toEqual(["org_members", "matters"]);
     expect(result).toMatchObject({
       kind: "decision",
       decision: {

@@ -189,7 +189,7 @@ function tenancy(
         organization_id: "org",
         visibility: "private",
       };
-    }),
+    }) as unknown as TenancyReadPort["getMatter"],
     getMatterMembership: vi.fn(async () => {
       order.push("matterMembership");
       return {
@@ -198,7 +198,7 @@ function tenancy(
         role: "matter_owner",
         status: "active",
       };
-    }),
+    }) as unknown as TenancyReadPort["getMatterMembership"],
   };
 }
 function resources(

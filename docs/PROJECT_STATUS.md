@@ -3,11 +3,41 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-10-21<br>
+**Last reconciled:** 2026-10-23<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
+
+### Reconciliation 2026-10-23 (upstream sync)
+
+- **Main:** `e6b003ba08a58cc3e454d5b4148d76f24e91308c`. It already contains the
+  release candidate of 2026-10-21 (PR #51, squash `23b888b8`), the move to the
+  standalone repository (PR #11), the approved sync plan (PR #12), the
+  compatibility matrix (PR #13) and a secret-scan allowlist for the sync
+  branch (PR #15).
+- **Upstream sync:** LiTT was rebuilt on upstream
+  `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` on the branch
+  `sync/upstream-20261023` (strategy B of
+  [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md)). Slices S1–S7 have a
+  Reviewer PASS on their exact snapshots
+  ([`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §17);
+  the S7 head passed CI, Schema drift, Stack tests, Word add-in and e2e by
+  `workflow_dispatch`. S8a (this documentation and the deployment package) is
+  in review; S8b (`AGENTS.md`, merge commit into `main`) is pending. Until that
+  merge, `main` does not contain the sync and the new pin is not in effect;
+  feature expansion stays paused.
+- **Production:** not deployed. The deployment package
+  ([`../deploy/prod/README.md`](../deploy/prod/README.md)) is restored on the
+  sync branch and adapted to the converged tree: the schema is applied by
+  upstream's migration runner, storage is R2 only, there is no third-party
+  telemetry. No image of the synced tree has been built: no CI workflow builds
+  images, so building them belongs to the deployment gate. A deployment still
+  needs the owner's inputs (R2, SMTP, support address) and explicit
+  authorization.
+- **Debt:** the sync's non-blocking reservations are TD-025–TD-039 in
+  [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md); TD-019 and TD-022 close with the
+  merge.
 
 ### Reconciliation 2026-10-21
 
@@ -205,9 +235,9 @@ remote staging, a real provider/Drive canary or production.
 | Local staging harness | Versioned; historical local smokes are not current remote proof |
 | Remote staging | Not verified |
 | Real Shared Drive canary | Blocked pending dedicated account/token/folder and authorization |
-| Production deployment package | Versioned by PR #50 (`2eb27db8`); deployment not verified |
-| Upstream intake 2026-10-23 | 442 commits to `e7ab6bd4…` (367 without merges) fully classified (ledger §15); sync plan approved (strategy B); slices S1–S8 pending on `sync/upstream-20261023`; feature expansion paused until the merge (TD-019) |
-| Release candidate `fix/release-candidate-20261021` | Local verification complete; awaiting one exact-snapshot Reviewer verdict; push/PR/merge not authorized |
+| Production deployment package | Versioned by PR #50 (`2eb27db8`); restored and adapted to the converged tree on the sync branch (S8a); no images built; deployment not verified |
+| Upstream sync 2026-10-23 | 442 commits to `e7ab6bd4…` (367 without merges) classified (ledger §15) and matrixed (§16); S1–S7 landed with PASS on `sync/upstream-20261023` (§17); S8a in review; S8b merge commit pending; feature expansion paused until the merge |
+| Release candidate `fix/release-candidate-20261021` | Integrated by PR #51 at `23b888b8` |
 | Production | Not deployed or verified |
 
 ## Current blockers and risks
@@ -236,10 +266,12 @@ exact-head CI must include the RustFS browser E2E, Stack tests and Schema drift
 before merge. Production deployment then follows `deploy/prod/README.md` with
 the owner's inputs and its own authorization.
 
-As of 2026-10-23 the upstream sync plan is approved; the next upstream gate is
-the Reviewer verdict on each slice of
-[`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), starting with S1. Feature
-expansion stays paused until the sync merge commit lands (TD-019).
+As of 2026-10-23 slices S1–S7 of the upstream sync have PASS. The next gates
+are the Reviewer verdict on the S8a snapshot, then S8b: the `AGENTS.md` rule
+change, the final aggregate review, the merge commit's pull request with
+exact-head CI and the merge into `main` with a merge commit. Feature expansion
+resumes after that merge. Production deployment remains a separate,
+explicitly authorized gate.
 
 Historical gate (2026-09-14):
 

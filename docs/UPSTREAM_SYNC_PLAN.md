@@ -3,7 +3,8 @@
 Approved under the owner's authorization of 2026-10-23 for the complete upstream
 sync. This plan closes the classification half of TD-019. Execution is tracked
 slice by slice in this document and in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §15.
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §15; the
+receipt with each slice's reviewed snapshot is §17 of the ledger.
 
 ## 1. Intake receipt
 
@@ -193,6 +194,19 @@ Acceptance criteria named for specific slices, in addition to their content:
 
 Open Dependabot pull requests are closed or rebased after S8, against the merged
 dependency set.
+
+### 5.1 Execution state (2026-10-23)
+
+| Slice | State |
+| --- | --- |
+| S1–S7 | Landed on `sync/upstream-20261023`, each with a Reviewer PASS on its exact snapshot (S5 and S6 reviewed together); receipt in the ledger §17. Exact-head CI of S7 green by `workflow_dispatch`, because the draft pull request #14 is `CONFLICTING` by design and starts no `pull_request` checks |
+| S8a | Deployment package (`deploy/prod/`) and LiTT documents restored on the converged tree and updated: this document, the policy, the ledger, the debt ledger, the status and the release gates; recovery documents restored as history. In review |
+| S8b | `AGENTS.md` rule change, final aggregate review, merge commit and its pull request with exact-head CI, merge with a merge commit, pin recorded on `main`. Pending; done by the coordinator with the owner present |
+
+The S8 criterion above holds across the split: the policy change lands in S8a
+on the sync branch, so it is part of the tree the S8b merge commit
+integrates, and `AGENTS.md` changes in S8b before that merge commit is
+created.
 
 ## 6. Risks
 

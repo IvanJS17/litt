@@ -4,8 +4,9 @@ const fs = require("fs");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
-const frontendSharedUi = (filename) =>
-  path.resolve(__dirname, "..", "frontend", "src", "shared", "ui", filename);
+const frontendShared = (...segments) =>
+  path.resolve(__dirname, "..", "frontend", "src", "shared", ...segments);
+const frontendSharedUi = (filename) => frontendShared("ui", filename);
 
 module.exports = async (_env, options) => {
   const isDev = options.mode !== "production";
@@ -92,6 +93,13 @@ module.exports = async (_env, options) => {
     // HTTPS dev server so authentication and API calls stay same-origin and the
     // HttpOnly session cookie works consistently across Word hosts.
     const apiTarget = process.env.API_PROXY_TARGET || "http://localhost:3001";
+    const objectStorageTarget =
+      process.env.OBJECT_STORAGE_PROXY_TARGET || "http://localhost:9000";
+    const objectStorageBucketName =
+      process.env.OBJECT_STORAGE_BUCKET_NAME || "mike";
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(objectStorageBucketName)) {
+      throw new Error("OBJECT_STORAGE_BUCKET_NAME is not a valid bucket name");
+    }
     devServerConfig.proxy = [
       {
         context: ["/api"],
@@ -99,6 +107,15 @@ module.exports = async (_env, options) => {
         changeOrigin: true,
         secure: false,
         pathRewrite: { "^/api": "" },
+      },
+      {
+        // A local signed URL can use https://localhost:3200 as its public
+        // endpoint. Keep the original Host header so it still matches the
+        // SigV4 signature while webpack forwards the bytes to local storage.
+        context: [`/${objectStorageBucketName}`],
+        target: objectStorageTarget,
+        changeOrigin: false,
+        secure: false,
       },
     ];
   }
@@ -121,7 +138,9 @@ module.exports = async (_env, options) => {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".js", ".jsx"],
-      modules: [path.resolve(__dirname, "node_modules"), "node_modules"],
+      // Resolve each package's nested dependencies before the add-in fallback
+      // so two copies of the same package never land in one bundle.
+      modules: ["node_modules", path.resolve(__dirname, "node_modules")],
       alias: {
         // Cross-app source files must use the add-in's React runtime so the
         // bundle never picks up a second copy from frontend/node_modules.
@@ -136,19 +155,28 @@ module.exports = async (_env, options) => {
         "@mike/edit-cards-section-ui": frontendSharedUi(
           "EditCardsSectionUI.tsx",
         ),
+        "@mike/reasoning-disclosure": frontendShared(
+          "hooks",
+          "useReasoningDisclosure.ts",
+        ),
         "@mike/pre-response-wrapper-ui": frontendSharedUi(
           "PreResponseWrapperUI.tsx",
         ),
         "@mike/document-event-blocks-ui": frontendSharedUi(
           "DocumentEventBlocksUI.tsx",
         ),
+        "@mike/input-ui": frontendSharedUi("InputUI.tsx"),
         "@mike/glass-card-ui": frontendSharedUi("GlassCardUI.tsx"),
         "@mike/modal-ui": frontendSharedUi("ModalUI.tsx"),
         "@mike/header-buttons-ui": frontendSharedUi(
           "HeaderButtonsUI.tsx",
         ),
         "@mike/pill-button-ui": frontendSharedUi("PillButtonUI.tsx"),
-        "@mike/dropdown-ui": frontendSharedUi("DropdownUI.tsx"),
+        "@mike/tab-pill-button-ui": frontendSharedUi(
+          "TabPillButtonUI.tsx",
+        ),
+        "@mike/toggle-switch-ui": frontendSharedUi("ToggleSwitchUI.tsx"),
+        "@mike/dropdown-ui": frontendSharedUi("dropdown.tsx"),
         "@mike/citation-pill-ui": frontendSharedUi("CitationPillUI.tsx"),
         "@mike/model-toggle-ui": frontendSharedUi("ModelToggleUI.tsx"),
         "@mike/mike-icon-ui": frontendSharedUi("MikeIconUI.tsx"),
@@ -157,6 +185,38 @@ module.exports = async (_env, options) => {
         "@mike/auth-divider-ui": frontendSharedUi("AuthDividerUI.tsx"),
         "@mike/workflow-slash-command-ui": frontendSharedUi(
           "WorkflowSlashCommandUI.tsx",
+        ),
+        // Non-UI shared modules: the upload-session client and the UUID helper
+        // it mints client ids with.
+        "@mike/upload-session-client": frontendShared(
+          "api",
+          "uploadSessionClient.ts",
+        ),
+        "@mike/secure-uuid": frontendShared("lib", "secureUuid.ts"),
+        // Error presentation: one classifier and one toast stack for both
+        // clients, so a failure reads the same in Word as it does on the web.
+        "@mike/toast-store": frontendShared("lib", "toastStore.ts"),
+        "@mike/error-notifier": frontendShared("lib", "errorNotifier.ts"),
+        "@mike/toast-ui": frontendSharedUi("ToastUI.tsx"),
+        "@mike/user-error": frontendShared("lib", "userError.ts"),
+        // One model catalog (routers, picker rows, key-based availability)
+        // for the web app and the add-in.
+        "@mike/model-catalog": frontendShared("lib", "modelCatalog.ts"),
+        // Quoting and annotating a passage of a response: one wire format,
+        // menu, pill and modal for the web app and the add-in.
+        "@mike/message-excerpts": frontendShared("lib", "messageExcerpts.ts"),
+        "@mike/response-selection-menu-ui": frontendSharedUi(
+          "ResponseSelectionMenuUI.tsx",
+        ),
+        "@mike/excerpt-pill-ui": frontendSharedUi("ExcerptPillUI.tsx"),
+        // The attached-playbook pill: the same in both composers.
+        "@mike/playbook-pill-ui": frontendSharedUi("PlaybookPillUI.tsx"),
+        "@mike/excerpt-modal-ui": frontendSharedUi("ExcerptModalUI.tsx"),
+        "@mike/chat-history-dropdown-ui": frontendSharedUi(
+          "ChatHistoryDropdownUI.tsx",
+        ),
+        "@mike/composer-send-button-ui": frontendSharedUi(
+          "ComposerSendButtonUI.styles.ts",
         ),
       },
     },
@@ -208,12 +268,17 @@ module.exports = async (_env, options) => {
         // Mike backend so HttpOnly auth cookies are never third-party cookies.
         REACT_APP_API_BASE_URL:
           process.env.REACT_APP_API_BASE_URL || "/api",
-        REACT_APP_DEFAULT_MODEL: "gemini-3-flash-preview",
+        // Deployment override only. Leaving it empty makes DEFAULT_MODEL_ID in
+        // src/taskpane/lib/modelCatalog.ts the single source of the default
+        // model — this config file cannot import that TypeScript constant, so
+        // repeating its value here would be a second copy that silently drifts.
+        REACT_APP_DEFAULT_MODEL: process.env.REACT_APP_DEFAULT_MODEL || "",
         // The Mike web app origin — the task pane links here (e.g. the
         // account/api-keys page); it never fetches from it.
         REACT_APP_WEB_APP_URL: isDev
           ? process.env.REACT_APP_WEB_APP_URL || "https://app.mikeoss.com"
           : undefined,
+        REACT_APP_GIT_SHA: process.env.REACT_APP_GIT_SHA || "",
       }),
     ],
     devServer: devServerConfig,

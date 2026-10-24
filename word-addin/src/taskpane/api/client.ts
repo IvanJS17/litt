@@ -1,12 +1,38 @@
 import type {
+  ApiKeyStatus,
   Document,
   LibraryFolder,
+  Playbook,
   Project,
   Workflow,
-  WorkflowReferenceDocument,
 } from "../types";
-import { describeNetworkFailure } from "../lib/networkError";
+
+// Re-exported so existing imports keep working; the definition lives in
+// ../types so cross-package type-only consumers (frontend/src/wordAddin
+// parity tests) never pull this module, and its runtime imports, into
+// the web app's type-check graph.
+export type { ApiKeyStatus } from "../types";
+import type { RouterProfileLists } from "@mike/model-catalog";
+import { SERVER_FAILURE_MESSAGE } from "@mike/user-error";
+import { networkFailure } from "../lib/networkError";
+import { sessionHandledError } from "../lib/sessionRefresh";
 import type { ReasoningLevel } from "../lib/wordChatTypes";
+import {
+  createControlRequestRetryPolicy,
+  firstUploadResult,
+  uploadFilesWithSessionCore,
+  type UploadOutcome,
+  type UploadProgress,
+} from "@mike/upload-session-client";
+
+export {
+  UploadBatchError,
+  failedUploadMessage,
+} from "@mike/upload-session-client";
+export type {
+  UploadOutcome,
+  UploadProgress,
+} from "@mike/upload-session-client";
 
 type AuthHeaderProvider = () => Promise<Record<string, string>>;
 
@@ -27,16 +53,92 @@ const devLog = (...args: Parameters<typeof console.log>): void => {
   if (isDev) console.log(...args);
 };
 
-class MikeApiError extends Error {
+/**
+ * A non-ok HTTP response. Carries everything the UI needs to classify the
+ * failure (`status`, `code`) and everything support needs to find it in the
+ * logs (`requestId`). `message` is only ever safe-to-show text: the
+ * backend's own 4xx `detail`, or a generic line for 5xx.
+ */
+export class MikeApiError extends Error {
   readonly status: number;
   readonly code: string | null;
+  readonly requestId: string | null;
 
-  constructor(args: { message: string; status: number; code?: string | null }) {
+  constructor(args: {
+    message: string;
+    status: number;
+    code?: string | null;
+    requestId?: string | null;
+  }) {
     super(args.message);
     this.name = "MikeApiError";
     this.status = args.status;
     this.code = args.code ?? null;
+    this.requestId = args.requestId ?? null;
   }
+}
+
+export interface ParsedApiError {
+  message: string;
+  code: string | null;
+  requestId: string | null;
+}
+
+/**
+ * Turn a non-ok response body into the fields the UI shows. Pure, so the
+ * rules ("never echo a 5xx body", "keep the backend's 4xx detail") can be
+ * checked without a server.
+ *
+ * `message` falls back to `API error: <status>`, which `describeError`
+ * recognises as "no usable text" and replaces with its own wording.
+ */
+export function parseApiErrorBody(args: {
+  status: number;
+  body: string;
+  requestId?: string | null;
+}): ParsedApiError {
+  const generic = `API error: ${args.status}`;
+  let code: string | null = null;
+  let requestId = args.requestId ?? null;
+  let detail: string | null = null;
+
+  try {
+    const parsed = JSON.parse(args.body) as {
+      detail?: unknown;
+      code?: unknown;
+      request_id?: unknown;
+      error?: { code?: unknown; message?: unknown; request_id?: unknown };
+    };
+    code =
+      typeof parsed.error?.code === "string"
+        ? parsed.error.code
+        : typeof parsed.code === "string"
+          ? parsed.code
+          : null;
+    requestId =
+      (typeof parsed.request_id === "string" ? parsed.request_id : null) ??
+      (typeof parsed.error?.request_id === "string"
+        ? parsed.error.request_id
+        : null) ??
+      requestId;
+    detail =
+      typeof parsed.error?.message === "string" && parsed.error.message
+        ? parsed.error.message
+        : typeof parsed.detail === "string" && parsed.detail
+          ? parsed.detail
+          : null;
+  } catch {
+    // A non-JSON body is a proxy or host page, never user-facing copy.
+    detail = null;
+  }
+
+  return {
+    // 4xx detail is written for users by the backend. A 5xx body (a stack
+    // trace, a proxy's HTML, a provider's complaint) never is: replace it.
+    message: args.status >= 500 ? SERVER_FAILURE_MESSAGE : (detail ?? generic),
+    code,
+    requestId,
+  };
 }
 
 let clientConfig: ResolvedMikeApiClientConfig = {
@@ -74,61 +176,53 @@ async function sendRequest(
   try {
     return await clientConfig.fetchImpl(url, init);
   } catch (error) {
-    throw new Error(
-      describeNetworkFailure(error, {
-        method: init.method ?? "GET",
-        url,
-      }),
-      { cause: error },
-    );
+    // Preserve cancellation identity for callers: a user stop, including a
+    // signal aborted with a custom reason, is not a transport failure.
+    if (
+      init.signal?.aborted ||
+      (typeof error === "object" &&
+        error !== null &&
+        "name" in error &&
+        error.name === "AbortError")
+    ) {
+      throw error;
+    }
+    throw networkFailure(error, { method: init.method ?? "GET", url });
   }
 }
 
-async function toApiError(
+/**
+ * Build the error for a non-ok response. Exported so every hand-rolled
+ * fetch in the add-in (auth, word-chat) produces the same shape as the
+ * typed client instead of a bespoke `new Error(status + body)`.
+ */
+export async function responseError(
   response: Response,
-  path: string,
+  path?: string,
 ): Promise<MikeApiError> {
-  const text = await response.text();
-  try {
-    const parsed = JSON.parse(text) as {
-      detail?: unknown;
-      code?: unknown;
-      error?: { code?: unknown; message?: unknown };
-    };
-    const code =
-      typeof parsed.error?.code === "string"
-        ? parsed.error.code
-        : typeof parsed.code === "string"
-          ? parsed.code
-          : null;
-    const message =
-      typeof parsed.error?.message === "string" && parsed.error.message
-        ? parsed.error.message
-        : typeof parsed.detail === "string" && parsed.detail
-          ? parsed.detail
-          : `API error: ${response.status}`;
-    devLog("[mike-api] non-ok response", {
-      path,
-      status: response.status,
-      code,
-      detail: parsed.detail,
-    });
-    return new MikeApiError({
-      status: response.status,
-      code,
-      message,
-    });
-  } catch {
-    devLog("[mike-api] non-ok non-json response", {
-      path,
-      status: response.status,
-      bodyPreview: text.slice(0, 200),
-    });
-    return new MikeApiError({
-      status: response.status,
-      message: text || `API error: ${response.status}`,
-    });
-  }
+  const text = await response.text().catch(() => "");
+  const parsed = parseApiErrorBody({
+    status: response.status,
+    body: text,
+    requestId: response.headers.get("x-request-id"),
+  });
+  devLog("[mike-api] non-ok response", {
+    path: path ?? response.url,
+    status: response.status,
+    code: parsed.code,
+    requestId: parsed.requestId,
+    bodyPreview: text.slice(0, 200),
+  });
+  // A 401 the session layer already handled carries its own sentence: the
+  // session toast or login gate said what happened, and the body's "Not
+  // authenticated" would only contradict it.
+  const handled = sessionHandledError(response);
+  return new MikeApiError({
+    status: response.status,
+    code: handled?.code ?? parsed.code,
+    requestId: parsed.requestId,
+    message: handled?.message ?? parsed.message,
+  });
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -144,7 +238,9 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (!response.ok) throw await toApiError(response, path);
+  if (!response.ok) {
+    throw await responseError(response, path);
+  }
   if (
     response.status === 204 ||
     response.headers.get("content-length") === "0"
@@ -154,11 +250,48 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Options every add-in upload entry point accepts, matching the web client so
+ * a pane can follow progress and cancel a batch it no longer needs.
+ */
+export type UploadRequestOptions<T> = {
+  onProgress?: (progress: UploadProgress<T>) => void;
+  signal?: AbortSignal;
+};
+
+async function uploadSessionFiles<T>(args: {
+  purpose:
+    | "document_create"
+    | "document_version_create"
+    | "document_version_replace";
+  destination: Record<string, unknown>;
+  files: File[];
+  onProgress?: (progress: UploadProgress<T>) => void;
+  signal?: AbortSignal;
+}): Promise<UploadOutcome<T>[]> {
+  return uploadFilesWithSessionCore<T>({
+    purpose: args.purpose,
+    destination: args.destination,
+    files: args.files.map((file) => ({ file })),
+    onProgress: args.onProgress,
+    signal: args.signal,
+    transport: {
+      apiRequest,
+      fetchStorage: (...fetchArgs) => clientConfig.fetchImpl(...fetchArgs),
+      shouldRetryControlRequest: createControlRequestRetryPolicy((error) =>
+        error instanceof MikeApiError
+          ? { status: error.status, code: error.code }
+          : null,
+      ),
+    },
+  });
+}
+
 export async function listProjects(pagination?: {
   limit?: number;
   offset?: number;
 }): Promise<Project[]> {
-  const params = new URLSearchParams({ view: "summary" });
+  const params = new URLSearchParams({ view: "summary", workspace: "personal" });
   if (pagination?.limit != null) {
     params.set("limit", String(pagination.limit));
   }
@@ -168,7 +301,8 @@ export async function listProjects(pagination?: {
   return apiRequest<Project[]>(`/projects?${params.toString()}`);
 }
 
-interface UserProfile {
+/** GET /user/profile; each router's Model Selections may be absent on an older API. */
+interface UserProfile extends Partial<RouterProfileLists> {
   displayName: string | null;
   organisation: string | null;
   messageCreditsUsed: number;
@@ -180,10 +314,6 @@ interface UserProfile {
   lastSelectedChatModel: string | null;
   lastSelectedReasoningLevel: ReasoningLevel;
   mfaOnLogin: boolean;
-
-  openRouterModels: string[];
-  vercelModels: string[];
-  openCodeGoModels: string[];
   apiKeyStatus: ApiKeyStatus;
 }
 
@@ -213,42 +343,29 @@ export async function updateLastSelectedReasoningLevel(
   });
 }
 
-export interface ApiKeyStatus {
-  claude: boolean;
-  gemini: boolean;
-  openai: boolean;
-  openrouter: boolean;
-  vercel: boolean;
-  "opencode-go": boolean;
-  sources?: Partial<
-    Record<
-      | "claude"
-      | "gemini"
-      | "openai"
-      | "openrouter"
-      | "vercel"
-      | "opencode-go",
-      "user" | "env" | null
-    >
-  >;
-}
 
 export async function getApiKeyStatus(): Promise<ApiKeyStatus> {
   return apiRequest<ApiKeyStatus>("/user/api-keys");
 }
 
-export async function uploadStandaloneDocument(file: File): Promise<Document> {
-  const authHeaders = await getAuthHeaders();
-  const form = new FormData();
-  form.append("file", file);
-  const path = "/single-documents";
-  const response = await sendRequest(apiUrl(path), {
-    method: "POST",
-    headers: authHeaders,
-    body: form,
+export async function uploadStandaloneDocument(
+  file: File,
+  options?: UploadRequestOptions<Document>,
+): Promise<Document> {
+  return firstUploadResult(await uploadStandaloneDocuments([file], options));
+}
+
+export async function uploadStandaloneDocuments(
+  files: File[],
+  options?: UploadRequestOptions<Document>,
+): Promise<UploadOutcome<Document>[]> {
+  return uploadSessionFiles<Document>({
+    purpose: "document_create",
+    destination: { scope: "standalone" },
+    files,
+    onProgress: options?.onProgress,
+    signal: options?.signal,
   });
-  if (!response.ok) throw await toApiError(response, path);
-  return response.json() as Promise<Document>;
 }
 
 type LibraryKind = "files" | "templates";
@@ -263,7 +380,7 @@ export async function getLibrary(
   kind: LibraryKind,
   pagination?: { limit?: number; offset?: number },
 ): Promise<LibraryCollection> {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ workspace: "personal" });
   if (pagination?.limit != null) {
     params.set("limit", String(pagination.limit));
   }
@@ -281,7 +398,7 @@ export async function getLibraryFolderChildren(
   folderId: string,
   pagination?: { limit?: number; offset?: number },
 ): Promise<LibraryCollection> {
-  const params = new URLSearchParams({ parent_folder_id: folderId });
+  const params = new URLSearchParams({ parent_folder_id: folderId, workspace: "personal" });
   if (pagination?.limit != null) {
     params.set("limit", String(pagination.limit));
   }
@@ -310,12 +427,25 @@ export async function getProjectDirectoryLevel(
   );
 }
 
+/**
+ * The task pane's IANA time zone (e.g. "Europe/London"), sent with chat
+ * requests so the assistant knows the user's local date and time.
+ */
+function browserTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function streamWordChat(payload: {
   messages: {
     role: string;
     content: string;
     files?: { filename: string; document_id?: string }[];
     workflow?: { id: string; title: string };
+    playbook?: { id: string; title: string };
   }[];
   chat_id?: string;
   model?: string;
@@ -338,7 +468,7 @@ export async function streamWordChat(payload: {
       Accept: "text/event-stream",
       ...authHeaders,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...body, time_zone: browserTimeZone() }),
     signal,
   });
 }
@@ -363,11 +493,66 @@ export async function postWordChatToolResult(payload: {
   });
 }
 
+/**
+ * Attach to a Word turn the server is generating (or has just finished):
+ * frames with a sequence number >= `from` are replayed, then the live ones
+ * follow until the turn ends. `from` is the last `id:` the pane applied plus
+ * one; 1 means everything.
+ */
+export async function streamWordChatTurn(payload: {
+  chatId: string;
+  turnId: string;
+  documentId: string;
+  from?: number;
+  signal?: AbortSignal;
+}): Promise<Response> {
+  const params = new URLSearchParams({
+    document_id: payload.documentId,
+    from: String(payload.from ?? 1),
+  });
+  return sendRequest(
+    apiUrl(
+      `/word-chat/${encodeURIComponent(payload.chatId)}/turn/` +
+        `${encodeURIComponent(payload.turnId)}/stream?${params}`,
+    ),
+    {
+      method: "GET",
+      headers: { Accept: "text/event-stream", ...(await getAuthHeaders()) },
+      signal: payload.signal,
+    },
+  );
+}
+
+/**
+ * The one way to cut a Word answer short. Closing the pane's stream only
+ * detaches it; the server keeps answering into the transcript.
+ */
+export async function stopWordChatTurn(payload: {
+  chatId: string;
+  turnId: string;
+  documentId: string;
+}): Promise<{ stopped: boolean; finished: boolean }> {
+  const params = new URLSearchParams({ document_id: payload.documentId });
+  return apiRequest<{ stopped: boolean; finished: boolean }>(
+    `/word-chat/${encodeURIComponent(payload.chatId)}/turn/` +
+      `${encodeURIComponent(payload.turnId)}/stop?${params}`,
+    { method: "POST" },
+  );
+}
+
 /** Parse SSE data frames until the terminal `[DONE]` marker. */
 export async function readSSE(
   response: Response,
   onEvent: (data: unknown) => void,
-  options?: { signal?: AbortSignal },
+  options?: {
+    signal?: AbortSignal;
+    /**
+     * The `id:` line preceding each record, before the record is handed to
+     * `onEvent`. A server-owned turn numbers its frames so a pane that
+     * reattaches can ask for the ones it has not seen (`from=<last id + 1>`).
+     */
+    onEventId?: (id: string) => void;
+  },
 ): Promise<{ done: boolean }> {
   if (!response.body) {
     throw new Error("Response body is null — streaming not supported");
@@ -387,11 +572,22 @@ export async function readSSE(
   };
   signal?.addEventListener("abort", onAbort);
 
+  // An `id:` line applies to the record that follows it.
+  let pendingId: string | null = null;
   const processLine = (line: string): boolean => {
     const trimmed = line.trim();
+    if (trimmed.startsWith("id:")) {
+      pendingId = trimmed.slice(3).trim() || null;
+      return false;
+    }
     if (!trimmed.startsWith("data:")) return false;
     const data = trimmed.slice(5).trim();
-    if (data === "[DONE]") return true;
+    const id = pendingId;
+    pendingId = null;
+    if (data === "[DONE]") {
+      if (id !== null) options?.onEventId?.(id);
+      return true;
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(data);
@@ -399,6 +595,7 @@ export async function readSSE(
       // Ignore malformed transport noise rather than ending the stream.
       return false;
     }
+    if (id !== null) options?.onEventId?.(id);
     // Callback failures are application errors, not malformed SSE. Let
     // them propagate so callers cannot silently lose a valid event.
     onEvent(parsed);
@@ -436,7 +633,7 @@ export async function listQuickActions(): Promise<
   import("../types").QuickAction[]
 > {
   return apiRequest<import("../types").QuickAction[]>(
-    "/quick-actions?surface=word",
+    "/quick-actions?surface=word&workspace=personal",
   );
 }
 
@@ -478,68 +675,76 @@ export async function createQuickAction(payload: {
   });
 }
 
-export async function listWorkflowReferenceFiles(
+export async function listWorkflowAssets(
   workflowId: string,
-): Promise<WorkflowReferenceDocument[]> {
-  return apiRequest<WorkflowReferenceDocument[]>(
-    `/workflows/${workflowId}/reference-files`,
+): Promise<Document[]> {
+  return apiRequest<Document[]>(`/workflows/${workflowId}/assets`);
+}
+
+export async function uploadWorkflowAsset(
+  workflowId: string,
+  file: File,
+  options?: UploadRequestOptions<Document>,
+): Promise<Document> {
+  return firstUploadResult(
+    await uploadWorkflowAssets(workflowId, [file], options),
   );
 }
 
-export async function uploadWorkflowReferenceFile(
+export async function uploadWorkflowAssets(
   workflowId: string,
-  file: File,
-): Promise<WorkflowReferenceDocument> {
-  const path = `/workflows/${workflowId}/reference-files`;
-  const form = new FormData();
-  form.append("file", file);
-  const response = await sendRequest(apiUrl(path), {
-    method: "POST",
-    headers: await getAuthHeaders(),
-    body: form,
+  files: File[],
+  options?: UploadRequestOptions<Document>,
+): Promise<UploadOutcome<Document>[]> {
+  return uploadSessionFiles<Document>({
+    purpose: "document_create",
+    destination: { scope: "workflow", workflow_id: workflowId },
+    files,
+    onProgress: options?.onProgress,
+    signal: options?.signal,
   });
-  if (!response.ok) throw await toApiError(response, path);
-  return response.json() as Promise<WorkflowReferenceDocument>;
 }
 
-export async function replaceWorkflowReferenceFile(
-  workflowId: string,
-  referenceId: string,
+export async function uploadWorkflowAssetVersion(
+  assetId: string,
   file: File,
-): Promise<WorkflowReferenceDocument> {
-  const path = `/workflows/${workflowId}/reference-files/${referenceId}`;
-  const form = new FormData();
-  form.append("file", file);
-  form.append("filename", file.name);
-  const response = await sendRequest(apiUrl(path), {
-    method: "PUT",
-    headers: await getAuthHeaders(),
-    body: form,
-  });
-  if (!response.ok) throw await toApiError(response, path);
-  return response.json() as Promise<WorkflowReferenceDocument>;
+  options?: UploadRequestOptions<unknown>,
+): Promise<unknown> {
+  return firstUploadResult(
+    await uploadSessionFiles<unknown>({
+      purpose: "document_version_create",
+      destination: { document_id: assetId, filename: file.name },
+      files: [file],
+      onProgress: options?.onProgress,
+      signal: options?.signal,
+    }),
+  );
 }
 
-export async function getWorkflowReferenceUrl(
-  workflowId: string,
-  referenceId: string,
+export async function getWorkflowAssetUrl(
+  assetId: string,
 ): Promise<{ url: string; filename: string }> {
   return apiRequest<{ url: string; filename: string }>(
-    `/workflows/${workflowId}/reference-files/${referenceId}/url`,
+    `/single-documents/${assetId}/url`,
   );
 }
 
-export async function deleteWorkflowReferenceFile(
+export async function deleteWorkflowAsset(
   workflowId: string,
-  referenceId: string,
+  assetId: string,
 ): Promise<void> {
-  await apiRequest(`/workflows/${workflowId}/reference-files/${referenceId}`, {
+  await apiRequest(`/workflows/${workflowId}/assets/${assetId}`, {
     method: "DELETE",
   });
 }
 
 export async function listWorkflows(type: WorkflowType): Promise<Workflow[]> {
-  return apiRequest<Workflow[]>(`/workflows?type=${type}`);
+  return apiRequest<Workflow[]>(`/workflows?type=${type}&workspace=personal`);
+}
+
+/** Playbooks the user can run; Word chats are Personal, like its workflows. */
+export async function listPlaybooks(): Promise<Playbook[]> {
+  return apiRequest<Playbook[]>("/playbooks?workspace=personal");
 }
 
 export async function createWorkflow(payload: {

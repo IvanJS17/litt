@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import {
   decodePageCursor as decodePageCursorWithMac,
@@ -193,7 +192,7 @@ describe("upstream conflict vocabulary error | reuse | rename", () => {
       expect(result.ok).toBe(false);
     }
     const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "uploadPlanning.ts"),
+      resolve(process.cwd(), "src/lib/recovery/documents/uploadPlanning.ts"),
       "utf8",
     );
     expect(source).not.toMatch(/overwrite/i);
@@ -433,7 +432,7 @@ describe("opaque bounded scope-bound cursors", () => {
 
 describe("runtime export lock and zero legacy imports", () => {
   it("exposes exactly the governed upload-planning surface", async () => {
-    const module = await import("./uploadPlanning");
+    const module = await import("./uploadPlanning.js");
     expect(Object.keys(module).sort()).toEqual(
       [
         "FOLDER_CONFLICT_RESOLUTIONS",
@@ -450,8 +449,10 @@ describe("runtime export lock and zero legacy imports", () => {
   });
 
   it("has no legacy storage, AWS, network, or logging imports", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const source = readFileSync(join(here, "uploadPlanning.ts"), "utf8");
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/recovery/documents/uploadPlanning.ts"),
+      "utf8",
+    );
     expect(source).not.toMatch(/@aws-sdk/);
     expect(source).not.toMatch(/from\s+["']\.\.\/storage["']/);
     expect(source).not.toMatch(/documentVersions/);

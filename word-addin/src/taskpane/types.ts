@@ -1,3 +1,4 @@
+import type { AssistantEvent as WireAssistantEvent } from "@mike/contracts";
 /** API contracts used by the Word task pane. */
 
 export interface LibraryFolder {
@@ -17,22 +18,13 @@ export interface Project {
 
 export interface Document {
   id: string;
+  workflow_id?: string | null;
   folder_id?: string | null;
   library_folder_id?: string | null;
   filename: string;
   file_type: string | null;
   size_bytes: number | null;
   created_at: string | null;
-}
-
-export interface WorkflowReferenceDocument {
-  id: string;
-  workflow_id: string;
-  filename: string;
-  file_type: string;
-  size_bytes: number | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface Chat {
@@ -43,6 +35,22 @@ export interface Chat {
   model?: string | null;
   reasoning_level?: import("./lib/wordChatTypes").ReasoningLevel | null;
   created_at: string;
+  /**
+   * A turn the server is still generating into this chat, so a pane opening
+   * it attaches instead of showing a transcript whose last answer is
+   * missing. A LOCAL chat carries the id alone (`active_turn_id`), because
+   * nothing about it is stored server-side to report it back.
+   */
+  active_turn_id?: string | null;
+}
+
+/** A turn still generating, as `GET /word-chat/:chatId` reports it. */
+export interface ActiveWordTurn {
+  id: string;
+  /** Frames emitted so far; a pane attaches from the next one it needs. */
+  seq: number;
+  /** The assistant row the answer is (or will be) stored in. */
+  assistant_message_id: string;
 }
 
 /** A document read the model completed during an assistant turn. */
@@ -60,19 +68,15 @@ export type WordThinkingEvent = {
   key?: string;
 };
 
-export type WordReasoningEvent = {
-  type: "reasoning";
-  text: string;
-  isStreaming?: boolean;
-  key?: string;
-};
+export type WordReasoningEvent = Extract<
+  WireAssistantEvent,
+  { type: "reasoning" }
+> & { isStreaming?: boolean; key?: string };
 
-export type WordContentEvent = {
-  type: "content";
-  text: string;
-  isStreaming?: boolean;
-  key?: string;
-};
+export type WordContentEvent = Extract<
+  WireAssistantEvent,
+  { type: "content" }
+> & { isStreaming?: boolean; key?: string };
 
 export type WordDocumentReadEvent = {
   type: "doc_read";
@@ -82,7 +86,14 @@ export type WordDocumentReadEvent = {
   key?: string;
 };
 
-export type WordErrorEvent = { type: "error"; message: string; key?: string };
+export type WordTextCardEvent = Extract<
+  WireAssistantEvent,
+  { type: "text_card" }
+> & { key?: string };
+
+export type WordErrorEvent = Extract<WireAssistantEvent, { type: "error" }> & {
+  key?: string;
+};
 
 /** Exact placement of a normalized edit card within assistant event history. */
 export type WordEditReferenceEvent = {
@@ -107,23 +118,8 @@ export type WordEditBlockEvent = {
   key?: string;
 };
 
-export interface WordDocumentEdit {
-  id: string;
-  messageId: string;
-  blockIndex: number;
-  originalText: string;
-  replacementText: string;
-  formats: string[];
-  occurrence?: "all";
-  reason?: string;
-  applyMode: "direct" | "approval";
-  applyStatus: "proposed" | "applied" | "unmanaged" | "failed";
-  resolutionStatus?: WordEditResolutionStatus;
-  matchedOccurrences?: number;
-  appliedOccurrences?: number;
-  errorCode?: string;
-  errorMessage?: string;
-}
+export type { WordDocumentEdit } from "@mike/contracts";
+import type { WordDocumentEdit } from "@mike/contracts";
 
 /**
  * A backend-persisted assistant activity the Word surface does not render yet.
@@ -143,6 +139,7 @@ export type WordAssistantEvent =
   | WordThinkingEvent
   | WordReasoningEvent
   | WordContentEvent
+  | WordTextCardEvent
   | WordDocumentReadEvent
   | WordErrorEvent
   | WordEditReferenceEvent
@@ -162,7 +159,7 @@ export interface WordCitation {
   quotes?: { quote?: string | null; text?: string | null }[] | null;
 }
 
-export type WordEditResolutionStatus = "accepted" | "rejected";
+export type { WordEditResolutionStatus } from "@mike/contracts";
 
 export interface Message {
   id?: string;
@@ -170,6 +167,8 @@ export interface Message {
   content: string;
   files?: { filename: string; document_id?: string }[];
   workflow?: { id: string; title: string };
+  /** The playbook the user attached to this message, shown as a pill. */
+  playbook?: { id: string; title: string };
   /** Assistant turns preserve their content and activity in event order. */
   events?: WordAssistantEvent[];
   /** Canonical normalized edits for this assistant message. */
@@ -194,6 +193,17 @@ export interface Workflow {
   allow_edit?: boolean;
 }
 
+/**
+ * The fields of GET /playbooks the composer's picker reads. The full shape
+ * is frontend/src/app/lib/mikeApi.ts `Playbook`.
+ */
+export interface Playbook {
+  id: string;
+  name: string;
+  description: string;
+  content: { documentTypes: string[] };
+}
+
 export interface QuickAction {
   id: string;
   workflow_id: string;
@@ -205,3 +215,39 @@ export interface QuickAction {
   sort_order: number;
   workflow: { id: string; title: string };
 }
+
+/**
+ * Which model providers have a usable API key for the signed-in user, and
+ * where each key comes from. Lives here (not in api/client.ts) because
+ * frontend/src/wordAddin imports it across packages for parity tests and
+ * must not drag the API client's runtime dependencies into the web app's
+ * type-check.
+ */
+/** Key providers reported by GET /user/api-keys. */
+export type ApiKeyProvider =
+  | "claude"
+  | "gemini"
+  | "openai"
+  | "mistral"
+  | "openrouter"
+  | "vercel"
+  | "opencode-go"
+  | "bedrock"
+  | "azure"
+  | "azure-foundry"
+  | "vertex"
+  | "xai"
+  | "custom"
+  | "brave"
+  | "tavily"
+  | "deepseek";
+
+/**
+ * GET /user/api-keys: whether each provider has a usable key (false for a
+ * key that is saved but switched off), where it came from, and whether a
+ * saved key is switched on.
+ */
+export type ApiKeyStatus = Record<ApiKeyProvider, boolean> & {
+  sources?: Partial<Record<ApiKeyProvider, "user" | "env" | null>>;
+  enabled?: Partial<Record<ApiKeyProvider, boolean>>;
+};

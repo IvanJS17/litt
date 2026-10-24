@@ -1,4 +1,5 @@
 import { settleWithConcurrency } from "../lib/settleWithConcurrency";
+import { createSecureUuid } from "../lib/secureUuid";
 
 export type UploadSessionPurpose =
     | "document_create"
@@ -30,32 +31,6 @@ export type UploadProgressStatus =
 export type UploadProgress<T = unknown> = Omit<UploadOutcome<T>, "status"> & {
     status: UploadProgressStatus;
 };
-
-/**
- * The staged upstream client imports `createSecureUuid` from `../lib/secureUuid`,
- * which does not exist in this repository. The fallback below is inlined so the
- * shared client keeps a single local dependency (`settleWithConcurrency`).
- */
-function createSecureUuid(): string {
-    if (
-        typeof crypto !== "undefined" &&
-        typeof crypto.randomUUID === "function"
-    ) {
-        return crypto.randomUUID();
-    }
-    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-        const bytes = crypto.getRandomValues(new Uint8Array(16));
-        bytes[6] = (bytes[6]! & 0x0f) | 0x40;
-        bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-        const hex = Array.from(bytes, (byte) =>
-            byte.toString(16).padStart(2, "0"),
-        ).join("");
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    }
-    // Last-resort host (no Web Crypto): uniqueness only has to hold within the
-    // batch, where the session server owns the durable identifiers.
-    return `client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
 
 /**
  * Expected outcomes travel in the return value of

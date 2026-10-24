@@ -136,7 +136,11 @@ Required:
 - explicit production authorization bound to exact commit/tree/artifact;
 - current production inventory and read-only preflight;
 - secrets/account/DNS/server identities verified;
-- approved migration and rollback procedure;
+- approved migration and rollback procedure (schema through
+  `backend/scripts/migrate.sh` and the `public.schema_migrations` ledger);
+- container images built from the exact commit and their IDs verified on the
+  target; no CI workflow builds images
+  ([`../deploy/prod/README.md`](../deploy/prod/README.md) §1);
 - encrypted backup and tested restore within accepted RPO/RTO;
 - provider data-flow/retention/operator-access decisions;
 - AGPL Corresponding Source package for the deployed version;
@@ -190,6 +194,24 @@ Hermes `reviewer` profile via Kanban. Its terminal exact-tree receipt is externa
 to the frozen source; timeout, `done` alone and another tree's PASS do not govern.
 The existing owner instruction separately permits a recovery-only push after that
 PASS. Commit tree equality, remote readback and CLOSEOUT remain mandatory.
+
+## Upstream sync 2026-10-23 placement
+
+The sync of [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) has:
+
+- G0: approved plan (PR #12) and compatibility matrix (PR #13);
+- G1/G2: slices S1–S7 each with focused verification and one Reviewer PASS on
+  the exact snapshot (receipt in
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §17);
+  S8a in review;
+- G3: draft PR #14 is `CONFLICTING` with `main` by design, so it starts no
+  `pull_request` checks; until the merge commit exists, exact-head CI is
+  `workflow_dispatch` of CI, Schema drift, Stack tests, Word add-in and e2e
+  on the reviewed head. The merge commit's pull request needs its own
+  exact-head CI;
+- G4: merge with a merge commit (never a squash) so upstream becomes an
+  ancestor of `main`; pending (S8b);
+- G5–G7: not started and not authorized.
 
 ## Reporting template
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recordChatTurn } from "../audit";
+import { chatTurnAuditEvents, recordChatTurn } from "../audit";
 
 type Insert = Record<string, unknown>;
 
@@ -40,7 +40,7 @@ describe("recordChatTurn artifact mining", () => {
             { type: "workflow_applied", workflow_id: "wf1", title: "Cleanup" },
         ]);
 
-        expect(inserts.map((r) => r.event_type)).toEqual([
+        expect(inserts.map((r) => r.action)).toEqual([
             "chat.message",
             "document.generated",
             "document.edited",
@@ -48,8 +48,8 @@ describe("recordChatTurn artifact mining", () => {
         ]);
         expect(inserts[1]).toMatchObject({ title: "brief.docx", document_id: "d1" });
         expect(inserts[3]).toMatchObject({
-            event_type: "workflow.applied",
-            event_detail: { workflow_id: "wf1" },
+            action: "workflow.applied",
+            detail: { workflow_id: "wf1" },
         });
     });
 
@@ -68,7 +68,7 @@ describe("recordChatTurn artifact mining", () => {
         ]);
 
         // chat.message + one document.generated per copy.
-        const artifacts = inserts.filter((r) => r.event_type === "document.generated");
+        const artifacts = inserts.filter((r) => r.action === "document.generated");
         expect(artifacts).toHaveLength(2);
         expect(artifacts.map((r) => r.title)).toEqual(["copy-a.docx", "copy-b.docx"]);
         expect(artifacts.map((r) => r.document_id)).toEqual(["da", "db"]);
@@ -82,6 +82,34 @@ describe("recordChatTurn artifact mining", () => {
         await recordChatTurn(db, base, [
             { type: "doc_replicated", filename: "src.docx", count: 0, copies: [] },
         ]);
-        expect(inserts.map((r) => r.event_type)).toEqual(["chat.message"]);
+        expect(inserts.map((r) => r.action)).toEqual(["chat.message"]);
+    });
+});
+
+describe("chatTurnAuditEvents surface", () => {
+    it("derives assistant/project from projectId when no surface is given", () => {
+        expect(chatTurnAuditEvents(base, [])[0].surface).toBe("assistant");
+        expect(
+            chatTurnAuditEvents({ ...base, projectId: "p1" }, [])[0].surface,
+        ).toBe("project");
+    });
+
+    it("lets an explicit surface override the derivation, on every row", () => {
+        const rows = chatTurnAuditEvents({ ...base, surface: "word" }, [
+            { type: "doc_created", filename: "brief.docx", document_id: "d1" },
+        ]);
+        // Both the chat.message row and the mined artifact row must carry it,
+        // or the history feed would show a Word turn with an assistant
+        // artifact hanging off it.
+        expect(rows.map((r) => r.surface)).toEqual(["word", "word"]);
+    });
+
+    it("wins over projectId rather than being overridden by it", () => {
+        const rows = chatTurnAuditEvents(
+            { ...base, projectId: "p1", surface: "word" },
+            [],
+        );
+        expect(rows[0].surface).toBe("word");
+        expect(rows[0].projectId).toBe("p1");
     });
 });

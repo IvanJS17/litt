@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { ChatInput } from "./ChatInput";
 
+const getChatCredentialOptions = vi.hoisted(() => vi.fn());
 vi.mock("@/app/lib/mikeApi", () => ({
+    getChatCredentialOptions,
     listWorkflows: vi.fn(async () => []),
     uploadProjectDocument: vi.fn(),
     uploadStandaloneDocument: vi.fn(),
@@ -11,6 +13,9 @@ vi.mock("@/app/lib/mikeApi", () => ({
 
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: vi.fn(),
+}));
+vi.mock("@/app/hooks/useConfiguredModels", () => ({
+    useConfiguredModels: () => [],
 }));
 
 vi.mock("@/app/lib/modelAvailability", () => ({
@@ -31,7 +36,7 @@ vi.mock("./ModelToggle", async (importOriginal) => ({
         onReasoningChange?: (reasoning: "xhigh") => void;
     }) => (
         <>
-            <button type="button" onClick={() => onChange("gpt-5.6-sol")}>
+            <button type="button" onClick={() => onChange("gpt-6-astra")}>
                 Select test model
             </button>
             <button type="button" onClick={() => onReasoningChange?.("xhigh")}>
@@ -79,7 +84,7 @@ function mockProfile(apiKeysDegraded: boolean) {
             openRouterModels: [],
             vercelModels: [],
             openCodeGoModels: [],
-            lastSelectedChatModel: "gpt-5.6-luna",
+            lastSelectedChatModel: "gpt-6-luna",
             lastSelectedReasoningLevel: "high",
             apiKeys: emptyApiKeys(),
         },
@@ -94,6 +99,11 @@ describe("ChatInput model selection vs. a degraded profile", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+        getChatCredentialOptions.mockResolvedValue({
+            provider: "openai",
+            options: [],
+            default: null,
+        });
     });
 
     it("persists reasoning immediately for an existing chat", async () => {
@@ -101,7 +111,7 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         render(
             <ChatInput
                 chatKey="chat-1"
-                chatModel="gpt-5.6-luna"
+                chatModel="gpt-6-luna"
                 chatReasoningLevel="high"
                 onSubmit={vi.fn()}
                 onCancel={vi.fn()}
@@ -137,20 +147,21 @@ describe("ChatInput model selection vs. a degraded profile", () => {
 
         await waitFor(() =>
             expect(persistChatModelSelection).toHaveBeenCalledWith(
-                "gpt-5.6-sol",
+                "gpt-6-astra",
                 undefined,
             ),
         );
     });
 
-    it("persists an existing-chat selection to the chat and profile immediately", async () => {
+    it("keeps an existing chat on the model it was started with (LiTT)", async () => {
         mockProfile(false);
+        const onSubmit = vi.fn();
         render(
             <ChatInput
                 chatKey="chat-1"
-                chatModel="gpt-5.6-luna"
+                chatModel="gpt-6-luna"
                 chatReasoningLevel="high"
-                onSubmit={vi.fn()}
+                onSubmit={onSubmit}
                 onCancel={vi.fn()}
                 isLoading={false}
             />,
@@ -159,13 +170,21 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         fireEvent.click(
             screen.getByRole("button", { name: "Select test model" }),
         );
+        fireEvent.change(screen.getByRole("combobox"), {
+            target: { value: "hello" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Send message" }));
 
-        await waitFor(() =>
-            expect(persistChatModelSelection).toHaveBeenCalledWith(
-                "gpt-5.6-sol",
-                "chat-1",
-            ),
-        );
+        await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+        expect(persistChatModelSelection).not.toHaveBeenCalled();
+        const sent = onSubmit.mock.calls[0][0];
+        expect(sent.model).toBe("gpt-6-luna");
+        // A pinned conversation never names another key.
+        expect(sent).not.toHaveProperty("credential_ref");
+        expect(getChatCredentialOptions).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("button", { name: /Key for this conversation/ }),
+        ).toBeNull();
     });
 
     it("passes the tabular chat selection key through on toggle changes", async () => {
@@ -174,7 +193,8 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         render(
             <ChatInput
                 chatKey={tabularChatKey}
-                chatModel="gpt-5.6-luna"
+                // A chat stored before routes were pinned has no model yet.
+                chatModel={null}
                 chatReasoningLevel="high"
                 onSubmit={vi.fn()}
                 onCancel={vi.fn()}
@@ -188,7 +208,7 @@ describe("ChatInput model selection vs. a degraded profile", () => {
 
         await waitFor(() =>
             expect(persistChatModelSelection).toHaveBeenCalledWith(
-                "gpt-5.6-sol",
+                "gpt-6-astra",
                 tabularChatKey,
             ),
         );
@@ -214,7 +234,7 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         rerender(
             <ChatInput
                 chatKey="chat-1"
-                chatModel="gpt-5.6-luna"
+                chatModel="gpt-6-luna"
                 chatReasoningLevel="high"
                 onSubmit={vi.fn()}
                 onCancel={vi.fn()}
@@ -270,8 +290,75 @@ describe("ChatInput model selection vs. a degraded profile", () => {
         fireEvent.click(screen.getByRole("button", { name: "Send message" }));
         await waitFor(() =>
             expect(onSubmit).toHaveBeenCalledWith(
-                expect.objectContaining({ model: "gpt-5.6-luna" }),
+                expect.objectContaining({ model: "gpt-6-luna" }),
             ),
         );
+    });
+});
+
+describe("ChatInput key choice for a new conversation (LiTT governed BYOK)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    });
+
+    it("sends the server's default key, or the one the user picks", async () => {
+        mockProfile(false);
+        getChatCredentialOptions.mockResolvedValue({
+            provider: "openai",
+            options: [
+                { credential_ref: "user:u1:openai:v2", source: "personal" },
+                { credential_ref: "org:o1:openai:v4", source: "organization" },
+            ],
+            default: "user:u1:openai:v2",
+        });
+        const onSubmit = vi.fn();
+        render(
+            <ChatInput onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} />,
+        );
+
+        const trigger = await screen.findByRole("button", {
+            name: "Key for this conversation: Your key",
+        });
+        expect(getChatCredentialOptions).toHaveBeenCalledWith(
+            expect.objectContaining({ model: "gpt-6-luna" }),
+        );
+
+        fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+        fireEvent.click(
+            await screen.findByRole("menuitemradio", { name: "Organization key" }),
+        );
+        await screen.findByRole("button", {
+            name: "Key for this conversation: Organization key",
+        });
+
+        fireEvent.change(screen.getByRole("combobox"), {
+            target: { value: "hello" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Send message" }));
+        await waitFor(() =>
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    model: "gpt-6-luna",
+                    credential_ref: "org:o1:openai:v4",
+                }),
+            ),
+        );
+    });
+
+    it("offers no key choice in a review chat", () => {
+        mockProfile(false);
+        render(
+            <ChatInput
+                offerCredentialChoice={false}
+                onSubmit={vi.fn()}
+                onCancel={vi.fn()}
+                isLoading={false}
+            />,
+        );
+        expect(getChatCredentialOptions).not.toHaveBeenCalled();
+        expect(
+            screen.queryByRole("button", { name: /Key for this conversation/ }),
+        ).toBeNull();
     });
 });

@@ -1,11 +1,8 @@
 "use client";
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import {
-  ModalUI,
-  type ModalUISize,
-} from "@/shared/ui/ModalUI";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { ModalUI, type ModalUISize } from "@/shared/ui/ModalUI";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
 import { cn } from "@/app/lib/utils";
 
 type ModalAction = Omit<
@@ -26,6 +23,8 @@ interface ModalProps {
   size?: ModalUISize;
   className?: string;
   footerStatus?: ReactNode;
+  /** Custom leading footer control, such as a document-source dropdown. */
+  footerLeading?: ReactNode;
   primaryAction?: ModalAction;
   secondaryAction?: ModalAction;
   cancelAction?: ModalAction | false;
@@ -46,6 +45,7 @@ export function Modal({
   size = "lg",
   className,
   footerStatus,
+  footerLeading,
   primaryAction,
   secondaryAction,
   cancelAction,
@@ -66,12 +66,13 @@ export function Modal({
       }
       footerStatus={footerStatus}
       secondaryAction={
-        secondaryAction ? (
+        footerLeading ??
+        (secondaryAction ? (
           <ModalActionButton
             action={secondaryAction}
             fallbackVariant="secondary"
           />
-        ) : undefined
+        ) : undefined)
       }
       cancelAction={
         cancelAction ? (
@@ -128,9 +129,9 @@ function ModalActionButton({
             : "white";
 
   return (
-    <PillButton tone={tone} size="normal" {...props}>
+    <PillButtonUI tone={tone} size="normal" {...props}>
       {icon}
       {label}
-    </PillButton>
+    </PillButtonUI>
   );
 }

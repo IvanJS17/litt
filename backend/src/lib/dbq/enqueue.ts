@@ -106,6 +106,70 @@ export async function liveDbJobExists(
 }
 
 /**
+ * The batched form of liveDbJobExists: which of these dedupe keys still have
+ * a pending or running job. One indexed query however many keys are asked
+ * about, for readers that judge a page of domain rows at once.
+ */
+export async function liveDbJobDedupeKeys(
+    db: Db,
+    dedupeKeys: readonly string[],
+): Promise<Set<string>> {
+    if (dedupeKeys.length === 0) return new Set();
+    const { data, error } = await db
+        .from("db_jobs")
+        .select("dedupe_key")
+        .in("dedupe_key", [...dedupeKeys])
+        .in("status", ["pending", "running"]);
+    if (error) throw error;
+    return new Set(
+        ((data ?? []) as { dedupe_key: string | null }[]).flatMap((row) =>
+            row.dedupe_key ? [row.dedupe_key] : [],
+        ),
+    );
+}
+
+/**
+ * Ask BullMQ to pick up cleanup rows the document_versions trigger inserted.
+ *
+ * Those rows are written by a database trigger inside the deleting
+ * transaction, so no application code holds their ids to deliver them the way
+ * enqueueDbJob does for the rows it inserts itself. Without this the only
+ * collector is the poller — which idles at 60s precisely because Redis
+ * deployments expect delivery to be instant — and a bulk delete's bytes stay
+ * live for hours.
+ *
+ * Delivering a handful is enough: handleDocumentCleanup coalesces the rest of
+ * the backlog into the run this triggers. Claims are idempotent (a duplicate
+ * delivery matches zero rows), so over-delivering is harmless, and the whole
+ * thing is best-effort: a failure just means the poll backstop runs them.
+ */
+export async function requestDocumentCleanupDelivery(
+    db: Db,
+    limit = 5,
+): Promise<number> {
+    if (process.env.DB_JOBS_ENABLED === "false") return 0;
+    if (!redisEnabled()) return 0;
+    try {
+        const { data, error } = await db
+            .from("db_jobs")
+            .select("id")
+            .eq("kind", "document.cleanup")
+            .eq("status", "pending")
+            .limit(limit);
+        if (error) throw error;
+        const ids = (data ?? []).map((row) => row.id as string);
+        await Promise.all(ids.map((id) => enqueueAppJobDelivery(id)));
+        return ids.length;
+    } catch (err) {
+        console.error(
+            "[dbq] document.cleanup delivery failed; poll backstop will run it:",
+            err instanceof Error ? err.message : err,
+        );
+        return 0;
+    }
+}
+
+/**
  * Durably delete storage objects: enqueue a storage.cleanup job, falling
  * back to today's best-effort inline deletes if the enqueue itself fails.
  * Never throws — callers use this on paths where cleanup must not fail the

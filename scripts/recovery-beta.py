@@ -314,7 +314,7 @@ class BetaRunner(paired.ObservedRunner):
         workspace, matter = str(uuid.uuid4()), str(uuid.uuid4())
         f["matter"] = matter
         result = self.sql(f"""BEGIN;
-INSERT INTO public.organization_memberships(organization_id,user_id,role,status) VALUES ('{org}','{f["reviewer"]}','editor','active');
+INSERT INTO public.org_members(org_id,user_id,role) VALUES ('{org}','{f["reviewer"]}','member');
 INSERT INTO public.workspaces(id,organization_id,name,created_by) VALUES ('{workspace}','{org}','Synthetic Beta','{f["user"]}');
 INSERT INTO public.workspace_memberships(workspace_id,user_id,role,status) VALUES
  ('{workspace}','{f["user"]}','workspace_admin','active'),('{workspace}','{f["reviewer"]}','editor','active');

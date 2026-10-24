@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { PublicationIntent } from "./sharedContracts";
 
@@ -13,13 +14,12 @@ const outcomes: Record<PublicationIntent["outcome"], true> = {
 };
 
 describe("persistent publication shared contract", () => {
-  for (const file of [
-    "schema.sql",
-    "migrations/20260905_04_recovery_drive_publication.sql",
-  ]) {
+  // The custom LiTT migration series is retired (S1): the only schema of
+  // record is `backend/schema.sql` plus the runner's ledger.
+  for (const file of ["schema.sql"]) {
     it(`${file} admits exactly PublicationIntent outcomes`, () => {
       const sql = fs.readFileSync(
-        new URL(`../../../${file}`, import.meta.url),
+        resolve(process.cwd(), file),
         "utf8",
       );
       const constraint = sql.match(

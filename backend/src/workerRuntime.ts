@@ -17,11 +17,12 @@ import { anyWorkerEnabled, startWorkers, stopWorkers } from "./workers";
 import { startDbJobRunner, stopDbJobRunner } from "./lib/dbq/runner";
 import {
     DB_JOB_HANDLERS,
+    DB_JOB_FAILURE_HOOKS,
     MCP_TOKEN_REFRESH_WINDOW_MS,
-} from "./lib/dbq/handlers";
+} from "./jobs/registry";
 import { enqueueDbJob } from "./lib/dbq/enqueue";
-import { runStaleWorkSweep } from "./lib/maintenance/staleWork";
-import { startUploadProcessingWorkers } from "./lib/uploadProcessing";
+import { runStaleWorkSweep } from "./jobs/maintenance";
+import { startUploadProcessingWorkers } from "./modules/uploads/uploads.service";
 import { uploadProcessingConfiguration } from "./lib/runtimeConfig";
 import { createServerSupabase } from "./lib/supabase";
 
@@ -92,7 +93,7 @@ export function startAllWorkers(): void {
 
     // The DB queue runs in every deployment (fast delivery when Redis is
     // up, poll-driven otherwise) — see lib/dbq/runner.ts.
-    startDbJobRunner(DB_JOB_HANDLERS);
+    startDbJobRunner(DB_JOB_HANDLERS, DB_JOB_FAILURE_HOOKS);
 
     // Upload-session processing: lease-based claims over Postgres, so any
     // number of runtimes can poll concurrently without double-processing.
@@ -113,7 +114,9 @@ export function startAllWorkers(): void {
                 if (documents || cells)
                     console.warn("[stale-sweep] flipped", { documents, cells });
             })
-            .catch((err) => console.error("[stale-sweep] failed", err));
+            .catch((err) => {
+                console.error("[stale-sweep] failed", err);
+            });
     initialSweep = setTimeout(runSweep, 30_000);
     initialSweep.unref();
     sweepTimer = setInterval(runSweep, SWEEP_INTERVAL_MS);
@@ -123,9 +126,9 @@ export function startAllWorkers(): void {
     // rather than inside whichever request first trips over the expiry. The
     // lazy refresh in lib/mcp/oauth.ts stays as the last line of defense.
     const runMcpRefresh = () =>
-        void runMcpTokenRefreshSweep().catch((err) =>
-            console.error("[mcp-refresh-sweep] failed", err),
-        );
+        void runMcpTokenRefreshSweep().catch((err) => {
+            console.error("[mcp-refresh-sweep] failed", err);
+        });
     mcpRefreshTimer = setInterval(runMcpRefresh, MCP_REFRESH_SWEEP_INTERVAL_MS);
     mcpRefreshTimer.unref();
 }

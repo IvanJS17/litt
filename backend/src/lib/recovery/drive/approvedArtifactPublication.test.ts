@@ -30,8 +30,6 @@ const IDS = {
   sourceVersion: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
 } as const;
 
-type Outcome = DrivePublicationIntentDto["outcome"];
-
 function cloneIntent(
   intent: DrivePublicationIntentDto,
 ): DrivePublicationIntentDto {

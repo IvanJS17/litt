@@ -1,7 +1,9 @@
 /**
- * Slice D — governed Civil/Mercantile MX triage content.
+ * The governed Civil/Mercantile MX triage Playbook (TD-006).
  *
- * This is a faithful, bounded port of R4, R6 and R9 plus the explicit
+ * It is seeded into `mike_workflows` — the one governed catalog — by the
+ * catalog sync, never into `playbooks`, which holds only user-authored rule
+ * sets. This is a faithful, bounded port of R4, R6 and R9 plus the explicit
  * abstention and authority limits from the immutable LiTT source baseline.
  */
 
@@ -134,5 +136,7 @@ export const MX_CIVIL_COMMERCIAL_SYNC_ENTRY = Object.freeze({
   document_upload: true,
   word_quick_action: false,
   word_quick_action_prompt: null,
-  reference_files: Object.freeze([]),
+  // Catalog vocabulary: `assets` is the upstream key for a workflow's
+  // reference bytes; this entry ships none (its rules live in prompt_md).
+  assets: Object.freeze([]),
 });
