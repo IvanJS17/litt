@@ -1505,7 +1505,12 @@ userRouter.delete(
         const db = createServerSupabase();
         const workspace = await dataActionWorkspace(db, userId, req.query.workspace, "delete", res);
         if (!workspace) return;
-        const result = await deleteUserProjectsData(db, userId, workspace.orgId);
+        const result = await deleteUserProjectsData(
+            db,
+            userId,
+            workspace.orgId,
+            res.locals.userEmail as string | undefined,
+        );
         if (!result.ok) return void sendInternalError(res, result.error);
         res.status(204).send();
     }),

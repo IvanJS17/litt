@@ -17,6 +17,14 @@ vi.mock("../../../lib/storage", () => {
     };
 });
 
+// LiTT: the organization branch of deleteUserProjects asks the same access
+// question as DELETE /projects/:id; each test says what it answers.
+const { checkProjectAccess } = vi.hoisted(() => ({ checkProjectAccess: vi.fn() }));
+vi.mock("../../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/access")>()),
+    checkProjectAccess,
+}));
+
 import { deleteFile, listFiles } from "../../../lib/storage";
 import {
     deleteAllUserChats,
@@ -560,6 +568,30 @@ describe("deleteUserProjects", () => {
             // prefixes, so this walk is the only thing that can reach it.
             "extracted-text/v1.txt",
         ]);
+    });
+
+    it("in an organization, deletes only the projects the caller may delete (LiTT matter gate)", async () => {
+        const { db, tables } = makeDb({
+            projects: [
+                { id: "p-org", user_id: "u1", org_id: "org-1" },
+                // A private matter's project the creator is no longer a member of.
+                { id: "p-matter", user_id: "u1", org_id: "org-1" },
+                { id: "p-personal", user_id: "u1", org_id: null },
+                { id: "p-colleague", user_id: "u2", org_id: "org-1" },
+            ],
+        });
+        checkProjectAccess.mockImplementation(async (projectId: string) =>
+            projectId === "p-matter"
+                ? { ok: false }
+                : { ok: true, projectRole: "owner" },
+        );
+
+        await expect(
+            deleteUserProjects(db, "u1", "org-1", "u1@example.com"),
+        ).resolves.toBe(1);
+
+        expect(ids(tables.projects)).toEqual(["p-matter", "p-personal", "p-colleague"]);
+        expect(checkProjectAccess.mock.calls.map(([id]) => id)).toEqual(["p-org", "p-matter"]);
     });
 
     it("returns 0 when the user owns no projects", async () => {

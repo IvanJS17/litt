@@ -8,6 +8,8 @@ import { chunkArray } from "../../lib/arrays";
 import { listPersonalOrgIds } from "../../lib/personalOrgs";
 import { deleteOrgContent } from "../orgs/orgs.service";
 import { throwIfError, uniqueStrings } from "./user.shared";
+import { checkProjectAccess } from "../../lib/access";
+import { can } from "../../lib/permissions";
 
 const DELETE_BATCH_SIZE = 500;
 
@@ -896,14 +898,19 @@ export async function deleteProjectsByIds(db: Db, projectIds: string[]) {
  * Destroy the projects a user created in one workspace (`orgId` null is
  * Personal), with everything inside them.
  *
- * In an organization this is what deleting each one would do: its creator is
- * its owner (public.project_access_role), and an owner may delete it. Other
- * members' projects, and the projects of other workspaces, are untouched.
+ * In an organization this is what deleting each one would do, and only
+ * that: each project is checked as DELETE /projects/:id checks it
+ * (checkProjectAccess, then `container.delete`). Being its creator is not
+ * enough in LiTT: a private matter's project stays closed to a creator who is
+ * no longer on the matter's team (ledger 16.3, "Organizations, workspaces and
+ * matters"), and such a project is left alone. Other members' projects, and
+ * the projects of other workspaces, are untouched.
  */
 export async function deleteUserProjects(
     db: Db,
     userId: string,
     orgId: string | null,
+    userEmail?: string | null,
 ) {
     const created = db.from("projects").select("id").eq("user_id", userId);
     const { data: projects, error: projectsError } = await (orgId
@@ -911,12 +918,17 @@ export async function deleteUserProjects(
         : created.is("org_id", null));
     await throwIfError(projectsError, "Failed to load user projects");
 
-    return deleteProjectsByIds(
-        db,
-        ((projects ?? []) as { id: string | null }[])
-            .map((row) => row.id)
-            .filter((id): id is string => !!id),
-    );
+    const ids = ((projects ?? []) as { id: string | null }[])
+        .map((row) => row.id)
+        .filter((id): id is string => !!id);
+    if (!orgId) return deleteProjectsByIds(db, ids);
+
+    const deletable: string[] = [];
+    for (const id of ids) {
+        const access = await checkProjectAccess(id, userId, userEmail ?? undefined, db);
+        if (access.ok && can(access.projectRole, "container.delete")) deletable.push(id);
+    }
+    return deleteProjectsByIds(db, deletable);
 }
 
 /**

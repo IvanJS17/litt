@@ -9,6 +9,12 @@ vi.mock("../../../lib/storage", () => ({
     extractedTextKey: (versionId: string) => `extracted-text/${versionId}.txt`,
 }));
 
+// LiTT: the organization branch of deleteUserProjects checks each project as
+// DELETE /projects/:id does; here the caller may delete every one it finds.
+vi.mock("../../../lib/access", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../../lib/access")>()),
+    checkProjectAccess: vi.fn(async () => ({ ok: true, projectRole: "owner" })),
+}));
 import { deleteFile, listFiles } from "../../../lib/storage";
 import { NonRetryableJobError } from "../../../lib/dbq/runner";
 import {

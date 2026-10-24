@@ -142,9 +142,10 @@ export async function deleteUserProjectsData(
     db: Db,
     userId: string,
     orgId: string | null,
+    userEmail?: string | null,
 ): Promise<{ ok: true } | { ok: false; error: unknown }> {
     try {
-        await deleteUserProjects(db, userId, orgId);
+        await deleteUserProjects(db, userId, orgId, userEmail);
         return { ok: true };
     } catch (err) {
         const detail = errorMessage(err);

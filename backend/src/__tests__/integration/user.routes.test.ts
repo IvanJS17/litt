@@ -1786,6 +1786,7 @@ describe("user.routes", () => {
                 expect.anything(),
                 "u1",
                 null,
+                "u1@test.local",
             );
         });
 
@@ -1857,7 +1858,9 @@ describe("user.routes", () => {
                 .set(...AUTH);
 
             expect(res.status).toBe(204);
-            expect(helper()).toHaveBeenCalledWith(expect.anything(), "u1", ORG_ID);
+            // DELETE /user/projects also passes the caller's email (LiTT
+            // checks each project as DELETE /projects/:id does).
+            expect(helper().mock.calls[0]?.slice(0, 3)).toEqual([expect.anything(), "u1", ORG_ID]);
         });
 
         it.each([
