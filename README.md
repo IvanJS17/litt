@@ -46,8 +46,11 @@ and local email capture without requiring managed infrastructure.
 4. Start the stack:
 
    ```bash
-   docker compose up --build
+   GIT_SHA=$(git rev-parse HEAD) docker compose up --build
    ```
+
+   `GIT_SHA` is the commit the images embed for the "Código fuente" link
+   (AGPL-3.0 §13); the images refuse to build without it.
 
 5. Open [http://localhost:3000](http://localhost:3000) and create an account.
 

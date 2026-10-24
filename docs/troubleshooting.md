@@ -47,7 +47,7 @@ including active stacks in other checkouts. Stop the one holding the port
 `supabase stop --project-id <id>`), or choose another mapping:
 
 ```bash
-DB_PORT=54323 docker compose up --build
+DB_PORT=54323 GIT_SHA=$(git rev-parse HEAD) docker compose up --build
 ```
 
 ## Docker is slow or the disk is full of old stacks
