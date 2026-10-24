@@ -358,7 +358,7 @@ npm run typecheck:contracts --prefix backend
 npm run test:coverage --prefix backend
 npm run test:coverage --prefix frontend
 npm run lint --prefix frontend
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 git diff --check
 ```
 

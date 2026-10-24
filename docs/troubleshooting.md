@@ -75,7 +75,7 @@ available on the process path.
 
 ```bash
 npm run build --prefix backend
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 npm run lint --prefix frontend
 ```
 
