@@ -13,6 +13,7 @@ import { encryptString } from "../../mcp/client";
 import type { Db } from "../../mcp/types";
 
 import { driveDb } from "./googleDriveDb";
+import { personalConnectorOwner } from "../../connectorOwner";
 const makeDb = (options: Parameters<typeof driveDb>[0]) => driveDb(options).db;
 
 function encryptedTokenRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -71,15 +72,15 @@ describe("startGoogleDriveOAuth", () => {
         delete process.env.GOOGLE_DRIVE_OAUTH_CLIENT_SECRET;
         const db = makeDb({});
         await expect(
-            startGoogleDriveOAuth("user-1", "https://app.test/cb", db),
+            startGoogleDriveOAuth(personalConnectorOwner("user-1"), "https://app.test/cb", db),
         ).rejects.toThrow(/GOOGLE_DRIVE_OAUTH_CLIENT_ID/);
         await expect(
-            startGoogleDriveOAuth("user-1", "https://app.test/cb", db),
+            startGoogleDriveOAuth(personalConnectorOwner("user-1"), "https://app.test/cb", db),
         ).rejects.toThrow(/https:\/\/app\.test\/cb/);
         // The typed class is what lets the route return this text to the
         // browser; a plain Error would be sanitized into a fixed string.
         await expect(
-            startGoogleDriveOAuth("user-1", "https://app.test/cb", db),
+            startGoogleDriveOAuth(personalConnectorOwner("user-1"), "https://app.test/cb", db),
         ).rejects.toBeInstanceOf(ConnectorSetupError);
     });
 
@@ -89,7 +90,7 @@ describe("startGoogleDriveOAuth", () => {
             onInsert: (table, row) => inserts.push({ table, row }),
         });
         const { authorizationUrl } = await startGoogleDriveOAuth(
-            "user-1",
+            personalConnectorOwner("user-1"),
             "https://app.test/cb",
             db,
         );
@@ -157,7 +158,7 @@ describe("createGoogleDrivePickerSession", () => {
                     ),
             ),
         );
-        const session = await createGoogleDrivePickerSession("user-1", db);
+        const session = await createGoogleDrivePickerSession(personalConnectorOwner("user-1"), db);
         expect(session).toEqual({
             accessToken: "access-token-2",
             expiresAt: expect.any(String),
@@ -187,7 +188,7 @@ describe("createGoogleDrivePickerSession", () => {
                 }),
             });
             await expect(
-                createGoogleDrivePickerSession("user-1", db),
+                createGoogleDrivePickerSession(personalConnectorOwner("user-1"), db),
             ).rejects.toMatchObject({ code: "google_drive_picker_reconnect" });
         }
         expect(fetchSpy).not.toHaveBeenCalled();
@@ -197,12 +198,12 @@ describe("createGoogleDrivePickerSession", () => {
 describe("getGoogleDriveStatus", () => {
     it("reports whether the Google Picker is available", async () => {
         expect(
-            (await getGoogleDriveStatus("user-1", makeDb({}))).pickerAvailable,
+            (await getGoogleDriveStatus(personalConnectorOwner("user-1"), makeDb({}))).pickerAvailable,
         ).toBe(false);
         vi.stubEnv("GOOGLE_DRIVE_PICKER_API_KEY", "picker-key");
         vi.stubEnv("GOOGLE_DRIVE_PICKER_APP_ID", "123456789");
         expect(
-            (await getGoogleDriveStatus("user-1", makeDb({}))).pickerAvailable,
+            (await getGoogleDriveStatus(personalConnectorOwner("user-1"), makeDb({}))).pickerAvailable,
         ).toBe(true);
     });
 
@@ -211,7 +212,7 @@ describe("getGoogleDriveStatus", () => {
         vi.stubEnv("GOOGLE_DRIVE_PICKER_APP_ID", "123456789");
         const statusFor = (scope: string) =>
             getGoogleDriveStatus(
-                "user-1",
+                personalConnectorOwner("user-1"),
                 makeDb({ tokenRow: encryptedTokenRow({ scope: `openid email ${scope}` }) }),
             );
         expect((await statusFor(GOOGLE_DRIVE_SCOPE)).pickerAvailable).toBe(true);
@@ -226,7 +227,7 @@ describe("getGoogleDriveStatus", () => {
     });
 
     it("reports the schema as ready and the client as configured", async () => {
-        const status = await getGoogleDriveStatus("user-1", makeDb({}));
+        const status = await getGoogleDriveStatus(personalConnectorOwner("user-1"), makeDb({}));
         expect(status).toMatchObject({
             connected: false,
             scope: null,
@@ -253,6 +254,9 @@ describe("getGoogleDriveStatus", () => {
                         return {
                             eq() {
                                 return {
+                                    filter() {
+                                        return this;
+                                    },
                                     maybeSingle: () =>
                                         Promise.resolve({
                                             data: null,
@@ -269,7 +273,7 @@ describe("getGoogleDriveStatus", () => {
                 };
             },
         } as unknown as Db;
-        const status = await getGoogleDriveStatus("user-1", db);
+        const status = await getGoogleDriveStatus(personalConnectorOwner("user-1"), db);
         expect(status).toMatchObject({
             connected: false,
             scope: null,
@@ -292,6 +296,9 @@ describe("getGoogleDriveStatus", () => {
                         return {
                             eq() {
                                 return {
+                                    filter() {
+                                        return this;
+                                    },
                                     maybeSingle: () =>
                                         Promise.resolve({
                                             data: null,
@@ -308,7 +315,7 @@ describe("getGoogleDriveStatus", () => {
                 };
             },
         } as unknown as Db;
-        await expect(getGoogleDriveStatus("user-1", db)).rejects.toMatchObject({
+        await expect(getGoogleDriveStatus(personalConnectorOwner("user-1"), db)).rejects.toMatchObject({
             code: "57P01",
         });
     });
@@ -316,13 +323,13 @@ describe("getGoogleDriveStatus", () => {
 
 describe("buildGoogleDriveTools", () => {
     it("offers no tools when the user has not connected Drive", async () => {
-        const tools = await buildGoogleDriveTools("user-1", makeDb({}));
+        const tools = await buildGoogleDriveTools(personalConnectorOwner("user-1"), makeDb({}));
         expect(tools).toEqual([]);
     });
 
     it("offers only the three read tools with a read-only grant", async () => {
         const tools = (await buildGoogleDriveTools(
-            "user-1",
+            personalConnectorOwner("user-1"),
             makeDb({ tokenRow: encryptedTokenRow({ scope: "https://www.googleapis.com/auth/drive.readonly" }) }),
         )) as { function: { name: string } }[];
         expect(tools.map((t) => t.function.name)).toEqual([
@@ -336,7 +343,7 @@ describe("buildGoogleDriveTools", () => {
 describe("executeGoogleDriveToolCall", () => {
     it("returns an auth-required error when Drive is not connected", async () => {
         const { content, event } = await executeGoogleDriveToolCall(
-            "user-1",
+            personalConnectorOwner("user-1"),
             "google_drive_search",
             { query: "contract" },
             makeDb({}),
@@ -369,7 +376,7 @@ describe("executeGoogleDriveToolCall", () => {
         });
         vi.stubGlobal("fetch", fetchMock);
         const { content, event } = await executeGoogleDriveToolCall(
-            "user-1",
+            personalConnectorOwner("user-1"),
             "google_drive_search",
             { query: "I485 'summary'" },
             makeDb({ tokenRow: encryptedTokenRow() }),
@@ -401,7 +408,7 @@ describe("executeGoogleDriveToolCall", () => {
         });
         vi.stubGlobal("fetch", fetchMock);
         const { content } = await executeGoogleDriveToolCall(
-            "user-1",
+            personalConnectorOwner("user-1"),
             "google_drive_read_file",
             { file_id: "doc1" },
             makeDb({ tokenRow: encryptedTokenRow() }),
@@ -430,7 +437,7 @@ describe("executeGoogleDriveToolCall", () => {
             ),
         );
         const { content, event } = await executeGoogleDriveToolCall(
-            "user-1",
+            personalConnectorOwner("user-1"),
             "google_drive_list_recent",
             {},
             db,

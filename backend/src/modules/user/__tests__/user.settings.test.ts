@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getEffectiveApiKeys, getEffectiveRouterModels } = vi.hoisted(() => ({
-    getEffectiveApiKeys: vi.fn(),
-    getEffectiveRouterModels: vi.fn(),
-}));
+const { getEffectiveApiKeys, getEffectiveRouterModels, loadCourtListenerConnection } =
+    vi.hoisted(() => ({
+        getEffectiveApiKeys: vi.fn(),
+        getEffectiveRouterModels: vi.fn(),
+        loadCourtListenerConnection: vi.fn(),
+    }));
 
 vi.mock("../user.apiKeyStore", () => ({
     getEffectiveApiKeys: (...args: unknown[]) => getEffectiveApiKeys(...args),
+    loadCourtListenerConnection: (...args: unknown[]) =>
+        loadCourtListenerConnection(...args),
 }));
 
 vi.mock("../../../lib/routerModels", async () => ({
@@ -42,6 +46,7 @@ const NO_KEYS = {
 beforeEach(() => {
     vi.clearAllMocks();
     getEffectiveApiKeys.mockResolvedValue(NO_KEYS);
+    loadCourtListenerConnection.mockResolvedValue({ enabled: true, token: null });
     getEffectiveRouterModels.mockResolvedValue({
         openrouter: ["allowed/model"],
         vercel: [],
