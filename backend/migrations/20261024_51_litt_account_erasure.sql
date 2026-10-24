@@ -217,3 +217,26 @@ end;
 $$;
 revoke all on function public.organization_audit_events_page(uuid,uuid,text,jsonb,text,text,integer,integer) from public,anon,authenticated;
 grant execute on function public.organization_audit_events_page(uuid,uuid,text,jsonb,text,text,integer,integer) to service_role;
+
+-- A private-content permission change names the admin by id only; the
+-- address is no longer copied into the insert-only audit title. Earlier rows
+-- are left as written.
+create or replace function public.set_org_private_content_permission(p_org_id uuid,p_actor_id uuid,p_target_id uuid,p_enabled boolean)
+returns void language plpgsql set search_path=public,pg_temp as $$
+begin
+  perform 1 from public.organizations where id=p_org_id and kind='team' and deleted_at is null for update;
+  if not found then raise exception 'Organization not found' using errcode='P0002'; end if;
+  perform 1 from public.org_members where org_id=p_org_id and user_id=p_actor_id and role='owner' for update;
+  if not found then raise exception 'Owner required' using errcode='42501'; end if;
+  perform 1 from public.org_members where org_id=p_org_id and user_id=p_target_id and role='admin' for update;
+  if not found then raise exception 'Choose an organization admin' using errcode='23514'; end if;
+  if p_enabled is null then raise exception 'Choose a permission' using errcode='23514'; end if;
+  update public.org_members set can_access_private_content=p_enabled,updated_at=now()
+    where org_id=p_org_id and user_id=p_target_id;
+  -- The admin is named by id only. The audit read resolves the live profile,
+  -- so an erased account leaves no address in this insert-only row.
+  insert into public.audit_events(org_id,user_id,action,surface,detail)
+    values(p_org_id,p_actor_id,'org.private_content.permission_changed','organization',
+      jsonb_build_object('target_user_id',p_target_id,'enabled',p_enabled));
+end;
+$$;

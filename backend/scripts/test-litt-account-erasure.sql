@@ -15,7 +15,8 @@
 --     message, review) stays with the organization, detached from its author;
 --   * completing the receipt is idempotent: one completion, one audit event,
 --     and a last-backup date 30 days after completion;
---   * a new audit row never stores the actor's address.
+--   * a new audit row never stores the actor's address, and a permission
+--     change names the affected admin by id, not by address.
 \set ON_ERROR_STOP 1
 begin;
 
@@ -254,6 +255,26 @@ begin
 exception when others then
   perform pg_temp.check('organization audit sorts by person with deleted actors last', false,
     sqlstate || ' ' || sqlerrm);
+end $$;
+
+-- A permission change names the admin by id only: the address would outlive
+-- an erased account in an insert-only row. The name is read from the profile.
+insert into auth.users(id, email) values ('00000000-0000-4000-8000-0000000000a5', 'admin@example.test');
+insert into public.user_profiles(user_id, email) values ('00000000-0000-4000-8000-0000000000a5', 'admin@example.test')
+  on conflict (user_id) do nothing;
+insert into public.org_members(org_id, user_id, role) values
+  ('00000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-0000000000a5', 'admin');
+do $$ begin
+  perform public.set_org_private_content_permission('00000000-0000-4000-8000-0000000000b1',
+    '00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a5', true);
+  perform pg_temp.check('permission change audit stores no address',
+    (select count(*) = 1 and bool_and(title is null and detail->>'target_user_id' = '00000000-0000-4000-8000-0000000000a5'
+       and position('admin@example.test' in (to_jsonb(e))::text) = 0)
+     from public.audit_events e where action = 'org.private_content.permission_changed'),
+    (select string_agg(coalesce(title, '<null>'), ',') from public.audit_events
+     where action = 'org.private_content.permission_changed'));
+exception when others then
+  perform pg_temp.check('permission change audit stores no address', false, sqlstate || ' ' || sqlerrm);
 end $$;
 
 select case when ok then 'PASS' else 'FAIL' end || '  ' || name ||

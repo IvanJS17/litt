@@ -561,14 +561,12 @@ export async function updateMember(
     // Role changes move real standing (an org role inherits onto every
     // project the org owns), so they belong in the same audit trail the
     // invitation lifecycle already writes to.
-    const profiles = await attachProfiles(db, [
-        { user_id: params.targetUserId },
-    ]);
+    // The member is named by `target_user_id` only; the audit read resolves
+    // the live profile, so an erased account leaves no address behind.
     await recordAudit(db, {
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
         action: "org.member.role_changed",
-        title: profiles.get(params.targetUserId)?.email ?? params.targetUserId,
         detail: {
             org_id: params.orgId,
             target_user_id: params.targetUserId,
@@ -739,14 +737,12 @@ export async function removeMember(
         if (error.code === "23514") return { ok: false, kind: "validation", detail: "Choose another current organization member." };
         return { ok: false, kind: "db_error", detail: error.message };
     }
-    const profiles = await attachProfiles(db, [
-        { user_id: params.targetUserId },
-    ]);
+    // The member is named by `target_user_id` only; the audit read resolves
+    // the live profile, so an erased account leaves no address behind.
     await recordAudit(db, {
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
         action: isSelf ? "org.member.left" : "org.member.removed",
-        title: profiles.get(params.targetUserId)?.email ?? params.targetUserId,
         detail: {
             org_id: params.orgId,
             target_user_id: params.targetUserId,
@@ -933,7 +929,6 @@ export async function createInvitation(
             userId: params.actorId,
             userEmail: params.actorEmail ?? null,
             action: "org.invite.created",
-            title: email,
             detail: { org_id: params.orgId, role, invitation_id: live.id },
         });
         return {
@@ -971,7 +966,6 @@ export async function createInvitation(
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
         action: "org.invite.created",
-        title: email,
         detail: {
             org_id: params.orgId,
             role,
@@ -1066,7 +1060,6 @@ export async function cancelInvitation(
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
         action: "org.invite.cancelled",
-        title: row.email,
         detail: { org_id: params.orgId, invitation_id: row.id },
     });
     return { ok: true };
@@ -1127,7 +1120,6 @@ export async function resendInvitation(
         userId: params.actorId,
         userEmail: params.actorEmail ?? null,
         action: "org.invite.resent",
-        title: row.email,
         detail: { org_id: params.orgId, invitation_id: row.id },
     });
     return {
@@ -1280,7 +1272,6 @@ export async function acceptInvitation(
         userId: params.userId,
         userEmail: params.userEmail ?? null,
         action: "org.invite.accepted",
-        title: invite.email,
         detail: {
             org_id: invite.org_id,
             // The role now in force, not the one that was offered: an audit
@@ -1315,7 +1306,6 @@ export async function declineInvitation(
         userId: params.userId,
         userEmail: params.userEmail ?? null,
         action: "org.invite.declined",
-        title: invite.email,
         detail: { org_id: invite.org_id, invitation_id: invite.id },
     });
     return { ok: true };

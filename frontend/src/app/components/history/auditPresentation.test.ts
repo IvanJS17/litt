@@ -38,6 +38,9 @@ describe("audit event presentation", () => {
     expect(auditSubject(named).name).toBe("Jamie Morgan");
     expect(auditSubjectEmail(named)).toBe("jamie@example.com");
     expect(auditSubject({ ...named, affected_user_display_name: " " }).name).toBe("jamie@example.com");
+    const erased = { ...event, action, affected_user_deleted: true };
+    expect(auditSubject(erased).name).toBe("Deleted user");
+    expect(auditSubjectEmail(erased)).toBeNull();
   });
   it("never replaces an affected document's title with a person's name", () => {
     const document = { ...event, action: "document.edited", title: "NDA.docx", affected_user_display_name: "Jamie Morgan" };

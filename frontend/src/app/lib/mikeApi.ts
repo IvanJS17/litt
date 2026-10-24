@@ -925,6 +925,8 @@ export interface AuditEvent {
     user_display_name: string | null;
     /** Current name of the affected member or invitation recipient. */
     affected_user_display_name?: string | null;
+    /** The affected member's account was erased. */
+    affected_user_deleted?: boolean;
     /** Current photo of an actor in the authorized organization audit page. */
     user_profile_photo?: string | null;
     user_email: string | null;

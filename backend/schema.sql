@@ -9909,7 +9909,6 @@ $$;
 
 create or replace function public.set_org_private_content_permission(p_org_id uuid,p_actor_id uuid,p_target_id uuid,p_enabled boolean)
 returns void language plpgsql set search_path=public,pg_temp as $$
-declare target_email text;
 begin
   perform 1 from public.organizations where id=p_org_id and kind='team' and deleted_at is null for update;
   if not found then raise exception 'Organization not found' using errcode='P0002'; end if;
@@ -9920,9 +9919,10 @@ begin
   if p_enabled is null then raise exception 'Choose a permission' using errcode='23514'; end if;
   update public.org_members set can_access_private_content=p_enabled,updated_at=now()
     where org_id=p_org_id and user_id=p_target_id;
-  select email into target_email from public.user_profiles where user_id=p_target_id;
-  insert into public.audit_events(org_id,user_id,action,title,surface,detail)
-    values(p_org_id,p_actor_id,'org.private_content.permission_changed',target_email,'organization',
+  -- The admin is named by id only. The audit read resolves the live profile,
+  -- so an erased account leaves no address in this insert-only row.
+  insert into public.audit_events(org_id,user_id,action,surface,detail)
+    values(p_org_id,p_actor_id,'org.private_content.permission_changed','organization',
       jsonb_build_object('target_user_id',p_target_id,'enabled',p_enabled));
 end;
 $$;

@@ -129,8 +129,10 @@ function detailText(event: AuditEvent, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+const DELETED_USER = "Deleted user";
+
 export function auditActor(event: AuditEvent): string {
-  if (event.user_deleted) return "Deleted user";
+  if (event.user_deleted) return DELETED_USER;
   return (
     event.user_display_name ||
     event.user_email ||
@@ -182,8 +184,12 @@ export function auditSubject(event: AuditEvent) {
       ? title
       : (detailText(event, "target_email") ??
         (type === "Provider" ? detailText(event, "provider") : null));
-  const name = ["Member", "Recipient"].includes(type)
-    ? event.affected_user_display_name?.trim() || recordedName
+  const isPerson = ["Member", "Recipient"].includes(type);
+  // An erased account is never named by an address an older row recorded.
+  const name = isPerson
+    ? event.affected_user_deleted
+      ? DELETED_USER
+      : event.affected_user_display_name?.trim() || recordedName
     : recordedName;
   const context = [
     detailText(event, "organization_name") ?? detailText(event, "org_name"),
@@ -201,6 +207,7 @@ export function auditSubject(event: AuditEvent) {
 /** Retain the recorded email for identity tooltips and stable monogram colors. */
 export function auditSubjectEmail(event: AuditEvent): string | null {
   if (!["Member", "Recipient"].includes(auditSubject(event).type)) return null;
+  if (event.affected_user_deleted) return null;
   const email = (detailText(event, "target_email") ?? event.title)?.trim();
   return email && /^[^\s@]+@[^\s@]+$/.test(email) ? email : null;
 }

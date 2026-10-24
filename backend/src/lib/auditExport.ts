@@ -154,10 +154,17 @@ const AUDIT_EVENT_COLUMNS =
 
 type AuditRow = Record<string, unknown>;
 
-/** A person explicitly identified by an authorized member/invitation event. */
-function affectedUser(
-    event: AuditRow,
-): { column: "user_id" | "email"; value: string } | null {
+type AffectedTarget = { column: "user_id" | "email" | "invitation_id"; value: string };
+type AffectedIdentity = { name: string } | { deleted: true };
+
+/**
+ * A person explicitly identified by an authorized member/invitation event.
+ * Rows written since account erasure carry no address: a member is named by
+ * `target_user_id`, an invitation recipient by `invitation_id` (the address
+ * lives in the firm's invitation record). Older rows fall back to the address
+ * they recorded.
+ */
+function affectedUser(event: AuditRow): AffectedTarget | null {
     const action = String(event.action ?? "");
     if (
         !action.startsWith("org.member.") &&
@@ -171,17 +178,51 @@ function affectedUser(
         : "";
     if (id) return { column: "user_id", value: id };
     const email = normalizeEmail(detail?.target_email ?? event.title);
-    return /^[^\s@]+@[^\s@]+$/.test(email) ? { column: "email", value: email } : null;
+    if (/^[^\s@]+@[^\s@]+$/.test(email)) return { column: "email", value: email };
+    const invitationId = typeof detail?.invitation_id === "string"
+        ? detail.invitation_id.trim()
+        : "";
+    return action.startsWith("org.invite.") && invitationId
+        ? { column: "invitation_id", value: invitationId }
+        : null;
 }
 
-/** Resolve current names without changing the event's recorded identity. */
+function distinctValues(targets: AffectedTarget[], column: AffectedTarget["column"]) {
+    return [...new Set(targets
+        .filter((target) => target.column === column)
+        .map((target) => target.value))];
+}
+
+/**
+ * Resolve current names without changing the event's recorded identity. A
+ * member whose profile no longer exists (after a successful read) is an erased
+ * account and is reported as deleted, never by a recorded address.
+ */
 async function affectedUserNames(db: Db, events: AuditRow[]) {
     const targets = events.map(affectedUser).filter((target) => target !== null);
-    const names = new Map<string, string>();
-    for (const column of ["user_id", "email"] as const) {
-        const values = [...new Set(targets
-            .filter((target) => target.column === column)
-            .map((target) => target.value))];
+    const names = new Map<string, AffectedIdentity>();
+    // Invitation recipients: read the address from the invitation record,
+    // then prefer the name of an account that holds it.
+    const invitationEmails = new Map<string, string>();
+    for (const batch of chunk(distinctValues(targets, "invitation_id"), ID_FILTER_CHUNK)) {
+        const { data, error } = await db.from("org_invitations")
+            .select("id, email")
+            .in("id", batch);
+        if (error) continue;
+        for (const invitation of data ?? []) {
+            const email = normalizeEmail(invitation.email);
+            if (email) invitationEmails.set(invitation.id, email);
+        }
+    }
+    const emails = [...new Set([
+        ...distinctValues(targets, "email"),
+        ...invitationEmails.values(),
+    ])];
+    const emailNames = new Map<string, string>();
+    for (const [column, values] of [
+        ["user_id", distinctValues(targets, "user_id")],
+        ["email", emails],
+    ] as const) {
         for (const batch of chunk(values, ID_FILTER_CHUNK)) {
             // Fetch names only, scoped to affected people on the final authorized
             // page. An ID never falls back to email, which may have changed owners.
@@ -189,15 +230,25 @@ async function affectedUserNames(db: Db, events: AuditRow[]) {
                 .select("user_id, email, display_name")
                 .in(column, batch);
             if (error) continue; // The recorded identity remains the fallback.
+            const found = new Set<string>();
             for (const profile of data ?? []) {
                 const name = normalizeDisplayName(profile.display_name);
-                const key = column === "email"
-                    ? normalizeEmail(profile.email)
-                    : profile.user_id;
-                if (name) names.set(`${column}:${key}`, name);
+                if (column === "email") {
+                    if (name) emailNames.set(normalizeEmail(profile.email), name);
+                    continue;
+                }
+                found.add(profile.user_id);
+                const label = name || normalizeEmail(profile.email);
+                if (label) names.set(`user_id:${profile.user_id}`, { name: label });
             }
+            if (column === "user_id")
+                for (const id of batch)
+                    if (!found.has(id)) names.set(`user_id:${id}`, { deleted: true });
         }
     }
+    for (const [email, name] of emailNames) names.set(`email:${email}`, { name });
+    for (const [id, email] of invitationEmails)
+        names.set(`invitation_id:${id}`, { name: emailNames.get(email) ?? email });
     return names;
 }
 
@@ -468,7 +519,7 @@ export async function queryEvents(
 
     const affectedNames = resolveDisplayNames
         ? await affectedUserNames(db, result.data)
-        : new Map<string, string>();
+        : new Map<string, AffectedIdentity>();
 
     return {
         ...result,
@@ -479,10 +530,11 @@ export async function queryEvents(
             const { user_id: userId, ...event } = row;
             const profile = profileByUserId.get(userId as string);
             const target = affectedUser(row);
-            const affectedName = target && affectedNames.get(`${target.column}:${target.value}`);
+            const affected = target && affectedNames.get(`${target.column}:${target.value}`);
             return {
                 ...event,
-                ...(affectedName ? { affected_user_display_name: affectedName } : {}),
+                ...(affected && "name" in affected ? { affected_user_display_name: affected.name } : {}),
+                ...(affected && "deleted" in affected ? { affected_user_deleted: true } : {}),
                 user_email: profile?.email ?? null,
                 user_display_name: profile?.display_name ?? null,
                 user_deleted: Boolean(userId) && profilesResolved && !profile,
@@ -522,8 +574,8 @@ export async function buildAuditCsv(
     query: AuditQuery,
 ): Promise<string> {
     // Always page 1: the export is one flat window of up to `limit` rows. The
-    // user column is the actor's live address (no names are resolved), or
-    // "Deleted user" once the account is gone.
+    // user column is the actor's live address (no actor names are resolved),
+    // or "Deleted user" once the account is gone.
     const { data, error } = await queryEvents(
         db,
         userId,
@@ -534,15 +586,26 @@ export async function buildAuditCsv(
     // `cause` keeps the PostgrestError (code/details/hint) attached so the
     // sync route can log it exactly as it did before this helper existed.
     if (error) throw new Error(error.message, { cause: error });
+    const events = (data ?? []) as AuditRow[];
+    // Member and invitation rows name the person by ID; resolve the live name
+    // or address (never a photo) so the export still says who was affected.
+    const affectedNames = await affectedUserNames(db, events);
+    const subject = (e: AuditRow) => {
+        if (e.title) return e.title;
+        const target = affectedUser(e);
+        const affected = target && affectedNames.get(`${target.column}:${target.value}`);
+        if (!affected) return null;
+        return "name" in affected ? affected.name : DELETED_USER_LABEL;
+    };
     const header =
         "created_at,user,action,status,title,application,project_id,model" + (query.orgId ? ",organization_id" : "");
-    const rows = ((data ?? []) as Record<string, unknown>[]).map((e) =>
+    const rows = events.map((e) =>
         [
             e.created_at,
             e.user_deleted ? DELETED_USER_LABEL : e.user_email,
             e.action,
             e.status,
-            e.title,
+            subject(e),
             e.surface,
             e.project_id,
             e.model,
