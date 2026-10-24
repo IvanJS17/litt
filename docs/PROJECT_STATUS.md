@@ -249,7 +249,8 @@ Phase 3 receipt, not inferred from the older Beta evidence above.
 
 Remaining release decisions/debt:
 
-- production retention/erasure remains undefined; destructive evidence operations
+- production retention/erasure remains undefined except account erasure (owner
+  decision 2026-10-24, TD-008 partial); other destructive evidence operations
   remain fail-closed and disposable test teardown is not a retention mechanism;
 - real Word host compatibility, remote staging, real providers/Shared Drive,
   SMTP, backups, monitoring/DNS and production each need their own permission;
