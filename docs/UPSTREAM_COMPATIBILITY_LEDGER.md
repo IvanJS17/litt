@@ -893,7 +893,7 @@ merge commit, never a squash, so upstream stays an ancestor of `main`.
 | Upstream commit | Capability (§16.3 row) | Disposition | What LiTT keeps |
 | --- | --- | --- | --- |
 | `18035cf6` #693 connectors per workspace | Connectors, MCP and Google Workspace; CourtListener | adopt, except the CourtListener half (reject) | A person keeps separate MCP, Drive, Gmail and Calendar connections for Personal and for each organization, tied to the membership row. Drive stays off by default. The CourtListener table, routes, client calls and contract type are removed |
-| `540fb8a2` #695 organization work only on central keys | Provider catalog, credentials and model selection | reject, pending an owner decision | The owners' per-organization switch for members' own keys (default on), `PUT /orgs/:id/api-keys/policy`, and the explicit pinned `credential_ref`. Upstream's rule would end personal BYOK inside the firm, where every LiTT lawyer works, and resolves organization work implicitly (organization key, then deployment key) |
+| `540fb8a2` #695 organization work only on central keys | Provider catalog, credentials and model selection | reject: contradicts the owner's recorded product decision (2026-08-12): personal BYOK plus optional institutional credentials, replacing the single organization credential | The owners' per-organization switch for members' own keys (default on), `PUT /orgs/:id/api-keys/policy`, and the explicit pinned `credential_ref`. Upstream's rule would end personal BYOK inside the firm, where every LiTT lawyer works, and resolves organization work implicitly (organization key, then deployment key) |
 | `040e17ac` #694 Privacy & Data deletes per workspace | Account and organization deletion, member departure | adopt, with the matter gate | Bulk deletes act on the active workspace only. In an organization, "Delete all projects" deletes only the projects the caller may delete through `DELETE /projects/:id`, so a private matter's project stays closed to a creator who is no longer on its team. Account deletion still refuses (TD-008) |
 | `d4fd8999` #696 exports per workspace and member data policy | Access fixes (exports); Organizations, workspaces and matters | adopt | Exports cover the active workspace and keep LiTT's readable-cell and readable-transcript filtering. Owners decide whether members may export or bulk-delete their own work in the organization (both off by default); the change is MFA-guarded and audited |
 
@@ -926,7 +926,7 @@ merge commit, never a squash, so upstream stays an ancestor of `main`.
 | Connectors (Gmail, Calendar, MCP) are set up separately for Personal and for the firm, and a firm conversation uses the firm set | Adopt |
 | "Delete all…" and "Export…" in Privacy & Data act only on the workspace shown and name it | Adopt |
 | Firm owners decide whether other members may export or bulk-delete their own work in the firm (off until an owner allows it) | Adopt |
-| Upstream would stop lawyers from using their own AI key for firm work and would remove the owners' setting for it | Not applied. LiTT keeps the owners' setting, on by default. Owner decision recorded as TD-042 |
+| Upstream would stop lawyers from using their own AI key for firm work and would remove the owners' setting for it | Not applied: it contradicts the owner's recorded product decision (2026-08-12) for personal BYOK plus optional institutional credentials. LiTT keeps the owners' setting, on by default. Later upstream changes built on #695 are reconciled the same way (TD-042) |
 
 ### 18.4 Dependabot
 
