@@ -226,7 +226,12 @@ describe("personal activity", () => {
         expect(csv).toContain("Own organization action");
         expect(csv).not.toContain("Colleague action");
         expect(csv).not.toContain("Unattributed action");
-        expect(calls.filter((call) => call[0] === "read").every((call) => call[1] === "audit_events")).toBe(true);
+        // Besides the caller's events, only the caller's own profile is read
+        // (the actor's live address).
+        expect(calls.filter((call) => call[0] === "read").every((call) =>
+            call[1] === "audit_events" || call[1] === "user_profiles")).toBe(true);
+        expect(calls.filter((call) => call[0] === "user_profiles" && call[1] === "in")
+            .every((call) => JSON.stringify(call[3]) === '["actor"]')).toBe(true);
     });
 });
 
@@ -362,7 +367,7 @@ describe("organization username filtering", () => {
         expect(csv).not.toContain("Other org");
     });
 
-    it("pages matching org events without fetching or partitioning platform-wide profiles", async () => {
+    it("pages matching org events and reads only the page actors' profiles, in bounded batches", async () => {
         const profiles = Array.from({ length: 205 }, (_, i) => ({
             user_id: `user-${i}`,
             display_name: "Alex",
@@ -391,7 +396,11 @@ describe("organization username filtering", () => {
         expect(out.data?.map((row) => row.id)).toEqual(
             events.map((row) => row.id),
         );
-        expect(calls).not.toContainEqual(["read", "user_profiles"]);
+        const profileReads = calls.filter((call) => call[0] === "user_profiles" && call[1] === "in");
+        expect(profileReads.length).toBeGreaterThan(0);
+        expect(profileReads.every((call) => (call[3] as string[]).length <= 200)).toBe(true);
+        expect(profileReads.flatMap((call) => call[3] as string[]).sort())
+            .toEqual(events.map((event) => event.user_id).sort());
         expect(calls.filter((call) => call[0] === "rpc")).toHaveLength(5);
         expect(calls.filter((call) => call[0] === "rpc").map((call) =>
             (call[2] as { p_offset: number }).p_offset)).toEqual([0, 50, 100, 150, 200]);
@@ -465,17 +474,18 @@ describe("audit actor photos", () => {
         ]);
         expect(calls.filter(([table, operation]) => table === "user_profiles" && operation === "in"))
             .toEqual([["user_profiles", "in", "user_id", ["actor"]]]);
-        expect(calls).toContainEqual(["user_profiles", "select", "user_id, display_name, profile_photo"]);
+        expect(calls).toContainEqual(["user_profiles", "select", "user_id, display_name, email, profile_photo"]);
     });
 
-    it("does not request photos for personal activity or profile data for CSV exports", async () => {
+    it("does not request photos for personal activity, nor names or photos for CSV exports", async () => {
         const personal = database(events, profiles);
         const result = await queryEvents(personal.db, "actor", undefined, query);
-        expect(personal.calls).toContainEqual(["user_profiles", "select", "user_id, display_name"]);
+        expect(personal.calls).toContainEqual(["user_profiles", "select", "user_id, display_name, email"]);
         expect(result.data?.[0]).not.toHaveProperty("user_profile_photo");
         const csv = database(events, profiles);
         expect(await buildAuditCsv(csv.db, "actor", undefined, { ...query, orgId })).not.toContain(photo);
-        expect(csv.calls).not.toContainEqual(["read", "user_profiles"]);
+        expect(csv.calls.filter(([table, operation]) => table === "user_profiles" && operation === "select"))
+            .toEqual([["user_profiles", "select", "user_id, email"]]);
     });
 
     it("does not resolve profiles when organization access is denied", async () => {
@@ -522,7 +532,7 @@ describe("affected audit identities", () => {
             ]);
         expect(calls.filter(([table, operation]) => table === "user_profiles" && operation === "select"))
             .toEqual([
-                ["user_profiles", "select", "user_id, display_name, profile_photo"],
+                ["user_profiles", "select", "user_id, display_name, email, profile_photo"],
                 ["user_profiles", "select", "user_id, email, display_name"],
                 ["user_profiles", "select", "user_id, email, display_name"],
             ]);
@@ -560,7 +570,9 @@ describe("affected audit identities", () => {
     it("skips affected profile lookups for CSV and denied organization access", async () => {
         const csv = database(events, profiles);
         expect(await buildAuditCsv(csv.db, "actor", undefined, { ...query, orgId })).toContain("old@example.com");
-        expect(csv.calls).not.toContainEqual(["read", "user_profiles"]);
+        // Only the actor's address; no affected-person lookups.
+        expect(csv.calls.filter(([table, operation]) => table === "user_profiles" && operation === "in"))
+            .toEqual([["user_profiles", "in", "user_id", ["actor"]]]);
         access.role = "member";
         const denied = database(events, profiles);
         expect((await queryEvents(denied.db, "actor", undefined, { ...query, orgId })).error).not.toBeNull();
@@ -580,8 +592,8 @@ describe("exact actor filtering", () => {
             { id: eventId(1), org_id: orgId, user_id: eventId(11), user_email: "one@example.com", title: "First", created_at: "2026-10-14" },
             { id: eventId(2), org_id: orgId, user_id: eventId(12), user_email: "two@example.com", title: "Second", created_at: "2026-10-14" },
         ], [
-            { user_id: eventId(11), display_name: "Alex" },
-            { user_id: eventId(12), display_name: "Alex" },
+            { user_id: eventId(11), display_name: "Alex", email: "one@example.com" },
+            { user_id: eventId(12), display_name: "Alex", email: "two@example.com" },
         ]);
         const selected = { ...query, orgId, actorUserId: eventId(11) };
         expect((await queryEvents(db, "actor", undefined, selected)).data?.map((row) => row.id)).toEqual([eventId(1)]);

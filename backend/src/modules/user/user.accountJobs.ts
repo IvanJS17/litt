@@ -1,4 +1,13 @@
 // accountJobs — implementation behind the module facade.
+//
+// Account erasure (owner decision 2026-10-24; TD-008 partial). Everything the
+// person kept outside the firm's matters is deleted, then the Auth user;
+// matter content stays with the organization, detached from its author, and
+// insert-only audit and AI evidence keep naming the account by id (it shows
+// as "Deleted user"). The job is idempotent and resumable: every step is a
+// delete or a detach, and a run that finds the Auth user already gone only
+// closes the receipt.
+import type { AccountDeletionReceiptContent } from "@mike/contracts";
 import {
     deleteUserAccountData,
     listOrgsBlockingAccountDeletion,
@@ -6,18 +15,83 @@ import {
 import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { deleteFile } from "../../lib/storage";
 import { type Db, type DbJob } from "../../lib/dbq/types";
-import { accountDeletionAvailable } from "./user.retentionGate";
+
+/** The receipt's content. Written only after every step has succeeded. */
+export const ACCOUNT_DELETION_RECEIPT: AccountDeletionReceiptContent = {
+    deleted: [
+        "Personal documents, their versions, extracted text and search index",
+        "Personal projects, chats, tabular reviews and Word conversations",
+        "Private workflows, playbooks, playbook reviews and quick actions",
+        "Memory, preferences and custom instructions",
+        "Connections: Google accounts and MCP connectors, with their tokens",
+        "Personal AI provider keys",
+        "Your profile and sign-in account",
+    ],
+    retained: [
+        {
+            item: "Work you created in your firm's matters: documents, versions, chats, reviews, and the firm's shared workflows and playbooks",
+            reason: "It belongs to the firm. It now shows “Deleted user” as its author.",
+        },
+        {
+            item: "Audit history and AI evidence",
+            reason: "They are insert-only records of what happened and are never edited. They now show “Deleted user”.",
+        },
+        {
+            item: "Backups",
+            reason: "Backups are never edited. Each one is deleted 30 days after it was taken.",
+        },
+    ],
+};
+
+/** An address may match grants and invitations only once it is confirmed. */
+function confirmedEmail(user: Record<string, unknown>): string | null {
+    return typeof user.email === "string" && user.email && user.email_confirmed_at
+        ? user.email.toLowerCase()
+        : null;
+}
 
 export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
     const userId = job.payload.userId as string | undefined;
     if (!userId) return;
-    const userEmail = (job.payload.userEmail as string | undefined) ?? null;
+    await eraseAccount(db, userId, job.id);
+}
 
-    // TD-008 (user.retentionGate.ts): a queued or requeued deletion refuses
-    // before its first read or write, terminally.
-    if (!accountDeletionAvailable())
-        throw new NonRetryableJobError("account_deletion_unavailable");
+/**
+ * The whole erasure. `jobId` is the queue row running it, which the queue
+ * purge below must spare (it is the receipt's link to its progress).
+ */
+export async function eraseAccount(
+    db: Db,
+    userId: string,
+    jobId: string,
+): Promise<void> {
+    const { data: auth, error: authError } =
+        await db.auth.admin.getUserById(userId);
+    if (authError && !/not\s*found/i.test(authError.message))
+        throw new Error(`Failed to load auth user: ${authError.message}`);
+    // A previous run deleted the Auth user, which comes last: only the
+    // receipt is left to close.
+    if (auth?.user) {
+        const email = confirmedEmail(
+            auth.user as unknown as Record<string, unknown>,
+        );
+        await eraseAccountData(db, userId, jobId, email);
+    }
 
+    const { error } = await db.rpc("complete_account_deletion", {
+        p_user_id: userId,
+        p_receipt: ACCOUNT_DELETION_RECEIPT,
+    });
+    if (error)
+        throw new Error(`Failed to close the deletion receipt: ${error.message}`);
+}
+
+async function eraseAccountData(
+    db: Db,
+    userId: string,
+    jobId: string,
+    userEmail: string | null,
+): Promise<void> {
     // REFUSAL BEFORE DESTRUCTION. The route already answered 409 for an
     // account that is the sole owner of an organization with members or
     // content, but the org can change between the request and this job, and
@@ -94,12 +168,12 @@ export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
             .from("db_jobs")
             .delete()
             .filter("payload->>userId", "eq", userId)
-            .neq("id", job.id),
+            .neq("id", jobId),
         await db
             .from("db_jobs")
             .delete()
             .filter("payload->base->>userId", "eq", userId)
-            .neq("id", job.id),
+            .neq("id", jobId),
         // Memory consolidation payloads intentionally use actorUserId: in a
         // shared project chat the actor is the owner of the app-memory pass.
         // storage.cleanup rows have no actorUserId and must survive erasure so
@@ -109,7 +183,7 @@ export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
             .delete()
             .eq("kind", "memory.consolidate")
             .filter("payload->>actorUserId", "eq", userId)
-            .neq("id", job.id),
+            .neq("id", jobId),
     ];
     for (const purge of purges) {
         if (purge.error) {
@@ -152,7 +226,7 @@ export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
             {
                 p_memory_file_id: file.id,
                 p_expected_epoch: epoch,
-                p_current_job_id: job.id,
+                p_current_job_id: jobId,
                 p_requested_status: "idle",
                 p_error_code: null,
             },

@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // The data-deletion limiter counts every DELETE in this file, and the
 // per-workspace cases alone make more requests than its default allows.
 vi.hoisted(() => { process.env.RATE_LIMIT_DATA_DELETE_MAX = "1000"; });
 import request from "supertest";
+import { createHash } from "node:crypto";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock fns we reconfigure per-test. These cover the three security
@@ -202,15 +203,6 @@ function mockSupabase() {
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(() => mockSupabase()),
 }));
-
-// TD-008 retention gate. The real gate answers false, which is what the
-// refusal tests below exercise; the upstream cascade tests open it.
-const accountDeletionGate = vi.hoisted(() => ({ open: false }));
-vi.mock("../../modules/user/user.retentionGate", async (importOriginal) => {
-    const actual =
-        await importOriginal<typeof import("../../modules/user/user.retentionGate")>();
-    return { ...actual, accountDeletionAvailable: () => accountDeletionGate.open };
-});
 
 // The DB-queue runner's enabled flag is what the account-delete and export
 // routes branch on; keep the rest of the module real.
@@ -1816,27 +1808,6 @@ describe("user.routes", () => {
             );
         });
 
-        // TD-008 / ledger §16.2 item 4: account deletion refuses before its
-        // first mutation, in both the queued and the inline path.
-        it.each([true, false])(
-            "DELETE /user/account is refused before any read or write (runner enabled: %s)",
-            async (runner) => {
-                accountDeletionGate.open = false;
-                dbJobsEnabled.mockReturnValue(runner);
-                const res = await request(app)
-                    .delete("/user/account")
-                    .set(...AUTH);
-                expect(res.status).toBe(405);
-                expect(res.body.detail).toMatch(/Account deletion is not available yet/);
-                expect(listOrgsBlockingAccountDeletion).not.toHaveBeenCalled();
-                expect(supabaseRpc).not.toHaveBeenCalled();
-                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
-                expect(adminSignOut).not.toHaveBeenCalled();
-                expect(deleteUserAccountData).not.toHaveBeenCalled();
-                expect(adminDeleteUser).not.toHaveBeenCalled();
-            },
-        );
-
         it.each([
             ["/user/chats", () => deleteAllUserChats],
             ["/user/projects", () => deleteUserProjects],
@@ -1931,45 +1902,38 @@ describe("user.routes", () => {
             expect(deleteAllUserChats).not.toHaveBeenCalled();
         });
 
-        describe("once the retention gate opens (upstream cascade)", () => {
-            beforeEach(() => {
-                accountDeletionGate.open = true;
-            });
-            afterEach(() => {
-                accountDeletionGate.open = false;
-            });
+        describe("account deletion (owner decision 2026-10-24)", () => {
+            const sha256 = (value: string) =>
+                createHash("sha256").update(value).digest("hex");
 
-            // ERASURE ORDERING. documents.user_id references auth.users ON DELETE
-            // CASCADE (and document_versions cascades from documents), so deleting
-            // the auth user is what destroys the rows recording where the account's
-            // files live. It must therefore happen LAST — inside the job, after the
-            // cascade — never in this request.
-            it("DELETE /user/account schedules the cascade and does NOT delete the auth user yet", async () => {
-                supabaseState.tables.db_jobs = {
-                    data: { id: "job-1" },
-                    error: null,
-                };
+            // ERASURE ORDERING. Deleting the auth user is what removes the
+            // rows recording where the account's files live, so it happens
+            // LAST — inside the job, after the cascade — never in this request.
+            it("DELETE /user/account schedules the erasure and answers with a receipt token", async () => {
+                supabaseRpc.mockResolvedValue({ data: "job-1", error: null });
 
                 const res = await request(app)
                     .delete("/user/account")
                     .set(...AUTH);
 
-                expect(res.status).toBe(204);
+                expect(res.status).toBe(202);
+                const token = res.body.receipt_token as string;
+                expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+                // Only the token's hash reaches the database, and no address.
                 expect(supabaseRpc).toHaveBeenCalledWith("request_account_deletion", {
-                    p_user_id: "u1", p_user_email: "u1@test.local",
+                    p_user_id: "u1",
+                    p_token_sha256: sha256(token),
                 });
-                // ...auth user still present, so the cascade can still read the
-                // storage paths it is about to delete.
                 expect(adminDeleteUser).not.toHaveBeenCalled();
-                // Sessions are revoked immediately all the same: the account is
-                // unusable from the moment this returns.
+                // Sessions are revoked immediately: the account is unusable
+                // from the moment this returns.
                 expect(adminSignOut).toHaveBeenCalledWith("test-token", "global");
             });
 
-            // SOLE-ADMIN REFUSAL. Deleting this account would either hand the
-            // organization to an arbitrary successor or strand it with no members
-            // at all, so the product refuses and names the organizations.
-            it("DELETE /user/account returns 409 for the sole owner of a live org", async () => {
+            // LAST-OWNER REFUSAL. Deleting this account would either hand the
+            // organization to an arbitrary successor or strand it with no
+            // members, and LiTT never deletes an organization (C5).
+            it("DELETE /user/account returns 409 for the last owner of a live org", async () => {
                 listOrgsBlockingAccountDeletion.mockResolvedValue([
                     { org_id: "o1", name: "Org A", reason: "members" },
                     { org_id: "o2", name: "Org B", reason: "content" },
@@ -1982,24 +1946,22 @@ describe("user.routes", () => {
                 expect(res.status).toBe(409);
                 expect(res.body.code).toBe("org_successor_required");
                 expect(res.body.detail).toBe(
-                    "You are the only owner of Org A. Make another member an owner, or delete the organization, before deleting your account. You are the only owner of Org B, and must appoint another owner or explicitly delete the organization before deleting your account.",
+                    "You are the only owner of Org A. Transfer ownership to another member first, then delete your account. You are the only member of Org B. Invite someone and make them an owner first, then delete your account.",
                 );
                 expect(res.body.organizations).toEqual([
                     { org_id: "o1", name: "Org A", reason: "members" },
                     { org_id: "o2", name: "Org B", reason: "content" },
                 ]);
-                // Nothing was scheduled, nothing was revoked, nothing was
-                // destroyed — the user is still signed in and can appoint an
-                // owner. The old behaviour answered 204, revoked the session and
-                // then failed the job forever.
-                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
+                // Nothing was scheduled, revoked or destroyed.
+                expect(supabaseRpc).not.toHaveBeenCalledWith(
+                    "request_account_deletion",
+                    expect.anything(),
+                );
                 expect(adminSignOut).not.toHaveBeenCalled();
                 expect(deleteUserAccountData).not.toHaveBeenCalled();
             });
 
-            it("DELETE /user/account refuses the inline path for a sole owner too", async () => {
-                // The no-runner fallback runs the cascade synchronously, so the
-                // check must gate it as well.
+            it("DELETE /user/account refuses the inline path for a last owner too", async () => {
                 dbJobsEnabled.mockReturnValue(false);
                 listOrgsBlockingAccountDeletion.mockResolvedValue([
                     { org_id: "o1", name: "Org A", reason: "members" },
@@ -2014,25 +1976,40 @@ describe("user.routes", () => {
                 expect(adminDeleteUser).not.toHaveBeenCalled();
             });
 
-            it("DELETE /user/account runs inline when no runner will drain the queue", async () => {
+            it("DELETE /user/account erases inline, receipt included, when no runner will drain the queue", async () => {
                 dbJobsEnabled.mockReturnValue(false);
+                supabaseRpc.mockResolvedValue({ data: "job-1", error: null });
+                supabaseState.adminGetUserById = {
+                    data: {
+                        user: {
+                            id: "u1",
+                            email: "u1@test.local",
+                            email_confirmed_at: "2026-01-01T00:00:00Z",
+                        },
+                    },
+                    error: null,
+                };
 
                 const res = await request(app)
                     .delete("/user/account")
                     .set(...AUTH);
 
-                expect(res.status).toBe(204);
-                // Data first, auth last — main's ordering, done synchronously.
+                expect(res.status).toBe(202);
                 expect(deleteUserAccountData).toHaveBeenCalledWith(
                     expect.anything(),
                     "u1",
                     "u1@test.local",
                 );
-                expect(supabaseState.inserts.db_jobs ?? []).toHaveLength(0);
+                expect(adminDeleteUser).toHaveBeenCalledWith("u1");
+                expect(supabaseRpc).toHaveBeenCalledWith(
+                    "complete_account_deletion",
+                    expect.objectContaining({ p_user_id: "u1" }),
+                );
             });
 
             it("DELETE /user/account returns 500 when the inline auth-user delete errors", async () => {
                 dbJobsEnabled.mockReturnValue(false);
+                supabaseRpc.mockResolvedValue({ data: "job-1", error: null });
                 supabaseState.adminDeleteUser = { error: { message: "auth boom" } };
 
                 const res = await request(app)
@@ -2045,9 +2022,9 @@ describe("user.routes", () => {
                 );
             });
 
-            it("DELETE /user/account returns 500 when the cascade cannot be scheduled", async () => {
+            it("DELETE /user/account returns 500 when the erasure cannot be scheduled", async () => {
                 // Nothing has been destroyed yet, so the request is cleanly
-                // retriable — it must not answer 204.
+                // retriable.
                 supabaseRpc.mockResolvedValueOnce({
                     data: null,
                     error: { code: "08006", message: "connection lost" },
@@ -2062,6 +2039,91 @@ describe("user.routes", () => {
                 expect(adminSignOut).not.toHaveBeenCalled();
             });
 
+            const RECEIPT_ROW = {
+                user_id: "u1",
+                job_id: "job-1",
+                status: "completed",
+                requested_at: "2026-10-24T10:00:00.000Z",
+                completed_at: "2026-10-24T10:05:00.000Z",
+                backups_expire_on: "2026-11-23",
+                receipt: {
+                    deleted: ["Personal documents"],
+                    retained: [{ item: "Backups", reason: "Never edited." }],
+                },
+            };
+
+            it("POST /user/account/deletion-receipt returns the completed receipt for its token", async () => {
+                supabaseState.tables.account_deletion_receipts = {
+                    data: { ...RECEIPT_ROW, requested_at: new Date().toISOString() },
+                    error: null,
+                };
+
+                const res = await request(app)
+                    .post("/user/account/deletion-receipt")
+                    .send({ token: "a".repeat(43) });
+
+                expect(res.status).toBe(200);
+                expect(res.body).toEqual({
+                    status: "completed",
+                    requested_at: expect.any(String),
+                    completed_at: RECEIPT_ROW.completed_at,
+                    backups_expire_on: "2026-11-23",
+                    deleted: ["Personal documents"],
+                    retained: [{ item: "Backups", reason: "Never edited." }],
+                });
+                // Looked up by the token's hash, never the token itself.
+                expect(supabaseState.selects.account_deletion_receipts).toBeDefined();
+            });
+
+            it("POST /user/account/deletion-receipt reports progress from the job", async () => {
+                supabaseState.tables.account_deletion_receipts = {
+                    data: {
+                        ...RECEIPT_ROW,
+                        status: "pending",
+                        completed_at: null,
+                        backups_expire_on: null,
+                        receipt: null,
+                        requested_at: new Date().toISOString(),
+                    },
+                    error: null,
+                };
+                supabaseState.tables.db_jobs = { data: { status: "failed" }, error: null };
+
+                const res = await request(app)
+                    .post("/user/account/deletion-receipt")
+                    .send({ token: "a".repeat(43) });
+
+                expect(res.status).toBe(200);
+                expect(res.body).toEqual({
+                    status: "failed",
+                    requested_at: expect.any(String),
+                });
+            });
+
+            it.each([
+                ["an unknown token", { data: null, error: null }],
+                [
+                    "a token older than seven days",
+                    { data: { ...RECEIPT_ROW, requested_at: "2026-01-01T00:00:00.000Z" }, error: null },
+                ],
+            ])("POST /user/account/deletion-receipt answers 404 for %s", async (_label, row) => {
+                supabaseState.tables.account_deletion_receipts = row;
+
+                const res = await request(app)
+                    .post("/user/account/deletion-receipt")
+                    .send({ token: "b".repeat(43) });
+
+                expect(res.status).toBe(404);
+                expect(res.body.code).toBe("account_deletion_receipt_not_found");
+            });
+
+            it("POST /user/account/deletion-receipt rejects a malformed token", async () => {
+                const res = await request(app)
+                    .post("/user/account/deletion-receipt")
+                    .send({ token: "short" });
+
+                expect(res.status).toBe(400);
+            });
         });
 
         it("DELETE /user/chats returns 500 when cleanup throws", async () => {

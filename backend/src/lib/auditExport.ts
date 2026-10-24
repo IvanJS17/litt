@@ -424,28 +424,44 @@ export async function queryEvents(
                 .filter((userId): userId is string => Boolean(userId)),
         ),
     ];
-    const displayNameByUserId = new Map<string, string | null>();
-    const photoByUserId = new Map<string, string | null>();
-    if (resolveDisplayNames && userIds.length) {
-        // Photos belong only to actors on this authorized organization page.
-        // Personal activity omits identities, and CSV exports skip this lookup.
-        const profilesQuery = db.from("user_profiles");
-        const { data: profiles, error: profileError } = await (q.orgId
-            ? profilesQuery.select("user_id, display_name, profile_photo")
-            : profilesQuery.select("user_id, display_name")
-        ).in("user_id", userIds);
-        if (!profileError) {
-            for (const profile of profiles ?? []) {
-                displayNameByUserId.set(
-                    profile.user_id as string,
-                    normalizeDisplayName(profile.display_name),
-                );
-                if (q.orgId) {
-                    photoByUserId.set(
-                        profile.user_id as string,
-                        (profile as { profile_photo?: string | null }).profile_photo ?? null,
-                    );
-                }
+    // Identity comes from the live profile, never from the row: new rows
+    // carry no address (20261024_51), and an account that has been erased
+    // has no profile, so its events read as a deleted user's even where an
+    // older row still recorded the address. Photos belong only to actors on
+    // an authorized organization page.
+    const profileByUserId = new Map<
+        string,
+        { display_name: string | null; email: string | null; profile_photo: string | null }
+    >();
+    let profilesResolved = false;
+    if (userIds.length) {
+        // Names only where they are shown (not in the CSV, whose user column
+        // is the address); photos only on an organization page.
+        const columns = !resolveDisplayNames
+            ? "user_id, email"
+            : q.orgId
+              ? "user_id, display_name, email, profile_photo"
+              : "user_id, display_name, email";
+        profilesResolved = true;
+        for (const batch of chunk(userIds, ID_FILTER_CHUNK)) {
+            const { data: profiles, error: profileError } = await db
+                .from("user_profiles")
+                .select(columns)
+                .in("user_id", batch);
+            if (profileError) {
+                // Unknown, not deleted: show no identity rather than a wrong one.
+                profilesResolved = false;
+                continue;
+            }
+            for (const profile of (profiles ?? []) as unknown as Record<string, unknown>[]) {
+                profileByUserId.set(profile.user_id as string, {
+                    display_name: normalizeDisplayName(profile.display_name),
+                    email: typeof profile.email === "string" ? profile.email : null,
+                    profile_photo:
+                        typeof profile.profile_photo === "string"
+                            ? profile.profile_photo
+                            : null,
+                });
             }
         }
     }
@@ -461,21 +477,22 @@ export async function queryEvents(
         // without this the callers lose every other column from the type.
         data: result.data.map((row): AuditRow => {
             const { user_id: userId, ...event } = row;
+            const profile = profileByUserId.get(userId as string);
             const target = affectedUser(row);
             const affectedName = target && affectedNames.get(`${target.column}:${target.value}`);
             return {
                 ...event,
                 ...(affectedName ? { affected_user_display_name: affectedName } : {}),
-                user_display_name:
-                    displayNameByUserId.get(userId as string) ?? null,
+                user_email: profile?.email ?? null,
+                user_display_name: profile?.display_name ?? null,
+                user_deleted: Boolean(userId) && profilesResolved && !profile,
                 ...(q.orgId ? {
-                    user_profile_photo: photoByUserId.get(userId as string) ?? null,
+                    user_profile_photo: profile?.profile_photo ?? null,
                 } : {}),
             };
         }),
     };
 }
-
 
 export function csvCell(v: unknown): string {
     let s = v == null ? "" : String(v);
@@ -487,6 +504,9 @@ export function csvCell(v: unknown): string {
     if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
+
+/** How an erased account appears wherever it once acted. */
+export const DELETED_USER_LABEL = "Deleted user";
 
 export const AUDIT_CSV_FILENAME = "my-activity.csv";
 
@@ -501,8 +521,9 @@ export async function buildAuditCsv(
     userEmail: string | undefined,
     query: AuditQuery,
 ): Promise<string> {
-    // Always page 1: the export is one flat window of up to `limit` rows, and
-    // display names are skipped because the CSV falls back to user_email.
+    // Always page 1: the export is one flat window of up to `limit` rows. The
+    // user column is the actor's live address (no names are resolved), or
+    // "Deleted user" once the account is gone.
     const { data, error } = await queryEvents(
         db,
         userId,
@@ -518,7 +539,7 @@ export async function buildAuditCsv(
     const rows = ((data ?? []) as Record<string, unknown>[]).map((e) =>
         [
             e.created_at,
-            e.user_display_name ?? e.user_email,
+            e.user_deleted ? DELETED_USER_LABEL : e.user_email,
             e.action,
             e.status,
             e.title,

@@ -165,6 +165,12 @@ jobs:
       - name: LiTT tenancy conditions
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/scripts/test-litt-tenancy-conditions.sql
 
+      # LiTT: account erasure keeps insert-only audit and AI evidence intact,
+      # keeps matter content with the organization and closes its receipt
+      # once (owner decision 2026-10-24, TD-008 partial).
+      - name: LiTT account erasure
+        run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/scripts/test-litt-account-erasure.sql
+
       - name: Document text search and backfill transactions
         run: psql "$SUPABASE_TEST_DB_URL" -X --set ON_ERROR_STOP=1 -f backend/src/modules/documents/__tests__/documents.textSearch.sql
 
