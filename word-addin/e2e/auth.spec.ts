@@ -28,7 +28,7 @@ test.describe("auth flow", () => {
       page.getByRole("button", { name: "Continue with Google" }),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign up" })).toBeVisible();
-    await expect(page.getByText("Mike", { exact: true })).toBeVisible();
+    await expect(page.getByText("LiTT", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign up" })).toHaveCount(0);
     await expect(page.getByText("Loading…")).toBeHidden();
 
@@ -373,7 +373,7 @@ test.describe("auth flow", () => {
     // A 5xx body is never echoed, however friendly it looks: 503 reads as a
     // temporary outage.
     await expect(page.getByRole("alert")).toContainText(
-      "Mike is temporarily unavailable",
+      "LiTT is temporarily unavailable",
     );
     await addin.expectAuthedShell();
 

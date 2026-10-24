@@ -177,7 +177,7 @@ export function NewWorkflowModal({
     } catch (reason) {
       setError(
         userMessage(reason, {
-          fallback: "Mike couldn't create that workflow. Try again.",
+          fallback: "LiTT couldn't create that workflow. Try again.",
         })
       );
     } finally {

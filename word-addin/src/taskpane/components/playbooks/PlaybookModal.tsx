@@ -50,7 +50,7 @@ export function PlaybookModal({
         setPlaybooks([]);
         setError(
           userMessage(reason, {
-            fallback: "Mike couldn't load your playbooks. Try again.",
+            fallback: "LiTT couldn't load your playbooks. Try again.",
           }),
         );
       })

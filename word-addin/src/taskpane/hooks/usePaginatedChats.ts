@@ -109,7 +109,7 @@ export function usePaginatedChats(
           timedOut
             ? "Chat history took too long to load."
             : userMessage(reason, {
-                fallback: "Mike couldn't load your chat history. Try again.",
+                fallback: "LiTT couldn't load your chat history. Try again.",
               }),
         );
       })

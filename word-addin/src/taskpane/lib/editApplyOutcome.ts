@@ -29,7 +29,7 @@ export const ALREADY_APPLIED_MESSAGE =
 
 /** Shown when Word faulted and the verification read proved nothing. */
 export const UNVERIFIED_APPLY_MESSAGE =
-  "Mike couldn't confirm whether this change was applied — check the document before retrying.";
+  "LiTT couldn't confirm whether this change was applied — check the document before retrying.";
 
 /**
  * How many applied stable edit IDs a document remembers. Office document

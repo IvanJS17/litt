@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { WordChatOpenHandler } from "../../lib/wordChatTypes";
 import {
   Check,
+  FileCheck,
   ChevronLeft,
   Ellipsis,
   Menu,
@@ -36,6 +37,7 @@ import {
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 
 export type AddinSection =
+  | "approved-redline"
   | "chat"
   | "actions"
   | "workflows"
@@ -163,6 +165,13 @@ export function FloatingHeader({
                 </DropdownItem>
               );
             })}
+            <DropdownItem
+              onSelect={() => onSectionChange("approved-redline")}
+              selected={section === "approved-redline"}
+            >
+              <FileCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">Approved redlines</span>
+            </DropdownItem>
             <DropdownSeparator />
             <DropdownItem onSelect={onSignOut}>
               <img

@@ -10,6 +10,7 @@ import {
 } from "../lib/documentMarkdown";
 import type { RedlineEdit } from "../lib/redline";
 import { isParagraphStyleFormat } from "../lib/redline";
+import type { PreparedApprovedRedlineAction } from "../lib/approvedRedline";
 import { createSecureUuid } from "../lib/secureUuid";
 import {
   bookmarkNameForEdit,
@@ -215,6 +216,394 @@ function serializeWordMutation<T>(operation: () => Promise<T>): Promise<T> {
     () => undefined,
   );
   return result;
+}
+
+declare const approvedRedlineDocumentIdentityBrand: unique symbol;
+
+/** Opaque identity captured from the persisted and live Word document URLs. */
+export type ApprovedRedlineDocumentIdentity = string & {
+  readonly [approvedRedlineDocumentIdentityBrand]: true;
+};
+
+export interface ApprovedRedlineDocumentSnapshot {
+  readonly text: string;
+  readonly contentSha256: string;
+  readonly identity: ApprovedRedlineDocumentIdentity;
+}
+
+async function sha256(value: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+  const buffer = new Uint8Array(bytes).buffer;
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
+const APPROVED_REDLINE_SLICE_SIZE = 64 * 1024;
+const APPROVED_REDLINE_MAX_BYTES = 100 * 1024 * 1024;
+const APPROVED_REDLINE_MAX_SLICES = Math.ceil(
+  APPROVED_REDLINE_MAX_BYTES / APPROVED_REDLINE_SLICE_SIZE,
+);
+
+function snapshotReadError(): Error {
+  return new Error("Word document snapshot could not be read.");
+}
+
+function documentIdentityError(): Error {
+  return new Error("Word document identity could not be verified.");
+}
+
+function normalizeDocumentUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "").toLowerCase();
+}
+
+/** Read and validate the synchronous identity boundary used by approved redlines. */
+export function readApprovedRedlineDocumentIdentity(
+  expectedDocumentId: string,
+): ApprovedRedlineDocumentIdentity {
+  try {
+    const document = Office.context.document;
+    const persistedId: unknown = document.settings.get(
+      "mike.word.documentId.v1",
+    );
+    const persistedUrl: unknown = document.settings.get(
+      "mike.word.documentUrl.v1",
+    );
+    const liveUrl: unknown = document.url;
+    if (
+      typeof expectedDocumentId !== "string" ||
+      !expectedDocumentId.trim() ||
+      persistedId !== expectedDocumentId ||
+      typeof persistedUrl !== "string" ||
+      !persistedUrl.trim() ||
+      typeof liveUrl !== "string" ||
+      !liveUrl.trim()
+    ) {
+      throw documentIdentityError();
+    }
+    const stored = normalizeDocumentUrl(persistedUrl);
+    const live = normalizeDocumentUrl(liveUrl);
+    if (!stored || stored !== live) throw documentIdentityError();
+    return JSON.stringify({
+      id: expectedDocumentId,
+      stored,
+      live,
+    }) as ApprovedRedlineDocumentIdentity;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "Word document identity could not be verified."
+    ) {
+      throw error;
+    }
+    throw documentIdentityError();
+  }
+}
+
+function requireApprovedRedlineIdentity(
+  expectedIdentity: ApprovedRedlineDocumentIdentity,
+): void {
+  const persistedId = Office.context.document.settings.get(
+    "mike.word.documentId.v1",
+  );
+  if (
+    typeof persistedId !== "string" ||
+    readApprovedRedlineDocumentIdentity(persistedId) !== expectedIdentity
+  ) {
+    throw documentIdentityError();
+  }
+}
+
+function readCompressedWordFile(): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (): void => {
+      if (!settled) {
+        settled = true;
+        reject(snapshotReadError());
+      }
+    };
+    const succeed = (bytes: Uint8Array): void => {
+      if (!settled) {
+        settled = true;
+        resolve(bytes);
+      }
+    };
+
+    try {
+      Office.context.document.getFileAsync(
+        Office.FileType.Compressed,
+        { sliceSize: APPROVED_REDLINE_SLICE_SIZE },
+        (result) => {
+          if (
+            !result ||
+            result.status !== Office.AsyncResultStatus.Succeeded ||
+            !result.value
+          ) {
+            fail();
+            return;
+          }
+
+          const file = result.value;
+          const closeFile = (): void => {
+            try {
+              file.closeAsync();
+            } catch {
+              // The handle has still been closed exactly once from our side.
+            }
+          };
+
+          const read = async (): Promise<void> => {
+            try {
+              if (
+                !Number.isSafeInteger(file.sliceCount) ||
+                file.sliceCount < 1 ||
+                file.sliceCount > APPROVED_REDLINE_MAX_SLICES
+              ) {
+                throw snapshotReadError();
+              }
+
+              const reads = Array.from(
+                { length: file.sliceCount },
+                (_, index) =>
+                  new Promise<{ index: number; data: Uint8Array }>(
+                    (resolveSlice, rejectSlice) => {
+                      try {
+                        file.getSliceAsync(index, (sliceResult) => {
+                          if (
+                            !sliceResult ||
+                            sliceResult.status !==
+                              Office.AsyncResultStatus.Succeeded ||
+                            !sliceResult.value ||
+                            !Number.isSafeInteger(sliceResult.value.index) ||
+                            sliceResult.value.index < 0 ||
+                            sliceResult.value.index >= file.sliceCount
+                          ) {
+                            rejectSlice(snapshotReadError());
+                            return;
+                          }
+
+                          const data = sliceResult.value.data;
+                          const bytes =
+                            data instanceof Uint8Array
+                              ? new Uint8Array(data)
+                              : Array.isArray(data) &&
+                                  data.every(
+                                    (byte) =>
+                                      typeof byte === "number" &&
+                                      Number.isInteger(byte) &&
+                                      byte >= 0 &&
+                                      byte <= 255,
+                                  )
+                                ? Uint8Array.from(data as number[])
+                                : null;
+                          if (!bytes) {
+                            rejectSlice(snapshotReadError());
+                            return;
+                          }
+                          if (
+                            bytes.length < 1 ||
+                            bytes.length > APPROVED_REDLINE_SLICE_SIZE
+                          ) {
+                            rejectSlice(snapshotReadError());
+                            return;
+                          }
+                          resolveSlice({
+                            index: sliceResult.value.index,
+                            data: bytes,
+                          });
+                        });
+                      } catch {
+                        rejectSlice(snapshotReadError());
+                      }
+                    },
+                  ),
+              );
+              const results = await Promise.all(
+                reads.map((promise) =>
+                  promise.then(
+                    (value) => ({ value }),
+                    () => ({ value: null }),
+                  ),
+                ),
+              );
+              if (results.some((result) => result.value === null)) {
+                throw snapshotReadError();
+              }
+
+              const ordered = results
+                .map(
+                  (result) =>
+                    result.value as { index: number; data: Uint8Array },
+                )
+                .sort((left, right) => left.index - right.index);
+              if (ordered.some((slice, index) => slice.index !== index)) {
+                throw snapshotReadError();
+              }
+              const totalLength = ordered.reduce(
+                (total, slice) => total + slice.data.length,
+                0,
+              );
+              if (totalLength < 1 || totalLength > APPROVED_REDLINE_MAX_BYTES) {
+                throw snapshotReadError();
+              }
+              const bytes = new Uint8Array(totalLength);
+              let offset = 0;
+              for (const slice of ordered) {
+                bytes.set(slice.data, offset);
+                offset += slice.data.length;
+              }
+              succeed(bytes);
+            } catch {
+              fail();
+            } finally {
+              closeFile();
+            }
+          };
+          void read();
+        },
+      );
+    } catch {
+      fail();
+    }
+  });
+}
+
+export function readApprovedRedlineDocumentSnapshot(
+  expectedDocumentId: string,
+): Promise<ApprovedRedlineDocumentSnapshot> {
+  return serializeWordMutation(async () => {
+    try {
+      const identity = readApprovedRedlineDocumentIdentity(expectedDocumentId);
+      const firstBytes = await readCompressedWordFile();
+      requireApprovedRedlineIdentity(identity);
+      const firstHash = await sha256Bytes(firstBytes);
+      requireApprovedRedlineIdentity(identity);
+      const text = await Word.run(async (context) => {
+        const body = context.document.body;
+        body.load("text");
+        await context.sync();
+        if (typeof body.text !== "string") throw snapshotReadError();
+        return body.text;
+      });
+      requireApprovedRedlineIdentity(identity);
+      const secondBytes = await readCompressedWordFile();
+      requireApprovedRedlineIdentity(identity);
+      const secondHash = await sha256Bytes(secondBytes);
+      requireApprovedRedlineIdentity(identity);
+      if (firstHash !== secondHash) throw snapshotReadError();
+      return Object.freeze({ text, contentSha256: firstHash, identity });
+    } catch {
+      throw snapshotReadError();
+    }
+  });
+}
+
+/** Apply one coordinator-approved action, after revalidating its live target. */
+export function applyApprovedRedlineAction(
+  action: PreparedApprovedRedlineAction,
+  expectedIdentity: ApprovedRedlineDocumentIdentity,
+): Promise<void> {
+  return serializeWordMutation(async () => {
+    requireApprovedRedlineIdentity(expectedIdentity);
+    if (
+      !isSearchableOriginal(action.original) ||
+      !Number.isSafeInteger(action.start) ||
+      !Number.isSafeInteger(action.end) ||
+      action.start < 0 ||
+      action.end <= action.start ||
+      (await sha256(action.original)) !== action.before_text_sha256
+    ) {
+      throw new Error("Approved redline original is invalid.");
+    }
+    requireApprovedRedlineIdentity(expectedIdentity);
+
+    return Word.run(async (context) => {
+      const doc = context.document;
+      const body = doc.body;
+      doc.load("changeTrackingMode");
+      body.load("text");
+      await context.sync();
+
+      const originalMode = doc.changeTrackingMode;
+      const validateBody = (text: string): void => {
+        if (
+          action.end > text.length ||
+          text.slice(action.start, action.end) !== action.original
+        ) {
+          throw new Error(
+            "Approved redline target no longer matches the document.",
+          );
+        }
+      };
+
+      validateBody(body.text);
+
+      // Create the search only after a fresh body read so concurrent duplicate
+      // text or revision state is visible to the final host snapshot.
+      body.load("text");
+      await context.sync();
+      validateBody(body.text);
+
+      const matches = body.search(action.original, { matchCase: true });
+      matches.load("items");
+      await context.sync();
+      if (matches.items.length !== 1) {
+        throw new Error(
+          `Approved redline expected one exact match; found ${matches.items.length}.`,
+        );
+      }
+
+      const match = matches.items[0];
+      if (!match) {
+        throw new Error("Approved redline match disappeared.");
+      }
+      const revisions = match.getTrackedChanges();
+      // Reload every fail-closed predicate together. No await occurs between
+      // checking this snapshot and queuing the first document write.
+      body.load("text");
+      matches.load("items");
+      match.load("text");
+      revisions.load("items");
+      await context.sync();
+      validateBody(body.text);
+      if (
+        matches.items.length !== 1 ||
+        match.text !== action.original ||
+        revisions.items.length > 0
+      ) {
+        throw new Error("Approved redline target is stale or already revised.");
+      }
+      requireApprovedRedlineIdentity(expectedIdentity);
+
+      let trackingModeChanged = false;
+      try {
+        doc.changeTrackingMode = Word.ChangeTrackingMode.trackAll;
+        trackingModeChanged = true;
+        const replacement = toWordText(action.replacement);
+        if (replacement.length > 0) {
+          match.insertText(replacement, Word.InsertLocation.after);
+        }
+        match.delete();
+        await context.sync();
+      } finally {
+        if (trackingModeChanged) {
+          doc.changeTrackingMode = originalMode;
+          await context.sync();
+        }
+      }
+    });
+  });
 }
 
 function createTrackedEditHandle(): TrackedEditHandle {
@@ -1352,7 +1741,7 @@ async function resolveTrackedEditNow(
         handle,
         status: "error",
         error:
-          "The revisions in this passage changed after Mike applied the edit. Review them directly in Word.",
+          "The revisions in this passage changed after LiTT applied the edit. Review them directly in Word.",
       };
     }
     if (entry.stableEditId && entry.bookmarkName) {
@@ -2952,7 +3341,7 @@ export function useWordDoc() {
                 result.reason = outcome.reason;
                 if (outcome.status === "applied-unmanaged") {
                   result.error =
-                    "Applied in Word, but Mike couldn’t retain its review controls. Review it from Word’s Review tab.";
+                    "Applied in Word, but LiTT couldn’t retain its review controls. Review it from Word’s Review tab.";
                   if (edit.stableEditId) {
                     newlyAppliedEditIds.push(edit.stableEditId);
                   }
@@ -3027,6 +3416,8 @@ export function useWordDoc() {
 
   return {
     readDocumentMarkdown,
+    readApprovedRedlineDocumentSnapshot,
+    applyApprovedRedlineAction,
     applyTrackedEdits,
     acceptPendingRevisionsForEdit,
   };

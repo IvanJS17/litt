@@ -930,7 +930,7 @@ export function installOfficeMock(seed: OfficeSeed): void {
             const stale =
               label === "Inserted" &&
               (seed.staleInsertedRangeOriginals ?? []).includes(query);
-            return makeRange({
+            const searchRange = makeRange({
               label,
               entry: () =>
                 lastWrite ?? {
@@ -948,6 +948,12 @@ export function installOfficeMock(seed: OfficeSeed): void {
               stale,
               cannotSelect: (seed.unselectableOriginals ?? []).includes(query),
             });
+            Object.defineProperty(searchRange, "text", {
+              enumerable: true,
+              get: () =>
+                label === "Inserted" ? (lastWrite?.text ?? query) : query,
+            });
+            return searchRange;
           };
 
           const range = makeSearchRange("Select");
