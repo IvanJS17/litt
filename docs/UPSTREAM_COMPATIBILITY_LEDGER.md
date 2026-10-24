@@ -878,3 +878,67 @@ tree behaves and are repeated here because they qualify rows of §16.3:
 
 From now on, upstream arrives by an ordinary reviewed merge of `upstream/main`
 on a sync branch, checked against §16 ([`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md)).
+
+## 18. Cycle 2026-10-24 (first ordinary merge)
+
+Pin `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` →
+`d4fd89996e638f66ca55331cb787ce38e11975e1` (`upstream/main` at intake, four
+commits). Branch `sync/upstream-cycle-20261024` from `main` `b24c1ecd`; the
+upstream commits arrive through one `git merge --no-ff` and the rejected parts
+are reverted in separate commits after it. The branch is integrated with a
+merge commit, never a squash, so upstream stays an ancestor of `main`.
+
+### 18.1 Classification
+
+| Upstream commit | Capability (§16.3 row) | Disposition | What LiTT keeps |
+| --- | --- | --- | --- |
+| `18035cf6` #693 connectors per workspace | Connectors, MCP and Google Workspace; CourtListener | adopt, except the CourtListener half (reject) | A person keeps separate MCP, Drive, Gmail and Calendar connections for Personal and for each organization, tied to the membership row. Drive stays off by default. The CourtListener table, routes, client calls and contract type are removed |
+| `540fb8a2` #695 organization work only on central keys | Provider catalog, credentials and model selection | reject, pending an owner decision | The owners' per-organization switch for members' own keys (default on), `PUT /orgs/:id/api-keys/policy`, and the explicit pinned `credential_ref`. Upstream's rule would end personal BYOK inside the firm, where every LiTT lawyer works, and resolves organization work implicitly (organization key, then deployment key) |
+| `040e17ac` #694 Privacy & Data deletes per workspace | Account and organization deletion, member departure | adopt, with the matter gate | Bulk deletes act on the active workspace only. In an organization, "Delete all projects" deletes only the projects the caller may delete through `DELETE /projects/:id`, so a private matter's project stays closed to a creator who is no longer on its team. Account deletion still refuses (TD-008) |
+| `d4fd8999` #696 exports per workspace and member data policy | Access fixes (exports); Organizations, workspaces and matters | adopt | Exports cover the active workspace and keep LiTT's readable-cell and readable-transcript filtering. Owners decide whether members may export or bulk-delete their own work in the organization (both off by default); the change is MFA-guarded and audited |
+
+### 18.2 Conflicts and adaptations
+
+- The merge had 25 conflicting files. Where upstream's side of a hunk was
+  CourtListener or #695 material, LiTT's side was kept. LiTT names and texts
+  were kept on top of upstream's workspace scoping: `litt-*` download names,
+  "LiTT" in the memory page text, the TD-008 refusal test and
+  `loadReadableReviewCells`.
+- `20261022_01_workspace_connectors` was edited before any LiTT database ran
+  it: the CourtListener section is left out. As shipped by upstream it reads
+  `user_profiles.legal_research_us`, which `20261023_18` drops, so it would
+  fail on a LiTT database that already applied `20261023_18`. It would also
+  delete the saved `courtlistener` keys that `20261023_18` stops on instead.
+- `20261024_01_org_keys_central_only` is removed together with #695. No LiTT
+  database has applied it.
+- New migration `20261024_50_litt_memory_delete_opt_in`: upstream's
+  `delete_user_private_memories(uuid, uuid)` creates a missing Personal memory
+  file switched on, and LiTT memory is opt-in. After the merge, `schema.sql`
+  also re-created LiTT's one-argument form as a second overload with no
+  revoke. Only the final two-argument shape remains.
+- LiTT-only tests were moved to the new signatures (`ConnectorOwner`,
+  workspace-scoped exports).
+
+### 18.3 Owner-visible changes
+
+| What the lawyer sees | Recommendation |
+| --- | --- |
+| Connectors (Gmail, Calendar, MCP) are set up separately for Personal and for the firm, and a firm conversation uses the firm set | Adopt |
+| "Delete all…" and "Export…" in Privacy & Data act only on the workspace shown and name it | Adopt |
+| Firm owners decide whether other members may export or bulk-delete their own work in the firm (off until an owner allows it) | Adopt |
+| Upstream would stop lawyers from using their own AI key for firm work and would remove the owners' setting for it | Not applied. LiTT keeps the owners' setting, on by default. Owner decision recorded as TD-042 |
+
+### 18.4 Dependabot
+
+| PR | Group | Result |
+| --- | --- | --- |
+| #21 | codeql-action 4.39.0 → 4.39.1 (actions, pinned by SHA) | applied |
+| #17 | word-addin development | applied |
+| #19 | word-addin lucide-react | applied |
+| #20 | frontend production (docx, lucide-react) | applied |
+| #18 | frontend development | wrangler applied; TypeScript 5.9.3 → 7.0.2 deferred (TD-043) |
+| #22 | backend production | applied except google-auth-library 10 → 11 (TD-043) |
+| #4, #6, #8 (codeql-action), #7 (scorecard-action 2.5.0) | — | already closed by Dependabot, superseded by #21; scorecard-action is v2.5.0 on `main` |
+
+Close #17–#22 once this branch is in `main`. Dependabot reopens the two
+deferred majors on its own.
