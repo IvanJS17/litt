@@ -1,7 +1,7 @@
 // Whose connections a request or a conversation uses.
 //
 // A person keeps a separate set of connectors (MCP servers, Google Drive,
-// Gmail, Calendar, CourtListener) for Personal and for each team organization
+// Gmail, Calendar) for Personal and for each team organization
 // they belong to. Every connection is private to its person in every
 // workspace; `orgId` only says which of their workspaces it serves: a team
 // organization's id, or null for Personal. A connection for an organization

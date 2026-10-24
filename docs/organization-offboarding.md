@@ -29,7 +29,7 @@ organization owners; it must be reassigned first. Removal previews show counts f
 expose its titles to administrators.
 
 Connectors a member added for the organization (MCP servers, Google Drive,
-Gmail, Calendar and their own CourtListener token) belong to them alone and are
+Gmail and Calendar) belong to them alone and are
 deleted, with their stored credentials, when they leave or are removed. Their
 Personal connections are unaffected.
 

@@ -396,7 +396,6 @@ describe("Google Drive picker session", () => {
         .patch(`/user/integrations/google-drive?workspace=${FIRM}`)
         .send({ enabled: false }),
       await request(app).get(`/user/mcp-connectors?workspace=${FIRM}`),
-      await request(app).get(`/user/integrations/courtlistener?workspace=${FIRM}`),
     ]) {
       expect(res.status).toBe(404);
       expect(res.body).toMatchObject({ code: "workspace_not_found" });

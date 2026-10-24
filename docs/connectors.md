@@ -40,9 +40,7 @@ MCP connector's id act on that connector wherever it is. OAuth sign-ins
 remember the workspace they were started in, so the callback completes that
 workspace's connection.
 
-Organization-owned connections shared by every member are not supported. An
-organization can supply a CourtListener token for its members; see
-[CourtListener](courtlistener.md).
+Organization-owned connections shared by every member are not supported.
 
 ## Authentication pathways
 

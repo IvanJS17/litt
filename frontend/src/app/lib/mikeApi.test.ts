@@ -2,7 +2,6 @@ import { listOrgPrivateContent, setOrgPrivateContentPermission, openOrgPrivateCo
 import { setUserProfilePhoto, listDeletedOrganizations, restoreOrganization } from "./mikeApi";
 import { listOrgDepartures, reassignOrgDepartureArchives, deleteOrgDepartureArchives } from "./mikeApi";
 import { getGoogleWorkspaceStatus, startGoogleWorkspaceOAuth, cancelGoogleWorkspaceOAuth, disconnectGoogleWorkspace, updateGoogleWorkspaceSettings, setGoogleWorkspaceToolEnabled, updateGoogleDriveSettings, setGoogleDriveToolEnabled, createGoogleDrivePickerSession } from "./mikeApi";
-import { getCourtListenerConnector, setCourtListenerConnectorEnabled, saveCourtListenerConnectorToken, deleteCourtListenerConnectorToken } from "./mikeApi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssistantEvent, Chat } from "@/app/components/shared/types";
 import { subscribeTabularReviewChanges } from "./tabularReviewChanges";
@@ -2660,12 +2659,6 @@ describe("thin endpoint wrappers", () => {
         { name: "disconnectGoogleWorkspace (workspace)", call: () => disconnectGoogleWorkspace("gmail", "org-1"), url: "/user/integrations/gmail?workspace=org-1", method: "DELETE" },
         { name: "updateGoogleWorkspaceSettings (workspace)", call: () => updateGoogleWorkspaceSettings("gmail", { enabled: false }, "org-1"), url: "/user/integrations/gmail?workspace=org-1", method: "PATCH", body: { enabled: false } },
         { name: "setGoogleWorkspaceToolEnabled (workspace)", call: () => setGoogleWorkspaceToolEnabled("gmail", "gmail_send", true, "org-1"), url: "/user/integrations/gmail/tools/gmail_send?workspace=org-1", method: "PATCH", body: { enabled: true } },
-        // CourtListener: a per-workspace switch and own token.
-        { name: "getCourtListenerConnector", call: () => getCourtListenerConnector(), url: "/user/integrations/courtlistener" },
-        { name: "getCourtListenerConnector (workspace)", call: () => getCourtListenerConnector("org-1"), url: "/user/integrations/courtlistener?workspace=org-1" },
-        { name: "setCourtListenerConnectorEnabled", call: () => setCourtListenerConnectorEnabled(false, "org-1"), url: "/user/integrations/courtlistener?workspace=org-1", method: "PATCH", body: { enabled: false } },
-        { name: "saveCourtListenerConnectorToken", call: () => saveCourtListenerConnectorToken("tok", "personal"), url: "/user/integrations/courtlistener/token?workspace=personal", method: "PUT", body: { token: "tok" } },
-        { name: "deleteCourtListenerConnectorToken", call: () => deleteCourtListenerConnectorToken("org-1"), url: "/user/integrations/courtlistener/token?workspace=org-1", method: "DELETE" },
         // Projects
         {
             name: "getProject",
@@ -3453,27 +3446,6 @@ describe("unwrapping and blob wrappers", () => {
         await expect(Promise.all([first, second])).resolves.toEqual([
             document,
             document,
-        ]);
-    });
-
-    it("reads a panel document in the workspace it is given, and never shares the request with another", async () => {
-        const document = {
-            document_id: "case:789",
-            title: "Workspace case",
-            type: "case",
-            metadata: [],
-            quotes: [],
-        };
-        fetchMock.mockImplementation(async () => jsonResponse(document));
-
-        await Promise.all([
-            getPanelDocument("case:789", "org-1"),
-            getPanelDocument("case:789", "personal"),
-        ]);
-        const urls = fetchMock.mock.calls.map((call) => call[0]);
-        expect(urls).toEqual([
-            "/api/documents/case%3A789?workspace=org-1",
-            "/api/documents/case%3A789?workspace=personal",
         ]);
     });
 

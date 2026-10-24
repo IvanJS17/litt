@@ -8913,43 +8913,6 @@ $$;
 revoke all on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) from public, anon, authenticated;
 grant execute on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) to service_role;
 
--- CourtListener: the switch and the person's own token, per workspace
--- (20261022_01). An organization's own token stays in org_api_keys and is
--- laid over the member's when it has one. Replaces
--- user_profiles.legal_research_us and the 'courtlistener' row of
--- user_api_keys, which are no longer read or written.
-create table if not exists public.user_courtlistener_connections (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  org_id uuid,
-  enabled boolean not null default true,
-  -- The person's own API token for this workspace, encrypted like
-  -- user_api_keys. Null when they have not saved one.
-  encrypted_key text,
-  iv text,
-  auth_tag text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint user_courtlistener_connections_key_check check (
-    (encrypted_key is null) = (iv is null) and (iv is null) = (auth_tag is null)
-  ),
-  constraint user_courtlistener_connections_workspace_key
-    unique nulls not distinct (user_id, org_id),
-  constraint user_courtlistener_connections_workspace_member_fkey
-    foreign key (org_id, user_id)
-    references public.org_members(org_id, user_id) on delete cascade
-);
-
-create index if not exists idx_user_courtlistener_connections_org
-  on public.user_courtlistener_connections(org_id) where org_id is not null;
-
-alter table public.user_courtlistener_connections enable row level security;
-revoke all on public.user_courtlistener_connections from public, anon, authenticated;
-grant select, insert, update, delete
-  on public.user_courtlistener_connections
-  to service_role;
-
-
 -- Organization departure recovery and expiry.
 
 

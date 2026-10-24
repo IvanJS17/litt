@@ -97,9 +97,6 @@ import {
     getWebSearchSettings,
     validateWebSearchPayload,
     saveWebSearchSettings,
-    courtListenerConnectorStatus,
-    setCourtListenerEnabled,
-    setCourtListenerToken,
     isWorkspaceExportType,
 } from "./user.service";
 
@@ -513,11 +510,6 @@ userRouter.put(
             return void res
                 .status(400)
                 .json({ detail: "Unsupported provider" });
-        // A connector, with a token per workspace: see /integrations/courtlistener.
-        if (provider === "courtlistener")
-            return void res.status(400).json({
-                detail: "Manage CourtListener in Settings → Connectors.",
-            });
 
         const apiKey =
             typeof req.body?.api_key === "string" ? req.body.api_key : null;
@@ -1363,79 +1355,6 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         }),
     );
 }
-// ---------------------------------------------------------------------------
-// CourtListener: the switch and the user's own token for one workspace. An
-// organization's token is managed by its admins with its other API keys.
-// ---------------------------------------------------------------------------
-
-// GET /user/integrations/courtlistener
-userRouter.get(
-    "/integrations/courtlistener",
-    requireAuth,
-    asyncRoute(async (req, res) => {
-        const owner = await connectorOwner(req, res);
-        if (!owner) return;
-        res.json(
-            await courtListenerConnectorStatus(createServerSupabase(), owner),
-        );
-    }),
-);
-
-// PATCH /user/integrations/courtlistener — { enabled }
-userRouter.patch(
-    "/integrations/courtlistener",
-    requireAuth,
-    requireMfaIfEnrolled,
-    asyncRoute(async (req, res) => {
-        const parsed = readBooleanBodyField(req.body, "enabled");
-        if (!parsed.ok)
-            return void res.status(400).json({ detail: parsed.detail });
-        const owner = await connectorOwner(req, res);
-        if (!owner) return;
-        res.json(
-            await setCourtListenerEnabled(
-                createServerSupabase(),
-                owner,
-                parsed.value,
-            ),
-        );
-    }),
-);
-
-// PUT /user/integrations/courtlistener/token — { token }
-userRouter.put(
-    "/integrations/courtlistener/token",
-    requireAuth,
-    requireMfaIfEnrolled,
-    asyncRoute(async (req, res) => {
-        const token =
-            typeof req.body?.token === "string" ? req.body.token.trim() : "";
-        if (!token || token.length > 512)
-            return void res
-                .status(400)
-                .json({ detail: "A CourtListener API token is required." });
-        const owner = await connectorOwner(req, res);
-        if (!owner) return;
-        res.json(
-            await setCourtListenerToken(createServerSupabase(), owner, token),
-        );
-    }),
-);
-
-// DELETE /user/integrations/courtlistener/token
-userRouter.delete(
-    "/integrations/courtlistener/token",
-    requireAuth,
-    requireMfaIfEnrolled,
-    asyncRoute(async (req, res) => {
-        const owner = await connectorOwner(req, res);
-        if (!owner) return;
-        res.json(
-            await setCourtListenerToken(createServerSupabase(), owner, null),
-        );
-    }),
-);
-
 // POST /user/mcp-connectors/:connectorId/refresh-tools
 userRouter.post(
     "/mcp-connectors/:connectorId/refresh-tools",

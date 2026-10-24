@@ -3,8 +3,7 @@
 -- Connectors, per workspace.
 --
 -- MCP, Google Drive, Gmail and Calendar connections belonged to the account
--- and were switched off in every organization's workspace. CourtListener had
--- one account-wide switch and one personal token used everywhere.
+-- and were switched off in every organization's workspace.
 --
 -- A person now keeps a separate set of connections for Personal and for each
 -- team organization they belong to. Each is private to them, like their
@@ -14,19 +13,19 @@
 --
 --   <connector table>.org_id   the organization a connection is for, or null
 --                              for Personal
---   user_courtlistener_connections
---                              the CourtListener switch and the person's own
---                              token, per workspace (formerly
---                              user_profiles.legal_research_us and the
---                              'courtlistener' row of user_api_keys)
 --
 -- A workspace connection exists only while its person is a member: it is
 -- tied to the membership row and goes with it, so leaving, being removed and
 -- the organization being purged all delete the stored credentials.
 --
--- Existing connections become Personal. CourtListener settings are copied to
--- Personal and to every team organization the person belongs to, so lookups
--- keep working where they worked before.
+-- Existing connections become Personal.
+--
+-- LiTT (ledger 16.3 "CourtListener", cycle 2026-10-24): upstream's version of
+-- this migration also creates user_courtlistener_connections and moves the
+-- CourtListener switch and tokens into it. CourtListener is not part of LiTT
+-- (20261023_18_litt_remove_courtlistener), so that section is left out here:
+-- it would read user_profiles.legal_research_us, which LiTT has dropped, and
+-- delete saved 'courtlistener' keys that 20261023_18 stops on instead.
 --
 -- Safe to re-run: add column if not exists, drop-before-create for
 -- constraints and replaced functions, guarded backfills.
@@ -224,82 +223,3 @@ $$;
 
 revoke all on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) from public, anon, authenticated;
 grant execute on function public.complete_google_workspace_oauth(text,text,jsonb), public.disconnect_google_workspace(uuid,text,uuid) to service_role;
-
--- ---------------------------------------------------------------------------
--- CourtListener: the switch and the person's own token, per workspace. An
--- organization's own token stays in org_api_keys and is laid over the
--- member's when it has one.
--- ---------------------------------------------------------------------------
-
-create table if not exists public.user_courtlistener_connections (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  org_id uuid,
-  enabled boolean not null default true,
-  -- The person's own API token for this workspace, encrypted like
-  -- user_api_keys. Null when they have not saved one.
-  encrypted_key text,
-  iv text,
-  auth_tag text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint user_courtlistener_connections_key_check check (
-    (encrypted_key is null) = (iv is null) and (iv is null) = (auth_tag is null)
-  ),
-  constraint user_courtlistener_connections_workspace_key
-    unique nulls not distinct (user_id, org_id),
-  constraint user_courtlistener_connections_workspace_member_fkey
-    foreign key (org_id, user_id)
-    references public.org_members(org_id, user_id) on delete cascade
-);
-
-create index if not exists idx_user_courtlistener_connections_org
-  on public.user_courtlistener_connections(org_id) where org_id is not null;
-
-alter table public.user_courtlistener_connections enable row level security;
-revoke all on public.user_courtlistener_connections from public, anon, authenticated;
-grant select, insert, update, delete
-  on public.user_courtlistener_connections
-  to service_role;
-
--- Copy each person's switch and token to Personal and to every team
--- organization they belong to. A token the person had switched off was not
--- used, so it is not copied. Rows that already exist are left alone, so a
--- re-run never overwrites a choice made since.
-insert into public.user_courtlistener_connections (
-  user_id, org_id, enabled, encrypted_key, iv, auth_tag
-)
-select
-  people.user_id,
-  workspaces.org_id,
-  coalesce(profiles.legal_research_us, true),
-  keys.encrypted_key,
-  keys.iv,
-  keys.auth_tag
-from (
-  select user_id from public.user_api_keys where provider = 'courtlistener'
-  union
-  select user_id from public.user_profiles where legal_research_us = false
-) people
-cross join lateral (
-  select null::uuid as org_id
-  union all
-  select members.org_id
-  from public.org_members members
-  join public.organizations orgs on orgs.id = members.org_id
-  where members.user_id = people.user_id
-    and orgs.kind = 'team'
-    and orgs.deleted_at is null
-) workspaces
-left join public.user_profiles profiles on profiles.user_id = people.user_id
-left join public.user_api_keys keys
-  on keys.user_id = people.user_id
-  and keys.provider = 'courtlistener'
-  and keys.enabled
-where exists (select 1 from auth.users u where u.id = people.user_id)
-on conflict (user_id, org_id) do nothing;
-
--- The token now lives with its workspace. user_profiles.legal_research_us is
--- left in place for a backend that predates this migration, and no longer
--- read.
-delete from public.user_api_keys where provider = 'courtlistener';

@@ -62,9 +62,7 @@ select disconnect_google_workspace('00000000-0000-0000-0000-000000000001','gmail
 select pg_temp.assert_true((select count(*) = 1 and bool_and(org_id is not null) from public.user_google_workspace_tokens),'disconnecting Personal leaves the organization grant');
 select disconnect_google_drive('00000000-0000-0000-0000-000000000001');
 select pg_temp.assert_true(exists(select 1 from public.user_google_drive_tokens),'Personal Drive disconnect leaves the organization grant');
-insert into public.user_courtlistener_connections(user_id,org_id,enabled) values ('00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000f1',false);
 insert into public.user_mcp_connectors(id,user_id,org_id) values ('00000000-0000-0000-0000-0000000000c1','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-0000000000f1');
 -- Leaving the organization takes every connection made for it.
 delete from public.org_members where org_id = '00000000-0000-0000-0000-0000000000f1';
-select pg_temp.assert_true(not exists(select 1 from public.user_google_workspace_tokens) and not exists(select 1 from public.user_google_drive_tokens) and not exists(select 1 from public.user_courtlistener_connections) and not exists(select 1 from public.user_mcp_connectors where org_id is not null),'membership removal deletes the workspace connections');
-select pg_temp.assert_true(not has_table_privilege('authenticated','public.user_courtlistener_connections','SELECT'),'browser cannot read CourtListener tokens');
+select pg_temp.assert_true(not exists(select 1 from public.user_google_workspace_tokens) and not exists(select 1 from public.user_google_drive_tokens) and not exists(select 1 from public.user_mcp_connectors where org_id is not null),'membership removal deletes the workspace connections');

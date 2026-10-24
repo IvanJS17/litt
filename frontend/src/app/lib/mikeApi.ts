@@ -1622,60 +1622,6 @@ export async function createGoogleDrivePickerSession(
     );
 }
 
-// ---------------------------------------------------------------------------
-// CourtListener connector: an on/off switch and an optional own token, both
-// per workspace.
-// ---------------------------------------------------------------------------
-
-export type CourtListenerConnectorStatus =
-    import("@mike/contracts").CourtListenerConnectorStatus;
-
-export async function getCourtListenerConnector(
-    workspace?: string,
-): Promise<CourtListenerConnectorStatus> {
-    return apiRequest<CourtListenerConnectorStatus>(
-        connectorPath("/user/integrations/courtlistener", workspace),
-    );
-}
-
-export async function setCourtListenerConnectorEnabled(
-    enabled: boolean,
-    workspace?: string,
-): Promise<CourtListenerConnectorStatus> {
-    return apiRequest<CourtListenerConnectorStatus>(
-        connectorPath("/user/integrations/courtlistener", workspace),
-        {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
-        },
-    );
-}
-
-/** Saves the caller's own token; the server also turns the switch on. */
-export async function saveCourtListenerConnectorToken(
-    token: string,
-    workspace?: string,
-): Promise<CourtListenerConnectorStatus> {
-    return apiRequest<CourtListenerConnectorStatus>(
-        connectorPath("/user/integrations/courtlistener/token", workspace),
-        {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token }),
-        },
-    );
-}
-
-export async function deleteCourtListenerConnectorToken(
-    workspace?: string,
-): Promise<CourtListenerConnectorStatus> {
-    return apiRequest<CourtListenerConnectorStatus>(
-        connectorPath("/user/integrations/courtlistener/token", workspace),
-        { method: "DELETE" },
-    );
-}
-
 export async function getProject(projectId: string): Promise<Project> {
     return apiRequest<Project>(`/projects/${projectId}`);
 }
@@ -3259,26 +3205,13 @@ export async function deleteChat(chatId: string): Promise<void> {
 
 const panelDocumentRequests = new Map<string, Promise<PanelDocument>>();
 
-/**
- * A source document for the side panel, such as a cited case. `workspace`
- * ("personal" or an organization id) is the workspace of the chat or project
- * the citation came from: a case is read with that workspace's CourtListener
- * connection. Omitted, the server reads it as Personal.
- */
 export async function getPanelDocument(
     documentId: string,
-    workspace?: string,
 ): Promise<PanelDocument> {
-    // The same document in two workspaces is two requests: each may use a
-    // different token, and one may be refused where the other is not.
-    const key = JSON.stringify([workspace ?? null, documentId]);
-    let request = panelDocumentRequests.get(key);
+    let request = panelDocumentRequests.get(documentId);
     if (!request) {
         request = apiRequest<unknown>(
-            connectorPath(
-                `/documents/${encodeURIComponent(documentId)}`,
-                workspace,
-            ),
+            `/documents/${encodeURIComponent(documentId)}`,
         )
             .then((value) => {
                 if (!isPanelDocument(value)) {
@@ -3286,8 +3219,8 @@ export async function getPanelDocument(
                 }
                 return value;
             })
-            .finally(() => panelDocumentRequests.delete(key));
-        panelDocumentRequests.set(key, request);
+            .finally(() => panelDocumentRequests.delete(documentId));
+        panelDocumentRequests.set(documentId, request);
     }
     return request;
 }

@@ -530,7 +530,7 @@ describe("user.routes", () => {
                 ],
                 apiKeyStatus: STATUS,
             });
-            // The CourtListener switch is per workspace now, not a profile field.
+            // No US legal-research preference (20261023_18_litt_remove_courtlistener).
             expect(res.body).not.toHaveProperty("legalResearchUs");
             // Presence-only key status — never plaintext.
             expect(JSON.stringify(res.body)).not.toContain("sk-");

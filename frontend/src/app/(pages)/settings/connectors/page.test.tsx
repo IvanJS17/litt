@@ -1626,8 +1626,6 @@ describe("ConnectorsPage workspaces", () => {
             writeEnabled: false, enabled: true, requireWriteApproval: false,
             readOnly: false, tools: [], redirectUri: null,
         });
-        courtListener.installed = false;
-        courtListener.loading = false;
     });
 
     afterEach(() => {
@@ -1684,8 +1682,6 @@ describe("ConnectorsPage workspaces", () => {
         expect(getGoogleDriveStatus).toHaveBeenCalledWith("org-1");
         expect(getGoogleWorkspaceStatus).toHaveBeenCalledWith("gmail", "org-1");
         expect(getGoogleWorkspaceStatus).toHaveBeenCalledWith("google-calendar", "org-1");
-        expect(courtListener.workspaces).toContain("org-1");
-        expect(courtListener.workspaces).not.toContain("personal");
 
         vi.spyOn(window, "open").mockReturnValue({
             location: { href: "" },
@@ -1728,7 +1724,6 @@ describe("ConnectorsPage workspaces", () => {
 
         expect(listMcpConnectors).toHaveBeenLastCalledWith("org-2");
         expect(getGoogleDriveStatus).toHaveBeenLastCalledWith("org-2");
-        expect(courtListener.workspaces.at(-1)).toBe("org-2");
         expect(installed().queryByRole("button", { name: "Manage Slack" })).toBeNull();
         expect(screen.getByText("No connectors yet.")).toBeTruthy();
     });

@@ -100,7 +100,7 @@ function connectorMessage(error: unknown, action: string): string {
 type PendingMfaAction =
   | { type: "create"; draft: AddDraft; surface: CreateSurface }
   | { type: "google-add"; provider: GoogleConnectorProvider }
-  // A Google or CourtListener settings change or delete; replayed as-is
+  // A Google settings change or delete; replayed as-is
   // after verification.
   | { type: "native-update"; retry: () => Promise<void> }
   | { type: "write-approval"; connectorId: string; enabled: boolean }
@@ -690,7 +690,7 @@ function WorkspaceConnectors({
   };
 
   /**
-   * A change to a Google or CourtListener connector, under the usual MFA
+   * A change to a Google connector, under the usual MFA
    * gate.
    */
   const runNativeUpdate = async (busy: string, change: () => Promise<void>) => {
