@@ -551,7 +551,7 @@ describe("handleExportBuild", () => {
 
         expect(memberDataActionAllowed).toHaveBeenCalledWith(db, "u1", "org-1", "export");
         expect(buildMemoryArchive).toHaveBeenCalledWith(db, "u1", "u@x.test", "org-1");
-        expect(out.filename).toBe("mike-memory-export-org-1.zip");
+        expect(out.filename).toBe("litt-memory-export-org-1.zip");
     });
 
     it("fails an organization's export, without retrying, once its owners turn exports off", async () => {

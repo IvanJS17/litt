@@ -823,7 +823,7 @@ describe("additional Google service regression coverage", () => {
     const s = workspaceDb();
     const start = await startWorkspaceOAuth(
       s.db,
-      "u1",
+      personalConnectorOwner("u1"),
       "gmail",
       "https://mike.test",
     );
@@ -844,7 +844,7 @@ describe("additional Google service regression coverage", () => {
         "code",
       ),
     ).rejects.toThrow(/reconnect/i);
-    expect(await workspaceStatus(s.db, "u1", "gmail")).toMatchObject({
+    expect(await workspaceStatus(s.db, personalConnectorOwner("u1"), "gmail")).toMatchObject({
       connected: false,
       writeEnabled: false,
     });

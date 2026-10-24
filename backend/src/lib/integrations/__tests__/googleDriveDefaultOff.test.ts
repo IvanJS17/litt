@@ -25,6 +25,7 @@ import {
   startGoogleDriveOAuth,
 } from "../googleDrive";
 import { requestedScopes } from "../googleWorkspaceAuth";
+import { personalConnectorOwner } from "../../connectorOwner";
 
 const GMAIL_MODIFY = "https://www.googleapis.com/auth/gmail.modify";
 // Whole-Drive scopes upstream recognized; LiTT never issued them.
@@ -57,7 +58,7 @@ describe("default configuration", () => {
 
   it("refuses OAuth start with the unavailable error the route maps to 404", async () => {
     await expect(
-      startGoogleDriveOAuth("user-1", "http://localhost:3000/callback", {
+      startGoogleDriveOAuth(personalConnectorOwner("user-1"), "http://localhost:3000/callback", {
         from: () => {
           throw new Error("the switched-off service must not touch the db");
         },
@@ -67,7 +68,7 @@ describe("default configuration", () => {
 
   it("refuses the Picker session with the unavailable error the route maps to 404", async () => {
     await expect(
-      createGoogleDrivePickerSession("user-1", {
+      createGoogleDrivePickerSession(personalConnectorOwner("user-1"), {
         from: () => {
           throw new Error("the switched-off service must not touch the db");
         },
@@ -84,7 +85,7 @@ describe("default configuration", () => {
 
   it("gives the assistant no Drive tools at all", async () => {
     await expect(
-      buildGoogleDriveTools("user-1", {
+      buildGoogleDriveTools(personalConnectorOwner("user-1"), {
         from: () => {
           throw new Error("the switched-off service must not touch the db");
         },

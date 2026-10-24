@@ -246,7 +246,7 @@ describe("exports enforce current read access", () => {
             organizations: [{ id: "other-org", kind: "team" }],
         };
         const { db } = makeExportDb(tables);
-        const result = await buildUserTabularReviewsExport(db, userId, email);
+        const result = await buildUserTabularReviewsExport(db, userId, email, null);
 
         expect(ids(result.tabular_reviews)).toEqual(["review-own"]);
         expect(ids(result.tabular_cells)).toEqual(["cell-readable"]);
