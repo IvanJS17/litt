@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -118,13 +119,13 @@ function tenancy(overrides: Record<string, unknown> = {}): TenancyReadPort {
       workspace_id: "workspace-1",
       organization_id: "org-1",
       visibility: "private",
-    })),
+    })) as TenancyReadPort["getMatter"],
     getMatterMembership: vi.fn(async () => ({
       user_id: "user-1",
       matter_id: "matter-1",
       role: "matter_owner",
       status: "active",
-    })),
+    })) as TenancyReadPort["getMatterMembership"],
   };
 }
 
@@ -688,7 +689,7 @@ describe("atomic append boundary", () => {
         "append-only AI evidence deletion requires an approved retention decision",
     });
     const source = readFileSync(
-      new URL("./appendOnlyEvidence.ts", import.meta.url),
+      resolve(process.cwd(), "src/lib/recovery/evidence/appendOnlyEvidence.ts"),
       "utf8",
     );
     expect(source).toContain("interface AtomicEvidenceAppendPort");
@@ -702,17 +703,17 @@ describe("atomic append boundary", () => {
 
 describe("runtime import lock", () => {
   it("exports only the bounded runtime APIs", async () => {
-    expect(Object.keys(await import("./executionEvidence")).sort()).toEqual(
+    expect(Object.keys(await import("./executionEvidence.js")).sort()).toEqual(
       [
         "AI_EXECUTION_STATUSES",
         "buildExecutionProvenance",
         "transitionExecutionStatus",
       ].sort(),
     );
-    expect(Object.keys(await import("./citationEvidence")).sort()).toEqual(
+    expect(Object.keys(await import("./citationEvidence.js")).sort()).toEqual(
       ["verifyCitationBatch", "verifyCitationCandidate"].sort(),
     );
-    expect(Object.keys(await import("./appendOnlyEvidence")).sort()).toEqual(
+    expect(Object.keys(await import("./appendOnlyEvidence.js")).sort()).toEqual(
       [
         "appendEvidenceAtomically",
         "buildCanonicalEvidenceReceipt",
@@ -728,7 +729,7 @@ describe("runtime import lock", () => {
       "appendOnlyEvidence.ts",
     ]) {
       const source = readFileSync(
-        new URL(`./${file}`, import.meta.url),
+        resolve(process.cwd(), `src/lib/recovery/evidence/${file}`),
         "utf8",
       );
       for (const banned of [

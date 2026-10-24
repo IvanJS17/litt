@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+export { TextCardUI } from "./TextCardUI";
 
 type EventDotColor = "green" | "gray" | "red";
 
 function EventConnector() {
     return (
-        <div className="absolute left-[3px] top-[14px] h-[calc(100%+10px)] w-[1px] -translate-x-1/2 bg-gray-300" />
+        <div
+            aria-hidden="true"
+            data-slot="event-connector"
+            className="absolute left-[3px] top-[14px] h-[calc(100%+10px)] w-[1px] -translate-x-1/2 bg-gray-300"
+        />
     );
 }
 
@@ -147,6 +152,7 @@ export function DocFindBlockUI({
 export function DocEditBlockUI({
     label,
     filename,
+    fileIcon,
     detail,
     onClick,
     showConnector,
@@ -156,6 +162,7 @@ export function DocEditBlockUI({
 }: {
     label: string;
     filename?: string;
+    fileIcon?: ReactNode;
     detail?: ReactNode;
     onClick?: () => void;
     showConnector?: boolean;
@@ -175,20 +182,25 @@ export function DocEditBlockUI({
                 {label}
             </span>
             {filename && (
-                <>
-                    {" "}
+                <span className="ml-1 inline-flex min-w-0 align-middle">
                     {!isStreaming && onClick ? (
                         <button
                             type="button"
                             onClick={onClick}
-                            className="cursor-pointer text-left transition-colors hover:text-gray-700"
+                            className="inline-flex min-w-0 cursor-pointer items-center gap-1.5 text-left transition-colors hover:text-gray-700"
                         >
-                            {filename}
+                            {fileIcon}
+                            <span className="truncate">{filename}</span>
                         </button>
                     ) : (
-                        <span>{isStreaming ? `${filename}...` : filename}</span>
+                        <span className="inline-flex min-w-0 items-center gap-1.5">
+                            {fileIcon}
+                            <span className="truncate">
+                                {isStreaming ? `${filename}...` : filename}
+                            </span>
+                        </span>
                     )}
-                </>
+                </span>
             )}
             {detail && <span className="ml-1 text-gray-400">{detail}</span>}
         </DocumentEventBlockUI>

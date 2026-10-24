@@ -1,22 +1,17 @@
-**
-!frontend/
-!frontend/**
-!backend/
-!backend/src/
-!backend/src/lib/
-!backend/src/lib/sourceDocuments.ts
-!backend/src/lib/chat/
-!backend/src/lib/chat/types.ts
+# BuildKit per-Dockerfile ignore (context is the repo root — see Dockerfile).
+# Keep the context lean: the build reads frontend/ and packages/contracts only,
+# so the other applications are excluded outright.
 **/node_modules
 **/.next
 **/.open-next
 **/out
+**/dist
 **/build
+.git
+backend
+word-addin
+docs
+e2e
 **/.env
 **/.env.*
 **/*.log
-**/*.tsbuildinfo
-**/.git
-!word-addin/
-!word-addin/src/
-!word-addin/src/**

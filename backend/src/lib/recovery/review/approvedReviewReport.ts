@@ -93,7 +93,6 @@ export type ApprovedReportFailure = {
     | "approved_report_append_failed";
 };
 
-const SHA256_RE = /^[0-9a-f]{64}$/;
 const IDEMPOTENCY_RE = /^[A-Za-z0-9][A-Za-z0-9:_-]{0,127}$/;
 const APPEND_RECEIPT_KEYS = [
   "disposition",

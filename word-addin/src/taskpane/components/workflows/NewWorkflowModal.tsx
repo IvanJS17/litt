@@ -17,6 +17,7 @@ import {
   WORKFLOW_LANGUAGE_OPTIONS,
   WORKFLOW_PRACTICE_OPTIONS,
 } from "../../lib/workflowMetadata";
+import { userMessage } from "../../lib/notify";
 
 const US_STATE_OPTIONS = [
   "Alabama",
@@ -175,7 +176,9 @@ export function NewWorkflowModal({
       onClose();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Failed to create workflow"
+        userMessage(reason, {
+          fallback: "LiTT couldn't create that workflow. Try again.",
+        })
       );
     } finally {
       setCreating(false);
@@ -223,7 +226,7 @@ export function NewWorkflowModal({
         disabled: creating,
       }}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto pb-5">
+      <div data-modal-scroll="vertical" className="min-h-0 flex-1 overflow-y-auto pb-5">
         <div className="space-y-6">
           <div>
             <ModalFieldLabel htmlFor="new-workflow-title">

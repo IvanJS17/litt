@@ -2,7 +2,6 @@ import { readFile } from "fs/promises";
 import { contentTypeForDocumentType } from "./documentTypes";
 import { MX_CIVIL_COMMERCIAL_SYNC_ENTRY } from "./recovery/workflows/mxCivilCommercialPlaybook";
 import { storageEnabled, uploadFile } from "./storage";
-import type { createServerSupabase } from "./supabase";
 import {
   prepareWorkflowCatalog,
   removePreparedWorkflowCatalog,
@@ -10,19 +9,18 @@ import {
   type WorkflowCatalogSourceOptions,
   type WorkflowCatalogSourceWorkflow,
 } from "./workflowCatalogSource";
-
-type Db = ReturnType<typeof createServerSupabase>;
+import type { Db } from "./supabase";
 
 export type WorkflowCatalogSyncResult = {
   workflows: number;
-  references: number;
+  assets: number;
   /** Upstream import commit; owned entries retain their own source commits. */
   sourceCommit: string;
 };
 
-function metadataWithoutTemporaryReferences(
+function metadataWithoutTemporaryAssets(
   workflow: WorkflowCatalogSourceWorkflow,
-  referenceFiles: Array<{
+  assets: Array<{
     filename: string;
     file_type: string;
     storage_path: string;
@@ -30,8 +28,25 @@ function metadataWithoutTemporaryReferences(
     content_hash: string;
   }>,
 ) {
-  const { reference_files: _references, ...metadata } = workflow;
-  return { ...metadata, reference_files: referenceFiles };
+  const { assets: _assets, ...metadata } = workflow;
+  return { ...metadata, assets };
+}
+
+/**
+ * The import's provenance for every upstream entry: where the catalog content
+ * came from and what review it has passed. `mike_workflows` is the only
+ * seeded catalog, so each row states its own source instead of relying on the
+ * batch commit alone, and LiTT-audience content is never presented as legally
+ * validated when it is not.
+ */
+function upstreamProvenance(document: {
+  source_repository: string;
+  source_commit: string;
+}) {
+  return {
+    source: `https://github.com/${document.source_repository}/tree/${document.source_commit}`,
+    approval_provenance: "Upstream catalog import; LiTT legal validation pending",
+  };
 }
 
 export async function syncWorkflowCatalog(
@@ -43,6 +58,9 @@ export async function syncWorkflowCatalog(
     const document = validateWorkflowCatalogDocument(
       JSON.parse(await readFile(prepared.catalogPath, "utf8")) as unknown,
     );
+    // The MX playbook is owned content with its own source commit. A catalog
+    // that also declares its key would be replaced by the seed on every sync,
+    // so the collision fails instead of silently changing which content wins.
     if (
       document.workflows.some(
         (workflow) =>
@@ -53,54 +71,46 @@ export async function syncWorkflowCatalog(
         `Upstream catalog collides with reserved workflow key '${MX_CIVIL_COMMERCIAL_SYNC_ENTRY.workflow_key}'`,
       );
     }
-    let references = 0;
-    const databaseWorkflows: Array<
-      | (ReturnType<typeof metadataWithoutTemporaryReferences> & {
-          source: string;
-          approval_provenance: string;
-        })
-      | typeof MX_CIVIL_COMMERCIAL_SYNC_ENTRY
-    > = [];
-    const hasReferences = document.workflows.some(
-      (workflow) => workflow.reference_files.length > 0,
+    let assetCount = 0;
+    const databaseWorkflows = [];
+    const hasAssets = document.workflows.some(
+      (workflow) => workflow.assets.length > 0,
     );
-    if (hasReferences && !storageEnabled) {
+    if (hasAssets && !storageEnabled) {
       throw new Error(
-        "Workflow reference files require configured S3-compatible storage",
+        "Workflow assets require configured S3-compatible storage",
       );
     }
 
     for (const workflow of document.workflows) {
-      const databaseReferences = [];
-      for (const reference of workflow.reference_files) {
+      const databaseAssets = [];
+      for (const asset of workflow.assets) {
         if (storageEnabled) {
           const storagePath =
             `mike-workflows/${workflow.workflow_key}/` +
-            `${reference.content_hash}/${reference.filename}`;
-          const bytes = await readFile(reference.temporary_path);
+            `${asset.content_hash}/${asset.filename}`;
+          const bytes = await readFile(asset.temporary_path);
           await uploadFile(
             storagePath,
             bytes.buffer.slice(
               bytes.byteOffset,
               bytes.byteOffset + bytes.byteLength,
             ) as ArrayBuffer,
-            contentTypeForDocumentType(reference.file_type),
+            contentTypeForDocumentType(asset.file_type),
           );
-          databaseReferences.push({
-            filename: reference.filename,
-            file_type: reference.file_type,
+          databaseAssets.push({
+            filename: asset.filename,
+            file_type: asset.file_type,
             storage_path: storagePath,
-            size_bytes: reference.size_bytes,
-            content_hash: reference.content_hash,
+            size_bytes: asset.size_bytes,
+            content_hash: asset.content_hash,
           });
-          references += 1;
+          assetCount += 1;
         }
       }
       databaseWorkflows.push({
-        ...metadataWithoutTemporaryReferences(workflow, databaseReferences),
-        source: `https://github.com/${document.source_repository}/tree/${document.source_commit}`,
-        approval_provenance:
-          "Upstream catalog import; LiTT legal validation pending",
+        ...metadataWithoutTemporaryAssets(workflow, databaseAssets),
+        ...upstreamProvenance(document),
       });
     }
     databaseWorkflows.push(MX_CIVIL_COMMERCIAL_SYNC_ENTRY);
@@ -113,7 +123,7 @@ export async function syncWorkflowCatalog(
 
     return {
       workflows: databaseWorkflows.length,
-      references,
+      assets: assetCount,
       sourceCommit: document.source_commit,
     };
   } finally {

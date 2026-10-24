@@ -1,5 +1,8 @@
 "use client";
 
+import { useDocumentWorkspace } from "@/app/contexts/WorkspaceContext";
+import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
+
 import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import type { QuickAction, Workflow } from "../shared/types";
@@ -7,7 +10,7 @@ import { Modal } from "../modals/Modal";
 import { ModalSelect } from "../modals/ModalSelect";
 import { ModalTextarea } from "../modals/ModalTextarea";
 import { FieldLabel, FormTextInput } from "../ui/form-field";
-import { ToggleSwitch } from "../ui/toggle-switch";
+import { ToggleSwitchUI } from "@/shared/ui/ToggleSwitchUI";
 import { SearchBar } from "../ui/search-bar";
 import { listWorkflows } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
@@ -28,13 +31,14 @@ interface QuickActionsModalProps {
   onClose: () => void;
 }
 
-export function QuickActionsModal({
+function QuickActionsModalForWorkspace({
   open,
   actions,
   onSave,
   onCreate,
   onClose,
 }: QuickActionsModalProps) {
+    const workspace = useDocumentWorkspace();
   const [screen, setScreen] = useState<Screen>("list");
   const [selected, setSelected] = useState<QuickAction | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -48,10 +52,10 @@ export function QuickActionsModal({
 
   useEffect(() => {
     if (!open || workflows.length > 0) return;
-    void listWorkflows("assistant")
+    void listWorkflows("assistant", workspace ?? "personal")
       .then((rows) => setWorkflows(rows))
       .catch(() => setError("Could not load assistant workflows."));
-  }, [open, workflows.length]);
+  }, [open, workflows.length, workspace]);
 
   const availableWorkflows = useMemo(() => {
     const used = new Set(actions.map((action) => action.workflow_id));
@@ -194,7 +198,8 @@ export function QuickActionsModal({
           </div>
           <div
             data-slot="quick-actions-list"
-            className="mt-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-1 pt-1"
+            data-modal-scroll="vertical"
+            className="mt-2 min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-1"
           >
             {error && (
               <p className="px-3 py-2 text-xs text-red-600" role="alert">
@@ -403,11 +408,16 @@ function ToggleRow({
         <p className="text-sm font-medium text-gray-700">{label}</p>
         <p className="mt-1 text-xs leading-relaxed text-gray-400">{caption}</p>
       </div>
-      <ToggleSwitch
+      <ToggleSwitchUI
         checked={checked}
         onCheckedChange={onChange}
         aria-label={label}
       />
     </div>
   );
+}
+
+export function QuickActionsModal(props: QuickActionsModalProps) {
+    const identity = useWorkspaceIdentity();
+    return <QuickActionsModalForWorkspace key={identity} {...props} />;
 }

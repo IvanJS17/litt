@@ -8,7 +8,6 @@ import {
     Pencil,
     Plus,
     Trash2,
-    Upload,
     Users,
 } from "lucide-react";
 import {
@@ -20,12 +19,13 @@ import type { Project } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { RowActions } from "@/app/components/shared/RowActions";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
-import {
-    TABLE_PRIMARY_CELL_WIDTH_CLASS,
-    tableTreeCellStyle,
-} from "@/app/components/shared/TablePrimitive";
+import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
+import { tableTreeCellStyle } from "@/app/components/shared/TablePrimitive";
 
-export type ProjectWorkspaceSection = "documents" | "assistant" | "reviews";
+export type ProjectWorkspaceSection =
+    | "documents"
+    | "assistant"
+    | "reviews";
 
 export type ProjectContextMenu = {
     x: number;
@@ -35,7 +35,6 @@ export type ProjectContextMenu = {
     showFolderActions: boolean;
 };
 
-export const NAME_COL_W = TABLE_PRIMARY_CELL_WIDTH_CLASS;
 export const DOC_NAME_COL_W =
     "w-[292px] sm:w-[332px] md:w-[392px] lg:w-[452px] xl:w-[532px] 2xl:w-[592px] shrink-0";
 
@@ -58,11 +57,33 @@ export function formatDate(iso: string) {
 export function DocIcon({
     fileType,
     muted = false,
+    warning = null,
 }: {
     fileType: string | null;
     muted?: boolean;
+    /** Shown as a badge on the icon, e.g. a PDF without a text layer. */
+    warning?: string | null;
 }) {
-    return <FileTypeIcon fileType={fileType} className="h-4 w-4" muted={muted} />;
+    const icon = (
+        <FileTypeIcon fileType={fileType} className="h-3.5 w-3.5" muted={muted} />
+    );
+    if (!warning) return icon;
+    return (
+        <span
+            className="relative inline-flex"
+            title={warning}
+            aria-label={warning}
+            role="img"
+        >
+            {icon}
+            <span
+                aria-hidden="true"
+                className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-amber-500 text-[7px] font-bold leading-none text-white ring-1 ring-white"
+            >
+                !
+            </span>
+        </span>
+    );
 }
 
 export function DocVersionHistory({
@@ -77,6 +98,7 @@ export function DocVersionHistory({
     onOpenVersion,
     onRenameVersion,
     onExtensionChangeBlocked,
+    showCreator = false,
 }: {
     docId: string;
     filename: string;
@@ -96,6 +118,8 @@ export function DocVersionHistory({
         filename: string | null,
     ) => Promise<void> | void;
     onExtensionChangeBlocked?: (filename: string) => void;
+    /** Keeps the rows aligned with a table that shows a Creator column. */
+    showCreator?: boolean;
 }) {
     const [editingVersionId, setEditingVersionId] = useState<string | null>(
         null,
@@ -153,6 +177,11 @@ export function DocVersionHistory({
                         <div className="w-20 shrink-0 pl-1">
                             <div className="h-3 w-5 rounded bg-gray-200 animate-pulse" />
                         </div>
+                        {showCreator && (
+                            <div className="w-32 shrink-0">
+                                <div className="h-3 w-16 rounded bg-gray-200 animate-pulse" />
+                            </div>
+                        )}
                         <div className="w-32 shrink-0">
                             <div className="h-3 w-16 rounded bg-gray-200 animate-pulse" />
                         </div>
@@ -304,6 +333,11 @@ export function DocVersionHistory({
                         >
                             {numberLabel}
                         </div>
+                        {showCreator && (
+                            <div className="w-32 shrink-0 truncate text-xs text-gray-400">
+                                —
+                            </div>
+                        )}
                         <div
                             className={`w-32 shrink-0 truncate text-xs ${
                                 isDeleted ? "text-gray-300" : "text-gray-500"
@@ -320,6 +354,15 @@ export function DocVersionHistory({
                         >
                             {!isDeleted && (
                                 <RowActions
+                                    onView={
+                                        onOpenVersion
+                                            ? () =>
+                                                  onOpenVersion(
+                                                      v.id,
+                                                      displayLabel,
+                                                  )
+                                            : undefined
+                                    }
                                     onRename={
                                         onRenameVersion
                                             ? () => {
@@ -353,66 +396,76 @@ export function ProjectPageHeader({
     project,
     search,
     activeSection,
-    creatingChat,
     creatingReview,
-    isOwner,
+    canManageProject,
+    roleKnown = true,
     onBackToProjects,
     onProjectRoot,
     onOpenDetails,
     onOpenMemory,
     onDeleteProject,
     onSearchChange,
-    onOpenPeople,
+    onOpenAccess,
     onNewChat,
     onNewReview,
-    onAddDocuments,
+    onSavedFiles,
+    onUploadFiles,
+    onUploadFolder,
     documentFolderBreadcrumbs,
 }: {
     project: Project | null;
     search: string;
     activeSection: ProjectWorkspaceSection;
-    creatingChat: boolean;
     creatingReview: boolean;
-    isOwner: boolean;
+    /** Whether the caller holds access.manage on this project. */
+    canManageProject: boolean;
+    /**
+     * False while the project row — and with it the caller's role — is still
+     * loading. Role-gated menu items disable themselves rather than offering
+     * an action whose outcome nobody knows yet.
+     */
+    roleKnown?: boolean;
     onBackToProjects: () => void;
     onProjectRoot: () => void;
     onOpenDetails: () => void;
     onOpenMemory: () => void;
     onDeleteProject: () => void;
     onSearchChange: (search: string) => void;
-    onOpenPeople: () => void;
+    onOpenAccess: () => void;
     onNewChat: () => void;
     onNewReview: () => void;
-    onAddDocuments?: (() => void) | null;
+    onSavedFiles?: (() => void) | null;
+    onUploadFiles?: (() => void) | null;
+    onUploadFolder?: (() => void) | null;
     documentFolderBreadcrumbs?: Array<{
         label: string;
         onClick: () => void;
     }>;
 }) {
-    const sectionAction: PageHeaderAction =
+    const sectionAction: PageHeaderAction | null =
         activeSection === "documents"
             ? {
-                  onClick: onAddDocuments ?? undefined,
-                  disabled: !onAddDocuments,
-                  icon: <Upload className="h-4 w-4" />,
-                  iconOnly: true,
-                  title: "Add documents",
+                  type: "custom",
+                  render: (
+                      <DocumentUploadMenu
+                          onSavedFiles={onSavedFiles ?? null}
+                          onUploadFiles={onUploadFiles ?? null}
+                          onUploadFolder={onUploadFolder ?? null}
+                      />
+                  ),
               }
             : activeSection === "assistant"
               ? {
                     onClick: onNewChat,
-                    disabled: creatingChat,
-                    icon: creatingChat ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                        <Plus className="h-4 w-4" />
-                    ),
+                    disabled: !roleKnown,
+                    icon: <Plus className="h-4 w-4" />,
                     label: <span className="hidden sm:inline">Chat</span>,
                     title: "Create chat",
                 }
-              : {
+              : activeSection === "reviews"
+                ? {
                     onClick: onNewReview,
-                    disabled: creatingReview,
+                    disabled: creatingReview || !roleKnown,
                     icon: creatingReview ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
@@ -420,7 +473,8 @@ export function ProjectPageHeader({
                     ),
                     label: <span className="hidden sm:inline">Review</span>,
                     title: "Create review",
-                };
+                  }
+                : null;
 
     return (
         <PageHeader
@@ -457,9 +511,9 @@ export function ProjectPageHeader({
                         placeholder: "Search…",
                     },
                     {
-                        onClick: onOpenPeople,
+                        onClick: onOpenAccess,
                         iconOnly: true,
-                        title: "People with access",
+                        title: "Access",
                         icon: <Users className="h-4 w-4" />,
                     },
                     {
@@ -468,23 +522,29 @@ export function ProjectPageHeader({
                             <HeaderActionsMenu
                                 items={[
                                     {
-                                        label: isOwner
+                                        label: canManageProject
                                             ? "Edit details"
                                             : "View details",
                                         icon: Pencil,
                                         onSelect: onOpenDetails,
+                                        disabled: !roleKnown,
                                     },
                                     {
                                         label: "Memory",
                                         icon: Brain,
                                         onSelect: onOpenMemory,
-                                        disabled: !project,
+                                        disabled: !roleKnown,
                                     },
                                     {
+                                        // Kept visible below admin so the
+                                        // refusal can name someone who can
+                                        // lift it; disabled only while the
+                                        // role itself is still unknown.
                                         label: "Delete",
                                         icon: Trash2,
                                         onSelect: onDeleteProject,
                                         variant: "danger",
+                                        disabled: !roleKnown,
                                     },
                                 ]}
                             />

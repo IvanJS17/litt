@@ -7,54 +7,58 @@
 # this job "e2e / playwright" as a required status check in branch protection —
 # see docs/e2e-ci.md ("Make it merge-blocking").
 #
-# LiTT default CI never injects real provider credentials. LLM-dependent
-# upstream specs remain explicitly skipped without an authorized G6 canary.
-# Their skip is not acceptance coverage; the isolated recovery Beta uses fakes.
-# See docs/e2e-ci.md and docs/RELEASE_GATES.md.
+# Every browser flow runs without a paid provider key. A local Anthropic-protocol
+# fixture supplies deterministic completions while requests still cross the real
+# web gateway, backend, auth, database, storage and assistant streaming layers.
+# This verifies application flows, not the quality/availability of a live model.
 #
-# The e2e user (e2e@mike.local) is bootstrapped in-job by e2e/auth.setup.ts against
-# the local Supabase admin API, so no E2E_PASSWORD secret is needed — the defaults
-# baked into auth.setup.ts are the single source of truth.
+# Each worker creates its own account through e2e/fixtures.ts and e2e/users.ts.
+# auth.setup.ts creates only the isolated logout account. No login secret is needed.
 name: e2e
 
 on:
   workflow_dispatch:
+  # Include stacked PRs whose base is another feature branch.
   pull_request:
-    # `main` is the destination upstream; `upstream-main` is the fork's mirror of
-    # it, so the suite is exercised on the fork PR and stays correct once merged.
-    branches: [main, upstream-main]
     # Documentation-only changes skip this suite; docs/playbooks/ seeds the
-    # workflow catalog and still runs it.
+    # workflow catalog and still runs it (TD-024).
     paths:
       - "**"
       - "!docs/**"
       - "docs/playbooks/**"
       - "!*.md"
-  # Weekly keyless regression check of main (Mondays 03:47 UTC); not Phase 4
-  # intake automation. It ran nightly until GitHub paused this fork's
-  # workflows for Actions usage (TD-024 in docs/TECHNICAL_DEBT.md).
+  # Weekly regression run of the default branch (Mondays 03:47 UTC), so drift
+  # that lands between pull requests still surfaces. LiTT runs it weekly, not
+  # nightly, to keep Actions usage down (TD-024 in docs/TECHNICAL_DEBT.md).
+  # Scheduled runs use the same deterministic provider and exercise every flow.
   schedule:
     - cron: "47 3 * * 1"
 
-# Don't pile up runs on rapid pushes to the same PR.
+# Cancel only PR runs that a newer push to the same PR has superseded;
+# scheduled and dispatched runs are never cancelled.
 concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  group: e2e-${{ github.event_name }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   playwright:
-    timeout-minutes: 30
+    name: playwright
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     env:
-      # Defaults match e2e/auth.setup.ts; overriding the password here would break
-      # the valid-login specs, so only the base URL is pinned.
+      # Login credentials come from e2e/users.ts; pin only the browser origin.
       PLAYWRIGHT_BASE_URL: http://localhost:3000
-      # Explicitly keyless even if a repository secret exists.
-      ANTHROPIC_API_KEY: ""
+      # Parallel Playwright workers, each with its own account (e2e/users.ts).
+      # The runner has 4 vCPUs shared with Postgres, the API and Next.
+      E2E_WORKERS: "3"
+      # Dummy key enables model selection; the SDK's existing endpoint override
+      # sends every Anthropic request to the loopback fixture, never a provider.
+      ANTHROPIC_API_KEY: e2e-local-key
+      ANTHROPIC_BASE_URL: http://127.0.0.1:4141/v1
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -75,8 +79,27 @@ jobs:
       - name: Ensure lightningcss native binary
         run: npm install --no-save lightningcss --prefix frontend
 
+      # Playwright transpiles TypeScript without typechecking. Keep missing
+      # helpers and stale fixture signatures from hiding in gated browser flows.
+      - name: Typecheck browser specs
+        run: >-
+          npx tsc --ignoreConfig --noEmit --module nodenext
+          --moduleResolution nodenext --target es2022 --skipLibCheck
+          --esModuleInterop --types node e2e/*.ts playwright.config.ts
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
+
+      - name: Verify and start deterministic model provider
+        run: |
+          node --test e2e/anthropic-stub.check.mjs
+          node e2e/anthropic-stub.mjs > /tmp/e2e-model.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:4141/health; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/e2e-model.log
+          exit 1
 
       # Object storage. Three specs upload a document (tabular-review row,
       # project-folder fixture) and assert the result renders; those uploads go
@@ -85,9 +108,9 @@ jobs:
       # set (region "auto", forcePathStyle true — S3-compatible as written).
       # With no storage the upload endpoint 5xxs and the row never appears.
       # MinIO images stopped being pullable (docker.io withdrawn 2026-09-12,
-      # quay.io unauthorized since 2026-09-25), so CI uses RustFS like upstream,
-      # pinned by digest. A `docker run` keeps storage startup and bucket
-      # creation together after the server is healthy.
+      # quay.io unauthorized since 2026-09-25), so CI uses RustFS pinned by
+      # digest. A `docker run` (not a `services:` container) keeps storage
+      # startup and bucket creation together after the server is healthy.
       - name: Start RustFS (object storage)
         run: |
           docker run -d --name rustfs -p 9000:9000 \
@@ -110,9 +133,10 @@ jobs:
           AWS_SECRET_ACCESS_KEY=rustfsadmin \
           AWS_DEFAULT_REGION=us-east-1 \
             aws --endpoint-url http://localhost:9000 s3 mb s3://mike
-          # Browsers PUT presigned uploads straight to storage from
-          # http://localhost:3000, so the bucket needs the same CORS policy
-          # upstream installs (docker/storage-cors.json, copied byte-for-byte).
+          # CI must exercise the SAME bucket CORS policy that docker-compose and
+          # the production runbook install (docker/storage-cors.json). A change
+          # that adds a request header to the storage PUT must fail CI
+          # if the deployed CORS policy does not allow it.
           AWS_ACCESS_KEY_ID=rustfsadmin \
           AWS_SECRET_ACCESS_KEY=rustfsadmin \
           AWS_DEFAULT_REGION=us-east-1 \
@@ -132,6 +156,10 @@ jobs:
       # `supabase init` purely to boot the CLI's local stack, then load the
       # repository's own fresh-database schema — exactly what the README tells a
       # human to run on a new database (backend/schema.sql).
+      # Kept serial on purpose: booting it in the background alongside the
+      # installs and builds saved ~1.7 min but hung at "Starting database..."
+      # past 10 min in 1 of ~6 runs (the serial step never exceeded 2.5 min
+      # across 82 runs), which a merge gate can't afford.
       - name: Start local Supabase
         uses: supabase/setup-cli@v3
         with:
@@ -143,9 +171,15 @@ jobs:
           supabase init --force --with-vscode-settings=false || supabase init --force
           # E2E uses Auth, Postgres, PostgREST, and Kong only. Document storage
           # is provided by RustFS above, and no spec reads local email. Excluding
-          # the unused services also avoids Inbucket claiming host port 54324,
+          # the unused services also avoids Mailpit claiming host port 54324,
           # which can collide with runner processes before Playwright starts.
-          supabase start -x studio,imgproxy,inbucket,analytics,vector,realtime,storage,edge-runtime,functions,meta
+          # Supabase defaults overlap Linux's ephemeral port range. Dedicated
+          # low ports avoid intermittent collisions with runner outbound traffic.
+          sed -i 's/54320/21320/g; s/54321/21321/g; s/54322/21322/g' supabase/config.toml
+          # setup-cli pins GHCR, disabling the CLI's ECR/GHCR/Docker Hub fallback.
+          # Allow the pinned CLI to recover when one public registry is throttled.
+          env -u SUPABASE_INTERNAL_IMAGE_REGISTRY supabase start \
+            -x studio,imgproxy,mailpit,logflare,vector,realtime,storage-api,edge-runtime,postgres-meta,supavisor
           DB_URL=$(supabase status -o json | jq -r '.DB_URL')
           # A fresh database runs the current schema exactly once. Historical
           # migrations only upgrade older deployments; replaying them on top of
@@ -156,6 +190,24 @@ jobs:
           # PostgREST cached its schema when `supabase start` booted it (before
           # the DDL above). Tell it to reload so the new tables/grants are visible.
           psql "$DB_URL" -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
+
+      # The web client talks to its own /api gateway. Only the Next server
+      # needs the upstream backend origin. Written before the build because
+      # Next inlines NEXT_PUBLIC_* values at build time.
+      - name: Write web env
+        run: |
+          {
+            echo "API_BASE_URL=http://localhost:3001"
+          } > frontend/.env.local
+
+      - name: Build backend
+        run: npm run build --prefix backend
+
+      # Serve a PRODUCTION build, not `next dev`: on-demand route compilation
+      # makes first hits arbitrarily slow and the dev error overlay pollutes
+      # text locators.
+      - name: Build web (production)
+        run: npm run build --prefix frontend
 
       - name: Wire env from Supabase
         run: |
@@ -186,6 +238,9 @@ jobs:
             echo "RATE_LIMIT_UPLOAD_MAX=100000"
             echo "RATE_LIMIT_EXPORT_MAX=100000"
             echo "RATE_LIMIT_DATA_DELETE_MAX=100000"
+            echo "RATE_LIMIT_UPLOAD_SESSION_MUTATION_MAX=100000"
+            echo "RATE_LIMIT_UPLOAD_SESSION_POLL_MAX=100000"
+            echo "RATE_LIMIT_UPLOAD_SESSION_CREATE_MAX_PER_HOUR=100000"
             echo "RATE_LIMIT_AUTH_LOGIN_MAX=100000"
             echo "RATE_LIMIT_AUTH_ACCOUNT_MAX=100000"
             echo "RATE_LIMIT_AUTH_EMAIL_MAX=100000"
@@ -199,42 +254,40 @@ jobs:
             # Keep the release-job fixture reproducible even when the source
             # repository's main branch changes independently of this PR.
             echo "MIKE_WORKFLOWS_REF=ce62e6a2d3f47e1d3567a4f2edc61898cfe9e78a"
-            echo "ANTHROPIC_API_KEY="
+            echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY"
+            echo "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL"
           } >> backend/.env
-          # The web client talks to its own /api gateway. Only the Next server
-          # needs the upstream backend origin.
-          echo "API_BASE_URL=http://localhost:3001" > frontend/.env.local
 
       # Production runs this as a release job after migrations and before the
       # backend starts. E2E must exercise the same ordering so defaults exist.
       - name: Sync Mike workflow catalog
-        run: |
-          npm run build --prefix backend
-          npm run sync:workflows --prefix backend
-
-      # Serve a PRODUCTION build, not `next dev`. Two reasons the dev server makes
-      # this suite flaky: (1) its on-demand route compilation makes the first hit
-      # of each page arbitrarily slow (20s waitForResponse assertions time out),
-      # and (2) its hydration-error overlay injects DOM (nextjs__container_errors…)
-      # that pollutes text locators — e.g. getByText('All') matched the overlay's
-      # "Call Stack"/"…fallback" text and failed strict mode. A production build has
-      # neither: no overlay, no JIT compile. Verified locally — flipping dev→start
-      # took the suite from intermittent overlay/timeout failures to green.
-      - name: Build web (production)
-        run: npm run build --prefix frontend
+        run: npm run sync:workflows --prefix backend
 
       - name: Start backend API
         run: npm run dev --prefix backend &
       - name: Start web (production server)
-        run: npm run start --prefix frontend &
+        run: npm run start --prefix frontend > /tmp/e2e-next.log 2>&1 &
 
       - name: Wait for servers
         run: npx wait-on http://localhost:3001/health http://localhost:3000 --timeout 120000
 
       # playwright.config.ts sets webServer to undefined when CI=true, so the job
       # is responsible for the servers above; Playwright just drives them.
+      # `chromium` is every full-stack spec (plus its `setup` dependency).
+      # E2E_WORKERS (job env) sets the parallel workers, each signed in as its
+      # own user.
       - name: Run Playwright
-        run: npx playwright test
+        run: npx playwright test --project=chromium
+
+      # The `synthetic` project (assistant-streaming, tabular-chat-lifecycle)
+      # mocks every /api call in the browser. LiTT runs it here against the
+      # production web server already started above, instead of upstream's
+      # extra runners, which each repeat the installs and the web build
+      # (TD-024). Two workers keep the CPU-throttled streaming tests from
+      # starving each other.
+      - name: Run synthetic streaming specs
+        if: ${{ !cancelled() }}
+        run: npx playwright test --project=synthetic --workers=2
 
       # always() (not !cancelled()) so the report still uploads when the job is
       # cancelled by the timeout — that's exactly when you most need the traces.
@@ -245,5 +298,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            /tmp/e2e-next.log
+            /tmp/e2e-model.log
           retention-days: 14
           if-no-files-found: ignore

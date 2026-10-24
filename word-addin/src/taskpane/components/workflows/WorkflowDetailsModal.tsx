@@ -16,6 +16,7 @@ import {
   WORKFLOW_LANGUAGE_OPTIONS,
   WORKFLOW_PRACTICE_OPTIONS,
 } from "../../lib/workflowMetadata";
+import { userMessage } from "../../lib/notify";
 
 function valueOrOther(
   value: string,
@@ -146,7 +147,9 @@ export function WorkflowDetailsModal({
       onClose();
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Failed to update workflow",
+        userMessage(reason, {
+          fallback: "LiTT couldn't save this workflow. Try again.",
+        }),
       );
     } finally {
       setSaving(false);
@@ -164,7 +167,9 @@ export function WorkflowDetailsModal({
       onClose();
     } catch (reason) {
       setDeleteError(
-        reason instanceof Error ? reason.message : "Failed to delete workflow",
+        userMessage(reason, {
+          fallback: "LiTT couldn't delete this workflow. Try again.",
+        }),
       );
     } finally {
       setDeleting(false);
@@ -188,7 +193,7 @@ export function WorkflowDetailsModal({
               }
         }
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-5">
+        <div data-modal-scroll="vertical" className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-5">
           <div className="space-y-6">
             <div>
               <ModalFieldLabel htmlFor="workflow-details-title">

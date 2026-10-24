@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 import { PillButtonUI } from "./PillButtonUI";
+import { TextButtonUI } from "./TextButtonUI";
+import { TextSlabUI } from "./TextSlabUI";
 
 export type EditCardUIBusyAction =
     | "view"
@@ -38,15 +39,8 @@ export interface EditCardUIProps {
     onAccept?: () => void;
     onReject?: () => void;
     onAcceptAndApply?: () => void;
-}
-
-function BusyLabel({ children }: { children: ReactNode }) {
-    return (
-        <>
-            <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
-            <span>{children}</span>
-        </>
-    );
+    /** Renders the dismiss control. Omit where the card cannot be closed. */
+    onClose?: () => void;
 }
 
 /**
@@ -67,6 +61,7 @@ export function EditCardUI({
     className = "",
     actionsDisabled = false,
     busyAction,
+    onClose,
     onView,
     onApply,
     onAccept,
@@ -84,6 +79,7 @@ export function EditCardUI({
     const showAcceptAndApply =
         !!onAcceptAndApply || busyAction === "accept-and-apply";
     const hasActions =
+        !!onClose ||
         !!onView ||
         showApply ||
         showAcceptAndApply ||
@@ -116,7 +112,12 @@ export function EditCardUI({
             )}
 
             {(hasEditText || previewContent !== undefined) && (
-                <div className="rounded-lg bg-gray-100/70 px-2 py-2 font-sans text-xs leading-relaxed">
+                // Long changes scroll inside the slab so the actions stay in
+                // view; focusable so the scroll is reachable by keyboard.
+                <TextSlabUI
+                    tabIndex={0}
+                    className="max-h-40 overflow-y-auto overscroll-contain font-sans text-xs leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                >
                     {previewContent !== undefined ? (
                         previewContent
                     ) : (
@@ -134,7 +135,7 @@ export function EditCardUI({
                             )}
                         </>
                     )}
-                </div>
+                </TextSlabUI>
             )}
 
             {locationHint && (
@@ -148,22 +149,22 @@ export function EditCardUI({
 
             {hasActions && (
                 <div
-                    className="mt-2 flex gap-2"
+                    className="mt-2 flex items-center gap-2"
                     role="group"
                     aria-label="Edit actions"
                 >
                     {showAcceptAndApply && (
                         <PillButtonUI
                             tone="blue"
+                            size="xs"
                             onClick={onAcceptAndApply}
                             disabled={
                                 controlsDisabled || !onAcceptAndApply
                             }
+                            loading={busyAction === "accept-and-apply"}
                         >
                             {busyAction === "accept-and-apply" ? (
-                                <BusyLabel>
-                                    Accepting &amp; applying...
-                                </BusyLabel>
+                                "Accepting & applying..."
                             ) : (
                                 "Accept & apply"
                             )}
@@ -172,11 +173,13 @@ export function EditCardUI({
                     {showApply && (
                         <PillButtonUI
                             tone="blue"
+                            size="xs"
                             onClick={onApply}
                             disabled={controlsDisabled || !onApply}
+                            loading={busyAction === "apply"}
                         >
                             {busyAction === "apply" ? (
-                                <BusyLabel>Applying...</BusyLabel>
+                                "Applying..."
                             ) : (
                                 "Apply"
                             )}
@@ -185,11 +188,13 @@ export function EditCardUI({
                     {onAccept && (
                         <PillButtonUI
                             tone="blue"
+                            size="xs"
                             onClick={onAccept}
                             disabled={controlsDisabled || resolved}
+                            loading={busyAction === "accept"}
                         >
                             {busyAction === "accept" ? (
-                                <BusyLabel>Accepting...</BusyLabel>
+                                "Accepting..."
                             ) : status === "accepted" ? (
                                 "Accepted"
                             ) : (
@@ -200,11 +205,13 @@ export function EditCardUI({
                     {onReject && (
                         <PillButtonUI
                             tone="white"
+                            size="xs"
                             onClick={onReject}
                             disabled={controlsDisabled || resolved}
+                            loading={busyAction === "reject"}
                         >
                             {busyAction === "reject" ? (
-                                <BusyLabel>Rejecting...</BusyLabel>
+                                "Rejecting..."
                             ) : status === "rejected" ? (
                                 "Rejected"
                             ) : (
@@ -212,17 +219,24 @@ export function EditCardUI({
                             )}
                         </PillButtonUI>
                     )}
+                    {onClose && (
+                        <TextButtonUI size="xs" title="Close tracked change" onClick={onClose} className="ml-auto">
+                            Close
+                        </TextButtonUI>
+                    )}
                     {onView && (
                         <PillButtonUI
                             tone="black"
+                            size="xs"
                             onClick={onView}
                             disabled={controlsDisabled || resolved}
+                            loading={busyAction === "view"}
                             title={
                                 resolved
                                     ? "This change has been resolved and is no longer in the document."
                                     : undefined
                             }
-                            className="ml-auto"
+                            className={onClose ? undefined : "ml-auto"}
                         >
                             View
                         </PillButtonUI>

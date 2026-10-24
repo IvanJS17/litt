@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GovernedCredentialRecord } from "./governedProviderRoute";
@@ -9,8 +8,10 @@ import {
   resolveProviderEgressTarget,
 } from "./providerEgress";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const IMPL_SOURCE = readFileSync(join(HERE, "providerEgress.ts"), "utf8");
+const IMPL_SOURCE = readFileSync(
+  resolve(process.cwd(), "src/lib/recovery/providers/providerEgress.ts"),
+  "utf8",
+);
 
 function record(
   overrides: Partial<GovernedCredentialRecord> = {},
@@ -36,7 +37,7 @@ function portFor(rec: GovernedCredentialRecord | null) {
 
 const VALID_ROUTE = {
   provider: "claude",
-  model: "claude-sonnet-5",
+  model: "claude-sonnet-5-5",
   credential_ref: "user-key-1",
 };
 
@@ -93,7 +94,7 @@ describe("fake sender gating", () => {
       expect(result.receipt.source).toBe("user");
       expect(result.receipt.version).toBe(2);
       expect(result.receipt.provider).toBe("claude");
-      expect(result.receipt.model).toBe("claude-sonnet-5");
+      expect(result.receipt.model).toBe("claude-sonnet-5-5");
       expect(result.senderResult).toEqual({ text: "fake-output" });
       expect(JSON.stringify(result.receipt)).not.toContain("secret-key-abc");
     }
@@ -190,7 +191,7 @@ describe("fake sender gating", () => {
       user_id: "user-1",
       route: {
         provider: "claude",
-        model: "gpt-5.6-sol",
+        model: "gpt-6.1-sol",
         credential_ref: "user-key-1",
       },
       credentialPort: portFor(record()),
@@ -293,7 +294,7 @@ describe("fake sender gating", () => {
 
 describe("runtime export lock and import boundary", () => {
   it("exposes exactly the egress boundary", async () => {
-    const mod = await import("./providerEgress");
+    const mod = await import("./providerEgress.js");
     expect(Object.keys(mod).sort()).toEqual(
       ["executeGovernedProviderCall", "resolveProviderEgressTarget"].sort(),
     );

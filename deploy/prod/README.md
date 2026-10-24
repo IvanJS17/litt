@@ -23,38 +23,43 @@ Los documentos viven en **Cloudflare R2** (externo); no hay object storage local
       para `https://litt.asteroitt.com.mx` (PUT/GET de las URLs firmadas).
 - [ ] Registro DNS `A litt` → `78.47.184.224` (Cloudflare; mismo modo que
       `contextlexmx`).
-- [ ] Imágenes del release construidas y verificadas (IDs exactos abajo).
+- [ ] Imágenes del release construidas desde el commit exacto y verificadas
+      (sección 1).
 
 ## 1. Imágenes (máquina de build → VPS)
 
+Ningún workflow de CI construye imágenes: desde la sincronización con upstream
+de 2026-10-23 la construcción pertenece a este gate de despliegue
+([`../../docs/RELEASE_GATES.md`](../../docs/RELEASE_GATES.md), G7). No existen
+imágenes verificadas del árbol sincronizado; los IDs de imagen de releases
+anteriores no aplican.
+
 ```bash
-docker tag sha256:f99301dc34bfd657cef486e7cd79b61dc0afa2912762c2fa67885ef10733578a litt-backend:<RELEASE>
-docker tag sha256:bbfb690842d78a8b45ffcf493c67b1dff7db927ce9d482a9fd1260ba5eb8bda2 litt-frontend:<RELEASE>
+# En la máquina de build, desde la raíz de un checkout limpio en <SHA-de-main>:
+docker build -f backend/Dockerfile  -t litt-backend:<RELEASE> .
+docker build -f frontend/Dockerfile --build-arg GIT_SHA=<SHA-de-main> -t litt-frontend:<RELEASE> .
+docker image inspect --format '{{.Id}}' litt-backend:<RELEASE>    # anotar en el recibo
+docker image inspect --format '{{.Id}}' litt-frontend:<RELEASE>   # anotar en el recibo
 docker save litt-backend:<RELEASE>  | gzip > /tmp/litt-backend.tgz
 docker save litt-frontend:<RELEASE> | gzip > /tmp/litt-frontend.tgz
 scp /tmp/litt-*.tgz staging-apps-dev:/tmp/
 # En el VPS:
 gzip -dc /tmp/litt-backend.tgz  | docker load
 gzip -dc /tmp/litt-frontend.tgz | docker load
-docker image inspect --format '{{.Id}}' litt-backend:<RELEASE>   # == f99301dc…
-docker image inspect --format '{{.Id}}' litt-frontend:<RELEASE>  # == bbfb6908…
+docker image inspect --format '{{.Id}}' litt-backend:<RELEASE>   # == ID anotado
+docker image inspect --format '{{.Id}}' litt-frontend:<RELEASE>  # == ID anotado
 ```
 
 `<RELEASE>` = sha corto del commit de `main` desplegado (queda en `.env` como
-`LITT_RELEASE`). Las imágenes son las verificadas en las corridas G5; el deploy
-NO compila en el VPS.
-
-**Procedencia de las imágenes (registro):** los IDs `f99301dc…`/`bbfb6908…`
-provienen de los builds S7 sobre `951c834f`; el **runtime** de la app es
-byte-idéntico entre `951c834f` y este `<RELEASE>` (lo único distinto en el
-árbol es el arnés `backend/scripts/recovery-beta-server.cjs`, que no forma
-parte del runtime). La verificación de IDs tras `docker load` (comando arriba)
-es la que ata el deploy a los bytes probados.
+`LITT_RELEASE`). El contexto de build es la raíz del repositorio (los
+Dockerfiles copian `packages/contracts`). El deploy NO compila en el VPS; la
+comparación de IDs tras `docker load` ata el deploy a los bytes construidos y
+verificados.
 
 ## 2. Árbol del release (VPS)
 
 ```bash
-# En la máquina de build (repo mike):
+# En la máquina de build (repo litt):
 git archive --format=tar.gz -o /tmp/litt.tar.gz <SHA-de-main> && scp /tmp/litt.tar.gz staging-apps-dev:/tmp/
 # En el VPS (owner ivan, como /srv/contextlex-mx):
 sudo -n mkdir -p /srv/litt && sudo -n chown ivan:ivan /srv/litt
@@ -80,7 +85,7 @@ Nunca imprimir el contenido del `.env`.
 cd /srv/litt
 C="docker compose --env-file .env -f deploy/prod/compose.yaml"
 $C up -d db auth rest gateway        # base + auth (el init de postgres tarda ~2-5 min)
-$C up db-init                        # esquema + roles (one-shot "fresh")
+$C up db-init                        # esquema completo + migraciones pendientes (one-shot)
 $C up -d                             # backend + frontend
 $C ps                                # todo healthy
 ```
@@ -146,10 +151,19 @@ de IA (Ajustes) y subir un documento de prueba.
 - **Login con Google**: deshabilitado (requiere credenciales de sistema).
 - **Documentos en R2**: el respaldo NO los incluye (política de borrado
   definitivo sin retención oculta); R2 es el almacén durable.
-- **Upgrades de la base**: el flujo soportado es `recovery-upgrade`
-  (documentar caso de uso en el primer upgrade real; este paquete instala
-  `fresh`). El init reutilizado es replay-safe por recibo
-  (`recovery_staging.bootstrap` — nombre cosmético en producción): no-op en
-  replay con el mismo sha256 y error explícito si el esquema difiere.
+- **Esquema y upgrades de la base**: un solo mecanismo, el de upstream. El
+  servicio `db-init` carga `backend/schema.sql` solo si la base está vacía (el
+  esquema registra en `public.schema_migrations` todas las migraciones que ya
+  contiene) y en cada arranque corre `backend/scripts/migrate.sh up`, que
+  aplica cada migración pendiente una sola vez, en orden y con candado. Un
+  upgrade es: árbol del release nuevo + imágenes nuevas + `$C up db-init` antes
+  de `$C up -d`. Una base con esquema pero sin ledger hace que `db-init` falle
+  pidiendo un `baseline`; no se repite nada a ciegas. Procedimiento general:
+  [`../../docs/deployment.md`](../../docs/deployment.md) §Database setup. La
+  serie antigua `*_recovery_*` y su orden manual ya no existen.
+- **Colas de trabajo**: sin Redis. El backend usa la cola en PostgreSQL y corre
+  los workers en un hilo propio (`WORKERS_MODE` por defecto).
+- **Telemetría**: ninguna. El árbol no incluye SDK de Sentry ni variables de
+  telemetría de terceros.
 - **SMTP futuro**: cuando se habilite el correo, el servicio `auth` necesitará
   egreso (añadirlo a la red `egress` del compose); hoy no lo requiere.

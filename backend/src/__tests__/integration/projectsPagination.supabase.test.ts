@@ -1,14 +1,36 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+// The RPCs return `any`; naming the row shape is what lets tsc check the
+// property reads below instead of silently widening them.
+type ProjectRow = {
+    id: string;
+    org_id: string | null;
+    access_scope: string;
+    organization_name: string | null;
+};
+
 const url = process.env.SUPABASE_TEST_URL;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY;
 const maybeDescribe = url && serviceKey ? describe : describe.skip;
+
+/* supabase-js types an rpc() result's `data` as `any`, so the `.map()` /
+   `.every()` callbacks below get no inferred parameter type (and, under
+   noImplicitAny, no type check at all). Name the handful of overview columns
+   these assertions actually read. */
+type OverviewRow = {
+    id: string;
+    name: string;
+    is_owner: boolean;
+};
 
 maybeDescribe("Supabase projects-overview pagination", () => {
     let ownerId = "";
     let ownerEmail = "";
     let otherUserId = "";
+    const orgId = crypto.randomUUID();
+    const orgProjectId = crypto.randomUUID();
+    const ownedSharedProjectId = crypto.randomUUID();
     const myProjectIds = Array.from({ length: 25 }, () => crypto.randomUUID());
     const sharedProjectIds = Array.from({ length: 5 }, () => crypto.randomUUID());
     const tiedCreatedAt = "2026-07-27T00:00:00.000Z";
@@ -21,6 +43,7 @@ maybeDescribe("Supabase projects-overview pagination", () => {
 
         const suffix = Date.now();
         ownerEmail = `pagination-owner-${suffix}@test.local`;
+        const otherUserEmail = `pagination-other-${suffix}@test.local`;
         const owner = await admin.auth.admin.createUser({
             email: ownerEmail,
             password: "StackTest1!",
@@ -32,7 +55,7 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         ownerId = owner.data.user.id;
 
         const otherUser = await admin.auth.admin.createUser({
-            email: `pagination-other-${suffix}@test.local`,
+            email: otherUserEmail,
             password: "StackTest1!",
             email_confirm: true,
         });
@@ -43,6 +66,19 @@ maybeDescribe("Supabase projects-overview pagination", () => {
             );
         }
         otherUserId = otherUser.data.user.id;
+
+        const organization = await admin.from("organizations").insert({
+            id: orgId,
+            name: "Pagination Test Firm",
+            created_by: ownerId,
+        });
+        if (organization.error) throw organization.error;
+        const membership = await admin.from("org_members").insert({
+            org_id: orgId,
+            user_id: ownerId,
+            role: "admin",
+        });
+        if (membership.error) throw membership.error;
 
         const myProjects = await admin.from("projects").insert(
             myProjectIds.map((id) => ({
@@ -56,24 +92,64 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         );
         if (myProjects.error) throw myProjects.error;
 
+        const ownedSharedProject = await admin.from("projects").insert({
+            id: ownedSharedProjectId,
+            user_id: ownerId,
+            name: "Owned Collaborative Project",
+            practice: "Litigation",
+            created_at: tiedCreatedAt,
+            updated_at: tiedCreatedAt,
+        });
+        if (ownedSharedProject.error) throw ownedSharedProject.error;
+
         const sharedProjects = await admin.from("projects").insert(
             sharedProjectIds.map((id) => ({
                 id,
                 user_id: otherUserId,
                 name: "Shared Needle",
                 practice: "Corporate",
-                shared_with: [ownerEmail],
                 created_at: tiedCreatedAt,
                 updated_at: tiedCreatedAt,
             })),
         );
         if (sharedProjects.error) throw sharedProjects.error;
+
+        const orgProject = await admin.from("projects").insert({
+            id: orgProjectId,
+            user_id: ownerId,
+            org_id: orgId,
+            name: "Firm Matter",
+            visibility: "organization",
+            practice: "Litigation",
+            created_at: tiedCreatedAt,
+            updated_at: tiedCreatedAt,
+        });
+        if (orgProject.error) throw orgProject.error;
+
+        const grants = await admin.from("project_access_grants").insert([
+            {
+                project_id: ownedSharedProjectId,
+                email: otherUserEmail,
+                role: "editor",
+                created_by: ownerId,
+            },
+            ...sharedProjectIds.map((projectId) => ({
+                project_id: projectId,
+                email: ownerEmail,
+                role: "editor",
+                created_by: otherUserId,
+            })),
+        ]);
+        if (grants.error) throw grants.error;
     });
 
     afterAll(async () => {
         if (!admin) return;
         await admin.from("projects").delete().in("id", myProjectIds);
         await admin.from("projects").delete().in("id", sharedProjectIds);
+        await admin.from("projects").delete().eq("id", ownedSharedProjectId);
+        await admin.from("projects").delete().eq("id", orgProjectId);
+        await admin.from("organizations").delete().eq("id", orgId);
         if (otherUserId) await admin.auth.admin.deleteUser(otherUserId);
         if (ownerId) await admin.auth.admin.deleteUser(ownerId);
     });
@@ -105,8 +181,8 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         expect(firstPage.data).toHaveLength(20);
         expect(secondPage.data).toHaveLength(5);
 
-        const firstIds = (firstPage.data ?? []).map((row) => row.id);
-        const secondIds = (secondPage.data ?? []).map((row) => row.id);
+        const firstIds = (firstPage.data ?? []).map((row: OverviewRow) => row.id);
+        const secondIds = (secondPage.data ?? []).map((row: OverviewRow) => row.id);
         expect(new Set([...firstIds, ...secondIds]).size).toBe(25);
         expect([...firstIds, ...secondIds]).toEqual([...myProjectIds].sort());
     });
@@ -140,9 +216,9 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         expect(mine.error).toBeNull();
         expect(shared.error).toBeNull();
 
-        const mineIds = new Set((mine.data ?? []).map((row) => row.id as string));
+        const mineIds = new Set((mine.data ?? []).map((row: OverviewRow) => row.id as string));
         const sharedIds = new Set(
-            (shared.data ?? []).map((row) => row.id as string),
+            (shared.data ?? []).map((row: OverviewRow) => row.id as string),
         );
 
         for (const id of myProjectIds) expect(mineIds.has(id)).toBe(true);
@@ -151,12 +227,118 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         for (const id of sharedProjectIds) expect(sharedIds.has(id)).toBe(true);
         for (const id of myProjectIds) expect(sharedIds.has(id)).toBe(false);
 
-        expect((mine.data ?? []).every((row) => row.is_owner === true)).toBe(
+        expect((mine.data ?? []).every((row: OverviewRow) => row.is_owner === true)).toBe(
             true,
         );
         expect(
-            (shared.data ?? []).every((row) => row.is_owner === false),
+            (shared.data ?? []).every((row: OverviewRow) => row.is_owner === false),
         ).toBe(true);
+    });
+
+    it("separates collaborative projects from projects with no other users", async () => {
+        const collaborative = await admin.rpc("get_projects_overview", {
+            p_user_id: ownerId,
+            p_user_email: ownerEmail,
+            p_scope: "collaborative",
+            p_limit: 100,
+            p_offset: 0,
+            p_search_term: null,
+            p_sort_key: "created",
+            p_sort_direction: "desc",
+            p_practice: null,
+            p_owner_user_id: null,
+        });
+        const privateProjects = await admin.rpc("get_projects_overview", {
+            p_user_id: ownerId,
+            p_user_email: ownerEmail,
+            p_scope: "private",
+            p_limit: 100,
+            p_offset: 0,
+            p_search_term: null,
+            p_sort_key: "created",
+            p_sort_direction: "desc",
+            p_practice: null,
+            p_owner_user_id: null,
+        });
+        const collaborativeIdRows = await admin.rpc(
+            "get_project_ids_overview",
+            {
+                p_user_id: ownerId,
+                p_user_email: ownerEmail,
+                p_scope: "collaborative",
+                p_search_term: null,
+                p_practice: null,
+                p_owner_user_id: null,
+                p_limit: 100,
+                p_offset: 0,
+            },
+        );
+        const privateIdRows = await admin.rpc("get_project_ids_overview", {
+            p_user_id: ownerId,
+            p_user_email: ownerEmail,
+            p_scope: "private",
+            p_search_term: null,
+            p_practice: null,
+            p_owner_user_id: null,
+            p_limit: 100,
+            p_offset: 0,
+        });
+
+        expect(collaborative.error).toBeNull();
+        expect(privateProjects.error).toBeNull();
+        expect(collaborativeIdRows.error).toBeNull();
+        expect(privateIdRows.error).toBeNull();
+
+        const collaborativeIds = new Set(
+            (collaborative.data ?? []).map((row: ProjectRow) => row.id as string),
+        );
+        const privateIds = new Set(
+            (privateProjects.data ?? []).map((row: ProjectRow) => row.id as string),
+        );
+
+        expect(collaborativeIds).toEqual(
+            new Set([...sharedProjectIds, ownedSharedProjectId, orgProjectId]),
+        );
+        expect(privateIds).toEqual(new Set(myProjectIds));
+        expect(
+            (collaborative.data ?? []).find(
+                (row: ProjectRow) => row.id === ownedSharedProjectId,
+            ),
+        ).toMatchObject({
+            org_id: null,
+            access_scope: "shared",
+            organization_name: null,
+        });
+        expect(
+            (privateProjects.data ?? []).find(
+                (row: ProjectRow) => row.id === myProjectIds[0],
+            ),
+        ).toMatchObject({
+            org_id: null,
+            access_scope: "private",
+            organization_name: null,
+        });
+        expect(
+            (collaborative.data ?? []).find(
+                (row: ProjectRow) => row.id === orgProjectId,
+            ),
+        ).toMatchObject({
+            org_id: orgId,
+            access_scope: "organization",
+            organization_name: "Pagination Test Firm",
+        });
+        expect(
+            new Set(
+                (collaborativeIdRows.data ?? []).map(
+                    (row: ProjectRow) => row.id as string,
+                ),
+            ),
+        ).toEqual(collaborativeIds);
+        expect(
+            new Set(
+                (privateIdRows.data ?? []).map((row: ProjectRow) => row.id as string),
+            ),
+        ).toEqual(privateIds);
     });
 
     it("filters by exact practice and owner match", async () => {
@@ -188,10 +370,10 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         expect(byPractice.error).toBeNull();
         expect(byOwner.error).toBeNull();
         expect(
-            new Set((byPractice.data ?? []).map((row) => row.id as string)),
+            new Set((byPractice.data ?? []).map((row: OverviewRow) => row.id as string)),
         ).toEqual(new Set(sharedProjectIds));
         expect(
-            new Set((byOwner.data ?? []).map((row) => row.id as string)),
+            new Set((byOwner.data ?? []).map((row: OverviewRow) => row.id as string)),
         ).toEqual(new Set(sharedProjectIds));
     });
 
@@ -243,7 +425,7 @@ maybeDescribe("Supabase projects-overview pagination", () => {
         });
 
         expect(result.error).toBeNull();
-        const names = (result.data ?? []).map((row) => row.name as string);
+        const names = (result.data ?? []).map((row: OverviewRow) => row.name as string);
         expect(names).toEqual([...names].sort());
     });
 
@@ -288,7 +470,7 @@ maybeDescribe("Supabase projects-overview pagination", () => {
                 p_offset: offset,
             });
             expect(page.error).toBeNull();
-            collected.push(...(page.data ?? []).map((row) => row.id as string));
+            collected.push(...(page.data ?? []).map((row: OverviewRow) => row.id as string));
         }
 
         expect(new Set(collected).size).toBe(myProjectIds.length);
@@ -303,7 +485,7 @@ maybeDescribe("Supabase projects-overview pagination", () => {
 
         expect(result.error).toBeNull();
         const returnedIds = new Set(
-            (result.data ?? []).map((row) => row.id as string),
+            (result.data ?? []).map((row: OverviewRow) => row.id as string),
         );
         for (const id of [...myProjectIds, ...sharedProjectIds])
             expect(returnedIds.has(id)).toBe(true);

@@ -6,8 +6,13 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-This policy becomes operational after Phase 3 of
-[`UPSTREAM_RECOVERY_PLAN.md`](UPSTREAM_RECOVERY_PLAN.md) is integrated.
+**Current pin:** upstream `e7ab6bd46cb4b3c22f150e184080d29c941df5c0`
+(2026-10-22), reached by the 2026-10-23 sync
+([`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), receipt in
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §17).
+The pin takes effect on `main` with that sync's merge commit, which makes
+upstream an ancestor of LiTT `main`. The earlier
+[`UPSTREAM_RECOVERY_PLAN.md`](UPSTREAM_RECOVERY_PLAN.md) is history.
 
 ## Source model
 
@@ -15,7 +20,7 @@ This policy becomes operational after Phase 3 of
 | --- | --- |
 | `upstream/main` | Read-only vendor/core input from `Open-Legal-Products/mike` |
 | `origin/main` | Canonical integrated LiTT product |
-| `sync/upstream-<date>` | Short-lived upstream intake/integration branch |
+| `sync/upstream-<date>` | Short-lived branch from current `origin/main` where `upstream/main` is merged and reviewed |
 | `feat/*`, `fix/*` | Bounded LiTT changes from current `origin/main` |
 
 LiTT never develops directly on `upstream/main`. Upstream refs are fetched and pinned
@@ -51,6 +56,24 @@ New LiTT feature expansion pauses when any threshold is exceeded:
 - fresh schema and migration fingerprint no longer converge.
 
 These thresholds are governance policy, not historical measurements.
+
+## Merging upstream
+
+Before 2026-10-23 LiTT and upstream shared no history after `204d2d53`, so
+upstream was never merged wholesale: each change was ported by hand, and the
+2026-10-23 sync had to rebuild LiTT on upstream once (strategy B of
+[`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md)). That rebuild is not
+repeated. From the sync's merge commit on, each cycle is an ordinary
+`git merge upstream/main` on a `sync/upstream-<date>` branch:
+
+- the merge result is checked against the compatibility matrix
+  ([`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §16):
+  rows marked `reject` or `gate` are reverted or kept off again, and `combine`
+  rows keep the LiTT part that wins;
+- a new upstream capability gets its own row before the merge lands;
+- the merge is reviewed on its exact snapshot and integrated into `main` with
+  a merge commit, never a squash, so upstream stays an ancestor of `main`;
+- the cycle ends with a ledger entry (below) and the new pin.
 
 ## Classification
 
@@ -90,12 +113,16 @@ backend/migrations/**
 backend/src/middleware/auth.ts
 backend/src/lib/access.ts
 backend/src/lib/audit.ts
-backend/src/lib/userApiKeys.ts
 backend/src/lib/llm/**
-backend/src/lib/chat/**
-backend/src/routes/user.ts
-backend/src/routes/projects.ts
-backend/src/routes/workflows.ts
+backend/src/lib/authorizationEpoch.ts
+backend/src/lib/recovery/**
+backend/src/modules/chat/**
+backend/src/modules/user/**
+backend/src/modules/projects/**
+backend/src/modules/orgs/**
+backend/src/modules/workflows/**
+backend/src/modules/playbooks/**
+backend/src/modules/ai-recovery/**
 frontend/src/app/contexts/AuthContext.tsx
 frontend/src/app/contexts/UserProfileContext.tsx
 frontend/src/app/lib/mikeApi.ts
@@ -108,8 +135,8 @@ word-addin/src/taskpane/**
 
 1. **Intake receipt:** old/new upstream OID, commit count, path inventory.
 2. **Compatibility matrix:** one row per capability group and LiTT invariant.
-3. **Bounded branch:** create from current `origin/main`, or use a separately approved
-   upstream-core reconstruction branch during recovery.
+3. **Sync branch:** create from current `origin/main` and merge `upstream/main` at the
+   pinned OID; revert the `reject` rows and re-close the `gate` rows of §16.
 4. **RED contract:** add or identify the regression that protects the LiTT invariant.
 5. **Integrate one capability group.** Do not mix unrelated UI, schema and provider
    changes in one commit.
@@ -161,7 +188,7 @@ The following documents are updated in the same lifecycle transition when their 
 change:
 
 - [`PROJECT_STATUS.md`](PROJECT_STATUS.md)
-- [`UPSTREAM_RECOVERY_PLAN.md`](UPSTREAM_RECOVERY_PLAN.md)
+- [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) while a sync is in progress
 - this policy;
 - [`TECHNICAL_DEBT.md`](TECHNICAL_DEBT.md)
 - [`RELEASE_GATES.md`](RELEASE_GATES.md)
@@ -177,7 +204,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-08-30 | `54681b550d991f8c885f19f93dec762f1967ab3f` | `1b58c7aa0520ff185c44698cea1a9e0c96af50ab` | 24 (278 total from common ancestor) | 25-row schema/auth/provider/workflow/frontend/Word/CI reconciliation | `adopt` / `port` / `reject` / `defer` in the integrated compatibility ledger | Phase 2 not started; writers 0 | `t_15f7252d` PASS for the ledger | Upstream re-fetched unchanged at closeout; implementation evidence still required per slice |
 | 2026-09-14 | `1b58c7aa0520ff185c44698cea1a9e0c96af50ab` | `7e3607e765e199f824808e1598cc44b3f99cd690` | 118 | dependency majors (express 5, zod 4, TypeScript 7/6-native, vitest 5, react 19.2.8), upstream upload-sessions/dbq/recovery-core surfaces, scoped memory, security/CI hardening | `adopt` / `port` / `reject` / `defer` per sync slice S1–S7 (PRs #22–#44) | Integrated into main `951c834f7c4dce1e880ade878a795019fb840c2e` (+ fixes #45 worker-entrypoint, #46 contexto imagen frontend); upstream pin advanced | `t_bda42951` PASS (closeout) + per-slice governing verdicts | Residual deferred: transparent tables, curation receipt/egress, attribution fallback → product phase; RustFS unify deferred; chat-title/delete gates → owner |
 | 2026-10-21 | `7e3607e765e199f824808e1598cc44b3f99cd690` | `795f96083b6833c6c7b0d58dfa40336b0a335d52` | 439 | security/access/credential/storage/schema subset only (compatibility ledger §14) | `adopt` / `port` / `reject` / `defer` per §14; rest unclassified | Out-of-cycle security ports on `fix/release-candidate-20261021`, not integrated; pin unchanged | pending | Stop-the-line active (TD-019); browser E2E storage moved to RustFS |
-| 2026-10-23 | `7e3607e765e199f824808e1598cc44b3f99cd690` | `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` | 442 (367 without merges) | full classification in [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) §4: kept with the base or reverted | strategy B: rebuild on upstream and restore shared history | in progress on `sync/upstream-20261023` | per slice | supersedes the partial 2026-10-21 intake |
+| 2026-10-23 | `7e3607e765e199f824808e1598cc44b3f99cd690` | `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` | 442 (367 without merges) | full classification in [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) §4 and matrix in the ledger §16: kept with the base, combined, gated or reverted | strategy B: rebuild on upstream and restore shared history | S1–S7 landed on `sync/upstream-20261023`; merge commit into `main` pending (S8) | one PASS per slice (ledger §17) | supersedes the partial 2026-10-21 intake; new pin `e7ab6bd4…`; debt TD-025–TD-039 |
 
 ## Release metadata
 

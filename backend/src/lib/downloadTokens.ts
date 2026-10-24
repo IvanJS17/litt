@@ -3,10 +3,10 @@ import crypto from "crypto";
 /**
  * HMAC-signed, non-expiring download tokens.
  *
- * The token encodes the R2 storage path + filename; the backend route
+ * The token encodes the storage path + filename; the backend route
  * `/download/:token` validates the signature and streams the file. This
  * gives persistent links safe to store in chat history without signed-URL
- * expiry or R2 CORS headaches.
+ * expiry or storage CORS headaches.
  */
 
 function getSecret(): string {
@@ -21,17 +21,11 @@ function getSecret(): string {
 }
 
 function b64urlEncode(buf: Buffer): string {
-    return buf
-        .toString("base64")
-        .replace(/\+/g, "-")
-        .replace(/\//g, "_")
-        .replace(/=+$/g, "");
+    return buf.toString("base64url");
 }
 
 function b64urlDecode(s: string): Buffer {
-    let t = s.replace(/-/g, "+").replace(/_/g, "/");
-    while (t.length % 4) t += "=";
-    return Buffer.from(t, "base64");
+    return Buffer.from(s, "base64url");
 }
 
 function timingSafeEqStr(a: string, b: string): boolean {

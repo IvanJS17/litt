@@ -16,7 +16,9 @@ function identityWith(
     user_id: overrides.user_id ?? "11111111-1111-4111-8111-111111111111",
     transport,
     mfa_satisfied:
-      "mfa_satisfied" in overrides ? overrides.mfa_satisfied : true,
+      "mfa_satisfied" in overrides
+        ? (overrides.mfa_satisfied as boolean)
+        : true,
   });
 }
 

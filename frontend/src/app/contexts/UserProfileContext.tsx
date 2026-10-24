@@ -1,9 +1,12 @@
 "use client";
 
-import React, {
+import {
     createContext,
     useContext,
     useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
     useState,
     ReactNode,
     useCallback,
@@ -12,6 +15,7 @@ import { useAuth } from "@/app/contexts/AuthContext";
 import {
     type ApiKeyState,
     type ApiKeyProvider,
+    type ApiKeySettings,
     type PersonalisationDetails,
     type PracticeSetting,
     type ProfessionalTitle,
@@ -19,7 +23,10 @@ import {
     completeUserOnboarding,
     getUserProfile,
     isMfaRequiredError,
+    MikeApiError,
     saveApiKey,
+    setApiKeyEnabled,
+    setUserProfilePhoto,
     syncUserPasswordSet,
     updateUserMfaOnLogin,
     updateUserProfile,
@@ -30,11 +37,25 @@ import {
     updateLastSelectedChatSettings,
     parseTabularChatSelectionKey,
 } from "@/app/lib/mikeApi";
+import { apiKeyStateFromStatus } from "@/app/lib/apiKeyState";
 import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
+import { notifyError } from "@/app/lib/userFacingError";
+import { useAssignLatest } from "@/app/hooks/useLatestRef";
+import {
+    ROUTER_PROFILE_FIELDS,
+    routerProfileLists,
+    type RouterProfileLists,
+    type RouterSlug,
+} from "@/shared/lib/modelCatalog";
 import { publishTabularChatSettingsUpdate } from "@/app/lib/tabularChatSettingsEvents";
+import {
+    clearConfiguredModels,
+    refreshConfiguredModels,
+} from "@/app/hooks/useConfiguredModels";
 
-interface UserProfile {
+interface UserProfile extends RouterProfileLists {
+    profilePhoto?: string | null;
     displayName: string | null;
     organisation: string | null;
     jurisdiction: string | null;
@@ -51,17 +72,27 @@ interface UserProfile {
     titleModel: string | null;
     tabularModel: string | null;
     memoryCuratorModel: string | null;
+    subagentModel: string | null;
+    subagentReasoning: NonNullable<Message["reasoning"]> | null;
     lastSelectedChatModel: string | null;
     lastSelectedReasoningLevel: NonNullable<Message["reasoning"]>;
     mfaOnLogin: boolean;
     quickActionsVisible: boolean;
-    openRouterModels: string[];
-    vercelModels: string[];
-    openCodeGoModels: string[];
+    /** Whether responses and subagents show the model, effort and tokens they used. */
+    responseDetailsVisible: boolean;
     darkMode: boolean;
     projectMemoryDefault: boolean;
     apiKeys: ApiKeyState;
+    /** Settings saved with the user's own keys (region, endpoint, location, base URL). */
+    apiKeySettings: ApiKeySettings;
 }
+
+export type PreferenceField =
+    | "titleModel"
+    | "tabularModel"
+    | "memoryCuratorModel"
+    | "subagentModel"
+    | "subagentReasoning";
 
 interface UserProfileContextType {
     profile: UserProfile | null;
@@ -76,6 +107,7 @@ interface UserProfileContextType {
      * selection that is absent from the router lists) must not run at all.
      */
     apiKeysDegraded: boolean;
+    updateProfilePhoto: (photo: string | null) => Promise<void>;
     updateDisplayName: (name: string) => Promise<boolean>;
     updateOrganisation: (organisation: string) => Promise<boolean>;
     completeOnboarding: (details?: PersonalisationDetails) => Promise<boolean>;
@@ -84,7 +116,7 @@ interface UserProfileContextType {
     ) => Promise<boolean>;
     syncPasswordSet: () => Promise<boolean>;
     updateModelPreference: (
-        field: "titleModel" | "tabularModel" | "memoryCuratorModel",
+        field: PreferenceField,
         value: string | null,
     ) => Promise<boolean>;
     persistChatModelSelection: (
@@ -97,16 +129,21 @@ interface UserProfileContextType {
     ) => Promise<boolean>;
     updateMfaOnLogin: (enabled: boolean) => Promise<boolean>;
     updateQuickActionsVisible: (visible: boolean) => Promise<boolean>;
-    updateOpenRouterModels: (models: string[]) => Promise<boolean>;
-    updateVercelModels: (models: string[]) => Promise<boolean>;
-    updateOpenCodeGoModels: (models: string[]) => Promise<boolean>;
+    updateResponseDetailsVisible: (visible: boolean) => Promise<boolean>;
+    /** Save one router's Model Selections. */
+    updateRouterModels: (
+        router: RouterSlug,
+        models: string[],
+    ) => Promise<boolean>;
     updateDarkMode: (enabled: boolean) => Promise<void>;
     updateProjectMemoryDefault: (enabled: boolean) => Promise<void>;
     updateApiKey: (
         provider: ApiKeyProvider,
         value: string | null,
+        settings?: ApiKeySettings[keyof ApiKeySettings],
     ) => Promise<boolean>;
     reloadProfile: () => Promise<void>;
+    updateApiKeyEnabled: (provider: ApiKeyProvider, enabled: boolean) => Promise<boolean>;
     incrementMessageCredits: () => Promise<boolean>;
 }
 
@@ -114,40 +151,35 @@ const UserProfileContext = createContext<UserProfileContextType | undefined>(
     undefined,
 );
 
-const API_KEY_PROVIDERS: ApiKeyProvider[] = [
-    "claude",
-    "gemini",
-    "openai",
-    "openrouter",
-    "vercel",
-    "opencode-go",
-];
-
 function emptyApiKeys(): ApiKeyState {
     return {
         claude: { configured: false, source: null },
         gemini: { configured: false, source: null },
         openai: { configured: false, source: null },
+        mistral: { configured: false, source: null },
         openrouter: { configured: false, source: null },
         vercel: { configured: false, source: null },
         "opencode-go": { configured: false, source: null },
+        bedrock: { configured: false, source: null },
+        azure: { configured: false, source: null },
+        "azure-foundry": { configured: false, source: null },
+        vertex: { configured: false, source: null },
+        xai: { configured: false, source: null },
+        custom: { configured: false, source: null },
+        brave: { configured: false, source: null },
+        tavily: { configured: false, source: null },
+        deepseek: { configured: false, source: null },
     };
 }
 
+/** Normalizes the API profile into client defaults, including nullable photos and provider-key state. */
 function toProfile(data: ApiUserProfile): UserProfile {
     const { apiKeyStatus, ...profile } = data;
-    const apiKeys = emptyApiKeys();
-    for (const provider of API_KEY_PROVIDERS) {
-        apiKeys[provider] = {
-            configured: !!apiKeyStatus[provider],
-            source:
-                apiKeyStatus.sources?.[provider] ??
-                (apiKeyStatus[provider] ? "user" : null),
-        };
-    }
+    const apiKeys = apiKeyStateFromStatus(apiKeyStatus);
 
     return {
         ...profile,
+        profilePhoto: profile.profilePhoto ?? null,
         jurisdiction: profile.jurisdiction ?? null,
         practiceSetting: profile.practiceSetting ?? null,
         professionalTitle: profile.professionalTitle ?? null,
@@ -158,33 +190,54 @@ function toProfile(data: ApiUserProfile): UserProfile {
         onboardingComplete: profile.onboardingComplete !== false,
         passwordSet: profile.passwordSet === true,
         memoryCuratorModel: profile.memoryCuratorModel ?? null,
+        subagentModel: profile.subagentModel ?? null,
+        subagentReasoning: profile.subagentReasoning ?? null,
         lastSelectedChatModel: profile.lastSelectedChatModel ?? null,
         lastSelectedReasoningLevel:
             profile.lastSelectedReasoningLevel ?? "high",
         mfaOnLogin: profile.mfaOnLogin === true,
-        // LITT (S5d): memory is opt-in — absent/null falls back to false, so a
-        // missing value can never silently enable memory for new projects
-        // (upstream's `!== false` encoded their default-ON behaviour).
-        projectMemoryDefault: profile.projectMemoryDefault === true,
-        openRouterModels: Array.isArray(profile.openRouterModels)
-            ? profile.openRouterModels
-            : [],
-        vercelModels: Array.isArray(profile.vercelModels)
-            ? profile.vercelModels
-            : [],
-        openCodeGoModels: Array.isArray(profile.openCodeGoModels)
-            ? profile.openCodeGoModels
-            : [],
+        responseDetailsVisible: profile.responseDetailsVisible === true,
+        projectMemoryDefault: profile.projectMemoryDefault !== false,
+        ...routerProfileLists(profile),
         apiKeys,
+        apiKeySettings: apiKeyStatus.settings ?? {},
     };
 }
 
+/** Loads the authenticated profile and shares persisted updates across settings, navigation, and account consumers. */
 export function UserProfileProvider({ children }: { children: ReactNode }) {
     const { user, isAuthenticated } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [apiKeysDegraded, setApiKeysDegraded] = useState(false);
     const userId = user?.id ?? null;
+
+    // Every mutator below keeps its `boolean` contract so callers need no
+    // churn, but a failure is never silent any more: the context classifies
+    // the error once and raises the notice that carries the sentence, an
+    // honest "Retry" and the support link. That notice is the only report:
+    // callers show no inline status for the same failure.
+    //
+    // The `if (!user) return false` guards stay silent on purpose: there is
+    // no failed request to report, only a call made before there is a session.
+    //
+    // "Retry" re-enters the mutator through this ref rather than through the
+    // closure that raised the notice, so it always re-runs the latest one
+    // (the mutators are re-created whenever `user` changes).
+    const retryRef = useRef<UserProfileContextType | null>(null);
+
+    const reportFailure = useCallback(
+        (error: unknown, action: string, retry: () => void) => {
+            notifyError(error, {
+                action,
+                // One notice per setting, however many times an autosave loop
+                // retries it.
+                dedupeKey: `profile:${action}`,
+                onRetry: retry,
+            });
+        },
+        [],
+    );
 
     const loadProfile = useCallback(async () => {
         try {
@@ -205,6 +258,16 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 error,
             );
             setApiKeysDegraded(true);
+            // The fallback profile below looks like a real, empty account, so
+            // the load has to say that it failed rather than let the user read
+            // placeholders as answers.
+            notifyError(error, {
+                action: "load your profile",
+                dedupeKey: "profile-load",
+                onRetry: () => {
+                    void retryRef.current?.reloadProfile();
+                },
+            });
             // Calculate a default future reset date for fallback
             const futureResetDate = new Date();
             futureResetDate.setDate(futureResetDate.getDate() + 30);
@@ -227,21 +290,39 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 titleModel: null,
                 tabularModel: null,
                 memoryCuratorModel: null,
+                subagentModel: null,
+                subagentReasoning: null,
                 lastSelectedChatModel: null,
                 lastSelectedReasoningLevel: "high",
                 mfaOnLogin: false,
                 quickActionsVisible: true,
-                openRouterModels: [],
-                vercelModels: [],
-                openCodeGoModels: [],
+                responseDetailsVisible: false,
+                ...routerProfileLists({}),
                 darkMode: false,
-                projectMemoryDefault: false,
+                projectMemoryDefault: true,
                 apiKeys: emptyApiKeys(),
+                apiKeySettings: {},
             });
         } finally {
             setLoading(false);
         }
     }, []);
+
+    // A new signed-in user invalidates the shared model catalog. This runs as
+    // a LAYOUT effect on purpose: React runs a component's passive effects
+    // only after its descendants' passive effects, so the model pickers that
+    // mount in the same commit (ChatInput, ModelToggle) used to start their
+    // own request first and this provider then force-discarded it and sent
+    // a second one: /models/configured twice on every signed-in page load.
+    // Layout effects all run before any passive effect, so the provider's
+    // refresh now starts first and the pickers join its in-flight request.
+    useLayoutEffect(() => {
+        if (isAuthenticated && userId) {
+            void refreshConfiguredModels();
+        } else {
+            clearConfiguredModels();
+        }
+    }, [isAuthenticated, userId]);
 
     useEffect(() => {
         if (isAuthenticated && userId) {
@@ -257,6 +338,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         applyDarkMode(profile?.darkMode === true);
     }, [profile?.darkMode]);
 
+    /** Persists a photo change before publishing the returned value to every profile consumer. */
+    const updateProfilePhoto = useCallback(async (photo: string | null) => {
+        if (!user) return;
+        const updated = await setUserProfilePhoto(photo);
+        setProfile((previous) => previous ? { ...previous, profilePhoto: updated.profilePhoto } : previous);
+    }, [user]);
+
     const updateDisplayName = useCallback(
         async (displayName: string): Promise<boolean> => {
             if (!user) {
@@ -269,11 +357,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                     prev ? { ...prev, ...toProfile(updated) } : null,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "save your name", () => {
+                    void retryRef.current?.updateDisplayName(displayName);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const updateOrganisation = useCallback(
@@ -286,11 +377,16 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 );
                 return true;
             } catch (error) {
+                // An MFA challenge is a step in the flow, not a failure: the
+                // caller opens the verification popup and re-runs the save.
                 if (isMfaRequiredError(error)) throw error;
+                reportFailure(error, "save your organisation", () => {
+                    void retryRef.current?.updateOrganisation(organisation);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const completeOnboarding = useCallback(
@@ -300,11 +396,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 const updated = await completeUserOnboarding(details);
                 setProfile(toProfile(updated));
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "save your practice details", () => {
+                    void retryRef.current?.completeOnboarding(details);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const updatePersonalisation = useCallback(
@@ -314,11 +413,18 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 const updated = await updateUserProfile(details);
                 setProfile(toProfile(updated));
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(
+                    error,
+                    "save your personalisation settings",
+                    () => {
+                        void retryRef.current?.updatePersonalisation(details);
+                    },
+                );
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const syncPasswordSet = useCallback(async (): Promise<boolean> => {
@@ -327,14 +433,17 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             const updated = await syncUserPasswordSet();
             setProfile(toProfile(updated));
             return true;
-        } catch {
+        } catch (error) {
+            reportFailure(error, "refresh your password status", () => {
+                void retryRef.current?.syncPasswordSet();
+            });
             return false;
         }
-    }, [user]);
+    }, [reportFailure, user]);
 
     const updateModelPreference = useCallback(
         async (
-            field: "titleModel" | "tabularModel" | "memoryCuratorModel",
+            field: PreferenceField,
             value: string | null,
         ): Promise<boolean> => {
             if (!user) return false;
@@ -346,11 +455,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                     prev ? { ...prev, ...toProfile(updated) } : null,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "save your model preference", () => {
+                    void retryRef.current?.updateModelPreference(field, value);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const persistChatModelSelection = useCallback(
@@ -384,11 +496,17 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                         : current,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "save your model selection", () => {
+                    void retryRef.current?.persistChatModelSelection(
+                        model,
+                        chatId,
+                    );
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const persistChatReasoningSelection = useCallback(
@@ -428,11 +546,17 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                         : current,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "save your reasoning level", () => {
+                    void retryRef.current?.persistChatReasoningSelection(
+                        reasoningLevel,
+                        chatId,
+                    );
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
     const updateMfaOnLogin = useCallback(
@@ -445,13 +569,20 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 );
                 return true;
             } catch (error) {
+                // An MFA challenge is a step in the flow, not a failure.
                 if (isMfaRequiredError(error)) throw error;
+                reportFailure(
+                    error,
+                    "update your login verification setting",
+                    () => {
+                        void retryRef.current?.updateMfaOnLogin(enabled);
+                    },
+                );
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
-
 
     const updateQuickActionsVisible = useCallback(
         async (visible: boolean): Promise<boolean> => {
@@ -464,59 +595,56 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                     prev ? { ...prev, ...toProfile(updated) } : null,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "update your quick actions setting", () => {
+                    void retryRef.current?.updateQuickActionsVisible(visible);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
-    const updateOpenRouterModels = useCallback(
-        async (openRouterModels: string[]): Promise<boolean> => {
+    const updateResponseDetailsVisible = useCallback(
+        async (visible: boolean): Promise<boolean> => {
             if (!user) return false;
             try {
-                const updated = await updateUserProfile({ openRouterModels });
+                const updated = await updateUserProfile({
+                    responseDetailsVisible: visible,
+                });
                 setProfile((prev) =>
                     prev ? { ...prev, ...toProfile(updated) } : null,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, "update your response details setting", () => {
+                    void retryRef.current?.updateResponseDetailsVisible(visible);
+                });
                 return false;
             }
         },
-        [user],
+        [reportFailure, user],
     );
 
-    const updateVercelModels = useCallback(
-        async (vercelModels: string[]): Promise<boolean> => {
+    const updateRouterModels = useCallback(
+        async (router: RouterSlug, models: string[]): Promise<boolean> => {
             if (!user) return false;
             try {
-                const updated = await updateUserProfile({ vercelModels });
+                const updated = await updateUserProfile({
+                    [ROUTER_PROFILE_FIELDS[router]]: models,
+                });
                 setProfile((prev) =>
                     prev ? { ...prev, ...toProfile(updated) } : null,
                 );
                 return true;
-            } catch {
+            } catch (error) {
+                reportFailure(error, `save your ${router} models`, () => {
+                    void retryRef.current?.updateRouterModels(router, models);
+                });
                 return false;
             }
         },
-        [user],
-    );
-
-    const updateOpenCodeGoModels = useCallback(
-        async (openCodeGoModels: string[]): Promise<boolean> => {
-            if (!user) return false;
-            try {
-                const updated = await updateUserProfile({ openCodeGoModels });
-                setProfile((prev) =>
-                    prev ? { ...prev, ...toProfile(updated) } : null,
-                );
-                return true;
-            } catch {
-                return false;
-            }
-        },
-        [user],
+        [reportFailure, user],
     );
 
     const updateDarkMode = useCallback(
@@ -560,11 +688,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         async (
             provider: ApiKeyProvider,
             value: string | null,
+            settings?: ApiKeySettings[keyof ApiKeySettings],
         ): Promise<boolean> => {
             if (!user) return false;
             const normalized = value?.trim() ? value.trim() : null;
             try {
-                const status = await saveApiKey(provider, normalized);
+                const status = await saveApiKey(provider, normalized, settings);
                 setProfile((prev) =>
                     prev
                         ? {
@@ -573,13 +702,53 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                                   ...prev.apiKeys,
                                   [provider]: {
                                       configured: status[provider],
+                                      enabled: status.enabled?.[provider] !== false,
                                       source:
                                           status.sources?.[provider] ?? null,
                                   },
                               },
+                              apiKeySettings: status.settings ?? {},
                           }
                         : null,
                 );
+                void refreshConfiguredModels();
+                return true;
+            } catch (error) {
+                // An MFA challenge is a step in the flow, not a failure.
+                if (isMfaRequiredError(error)) throw error;
+                // A 400 is the server rejecting the value (an unusable base
+                // URL, a malformed key file); the caller shows its reason
+                // instead of a "try again" a retry cannot fix.
+                if (error instanceof MikeApiError && error.status === 400) {
+                    throw error;
+                }
+                // Not reported here: every caller is an ApiKeyField, which
+                // raises the notice itself so its Retry can check that the
+                // field still holds the key that failed. A Retry from here
+                // would resend a key the user may already have corrected.
+                return false;
+            }
+        },
+        [user],
+    );
+
+    const updateApiKeyEnabled = useCallback(
+        async (provider: ApiKeyProvider, enabled: boolean): Promise<boolean> => {
+            if (!user) return false;
+            try {
+                const status = await setApiKeyEnabled(provider, enabled);
+                setProfile((prev) => prev ? {
+                    ...prev,
+                    apiKeys: {
+                        ...prev.apiKeys,
+                        [provider]: {
+                            configured: status[provider],
+                            source: status.sources?.[provider] ?? null,
+                            enabled: status.enabled?.[provider] !== false,
+                        },
+                    },
+                } : null);
+                void refreshConfiguredModels();
                 return true;
             } catch (error) {
                 if (isMfaRequiredError(error)) throw error;
@@ -608,39 +777,75 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         return false;
     }, [user, profile]);
 
+    // A fresh object here re-renders every consumer of this context on every
+    // provider render, profile change or not.
+    const value = useMemo<UserProfileContextType>(
+        () => ({
+            profile,
+            loading,
+            apiKeysDegraded,
+            updateProfilePhoto,
+            updateDisplayName,
+            updateOrganisation,
+            completeOnboarding,
+            updatePersonalisation,
+            syncPasswordSet,
+            updateModelPreference,
+            persistChatModelSelection,
+            persistChatReasoningSelection,
+            updateMfaOnLogin,
+            updateQuickActionsVisible,
+            updateResponseDetailsVisible,
+            updateRouterModels,
+            updateDarkMode,
+            updateProjectMemoryDefault,
+            updateApiKey,
+            updateApiKeyEnabled,
+            reloadProfile,
+            incrementMessageCredits,
+        }),
+        [
+            profile,
+            loading,
+            apiKeysDegraded,
+            updateProfilePhoto,
+            updateDisplayName,
+            updateOrganisation,
+            completeOnboarding,
+            updatePersonalisation,
+            syncPasswordSet,
+            updateModelPreference,
+            persistChatModelSelection,
+            persistChatReasoningSelection,
+            updateMfaOnLogin,
+            updateQuickActionsVisible,
+            updateResponseDetailsVisible,
+            updateRouterModels,
+            updateDarkMode,
+            updateProjectMemoryDefault,
+            updateApiKey,
+            updateApiKeyEnabled,
+            reloadProfile,
+            incrementMessageCredits,
+        ],
+    );
+
+    // Keep the "Retry" entry point pointing at the current mutators.
+    useAssignLatest(retryRef, value);
+
     return (
-        <UserProfileContext.Provider
-            value={{
-                profile,
-                loading,
-                apiKeysDegraded,
-                updateDisplayName,
-                updateOrganisation,
-                completeOnboarding,
-                updatePersonalisation,
-                syncPasswordSet,
-                updateModelPreference,
-                persistChatModelSelection,
-                persistChatReasoningSelection,
-                updateMfaOnLogin,
-                updateQuickActionsVisible,
-                updateOpenRouterModels,
-                updateVercelModels,
-                updateOpenCodeGoModels,
-                updateDarkMode,
-                updateProjectMemoryDefault,
-                updateApiKey,
-                reloadProfile,
-                incrementMessageCredits,
-            }}
-        >
+        <UserProfileContext.Provider value={value}>
             {children}
         </UserProfileContext.Provider>
     );
 }
 
+export function useOptionalUserProfile() {
+    return useContext(UserProfileContext);
+}
+
 export function useUserProfile() {
-    const context = useContext(UserProfileContext);
+    const context = useOptionalUserProfile();
     if (context === undefined) {
         throw new Error(
             "useUserProfile must be used within a UserProfileProvider",

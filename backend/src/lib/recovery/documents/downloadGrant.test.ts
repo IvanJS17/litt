@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 
 import {
   consumeDownloadGrant,
@@ -469,7 +468,7 @@ describe("malformed or throwing ports stay redacted", () => {
 
 describe("runtime export lock and zero legacy imports", () => {
   it("exposes exactly the governed download-grant surface", async () => {
-    const module = await import("./downloadGrant");
+    const module = await import("./downloadGrant.js");
     expect(Object.keys(module).sort()).toEqual(
       [
         "DOWNLOAD_GRANT_DEPENDENCY_KIND",
@@ -480,8 +479,11 @@ describe("runtime export lock and zero legacy imports", () => {
   });
 
   it("has no legacy storage, AWS, or logging imports", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const source = readFileSync(join(here, "downloadGrant.ts"), "utf8");
+    // `npm test` runs from backend/, like every other source-reading test.
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/recovery/documents/downloadGrant.ts"),
+      "utf8",
+    );
     expect(source).toContain("DownloadGrantPort");
     expect(source).not.toMatch(/@aws-sdk/);
     expect(source).not.toMatch(/from\s+["']\.\.\/storage["']/);

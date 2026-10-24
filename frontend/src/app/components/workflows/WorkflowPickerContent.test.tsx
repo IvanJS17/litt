@@ -38,7 +38,7 @@ describe("WorkflowPickerContent row labels", () => {
         ).toHaveClass("liquid-glass-modal-row-hover");
         expect(
             document.querySelector('[data-slot="workflow-picker-list"]'),
-        ).toHaveClass("overflow-x-hidden", "px-1");
+        ).toHaveClass("overflow-x-hidden");
         expect(screen.getByText("Commercial")).toBeInTheDocument();
         expect(screen.queryByText("System")).not.toBeInTheDocument();
         expect(screen.queryByText("Custom")).not.toBeInTheDocument();
@@ -49,5 +49,21 @@ describe("WorkflowPickerContent row labels", () => {
         render(<WorkflowPickerContent {...commonProps} selected={workflow} />);
 
         expect(screen.queryByText("Commercial")).not.toBeInTheDocument();
+    });
+
+    it("shows a prompt skeleton instead of an empty-prompt message while loading", () => {
+        Element.prototype.scrollIntoView = vi.fn();
+        render(
+            <WorkflowPickerContent
+                {...commonProps}
+                selected={{ ...workflow, skill_md: null }}
+                previewLoading
+            />,
+        );
+
+        expect(
+            screen.getByRole("status", { name: "Loading workflow prompt" }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText("No prompt defined.")).not.toBeInTheDocument();
     });
 });

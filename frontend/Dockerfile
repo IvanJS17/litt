@@ -1,14 +1,29 @@
+# Build from the repository root: `docker build -f frontend/Dockerfile .`
+# (docker-compose.yml does the same). The image needs the frontend plus the
+# one sibling directory production code reaches through a tsconfig `paths`
+# alias: `@mike/contracts` -> /packages/contracts. Nothing else. `next build`
+# type-checks tsconfig.build.json, which leaves test files -- and their
+# imports of shared fixtures and add-in sources -- out of the image.
+#
+# A new outside dependency needs a COPY here and a tsconfig alias that
+# resolves to the same path; frontend/src/__tests__/architecture.test.ts
+# checks that the two agree. No CI workflow builds this image: building it
+# from the repository root at the deployment gate (deploy/prod/README.md) is
+# the check that catches a missing COPY.
 FROM node:22-slim
 
-WORKDIR /app/frontend
+WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-COPY backend/src/lib/sourceDocuments.ts /app/backend/src/lib/
-COPY backend/src/lib/chat/types.ts /app/backend/src/lib/chat/
-COPY word-addin/src /app/word-addin/src
+COPY packages/contracts /packages/contracts
 
-ENV NEXT_TELEMETRY_DISABLED=1
+# The commit this image was built from, for the browser bundle (inlined)
+# and the Next server.
+ARG GIT_SHA=
+ENV NEXT_PUBLIC_GIT_SHA=$GIT_SHA \
+    GIT_SHA=$GIT_SHA
+
 RUN npm run build
 
 ENV NODE_ENV=production

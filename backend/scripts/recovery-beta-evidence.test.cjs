@@ -23,8 +23,8 @@ async function fixture() {
   const state = { reads: [], auth: [], downloads: 0, rpcs: 0, batch: null, fault: null };
   const rows = {
     mike_workflows: [structuredClone(MX_CIVIL_COMMERCIAL_SYNC_ENTRY)],
-    organization_memberships: [{ user_id: input.owner_user_id,
-      organization_id: input.organization_id, role: 'org_owner', status: 'active',
+    org_members: [{ user_id: input.owner_user_id,
+      org_id: input.organization_id, role: 'owner',
       organizations: { authorization_epoch: 1 } }],
     matters: [{ id: input.matter_id, project_id: input.project_id, workspace_id: uuid(7),
       visibility: 'public', workspaces: { organization_id: input.organization_id } }],
@@ -61,8 +61,8 @@ async function fixture() {
               throw new Error(input.owner_access_token);
             if (state.fault === 'stale' && table === 'documents' && documentReads === 2)
               rows.documents[0].current_version_id = uuid(99);
-            if (state.fault === 'epoch' && table === 'organization_memberships' && state.downloads)
-              rows.organization_memberships[0].organizations.authorization_epoch++;
+            if (state.fault === 'epoch' && table === 'org_members' && state.downloads)
+              rows.org_members[0].organizations.authorization_epoch++;
             if (state.fault === 'resource' && table === 'document_versions' && documentReads >= 4)
               rows.document_versions[0].documents.project_id = uuid(99);
             if (state.fault === 'readback' && state.rpcs && table === 'ai_receipts')

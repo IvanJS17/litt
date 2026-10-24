@@ -74,5 +74,87 @@ describe("CitationQuotesSection", () => {
         );
     });
 
+    it("does not add a label to case quotes", () => {
+        render(
+            <CitationQuotesSection
+                document={{
+                    document_id: "case:123",
+                    title: "Example v Example, 123 U.S. 456",
+                    type: "case",
+                    metadata: [],
+                    quotes: [
+                        {
+                            quote: "The court therefore concludes",
+                            target: {
+                                subdocument_id: "case:123:opinion:7",
+                            },
+                        },
+                    ],
+                    subdocuments: [
+                        {
+                            document_id: "case:123:opinion:7",
+                            title: "Lead Opinion",
+                            type: "html",
+                            html: "<p>Opinion</p>",
+                        },
+                    ],
+                }}
+            />,
+        );
 
+        expect(
+            screen.getByText(/The court therefore concludes/),
+        ).toHaveTextContent("“The court therefore concludes”");
+        expect(screen.queryByText(/Lead Opinion/)).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Example v Example/),
+        ).not.toBeInTheDocument();
+    });
+    const singleQuoteDocument = {
+        document_id: "document-1",
+        title: "agreement.docx",
+        type: "docx" as const,
+        metadata: [],
+        quotes: [
+            {
+                quote: "Matched source quote",
+                verification: { verified: true },
+                target: { page: 2 },
+            },
+        ],
+    };
+
+    it("dismisses the section through the close control", () => {
+        const onClose = vi.fn();
+        render(
+            <CitationQuotesSection
+                document={singleQuoteDocument}
+                onClose={onClose}
+            />,
+        );
+
+        const close = screen.getByRole("button", { name: "Close" });
+        expect(close.nextElementSibling).toBe(screen.getByRole("button", { name: "View" }));
+        expect(close).toHaveClass("bg-transparent", "shadow-none");
+        expect(close.querySelector("svg")).toBeNull();
+        fireEvent.click(close);
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("omits the close control when the section cannot be dismissed", () => {
+        render(<CitationQuotesSection document={singleQuoteDocument} />);
+
+        expect(
+            screen.queryByRole("button", { name: "Close" }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("renders Cite as a white pill button", () => {
+        render(<CitationQuotesSection document={singleQuoteDocument} />);
+
+        expect(screen.getByRole("button", { name: "Cite" })).toHaveClass(
+            "liquid-glass-flat",
+            "rounded-full",
+        );
+    });
 });

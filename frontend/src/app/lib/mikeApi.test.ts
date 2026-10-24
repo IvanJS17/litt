@@ -1,27 +1,17 @@
+import { listOrgPrivateContent, setOrgPrivateContentPermission, openOrgPrivateContent, closeOrgPrivateContent } from "./mikeApi";
+import { setUserProfilePhoto, listDeletedOrganizations, restoreOrganization } from "./mikeApi";
+import { listOrgDepartures, reassignOrgDepartureArchives, deleteOrgDepartureArchives } from "./mikeApi";
+import { getGoogleWorkspaceStatus, startGoogleWorkspaceOAuth, cancelGoogleWorkspaceOAuth, disconnectGoogleWorkspace, updateGoogleWorkspaceSettings, setGoogleWorkspaceToolEnabled, updateGoogleDriveSettings, setGoogleDriveToolEnabled, createGoogleDrivePickerSession } from "./mikeApi";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AssistantEvent, Chat } from "@/app/components/shared/types";
+import { subscribeTabularReviewChanges } from "./tabularReviewChanges";
+import { getTabularReviewHistoryStatuses } from "./mikeApi";
 
-// The upload wrappers are thin adapters over the shared session client. Mocking
-// only its core lets these tests assert the manifest each wrapper sends without
-// re-implementing the whole direct-upload protocol in the web-app test file.
-vi.mock("@/shared/api/uploadSessionClient", async (importOriginal) => {
-    const actual =
-        await importOriginal<
-            typeof import("@/shared/api/uploadSessionClient")
-        >();
-    return {
-        ...actual,
-        uploadFilesWithSessionCore: vi.fn(),
-    };
-});
-
-import {
-    uploadFilesWithSessionCore,
-    type UploadOutcome,
-} from "@/shared/api/uploadSessionClient";
-
+import { userFacingApiError } from "./userFacingError";
 import {
     MikeApiError,
+    SCHEMA_OUT_OF_DATE_MESSAGE,
+    UPSTREAM_UNAVAILABLE_MESSAGE,
     addDocumentToProject,
     clearTabularCells,
     completeUserOnboarding,
@@ -41,6 +31,7 @@ import {
     deleteAllProjects,
     deleteAllTabularReviews,
     deleteChat,
+    leaveChat,
     deleteDocument,
     deleteDocumentVersion,
     deleteLibraryFolder,
@@ -52,51 +43,91 @@ import {
     deleteWorkflow,
     deleteWorkflowAsset,
     deleteWorkflowShare,
+    cancelGoogleDriveOAuth,
+    disconnectGoogleDrive,
     downloadDocumentsZip,
-    exportAccountData,
-    exportAuditHistory,
-    exportChatData,
-    exportMemoryData,
-    exportTabularReviewsData,
-    generateChatTitle,
+    downloadUserExport,
     generateTabularColumnPrompt,
-    getApiKeyStatus,
+    getChatAccess,
     getChat,
+    getChatPeople,
     getAuditHistory,
+    getAuditActors,
+    getPanelDocument,
     getDocument,
     getDocumentFile,
     getDocumentFileUrl,
     getDocumentUrl,
+    getConfiguredModels,
     getLibrary,
     getLibraryLevels,
     getLibraryFilterOptions,
     getLibraryFolderChildren,
     getLibraryFolderPath,
+    getGoogleDriveStatus,
     getMcpConnector,
     getOllamaModels,
     getOpenCodeGoModels,
+    getXaiModels,
+    getCustomEndpointModels,
+    getBedrockModels,
     getOpenRouterModels,
     getVercelModels,
     getProject,
+    getProjectMemory,
     getProjectDirectoryLevel,
     getProjectFilterOptions,
-    getProjectMemory,
     getProjectPeople,
     getTabularChatMessages,
     getTabularChats,
     getTabularReview,
+    getTabularReviewAccess,
     getTabularReviewPeople,
+    getUserExportStatus,
+    getCustomInstructions,
+    getResponseStyle,
+    getWebSearchSettings,
     getUserMemory,
     getUserProfile,
     getWorkflow,
+    getWorkflowPeople,
     getWorkflowAddon,
     getWorkflowFilterOptions,
-    grantProjectAccess,
-    hideWorkflow,
     isMfaRequiredError,
+    acceptOrgInvitation,
+    cancelOrgInvitation,
+    createOrg,
+    createOrgInvitation,
+    deleteOrg,
+    deleteOrgData,
+    getOrgLogo,
+    saveOrgLogo,
+    deleteOrgLogo,
+    getOrgApiKeys,
+    saveOrgApiKey,
+    saveOrgRouterModels,
+    setOrgApiKeyEnabled,
+    setOrgPersonalApiKeysAllowed,
+    getOrgMemberHandover,
+    declineOrgInvitation,
+    getOrg,
+    getProjectAccess,
+    grantProjectAccess,
+    grantChatAccess,
+    grantTabularReviewAccess,
     listChats,
+    listMyOrgInvitations,
+    listOrgInvitations,
+    listOrgMembers,
+    listOrgs,
+    removeOrgMember,
+    resendOrgInvitation,
+    revokeProjectAccess,
+    revokeChatAccess,
+    revokeTabularReviewAccess,
+    updateOrgMember,
+    updateOrg,
     listDocumentVersions,
-    listHiddenWorkflows,
     listLibraryDocumentIds,
     listMcpConnectors,
     listProjectChats,
@@ -104,10 +135,10 @@ import {
     listProjectSummaries,
     listProjects,
     listProjectsPage,
-    listStandaloneDocuments,
     listSystemWorkflows,
     listTabularReviewIds,
     listTabularReviews,
+    listProjectReviewCreators,
     listWorkflowIds,
     listWorkflowAddons,
     listWorkflowAssets,
@@ -116,11 +147,11 @@ import {
     listWorkflowsPage,
     lookupUserByEmail,
     mapTRMessages,
+    workflowAddonAssetDisplayUrl,
     moveDocumentToFolder,
     moveLibraryDocument,
     moveLibraryFolder,
     moveSubfolderToFolder,
-    workflowAddonAssetDisplayUrl,
     openSourceWorkflow,
     refreshMcpConnectorTools,
     regenerateTabularCell,
@@ -131,11 +162,11 @@ import {
     renameProjectDocument,
     renameProjectFolder,
     renameTabularChat,
-    replaceDocumentVersionFile,
     resolveLibraryFolderPath,
     resolveProjectFolderPath,
     resolveDocumentEdit,
     saveApiKey,
+    setApiKeyEnabled,
     bulkDeleteLibraryDocuments,
     searchProjectDirectory,
     searchLibraryDocuments,
@@ -143,15 +174,22 @@ import {
     setProjectMemoryEnabled,
     setUserMemoryEnabled,
     shareWorkflow,
+    startGoogleDriveOAuth,
     startMcpConnectorOAuth,
+    startUserExport,
     streamChat,
+    streamChatTurn,
+    stopChatTurn,
     streamProjectChat,
     streamTabularChat,
+    streamTabularChatTurn,
+    stopTabularChatTurn,
+    stopTabularGeneration,
     streamTabularGeneration,
+    streamTabularGenerationResume,
     syncUserPasswordSet,
     tabularChatSelectionKey,
     parseTabularChatSelectionKey,
-    unhideWorkflow,
     updateMcpConnector,
     updateProject,
     updateProjectMemory,
@@ -161,22 +199,16 @@ import {
     updateTabularChatModel,
     updateTabularChatReasoningLevel,
     updateTabularReview,
-    updateUserMemory,
     updateUserMfaOnLogin,
     updateUserProfile,
     updateWorkflow,
     updateQuickAction,
-    deleteQuickAction,
+    updateCustomInstructions,
+    updateResponseStyle,
+    updateWebSearchSettings,
+    updateUserMemory,
     importWorkflowAddon,
     listQuickActions,
-    uploadFilesWithSession,
-    uploadWorkflowAsset,
-    uploadWorkflowAssets,
-    uploadDocumentVersion,
-    uploadLibraryDocument,
-    uploadProjectDocument,
-    uploadReviewDocument,
-    uploadStandaloneDocument,
 } from "./mikeApi";
 
 const fetchMock = vi.fn();
@@ -232,18 +264,9 @@ afterEach(() => {
     vi.clearAllMocks();
 });
 
-function readBlobText(blob: Blob): Promise<string> {
-    // Response.blob() can produce Node's native Blob even inside jsdom.
-    // Read its real bytes with its own API; FileReader accepts jsdom Blobs only.
-    if (typeof blob.text === "function") return blob.text();
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => typeof reader.result === "string"
-            ? resolve(reader.result) : reject(new Error("Expected text from Blob"));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsText(blob);
-    });
-}
+
+// Chat requests carry the browser's IANA time zone for the assistant.
+const BROWSER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 describe("MikeApiError / isMfaRequiredError", () => {
     it("carries status and code, defaulting code to null", () => {
@@ -324,6 +347,27 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         expect(lastFetchCall().url).toBe("/api/projects?include=documents");
     });
 
+    it("requests actual project participation for the IDE without enabling pagination", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+        await listProjects({ participatingOnly: true });
+        expect(lastFetchCall().url).toBe("/api/projects?participating=true");
+        await listProjects({ includeDocuments: true, participatingOnly: true });
+        expect(lastFetchCall().url).toBe("/api/projects?include=documents&participating=true");
+    });
+
+    it("fetches every project-choice page within the requested workspace", async () => {
+        const first = Array.from({ length: 100 }, (_, i) => ({ id: `project-${i}` }));
+        fetchMock.mockResolvedValueOnce(jsonResponse(first));
+        fetchMock.mockResolvedValueOnce(jsonResponse([{ id: "last-project" }]));
+        const projects = await listProjects({ workspace: "org-1" });
+        expect(projects).toHaveLength(101);
+        expect(projects.at(-1)?.id).toBe("last-project");
+        expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+            "/api/projects?workspace=org-1&limit=100&offset=0",
+            "/api/projects?workspace=org-1&limit=100&offset=100",
+        ]);
+    });
+
     // Regression guard: legacy tabular-review project pickers call
     // listProjects() with no
     // arguments and need every project back. The backend route decides
@@ -387,6 +431,42 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         });
     });
 
+    it("treats a 4xx with an unusable detail as a malformed response", async () => {
+        // The non-5xx sibling of the test above, and the one that reached a
+        // user: a 4xx message is shown VERBATIM by userFacingApiError, on the
+        // assumption that a 4xx says something actionable. The old
+        // status-labelled fallback was not that — it put "Account not deleted
+        // / API error: 409" on screen. A body with no detail is a malformed
+        // error response and says the malformed-response sentence.
+        fetchMock.mockResolvedValue(
+            jsonResponse({ detail: { nested: true } }, { status: 404 }),
+        );
+
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 404,
+            code: null,
+            message: "The request could not be completed. Please try again.",
+        });
+    });
+
+    it("uses the same wording whether the body is empty JSON or not JSON", async () => {
+        // A 409 with `{}` (the shape that produced "API error: 409") and a
+        // 409 with no JSON at all are the same failure to the reader.
+        fetchMock.mockResolvedValue(jsonResponse({}, { status: 409 }));
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 409,
+            message: "The request could not be completed. Please try again.",
+        });
+
+        fetchMock.mockResolvedValue(
+            new Response("<html>gateway</html>", { status: 409 }),
+        );
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 409,
+            message: "The request could not be completed. Please try again.",
+        });
+    });
+
     it("discards raw JSON details from 5xx responses and keeps the request ID", async () => {
         fetchMock.mockResolvedValue(
             jsonResponse(
@@ -407,6 +487,45 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         });
     });
 
+    // MIKE-BACKEND-H / MIKE-FRONTEND-F: a missing migration used to reach
+    // the screen as "Something went wrong", and an unreachable backend made
+    // the gateway answer 502. The server side now answers 503 with a code
+    // and a fixed sentence, which the browser shows as-is.
+    it.each([
+        ["schema_out_of_date", SCHEMA_OUT_OF_DATE_MESSAGE, "The server's database needs an update before this can load. Please contact your administrator."],
+        ["upstream_unavailable", UPSTREAM_UNAVAILABLE_MESSAGE, "The server is temporarily unreachable. Please try again shortly."],
+    ])("shows the %s message and leaves the raw server text out", async (code, message, sentence) => {
+        fetchMock.mockResolvedValue(
+            jsonResponse(
+                {
+                    code,
+                    detail: "raw server text that must not be trusted",
+                    request_id: "req-503-1",
+                },
+                { status: 503 },
+            ),
+        );
+
+        const error = await getUserProfile().catch((caught: unknown) => caught);
+        expect(error).toMatchObject({ status: 503, code, requestId: "req-503-1", message });
+        expect(userFacingApiError(error, "Fallback")).toBe(sentence);
+    });
+
+    it("keeps a 5xx generic and a 4xx verbatim", async () => {
+        fetchMock.mockResolvedValueOnce(
+            jsonResponse({ detail: { nested: true } }, { status: 500 }),
+        );
+        await expect(getUserProfile()).rejects.toMatchObject({ status: 500 });
+
+        fetchMock.mockResolvedValueOnce(
+            jsonResponse({ detail: "nope" }, { status: 403 }),
+        );
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 403,
+            message: "nope",
+        });
+    });
+
     it("does not expose non-JSON server error responses", async () => {
         fetchMock.mockResolvedValue(
             new Response("upstream exploded", { status: 502 }),
@@ -416,6 +535,46 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
             status: 502,
             message: "Something went wrong. Please try again.",
         });
+    });
+
+    // MIKE-FRONTEND-5/8: the browser-side "API 502" keeps the id the Next
+    // gateway generated, so the user's report and the server log can be
+    // joined with `request_id:<id>`.
+    it("keeps the gateway's request id on a 502", async () => {
+        const gatewayId = "0b7c6a52-3a4e-4f59-9d0c-6f1e2a3b4c5d";
+        fetchMock.mockResolvedValue(
+            new Response(
+                JSON.stringify({
+                    detail: "The API is temporarily unavailable.",
+                    request_id: gatewayId,
+                }),
+                {
+                    status: 502,
+                    headers: {
+                        "content-type": "application/json",
+                        "x-request-id": gatewayId,
+                    },
+                },
+            ),
+        );
+
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 502,
+            requestId: gatewayId,
+            message: "Something went wrong. Please try again.",
+        });
+    });
+
+    it("rethrows a transport failure unchanged", async () => {
+        const failure = new TypeError("Failed to fetch");
+        fetchMock.mockRejectedValueOnce(failure);
+
+        await expect(createProject("Acme")).rejects.toBe(failure);
+    });
+
+    it("keeps a non-JSON 4xx an error", async () => {
+        fetchMock.mockResolvedValue(new Response("nope", { status: 404 }));
+        await expect(getUserProfile()).rejects.toMatchObject({ status: 404 });
     });
 
     it("synthesizes a message when the error body is empty", async () => {
@@ -435,12 +594,19 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         );
 
         fetchMock.mockResolvedValue(jsonResponse([]));
-        await listChats({ limit: 5, offset: 10 });
-        expect(lastFetchCall().url).toBe("/api/chat?limit=5&offset=10");
+        await listChats({
+            limit: 5,
+            offset: 10,
+            beforeUpdatedAt: "2026-09-21T12:00:00.000Z",
+            beforeId: "chat-5",
+        });
+        expect(lastFetchCall().url).toBe(
+            "/api/chat?limit=5&offset=10&before_updated_at=2026-09-21T12%3A00%3A00.000Z&before_id=chat-5",
+        );
     });
 });
 
-describe("blob requests (exportAccountData)", () => {
+describe("blob requests (downloadUserExport)", () => {
     it("returns the blob and the filename from content-disposition", async () => {
         fetchMock.mockResolvedValue(
             new Response("zip-bytes", {
@@ -451,10 +617,10 @@ describe("blob requests (exportAccountData)", () => {
             }),
         );
 
-        const { blob, filename } = await exportAccountData();
+        const { blob, filename } = await downloadUserExport("e1");
 
         expect(filename).toBe("export.zip");
-        expect(await readBlobText(blob)).toBe("zip-bytes");
+        expect(await blob.text()).toBe("zip-bytes");
     });
 
     it("parses unquoted filenames and returns null when absent", async () => {
@@ -466,10 +632,10 @@ describe("blob requests (exportAccountData)", () => {
                 },
             }),
         );
-        expect((await exportAccountData()).filename).toBe("data.zip");
+        expect((await downloadUserExport("e1")).filename).toBe("data.zip");
 
         fetchMock.mockResolvedValue(new Response("x", { status: 200 }));
-        expect((await exportAccountData()).filename).toBeNull();
+        expect((await downloadUserExport("e1")).filename).toBeNull();
     });
 
     it("throws a MikeApiError on failure", async () => {
@@ -477,7 +643,7 @@ describe("blob requests (exportAccountData)", () => {
             jsonResponse({ detail: "not allowed" }, { status: 403 }),
         );
 
-        await expect(exportAccountData()).rejects.toMatchObject({
+        await expect(downloadUserExport("e1")).rejects.toMatchObject({
             status: 403,
             message: "not allowed",
         });
@@ -485,6 +651,26 @@ describe("blob requests (exportAccountData)", () => {
 });
 
 describe("audit history", () => {
+    it("encodes audit actor search, pagination and exact person filters", async () => {
+        const result = { users: [], nextOffset: null };
+        fetchMock.mockResolvedValueOnce(jsonResponse(result));
+        expect(await getAuditActors({ orgId: "org-1", search: "Alex & Pat", offset: 20 })).toEqual(result);
+        expect(lastFetchCall().url).toBe("/api/audit/actors?org_id=org-1&q=Alex+%26+Pat&offset=20");
+        fetchMock.mockResolvedValueOnce(jsonResponse({ events: [], total: 0, page: 1, pageSize: 50 }));
+        await getAuditHistory({ orgId: "org-1", actorUserId: "actor-1" });
+        expect(lastFetchCall().url).toBe("/api/audit?org_id=org-1&actor_user_id=actor-1");
+    });
+
+    it("encodes the organization username filter", async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ events: [], total: 0, page: 1, pageSize: 50 }));
+        await getAuditHistory({ orgId: "org-1", username: "Alex & Pat" });
+        expect(lastFetchCall().url).toBe("/api/audit?org_id=org-1&username=Alex+%26+Pat");
+    });
+    it("includes the organization scope in audit requests", async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ events: [], total: 0, page: 1, pageSize: 50 }));
+        await getAuditHistory({ orgId: "org-1" });
+        expect(lastFetchCall().url).toBe("/api/audit?org_id=org-1");
+    });
     it("serializes server-side filters, sorting, pagination, and the abort signal", async () => {
         fetchMock.mockResolvedValue(
             jsonResponse({ events: [], total: 0, page: 3, pageSize: 50 }),
@@ -513,34 +699,6 @@ describe("audit history", () => {
         expect(init.signal).toBe(controller.signal);
     });
 
-    it("exports with the same active filters and server-side sort", async () => {
-        fetchMock.mockResolvedValue(
-            new Response("history", {
-                status: 200,
-                headers: {
-                    "content-disposition": 'attachment; filename="history.csv"',
-                },
-            }),
-        );
-
-        const result = await exportAuditHistory({
-            q: "agreement",
-            action: "document.edited",
-            status: "failed",
-            surface: "assistant",
-            from: "2026-07-01",
-            to: "2026-07-31",
-            sortBy: "created_at",
-            sortDirection: "desc",
-        });
-
-        expect(lastFetchCall().url).toBe(
-            "/api/audit/export?q=agreement&action=document.edited&status=failed&surface=assistant&from=2026-07-01&to=2026-07-31&sort_by=created_at&sort_dir=desc",
-        );
-        expect(result.filename).toBe("history.csv");
-        expect(await readBlobText(result.blob)).toBe("history");
-    });
-
     it("omits every optional audit parameter when no filters are active", async () => {
         fetchMock.mockResolvedValueOnce(
             jsonResponse({ events: [], total: 0, page: 1, pageSize: 50 }),
@@ -548,13 +706,6 @@ describe("audit history", () => {
 
         await getAuditHistory({});
         expect(lastFetchCall().url).toBe("/api/audit?");
-
-        fetchMock.mockResolvedValueOnce(
-            new Response("history", { status: 200 }),
-        );
-
-        await exportAuditHistory({});
-        expect(lastFetchCall().url).toBe("/api/audit/export?");
     });
 });
 
@@ -564,7 +715,7 @@ describe("downloadDocumentsZip", () => {
 
         const blob = await downloadDocumentsZip(["d1", "d2"]);
 
-        expect(await readBlobText(blob)).toBe("zip");
+        expect(await blob.text()).toBe("zip");
         const { url, init } = lastFetchCall();
         expect(url).toBe("/api/single-documents/download-zip");
         expect(JSON.parse(init.body as string)).toEqual({
@@ -707,6 +858,35 @@ describe("getChat message mapping", () => {
     });
 });
 
+describe("getChat active turn", () => {
+    const chat: Chat = {
+        id: "c1",
+        project_id: null,
+        user_id: "u1",
+        title: "T",
+        created_at: "2026-01-01",
+    };
+
+    it("passes through the turn the server is still generating", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({
+                chat,
+                messages: [],
+                active_turn: { id: "t1", seq: 4, assistant_message_id: "m9" },
+            }),
+        );
+        const detail = await getChat("c1");
+        expect(detail.active_turn).toEqual({ id: "t1", seq: 4, assistant_message_id: "m9" });
+    });
+
+    it("is null when the server reports none, or predates the field", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ chat, messages: [] }));
+        expect((await getChat("c1")).active_turn).toBeNull();
+        fetchMock.mockResolvedValue(jsonResponse({ chat, messages: [], active_turn: null }));
+        expect((await getChat("c1")).active_turn).toBeNull();
+    });
+});
+
 describe("mapTRMessages", () => {
     it("maps user and assistant rows including annotations", () => {
         const events: AssistantEvent[] = [{ type: "content", text: "Answer" }];
@@ -787,7 +967,51 @@ describe("mapTRMessages", () => {
 // src/app/hooks/useAssistantChat.sse.test.ts.
 // ---------------------------------------------------------------------------
 
+describe("API transport cancellation", () => {
+    it("preserves AbortError", async () => {
+        const error = new DOMException("The operation was aborted", "AbortError");
+        fetchMock.mockRejectedValueOnce(error);
+
+        await expect(streamChat({ messages: [] })).rejects.toBe(error);
+    });
+
+    it.each([new Error("User stopped the response"), "navigation", null])(
+        "preserves a custom signal cancellation reason: %s",
+        async (reason) => {
+            const controller = new AbortController();
+            fetchMock.mockImplementationOnce(async () => {
+                controller.abort(reason);
+                throw controller.signal.reason;
+            });
+
+            await expect(streamChat({
+                messages: [],
+                signal: controller.signal,
+            })).rejects.toBe(reason);
+        },
+    );
+});
+
 describe("streamChat", () => {
+    it.each(["unavailable", "empty"])("still sends the chat when the browser time zone is %s", async (mode) => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        const formatter = Intl.DateTimeFormat();
+        const options = formatter.resolvedOptions();
+        const spy = vi.spyOn(Intl, "DateTimeFormat");
+        if (mode === "unavailable") {
+            spy.mockImplementation(() => { throw new Error("Intl unavailable"); });
+        } else {
+            vi.spyOn(formatter, "resolvedOptions").mockReturnValue({ ...options, timeZone: "" });
+            spy.mockReturnValue(formatter);
+        }
+        try {
+            await streamChat({ messages: [{ role: "user", content: "Hello" }] });
+            expect(JSON.parse(lastFetchCall().init.body as string)).not.toHaveProperty("time_zone");
+            expect(JSON.parse(lastFetchCall().init.body as string).messages).toEqual([{ role: "user", content: "Hello" }]);
+        } finally {
+            vi.restoreAllMocks();
+        }
+    });
     it("POSTs with the SSE accept header and forwards the signal outside the body", async () => {
         fetchMock.mockResolvedValue(streamResponse([]));
         const controller = new AbortController();
@@ -812,6 +1036,7 @@ describe("streamChat", () => {
             messages: [{ role: "user", content: "hi" }],
             chat_id: "c1",
             model: "gemini-3-flash-preview",
+            time_zone: BROWSER_TIME_ZONE,
         });
     });
 
@@ -828,6 +1053,43 @@ describe("streamChat", () => {
 
         expect(response.bodyUsed).toBe(false);
         expect(await readAll(response)).toBe(chunks.join(""));
+    });
+});
+
+describe("streamChatTurn / stopChatTurn (server-owned turns)", () => {
+    it("GETs the turn's stream from a sequence number with the SSE accept header", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        const controller = new AbortController();
+        await streamChatTurn({
+            chatId: "c1",
+            turnId: "t1",
+            from: 7,
+            signal: controller.signal,
+        });
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/chat/c1/turn/t1/stream?from=7");
+        expect(init.method ?? "GET").toBe("GET");
+        expect(init.headers).toMatchObject({ Accept: "text/event-stream" });
+        expect(init.signal).toBe(controller.signal);
+    });
+
+    it("defaults to replaying the whole turn", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        await streamChatTurn({ chatId: "c1", turnId: "t1" });
+        expect(lastFetchCall().url).toBe("/api/chat/c1/turn/t1/stream?from=1");
+    });
+
+    it("POSTs the stop and returns the server's verdict", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({ stopped: true, finished: false }),
+        );
+        await expect(stopChatTurn("c1", "t1")).resolves.toEqual({
+            stopped: true,
+            finished: false,
+        });
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/chat/c1/turn/t1/stop");
+        expect(init.method).toBe("POST");
     });
 });
 
@@ -849,6 +1111,7 @@ describe("streamProjectChat", () => {
         expect(JSON.parse(init.body as string)).toEqual({
             messages: [{ role: "user", content: "hi" }],
             displayed_doc: { filename: "a.pdf", document_id: "d1" },
+            time_zone: BROWSER_TIME_ZONE,
         });
     });
 });
@@ -874,6 +1137,7 @@ describe("streamTabularChat", () => {
             review_title: "Leases",
             model: "openai-gpt-5.2",
             reasoning: "low",
+            time_zone: BROWSER_TIME_ZONE,
         });
     });
 });
@@ -899,6 +1163,108 @@ describe("streamTabularGeneration", () => {
             expected_updated_at: "2026-08-22T10:00:00.000Z",
         });
         expect(init.signal).toBe(controller.signal);
+    });
+});
+
+describe("streamTabularGenerationResume", () => {
+    it("GETs the resumable stream view (no body, no lease taken)", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        const controller = new AbortController();
+
+        await streamTabularGenerationResume("r1", controller.signal);
+
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/tabular-review/r1/generate/stream");
+        // A GET with no expected_updated_at: resuming observes a run, it never
+        // starts one, so it cannot 409 review_running/review_stale.
+        expect(init.method).toBeUndefined();
+        expect(init.body).toBeUndefined();
+        expect(init.signal).toBe(controller.signal);
+    });
+
+    it("passes no signal when the caller has none to forward", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+
+        await streamTabularGenerationResume("r1");
+
+        expect(lastFetchCall().init.signal).toBeUndefined();
+    });
+
+    it("resumes from a sequence number when the client has already seen frames", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+
+        await streamTabularGenerationResume("r1", undefined, 12);
+
+        expect(lastFetchCall().url).toBe(
+            "/api/tabular-review/r1/generate/stream?from=12",
+        );
+    });
+});
+
+describe("streamTabularChatTurn / stopTabularChatTurn (server-owned review chat)", () => {
+    it("GETs the turn's stream from a sequence number with the SSE accept header", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        const controller = new AbortController();
+
+        await streamTabularChatTurn({
+            reviewId: "r1",
+            chatId: "c1",
+            turnId: "t1",
+            from: 7,
+            signal: controller.signal,
+        });
+
+        const { url, init } = lastFetchCall();
+        expect(url).toBe(
+            "/api/tabular-review/r1/chats/c1/turn/t1/stream?from=7",
+        );
+        expect(init.method ?? "GET").toBe("GET");
+        expect(init.headers).toMatchObject({ Accept: "text/event-stream" });
+        expect(init.signal).toBe(controller.signal);
+    });
+
+    it("defaults to replaying the whole turn", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+
+        await streamTabularChatTurn({
+            reviewId: "r1",
+            chatId: "c1",
+            turnId: "t1",
+        });
+
+        expect(lastFetchCall().url).toBe(
+            "/api/tabular-review/r1/chats/c1/turn/t1/stream?from=1",
+        );
+    });
+
+    it("POSTs the stop and returns the server's verdict", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({ stopped: true, finished: false }),
+        );
+
+        await expect(stopTabularChatTurn("r1", "c1", "t1")).resolves.toEqual({
+            stopped: true,
+            finished: false,
+        });
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/tabular-review/r1/chats/c1/turn/t1/stop");
+        expect(init.method).toBe("POST");
+    });
+});
+
+describe("stopTabularGeneration", () => {
+    it("POSTs the stop and returns the server's verdict", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({ stopped: true, finished: false }),
+        );
+
+        await expect(stopTabularGeneration("r1")).resolves.toEqual({
+            stopped: true,
+            finished: false,
+        });
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/tabular-review/r1/generate/stop");
+        expect(init.method).toBe("POST");
     });
 });
 
@@ -953,6 +1319,23 @@ describe("listTabularReviews", () => {
         await listTabularReviews(undefined, { scope: "all", limit: 10 });
 
         expect(lastFetchCall().url).toBe("/api/tabular-review?limit=10");
+    });
+
+    it("filters a list and its select-all ids by creator", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+
+        await listTabularReviews("p1", { ownerUserId: "u2" });
+        expect(lastFetchCall().url).toBe(
+            "/api/tabular-review?project_id=p1&owner_user_id=u2",
+        );
+        await listTabularReviewIds("p1", { ownerUserId: "u2" });
+        expect(lastFetchCall().url).toBe(
+            "/api/tabular-review/ids?project_id=p1&owner_user_id=u2",
+        );
+        await listProjectReviewCreators("p1");
+        expect(lastFetchCall().url).toBe(
+            "/api/tabular-review/creators?project_id=p1",
+        );
     });
 });
 
@@ -1040,6 +1423,21 @@ describe("listProjectsPage", () => {
 
         expect(lastFetchCall().url).toBe("/api/projects?limit=10");
     });
+
+    it("serializes the project visibility scopes", async () => {
+        fetchMock.mockResolvedValue(jsonResponse([]));
+
+        await listProjectsPage({ scope: "collaborative", limit: 10 });
+        expect(lastFetchCall().url).toBe(
+            "/api/projects?limit=10&scope=collaborative",
+        );
+
+        fetchMock.mockResolvedValue(jsonResponse([]));
+        await listProjectsPage({ scope: "private", limit: 10 });
+        expect(lastFetchCall().url).toBe(
+            "/api/projects?limit=10&scope=private",
+        );
+    });
 });
 
 describe("listProjectSummaries", () => {
@@ -1051,6 +1449,14 @@ describe("listProjectSummaries", () => {
         expect(lastFetchCall().url).toBe(
             "/api/projects?limit=11&offset=10&view=summary",
         );
+    });
+
+    it("omits pagination parameters when they are not requested", async () => {
+        fetchMock.mockResolvedValue(jsonResponse([]));
+
+        await listProjectSummaries();
+
+        expect(lastFetchCall().url).toBe("/api/projects?view=summary");
     });
 });
 
@@ -1180,6 +1586,14 @@ describe("listWorkflows", () => {
 
         expect(lastFetchCall().url).toBe("/api/workflows?type=assistant");
     });
+
+    it("requests the unfiltered collection when type is omitted", async () => {
+        fetchMock.mockResolvedValue(jsonResponse([]));
+
+        await listWorkflows();
+
+        expect(lastFetchCall().url).toBe("/api/workflows");
+    });
 });
 
 describe("listWorkflowsPage", () => {
@@ -1297,6 +1711,18 @@ describe("getWorkflowFilterOptions", () => {
             "/api/workflows/filter-options?type=assistant&scope=shared",
         );
         expect(init.signal).toBe(controller.signal);
+    });
+
+    it("requests unfiltered facets when options are omitted", async () => {
+        fetchMock.mockResolvedValue(
+            jsonResponse({ practices: [], languages: [], jurisdictions: [] }),
+        );
+
+        await getWorkflowFilterOptions();
+
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/workflows/filter-options");
+        expect(init.signal).toBeUndefined();
     });
 });
 
@@ -1417,9 +1843,75 @@ describe("Library search", () => {
 
         expect(lastFetchCall().url).toBe("/api/library/files/filter-options");
     });
+
+    // The library is per workspace: a call that names one carries it on the
+    // query string, after whatever else the call asks for.
+    it("names the workspace on every library call that is given one", async () => {
+        const scope = { kind: "files" as const, workspace: "org-1" };
+        fetchMock.mockImplementation(async () =>
+            jsonResponse({ fileTypes: [], documents: [], folders: [] }),
+        );
+
+        await getLibraryFilterOptions(scope);
+        expect(lastFetchCall().url).toBe(
+            "/api/library/files/filter-options?workspace=org-1",
+        );
+        await getLibrary(scope, { limit: 50 });
+        expect(lastFetchCall().url).toBe(
+            "/api/library/files?limit=50&workspace=org-1",
+        );
+        await searchLibraryDocuments(scope, { search: "nda" });
+        expect(lastFetchCall().url).toBe(
+            "/api/library/files?view=search&search=nda&workspace=org-1",
+        );
+        await getLibrary({ kind: "templates", workspace: "personal" });
+        expect(lastFetchCall().url).toBe(
+            "/api/library/templates?workspace=personal",
+        );
+    });
+
+    it("names no workspace for a bare kind, or a scope without one", async () => {
+        fetchMock.mockImplementation(async () =>
+            jsonResponse({ documents: [], folders: [] }),
+        );
+        await getLibrary("files");
+        expect(lastFetchCall().url).toBe("/api/library/files");
+        await getLibrary({ kind: "files" });
+        expect(lastFetchCall().url).toBe("/api/library/files");
+    });
 });
 
 describe("tabular review CRUD", () => {
+    it("requests the sidebar's status fields and polls only the named reviews", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+        await listTabularReviews(undefined, { workspace: "personal", sortKey: "updated", sortDirection: "desc", includeStatus: true });
+        const url = new URL(lastFetchCall().url, "http://localhost");
+        expect(url.searchParams.get("include")).toBe("status");
+        expect(url.searchParams.get("workspace")).toBe("personal");
+        expect(url.searchParams.get("sort_key")).toBe("updated");
+        const controller = new AbortController();
+        await getTabularReviewHistoryStatuses(["r1", "r2"], controller.signal);
+        expect(lastFetchCall().url).toBe("/api/tabular-review/history-status?ids=r1%2Cr2");
+        expect(lastFetchCall().init.signal).toBe(controller.signal);
+    });
+
+    it("refreshes review history after successful writes, but not a refused write", async () => {
+        const listener = vi.fn();
+        const unsubscribe = subscribeTabularReviewChanges(listener);
+        try {
+            fetchMock.mockImplementation(async () => jsonResponse({ id: "r1" }));
+            await createTabularReview({ document_ids: [], columns_config: [], model: "test-model" });
+            await updateTabularReview("r1", { title: "Renamed" });
+            await deleteTabularReview("r1");
+            await clearTabularCells("r1", ["row-1"]);
+            await regenerateTabularCell("r1", "row-1", 0);
+            expect(listener).toHaveBeenCalledTimes(5);
+            fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Forbidden" }, { status: 403 }));
+            await expect(updateTabularReview("r1", { title: "Refused" })).rejects.toThrow();
+            expect(listener).toHaveBeenCalledTimes(5);
+        } finally { unsubscribe(); }
+    });
+
     it("createTabularReview posts the folder grouping mode through unchanged", async () => {
         fetchMock.mockResolvedValue(jsonResponse({ id: "r1" }));
 
@@ -1491,222 +1983,6 @@ describe("tabular review CRUD", () => {
     });
 });
 
-describe("upload session wrappers", () => {
-    const file = new File(["pdf-bytes"], "a.pdf", {
-        type: "application/pdf",
-    });
-
-    const outcome = (overrides: Partial<UploadOutcome> = {}): UploadOutcome => ({
-        clientId: "client-1",
-        filename: "a.pdf",
-        status: "completed",
-        result: { id: "new-doc" },
-        errorCode: null,
-        ...overrides,
-    });
-
-    const lastManifest = () =>
-        vi.mocked(uploadFilesWithSessionCore).mock.calls.at(-1)?.[0] as {
-            purpose: string;
-            destination: Record<string, unknown>;
-            files: Array<{ file: File; folderId?: string | null }>;
-        };
-
-    it("classifies transport errors for the session retry policy", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([]);
-
-        await uploadFilesWithSession({
-            purpose: "document_create",
-            destination: { scope: "standalone" },
-            files: [],
-        });
-
-        const transport = (
-            vi.mocked(uploadFilesWithSessionCore).mock.calls.at(-1)?.[0] as {
-                transport: {
-                    fetchStorage: typeof fetch;
-                    shouldRetryControlRequest: (error: unknown) => boolean;
-                };
-            }
-        ).transport;
-
-        // The storage transport forwards straight to the global fetch.
-        fetchMock.mockResolvedValue(new Response(null, { status: 200 }));
-        await transport.fetchStorage("/storage/key", { method: "PUT" });
-        expect(fetchMock).toHaveBeenCalledWith("/storage/key", {
-            method: "PUT",
-        });
-
-        // A typed API error with a non-retryable status stops the loop …
-        expect(
-            transport.shouldRetryControlRequest(
-                new MikeApiError({ message: "invalid", status: 400 }),
-            ),
-        ).toBe(false);
-        // … while an unrecognized error is treated as a transport failure.
-        expect(transport.shouldRetryControlRequest(new Error("socket"))).toBe(
-            true,
-        );
-    });
-
-    it("uploads a project document through a document_create session", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([
-            outcome(),
-        ]);
-
-        const doc = await uploadProjectDocument("p1", file, "project-folder");
-
-        expect(doc).toEqual({ id: "new-doc" });
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_create",
-            destination: { scope: "project", project_id: "p1" },
-            files: [{ file, folderId: "project-folder" }],
-        });
-    });
-
-    it("maps the library kind and folder into a library session", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        const doc = await uploadLibraryDocument(
-            "templates",
-            file,
-            "library-folder",
-        );
-
-        expect(doc).toEqual({ id: "new-doc" });
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_create",
-            destination: { scope: "library", library_kind: "template" },
-            files: [{ file, folderId: "library-folder" }],
-        });
-    });
-
-    it("uses a standalone session when there is no project", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        await uploadStandaloneDocument(file);
-
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_create",
-            destination: { scope: "standalone" },
-        });
-    });
-
-    it("uses the version purposes for create and replace", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        await uploadDocumentVersion("d1", file, "renamed.pdf");
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_version_create",
-            destination: { document_id: "d1", filename: "renamed.pdf" },
-        });
-
-        await replaceDocumentVersionFile("d1", "v1", file);
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_version_replace",
-            destination: { document_id: "d1", version_id: "v1" },
-        });
-    });
-
-    it("renames the file when replacing a document version", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        await replaceDocumentVersionFile("d1", "v1", file, "renamed.pdf");
-
-        const manifest = lastManifest();
-        expect(manifest.files[0]!.file.name).toBe("renamed.pdf");
-    });
-
-    it("uses the workflow asset purposes", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        await uploadWorkflowAssets("w1", [{ file }]);
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_create",
-            destination: { scope: "workflow", workflow_id: "w1" },
-        });
-    });
-
-    it("uploads a single workflow asset through the session flow", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([outcome()]);
-
-        await expect(uploadWorkflowAsset("w1", file)).resolves.toEqual({
-            id: "new-doc",
-        });
-        expect(lastManifest()).toMatchObject({
-            purpose: "document_create",
-            destination: { scope: "workflow", workflow_id: "w1" },
-        });
-    });
-
-    it("propagates a control-plane failure", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockRejectedValue(
-            new Error("session unavailable"),
-        );
-
-        await expect(uploadStandaloneDocument(file)).rejects.toThrow(
-            "session unavailable",
-        );
-    });
-});
-
-describe("uploadReviewDocument", () => {
-    it("appends a session-uploaded project document to the review", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([
-            {
-                clientId: "client-1",
-                filename: "a.pdf",
-                status: "completed",
-                result: { id: "new-doc" },
-                errorCode: null,
-            },
-        ]);
-        fetchMock.mockResolvedValue(jsonResponse({ id: "r1" }));
-        const file = new File(["x"], "a.pdf");
-
-        const uploaded = await uploadReviewDocument("r1", file, {
-            projectId: "p1",
-            documentIds: ["d1"],
-            columnsConfig: [{ index: 0, name: "Term", prompt: "p" }],
-        });
-
-        expect(uploaded).toEqual({ id: "new-doc" });
-        const patchCall = lastFetchCall();
-        expect(patchCall.url).toBe("/api/tabular-review/r1");
-        // Existing ids must be preserved — the review would otherwise shrink
-        // to just the newly uploaded document.
-        expect(JSON.parse(patchCall.init.body as string)).toEqual({
-            columns_config: [{ index: 0, name: "Term", prompt: "p" }],
-            document_ids: ["d1", "new-doc"],
-        });
-    });
-
-    it("falls back to a standalone upload when the review has no project", async () => {
-        vi.mocked(uploadFilesWithSessionCore).mockResolvedValue([
-            {
-                clientId: "client-1",
-                filename: "a.pdf",
-                status: "completed",
-                result: { id: "new-doc" },
-                errorCode: null,
-            },
-        ]);
-        fetchMock.mockResolvedValue(jsonResponse({ id: "r1" }));
-
-        await uploadReviewDocument("r1", new File(["x"], "a.pdf"));
-
-        const manifest = vi.mocked(uploadFilesWithSessionCore).mock
-            .calls.at(-1)?.[0] as {
-            destination: Record<string, unknown>;
-        };
-        expect(manifest.destination).toEqual({ scope: "standalone" });
-        // With no prior ids the review ends up with exactly the new document.
-        expect(JSON.parse(lastFetchCall().init.body as string)).toEqual({
-            document_ids: ["new-doc"],
-        });
-    });
-});
-
 describe("tabular review chats", () => {
     it("round-trips tabular chat selection keys", () => {
         const key = tabularChatSelectionKey("r1", "c1");
@@ -1715,6 +1991,21 @@ describe("tabular review chats", () => {
             chatId: "c1",
         });
         expect(parseTabularChatSelectionKey("ordinary-chat-id")).toBeNull();
+        expect(
+            parseTabularChatSelectionKey("tabular-review-chat:r1:"),
+        ).toBeNull();
+    });
+
+    it("rejects prefixed keys missing either half", () => {
+        // A prefixed key must carry both a review id and a chat id: an empty
+        // review id puts the separator first, an empty chat id puts it last,
+        // and both must parse to null rather than a half-empty selection.
+        expect(
+            parseTabularChatSelectionKey(tabularChatSelectionKey("", "c1")),
+        ).toBeNull();
+        expect(
+            parseTabularChatSelectionKey(tabularChatSelectionKey("r1", "")),
+        ).toBeNull();
     });
 
     it("lists chats and fetches messages from the nested routes", async () => {
@@ -1781,6 +2072,7 @@ describe("tabular review chats", () => {
         expect(JSON.parse(lastFetchCall().init.body as string)).toEqual({
             messages: [{ role: "user", content: "q" }],
             chat_id: "c9",
+            time_zone: BROWSER_TIME_ZONE,
         });
     });
 });
@@ -1793,7 +2085,7 @@ describe("tabular cell operations", () => {
 
         const cell = await regenerateTabularCell("r1", "row-1", 2);
 
-        expect(cell.flag).toBe("green");
+        expect(cell).toEqual({ summary: "s", flag: "green", reasoning: "r" });
         const { url, init } = lastFetchCall();
         expect(url).toBe("/api/tabular-review/r1/regenerate-cell");
         expect(JSON.parse(init.body as string)).toEqual({
@@ -1816,6 +2108,41 @@ describe("tabular cell operations", () => {
 });
 
 describe("query and payload defaults", () => {
+    it("getDocumentFile appends version_id only when a version is requested", async () => {
+        expect(getDocumentFileUrl("d 1")).toBe(
+            "/api/single-documents/d%201/file",
+        );
+        expect(getDocumentFileUrl("d 1", "v 1")).toBe(
+            "/api/single-documents/d%201/file?version_id=v%201",
+        );
+
+        fetchMock
+            .mockResolvedValueOnce(
+                new Response("current", {
+                    status: 200,
+                    headers: {
+                        "content-disposition":
+                            'attachment; filename="current.docx"',
+                    },
+                }),
+            )
+            .mockResolvedValueOnce(
+                new Response("selected", { status: 200 }),
+            );
+
+        const current = await getDocumentFile("d1");
+        expect(lastFetchCall().url).toBe("/api/single-documents/d1/file");
+        expect(current.filename).toBe("current.docx");
+        expect(await current.blob.text()).toBe("current");
+
+        const selected = await getDocumentFile("d 1", "v 1");
+        expect(lastFetchCall().url).toBe(
+            "/api/single-documents/d%201/file?version_id=v%201",
+        );
+        expect(selected.filename).toBeNull();
+        expect(await selected.blob.text()).toBe("selected");
+    });
+
     it("getDocumentUrl appends version_id only when a version is requested", async () => {
         fetchMock.mockImplementation(() =>
             Promise.resolve(
@@ -1830,38 +2157,6 @@ describe("query and payload defaults", () => {
         expect(lastFetchCall().url).toBe(
             "/api/single-documents/d1/url?version_id=v%201",
         );
-    });
-
-    it("getDocumentFile appends version_id only when a version is requested", async () => {
-        expect(getDocumentFileUrl("d 1")).toBe(
-            "/api/single-documents/d%201/file",
-        );
-        expect(getDocumentFileUrl("d 1", "v 1")).toBe(
-            "/api/single-documents/d%201/file?version_id=v%201",
-        );
-
-        fetchMock.mockResolvedValueOnce(
-            new Response("current", {
-                status: 200,
-                headers: {
-                    "content-disposition": 'inline; filename="current.docx"',
-                },
-            }),
-        );
-        const current = await getDocumentFile("d 1");
-        expect(lastFetchCall().url).toBe("/api/single-documents/d%201/file");
-        expect(current.filename).toBe("current.docx");
-        expect(await readBlobText(current.blob)).toBe("current");
-
-        fetchMock.mockResolvedValueOnce(
-            new Response("selected", { status: 200 }),
-        );
-        const selected = await getDocumentFile("d 1", "v 1");
-        expect(lastFetchCall().url).toBe(
-            "/api/single-documents/d%201/file?version_id=v%201",
-        );
-        expect(selected.filename).toBeNull();
-        expect(await readBlobText(selected.blob)).toBe("selected");
     });
 
     it("createChat defaults to an empty JSON object body", async () => {
@@ -1902,6 +2197,12 @@ describe("query and payload defaults", () => {
         expect(JSON.parse(lastFetchCall().init.body as string)).toEqual({
             name: "Precedents",
             parent_folder_id: "parent-1",
+        });
+
+        await createLibraryFolder("files", "Root folder");
+        expect(JSON.parse(lastFetchCall().init.body as string)).toEqual({
+            name: "Root folder",
+            parent_folder_id: null,
         });
     });
 
@@ -1978,24 +2279,6 @@ describe("workflow endpoints", () => {
         expect(lastFetchCall().url).toBe("/api/workflows?type=assistant");
     });
 
-    it("hide/unhide/list use the hidden-workflows routes with matching methods", async () => {
-        fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
-
-        await hideWorkflow("w1");
-        let { url, init } = lastFetchCall();
-        expect(url).toBe("/api/workflows/hidden");
-        expect(init.method).toBe("POST");
-        expect(JSON.parse(init.body as string)).toEqual({ workflow_id: "w1" });
-
-        await unhideWorkflow("w1");
-        ({ url, init } = lastFetchCall());
-        expect(url).toBe("/api/workflows/hidden/w1");
-        expect(init.method).toBe("DELETE");
-
-        fetchMock.mockResolvedValue(jsonResponse(["w2"]));
-        await expect(listHiddenWorkflows()).resolves.toEqual(["w2"]);
-        expect(lastFetchCall().url).toBe("/api/workflows/hidden");
-    });
 });
 
 // ---------------------------------------------------------------------------
@@ -2019,7 +2302,8 @@ describe("thin endpoint wrappers", () => {
         // Account & profile
         {
             name: "createProject",
-            call: () => createProject("Acme v. Zenith", "CM-42", "litigation"),
+            call: () =>
+                createProject("Acme v. Zenith", "CM-42", "litigation"),
             url: "/projects",
             method: "POST",
             body: {
@@ -2029,11 +2313,18 @@ describe("thin endpoint wrappers", () => {
             },
         },
         {
-            name: "grantProjectAccess",
-            call: () => grantProjectAccess("p1", "a@b.c"),
-            url: "/projects/p1/access",
+            name: "createProject (with project memory disabled)",
+            call: () =>
+                createProject(
+                    "No-memory matter",
+                    undefined,
+                    undefined,
+                    undefined,
+                    false,
+                ),
+            url: "/projects",
             method: "POST",
-            body: { email: "a@b.c", role: "editor" },
+            body: { name: "No-memory matter", memory_enabled: false },
         },
         {
             name: "deleteAccount",
@@ -2052,6 +2343,86 @@ describe("thin endpoint wrappers", () => {
             call: () => deleteAllTabularReviews(),
             url: "/user/tabular-reviews",
             method: "DELETE",
+        },
+        {
+            name: "deleteAllMemories",
+            call: () => deleteAllMemories(),
+            url: "/user/memories",
+            method: "DELETE",
+        },
+        {
+            name: "getUserMemory",
+            call: () => getUserMemory(),
+            url: "/user/memory",
+        },
+        {
+            name: "updateUserMemory",
+            call: () => updateUserMemory("# Preferences", 3),
+            url: "/user/memory",
+            method: "PUT",
+            body: { content: "# Preferences", expected_revision: 3 },
+        },
+        {
+            name: "getCustomInstructions",
+            call: () => getCustomInstructions(),
+            url: "/user/custom-instructions",
+        },
+        {
+            name: "updateCustomInstructions",
+            call: () => updateCustomInstructions("Use British spelling."),
+            url: "/user/custom-instructions",
+            method: "PUT",
+            body: { content: "Use British spelling." },
+        },
+        {
+            name: "getResponseStyle",
+            call: () => getResponseStyle(),
+            url: "/user/response-style",
+        },
+        {
+            name: "updateResponseStyle",
+            call: () => updateResponseStyle({ verbosity: "concise" }),
+            url: "/user/response-style",
+            method: "PUT",
+            body: { verbosity: "concise" },
+        },
+        {
+            name: "getWebSearchSettings",
+            call: () => getWebSearchSettings(),
+            url: "/user/web-search",
+        },
+        {
+            name: "updateWebSearchSettings",
+            call: () => updateWebSearchSettings({ enabled: true }),
+            url: "/user/web-search",
+            method: "PUT",
+            body: { enabled: true },
+        },
+        {
+            name: "setUserMemoryEnabled",
+            call: () => setUserMemoryEnabled(false),
+            url: "/user/memory/settings",
+            method: "PATCH",
+            body: { enabled: false },
+        },
+        {
+            name: "getProjectMemory",
+            call: () => getProjectMemory("project/1"),
+            url: "/projects/project%2F1/memory",
+        },
+        {
+            name: "updateProjectMemory",
+            call: () => updateProjectMemory("project/1", "# Matter", 7),
+            url: "/projects/project%2F1/memory",
+            method: "PUT",
+            body: { content: "# Matter", expected_revision: 7 },
+        },
+        {
+            name: "setProjectMemoryEnabled",
+            call: () => setProjectMemoryEnabled("project/1", false),
+            url: "/projects/project%2F1/memory/settings",
+            method: "PATCH",
+            body: { enabled: false },
         },
         {
             name: "updateUserProfile",
@@ -2096,11 +2467,6 @@ describe("thin endpoint wrappers", () => {
             body: { enabled: true },
         },
         {
-            name: "getApiKeyStatus",
-            call: () => getApiKeyStatus(),
-            url: "/user/api-keys",
-        },
-        {
             name: "saveApiKey",
             call: () => saveApiKey("claude", "sk-ant-1"),
             url: "/user/api-keys/claude",
@@ -2115,6 +2481,29 @@ describe("thin endpoint wrappers", () => {
             url: "/user/api-keys/openai",
             method: "PUT",
             body: { api_key: null },
+        },
+        {
+            // A cloud key travels with its region/endpoint in one request.
+            name: "saveApiKey (with settings)",
+            call: () =>
+                saveApiKey("bedrock", "bedrock-key", { region: "us-east-1" }),
+            url: "/user/api-keys/bedrock",
+            method: "PUT",
+            body: { api_key: "bedrock-key", settings: { region: "us-east-1" } },
+        },
+        {
+            name: "setApiKeyEnabled (off)",
+            call: () => setApiKeyEnabled("openai", false),
+            url: "/user/api-keys/openai",
+            method: "PATCH",
+            body: { enabled: false },
+        },
+        {
+            name: "setApiKeyEnabled (on)",
+            call: () => setApiKeyEnabled("bedrock", true),
+            url: "/user/api-keys/bedrock",
+            method: "PATCH",
+            body: { enabled: true },
         },
         // MCP connectors
         {
@@ -2175,6 +2564,43 @@ describe("thin endpoint wrappers", () => {
             method: "PATCH",
             body: { enabled: true },
         },
+        // Native Google Drive. Unlike the MCP connectors above these are
+        // first-party endpoints under /user/integrations, and the three verbs
+        // share one path — so the route/method pairing is what keeps
+        // "check status" from accidentally becoming "revoke my tokens".
+        {
+            name: "getGoogleDriveStatus",
+            call: () => getGoogleDriveStatus(),
+            url: "/user/integrations/google-drive",
+        },
+        {
+            name: "startGoogleDriveOAuth",
+            call: () => startGoogleDriveOAuth(),
+            url: "/user/integrations/google-drive/oauth/start",
+            method: "POST",
+        },
+        {
+            name: "cancelGoogleDriveOAuth",
+            call: () => cancelGoogleDriveOAuth("state-token"),
+            url: "/user/integrations/google-drive/oauth/cancel",
+            method: "POST",
+            body: { state: "state-token" },
+        },
+        {
+            name: "disconnectGoogleDrive",
+            call: () => disconnectGoogleDrive(),
+            url: "/user/integrations/google-drive",
+            method: "DELETE",
+        },
+        { name: "getGoogleWorkspaceStatus", call: () => getGoogleWorkspaceStatus("gmail"), url: "/user/integrations/gmail" },
+        { name: "startGoogleWorkspaceOAuth", call: () => startGoogleWorkspaceOAuth("gmail"), url: "/user/integrations/gmail/oauth/start", method: "POST" },
+        { name: "cancelGoogleWorkspaceOAuth", call: () => cancelGoogleWorkspaceOAuth("gmail", "state"), url: "/user/integrations/gmail/oauth/cancel", method: "POST", body: { state: "state" } },
+        { name: "disconnectGoogleWorkspace", call: () => disconnectGoogleWorkspace("gmail"), url: "/user/integrations/gmail", method: "DELETE" },
+        { name: "updateGoogleWorkspaceSettings", call: () => updateGoogleWorkspaceSettings("gmail", { requireWriteApproval: true }), url: "/user/integrations/gmail", method: "PATCH", body: { requireWriteApproval: true } },
+        { name: "setGoogleWorkspaceToolEnabled", call: () => setGoogleWorkspaceToolEnabled("google-calendar", "google_calendar_create_event", false), url: "/user/integrations/google-calendar/tools/google_calendar_create_event", method: "PATCH", body: { enabled: false } },
+        { name: "updateGoogleDriveSettings", call: () => updateGoogleDriveSettings({ enabled: false }), url: "/user/integrations/google-drive", method: "PATCH", body: { enabled: false } },
+        { name: "setGoogleDriveToolEnabled", call: () => setGoogleDriveToolEnabled("google_drive_read_file", true), url: "/user/integrations/google-drive/tools/google_drive_read_file", method: "PATCH", body: { enabled: true } },
+        { name: "createGoogleDrivePickerSession", call: () => createGoogleDrivePickerSession(), url: "/user/integrations/google-drive/picker-session", method: "POST" },
         // Projects
         {
             name: "getProject",
@@ -2308,22 +2734,48 @@ describe("thin endpoint wrappers", () => {
             method: "PATCH",
             body: { filename: "renamed.docx" },
         },
+        // Async (durable) exports. `params` is optional: the filtered exports
+        // send it, the whole-account ones must omit the key entirely so the
+        // backend's discriminated payload stays valid.
+        {
+            name: "startUserExport (with params)",
+            call: () =>
+                startUserExport("audit-csv", {
+                    q: "agreement",
+                    sort_dir: "desc",
+                }),
+            url: "/user/exports",
+            method: "POST",
+            body: {
+                type: "audit-csv",
+                params: { q: "agreement", sort_dir: "desc" },
+            },
+        },
+        {
+            name: "startUserExport (params omitted)",
+            call: () => startUserExport("account"),
+            url: "/user/exports",
+            method: "POST",
+            body: { type: "account" },
+        },
+        {
+            // Export ids come back from the API, so encode them the same way
+            // every other path segment is encoded.
+            name: "getUserExportStatus",
+            call: () => getUserExportStatus("exp/1"),
+            url: "/user/exports/exp%2F1",
+        },
         // Standalone documents & versions
         {
-            name: "listStandaloneDocuments",
-            call: () => listStandaloneDocuments(),
-            url: "/single-documents",
+            name: "getDocument",
+            call: () => getDocument("d1"),
+            url: "/single-documents/d1",
         },
         {
             name: "deleteDocument",
             call: () => deleteDocument("d1"),
             url: "/single-documents/d1",
             method: "DELETE",
-        },
-        {
-            name: "getDocument",
-            call: () => getDocument("d1"),
-            url: "/single-documents/d1",
         },
         {
             name: "resolveDocumentEdit",
@@ -2395,18 +2847,39 @@ describe("thin endpoint wrappers", () => {
             },
         },
         {
+            name: "leaveChat",
+            call: () => leaveChat("c1"),
+            url: "/chat/c1/leave",
+            method: "POST",
+        },
+        {
             name: "deleteChat",
             call: () => deleteChat("c1"),
             url: "/chat/c1",
             method: "DELETE",
         },
         {
-            name: "generateChatTitle",
-            call: () =>
-                generateChatTitle("c1", "first message", "gpt-5.6-terra"),
-            url: "/chat/c1/generate-title",
+            name: "getChatPeople",
+            call: () => getChatPeople("c1"),
+            url: "/chat/c1/people",
+        },
+        {
+            name: "getChatAccess",
+            call: () => getChatAccess("c1"),
+            url: "/chat/c1/access",
+        },
+        {
+            name: "grantChatAccess",
+            call: () => grantChatAccess("c1", "reader@example.com", "viewer"),
+            url: "/chat/c1/access",
             method: "POST",
-            body: { message: "first message", model: "gpt-5.6-terra" },
+            body: { email: "reader@example.com", role: "viewer" },
+        },
+        {
+            name: "revokeChatAccess",
+            call: () => revokeChatAccess("c1", "a+b@example.com"),
+            url: "/chat/c1/access/a%2Bb%40example.com",
+            method: "DELETE",
         },
         // Tabular review
         {
@@ -2418,6 +2891,25 @@ describe("thin endpoint wrappers", () => {
             name: "getTabularReviewPeople",
             call: () => getTabularReviewPeople("r1"),
             url: "/tabular-review/r1/people",
+        },
+        {
+            name: "getTabularReviewAccess",
+            call: () => getTabularReviewAccess("r1"),
+            url: "/tabular-review/r1/access",
+        },
+        {
+            name: "grantTabularReviewAccess",
+            call: () =>
+                grantTabularReviewAccess("r1", "reviewer@example.com", "viewer"),
+            url: "/tabular-review/r1/access",
+            method: "POST",
+            body: { email: "reviewer@example.com", role: "viewer" },
+        },
+        {
+            name: "revokeTabularReviewAccess",
+            call: () => revokeTabularReviewAccess("r1", "a+b@example.com"),
+            url: "/tabular-review/r1/access/a%2Bb%40example.com",
+            method: "DELETE",
         },
         // Workflows
         {
@@ -2480,15 +2972,20 @@ describe("thin endpoint wrappers", () => {
         {
             name: "shareWorkflow",
             call: () =>
-                shareWorkflow("w1", { emails: ["a@b.c"], allow_edit: false }),
+                shareWorkflow("w1", { emails: ["a@b.c"], role: "viewer" }),
             url: "/workflows/w1/share",
             method: "POST",
-            body: { emails: ["a@b.c"], allow_edit: false },
+            body: { emails: ["a@b.c"], role: "viewer" },
         },
         {
             name: "listWorkflowShares",
             call: () => listWorkflowShares("w1"),
             url: "/workflows/w1/shares",
+        },
+        {
+            name: "getWorkflowPeople",
+            call: () => getWorkflowPeople("w1"),
+            url: "/workflows/w1/people",
         },
         {
             name: "deleteWorkflowShare",
@@ -2548,12 +3045,6 @@ describe("thin endpoint wrappers", () => {
             },
         },
         {
-            name: "deleteQuickAction",
-            call: () => deleteQuickAction("qa1"),
-            url: "/quick-actions/qa1",
-            method: "DELETE",
-        },
-        {
             name: "listWorkflowAddons",
             call: () => listWorkflowAddons(),
             url: "/workflow-addons",
@@ -2588,85 +3079,196 @@ describe("thin endpoint wrappers", () => {
             url: "/workflows/w1/assets/asset-1",
             method: "DELETE",
         },
-    ];
-
-    it.each(cases)(
-        "$name → $method $url",
-        async ({ call, url, method, body }) => {
-            fetchMock.mockResolvedValue(jsonResponse({}));
-
-            await call();
-
-            const { url: actualUrl, init } = lastFetchCall();
-            expect(actualUrl).toBe(`/api${url}`);
-            expect(init.method ?? "GET").toBe(method ?? "GET");
-            if (body !== undefined) {
-                expect(JSON.parse(init.body as string)).toEqual(body);
-                expect(init.headers).toMatchObject({
-                    "Content-Type": "application/json",
-                });
-            } else {
-                expect(init.body).toBeUndefined();
-            }
-            expect(init.credentials).toBe("include");
-        },
-    );
-});
-
-describe("memory API", () => {
-    type MemoryCase = {
-        name: string;
-        call: () => Promise<unknown>;
-        url: string;
-        method?: string; // defaults to GET (fetch's default when unset)
-        body?: unknown; // absent means the request must not carry a body
-    };
-
-    const cases: MemoryCase[] = [
+        // Organizations (multi-tenant RBAC)
         {
-            name: "deleteAllMemories",
-            call: () => deleteAllMemories(),
-            url: "/user/memories",
+            // The org-scoped variant of project creation: org_id must survive
+            // serialization so the server can stamp the tenant.
+            name: "createProject (into an org)",
+            call: () =>
+                createProject("Firm matter", undefined, undefined, "org-1"),
+            url: "/projects",
+            method: "POST",
+            body: { name: "Firm matter", org_id: "org-1" },
+        },
+        { name: "listDeletedOrganizations", call: () => listDeletedOrganizations(), url: "/orgs/deleted" },
+        { name: "restoreOrganization", call: () => restoreOrganization("org-1"), url: "/orgs/org-1/restore", method: "POST" },
+        {
+            name: "listOrgs",
+            call: () => listOrgs(),
+            url: "/orgs",
+        },
+        {
+            name: "createOrg",
+            call: () => createOrg("Smith & Jones LLP"),
+            url: "/orgs",
+            method: "POST",
+            body: { name: "Smith & Jones LLP" },
+        },
+        {
+            name: "getOrg",
+            call: () => getOrg("org-1"),
+            url: "/orgs/org-1",
+        },
+        {
+            name: "updateOrg",
+            call: () => updateOrg("org-1", "Renamed LLP"),
+            url: "/orgs/org-1",
+            method: "PATCH",
+            body: { name: "Renamed LLP" },
+        },
+        {
+            name: "deleteOrg",
+            call: () => deleteOrg("org-1"),
+            url: "/orgs/org-1",
             method: "DELETE",
         },
         {
-            name: "getUserMemory",
-            call: () => getUserMemory(),
-            url: "/user/memory",
+            name: "listOrgMembers",
+            call: () => listOrgMembers("org-1"),
+            url: "/orgs/org-1/members",
         },
         {
-            name: "updateUserMemory",
-            call: () => updateUserMemory("remember this", 3),
-            url: "/user/memory",
-            method: "PUT",
-            body: { content: "remember this", expected_revision: 3 },
-        },
-        {
-            name: "setUserMemoryEnabled",
-            call: () => setUserMemoryEnabled(false),
-            url: "/user/memory/settings",
+            name: "updateOrgMember",
+            call: () => updateOrgMember("org-1", "user-2", "admin"),
+            url: "/orgs/org-1/members/user-2",
             method: "PATCH",
-            body: { enabled: false },
+            body: { role: "admin" },
         },
         {
-            // The project id is encoded into the path, so slashes survive.
-            name: "getProjectMemory",
-            call: () => getProjectMemory("proj/1"),
-            url: "/projects/proj%2F1/memory",
+            name: "removeOrgMember",
+            call: () => removeOrgMember("org-1", "user-2"),
+            url: "/orgs/org-1/members/user-2",
+            method: "DELETE",
+        },
+        // Invitations — the only way a membership row is ever created.
+        {
+            name: "createOrgInvitation",
+            call: () =>
+                createOrgInvitation("org-1", "counsel@firm.example", "member"),
+            url: "/orgs/org-1/invitations",
+            method: "POST",
+            body: { email: "counsel@firm.example", role: "member" },
         },
         {
-            name: "updateProjectMemory",
-            call: () => updateProjectMemory("proj/1", "case context", 7),
-            url: "/projects/proj%2F1/memory",
-            method: "PUT",
-            body: { content: "case context", expected_revision: 7 },
+            name: "listOrgInvitations",
+            call: () => listOrgInvitations("org-1"),
+            url: "/orgs/org-1/invitations",
         },
         {
-            name: "setProjectMemoryEnabled",
-            call: () => setProjectMemoryEnabled("proj/1", true),
-            url: "/projects/proj%2F1/memory/settings",
-            method: "PATCH",
-            body: { enabled: true },
+            name: "cancelOrgInvitation",
+            call: () => cancelOrgInvitation("org-1", "inv-1"),
+            url: "/orgs/org-1/invitations/inv-1",
+            method: "DELETE",
+        },
+        {
+            name: "resendOrgInvitation",
+            call: () => resendOrgInvitation("org-1", "inv-1"),
+            url: "/orgs/org-1/invitations/inv-1/resend",
+            method: "POST",
+        },
+        {
+            // The recipient's side hangs off /user: they are not a member of
+            // the organization yet, so no org-scoped route could authorize
+            // them.
+            name: "listMyOrgInvitations",
+            call: () => listMyOrgInvitations(),
+            url: "/user/invitations",
+        },
+        {
+            name: "acceptOrgInvitation",
+            call: () => acceptOrgInvitation("inv-1"),
+            url: "/user/invitations/inv-1/accept",
+            method: "POST",
+        },
+        {
+            name: "declineOrgInvitation",
+            call: () => declineOrgInvitation("inv-1"),
+            url: "/user/invitations/inv-1/decline",
+            method: "POST",
+        },
+        {
+            name: "deleteOrgData", call: () => deleteOrgData("org-1", "projects"),
+            url: "/orgs/org-1/data/projects", method: "DELETE",
+        },
+        {
+            name: "saveOrgLogo", call: () => saveOrgLogo("org-1", "data:image/png;base64,test"),
+            url: "/orgs/org-1/logo", method: "PUT", body: { data_url: "data:image/png;base64,test" },
+        },
+        {
+            name: "deleteOrgLogo", call: () => deleteOrgLogo("org-1"),
+            url: "/orgs/org-1/logo", method: "DELETE",
+        },
+        {
+            name: "getOrgApiKeys", call: () => getOrgApiKeys("org-1"), url: "/orgs/org-1/api-keys",
+        },
+        {
+            name: "saveOrgApiKey (clear)", call: () => saveOrgApiKey("org-1", "openai", null),
+            url: "/orgs/org-1/api-keys/openai", method: "PUT", body: { api_key: null },
+        },
+        {
+            name: "saveOrgApiKey (provider settings)", call: () => saveOrgApiKey("org-1", "bedrock", "synthetic-key", { region: "us-east-1" }),
+            url: "/orgs/org-1/api-keys/bedrock", method: "PUT", body: { api_key: "synthetic-key", settings: { region: "us-east-1" } },
+        },
+        {
+            name: "saveOrgRouterModels", call: () => saveOrgRouterModels("org-1", "openrouter", ["provider/model"]),
+            url: "/orgs/org-1/api-keys/openrouter/models", method: "PUT", body: { model_ids: ["provider/model"] },
+        },
+        {
+            name: "setOrgApiKeyEnabled", call: () => setOrgApiKeyEnabled("org-1", "openai", false),
+            url: "/orgs/org-1/api-keys/openai", method: "PATCH", body: { enabled: false },
+        },
+        {
+            name: "setOrgPersonalApiKeysAllowed", call: () => setOrgPersonalApiKeysAllowed("org-1", false),
+            url: "/orgs/org-1/api-keys/policy", method: "PUT", body: { allow_personal_api_keys: false },
+        },
+        {
+            name: "getOrgMemberHandover", call: () => getOrgMemberHandover("org-1", "user-2"),
+            url: "/orgs/org-1/members/user-2/handover",
+        },
+        {
+            name: "getOrgMemberHandover (bulk)", call: () => getOrgMemberHandover("org-1", "user-2", ["user-2", "user-3"]),
+            url: "/orgs/org-1/members/user-2/handover?departing_user_ids=user-2%2Cuser-3",
+        },
+        {
+            name: "removeOrgMember (successor)", call: () => removeOrgMember("org-1", "user-2", "user-3"),
+            url: "/orgs/org-1/members/user-2?assign_to=user-3", method: "DELETE",
+        },
+        {
+            name: "getUserMemory (workspace)", call: () => getUserMemory(undefined, "org-1"),
+            url: "/user/memory?workspace=org-1",
+        },
+        {
+            name: "updateUserMemory (workspace)", call: () => updateUserMemory("# Preferences", 3, "org-1"),
+            url: "/user/memory?workspace=org-1", method: "PUT", body: { content: "# Preferences", expected_revision: 3 },
+        },
+        {
+            name: "setUserMemoryEnabled (workspace)", call: () => setUserMemoryEnabled(false, "org-1"),
+            url: "/user/memory/settings?workspace=org-1", method: "PATCH", body: { enabled: false },
+        },
+        {
+            name: "getOpenRouterModels (workspace)", call: () => getOpenRouterModels("org-1"),
+            url: "/models/openrouter?workspace=org-1",
+        },
+        // Per-recipient project access grants.
+        {
+            name: "getProjectAccess",
+            call: () => getProjectAccess("p1"),
+            url: "/projects/p1/access",
+        },
+        {
+            name: "grantProjectAccess",
+            call: () =>
+                grantProjectAccess("p1", "counsel@outside.example", "viewer"),
+            url: "/projects/p1/access",
+            method: "POST",
+            body: { email: "counsel@outside.example", role: "viewer" },
+        },
+        {
+            // The email is a path segment, so it has to survive encoding.
+            name: "revokeProjectAccess",
+            call: () => revokeProjectAccess("p1", "counsel+eu@outside.example"),
+            url: "/projects/p1/access/counsel%2Beu%40outside.example",
+            method: "DELETE",
         },
     ];
 
@@ -2691,35 +3293,6 @@ describe("memory API", () => {
             expect(init.credentials).toBe("include");
         },
     );
-
-    it("forwards the abort signal to the read wrappers", async () => {
-        fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({})));
-        const userController = new AbortController();
-        const projectController = new AbortController();
-
-        await getUserMemory(userController.signal);
-        expect(lastFetchCall().init.signal).toBe(userController.signal);
-
-        await getProjectMemory("p1", projectController.signal);
-        expect(lastFetchCall().init.signal).toBe(projectController.signal);
-    });
-
-    it("exportMemoryData hits the memory export route", async () => {
-        fetchMock.mockResolvedValue(
-            new Response("memory-bytes", {
-                status: 200,
-                headers: {
-                    "content-disposition": 'attachment; filename="memory.zip"',
-                },
-            }),
-        );
-
-        const { blob, filename } = await exportMemoryData();
-
-        expect(lastFetchCall().url).toBe("/api/user/memory/export");
-        expect(filename).toBe("memory.zip");
-        expect(await readBlobText(blob)).toBe("memory-bytes");
-    });
 });
 
 // ---------------------------------------------------------------------------
@@ -2744,10 +3317,29 @@ describe("unwrapping and blob wrappers", () => {
         expect(lastFetchCall().url).toBe("/api/models/ollama");
     });
 
+    it("getConfiguredModels unwraps the authenticated catalog", async () => {
+        const models = [
+            {
+                id: "local-qwen",
+                label: "Local Qwen",
+                group: "Configured",
+                location: "local",
+                source: "Configured",
+            },
+        ];
+        fetchMock.mockResolvedValue(jsonResponse({ models }));
+
+        await expect(getConfiguredModels()).resolves.toEqual(models);
+        expect(lastFetchCall().url).toBe("/api/models/configured");
+    });
+
     it.each([
         ["OpenRouter", getOpenRouterModels, "/models/openrouter"],
         ["Vercel AI Gateway", getVercelModels, "/models/vercel"],
         ["OpenCode Go", getOpenCodeGoModels, "/models/opencode-go"],
+        ["Amazon Bedrock", getBedrockModels, "/models/bedrock"],
+        ["xAI", getXaiModels, "/models/xai"],
+        ["custom endpoint", getCustomEndpointModels, "/models/custom"],
     ])("loads the %s model catalog", async (_label, load, path) => {
         const models = [{ id: "openai/gpt-5.4", label: "GPT-5.4" }];
         fetchMock.mockResolvedValue(jsonResponse({ models }));
@@ -2756,24 +3348,241 @@ describe("unwrapping and blob wrappers", () => {
         expect(lastFetchCall().url).toBe(`/api${path}`);
     });
 
-    it("exportChatData and exportTabularReviewsData hit their export routes", async () => {
-        fetchMock.mockImplementation(() =>
-            Promise.resolve(
-                new Response("bytes", {
-                    status: 200,
-                    headers: {
-                        "content-disposition": 'attachment; filename="x.zip"',
-                    },
+    it("getPanelDocument fetches a normalized document by opaque ID", async () => {
+        const document = {
+            document_id: "case:123",
+            title: "Example v Example, 123 U.S. 456",
+            type: "case",
+            metadata: [],
+            quotes: [],
+        };
+        fetchMock.mockResolvedValue(jsonResponse(document));
+
+        await expect(getPanelDocument("case:123")).resolves.toEqual(document);
+        const { url, init } = lastFetchCall();
+        expect(url).toBe("/api/documents/case%3A123");
+        expect(init.method).toBeUndefined();
+    });
+
+    it("coalesces concurrent panel-document hydration requests", async () => {
+        const document = {
+            document_id: "case:456",
+            title: "Concurrent case",
+            type: "case",
+            metadata: [],
+            quotes: [],
+        };
+        let resolveResponse: ((response: Response) => void) | undefined;
+        fetchMock.mockImplementation(
+            () =>
+                new Promise<Response>((resolve) => {
+                    resolveResponse = resolve;
                 }),
-            ),
         );
 
-        const chats = await exportChatData();
-        expect(lastFetchCall().url).toBe("/api/user/chats/export");
-        expect(chats.filename).toBe("x.zip");
-        expect(await readBlobText(chats.blob)).toBe("bytes");
+        const first = getPanelDocument("case:456");
+        const second = getPanelDocument("case:456");
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
-        await exportTabularReviewsData();
-        expect(lastFetchCall().url).toBe("/api/user/tabular-reviews/export");
+        resolveResponse?.(jsonResponse(document));
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            document,
+            document,
+        ]);
+    });
+
+    it("rejects invalid panel documents and permits a later retry", async () => {
+        fetchMock
+            .mockResolvedValueOnce(
+                jsonResponse({ document_id: "case:invalid", title: "Broken" }),
+            )
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    document_id: "case:invalid",
+                    title: "Recovered",
+                    type: "case",
+                    metadata: [],
+                    quotes: [],
+                }),
+            );
+
+        await expect(getPanelDocument("case:invalid")).rejects.toThrow(
+            "Invalid source document response",
+        );
+        await expect(getPanelDocument("case:invalid")).resolves.toMatchObject({
+            title: "Recovered",
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("downloadUserExport streams the finished artifact by encoded id", async () => {
+        fetchMock.mockResolvedValue(
+            new Response("csv-bytes", {
+                status: 200,
+                headers: {
+                    "content-disposition":
+                        'attachment; filename="history.csv"',
+                },
+            }),
+        );
+
+        const { blob, filename } = await downloadUserExport("exp/1");
+
+        expect(lastFetchCall().url).toBe("/api/user/exports/exp%2F1/download");
+        expect(filename).toBe("history.csv");
+        expect(await blob.text()).toBe("csv-bytes");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Active workspace: every scoped list can be narrowed, and none is narrowed
+// unless a workspace is named — the route treats the parameter's absence as
+// "every workspace", which is what callers outside the app shell rely on.
+// ---------------------------------------------------------------------------
+describe("workspace parameter on list requests", () => {
+    const ORG = "7b1d9d0e-3c5a-4f6e-9a51-0c2f7d3e8a11";
+    const requests: [string, (workspace?: string) => Promise<unknown>, string][] = [
+        ["searchProjectDirectory", (workspace) => searchProjectDirectory({ search: "matter", workspace }), "/api/projects"],
+        ["listProjects (IDE)", (workspace) => listProjects({ participatingOnly: true, workspace }), "/api/projects"],
+        ["listProjectsPage", (workspace) => listProjectsPage({ workspace }), "/api/projects"],
+        [
+            "listProjectSummaries",
+            (workspace) => listProjectSummaries({ workspace }),
+            "/api/projects",
+        ],
+        ["listProjectIds", (workspace) => listProjectIds({ workspace }), "/api/projects/ids"],
+        [
+            "getProjectFilterOptions",
+            (workspace) => getProjectFilterOptions(undefined, workspace),
+            "/api/projects/filter-options",
+        ],
+        ["listChats", (workspace) => listChats({ workspace }), "/api/chat"],
+        [
+            "listTabularReviews",
+            (workspace) => listTabularReviews(undefined, { workspace }),
+            "/api/tabular-review",
+        ],
+        [
+            "listTabularReviewIds",
+            (workspace) => listTabularReviewIds(undefined, { workspace }),
+            "/api/tabular-review/ids",
+        ],
+        ["listWorkflows", (workspace) => listWorkflows("assistant", workspace), "/api/workflows"],
+        ["listQuickActions", (workspace) => listQuickActions("app", workspace), "/api/quick-actions"],
+        ["listWorkflowsPage", (workspace) => listWorkflowsPage({ workspace }), "/api/workflows"],
+        ["listWorkflowIds", (workspace) => listWorkflowIds({ workspace }), "/api/workflows/ids"],
+        [
+            "getWorkflowFilterOptions",
+            (workspace) => getWorkflowFilterOptions({ workspace }),
+            "/api/workflows/filter-options",
+        ],
+    ];
+
+    const workspaceOf = (url: string) =>
+        new URL(url, "http://localhost").searchParams.get("workspace");
+    const pathOf = (url: string) => new URL(url, "http://localhost").pathname;
+
+    it.each(requests)("%s sends the workspace it is given", async (_name, request, path) => {
+        // A fresh response per call: a Response body can only be read once.
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+
+        await request(ORG);
+        expect(pathOf(lastFetchCall().url)).toBe(path);
+        expect(workspaceOf(lastFetchCall().url)).toBe(ORG);
+
+        await request("personal");
+        expect(workspaceOf(lastFetchCall().url)).toBe("personal");
+    });
+
+    it.each(requests)("%s sends no workspace when none is given", async (_name, request, path) => {
+        // A fresh response per call: a Response body can only be read once.
+        fetchMock.mockImplementation(async () => jsonResponse([]));
+
+        await request();
+        expect(pathOf(lastFetchCall().url)).toBe(path);
+        expect(workspaceOf(lastFetchCall().url)).toBeNull();
+    });
+});
+
+
+describe("organization archives", () => {
+    it("lists the archive by departure", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ departures: [], truncated: false }));
+        expect(await listOrgDepartures("org")).toEqual({ departures: [], truncated: false });
+        expect(lastFetchCall().url).toBe("/api/orgs/org/departures");
+    });
+    it("sends the new owner and permanent deletion for several items at once", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse({ resolved: 2, unresolved: 0 }));
+        expect(await reassignOrgDepartureArchives("org", ["a", "b"], "member")).toEqual({ resolved: 2, unresolved: 0 });
+        expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org/archives/recover", init: { method: "POST", body: JSON.stringify({ archive_ids: ["a", "b"], assign_to: "member" }) } });
+        await deleteOrgDepartureArchives("org", ["a", "b"]);
+        expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org/archives/delete", init: { method: "POST", body: JSON.stringify({ archive_ids: ["a", "b"] }) } });
+    });
+});
+
+
+describe("organization logos", () => {
+    it.each(["data:image/png;base64,test", ""])("reads the saved logo or an empty logo (%s)", async (dataUrl) => {
+        fetchMock.mockResolvedValue(jsonResponse({ data_url: dataUrl }));
+        expect(await getOrgLogo("org-1")).toBe(dataUrl || null);
+        expect(lastFetchCall().url).toBe("/api/orgs/org-1/logo");
+    });
+
+    it("treats a missing logo as empty without hiding server or network errors", async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Not found" }, { status: 404 }));
+        expect(await getOrgLogo("org-1")).toBeNull();
+        fetchMock.mockResolvedValueOnce(jsonResponse({ detail: "Unavailable" }, { status: 503 }));
+        await expect(getOrgLogo("org-1")).rejects.toMatchObject({ status: 503 });
+        const error = new TypeError("Network unavailable");
+        fetchMock.mockRejectedValueOnce(error);
+        await expect(getOrgLogo("org-1")).rejects.toBe(error);
+    });
+});
+
+
+describe("profile photos", () => {
+    it("saves a raster data URL through the authenticated gateway", async () => {
+        const photo = "data:image/png;base64,iVBORw0KGgo=";
+        fetchMock.mockResolvedValue(jsonResponse({ profilePhoto: photo }));
+        expect(await setUserProfilePhoto(photo)).toEqual({ profilePhoto: photo });
+        const { url, init } = lastFetchCall();
+        expect(url).toContain("/user/profile/photo");
+        expect(init.method).toBe("PUT");
+        expect(new Headers(init.headers).get("Content-Type")).toBe("application/json");
+        expect(JSON.parse(init.body as string)).toEqual({ data_url: photo });
+    });
+    it("removes a photo without sending image data", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ profilePhoto: null }));
+        await setUserProfilePhoto(null);
+        const { url, init } = lastFetchCall();
+        expect(url).toContain("/user/profile/photo");
+        expect(init.method).toBe("DELETE");
+        expect(init.body).toBeUndefined();
+    });
+});
+
+
+describe("organization private content", () => {
+    it("paginates and encodes private-content search", async () => {
+        const page = { items: [], total: 0 };
+        fetchMock.mockImplementation(async () => jsonResponse(page));
+        expect(await listOrgPrivateContent("org-1")).toEqual(page);
+        expect(lastFetchCall().url).toBe("/api/orgs/org-1/private-content?limit=50&offset=0&search=");
+        await listOrgPrivateContent("org-1", 50, "Alex & Pat");
+        expect(lastFetchCall().url).toBe("/api/orgs/org-1/private-content?limit=50&offset=50&search=Alex+%26+Pat");
+    });
+    it.each([true, false])("sets private-content permission to %s", async (enabled) => {
+        fetchMock.mockResolvedValue(jsonResponse({}));
+        await setOrgPrivateContentPermission("org-1", "member-1", enabled);
+        expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org-1/members/member-1/private-content-permission", init: {
+            method: "PUT", body: JSON.stringify({ enabled }),
+        } });
+    });
+    it("opens and closes explicit read access to the requested item", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse({}));
+        await openOrgPrivateContent("org-1", "document", "doc-1");
+        expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org-1/private-content/document/doc-1/open", init: { method: "POST" } });
+        await closeOrgPrivateContent("org-1", "document", "doc-1");
+        expect(lastFetchCall()).toMatchObject({ url: "/api/orgs/org-1/private-content/document/doc-1", init: { method: "DELETE" } });
     });
 });

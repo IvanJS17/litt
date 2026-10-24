@@ -1,36 +1,41 @@
 import "dotenv/config";
+import { rateLimitedBody } from "./lib/httpError";
 import { createHash, randomUUID } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
-import { chatRouter } from "./routes/chat";
-import { wordChatRouter } from "./routes/wordChat";
-import { projectsRouter } from "./routes/projects";
-import { orgsRouter } from "./routes/orgs";
-import { projectChatRouter } from "./routes/projectChat";
-import { documentsRouter } from "./routes/documents";
-import { libraryRouter } from "./routes/library";
-import { tabularRouter } from "./routes/tabular";
-import { workflowsRouter } from "./routes/workflows";
-import { quickActionsRouter } from "./routes/quickActions";
-import { workflowAddonsRouter } from "./routes/workflowAddons";
-import { userRouter } from "./routes/user";
-import { modelsRouter } from "./routes/models";
-import { downloadsRouter } from "./routes/downloads";
-import { auditRouter } from "./routes/audit";
-import { uploadSessionsRouter } from "./routes/uploadSessions";
-import { aiRecoveryRouter } from "./routes/aiRecovery";
-import { matterSettingsRouter } from "./routes/matterSettings";
-import { authRouter } from "./routes/auth";
-import { projectMemoryRouter, userMemoryRouter } from "./routes/memory";
+import { chatRouter } from "./modules/chat/chat.routes";
+import { wordChatRouter } from "./modules/word-chat/wordChat.routes";
+import { projectsRouter } from "./modules/projects/projects.routes";
+import { orgsRouter } from "./modules/orgs/orgs.routes";
+import { projectChatRouter } from "./modules/project-chat/projectChat.routes";
+import { documentsRouter } from "./modules/documents/documents.routes";
+import { libraryRouter } from "./modules/library/library.routes";
+import { tabularRouter } from "./modules/tabular/tabular.routes";
+import { workflowsRouter } from "./modules/workflows/workflows.routes";
+import { quickActionsRouter } from "./modules/quick-actions/quickActions.routes";
+import { workflowAddonsRouter } from "./modules/workflows/workflowAddons.routes";
+import { userRouter } from "./modules/user/user.routes";
+import { modelsRouter } from "./modules/models/models.routes";
+import { downloadsRouter } from "./modules/downloads/downloads.routes";
+import { auditRouter } from "./modules/audit/audit.routes";
+import { authRouter } from "./modules/auth/auth.routes";
+import { uploadSessionsRouter } from "./modules/uploads/uploads.routes";
+import {
+  projectMemoryRouter,
+  userMemoryRouter,
+} from "./modules/memory/memory.routes";
+import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
+import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
+import { matterSettingsRouter } from "./modules/matters/matters.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
-import { envInt } from "./lib/runtimeConfig";
 import {
   handleUnhandledError,
   protectInternalErrorResponses,
 } from "./middleware/internalErrorResponse";
 import { configuredAllowedOrigins } from "./lib/origins";
+import { envInt } from "./lib/runtimeConfig";
 
 export const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -63,9 +68,11 @@ function makeLimiter(options: {
     skip: (req) => req.method === "OPTIONS" || options.skip?.(req) === true,
     keyGenerator: options.keyGenerator,
     skipSuccessfulRequests: options.skipSuccessfulRequests,
-    message: {
-      detail: options.message ?? "Too many requests. Please try again later.",
-    },
+    // A machine code lets clients classify the failure without parsing
+    // prose; the detail stays specific to the lane that was exhausted.
+    message: rateLimitedBody(
+      options.message ?? "Too many requests. Please try again later.",
+    ),
   });
 }
 
@@ -103,16 +110,22 @@ const chatCreateLimiter = makeLimiter({
   max: envInt("RATE_LIMIT_CHAT_CREATE_MAX", 60),
 });
 
+const exportLimiter = makeLimiter({
+  windowMs: hours(envInt("RATE_LIMIT_EXPORT_WINDOW_HOURS", 1)),
+  max: envInt("RATE_LIMIT_EXPORT_MAX", 10),
+  message: "Too many export requests. Please try again later.",
+});
+
 const workflowImportLimiter = makeLimiter({
   windowMs: hours(envInt("RATE_LIMIT_UPLOAD_WINDOW_HOURS", 1)),
   max: envInt("RATE_LIMIT_UPLOAD_MAX", 50),
   message: "Too many workflow imports. Please try again later.",
 });
 
-const exportLimiter = makeLimiter({
-  windowMs: hours(envInt("RATE_LIMIT_EXPORT_WINDOW_HOURS", 1)),
-  max: envInt("RATE_LIMIT_EXPORT_MAX", 10),
-  message: "Too many export requests. Please try again later.",
+const playbookImportLimiter = makeLimiter({
+  windowMs: hours(envInt("RATE_LIMIT_UPLOAD_WINDOW_HOURS", 1)),
+  max: envInt("RATE_LIMIT_UPLOAD_MAX", 50),
+  message: "Too many playbook imports. Please try again later.",
 });
 
 const dataDeleteLimiter = makeLimiter({
@@ -171,6 +184,7 @@ app.use((_req, res, next) => {
   const requestId = randomUUID();
   res.locals.requestId = requestId;
   res.setHeader("X-Request-ID", requestId);
+  // Same id on the response body and the access log.
   next();
 });
 app.use(protectInternalErrorResponses);
@@ -214,6 +228,11 @@ app.use(
     credentials: true,
     allowedHeaders: ["Authorization", "Content-Type"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // The request id is the correlation key between a user report and the
+    // access log. Browsers hide response headers from
+    // cross-origin scripts unless they are listed here, so a dev build or a
+    // self-hoster serving the API from another origin could not read it.
+    exposedHeaders: ["X-Request-ID"],
   }),
 );
 
@@ -239,9 +258,15 @@ app.post(TOOL_RESULT_PATH, toolResultLimiter, express.json({ limit: "2mb" }));
 app.post("/projects/:projectId/chat", chatLimiter);
 app.post("/tabular-review/:reviewId/chat", chatLimiter);
 app.post("/tabular-review/:reviewId/generate", chatLimiter);
+// A playbook review is one large model call (or a tool loop when the playbook
+// has supplementary documents), so it shares the chat lane's budget.
+app.post("/playbooks/:playbookId/review", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
-app.post("/chat/:chatId/generate-title", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
+app.post(
+  ["/playbooks/import", "/playbooks/import/upload-url"],
+  playbookImportLimiter,
+);
 const legacyUploadRemoved = (_req: express.Request, res: express.Response) => {
   res.status(410).json({
     code: "upload_session_required",
@@ -255,21 +280,19 @@ const legacyUploadRemoved = (_req: express.Request, res: express.Response) => {
 app.post("/single-documents", legacyUploadRemoved);
 app.post("/library/:kind/documents", legacyUploadRemoved);
 app.post("/single-documents/:documentId/versions", legacyUploadRemoved);
-app.post("/workflows/:workflowId/reference-files", legacyUploadRemoved);
-app.put(
-  "/workflows/:workflowId/reference-files/:referenceId",
-  legacyUploadRemoved,
-);
 app.put(
   "/single-documents/:documentId/versions/:versionId/file",
   legacyUploadRemoved,
 );
 app.post("/projects/:projectId/documents", legacyUploadRemoved);
 app.get("/projects/:projectId/export", exportLimiter);
-app.get("/user/export", exportLimiter);
-app.get("/user/chats/export", exportLimiter);
-app.get("/user/tabular-reviews/export", exportLimiter);
-app.get("/audit/export", exportLimiter);
+// Scheduling an async export costs what the synchronous project export above
+// costs — a whole-corpus walk, just on a worker — so it shares its budget.
+// Deliberately POST-only: the /user/exports/:id poll and its download
+// stay on the general limiter, because a client polls every couple of seconds
+// while an export builds and a 10/hour budget would lock the user out of an
+// export they legitimately scheduled.
+app.post("/user/exports", exportLimiter);
 app.delete("/user/account", dataDeleteLimiter);
 app.delete("/user/chats", dataDeleteLimiter);
 app.delete("/user/projects", dataDeleteLimiter);
@@ -299,9 +322,9 @@ app.use("/quick-actions", quickActionsRouter);
 app.use("/workflow-addons", workflowAddonsRouter);
 app.use("/user/memory", userMemoryRouter);
 app.use("/user", userRouter);
-app.use("/users", userRouter);
 app.use("/download", downloadsRouter);
 app.use("/audit", auditRouter);
+app.use("/playbooks", playbooksRouter);
 app.use("/upload-sessions", uploadSessionsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -321,4 +344,10 @@ app.get("/manifest-signing-key", (_req, res) => {
   }
 });
 
+// Terminal error handler. Routers mount routerErrorHandler("[tag]") so a
+// failure is attributed to its router in the log; the response is delegated
+// back here, so every router answers with the same body. Anything that escapes
+// a router lands here too, instead of Express's default handler, which would
+// leak the stack trace in a non-production environment. Must stay last: Express
+// only reaches an error handler registered after the middleware that failed.
 app.use(handleUnhandledError);

@@ -33,6 +33,7 @@ interface WorkflowPickerContentProps {
     search: string;
     onSearchChange: (value: string) => void;
     loading?: boolean;
+    previewLoading?: boolean;
     workflowType?: Workflow["metadata"]["type"] | "all";
     emptyMessage?: string;
     previewMode?: WorkflowPreviewMode;
@@ -48,6 +49,7 @@ export function WorkflowPickerContent({
     search,
     onSearchChange,
     loading = false,
+    previewLoading = false,
     workflowType = "all",
     emptyMessage,
     previewMode = "auto",
@@ -123,7 +125,8 @@ export function WorkflowPickerContent({
 
                 <div
                     data-slot="workflow-picker-list"
-                    className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto rounded-sm px-1 pt-2"
+                    data-modal-scroll="vertical"
+                    className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto rounded-sm pt-2"
                 >
                     {loading ? (
                         <div className="space-y-px">
@@ -204,6 +207,7 @@ export function WorkflowPickerContent({
                     mode={previewMode}
                     onClear={handleClearPreview}
                     allowClear={allowClearPreview}
+                    loading={previewLoading}
                     className={
                         mobilePane === "details" ? "flex" : "hidden md:flex"
                     }
@@ -218,12 +222,14 @@ function WorkflowPreview({
     mode,
     onClear,
     allowClear,
+    loading,
     className = "flex",
 }: {
     workflow: Workflow;
     mode: WorkflowPreviewMode;
     onClear: () => void;
     allowClear: boolean;
+    loading: boolean;
     className?: string;
 }) {
     const resolvedMode =
@@ -237,7 +243,7 @@ function WorkflowPreview({
             className={`${className} min-h-0 min-w-0 flex-1 flex-col overflow-visible`}
         >
             <div
-                className={`flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-1 ${LIQUID_GLASS_SUBTLE_CLASS} backdrop-blur-xl`}
+                className={`flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl p-1 ${LIQUID_GLASS_SUBTLE_CLASS}`}
             >
                 <div className="flex h-9 shrink-0 items-center justify-between px-3">
                     <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
@@ -254,7 +260,9 @@ function WorkflowPreview({
                     ) : null}
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-                    {resolvedMode === "columns" ? (
+                    {loading ? (
+                        <WorkflowPreviewSkeleton mode={resolvedMode} />
+                    ) : resolvedMode === "columns" ? (
                         <WorkflowColumnPreview
                             columns={workflow.columns_config ?? []}
                         />
@@ -271,11 +279,31 @@ function WorkflowPreview({
     );
 }
 
+function WorkflowPreviewSkeleton({ mode }: { mode: "prompt" | "columns" }) {
+    return (
+        <div
+            role="status"
+            aria-label={`Loading workflow ${mode}`}
+            className="min-w-0 flex-1 space-y-3 px-3 py-3"
+        >
+            {(mode === "columns"
+                ? ["w-3/4", "w-2/3", "w-4/5", "w-1/2"]
+                : ["w-full", "w-11/12", "w-4/5", "w-full", "w-2/3"]
+            ).map((width, index) => (
+                <div
+                    key={index}
+                    className={`h-3 animate-pulse rounded bg-gray-100 ${width}`}
+                />
+            ))}
+        </div>
+    );
+}
+
 function WorkflowPromptPreview({ content }: { content: string }) {
     const previewContent = stripLeadingMarkdownHeading(content);
 
     return (
-        <div className="min-w-0 flex-1 break-words rounded-md px-3 py-3 font-serif text-sm leading-relaxed text-gray-600">
+        <div className="min-w-0 flex-1 break-words rounded-md px-3 py-3 text-xs leading-relaxed text-gray-600">
             <WorkflowPromptMarkdown content={previewContent} />
         </div>
     );
@@ -292,17 +320,17 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
             remarkPlugins={[remarkGfm]}
             components={{
                 h1: ({ children }) => (
-                    <h1 className="mb-1 mt-4 text-base font-semibold text-gray-900 first:mt-0">
+                    <h1 className="mb-1 mt-4 text-sm font-semibold text-gray-900 first:mt-0">
                         {children}
                     </h1>
                 ),
                 h2: ({ children }) => (
-                    <h2 className="mb-1 mt-3 text-sm font-semibold text-gray-900 first:mt-0">
+                    <h2 className="mb-1 mt-3 text-xs font-semibold text-gray-900 first:mt-0">
                         {children}
                     </h2>
                 ),
                 h3: ({ children }) => (
-                    <h3 className="mb-0.5 mt-2 text-xs font-semibold text-gray-900 first:mt-0">
+                    <h3 className="mb-0.5 mt-2 text-[11px] font-semibold text-gray-900 first:mt-0">
                         {children}
                     </h3>
                 ),
@@ -322,7 +350,7 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
                 li: ({ children }) => <li>{children}</li>,
                 table: ({ children }) => (
                     <div className="my-3 overflow-x-auto rounded-md border border-gray-200 first:mt-0 last:mb-0">
-                        <table className="min-w-full border-collapse text-left text-xs">
+                        <table className="min-w-full border-collapse text-left text-[11px]">
                             {children}
                         </table>
                     </div>
@@ -403,10 +431,10 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                 />
                             </button>
                             {isExpanded ? (
-                                <div className="mt-1 min-w-0 space-y-3 break-words rounded-md bg-white/60 px-4 py-3 font-serif text-sm leading-relaxed text-gray-600">
+                                <div className="mt-1 min-w-0 space-y-3 break-words rounded-md bg-white/60 px-4 py-3 text-xs leading-relaxed text-gray-600">
                                     {column.tags && column.tags.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 font-sans text-[11px] font-medium text-gray-600">
+                                            <p className="mb-1.5 text-[11px] font-medium text-gray-600">
                                                 Tags
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
@@ -414,7 +442,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                                     (tag, tagIdx) => (
                                                         <span
                                                             key={tag}
-                                                            className={`inline-block rounded-full px-1.5 py-0.5 font-sans text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
+                                                            className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] ${TAG_COLORS[tagIdx % TAG_COLORS.length]}`}
                                                         >
                                                             {tag}
                                                         </span>
@@ -424,7 +452,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                         </div>
                                     ) : null}
                                     <div>
-                                        <p className="mb-1 font-sans text-[11px] font-medium text-gray-600">
+                                        <p className="mb-1 text-[11px] font-medium text-gray-600">
                                             Prompt
                                         </p>
                                         <WorkflowPromptMarkdown

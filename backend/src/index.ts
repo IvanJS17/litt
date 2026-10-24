@@ -1,25 +1,42 @@
+// backend/.env before anything else: configuration is read at import time.
+import "dotenv/config";
+import type { Server } from "node:http";
 import { Worker as ThreadWorker } from "node:worker_threads";
 import path from "node:path";
 import { app } from "./app";
+import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import { validateRuntimeConfiguration } from "./lib/runtimeConfig";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
+import {
+  closeHttpServer,
+  createShutdown,
+  failBoot,
+  listenOrFail,
+} from "./lib/processLifecycle";
 
 const PORT = process.env.PORT ?? 3001;
+const HOST = process.env.HOST?.trim() || undefined;
 
 // Surface a malformed MANIFEST_SIGNING_KEY at boot rather than when someone's
 // first export fails. Unset is a valid choice and means manifests go out
 // unsigned; malformed is a misconfiguration, so stop rather than serve a
 // deployment whose exports will fail later.
-try {
-  validateRuntimeConfiguration();
-  const signingKey = manifestPublicKey();
-  if (signingKey) {
-    console.log(`Export manifests signed with key ${signingKey.key_id}`);
+//
+// Runs inside main() and is awaited: a process that has already decided to
+// exit must not bind the port or claim a job on its way out.
+async function validateBootConfiguration(): Promise<void> {
+  let stage = "runtime-config";
+  try {
+    validateRuntimeConfiguration();
+    stage = "manifest-key";
+    const signingKey = manifestPublicKey();
+    if (signingKey) {
+      console.log(`Export manifests signed with key ${signingKey.key_id}`);
+    }
+  } catch (err) {
+    await failBoot(err, stage);
   }
-} catch (err) {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
 }
 
 /**
@@ -53,6 +70,9 @@ function spawnWorkerThread(): void {
     execArgv: isTs ? ["--require", "tsx/cjs"] : [],
   });
   workerThread.on("error", (err) => {
+    // An uncaught throw inside the thread. What arrives here is a structured
+    // clone, so this supervisor view is only a log line; the thread logs its
+    // own failure with the real stack and job context.
     console.error("[worker-thread] error", err);
   });
   workerThread.on("exit", (code) => {
@@ -68,18 +88,41 @@ function spawnWorkerThread(): void {
   });
 }
 
-const server = app.listen(PORT, () => {
-  console.log(
-    `Mike backend running on port ${PORT} (workers: ${WORKERS_MODE})`,
+let server: Server | null = null;
+
+async function main(): Promise<void> {
+  await validateBootConfiguration();
+  // Deploying this code against a database that has not run the
+  // document-lifecycle migrations leaks storage silently and fails every
+  // upload — see lifecycleGuard. The probe is AWAITED before the port is
+  // bound and before any worker starts: a destructive request that arrives
+  // while the check is still in flight would otherwise be served by code the
+  // database cannot back. The guard exits the process when the migration is
+  // provably absent and only warns when the answer is unavailable, so the
+  // cost of gating is one round trip of boot latency, never a crash loop.
+  await enforceDocumentLifecycleMigration();
+
+  server = listenOrFail(
+    app,
+    PORT,
+    () => {
+      console.log(
+        `Mike backend running on port ${PORT} (workers: ${WORKERS_MODE})`,
+      );
+      if (WORKERS_MODE === "thread") {
+        spawnWorkerThread();
+      } else if (WORKERS_MODE === "inline") {
+        startAllWorkers();
+      }
+      // WORKERS_MODE === "none": a standalone worker process owns background
+      // work (node dist/worker.js).
+    },
+    undefined,
+    HOST,
   );
-  if (WORKERS_MODE === "thread") {
-    spawnWorkerThread();
-  } else if (WORKERS_MODE === "inline") {
-    startAllWorkers();
-  }
-  // WORKERS_MODE === "none": a standalone worker process owns background
-  // work (node dist/worker.js).
-});
+}
+
+void main();
 
 // Graceful shutdown: on SIGTERM/SIGINT (orchestrator rollout, Ctrl-C), stop
 // accepting new connections, let in-flight requests/streams drain, stop the
@@ -103,27 +146,14 @@ async function stopBackgroundWork(): Promise<void> {
   });
 }
 
-async function shutdown(signal: string) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`Shutting down gracefully (${signal})`);
-  const forceExit = setTimeout(() => {
-    console.error("Graceful shutdown timed out — forcing exit");
-    process.exit(1);
-  }, 15_000);
-  forceExit.unref();
-  try {
-    await new Promise<void>((resolve, reject) =>
-      server.close((err) => (err ? reject(err) : resolve())),
-    );
-    await stopBackgroundWork();
-    console.log("Shutdown complete");
-    process.exit(0);
-  } catch (err) {
-    console.error("Error during graceful shutdown", err);
-    process.exit(1);
-  }
-}
+const shutdown = createShutdown({
+  // Set before anything stops so the worker thread's exit is not respawned.
+  onStart: () => {
+    shuttingDown = true;
+  },
+  closeServer: () => closeHttpServer(server),
+  stopBackgroundWork,
+});
 
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));

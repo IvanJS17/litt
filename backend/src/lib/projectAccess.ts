@@ -12,19 +12,17 @@
 //     an existing profile when the grant is created; email remains the stable
 //     address used when evaluating access.
 //   * Direct grants and organization access are mutually exclusive scopes.
-//     Organization content instead uses explicit per-resource overrides
-//     only — the LiTT tenancy model grants nothing implicitly.
+//     Organization content instead uses membership defaults plus explicit
+//     per-resource overrides.
 //
 // The retired `projects.shared_with` array is migrated once into this table;
 // all reads and writes use grants directly from then on.
 
-import type { createServerSupabase } from "./supabase";
+import type { Db } from "./supabase";
 import { normalizeEmail } from "./access";
 import { isProjectRole, type ProjectRole } from "./permissions";
 import { listOrgAccessPeople } from "./orgAccessOverrides";
 import { findProfileUserByEmail } from "./userLookup";
-
-type Db = ReturnType<typeof createServerSupabase>;
 
 export type ProjectGrant = {
     id: string;
@@ -36,9 +34,18 @@ export type ProjectGrant = {
     updated_at: string;
 };
 
+/**
+ * Builds the direct or organization roster for a project the caller has already authorized.
+ * Photo queries are limited to the creator and the roster identities.
+ */
 export async function listProjectPeople(
     db: Db,
-    project: { id: string; user_id: string | null; org_id?: string | null },
+    project: {
+        id: string;
+        user_id: string | null;
+        org_id?: string | null;
+        visibility?: string | null;
+    },
 ): Promise<
     | {
           ok: true;
@@ -47,12 +54,14 @@ export async function listProjectPeople(
               user_id: string;
               email: string | null;
               display_name: string | null;
+              profile_photo?: string | null;
               role: "owner";
           } | null;
           members: {
               user_id?: string | null;
               email: string;
               display_name: string | null;
+              profile_photo?: string | null;
               role: ProjectRole | "deny";
           }[];
       }
@@ -64,6 +73,7 @@ export async function listProjectPeople(
             resourceId: project.id,
             orgId: project.org_id,
             creatorId: project.user_id,
+            visibility: project.visibility,
         });
         if (!listed.ok) return listed;
         const creator = listed.people.find(
@@ -77,6 +87,7 @@ export async function listProjectPeople(
                       user_id: creator.user_id,
                       email: creator.email,
                       display_name: creator.display_name,
+                      profile_photo: creator.profile_photo ?? null,
                       role: "owner",
                   }
                 : null,
@@ -91,7 +102,7 @@ export async function listProjectPeople(
         project.user_id
             ? db
                   .from("user_profiles")
-                  .select("user_id, email, display_name")
+                  .select("user_id, email, display_name, profile_photo")
                   .eq("user_id", project.user_id)
                   .maybeSingle()
             : Promise.resolve({ data: null, error: null }),
@@ -103,7 +114,7 @@ export async function listProjectPeople(
     const { data: profiles, error } = emails.length
         ? await db
               .from("user_profiles")
-              .select("user_id, email, display_name")
+              .select("user_id, email, display_name, profile_photo")
               .in("email", emails)
         : { data: [], error: null };
     if (error) return { ok: false, detail: error.message };
@@ -112,12 +123,14 @@ export async function listProjectPeople(
             user_id: string;
             email: string;
             display_name: string | null;
+            profile_photo?: string | null;
         }[]).map((profile) => [profile.email, profile]),
     );
     const creator = creatorProfile.data as {
         user_id: string;
         email: string | null;
         display_name: string | null;
+        profile_photo?: string | null;
     } | null;
     return {
         ok: true,
@@ -127,6 +140,7 @@ export async function listProjectPeople(
                   user_id: creator.user_id,
                   email: creator.email,
                   display_name: creator.display_name,
+                  profile_photo: creator.profile_photo ?? null,
                   role: "owner",
               }
             : null,
@@ -135,6 +149,7 @@ export async function listProjectPeople(
             email: grant.email,
             display_name:
                 profileByEmail.get(grant.email)?.display_name ?? null,
+                profile_photo: profileByEmail.get(grant.email)?.profile_photo ?? null,
             role: grant.role,
         })),
     };
@@ -287,12 +302,16 @@ export type ProjectContact = {
  * line could never render.
  *
  * The creator is listed first (they are the most likely point of contact),
- * followed by direct Owner grants or — for organization projects — the
- * members holding an explicit Owner override.
+ * followed by direct Owner grants or the org's Admins.
  */
 export async function listProjectAdminContacts(
     db: Db,
-    project: { id: string; user_id: string | null; org_id?: string | null },
+    project: {
+        id: string;
+        user_id: string | null;
+        org_id?: string | null;
+        visibility?: string | null;
+    },
 ): Promise<ProjectContact[]> {
     const contacts: ProjectContact[] = [];
     const seenEmails = new Set<string>();
@@ -309,6 +328,7 @@ export async function listProjectAdminContacts(
             resourceId: project.id,
             orgId: project.org_id,
             creatorId: project.user_id,
+            visibility: project.visibility,
         });
         if (!listed.ok) {
             console.error("[project-access] organization roster unreadable", {
@@ -332,17 +352,16 @@ export async function listProjectAdminContacts(
         return contacts;
     }
 
-    // Personal scope from here on. (Upstream carried an unreachable
-    // org-contact branch below that referenced `org_members`; it was removed
-    // with the LiTT membership model.)
     const profileIds: string[] = [];
-    const creatorIsActive = !!project.user_id;
+    let creatorIsActive = !!project.user_id;
 
     // Contacts are enrichment for refusal popups, not an authorization
     // input, so a failed grants read degrades this one source rather than
-    // failing the project load — the creator contact below is still built.
-    // Logged because a popup with no name is a dead end.
-    const listed = await listProjectGrants(db, project.id);
+    // failing the project load — the creator and org-admin contacts below
+    // are still built. Logged because a popup with no name is a dead end.
+    const listed = project.org_id
+        ? ({ ok: true, grants: [] } as const)
+        : await listProjectGrants(db, project.id);
     if (!listed.ok) {
         console.error("[project-access] grants unreadable for contacts", {
             projectId: project.id,
@@ -353,6 +372,29 @@ export async function listProjectAdminContacts(
         .filter((g) => g.role === "owner")
         .map((g) => g.email);
 
+    let orgOwnerIds: string[] = [];
+    if (project.org_id) {
+        const [{ data: membership }, { data: overrides }] = await Promise.all([
+            project.user_id
+                ? db
+                      .from("org_members")
+                      .select("user_id")
+                      .eq("org_id", project.org_id)
+                      .eq("user_id", project.user_id)
+                      .maybeSingle()
+                : Promise.resolve({ data: null }),
+            db
+            .from("project_org_access_overrides")
+            .select("user_id")
+            .eq("project_id", project.id)
+            .eq("role", "owner"),
+        ]);
+        creatorIsActive = !!membership;
+        orgOwnerIds = ((overrides ?? []) as { user_id?: string | null }[])
+            .map((r) => r.user_id)
+            .filter((id): id is string => !!id);
+        profileIds.push(...orgOwnerIds);
+    }
     if (creatorIsActive && project.user_id) profileIds.push(project.user_id);
 
     const byUserId = new Map<
@@ -412,6 +454,15 @@ export async function listProjectAdminContacts(
             email,
             display_name: profile?.display_name ?? null,
             source: "grant",
+        });
+    }
+    for (const ownerId of orgOwnerIds) {
+        const profile = byUserId.get(ownerId);
+        push({
+            user_id: ownerId,
+            email: profile?.email ?? null,
+            display_name: profile?.display_name ?? null,
+            source: "organization",
         });
     }
     return contacts;

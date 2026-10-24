@@ -25,6 +25,14 @@ export interface OfficeSeed {
   staleInsertedRangeOriginals?: string[];
   unselectableOriginals?: string[];
   /**
+   * Reject the next sync that carries a tracked edit. "before-apply" rolls
+   * the mock document back first; "after-apply" keeps the revisions while
+   * simulating a lost/failed response from Word.
+   */
+  trackedMutationSyncFailure?: "before-apply" | "after-apply";
+  /** Let this many tracked-edit syncs succeed before that failure fires. */
+  trackedMutationSyncFailureAfter?: number;
+  /**
    * Structured description of the document body for the markdown document
    * context: when present, body.paragraphs/body.tables exist and describe
    * these blocks; when absent (every pre-existing spec), those collections
@@ -166,6 +174,9 @@ export function installOfficeMock(seed: OfficeSeed): void {
     sessionStorage.setItem(documentStateKey, JSON.stringify(documentState));
   };
   if (!sessionStorage.getItem(documentStateKey)) persistDocumentState();
+  let trackedMutationSyncFailure = seed.trackedMutationSyncFailure;
+  let trackedMutationSyncsBeforeFailure =
+    seed.trackedMutationSyncFailureAfter ?? 0;
 
   const markParagraphDeleted = (paragraphIndex: number): void => {
     const deleted = documentState.deletedParagraphIndexes ?? [];
@@ -504,9 +515,28 @@ export function installOfficeMock(seed: OfficeSeed): void {
   };
 
   function makeContext(): any {
+    let mutationSyncPending = false;
+    let documentStateBeforeMutation: StoredDocumentState | null = null;
+    let trackedCallsBeforeMutation = 0;
     const context: any = {
       document: null,
-      sync: () => Promise.resolve(),
+      sync: async () => {
+        if (!mutationSyncPending || !trackedMutationSyncFailure) return;
+        if (trackedMutationSyncsBeforeFailure > 0) {
+          trackedMutationSyncsBeforeFailure -= 1;
+          mutationSyncPending = false;
+          return;
+        }
+        const failureMode = trackedMutationSyncFailure;
+        trackedMutationSyncFailure = undefined;
+        mutationSyncPending = false;
+        if (failureMode === "before-apply" && documentStateBeforeMutation) {
+          documentState = clone(documentStateBeforeMutation);
+          wordCalls.trackedChanges.length = trackedCallsBeforeMutation;
+          persistDocumentState();
+        }
+        throw new Error("GeneralException: tracked mutation sync failed");
+      },
     };
     const doc: any = {
       changeTrackingMode: ChangeTrackingMode.off,
@@ -521,6 +551,11 @@ export function installOfficeMock(seed: OfficeSeed): void {
       const entry: WordCall = { text, location };
       if (original !== undefined) entry.original = original;
       if (doc.changeTrackingMode === ChangeTrackingMode.trackAll) {
+        if (trackedMutationSyncFailure && !mutationSyncPending) {
+          documentStateBeforeMutation = clone(documentState);
+          trackedCallsBeforeMutation = wordCalls.trackedChanges.length;
+          mutationSyncPending = true;
+        }
         wordCalls.trackedChanges.push(entry);
       } else {
         wordCalls.inserts.push(entry);

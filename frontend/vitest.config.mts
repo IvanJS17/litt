@@ -1,25 +1,91 @@
+import { availableParallelism, totalmem } from "node:os";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+
+// Local worker cap. Vitest's default for `vitest run` is one fork per CPU
+// core minus one, so on a 10-12 core laptop a single `npm test` starts 9-11
+// forks, and running the frontend and backend suites together doubles that.
+// The frontend forks each boot jsdom. That was enough to crash a teammate's
+// laptop. Locally we use at most half the cores and at most one worker per
+// 4 GiB of RAM (8 GiB -> 2, 16 GiB -> 4). CI runners are dedicated machines,
+// so they keep Vitest's default. To change the cap for one run, pass
+// `--maxWorkers=<n>` or set VITEST_MAX_WORKERS.
+const localMaxWorkers = Math.max(
+    Math.min(
+        Math.floor(availableParallelism() / 2),
+        Math.floor(totalmem() / (4 * 1024 ** 3)),
+    ),
+    1,
+);
 
 const resolvePath = (relative: string) =>
     fileURLToPath(new URL(relative, import.meta.url));
 
 export default defineConfig({
     plugins: [react()],
+    // Next emits imported images as files. Match that behavior instead of
+    // Vite's inline data URLs when testing image preloads.
+    build: { assetsInlineLimit: 0 },
     resolve: {
         // Mirror the `@/*` path alias from tsconfig.json so unit tests resolve
         // the same module specifiers the app uses.
         alias: [
+            // Cross-target tests resolve runtime dependencies from this package,
+            // including on CI where word-addin/node_modules is absent.
+            {
+                find: /^react$/,
+                replacement: resolvePath("./node_modules/react/index.js"),
+            },
+            {
+                find: /^@mike\/upload-session-client$/,
+                replacement: resolvePath("./src/shared/api/uploadSessionClient.ts"),
+            },
+            // Word add-in sources under test import the shared model catalog
+            // through the add-in's alias.
+            {
+                find: /^@mike\/model-catalog$/,
+                replacement: resolvePath("./src/shared/lib/modelCatalog.ts"),
+            },
             {
                 find: /^@\/(.*)$/,
                 replacement: resolvePath("./src/$1"),
+            },
+            // The Word add-in consumes shared modules through per-file
+            // `@mike/*` aliases (see word-addin/webpack.config.js). Mirror them
+            // so add-in modules under test here resolve the same files.
+            {
+                find: "@mike/user-error",
+                replacement: resolvePath("./src/shared/lib/userError.ts"),
+            },
+            {
+                find: "@mike/toast-store",
+                replacement: resolvePath("./src/shared/lib/toastStore.ts"),
+            },
+            {
+                find: "@mike/error-notifier",
+                replacement: resolvePath("./src/shared/lib/errorNotifier.ts"),
+            },
+            {
+                find: "@mike/toast-ui",
+                replacement: resolvePath("./src/shared/ui/ToastUI.tsx"),
+            },
+            {
+                find: "@mike/secure-uuid",
+                replacement: resolvePath("./src/shared/lib/secureUuid.ts"),
+            },
+            {
+                find: "@mike/upload-session-client",
+                replacement: resolvePath(
+                    "./src/shared/api/uploadSessionClient.ts",
+                ),
             },
         ],
     },
     test: {
         globals: true,
         environment: "jsdom",
+        maxWorkers: process.env.CI ? undefined : localMaxWorkers,
         setupFiles: ["./vitest.setup.ts"],
         // jsdom 27's CSS-color parser (@asamuzakjp/css-color) is CJS but
         // require()s the ESM-only @csstools/css-calc. That require() happens
@@ -49,14 +115,18 @@ export default defineConfig({
             // effectively fully tested: every mikeApi endpoint wrapper has a
             // route/method/body assertion, and the remaining gap is only the
             // dev-logging branch and a couple of `?? null` default arms.
-            // Measured on this tree: 99.81% statements, 97.09% branches,
+            // Measured on this tree: 100% statements, 99.07% branches,
             // 100% functions, 100% lines. The floors are those measurements
             // rounded down to whole percentages, so a real drop fails CI.
             // Floors only go up: when you add tests, raise them in the same
             // PR. Backlog + per-area status: docs/frontend-testing.md.
+            // NOTE: a 100% statements floor also fails when a REBASE brings
+            // in upstream code whose fallback arms have no tests yet — the
+            // fix is to cover the new arms in this file's suites, not to
+            // lower the floor (that is how this tree got back to 100 twice).
             thresholds: {
-                statements: 99,
-                branches: 97,
+                statements: 100,
+                branches: 99,
                 functions: 100,
                 lines: 100,
             },

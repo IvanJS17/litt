@@ -114,4 +114,37 @@ describe("EditCardUI", () => {
         ).toBeDisabled();
         expect(container.firstChild).toHaveAttribute("aria-busy", "true");
     });
+    it("dismisses the card through the close control", async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+
+        render(<EditCardUI reason="Use the defined term." onClose={onClose} onView={vi.fn()} />);
+        const close = screen.getByRole("button", { name: "Close" });
+        expect(close.nextElementSibling).toBe(screen.getByRole("button", { name: "View" }));
+        expect(close).toHaveClass("bg-transparent", "shadow-none");
+        expect(close.querySelector("svg")).toBeNull();
+
+        await user.click(
+            screen.getByRole("button", { name: "Close" }),
+        );
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("renders the close control even without a number or reason", () => {
+        const onClose = vi.fn();
+
+        render(<EditCardUI originalText="old" onClose={onClose} />);
+
+        expect(
+            screen.getByRole("button", { name: "Close" }),
+        ).toBeInTheDocument();
+    });
+
+    it("omits the close control when the card cannot be dismissed", () => {
+        render(<EditCardUI reason="Use the defined term." changeNumber={2} />);
+
+        expect(
+            screen.queryByRole("button", { name: "Close" }),
+        ).not.toBeInTheDocument();
+    });
 });

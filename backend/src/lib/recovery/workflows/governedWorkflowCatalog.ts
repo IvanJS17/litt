@@ -1,8 +1,10 @@
 /**
- * Slice D — governed runtime boundary over the upstream DB-backed catalog.
+ * Governed runtime boundary over the upstream DB-backed workflow catalog.
  *
- * This module consumes the coordinator-owned WorkflowIdentity contract and an
- * injected read port. It performs no database, route, storage or network work.
+ * The catalog row is the authority for what was executed: key, version,
+ * content hash, source commit and source/approval provenance. This module
+ * consumes the coordinator-owned WorkflowIdentity contract and an injected
+ * read port; it performs no database, route, storage or network work.
  */
 
 import {

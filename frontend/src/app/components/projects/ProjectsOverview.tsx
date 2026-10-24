@@ -1,8 +1,8 @@
 "use client";
 
+import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown } from "lucide-react";
 import {
     getProjectFilterOptions,
     type ProjectFilterOptions,
@@ -10,12 +10,29 @@ import {
     deleteProject,
 } from "@/app/lib/mikeApi";
 import { deleteTabularReviewsWithConcurrency } from "@/app/lib/deleteTabularReviewsWithConcurrency";
+import { restoreOptimisticallyDeletedRows } from "@/app/lib/optimisticRows";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
-import { usePaginatedProjects } from "@/app/hooks/usePaginatedProjects";
-import { OwnerOnlyPopup } from "@/app/components/popups/OwnerOnlyPopup";
+import {
+    usePaginatedProjects,
+    type ProjectScope,
+} from "@/app/hooks/usePaginatedProjects";
+import {
+    mergeAccessContacts,
+    PermissionDeniedPopup,
+    type AccessContact,
+} from "@/app/components/popups/PermissionDeniedPopup";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
+import {
+    notifyError,
+    notifyPartialFailure,
+} from "@/app/lib/userFacingError";
 import { useAuth } from "@/app/contexts/AuthContext";
+import {
+    PERSONAL_WORKSPACE,
+    useWorkspaceParam,
+} from "@/app/contexts/WorkspaceContext";
 import type { Project } from "@/app/components/shared/types";
+import { can, roleFrom } from "@/app/lib/permissions";
 import { NewProjectModal } from "./NewProjectModal";
 import { ProjectDetailsModal } from "./ProjectDetailsModal";
 import { TableToolbar } from "@/app/components/shared/TableToolbar";
@@ -24,6 +41,7 @@ import {
     RowActions,
 } from "@/app/components/shared/RowActions";
 import { PageHeader } from "@/app/components/shared/PageHeader";
+import { PAGE_HEADER_TITLE_CLASS } from "@/app/components/shared/pageHeaderStyles";
 import { TableLoadMoreRow } from "@/app/components/shared/TableLoadMoreRow";
 import {
     ClosedProjectSvgIcon,
@@ -37,20 +55,32 @@ import {
     TableCell,
     TableEmptyState,
     TableFilters,
+    TableSortFilter,
     type TableFilterOption,
     TableHeaderCell,
     TableHeaderRow,
     TablePrimaryCell,
     TableRow,
     TableScrollArea,
+    rowActionSelectionIds,
+    selectedIdsAfterRangeClick,
+    selectedIdsAfterShiftClick,
     type TableSortDirection,
     TableStickyCell,
 } from "@/app/components/shared/TablePrimitive";
+import {
+    CreatorLabel,
+    CreatorLabelSkeleton,
+} from "@/app/components/shared/CreatorLabel";
+import {
+    PersonFilter,
+    localPeople,
+    type PersonOption,
+} from "@/app/components/shared/PersonFilter";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { PillButton } from "@/app/components/ui/pill-button";
-import { TabPillButton } from "@/app/components/ui/tab-pill-button";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
 import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
-import { LIQUID_GLASS_FLOAT_CLASS } from "@/shared/ui/LiquidGlassUI";
+import { AccessScopeLabel } from "@/app/components/shared/AccessScopeLabel";
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString(undefined, {
@@ -60,7 +90,14 @@ function formatDate(iso: string) {
     });
 }
 
-function getProjectOwnerLabel(project: Project, currentUserId?: string | null) {
+/**
+ * Who created the row. This is provenance, not permission: what the caller may
+ * do here comes from `access_role`, which the overview RPC now returns.
+ */
+function getProjectCreatorLabel(
+    project: Project,
+    currentUserId?: string | null,
+) {
     if (project.is_owner ?? project.user_id === currentUserId) return "Me";
     return (
         project.owner_display_name?.trim() ||
@@ -69,33 +106,45 @@ function getProjectOwnerLabel(project: Project, currentUserId?: string | null) {
     );
 }
 
-type ProjectFilter = "all" | "mine" | "shared-with-me";
-type ProjectSortKey =
-    | "name"
-    | "cm"
-    | "files"
-    | "chats"
-    | "reviews"
-    | "created";
+// Public: open to the whole organization. Private: everything else, whether
+// it is its creator's alone or shared with individuals.
+type ProjectFilter = "all" | "private" | "public" | "mine" | "shared";
+type ProjectSortKey = "name" | "cm" | "files" | "chats" | "reviews" | "created";
 
-const SORT_OPTIONS: TableFilterOption<TableSortDirection>[] = [
-    { value: "asc", label: "Ascending" },
-    { value: "desc", label: "Descending" },
-];
-const PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
+const ORGANIZATION_PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
     { id: "all", label: "All" },
-    { id: "mine", label: "Mine" },
-    { id: "shared-with-me", label: "Shared with me" },
+    { id: "private", label: "Private" },
+    { id: "public", label: "Public" },
 ];
-const PROJECT_FILTER_IDS = PROJECT_FILTERS.map((filter) => filter.id);
+const PERSONAL_PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "mine", label: "My Projects" },
+    { id: "shared", label: "Shared with Me" },
+];
+const PROJECT_FILTER_SCOPES: Record<ProjectFilter, ProjectScope> = {
+    all: "all",
+    public: "public",
+    private: "nonpublic",
+    mine: "mine",
+    shared: "shared",
+};
+const ACCESS_FILTER_OPTIONS: TableFilterOption<"public" | "private">[] = [
+    { value: "public", label: "Public" },
+    { value: "private", label: "Private" },
+];
 
 export function ProjectsOverview() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [modalOpen, setModalOpen] = useState(false);
     const [detailsProject, setDetailsProject] = useState<Project | null>(null);
+    const workspace = useWorkspaceParam();
+    const isPersonalWorkspace = workspace === PERSONAL_WORKSPACE;
+    const projectFilters = isPersonalWorkspace
+        ? PERSONAL_PROJECT_FILTERS
+        : ORGANIZATION_PROJECT_FILTERS;
     const [activeFilter, setActiveFilter] = useQueryParamTab(
-        PROJECT_FILTER_IDS,
+        projectFilters.map((filter) => filter.id),
         "all",
     );
     const [practiceFilter, setPracticeFilter] = useState<string | null>(null);
@@ -106,7 +155,16 @@ export function ProjectsOverview() {
     } | null>(null);
     const [actionsOpen, setActionsOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const [ownerOnlyAction, setOwnerOnlyAction] = useState<string | null>(null);
+    /**
+     * A refusal, together with the people who could lift it. Naming somebody
+     * is the whole point of the popup, and it can only do that if the surface
+     * raising the refusal hands over the row's `admin_contacts` — which the
+     * projects overview RPC returns on every row.
+     */
+    const [ownerOnlyAction, setOwnerOnlyAction] = useState<{
+        action: string;
+        contacts?: AccessContact[] | null;
+    } | null>(null);
     const [selectionCameFromSelectAll, setSelectionCameFromSelectAll] =
         useState(false);
     const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
@@ -114,7 +172,8 @@ export function ProjectsOverview() {
         practices: [],
         owners: [],
     });
-    const actionsRef = useRef<HTMLDivElement>(null);
+    const [filterOptionsAttempt, setFilterOptionsAttempt] = useState(0);
+    const rowSelectionAnchorIdRef = useRef<string | null>(null);
     const { user, isAuthenticated, authLoading } = useAuth();
     const previewEmptyStates = searchParams.get("emptyStates") === "1";
     const debouncedSearch = useDebouncedValue(search, 250);
@@ -136,7 +195,7 @@ export function ProjectsOverview() {
     } = usePaginatedProjects({
         search: debouncedSearch,
         selectionKey: search,
-        scope: activeFilter === "shared-with-me" ? "shared" : activeFilter,
+        scope: PROJECT_FILTER_SCOPES[activeFilter],
         practiceFilter,
         ownerUserIdFilter: ownerFilter,
         sort,
@@ -151,33 +210,39 @@ export function ProjectsOverview() {
     useEffect(() => {
         if (authLoading || !isAuthenticated) return;
         const controller = new AbortController();
-        getProjectFilterOptions(controller.signal)
+        getProjectFilterOptions(controller.signal, workspace)
             .then((data) => {
                 if (!controller.signal.aborted) setFilterOptions(data);
             })
-            .catch(() => {
-                // Filter option lists degrade to "no options" — not worth a
-                // user-facing error for a purely cosmetic dropdown.
+            .catch((error) => {
+                if (controller.signal.aborted) return;
+                // "All Practices" with nothing under it reads as "nobody has
+                // set a practice", so the empty dropdown is explained rather
+                // than left to be misread.
+                notifyError(error, {
+                    action: "load the project filters",
+                    dedupeKey: "projects-filter-options",
+                    onRetry: () =>
+                        setFilterOptionsAttempt((attempt) => attempt + 1),
+                });
             });
         return () => {
             controller.abort();
         };
-    }, [authLoading, isAuthenticated]);
+    }, [authLoading, filterOptionsAttempt, isAuthenticated, workspace]);
 
-    useEffect(() => {
-        function handleClick(e: MouseEvent) {
-            if (
-                actionsRef.current &&
-                !actionsRef.current.contains(e.target as Node)
-            )
-                setActionsOpen(false);
-        }
-        if (actionsOpen) document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, [actionsOpen]);
 
     const practices = filterOptions.practices;
-    const ownerOptions = filterOptions.owners;
+    const ownerPeople = useMemo<PersonOption[]>(
+        () =>
+            filterOptions.owners.map((owner) => ({
+                user_id: owner.value,
+                display_name: owner.display_name ?? owner.label,
+                email: owner.email ?? null,
+                profile_photo: owner.profile_photo ?? null,
+            })),
+        [filterOptions.owners],
+    );
 
     const allSelected =
         visibleProjects.length > 0 &&
@@ -186,6 +251,7 @@ export function ProjectsOverview() {
         !allSelected && visibleProjects.some((p) => selectedIds.includes(p.id));
 
     function toggleAll() {
+        rowSelectionAnchorIdRef.current = null;
         if (allSelected) {
             setSelectedIds([]);
             setSelectionCameFromSelectAll(false);
@@ -196,12 +262,14 @@ export function ProjectsOverview() {
     }
 
     function toggleOne(id: string) {
+        rowSelectionAnchorIdRef.current = id;
         setSelectedIds((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
         );
     }
 
     function clearSelection() {
+        rowSelectionAnchorIdRef.current = null;
         setSelectedIds([]);
         setSelectionCameFromSelectAll(false);
         setConfirmDeleteAllOpen(false);
@@ -235,23 +303,34 @@ export function ProjectsOverview() {
     const createdSortDirection =
         sort?.key === "created" ? sort.direction : null;
     const nameFilterButton = (
-        <TableFilters
+        <TableSortFilter
             label="Sort by project name"
             value={nameSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
             align="right"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("name", direction)}
         />
     );
-    const cmFilterButton = (
+    const accessFilterButton = !isPersonalWorkspace && (
         <TableFilters
+            label="Filter by access"
+            value={
+                activeFilter === "public" || activeFilter === "private"
+                    ? activeFilter
+                    : null
+            }
+            allLabel="All Access"
+            widthClassName="w-40"
+            options={ACCESS_FILTER_OPTIONS}
+            onChange={(value) => {
+                setActiveFilter(value ?? "all");
+                clearSelection();
+            }}
+        />
+    );
+    const cmFilterButton = (
+        <TableSortFilter
             label="Sort by CM"
             value={cmSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("cm", direction)}
         />
     );
@@ -268,52 +347,44 @@ export function ProjectsOverview() {
         />
     );
     const ownerFilterButton = (
-        <TableFilters
-            label="Filter by owner"
-            value={ownerFilter}
-            allLabel="All Owners"
-            widthClassName="w-44"
-            options={ownerOptions}
-            onChange={handleOwnerFilterChange}
+        <PersonFilter
+            label="Filter by creator"
+            selectedTitle={(name) => `Created by ${name}`}
+            value={
+                ownerPeople.find((person) => person.user_id === ownerFilter) ??
+                null
+            }
+            onChange={(person) =>
+                handleOwnerFilterChange(person?.user_id ?? null)
+            }
+            loadPeople={localPeople(ownerPeople)}
         />
     );
     const filesFilterButton = (
-        <TableFilters
+        <TableSortFilter
             label="Sort by files"
             value={filesSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("files", direction)}
         />
     );
     const chatsFilterButton = (
-        <TableFilters
+        <TableSortFilter
             label="Sort by chats"
             value={chatsSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("chats", direction)}
         />
     );
     const reviewsFilterButton = (
-        <TableFilters
+        <TableSortFilter
             label="Sort by tabular reviews"
             value={reviewsSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("reviews", direction)}
         />
     );
     const createdFilterButton = (
-        <TableFilters
+        <TableSortFilter
             label="Sort by created date"
             value={createdSortDirection}
-            allLabel="Default Order"
-            widthClassName="w-40"
-            options={SORT_OPTIONS}
             onChange={(direction) => handleSortChange("created", direction)}
         />
     );
@@ -324,11 +395,14 @@ export function ProjectsOverview() {
         practice: string;
     }) {
         if (!detailsProject) return;
-        if (
-            detailsProject.is_owner === false ||
-            (user?.id && detailsProject.user_id !== user.id)
-        ) {
-            setOwnerOnlyAction("edit project details");
+        // The list rows carry the caller's merged access_role, so an
+        // organization admin editing a colleague's matter is no longer
+        // mistaken for an outsider just because they did not create it.
+        if (!can(roleFrom(detailsProject), "access.manage")) {
+            setOwnerOnlyAction({
+                action: "edit project details",
+                contacts: detailsProject.admin_contacts,
+            });
             return;
         }
         const name = values.name.trim();
@@ -342,11 +416,56 @@ export function ProjectsOverview() {
         });
         setProjects((prev) =>
             prev.map((project) =>
-                project.id === updated.id ? { ...project, ...updated } : project,
+                project.id === updated.id
+                    ? { ...project, ...updated }
+                    : project,
             ),
         );
         setDetailsProject((current) =>
             current?.id === updated.id ? { ...current, ...updated } : current,
+        );
+    }
+
+    /**
+     * Deletes a set of rows optimistically. Rows the server refuses come
+     * back, stay selected, and are named in one notice whose Retry re-runs
+     * only them — a bulk delete that half-worked must not read as a success.
+     */
+    async function deleteProjectRows(ids: string[]) {
+        if (ids.length === 0) return;
+        const snapshot = projects;
+        setSelectedIds([]);
+        setProjects((current) =>
+            current.filter((project) => !ids.includes(project.id)),
+        );
+        const { failedIds } = await deleteTabularReviewsWithConcurrency(
+            ids,
+            deleteProject,
+        );
+        if (failedIds.length === 0) return;
+        setProjects((current) =>
+            restoreOptimisticallyDeletedRows(current, snapshot, failedIds),
+        );
+        setSelectedIds(failedIds);
+        const failedNames = snapshot
+            .filter((project) => failedIds.includes(project.id))
+            .map((project) => project.name);
+        const named = failedNames.length
+            ? ` (${failedNames.slice(0, 3).join(", ")}${
+                  failedNames.length > 3
+                      ? ` and ${failedNames.length - 3} more`
+                      : ""
+              })`
+            : "";
+        notifyPartialFailure(
+            `${failedIds.length} of ${ids.length} projects couldn't be deleted${named}. They are back in the list and still selected.`,
+            {
+                action: `delete ${failedIds.length} project${
+                    failedIds.length === 1 ? "" : "s"
+                }`,
+                dedupeKey: "projects-bulk-delete",
+                onRetry: () => void deleteProjectRows(failedIds),
+            },
         );
     }
 
@@ -359,55 +478,128 @@ export function ProjectsOverview() {
         void handleDeleteSelected();
     }
 
+    async function handleDeleteProjectRow(project: Project) {
+        const snapshot = projects;
+        setProjects((current) =>
+            current.filter((candidate) => candidate.id !== project.id),
+        );
+        try {
+            await deleteProject(project.id);
+        } catch (error) {
+            setProjects((current) =>
+                restoreOptimisticallyDeletedRows(current, snapshot, [
+                    project.id,
+                ]),
+            );
+            // The row action calls this without awaiting, so rethrowing would
+            // only produce an unhandled rejection and a row that reappears
+            // with no explanation. The row is back, so deleting again is
+            // exactly the action that just failed.
+            notifyError(error, {
+                action: `delete “${project.name}”`,
+                dedupeKey: `project-delete:${project.id}`,
+                onRetry: () => void handleDeleteProjectRow(project),
+                supportNote: `Project: ${project.name} (${project.id})`,
+            });
+        }
+    }
+
     async function handleDeleteSelected() {
         const ids = [...selectedIds];
         setActionsOpen(false);
         setConfirmDeleteAllOpen(false);
         setSelectionCameFromSelectAll(false);
-        // Only the project owner can delete; the per-row delete is hidden
-        // for shared projects but the bulk action can still pick them up
-        // if a user toggled them across filters (or select-all-matching
-        // pulled in ids that were never paged into `projects`, which is why
-        // this uses getProjectOwnerId rather than looking the row up
-        // directly). Filter and warn.
-        const owned = ids.filter((id) => {
-            const ownerId = getProjectOwnerId(id);
-            return !ownerId || ownerId === user?.id;
-        });
-        const blocked = ids.length - owned.length;
-        setSelectedIds([]);
-        const { deletedIds } = await deleteTabularReviewsWithConcurrency(
-            owned,
-            deleteProject,
+        // Deleting a project needs container.delete, i.e. project admin. The
+        // per-row control is already hidden for rows the caller cannot
+        // delete, but the bulk action can still pick them up if a user
+        // toggled them across filters — or if select-all-matching pulled in
+        // ids that were never paged in, which is why creator identity is the
+        // fallback when the row itself is not loaded.
+        const roleById = new Map(
+            projects.map((p) => [p.id, roleFrom(p)] as const),
         );
-        setProjects((prev) => prev.filter((p) => !deletedIds.includes(p.id)));
+        const deletable = ids.filter((id) => {
+            const role = roleById.get(id);
+            if (role) return can(role, "container.delete");
+            // Unloaded row: creator identity is all we have, and it has to
+            // MATCH. `!creatorId ||` treated "we don't know who created this"
+            // as permission to delete it, which is the one answer an unknown
+            // must never produce — select-all-matching is exactly the path
+            // that hands back ids whose rows were never paged in. A row we
+            // cannot vouch for is skipped and counted as blocked, so the user
+            // is told rather than silently having it dropped.
+            const creatorId = getProjectOwnerId(id);
+            return !!creatorId && !!user?.id && creatorId === user.id;
+        });
+        const blocked = ids.length - deletable.length;
+        // Unchanged from before this action was extracted: the whole
+        // selection is cleared even when every row was refused.
+        setSelectedIds([]);
+        await deleteProjectRows(deletable);
         if (blocked > 0) {
-            setOwnerOnlyAction(
-                `delete ${blocked} of the selected projects — only the project owner can delete a project`,
+            // Several rows were refused, so offer the union of their admins
+            // rather than a refusal that names nobody.
+            const blockedContacts = mergeAccessContacts(
+                ids
+                    .filter((id) => !deletable.includes(id))
+                    .map((id) => projects.find((p) => p.id === id))
+                    .map((project) => project?.admin_contacts),
             );
+            setOwnerOnlyAction({
+                action: `delete ${blocked} of the selected projects — only a project owner can delete a project`,
+                contacts: blockedContacts,
+            });
         }
+    }
+
+    function renderProjectActions(
+        project: Project | undefined,
+        close?: () => void,
+    ) {
+        const actionIds = project
+            ? rowActionSelectionIds(project.id, selectedIds)
+            : selectedIds;
+        const appliesToSelection = actionIds.length > 1;
+        const canManage = project ? can(roleFrom(project), "access.manage") : false;
+        return (
+            <RowActionMenuItems
+                onClose={close}
+                onView={
+                    appliesToSelection || !project
+                        ? undefined
+                        : () => router.push(`/projects/${project!.id}`)
+                }
+                viewLabel="Open"
+                onEditDetails={
+                    appliesToSelection || !canManage
+                        ? undefined
+                        : () => {
+                              setDetailsProject(project!);
+                          }
+                }
+                onDelete={
+                    appliesToSelection || !project
+                        ? requestDeleteSelected
+                        : canManage
+                          ? () => handleDeleteProjectRow(project!)
+                          : undefined
+                }
+                deleteLabel={
+                    appliesToSelection
+                        ? `Delete ${actionIds.length} projects`
+                        : undefined
+                }
+            />
+        );
     }
 
     const toolbarActions =
         selectedIds.length > 0 ? (
-            <div ref={actionsRef} className="relative">
-                <TabPillButton
-                    onClick={() => setActionsOpen((v) => !v)}
-                >
-                    Actions
-                    <ChevronDown className="h-3.5 w-3.5" />
-                </TabPillButton>
-                {actionsOpen && (
-                    <div className={`absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-lg ${LIQUID_GLASS_FLOAT_CLASS} backdrop-blur-2xl`}>
-                        <button
-                            onClick={requestDeleteSelected}
-                            className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                            Delete
-                        </button>
-                    </div>
-                )}
-            </div>
+            <SelectionActionsMenu
+                open={actionsOpen}
+                onOpenChange={setActionsOpen}
+                renderItems={(close) => renderProjectActions(projects.find((project) => project.id === selectedIds[0]), close)}
+            />
         ) : undefined;
 
     return (
@@ -429,13 +621,13 @@ export function ProjectsOverview() {
                     },
                 ]}
             >
-                <h1 className="text-2xl font-medium font-serif text-gray-900">
+                <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
                     Projects
                 </h1>
             </PageHeader>
 
             <TableToolbar
-                items={PROJECT_FILTERS}
+                items={projectFilters}
                 active={activeFilter}
                 onChange={(nextFilter) => {
                     setActiveFilter(nextFilter);
@@ -474,6 +666,10 @@ export function ProjectsOverview() {
                             {!loading && nameFilterButton}
                         </TableStickyCell>
                         <TableHeaderCell className="ml-auto w-32">
+                            <span className="mr-1">Access</span>
+                            {!loading && accessFilterButton}
+                        </TableHeaderCell>
+                        <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
                                 <span>CM</span>
                                 {!loading && cmFilterButton}
@@ -487,7 +683,7 @@ export function ProjectsOverview() {
                         </TableHeaderCell>
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>Owner</span>
+                                <span>Creator</span>
                                 {!loading && ownerFilterButton}
                             </div>
                         </TableHeaderCell>
@@ -522,10 +718,7 @@ export function ProjectsOverview() {
                 {effectiveLoading ? (
                     <TableBody>
                         {[1, 2, 3].map((i) => (
-                            <TableRow
-                                key={i}
-                                interactive={false}
-                            >
+                            <TableRow key={i} interactive={false}>
                                 <TableStickyCell
                                     hover={false}
                                     bgClassName="bg-transparent"
@@ -535,13 +728,16 @@ export function ProjectsOverview() {
                                     <SkeletonLine className="h-3.5 w-48" />
                                 </TableStickyCell>
                                 <TableCell className="ml-auto w-32">
+                                    <SkeletonLine className="w-16" />
+                                </TableCell>
+                                <TableCell className="w-32">
                                     <SkeletonLine className="w-20" />
                                 </TableCell>
                                 <TableCell className="w-36">
                                     <SkeletonLine className="w-20" />
                                 </TableCell>
                                 <TableCell className="w-32">
-                                    <SkeletonLine className="w-16" />
+                                    <CreatorLabelSkeleton className="w-16" />
                                 </TableCell>
                                 <TableCell className="w-24">
                                     <SkeletonLine className="w-8" />
@@ -567,145 +763,201 @@ export function ProjectsOverview() {
                             description={loadError}
                             tone="error"
                             action={
-                                <PillButton
+                                <PillButtonUI
                                     tone="black"
                                     size="sm"
                                     onClick={retry}
-                                    className="px-3"
                                 >
                                     Try again
-                                </PillButton>
+                                </PillButtonUI>
                             }
                         />
                     </TableEmptyState>
                 ) : visibleProjects.length === 0 ? (
                     <TableEmptyState>
-                        {activeFilter === "all" || activeFilter === "mine" ? (
+                        {activeFilter === "public" || activeFilter === "shared" ? (
+                            <p className="text-sm text-gray-400">
+                                {activeFilter === "public"
+                                    ? "No public projects"
+                                    : "No projects shared with you"}
+                            </p>
+                        ) : (
                             <EmptyState
                                 icon={<OpenProjectSvgIcon />}
                                 title="Projects"
                                 description="Upload documents into projects and to commence chats and tabular reviews with them."
                                 action={
-                                    <PillButton
+                                    <PillButtonUI
                                         tone="black"
                                         size="sm"
                                         onClick={() => setModalOpen(true)}
-                                        className="px-3"
                                     >
                                         Create
-                                    </PillButton>
+                                    </PillButtonUI>
                                 }
                             />
-                        ) : (
-                            <p className="text-sm text-gray-400">
-                                No {activeFilter} projects
-                            </p>
                         )}
                     </TableEmptyState>
                 ) : (
                     <TableBody>
                         {visibleProjects.map((project) => {
+                            // The list rows carry the caller's merged
+                            // access_role, so an organization admin editing a
+                            // colleague's matter is no longer mistaken for an
+                            // outsider just because they did not create it.
+                            const canManage = can(
+                                roleFrom(project),
+                                "access.manage",
+                            );
                             return (
-                            <TableRow
-                                key={project.id}
-                                selected={selectedIds.includes(project.id)}
-                                rightClickDropdown={
-                                    (project.is_owner ??
-                                        project.user_id === user?.id)
-                                        ? (close, menuProps) => (
-                                              <RowActionMenuItems
-                                                  onClose={close}
-                                                  surfaceProps={menuProps}
-                                                  onEditDetails={() => {
-                                                      setDetailsProject(project);
-                                                  }}
-                                                  onDelete={async () => {
-                                                      await deleteProject(
-                                                          project.id,
-                                                      );
-                                                      setProjects((prev) =>
-                                                          prev.filter(
-                                                              (p) =>
-                                                                  p.id !==
-                                                                  project.id,
-                                                          ),
-                                                      );
-                                                  }}
-                                              />
-                                          )
-                                        : undefined
-                                }
-                                onClick={() => {
-                                    router.push(`/projects/${project.id}`);
-                                }}
-                            >
-                                {/* Project Name */}
-                                <TablePrimaryCell
+                                <TableRow
+                                    key={project.id}
                                     selected={selectedIds.includes(project.id)}
-                                    onSelectionChange={() =>
-                                        toggleOne(project.id)
-                                    }
-                                    checkboxTitle={`Select ${project.name}`}
-                                >
-                                    <ClosedProjectSvgIcon className="mr-2 h-4 w-4 shrink-0" />
-                                    <span className="min-w-0 flex-1 truncate text-xs text-gray-800">
-                                        {project.name}
-                                    </span>
-                                </TablePrimaryCell>
-
-                                <TableCell className="ml-auto w-32">
-                                    {project.cm_number ?? (
-                                        <span className="text-gray-300">
-                                            —
-                                        </span>
-                                    )}
-                                </TableCell>
-                                <TableCell className="w-36">
-                                    {project.practice ?? (
-                                        <span className="text-gray-300">
-                                            —
-                                        </span>
-                                    )}
-                                </TableCell>
-                                <TableCell className="w-32">
-                                    {getProjectOwnerLabel(project, user?.id)}
-                                </TableCell>
-                                <TableCell className="w-24">
-                                    {project.document_count ?? 0}
-                                </TableCell>
-                                <TableCell className="w-24">
-                                    {project.chat_count ?? 0}
-                                </TableCell>
-                                <TableCell className="w-36">
-                                    {project.review_count ?? 0}
-                                </TableCell>
-                                <TableCell className="w-32">
-                                    {formatDate(project.created_at)}
-                                </TableCell>
-
-                                <div
-                                    className="w-8 shrink-0 flex justify-end"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {(project.is_owner ??
-                                        project.user_id === user?.id) && (
-                                        <RowActions
-                                            onEditDetails={() => {
-                                                setDetailsProject(project);
-                                            }}
-                                            onDelete={async () => {
-                                                await deleteProject(project.id);
-                                                setProjects((prev) =>
-                                                    prev.filter(
-                                                        (p) =>
-                                                            p.id !== project.id,
+                                    rightClickDropdown={(close) => renderProjectActions(project, close)}
+                                    onClick={(event) => {
+                                        if (event.shiftKey) {
+                                            event.preventDefault();
+                                            const anchorId =
+                                                rowSelectionAnchorIdRef.current;
+                                            setSelectionCameFromSelectAll(
+                                                false,
+                                            );
+                                            setSelectedIds((current) =>
+                                                selectedIdsAfterRangeClick(
+                                                    project.id,
+                                                    visibleProjects.map(
+                                                        (visibleProject) =>
+                                                            visibleProject.id,
                                                     ),
-                                                );
-                                            }}
+                                                    current,
+                                                    anchorId,
+                                                ),
+                                            );
+                                            rowSelectionAnchorIdRef.current =
+                                                project.id;
+                                            return;
+                                        }
+                                        if (event.ctrlKey || event.metaKey) {
+                                            event.preventDefault();
+                                            setSelectionCameFromSelectAll(
+                                                false,
+                                            );
+                                            setSelectedIds((current) =>
+                                                selectedIdsAfterShiftClick(
+                                                    project.id,
+                                                    current,
+                                                ),
+                                            );
+                                            rowSelectionAnchorIdRef.current =
+                                                project.id;
+                                            return;
+                                        }
+                                        router.push(`/projects/${project.id}`);
+                                    }}
+                                >
+                                    {/* Project Name */}
+                                    <TablePrimaryCell
+                                        selected={selectedIds.includes(
+                                            project.id,
+                                        )}
+                                        onSelectionChange={() =>
+                                            toggleOne(project.id)
+                                        }
+                                        checkboxTitle={`Select ${project.name}`}
+                                    >
+                                        <ClosedProjectSvgIcon className="mr-2 h-4 w-4 shrink-0" />
+                                        <span className="min-w-0 flex-1 truncate text-xs text-gray-800">
+                                            {project.name}
+                                        </span>
+                                    </TablePrimaryCell>
+
+                                    <TableCell className="ml-auto w-32">
+                                        <AccessScopeLabel
+                                            scope={
+                                                project.access_scope ??
+                                                (project.org_id
+                                                    ? "organization"
+                                                    : project.is_owner === false
+                                                      ? "shared"
+                                                      : "private")
+                                            }
+                                            organizationName={
+                                                project.organization_name
+                                            }
+                                            directGrantCount={
+                                                project.direct_grant_count
+                                            }
                                         />
-                                    )}
-                                </div>
-                            </TableRow>
+                                    </TableCell>
+                                    <TableCell className="w-32">
+                                        {project.cm_number ?? (
+                                            <span className="text-gray-300">
+                                                —
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="w-36">
+                                        {project.practice ?? (
+                                            <span className="text-gray-300">
+                                                —
+                                            </span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="w-32">
+                                        <CreatorLabel
+                                            label={getProjectCreatorLabel(
+                                                project,
+                                                user?.id,
+                                            )}
+                                            photo={project.owner_profile_photo}
+                                            name={project.owner_display_name}
+                                            email={project.owner_email}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="w-24">
+                                        {project.document_count ?? 0}
+                                    </TableCell>
+                                    <TableCell className="w-24">
+                                        {project.chat_count ?? 0}
+                                    </TableCell>
+                                    <TableCell className="w-36">
+                                        {project.review_count ?? 0}
+                                    </TableCell>
+                                    <TableCell className="w-32">
+                                        {formatDate(project.created_at)}
+                                    </TableCell>
+
+                                    <div
+                                        className="w-8 shrink-0 flex justify-end"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <RowActions
+                                            onView={() =>
+                                                router.push(
+                                                    `/projects/${project.id}`,
+                                                )
+                                            }
+                                            viewLabel="Open"
+                                            onEditDetails={
+                                                canManage
+                                                    ? () => {
+                                                          setDetailsProject(
+                                                              project,
+                                                          );
+                                                      }
+                                                    : undefined
+                                            }
+                                            onDelete={
+                                                canManage
+                                                    ? () =>
+                                                          handleDeleteProjectRow(
+                                                              project,
+                                                          )
+                                                    : undefined
+                                            }
+                                        />
+                                    </div>
+                                </TableRow>
                             );
                         })}
                     </TableBody>
@@ -722,7 +974,13 @@ export function ProjectsOverview() {
 
             <NewProjectModal
                 open={modalOpen}
-                onClose={() => setModalOpen(false)}
+                onClose={(createdWithoutHandover) => {
+                    setModalOpen(false);
+                    // A project created behind a failed grant or upload never
+                    // arrived through onCreated: refetch so it is on the list
+                    // the user lands back on, not only after a reload.
+                    if (createdWithoutHandover) retry();
+                }}
                 onCreated={(p) => {
                     setProjects((prev) => [p, ...prev]);
                     router.push(`/projects/${p.id}`);
@@ -734,23 +992,24 @@ export function ProjectsOverview() {
                 project={detailsProject}
                 canEdit={
                     !!detailsProject &&
-                    detailsProject.is_owner !== false &&
-                    (!user?.id || detailsProject.user_id === user.id)
+                    can(roleFrom(detailsProject), "access.manage")
                 }
                 onClose={() => setDetailsProject(null)}
                 onSave={handleProjectDetailsSave}
             />
 
-            <OwnerOnlyPopup
+            <PermissionDeniedPopup
                 open={!!ownerOnlyAction}
-                action={ownerOnlyAction ?? undefined}
+                action={ownerOnlyAction?.action}
+                contacts={ownerOnlyAction?.contacts}
                 onClose={() => setOwnerOnlyAction(null)}
             />
             <ConfirmPopup
                 open={confirmDeleteAllOpen && selectedIds.length > 0}
                 title="Delete all selected projects?"
-                message={`This will permanently delete every selected project you own, including selected projects not currently shown. Every file within those projects will also be deleted. Shared projects you do not own will be skipped. ${selectedIds.length} projects are selected.`}
+                message={`This will permanently delete every selected project you administer, including selected projects not currently shown. Every file within those projects will also be deleted. Projects you cannot delete will be skipped. ${selectedIds.length} projects are selected.`}
                 confirmLabel="Delete"
+                confirmVariant="danger"
                 onCancel={() => setConfirmDeleteAllOpen(false)}
                 onConfirm={() => void handleDeleteSelected()}
             />

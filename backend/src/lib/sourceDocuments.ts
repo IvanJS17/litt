@@ -1,54 +1,11 @@
-export type SourceDocumentType =
-  "docx" | "pdf" | "spreadsheet" | "legislation";
+export type { SourceDocumentType } from "@mike/contracts";
+import type { SourceDocumentType } from "@mike/contracts";
 
-export type SourceDocumentMetadata = {
-  label: string;
-  value: string;
-  format?: "date";
-};
-
-export type SourceDocumentAction = {
-  type: "download" | "link";
-  url: string;
-  label: string;
-  title?: string;
-};
-
-export type SourceDocumentQuote = {
-  quote: string;
-  verification?: {
-    verified: boolean;
-    source_excerpt?: string;
-    start_char?: number;
-    end_char?: number;
-  };
-  target: {
-    page?: number | string;
-    sheet?: string;
-    cell?: string;
-    subdocument_id?: string;
-  };
-};
-
-export type SourceSubdocument = {
-  document_id: string;
-  title: string;
-  type: "html";
-  html?: string | null;
-  text?: string | null;
-};
-
-export type SourceDocument = {
-  document_id: string;
-  title: string;
-  type: SourceDocumentType;
-  metadata: SourceDocumentMetadata[];
-  actions?: SourceDocumentAction[];
-  quotes: SourceDocumentQuote[];
-  subdocuments?: SourceSubdocument[];
-  version_id?: string | null;
-  version_number?: number | null;
-};
+export type { SourceDocumentMetadata } from "@mike/contracts";
+export type { SourceDocumentAction } from "@mike/contracts";
+export type { SourceDocumentQuote } from "@mike/contracts";
+export type { SourceSubdocument } from "@mike/contracts";
+export type { SourceDocument } from "@mike/contracts";
 
 export function sourceDocumentType(filename: string): SourceDocumentType {
   const extension = filename.split(".").pop()?.toLowerCase();

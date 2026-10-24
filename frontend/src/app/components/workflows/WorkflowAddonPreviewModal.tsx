@@ -4,13 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, Code2, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { WorkflowAddon } from "../shared/types";
+import { type WorkflowAddon } from "../shared/types";
 import {
   LIQUID_GLASS_HOVER_CLASS,
-  LIQUID_GLASS_SELECTED_CLASS,
-  LIQUID_GLASS_SUBTLE_CLASS,
   LIQUID_SUBTLE_PANEL_SURFACE_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { TabPillButtonUI } from "@/shared/ui/TabPillButtonUI";
 import { Modal } from "../modals/Modal";
 import { FileTypeIcon } from "../shared/FileTypeIcon";
 import { PdfView } from "../shared/views/PdfView";
@@ -20,6 +19,8 @@ import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 
 type DetailView = "columns" | "skill" | "assets";
 type AddonAsset = NonNullable<WorkflowAddon["assets"]>[number];
+
+const DESCRIPTION_PREVIEW_LENGTH = 180;
 
 const markdownComponents: React.ComponentProps<
   typeof ReactMarkdown
@@ -87,8 +88,12 @@ function SkillViewer({ skill }: { skill: string }) {
         if ("ClipboardItem" in window && navigator.clipboard.write) {
           await navigator.clipboard.write([
             new ClipboardItem({
-              "text/html": new Blob([html], { type: "text/html" }),
-              "text/plain": new Blob([text], { type: "text/plain" }),
+              "text/html": new Blob([html], {
+                type: "text/html",
+              }),
+              "text/plain": new Blob([text], {
+                type: "text/plain",
+              }),
             }),
           ]);
         } else {
@@ -164,26 +169,15 @@ function DetailTabs({
   onChange: (view: DetailView) => void;
 }) {
   return (
-    <div
-      role="tablist"
-      aria-label="Add-on workflow detail view"
-      className="inline-flex gap-2"
-    >
+    <div className="flex items-center gap-1.5">
       {tabs.map((tab) => (
-        <button
+        <TabPillButtonUI
           key={tab.id}
-          type="button"
-          role="tab"
-          aria-selected={active === tab.id}
+          active={active === tab.id}
           onClick={() => onChange(tab.id)}
-          className={`inline-flex h-7 items-center justify-center rounded-full px-3 text-xs font-medium ${LIQUID_GLASS_SUBTLE_CLASS} backdrop-blur-xl transition-all ${
-            active === tab.id
-              ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
-              : `${LIQUID_GLASS_HOVER_CLASS} text-gray-400 hover:text-gray-700`
-          }`}
         >
           {tab.label}
-        </button>
+        </TabPillButtonUI>
       ))}
     </div>
   );
@@ -270,6 +264,7 @@ function WorkflowAddonPreviewDialog({
     addon.type === "tabular" ? "columns" : "skill",
   );
   const [selectedAsset, setSelectedAsset] = useState<AddonAsset | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -309,7 +304,6 @@ function WorkflowAddonPreviewDialog({
       primaryAction={{
         label: importing ? "Importing…" : "Import",
         icon: <Plus className="h-4 w-4" />,
-        variant: "blue",
         disabled: importing,
         onClick: () => void onImport(addon),
       }}
@@ -372,9 +366,26 @@ function WorkflowAddonPreviewDialog({
               />
             </div>
             {addon.description && (
-              <p className="mt-3 max-w-4xl text-xs leading-5 text-gray-600">
-                {addon.description}
-              </p>
+              <div className="mt-3 max-w-4xl text-xs leading-5 text-gray-600">
+                <p>
+                  {descriptionExpanded ||
+                  addon.description.length <= DESCRIPTION_PREVIEW_LENGTH
+                    ? addon.description
+                    : `${addon.description.slice(0, DESCRIPTION_PREVIEW_LENGTH).trimEnd()}…`}
+                  {addon.description.length > DESCRIPTION_PREVIEW_LENGTH && (
+                    <button
+                      type="button"
+                      aria-expanded={descriptionExpanded}
+                      onClick={() =>
+                        setDescriptionExpanded((expanded) => !expanded)
+                      }
+                      className="ml-1 inline font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                    >
+                      {descriptionExpanded ? "Show less" : "Show more"}
+                    </button>
+                  )}
+                </p>
+              </div>
             )}
           </section>
 

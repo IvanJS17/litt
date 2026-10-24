@@ -3,6 +3,8 @@
 import * as React from "react";
 import { ArrowRight, Square } from "lucide-react";
 
+import { COMPOSER_SEND_BUTTON_CLASS } from "@mike/composer-send-button-ui";
+
 import { cn } from "../lib/utils";
 
 interface ChatInputProps {
@@ -19,6 +21,11 @@ interface ChatInputProps {
     rightSlot?: React.ReactNode;
     /** Workflow and document pills rendered inside the glass composer. */
     attachments?: React.ReactNode;
+    /**
+     * Lets the composer send with no typed text, when what is attached
+     * already says what is being asked (an annotated excerpt).
+     */
+    canSubmitEmpty?: boolean;
     className?: string;
     onKeyDown?: React.KeyboardEventHandler<HTMLTextAreaElement>;
     combobox?: {
@@ -47,6 +54,7 @@ export function ChatInput({
     leftSlot,
     rightSlot,
     attachments,
+    canSubmitEmpty = false,
     className,
     onKeyDown,
     combobox,
@@ -54,6 +62,9 @@ export function ChatInput({
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const inputAreaRef = React.useRef<HTMLDivElement>(null);
 
+    // 160px is the effective cap: a narrow-pane adaptation tighter than the
+    // web composer's max-h-48 (192px), which the textarea also carries so a
+    // growing value can never swallow the pane before this effect runs.
     const resizeTextarea = React.useCallback((): void => {
         const el = textareaRef.current;
         if (!el) return;
@@ -96,6 +107,9 @@ export function ChatInput({
         };
     }, [resizeTextarea]);
 
+    const canSend =
+        (!!value.trim() || canSubmitEmpty) && !isLoading && !disabled;
+
     const handleKeyDown = (
         e: React.KeyboardEvent<HTMLTextAreaElement>,
     ): void => {
@@ -103,17 +117,15 @@ export function ChatInput({
         if (e.defaultPrevented) return;
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            if (value.trim() && !isLoading && !disabled) onSubmit();
+            if (canSend) onSubmit();
         }
     };
-
-    const canSend = !!value.trim() && !isLoading && !disabled;
 
     return (
         <div
             data-testid="chat-input"
             className={cn(
-                "rounded-[18px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
+                "rounded-[21px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
                 className,
             )}
         >
@@ -136,7 +148,7 @@ export function ChatInput({
                     aria-activedescendant={combobox?.activeDescendant}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className="w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60"
+                    className="max-h-48 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60"
                 />
             </div>
             <div className="flex items-center justify-between gap-2 p-2">
@@ -151,10 +163,10 @@ export function ChatInput({
                             isLoading ? onCancel?.() : canSend && onSubmit()
                         }
                         disabled={!isLoading && !canSend}
-                        aria-label={isLoading ? "Stop" : "Send"}
+                        aria-label={isLoading ? "Stop response" : "Send message"}
                         className={cn(
-                            "relative flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-[11px] border-0 bg-gradient-to-b from-neutral-700 to-black text-white backdrop-blur-xl transition-all duration-150 active:enabled:scale-95 disabled:cursor-default disabled:from-neutral-600 disabled:to-black",
-                            "shadow-[0_3px_9px_rgba(15,23,42,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(15,23,42,0.2)]",
+                            COMPOSER_SEND_BUTTON_CLASS,
+                            "h-8 w-8 shrink-0 rounded-[11px]",
                         )}
                     >
                         {isLoading ? (

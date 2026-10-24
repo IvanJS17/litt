@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { NextRequest } from "next/server";
+import { upstreamUnreachableCode } from "./upstreamFailure";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +24,8 @@ async function proxy(request: NextRequest, context: RouteContext) {
     const { path } = await context.params;
     const requestPath = `/${path.map(encodeURIComponent).join("/")}`;
 
+    const requestId = randomUUID();
+    let stage = "gateway-config";
     try {
         const upstreamUrl = new URL(`${backendOrigin()}${requestPath}`);
         upstreamUrl.search = request.nextUrl.search;
@@ -47,7 +51,9 @@ async function proxy(request: NextRequest, context: RouteContext) {
             init.duplex = "half";
         }
 
+        stage = "gateway-fetch";
         const upstream = await fetch(upstreamUrl, init);
+        stage = "gateway-response";
         const responseHeaders = new Headers(upstream.headers);
         // Fetch implementations may transparently decompress the response.
         responseHeaders.delete("content-encoding");
@@ -59,13 +65,30 @@ async function proxy(request: NextRequest, context: RouteContext) {
             headers: responseHeaders,
         });
     } catch (error) {
-        console.error("[api-gateway] upstream request failed", {
-            path: requestPath,
-            error: error instanceof Error ? error.message : String(error),
-        });
+        // A connection-level failure (ECONNREFUSED, DNS, reset, connect
+        // timeout) means the backend is down or misaddressed: an operator
+        // condition the user can only wait out, so it answers 503 with a
+        // stable code and Retry-After. Anything else is a 502.
+        const unreachable =
+            stage === "gateway-fetch" ? upstreamUnreachableCode(error) : null;
+        const status = unreachable ? 503 : 502;
+        // The operator's own server log keeps the real cause (ECONNREFUSED,
+        // DNS, TLS): without it a self-hoster seeing 502s cannot tell a
+        // stopped backend from a wrong API_BASE_URL.
+        console.error("[api-gateway] upstream request failed", error, { requestId, stage });
         return Response.json(
-            { detail: "The API is temporarily unavailable." },
-            { status: 502 },
+            {
+                detail: "The API is temporarily unavailable.",
+                ...(unreachable ? { code: "upstream_unavailable" } : {}),
+                request_id: requestId,
+            },
+            {
+                status,
+                headers: {
+                    "x-request-id": requestId,
+                    ...(unreachable ? { "retry-after": "5" } : {}),
+                },
+            },
         );
     }
 }

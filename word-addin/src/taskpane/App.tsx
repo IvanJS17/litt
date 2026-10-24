@@ -22,7 +22,10 @@ import {
 } from "./lib/wordChatSettings";
 import { useWordDocumentIdentity } from "./lib/wordDocumentIdentity";
 import { clearLocalWordChats } from "./lib/localWordChats";
-import type { ReasoningLevel } from "./lib/wordChatTypes";
+import type {
+  ReasoningLevel,
+  WordChatOpenHandler,
+} from "./lib/wordChatTypes";
 
 export default function App(): React.ReactElement {
   const { user, loading, error, logout } = useAuth();
@@ -43,6 +46,10 @@ export default function App(): React.ReactElement {
     useState<ReasoningLevel>("high");
   const [chatInSession, setChatInSession] = useState(false);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
+  // The turn the opened chat still has running on the server, if any. The
+  // panel attaches to it once its session has mounted; it is per-session, so
+  // it travels with `chatSessionKey`.
+  const [resumeTurnId, setResumeTurnId] = useState<string | null>(null);
   const [workflowPageSelection, setWorkflowPageSelection] =
     useState<Workflow | null>(null);
   const [workflowDetailsOpen, setWorkflowDetailsOpen] = useState(false);
@@ -134,6 +141,7 @@ export default function App(): React.ReactElement {
               setChatReasoningLevel(null);
               setChatInSession(false);
               setInitialMessages([]);
+              setResumeTurnId(null);
               setChatSessionKey((current) => current + 1);
             }}
             onClearLocalChats={() => clearLocalWordChats(wordChatOwnerId)}
@@ -142,12 +150,13 @@ export default function App(): React.ReactElement {
     }
   };
 
-  function openSelectedChat(
-    selectedChatId: string,
-    messages: Message[],
-    model: string | null,
-    reasoningLevel: ReasoningLevel | null,
-  ): void {
+  const openSelectedChat: WordChatOpenHandler = (
+    selectedChatId,
+    messages,
+    model,
+    reasoningLevel,
+    activeTurnId,
+  ): void => {
     setSelectedSection("chat");
     setWorkflowPageSelection(null);
     setWorkflowDetailsOpen(false);
@@ -158,8 +167,9 @@ export default function App(): React.ReactElement {
     setChatReasoningLevel(reasoningLevel);
     setChatInSession(true);
     setInitialMessages(messages);
+    setResumeTurnId(activeTurnId ?? null);
     setChatSessionKey((current) => current + 1);
-  }
+  };
 
   const changeSection = (section: AddinSection): void => {
     setSelectedSection(section);
@@ -182,6 +192,7 @@ export default function App(): React.ReactElement {
     setChatReasoningLevel(null);
     setChatInSession(false);
     setInitialMessages([]);
+    setResumeTurnId(null);
     setChatSessionKey((current) => current + 1);
   };
 
@@ -204,6 +215,7 @@ export default function App(): React.ReactElement {
         onSectionChange={changeSection}
         onNewChat={startNewChat}
         hasActiveChat={chatInSession}
+        currentChatId={chatId}
         onSelectHistoryChat={openSelectedChat}
         workflowDetailOpen={
           selectedSection === "workflows" && !!workflowPageSelection
@@ -258,6 +270,7 @@ export default function App(): React.ReactElement {
             chatReasoningLevel={chatReasoningLevel}
             lastSelectedReasoningLevel={lastSelectedReasoningLevel}
             initialMessages={initialMessages}
+            resumeTurnId={resumeTurnId}
             selectedWorkflow={chatWorkflow}
             onSelectedWorkflowChange={setChatWorkflow}
             onChatIdChange={handleChatIdChange}

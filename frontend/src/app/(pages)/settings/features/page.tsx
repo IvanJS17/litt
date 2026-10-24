@@ -1,61 +1,88 @@
 "use client";
 
 import { useState } from "react";
+import {
+  SettingsDescription,
+  SettingsLabel,
+} from "@/app/components/settings/SettingsText";
+import { GlassCardUI } from "@/shared/ui/GlassCardUI";
+import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
+import { SettingsRow } from "@/app/components/settings/SettingsRow";
+import { ToggleSwitchUI } from "@/shared/ui/ToggleSwitchUI";
+import { WebSearchSection } from "@/app/components/settings/WebSearchSection";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
-import { SettingsSection } from "../SettingsSection";
-import { SettingsToggle } from "../SettingsToggle";
 
 export default function FeaturesPage() {
-    const { profile, updateQuickActionsVisible } = useUserProfile();
-    const [quickActionsError, setQuickActionsError] = useState<string | null>(
-        null,
-    );
-    const [savingQuickActions, setSavingQuickActions] = useState(false);
-    const quickActionsVisible = profile?.quickActionsVisible ?? true;
+  const {
+    profile,
+    updateQuickActionsVisible,
+    updateResponseDetailsVisible,
+  } = useUserProfile();
+  const [savingQuickActions, setSavingQuickActions] = useState(false);
+  const [savingResponseDetails, setSavingResponseDetails] = useState(false);
+  const quickActionsVisible = profile?.quickActionsVisible ?? true;
+  const responseDetailsVisible = profile?.responseDetailsVisible ?? false;
 
-    const setQuickActionsVisible = async (visible: boolean) => {
-        setQuickActionsError(null);
-        setSavingQuickActions(true);
-        const ok = await updateQuickActionsVisible(visible);
-        setSavingQuickActions(false);
-        if (!ok) setQuickActionsError("Could not update. Try again.");
-    };
+  const setQuickActionsVisible = async (visible: boolean) => {
+    setSavingQuickActions(true);
+    // A failure is reported by the profile context's notice (with Retry);
+    // the toggle reads the profile, so it is already back where it was.
+    await updateQuickActionsVisible(visible);
+    setSavingQuickActions(false);
+  };
 
-    return (
-        <div className="space-y-8">
-            <section className="space-y-3">
-                <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-medium font-serif text-gray-900">
-                        Assistant
-                    </h2>
-                </div>
-                <SettingsSection>
-                    <div className="flex flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="space-y-1">
-                            <p className="text-sm font-medium text-gray-700">
-                                Quick actions
-                            </p>
-                            <p className="text-sm text-gray-500">
-                                Show the quick actions row on the assistant
-                                start screen.
-                            </p>
-                            {quickActionsError && (
-                                <p className="text-sm text-red-600">
-                                    {quickActionsError}
-                                </p>
-                            )}
-                        </div>
-                        <SettingsToggle
-                            checked={quickActionsVisible}
-                            loading={savingQuickActions}
-                            size="md"
-                            onChange={(checked) => {
-                                void setQuickActionsVisible(checked);
-                            }}
-                        />
-                    </div>
-                </SettingsSection>
-            </section>
-        </div>
-    );
+  const setResponseDetailsVisible = async (visible: boolean) => {
+    setSavingResponseDetails(true);
+    // As with quick actions, the profile context reports a failure and the
+    // toggle, which reads the profile, stays where it was.
+    await updateResponseDetailsVisible(visible);
+    setSavingResponseDetails(false);
+  };
+
+  return (
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <SettingsHeading>Assistant</SettingsHeading>
+        <GlassCardUI>
+          <SettingsRow>
+            <div className="min-w-0 space-y-1">
+              <SettingsLabel>Quick actions</SettingsLabel>
+              <SettingsDescription>
+                Show the quick actions row on the assistant start screen.
+              </SettingsDescription>
+            </div>
+            <ToggleSwitchUI
+              checked={quickActionsVisible}
+              disabled={savingQuickActions}
+              aria-busy={savingQuickActions}
+              aria-label="Quick actions"
+              onCheckedChange={(checked) => {
+                void setQuickActionsVisible(checked);
+              }}
+            />
+          </SettingsRow>
+          <SettingsRow>
+            <div className="min-w-0 space-y-1">
+              <SettingsLabel>Response details</SettingsLabel>
+              <SettingsDescription>
+                Show the model, reasoning effort and token count under each
+                response and subagent.
+              </SettingsDescription>
+            </div>
+            <ToggleSwitchUI
+              checked={responseDetailsVisible}
+              disabled={savingResponseDetails}
+              aria-busy={savingResponseDetails}
+              aria-label="Response details"
+              onCheckedChange={(checked) => {
+                void setResponseDetailsVisible(checked);
+              }}
+            />
+          </SettingsRow>
+        </GlassCardUI>
+      </section>
+
+      <WebSearchSection />
+    </div>
+  );
 }

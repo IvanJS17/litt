@@ -3,6 +3,7 @@ import type IORedis from "ioredis";
 import { getRedisProducerConnection, withRedisTimeout } from "./connection";
 import { redisEnabled } from "../dbq/driver";
 import { enqueueDbJob } from "../dbq/enqueue";
+import type { AuthorizationStamp } from "../authorizationEpoch";
 import { createServerSupabase } from "../supabase";
 
 /**
@@ -48,6 +49,12 @@ export interface ExtractionJobData {
      * by `.eq("generation_id", generationId)` — match no rows.)
      */
     canceled?: boolean;
+    /**
+     * LiTT C4: the organization and authorization epoch the enqueuing request
+     * held. The worker refuses to extract if the epoch has moved since
+     * (lib/authorizationEpoch.ts). Null for a personal review.
+     */
+    authorization?: AuthorizationStamp | null;
 }
 
 let queue: Queue<ExtractionJobData> | null = null;

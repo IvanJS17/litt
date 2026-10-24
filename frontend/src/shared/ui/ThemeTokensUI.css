@@ -1,10 +1,9 @@
 :root {
     /* Color roles shared by the web app and Word add-in. These describe what a
        color does; liquid-glass classes separately describe surface depth. */
+    --document-canvas-background: var(--color-gray-100, #f3f4f6);
     --document-tab-active-background: var(--app-surface, #fdfdfe);
     --document-tab-inactive-background: #f3f4f6;
-    --document-tab-strip-background: rgba(229, 231, 235, 0.8);
-    --document-tab-outline: #e5e7eb;
     --document-tab-active-text: #1f2937;
     --document-tab-inactive-text: #4b5563;
 
@@ -17,16 +16,25 @@
     --editor-table-header: #f9fafb;
 
     --pdf-highlight-background: rgba(37, 99, 235, 0.2);
+    --pdf-selection-background: rgba(0, 136, 255, 0.25);
     --docx-highlight-background: rgba(37, 99, 235, 0.35);
     --case-highlight-background: rgb(191, 219, 254);
+    --excerpt-selection-background: rgb(191, 219, 254);
     --citation-selected-background: rgba(0, 136, 255, 0.09);
     --citation-selected-text: #172554;
     --citation-selected-muted-text: #1e3a8a;
 
+    --dropdown-input-background: var(--color-gray-100, #f3f4f6);
     --liquid-glass-hover-background: #f5f6f8;
     --liquid-glass-selected-background: var(--app-surface-active, #eff0f3);
     --liquid-glass-modal-row-hover-background: #f3f4f6;
     --liquid-glass-modal-row-selected-background: #e5e7eb;
+    /* Matches Tailwind's `ring-blue-500/40`, the ring every primitive uses. */
+    --focus-ring-color: color-mix(
+        in oklab,
+        var(--color-blue-500, #3b82f6) 40%,
+        transparent
+    );
 
     --content-fade-color: var(--app-surface, #fdfdfe);
     --shimmer-edge: #e5e7eb;
@@ -41,10 +49,10 @@
 }
 
 .dark {
+    --dropdown-input-background: var(--color-gray-800, #1f2937);
+    --document-canvas-background: var(--app-surface-hover, #19212c);
     --document-tab-active-background: var(--app-surface, #131922);
     --document-tab-inactive-background: var(--app-surface-hover, #19212c);
-    --document-tab-strip-background: rgba(34, 44, 56, 0.84);
-    --document-tab-outline: rgba(255, 255, 255, 0.1);
     --document-tab-active-text: #f3f4f6;
     --document-tab-inactive-text: #9ca3af;
 
@@ -57,8 +65,10 @@
     --editor-table-header: var(--app-surface-hover, #19212c);
 
     --pdf-highlight-background: rgba(96, 165, 250, 0.28);
+    --pdf-selection-background: rgba(96, 165, 250, 0.35);
     --docx-highlight-background: rgba(96, 165, 250, 0.34);
     --case-highlight-background: rgba(59, 130, 246, 0.34);
+    --excerpt-selection-background: rgb(30, 64, 175);
     --citation-selected-background: rgba(59, 130, 246, 0.2);
     --citation-selected-text: #dbeafe;
     --citation-selected-muted-text: #93c5fd;
@@ -80,13 +90,18 @@
     --spreadsheet-highlight-outline: #60a5fa;
 }
 
-.document-tab-divider,
-.document-tab-strip {
-    box-shadow: inset 0 -1px 0 var(--document-tab-outline);
+.document-tab-bar {
+    --document-tab-active-background: var(--app-surface-active);
+    --document-tab-inactive-background: transparent;
 }
 
-.document-tab-strip {
-    background-color: var(--document-tab-strip-background);
+.document-tab-bar .document-tab::before,
+.document-tab-bar .document-tab::after {
+    display: none;
+}
+
+.document-canvas {
+    background-color: var(--document-canvas-background);
 }
 
 .document-tab {
@@ -119,9 +134,6 @@
 .document-tab[data-active="true"] {
     color: var(--document-tab-active-text);
     background-color: var(--document-tab-active-background);
-    filter: drop-shadow(0 -1px 0 var(--document-tab-outline))
-        drop-shadow(-1px 0 0 var(--document-tab-outline))
-        drop-shadow(1px 0 0 var(--document-tab-outline));
 }
 
 .document-tab[data-active="true"]::before {
@@ -130,6 +142,37 @@
 
 .document-tab[data-active="true"]::after {
     box-shadow: -4px 4px 0 4px var(--document-tab-active-background);
+}
+
+/* Dropdown text fields are flat; the surrounding menu carries the glass depth.
+   Keep Tailwind focus rings while dropping the input's elevation shadow. */
+.theme-dropdown-surface :is(
+    input:not([type]),
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="password"],
+    input[type="url"],
+    input[type="tel"],
+    input[type="number"],
+    textarea,
+    [data-slot="search-bar"]
+) {
+    background: var(--dropdown-input-background);
+    border-color: transparent;
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000);
+    backdrop-filter: none;
+}
+
+/* SearchBar's wrapper owns the fill and focus ring around its icon and input. */
+.theme-dropdown-surface [data-slot="search-bar"] input {
+    background: transparent;
+}
+
+/* A field built into a menu's own header row (icon, input, divider) sits on
+   the menu's glass with no fill of its own. */
+.theme-dropdown-surface input[data-dropdown-input="flush"] {
+    background: transparent;
 }
 
 .theme-dropdown-item:hover,
@@ -166,6 +209,30 @@
     background-color: var(--liquid-glass-modal-row-selected-background);
 }
 
+/* Keyboard focus. In the base layer so a control's own Tailwind ring or
+   `outline-none` still wins; this is the fallback for controls that set
+   nothing, which would otherwise get the browser's grey outline. */
+@layer base {
+    :focus-visible {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: 2px;
+    }
+
+    /* A control with a hover fill draws its ring inset, on the fill's own
+       perimeter. When the fill belongs to a row wrapping the focused control,
+       mark that control `data-focus-fill` (and `outline-none`) so the ring
+       traces the row rather than the control inside it. */
+    :is(
+        .liquid-glass-hover,
+        .liquid-glass-selected,
+        .liquid-glass-modal-row-hover,
+        .liquid-glass-modal-row-selected
+    ):is(:focus-visible, :has(> [data-focus-fill]:focus-visible)) {
+        outline: 2px solid var(--focus-ring-color);
+        outline-offset: -2px;
+    }
+}
+
 .citation-quote-selected {
     background-color: var(--citation-selected-background);
 }
@@ -191,34 +258,40 @@
     background: linear-gradient(to bottom, transparent, var(--content-fade-color));
 }
 
-.assistant-chat-message-fade {
-    mask-image: linear-gradient(
+.assistant-chat-input-fade {
+    background: linear-gradient(
         to bottom,
-        black 0,
-        black calc(100% - 7rem),
-        transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-        to bottom,
-        black 0,
-        black calc(100% - 7rem),
-        transparent 100%
+        transparent,
+        color-mix(in srgb, var(--app-background) 85%, transparent)
     );
 }
 
 .tr-chat-message-fades {
     mask-image: linear-gradient(
         to bottom,
-        transparent 0,
-        black 2.5rem,
+        rgba(0, 0, 0, 0.15) 0,
+        rgba(0, 0, 0, 0.4) 2rem,
+        black 4rem,
         black calc(100% - 8rem),
         transparent 100%
     );
     -webkit-mask-image: linear-gradient(
         to bottom,
-        transparent 0,
-        black 2.5rem,
+        rgba(0, 0, 0, 0.15) 0,
+        rgba(0, 0, 0, 0.4) 2rem,
+        black 4rem,
         black calc(100% - 8rem),
         transparent 100%
     );
+}
+
+/* Highlighted response text keeps one colour from the drag through the menu
+   and the note: the browser's own selection while it lasts, then the
+   ResponseSelectionMenuUI mark (CSS Custom Highlight API) once focus moving
+   into the menu or note field has taken the selection away. The colour is
+   opaque so the two can overlap without darkening. */
+[data-excerpt-source]::selection,
+[data-excerpt-source] ::selection,
+::highlight(response-excerpt) {
+    background-color: var(--excerpt-selection-background);
 }

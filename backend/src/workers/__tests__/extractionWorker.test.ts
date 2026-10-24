@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { RunProgressUpdate } from "../../lib/queue/runProgress";
 
 vi.mock("../../lib/supabase", () => ({
     createServerSupabase: vi.fn(),
@@ -6,7 +7,7 @@ vi.mock("../../lib/supabase", () => ({
 
 const loadReviewRow = vi.fn();
 const loadRowDocumentText = vi.fn();
-vi.mock("../../lib/tabular/tabular.rows", () => ({
+vi.mock("../../modules/tabular/tabular.rows", () => ({
     loadReviewRow: (...a: unknown[]) => loadReviewRow(...a),
     loadRowDocumentText: (...a: unknown[]) => loadRowDocumentText(...a),
 }));
@@ -15,15 +16,15 @@ vi.mock("../../lib/tabular/tabular.rows", () => ({
 // owner's provider keys). Stub only that resolution; the lease helpers exported
 // from the same module are the subject of the tests below and must stay real.
 const validateSelectedModel = vi.fn();
-vi.mock("../../lib/tabular/tabular.shared", async (importOriginal) => ({
+vi.mock("../../modules/tabular/tabular.shared", async (importOriginal) => ({
     ...(await importOriginal<
-        typeof import("../../lib/tabular/tabular.shared")
+        typeof import("../../modules/tabular/tabular.shared")
     >()),
     validateSelectedModel: (...a: unknown[]) => validateSelectedModel(...a),
 }));
 
 const queryTabularAllColumns = vi.fn();
-vi.mock("../../lib/tabular/tabular.extract", () => ({
+vi.mock("../../modules/tabular/tabular.extract", () => ({
     queryTabularAllColumns: (...a: unknown[]) => queryTabularAllColumns(...a),
 }));
 
@@ -34,6 +35,7 @@ import {
 } from "../extractionWorker";
 import type { Job } from "bullmq";
 import type { ExtractionJobData } from "../../lib/queue/extractionQueue";
+import { AssistantStreamError } from "../../modules/chat/chat.service";
 
 type Call = {
     table: string;
@@ -88,6 +90,10 @@ function makeDb(responses: Record<string, { select?: SelectResponse }>) {
                 return b;
             },
             single() {
+                calls.push({ ...state, filters: { ...state.filters } });
+                return Promise.resolve(resolveRead());
+            },
+            maybeSingle() {
                 calls.push({ ...state, filters: { ...state.filters } });
                 return Promise.resolve(resolveRead());
             },
@@ -155,7 +161,9 @@ beforeEach(() => {
 
 describe("runExtractionJob", () => {
     it("marks every column generating then done and publishes each", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -195,7 +203,9 @@ describe("runExtractionJob", () => {
     });
 
     it("reuses existing cell records (update, not insert) when they already exist", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -227,7 +237,9 @@ describe("runExtractionJob", () => {
     });
 
     it("skips columns already done with content — no LLM call", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -251,7 +263,9 @@ describe("runExtractionJob", () => {
     });
 
     it("throws when the model omits a column so BullMQ retries", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -273,7 +287,9 @@ describe("runExtractionJob", () => {
     });
 
     it("restricts a single-cell job (columnIndex) to its one column", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -423,7 +439,9 @@ describe("runExtractionJob", () => {
     });
 
     it("returns early when the review has no columns", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_reviews: {
                 select: {
@@ -440,7 +458,9 @@ describe("runExtractionJob", () => {
     });
 
     it("returns early when the row no longer exists (deleted between enqueue and run)", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         loadReviewRow.mockResolvedValue(null);
         const db = makeDb({
             tabular_reviews: {
@@ -457,9 +477,67 @@ describe("runExtractionJob", () => {
     });
 });
 
+describe("runExtractionJob authorization epoch (LiTT C4)", () => {
+    // The review belongs to org-1, whose authorization epoch is now 4.
+    const orgDb = () =>
+        makeDb({
+            tabular_reviews: {
+                select: {
+                    data: { columns_config: COLUMNS, model: "claude-test", org_id: "org-1" },
+                },
+            },
+            organizations: { select: { data: { authorization_epoch: 4 } } },
+            tabular_cells: { select: { data: [] } },
+        });
+    const publish = async () => {};
+
+    it.each([
+        ["queued before a revocation (epoch 3)", { orgId: "org-1", epoch: 3 }],
+        ["queued without a stamp", undefined],
+        ["stamped for another organization", { orgId: "org-2", epoch: 4 }],
+    ])("a job %s fails terminally before any extraction", async (_label, authorization) => {
+        const db = orgDb();
+        await expect(
+            runExtractionJob({ ...DATA, authorization } as ExtractionJobData, {
+                db: db as never,
+                publish,
+            }),
+        ).rejects.toMatchObject({
+            name: "StaleAuthorizationError",
+            message: expect.stringMatching(/^stale_authorization_epoch/),
+        });
+        // A retry carries the same stamp and fails the same way.
+        await expect(
+            runExtractionJob({ ...DATA, authorization } as ExtractionJobData, {
+                db: db as never,
+                publish,
+            }),
+        ).rejects.toThrow(/stale_authorization_epoch/);
+        expect(queryTabularAllColumns).not.toHaveBeenCalled();
+        expect(validateSelectedModel).not.toHaveBeenCalled();
+        expect(db.calls.filter((c) => c.op !== "select")).toEqual([]);
+    });
+
+    it("a job stamped with the current epoch runs", async () => {
+        const db = orgDb();
+        queryTabularAllColumns.mockImplementation(
+            async (_m, _f, _t, cols, onResult) => {
+                for (const c of cols) await onResult(c.index, CELL(c.index, {}));
+            },
+        );
+        await runExtractionJob(
+            { ...DATA, authorization: { orgId: "org-1", epoch: 4 } },
+            { db: db as never, publish },
+        );
+        expect(queryTabularAllColumns).toHaveBeenCalled();
+    });
+});
+
 describe("markExtractionFailed", () => {
     it("only touches its own column for a single-cell job", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_cells: {
                 select: {
@@ -491,7 +569,9 @@ describe("markExtractionFailed", () => {
     });
 
     it("marks only unfinished cells error and publishes them", async () => {
-        const publish = vi.fn(async () => {});
+        const publish = vi.fn(
+            async (_reviewId: string, _update: unknown) => {},
+        );
         const db = makeDb({
             tabular_cells: {
                 select: {
@@ -571,7 +651,12 @@ describe("markExtractionFailed", () => {
     });
 
     it("leaves cells clear-cells revoked (unstamped, pending) alone", async () => {
-        const publish = vi.fn(async () => {});
+        // Typed with publishCellUpdate's signature: this case reads the
+        // published update back off mock.calls, which needs a real arg tuple.
+        const publish =
+            vi.fn<(reviewId: string, update: RunProgressUpdate) => Promise<void>>(
+                async () => {},
+            );
         const db = makeDb({
             tabular_cells: {
                 select: {
@@ -614,9 +699,10 @@ describe("markExtractionFailed", () => {
             generation_id: "gen-1",
         });
         expect(publish).toHaveBeenCalledTimes(1);
-        expect(
-            (publish.mock.calls[0][1] as { column_index: number }).column_index,
-        ).toBe(1);
+        expect(publish).toHaveBeenCalledWith(
+            "rev-1",
+            expect.objectContaining({ type: "cell_update", column_index: 1 }),
+        );
     });
 
     it("still finalizes an unstamped cell when the job carries no generation", async () => {
@@ -782,6 +868,44 @@ describe("generation lease", () => {
         expect(db.rpcs.map((r) => r.name)).not.toContain(
             "finish_tabular_review_generation",
         );
+    });
+
+    it("publishes a rejected-key error for the generation stream", async () => {
+        const publish = vi.fn(async () => {});
+        const db = makeDb({
+            tabular_reviews: {
+                select: {
+                    data: { columns_config: COLUMNS, model: "claude-test" },
+                },
+            },
+            tabular_cells: {
+                select: { data: [] },
+            },
+        });
+        queryTabularAllColumns.mockRejectedValue(
+            new AssistantStreamError("rejected", "", [
+                {
+                    type: "error",
+                    message: "The Anthropic API key was rejected.",
+                    safe_to_display: true,
+                    code: "invalid_api_key",
+                },
+            ]),
+        );
+
+        await expect(
+            runExtractionJob(
+                { ...DATA, generationId: "gen-1" },
+                { db: db as never, publish },
+            ),
+        ).rejects.toThrow(/incomplete extraction/);
+
+        expect(publish).toHaveBeenCalledWith("rev-1", {
+            type: "error",
+            message: "The Anthropic API key was rejected.",
+            safe_to_display: true,
+            code: "invalid_api_key",
+        });
     });
 
     it("takes no lease action when the job carries no generation id", async () => {

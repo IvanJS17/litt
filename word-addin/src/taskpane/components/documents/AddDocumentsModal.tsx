@@ -5,8 +5,10 @@ import {
   getLibrary,
   getLibraryFolderChildren,
   getProjectDirectoryLevel,
+  failedUploadMessage,
   listProjects,
-  uploadStandaloneDocument,
+  uploadStandaloneDocuments,
+  type UploadProgress,
 } from "../../api/mikeApi";
 import {
   partitionSupportedDocumentFiles,
@@ -14,12 +16,13 @@ import {
 } from "../../lib/documentUpload";
 import { Modal } from "../primitives/Modal";
 import { Spinner } from "../../../shared/ui/spinner";
-import { TabPillButton } from "../../../shared/ui/tab-pill-button";
+import { TabPillButtonUI } from "@mike/tab-pill-button-ui";
 import {
   FileTypeIcon,
   ProjectSvgIcon,
   SubfolderSvgIcon,
 } from "./DirectoryIcons";
+import { userMessage } from "../../lib/notify";
 
 type DirectoryTab = "files" | "templates" | "projects";
 
@@ -195,17 +198,17 @@ export function AddDocumentsModal({
           })
         : getLibrary(activeTab, { limit: DIRECTORY_PAGE_SIZE }).then(
             (collection) => {
-            if (!cancelled) {
-              setLibraryFolders(collection.folders ?? []);
-              setDocuments(
-                [...(collection.documents ?? [])].sort((a, b) =>
-                  (b.created_at ?? "").localeCompare(a.created_at ?? ""),
-                ),
-              );
-              setLibraryHasMoreByLevel({
-                [ROOT_LEVEL_KEY]: !!collection.documentsHasMore,
-              });
-            }
+              if (!cancelled) {
+                setLibraryFolders(collection.folders ?? []);
+                setDocuments(
+                  [...(collection.documents ?? [])].sort((a, b) =>
+                    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+                  ),
+                );
+                setLibraryHasMoreByLevel({
+                  [ROOT_LEVEL_KEY]: !!collection.documentsHasMore,
+                });
+              }
             },
           );
 
@@ -213,9 +216,9 @@ export function AddDocumentsModal({
       .catch((reason: unknown) => {
         if (cancelled) return;
         setError(
-          reason instanceof Error
-            ? reason.message
-            : "Failed to load documents.",
+          userMessage(reason, {
+            fallback: "Failed to load documents.",
+          }),
         );
       })
       .finally(() => {
@@ -277,7 +280,8 @@ export function AddDocumentsModal({
     if (!loadMore && loadedProjectLevels.has(levelKey)) return;
     if (loadingProjectLevels.has(levelKey)) return;
     const offset = loadMore
-      ? folderDocuments(projectDocuments[projectId] ?? [], parentFolderId).length
+      ? folderDocuments(projectDocuments[projectId] ?? [], parentFolderId)
+          .length
       : 0;
     setLoadingProjectLevels((current) => new Set(current).add(levelKey));
     setError(null);
@@ -302,9 +306,9 @@ export function AddDocumentsModal({
       }));
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Failed to load project documents.",
+        userMessage(reason, {
+          fallback: "Failed to load project documents.",
+        }),
       );
     } finally {
       setLoadingProjectLevels((current) => {
@@ -349,7 +353,9 @@ export function AddDocumentsModal({
       setProjectsHasMore(rows.length > DIRECTORY_PAGE_SIZE);
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Failed to load projects.",
+        userMessage(reason, {
+          fallback: "Failed to load projects.",
+        }),
       );
     } finally {
       setLoadingMoreProjects(false);
@@ -373,35 +379,51 @@ export function AddDocumentsModal({
 
     setUploadingFilenames(supported.map((file) => file.name));
     setError(null);
-    const results = await Promise.allSettled(
-      supported.map((file) => uploadStandaloneDocument(file)),
-    );
-    const uploaded = results.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : [],
-    );
-    if (uploaded.length > 0) {
+    const addUploadedDocument = (document: Document) => {
       setDocuments((current) => [
-        ...uploaded,
-        ...current.filter(
-          (document) => !uploaded.some((item) => item.id === document.id),
-        ),
+        document,
+        ...current.filter((item) => item.id !== document.id),
       ]);
-      setSelectedDocuments((current) => [
-        ...current,
-        ...uploaded.filter(
-          (document) => !current.some((item) => item.id === document.id),
-        ),
-      ]);
-      setActiveTab("files");
-    }
-    if (results.some((result) => result.status === "rejected")) {
-      setError(
-        uploaded.length > 0
-          ? "Some documents could not be uploaded."
-          : "Documents could not be uploaded. Please try again.",
+      setSelectedDocuments((current) =>
+        current.some((item) => item.id === document.id)
+          ? current
+          : [...current, document],
       );
+      setActiveTab("files");
+    };
+    try {
+      const outcomes = await uploadStandaloneDocuments(supported, {
+        onProgress: (progress: UploadProgress<Document>) => {
+          if (progress.status === "completed" || progress.status === "error") {
+            setUploadingFilenames((current) =>
+              current.filter((filename) => filename !== progress.filename),
+            );
+          }
+          if (progress.status === "completed" && progress.result) {
+            addUploadedDocument(progress.result);
+          }
+        },
+      });
+      const uploaded = outcomes.flatMap((outcome) =>
+        outcome.status === "completed" && outcome.result
+          ? [outcome.result]
+          : [],
+      );
+      if (uploaded.length > 0) {
+        uploaded.forEach(addUploadedDocument);
+      }
+      if (outcomes.some((outcome) => outcome.status === "error")) {
+        setError(failedUploadMessage(outcomes));
+      }
+    } catch (reason) {
+      setError(
+        userMessage(reason, {
+          fallback: "Documents could not be uploaded. Please try again.",
+        }),
+      );
+    } finally {
+      setUploadingFilenames([]);
     }
-    setUploadingFilenames([]);
   };
 
   const documentFolderId = (document: Document): string | null =>
@@ -486,9 +508,7 @@ export function AddDocumentsModal({
     if (loadingLibraryFolderIds.has(folderId)) return;
     setLoadingLibraryFolderIds((current) => new Set(current).add(folderId));
     if (loadMore) {
-      setLoadingMoreLibraryLevels((current) =>
-        new Set(current).add(folderId),
-      );
+      setLoadingMoreLibraryLevels((current) => new Set(current).add(folderId));
     }
     try {
       const offset = loadMore ? folderDocuments(documents, folderId).length : 0;
@@ -539,13 +559,12 @@ export function AddDocumentsModal({
       await loadLibraryFolderLevel(activeTab, folderId);
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Failed to load folder documents.",
+        userMessage(reason, {
+          fallback: "Failed to load folder documents.",
+        }),
       );
     }
   };
-
 
   const loadMoreLibraryRoot = async (): Promise<void> => {
     if (activeTab === "projects") return;
@@ -568,7 +587,9 @@ export function AddDocumentsModal({
       }));
     } catch (reason) {
       setError(
-        reason instanceof Error ? reason.message : "Failed to load documents.",
+        userMessage(reason, {
+          fallback: "Failed to load documents.",
+        }),
       );
     } finally {
       setLoadingMoreLibraryLevels((current) => {
@@ -636,9 +657,7 @@ export function AddDocumentsModal({
             <span
               role="checkbox"
               aria-checked={someSelected ? "mixed" : allSelected}
-              aria-disabled={
-                !treeLoaded || items.length === 0
-              }
+              aria-disabled={!treeLoaded || items.length === 0}
               aria-label={`Select all files in ${folder.name}`}
               onClick={(event) => {
                 event.stopPropagation();
@@ -865,17 +884,18 @@ export function AddDocumentsModal({
       <div className="my-3 flex items-center justify-between gap-2">
         <div
           data-testid="document-tabs-scroll"
-          className="-mx-2 -my-2 flex min-w-0 items-center gap-1 overflow-x-auto px-2 py-2"
+          data-modal-scroll="horizontal"
+          className="flex min-w-0 items-center gap-1 overflow-x-auto"
         >
           {TABS.map((tab) => (
-            <TabPillButton
+            <TabPillButtonUI
               key={tab.value}
               active={activeTab === tab.value}
               onClick={() => setActiveTab(tab.value)}
               className="shrink-0 px-2.5"
             >
               {tab.label}
-            </TabPillButton>
+            </TabPillButtonUI>
           ))}
         </div>
         {selectedDocuments.length > 0 && (
@@ -886,7 +906,7 @@ export function AddDocumentsModal({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto pb-3">
+        <div data-modal-scroll="vertical" className="min-h-0 flex-1 overflow-y-auto pb-3">
           {loading ? (
             <div className="flex h-full items-center justify-center">
               <Spinner label="Loading documents…" />

@@ -18,6 +18,7 @@ vi.mock("undici", async (importOriginal) => {
     return { ...actual, fetch: vi.fn() };
 });
 
+import { BlockedDestinationError } from "../../blockedDestination";
 import {
     guardedFetch,
     mcpOAuthCallbackUrl,
@@ -70,6 +71,9 @@ describe("validateRemoteMcpUrl", () => {
             "https://foo.localhost/",
             "https://metadata.google.internal/",
             "https://instance-data/",
+            // PR #608 regression: a fully-qualified name's root dot is the
+            // same host, but slipped past the exact-match name checks.
+            "https://LOCALHOST../",
         ]) {
             await expect(validateRemoteMcpUrl(host), host).rejects.toThrow(
                 /blocked host/,
@@ -221,5 +225,238 @@ describe("mcpOAuthCallbackUrl", () => {
         expect(() => mcpOAuthCallbackUrl()).toThrow(
             /API_PUBLIC_URL is required/,
         );
+    });
+});
+
+describe("guardedFetch redirect following", () => {
+    const fetchSpy = vi.mocked(undiciFetch);
+
+    beforeEach(() => {
+        fetchSpy.mockReset();
+    });
+
+    function redirectTo(location: string, status = 302) {
+        return new Response(null, {
+            status,
+            headers: { location },
+        }) as unknown as Awaited<ReturnType<typeof undiciFetch>>;
+    }
+
+    function okResponse() {
+        return new Response("{}", { status: 200 }) as unknown as Awaited<
+            ReturnType<typeof undiciFetch>
+        >;
+    }
+
+    it("follows a redirect and returns the final response", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(
+                redirectTo("https://public.example.com/mcp/.well-known/x"),
+            )
+            .mockResolvedValueOnce(okResponse());
+
+        const res = await guardedFetch(
+            "https://public.example.com/.well-known/x/mcp",
+        );
+
+        expect(res.status).toBe(200);
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+        expect(fetchSpy.mock.calls[1][0]).toBe(
+            "https://public.example.com/mcp/.well-known/x",
+        );
+    });
+
+    it("resolves a relative Location against the current URL", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(redirectTo("/elsewhere", 307))
+            .mockResolvedValueOnce(okResponse());
+
+        await guardedFetch("https://public.example.com/a/b");
+
+        expect(fetchSpy.mock.calls[1][0]).toBe(
+            "https://public.example.com/elsewhere",
+        );
+    });
+
+    it("re-validates each hop and refuses a redirect to a private address", async () => {
+        lookupMock.mockImplementation(async (hostname: string) =>
+            hostname === "public.example.com"
+                ? [{ address: "93.184.216.34", family: 4 }]
+                : [{ address: "169.254.169.254", family: 4 }],
+        );
+        fetchSpy.mockResolvedValueOnce(
+            redirectTo("https://internal.example.com/latest/meta-data/"),
+        );
+
+        await expect(
+            guardedFetch("https://public.example.com/mcp"),
+        ).rejects.toThrow(/blocked network address/);
+    });
+
+    it("drops the Authorization header when the origin changes", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(redirectTo("https://other.example.com/x"))
+            .mockResolvedValueOnce(okResponse());
+
+        await guardedFetch("https://public.example.com/mcp", {
+            headers: {
+                authorization: "Bearer secret",
+                accept: "application/json",
+            },
+        });
+
+        const headers = new Headers(
+            (fetchSpy.mock.calls[1][1] as RequestInit).headers,
+        );
+        expect(headers.get("authorization")).toBeNull();
+        expect(headers.get("accept")).toBe("application/json");
+    });
+
+    it("keeps the Authorization header on a same-origin redirect", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(redirectTo("https://public.example.com/x"))
+            .mockResolvedValueOnce(okResponse());
+
+        await guardedFetch("https://public.example.com/mcp", {
+            headers: { authorization: "Bearer secret" },
+        });
+
+        const headers = new Headers(
+            (fetchSpy.mock.calls[1][1] as RequestInit).headers,
+        );
+        expect(headers.get("authorization")).toBe("Bearer secret");
+    });
+
+    it("does not restore Authorization after crossing an origin boundary", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(redirectTo("https://other.example.com/x"))
+            .mockResolvedValueOnce(redirectTo("https://other.example.com/y"))
+            .mockResolvedValueOnce(okResponse());
+
+        await guardedFetch("https://public.example.com/mcp", {
+            headers: { authorization: "Bearer secret" },
+        });
+
+        const secondHopHeaders = new Headers(
+            (fetchSpy.mock.calls[2][1] as RequestInit).headers,
+        );
+        expect(secondHopHeaders.get("authorization")).toBeNull();
+    });
+
+    it("drops custom secret headers on a cross-origin redirect", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy
+            .mockResolvedValueOnce(redirectTo("https://other.example.com/x"))
+            .mockResolvedValueOnce(okResponse());
+
+        await guardedFetch("https://public.example.com/mcp", {
+            headers: {
+                accept: "application/json",
+                "x-api-key": "secret",
+            },
+        });
+
+        const redirectedHeaders = new Headers(
+            (fetchSpy.mock.calls[1][1] as RequestInit).headers,
+        );
+        expect(redirectedHeaders.get("x-api-key")).toBeNull();
+        expect(redirectedHeaders.get("accept")).toBe("application/json");
+    });
+
+    it("does not follow redirects for non-GET requests", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy.mockResolvedValue(redirectTo("https://public.example.com/x"));
+
+        const res = await guardedFetch("https://public.example.com/mcp", {
+            method: "POST",
+            body: "{}",
+        });
+
+        expect(res.status).toBe(302);
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops after the redirect cap instead of looping forever", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy.mockResolvedValue(
+            redirectTo("https://public.example.com/loop"),
+        );
+
+        const res = await guardedFetch("https://public.example.com/loop");
+
+        expect(res.status).toBe(302);
+        // 1 initial + MAX_MCP_REDIRECTS follows.
+        expect(fetchSpy).toHaveBeenCalledTimes(6);
+    });
+});
+
+// PR #608 regression: custom LLM endpoints reuse this guard, and their
+// failures said "MCP server URL …", which is wrong (and confusing) for model
+// traffic. The caller names its own destination.
+describe("guardedFetch caller label", () => {
+    it("names the caller's destination in blocked-address errors", async () => {
+        resolvesTo("10.0.0.5");
+        const error = (await guardedFetch(
+            "https://rebind.example.com/v1/models",
+            undefined,
+            { label: "Model endpoint URL" },
+        ).then(
+            () => null,
+            (err: unknown) => err,
+        )) as Error & { code?: string };
+        expect(error).toBeInstanceOf(Error);
+        expect(error.message).toBe(
+            "Model endpoint URL resolves to a blocked network address.",
+        );
+        expect(error.code).toBe("ERR_BLOCKED_DESTINATION");
+    });
+
+    it("re-labels a connect-time rejection from the shared agent", async () => {
+        resolvesTo("93.184.216.34");
+        vi.mocked(undiciFetch).mockRejectedValueOnce(
+            new TypeError("fetch failed", {
+                cause: new BlockedDestinationError(
+                    "Destination resolves to a blocked network address.",
+                ),
+            }),
+        );
+        await expect(
+            guardedFetch("https://rebind.example.com/v1/models", undefined, {
+                label: "Model endpoint URL",
+            }),
+        ).rejects.toThrow("Model endpoint URL resolves to a blocked network address.");
+    });
+
+    it("keeps the MCP wording by default", async () => {
+        resolvesTo("10.0.0.5");
+        await expect(
+            guardedFetch("https://rebind.example.com/"),
+        ).rejects.toThrow("MCP server URL resolves to a blocked network address.");
+    });
+});
+
+describe("guardedFetch for public web pages", () => {
+    const fetchSpy = vi.mocked(undiciFetch);
+
+    beforeEach(() => {
+        fetchSpy.mockReset();
+    });
+
+    it("allows plain http only when asked to", async () => {
+        resolvesTo("93.184.216.34");
+        fetchSpy.mockResolvedValue(new Response("ok") as never);
+
+        await expect(guardedFetch("http://public.example.com/page")).rejects.toThrow(/HTTPS/);
+        expect(fetchSpy).not.toHaveBeenCalled();
+
+        const res = await guardedFetch("http://public.example.com/page", undefined, {
+            allowHttp: true,
+        });
+        expect(res.status).toBe(200);
     });
 });

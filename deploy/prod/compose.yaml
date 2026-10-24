@@ -88,6 +88,13 @@ services:
       db:
         condition: service_healthy
 
+  # One-shot, on every start: an empty database gets backend/schema.sql (the
+  # complete schema, with every migration it contains recorded in
+  # public.schema_migrations); then backend/scripts/migrate.sh applies the
+  # pending migrations, each once, under its advisory lock. Same mechanism as
+  # the root docker-compose.yml. A database with a schema but no ledger stops
+  # here (migrate.sh asks for a baseline) instead of being replayed blindly.
+  # Application grants come from schema.sql and the migrations only.
   db-init:
     image: supabase/postgres:17.6.1.136
     restart: 'no'
@@ -98,9 +105,14 @@ services:
       PGUSER: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD:?required}
       PGDATABASE: postgres
+      # migrate.sh connects with DATABASE_URL; the password comes from
+      # PGPASSWORD above, so it never appears in the URL.
+      DATABASE_URL: postgres://postgres@db:5432/postgres
+      MIGRATIONS_DIR: /migrations
     volumes:
-    - ../../backend/schema.sql:/staging/schema.sql:ro
-    - ../../scripts/staging-db-init.sh:/staging/db-init.sh:ro
+    - ../../backend/schema.sql:/schema.sql:ro
+    - ../../backend/migrations:/migrations:ro
+    - ../../backend/scripts/migrate.sh:/migrate.sh:ro
     depends_on:
       db:
         condition: service_healthy
@@ -110,9 +122,17 @@ services:
         condition: service_started
     entrypoint:
     - bash
-    - /staging/db-init.sh
+    - -c
     command:
-    - fresh
+    - |
+      set -euo pipefail
+      # A failed query stops here; it is never read as an empty database.
+      existing=$$(psql -X -v ON_ERROR_STOP=1 -tAc "select to_regclass('public.user_profiles')")
+      if [ -z "$$existing" ]; then
+        psql -X -v ON_ERROR_STOP=1 -f /schema.sql
+      fi
+      bash /migrate.sh up
+      psql -X -c "notify pgrst, 'reload schema'"
     healthcheck:
       disable: true
 

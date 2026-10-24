@@ -1,16 +1,16 @@
 "use client";
 
+import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import {
     type Dispatch,
     type SetStateAction,
     useCallback,
     useEffect,
     useMemo,
-    useRef,
     useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, FolderUp, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
     createProjectFolder,
     deleteProjectFolder,
@@ -21,6 +21,7 @@ import {
     renameProjectFolder,
     resolveProjectFolderPath,
     uploadProjectDocument,
+    uploadProjectDocuments,
 } from "@/app/lib/mikeApi";
 import type { Document } from "@/app/components/shared/types";
 import { AddDocumentsModal } from "@/app/components/modals/AddDocumentsModal";
@@ -30,12 +31,8 @@ import {
     type DocTableSelectionActions,
     type DocTableFolder,
 } from "@/app/components/documents/DocTable";
-import { TabPillButton } from "@/app/components/ui/tab-pill-button";
+import { TabPillButtonUI } from "@/shared/ui/TabPillButtonUI";
 import { ProjectSectionToolbar, useProjectWorkspace } from "./ProjectWorkspace";
-import {
-    LIQUID_GLASS_HOVER_CLASS,
-    LIQUID_GLASS_FLOAT_CLASS,
-} from "@/app/components/ui/liquid-surface";
 
 interface Props {
     projectId: string;
@@ -57,11 +54,16 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         search,
         setOwnerOnlyAction,
         setDocumentFolderBreadcrumbs,
+        setDocumentUploadHeaderAction,
+        accessRole,
+        canDo,
     } = workspace;
+    // Null while the project row is in flight. The folder controls keep their
+    // place in the toolbar during that window — removing them would reflow the
+    // header on every navigation — but they are disabled, because until the
+    // role arrives nobody knows whether this caller may organize anything.
+    const roleKnown = accessRole !== null;
     const [createFolderAction, setCreateFolderAction] = useState<
-        (() => void) | null
-    >(null);
-    const [uploadFolderAction, setUploadFolderAction] = useState<
         (() => void) | null
     >(null);
     const [folderBackAction, setFolderBackAction] = useState<
@@ -77,21 +79,11 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         projectId,
         limits: { root: PROJECT_DIRECTORY_PAGE_SIZE },
     }));
-    const actionsRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!projectLoading) prefetchProjectSections();
     }, [projectLoading, prefetchProjectSections]);
 
-    useEffect(() => {
-        function handleClick(event: MouseEvent) {
-            if (!actionsRef.current?.contains(event.target as Node)) {
-                setActionsOpen(false);
-            }
-        }
-        if (actionsOpen) document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, [actionsOpen]);
 
     const documentLimitByLevel = useMemo(() => {
         const current =
@@ -188,6 +180,23 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         () => ({
             uploadDocument: (file: File, targetFolderId?: string | null) =>
                 uploadProjectDocument(projectId, file, targetFolderId),
+            uploadDocuments: (
+                files: Array<{
+                    file: File;
+                    folderId: string | null;
+                    clientId: string;
+                }>,
+                options?: Parameters<typeof uploadProjectDocuments>[2],
+            ) =>
+                uploadProjectDocuments(
+                    projectId,
+                    files.map(({ file, folderId, clientId }) => ({
+                        file,
+                        folderId,
+                        clientId,
+                    })),
+                    options,
+                ),
             refreshCollection,
             createFolder: (name: string, parentFolderId?: string | null) =>
                 createProjectFolder(projectId, name, parentFolderId),
@@ -222,11 +231,23 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         },
         [],
     );
+    const handleSavedFilesActionChange = useCallback(
+        (action: (() => void) | null) => {
+            setDocumentUploadHeaderAction("savedFiles", action);
+        },
+        [setDocumentUploadHeaderAction],
+    );
+    const handleUploadFilesActionChange = useCallback(
+        (action: (() => void) | null) => {
+            setDocumentUploadHeaderAction("uploadFiles", action);
+        },
+        [setDocumentUploadHeaderAction],
+    );
     const handleUploadFolderActionChange = useCallback(
         (action: (() => void) | null) => {
-            setUploadFolderAction(() => action);
+            setDocumentUploadHeaderAction("uploadFolder", action);
         },
-        [],
+        [setDocumentUploadHeaderAction],
     );
     const handleFolderBackActionChange = useCallback(
         (action: (() => void) | null) => {
@@ -265,69 +286,24 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
 
     const toolbarActions = (
         <div className="flex items-center gap-1.5">
-            {folderBackAction && (
-                <TabPillButton onClick={folderBackAction}>
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                    Back
-                </TabPillButton>
-            )}
             {selectionActions && (
-                <div ref={actionsRef} className="relative">
-                    <TabPillButton
-                        onClick={() => setActionsOpen((open) => !open)}
-                    >
-                        Actions
-                        <ChevronDown className="h-3.5 w-3.5" />
-                    </TabPillButton>
-                    {actionsOpen && (
-                        <div className={`absolute right-0 top-full z-[120] mt-1 w-36 overflow-hidden rounded-lg ${LIQUID_GLASS_FLOAT_CLASS} backdrop-blur-2xl`}>
-                            <button
-                                onClick={() => {
-                                    setActionsOpen(false);
-                                    void selectionActions.onDownload();
-                                }}
-                                className={`w-full px-3 py-1.5 text-left text-xs text-gray-600 transition-colors ${LIQUID_GLASS_HOVER_CLASS}`}
-                            >
-                                Download
-                            </button>
-                            {selectionActions.hasDocumentsInFolders && (
-                                <button
-                                    onClick={() => {
-                                        setActionsOpen(false);
-                                        void selectionActions.onRemoveFromFolder();
-                                    }}
-                                    className={`w-full px-3 py-1.5 text-left text-xs text-gray-600 transition-colors ${LIQUID_GLASS_HOVER_CLASS}`}
-                                >
-                                    Remove from subfolder
-                                </button>
-                            )}
-                            <button
-                                onClick={() => {
-                                    setActionsOpen(false);
-                                    void selectionActions.onDelete();
-                                }}
-                                className="w-full px-3 py-1.5 text-left text-xs text-red-600 transition-colors hover:bg-red-50"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    )}
-                </div>
+                <SelectionActionsMenu
+                    open={actionsOpen}
+                    onOpenChange={setActionsOpen}
+                    renderItems={selectionActions.renderMenuItems}
+                />
             )}
-            <TabPillButton
-                onClick={uploadFolderAction ?? undefined}
-                disabled={!uploadFolderAction || projectLoading}
-            >
-                <FolderUp className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Upload folder</span>
-            </TabPillButton>
-            <TabPillButton
-                onClick={createFolderAction ?? undefined}
-                disabled={!createFolderAction || projectLoading}
-            >
-                <Plus className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Folder</span>
-            </TabPillButton>
+            {(!roleKnown || canDo("docs.organize")) && (
+                <TabPillButtonUI
+                    onClick={createFolderAction ?? undefined}
+                    disabled={
+                        !roleKnown || !createFolderAction || projectLoading
+                    }
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Folder</span>
+                </TabPillButtonUI>
+            )}
         </div>
     );
 
@@ -341,8 +317,12 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
 
     return (
         <>
-            <ProjectSectionToolbar actions={toolbarActions} />
+            <ProjectSectionToolbar
+                backAction={folderBackAction}
+                actions={toolbarActions}
+            />
             <DocTable
+                showCreator
                 scopeKey={projectId}
                 documents={documents}
                 setDocuments={setDocuments}
@@ -355,10 +335,24 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                 operations={operations}
                 emptyStateTitle="Documents"
                 onAddDocumentsActionChange={
-                    workspace.setAddDocumentsHeaderAction
+                    canDo("content.edit")
+                        ? handleSavedFilesActionChange
+                        : undefined
                 }
+                onUploadFilesActionChange={
+                    canDo("content.edit")
+                        ? handleUploadFilesActionChange
+                        : undefined
+                }
+                // Uploading a folder is the same content.edit write as
+                // uploading files — one native picker further in. Left
+                // ungated, a viewer chose a folder from disk and only then
+                // met the failure, halfway through an upload session they
+                // were never allowed to open.
                 onUploadFolderActionChange={
-                    handleUploadFolderActionChange
+                    canDo("content.edit")
+                        ? handleUploadFolderActionChange
+                        : undefined
                 }
                 onCreateFolderActionChange={handleCreateFolderActionChange}
                 onFolderViewBackActionChange={handleFolderBackActionChange}
@@ -373,7 +367,11 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                 onLoadMoreDocuments={handleLoadMoreDocuments}
                 autoLoadOnScroll
                 enableHeaderFilters
-                defaultSort={{ key: "updated", direction: "desc" }}
+                defaultSort={
+                    folderId
+                        ? { key: "updated", direction: "desc" }
+                        : { key: "name", direction: "asc" }
+                }
                 renderAddDocumentsModal={(open, onClose, onSelect) =>
                     project ? (
                         <AddDocumentsModal
@@ -393,6 +391,7 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                     ) : null
                 }
                 onOwnerOnlyAction={setOwnerOnlyAction}
+                canDo={canDo}
             />
         </>
     );

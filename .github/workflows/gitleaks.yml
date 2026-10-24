@@ -14,16 +14,17 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
+    # Validate stacked PRs targeting feature branches as well as main.
+  workflow_dispatch:
 
 # Cancel PR runs that a newer push to the same PR has superseded. Pushes to
 # main each get their own group (keyed by sha) and are never cancelled.
 concurrency:
   group: secret-scan-${{ github.event_name == 'push' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'push' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
 
 jobs:
   gitleaks:

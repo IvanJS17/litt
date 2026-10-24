@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -185,7 +184,7 @@ describe("Civil/Mercantile MX governed content", () => {
       document_upload: true,
       word_quick_action: false,
       word_quick_action_prompt: null,
-      reference_files: [],
+      assets: [],
     });
     expect(createHash("sha256")
       .update(MX_CIVIL_COMMERCIAL_SYNC_ENTRY.prompt_md, "utf8")
@@ -213,7 +212,7 @@ describe("Civil/Mercantile MX governed content", () => {
 
 describe("runtime export and import lock", () => {
   it("exports only immutable governed MX content", async () => {
-    const mod = await import("./mxCivilCommercialPlaybook");
+    const mod = await import("./mxCivilCommercialPlaybook.js");
     expect(Object.keys(mod).sort()).toEqual(
       [
         "MX_CIVIL_COMMERCIAL_CATALOG_ROW",
@@ -225,7 +224,9 @@ describe("runtime export and import lock", () => {
   });
 
   it("has no legacy catalog, storage, database, route or network import", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
+    // Source reads resolve from the package root: test files are typechecked
+    // as CommonJS here, where import.meta is not available.
+    const here = join(process.cwd(), "src/lib/recovery/workflows");
     const source = readFileSync(
       join(here, "mxCivilCommercialPlaybook.ts"),
       "utf8",

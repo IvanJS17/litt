@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,9 +10,8 @@ import {
   type GovernedCredentialRecord,
 } from "./governedProviderRoute";
 
-const HERE = dirname(fileURLToPath(import.meta.url));
 const IMPL_SOURCE = readFileSync(
-  join(HERE, "governedProviderRoute.ts"),
+  resolve(process.cwd(), "src/lib/recovery/providers/governedProviderRoute.ts"),
   "utf8",
 );
 
@@ -57,9 +55,9 @@ function capturingPort(rec: GovernedCredentialRecord | null): {
 
 describe("valid explicit routes", () => {
   it.each([
-    ["claude", "claude-sonnet-5"],
-    ["gemini", "gemini-3.7-flash"],
-    ["openai", "gpt-5.6-sol"],
+    ["claude", "claude-sonnet-5-5"],
+    ["gemini", "gemini-3.8-flash"],
+    ["openai", "gpt-6.1-sol"],
     ["ollama", "ollama/llama3.2"],
     ["openrouter", "openrouter/anthropic/claude-sonnet-4.5"],
     ["vercel", "vercel/openai/gpt-5.4"],
@@ -88,7 +86,7 @@ describe("explicit route failure without fallback", () => {
   it("rejects provider/model mismatch", () => {
     const result = resolveExplicitProviderRoute({
       provider: "claude",
-      model: "gpt-5.6-sol",
+      model: "gpt-6.1-sol",
       credential_ref: "user-key-1",
     });
     expect(result).toEqual({
@@ -143,9 +141,9 @@ describe("explicit route failure without fallback", () => {
 
   it("rejects incomplete routes and never returns stale_saved_preference", () => {
     for (const bad of [
-      { provider: "", model: "gpt-5.6-sol", credential_ref: "r" },
+      { provider: "", model: "gpt-6.1-sol", credential_ref: "r" },
       { provider: "openai", model: "", credential_ref: "r" },
-      { provider: "openai", model: "gpt-5.6-sol", credential_ref: "" },
+      { provider: "openai", model: "gpt-6.1-sol", credential_ref: "" },
       null,
       "x",
     ]) {
@@ -163,7 +161,7 @@ describe("saved preference stale path", () => {
   it("accepts a still-valid saved route", () => {
     const result = resolveSavedProviderPreference({
       provider: "openai",
-      model: "gpt-5.6-sol",
+      model: "gpt-6.1-sol",
       credential_ref: "user-key-1",
     });
     expect(result.ok).toBe(true);
@@ -193,7 +191,7 @@ describe("saved preference stale path", () => {
     expect(
       resolveSavedProviderPreference({
         provider: "claude",
-        model: "gpt-5.6-sol",
+        model: "gpt-6.1-sol",
         credential_ref: "r",
       }),
     ).toEqual({
@@ -206,7 +204,7 @@ describe("saved preference stale path", () => {
 describe("credential exact lookup and failures", () => {
   const route = {
     provider: "claude",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     credential_ref: "user-key-1",
   };
 
@@ -226,13 +224,13 @@ describe("credential exact lookup and failures", () => {
         source: "user",
         version: 2,
         provider: "claude",
-        model: "claude-sonnet-5",
+        model: "claude-sonnet-5-5",
         user_id: "user-1",
         route,
       });
       expect(result.route).toEqual(route);
       expect(result.actual_provider).toBe("claude");
-      expect(result.actual_model).toBe("claude-sonnet-5");
+      expect(result.actual_model).toBe("claude-sonnet-5-5");
       expect(JSON.stringify(result)).not.toContain("secret-key-abc");
     }
   });
@@ -243,7 +241,7 @@ describe("credential exact lookup and failures", () => {
       user_id: "user-1",
       route: {
         provider: "claude",
-        model: "gpt-5.6-sol",
+        model: "gpt-6.1-sol",
         credential_ref: "user-key-1",
       },
       port: { getCredential },
@@ -346,7 +344,7 @@ describe("credential exact lookup and failures", () => {
 describe("token domain separation", () => {
   const route = {
     provider: "claude",
-    model: "claude-sonnet-5",
+    model: "claude-sonnet-5-5",
     credential_ref: "user-key-1",
   };
 
@@ -429,7 +427,7 @@ describe("secret hygiene and provenance", () => {
   it("rejects a record that mixes provider keys with other credential domains", async () => {
     const route = {
       provider: "claude",
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-5-5",
       credential_ref: "user-key-1",
     };
     const { port } = capturingPort(
@@ -456,7 +454,7 @@ describe("secret hygiene and provenance", () => {
   it("keeps a single-domain secret out of receipts and serialized results", async () => {
     const route = {
       provider: "claude",
-      model: "claude-sonnet-5",
+      model: "claude-sonnet-5-5",
       credential_ref: "user-key-1",
     };
     const { port } = capturingPort(
@@ -481,7 +479,7 @@ describe("secret hygiene and provenance", () => {
 
 describe("runtime export lock and import boundary", () => {
   it("exposes exactly the governed boundary", async () => {
-    const mod = await import("./governedProviderRoute");
+    const mod = await import("./governedProviderRoute.js");
     expect(Object.keys(mod).sort()).toEqual(
       [
         "resolveExplicitProviderRoute",

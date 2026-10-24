@@ -9,7 +9,7 @@
 // every iteration creates a real chat row and burns real LLM tokens on the
 // target stack.
 //
-// Endpoint shape (from backend/src/routes/chat.ts):
+// Endpoint shape (from backend/src/modules/chat/chat.routes.ts):
 //   POST {BASE_URL}/chat
 //   Authorization: Bearer <supabase access token>
 //   Body: { "messages": [{ "role": "user", "content": "..." }] }
@@ -21,9 +21,6 @@
 // want for pass/fail measurement:
 //   - http_req_waiting  = time-to-first-byte (headers flush + first event)
 //   - http_req_duration = full stream lifetime (until [DONE] / socket close)
-//
-// The target backend must explicitly allow this named non-browser client:
-//   MIKE_NON_BROWSER_BEARER_CLIENTS=loadtest
 //
 // Required env:
 //   BASE_URL    e.g. http://localhost:3001 or the staging backend URL
@@ -104,10 +101,7 @@ export function setup() {
     // Fail fast with a readable message if the target is unreachable or the
     // token is bad, instead of producing a wall of failed checks.
     const res = http.get(`${BASE_URL}/chat?limit=1`, {
-        headers: {
-            Authorization: `Bearer ${AUTH_TOKEN}`,
-            "X-Mike-Client": "loadtest",
-        },
+        headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
     });
     if (res.status !== 200) {
         throw new Error(
@@ -124,7 +118,6 @@ export default function () {
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${AUTH_TOKEN}`,
-                "X-Mike-Client": "loadtest",
             },
             timeout: __ENV.STREAM_TIMEOUT || "300s",
             tags: { name: "POST /chat (SSE)" },

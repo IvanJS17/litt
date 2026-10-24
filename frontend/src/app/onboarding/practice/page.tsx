@@ -8,7 +8,7 @@ import {
     personalisationInitialValues,
     usePersonalisationFields,
 } from "@/app/components/settings/PersonalisationFields";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { PillButtonUI } from "@/shared/ui/PillButtonUI";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
@@ -40,21 +40,23 @@ function PracticeDetailsForm({
     initial: ReturnType<typeof personalisationInitialValues>;
 }) {
     const router = useRouter();
-    const { completeOnboarding } = useUserProfile();
+    const { updatePersonalisation } = useUserProfile();
     const form = usePersonalisationFields(initial);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const finishOnboarding = async (
-        details: Parameters<typeof completeOnboarding>[0],
+    const savePracticeDetails = async (
+        details: Parameters<typeof updatePersonalisation>[0],
     ) => {
+        if (submitting) return;
         setSubmitting(true);
         setError(null);
-        const saved = await completeOnboarding(details);
+        const saved = await updatePersonalisation(details);
         if (saved) {
-            router.replace("/assistant");
+            router.push("/onboarding/invitations");
         } else {
-            setError("Unable to save your practice details");
+            // `updatePersonalisation` already raised the notice with the
+            // sentence, Retry and support; an inline line would repeat it.
             setSubmitting(false);
         }
     };
@@ -66,7 +68,7 @@ function PracticeDetailsForm({
             return;
         }
 
-        await finishOnboarding({
+        await savePracticeDetails({
             ...(form.details.jurisdiction
                 ? { jurisdiction: form.details.jurisdiction }
                 : {}),
@@ -84,7 +86,7 @@ function PracticeDetailsForm({
 
     return (
         <OnboardingShell
-            step="Step 2 of 2"
+            step="Step 2 of 3"
             title="Your legal practice"
             description="Optionally add your professional setting, primary jurisdiction, and the areas you work in."
         >
@@ -110,7 +112,7 @@ function PracticeDetailsForm({
                 )}
 
                 <div className="flex items-center justify-between gap-3 pt-6">
-                    <PillButton
+                    <PillButtonUI
                         type="button"
                         tone="white"
                         size="normal"
@@ -118,24 +120,24 @@ function PracticeDetailsForm({
                         onClick={() => router.push("/onboarding/profile")}
                     >
                         Back
-                    </PillButton>
+                    </PillButtonUI>
                     <div className="flex items-center gap-4">
                         <button
                             type="button"
                             disabled={submitting}
-                            onClick={() => void finishOnboarding({})}
+                            onClick={() => router.push("/onboarding/invitations")}
                             className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-950 disabled:cursor-not-allowed disabled:text-gray-300"
                         >
                             Skip
                         </button>
-                        <PillButton
+                        <PillButtonUI
                             type="submit"
                             tone="black"
                             size="normal"
                             disabled={submitting}
                         >
-                            {submitting ? "Finishing..." : "Finish"}
-                        </PillButton>
+                            {submitting ? "Saving..." : "Continue"}
+                        </PillButtonUI>
                     </div>
                 </div>
             </form>

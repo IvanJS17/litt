@@ -9,7 +9,10 @@ const { updateDarkMode, profile } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/app/contexts/UserProfileContext", () => ({
-    useUserProfile: () => ({ profile, updateDarkMode }),
+    useUserProfile: () => ({
+        profile,
+        updateDarkMode,
+    }),
 }));
 
 describe("AppearancePage", () => {
@@ -29,7 +32,7 @@ describe("AppearancePage", () => {
         expect(screen.getByText("Dark mode")).toBeVisible();
         expect(container.querySelector("svg")).toBeNull();
 
-        const toggle = screen.getByRole("switch");
+        const toggle = screen.getByRole("switch", { name: "Dark mode" });
         expect(toggle).toHaveAttribute("aria-checked", "false");
 
         await user.click(toggle);
@@ -41,7 +44,7 @@ describe("AppearancePage", () => {
         updateDarkMode.mockRejectedValue(new Error("pg: connection refused"));
         render(<AppearancePage />);
 
-        await user.click(screen.getByRole("switch"));
+        await user.click(screen.getByRole("switch", { name: "Dark mode" }));
         await waitFor(() =>
             expect(screen.getByRole("alert")).toHaveTextContent(
                 "Could not update the appearance setting.",
@@ -49,4 +52,5 @@ describe("AppearancePage", () => {
         );
         expect(screen.queryByText(/connection refused/i)).not.toBeInTheDocument();
     });
+
 });

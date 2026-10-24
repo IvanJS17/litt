@@ -157,7 +157,7 @@ async function runBetaEvidence({ db, input: rawInput, download } = {}) {
     const { active, ...catalogIdentity } = catalog.row;
     const pin = parseWorkflowExecutionPin(catalogIdentity);
     requireThat(pin.ok);
-    const route = Object.freeze({ provider: 'claude', model: 'claude-sonnet-5', credential_ref: 'beta-fake-credential-fixture' });
+    const route = Object.freeze({ provider: 'claude', model: 'claude-sonnet-5-5', credential_ref: 'beta-fake-credential-fixture' });
     // Fake credential fixture only: "user" is the production contract's source
     // vocabulary; it does NOT mean this key came from DB BYOK.
     const credential = Object.freeze({ ref: route.credential_ref, provider: route.provider,

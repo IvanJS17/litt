@@ -9,6 +9,7 @@ import {
 import type { Project } from "@/app/components/shared/types";
 import { listProjectIds, listProjectsPage } from "@/app/lib/mikeApi";
 import { appendUniqueRows, paginationError, splitOverfetchedPage } from "@/app/lib/paginatedRows";
+import { useWorkspaceParam } from "@/app/contexts/WorkspaceContext";
 
 export type ProjectSortKey =
   | "name"
@@ -18,7 +19,17 @@ export type ProjectSortKey =
   | "reviews"
   | "created";
 export type ProjectSortDirection = "asc" | "desc";
-export type ProjectScope = "all" | "mine" | "shared";
+// "public" and "nonpublic" back the Public and Private tabs: open to the
+// whole organization, or not (private to its creator, or shared with
+// individuals).
+export type ProjectScope =
+    | "all"
+    | "mine"
+    | "shared"
+    | "collaborative"
+    | "private"
+    | "public"
+    | "nonpublic";
 
 const PAGE_SIZE = 30;
 
@@ -49,9 +60,17 @@ export function usePaginatedProjects(options: {
     const [selectingAllRequest, setSelectingAllRequest] = useState(false);
     const [retryVersion, setRetryVersion] = useState(0);
     const requestVersionRef = useRef(0);
+    // Select-all owns its own counter. requestVersionRef tracks the list
+    // query, and a search/scope/sort change bumps it while an ids request is
+    // still in flight — gating the "done" flag on that version left the
+    // header checkbox disabled until the next full reload.
+    const selectAllRequestRef = useRef(0);
     const loadingMoreRef = useRef(false);
     const loadMoreControllerRef = useRef<AbortController | null>(null);
 
+    // The active workspace narrows the list like any other filter: a change
+    // resets the pages and the selection through the query key below.
+    const workspace = useWorkspaceParam();
     const {
         search,
         selectionKey,
@@ -67,6 +86,7 @@ export function usePaginatedProjects(options: {
     const queryKey = JSON.stringify([
         selectionKey ?? null,
         search ?? null,
+        workspace ?? null,
         scope,
         practiceFilter,
         ownerUserIdFilter,
@@ -124,6 +144,7 @@ export function usePaginatedProjects(options: {
         void listProjectsPage({
             limit: PAGE_SIZE + 1,
             search: search || undefined,
+            workspace,
             scope,
             practice: practiceFilter || undefined,
             ownerUserId: ownerUserIdFilter || undefined,
@@ -164,6 +185,7 @@ export function usePaginatedProjects(options: {
         practiceFilter,
         ownerUserIdFilter,
         search,
+        workspace,
         sortDirection,
         sortKey,
     ]);
@@ -185,6 +207,7 @@ export function usePaginatedProjects(options: {
                 limit: PAGE_SIZE + 1,
                 offset,
                 search: search || undefined,
+                workspace,
                 scope,
                 practice: practiceFilter || undefined,
                 ownerUserId: ownerUserIdFilter || undefined,
@@ -223,6 +246,7 @@ export function usePaginatedProjects(options: {
         practiceFilter,
         ownerUserIdFilter,
         search,
+        workspace,
         sortDirection,
         sortKey,
     ]);
@@ -244,10 +268,12 @@ export function usePaginatedProjects(options: {
         }
 
         const requestVersion = requestVersionRef.current;
+        const selectAllRequest = ++selectAllRequestRef.current;
         setSelectingAllRequest(true);
         try {
             const rows = await listProjectIds({
                 search: search || undefined,
+                workspace,
                 scope,
                 practice: practiceFilter || undefined,
                 ownerUserId: ownerUserIdFilter || undefined,
@@ -259,8 +285,23 @@ export function usePaginatedProjects(options: {
         ownerById: Object.fromEntries(rows.map((row) => [row.id, row.user_id])),
             });
             setSelectedProjectIds(rows.map((row) => row.id));
+        } catch (error) {
+            // Call sites fire this with `void`, so without a catch a failed
+            // id fetch is an unhandled rejection and the checkbox just
+            // silently does nothing. Surface it the way loadMore does.
+            if (requestVersion === requestVersionRef.current) {
+                console.error("[projects] failed to select all matching", error);
+                setLoadMoreError(
+                    paginationError(error, "Unable to select all projects"),
+                );
+            }
         } finally {
-            setSelectingAllRequest(false);
+            // Clear for the request that set the flag, whatever the list
+            // query has moved on to meanwhile. A newer select-all owns the
+            // flag instead.
+            if (selectAllRequest === selectAllRequestRef.current) {
+                setSelectingAllRequest(false);
+            }
         }
     }, [
         hasMore,
@@ -270,6 +311,7 @@ export function usePaginatedProjects(options: {
         practiceFilter,
         ownerUserIdFilter,
         search,
+        workspace,
         selectionQueryPending,
         setSelectedProjectIds,
     ]);

@@ -35,6 +35,12 @@ if ! docker info >/dev/null 2>&1; then
     exit 1
 fi
 
+# Sweep stacks left behind by earlier runs, worktrees, and reviews before
+# adding another one (see scripts/stack.sh; MIKE_GC=0 skips it).
+if [ "${MIKE_GC:-1}" != 0 ]; then
+    bash "$ROOT/scripts/stack.sh" gc
+fi
+
 cd "$BACKEND"
 
 if [ ! -f supabase/config.toml ]; then
@@ -95,9 +101,11 @@ set_kv .env SUPABASE_SECRET_KEY "$SERVICE_KEY"
 set_kv .env RATE_LIMIT_GENERAL_MAX 100000
 set_kv .env RATE_LIMIT_CHAT_MAX 100000
 set_kv .env RATE_LIMIT_CHAT_CREATE_MAX 100000
-set_kv .env RATE_LIMIT_UPLOAD_MAX 100000
 set_kv .env RATE_LIMIT_EXPORT_MAX 100000
 set_kv .env RATE_LIMIT_DATA_DELETE_MAX 100000
+set_kv .env RATE_LIMIT_UPLOAD_SESSION_MUTATION_MAX 100000
+set_kv .env RATE_LIMIT_UPLOAD_SESSION_POLL_MAX 100000
+set_kv .env RATE_LIMIT_UPLOAD_SESSION_CREATE_MAX_PER_HOUR 100000
 
 touch "$FRONTEND/.env.local"
 [ -f "$FRONTEND/.env.local.hosted.bak" ] || cp "$FRONTEND/.env.local" "$FRONTEND/.env.local.hosted.bak"

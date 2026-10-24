@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -211,7 +210,7 @@ describe("immutable execution pins", () => {
 
 describe("runtime export and import lock", () => {
   it("exports only the governed catalog runtime", async () => {
-    const mod = await import("./governedWorkflowCatalog");
+    const mod = await import("./governedWorkflowCatalog.js");
     expect(Object.keys(mod).sort()).toEqual(
       [
         "GOVERNED_WORKFLOW_CONTENT_HASH_RE",
@@ -224,7 +223,9 @@ describe("runtime export and import lock", () => {
   });
 
   it("uses the frozen shared identity and no legacy or I/O boundary", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
+    // Source reads resolve from the package root: test files are typechecked
+    // as CommonJS here, where import.meta is not available.
+    const here = join(process.cwd(), "src/lib/recovery/workflows");
     const source = readFileSync(
       join(here, "governedWorkflowCatalog.ts"),
       "utf8",

@@ -25,6 +25,13 @@ decorative pill badges unless a pill is specifically requested. This does not
 apply to established interactive pill controls such as `PillButton`,
 `TabPillButton`, and `OptionPill`.
 
+Keep ordinary account identifiers and their permission/status text fully visible.
+Do not truncate a normal-length email or hide its status to make a compact card
+fit. Put independent information on separate lines, allow long unbroken values
+to wrap, and let controls or cards reflow based on available container width.
+Verify both realistic and unusually long content at narrow widths; match loading
+states to the same layout. See the content-fitting rules in `docs/design-system.md`.
+
 Before creating UI markup, search these locations in order:
 
 1. `frontend/src/app/components/ui/` contains reusable web primitives such as
@@ -90,17 +97,60 @@ Preserve the accessibility baseline:
 - Reusable client behavior belongs in `frontend/src/app/hooks/` or
   `frontend/src/app/lib/`, with a colocated `*.test.ts` or `*.test.tsx` file.
 - Use the `@/` alias for imports rooted at `frontend/src/`.
+- Production frontend code must not import anything outside `frontend/`
+  except through a `paths` alias in `frontend/tsconfig.json` whose target
+  `frontend/Dockerfile` copies into the image. Test files may import shared
+  fixtures and add-in sources because `frontend/tsconfig.build.json` keeps
+  them out of `next build`; `frontend/src/__tests__/architecture.test.ts`
+  enforces both rules.
 
-Do not expose raw backend, database, provider, or stack errors in the UI. Map
-known 4xx responses to intentional messages and use the generic fallback
-helpers in `frontend/src/app/lib/userFacingError.ts` for unexpected failures.
+Do not expose raw backend, database, provider, or stack errors in the UI.
+Classify a thrown value once with `describeError` and show it with
+`notifyError` (both from `frontend/src/app/lib/userFacingError.ts`), which
+draws a `WarningPopup` that offers "Retry" only when a retry is honest and
+"Contact support" only for failures the user cannot fix. Auth sentences come
+from the single table in `frontend/src/app/lib/authMessages.ts`. See
+"Reporting failures" in `docs/design-system.md` for where each kind of
+failure is shown.
 
 ## Backend Structure
 
-- `backend/src/app.ts` configures Express, middleware, rate limits, and route
-  mounting.
-- HTTP handlers live in `backend/src/routes/`.
-- Reusable domain and infrastructure logic lives in `backend/src/lib/`.
+- Read `docs/backend-architecture.md` before adding or moving backend code.
+  It is the source of truth for the module layout, the layering rules, and
+  the test that enforces them.
+- `backend/src/app.ts` configures Express, middleware, rate limits, and mounts
+  one router per module.
+- HTTP handlers and their domain logic live in
+  `backend/src/modules/<domain>/`. `<name>.routes.ts` is the HTTP layer: it
+  parses params/query/body, calls the service, and maps typed results onto
+  status codes and JSON; it never queries the database. `<name>.service.ts`
+  is the module's facade (named re-exports only, exactly one per module) and,
+  for small modules, the implementation. Service code takes an explicit
+  `db: Db` (from `backend/src/lib/supabase.ts`) plus request-derived
+  primitives, returns typed results (`ServiceResult<T>` from
+  `backend/src/lib/serviceResult.ts` for new code), and never touches
+  `req`/`res`. SSE streaming loops are the one deliberate exception and stay
+  in the routes file.
+- Large modules split the service into topic files (`<name>.<topic>.ts`)
+  behind the facade. Import a module from outside (another module, a worker,
+  a job, `app.ts`) only through that facade.
+- `backend/src/lib/` is the shared kernel: infrastructure and cross-domain
+  primitives. It must not import from `backend/src/modules/`, and neither may
+  `backend/src/middleware/`. There is no `backend/src/routes/` directory; a
+  new HTTP surface is a new module.
+- `backend/src/__tests__/architecture.test.ts` checks these rules on every
+  test run. If it fails, fix the layering rather than the test; allowlist
+  entries need a comment explaining why.
+- Document-version creation, activation, replacement, and deletion belong to
+  `backend/src/modules/documents/`. Call its facade instead of writing version
+  rows or lifecycle RPCs from another module. Callers authorize destination and
+  copy-source scopes independently; the database trigger owns durable cleanup.
+- Domain job bodies live in their modules; `backend/src/jobs/registry.ts`
+  composes handlers and failure hooks. Keep queue transport in `lib/dbq/` and
+  `workers/`, and the assistant engine in `modules/chat/engine/`.
+- Shared serialized API/event declarations live in `packages/contracts/` and
+  are imported with `import type` from `@mike/contracts`. Keep client display
+  state local and update producer/consumer tests when changing a wire payload.
 - Authentication and other request middleware live in
   `backend/src/middleware/`.
 - LLM provider creation is centralized in
@@ -114,7 +164,9 @@ and ownership/project-sharing boundaries on every new query or mutation. Never
 send internal exception messages to clients: use the helpers in
 `backend/src/lib/httpError.ts`; logging must use the redaction helpers in
 `backend/src/lib/safeError.ts`. Intentional validation and permission failures
-should remain explicit 4xx responses.
+should remain explicit 4xx responses, and a `code` a client is expected to act
+on must be listed in `CODE_KINDS` in `frontend/src/shared/lib/userError.ts` (a
+drift test keeps that table to codes some server really emits).
 
 ## Database Migrations
 
@@ -132,12 +184,21 @@ For every new migration:
    not exists`, `create or replace` for functions, drop-before-create for
    policies and constraints, and guarded data backfills or type changes.
 4. Update `backend/schema.sql` with the migration's final database shape in the
-   same change.
+   same change, and add the migration's filename to the `schema_migrations`
+   list at the end of that file (`backend/src/__tests__/migrationLedger.test.ts`
+   checks the list matches the directory).
 5. Preserve RLS, grants, ownership, security-definer settings, and explicit
    `search_path` hardening when changing database objects.
 
-Existing deployments apply only files newer than their recorded version, in
-filename order. Do not assume every historical migration is safely replayable,
+Each database records the migrations it has applied in
+`public.schema_migrations`; `backend/scripts/migrate.sh` (also run by Compose's
+`db-init`) applies the files it does not list, in filename order, exactly
+once, each inside a transaction with its ledger row. Do not write `begin` /
+`commit` in a new migration; if it cannot run in a transaction (for example
+`create index concurrently`), add a line reading `-- migrate:no-transaction`.
+Never edit or rename a migration that has shipped: deployments that ran it
+would not run the new version. Do not assume every historical migration is
+safely replayable,
 and do not apply migrations to a remote or production database unless the user
 explicitly requests it and the target has been confirmed. See
 `docs/deployment.md` for deployment procedure and `.github/workflows/schema-drift.yml`
@@ -159,6 +220,7 @@ npm run build --prefix backend
 npm test --prefix frontend
 npm run test:coverage --prefix frontend
 npm run lint --prefix frontend
+npm run typecheck --prefix frontend
 npm run build --prefix frontend
 
 npm run typecheck --prefix word-addin
@@ -169,6 +231,14 @@ npm run test:e2e
 npm run test:e2e:local
 npm run test:stack --prefix backend
 ```
+
+A change to a Dockerfile, a `.dockerignore`, a tsconfig, or an import that
+crosses an application boundary must be verified by building the affected
+image from the repository root, for example
+`docker build -f frontend/Dockerfile .`. The host-side build cannot catch a
+missing build-context file because every sibling directory exists on the
+host. LiTT does not build images on every pull request (Actions budget, TD-024),
+so run that build locally before handing off such a change.
 
 Use targeted Vitest files while iterating, for example:
 
@@ -186,6 +256,12 @@ only when a real browser flow is necessary.
 When changing dependencies, update the `package-lock.json` belonging to the
 affected package. Before handing off work, run `git diff --check`, inspect the
 diff for unrelated changes, and report which verification commands were run.
+
+## Branch Names
+
+Name branches after the change they contain, using a descriptive prefix such as
+`docs/`, `fix/`, `feat/`, `refactor/`, `test/`, or `chore/` (for example,
+`docs/shorten-readme-telemetry`). Never use `claude/` as a prefix.
 
 ## Pull Requests
 
@@ -205,7 +281,8 @@ or local test artifacts.
 This repository is LiTT (`IvanJS17/litt`), derived from MikeOSS
 (`open-legal-products/mike`) and maintained for Mexican legal practice. Since
 2026-10-23 it is a standalone GitHub repository, outside the upstream fork
-network. These rules complement the sections above and win where they conflict.
+network, that shares Git history with upstream. These rules complement the
+sections above and win where they conflict.
 
 - **Identity and license.** LiTT is the user-visible product name. Keep
   AGPL-3.0-only, `LICENSE`, upstream copyright notices and the upstream
@@ -214,23 +291,28 @@ network. These rules complement the sections above and win where they conflict.
   `docs/TECHNICAL_DEBT.md`). Do not rename internal identifiers (`mikeApi.ts`,
   `MikeApiError`, file and directory names, the `upstream` remote) for
   branding.
-- **Upstream.** Treat `upstream` as read-only input. Follow
+- **Upstream.** Treat `upstream` as read-only input. Since the 2026-10-23
+  sync, LiTT shares history with upstream: a cycle is a reviewed merge of a
+  pinned `upstream/main` commit, never a rebuild. Follow
   `docs/UPSTREAM_POLICY.md` (weekly intake, full-OID pin,
-  adopt/port/reject/defer, stop-the-line thresholds) and record decisions in
-  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`. Never merge upstream wholesale. Pass
+  adopt/port/reject/defer, stop-the-line thresholds), judge every capability
+  against the compatibility matrix (§16 of
+  `docs/UPSTREAM_COMPATIBILITY_LEDGER.md`) and record the decisions there. Pass
   `--repo IvanJS17/litt` to `gh` in scripts.
-- **Migrations.** Name LiTT-owned migrations `YYYYMMDD_NN_recovery_<name>.sql`
-  on a date/ordinal stem that upstream has not used, and append them to
-  `SUPPORTED_RECOVERY_MIGRATION_ORDER` with their source hash in
-  `KNOWN_SUPPORTED_MIGRATIONS` (`backend/src/lib/recovery/`). The Schema drift
-  runtime suites rebuild upgraded databases only from that series; an
-  unregistered migration breaks fresh/upgrade convergence.
+- **Migrations.** LiTT uses upstream's migration runner and ledger (see
+  "Database Migrations" above). Name LiTT-owned migrations
+  `YYYYMMDD_NN_litt_<name>.sql` on a date/ordinal stem that upstream has not
+  used, so an upstream merge never collides with them. The historical
+  `*_recovery_*` series and its registry were retired in the sync; their
+  documents are kept only as history.
 - **Invariants to preserve in every change or port:** organization, workspace
   and matter tenancy with explicit membership for private matters; RLS and
   authorization epochs; insert-only audit and AI evidence records; governed
   BYOK (provider, model and credential fixed per conversation, no silent
-  fallback); CourtListener removed; Google Drive publication fail-closed until
-  an approved connector exists; no telemetry to third parties by default.
+  fallback; a user-configured endpoint never reaches internal addresses);
+  CourtListener removed; Google Drive publication fail-closed until an
+  approved connector exists; no telemetry to third parties (Sentry removed);
+  no desktop app; the preset template catalog ships empty.
 - **User-controlled integrations.** AI provider keys and Google accounts are
   optional and configured by each user inside the app. Never hardcode or commit
   them.

@@ -7,9 +7,20 @@ import { pathToFileURL } from "node:url";
 import { uploadConversionTimeoutMs } from "./runtimeConfig";
 
 let _convert:
-  | ((buf: Buffer, ext: string, filter: undefined) => Promise<Buffer>)
-  | null = null;
+  ((buf: Buffer, ext: string, filter: undefined) => Promise<Buffer>) | null =
+  null;
 let _sofficeBinaryPaths: string[] | null = null;
+
+// Server-log text for the operator (never sent to a client). The backend
+// Docker image and backend/nixpacks.toml both install LibreOffice; any other
+// host has to install it or point at its soffice binary.
+const CONVERTER_UNAVAILABLE_MESSAGE =
+  "LibreOffice (soffice) was not found, so Office documents cannot be " +
+  "converted to PDF (uploads are kept without a PDF rendition; previews " +
+  "and text extraction of legacy Office files fail). Install LibreOffice " +
+  "(the backend Docker image and backend/nixpacks.toml include it) or set " +
+  "SOFFICE_BINARY_PATH or LIBREOFFICE_BINARY_PATH to the soffice " +
+  "executable, then restart the backend and worker.";
 
 function executablePath(filePath: string) {
   try {
@@ -47,6 +58,10 @@ function resolveSofficeBinaryPaths(): string[] {
     "/snap/bin/libreoffice",
     "/opt/libreoffice/program/soffice",
     "/opt/libreoffice7.6/program/soffice",
+    // The official macOS installer keeps soffice inside the app bundle and
+    // puts nothing on PATH, so a backend run outside Docker on a Mac would
+    // otherwise report LibreOffice as missing while it is installed.
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
   ]) {
     candidates.add(filePath);
   }
@@ -128,8 +143,11 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
  */
 export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
   if (resolveSofficeBinaryPaths().length === 0) {
-    throw new Error(
-      "LibreOffice/soffice binary was not found. Ensure Railway uses backend/nixpacks.toml or set SOFFICE_BINARY_PATH/LIBREOFFICE_BINARY_PATH.",
+    throw Object.assign(
+      new Error(
+        CONVERTER_UNAVAILABLE_MESSAGE,
+      ),
+      { code: "conversion_unavailable" },
     );
   }
   const convert = await getConvert();
@@ -148,8 +166,11 @@ export async function officeFileToPdf(
 ): Promise<string> {
   const binary = resolveSofficeBinaryPaths()[0];
   if (!binary) {
-    throw new Error(
-      "LibreOffice/soffice binary was not found. Ensure Railway uses backend/nixpacks.toml or set SOFFICE_BINARY_PATH/LIBREOFFICE_BINARY_PATH.",
+    throw Object.assign(
+      new Error(
+        CONVERTER_UNAVAILABLE_MESSAGE,
+      ),
+      { code: "conversion_unavailable" },
     );
   }
 
@@ -159,6 +180,7 @@ export async function officeFileToPdf(
   const profileUrl = pathToFileURL(profileDirectory).href;
 
   const timeoutMs = uploadConversionTimeoutMs();
+  let stderr = "";
   try {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
@@ -174,7 +196,6 @@ export async function officeFileToPdf(
         ],
         { stdio: ["ignore", "ignore", "pipe"] },
       );
-      let stderr = "";
       let timedOut = false;
       // LibreOffice can wedge on a malformed document and never exit, which
       // would hold this worker slot for the life of the process.
@@ -194,14 +215,22 @@ export async function officeFileToPdf(
         clearTimeout(deadline);
         if (timedOut) {
           reject(
-            new Error(`LibreOffice conversion timed out after ${timeoutMs}ms`),
+            Object.assign(
+              new Error(
+                `LibreOffice conversion timed out after ${timeoutMs}ms`,
+              ),
+              { code: "conversion_timeout" },
+            ),
           );
         } else if (code === 0) {
           resolve();
         } else {
           reject(
-            new Error(
-              `LibreOffice conversion failed with exit code ${code ?? "unknown"}${stderr ? `: ${stderr}` : ""}`,
+            Object.assign(
+              new Error(
+                `LibreOffice conversion failed with exit code ${code ?? "unknown"}${stderr ? `: ${stderr}` : ""}`,
+              ),
+              { code: "conversion_failed" },
             ),
           );
         }
@@ -218,10 +247,35 @@ export async function officeFileToPdf(
     outputDirectory,
     `${path.parse(inputPath).name}.pdf`,
   );
-  await fs.promises.access(outputPath, fs.constants.R_OK);
+  try {
+    await fs.promises.access(outputPath, fs.constants.R_OK);
+  } catch (error) {
+    // soffice exits 0 without writing anything when it cannot load the
+    // source ("Error: source file could not be loaded" on stderr). That is a
+    // rejected document, not a missing file: report it as one, and keep
+    // LibreOffice's reason for the server log (the structured code stays on
+    // the error).
+    throw Object.assign(
+      new Error(
+        `LibreOffice exited without producing a PDF${stderr ? `: ${stderr}` : ""}`,
+        { cause: error },
+      ),
+      { code: "conversion_failed" },
+    );
+  }
   return outputPath;
 }
 
-export function convertedPdfKey(userId: string, docId: string): string {
-  return `converted-pdfs/${userId}/${docId}.pdf`;
+/**
+ * Storage key of a document's PDF rendition. With a version slug the key is
+ * per version, so a rendition never overwrites another version's.
+ */
+export function convertedPdfKey(
+  userId: string,
+  docId: string,
+  versionSlug?: string,
+): string {
+  return versionSlug
+    ? `converted-pdfs/${userId}/${docId}/${versionSlug}.pdf`
+    : `converted-pdfs/${userId}/${docId}.pdf`;
 }

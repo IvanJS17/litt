@@ -1,21 +1,21 @@
 {
     "display_information": {
-        "name": "LiTT MCP Client",
-        "description": "OAuth client for LiTT's Slack MCP connector"
+        "name": "Mike MCP Client",
+        "description": "OAuth client for Mike's Slack MCP connector"
     },
     "features": {
         "bot_user": {
-            "display_name": "litt-mcp",
+            "display_name": "mike-mcp",
             "always_online": false
         },
         "assistant_view": {
-            "assistant_description": "OAuth client for LiTT's Slack MCP connector",
+            "assistant_description": "OAuth client for Mike's Slack MCP connector",
             "suggested_prompts": []
         }
     },
     "oauth_config": {
         "redirect_urls": [
-            "https://REPLACE-WITH-YOUR-LITT-HOST/api/user/mcp-connectors/oauth/callback"
+            "https://REPLACE-WITH-YOUR-MIKE-HOST/api/user/mcp-connectors/oauth/callback"
         ],
         "scopes": {
             "bot": ["users:read"],

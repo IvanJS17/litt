@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { authGlassCardClassName } from "@/app/components/auth/authStyles";
+import { authGlassCardUIClassName } from "@/shared/ui/AuthStylesUI";
 import { SiteLogo } from "@/app/components/site-logo";
-import { PillButton } from "@/app/components/ui/pill-button";
+import { pillButtonUIClassName } from "@/shared/ui/PillButtonUI.styles";
 import { useAuth } from "@/app/contexts/AuthContext";
 
 export default function SignupCheckEmailPage() {
@@ -25,7 +25,7 @@ export default function SignupCheckEmailPage() {
                 <SiteLogo size="lg" asLink />
             </div>
             <div className="w-full max-w-md">
-                <div className={authGlassCardClassName}>
+                <div className={authGlassCardUIClassName}>
                     {authLoading || isAuthenticated ? (
                         <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-500" />
                     ) : (
@@ -37,14 +37,16 @@ export default function SignupCheckEmailPage() {
                                 We sent a confirmation link to your email
                                 address. Confirm your address before logging in.
                             </p>
-                            <PillButton
-                                asChild
-                                tone="black"
-                                size="normal"
-                                className="mt-6"
+                            <Link
+                                href="/login"
+                                className={pillButtonUIClassName({
+                                    tone: "black",
+                                    size: "normal",
+                                    className: "mt-6",
+                                })}
                             >
-                                <Link href="/login">Return to login</Link>
-                            </PillButton>
+                                Return to login
+                            </Link>
                         </>
                     )}
                 </div>

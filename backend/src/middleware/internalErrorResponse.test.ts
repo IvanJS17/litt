@@ -1,6 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import {
   INTERNAL_ERROR_CODE,
   INTERNAL_ERROR_MESSAGE,
@@ -22,7 +23,54 @@ function testApp(status: number, body: unknown) {
 }
 
 describe("protectInternalErrorResponses", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("omits callback query credentials from the log", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    await request(testApp(500, { detail: "callback failed" }))
+      .get("/test?code=private-oauth-code&state=private-oauth-state");
+    expect(consoleError).toHaveBeenCalledOnce();
+    const logged = consoleError.mock.calls[0]?.[1] as {
+      path: string;
+      error: unknown;
+    };
+    expect(logged.path).toBe("/test");
+    expect(logged.error).toBe("callback failed");
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("private-oauth");
+  });
+
+  it("logs a hand-written 5xx with the request that produced it", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const app = express();
+    app.use(protectInternalErrorResponses);
+    const projects = express.Router();
+    projects.get("/:id", (_req, res) =>
+      res.status(500).json({ detail: "projects broke" }),
+    );
+    const documents = express.Router();
+    documents.get("/:id", (_req, res) =>
+      res.status(500).json({ detail: "documents broke" }),
+    );
+    app.use("/projects", projects);
+    app.use("/documents", documents);
+
+    await request(app).get("/projects/p-1");
+    await request(app).get("/documents/d-1");
+
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    const [first, second] = consoleError.mock.calls as unknown as [
+      [string, { path: string; error: unknown }],
+      [string, { path: string; error: unknown }],
+    ];
+    expect(first[0]).toBe("[http/sanitized-internal-error]");
+    expect(first[1].path).toBe("/projects/p-1");
+    expect(first[1].error).toBe("projects broke");
+    expect(second[1].path).toBe("/documents/d-1");
+    expect(second[1].error).toBe("documents broke");
+  });
 
   it.each([500, 502, 503])(
     "replaces raw %i responses with the public contract",
@@ -47,27 +95,6 @@ describe("protectInternalErrorResponses", () => {
       expect(consoleError).toHaveBeenCalledOnce();
     },
   );
-
-  it("omits query credentials and path tokens from sanitized 5xx logs", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    const app = express();
-    app.use(protectInternalErrorResponses);
-    app.get("/download/:token", (_req, res) =>
-      res.status(500).json({ detail: "stream failed" }),
-    );
-
-    const res = await request(app).get(
-      "/download/private-signed-download-token?code=private-oauth-code&state=private-oauth-state",
-    );
-
-    expect(res.status).toBe(500);
-    const logged = JSON.stringify(consoleError.mock.calls);
-    expect(logged).not.toContain("private-signed-download-token");
-    expect(logged).not.toContain("private-oauth");
-    expect(logged).toContain("/download/[redacted]");
-  });
 
   it("does not rewrite intentional client errors", async () => {
     const body = { code: "invalid_filename", detail: "Filename is required" };

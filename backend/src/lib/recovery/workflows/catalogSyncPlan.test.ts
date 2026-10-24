@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -350,14 +349,16 @@ describe("atomic idempotent sync", () => {
 
 describe("runtime and import boundary", () => {
   it("exports only canonicalization and atomic plan execution", async () => {
-    const mod = await import("./catalogSyncPlan");
+    const mod = await import("./catalogSyncPlan.js");
     expect(Object.keys(mod).sort()).toEqual(
       ["canonicalizeCatalogSyncInput", "executeCatalogSyncPlan"].sort(),
     );
   });
 
   it("has no storage, database, route, legacy registry or network import", () => {
-    const here = dirname(fileURLToPath(import.meta.url));
+    // Source reads resolve from the package root: test files are typechecked
+    // as CommonJS here, where import.meta is not available.
+    const here = join(process.cwd(), "src/lib/recovery/workflows");
     const source = readFileSync(join(here, "catalogSyncPlan.ts"), "utf8");
     for (const banned of [
       "systemWorkflows",

@@ -1,11 +1,12 @@
 import React from "react";
 import { Trash2 } from "lucide-react";
-import { ToggleSwitch } from "../../../shared/ui/toggle-switch";
+import { ToggleSwitchUI } from "@mike/toggle-switch-ui";
 import { PageTitle } from "../primitives/PageTitle";
 import { PillButtonUI as PillButton } from "@mike/pill-button-ui";
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 import { Modal } from "../primitives/Modal";
 import { GlassCardUI } from "@mike/glass-card-ui";
+import { userMessage } from "../../lib/notify";
 
 interface SettingsPageProps {
   storageMode: WordChatStorageMode;
@@ -30,9 +31,9 @@ export function SettingsPage({
       await onStorageModeChange(cloud ? "cloud" : "local");
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "Could not save the chat storage setting.",
+        userMessage(reason, {
+          fallback: "LiTT couldn't save that setting. Try again.",
+        }),
       );
     } finally {
       setSaving(false);
@@ -55,7 +56,7 @@ export function SettingsPage({
                   your other devices.
                 </p>
               </div>
-              <ToggleSwitch
+              <ToggleSwitchUI
                 aria-label="Save chats in the cloud"
                 checked={storageMode === "cloud"}
                 disabled={saving}
@@ -111,9 +112,10 @@ export function SettingsPage({
               .then(() => setClearConfirmOpen(false))
               .catch((reason: unknown) =>
                 setError(
-                  reason instanceof Error
-                    ? reason.message
-                    : "Could not delete device-only chats.",
+                  userMessage(reason, {
+                    fallback:
+                      "LiTT couldn't delete the device-only chats. Try again.",
+                  }),
                 ),
               )
               .finally(() => setClearing(false));

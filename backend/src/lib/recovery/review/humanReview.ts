@@ -9,7 +9,6 @@ import {
 import type { VerifiedCitation } from "../evidence/citationEvidence";
 import type {
   CanonicalEvidenceReceipt,
-  EvidenceResourceScope,
   EvidenceResourceScopePort,
 } from "../evidence/appendOnlyEvidence";
 

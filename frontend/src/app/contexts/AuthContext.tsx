@@ -1,10 +1,11 @@
 "use client";
 
-import React, {
+import {
     createContext,
     useContext,
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     ReactNode,
@@ -18,6 +19,8 @@ import {
     type AuthUser,
 } from "@/app/lib/authApi";
 import { AUTH_SESSION_INVALIDATED_EVENT } from "@/app/lib/authEvents";
+import { isOnAuthRoute, notifyError } from "@/app/lib/userFacingError";
+import { clearToasts } from "@/shared/ui/ToastUI";
 
 type User = AuthUser;
 
@@ -38,6 +41,8 @@ const AUTH_SYNC_CHANNEL = "mike-auth-state";
 const AUTH_SYNC_STORAGE_KEY = "mike-auth-state-change";
 const SESSION_ERROR_MESSAGE =
     "We could not check your session. Please try again.";
+/** One toast for the session, however many background checks fail. */
+const SESSION_TOAST_KEY = "auth-session";
 const EXPIRED_SESSION_MESSAGE = "Your session expired. Please log in again.";
 
 type AuthSyncMessage = {
@@ -51,6 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authError, setAuthError] = useState<string | null>(null);
     const channelRef = useRef<BroadcastChannel | null>(null);
     const sessionRequestRef = useRef<Promise<User | null> | null>(null);
+
+    const sessionUserIdRef = useRef<string | null>(null);
+    const applySessionUser = useCallback((nextUser: User | null) => {
+        // Notifications can hold write closures from the previous account.
+        // Every session-ending or identity-changing path must discard them.
+        if (!nextUser || sessionUserIdRef.current !== nextUser.id) clearToasts();
+        sessionUserIdRef.current = nextUser?.id ?? null;
+        setUser(nextUser);
+    }, []);
 
     const broadcastAuthState = useCallback(
         (state: AuthSyncMessage["state"]) => {
@@ -81,10 +95,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             });
         }
         const nextUser = await sessionRequestRef.current;
-        setUser(nextUser);
+        applySessionUser(nextUser);
         setAuthError(null);
         return nextUser;
-    }, []);
+    }, [applySessionUser]);
+
+    // Background session checks (focus, tab visibility, another tab signing
+    // in) have no screen of their own: without this the user sees a silently
+    // stale session, so the failure gets a toast with a real Retry.
+    const reportSessionFailureRef = useRef<(error: unknown) => void>(() => {});
+    const reportSessionFailure = useCallback(
+        (error: unknown) => {
+            setAuthError(SESSION_ERROR_MESSAGE);
+            // Sign-in screens show `authError` themselves, with their own
+            // Retry; a toast there repeated it and then contradicted the
+            // form's next error.
+            if (isOnAuthRoute()) return;
+            notifyError(error, {
+                action: "check your session",
+                dedupeKey: SESSION_TOAST_KEY,
+                onRetry: () => {
+                    void fetchAndApplySession().catch((retryError: unknown) =>
+                        reportSessionFailureRef.current(retryError),
+                    );
+                },
+            });
+        },
+        [fetchAndApplySession],
+    );
+
+    useEffect(() => {
+        reportSessionFailureRef.current = reportSessionFailure;
+    }, [reportSessionFailure]);
 
     useEffect(() => {
         clearLegacyBrowserAuthStorage();
@@ -97,15 +139,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const applySyncMessage = (message: AuthSyncMessage) => {
             if (message.state === "signed-out") {
-                setUser(null);
+                applySessionUser(null);
                 setAuthError(null);
                 setAuthLoading(false);
                 return;
             }
 
-            void fetchAndApplySession().catch(() => {
-                setAuthError(SESSION_ERROR_MESSAGE);
-            });
+            void fetchAndApplySession().catch(reportSessionFailure);
         };
 
         const onChannelMessage = (event: MessageEvent<AuthSyncMessage>) => {
@@ -131,21 +171,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         };
         const onInvalidated = () => {
-            setUser(null);
+            applySessionUser(null);
             setAuthError(EXPIRED_SESSION_MESSAGE);
             setAuthLoading(false);
             broadcastAuthState("signed-out");
         };
         const onVisibilityChange = () => {
             if (document.visibilityState !== "visible") return;
-            void fetchAndApplySession().catch(() => {
-                setAuthError(SESSION_ERROR_MESSAGE);
-            });
+            void fetchAndApplySession().catch(reportSessionFailure);
         };
         const onFocus = () => {
-            void fetchAndApplySession().catch(() => {
-                setAuthError(SESSION_ERROR_MESSAGE);
-            });
+            void fetchAndApplySession().catch(reportSessionFailure);
         };
 
         channel?.addEventListener("message", onChannelMessage);
@@ -155,9 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.addEventListener("visibilitychange", onVisibilityChange);
 
         void fetchAndApplySession()
-            .catch(() => {
-                setAuthError(SESSION_ERROR_MESSAGE);
-            })
+            .catch(reportSessionFailure)
             .finally(() => setAuthLoading(false));
 
         return () => {
@@ -175,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 onVisibilityChange,
             );
         };
-    }, [broadcastAuthState, fetchAndApplySession]);
+    }, [applySessionUser, broadcastAuthState, fetchAndApplySession, reportSessionFailure]);
 
     const refreshSession = useCallback(async () => {
         try {
@@ -190,53 +224,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [broadcastAuthState, fetchAndApplySession]);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
         try {
             await logout("local");
-            setUser(null);
+            applySessionUser(null);
             setAuthError(null);
             broadcastAuthState("signed-out");
         } catch (error) {
             setAuthError("Unable to sign out. Please try again.");
             throw error;
         }
-    };
+    }, [applySessionUser, broadcastAuthState]);
 
-    const updateEmail = async (email: string) => {
+    const updateEmail = useCallback(async (email: string) => {
         const { user: nextUser } = await updateAuthEmail(
             email,
             "/settings?emailChange=processed",
         );
-        setUser(nextUser);
+        applySessionUser(nextUser);
         return nextUser;
-    };
+    }, [applySessionUser]);
 
-    const setPassword = async (password: string) => {
+    const setPassword = useCallback(async (password: string) => {
         const { user: nextUser } = await updateAuthPassword(password);
-        setUser(nextUser);
-    };
+        applySessionUser(nextUser);
+    }, [applySessionUser]);
+
+    // A fresh object here re-renders every consumer of this context on every
+    // provider render, sign-in state change or not. Each callback above is
+    // itself memoized, so this only changes when user/authLoading/authError do.
+    const value = useMemo<AuthContextType>(
+        () => ({
+            user,
+            isAuthenticated: !!user,
+            authLoading,
+            authError,
+            signOut,
+            updateEmail,
+            setPassword,
+            refreshSession,
+            retrySession: refreshSession,
+        }),
+        [
+            user,
+            authLoading,
+            authError,
+            signOut,
+            updateEmail,
+            setPassword,
+            refreshSession,
+        ],
+    );
 
     return (
-        <AuthContext.Provider
-            value={{
-                user,
-                isAuthenticated: !!user,
-                authLoading,
-                authError,
-                signOut,
-                updateEmail,
-                setPassword,
-                refreshSession,
-                retrySession: refreshSession,
-            }}
-        >
-            {children}
-        </AuthContext.Provider>
+        <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
     );
 }
 
+export function useOptionalAuth() {
+    return useContext(AuthContext);
+}
+
 export function useAuth() {
-    const context = useContext(AuthContext);
+    const context = useOptionalAuth();
     if (context === undefined) {
         throw new Error("useAuth must be used within an AuthProvider");
     }

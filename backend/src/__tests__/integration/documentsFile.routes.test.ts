@@ -22,6 +22,8 @@ const database = {
         id: "document-1",
         user_id: "user-1",
         project_id: null,
+        org_id: null,
+        workflow_id: null,
       },
       error: null,
     }));
@@ -62,7 +64,7 @@ vi.mock("../../lib/storage", async (importOriginal) => ({
   headFile: mocks.headFile,
 }));
 
-import { documentsRouter } from "../../routes/documents";
+import { documentsRouter } from "../../modules/documents/documents.routes";
 
 const app = express();
 app.use("/single-documents", documentsRouter);
@@ -148,42 +150,13 @@ describe("GET /single-documents/:documentId/file", () => {
     expect(mocks.createFileReadStream).not.toHaveBeenCalled();
     expect(mocks.downloadFile).not.toHaveBeenCalled();
   });
-});
 
-describe("GET /single-documents/:documentId/docx", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.ensureDocAccess.mockResolvedValue({ ok: true, isCreator: true });
-    mocks.loadActiveVersion.mockResolvedValue({
-      id: "version-2",
-      storage_path: "documents/user-1/document-1/source.docx",
-      pdf_storage_path: null,
-      version_number: 2,
-      filename: "contract.docx",
-      source: "user_upload",
-      file_type: "docx",
-      size_bytes: 3,
-      page_count: null,
-    });
-    mocks.downloadFile.mockResolvedValue(Buffer.from([0x50, 0x4b, 0x03]));
-  });
-
-  // LiTT keeps the DOCX-specific route for backward compatibility even though
-  // new callers use /file; upstream removed it in aa1079cb (#456).
-  it("stays available as the DOCX-specific compatibility route", async () => {
+  it("does not retain the old format-specific route", async () => {
     const response = await request(app)
       .get("/single-documents/document-1/docx")
       .set("Authorization", "Bearer test");
 
-    expect(response.status).toBe(200);
-    expect(response.headers["content-type"]).toBe(
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    );
-    expect(response.headers["content-disposition"]).toContain("inline");
-    expect(response.headers["content-disposition"]).toContain("contract");
-    expect(mocks.downloadFile).toHaveBeenCalledWith(
-      "documents/user-1/document-1/source.docx",
-    );
-    expect(mocks.createFileReadStream).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
+    expect(mocks.loadActiveVersion).not.toHaveBeenCalled();
   });
 });

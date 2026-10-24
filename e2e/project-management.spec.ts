@@ -5,91 +5,28 @@
  *   3. Create a folder inside a project
  *   4. File upload type validation (wrong type rejected)
  *
- * Prerequisite: auth.setup.ts has already saved the session to e2e/.auth/user.json.
- * All tests run with the authenticated storageState configured in playwright.config.ts —
- * no test.use override is needed here.
+ * Auth: every test runs signed in as this worker's account (the storageState
+ * fixture in e2e/fixtures.ts) — no test.use override is needed here.
  *
  * Each test creates its own uniquely-named project so tests are fully isolated.
  */
-import { test, expect } from "@playwright/test";
-import path from "path";
+import { test, expect } from "./fixtures";
+import { createProject } from "./helpers";
 
-const PDF_FIXTURE = path.join(__dirname, "fixtures/test.pdf");
-
-// ─── Shared helper ────────────────────────────────────────────────────────────
-
-/**
- * Creates a new project via the "New project" modal and waits until
- * NewProjectModal's onCreated handler redirects to /projects/<id>.
- *
- * Pass `filePath` to also upload a document during creation.
- */
-async function createProject(
-    page: import("@playwright/test").Page,
-    projectName: string,
-    filePath?: string,
-) {
-    /* Creation is a navigation + modal wizard + (optionally) a file upload; the
-       per-test `{ timeout }` option passed to test() is silently ignored by
-       Playwright (that object only accepts tag/annotation), so raise the budget
-       here, where the slow work happens, for every caller. */
-    test.setTimeout(60_000);
-
-    await page.goto("/projects");
-    await expect(page).toHaveURL(/\/projects/, { timeout: 10_000 });
-
-    /* The Plus icon button in the header has aria-label="New project" */
-    const createBtn = page.getByRole("button", { name: "New project" });
-    await expect(createBtn).toBeVisible({ timeout: 10_000 });
-    await createBtn.click();
-
-    const nameInput = page.getByPlaceholder("Project name");
-    await expect(nameInput).toBeVisible({ timeout: 5_000 });
-    await nameInput.fill(projectName);
-
-    /* NewProjectModal is a two-step wizard: "Details" (name / CM number /
-       practice / colleagues) then "Add Documents". Only the second step has a
-       submit button — the first step's primary action is a plain "Next". */
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-
-    if (filePath) {
-        /* On the documents step the footer "Upload" button opens a hidden file
-           input, and its label gains a "(n)" count once files are attached. */
-        const fileChooserPromise = page.waitForEvent("filechooser");
-        await page.getByRole("button", { name: /^Upload/ }).click();
-        (await fileChooserPromise).setFiles(filePath);
-        await expect(
-            page.getByRole("button", { name: /^Upload \(1\)/ }),
-        ).toBeVisible({ timeout: 5_000 });
-    }
-
-    /* Submit — NewProjectModal's onCreated calls router.push(`/projects/${id}`).
-       The PDF upload runs (awaited) inside handleSubmit before onCreated fires,
-       so allow extra time for navigation when a file is attached.
-
-       (The modal's FileDirectory used to fan out a getProject() request per
-       existing project on open, which could overwhelm the local Supabase
-       gateway and required settle-waits plus a submit-retry loop here. The
-       directory now loads via one batched listProjects?include=documents
-       request, so a single submit is reliable.)
-
-       The documents step's primary action submits the form (its label flips
-       to "Creating…" while in flight, so match on the submit type instead). */
-    const navTimeout = filePath ? 30_000 : 15_000;
-    await page.locator('button[type="submit"]').click();
-    await page.waitForURL(/\/projects\/.+/, { timeout: navTimeout });
-}
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 /**
  * Navigate to the projects list and return the table row for `projectName`.
- * Rows are <div class="group">; the sidebar "Recent Projects" renders the same
- * name as a <button>, so scoping to div.group avoids a strict-mode double match.
+ * Rows are <div class="group"> inside <main>. The sidebar "Recent Projects"
+ * list sits outside <main> and also renders project names in div.group rows
+ * (and keeps a stale copy after a rename or delete), so every row lookup in
+ * this file is scoped to main.
  */
 async function gotoProjectRow(
     page: import("@playwright/test").Page,
     projectName: string,
 ) {
-    const row = page.locator("div.group").filter({ hasText: projectName });
+    const row = page.locator("main div.group").filter({ hasText: projectName });
     await page.goto("/projects");
     await expect(row.first()).toBeVisible({ timeout: 12_000 });
     return row;
@@ -114,9 +51,9 @@ test("rename a project via Edit details", async ({ page }) => {
     await createProject(page, projectName);
 
     /* Navigate to the projects list (where the rename UI lives) and grab the
-       row. Each project row is a <div class="group">. The sidebar "Recent
-       Projects" list renders the same name as a <button> (not div.group), so
-       scoping to div.group keeps the lookup to the table row. */
+       row. Each project row is a <div class="group"> inside <main>; the
+       sidebar "Recent Projects" list sits outside main, so scoping to main
+       keeps the lookup to the table row. */
     const row = await gotoProjectRow(page, projectName);
 
     /* The ··· button (middle-dot U+00B7 × 3) is inside the last cell of the row */
@@ -128,7 +65,7 @@ test("rename a project via Edit details", async ({ page }) => {
      * inline "Rename" affordance is gone; renaming now happens in
      * ProjectDetailsModal, which also carries the CM number and practice fields.
      */
-    await page.getByRole("button", { name: "Edit details", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Edit details", exact: true }).click();
 
     /* ProjectDetailsModal's name field is pre-filled with the current name;
        fill() clears it first, platform-independently. */
@@ -141,14 +78,14 @@ test("rename a project via Edit details", async ({ page }) => {
     await page.getByRole("button", { name: "Update", exact: true }).click();
 
     /* handleRenameSubmit optimistically updates the projects list state.
-       Scope to table rows (div.group) so the sidebar's stale copy of the old
+       Scope to table rows in main so the sidebar's stale copy of the old
        name does not interfere with the negative assertion below. */
     // REGRESSION: fails if rename input or submit handler is removed
     await expect(
-        page.locator("div.group").filter({ hasText: newName }),
+        page.locator("main div.group").filter({ hasText: newName }),
     ).toBeVisible({ timeout: 5_000 });
     await expect(
-        page.locator("div.group").filter({ hasText: projectName }),
+        page.locator("main div.group").filter({ hasText: projectName }),
     ).toHaveCount(0);
 });
 
@@ -160,9 +97,9 @@ test("delete a project", async ({ page }) => {
 
     /*
      * Back to the projects list.
-     * Rows are scoped to div.group — the sidebar "Recent Projects" list also
-     * shows the name as a <button>, so an unscoped getByText would match two
-     * elements.
+     * Rows are scoped to main div.group — the sidebar "Recent Projects" list
+     * (outside main) also shows the name, so an unscoped lookup would match
+     * two elements.
      *
      * The row checkbox is wrapped in a div with onClick={e.stopPropagation()}
      * to prevent accidental row navigation. Clicking the checkbox alone is safe.
@@ -175,22 +112,27 @@ test("delete a project", async ({ page }) => {
      * The "Actions" button is conditionally rendered only when selectedIds.length > 0.
      * It opens a small dropdown containing a "Delete" option.
      */
-    const actionsBtn = page.getByRole("button", { name: /^Actions/ });
+    /* Exact name, not a /^Actions/ prefix: the sidebar's chat rows carry
+       "Actions for <title>" buttons, so the prefix matched more than one
+       element and Playwright's strict mode failed the click outright. The
+       toolbar's own button is named exactly "Actions". */
+    const actionsBtn = page.getByRole("button", { name: "Actions", exact: true });
     await expect(actionsBtn).toBeVisible({ timeout: 3_000 });
     await actionsBtn.click();
 
-    /* exact:true so the substring match can't pick up any other button whose
+    /* exact:true so the substring match can't pick up any other item whose
        accessible name merely contains "Delete". */
-    const deleteBtn = page.getByRole("button", { name: "Delete", exact: true });
+    const deleteBtn = page.getByRole("menuitem", { name: "Delete", exact: true });
     await expect(deleteBtn).toBeVisible({ timeout: 3_000 });
 
     // REGRESSION: fails if `handleDeleteSelected` is removed
     await deleteBtn.click();
 
     /* handleDeleteSelected removes the project from local state immediately.
-       Scope to table rows so a stale sidebar entry can't keep this truthy. */
+       Scope to table rows in main so a stale sidebar entry can't keep this
+       truthy. */
     await expect(
-        page.locator("div.group").filter({ hasText: projectName }),
+        page.locator("main div.group").filter({ hasText: projectName }),
     ).toHaveCount(0, { timeout: 10_000 });
 });
 
@@ -238,7 +180,7 @@ test("create a folder inside a project", async ({ page }) => {
     // REGRESSION: fails if folder creation button or API call is removed
     await expect(page.getByText(folderName)).toBeVisible({ timeout: 10_000 });
 
-    const folderRow = page.locator("div.group").filter({
+    const folderRow = page.locator("main div.group").filter({
         hasText: folderName,
     });
     await expect(folderRow.locator('input[type="checkbox"]')).toBeVisible();
@@ -270,10 +212,14 @@ test("file upload type validation — .txt file is rejected", async ({ page }) =
      *       its intentional 410 response.
      */
 
-    /* Open the Add Documents modal. The "Add Documents" button only renders
-       once ProjectPage has loaded the project. */
-    const addDocsBtn = page.getByRole("button", { name: "Add Documents" });
-    await waitForProjectLoaded(page, addDocsBtn);
+    /* The project header now exposes document actions from an Upload menu.
+       Its icon-only trigger contains the upload SVG, unlike the empty-state
+       Upload button, which keeps this selector unambiguous. */
+    const uploadMenuBtn = page
+        .getByRole("button", { name: "Upload", exact: true })
+        .filter({ has: page.locator("svg.lucide-upload") })
+        .first();
+    await waitForProjectLoaded(page, uploadMenuBtn);
 
     /* (b) Server-side rejection on the active protocol — REGRESSION: fails if
        type validation is removed from upload-session manifest parsing. */
@@ -342,7 +288,8 @@ test("file upload type validation — .txt file is rejected", async ({ page }) =
     });
 
     /* (a) UI-side filtering with a visible warning. */
-    await addDocsBtn.click();
+    await uploadMenuBtn.click();
+    await page.getByRole("menuitem", { name: "Saved Documents" }).click();
 
     const fileChooserPromise = page.waitForEvent("filechooser");
     /* The Upload button label is "Upload" (not "Uploading…") when idle */
