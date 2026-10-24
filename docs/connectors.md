@@ -25,10 +25,11 @@ move existing credentials into an organization.
 
 ### Dynamic client registration
 
-Most hosted MCP servers support OAuth Dynamic Client Registration (DCR). A
-user clicks **Add** in Discover and completes the provider's consent screen;
-the Mike deployment does not need provider-specific credentials. Airtable,
-Lawve, Linear, and Notion use this pathway.
+Most hosted MCP servers support OAuth Dynamic Client Registration (DCR). The
+user adds the server and completes the provider's consent screen; the
+deployment does not need provider-specific credentials. LiTT suggests no
+third-party server under Discover, so a hosted server is added through
+**+ Custom**.
 
 Servers that use a bearer token or custom headers can be added through
 **+ Custom**. Credentials are encrypted at rest. Failed registration does not

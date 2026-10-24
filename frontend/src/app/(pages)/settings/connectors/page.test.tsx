@@ -27,6 +27,27 @@ import { needsMfaVerification } from "@/app/components/popups/MfaVerificationPop
 
 // Replace only the network functions the OAuth popup flow drives; keep the real
 // MikeApiError / isMfaRequiredError so `instanceof` checks in the page behave.
+// LiTT ships no suggested connector (connectorPresets.test.ts); the Discover
+// mechanism is exercised on a fixture list.
+vi.mock("@/app/components/settings/connectorPresets", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/app/components/settings/connectorPresets")>();
+    const presets = [
+        { name: "Slack", serverUrl: "https://mcp.slack.com/mcp" },
+        { name: "Notion", serverUrl: "https://mcp.notion.com/mcp" },
+        { name: "Airtable", serverUrl: "https://mcp.airtable.com/mcp" },
+        { name: "Linear", serverUrl: "https://mcp.linear.app/mcp" },
+    ];
+    return {
+        ...actual,
+        CONNECTOR_PRESETS: presets,
+        findConnectorPreset: (serverUrl: string) =>
+            presets.find(
+                (preset) =>
+                    actual.normalizedServerUrl(preset.serverUrl) ===
+                    actual.normalizedServerUrl(serverUrl),
+            ),
+    };
+});
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/app/lib/mikeApi")>();
     return {

@@ -1,13 +1,11 @@
-export const CONNECTOR_PRESETS: ReadonlyArray<{
-    name: string;
-    serverUrl: string;
-}> = [
-    { name: "Slack", serverUrl: "https://mcp.slack.com/mcp" },
-    { name: "Notion", serverUrl: "https://mcp.notion.com/mcp" },
-    { name: "Airtable", serverUrl: "https://mcp.airtable.com/mcp" },
-    { name: "Linear", serverUrl: "https://mcp.linear.app/mcp" },
-    { name: "Lawve", serverUrl: "https://mcp.lawve.ai" },
-];
+export type ConnectorPreset = { name: string; serverUrl: string };
+
+/**
+ * One-click MCP servers offered under Discover. LiTT suggests no third-party
+ * service by default, so the list ships empty; a server is added through
+ * **+ Custom** by the person who chose it.
+ */
+export const CONNECTOR_PRESETS: ReadonlyArray<ConnectorPreset> = [];
 
 /**
  * Preset URLs and stored connector URLs differ in trailing slashes and
