@@ -314,6 +314,10 @@ case "$CMD" in
         docker_ready || die "Docker is not running — start it first (open -a Docker) and retry."
         if [ "${MIKE_GC:-1}" != 0 ]; then gc; log; fi
         log "Starting compose project '$PROJECT'"
+        # Images embed the commit they are built from (AGPL §13 source link)
+        # and refuse to build without it; a local stack uses this checkout's.
+        GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}"
+        export GIT_SHA
         exec docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up ${PASSTHRU[@]+"${PASSTHRU[@]}"}
         ;;
     down)

@@ -132,8 +132,13 @@ cd word-addin
 REACT_APP_API_BASE_URL=/api \
 REACT_APP_WEB_APP_URL=https://app.example.com \
 WORD_ADDIN_PUBLIC_URL=https://word.example.com \
+GIT_SHA=$(git rev-parse HEAD) \
 npm run build
 ```
+
+`GIT_SHA` is the full commit SHA shown by the task pane's "Código fuente"
+link (AGPL §13); the production build fails without it. Build from a clean,
+committed tree.
 
 The build writes task-pane assets and a URL-rewritten manifest to `dist/`.
 The checked-in `manifest.xml` remains configured for localhost.
@@ -146,7 +151,7 @@ cookie restrictions across Word desktop and Word on the web.
 The included production host implements this contract:
 
 ```bash
-npm run build
+GIT_SHA=$(git rev-parse HEAD) npm run build
 WORD_ADDIN_BACKEND_ORIGIN=http://localhost:3001 npm run start:production
 ```
 

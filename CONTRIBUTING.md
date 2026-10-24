@@ -104,8 +104,12 @@ npm run build --prefix backend
 Frontend:
 
 ```bash
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 ```
+
+A production frontend build needs the full commit SHA in `GIT_SHA` for the
+"Código fuente" link (AGPL §13); build from a clean, committed tree so the
+link points at the code that runs. See `deploy/prod/README.md`.
 
 ## Testing
 

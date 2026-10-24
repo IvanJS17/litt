@@ -3,6 +3,8 @@ const path = require("path");
 const fs = require("fs");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
+const { execFileSync } = require("child_process");
+const { pathToFileURL } = require("url");
 
 const frontendShared = (...segments) =>
   path.resolve(__dirname, "..", "frontend", "src", "shared", ...segments);
@@ -43,6 +45,22 @@ module.exports = async (_env, options) => {
       );
     }
   }
+
+  // AGPL-3.0 §13: the commit this build serves, for the "Código fuente" link.
+  // A production build fails without GIT_SHA; development falls back to HEAD.
+  const { resolveSourceCommit } = await import(
+    pathToFileURL(frontendShared("lib", "sourceCommit.mjs")).href
+  );
+  const sourceCommit = resolveSourceCommit({
+    explicit: process.env.GIT_SHA,
+    production: !isDev,
+    readGitHead: () =>
+      execFileSync("git", ["rev-parse", "HEAD"], {
+        cwd: __dirname,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }),
+  });
 
   /** @type {import('webpack-dev-server').Configuration} */
   const devServerConfig = {
@@ -176,6 +194,7 @@ module.exports = async (_env, options) => {
           "TabPillButtonUI.tsx",
         ),
         "@mike/toggle-switch-ui": frontendSharedUi("ToggleSwitchUI.tsx"),
+        "@mike/source-code-link-ui": frontendSharedUi("SourceCodeLinkUI.tsx"),
         "@mike/dropdown-ui": frontendSharedUi("dropdown.tsx"),
         "@mike/citation-pill-ui": frontendSharedUi("CitationPillUI.tsx"),
         "@mike/model-toggle-ui": frontendSharedUi("ModelToggleUI.tsx"),
@@ -278,7 +297,7 @@ module.exports = async (_env, options) => {
         REACT_APP_WEB_APP_URL: isDev
           ? process.env.REACT_APP_WEB_APP_URL || "https://app.mikeoss.com"
           : undefined,
-        REACT_APP_GIT_SHA: process.env.REACT_APP_GIT_SHA || "",
+        REACT_APP_GIT_SHA: sourceCommit,
       }),
     ],
     devServer: devServerConfig,

@@ -41,10 +41,23 @@ vi.mock("@supabase/supabase-js", () => ({
 import { app } from "../../app";
 
 describe("GET /health", () => {
-    it("returns 200 with { ok: true }", async () => {
+    afterEach(() => {
+        delete process.env.GIT_SHA;
+    });
+
+    it("reports the commit the server was built from", async () => {
+        const sha = "0123456789abcdef0123456789abcdef01234567";
+        process.env.GIT_SHA = sha;
         const res = await request(app).get("/health");
         expect(res.status).toBe(200);
-        expect(res.body).toEqual({ ok: true });
+        expect(res.body).toEqual({ ok: true, commit: sha });
+    });
+
+    it("returns 200 with a null commit in a development build", async () => {
+        delete process.env.GIT_SHA;
+        const res = await request(app).get("/health");
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({ ok: true, commit: null });
         expect(res.headers["x-request-id"]).toMatch(
             /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
         );

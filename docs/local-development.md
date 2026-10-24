@@ -33,8 +33,11 @@ Docker Compose supplies the local Supabase and object-storage settings, so
 leave those values unchanged. Then start the stack:
 
 ```bash
-docker compose up --build
+GIT_SHA=$(git rev-parse HEAD) docker compose up --build
 ```
+
+`GIT_SHA` is the commit the images embed for the "Código fuente" link
+(AGPL-3.0 §13); the images refuse to build without it.
 
 Open [http://localhost:3000](http://localhost:3000) and sign up.
 

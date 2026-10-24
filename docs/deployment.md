@@ -515,8 +515,12 @@ process manager or deployment platform:
 
 ```bash
 npm run build --prefix backend
-npm run build --prefix frontend
+GIT_SHA=$(git rev-parse HEAD) npm run build --prefix frontend
 ```
+
+A production frontend build needs the full commit SHA in `GIT_SHA` for the
+"Código fuente" link (AGPL §13); build from a clean, committed tree so the
+link points at the code that runs. See `deploy/prod/README.md`.
 
 If port 3001 (or `PORT`) is already taken, for example by the Docker Compose
 backend, the backend reports the bind failure and exits instead of starting
@@ -534,7 +538,8 @@ which is why `docker compose up` works without TLS.
 The image contains no `.env` file. Pass the backend environment explicitly:
 
 ```bash
-docker build -t mike-backend -f backend/Dockerfile .
+docker build -t mike-backend --build-arg GIT_SHA=$(git rev-parse HEAD) \
+  -f backend/Dockerfile .
 docker run --rm -p 3001:3001 --env-file backend/.env \
   -e NODE_ENV=production \
   -e FRONTEND_URL=https://app.example.com \
@@ -553,6 +558,7 @@ static bundle and its private backend origin supplied only at runtime:
 
 ```bash
 docker build -t mike-word-addin \
+  --build-arg GIT_SHA=$(git rev-parse HEAD) \
   --build-arg REACT_APP_WEB_APP_URL=https://app.example.com \
   --build-arg WORD_ADDIN_PUBLIC_URL=https://word.example.com \
   -f word-addin/Dockerfile .
@@ -603,7 +609,8 @@ Keep failed cleanup rows as well as pending ones; upgraded workers reclaim them.
 
 Backend and frontend Docker build contexts are now the repository root, so both
 can compile against `packages/contracts`. For a manual backend image build use
-`docker build -f backend/Dockerfile -t mike-backend .` from the root.
+`docker build -f backend/Dockerfile --build-arg GIT_SHA=$(git rev-parse HEAD) -t mike-backend .`
+from the root of a clean checkout (the build fails without a full `GIT_SHA`).
 
 Each image reads only what its Dockerfile copies: the frontend image contains
 `frontend/` and `packages/contracts`; the add-in image adds `frontend/src/shared`
