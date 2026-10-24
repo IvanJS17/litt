@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  diagnosticErrorTags,
-  diagnosticEvent,
-} from "../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../errorTags";
 import {
   uploadConversionTimeoutMs,
   uploadJobWallClockMs,
@@ -215,7 +212,7 @@ describe("upload worker deadlines", () => {
   });
 });
 
-it("identifies invalid configuration fields without sending their values", () => {
+it("identifies invalid configuration fields without keeping their values", () => {
   let failure: unknown;
   try {
     validateRuntimeConfiguration({
@@ -226,11 +223,11 @@ it("identifies invalid configuration fields without sending their values", () =>
   } catch (error) {
     failure = error;
   }
-  const event = diagnosticEvent({ tags: diagnosticErrorTags(failure) });
-  expect(event.tags).toEqual({
+  const tags = diagnosticErrorTags(failure);
+  expect(tags).toEqual({
     failure_code: "configuration_invalid",
     configuration_fields:
       "API_PUBLIC_URL,FRONTEND_URL,SUPABASE_PUBLISHABLE_KEY,SUPABASE_URL",
   });
-  expect(JSON.stringify(event)).not.toContain("PRIVATE");
+  expect(JSON.stringify(tags)).not.toContain("PRIVATE");
 });

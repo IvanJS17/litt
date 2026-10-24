@@ -2,8 +2,7 @@ import React from "react";
 import { PillButtonUI as PillButton } from "@mike/pill-button-ui";
 
 /**
- * What the pane shows when a render error escapes every component. The
- * error itself has already been sent to Sentry by the boundary; this only
+ * What the pane shows when a render error escapes every component. This only
  * has to leave the user a way back that does not involve restarting Word.
  */
 export function PaneErrorFallback({
@@ -18,7 +17,8 @@ export function PaneErrorFallback({
     >
       <p className="text-sm font-medium text-foreground">Something went wrong</p>
       <p className="text-xs text-muted-foreground">
-        The add-in hit an unexpected error. It has been reported.
+        The add-in hit an unexpected error. Try again, and reload the pane if
+        it keeps happening.
       </p>
       <PillButton type="button" tone="black" size="normal" onClick={resetError}>
         Try again

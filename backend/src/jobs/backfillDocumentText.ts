@@ -1,4 +1,4 @@
-import "../instrument";
+import "dotenv/config";
 import { createServerSupabase } from "../lib/supabase";
 import { backfillDocumentText } from "../modules/documents/documents.service";
 import { safeError } from "../lib/safeError";

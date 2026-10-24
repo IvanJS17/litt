@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeText, reportError } = vi.hoisted(() => ({
+const { completeText } = vi.hoisted(() => ({
     completeText: vi.fn(),
-    reportError: vi.fn(() => null),
 }));
 
 vi.mock("../../../lib/llm", () => ({ completeText }));
-vi.mock("../../../lib/observability/sentry", () => ({ reportError }));
 
 import { generateAssistantChatTitle, logChatTitleFailure } from "../chat.title";
 import { UserFacingError } from "../../../lib/userFacingError";
@@ -27,22 +25,20 @@ describe("logChatTitleFailure", () => {
         });
 
     beforeEach(() => {
-        reportError.mockClear();
         vi.spyOn(console, "error").mockImplementation(() => {});
         vi.spyOn(console, "warn").mockImplementation(() => {});
     });
 
-    // console.error is what the Sentry console bridge files; console.warn is
-    // not. When the reply failed the same way, its report already covers the
-    // title, so filing the title too duplicated it (MIKE-BACKEND-D).
-    it("keeps a title failure the reply shares out of Sentry", () => {
+    // A provider or configuration failure is a warning: the reply already
+    // logged the same provider problem (MIKE-BACKEND-D), so the title line is
+    // context, not a new fault.
+    it("logs a title failure the reply shares as a warning, not an error", () => {
         logChatTitleFailure("[t]", apiCallError(400), replyRejectedKey());
-        expect(reportError).not.toHaveBeenCalled();
         expect(console.error).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledTimes(1);
     });
 
-    it("treats a missing key as shared when the reply refused for configuration too", () => {
+    it("treats a missing key as a configuration failure, not an error", () => {
         logChatTitleFailure(
             "[t]",
             new UserFacingError("Gemini API key required"),
@@ -50,12 +46,13 @@ describe("logChatTitleFailure", () => {
                 cause: new UserFacingError("Gemini API key required"),
             }),
         );
-        expect(reportError).not.toHaveBeenCalled();
+        expect(console.error).not.toHaveBeenCalled();
+        expect(console.warn).toHaveBeenCalledTimes(1);
     });
 
     // A separately configured title model, or a rate limit only the short
-    // title call hit: the reply succeeded, so nothing else reports this.
-    it("reports a title-only provider failure once, as a warning", () => {
+    // title call hit: the reply succeeded, so this line is the only trace.
+    it("logs a title-only provider failure once, as a warning", () => {
         const retryError = Object.assign(new Error("retries exhausted"), {
             name: "AI_RetryError",
             lastError: Object.assign(new Error("rate limited"), {
@@ -64,26 +61,14 @@ describe("logChatTitleFailure", () => {
             }),
         });
         logChatTitleFailure("[t]", retryError, null);
-        expect(reportError).toHaveBeenCalledTimes(1);
-        expect(reportError).toHaveBeenCalledWith(retryError, {
-            level: "warning",
-            tags: { component: "chat-title" },
-        });
         expect(console.error).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledTimes(1);
-    });
-
-    it("reports a title failure that differs from the reply's failure", () => {
-        // Reply: rejected key (400). Title: a different provider is overloaded.
-        logChatTitleFailure("[t]", apiCallError(503), replyRejectedKey());
-        expect(reportError).toHaveBeenCalledTimes(1);
     });
 
     it("still logs anything else — a failed title write, a bug — as an error", () => {
         const bug = new TypeError("cannot read properties of undefined");
         logChatTitleFailure("[t]", bug, null);
         expect(console.error).toHaveBeenCalledWith("[t]", bug);
-        expect(reportError).not.toHaveBeenCalled();
     });
 });
 

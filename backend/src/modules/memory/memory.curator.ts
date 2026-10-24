@@ -691,11 +691,11 @@ const SAFE_DIAGNOSTIC_CODE = /^[A-Za-z0-9_]{2,40}$/;
  * Every curator failure surfaces as the fixed text "Memory curator scope
  * failed": provider and storage errors can echo the prompt, credentials or
  * the transcript, and the message is persisted as the job's last_error. But
- * with the original error dropped entirely, the Sentry event could never say
+ * with the original error dropped entirely, the operator log could never say
  * WHY (MIKE-BACKEND-F: eight memory.consolidate warnings with no
- * failure_code, provider_error or dependency_status). The privacy boundary
- * only ever reads `name`, `code` and an HTTP status from an error's cause
- * chain, so the cause carries exactly those, copied by allowlist shape —
+ * failure_code, provider_error or dependency_status). The diagnostic
+ * classifier only ever reads `name`, `code` and an HTTP status from an error's
+ * cause chain, so the cause carries exactly those, copied by allowlist shape —
  * never the message, never the raw object (which would print its text in
  * the operator log through console.error's cause rendering).
  */

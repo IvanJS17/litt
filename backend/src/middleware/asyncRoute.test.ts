@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reportError = vi.hoisted(() => vi.fn(() => "event-1"));
-vi.mock("../lib/observability/sentry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/observability/sentry")>()),
-  reportError,
-}));
-
 import express from "express";
 import request from "supertest";
 import { asyncRoute, routerErrorHandler } from "./asyncRoute";
@@ -16,7 +10,7 @@ describe("routerErrorHandler", () => {
     vi.restoreAllMocks();
   });
 
-  it("reports the error to Sentry BEFORE logging it, so the console bridge sees a known error", async () => {
+  it("answers 500 and names the router that took the failure in the log", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -36,21 +30,17 @@ describe("routerErrorHandler", () => {
 
     expect(res.status).toBe(500);
     expect(res.body.code).toBe("internal_error");
-    expect(reportError).toHaveBeenCalledOnce();
-    expect(reportError).toHaveBeenCalledWith(failure, expect.anything());
-    // Order is the whole point: report, then the router's own log line.
-    const [reportOrder] = reportError.mock.invocationCallOrder;
-    const routerLogOrder = consoleError.mock.calls.findIndex(
+    const routerLog = consoleError.mock.calls.findIndex(
       ([first]) => first === "[test-router] unhandled route error",
     );
-    expect(routerLogOrder).toBeGreaterThanOrEqual(0);
-    expect(reportOrder).toBeLessThan(
-      consoleError.mock.invocationCallOrder[routerLogOrder]!,
-    );
+    expect(routerLog).toBeGreaterThanOrEqual(0);
+    expect(consoleError.mock.calls[routerLog]?.[1]).toBe(failure);
   });
 
-  it("hands a failure after headers were sent to the next handler without reporting twice", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("hands a failure after headers were sent to the next handler", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const app = express();
     const router = express.Router();
     router.get(
@@ -64,6 +54,12 @@ describe("routerErrorHandler", () => {
     app.use("/api", router);
 
     await request(app).get("/api/stream").catch(() => undefined);
-    expect(reportError).not.toHaveBeenCalled();
+    // The response had already started, so there is no honest status left to
+    // send and nothing for the router to log.
+    expect(
+      consoleError.mock.calls.filter(
+        ([first]) => first === "[test-router] unhandled route error",
+      ),
+    ).toHaveLength(0);
   });
 });

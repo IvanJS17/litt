@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reportError = vi.hoisted(() => vi.fn(() => "event-1"));
-vi.mock("./observability/sentry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./observability/sentry")>()),
-  reportError,
-}));
-
 import express from "express";
 import request from "supertest";
 import { SCHEMA_OUT_OF_DATE_MESSAGE, sendInternalError } from "./httpError";
@@ -16,9 +10,7 @@ function appThatFails(error: unknown, status?: number) {
     res.locals.requestId = "req-abc";
     next();
   });
-  // Mounted the way app.ts mounts every feature router: the route pattern
-  // Sentry sees must include the mount point, or /projects/:projectId and
-  // /documents/:id would both report as "/:id".
+  // Mounted the way app.ts mounts every feature router.
   const projects = express.Router();
   projects.get("/:projectId", (_req, res) => {
     sendInternalError(res, error, status);
@@ -33,7 +25,7 @@ describe("sendInternalError", () => {
     vi.restoreAllMocks();
   });
 
-  it("reports the error to Sentry with the request id and route pattern, then answers 500", async () => {
+  it("answers 500 with the fixed body and logs the request id, never the query", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -47,29 +39,19 @@ describe("sendInternalError", () => {
       detail: "Something went wrong. Please try again.",
       request_id: "req-abc",
     });
-    expect(reportError).toHaveBeenCalledOnce();
-    expect(reportError).toHaveBeenCalledWith(failure, {
-      tags: {
-        component: "http",
-        http_status: 500,
-        request_id: "req-abc",
-        http_method: "GET",
-        // Grouping key: the MOUNTED Express route pattern, not the concrete
-        // URL and not the router-relative "/:projectId".
-        http_route: "/projects/:projectId",
-      },
-      extra: { path: "/projects/p-123" },
-    });
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("private-oauth");
-    expect(JSON.stringify(reportError.mock.calls)).not.toContain("private-oauth");
-    // Report first, log second: the console bridge must see a known error.
-    expect(reportError.mock.invocationCallOrder[0]).toBeLessThan(
-      consoleError.mock.invocationCallOrder[0],
-    );
+    const logged = consoleError.mock.calls[0]?.[1] as {
+      requestId: string;
+      error: unknown;
+    };
+    expect(logged.requestId).toBe("req-abc");
+    expect(logged.error).toBe(failure);
   });
 
   it("wraps a raw PostgREST object: stack from the caller, code kept, text dropped", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const pg = {
       code: "22P02",
       message: 'invalid input syntax for type uuid: "private-value"',
@@ -80,15 +62,17 @@ describe("sendInternalError", () => {
     const res = await request(appThatFails(pg)).get("/projects/p-1");
 
     expect(res.status).toBe(500);
-    const reported = (reportError.mock.calls[0] as unknown[])[0] as Error;
-    expect(reported).toBeInstanceOf(Error);
-    expect(reported.cause).toBe(pg);
-    expect(reported.message).toBe("Dependency failure (22P02)");
+    const logged = (consoleError.mock.calls[0]?.[1] as { error: Error }).error;
+    expect(logged).toBeInstanceOf(Error);
+    expect(logged.cause).toBe(pg);
+    expect(logged.message).toBe("Dependency failure (22P02)");
     // The helper frames are dropped: the top frame is the route handler.
-    expect(reported.stack!.split("\n")[1]).toContain("httpError.test");
+    expect(logged.stack!.split("\n")[1]).toContain("httpError.test");
+    // The dependency's own text is reachable through the cause only.
+    expect(JSON.stringify(res.body)).not.toContain("private-value");
   });
 
-  it("passes a non-default status through to the report", async () => {
+  it("passes a non-default status through", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await request(appThatFails(new Error("upstream"), 503)).get(
@@ -96,19 +80,18 @@ describe("sendInternalError", () => {
     );
 
     expect(res.status).toBe(503);
-    expect(reportError).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({
-        tags: expect.objectContaining({ http_status: 503 }),
-      }),
-    );
+    expect(res.body).toEqual({
+      code: "internal_error",
+      detail: "Something went wrong. Please try again.",
+      request_id: "req-abc",
+    });
   });
 
   // MIKE-BACKEND-H: GET /chat on an install whose migrations were never
   // applied (the list RPC does not exist, PGRST202) answered an opaque 500
   // internal_error, and the operator log said nothing about migrations.
   it.each(["PGRST202", "PGRST204", "PGRST205", "42P01"])(
-    "answers a schema-behind-code failure (%s) with an intentional 503, one report, and an operator hint",
+    "answers a schema-behind-code failure (%s) with an intentional 503, one log line, and an operator hint",
     async (code) => {
       const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
       const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -128,16 +111,11 @@ describe("sendInternalError", () => {
         request_id: "req-abc",
       });
       expect(JSON.stringify(res.body)).not.toMatch(/private|schema cache/);
-      // One event, carrying the code in the cause chain for failure_code.
-      expect(reportError).toHaveBeenCalledOnce();
-      const [reported, context] = reportError.mock.calls[0] as unknown as [
-        Error,
-        { tags: Record<string, unknown> },
-      ];
-      expect(reported.cause).toBe(pg);
-      expect(context.tags.http_status).toBe(503);
-      // Operator-facing, and not on console.error (the Sentry bridge would
-      // file a string there as a second event).
+      // The log line carries the cause, so the code stays visible.
+      const logged = (consoleError.mock.calls[0]?.[1] as { error: Error }).error;
+      expect(logged.cause).toBe(pg);
+      // Operator-facing, and on console.warn so the error line stays the
+      // request's own failure.
       expect(consoleWarn).toHaveBeenCalledOnce();
       expect(String(consoleWarn.mock.calls[0]?.[0])).toContain("backend/migrations");
       expect(JSON.stringify(consoleWarn.mock.calls)).not.toContain("private");
@@ -159,9 +137,9 @@ describe("sendInternalError", () => {
   });
 
   // /download/:token carries an HMAC-signed download token as a PATH segment,
-  // so dropping the query is not enough: the operator log and the report must
-  // not contain a working credential.
-  it("keeps a download grant token out of the log and the report", async () => {
+  // so dropping the query is not enough: the operator log must not contain a
+  // working credential.
+  it("keeps a download grant token out of the log", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const app = express();
     app.use((_req, res, next) => {
@@ -178,7 +156,6 @@ describe("sendInternalError", () => {
 
     expect(res.status).toBe(500);
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("signed-token-abc");
-    expect(JSON.stringify(reportError.mock.calls)).not.toContain("signed-token-abc");
     expect(JSON.stringify(consoleError.mock.calls)).toContain("/download/[redacted]");
   });
 });

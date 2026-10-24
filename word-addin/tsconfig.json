@@ -94,9 +94,6 @@
       "@mike/secure-uuid": [
         "../frontend/src/shared/lib/secureUuid.ts"
       ],
-      "@mike/sentry-event": [
-        "../frontend/src/shared/lib/sentryEvent.ts"
-      ],
       "@mike/toast-store": ["../frontend/src/shared/lib/toastStore.ts"],
       "@mike/error-notifier": [
         "../frontend/src/shared/lib/errorNotifier.ts"

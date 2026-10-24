@@ -7,7 +7,6 @@ import {
   type WordClientToolCall,
   type WordTurnHandlers,
 } from "../api/stream";
-import { reportError } from "../lib/errorReporting";
 import { postWordChatToolResult, stopWordChatTurn } from "../api/mikeApi";
 import { useWordDoc } from "./useWordDoc";
 import type {
@@ -530,18 +529,7 @@ export function useWordAssistantChat({
                 // Nothing more to try. The backend times the tool call out
                 // and ends the turn with its own error frame, which the
                 // catch below turns into a message the user sees — a toast
-                // here would only duplicate it. A cancel mid-delivery aborts
-                // the fetch: that is the user stopping the turn, not a
-                // failure to report.
-                const cancelled =
-                  controller.signal.aborted ||
-                  (error instanceof Error && error.name === "AbortError");
-                if (!cancelled) {
-                  reportError(error, {
-                    tags: { component: "word-chat", stage: "tool-result" },
-                    extra: { tool_call_id: call.toolCallId, tool: call.name },
-                  });
-                }
+                // here would only duplicate it.
                 console.error("Failed to post Word tool result", error);
                 return;
               }
@@ -938,15 +926,6 @@ export function useWordAssistantChat({
           // state below always builds on the latest transcript.
           publishAssistantEventsNow();
           const sessionIsCurrent = sendIsCurrent();
-          if (!controller.signal.aborted) {
-            // The stream failed for a reason other than the user stopping
-            // it. The 5xx/network layers already reported transport-level
-            // failures; this is the only report for mid-stream `error`
-            // frames and Office.js failures inside the turn.
-            reportError(error, {
-              tags: { component: "word-chat", storage: wordChatStorage },
-            });
-          }
           if (controller.signal.aborted) {
             if (sessionIsCurrent) {
               if (!clientToolsSeen) {

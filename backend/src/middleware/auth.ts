@@ -6,7 +6,6 @@ import { sendInternalError } from "../lib/httpError";
 import { createRequestSupabase } from "../lib/authSession";
 import { requestOriginIsTrusted } from "../lib/origins";
 import { devLog, isDev } from "../lib/log";
-import { setCurrentUser } from "../lib/observability/sentry";
 
 function summarizeMfaFactors(
   factors: Array<{
@@ -186,8 +185,6 @@ export async function requireAuth(
   res.locals.userEmail =
     user.email && user.email_confirmed_at ? user.email.toLowerCase() : "";
   res.locals.token = token;
-  // Id only — enough for "how many users are affected", never the email.
-  setCurrentUser(user.id);
   const syncError = await syncProfileEmail(
     admin,
     user.id,

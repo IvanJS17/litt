@@ -2,11 +2,6 @@ import express from "express";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reportMessage = vi.hoisted(() => vi.fn(() => "event-1"));
-vi.mock("../lib/observability/sentry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../lib/observability/sentry")>()),
-  reportMessage,
-}));
 import {
   INTERNAL_ERROR_CODE,
   INTERNAL_ERROR_MESSAGE,
@@ -33,19 +28,22 @@ describe("protectInternalErrorResponses", () => {
     vi.clearAllMocks();
   });
 
-  it("omits callback query credentials from logs and error reports", async () => {
+  it("omits callback query credentials from the log", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     await request(testApp(500, { detail: "callback failed" }))
       .get("/test?code=private-oauth-code&state=private-oauth-state");
-    expect(reportMessage).toHaveBeenCalledWith("callback failed", expect.objectContaining({
-      extra: expect.objectContaining({ path: "/test" }),
-    }));
-    expect(JSON.stringify(reportMessage.mock.calls)).not.toContain("private-oauth");
+    expect(consoleError).toHaveBeenCalledOnce();
+    const logged = consoleError.mock.calls[0]?.[1] as {
+      path: string;
+      error: unknown;
+    };
+    expect(logged.path).toBe("/test");
+    expect(logged.error).toBe("callback failed");
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("private-oauth");
   });
 
-  it("reports a hand-written 5xx under its mounted route pattern, so two routers with the same relative path stay separate issues", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("logs a hand-written 5xx with the request that produced it", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const app = express();
     app.use(protectInternalErrorResponses);
     const projects = express.Router();
@@ -62,15 +60,16 @@ describe("protectInternalErrorResponses", () => {
     await request(app).get("/projects/p-1");
     await request(app).get("/documents/d-1");
 
-    expect(reportMessage).toHaveBeenCalledTimes(2);
-    const [first, second] = reportMessage.mock.calls as unknown as [
-      [string, { tags: { http_route: string }; fingerprint: string[] }],
-      [string, { tags: { http_route: string }; fingerprint: string[] }],
+    expect(consoleError).toHaveBeenCalledTimes(2);
+    const [first, second] = consoleError.mock.calls as unknown as [
+      [string, { path: string; error: unknown }],
+      [string, { path: string; error: unknown }],
     ];
-    expect(first[1].tags.http_route).toBe("/projects/:id");
-    expect(second[1].tags.http_route).toBe("/documents/:id");
-    expect(first[1].fingerprint).toEqual(["sanitized-5xx", "GET", "/projects/:id"]);
-    expect(second[1].fingerprint).toEqual(["sanitized-5xx", "GET", "/documents/:id"]);
+    expect(first[0]).toBe("[http/sanitized-internal-error]");
+    expect(first[1].path).toBe("/projects/p-1");
+    expect(first[1].error).toBe("projects broke");
+    expect(second[1].path).toBe("/documents/d-1");
+    expect(second[1].error).toBe("documents broke");
   });
 
   it.each([500, 502, 503])(

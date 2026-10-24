@@ -2,21 +2,6 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewportUI, clearToasts } from "@/shared/ui/ToastUI";
 import { MikeApiError, SCHEMA_OUT_OF_DATE_MESSAGE, UPSTREAM_UNAVAILABLE_MESSAGE } from "./mikeApi";
-
-// The Sentry SDK is not loaded in tests; what matters is which failures
-// reach `reportError` and which do not.
-const reported = vi.hoisted(() => ({
-    reportError: vi.fn(),
-    isReported: vi.fn(() => false),
-}));
-vi.mock("@/app/lib/errorReporting", () => ({
-    reportError: reported.reportError,
-    isReported: reported.isReported,
-    reportApiFailure: vi.fn(),
-    reportNetworkFailure: vi.fn(),
-    setReportingUser: vi.fn(),
-    scrubEvent: vi.fn(),
-}));
 import {
     errorCode,
     knownErrorCodeMessage,
@@ -416,64 +401,6 @@ describe("notifyError options", () => {
     });
 });
 
-describe("what notifyError reports to Sentry", () => {
-    beforeEach(() => {
-        clearToasts();
-        reported.reportError.mockClear();
-        reported.isReported.mockReturnValue(false);
-        vi.spyOn(console, "warn").mockImplementation(() => {});
-    });
-    afterEach(() => {
-        clearToasts();
-        vi.restoreAllMocks();
-    });
-
-    it("reports a throw it could not classify", () => {
-        const bug = new Error("cannot read properties of undefined");
-        act(() => {
-            notifyError(bug, { action: "open the workflow" });
-        });
-        expect(reported.reportError).toHaveBeenCalledTimes(1);
-        expect(reported.reportError).toHaveBeenCalledWith(bug, {
-            tags: { component: "notify", action: "open the workflow" },
-        });
-    });
-
-    it("reports a 5xx the API client did not already report, once", () => {
-        act(() => {
-            notifyError(new MikeApiError({ status: 500, message: "x" }));
-        });
-        expect(reported.reportError).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not report a caught fault twice", () => {
-        reported.isReported.mockReturnValue(true);
-        act(() => { notifyError(new Error("already captured")); });
-        expect(reported.reportError).not.toHaveBeenCalled();
-    });
-
-    it("does not report a 5xx twice", () => {
-        reported.isReported.mockReturnValue(true);
-        act(() => {
-            notifyError(new MikeApiError({ status: 500, message: "x" }));
-        });
-        expect(reported.reportError).not.toHaveBeenCalled();
-    });
-
-    it("stays quiet for failures that are not faults", () => {
-        act(() => {
-            // An intentional 4xx answer.
-            notifyError(new MikeApiError({ status: 400, message: "Bad." }));
-            // The transport, already reported under component: mike-api.
-            notifyError(new TypeError("Failed to fetch"));
-            // A cancellation the user caused.
-            notifyError(new DOMException("x", "AbortError"));
-        });
-        expect(reported.reportError).not.toHaveBeenCalled();
-    });
-});
-
-
 describe("failed toast retries", () => {
     afterEach(() => clearToasts());
 
@@ -496,7 +423,6 @@ describe("failed toast retries", () => {
 describe("notifyPartialFailure", () => {
     beforeEach(() => {
         clearToasts();
-        reported.reportError.mockClear();
         vi.spyOn(console, "warn").mockImplementation(() => {});
     });
     afterEach(() => {
@@ -522,9 +448,7 @@ describe("notifyPartialFailure", () => {
             screen.getByRole("button", { name: "Retry" }).click();
         });
         expect(onRetry).toHaveBeenCalledOnce();
-        // The items' own requests were already reported by the API client.
         expect(described).toMatchObject({ kind: "conflict", retryable: true, supportable: false });
-        expect(reported.reportError).not.toHaveBeenCalled();
         expect(screen.queryByRole("link", { name: "Contact support" })).toBeNull();
     });
 

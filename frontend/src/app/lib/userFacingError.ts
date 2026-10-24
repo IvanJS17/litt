@@ -56,7 +56,6 @@ import {
     createErrorNotifier,
     type NotifyErrorOptions,
 } from "@/shared/lib/errorNotifier";
-import { isReported, reportError } from "@/app/lib/errorReporting";
 
 export {
     SUPPORT_EMAIL,
@@ -121,29 +120,7 @@ function signInActionHref(): string | null {
 }
 
 /**
- * Send real faults to Sentry, and only real faults.
- *
- * A 4xx is an intentional answer, a transport failure is already reported by
- * the API client under `component: mike-api`, and a cancellation is not a
- * failure at all. What is left is an unclassifiable throw (a bug in this
- * code) and a 5xx that reached a screen without going through the API
- * client. It runs BEFORE the shared notifier's console.warn so the console
- * bridge recognises the error as already sent and drops its own copy.
- */
-function reportRealFault(
-    error: unknown,
-    described: UserFacingError,
-    action: string | undefined,
-): void {
-    const isFault =
-        !isReported(error) &&
-        (described.kind === "unknown" || described.kind === "server");
-    if (!isFault) return;
-    reportError(error, { tags: { component: "notify", action } });
-}
-
-/**
- * Codes the server side already reported and phrased for users (mikeApi.ts:
+ * Codes the server side already phrased for users (mikeApi.ts:
  * schema_out_of_date, upstream_unavailable) keep that one sentence in a toast
  * too, so the error copy for them has a single source. A call site's own
  * `codeMessages` entry still wins.
@@ -177,15 +154,11 @@ export function describeError(
  * user caused and does not need to hear about.
  *
  * The shared notifier (`@/shared/lib/errorNotifier`) owns the toast, the
- * Retry and the cancellation rule; the web app adds its upstream copy, its
- * Sentry reporting, "Sign in", and a `mailto:` support link.
+ * Retry and the cancellation rule; the web app adds its upstream copy, a
+ * "Sign in" action, and a `mailto:` support link.
  */
 export const notifyError = createErrorNotifier<NotifyErrorOptions>({
     describeOptions: withReportedUpstreamMessage,
-    beforeShow: (error, described, options) => {
-        reportRealFault(error, described, options.action);
-        return false;
-    },
     present: (described, options, wantsSupport) => {
         // "Your session has expired" with nothing to click leaves the user to
         // find the way back to the login screen themselves.
@@ -212,9 +185,8 @@ export const notifyError = createErrorNotifier<NotifyErrorOptions>({
  *
  * `message` names what did not happen ("2 documents could not be moved:
  * a.pdf, b.pdf."). The items' own requests already went through the API
- * client, which reported any server fault, so this summary is classified as
- * a conflict: shown, retryable when `onRetry` re-runs only the items that
- * failed, and neither sent to Sentry again nor offered to support.
+ * client, so this summary is classified as a conflict: shown, retryable when
+ * `onRetry` re-runs only the items that failed, and not offered to support.
  */
 export function notifyPartialFailure(
     message: string,

@@ -7,7 +7,7 @@ import { textButtonUIClassName } from "@/shared/ui/TextButtonUI.styles";
 
 /**
  * The body of `app/error.tsx` and `app/global-error.tsx`: one markup, so the
- * two crash screens cannot drift apart. Reports the crash once and never
+ * two crash screens cannot drift apart. Logs the crash once and never
  * shows `error.message` (see useCrashBoundary); the digest is the only
  * detail on screen and in the support email.
  */
@@ -15,17 +15,15 @@ export function CrashScreen({
     error,
     reset,
     component,
-    level,
     secondaryAction,
 }: {
     error: Error & { digest?: string };
     reset?: () => void;
     component: string;
-    level?: "fatal";
     /** Rendered after "Try again": white when Try again is shown, else black. */
     secondaryAction: (tone: "white" | "black") => ReactNode;
 }) {
-    const supportHref = useCrashBoundary(error, { component, level });
+    const supportHref = useCrashBoundary(error, { component });
 
     return (
         <div className="min-h-screen bg-white flex items-center justify-center px-4">

@@ -16,7 +16,6 @@ import {
 } from "../../../lib/modelSelection";
 import { UserFacingError } from "../../../lib/userFacingError";
 import { InvalidApiKeyError } from "../../../lib/llm/apiKeyErrors";
-import { reportError } from "../../../lib/observability/sentry";
 import { safeError } from "../../../lib/safeError";
 import {
   chatSubagentsEnabled,
@@ -1088,19 +1087,11 @@ export async function runLLMStream(params: {
       flushPartialTurn();
       const safeToDisplay = err instanceof UserFacingError;
       // The response already started, so the HTTP 500 path never sees this:
-      // it is the one report of the turn's failure. Reporting it HERE, before
-      // any console.error, is what lets the console bridge recognise every
-      // later log of it — this line's, and the route's log of the
-      // AssistantStreamError below, whose `cause` is `err` — as already sent.
-      // A UserFacingError (rejected or missing API key, model not allowed)
-      // is the user's configuration rather than our bug: still one event, so
-      // operators see a rejected key with its provider_error tag, but a
-      // warning, not an error. (Left unreported, the console bridge filed it
-      // anyway, at error level, as MIKE-BACKEND-E.)
-      reportError(err, {
-        tags: { component: "chat-stream" },
-        ...(safeToDisplay ? { level: "warning" as const } : {}),
-      });
+      // this is the one log line for the turn's failure, and the Error
+      // object carries the stack and its structured code. A UserFacingError
+      // (rejected or missing API key, model not allowed) is the user's
+      // configuration rather than our bug, and is still reported to the
+      // client as a safe, displayable message below.
       console.error("[chat/stream] model stream failed", err);
       const message = safeToDisplay ? err.message : ASSISTANT_ERROR_MESSAGE;
       events.push({

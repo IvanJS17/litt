@@ -12,7 +12,7 @@
  * file and call setStorageAdapter() at boot; no call sites change.
  */
 
-import { bestEffort } from "./observability/sentry";
+import { bestEffort } from "./bestEffort";
 import { Readable } from "node:stream";
 import type {
   StorageAdapter,
@@ -205,8 +205,8 @@ export async function deleteFile(key: string): Promise<void> {
     await adapter.deleteFile(key);
   } catch (error) {
     // Same shape as HEAD/copy/download failures: the operation is named and
-    // the SDK error (with its errno or S3 code) is the cause, which is where
-    // the Sentry privacy boundary reads storage_operation and failure_code.
+    // the SDK error (with its errno or S3 code) is the cause, which is what
+    // the diagnostic classifier reads as storage_operation and failure_code.
     throw new StorageOperationError("delete", { cause: error });
   }
 }
@@ -214,8 +214,8 @@ export async function deleteFile(key: string): Promise<void> {
 /**
  * Delete an object the caller can live without but must not leak (a
  * rollback, a cancelled upload's staging blob). A failure here is not the
- * caller's failure, so instead of `.catch(() => {})` it is reported as a
- * warning grouped by `stage`. The key never goes on the event: keys embed
+ * caller's failure, so instead of `.catch(() => {})` it is logged as a
+ * warning grouped by `stage`. The key never goes into the log: keys embed
  * the user's original filename.
  */
 export function deleteFileBestEffort(
@@ -228,8 +228,8 @@ export function deleteFileBestEffort(
 /**
  * Best-effort delete of several objects that belong to ONE operation (an
  * upload's staging and sealed copies). Every key is attempted, but the
- * operation reports at most one warning: when storage is unreachable or the
- * credentials are wrong, every key fails for the same reason, and one event
+ * operation logs at most one warning: when storage is unreachable or the
+ * credentials are wrong, every key fails for the same reason, and one line
  * per key only multiplies the noise (MIKE-BACKEND-5/6 arrived in pairs).
  * Null/empty keys are skipped: there is nothing to delete.
  */

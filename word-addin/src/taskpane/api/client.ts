@@ -16,7 +16,6 @@ import type { RouterProfileLists } from "@mike/model-catalog";
 import { SERVER_FAILURE_MESSAGE } from "@mike/user-error";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
-import { reportApiFailure, reportNetworkFailure } from "../lib/errorReporting";
 import type { ReasoningLevel } from "../lib/wordChatTypes";
 import {
   createControlRequestRetryPolicy,
@@ -177,8 +176,8 @@ async function sendRequest(
   try {
     return await clientConfig.fetchImpl(url, init);
   } catch (error) {
-    // Preserve cancellation identity for callers and avoid reporting normal
-    // user stops, including signals aborted with a custom reason.
+    // Preserve cancellation identity for callers: a user stop, including a
+    // signal aborted with a custom reason, is not a transport failure.
     if (
       init.signal?.aborted ||
       (typeof error === "object" &&
@@ -188,7 +187,6 @@ async function sendRequest(
     ) {
       throw error;
     }
-    reportNetworkFailure(error, { method: init.method ?? "GET", url });
     throw networkFailure(error, { method: init.method ?? "GET", url });
   }
 }
@@ -201,7 +199,6 @@ async function sendRequest(
 export async function responseError(
   response: Response,
   path?: string,
-  method = "GET",
 ): Promise<MikeApiError> {
   const text = await response.text().catch(() => "");
   const parsed = parseApiErrorBody({
@@ -220,25 +217,12 @@ export async function responseError(
   // session toast or login gate said what happened, and the body's "Not
   // authenticated" would only contradict it.
   const handled = sessionHandledError(response);
-  const apiError = new MikeApiError({
+  return new MikeApiError({
     status: response.status,
     code: handled?.code ?? parsed.code,
     requestId: parsed.requestId,
     message: handled?.message ?? parsed.message,
   });
-  // A 5xx is the server's fault and worth an event; 4xx are user-facing
-  // outcomes (validation, permission) and stay out of Sentry.
-  if (response.status >= 500) {
-    reportApiFailure({
-      path: path ?? response.url,
-      method,
-      status: response.status,
-      code: parsed.code,
-      requestId: parsed.requestId,
-      error: apiError,
-    });
-  }
-  return apiError;
 }
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -255,7 +239,7 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw await responseError(response, path, restInit.method ?? "GET");
+    throw await responseError(response, path);
   }
   if (
     response.status === 204 ||

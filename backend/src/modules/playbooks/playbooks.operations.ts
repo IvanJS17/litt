@@ -80,11 +80,6 @@ import {
   recordPlaybookRunDeletedAudit,
 } from "./playbooks.audit";
 import { UserFacingError } from "../../lib/userFacingError";
-import {
-  importReportStage,
-  reportPlaybookFailure,
-  type PlaybookReportStage,
-} from "./playbooks.reporting";
 
 type Db = ReturnType<typeof createServerSupabase>;
 
@@ -303,8 +298,8 @@ export class PlaybookModelOutputError extends PlaybookRequestError {
 
 /**
  * A failure that is the expected answer to the request (a bad file, a
- * missing or rejected key, no access), not a fault: shown to the user, never
- * reported to Sentry.
+ * missing or rejected key, no access), not a fault: shown to the user and
+ * logged as a refusal, never at error level.
  */
 export function isPlaybookRefusal(error: unknown): boolean {
   if (error instanceof PlaybookModelOutputError) return false;
@@ -1151,8 +1146,8 @@ function keepPlaybookWorkAttended(
   table: "playbook_runs" | "playbook_imports",
   id: string,
 ): () => void {
-  // One report per piece of work: a database that is down fails every beat.
-  let reported = false;
+  // A database that is down fails every beat; each failure is logged as a
+  // warning.
   const heartbeat = setInterval(() => {
     void db
       .from(table)
@@ -1161,16 +1156,6 @@ function keepPlaybookWorkAttended(
       .eq("status", "running")
       .then(({ error }) => {
         if (!error) return;
-        if (!reported) {
-          reported = true;
-          const review = table === "playbook_runs";
-          reportPlaybookFailure(error, {
-            stage: "heartbeat",
-            level: "warning",
-            jobKind: review ? "playbook.review" : "playbook.import",
-            ids: review ? { run_id: id } : { import_id: id },
-          });
-        }
         console.warn("[playbooks] heartbeat failed", {
           table,
           id,
@@ -1394,15 +1379,7 @@ async function recordImportFailure(
     work?: PlaybookImportWork;
   },
 ): Promise<PlaybookImportError> {
-  const report = {
-    jobKind: "playbook.import" as const,
-    fileType: playbookImportFileType(source.filename),
-    ids: { import_id: attemptId, playbook_id: source.playbookId },
-  };
-  if (!isPlaybookRefusal(error))
-    reportPlaybookFailure(error, { ...report, stage: importReportStage(stage) });
-  // Not console.error: a refusal is not a fault, and a reported failure would
-  // be filed again by the console bridge.
+  // Not console.error: a refusal is not a fault, and the row records why.
   console.warn("[playbooks] import failed", {
     attemptId,
     stage,
@@ -1418,7 +1395,6 @@ async function recordImportFailure(
       completed_at: new Date().toISOString(),
     });
   } catch (recordError) {
-    reportPlaybookFailure(recordError, { ...report, stage: "import.record" });
     console.warn("[playbooks] failed to record import failure", {
       attemptId,
       error: safeError(recordError),
@@ -2494,7 +2470,6 @@ export async function runPlaybookReview(
 ) {
   const { runId } = work;
   const stopHeartbeat = keepPlaybookWorkAttended(db, "playbook_runs", runId);
-  let stage: PlaybookReportStage = "review.model";
   try {
     // Checked again rather than trusted from the request: access to the
     // playbook can be lost while a job waits, as compilePlaybookImport
@@ -2555,7 +2530,6 @@ export async function runPlaybookReview(
       scope === "issues"
         ? normalized.filter((finding) => ISSUE_STATUSES.has(finding.status))
         : normalized;
-    stage = "review.apply_edits";
     // C4 again before writing tracked changes or the outcome.
     await assertAuthorizationStamp(db, contentOrg, work.authorization);
     const { findings, version } =
@@ -2571,7 +2545,6 @@ export async function runPlaybookReview(
         : { findings: reviewed, version: null };
     const versionId = version?.id ?? null;
     const completedAt = new Date().toISOString();
-    stage = "review.save";
     const updated = await db
       .from("playbook_runs")
       .update({
@@ -2610,11 +2583,6 @@ export async function runPlaybookReview(
       completedAt,
     };
   } catch (error) {
-    const report = {
-      jobKind: "playbook.review" as const,
-      ids: { run_id: runId, playbook_id: work.playbookId },
-    };
-    if (!isPlaybookRefusal(error)) reportPlaybookFailure(error, { ...report, stage });
     // Not console.error: see recordImportFailure.
     console.warn("[playbooks] review failed", { runId, error: safeError(error) });
     const completedAt = new Date().toISOString();
@@ -2631,7 +2599,6 @@ export async function runPlaybookReview(
       .eq("status", "running")
       .select("id");
     if (marked.error) {
-      reportPlaybookFailure(marked.error, { ...report, stage: "review.record" });
       console.warn("[playbooks] failed to record review failure", {
         runId,
         error: safeError(marked.error),

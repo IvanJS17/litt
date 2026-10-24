@@ -6,9 +6,9 @@
 // preflight failed even after a retry) fails open.
 //
 // Imported from the pure types module (not the API client, whose runtime
-// imports include the Sentry SDK) so this module's compile graph stays free
-// of Office globals and add-in-only packages: tests in frontend/src/wordAddin
-// import this file across packages.
+// imports include the add-in's network layer) so this module's compile graph
+// stays free of Office globals and add-in-only packages: tests in
+// frontend/src/wordAddin import this file across packages.
 import {
   isModelAvailable as isModelAvailableForKeys,
   noModelsReason as noModelsReasonForKeys,

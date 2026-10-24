@@ -24,7 +24,6 @@ export default function GlobalError({
                     error={error}
                     reset={reset}
                     component="global-error-boundary"
-                    level="fatal"
                     // Back, not Home: the root layout itself failed, so a
                     // client-side link home would render it again.
                     secondaryAction={(tone) => (

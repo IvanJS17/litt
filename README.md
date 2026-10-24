@@ -62,11 +62,8 @@ authentication behavior, Ollama setup, and first-run guidance.
 
 ### Telemetry
 
-Mike sends scrubbed error reports (no document content, user identities, or
-request data) to the project's Sentry by default. Set `SENTRY_DISABLED=true` to
-opt out, or set `SENTRY_DSN` to use your own. See the
-[observability guide](docs/observability.md) for the exact policy, per-runtime
-variables, and the [Sentry data audit](docs/sentry-data-audit.md).
+No error reports or usage data are sent to third parties. Failures are logged
+locally by each process.
 
 ## Repository
 

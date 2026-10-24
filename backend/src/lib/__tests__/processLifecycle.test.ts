@@ -1,15 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import * as Sentry from "@sentry/node";
 import express from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  reportError,
-  resetSentryForTests,
-  scrubEvent,
-} from "../observability/sentry";
-import { diagnosticEvent } from "../observability/sentryPrivacy";
-import { validateRuntimeConfiguration } from "../runtimeConfig";
 import {
   closeHttpServer,
   createShutdown,
@@ -20,150 +12,45 @@ import {
 
 function fakeEffects() {
   return {
-    report: vi.fn<LifecycleEffects["report"]>(() => null),
     logError: vi.fn<LifecycleEffects["logError"]>(),
     logInfo: vi.fn<LifecycleEffects["logInfo"]>(),
-    flush: vi.fn<LifecycleEffects["flush"]>(async () => {}),
     exit: vi.fn<LifecycleEffects["exit"]>(),
   } satisfies LifecycleEffects;
 }
 
-afterEach(async () => {
-  await Sentry.close();
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("failBoot (MIKE-BACKEND-2 / -3)", () => {
-  // One failed boot used to arrive as two issues: the explicit fatal report
-  // and a console-bridge copy of the logged message string. Runs the real
-  // console integration and beforeSend so the dedupe is exercised end to end.
-  it("sends exactly one event for one failed boot", async () => {
-    const events: Sentry.Event[] = [];
-    resetSentryForTests("community");
-    Sentry.init({
-      dsn: "https://test@sentry.invalid/1",
-      defaultIntegrations: false,
-      integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
-      beforeSend: scrubEvent,
-      transport: () => ({
-        send: async (envelope) => {
-          for (const [header, payload] of envelope[1]) {
-            if (header.type === "event") events.push(payload as Sentry.Event);
-          }
-          return { statusCode: 200 };
-        },
-        flush: async () => true,
-      }),
-    });
-    const exit = vi.fn();
-    const failure = Object.assign(
-      new Error("Backend authentication configuration is invalid"),
-      { code: "configuration_invalid" },
-    );
-
-    await failBoot(failure, "runtime-config", {
-      // reportError marks the error as sent (tracking is not initialised via
-      // initSentry here, so the capture itself goes through the SDK directly).
-      report: (error, context) => {
-        reportError(error, context);
-        return Sentry.captureException(error);
-      },
-      logError: (...args) => console.error(...args),
-      logInfo: () => {},
-      flush: async () => {
-        await Sentry.flush(2000);
-      },
-      exit,
-    });
-
-    expect(exit).toHaveBeenCalledWith(1);
-    expect(events).toHaveLength(1);
-    expect(events[0]?.logger).not.toBe("console");
-  });
-
-  it("reports the failure as fatal with its boot stage before exiting", async () => {
+  it("logs the failure with its boot stage before exiting", async () => {
     const effects = fakeEffects();
     const failure = new Error("bad key");
     await failBoot(failure, "manifest-key", effects);
-    expect(effects.report).toHaveBeenCalledWith(failure, {
-      tags: { component: "boot", stage: "manifest-key" },
-      level: "fatal",
-    });
     expect(effects.logError).toHaveBeenCalledWith(
-      expect.any(String),
-      failure,
+      "Mike backend failed to start:",
+      { stage: "manifest-key", err: failure },
     );
     expect(effects.exit).toHaveBeenCalledWith(1);
   });
 
-  // MIKE-BACKEND-N: 54 "Failure in boot" events from a restart loop, none of
-  // which said WHICH variable was wrong. Runs the real validator, failBoot,
-  // beforeSend and the outbound privacy boundary: the event that leaves the
-  // process must be titled by stage + code and carry the field NAMES only.
-  it("says which configuration fields failed, and nothing else, through the real pipeline", async () => {
-    const events: Record<string, unknown>[] = [];
-    resetSentryForTests("community");
-    Sentry.init({
-      dsn: "https://test@sentry.invalid/1",
-      defaultIntegrations: false,
-      beforeSend: scrubEvent,
-      transport: () => ({
-        send: async (envelope) => {
-          for (const [header, payload] of envelope[1]) {
-            if (header.type === "event") events.push(diagnosticEvent(payload));
-          }
-          return { statusCode: 200 };
-        },
-        flush: async () => true,
-      }),
-    });
-    let failure: unknown;
-    try {
-      validateRuntimeConfiguration({
-        NODE_ENV: "production",
-        SUPABASE_URL: "https://PRIVATE-HOST.supabase.co",
-        SUPABASE_PUBLISHABLE_KEY: "PRIVATE_PUBLISHABLE",
-        SUPABASE_SECRET_KEY: "PRIVATE_SECRET",
-        FRONTEND_URL: "http://PRIVATE-FRONTEND.example",
-      });
-    } catch (error) {
-      failure = error;
-    }
-    expect(failure).toBeInstanceOf(Error);
-
-    await failBoot(failure, "runtime-config", {
-      report: (error, context) => {
-        reportError(error, context);
-        return Sentry.withScope((scope) => {
-          scope.setLevel("fatal");
-          for (const [key, value] of Object.entries(context?.tags ?? {})) {
-            scope.setTag(key, value as string);
-          }
-          return Sentry.captureException(error);
-        });
-      },
-      logError: () => {},
-      logInfo: () => {},
-      flush: async () => {
-        await Sentry.flush(2000);
-      },
-      exit: () => {},
-    });
-
-    expect(events).toHaveLength(1);
-    const event = events[0]!;
-    expect(event.tags).toMatchObject({
-      component: "boot",
-      stage: "runtime-config",
-      failure_code: "configuration_invalid",
-      configuration_fields: "API_PUBLIC_URL,FRONTEND_URL",
-    });
-    expect(event.level).toBe("fatal");
-    const exception = (event.exception as { values: { value: string }[] })
-      .values[0]!;
-    expect(exception.value).toBe(
-      "Failure in boot / runtime-config / configuration_invalid",
+  // MIKE-BACKEND-N: 54 boot failures from a restart loop, none of which said
+  // WHICH step was wrong. The log line names the stage and carries the error.
+  it("names the configuration stage that failed", async () => {
+    const effects = fakeEffects();
+    const failure = Object.assign(
+      new Error("Backend authentication configuration is invalid"),
+      { code: "configuration_invalid" },
     );
-    expect(JSON.stringify(event)).not.toMatch(/PRIVATE|https in production/);
+    await failBoot(failure, "runtime-config", effects);
+
+    const [, logged] = effects.logError.mock.calls[0] as [
+      string,
+      { stage: string; err: Error },
+    ];
+    expect(logged.stage).toBe("runtime-config");
+    expect(logged.err).toBe(failure);
+    expect(effects.exit).toHaveBeenCalledWith(1);
   });
 });
 
@@ -178,9 +65,12 @@ describe("listenOrFail (MIKE-BACKEND-7 root cause)", () => {
       const server = listenOrFail(express(), port, onListening, effects);
       await vi.waitFor(() => expect(effects.exit).toHaveBeenCalledWith(1));
       expect(onListening).not.toHaveBeenCalled();
-      expect(effects.report).toHaveBeenCalledWith(
-        expect.objectContaining({ code: "EADDRINUSE" }),
-        { tags: { component: "boot", stage: "listen" }, level: "fatal" },
+      expect(effects.logError).toHaveBeenCalledWith(
+        "Mike backend failed to start:",
+        {
+          stage: "listen",
+          err: expect.objectContaining({ code: "EADDRINUSE" }),
+        },
       );
       expect(server.listening).toBe(false);
     } finally {
@@ -223,7 +113,7 @@ describe("graceful shutdown (MIKE-BACKEND-7)", () => {
       effects,
     });
     await shutdown("SIGTERM");
-    expect(effects.report).not.toHaveBeenCalled();
+    expect(effects.logError).not.toHaveBeenCalled();
     expect(effects.exit).toHaveBeenCalledWith(0);
   });
 
@@ -261,7 +151,7 @@ describe("graceful shutdown (MIKE-BACKEND-7)", () => {
     expect(effects.exit).toHaveBeenCalledWith(0);
   });
 
-  it("reports a genuine failure with the stage that failed", async () => {
+  it("logs a genuine failure with the stage that failed", async () => {
     const effects = fakeEffects();
     const failure = new Error("worker would not stop");
     const shutdown = createShutdown({
@@ -272,9 +162,10 @@ describe("graceful shutdown (MIKE-BACKEND-7)", () => {
       effects,
     });
     await shutdown("SIGTERM");
-    expect(effects.report).toHaveBeenCalledWith(failure, {
-      tags: { component: "shutdown", stage: "shutdown-workers" },
-    });
+    expect(effects.logError).toHaveBeenCalledWith(
+      "Error during graceful shutdown",
+      { stage: "shutdown-workers", err: failure },
+    );
     expect(effects.exit).toHaveBeenCalledWith(1);
   });
 });

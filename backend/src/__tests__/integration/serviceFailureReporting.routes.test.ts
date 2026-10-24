@@ -1,24 +1,18 @@
-// MIKE-BACKEND-A: "Failure in http / GET / /:id / 500" whose only stack was
-// rooted inside the Sentry reporter. A supabase-js query returns its error
-// as a PLAIN object ({ code, message, details, hint }); a service hands that
-// to internalFailure(), and nothing on the way to Sentry had a stack for it,
-// so the reporter's fallback `new Error(...)` became the "culprit" and the
-// SQLSTATE/PostgREST code that would have named the fault was lost.
+// MIKE-BACKEND-A: a supabase-js query returns its error as a PLAIN object
+// ({ code, message, details, hint }); a service hands that to
+// internalFailure(), and the failure must still carry a stack taken in the
+// service, so the log line names the code and the query rather than the
+// logging helper.
 //
-// These tests drive the real routers and assert what reaches reportError.
+// These tests drive the real routers and assert the response and what the
+// operator log carries.
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { reportError, rpc, from } = vi.hoisted(() => ({
-  reportError: vi.fn((_error: unknown, _context?: unknown) => "event-1"),
+const { rpc, from } = vi.hoisted(() => ({
   rpc: vi.fn(),
   from: vi.fn(),
-}));
-
-vi.mock("../../lib/observability/sentry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/observability/sentry")>()),
-  reportError,
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -39,7 +33,7 @@ vi.mock("../../middleware/auth", () => ({
 import { chatRouter } from "../../modules/chat/chat.routes";
 import { quickActionsRouter } from "../../modules/quick-actions/quickActions.routes";
 import { workflowAddonsRouter } from "../../modules/workflows/workflowAddons.routes";
-import { diagnosticErrorTags } from "../../lib/observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../lib/errorTags";
 import { SCHEMA_OUT_OF_DATE_MESSAGE } from "../../lib/httpError";
 
 // What PostgREST answers for a table that the database does not have (a
@@ -73,9 +67,15 @@ app.use("/chat", chatRouter);
 app.use("/quick-actions", quickActionsRouter);
 app.use("/workflow-addons", workflowAddonsRouter);
 
-function reported(): Error {
-  expect(reportError).toHaveBeenCalledOnce();
-  return reportError.mock.calls[0]![0] as Error;
+/** The Error the internal-error boundary logged for the last request. */
+function loggedError(): Error {
+  const call = vi.mocked(console.error).mock.calls.find(
+    ([label]) => label === "[http/internal-error]",
+  );
+  expect(call).toBeDefined();
+  const error = (call![1] as { error: unknown }).error;
+  expect(error).toBeInstanceOf(Error);
+  return error as Error;
 }
 
 describe("a PostgREST error returned by a list service", () => {
@@ -90,7 +90,7 @@ describe("a PostgREST error returned by a list service", () => {
     ["/quick-actions", "quickActions.service"],
     ["/workflow-addons", "workflows.addons"],
   ])(
-    "GET %s reports an Error captured in the service, carrying the code",
+    "GET %s answers 503 and logs an Error captured in the service, carrying the code",
     async (path, serviceFile) => {
       from.mockImplementation(() => failingQuery(missingTable));
 
@@ -107,22 +107,20 @@ describe("a PostgREST error returned by a list service", () => {
       });
       expect(JSON.stringify(res.body)).not.toContain("quick_actions");
 
-      const error = reported();
-      expect(error).toBeInstanceOf(Error);
+      const error = loggedError();
       // The original object stays reachable, unmodified, as the cause...
       expect(error.cause).toBe(missingTable);
-      // ...its code becomes the allowlisted failure_code tag...
+      // ...its code becomes the allowlisted failure_code...
       expect(diagnosticErrorTags(error)).toMatchObject({
         failure_code: "PGRST205",
       });
-      // ...its free text never enters the reported message...
+      // ...its free text never enters the logged message...
       expect(error.message).not.toContain("quick_actions");
       expect(error.message).not.toContain("private_things");
       // ...and the TOP frame is the service that ran the query, not the
-      // reporter or the HTTP helper.
+      // HTTP helper.
       const firstFrame = error.stack!.split("\n")[1] ?? "";
       expect(firstFrame).toContain(serviceFile);
-      expect(error.stack).not.toContain("observability/sentry");
     },
   );
 });
@@ -137,7 +135,7 @@ describe("GET /chat when the list RPC is missing", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
-  it("answers 503 schema_out_of_date, reports once with PGRST202, and tells the operator", async () => {
+  it("answers 503 schema_out_of_date, logs PGRST202, and tells the operator", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const missingRpc = {
       code: "PGRST202",
@@ -158,11 +156,7 @@ describe("GET /chat when the list RPC is missing", () => {
       request_id: "7db9e42e-81ba-4b63-be51-4b6bb00e1866",
     });
     expect(JSON.stringify(res.body)).not.toMatch(/get_chats_overview|private/);
-    const error = reported();
-    expect(diagnosticErrorTags(error)).toMatchObject({ failure_code: "PGRST202" });
-    expect(reportError.mock.calls[0]![1]).toMatchObject({
-      tags: { component: "http", http_status: 503, http_route: "/chat" },
-    });
+    expect(diagnosticErrorTags(loggedError())).toMatchObject({ failure_code: "PGRST202" });
     expect(warn).toHaveBeenCalledOnce();
     expect(String(warn.mock.calls[0]![0])).toContain("backend/migrations");
   });

@@ -25,7 +25,6 @@ import { resolveContentOrgId } from "../../lib/access";
 import { recordAudit } from "../../lib/audit";
 import { enqueueStorageCleanup } from "../../lib/dbq/enqueue";
 import { convertedPdfKey, officeFileToPdf } from "../../lib/convert";
-import { reportError } from "../../lib/observability/sentry";
 import {
   createPollFailureGate,
   type PollFailureGate,
@@ -226,18 +225,8 @@ async function buildPdfRendition(args: {
   } catch (error) {
     // Non-fatal for the upload (the original stays usable) but a conversion
     // that fails is either a LibreOffice regression or a malformed file we
-    // should know about — grouped by file type so a format-wide break is one
-    // issue with a count, not noise.
-    reportError(error, {
-      level: "warning",
-      tags: {
-        component: "upload-worker",
-        stage: "conversion",
-        file_type: args.fileType,
-      },
-      extra: { document_id: args.documentId },
-      fingerprint: ["upload-conversion-failed", args.fileType],
-    });
+    // should know about — the log line names the file type so a format-wide
+    // break is visible at a glance.
     console.error("[upload-worker] document conversion failed", {
       documentId: args.documentId,
       fileType: args.fileType,
@@ -865,11 +854,6 @@ export async function processUploadJob(
       return;
     }
     void heartbeatJob(db, jobId, workerId).catch((error) => {
-      reportError(error, {
-        level: "warning",
-        tags: { component: "upload-worker", stage: "heartbeat" },
-        extra: { job_id: jobId, worker_id: workerId },
-      });
       console.error("[upload-worker] heartbeat failed", { jobId, error });
     });
   }, UPLOAD_WORKER_HEARTBEAT_MS);
@@ -902,18 +886,6 @@ export async function processUploadJob(
         // These failures cannot be fixed by retrying the same upload.
         terminalProcessingFailure = error instanceof DeletedDocumentError || error instanceof ChangedDocumentError;
         if (!(error instanceof ChangedDocumentError)) {
-          reportError(error, {
-            tags: {
-              component: "upload-worker",
-              stage: "process-file",
-              purpose: typedSession.purpose,
-            },
-            extra: {
-              job_id: jobId,
-              session_id: typedSession.id,
-              file_id: file.id,
-            },
-          });
           console.error("[upload-worker] file processing failed", {
             jobId,
             sessionId: typedSession.id,
@@ -1175,7 +1147,7 @@ async function claimNextUploadJob(
   });
   // A PostgREST error is a plain object: give it a stack here and keep its
   // `code` (PGRST202 = RPC missing, i.e. migrations not applied) on the
-  // cause chain, where the Sentry boundary reads it into failure_code.
+  // cause chain, where the diagnostic classifier reads it into failure_code.
   if (error) throw asReportableError(error, claimNextUploadJob);
   return typeof data === "string" && data ? data : null;
 }
@@ -1223,16 +1195,12 @@ function startUploadProcessingWorker(options: {
       schedule(0);
     } catch (thrown) {
       // Nothing above this loop: an error here means claiming or the job
-      // wrapper itself broke, and without a report the worker just polls on.
+      // wrapper itself broke, and without a log line the worker just polls on.
       const error = asReportableError(thrown);
       const verdict = failures.failure(error);
       if (verdict.report) {
-        reportError(error, {
-          tags: { component: "upload-worker", stage: "iteration" },
-          extra: { worker_id: workerId },
-        });
-        // The Error object itself, not its message: the console bridge
-        // recognises an already-reported object and files no duplicate.
+        // The Error object itself, not its message: the log keeps the stack
+        // and the structured code.
         console.error("[upload-worker] iteration failed", { workerId, error });
       }
       schedule(verdict.delayMs);

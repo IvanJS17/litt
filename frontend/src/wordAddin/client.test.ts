@@ -1,14 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { reportNetworkFailure, reportApiFailure } = vi.hoisted(() => ({
-    reportNetworkFailure: vi.fn(),
-    reportApiFailure: vi.fn(),
-}));
-vi.mock("../../../word-addin/src/taskpane/lib/errorReporting", () => ({
-    reportNetworkFailure,
-    reportApiFailure,
-}));
-
 import {
     configureMikeApiClient,
     listProjects,
@@ -40,13 +31,11 @@ beforeEach(() => {
 });
 
 describe("Word API transport cancellation", () => {
-    it("preserves AbortError without wrapping or reporting it", async () => {
+    it("preserves AbortError without wrapping it", async () => {
         const error = new DOMException("The operation was aborted", "AbortError");
         fetchMock.mockRejectedValueOnce(error);
 
         await expect(streamWordChat(payload)).rejects.toBe(error);
-
-        expect(reportNetworkFailure).not.toHaveBeenCalled();
     });
 
     it.each([new Error("User stopped the response"), "navigation", null])(
@@ -62,12 +51,10 @@ describe("Word API transport cancellation", () => {
                 ...payload,
                 signal: controller.signal,
             })).rejects.toBe(reason);
-
-            expect(reportNetworkFailure).not.toHaveBeenCalled();
         },
     );
 
-    it("still reports and explains network failures when the signal is active", async () => {
+    it("still explains a network failure when the signal is active", async () => {
         const error = new TypeError("Failed to fetch");
         fetchMock.mockRejectedValueOnce(error);
 
@@ -79,23 +66,13 @@ describe("Word API transport cancellation", () => {
             message: expect.stringContaining("couldn't reach the server"),
             request: { method: "POST", url: "https://api.example.test/word-chat" },
         });
-
-        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
-            method: "POST",
-            url: "https://api.example.test/word-chat",
-        });
     });
 
-    it("reports failures for requests without a cancellation signal", async () => {
+    it("surfaces a transport failure for requests without a cancellation signal", async () => {
         const error = new TypeError("Failed to fetch");
         fetchMock.mockRejectedValueOnce(error);
 
         await expect(listProjects()).rejects.toMatchObject({ cause: error });
-
-        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
-            method: "GET",
-            url: "https://api.example.test/projects?view=summary&workspace=personal",
-        });
     });
 });
 

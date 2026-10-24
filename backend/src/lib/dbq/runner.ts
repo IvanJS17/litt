@@ -24,7 +24,6 @@ import {
     type DbJob,
     type DbJobHandlers,
 } from "./types";
-import { reportError } from "../observability/sentry";
 import {
     createPollFailureGate,
     type PollFailureGate,
@@ -164,12 +163,7 @@ export async function processClaimedJob(
             }),
         );
         const unknownKind = new Error(`Unknown db_jobs kind: ${job.kind}`);
-        reportError(unknownKind, {
-            tags: { component: "dbq", job_kind: job.kind },
-            extra: { job_id: job.id },
-            fingerprint: ["dbq-unknown-kind", job.kind],
-        });
-        // Carry the reported object so the console bridge files no duplicate.
+        // Carry the Error object so the log keeps its stack and the job ids.
         console.error("[dbq] unknown job kind", {
             id: job.id,
             kind: job.kind,
@@ -240,10 +234,6 @@ export async function processClaimedJob(
                 try {
                     await hook(db, job);
                 } catch (hookErr) {
-                    reportError(hookErr, {
-                        tags: { component: "dbq", job_kind: job.kind, stage: "failure-hook" },
-                        extra: { job_id: job.id },
-                    });
                     console.error("[dbq] failure hook crashed", {
                         id: job.id,
                         kind: job.kind,
@@ -269,38 +259,21 @@ export async function processClaimedJob(
                 );
             }
         }
-        // Every failed attempt is reported — a bug shows up on attempt one,
-        // not after the backoff ladder has burned an hour. Retryable attempts
-        // are warnings; the terminal failure is the error, and both group per
-        // job kind so one bad handler is one issue with a hit count. A
-        // deferral is the handler asking to run later, not a failure, so it
-        // is logged but never reported.
+        // Every failed attempt is logged — a bug shows up on attempt one,
+        // not after the backoff ladder has burned an hour. A deferral is the
+        // handler asking to run later, not a failure, so it is logged at info
+        // level and never at error level.
         // A handler can reject with a PostgREST plain object: give it a stack
         // and keep its code on the cause chain (failure_code), as the claim
         // path does. Errors pass through unchanged.
         const reportable = asReportableError(err, processClaimedJob);
-        if (!deferred) {
-            reportError(reportable, {
-                level: spent ? "error" : "warning",
-                tags: {
-                    component: "dbq",
-                    job_kind: job.kind,
-                    attempt: job.attempts,
-                    max_attempts: job.max_attempts,
-                    terminal: spent,
-                },
-                extra: { job_id: job.id, dedupe_key: job.dedupe_key ?? null },
-            });
-        }
         const summary = { id: job.id, kind: job.kind, attempts: job.attempts, message };
         if (deferred) {
-            // Not a failure, and not reported: console.error would reach
-            // Sentry through the console bridge as an error event.
+            // Not a failure: console.error is reserved for real ones.
             console.log("[dbq] job deferred", summary);
         } else {
-            // The reported Error rides along so the console bridge recognises
-            // it and files no second, context-free "Failure in application"
-            // issue (MIKE-BACKEND-G mirrored MIKE-BACKEND-F 1:1).
+            // The Error object, not a message string: the log keeps the
+            // stack, the PostgREST code and the job ids together.
             console.error(
                 spent
                     ? "[dbq] job permanently failed"
@@ -327,16 +300,12 @@ export async function runDbJobTick(
         // trouble: log and try again later — never crash the server.
         //
         // asReportableError keeps the PostgREST object as the cause, so its
-        // `code` (PGRST202 = RPC missing) reaches failure_code and the issue
-        // title says why; re-wrapping `error.message` in a new Error lost it.
+        // `code` (PGRST202 = RPC missing) reaches failure_code and the log
+        // line says why; re-wrapping `error.message` in a new Error lost it.
         const failure = asReportableError(error, runDbJobTick);
         if (claimGate.failure(failure).report) {
-            reportError(failure, {
-                tags: { component: "dbq", stage: "claim" },
-                fingerprint: ["dbq-claim-failed"],
-            });
-            // The Error object, not a string: the console bridge dedupes a
-            // reported object, a message string it files as a new event.
+            // The Error object, not a string: the log keeps the stack and the
+            // PostgREST code on its cause chain.
             console.error("[dbq] claim failed", failure);
         }
         return 0;
@@ -455,7 +424,6 @@ export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly
         if (inFlight || !defaultClaimGate.ready()) return;
         inFlight = runDbJobTick(db, handlers, failureHooks)
             .catch((err) => {
-                reportError(err, { tags: { component: "dbq", stage: "tick" } });
                 console.error("[dbq] tick failed", err);
             })
             .finally(() => {
@@ -470,7 +438,6 @@ export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly
 
     const sweep = () =>
         void runDbJobRetentionSweep(db).catch((err) => {
-            reportError(err, { tags: { component: "dbq", stage: "retention" } });
             console.error("[dbq] retention sweep failed", err);
         });
     sweepTimer = setInterval(sweep, SWEEP_EVERY_MS);

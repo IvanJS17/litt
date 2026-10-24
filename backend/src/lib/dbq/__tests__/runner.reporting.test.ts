@@ -1,24 +1,12 @@
-// How the DB-queue runner reports to Sentry: one report per failure class
-// for a claim that fails every tick, the PostgREST code on the reported
-// error, and console lines the console bridge can recognise as already
-// reported (MIKE-BACKEND-P, -3, -G).
+// How the DB-queue runner logs failures: one error line per failure class
+// for a claim that fails every tick, the PostgREST code on the logged error,
+// and a backoff so a broken dependency is not hammered (MIKE-BACKEND-P, -G).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => ({ reportError: vi.fn() }));
 
 vi.mock("../../supabase", () => ({ createServerSupabase: vi.fn() }));
 vi.mock("../../storage", () => ({ deleteFile: vi.fn() }));
-vi.mock("../../observability/sentry", async (importOriginal) => {
-    const actual =
-        await importOriginal<typeof import("../../observability/sentry")>();
-    // Pass through: the real reportError marks the object as reported,
-    // which is what the console-bridge dedupe below depends on.
-    mocks.reportError.mockImplementation(actual.reportError);
-    return { ...actual, reportError: mocks.reportError };
-});
 
-import { scrubEvent } from "../../observability/sentry";
-import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../errorTags";
 import { createDbJobClaimGate, processClaimedJob, runDbJobTick } from "../runner";
 import { DbJobDeferredError, type DbJob } from "../types";
 
@@ -57,21 +45,9 @@ const JOB = (over: Partial<DbJob> = {}): DbJob => ({
     ...over,
 });
 
-/** What the console bridge would hand scrubEvent for a console.error call. */
-function bridged(args: unknown[]) {
-    return scrubEvent(
-        { logger: "console", message: String(args[0]) } as Parameters<
-            typeof scrubEvent
-        >[0],
-        { captureContext: { extra: { arguments: args } } },
-    );
-}
-
-function claimReports() {
-    return mocks.reportError.mock.calls.filter(
-        ([, context]) =>
-            (context as { tags?: { stage?: string } } | undefined)?.tags?.stage ===
-            "claim",
+function claimLogs() {
+    return consoleError.mock.calls.filter(
+        ([label]) => label === "[dbq] claim failed",
     );
 }
 
@@ -81,7 +57,6 @@ let consoleWarn: ConsoleSpy;
 let consoleLog: ConsoleSpy;
 
 beforeEach(() => {
-    mocks.reportError.mockClear();
     consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {}) as unknown as ConsoleSpy;
@@ -98,31 +73,20 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
-describe("runDbJobTick claim failure reporting", () => {
-    it("reports the PostgREST code (PGRST202) instead of a code-less re-wrapped message", async () => {
+describe("runDbJobTick claim failure logging", () => {
+    it("logs the PostgREST code (PGRST202) instead of a code-less re-wrapped message", async () => {
         const db = makeDb(async () => ({ data: null, error: MISSING_RPC }));
         await runDbJobTick(db as never, {}, {}, createDbJobClaimGate());
 
-        expect(claimReports()).toHaveLength(1);
-        const reported = claimReports()[0][0];
-        expect(reported).toBeInstanceOf(Error);
-        expect(diagnosticErrorTags(reported).failure_code).toBe("PGRST202");
+        expect(claimLogs()).toHaveLength(1);
+        const logged = claimLogs()[0]![1] as Error;
+        expect(logged).toBeInstanceOf(Error);
+        expect(diagnosticErrorTags(logged).failure_code).toBe("PGRST202");
         // The dependency's free text never becomes the error's own message.
-        expect((reported as Error).message).not.toContain("claim_db_jobs");
+        expect(logged.message).not.toContain("claim_db_jobs");
     });
 
-    it("logs the reported Error object, so the console bridge drops its copy", async () => {
-        const db = makeDb(async () => ({ data: null, error: MISSING_RPC }));
-        await runDbJobTick(db as never, {}, {}, createDbJobClaimGate());
-
-        const logged = consoleError.mock.calls.find(
-            ([label]) => label === "[dbq] claim failed",
-        );
-        expect(logged).toBeDefined();
-        expect(bridged(logged!)).toBeNull();
-    });
-
-    it("reports a claim that fails every tick once, then stays quiet and backs off", async () => {
+    it("logs a claim that fails every tick once, then stays quiet and backs off", async () => {
         vi.useFakeTimers();
         const gate = createDbJobClaimGate();
         const db = makeDb(async () => ({ data: null, error: MISSING_RPC }));
@@ -138,8 +102,7 @@ describe("runDbJobTick claim failure reporting", () => {
             await vi.advanceTimersByTimeAsync(5_000);
         }
 
-        expect(claimReports()).toHaveLength(1);
-        expect(consoleError.mock.calls.filter(([l]) => l === "[dbq] claim failed")).toHaveLength(1);
+        expect(claimLogs()).toHaveLength(1);
         // Backed off to the 60 s ceiling instead of 120 claims in 10 minutes.
         expect(ticks).toBeLessThan(20);
         // A compact count line, at most once a minute.
@@ -150,18 +113,18 @@ describe("runDbJobTick claim failure reporting", () => {
         expect(lines.length).toBeLessThanOrEqual(10);
     });
 
-    it("reports again when the failure class changes, and after a recovery", async () => {
+    it("logs again when the failure class changes, and after a recovery", async () => {
         const gate = createDbJobClaimGate();
         let error: unknown = MISSING_RPC;
         const db = makeDb(async () => ({ data: error ? null : [], error }));
 
         await runDbJobTick(db as never, {}, {}, gate);
         await runDbJobTick(db as never, {}, {}, gate);
-        expect(claimReports()).toHaveLength(1);
+        expect(claimLogs()).toHaveLength(1);
 
         error = { code: "ECONNREFUSED", message: "connect ECONNREFUSED" };
         await runDbJobTick(db as never, {}, {}, gate);
-        expect(claimReports()).toHaveLength(2);
+        expect(claimLogs()).toHaveLength(2);
 
         error = null;
         await runDbJobTick(db as never, {}, {}, gate);
@@ -171,12 +134,12 @@ describe("runDbJobTick claim failure reporting", () => {
 
         error = { code: "ECONNREFUSED", message: "connect ECONNREFUSED" };
         await runDbJobTick(db as never, {}, {}, gate);
-        expect(claimReports()).toHaveLength(3);
+        expect(claimLogs()).toHaveLength(3);
     });
 });
 
 describe("processClaimedJob console lines", () => {
-    it("logs a failed job with the reported Error, so the bridge files no duplicate (MIKE-BACKEND-G)", async () => {
+    it("logs a failed job with the Error object (MIKE-BACKEND-G)", async () => {
         const db = makeDb(async () => ({ data: [], error: null }));
         await processClaimedJob(db as never, {
             "test.kind": async () => {
@@ -184,12 +147,11 @@ describe("processClaimedJob console lines", () => {
             },
         }, JOB());
 
-        expect(mocks.reportError).toHaveBeenCalledTimes(1);
         const logged = consoleError.mock.calls.find(
             ([label]) => label === "[dbq] job failed; will retry",
         );
         expect(logged).toBeDefined();
-        expect(bridged(logged!)).toBeNull();
+        expect((logged![1] as { error: unknown }).error).toBeInstanceOf(Error);
     });
 
     it("gives a job rejected with a PostgREST object a code-carrying Error", async () => {
@@ -200,26 +162,27 @@ describe("processClaimedJob console lines", () => {
             },
         }, JOB());
 
-        const reported = mocks.reportError.mock.calls[0][0];
-        expect(reported).toBeInstanceOf(Error);
-        expect(diagnosticErrorTags(reported).failure_code).toBe("42P01");
         const logged = consoleError.mock.calls.find(
             ([label]) => label === "[dbq] job failed; will retry",
         );
-        expect(bridged(logged!)).toBeNull();
+        expect(logged).toBeDefined();
+        const error = (logged![1] as { error: Error }).error;
+        expect(error).toBeInstanceOf(Error);
+        expect(diagnosticErrorTags(error).failure_code).toBe("42P01");
     });
 
-    it("logs an unknown kind with the reported Error", async () => {
+    it("logs an unknown kind with an Error", async () => {
         const db = makeDb(async () => ({ data: [], error: null }));
         await processClaimedJob(db as never, {}, JOB({ kind: "nope.kind" }));
 
         const logged = consoleError.mock.calls.find(
             ([label]) => label === "[dbq] unknown job kind",
         );
-        expect(bridged(logged!)).toBeNull();
+        expect(logged).toBeDefined();
+        expect((logged![1] as { error: unknown }).error).toBeInstanceOf(Error);
     });
 
-    it("never logs a deferral at error level (the console bridge would file it)", async () => {
+    it("never logs a deferral at error level", async () => {
         const db = makeDb(async () => ({ data: [], error: null }));
         await processClaimedJob(db as never, {
             "test.kind": async () => {
@@ -230,7 +193,6 @@ describe("processClaimedJob console lines", () => {
             },
         }, JOB());
 
-        expect(mocks.reportError).not.toHaveBeenCalled();
         expect(consoleError).not.toHaveBeenCalled();
         expect(consoleLog).toHaveBeenCalledWith(
             "[dbq] job deferred",

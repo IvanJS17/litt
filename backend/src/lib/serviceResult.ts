@@ -57,8 +57,8 @@ export function failure(
 
 // A service's `{ data, error }` from supabase-js carries a PLAIN object
 // (`{ code, message, details, hint }`), not an Error: it has no stack. Left
-// alone, the first stack anyone takes is inside the Sentry reporter, so the
-// issue points at the reporting code instead of the query that failed
+// alone, the first stack anyone takes is inside the log helper, so the
+// failure points at the logging code instead of the query that failed
 // (MIKE-BACKEND-A). The stack is therefore captured HERE, at the service
 // boundary, the only moment the failing service is still on the call stack.
 // The raw value stays in `error` (callers and tests read it); the wrapper

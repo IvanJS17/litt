@@ -25,7 +25,6 @@ import { runStaleWorkSweep } from "./jobs/maintenance";
 import { startUploadProcessingWorkers } from "./modules/uploads/uploads.service";
 import { uploadProcessingConfiguration } from "./lib/runtimeConfig";
 import { createServerSupabase } from "./lib/supabase";
-import { reportError } from "./lib/observability/sentry";
 
 const SWEEP_INTERVAL_MS = (() => {
     const raw = Number(process.env.STALE_SWEEP_INTERVAL_MS);
@@ -116,7 +115,6 @@ export function startAllWorkers(): void {
                     console.warn("[stale-sweep] flipped", { documents, cells });
             })
             .catch((err) => {
-                reportError(err, { tags: { component: "stale-sweep" } });
                 console.error("[stale-sweep] failed", err);
             });
     initialSweep = setTimeout(runSweep, 30_000);
@@ -129,7 +127,6 @@ export function startAllWorkers(): void {
     // lazy refresh in lib/mcp/oauth.ts stays as the last line of defense.
     const runMcpRefresh = () =>
         void runMcpTokenRefreshSweep().catch((err) => {
-            reportError(err, { tags: { component: "mcp-refresh-sweep" } });
             console.error("[mcp-refresh-sweep] failed", err);
         });
     mcpRefreshTimer = setInterval(runMcpRefresh, MCP_REFRESH_SWEEP_INTERVAL_MS);

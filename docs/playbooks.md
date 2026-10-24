@@ -298,9 +298,7 @@ run.
   marks its row failed with the same message.
 - **Failures.** A review or import that fails on its own terms (a model error,
   an unreadable file) is recorded on its row and not retried. Failures that
-  are faults rather than refusals are also reported to Sentry under
-  `component=playbooks`, by stage, with ids only (see
-  [observability](observability.md#what-gets-reported)).
+  are faults rather than refusals are also written to the backend log.
 - **`DB_JOBS_ENABLED=false`.** With the runner off, the same handler runs in
   the API process after the response, as before jobs; the heartbeat alone
   keeps it from reading as interrupted, and a restart loses it.

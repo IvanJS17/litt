@@ -3,20 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ErrorBoundaryPage from "./error";
 
-const reporting = vi.hoisted(() => ({
-    reportError: vi.fn(),
-    isReported: vi.fn(() => false),
-}));
-vi.mock("@/app/lib/errorReporting", () => reporting);
-
 describe("app error boundary", () => {
+    let errorSpy: ReturnType<typeof vi.spyOn>;
+
     beforeEach(() => {
-        vi.spyOn(console, "error").mockImplementation(() => {});
-        reporting.reportError.mockClear();
-        reporting.isReported.mockReset().mockReturnValue(false);
+        vi.restoreAllMocks();
+        errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     });
 
-    it("reports a crash to Sentry once, not on every render or Try again", async () => {
+    it("logs a crash once, not on every render or Try again", async () => {
         const user = userEvent.setup();
         const error = Object.assign(new Error("boom"), { digest: "abc123" });
         const { rerender } = render(
@@ -25,14 +20,8 @@ describe("app error boundary", () => {
         rerender(<ErrorBoundaryPage error={error} reset={vi.fn()} />);
         await user.click(screen.getByRole("button", { name: "Try again" }));
 
-        expect(reporting.reportError).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not report again an error the API client already reported", () => {
-        reporting.isReported.mockReturnValue(true);
-        render(<ErrorBoundaryPage error={new Error("API 500")} />);
-
-        expect(reporting.reportError).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(errorSpy).toHaveBeenCalledWith("[route-error-boundary]", error);
     });
 
     it("keeps the message and stack out of the page and the support email", () => {

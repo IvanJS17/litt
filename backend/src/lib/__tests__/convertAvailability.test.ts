@@ -45,7 +45,7 @@ afterAll(async () => {
   await rm(workDirectory, { recursive: true, force: true });
 });
 const tmpdir = () => workDirectory;
-import { diagnosticErrorTags } from "../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../errorTags";
 
 const MAC_BUNDLE_SOFFICE = "/Applications/LibreOffice.app/Contents/MacOS/soffice";
 

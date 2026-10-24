@@ -26,9 +26,9 @@ vi.mock("@aws-sdk/client-s3", () => {
   };
 });
 
-// Stand-in for sentry.ts bestEffort with the same contract: swallow the
-// rejection, report the ORIGINAL error once per call.
-vi.mock("../observability/sentry", () => ({
+// Stand-in for lib/bestEffort.ts with the same contract: swallow the
+// rejection, hand the ORIGINAL error to the caller once per call.
+vi.mock("../bestEffort", () => ({
   bestEffort: <T>(
     work: Promise<T>,
     context: { what: string; tags?: unknown },
@@ -39,7 +39,7 @@ vi.mock("../observability/sentry", () => ({
     }),
 }));
 
-import { diagnosticErrorTags } from "../observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../errorTags";
 
 let storage: typeof import("../storage");
 

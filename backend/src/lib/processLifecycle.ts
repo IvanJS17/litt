@@ -4,42 +4,33 @@
 // so cannot be exercised by a unit test.
 
 import type { Server } from "node:http";
-import { flushSentry, reportError } from "./observability/sentry";
 
 export interface LifecycleEffects {
-  report: typeof reportError;
-  /** Operator-facing log line; the console bridge watches console.error. */
+  /** Operator-facing log line. */
   logError: (...args: unknown[]) => void;
   logInfo: (...args: unknown[]) => void;
-  flush: () => Promise<void>;
   exit: (code: number) => void;
 }
 
 export const processEffects: LifecycleEffects = {
-  report: reportError,
   logError: (...args) => console.error(...args),
   logInfo: (...args) => console.log(...args),
-  flush: flushSentry,
   exit: (code) => process.exit(code),
 };
 
 /**
- * Report a boot failure once, tell the operator why, and exit 1.
+ * Tell the operator why the boot failed and exit 1.
  *
- * The Error OBJECT goes to console.error, not just its message. Sentry's
- * console bridge files every console.error as its own event and recognises
- * an error that reportError() already sent only by object identity; a
- * logged string is new text to it, so one failed boot used to arrive as two
- * issues ("Failure in boot" plus a context-free "Failure in application").
+ * The Error OBJECT goes to console.error, not just its message: the log line
+ * keeps the stack and the structured `code` (EADDRINUSE, configuration_invalid)
+ * an operator greps for.
  */
 export async function failBoot(
   err: unknown,
   stage: string,
   effects: LifecycleEffects = processEffects,
 ): Promise<void> {
-  effects.report(err, { tags: { component: "boot", stage }, level: "fatal" });
-  effects.logError("Mike backend failed to start:", err);
-  await effects.flush();
+  effects.logError("Mike backend failed to start:", { stage, err });
   effects.exit(1);
 }
 
@@ -110,10 +101,10 @@ export interface ShutdownOptions {
 
 /**
  * Graceful shutdown: stop accepting connections, let in-flight requests
- * drain, stop background work, flush telemetry, exit 0. Idempotent: a second
+ * drain, stop background work, exit 0. Idempotent: a second
  * signal (Ctrl-C twice, SIGINT then SIGTERM from a supervisor) while the
  * first shutdown is running is ignored rather than racing it. A genuine
- * failure is still reported, tagged with the step that failed.
+ * failure is still logged with the step that failed.
  */
 export function createShutdown({
   closeServer,
@@ -138,16 +129,12 @@ export function createShutdown({
       await closeServer();
       stage = "shutdown-workers";
       await stopBackgroundWork();
-      stage = "shutdown-flush";
-      await effects.flush();
       clearTimeout(forceExit);
       effects.logInfo("Shutdown complete");
       effects.exit(0);
     } catch (err) {
       clearTimeout(forceExit);
-      effects.report(err, { tags: { component: "shutdown", stage } });
-      effects.logError("Error during graceful shutdown", err);
-      await effects.flush();
+      effects.logError("Error during graceful shutdown", { stage, err });
       effects.exit(1);
     }
   };

@@ -38,10 +38,6 @@ export default defineConfig({
                 replacement: resolvePath("./node_modules/react/index.js"),
             },
             {
-                find: /^@sentry\/react$/,
-                replacement: resolvePath("./node_modules/@sentry/react/build/esm/index.js"),
-            },
-            {
                 find: /^@mike\/upload-session-client$/,
                 replacement: resolvePath("./src/shared/api/uploadSessionClient.ts"),
             },
@@ -55,24 +51,9 @@ export default defineConfig({
                 find: /^@\/(.*)$/,
                 replacement: resolvePath("./src/$1"),
             },
-            // The unit tests run in jsdom, i.e. as the browser. `@sentry/nextjs`'s
-            // package entry is the Node/server build, which pulls in bundler
-            // plugins that call fileURLToPath(import.meta.url) — and under the
-            // jsdom transform import.meta.url is an http:// URL, so importing
-            // it throws before any test runs. `@sentry/react` is the exact SDK
-            // the Next package re-exports for the browser, so tests exercise
-            // the same client API the app uses.
-            {
-                find: /^@sentry\/nextjs$/,
-                replacement: resolvePath("./node_modules/@sentry/react/build/esm/index.js"),
-            },
             // The Word add-in consumes shared modules through per-file
             // `@mike/*` aliases (see word-addin/webpack.config.js). Mirror them
             // so add-in modules under test here resolve the same files.
-            {
-                find: "@mike/sentry-event",
-                replacement: resolvePath("./src/shared/lib/sentryEvent.ts"),
-            },
             {
                 find: "@mike/user-error",
                 replacement: resolvePath("./src/shared/lib/userError.ts"),

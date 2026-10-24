@@ -584,10 +584,10 @@ export async function streamAiSdk(
               | undefined),
       include: { rawChunks: true },
       // Without an onError, streamText's default is `console.error(error)`:
-      // the raw provider error is logged — and filed by the Sentry console
-      // bridge — before the same failure reaches the "error" part below,
-      // where it is classified and the caller reports it once
-      // (MIKE-BACKEND-C). Every failure still arrives through fullStream.
+      // the raw provider error is logged before the same failure reaches the
+      // "error" part below, where it is classified and logged once with the
+      // fields that are safe to keep (MIKE-BACKEND-C). Every failure still
+      // arrives through fullStream.
       onError: () => {},
       ...(config.courtlistenerCitationReminder ||
       params.finishWithoutToolsOnLastStep

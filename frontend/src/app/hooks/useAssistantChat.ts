@@ -30,7 +30,6 @@ import {
   type LiveAssistantTurn,
 } from "@/app/lib/assistantTurns";
 import { assistantHistoryContent } from "@/app/lib/assistantHistoryContent";
-import { reportError } from "@/app/lib/errorReporting";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
@@ -689,10 +688,7 @@ export function useAssistantChat({
         sink.appendCancellation();
       } else {
         // The stream broke for a reason other than the user stopping it:
-        // the user sees a generic message, Sentry gets the real one.
-        reportError(error, {
-          tags: { component: "assistant-chat", project: Boolean(projectId) },
-        });
+        // end the turn and describe the failure instead of leaving a spinner.
         sink.endStreamingAfterFailure();
         if (cursor.chatId && cursor.turnId) {
           retrySnapshot.recoveryChatId = cursor.chatId;

@@ -1,6 +1,6 @@
 import { inspect } from "node:util";
 import { describe, expect, it, vi } from "vitest";
-import { diagnosticErrorTags } from "../../../lib/observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../../lib/errorTags";
 import type { StreamChatParams } from "../../../lib/llm";
 import {
   buildMemoryCuratorTranscript,
@@ -665,11 +665,11 @@ describe("scope-bound memory curator tool", () => {
     );
   });
 
-  it("keeps the failure's classification, never its text, so Sentry can say why", async () => {
+  it("keeps the failure's classification, never its text, for the operator log", async () => {
     // MIKE-BACKEND-F: the fixed message hid every cause. A rejected provider
-    // key must show up as provider_error / dependency_status on the event,
-    // while the secret-bearing message stays out of the error, its cause and
-    // anything console.error would render.
+    // key must show up as provider_error / dependency_status in the
+    // classification, while the secret-bearing message stays out of the
+    // error, its cause and anything console.error would render.
     const svc = services({
       stream: vi.fn(async () => {
         throw Object.assign(

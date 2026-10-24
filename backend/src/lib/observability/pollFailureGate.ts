@@ -1,19 +1,19 @@
-// Reporting policy for a background poll loop whose ticks can fail.
+// Throttling policy for a background poll loop whose ticks can fail.
 //
 // A loop that polls every second against a database whose RPC is missing
 // (migrations not applied) or unreachable fails EVERY tick, identically,
-// for as long as the fault lasts. Reporting each tick filed ~3,600 Sentry
-// events in 8.5 hours for two loops of one worker thread (MIKE-BACKEND-K,
-// MIKE-BACKEND-P) — all of them after the first carried no new information,
-// and the per-issue throttle in sentry.ts only capped the rate, it did not
-// stop the flood. Hammering the broken dependency at full speed also helps
+// for as long as the fault lasts. Logging each tick produced ~3,600 identical
+// error lines in 8.5 hours for two loops of one worker thread
+// (MIKE-BACKEND-K, MIKE-BACKEND-P) — all of them after the first carried no
+// new information, and a per-failure rate cap only reduced the volume, it did
+// not stop the flood. Hammering the broken dependency at full speed also helps
 // nobody.
 //
 // The gate decides, per failed tick:
-//   - report the FIRST failure of a class, and again whenever the class
-//     changes (PGRST202 → ECONNREFUSED is new information);
+//   - log the FIRST failure of a class at error level, and again whenever the
+//     class changes (PGRST202 → ECONNREFUSED is new information);
 //   - stay quiet for repeats, logging a one-line count at most once per
-//     summary interval (console.warn: breadcrumb, never a Sentry event);
+//     summary interval (console.warn);
 //   - back the poll interval off exponentially, bounded;
 //   - on the first success after failures, log recovery once and reset.
 //
@@ -67,7 +67,7 @@ export function pollFailureClass(error: unknown): string {
 }
 
 export type PollFailureVerdict = {
-  /** Report this failure to Sentry (and log it at error level). */
+  /** Log this failure at error level (first of its class, or class changed). */
   report: boolean;
   /** How long the loop should wait before its next attempt. */
   delayMs: number;

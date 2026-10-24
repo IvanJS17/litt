@@ -2,11 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import GlobalError from "./global-error";
 
-vi.mock("@/app/lib/errorReporting", () => ({
-    reportError: vi.fn(),
-    isReported: vi.fn(() => false),
-}));
-
 /**
  * `global-error` REPLACES the root layout, so it imports the layout's CSS
  * itself and draws the same `CrashScreen` as `app/error.tsx`. Its controls

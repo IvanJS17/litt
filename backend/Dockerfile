@@ -15,9 +15,6 @@ RUN npm run build
 
 # --enable-source-maps: every entrypoint in this image (API, worker,
 # sync:workflows) reports stack frames as src/*.ts lines, not dist/*.js.
-# The commit this image was built from; Sentry's release tag when
-# SENTRY_RELEASE is not set (docs/observability.md).
-ARG GIT_SHA=
-ENV NODE_ENV=production NODE_OPTIONS=--enable-source-maps GIT_SHA=$GIT_SHA
+ENV NODE_ENV=production NODE_OPTIONS=--enable-source-maps
 EXPOSE 3001
 CMD ["npm", "start"]

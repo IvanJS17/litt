@@ -1,6 +1,5 @@
-import "../instrument";
+import "dotenv/config";
 import { createServerSupabase } from "../lib/supabase";
-import { flushSentry, reportError } from "../lib/observability/sentry";
 import { syncWorkflowCatalog } from "../lib/workflowCatalogSync";
 
 async function main() {
@@ -10,9 +9,7 @@ async function main() {
   );
 }
 
-void main().catch(async (error) => {
-  reportError(error, { tags: { component: "workflow-sync" }, level: "fatal" });
+void main().catch((error) => {
   console.error("Mike workflow sync failed", error);
-  await flushSentry();
   process.exit(1);
 });

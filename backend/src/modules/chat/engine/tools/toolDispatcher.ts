@@ -15,7 +15,7 @@ import {
   executeGoogleWorkspaceToolCall,
 } from "../../../../lib/integrations/googleWorkspace";
 import { logError } from "../../../../lib/log";
-import { diagnosticErrorTags } from "../../../../lib/observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../../../lib/errorTags";
 import { documentSearchFailure } from "./documentSearchErrors";
 import { findDocumentText, createDocumentVersions } from "../../../documents/documents.service";
 import {

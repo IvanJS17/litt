@@ -258,7 +258,7 @@ describe("not-configured degradation (shared policy)", () => {
     });
     storage.setStorageAdapter(adapter);
 
-    // Durable cleanup jobs and the Sentry privacy boundary read
+    // Durable cleanup jobs and the diagnostic classifier read
     // `operation` and `cause`, so both must survive the seam.
     const rejection = await storage.deleteFile("k").catch((e: unknown) => e);
     expect(rejection).toBeInstanceOf(storage.StorageOperationError);

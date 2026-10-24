@@ -1,5 +1,5 @@
-// Sentry must hook http/express before anything else loads (see file).
-import "./instrument";
+// backend/.env before anything else: configuration is read at import time.
+import "dotenv/config";
 import type { Server } from "node:http";
 import { Worker as ThreadWorker } from "node:worker_threads";
 import path from "node:path";
@@ -8,7 +8,6 @@ import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import { validateRuntimeConfiguration } from "./lib/runtimeConfig";
 import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
-import { reportError } from "./lib/observability/sentry";
 import {
   closeHttpServer,
   createShutdown,
@@ -24,10 +23,8 @@ const HOST = process.env.HOST?.trim() || undefined;
 // unsigned; malformed is a misconfiguration, so stop rather than serve a
 // deployment whose exports will fail later.
 //
-// Runs inside main() and is awaited: the fatal report has to be flushed to
-// Sentry before exit, and while that flush is in flight nothing below may
-// bind the port or start a worker — a process that has already decided to
-// exit must not serve a request or claim a job in its last two seconds.
+// Runs inside main() and is awaited: a process that has already decided to
+// exit must not bind the port or claim a job on its way out.
 async function validateBootConfiguration(): Promise<void> {
   let stage = "runtime-config";
   try {
@@ -73,15 +70,9 @@ function spawnWorkerThread(): void {
     execArgv: isTs ? ["--require", "tsx/cjs"] : [],
   });
   workerThread.on("error", (err) => {
-    // An uncaught throw inside the thread. The thread's own Sentry client
-    // reports it with the real stack and job context; what arrives here is
-    // a structured clone. Sentry groups, it does not deduplicate, so this
-    // supervisor view is fingerprinted as its own issue ("a worker thread
-    // crashed", with a count) rather than doubling every thread issue.
-    reportError(err, {
-      tags: { component: "worker-thread-supervisor" },
-      fingerprint: ["worker-thread-supervisor-error"],
-    });
+    // An uncaught throw inside the thread. What arrives here is a structured
+    // clone, so this supervisor view is only a log line; the thread logs its
+    // own failure with the real stack and job context.
     console.error("[worker-thread] error", err);
   });
   workerThread.on("exit", (code) => {
@@ -90,14 +81,6 @@ function spawnWorkerThread(): void {
     // A crashed worker thread must not silently kill all background
     // processing — respawn after a short pause. Durable state (db_jobs,
     // Redis) means nothing is lost across the gap.
-    reportError(
-      new Error(`Background worker thread exited with code ${code}`),
-      {
-        tags: { component: "worker-thread-supervisor" },
-        extra: { exit_code: code },
-        fingerprint: ["worker-thread-exit"],
-      },
-    );
     console.error(
       `[worker-thread] exited with code ${code}; respawning in 5s`,
     );

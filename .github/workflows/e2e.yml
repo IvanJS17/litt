@@ -198,8 +198,6 @@ jobs:
         run: |
           {
             echo "API_BASE_URL=http://localhost:3001"
-            echo "SENTRY_DISABLED=true"
-            echo "NEXT_PUBLIC_SENTRY_DISABLED=true"
           } > frontend/.env.local
 
       - name: Build backend
@@ -258,8 +256,6 @@ jobs:
             echo "MIKE_WORKFLOWS_REF=ce62e6a2d3f47e1d3567a4f2edc61898cfe9e78a"
             echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY"
             echo "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL"
-            # Error reporting is on by default; CI runs must not report.
-            echo "SENTRY_DISABLED=true"
           } >> backend/.env
 
       # Production runs this as a release job after migrations and before the

@@ -16,21 +16,9 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Message } from "@/app/components/shared/types";
 
-const { routerReplaceMock, reportErrorMock } = vi.hoisted(() => ({
-    routerReplaceMock: vi.fn(),
-    reportErrorMock: vi.fn(),
-}));
+const routerReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ replace: routerReplaceMock, push: vi.fn() }),
-}));
-vi.mock("@/app/lib/errorReporting", () => ({
-    reportError: reportErrorMock,
-    trackPendingRequest: () => () => {},
-    reportNetworkFailure: vi.fn(),
-    reportApiFailure: vi.fn(),
-    // notifyError asks whether a fault was already reported before it
-    // reports a 5xx itself; nothing in these tests pre-reports.
-    isReported: () => false,
 }));
 vi.mock("@/app/contexts/ChatHistoryContext", () => ({
     useChatHistoryContext: () => ({
@@ -452,18 +440,6 @@ describe("useAssistantChat retry", () => {
         expect(result.current.toasts[0]?.message).toBe(
             "Too many chat requests.",
         );
-        // The classification and the support hand-off both read these off the
-        // thrown error, so they have to survive the non-ok branch.
-        const reported = reportErrorMock.mock.calls[0]?.[0] as {
-            status?: number;
-            code?: string;
-            requestId?: string;
-        };
-        expect(reported).toMatchObject({
-            status: 429,
-            code: "rate_limited",
-            requestId: "r1",
-        });
     });
 });
 

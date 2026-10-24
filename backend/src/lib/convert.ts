@@ -253,8 +253,8 @@ export async function officeFileToPdf(
     // soffice exits 0 without writing anything when it cannot load the
     // source ("Error: source file could not be loaded" on stderr). That is a
     // rejected document, not a missing file: report it as one, and keep
-    // LibreOffice's reason for the server log (the Sentry boundary drops
-    // message text and keeps only the code).
+    // LibreOffice's reason for the server log (the structured code stays on
+    // the error).
     throw Object.assign(
       new Error(
         `LibreOffice exited without producing a PDF${stderr ? `: ${stderr}` : ""}`,

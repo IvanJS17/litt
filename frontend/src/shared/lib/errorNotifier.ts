@@ -77,9 +77,8 @@ export function createErrorNotifier<O extends NotifyErrorOptions>(
         if (described.kind === "aborted") return null;
         if (client.beforeShow?.(error, described, options)) return described;
 
-        // warn, not error: Sentry's console bridge forwards console.error, and
-        // a 4xx or a cancellation the user just saw is not an incident. Real
-        // faults are reported where they are caught, or by `beforeShow`.
+        // warn, not error: a 4xx or a cancellation the user just saw is not
+        // an incident worth an error-level log line.
         if (process.env.NODE_ENV !== "production") {
             console.warn("[user-error]", described.title, described.cause);
         }

@@ -6,15 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // signed-in page mount, with the real API client and a network that never
 // answers, so the double fetch cannot come back.
 
-const reportNetworkFailure = vi.hoisted(() => vi.fn());
-vi.mock("@/app/lib/errorReporting", () => ({
-    isReported: () => false,
-    reportError: vi.fn(),
-    trackPendingRequest: () => () => {},
-    reportApiFailure: vi.fn(),
-    reportNetworkFailure,
-}));
-
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({ user: { id: "u1" }, isAuthenticated: true }),
 }));
@@ -45,7 +36,6 @@ describe("configured model catalog on a signed-in page mount", () => {
     beforeEach(() => {
         clearConfiguredModels();
         fetchMock.mockReset();
-        reportNetworkFailure.mockReset();
         fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
         vi.stubGlobal("fetch", fetchMock);
     });
@@ -72,13 +62,6 @@ describe("configured model catalog on a signed-in page mount", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(requestsTo("/models/configured")).toBe(1);
-        expect(
-            reportNetworkFailure.mock.calls.filter(([, request]) =>
-                (request as { url: string }).url.startsWith(
-                    "/api/models/configured",
-                ),
-            ),
-        ).toHaveLength(1);
     });
 
     // The assistant page chunk (ChatInput, ModelToggle) mounts after the

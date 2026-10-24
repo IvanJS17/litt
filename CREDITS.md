@@ -61,7 +61,6 @@ infrastructure, and development workflow, including optional local integrations.
 | [AWS SDK for JavaScript](https://github.com/aws/aws-sdk-js-v3) | Access to S3-compatible document storage. |
 | [NGINX](https://github.com/nginx/nginx) | Gateway routing in the local stack. |
 | [Mailpit](https://github.com/axllent/mailpit) | Capturing email during local development. |
-| [Sentry JavaScript SDKs](https://github.com/getsentry/sentry-javascript) | Error reporting across the backend, web app, and Word add-in. |
 | [Undici](https://github.com/nodejs/undici) | Backend HTTP requests. |
 
 ## Development and testing

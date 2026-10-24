@@ -120,41 +120,11 @@ module.exports = async (_env, options) => {
     ];
   }
 
-  // Optional source-map upload so Sentry shows readable stack traces for
-  // the minified production bundle. Only when the three upload settings are
-  // present: maps are generated as hidden (no sourceMappingURL comment),
-  // sent to Sentry, then deleted so they never ship in dist/.
-  const sentryUploadConfigured =
-    !isDev &&
-    !!process.env.SENTRY_AUTH_TOKEN &&
-    !!process.env.SENTRY_ORG &&
-    !!process.env.SENTRY_PROJECT;
-  const sentryPlugins = sentryUploadConfigured
-    ? [
-        require("@sentry/webpack-plugin").sentryWebpackPlugin({
-          org: process.env.SENTRY_ORG,
-          project: process.env.SENTRY_PROJECT,
-          authToken: process.env.SENTRY_AUTH_TOKEN,
-          release: process.env.REACT_APP_SENTRY_RELEASE
-            ? { name: process.env.REACT_APP_SENTRY_RELEASE }
-            : undefined,
-          telemetry: false,
-          sourcemaps: {
-            filesToDeleteAfterUpload: ["dist/**/*.map"],
-          },
-        }),
-      ]
-    : [];
-
   /** @type {import('webpack').Configuration} */
   const config = {
     // Keep readable stack traces locally without publishing application source
     // and embedded source content in production artifacts.
-    devtool: isDev
-      ? "source-map"
-      : sentryUploadConfigured
-        ? "hidden-source-map"
-        : false,
+    devtool: isDev ? "source-map" : false,
     entry: {
       taskpane: "./src/taskpane/index.tsx",
       commands: "./src/commands/commands.ts",
@@ -168,8 +138,8 @@ module.exports = async (_env, options) => {
     },
     resolve: {
       extensions: [".ts", ".tsx", ".js", ".jsx"],
-      // Resolve each package's nested dependencies before the add-in fallback.
-      // Sentry's build plugin and runtime SDK can require different versions.
+      // Resolve each package's nested dependencies before the add-in fallback
+      // so two copies of the same package never land in one bundle.
       modules: ["node_modules", path.resolve(__dirname, "node_modules")],
       alias: {
         // Cross-app source files must use the add-in's React runtime so the
@@ -223,9 +193,6 @@ module.exports = async (_env, options) => {
           "uploadSessionClient.ts",
         ),
         "@mike/secure-uuid": frontendShared("lib", "secureUuid.ts"),
-        // Sentry event hygiene (PII scrub + console-bridge dedupe) is one
-        // policy for the web app and the add-in.
-        "@mike/sentry-event": frontendShared("lib", "sentryEvent.ts"),
         // Error presentation: one classifier and one toast stack for both
         // clients, so a failure reads the same in Word as it does on the web.
         "@mike/toast-store": frontendShared("lib", "toastStore.ts"),
@@ -311,19 +278,8 @@ module.exports = async (_env, options) => {
         REACT_APP_WEB_APP_URL: isDev
           ? process.env.REACT_APP_WEB_APP_URL || "https://app.mikeoss.com"
           : undefined,
-        // Sentry is off unless a DSN is baked in at build time (the pane is
-        // a static bundle; there is no runtime environment to read).
-        REACT_APP_SENTRY_DISABLED: process.env.REACT_APP_SENTRY_DISABLED || "",
-        REACT_APP_SENTRY_DSN: process.env.REACT_APP_SENTRY_DSN || "",
-        REACT_APP_SENTRY_INSTALL: process.env.REACT_APP_SENTRY_INSTALL || "",
-        REACT_APP_SENTRY_ENVIRONMENT:
-          process.env.REACT_APP_SENTRY_ENVIRONMENT || "",
-        REACT_APP_SENTRY_RELEASE: process.env.REACT_APP_SENTRY_RELEASE || "",
         REACT_APP_GIT_SHA: process.env.REACT_APP_GIT_SHA || "",
-        REACT_APP_SENTRY_TRACES_SAMPLE_RATE:
-          process.env.REACT_APP_SENTRY_TRACES_SAMPLE_RATE || "",
       }),
-      ...sentryPlugins,
     ],
     devServer: devServerConfig,
   };

@@ -1,5 +1,3 @@
-import { diagnosticErrorTags } from "@/shared/lib/sentryPrivacy";
-
 /**
  * Connection-level failures: the Next server could not reach the backend at
  * all (stopped, restarting, wrong host, network down). Node's fetch reports
@@ -20,46 +18,41 @@ const UNREACHABLE_CODES = new Set([
     "UND_ERR_SOCKET",
 ]);
 
-/** The pinned Sentry fingerprint shared by every unreachable-backend report. */
-export const UPSTREAM_UNAVAILABLE_FINGERPRINT = "upstream-unavailable";
-
 /**
  * The connection-level code behind an upstream fetch failure, or null when
- * the failure is anything else. Walks `cause` and AggregateError `errors`
- * through the same bounded, allowlisted walk the Sentry boundary uses, so
- * no message text is ever read into the result.
+ * the failure is anything else. Walks `cause`, `lastError` and AggregateError
+ * `errors` through a bounded, allowlisted walk, so no message text is ever
+ * read and only a known connection code can come back.
  */
 export function upstreamUnreachableCode(error: unknown): string | null {
-    const code = diagnosticErrorTags(error).failure_code;
-    return typeof code === "string" && UNREACHABLE_CODES.has(code) ? code : null;
+    const pending: unknown[] = [error];
+    const seen = new Set<object>();
+    for (let n = 0; pending.length && n < 12; n++) {
+        const candidate = pending.shift();
+        if (!candidate || typeof candidate !== "object" || seen.has(candidate)) {
+            continue;
+        }
+        seen.add(candidate);
+        try {
+            const item = candidate as {
+                code?: unknown;
+                name?: unknown;
+                cause?: unknown;
+                lastError?: unknown;
+                errors?: unknown;
+            };
+            for (const code of [item.code, item.name]) {
+                if (typeof code === "string" && UNREACHABLE_CODES.has(code)) {
+                    return code;
+                }
+            }
+            if (item.cause) pending.push(item.cause);
+            if (item.lastError) pending.push(item.lastError);
+            if (Array.isArray(item.errors)) pending.push(...item.errors.slice(0, 5));
+        } catch {
+            // Host objects/proxies may have throwing accessors; the gateway's
+            // answer must not throw while classifying a failure.
+        }
+    }
+    return null;
 }
-
-/**
- * At most one report per key per window. A stopped backend fails every
- * request the browser makes (a page load is a dozen), and each one is the
- * same fact; one warning a minute per cause is enough to say it is still
- * happening. Suppressed requests are still logged locally.
- */
-export function createReportWindow(options?: {
-    windowMs?: number;
-    now?: () => number;
-}) {
-    const windowMs = options?.windowMs ?? 60_000;
-    const now = options?.now ?? (() => Date.now());
-    const lastReported = new Map<string, number>();
-    return {
-        allow(key: string): boolean {
-            const at = now();
-            const previous = lastReported.get(key);
-            if (previous !== undefined && at - previous < windowMs) return false;
-            lastReported.set(key, at);
-            return true;
-        },
-        reset(): void {
-            lastReported.clear();
-        },
-    };
-}
-
-/** Process-wide: one Next server, one budget for "the backend is down". */
-export const upstreamReportWindow = createReportWindow();

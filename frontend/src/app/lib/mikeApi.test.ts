@@ -7,19 +7,6 @@ import type { AssistantEvent, Chat } from "@/app/components/shared/types";
 import { subscribeTabularReviewChanges } from "./tabularReviewChanges";
 import { getTabularReviewHistoryStatuses } from "./mikeApi";
 
-// Backend 5xx responses are reported to Sentry from the client with the
-// request id; the reporter is mocked so these tests assert the call, and
-// the reporter's own suite covers what it does with it.
-const reportApiFailure = vi.hoisted(() => vi.fn());
-const reportNetworkFailure = vi.hoisted(() => vi.fn());
-const markErrorHandled = vi.hoisted(() => vi.fn());
-vi.mock("@/app/lib/errorReporting", () => ({
-    trackPendingRequest: () => () => {},
-    markErrorHandled,
-    reportApiFailure,
-    reportNetworkFailure,
-}));
-
 import { userFacingApiError } from "./userFacingError";
 import {
     MikeApiError,
@@ -498,29 +485,16 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
             requestId: "req-public-123",
             message: "Something went wrong. Please try again.",
         });
-        expect(reportApiFailure).toHaveBeenCalledWith({
-            path: "/user/profile",
-            method: "GET",
-            status: 500,
-            code: "internal_error",
-            requestId: "req-public-123",
-            // The thrown error itself travels along so a later
-            // console.error(..., error) is not reported twice.
-            error: expect.any(MikeApiError),
-        });
     });
 
     // MIKE-BACKEND-H / MIKE-FRONTEND-F: a missing migration used to reach
-    // the screen as "Something went wrong" and be filed twice (backend and
-    // browser). An unreachable backend made the gateway answer 502 and the
-    // browser file one issue PER ENDPOINT. The server side now answers 503
-    // with a code and reports it once itself; the browser shows the
-    // intentional message and only marks the error.
+    // the screen as "Something went wrong", and an unreachable backend made
+    // the gateway answer 502. The server side now answers 503 with a code
+    // and a fixed sentence, which the browser shows as-is.
     it.each([
         ["schema_out_of_date", SCHEMA_OUT_OF_DATE_MESSAGE, "The server's database needs an update before this can load. Please contact your administrator."],
         ["upstream_unavailable", UPSTREAM_UNAVAILABLE_MESSAGE, "The server is temporarily unreachable. Please try again shortly."],
-    ])("shows the %s message and leaves the report to the server side", async (code, message, sentence) => {
-        markErrorHandled.mockClear();
+    ])("shows the %s message and leaves the raw server text out", async (code, message, sentence) => {
         fetchMock.mockResolvedValue(
             jsonResponse(
                 {
@@ -535,25 +509,21 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         const error = await getUserProfile().catch((caught: unknown) => caught);
         expect(error).toMatchObject({ status: 503, code, requestId: "req-503-1", message });
         expect(userFacingApiError(error, "Fallback")).toBe(sentence);
-        expect(reportApiFailure).not.toHaveBeenCalled();
-        expect(markErrorHandled).toHaveBeenCalledExactlyOnceWith(error);
     });
 
-    it("reports a 5xx without a code and never reports a 4xx", async () => {
+    it("keeps a 5xx generic and a 4xx verbatim", async () => {
         fetchMock.mockResolvedValueOnce(
             jsonResponse({ detail: { nested: true } }, { status: 500 }),
         );
         await expect(getUserProfile()).rejects.toMatchObject({ status: 500 });
-        expect(reportApiFailure).toHaveBeenCalledWith(
-            expect.objectContaining({ status: 500, code: null }),
-        );
 
-        reportApiFailure.mockClear();
         fetchMock.mockResolvedValueOnce(
             jsonResponse({ detail: "nope" }, { status: 403 }),
         );
-        await expect(getUserProfile()).rejects.toMatchObject({ status: 403 });
-        expect(reportApiFailure).not.toHaveBeenCalled();
+        await expect(getUserProfile()).rejects.toMatchObject({
+            status: 403,
+            message: "nope",
+        });
     });
 
     it("does not expose non-JSON server error responses", async () => {
@@ -565,19 +535,12 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
             status: 502,
             message: "Something went wrong. Please try again.",
         });
-        expect(reportApiFailure).toHaveBeenCalledWith({
-            path: "/user/profile",
-            method: "GET",
-            status: 502,
-            requestId: null,
-            error: expect.any(MikeApiError),
-        });
     });
 
-    // MIKE-FRONTEND-5/8: the browser-side "API 502" event must carry the id
-    // the Next gateway generated for its own api-gateway event, so the two
-    // halves of one outage can be joined with `request_id:<id>`.
-    it("correlates a gateway 502 with the gateway's own event by request id", async () => {
+    // MIKE-FRONTEND-5/8: the browser-side "API 502" keeps the id the Next
+    // gateway generated, so the user's report and the server log can be
+    // joined with `request_id:<id>`.
+    it("keeps the gateway's request id on a 502", async () => {
         const gatewayId = "0b7c6a52-3a4e-4f59-9d0c-6f1e2a3b4c5d";
         fetchMock.mockResolvedValue(
             new Response(
@@ -600,40 +563,18 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
             requestId: gatewayId,
             message: "Something went wrong. Please try again.",
         });
-        expect(reportApiFailure).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ status: 502, requestId: gatewayId }),
-        );
-        expect(reportNetworkFailure).not.toHaveBeenCalled();
     });
 
-    it("reports the real HTTP method of a failed mutation", async () => {
-        fetchMock.mockResolvedValueOnce(
-            jsonResponse({ code: "internal_error", detail: "x" }, { status: 500 }),
-        );
-        await expect(createProject("Acme")).rejects.toMatchObject({ status: 500 });
-        expect(reportApiFailure).toHaveBeenCalledWith(
-            expect.objectContaining({ method: "POST", status: 500 }),
-        );
-    });
-
-    it("reports a transport failure once with the endpoint, then rethrows it unchanged", async () => {
+    it("rethrows a transport failure unchanged", async () => {
         const failure = new TypeError("Failed to fetch");
         fetchMock.mockRejectedValueOnce(failure);
 
         await expect(createProject("Acme")).rejects.toBe(failure);
-
-        expect(reportNetworkFailure).toHaveBeenCalledOnce();
-        expect(reportNetworkFailure).toHaveBeenCalledWith(failure, {
-            method: "POST",
-            url: "/api/projects",
-        });
-        expect(reportApiFailure).not.toHaveBeenCalled();
     });
 
-    it("does not report a non-JSON 4xx", async () => {
+    it("keeps a non-JSON 4xx an error", async () => {
         fetchMock.mockResolvedValue(new Response("nope", { status: 404 }));
         await expect(getUserProfile()).rejects.toMatchObject({ status: 404 });
-        expect(reportApiFailure).not.toHaveBeenCalled();
     });
 
     it("synthesizes a message when the error body is empty", async () => {
@@ -1027,13 +968,11 @@ describe("mapTRMessages", () => {
 // ---------------------------------------------------------------------------
 
 describe("API transport cancellation", () => {
-    it("preserves AbortError without reporting a network failure", async () => {
+    it("preserves AbortError", async () => {
         const error = new DOMException("The operation was aborted", "AbortError");
         fetchMock.mockRejectedValueOnce(error);
 
         await expect(streamChat({ messages: [] })).rejects.toBe(error);
-
-        expect(reportNetworkFailure).not.toHaveBeenCalled();
     });
 
     it.each([new Error("User stopped the response"), "navigation", null])(
@@ -1049,26 +988,8 @@ describe("API transport cancellation", () => {
                 messages: [],
                 signal: controller.signal,
             })).rejects.toBe(reason);
-
-            expect(reportNetworkFailure).not.toHaveBeenCalled();
         },
     );
-
-    it("still reports a network failure when the signal is active", async () => {
-        const controller = new AbortController();
-        const error = new TypeError("Failed to fetch");
-        fetchMock.mockRejectedValueOnce(error);
-
-        await expect(streamChat({
-            messages: [],
-            signal: controller.signal,
-        })).rejects.toBe(error);
-
-        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
-            method: "POST",
-            url: "/api/chat",
-        });
-    });
 });
 
 describe("streamChat", () => {

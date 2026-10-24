@@ -1,5 +1,4 @@
 import type { Response } from "express";
-import { reportError, requestRoutePattern } from "./observability/sentry";
 import { safeRequestPath } from "./safeRequestPath";
 
 export const INTERNAL_ERROR_CODE = "internal_error";
@@ -69,8 +68,9 @@ const SAFE_CODE = /^[A-Za-z0-9_]{2,40}$/;
  * - it has a stack, taken where this is called (or above `boundary`, which
  *   drops the helper frames so the top frame is the code that failed);
  * - the original value is its `cause`, so structured fields such as the
- *   PostgREST/SQLSTATE `code` stay machine-readable for the Sentry privacy
- *   boundary, which extracts an allowlisted `failure_code` from the chain;
+ *   PostgREST/SQLSTATE `code` stay machine-readable for the diagnostic
+ *   classifier (lib/errorTags.ts), which extracts an allowlisted
+ *   `failure_code` from the chain;
  * - its message is fixed text plus, at most, that code. The dependency's own
  *   `message`/`details`/`hint` can quote table names or row values, so they
  *   are never copied into the message; they remain reachable through `cause`
@@ -112,34 +112,14 @@ export function sendInternalError(
   error = asReportableError(error, sendInternalError);
   // A schema behind the code is an install problem, not a bug in this
   // request: answer 503 with a code the client can recognise instead of an
-  // opaque 500, and tell the operator what to do in the server log. It is
-  // still reported once (same event, failure_code from the cause chain), so
-  // installs that skipped migrations remain visible.
+  // opaque 500, and tell the operator what to do in the server log. The log
+  // line below still carries the cause, so a skipped migration stays visible.
   const schemaCode = schemaOutOfDateCode(error);
   if (schemaCode && status === 500) status = 503;
 
-  // Every unexpected 5xx the API returns passes through here, which makes it
-  // THE place a backend bug becomes a Sentry issue. The request id is the
-  // same one the client gets in the response body, so a user report ("I got
-  // request_id X") finds the exact event. Report before logging: the console
-  // bridge then knows this error is already accounted for.
-  reportError(error, {
-    tags: {
-      component: "http",
-      http_status: status,
-      request_id: requestId,
-      http_method: res.req?.method,
-      // The mounted route pattern, not the URL: /projects/:projectId groups
-      // as one issue instead of one per project.
-      http_route: requestRoutePattern(res.req),
-    },
-    extra: { path: safeRequestPath(res.req?.originalUrl) },
-  });
-
   if (schemaCode) {
-    // console.warn, not console.error: the Sentry console bridge files every
-    // console.error string as a new event, and this failure is already
-    // reported above.
+    // console.warn, not console.error: the operator has to act on this, but
+    // the request itself is logged at error level below.
     console.warn(
       `[http/schema-out-of-date] The database is missing an object this build needs (${schemaCode}). ` +
         "Apply the SQL files in backend/migrations/ that are newer than this database, " +

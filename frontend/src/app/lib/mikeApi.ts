@@ -26,12 +26,6 @@ import { authenticatedFetch } from "@/app/lib/authEvents";
 import { notifyTabularReviewsChanged } from "@/app/lib/tabularReviewChanges";
 import type { RouterProfileLists } from "@/shared/lib/modelCatalog";
 import {
-    markErrorHandled,
-    reportApiFailure,
-    reportNetworkFailure,
-    trackPendingRequest,
-} from "@/app/lib/errorReporting";
-import {
     UploadBatchError,
     createControlRequestRetryPolicy,
     failedUploadMessage,
@@ -119,35 +113,10 @@ interface ServerChatDetailOut {
 
 export const API_BASE = "/api";
 /**
- * Every API call goes through here so a transport failure (the request
- * never got an HTTP response) is reported once, tagged with the endpoint,
- * before it propagates as the bare TypeError the browser throws.
+ * Every API call goes through the same cookie-session fetch wrapper so
+ * authentication and request behavior stay consistent.
  */
-const apiFetch: typeof fetch = async (input, init) => {
-    const release = trackPendingRequest();
-    try {
-        return await authenticatedFetch(input, init);
-    } catch (error) {
-        // Stopping a stream or leaving a screen is expected. Abort reasons
-        // may be arbitrary values, so the signal also covers custom reasons.
-        if (
-            init?.signal?.aborted ||
-            (typeof error === "object" &&
-                error !== null &&
-                "name" in error &&
-                error.name === "AbortError")
-        ) {
-            throw error;
-        }
-        reportNetworkFailure(error, {
-            method: init?.method ?? "GET",
-            url: String(input),
-        });
-        throw error;
-    } finally {
-        release();
-    }
-};
+const apiFetch: typeof fetch = authenticatedFetch;
 const isDev = process.env.NODE_ENV !== "production";
 const devLog = (...args: Parameters<typeof console.log>) => {
     if (isDev) console.log(...args);
@@ -193,9 +162,9 @@ export const UPSTREAM_UNAVAILABLE_CODE = "upstream_unavailable";
 export const UPSTREAM_UNAVAILABLE_MESSAGE =
     "The server is temporarily unreachable. Please try again shortly.";
 /**
- * 5xx codes that the server side (backend or gateway) has already reported
- * to Sentry, and that carry a message worth showing instead of the generic
- * fallback. The browser shows the message and does not report them again.
+ * 5xx codes the server side (backend or gateway) phrases for users, and that
+ * carry a message worth showing instead of the generic fallback. The browser
+ * shows that fixed sentence instead of the body's `detail`.
  */
 const REPORTED_UPSTREAM_MESSAGES: Readonly<Record<string, string>> = {
     [SCHEMA_OUT_OF_DATE_CODE]: SCHEMA_OUT_OF_DATE_MESSAGE,
@@ -302,7 +271,7 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     });
 
     if (!response.ok) {
-        throw await toApiError(response, path, restInit.method ?? "GET");
+        throw await toApiError(response, path);
     }
 
     if (
@@ -373,7 +342,6 @@ async function apiBlobRequest(path: string): Promise<{
 async function toApiError(
     response: Response,
     path: string,
-    method = "GET",
 ) {
     const text = await response.text();
     try {
@@ -396,20 +364,15 @@ async function toApiError(
         const upstreamMessage = code ? reportedUpstreamMessage(code) : null;
         if (upstreamMessage) {
             // The backend (schema_out_of_date) or the gateway
-            // (upstream_unavailable) has already reported this failure once,
-            // with detail the browser cannot see. A browser copy would be one
-            // more event per endpoint per page view for the same incident —
-            // the per-route fan-out again — so it is only marked: a screen's
-            // console.error of it is not bridged either. The message is
-            // ours, not the body's `detail`.
-            const upstreamError = new MikeApiError({
+            // (upstream_unavailable) phrased this failure for the user with
+            // detail the browser cannot see. The message is ours, not the
+            // body's `detail`.
+            return new MikeApiError({
                 status: response.status,
                 code,
                 requestId,
                 message: upstreamMessage,
             });
-            markErrorHandled(upstreamError);
-            return upstreamError;
         }
         const apiError = new MikeApiError({
             status: response.status,
@@ -430,19 +393,8 @@ async function toApiError(
                       ? parsed.detail
                       : MALFORMED_ERROR_RESPONSE_MESSAGE,
         });
-        // 4xx are intentional answers (validation, permissions) and are
-        // shown to the user; 5xx are failures worth an alert, correlated to
-        // the backend's own event by request id.
-        if (response.status >= 500) {
-            reportApiFailure({
-                path,
-                method,
-                status: response.status,
-                code: apiError.code,
-                requestId,
-                error: apiError,
-            });
-        }
+        // 4xx are intentional answers (validation, permissions) and are shown
+        // to the user; a 5xx keeps the generic sentence.
         return apiError;
     } catch {
         devLog("[mike-api] non-ok non-json response", {
@@ -458,15 +410,6 @@ async function toApiError(
                     ? INTERNAL_ERROR_MESSAGE
                     : MALFORMED_ERROR_RESPONSE_MESSAGE,
         });
-        if (response.status >= 500) {
-            reportApiFailure({
-                path,
-                method,
-                status: response.status,
-                requestId: apiError.requestId,
-                error: apiError,
-            });
-        }
         return apiError;
     }
 }

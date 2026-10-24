@@ -305,29 +305,12 @@ organization admin saves one for its members; see
 precedence over the matching globally configured key; removing the personal
 key restores the global key as the fallback.
 
-### Error tracking
+### Error logging
 
-Error reports are sent to the Mike project's own Sentry by default, so the
-maintainers can fix failures encountered by forks and self-hosted installs.
-Before network transmission, every runtime rebuilds reports from an explicit
-allowlist: code locations and line numbers, controlled operation labels,
-HTTP method/status and normalized routes, validated correlation IDs, release,
-and environment. Client document filenames, document text, raw error and
-console messages, request URLs/queries/headers/bodies, user identities, and
-breadcrumbs are excluded. Automatic sessions, replay, attachments, traces,
-and other non-error payloads are blocked. The same boundary applies to
-community and official installations. See the [observability guide](observability.md)
-for the exact policy, source-map behavior, and limitations.
-To opt out, set `SENTRY_DISABLED=true`
-(`NEXT_PUBLIC_SENTRY_DISABLED=true` / `REACT_APP_SENTRY_DISABLED=true` for the
-browser and add-in builds); to use your own Sentry instead, set the matching
-`*_SENTRY_DSN`.
-
-For the compose stack that is `SENTRY_DISABLED=true` in the root `.env`
-(the backend reads it through `env_file`; the frontend build and the Next
-server receive it from compose). To report to your own Sentry instead, set
-`SENTRY_DSN` (backend) and `FRONTEND_SENTRY_DSN` (web app). What is reported,
-what is scrubbed, and how to verify are in [observability.md](observability.md).
+The backend, web app and Word add-in send no telemetry to third parties.
+Failures are written to each process's own log through the redaction helpers
+in `backend/src/lib/safeError.ts`, and users see the classified message from
+`userFacingError`.
 
 ## Authentication email
 

@@ -6,7 +6,7 @@
     "outDir": "./dist",
     // Emitted next to each .js so `node --enable-source-maps` (set through
     // NODE_OPTIONS in the Dockerfile and the start script) rewrites stack
-    // frames to the .ts file and line — what Sentry shows for a backend error.
+    // frames to the .ts file and line in the operator log.
     "sourceMap": true,
     "rootDir": "./src",
     "strict": true,

@@ -7,12 +7,6 @@ import {
 } from "./mikeApi";
 import { describeError, notifyError } from "./userFacingError";
 
-const reporting = vi.hoisted(() => ({ reportError: vi.fn(), isReported: vi.fn(() => false) }));
-vi.mock("./errorReporting", async (importOriginal) => ({
-    ...(await importOriginal<typeof import("./errorReporting")>()),
-    ...reporting,
-}));
-
 afterEach(() => {
     clearToasts();
     vi.clearAllMocks();
@@ -22,11 +16,10 @@ describe("notifyError for server-reported 5xx codes", () => {
     it.each([
         ["schema_out_of_date", SCHEMA_OUT_OF_DATE_MESSAGE],
         ["upstream_unavailable", UPSTREAM_UNAVAILABLE_MESSAGE],
-    ])("shows mikeApi's sentence for %s and does not report it again", (code, message) => {
+    ])("shows mikeApi's sentence for %s", (code, message) => {
         notifyError(new MikeApiError({ status: 503, code, message }));
 
         expect(getSnapshot().at(-1)?.message).toBe(message);
-        expect(reporting.reportError).not.toHaveBeenCalled();
     });
 
     it("handles a thrown value that is not an object", () => {

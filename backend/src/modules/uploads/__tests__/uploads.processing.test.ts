@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { diagnosticErrorTags } from "../../../lib/observability/sentryPrivacy";
+import { diagnosticErrorTags } from "../../../lib/errorTags";
 
 const mocks = vi.hoisted(() => ({
   deleteFile: vi.fn(),
@@ -23,12 +23,6 @@ const mocks = vi.hoisted(() => ({
   createServerSupabase: vi.fn(),
   enqueueStorageCleanup: vi.fn(),
   requestDocumentCleanupDelivery: vi.fn(),
-  reportError: vi.fn((_error: unknown, _context?: unknown) => null),
-}));
-
-vi.mock("../../../lib/observability/sentry", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../../lib/observability/sentry")>()),
-  reportError: mocks.reportError,
 }));
 
 vi.mock("../../../lib/storage", async (importOriginal) => {
@@ -366,24 +360,26 @@ describe("upload processing", () => {
         code: "conversion_unavailable",
       }),
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     const result = await processUploadFile(db as never, baseSession, officeFile);
 
     expect(result).toMatchObject({ id: officeFile.resource_id });
     expect(mocks.uploadFileFromPath).not.toHaveBeenCalled();
-    expect(mocks.reportError).toHaveBeenCalledOnce();
-    const [error, context] = mocks.reportError.mock.calls[0]!;
-    expect(diagnosticErrorTags(error)).toEqual({
+    expect(consoleError).toHaveBeenCalledOnce();
+    const [, payload] = consoleError.mock.calls[0]!;
+    const logged = (payload as { error: unknown }).error;
+    expect(diagnosticErrorTags(logged)).toEqual({
       failure_code: "conversion_unavailable",
     });
-    expect(context).toMatchObject({
-      level: "warning",
-      tags: { component: "upload-worker", stage: "conversion", file_type: "docx" },
-      fingerprint: ["upload-conversion-failed", "docx"],
+    expect(payload).toMatchObject({
+      documentId: document.id,
+      fileType: "docx",
     });
-    // Extension only: the filename never reaches the report.
-    expect(JSON.stringify(context)).not.toContain("PRIVATE_NAME");
+    // Extension only: the filename never reaches the log.
+    expect(JSON.stringify(payload)).not.toContain("PRIVATE_NAME");
   });
 
   it("creates an idempotent workflow asset as a document using its reserved resource id", async () => {
@@ -890,12 +886,6 @@ describe("upload processing", () => {
     const claims = () =>
       db.rpc.mock.calls.filter(([name]) => name === "claim_upload_processing_job")
         .length;
-    const reports = () =>
-      mocks.reportError.mock.calls.filter(
-        ([, context]) =>
-          (context as { tags?: { component?: string } } | undefined)?.tags
-            ?.component === "upload-worker",
-      );
 
     const stop = startUploadProcessingWorkers({
       concurrency: 2,
@@ -903,17 +893,14 @@ describe("upload processing", () => {
     });
     try {
       await vi.advanceTimersByTimeAsync(5 * 60_000);
-      // One report for the process, not one per tick per loop (~600).
-      expect(reports()).toHaveLength(1);
-      const [reported] = reports()[0];
-      expect(reported).toBeInstanceOf(Error);
-      expect(diagnosticErrorTags(reported).failure_code).toBe("PGRST202");
-      // The console copy carries the same object, so the bridge dedupes it.
+      // One log line for the process, not one per tick per loop (~600).
       const logged = consoleError.mock.calls.filter(
         ([label]) => label === "[upload-worker] iteration failed",
       );
       expect(logged).toHaveLength(1);
-      expect((logged[0][1] as { error: unknown }).error).toBe(reported);
+      const reported = (logged[0][1] as { error: unknown }).error;
+      expect(reported).toBeInstanceOf(Error);
+      expect(diagnosticErrorTags(reported).failure_code).toBe("PGRST202");
       // Backed off to the 30 s ceiling instead of polling every second.
       expect(claims()).toBeLessThan(40);
       expect(consoleWarn).toHaveBeenCalledWith(
@@ -928,7 +915,11 @@ describe("upload processing", () => {
 
       claimError = missingRpc;
       await vi.advanceTimersByTimeAsync(2_000);
-      expect(reports()).toHaveLength(2);
+      expect(
+        consoleError.mock.calls.filter(
+          ([label]) => label === "[upload-worker] iteration failed",
+        ),
+      ).toHaveLength(2);
     } finally {
       stop();
       vi.useRealTimers();

@@ -19,7 +19,6 @@ import {
     type AuthUser,
 } from "@/app/lib/authApi";
 import { AUTH_SESSION_INVALIDATED_EVENT } from "@/app/lib/authEvents";
-import { setReportingUser } from "@/app/lib/errorReporting";
 import { isOnAuthRoute, notifyError } from "@/app/lib/userFacingError";
 import { clearToasts } from "@/shared/ui/ToastUI";
 
@@ -88,12 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         [],
     );
-
-    // Error reports carry the user id (never the email) so an issue can say
-    // how many people it affects; cleared again on sign-out.
-    useEffect(() => {
-        setReportingUser(user ? { id: user.id } : null);
-    }, [user]);
 
     const fetchAndApplySession = useCallback(async () => {
         if (!sessionRequestRef.current) {
