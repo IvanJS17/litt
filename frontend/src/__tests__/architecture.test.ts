@@ -22,9 +22,11 @@
 //      exclude pattern cannot quietly drop production code from type-checking.
 //
 // Test files may import shared fixtures and add-in sources from outside
-// `frontend/`; rule 3 is what keeps them out of the image. The faithful check
-// is `.github/workflows/docker-images.yml`, which builds the real image; this
-// test is the fast one that names the offending import.
+// `frontend/`; rule 3 is what keeps them out of the image. No CI workflow
+// builds the images: the faithful check is building the real image from the
+// repository root (`docker build -f frontend/Dockerfile .`) at the deployment
+// gate. This test is the fast check that runs on every change and names the
+// offending import.
 
 import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from "node:path";
