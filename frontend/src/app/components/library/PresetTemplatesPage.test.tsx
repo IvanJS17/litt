@@ -17,6 +17,30 @@ vi.mock("./LibraryWorkspace", () => ({
     setDocumentsForKind,
   }),
 }));
+// LiTT ships the catalog empty; the page is exercised on a synthetic one.
+vi.mock("./presetTemplates.json", () => {
+  const entry = (id: string, format: string) => ({
+    id,
+    filename: id.split("/").at(-1)!,
+    title: id.split("/").at(-1)!.replace(/\.[^.]+$/, ""),
+    publisher: id.split("/")[0],
+    group: id.split("/").slice(0, -1).join("/"),
+    format,
+    sourceUrl: "https://example.invalid/source",
+    license: "Synthetic",
+    licenseUrl: "https://example.invalid/license",
+    size: 10,
+    sha256: "0".repeat(64),
+  });
+  return {
+    default: [
+      entry("Editorial A/Amendment.docx", "docx"),
+      entry("Editorial A/Order Form.docx", "docx"),
+      entry("Editorial B/Acuerdo.pdf", "pdf"),
+      entry("Referencias/Paquete/instrucciones/guia.md", "md"),
+    ],
+  };
+});
 vi.mock("./presetTemplates", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./presetTemplates")>()),
   addPresetTemplate: vi.fn(),
@@ -67,17 +91,17 @@ describe("preset templates page", () => {
 
   it("lists each publisher library as a folder and previews its files read-only", async () => {
     render(<PresetTemplatesPage />);
-    for (const publisher of ["Bonterms", "Common Paper", "General Legal"]) {
+    for (const publisher of ["Editorial B", "Editorial A", "Referencias"]) {
       expect(rowLabel(publisher)).toBeInTheDocument();
     }
     expect(screen.queryByText("Order Form.docx")).not.toBeInTheDocument();
 
-    await userEvent.click(rowLabel("Common Paper"));
+    await userEvent.click(rowLabel("Editorial A"));
     await userEvent.click(await screen.findByText("Order Form.docx"));
 
     const panel = screen.getByTestId("side-panel");
     expect(panel).toHaveTextContent(
-      "/preset-templates/Common%20Paper/Order%20Form.docx",
+      "/preset-templates/Editorial%20A/Order%20Form.docx",
     );
     expect(panel).toHaveAttribute("data-read-only", "true");
   });
@@ -87,7 +111,7 @@ describe("preset templates page", () => {
       id: "personal-copy",
     } as never);
     render(<PresetTemplatesPage folderId="my-folder" />);
-    await userEvent.click(rowLabel("Common Paper"));
+    await userEvent.click(rowLabel("Editorial A"));
     await screen.findByText("Order Form.docx");
     await openRowMenu("Order Form.docx");
     await userEvent.click(
@@ -99,7 +123,7 @@ describe("preset templates page", () => {
     expect(imported.querySelector("svg")).toHaveClass("text-green-600");
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(addPresetTemplate).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "Common Paper/Order Form.docx" }),
+      expect.objectContaining({ id: "Editorial A/Order Form.docx" }),
       "my-folder",
       expect.any(AbortSignal),
       // The active workspace; none outside a workspace provider.
@@ -119,7 +143,7 @@ describe("preset templates page", () => {
       .mockResolvedValueOnce({ id: "copy-1" } as never)
       .mockRejectedValueOnce(new Error("backend detail"));
     render(<PresetTemplatesPage />);
-    await openRowMenu("Common Paper");
+    await openRowMenu("Editorial A");
     await userEvent.click(
       await screen.findByRole("menuitem", { name: /^Import \d+$/ }),
     );
@@ -142,7 +166,7 @@ describe("preset templates page", () => {
     let finish!: (document: Awaited<ReturnType<typeof addPresetTemplate>>) => void;
     vi.mocked(addPresetTemplate).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
     render(<PresetTemplatesPage />);
-    await userEvent.click(rowLabel("Common Paper"));
+    await userEvent.click(rowLabel("Editorial A"));
     const filename = await screen.findByText("Order Form.docx");
     if (menu === "selection") {
       const row = filename.closest("[data-collection-row-key]") as HTMLElement;
@@ -179,7 +203,7 @@ describe("preset templates page", () => {
       .mockResolvedValueOnce({ id: "copy-1" } as never)
       .mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     render(<PresetTemplatesPage />);
-    await userEvent.click(rowLabel("Common Paper"));
+    await userEvent.click(rowLabel("Editorial A"));
     await userEvent.click(await screen.findByLabelText("Select Amendment.docx"));
     await userEvent.click(screen.getByLabelText("Select Order Form.docx"));
     await userEvent.click(screen.getByRole("button", { name: "Actions" }));
@@ -195,14 +219,14 @@ describe("preset templates page", () => {
   it("offers a Markdown reference for download only", async () => {
     render(<PresetTemplatesPage />);
     for (const folder of [
-      "General Legal",
-      "Agent-Operated Company Formation Package",
-      "filing-instructions",
+      "Referencias",
+      "Paquete",
+      "instrucciones",
     ]) {
       await userEvent.click(await screen.findByText(folder));
     }
-    await screen.findByText("delaware.md");
-    await openRowMenu("delaware.md");
+    await screen.findByText("guia.md");
+    await openRowMenu("guia.md");
     expect(
       await screen.findByRole("menuitem", { name: "Download" }),
     ).toBeInTheDocument();

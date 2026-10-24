@@ -1,5 +1,12 @@
 # Preset contract templates
 
+**In LiTT the catalog ships empty.** The upstream collection (General Legal,
+Common Paper and Bonterms) is US practice material and is not offered as a base
+for Mexican work. The Presets page, import flow and integrity checks stay; a
+reviewed Mexican set with recorded provenance can be added with the steps in
+[Maintaining the catalog](#maintaining-the-catalog). The rest of this page is
+the upstream design.
+
 Feature proposal: [#560](https://github.com/open-legal-products/mike/issues/560).
 
 ## Problem
@@ -83,24 +90,9 @@ Add original public files beneath the relevant publisher directory in
 test verifies that every public file is cataloged and its checksum still matches.
 Hidden filesystem files are excluded. Only PDF, DOCX, and Markdown are accepted.
 
-Publisher credits and licenses:
-
-- [General Legal](https://general.legal/library):
-  [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
-- [Common Paper](https://commonpaper.com/standards/):
-  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-- [Bonterms](https://bonterms.com/download-center/): generally CC BY 4.0, with
-  per-document exceptions including CC BY-ND 4.0. Consult the notice in each file.
-
-The folders preserve the publishers' version labels and execution formats.
-Bonterms playbooks and explainers were excluded; agreement variants, cover-page
-examples, order forms, statements of work, and attachment templates were
-retained.
+Publisher credits and licenses: none bundled. Adding a publisher means adding
+its source and license to the generator's `publishers` map and verifying the
+notices in its files.
 
 These files are templates, not legal advice. Check the publisher's current page
 and have qualified counsel review a template before using it for a transaction.
-
-All bundled publisher files are unmodified. Their licenses are separate from
-Mike's software license, and attribution and other notices remain in the files.
-The snapshot was downloaded on 2026-09-30; adding a new publisher requires updating
-the generator's publisher metadata and verifying the supplied files' notices.

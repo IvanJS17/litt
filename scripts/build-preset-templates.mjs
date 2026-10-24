@@ -1,6 +1,6 @@
 // Rebuild the catalog after adding unmodified publisher files to public/.
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -11,23 +11,9 @@ const output = new URL(
   "../frontend/src/app/components/library/presetTemplates.json",
   import.meta.url,
 );
-const publishers = {
-  "General Legal": {
-    sourceUrl: "https://general.legal/library",
-    license: "CC0 1.0",
-    licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
-  },
-  "Common Paper": {
-    sourceUrl: "https://commonpaper.com/standards/",
-    license: "CC BY 4.0",
-    licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
-  },
-  Bonterms: {
-    sourceUrl: "https://bonterms.com/download-center/",
-    license: "See license notice in document",
-    licenseUrl: "https://bonterms.com/download-center/",
-  },
-};
+// LiTT ships no publisher: upstream's US forms are not a base for Mexican
+// practice. Add a reviewed source here, with its license, before its files.
+const publishers = {};
 
 function walk(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -37,7 +23,7 @@ function walk(directory) {
   });
 }
 
-const catalog = walk(root)
+const catalog = (existsSync(root) ? walk(root) : [])
   .sort()
   .map((path) => {
     const relativePath = relative(root, path).split("\\").join("/");

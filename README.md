@@ -103,5 +103,3 @@ packaged and synchronized with this application.
 ## License
 
 Mike is available under the [GNU Affero General Public License v3.0](LICENSE).
-Bundled [public contract templates](docs/preset-templates.md#maintaining-the-catalog)
-retain their publishers' separate licenses and notices.

@@ -2,8 +2,24 @@ import catalog from "./presetTemplates.json";
 import { uploadLibraryDocument } from "@/app/lib/mikeApi";
 import type { Document, LibraryFolder } from "@/app/components/shared/types";
 
-export type PresetTemplate = (typeof catalog)[number];
-export const PRESET_TEMPLATES: readonly PresetTemplate[] = catalog;
+/** One bundled file in public/preset-templates/, with its provenance. */
+export type PresetTemplate = {
+  id: string;
+  filename: string;
+  title: string;
+  publisher: string;
+  group: string;
+  format: string;
+  sourceUrl: string;
+  license: string;
+  licenseUrl: string;
+  size: number;
+  sha256: string;
+};
+
+// LiTT ships the catalog empty: upstream's US forms are not a base for
+// Mexican practice. A reviewed Mexican set with provenance fills it later.
+export const PRESET_TEMPLATES: readonly PresetTemplate[] = catalog as PresetTemplate[];
 
 export function presetTemplateUrl(preset: PresetTemplate): string {
   return `/preset-templates/${preset.id.split("/").map(encodeURIComponent).join("/")}`;

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { createHash, webcrypto } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -11,36 +11,58 @@ import {
 } from "./presetTemplates";
 import { uploadLibraryDocument } from "@/app/lib/mikeApi";
 
+// LiTT ships the catalog empty; the mechanism is exercised on a synthetic one.
+const fixture = vi.hoisted(() => {
+  const bytes = {
+    docx: new TextEncoder().encode("synthetic docx bytes"),
+    pdf: new TextEncoder().encode("%PDF synthetic bytes"),
+  };
+  const entry = (id: string, format: string, data: Uint8Array) => ({
+    id,
+    filename: id.split("/").at(-1)!,
+    title: id.split("/").at(-1)!.replace(/\.[^.]+$/, ""),
+    publisher: id.split("/")[0],
+    group: id.split("/").slice(0, -1).join("/"),
+    format,
+    sourceUrl: "https://example.invalid/source",
+    license: "Synthetic",
+    licenseUrl: "https://example.invalid/license",
+    size: data.length,
+    sha256: "",
+  });
+  return {
+    bytes,
+    catalog: [
+      entry("Editorial A/Contrato.docx", "docx", bytes.docx),
+      entry("Editorial A/anexos/Anexo.pdf", "pdf", bytes.pdf),
+      entry("Editorial B/Guia.md", "md", new Uint8Array(3)),
+    ],
+  };
+});
+vi.mock("./presetTemplates.json", async () => {
+  const { createHash: hash } = await import("node:crypto");
+  for (const item of fixture.catalog) {
+    const data = fixture.bytes[item.format as "docx" | "pdf"];
+    if (data) item.sha256 = hash("sha256").update(data).digest("hex");
+  }
+  return { default: fixture.catalog };
+});
 vi.mock("@/app/lib/mikeApi", () => ({ uploadLibraryDocument: vi.fn() }));
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-const root = join(process.cwd(), "public/preset-templates");
 
-describe("bundled preset catalog", () => {
-  it("accounts for every original file, with a unique id and matching checksum", () => {
-    const files = readdirSync(root, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile() && !entry.name.startsWith("."))
-      .map((entry) =>
-        join(entry.parentPath, entry.name).slice(root.length + 1),
-      );
-    expect(PRESET_TEMPLATES.map((preset) => preset.id).sort()).toEqual(
-      files.sort(),
+describe("shipped preset catalog", () => {
+  it("is empty: no US forms are offered as a base for Mexican practice", () => {
+    const shipped = JSON.parse(
+      readFileSync(join(process.cwd(), "src/app/components/library/presetTemplates.json"), "utf8"),
     );
-    expect(new Set(PRESET_TEMPLATES.map((preset) => preset.id)).size).toBe(
-      files.length,
-    );
-    for (const preset of PRESET_TEMPLATES) {
-      const bytes = readFileSync(join(root, preset.id));
-      expect(bytes.length).toBe(preset.size);
-      expect(createHash("sha256").update(bytes).digest("hex")).toBe(
-        preset.sha256,
-      );
-      expect(preset.sourceUrl).toMatch(/^https:\/\//);
-    }
+    expect(shipped).toEqual([]);
   });
+});
 
+describe("preset catalog mechanism", () => {
   it("files every preset under its publisher's folder, keeping package directories", () => {
     const { documents, folders } = presetDirectory();
     expect(documents.map((document) => document.id)).toEqual(
@@ -51,7 +73,7 @@ describe("bundled preset catalog", () => {
         .filter((folder) => folder.parent_folder_id === null)
         .map((folder) => folder.name)
         .sort(),
-    ).toEqual(["Bonterms", "Common Paper", "General Legal"]);
+    ).toEqual(["Editorial A", "Editorial B"]);
 
     const byId = new Map(folders.map((folder) => [folder.id, folder]));
     for (const document of documents) {
@@ -65,11 +87,12 @@ describe("bundled preset catalog", () => {
     }
   });
 
-  it.each(["docx", "pdf"])(
+  it.each(["docx", "pdf"] as const)(
     "uploads original %s bytes to the selected Templates folder",
     async (format) => {
       const preset = PRESET_TEMPLATES.find((item) => item.format === format)!;
-      const bytes = readFileSync(join(root, preset.id));
+      const bytes = fixture.bytes[format];
+      expect(createHash("sha256").update(bytes).digest("hex")).toBe(preset.sha256);
       vi.stubGlobal("crypto", webcrypto);
       const fetchMock = vi
         .fn()
