@@ -316,9 +316,14 @@ sections above and win where they conflict.
 - **User-controlled integrations.** AI provider keys and Google accounts are
   optional and configured by each user inside the app. Never hardcode or commit
   them.
-- **Retention.** Retention and erasure are not yet decided (TD-008). Destructive
-  operations on evidence stay fail-closed; do not add automatic deletion of
-  real data without an approved, recorded decision.
+- **Retention.** User account erasure follows the owner decision of 2026-10-24:
+  offer a data download first; delete the user's own data outside matters at
+  once; backups are left untouched and expire after 30 days, and the erasure
+  receipt gives that date; audit and AI evidence are kept and show the person
+  as a deleted user; work inside a firm's matters stays with the firm. Every
+  other retention period is still undecided (TD-008): destructive operations
+  on evidence stay fail-closed, and no other automatic deletion of real data
+  is added without an approved, recorded decision.
 - **Environments.** Local stacks are disposable and use synthetic documents
   only (`docs/safe-local-testing.md`). Production is defined by
   `deploy/prod/README.md`, not by host names, and is never inferred from CI, a
