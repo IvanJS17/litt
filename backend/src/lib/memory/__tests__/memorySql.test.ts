@@ -568,9 +568,17 @@ const scopedDeletionMigration = readFileSync(
 );
 
 describe("workspace-scoped memory deletion SQL", () => {
-  it("a fresh install defines delete_user_private_memories exactly as the migration does", () => {
+  // LiTT: the final shape is the one 20261024_50_litt_memory_delete_opt_in
+  // leaves (upstream's function with memory created off).
+  it("a fresh install defines delete_user_private_memories exactly as the last migration does", () => {
     expect(functionBody(schemaSql, "delete_user_private_memories")).toBe(
-      functionBody(scopedDeletionMigration, "delete_user_private_memories"),
+      functionBody(
+        readFileSync(
+          resolve(backendRoot, "migrations/20261024_50_litt_memory_delete_opt_in.sql"),
+          "utf8",
+        ),
+        "delete_user_private_memories",
+      ),
     );
   });
 
@@ -599,5 +607,30 @@ describe("workspace-scoped memory deletion SQL", () => {
     expect(sql).toMatch(
       /grant execute\s+on function public\.delete_user_private_memories\(uuid, uuid\)\s+to service_role;/,
     );
+  });
+});
+
+// LiTT: memory is opt-in (20261023_09_litt_memory_opt_in). Upstream's
+// workspace-scoped "Delete all memory" (20261024_02) creates a missing
+// Personal file switched on; schema.sql and the LiTT follow-up migration
+// keep it off, with one overload only.
+describe.each([
+  ["schema", schemaSql],
+  [
+    "migration",
+    readFileSync(
+      resolve(backendRoot, "migrations/20261024_50_litt_memory_delete_opt_in.sql"),
+      "utf8",
+    ),
+  ],
+] as const)("%s workspace-scoped memory delete", (_name, sql) => {
+  it("creates a missing Personal memory file switched off", () => {
+    const body = functionBody(sql, "delete_user_private_memories");
+    expect(body).toContain("p_org_id uuid default null");
+    expect(body).toContain("values ('user', p_user_id, false)");
+    expect(body).not.toContain("values ('user', p_user_id, true)");
+    expect(
+      sql.match(/create or replace function public\.delete_user_private_memories\(/g),
+    ).toHaveLength(1);
   });
 });

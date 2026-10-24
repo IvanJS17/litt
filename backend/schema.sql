@@ -6911,8 +6911,10 @@ begin
   order by project.id
   for update;
 
+  -- LiTT: memory is opt-in (20261023_09_litt_memory_opt_in), so a file
+  -- created here starts off.
   insert into public.memory_files(scope, user_id, enabled)
-  values ('user', p_user_id, true)
+  values ('user', p_user_id, false)
   on conflict do nothing;
 
   for target in
@@ -15111,66 +15113,6 @@ begin
 end;
 $$;
 
-create or replace function public.delete_user_private_memories(
-  p_user_id uuid
-)
-returns integer
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  target record;
-  deleted_projects integer := 0;
-begin
-  -- Lock the caller's own private projects rather than the whole table.
-  -- FOR UPDATE on a project row blocks both a move into an organization (an
-  -- UPDATE of that row) and a new access grant (the grant's foreign key takes
-  -- KEY SHARE on the project, which FOR UPDATE excludes), so eligibility
-  -- cannot change between this check and the wipe. A table-level SHARE lock
-  -- did the same job by stalling every project write in the system for as
-  -- long as this user's files took to wipe.
-  perform project.id from public.projects project
-  where project.user_id = p_user_id and project.org_id is null
-  order by project.id
-  for update;
-
-  insert into public.memory_files(scope, user_id, enabled)
-  values ('user', p_user_id, false)
-  on conflict do nothing;
-
-  for target in
-    select eligible.id, eligible.scope
-    from (
-      -- Every memory that is this person's own: Personal, and the one
-      -- they have in each organization they belong to.
-      select file.id, file.scope
-      from public.memory_files file
-      where file.scope = 'user' and file.user_id = p_user_id
-      union all
-      select file.id, file.scope
-      from public.memory_files file
-      join public.projects project on project.id = file.project_id
-      where file.scope = 'project'
-        and project.user_id = p_user_id
-        and project.org_id is null
-        and not exists (
-          select 1 from public.project_access_grants grant_row
-          where grant_row.project_id = project.id
-        )
-    ) eligible
-    order by eligible.id
-  loop
-    perform public.wipe_memory_file(target.id, null, p_user_id, 'wipe');
-    if target.scope = 'project' then
-      deleted_projects := deleted_projects + 1;
-    end if;
-  end loop;
-
-  return deleted_projects;
-end;
-$$;
-
 create or replace function public.schedule_memory_consolidation(
   p_surface text,
   p_conversation_id uuid,
@@ -16278,5 +16220,6 @@ insert into public.schema_migrations (filename) values
   ('20261023_18_litt_remove_courtlistener.sql'),
   ('20261024_02_workspace_scoped_data_deletion.sql'),
   ('20261024_03_backfill_project_child_org_id.sql'),
-  ('20261024_04_org_member_data_policy.sql')
+  ('20261024_04_org_member_data_policy.sql'),
+  ('20261024_50_litt_memory_delete_opt_in.sql')
 on conflict (filename) do nothing;
