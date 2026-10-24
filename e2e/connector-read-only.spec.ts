@@ -20,7 +20,7 @@ for (const width of [390, 1280]) {
         createdAt: "2026-10-02T00:00:00Z", updatedAt: "2026-10-02T00:00:00Z",
         tools: tools(id).map(tool => ({ ...tool, id: tool.name, toolName: tool.name, openaiToolName: tool.name, readOnly: !tool.write, destructive: tool.write, lastSeenAt: "2026-10-02T00:00:00Z" })),
       });
-      const connectors = () => [mcp("slack", "Slack", "https://mcp.slack.com/mcp"), mcp("custom", "Custom MCP", "https://custom.example.com/mcp")];
+      const connectors = () => [mcp("custom", "Custom MCP", "https://custom.example.com/mcp")];
       await page.route("**/api/**", async route => {
         const path = new URL(route.request().url()).pathname;
         if (path === "/api/auth/session") return route.fulfill({ json: { user: { id: "mode-test", email: "mode@example.com" } } });
@@ -35,7 +35,7 @@ for (const width of [390, 1280]) {
         return route.fulfill({ json: [] });
       });
       await page.goto("/settings/connectors");
-      for (const [name, id] of [["Google Drive", "google-drive"], ["Gmail", "gmail"], ["Google Calendar", "google-calendar"], ["Slack", "slack"], ["Custom MCP", "custom"]]) {
+      for (const [name, id] of [["Google Drive", "google-drive"], ["Gmail", "gmail"], ["Google Calendar", "google-calendar"], ["Custom MCP", "custom"]]) {
         const open = async () => {
           await page.getByRole("button", { name: `Manage ${name}`, exact: true }).click();
           const dialog = page.getByRole("dialog", { name, exact: true });

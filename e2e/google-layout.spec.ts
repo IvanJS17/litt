@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 
 for (const width of [390, 1280]) {
-  test(`Google setup warnings match Slack's and Discover cards fit ${width}px`, async ({ page }, testInfo) => {
+  test(`Google setup warnings and Discover cards fit ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     let oauthStarts = 0;
     await page.route("**/api/**", async (route) => {
@@ -28,14 +28,16 @@ for (const width of [390, 1280]) {
     });
     await page.goto("/settings/connectors");
     const discover = page.getByRole("region", { name: "Discover", exact: true });
-    const slack = discover.getByRole("region", { name: "Slack connector", exact: true });
-    await expect(slack.getByRole("button", { name: "Add Slack connector" })).toBeEnabled();
-    const slackHeight = await slack.evaluate((element) => element.getBoundingClientRect().height);
+    // LiTT suggests no third-party connector, so the Google cards are the
+    // whole Discover list; they share one card component and one height.
+    const drive = discover.getByRole("region", { name: "Google Drive connector", exact: true });
+    await expect(drive.getByRole("button", { name: "Add Google Drive connector" })).toBeEnabled();
+    const cardHeight = await drive.evaluate((element) => element.getBoundingClientRect().height);
     for (const name of ["Google Drive", "Gmail", "Google Calendar"]) {
       const card = discover.getByRole("region", { name: `${name} connector`, exact: true });
       const add = card.getByRole("button", { name: `Add ${name} connector`, exact: true });
       await expect(add).toBeEnabled();
-      expect(await card.evaluate((element) => element.getBoundingClientRect().height)).toBe(slackHeight);
+      expect(await card.evaluate((element) => element.getBoundingClientRect().height)).toBe(cardHeight);
       await add.click();
       const warning = page.getByRole("alert").filter({ hasText: "Could not add connector" });
       await expect(warning).toContainText("needs an OAuth client");
@@ -140,19 +142,18 @@ for (const addressKind of ["normal", "long"] as const) {
         await expect(logo).toBeVisible();
         await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
       }
-      // Installed and Discover share one card component, so they match.
+      // The installed cards share one card component, so they match. LiTT
+      // suggests no third-party connector, so Discover has no card to compare.
       const heightOf = (region: ReturnType<typeof installed.getByRole>) =>
         region.evaluate((element) => element.getBoundingClientRect().height);
-      const discoverHeight = await heightOf(
-        page
-          .getByRole("region", { name: "Discover", exact: true })
-          .getByRole("region", { name: "Slack connector", exact: true }),
+      const cardHeight = await heightOf(
+        installed.getByRole("region", { name: "Google Drive connector", exact: true }),
       );
-      for (const name of ["Google Drive", "Gmail", "Google Calendar"]) {
+      for (const name of ["Gmail", "Google Calendar"]) {
         expect(
           await heightOf(installed.getByRole("region", { name: `${name} connector`, exact: true })),
           `${name} installed card height`,
-        ).toBe(discoverHeight);
+        ).toBe(cardHeight);
       }
       await installed.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath("google-cards.png"), fullPage: true, animations: "disabled" });
