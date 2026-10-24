@@ -18,11 +18,11 @@ RUN npm ci
 COPY frontend/ ./
 COPY packages/contracts /packages/contracts
 
-# The commit this image was built from, for the browser bundle (inlined)
-# and the Next server.
+# AGPL-3.0 §13: the full SHA of the published commit this image is built
+# from. next.config.ts inlines it into the "Código fuente" link and fails the
+# build without it (.git is outside the build context, so there is no fallback).
 ARG GIT_SHA=
-ENV NEXT_PUBLIC_GIT_SHA=$GIT_SHA \
-    GIT_SHA=$GIT_SHA
+LABEL org.opencontainers.image.revision=$GIT_SHA
 
 RUN npm run build
 

@@ -17,7 +17,7 @@
     "start:production": "node server.mjs",
     "test:server": "node --test server.test.mjs",
     "stop": "office-addin-debugging stop manifest.xml",
-    "build:e2e": "npm run typecheck && REACT_APP_API_BASE_URL=/api REACT_APP_WEB_APP_URL=http://localhost:3000 webpack --mode production",
+    "build:e2e": "npm run typecheck && GIT_SHA=${GIT_SHA:-$(git rev-parse HEAD)} REACT_APP_API_BASE_URL=/api REACT_APP_WEB_APP_URL=http://localhost:3000 webpack --mode production",
     "build:e2e:development": "npm run typecheck && REACT_APP_API_BASE_URL=/api REACT_APP_WEB_APP_URL=http://localhost:3000 webpack --mode development",
     "serve:e2e": "http-server dist -p 3100 -a 127.0.0.1 -c-1 --silent",
     "test:e2e": "playwright test",
