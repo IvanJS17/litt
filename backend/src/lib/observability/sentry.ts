@@ -919,12 +919,13 @@ export function reportProcessWarning(warning: unknown): string | null {
 }
 
 /**
- * `--no-warnings` is the operator saying "do not tell me about these"; honour
- * it the way Node's own printer does. Registered once per process: a second
+ * `--no-warnings` (or NODE_NO_WARNINGS=1) is the operator saying "do not
+ * tell me about these"; honour it the way Node's own printer does. Registered once per process: a second
  * initSentry() returns before reaching here.
  */
 function installProcessWarningReporter(env: NodeJS.ProcessEnv): void {
   const silenced =
+    env.NODE_NO_WARNINGS === "1" ||
     process.execArgv.includes("--no-warnings") ||
     /(?:^|\s)--no-warnings(?:\s|=|$)/.test(env.NODE_OPTIONS ?? "");
   if (silenced) return;
