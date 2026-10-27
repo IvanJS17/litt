@@ -37,7 +37,7 @@ export async function handleDocumentPrecomputeText(
   }
 
   try {
-    await withExtractionSlot({ wait: false }, async (extract) => {
+    await withExtractionSlot({ waitMs: 60_000 }, async (extract) => {
       const isCurrent = async () => {
         const { data, error } = await db
           .from("document_versions")
