@@ -182,6 +182,14 @@ job exits. Run this as a release job before directing traffic to the new
 backend; backend startup itself only reads the database. Docker Compose runs
 this sequence automatically for local/self-hosted deployments.
 
+## Document parsing resources
+
+Document text extraction runs in supervised child processes. Linux deployments
+must have `prlimit` from util-linux; the backend Docker image and Nixpacks setup
+install it. A missing limiter fails extraction rather than silently running
+without the OS memory boundary. See [Document extraction](document-extraction.md)
+for the limits, worker modes, memory sizing, and verification commands.
+
 ## Environment
 
 Copy the maintained examples:
