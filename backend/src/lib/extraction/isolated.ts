@@ -22,7 +22,7 @@ export function extractionCommand(entry: string): { command: string; args: strin
   const memoryMb = extractionMemoryMb();
   const nodeArgs = [
     "--disable-wasm-trap-handler",
-    `--max-old-space-size=${Math.max(1, Math.floor(memoryMb / 2))}`,
+    `--max-old-space-size=${memoryMb}`,
     ...(entry.endsWith(".ts") ? ["--require", require.resolve("tsx/cjs")] : []),
     entry,
   ];
@@ -179,18 +179,22 @@ const MAX_WAITERS = 8;
 
 // Separate download concurrency from parser concurrency. A slow storage read
 // must not stop another already-downloaded tabular row from being parsed.
-function admission(limit: number) {
-  const queue: Array<() => void> = [];
+type AdmissionOptions = { waitMs?: number; interactive?: boolean };
+
+function admission(limit: number, maxWaiters = MAX_WAITERS) {
+  const queue: Array<{ grant: () => void; interactive?: boolean }> = [];
   let active = 0;
-  return async <T>(options: { waitMs?: number }, work: () => Promise<T>): Promise<T> => {
+  return async <T>(options: AdmissionOptions, work: () => Promise<T>): Promise<T> => {
     if (active >= limit) {
-      if (options.waitMs === 0 || queue.length >= MAX_WAITERS) throw new ExtractionBusyError();
+      if (options.waitMs === 0 || queue.length >= maxWaiters) throw new ExtractionBusyError();
       await new Promise<void>((resolve, reject) => {
         let timer: ReturnType<typeof setTimeout> | undefined;
         const grant = () => { clearTimeout(timer); resolve(); };
-        queue.push(grant);
+        const waiter = { grant, interactive: options.interactive };
+        const background = options.interactive ? queue.findIndex((item) => !item.interactive) : -1;
+        queue.splice(background < 0 ? queue.length : background, 0, waiter);
         if (options.waitMs !== undefined) timer = setTimeout(() => {
-          queue.splice(queue.indexOf(grant), 1);
+          queue.splice(queue.indexOf(waiter), 1);
           reject(new ExtractionBusyError());
         }, options.waitMs);
       });
@@ -198,25 +202,41 @@ function admission(limit: number) {
     try { return await work(); }
     finally {
       const next = queue.shift();
-      if (next) next();
+      if (next) next.grant();
       else active--;
     }
   };
 }
 const parserAdmission = admission(1);
 const requestAdmission = admission(3);
+// Only one background source is loaded at a time. Waiting jobs hold no buffers;
+// durable jobs time out, while inline jobs must wait because no runner retries them.
+const backgroundAdmission = admission(1, Infinity);
 
-/** Durable jobs bound their queue wait before downloading; interactive callers
- * keep the warm parser pipeline without a separate queue deadline. */
+/** Reserve only the parser; source I/O belongs outside this slot. */
 export function withExtractionSlot<T>(
-  options: { waitMs?: number },
+  options: AdmissionOptions,
   work: (extract: ExtractInSlot) => Promise<T>,
 ): Promise<T> {
   return parserAdmission(options, () => work(extractInChild));
 }
 
 function queuedExtraction<K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: { fileType?: string }): Promise<Result<K>> {
-  return withExtractionSlot<Result<K>>({}, (extract) => extract(op, bytes, options));
+  return withExtractionSlot<Result<K>>({ interactive: true }, (extract) => extract(op, bytes, options));
+}
+
+/** Background I/O cannot block interactive parsing or fill its admission queue. */
+export function withBackgroundExtraction<T>(
+  options: { waitMs?: number },
+  work: (extract: ExtractInSlot) => Promise<T>,
+): Promise<T> {
+  const started = Date.now();
+  return backgroundAdmission(options, () => {
+    const waitMs = options.waitMs === undefined ? undefined : Math.max(0, options.waitMs - (Date.now() - started));
+    const extract: ExtractInSlot = (op, bytes, parseOptions) =>
+      withExtractionSlot({ waitMs }, (parse) => parse(op, bytes, parseOptions));
+    return work(extract);
+  });
 }
 
 /** Three interactive sources may download/parse concurrently, matching tabular

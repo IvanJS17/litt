@@ -1,7 +1,7 @@
 // documentJobs — implementation behind the module facade.
 import { downloadFile, extractedTextKey, uploadFile } from "../../lib/storage";
 import { requiresLibreOfficeTextExtraction } from "../../lib/documentTypes";
-import { withExtractionSlot, ExtractionBusyError, ExtractionLimitError } from "../../lib/extraction/isolated";
+import { withBackgroundExtraction, ExtractionBusyError, ExtractionLimitError } from "../../lib/extraction/isolated";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { DbJobDeferredError, type Db, type DbJob } from "../../lib/dbq/types";
 import { enqueueDbJob } from "../../lib/dbq/enqueue";
@@ -37,7 +37,7 @@ export async function handleDocumentPrecomputeText(
   }
 
   try {
-    await withExtractionSlot({ waitMs: 60_000 }, async (extract) => {
+    await withBackgroundExtraction({ waitMs: 60_000 }, async (extract) => {
       const isCurrent = async () => {
         const { data, error } = await db
           .from("document_versions")

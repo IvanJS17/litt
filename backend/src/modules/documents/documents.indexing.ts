@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { downloadFile } from "../../lib/storage";
-import { EXTRACTION_MAX_BYTES, ExtractionLimitError, ExtractionBusyError, withExtractionSlot } from "../../lib/extraction/isolated";
+import { EXTRACTION_MAX_BYTES, ExtractionLimitError, ExtractionBusyError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { DbJobDeferredError, type Db, type DbJob } from "../../lib/dbq/types";
 import { safeError } from "../../lib/safeError";
 import { logError } from "../../lib/log";
@@ -12,7 +12,7 @@ export async function handleDocumentExtractText(db: Db, job: DbJob): Promise<voi
   const { versionId, revision } = job.payload;
   if (typeof versionId !== "string" || typeof revision !== "string") return;
   try {
-    await withExtractionSlot({ waitMs: job.status === "running" ? 60_000 : 0 }, async (extract) => {
+    await withBackgroundExtraction({ waitMs: job.status === "running" ? 60_000 : undefined }, async (extract) => {
       const { data: version, error } = await db.from("document_versions")
         .select("id,storage_path,file_type,filename,content_sha256,text_revision,size_bytes")
         .eq("id", versionId).eq("text_revision", revision).is("deleted_at", null).maybeSingle();
@@ -83,8 +83,6 @@ export async function processDocumentTextInline(db: Db, versionIds?: string[]) {
         .eq("id", job.id).eq("status", "pending");
       if (doneError) throw doneError;
     } catch (err) {
-      // Inline jobs were never claimed: leave busy work pending for a later sweep.
-      if (err instanceof DbJobDeferredError) continue;
       await markDocumentTextFailed(db, job);
       const { error: failedError } = await db.from("db_jobs").update({ status: "failed", last_error: "extraction_failed", finished_at: new Date().toISOString() })
         .eq("id", job.id).eq("status", "pending");
