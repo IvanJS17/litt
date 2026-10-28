@@ -18,7 +18,7 @@
 //      explicitly are remembered so the bridge does not double-report them.
 
 import * as Sentry from "@sentry/node";
-import { diagnosticErrorTags, privacyBoundaryIntegration } from "./sentryPrivacy";
+import { retainExceptionTypes, diagnosticRoute, diagnosticErrorTags, privacyBoundaryIntegration, type Operation, type Stage } from "./sentryPrivacy";
 
 export type SentryRole = "api" | "worker" | "worker-thread" | "job";
 
@@ -210,7 +210,6 @@ const EXTRA_KEY_ALLOWLIST = new Set([
   "kind",
   "message",
   "name",
-  "path",
   "playbook_id",
   "request_id",
   "requestId",
@@ -437,7 +436,14 @@ function mapStringLeaves(
 export function minimiseForCommunity<T extends CommunityEvent>(event: T): T {
   delete event.server_name;
   delete event.user;
-  delete event.breadcrumbs;
+  // Breadcrumbs are request history; only our own stage trail stays
+  // (category mike.stage, message a stage name), the privacy boundary
+  // checks each one against the diagnostic label format.
+  const trail = Array.isArray(event.breadcrumbs)
+    ? event.breadcrumbs.filter((crumb) => (crumb as { category?: unknown })?.category === "mike.stage")
+    : [];
+  if (trail.length) event.breadcrumbs = trail;
+  else delete event.breadcrumbs;
   if (event.tags) {
     delete event.tags.server_name;
     delete event.tags.url;
@@ -755,6 +761,8 @@ export function scrubEvent(
     Object.assign(event.tags, diagnosticErrorTags(nested));
   }
 
+  retainExceptionTypes(event.exception?.values, [original, ...(args ?? [])], event.tags?.warning_name);
+
   // The title and the exception text are free text from libraries that
   // happily quote emails, tokens, and URLs (Postgres "Key (email)=(…)",
   // axios "Request failed … Authorization: Bearer …").
@@ -885,13 +893,21 @@ export function initSentry(
   installProcessWarningReporter(env);
   if (config.dsnSource === "default") {
     console.log(
-      `[sentry] enabled for ${role} → Mike project Sentry (${config.install} install). ` +
+      `[sentry] enabled for ${role} → Mike project Sentry (${config.install} install, ` +
+        `release ${config.release ?? "unset"}). ` +
         "Opt out with SENTRY_DISABLED=true or point SENTRY_DSN at your own project.",
     );
   } else {
     console.log(
       `[sentry] enabled for ${role} (environment ${config.environment}` +
         `${config.release ? `, release ${config.release}` : ""})`,
+    );
+  }
+  if (!config.release && env.NODE_ENV === "production") {
+    // Without a release an event cannot be mapped to the code that produced
+    // it; the images get it from the GIT_SHA build arg (docs/observability.md).
+    console.warn(
+      "[sentry] no release: build the images with GIT_SHA=$(git rev-parse HEAD) or set SENTRY_RELEASE",
     );
   }
   return true;
@@ -1038,10 +1054,46 @@ export function bestEffort<T>(
   });
 }
 
-/** Attach the request id to every event captured during this request. */
-export function tagCurrentRequest(requestId: string): void {
+/**
+ * Name the flow this request or job belongs to. Set once at the entry
+ * (route handler, job handler) and every event captured until it finishes
+ * carries `operation`, which leads the issue title and the fingerprint.
+ * Default stack grouping still distinguishes different failure sites.
+ */
+export function setOperation(operation: Operation): void {
   if (!initialized) return;
-  Sentry.getIsolationScope().setTag("request_id", requestId);
+  Sentry.getIsolationScope().setTag("operation", operation);
+}
+
+/**
+ * Record that the current request or job reached a stage. The stages a
+ * failed operation passed through arrive on its event as breadcrumbs, so a
+ * failure in `seal-recover` is distinguishable from the same throw reached
+ * via `copy-rollback`. Only the static, source-authored stage label travels,
+ * never runtime data or a free-form message.
+ */
+export function markStage(stage: Stage): void {
+  if (!initialized) return;
+  Sentry.addBreadcrumb({ category: "mike.stage", message: stage, level: "info" });
+}
+
+/** Baseline identity for all request captures, including middleware/console errors. */
+export function tagCurrentRequest(
+  requestId: string,
+  request?: { method: string; originalUrl: string },
+): void {
+  if (!initialized) return;
+  const scope = Sentry.getIsolationScope();
+  scope.setTag("request_id", requestId);
+  if (request) {
+    // Never put a concrete URL, query, resource name or id on the scope.
+    // This fallback exists before Express selects a route; setOperation in
+    // a domain handler replaces it with the more specific business flow.
+    scope.setTag("component", "http");
+    scope.setTag("operation", "http.request");
+    scope.setTag("http_method", request.method);
+    scope.setTag("http_route", diagnosticRoute(request.originalUrl));
+  }
 }
 
 /** Attach the authenticated user's id (never the email) to this request. */
