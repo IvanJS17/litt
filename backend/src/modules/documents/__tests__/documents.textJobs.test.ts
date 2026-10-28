@@ -1,6 +1,9 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { scriptedDb } from "../../../__tests__/helpers/scriptedDb";
 import type { DbJob } from "../../../lib/dbq/types";
+import { DbJobDeferredError } from "../../../lib/dbq/types";
+import { NonRetryableJobError } from "../../../lib/dbq/runner";
+import { ExtractionLimitError, withBackgroundExtraction } from "../../../lib/extraction/isolated";
 const mocks = vi.hoisted(() => ({
   downloadFile: vi.fn(),
   uploadFile: vi.fn(),
@@ -70,4 +73,26 @@ it("propagates cleanup scheduling failure so the worker retries", async () => {
   await expect(handleDocumentPrecomputeText(fake.db, job)).rejects.toThrow(
     "queue unavailable",
   );
+});
+afterEach(() => vi.useRealTimers());
+it("defers busy precomputation before reading metadata or downloading", async () => {
+  let release!: () => void;
+  const held = withBackgroundExtraction({}, () => new Promise<void>((resolve) => { release = resolve; }));
+  const fake = scriptedDb([]);
+  vi.useFakeTimers();
+  try {
+    const rejected = expect(handleDocumentPrecomputeText(fake.db, job)).rejects.toBeInstanceOf(DbJobDeferredError);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await rejected;
+    expect(mocks.downloadFile).not.toHaveBeenCalled();
+    expect(mocks.uploadFile).not.toHaveBeenCalled();
+    fake.done();
+  } finally { release(); await held; }
+});
+it("does not retry or publish a precomputation that exceeds parser limits", async () => {
+  const fake = scriptedDb([{ table: "document_versions", data: { id: "v" } }]);
+  mocks.extractLegacyOfficeText.mockRejectedValue(new ExtractionLimitError("parser deadline exceeded"));
+  await expect(handleDocumentPrecomputeText(fake.db, job)).rejects.toBeInstanceOf(NonRetryableJobError);
+  expect(mocks.uploadFile).not.toHaveBeenCalled();
+  fake.done();
 });

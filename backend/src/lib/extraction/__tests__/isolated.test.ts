@@ -1,21 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { Document, Packer, Paragraph } from "docx";
+import JSZip from "jszip";
 import * as XLSX from "xlsx";
 import {
   EXTRACTION_MAX_BYTES,
   ExtractionLimitError,
   runIsolatedExtraction,
+  stopExtractionProcess,
 } from "../isolated";
 
-// These run the real worker thread (vitest.config turns isolation off for
-// every other suite).
-beforeEach(() => vi.stubEnv("EXTRACTION_ISOLATION", "on"));
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, spawn: vi.fn(actual.spawn) };
+});
 
-/** A copy of the module with no worker yet, so a test sees a cold start. */
-async function freshModule() {
-  vi.resetModules();
-  return import("../isolated.js");
-}
-afterEach(() => vi.unstubAllEnvs());
+beforeEach(() => {
+  vi.mocked(spawn).mockClear();
+  vi.stubEnv("EXTRACTION_ISOLATION", "on");
+});
+afterEach(async () => { await stopExtractionProcess(); vi.unstubAllEnvs(); });
 
 function workbook(): ArrayBuffer {
   const wb = XLSX.utils.book_new();
@@ -51,73 +56,87 @@ function onePagePdf(): ArrayBuffer {
 }
 
 describe("runIsolatedExtraction", () => {
-  it("parses on the worker thread and returns the parser's result", async () => {
-    const text = await runIsolatedExtraction("spreadsheet", workbook());
+  it("parses on the parser process and returns the parser's result", async () => {
+    const text = await runIsolatedExtraction("spreadsheet", async () => workbook());
     expect(text).toContain("## Sheet: Budget");
     expect(text).toContain("| 2 | Rent | 1200 |");
   });
 
-  // pdfjs loads its own fake worker; it must still work inside this thread.
-  it("reads a PDF on the worker thread", async () => {
-    await expect(runIsolatedExtraction("pdfForModel", onePagePdf())).resolves.toContain("Case No. 24CV-1234");
+  it("reuses a warm process and recycles it after 200 files", async () => {
+    const source = workbook();
+    for (let index = 0; index < 200; index++) {
+      await expect(runIsolatedExtraction("spreadsheet", async () => source)).resolves.toContain("Rent");
+    }
+    expect(spawn).toHaveBeenCalledTimes(1);
+    await expect(runIsolatedExtraction("spreadsheet", async () => source)).resolves.toContain("Rent");
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  // pdfjs must load successfully inside the parser subprocess.
+  it("reads a PDF on the parser process", async () => {
+    await expect(runIsolatedExtraction("pdfForModel", async () => onePagePdf())).resolves.toContain("Case No. 24CV-1234");
     await expect(
-      runIsolatedExtraction("documentText", onePagePdf(), { fileType: "pdf" }),
+      runIsolatedExtraction("documentText", async () => onePagePdf(), { fileType: "pdf" }),
     ).resolves.toMatchObject({ text: expect.stringContaining("24CV-1234"), textlessPageCount: 0 });
   });
 
+  it.skipIf(!existsSync("/usr/bin/soffice"))("converts Office content using real LibreOffice inside the bounded process", async () => {
+    const doc = new Document({ sections: [{ children: [new Paragraph("Synthetic lease clause 721")] }] });
+    const buffer = await Packer.toBuffer(doc);
+    // Repeated conversions must work inside the same bounded parser.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await expect(runIsolatedExtraction("legacyOfficeText", async () => Uint8Array.from(buffer).buffer)).resolves.toContain("Synthetic lease clause 721");
+    }
+  });
+
   it("passes a parser's own failure through as an ordinary error", async () => {
-    const failure = runIsolatedExtraction("documentText", workbook(), {
+    const failure = runIsolatedExtraction("documentText", async () => workbook(), {
       fileType: "exe",
     });
     await expect(failure).rejects.toThrow("document_text_unsupported_format");
     await expect(failure).rejects.not.toBeInstanceOf(ExtractionLimitError);
   });
 
-  // A cold worker takes far longer than 1 ms just to load the parsers.
-  it("stops a parse that runs past the timeout, then recovers on a fresh worker", async () => {
-    const isolated = await freshModule();
+  // A cold process takes far longer than 1 ms just to load the parsers.
+  it("stops a parse that runs past the timeout, then recovers on a fresh process", async () => {
     vi.stubEnv("EXTRACTION_TIMEOUT_MS", "1");
     await expect(
-      isolated.runIsolatedExtraction("spreadsheet", workbook()),
-    ).rejects.toBeInstanceOf(isolated.ExtractionLimitError);
+      runIsolatedExtraction("spreadsheet", async () => workbook()),
+    ).rejects.toBeInstanceOf(ExtractionLimitError);
     vi.stubEnv("EXTRACTION_TIMEOUT_MS", "60000");
     await expect(
-      isolated.runIsolatedExtraction("spreadsheet", workbook()),
+      runIsolatedExtraction("spreadsheet", async () => workbook()),
     ).resolves.toContain("Rent");
   });
 
-  it("stops a parse that runs out of memory, then recovers on a fresh worker", async () => {
-    const isolated = await freshModule();
-    vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "4");
+  it("stops a parse that runs out of memory, then recovers on a fresh process", async () => {
+    // Linux refuses startup via its OS limit. Heap-only platforms need enough
+    // memory to start V8 and reach its OOM handler instead of crashing Node.
+    vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", process.platform === "linux" ? "4" : "16");
     await expect(
-      isolated.runIsolatedExtraction("spreadsheet", workbook()),
-    ).rejects.toBeInstanceOf(isolated.ExtractionLimitError);
+      runIsolatedExtraction("spreadsheet", async () => workbook()),
+    ).rejects.toBeInstanceOf(ExtractionLimitError);
     vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "1024");
     await expect(
-      isolated.runIsolatedExtraction("spreadsheet", workbook()),
+      runIsolatedExtraction("spreadsheet", async () => workbook()),
     ).resolves.toContain("Rent");
   });
 
-  it("serves an interactive read ahead of queued background work", async () => {
-    const order: string[] = [];
-    const track = (label: string, run: Promise<unknown>) =>
-      run.then(() => void order.push(label));
-    await Promise.all([
-      track("first", runIsolatedExtraction("spreadsheet", workbook())),
-      track("background", runIsolatedExtraction("spreadsheet", workbook())),
-      track(
-        "interactive",
-        runIsolatedExtraction("spreadsheet", workbook(), { interactive: true }),
-      ),
-    ]);
-    expect(order).toEqual(["first", "interactive", "background"]);
+  it("rejects excessive UTF-8 output from a small compressed file and recovers", async () => {
+    const zip = new JSZip();
+    // Six million characters, but eighteen MiB of UTF-8 output.
+    zip.file("ppt/slides/slide1.xml", `<a:t>${"€".repeat(6 * 1024 * 1024)}</a:t>`);
+    const compressed = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+    expect(compressed.byteLength).toBeLessThan(100_000);
+    await expect(runIsolatedExtraction("presentation", async () => Uint8Array.from(compressed).buffer)).rejects.toBeInstanceOf(ExtractionLimitError);
+    await expect(runIsolatedExtraction("spreadsheet", async () => workbook())).resolves.toContain("Rent");
   });
 
   it("refuses a file over the size backstop without starting a parse", async () => {
     await expect(
       runIsolatedExtraction(
         "spreadsheet",
-        new ArrayBuffer(EXTRACTION_MAX_BYTES + 1),
+        async () => new ArrayBuffer(EXTRACTION_MAX_BYTES + 1),
       ),
     ).rejects.toBeInstanceOf(ExtractionLimitError);
   });

@@ -37,6 +37,13 @@ const CHECKSUM_DEFAULTS = {
   responseChecksumValidation: "WHEN_REQUIRED",
 } as const;
 
+// A stalled GET would otherwise pin whoever awaits it, including the single
+// background source-loading slot. Aborting tears the socket down mid-body too.
+function downloadTimeoutMs(): number {
+  const value = Number(process.env.STORAGE_DOWNLOAD_TIMEOUT_MS);
+  return Number.isFinite(value) && value > 0 ? value : 120_000;
+}
+
 export function createS3StorageAdapter(): StorageAdapter {
   const bucket = process.env.R2_BUCKET_NAME ?? "mike";
   const enabled = Boolean(
@@ -145,12 +152,20 @@ export function createS3StorageAdapter(): StorageAdapter {
     },
 
     async downloadFile(key) {
+      const abortSignal = AbortSignal.timeout(downloadTimeoutMs());
       const response = (await client().send(
         new GetObjectCommand({ Bucket: bucket, Key: key }),
+        { abortSignal },
       )) as any;
       if (!response.Body) return null;
-      const bytes = await response.Body.transformToByteArray();
-      return bytes.buffer as ArrayBuffer;
+      const stop = () => response.Body.destroy?.(abortSignal.reason);
+      abortSignal.addEventListener("abort", stop, { once: true });
+      try {
+        const bytes = await response.Body.transformToByteArray();
+        return bytes.buffer as ArrayBuffer;
+      } finally {
+        abortSignal.removeEventListener("abort", stop);
+      }
     },
 
     async openReadStream(key) {
