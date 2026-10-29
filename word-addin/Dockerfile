@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build from the repository root: `docker build -f word-addin/Dockerfile .`
 # The add-in bundles the UI it shares with the web app (frontend/src/shared,
 # reached through webpack aliases, tsconfig paths, and Tailwind @source
@@ -34,7 +35,10 @@ ENV REACT_APP_API_BASE_URL=/api \
     REACT_APP_SENTRY_INSTALL=$REACT_APP_SENTRY_INSTALL \
     REACT_APP_SENTRY_ENVIRONMENT=$REACT_APP_SENTRY_ENVIRONMENT \
     REACT_APP_SENTRY_RELEASE=$REACT_APP_SENTRY_RELEASE
-RUN npm run build
+# Sentry source-map upload, as in frontend/Dockerfile.
+ARG SENTRY_ORG=
+ARG SENTRY_PROJECT=
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN npm run build
 
 FROM node:22-slim
 WORKDIR /app

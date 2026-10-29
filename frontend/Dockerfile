@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build from the repository root: `docker build -f frontend/Dockerfile .`
 # (docker-compose.yml does the same). The image needs the frontend plus the
 # one sibling directory production code reaches through a tsconfig `paths`
@@ -35,7 +36,11 @@ ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_GIT_SHA=$GIT_SHA \
     GIT_SHA=$GIT_SHA
 
-RUN npm run build
+# Sentry source-map upload (docs/observability.md). Needs all three; the token
+# is a build secret so it never lands in an image layer.
+ARG SENTRY_ORG=
+ARG SENTRY_PROJECT=
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000

@@ -372,6 +372,12 @@ services:
         NEXT_PUBLIC_SENTRY_DISABLED: ${SENTRY_DISABLED:-}
         NEXT_PUBLIC_SENTRY_INSTALL: ${SENTRY_INSTALL:-}
         GIT_SHA: ${GIT_SHA:-}
+        # Sentry source-map upload (docs/observability.md); the token is the
+        # build secret below.
+        SENTRY_ORG: ${SENTRY_ORG:-}
+        SENTRY_PROJECT: ${SENTRY_PROJECT:-}
+      secrets:
+        - SENTRY_AUTH_TOKEN
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://backend:3001}
       # Next server side (the /api gateway); same project as the browser.
@@ -391,3 +397,7 @@ volumes:
   db_data:
   storage_data:
   redis_data:
+
+secrets:
+  SENTRY_AUTH_TOKEN:
+    environment: SENTRY_AUTH_TOKEN

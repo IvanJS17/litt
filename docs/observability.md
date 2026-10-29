@@ -364,14 +364,16 @@ REACT_APP_SENTRY_RELEASE=...           # optional
 
 ### Readable stack traces (source maps)
 
-Production bundles are minified. To see real file and line numbers in Sentry,
-provide upload credentials at build time; the build then uploads source maps
-and deletes them from the output so they never ship:
+Production bundles are minified. Without source maps a frontend issue's
+culprit reads `_next/static/chunks/0vffwuerb8hxi.js:1:6381` and Sentry cannot
+say which component threw. To see `src/app/...:line` instead, provide upload
+credentials at build time; the build then uploads the maps to Sentry and
+deletes them from the output so they never ship:
 
 ```
-SENTRY_AUTH_TOKEN=...   # organization token with Source Map Upload permission (org:ci)
-SENTRY_ORG=...
-SENTRY_PROJECT=...
+SENTRY_AUTH_TOKEN=...   # organization auth token, see below
+SENTRY_ORG=...          # organization slug
+SENTRY_PROJECT=...      # project slug: the web app's, or the add-in's
 ```
 
 Applies to `next build` (frontend) and `webpack --mode production` (add-in).
@@ -380,6 +382,65 @@ The backend needs no upload: `tsc` emits source maps next to the compiled
 files and the process runs with `--enable-source-maps` (the `start` script,
 and `NODE_OPTIONS` in the Dockerfile), so backend frames already read
 `src/lib/x.ts:line`.
+
+The build plugin stamps each bundle with a debug ID and uploads the maps
+under it, so frames resolve regardless of the release name; the release tag on
+events still comes from `GIT_SHA` / `SENTRY_RELEASE` as described above.
+
+#### Setting it up in Sentry
+
+1. Open the Sentry organization, then **Settings → Developer Settings →
+   Organization Tokens** (older UI: **Settings → Auth Tokens**) and create a
+   token. Organization tokens carry only the `org:ci` scope (release and
+   artifact upload), which is all this needs. Copy the token once; it is not
+   shown again.
+2. Note the organization slug (in the URL, `https://<org>.sentry.io`) and the
+   project slug (**Settings → Projects**). The web app and the Word add-in are
+   separate projects, so they need separate builds with their own
+   `SENTRY_PROJECT`.
+3. Treat the token as a deploy secret: it may create releases and upload
+   artifacts for every project in the organization. Rotate it from the same
+   page if it leaks.
+
+#### Passing it to the image build
+
+The token is read from a BuildKit secret, never a build argument, so it does
+not end up in the image layers or `docker history`. `SENTRY_ORG` and
+`SENTRY_PROJECT` are ordinary build arguments.
+
+Docker Compose (Dokploy and similar): add the three variables and `GIT_SHA`
+to the compose-root `.env` (or the platform's environment) and rebuild.
+`docker-compose.yml` already forwards them to the frontend build:
+
+```
+SENTRY_AUTH_TOKEN=sntrys_...
+SENTRY_ORG=<org slug>
+SENTRY_PROJECT=<web app project slug>
+GIT_SHA=<commit being deployed>
+SENTRY_ENVIRONMENT=production
+```
+
+Plain `docker build`, from the repository root:
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_... docker build -f frontend/Dockerfile \
+  --secret id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+  --build-arg SENTRY_ORG=<org> --build-arg SENTRY_PROJECT=<project> \
+  --build-arg GIT_SHA=$(git rev-parse HEAD) \
+  --build-arg NEXT_PUBLIC_SENTRY_DSN=... .
+```
+
+The same flags work for `word-addin/Dockerfile` with the add-in's project
+slug. A host-side `npm run build` picks the three variables up from the
+environment directly.
+
+With a token present the Sentry plugin logs its upload in the build output;
+afterwards the maps are listed under **Settings → Projects → <project> →
+Source Maps**. A rejected token fails the build rather than quietly shipping
+unmapped frames.
+
+Only events reported after the rebuild are affected: Sentry resolves frames
+when it receives an event, so earlier issues keep their minified frames.
 
 ## Verifying a deployment
 
