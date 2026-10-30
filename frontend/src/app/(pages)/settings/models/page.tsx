@@ -41,6 +41,7 @@ import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SETTINGS_CONTROL_CLASS } from "@/app/components/settings/SettingsTextInput";
 import { useOllamaModels } from "@/app/hooks/useOllamaModels";
 import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
+import { SubagentRoutesSection } from "@/app/components/settings/SubagentRoutesSection";
 
 export default function ModelPreferencesPage() {
   const { profile, updateModelPreference } = useUserProfile();
@@ -91,6 +92,18 @@ export default function ModelPreferencesPage() {
       });
     }
   };
+
+  // LiTT: a route may only use a model with a connected key, like the chat's selector.
+  const subagentModelOptions = mergeConfiguredModelOptions(configuredModels, [
+    ...MODELS,
+    ...selectedRouterOptions,
+    ...ollamaModels,
+  ]).filter(
+    (model) =>
+      model.source === "Configured" ||
+      model.group === "Local" ||
+      (profile?.apiKeys ? isModelAvailable(model.id, profile.apiKeys) : false),
+  );
 
   return (
     <div className="space-y-8">
@@ -178,59 +191,24 @@ export default function ModelPreferencesPage() {
       </section>
 
       <section className="space-y-3" aria-labelledby="subagents-heading">
-        <SettingsHeading id="subagents-heading">Subagents</SettingsHeading>
+        <SettingsHeading id="subagents-heading">Subagentes</SettingsHeading>
         <SettingsDescription>
-          LiTT can hand parts of a task to subagents that work on them
-          separately and report back. These are the defaults it follows unless
-          you ask for something else in the chat.
+          LiTT puede pasar partes de una tarea a subagentes que trabajan por
+          separado y le reportan. Configura las rutas de modelo que pueden
+          usar; cada resultado indica la ruta y el modelo con que corrió.
         </SettingsDescription>
-        <GlassCardUI>
-          <SettingsRow layout="stacked">
-            <div className="space-y-1">
-              <SettingsLabel>Model</SettingsLabel>
-              <SettingsDescription>
-                The model each subagent runs on. Chosen per task lets LiTT
-                match the model to the work.
-              </SettingsDescription>
-            </div>
+        <SubagentRoutesSection
+          models={subagentModelOptions}
+          modelPicker={(value, onChange) => (
             <ModelPreferenceDropdown
-              value={preferenceModelId(
-                optimisticValues.subagentModel ?? profile?.subagentModel ?? "",
-              )}
-              options={mergeConfiguredModelOptions(configuredModels, [
-                ...MODELS,
-                ...selectedRouterOptions,
-                ...ollamaModels,
-              ])}
+              value={value}
+              options={subagentModelOptions}
               apiKeys={profile?.apiKeys}
-              isSaving={savingField === "subagentModel"}
-              isSaved={savedField === "subagentModel"}
-              emptyOptionLabel="Chosen per task"
-              onChange={(id) => handlePreferenceChange("subagentModel", id)}
+              emptyOptionLabel="Elige un modelo"
+              onChange={onChange}
             />
-          </SettingsRow>
-          <SettingsRow layout="stacked">
-            <div className="space-y-1">
-              <SettingsLabel>Reasoning</SettingsLabel>
-              <SettingsDescription>
-                How much each subagent thinks before it answers.
-              </SettingsDescription>
-            </div>
-            <ReasoningPreferenceDropdown
-              value={
-                optimisticValues.subagentReasoning ??
-                profile?.subagentReasoning ??
-                ""
-              }
-              isSaving={savingField === "subagentReasoning"}
-              isSaved={savedField === "subagentReasoning"}
-              emptyOptionLabel="Chosen per task"
-              onChange={(level) =>
-                handlePreferenceChange("subagentReasoning", level)
-              }
-            />
-          </SettingsRow>
-        </GlassCardUI>
+          )}
+        />
       </section>
     </div>
   );

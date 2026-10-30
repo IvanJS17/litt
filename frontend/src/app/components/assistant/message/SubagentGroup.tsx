@@ -6,6 +6,7 @@ import { EventBlock, ReasoningContent } from "./EventBlocks";
 import { EventChevron, EventDisclosureButton, EventLabel } from "./EventDisclosure";
 import { isRenderableEvent, toolCallLabel } from "./eventUtils";
 import { subagentDetailsText } from "./responseDetails";
+import { modelDisplayName } from "@/shared/lib/modelCatalog";
 
 export type DelegationEvent = Extract<AssistantEvent, { type: "delegation" }>;
 
@@ -58,6 +59,10 @@ function subagentStatus(event: DelegationEvent): { text: string; failed: boolean
                 steps,
             );
         case "failed":
+            // LiTT: a route that could not run says why; nothing ran on another model.
+            if (event.route_unavailable) {
+                return { text: `Couldn't start: ${event.route_unavailable}`, failed: true };
+            }
             return { ...line(resumed, "Couldn't finish"), failed: true };
         case "cancelled":
         default:
@@ -197,6 +202,14 @@ function SubagentDetails({
             >
                 {status.text}
             </p>
+            {/* LiTT: which of the user's routes and which model it ran on. */}
+            {event.model && (
+                <p className="-mt-3 font-serif text-sm text-gray-500 [overflow-wrap:anywhere]">
+                    {[event.route && `Route ${event.route}`, modelDisplayName(event.model)]
+                        .filter(Boolean)
+                        .join(" · ")}
+                </p>
+            )}
             <DetailDisclosureRow
                 label="Task from LiTT"
                 showConnector={streaming || hasSteps || hasBrief || hasQuestion}

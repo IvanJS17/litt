@@ -40,6 +40,13 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
     }),
 }));
 
+// The routes editor has its own tests; here only the models it is offered matter.
+vi.mock("@/app/components/settings/SubagentRoutesSection", () => ({
+    SubagentRoutesSection: ({ models }: { models: ModelOption[] }) => (
+        <p data-testid="route-models">{models.map((m) => m.id).join(" ")}</p>
+    ),
+}));
+
 import ModelPreferencesPage from "./page";
 
 describe("model preferences page legacy ids", () => {
@@ -72,28 +79,14 @@ describe("model preferences page legacy ids", () => {
         );
     });
 
-    it("saves subagent defaults from rows that start as chosen per task", async () => {
-        const user = userEvent.setup();
+    it("offers subagent routes only the models with a connected key", () => {
         render(<ModelPreferencesPage />);
-        const subagents = screen.getByRole("region", { name: "Subagents" });
-        const [modelRow, reasoningRow] = within(subagents).getAllByRole(
-            "button",
-            { name: "Chosen per task" },
-        );
 
-        await user.click(modelRow);
-        await user.click(screen.getByText("GPT-6.1 Sol"));
-        await user.click(reasoningRow);
-        await user.click(screen.getByText("Medium"));
-
-        expect(updateModelPreference).toHaveBeenCalledWith(
-            "subagentModel",
-            "gpt-6.1-sol",
-        );
-        expect(updateModelPreference).toHaveBeenCalledWith(
-            "subagentReasoning",
-            "medium",
-        );
+        const subagents = screen.getByRole("region", { name: "Subagentes" });
+        const offered = within(subagents).getByTestId("route-models").textContent ?? "";
+        expect(offered).toContain("gpt-6.1-sol");
+        expect(offered).toContain("gemini-3.8-flash");
+        expect(offered).not.toMatch(/claude-/);
     });
 
     it("preserves a configured endpoint that reuses a retired direct model id", () => {
