@@ -6,6 +6,35 @@ import { sendInternalError } from "../lib/httpError";
 import { createRequestSupabase } from "../lib/authSession";
 import { requestOriginIsTrusted } from "../lib/origins";
 import { devLog, isDev } from "../lib/log";
+import { AppError } from "../lib/appError";
+import {
+  reportError,
+  requestRoutePattern,
+  setCurrentUser,
+} from "../lib/observability/report";
+
+/**
+ * Supabase could not say which assurance level the session has. That is an
+ * outage or a misconfiguration on our side, not a sign-out, so it is reported
+ * under its own kind (a warning: the user is asked to sign in again and can
+ * recover) before the client gets the answer it always did.
+ */
+function reportMfaAssuranceFailure(req: Request, error: unknown): AppError {
+  const failure = new AppError(
+    "auth.mfa_assurance_failed",
+    "MFA assurance level lookup failed",
+    { cause: error },
+  );
+  reportError(failure, {
+    level: "warning",
+    tags: {
+      component: "http",
+      http_method: req.method,
+      http_route: requestRoutePattern(req),
+    },
+  });
+  return failure;
+}
 
 function summarizeMfaFactors(
   factors: Array<{
@@ -53,8 +82,14 @@ async function enforceLoginMfaIfEnabled(
       code: error.code,
     });
     // LiTT: fail closed. An unreadable preference (a missing column
-    // included) is not "MFA is off".
-    sendInternalError(res, error);
+    // included) is not "MFA is off". The error kind names the query that
+    // failed; the client still gets the generic 500.
+    sendInternalError(
+      res,
+      new AppError("db.query_failed", "login MFA preference lookup failed", {
+        cause: error,
+      }),
+    );
     return false;
   }
 
@@ -73,7 +108,7 @@ async function enforceLoginMfaIfEnabled(
     });
     console.error(
       "[auth/mfa] login assurance lookup failed",
-      assuranceError,
+      reportMfaAssuranceFailure(req, assuranceError),
     );
     res.status(401).json({
       code: "authentication_failed",
@@ -101,8 +136,15 @@ async function enforceLoginMfaIfEnabled(
 function getAdminClient(res: Response) {
   try {
     return createServerSupabase();
-  } catch {
-    res.status(500).json({ detail: "Server auth is not configured" });
+  } catch (error) {
+    // No admin client means no request can authenticate: report the
+    // configuration failure once, with the route it refused.
+    sendInternalError(
+      res,
+      new AppError("auth.supabase_unavailable", "Server auth is not configured", {
+        cause: error,
+      }),
+    );
     return null;
   }
 }
@@ -149,8 +191,14 @@ export async function requireAuth(
         res.locals.authSource = "cookie";
       }
     } catch (error) {
-      console.error("[auth] cookie session initialization failed", error);
-      res.status(500).json({ detail: "Server auth is not configured" });
+      sendInternalError(
+        res,
+        new AppError(
+          "auth.session_lookup_failed",
+          "cookie session initialization failed",
+          { cause: error },
+        ),
+      );
       return;
     }
   }
@@ -166,7 +214,12 @@ export async function requireAuth(
     .eq("user_id", user.id)
     .maybeSingle();
   if (deletionError) {
-    sendInternalError(res, deletionError);
+    sendInternalError(
+      res,
+      new AppError("db.query_failed", "account deletion state lookup failed", {
+        cause: deletionError,
+      }),
+    );
     return;
   }
   if (deletionProfile?.account_deletion_requested_at) {
@@ -175,6 +228,9 @@ export async function requireAuth(
   }
 
   res.locals.userId = user.id;
+  // Baseline identity for the diagnostic scope; the report line never writes
+  // the user id (lib/observability/report.ts keeps it out).
+  setCurrentUser(user.id);
   // `userEmail` is an AUTHORIZATION input, not a display value: direct grants
   // (projects, chats, reviews, workflows) and organization invitations are
   // all matched against it. An address the account has not proved it owns
@@ -231,7 +287,10 @@ export async function requireMfaIfEnrolled(
       userId: res.locals.userId,
       error: error.message,
     });
-    console.error("[auth/mfa] assurance lookup failed", error);
+    console.error(
+      "[auth/mfa] assurance lookup failed",
+      reportMfaAssuranceFailure(req, error),
+    );
     res.status(401).json({
       code: "authentication_failed",
       detail: "Unable to verify authentication. Please sign in again.",

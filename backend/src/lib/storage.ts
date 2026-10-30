@@ -12,7 +12,8 @@
  * object store) swap the transport in one place; no call site changes.
  */
 
-import { bestEffort } from "./bestEffort";
+import { AppError, type ErrorKind } from "./appError";
+import { bestEffort } from "./observability/report";
 import { Readable } from "node:stream";
 import type {
   StorageAdapter,
@@ -39,13 +40,34 @@ export function setStorageAdapter(next: StorageAdapter): void {
   storageEnabled = next.enabled;
 }
 
-export class StorageOperationError extends Error {
-  constructor(readonly operation: string, options?: { cause?: unknown }) {
-    super(`Object storage ${operation} failed`, options);
-    this.name = "StorageOperationError";
+const STORAGE_FAILURE_KIND = {
+  HEAD: "storage.head_failed",
+  copy: "storage.copy_failed",
+  upload: "storage.upload_failed",
+  download: "storage.download_failed",
+  delete: "storage.delete_failed",
+} as const satisfies Record<string, ErrorKind>;
+
+export type StorageOperation = keyof typeof STORAGE_FAILURE_KIND;
+
+/**
+ * One object-storage call failed. The operation is the kind (one entry per
+ * operation), the adapter's own error is the cause (its AWS/system code
+ * reaches the report as `failure_code`); the key never leaves the process.
+ */
+export class StorageOperationError extends AppError {
+  constructor(readonly operation: StorageOperation, options?: { cause?: unknown }) {
+    super(STORAGE_FAILURE_KIND[operation], `Object storage ${operation} failed`, options);
   }
 }
 
+/**
+ * A storage failure this facade absorbs: the caller gets null, as it does
+ * when storage is not configured, so nothing above reports it. Report it
+ * here, once, with the operation (and the SDK's code via the cause) on the
+ * entry, then log the SAME object: the log line keeps the full local detail
+ * and the report line stays sanitized.
+ */
 function requireStorageConfig(): void {
   if (!adapter.enabled) {
     throw new Error(adapter.configurationHint);
@@ -107,8 +129,14 @@ export async function getSignedUploadUrl(
       expiresIn,
     );
   } catch (error) {
-    console.error("[storage] getSignedUploadUrl failed", { key, error });
-    return null;
+    // Thrown once with the SDK's own code on the cause; the route that
+    // answers reports it. Logging and returning null here filed the failure
+    // twice: once from storage, once from the caller's cause-less throw.
+    throw new AppError(
+      "storage.signed_url_failed",
+      "Object storage signed upload URL failed",
+      { cause: error },
+    );
   }
 }
 
@@ -119,7 +147,8 @@ export async function headFile(
   try {
     return await adapter.headFile(key);
   } catch (error) {
-    console.error("[storage] headFile failed", { key, error });
+    // Thrown, not logged: the caller that catches this reports it, and a
+    // console line here filed the same failure a second time.
     throw new StorageOperationError("HEAD", { cause: error });
   }
 }
@@ -145,12 +174,25 @@ export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
   try {
     return await adapter.downloadFile(key);
   } catch (error) {
-    console.error("[storage] downloadFile failed", {
-      key,
-      error: error,
-    });
-    return null;
+    // null is "not there" (the adapters translate a missing object); a
+    // transport or permission failure is thrown so the caller's handler
+    // reports it once, with the store's own code on the cause.
+    throw new StorageOperationError("download", { cause: error });
   }
+}
+
+/**
+ * Read an object the caller can go on without: a cached rendition, an
+ * optional PDF copy, a fallback source. null for an object that is not
+ * there, and null for a failure too, which is reported once here as a
+ * warning with the store's code, because the caller will carry on and
+ * nothing else would file it. A read the caller cannot do without uses
+ * downloadFile, whose failure propagates to the handler that reports it.
+ */
+export async function downloadFileIfAvailable(
+  key: string,
+): Promise<ArrayBuffer | null> {
+  return (await bestEffort(downloadFile(key), { what: "optional-read" })) ?? null;
 }
 
 /**
@@ -172,7 +214,7 @@ export function createFileReadStream(key: string): Readable {
           yield chunk;
         }
       } catch (error) {
-        console.error("[storage] createFileReadStream failed", { key, error });
+        // Thrown, not logged (see headFile).
         if (error instanceof StorageOperationError) throw error;
         throw new StorageOperationError("download", { cause: error });
       }
@@ -226,7 +268,7 @@ export function deleteFileBestEffort(
  * upload's staging and sealed copies). Every key is attempted, but the
  * operation logs at most one warning: when storage is unreachable or the
  * credentials are wrong, every key fails for the same reason, and one line
- * per key only multiplies the noise (MIKE-BACKEND-5/6 arrived in pairs).
+ * per key only multiplies the noise.
  * Null/empty keys are skipped: there is nothing to delete.
  */
 export function deleteFilesBestEffort(
@@ -244,7 +286,7 @@ export function deleteFilesBestEffort(
     },
   );
   return bestEffort(work, {
-    what: `storage-delete:${stage}`,
+    what: stage,
     tags: { component: "storage", stage, storage_operation: "delete" },
   });
 }
@@ -273,11 +315,11 @@ export async function getSignedUrl(
       responseContentDisposition,
     );
   } catch (error) {
-    console.error("[storage] getSignedUrl failed", {
-      key,
-      error: error,
-    });
-    return null;
+    throw new AppError(
+      "storage.signed_url_failed",
+      "Object storage signed URL failed",
+      { cause: error },
+    );
   }
 }
 

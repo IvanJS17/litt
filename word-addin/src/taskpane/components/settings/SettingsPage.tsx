@@ -7,7 +7,7 @@ import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 import { Modal } from "../primitives/Modal";
 import { GlassCardUI } from "@mike/glass-card-ui";
 import { SourceCodeLinkUI } from "@mike/source-code-link-ui";
-import { userMessage } from "../../lib/notify";
+import { reportFault } from "../../lib/notify";
 
 interface SettingsPageProps {
   storageMode: WordChatStorageMode;
@@ -32,9 +32,10 @@ export function SettingsPage({
       await onStorageModeChange(cloud ? "cloud" : "local");
     } catch (reason) {
       setError(
-        userMessage(reason, {
+        reportFault(reason, {
           fallback: "LiTT couldn't save that setting. Try again.",
-        }),
+          operation: "settings.keys",
+        }).message,
       );
     } finally {
       setSaving(false);
@@ -128,10 +129,11 @@ export function SettingsPage({
               .then(() => setClearConfirmOpen(false))
               .catch((reason: unknown) =>
                 setError(
-                  userMessage(reason, {
+                  reportFault(reason, {
                     fallback:
                       "LiTT couldn't delete the device-only chats. Try again.",
-                  }),
+                    operation: "settings.keys",
+                  }).message,
                 ),
               )
               .finally(() => setClearing(false));

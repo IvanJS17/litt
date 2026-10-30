@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { reportNetworkFailure, reportApiFailure } = vi.hoisted(() => ({
+    reportNetworkFailure: vi.fn(),
+    reportApiFailure: vi.fn(),
+}));
+vi.mock("../../../word-addin/src/taskpane/lib/errorReporting", () => ({
+    reportNetworkFailure,
+    reportApiFailure,
+}));
+
 import {
     configureMikeApiClient,
     listProjects,
@@ -66,6 +75,12 @@ describe("Word API transport cancellation", () => {
             message: expect.stringContaining("couldn't reach the server"),
             request: { method: "POST", url: "https://api.example.test/word-chat" },
         });
+
+        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
+            method: "POST",
+            url: "https://api.example.test/word-chat",
+            operation: "word_chat.turn",
+        });
     });
 
     it("surfaces a transport failure for requests without a cancellation signal", async () => {
@@ -73,6 +88,12 @@ describe("Word API transport cancellation", () => {
         fetchMock.mockRejectedValueOnce(error);
 
         await expect(listProjects()).rejects.toMatchObject({ cause: error });
+
+        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
+            method: "GET",
+            url: "https://api.example.test/projects?view=summary&workspace=personal",
+            operation: "projects.manage",
+        });
     });
 });
 

@@ -16,6 +16,7 @@ import {
 import { decryptString } from "../../mcp/client";
 import { driveDb } from "./googleDriveDb";
 import { personalConnectorOwner } from "../../connectorOwner";
+import * as reports from "../../observability/report";
 
 beforeEach(() => {
     // This file runs as the operator who offered Drive; see
@@ -26,6 +27,7 @@ beforeEach(() => {
     vi.stubEnv("MCP_CONNECTORS_ENCRYPTION_SECRET", "test-encryption-key");
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(reports, "reportError").mockReturnValue(null);
 });
 afterEach(() => {
     vi.unstubAllEnvs();
@@ -442,6 +444,39 @@ describe("Google Drive OAuth lifecycle", () => {
         );
         expect(result.event.error).toMatch(/not permitted/);
     });
+    it.each([undefined, 403, 429, 503])(
+        "logs an unreported read error at warning level (status %s)",
+        async (status) => {
+            const store = await connected();
+            vi.stubGlobal("fetch", vi.fn(async () => json({}, status)));
+            const result = await executeGoogleDriveToolCall(
+                personalConnectorOwner("u1"),
+                status === undefined ? "google_drive_search" : "google_drive_list_recent",
+                {},
+                store.db,
+            );
+            expect(result.event.status).toBe("error");
+            if (status === 503) {
+                expect(reports.reportError).toHaveBeenCalledExactlyOnceWith(
+                    expect.objectContaining({ status: 503 }),
+                    { level: "warning" },
+                );
+                const [error] = vi.mocked(reports.reportError).mock.calls[0];
+                expect(console.error).toHaveBeenCalledWith(
+                    "[google-drive] tool call failed",
+                    expect.objectContaining({ error }),
+                );
+                expect(console.warn).not.toHaveBeenCalled();
+            } else {
+                expect(reports.reportError).not.toHaveBeenCalled();
+                expect(console.error).not.toHaveBeenCalled();
+                expect(console.warn).toHaveBeenCalledWith(
+                    "[google-drive] tool call failed",
+                    expect.objectContaining({ error: expect.any(Error) }),
+                );
+            }
+        },
+    );
     it("hides and refuses a turned-off connection or tool, and keeps settings per user", async () => {
         const store = await connected();
         const fetchMock = vi.fn(async () => json({ files: [] }));

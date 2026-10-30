@@ -149,7 +149,9 @@ describe("protectInternalErrorResponses", () => {
       request_id: "req-thrown-123",
     });
     expect(res.text).not.toContain("database password");
-    expect(consoleError).toHaveBeenCalledOnce();
+    // One detailed server line plus one sanitized report line.
+    expect(consoleError.mock.calls.map((call) => call[0] === "[report]").sort()).toEqual([false, true]);
+    expect(JSON.stringify(consoleError.mock.calls.filter((call) => call[0] === "[report]"))).not.toContain("database password");
   });
 
   it("returns a safe 400 response for malformed JSON", async () => {

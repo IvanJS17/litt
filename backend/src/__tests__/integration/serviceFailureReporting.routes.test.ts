@@ -33,7 +33,7 @@ vi.mock("../../middleware/auth", () => ({
 import { chatRouter } from "../../modules/chat/chat.routes";
 import { quickActionsRouter } from "../../modules/quick-actions/quickActions.routes";
 import { workflowAddonsRouter } from "../../modules/workflows/workflowAddons.routes";
-import { diagnosticErrorTags } from "../../lib/errorTags";
+import { diagnosticErrorTags } from "../../lib/observability/diagnostics";
 import { SCHEMA_OUT_OF_DATE_MESSAGE } from "../../lib/httpError";
 
 // What PostgREST answers for a table that the database does not have (a

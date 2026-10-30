@@ -22,6 +22,18 @@ vi.mock("../../lib/convert", () => ({
     convertedPdfKey: (userId: string, docId: string) =>
         `converted-pdfs/${userId}/${docId}.pdf`,
 }));
+const reports = vi.hoisted(() => ({
+    reportError: vi.fn(),
+    setOperation: vi.fn(),
+    markStage: vi.fn(),
+}));
+vi.mock("../../lib/observability/report", async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import("../../lib/observability/report")>();
+    reports.reportError.mockImplementation(actual.reportError);
+    return { ...actual, ...reports };
+});
+import { diagnosticErrorTags } from "../../lib/observability/diagnostics";
 
 import {
     runConversionJob,
@@ -94,6 +106,9 @@ beforeEach(() => {
     downloadFile.mockReset();
     uploadFile.mockReset();
     docxToPdf.mockReset();
+    reports.reportError.mockClear();
+    reports.setOperation.mockClear();
+    reports.markStage.mockClear();
 });
 
 describe("runConversionJob", () => {
@@ -122,6 +137,29 @@ describe("runConversionJob", () => {
         });
         const docUpdate = db.calls.find((c) => c.table === "documents");
         expect(docUpdate?.update.status).toBe("ready");
+        // Every event this job produces is tagged with the flow and the
+        // stage it reached, on either transport (BullMQ or db_jobs).
+        expect(reports.setOperation).toHaveBeenCalledWith("documents.convert");
+        expect(reports.markStage).toHaveBeenCalledWith("docx-to-pdf");
+    });
+
+    it("reports a non-fatal conversion failure with the converter's own kind", async () => {
+        const { AppError } = await import("../../lib/appError.js");
+        downloadFile.mockResolvedValue(new ArrayBuffer(8));
+        docxToPdf.mockRejectedValue(
+            new AppError("conversion.failed", "LibreOffice exited 1: PRIVATE.docx"),
+        );
+        vi.spyOn(console, "error").mockImplementation(() => {});
+
+        await runConversionJob(JOB, makeDb() as never);
+
+        expect(reports.reportError).toHaveBeenCalledOnce();
+        const [reported, context] = reports.reportError.mock.calls[0]!;
+        expect(diagnosticErrorTags(reported)).toEqual({
+            error_kind: "conversion.failed",
+        });
+        expect(JSON.stringify(context)).not.toContain("PRIVATE");
+        vi.restoreAllMocks();
     });
 
     it("queues late output for cleanup when its version was deleted or replaced", async () => {

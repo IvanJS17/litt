@@ -316,8 +316,12 @@ case "$CMD" in
         log "Starting compose project '$PROJECT'"
         # Images embed the commit they are built from (AGPL §13 source link)
         # and refuse to build without it; a local stack uses this checkout's.
-        GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || true)}"
-        export GIT_SHA
+        # GIT_SHA is also the build arg every image records as its source
+        # revision, so a running container can be mapped to its code.
+        if [ -z "${GIT_SHA:-}" ] && command -v git >/dev/null 2>&1; then
+            GIT_SHA="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+            export GIT_SHA
+        fi
         exec docker compose -p "$PROJECT" -f "$COMPOSE_FILE" up ${PASSTHRU[@]+"${PASSTHRU[@]}"}
         ;;
     down)

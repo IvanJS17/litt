@@ -22,9 +22,16 @@ import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 
 import { resolveContentOrgId } from "../../lib/access";
+import { AppError } from "../../lib/appError";
 import { recordAudit } from "../../lib/audit";
 import { enqueueStorageCleanup } from "../../lib/dbq/enqueue";
+import { runIsolated } from "../../lib/dbq/jobScope";
 import { convertedPdfKey, officeFileToPdf } from "../../lib/convert";
+import {
+  markStage,
+  reportError,
+  setOperation,
+} from "../../lib/observability/report";
 import {
   createPollFailureGate,
   type PollFailureGate,
@@ -115,23 +122,21 @@ const TERMINAL_UPLOAD_ERROR_CODES = new Set([
  * stop, mark the file failed, and clean up whatever bytes this job wrote —
  * never to recreate the row.
  */
-class DeletedDocumentError extends Error {
+class DeletedDocumentError extends AppError {
   /** Objects this job uploaded that nothing will reference now. */
   readonly orphanedKeys: string[];
 
   constructor(documentId: string, orphanedKeys: (string | null)[] = []) {
-    super(`document_deleted:${documentId}`);
-    this.name = "DeletedDocumentError";
+    super("upload.document_deleted", `document_deleted:${documentId}`);
     this.orphanedKeys = orphanedKeys.filter(
       (key): key is string => typeof key === "string" && key.length > 0,
     );
   }
 }
 
-class ChangedDocumentError extends Error {
+class ChangedDocumentError extends AppError {
   constructor(readonly orphanedKeys: string[] = []) {
-    super("document_changed");
-    this.name = "ChangedDocumentError";
+    super("upload.document_changed", "document_changed");
   }
 }
 
@@ -211,6 +216,7 @@ async function buildPdfRendition(args: {
   if (args.fileType === "pdf") return args.sourceStoragePath;
   if (!shouldConvertToPdf(args.fileType)) return null;
   try {
+    markStage("conversion");
     const pdfPath = await officeFileToPdf(
       args.sourceFilePath,
       args.workingDirectory,
@@ -227,6 +233,16 @@ async function buildPdfRendition(args: {
     // that fails is either a LibreOffice regression or a malformed file we
     // should know about — the log line names the file type so a format-wide
     // break is visible at a glance.
+    reportError(error, {
+      level: "warning",
+      tags: {
+        component: "upload-worker",
+        stage: "conversion",
+        file_type: args.fileType,
+      },
+      extra: { document_id: args.documentId },
+      fingerprint: ["upload-conversion-failed", args.fileType],
+    });
     console.error("[upload-worker] document conversion failed", {
       documentId: args.documentId,
       fileType: args.fileType,
@@ -309,7 +325,9 @@ async function requireSealedFile(
   } catch (error) {
     await removeTemporaryArtifact(directory);
     if (error instanceof StorageOperationError) {
-      throw new Error("sealed_upload_not_found", { cause: error });
+      throw new AppError("upload.sealed_missing", "sealed_upload_not_found", {
+        cause: error,
+      });
     }
     throw error;
   }
@@ -788,6 +806,7 @@ async function removeFailedCreatedDocument(
   file: UploadFileRow,
 ): Promise<void> {
   if (session.purpose !== "document_create") return;
+  markStage("failed-document-remove");
   await deleteFilesBestEffort(
     [
       storageKey(session.user_id, file.resource_id, file.filename),
@@ -810,6 +829,8 @@ export async function processUploadJob(
   jobId: string,
   workerId: string,
 ): Promise<void> {
+  setOperation("documents.upload.complete");
+  markStage("claim");
   const { data: job, error: jobError } = await db
     .from("upload_processing_jobs")
     .select("id, session_id, file_id, attempts, locked_by")
@@ -854,6 +875,11 @@ export async function processUploadJob(
       return;
     }
     void heartbeatJob(db, jobId, workerId).catch((error) => {
+      reportError(error, {
+        level: "warning",
+        tags: { component: "upload-worker", stage: "heartbeat" },
+        extra: { job_id: jobId, worker_id: workerId },
+      });
       console.error("[upload-worker] heartbeat failed", { jobId, error });
     });
   }, UPLOAD_WORKER_HEARTBEAT_MS);
@@ -877,6 +903,7 @@ export async function processUploadJob(
 
       let result: unknown;
       try {
+        markStage("process-file");
         result = await processUploadFile(db, typedSession, file);
       } catch (error) {
         // A failed timer heartbeat makes ownership uncertain. Re-prove the
@@ -886,6 +913,18 @@ export async function processUploadJob(
         // These failures cannot be fixed by retrying the same upload.
         terminalProcessingFailure = error instanceof DeletedDocumentError || error instanceof ChangedDocumentError;
         if (!(error instanceof ChangedDocumentError)) {
+          reportError(error, {
+            tags: {
+              component: "upload-worker",
+              stage: "process-file",
+              purpose: typedSession.purpose,
+            },
+            extra: {
+              job_id: jobId,
+              session_id: typedSession.id,
+              file_id: file.id,
+            },
+          });
           console.error("[upload-worker] file processing failed", {
             jobId,
             sessionId: typedSession.id,
@@ -931,6 +970,7 @@ export async function processUploadJob(
           .eq("id", file.id)
           .eq("session_id", typedSession.id);
         if (error) throw error;
+        markStage("sealed-source-after-process");
         await deleteFileBestEffort(file.sealed_storage_path, "sealed-source-after-process");
         await heartbeatJob(db, jobId, workerId);
       }
@@ -990,6 +1030,7 @@ export async function processUploadJob(
       .select("sealed_storage_path")
       .eq("session_id", typedSession.id)
       .eq("status", "error");
+    markStage("failed-file-sealed");
     for (const failedFile of failedFiles ?? []) {
       if (failedFile.sealed_storage_path) {
         await deleteFileBestEffort(failedFile.sealed_storage_path, "failed-file-sealed");
@@ -1101,6 +1142,7 @@ export async function cleanupUploadSessions(db: Db): Promise<void> {
         continue;
       }
       // Null/empty paths are skipped inside; one warning per file at most.
+      markStage("session-expiry");
       await deleteFilesBestEffort(
         [file.staging_storage_path, file.sealed_storage_path],
         "session-expiry",
@@ -1174,8 +1216,9 @@ function startUploadProcessingWorker(options: {
     try {
       const db = createServerSupabase();
       if (options.runCleanup && Date.now() - lastCleanupAt >= 60_000) {
+        // Own scope: the stages cleanup marks must not land on a later job.
         await Promise.all([
-          cleanupUploadSessions(db),
+          runIsolated(() => cleanupUploadSessions(db)),
           cleanupUploadProcessingTempFiles(),
         ]);
         lastCleanupAt = Date.now();
@@ -1190,7 +1233,10 @@ function startUploadProcessingWorker(options: {
         schedule(UPLOAD_WORKER_POLL_MS);
         return;
       }
-      await processUploadJob(db, jobId, workerId);
+      // Each job in its own diagnostic scope: several of these loops
+      // share the process, and the operation/stages one job records must not
+      // land on another's failure.
+      await runIsolated(() => processUploadJob(db, jobId, workerId));
       failures.success();
       schedule(0);
     } catch (thrown) {
@@ -1201,6 +1247,10 @@ function startUploadProcessingWorker(options: {
       if (verdict.report) {
         // The Error object itself, not its message: the log keeps the stack
         // and the structured code.
+        reportError(error, {
+          tags: { component: "upload-worker", stage: "iteration" },
+          extra: { worker_id: workerId },
+        });
         console.error("[upload-worker] iteration failed", { workerId, error });
       }
       schedule(verdict.delayMs);
@@ -1226,8 +1276,8 @@ export function startUploadProcessingWorkers(options: {
   // One report per failure class per PROCESS, quiet repeats, backed-off
   // polling. Every loop hits the same database, so one broken RPC fails all
   // of them on every tick; a gate per loop would still file `concurrency`
-  // reports, and none at all meant one per tick for hours (MIKE-BACKEND-K:
-  // 2,451 events from one worker thread).
+  // reports, and none at all meant one per tick for hours (2,451 entries
+  // from one worker thread).
   const failures = createPollFailureGate({
     label: "[upload-worker] iteration",
     baseDelayMs: UPLOAD_WORKER_POLL_MS,

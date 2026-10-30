@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diagnosticErrorTags } from "./errorTags";
+import { diagnosticErrorTags } from "./diagnostics";
 
 describe("diagnosticErrorTags", () => {
   it("keeps a known storage operation and its dependency cause", () => {

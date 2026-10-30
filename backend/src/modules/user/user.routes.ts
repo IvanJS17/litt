@@ -7,6 +7,8 @@ import { workspaceConnectorStatus, workspaceToolList } from "../../lib/integrati
 // mutating /user route so the service layer never has to know about MFA.
 
 import { safeError } from "../../lib/safeError";
+import { AppError, withKind, type ErrorKind } from "../../lib/appError";
+import { reportError, setOperation } from "../../lib/observability/report";
 import {
     cancelGoogleDriveOAuth,
     completeGoogleDriveOAuth,
@@ -27,7 +29,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase, type Db } from "../../lib/supabase";
-import { INTERNAL_ERROR_CODE, sendInternalError } from "../../lib/httpError";
+import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import { dbJobsEnabled } from "../../lib/dbq/runner";
 import { buildContentDisposition } from "../../lib/storage";
@@ -65,7 +67,6 @@ import {
     deleteUserChats,
     deleteUserProjectsData,
     deleteUserTabularReviews,
-    errorMessage,
     chatCredentialChoices,
     getApiKeyStatus,
     getCustomInstructions,
@@ -230,6 +231,31 @@ function mcpOAuthPopupHeaders(nonce: string) {
         // anything beyond its inline postMessage script.
         "Cross-Origin-Opener-Policy": "unsafe-none",
     };
+}
+
+/**
+ * A Google route that answers 4xx with fixed text for a failure that may
+ * still be ours (a query or crypto failure behind "try again"): reported as
+ * a warning unless it is one of the integration's own user-facing answers.
+ * These calls carry credentials, so the log keeps the redacted category
+ * only; console.warn, because the event (when there is one) is already sent.
+ */
+function warnGoogleRoute(
+    label: string,
+    error: unknown,
+    kind: ErrorKind,
+    context: Record<string, unknown> = {},
+): void {
+    if (
+        !(error instanceof GoogleDriveUserError) &&
+        !(error instanceof GoogleWorkspaceError)
+    ) {
+        reportError(withKind(error, kind, label), {
+            level: "warning",
+            tags: { component: "http" },
+        });
+    }
+    console.warn(label, { ...context, error: safeError(error) });
 }
 
 // POST /user/profile
@@ -435,7 +461,7 @@ userRouter.post("/onboarding", requireAuth, asyncRoute(async (req, res) => {
     const userId = res.locals.userId as string;
     const db = createServerSupabase();
     const result = await completeUserOnboarding(db, userId, parsed.update);
-    if (!result.ok) return void res.status(500).json({ detail: result.detail });
+    if (!result.ok) return void sendInternalError(res, result.error);
     res.json(result.body);
 }));
 
@@ -448,7 +474,7 @@ userRouter.post("/security/password-set", requireAuth, asyncRoute(async (_req, r
     if (!result.ok) {
         if (result.kind === "not_recorded")
             return void res.status(409).json({ detail: result.detail });
-        return void res.status(500).json({ detail: result.detail });
+        return void sendInternalError(res, result.error);
     }
     res.json(result.body);
 }));
@@ -477,6 +503,7 @@ userRouter.patch(
 
 // GET /user/api-keys
 userRouter.get("/api-keys", requireAuth, asyncRoute(async (_req, res) => {
+    setOperation("settings.keys");
     const userId = res.locals.userId as string;
     const db = createServerSupabase();
     const status = await getApiKeyStatus(db, userId);
@@ -504,6 +531,7 @@ userRouter.put(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("settings.keys");
         const userId = res.locals.userId as string;
         const provider = normalizeApiKeyProvider(req.params.provider);
         if (!provider)
@@ -540,6 +568,7 @@ userRouter.patch(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("settings.keys");
         const provider = normalizeApiKeyProvider(req.params.provider);
         if (
             !provider ||
@@ -561,6 +590,7 @@ userRouter.patch(
 
 // GET /user/mcp-connectors
 userRouter.get("/mcp-connectors", requireAuth, asyncRoute(async (req, res) => {
+    setOperation("settings.connectors");
     const owner = await connectorOwner(req, res);
     if (!owner) return;
     const db = createServerSupabase();
@@ -574,6 +604,7 @@ userRouter.get(
     "/mcp-connectors/:connectorId",
     requireAuth,
     asyncRoute(async (req, res) => {
+        setOperation("settings.connectors");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const result = await getMcpConnector(
@@ -595,6 +626,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("mcp.connect");
         const owner = await connectorOwner(req, res);
         if (!owner) return;
         const name = typeof req.body?.name === "string" ? req.body.name : "";
@@ -646,6 +678,7 @@ userRouter.patch(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("settings.connectors");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const body = req.body ?? {};
@@ -701,6 +734,7 @@ userRouter.delete(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("settings.connectors");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const result = await deleteMcpConnector(
@@ -719,6 +753,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("mcp.connect");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const redirectUri = `${backendPublicUrl(req)}/user/mcp-connectors/oauth/callback`;
@@ -746,6 +781,7 @@ userRouter.post(
 
 // GET /user/mcp-connectors/oauth/callback
 userRouter.get("/mcp-connectors/oauth/callback", asyncRoute(async (req, res) => {
+    setOperation("mcp.connect");
     const nonce = crypto.randomBytes(16).toString("base64");
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const code = typeof req.query.code === "string" ? req.query.code : "";
@@ -773,8 +809,17 @@ userRouter.get("/mcp-connectors/oauth/callback", asyncRoute(async (req, res) => 
         // gets both the raw message and the concise diagnostic — the SDK
         // embeds entire server response bodies, including HTML error pages,
         // in its messages, so the concise form is what is actually readable.
-        console.error("[user/mcp-connectors] oauth callback failed", {
-            error: errorMessage(err),
+        // A consent the user denied (`error` in the query) is theirs, not an
+        // event; everything else is reported once, under its kind, before the
+        // log line below carries the full local detail.
+        const failure = new AppError(
+            "mcp.setup_failed",
+            "connector OAuth callback failed",
+            { cause: err },
+        );
+        if (!error) reportError(failure, { level: "warning", tags: { component: "http" } });
+        (error ? console.warn : console.error)("[user/mcp-connectors] oauth callback failed", {
+            error: failure,
             diagnostic: conciseMcpErrorMessage(err),
             stateHash: shortHash(state),
             hasCode: !!code,
@@ -809,7 +854,7 @@ userRouter.get("/mcp-connectors/oauth/callback", asyncRoute(async (req, res) => 
 
 // GET /user/integrations/google-drive
 userRouter.get("/integrations/google-drive", requireAuth, async (req, res) => {
-    const userId = res.locals.userId as string;
+    setOperation("google.drive");
     const owner = await connectorOwner(req, res);
     if (!owner) return;
     try {
@@ -828,11 +873,10 @@ userRouter.get("/integrations/google-drive", requireAuth, async (req, res) => {
             redirectUri,
         });
     } catch (err) {
-        console.error("[google-drive] status failed", {
-            userId,
-            error: safeError(err),
-        });
-        res.status(500).json({ detail: "Failed to load Google Drive status." });
+        sendInternalError(
+            res,
+            withKind(err, "db.query_failed", "Google Drive status could not be loaded"),
+        );
     }
 });
 
@@ -842,7 +886,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     async (req, res) => {
-        const userId = res.locals.userId as string;
+        setOperation("google.drive");
         const owner = await connectorOwner(req, res);
         if (!owner) return;
         try {
@@ -860,10 +904,6 @@ userRouter.post(
                 return void res
                     .status(404)
                     .json({ code: err.code, detail: err.message });
-            console.error("[google-drive] oauth start failed", {
-                userId,
-                error: safeError(err),
-            });
             // Same allowlist as the MCP start route: only the repo-authored
             // setup instructions reach the browser verbatim. A DB or crypto
             // failure here must not echo its message to the client.
@@ -872,6 +912,7 @@ userRouter.post(
                     .status(400)
                     .json({ code: err.code, detail: err.message });
             }
+            warnGoogleRoute("[google-drive] oauth start failed", err, "google.auth_failed", { userId: owner.userId });
             res.status(400).json({
                 detail: "Google Drive authorization could not be started.",
             });
@@ -908,6 +949,7 @@ userRouter.get(
     requireAuth,
     requireMfaIfEnrolled,
     async (req, res) => {
+        setOperation("google.drive");
         const nonce = crypto.randomBytes(16).toString("base64");
         const state =
             typeof req.query.state === "string" ? req.query.state : "";
@@ -930,10 +972,12 @@ userRouter.get(
                     ),
                 );
         } catch (err) {
-            console.error("[google-drive] oauth callback failed", {
-                error: safeError(err),
-                hasCode: !!code,
-            });
+            // A consent the user denied is theirs, not an event.
+            if (!error)
+                warnGoogleRoute("[google-drive] oauth callback failed", err, "google.auth_failed", {
+                    hasCode: !!code,
+                });
+            else console.warn("[google-drive] oauth callback denied", { hasCode: !!code });
             res.status(400)
                 .set(mcpOAuthPopupHeaders(nonce))
                 .type("html")
@@ -956,20 +1000,17 @@ userRouter.delete(
     requireAuth,
     requireMfaIfEnrolled,
     async (req, res) => {
-        const userId = res.locals.userId as string;
+        setOperation("google.drive");
         const owner = await connectorOwner(req, res);
         if (!owner) return;
         try {
             await disconnectGoogleDrive(owner, createServerSupabase());
             res.status(204).end();
         } catch (err) {
-            console.error("[google-drive] disconnect failed", {
-                userId,
-                error: safeError(err),
-            });
-            res.status(500).json({
-                detail: "Failed to disconnect Google Drive.",
-            });
+            sendInternalError(
+                res,
+                withKind(err, "db.query_failed", "Google Drive could not be disconnected"),
+            );
         }
     },
 );
@@ -982,7 +1023,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
-        const userId = res.locals.userId as string;
+        setOperation("google.drive");
         res.set("Cache-Control", "no-store");
         const owner = await connectorOwner(req, res);
         if (!owner) return;
@@ -1009,16 +1050,13 @@ userRouter.post(
                         detail: err.message,
                     });
             }
-            // Token refresh talks to Google with credentials; log the
-            // redacted category only, never the provider's message.
-            console.error("[google-drive] picker session failed", {
-                userId,
-                error: safeError(err),
-            });
-            res.status(500).json({
-                code: INTERNAL_ERROR_CODE,
-                detail: "Google Drive could not be opened. Try again.",
-            });
+            // Token refresh talks to Google with credentials: the event
+            // carries the kind and Google's status, never the provider's
+            // message.
+            sendInternalError(
+                res,
+                withKind(err, "google.api_failed", "Google Drive Picker session failed"),
+            );
         }
     }),
 );
@@ -1029,6 +1067,7 @@ userRouter.patch(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("google.drive");
         const userId = res.locals.userId as string;
         for (const key of ["enabled", "requireWriteApproval", "readOnly"]) {
             if (req.body?.[key] !== undefined && typeof req.body[key] !== "boolean")
@@ -1045,10 +1084,7 @@ userRouter.patch(
             );
             res.json(await getGoogleDriveStatus(owner, db));
         } catch (err) {
-            console.error("[google-drive] settings update failed", {
-                userId,
-                error: safeError(err),
-            });
+            warnGoogleRoute("[google-drive] settings update failed", err, "db.query_failed", { userId });
             res.status(409).json({
                 detail: "Google Drive settings could not be saved. Reload and try again.",
             });
@@ -1062,6 +1098,7 @@ userRouter.patch(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("google.drive");
         const userId = res.locals.userId as string;
         if (typeof req.body?.enabled !== "boolean")
             return void res
@@ -1079,10 +1116,7 @@ userRouter.patch(
             );
             res.json(await getGoogleDriveStatus(owner, db));
         } catch (err) {
-            console.error("[google-drive] tool update failed", {
-                userId,
-                error: safeError(err),
-            });
+            warnGoogleRoute("[google-drive] tool update failed", err, "db.query_failed", { userId });
             res.status(409).json({
                 detail: "Google Drive tool settings could not be saved. Reload and try again.",
             });
@@ -1096,6 +1130,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("google.drive");
         const state = req.body?.state;
         if (typeof state !== "string" || !/^[A-Za-z0-9_-]{32}$/.test(state)) {
             return void res
@@ -1114,13 +1149,10 @@ userRouter.post(
             );
             res.status(204).end();
         } catch (error) {
-            console.error(
-                "[google-drive] cancellation failed",
-                safeError(error),
+            sendInternalError(
+                res,
+                withKind(error, "db.query_failed", "Google Drive authorization could not be cancelled"),
             );
-            res.status(500).json({
-                detail: "Google Drive authorization could not be cancelled. Close the Google window and try again.",
-            });
         }
     }),
 );
@@ -1131,16 +1163,22 @@ for (const provider of ["gmail", "google-calendar"] as const) {
     const path = `/integrations/${provider}`;
     const callback = (req: Parameters<typeof backendPublicUrl>[0]) =>
         `${backendPublicUrl(req)}/user${path}/oauth/callback`;
-    const report = (error: unknown) => {
-        console.error("[google-workspace] request failed", safeError(error));
-        return error instanceof GoogleWorkspaceError
+    const operation = provider === "gmail" ? "google.gmail" : "google.calendar";
+    /** The user's answer: the integration's own fixed text, or a generic one. */
+    const message = (error: unknown) =>
+        error instanceof GoogleWorkspaceError
             ? error.message
             : "Google integration request failed. Please try again.";
+    /** A 4xx answer whose cause may still be ours: reported as a warning. */
+    const report = (error: unknown, kind: ErrorKind) => {
+        warnGoogleRoute("[google-workspace] request failed", error, kind, { provider });
+        return message(error);
     };
     userRouter.get(
         path,
         requireAuth,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             let redirectUri: string | null = null;
             try {
                 redirectUri = callback(req);
@@ -1159,7 +1197,10 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                     redirectUri,
                 });
             } catch (error) {
-                res.status(500).json({ detail: report(error) });
+                sendInternalError(
+                    res,
+                    withKind(error, "db.query_failed", "Google connector status could not be loaded"),
+                );
             }
         }),
     );
@@ -1168,6 +1209,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             const owner = await connectorOwner(req, res);
             if (!owner) return;
             try {
@@ -1190,14 +1232,15 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                 // As for Slack and Drive: only repo-authored setup steps reach
                 // the browser verbatim, under their machine-readable code.
                 if (error instanceof ConnectorSetupError) {
-                    console.error("[google-workspace] setup required", {
+                    // Operator setup, not a fault: a log line, never an event.
+                    console.warn("[google-workspace] setup required", {
                         provider,
                     });
                     return void res
                         .status(400)
                         .json({ code: error.code, detail: error.message });
                 }
-                res.status(400).json({ detail: report(error) });
+                res.status(400).json({ detail: report(error, "google.auth_failed") });
             }
         }),
     );
@@ -1206,6 +1249,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             const nonce = crypto.randomBytes(16).toString("base64");
             res.set(mcpOAuthPopupHeaders(nonce)).type(
                 "html",
@@ -1233,7 +1277,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                     ),
                 );
             } catch (error) {
-                report(error);
+                report(error, "google.auth_failed");
                 res.status(400).send(
                     mcpOAuthPopupHtml(
                         {
@@ -1251,6 +1295,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             if (
                 typeof req.body?.state !== "string" ||
                 !/^[A-Za-z0-9_-]{32}$/.test(req.body.state)
@@ -1269,7 +1314,10 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                 );
                 res.status(204).end();
             } catch (error) {
-                res.status(500).json({ detail: report(error) });
+                sendInternalError(
+                    res,
+                    withKind(error, "db.query_failed", "Google authorization could not be cancelled"),
+                );
             }
         }),
     );
@@ -1279,6 +1327,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             const body = req.body ?? {};
             for (const key of ["enabled", "requireWriteApproval", "readOnly"]) {
                 if (body[key] !== undefined && typeof body[key] !== "boolean")
@@ -1299,7 +1348,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                     await workspaceConnectorStatus(db, owner, provider),
                 );
             } catch (error) {
-                res.status(409).json({ detail: report(error) });
+                res.status(409).json({ detail: report(error, "db.query_failed") });
             }
         }),
     );
@@ -1309,6 +1358,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             const toolName = String(req.params.toolName);
             if (typeof req.body?.enabled !== "boolean")
                 return void res
@@ -1331,7 +1381,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                     await workspaceConnectorStatus(db, owner, provider),
                 );
             } catch (error) {
-                res.status(409).json({ detail: report(error) });
+                res.status(409).json({ detail: report(error, "db.query_failed") });
             }
         }),
     );
@@ -1340,6 +1390,7 @@ for (const provider of ["gmail", "google-calendar"] as const) {
         requireAuth,
         requireMfaIfEnrolled,
         asyncRoute(async (req, res) => {
+            setOperation(operation);
             const owner = await connectorOwner(req, res);
             if (!owner) return;
             try {
@@ -1350,7 +1401,10 @@ for (const provider of ["gmail", "google-calendar"] as const) {
                 );
                 res.status(204).end();
             } catch (error) {
-                res.status(500).json({ detail: report(error) });
+                sendInternalError(
+                    res,
+                    withKind(error, "db.query_failed", "Google connector could not be disconnected"),
+                );
             }
         }),
     );
@@ -1361,6 +1415,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("mcp.refresh");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const result = await refreshMcpConnectorTools(
@@ -1394,6 +1449,7 @@ userRouter.patch(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("settings.connectors");
         const userId = res.locals.userId as string;
         const parsed = readBooleanBodyField(req.body, "enabled");
         if (!parsed.ok)
@@ -1423,6 +1479,7 @@ userRouter.delete(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (_req, res) => {
+        setOperation("account.delete");
         const userId = res.locals.userId as string;
         const token = res.locals.token as string | undefined;
         const db = createServerSupabase();
@@ -1586,6 +1643,7 @@ userRouter.post(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("export.build");
         const userId = res.locals.userId as string;
         const userEmail = res.locals.userEmail as string | undefined;
         const body = (req.body ?? {}) as {
@@ -1629,8 +1687,11 @@ userRouter.post(
             type: parsed.type,
             payload,
         });
-        if (!result.ok)
-            return void res.status(result.forbidden ? 403 : 500).json({ detail: result.detail });
+        if (!result.ok) {
+            if (result.forbidden)
+                return void res.status(403).json({ detail: result.detail });
+            return void sendInternalError(res, result.error);
+        }
         res.status(202).json({ export_id: result.exportId });
     }),
 );
@@ -1642,6 +1703,7 @@ userRouter.get(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("export.build");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const result = await getUserExportStatus(
@@ -1664,6 +1726,7 @@ userRouter.get(
     requireAuth,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
+        setOperation("export.build");
         const userId = res.locals.userId as string;
         const db = createServerSupabase();
         const result = await loadUserExportArtifact(

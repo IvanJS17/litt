@@ -946,3 +946,60 @@ merge commit, never a squash, so upstream stays an ancestor of `main`.
 
 Close #17–#22 once this branch is in `main`. Dependabot reopens the two
 deferred majors on its own.
+
+## 19. Cycle 2026-10-29
+
+Pin `d4fd89996e638f66ca55331cb787ce38e11975e1` →
+`d601932abecb7f6f5f01a863b939765ef2f3075d` (55 non-merge commits). Branch
+`sync/upstream-cycle-20261029` from `main` `73de2cf2`. The cycle opened on
+`4355fdf362108c948fc39b2d505f27758776b72d` (51 commits, merged first);
+upstream gained four commits while it ran, merged by a second
+`git merge --no-ff` of `d601932a`. Both merge commits keep upstream as an
+ancestor; the branch is integrated with a merge commit, never a squash.
+
+### 19.1 Classification
+
+| Upstream commits | Capability (§16.3 row) | Disposition | What LiTT keeps |
+| --- | --- | --- | --- |
+| `2619ea72` #721, `15d51679`, `3ce96cf9`, `6cafeff8`, `dde73c39`, `8c5d2c43` parser isolation | Documents, conversion and extraction | adopt | Document parsing runs in bounded child processes with admission limits; uploads get their own thread; stalled storage downloads abort. Matter and organization access checks are unchanged |
+| `a465c4b1`, `46dc4b5c`, `acf7b7a2`, `c93120f3`, `a4d8b24d`, `8c5733ef`, `dc9c73b6`, `7eef1a2d`, `877792b8`, `0454f331`, `df8b3593`, `a208530c`, `f4459d7d`, `141e0aa2`, `a543a681`, `1fd07e0f`, `68c242c1`, `89d9907a`, `0ebe949f`, `4ea69175`, `5750e093`, `a0bc1662`, `318b7416`, `608e207b`, `83587c44`, `56b62a68`, `5bd4cedf`, `1dd7c6f1`, `ee65103c` error identity (operation, kind, stage) | Third-party telemetry | adapt: classification adopted, reporter local | `AppError`, `describeError`, failure kinds, operation/stage labels, retry ownership and best-effort cleanup reporting are adopted. Every call site that upstream sends to Sentry goes to a local reporter instead: `backend/src/lib/observability/report.ts` writes one sanitized, allowlisted line to the server log (no messages, request data or stacks); `frontend/src/app/lib/errorReporting.ts` and `word-addin/src/taskpane/lib/errorReporting.ts` only mark the failure as handled. No SDK, DSN, environment entry or network egress |
+| `01b33d22`, `927f96b2` Node warnings to Sentry; `71cd0286`, `95f2711c` source-map upload into image builds; `b611f3f5` Sentry docs | Third-party telemetry | reject (invariant: no third-party telemetry) | Sentry modules, `instrument.ts`, Sentry configs and tests, `docs/observability.md`, the `SENTRY_*` build args and the `SENTRY_AUTH_TOKEN` build secret in `docker-compose.yml`, `frontend/Dockerfile`, `word-addin/Dockerfile` and `.env.example` are not taken |
+| `20261027_01_document_text_failed_jobs` (part of the extraction series) | Migrations | adopt | Upstream date/ordinal stem unused by LiTT; added to `schema.sql` and the `schema_migrations` list |
+| `f6488bac`, `c2fb60eb`, `4c65b1cb`, `3208b273`, `8cee46bb`, `b522b75f`, `705fee83`, `ead870a2`, `d31a5ec5`, `7f0868a6`, `7bda0592`, `78c96293`, `7797cadb`, `9831f558`, `7ae77b6a` dependencies and audit gate | Dependencies and supply chain | adopt | Dependency-scoped audit exceptions, google-auth-library 11 with `@ai-sdk/google-vertex`, the frontend's TypeScript pinned to 5.x, decode-uri-component 0.5.1 (same lockfile hunk as LiTT PR #32). `@sentry/*` packages are removed from every `package.json` and lockfile |
+
+### 19.2 Conflicts and adaptations
+
+- The first merge had 80 conflicting paths. Sentry-only files that LiTT
+  deleted in S7 (`observability/sentry*.ts`, `sentryTestRoute.test.ts`,
+  `docker-images.yml`) and CourtListener (`courtlistener.ts`) stay deleted;
+  `storageFs.test.ts` stays deleted with the filesystem adapter LiTT does not
+  ship.
+- In the conflicting hunks LiTT's governed BYOK route, organization and
+  matter tenancy, insert-only audit, LiTT branding and the `GIT_SHA` source
+  offer were kept on top of upstream's error classification.
+- About 28 upstream comments mention a "console bridge" (the Sentry
+  console integration) that LiTT does not have. They are text only and are
+  left as upstream wrote them to keep future merges small.
+- `rg -iw sentry` over runtime code and `package.json` files: 0 (a plain
+  `rg -i` also matches `ProgressEntry` and `webkitGetAsEntry`). The other
+  hits are `.gitleaks.toml` (a fixture description already on `main`),
+  `AGENTS.md` and documents that state Sentry is absent or record history.
+
+### 19.3 Owner-visible changes
+
+| What the lawyer sees | Recommendation |
+| --- | --- |
+| A large or broken document no longer slows down or stops the rest of the app while it is read; it fails on its own with a clear message | Adopt |
+| Error messages name what failed (upload, conversion, Drive, assistant) more consistently | Adopt |
+| Upstream would send error reports to an outside service (Sentry) | Not applied: LiTT sends no data to third parties |
+
+### 19.4 Dependabot
+
+| PR | Group | Result |
+| --- | --- | --- |
+| #27 | word-addin webpack 5.112.2 | covered by the merge |
+| #28 | frontend development | baseline-browser-mapping and eslint-config-next covered by the merge; TypeScript 7.0.2 not applied, upstream pins the frontend on 5.x (`9831f558`) |
+| #29 | frontend production | covered by the merge, except the `@opennextjs/cloudflare` floor (^1.20.13), applied in its own commit |
+| #30 | backend production | covered by the merge (google-auth-library 11 included) |
+
+Close #27–#30 once this branch is in `main`. TD-043 is closed by this cycle.

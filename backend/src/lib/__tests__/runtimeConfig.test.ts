@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diagnosticErrorTags } from "../errorTags";
+import { diagnosticErrorTags } from "../observability/diagnostics";
 import {
   uploadConversionTimeoutMs,
   uploadJobWallClockMs,

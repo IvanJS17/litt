@@ -1,6 +1,6 @@
 import type { DocumentSearchErrorCode } from "@mike/contracts";
 import { schemaOutOfDateCode } from "../../../../lib/httpError";
-import { diagnosticErrorTags } from "../../../../lib/errorTags";
+import { diagnosticErrorTags } from "../../../../lib/observability/diagnostics";
 import type { ServiceFailure } from "../../../../lib/serviceResult";
 
 const MESSAGES: Record<DocumentSearchErrorCode, string> = {

@@ -524,7 +524,9 @@ describe("GET /models/opencode-go", () => {
             detail: INTERNAL_ERROR_MESSAGE,
         });
         expect(response.text).not.toContain("nope");
-        expect(consoleError).toHaveBeenCalledOnce();
+        // One detailed server line plus one sanitized report line.
+        expect(consoleError.mock.calls.filter((call) => call[0] !== "[report]")).toHaveLength(1);
+        expect(consoleError.mock.calls.filter((call) => call[0] === "[report]")).toHaveLength(1);
         consoleError.mockRestore();
     });
 });

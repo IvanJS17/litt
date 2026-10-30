@@ -10,6 +10,8 @@
 
 import { deleteFile, downloadFile } from "../../lib/storage";
 import { safeError } from "../../lib/safeError";
+import { AppError } from "../../lib/appError";
+import { reportError, setOperation } from "../../lib/observability/report";
 import { enqueueDbJob } from "../../lib/dbq/enqueue";
 import { dbJobsEnabled } from "../../lib/dbq/runner";
 import {
@@ -40,6 +42,7 @@ import {
   type PlaybookReviewRequest,
 } from "./playbooks.operations";
 import { isStagedPlaybookImportKey } from "./playbooks.staging";
+import { reportPlaybookFailure, type PlaybookJobKind } from "./playbooks.reporting";
 import {
   recordPlaybookImportAudit,
   recordPlaybookRunAudit,
@@ -154,6 +157,7 @@ async function markFailed(
 }
 
 export async function handlePlaybookReview(db: Db, job: DbJob): Promise<void> {
+  setOperation("playbooks.review");
   const input = job.payload as unknown as PlaybookReviewInput;
   const row = await claimRow(db, "playbook_runs", input.runId, job);
   if (!row) return;
@@ -191,6 +195,12 @@ async function clearStagedImport(payload: PlaybookImportJobPayload) {
   await deleteFile(payload.storageKey).catch((error) => {
     // The upload is orphaned in storage: worth knowing, never worth failing
     // an import that has already recorded its outcome.
+    reportPlaybookFailure(error, {
+      stage: "import.cleanup",
+      level: "warning",
+      jobKind: "playbook.import",
+      ids: { import_id: payload.attemptId },
+    });
     console.warn("[playbooks] staged upload cleanup failed", {
       storageKey: payload.storageKey,
       error: safeError(error),
@@ -225,6 +235,7 @@ async function readImportFile(
 }
 
 export async function handlePlaybookImport(db: Db, job: DbJob): Promise<void> {
+  setOperation("playbooks.import");
   const payload = job.payload as unknown as PlaybookImportJobPayload;
   const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
   if (row)
@@ -288,13 +299,24 @@ async function dispatch(
   };
   if (!dbJobsEnabled()) {
     void handler(db, job).catch(async (error) => {
-      // The in-process twin of the runner's terminal log: with the runner
-      // off, nothing else hears of a job that ended this way.
+      // The in-process twin of the runner's terminal report: with the
+      // runner off, nothing else hears of a job that ended this way.
+      reportPlaybookFailure(error, {
+        stage: "job.terminal",
+        jobKind: kind as PlaybookJobKind,
+        ids: {
+          run_id: typeof payload.runId === "string" ? payload.runId : undefined,
+          import_id:
+            typeof payload.attemptId === "string" ? payload.attemptId : undefined,
+        },
+      });
       console.warn("[playbooks] inline job failed", {
         kind,
         error: safeError(error),
       });
-      await onFailure(db, job).catch(() => undefined);
+      await onFailure(db, job).catch((hookError: unknown) =>
+        reportFailureHookCrash(hookError, kind),
+      );
     });
     return;
   }
@@ -306,9 +328,34 @@ async function dispatch(
       maxAttempts: PLAYBOOK_JOB_ATTEMPTS,
     });
   } catch (error) {
-    await onFailure(db, job).catch(() => undefined);
+    await onFailure(db, job).catch((hookError: unknown) =>
+      reportFailureHookCrash(hookError, kind),
+    );
     throw error;
   }
+}
+
+/**
+ * The failure hook could not record the row's outcome: the review or import
+ * stays "running" until it reads as interrupted. The original failure is
+ * already reported (or rethrown) by the caller, so this names the second,
+ * independent fault the runner would otherwise have been the only one to see.
+ */
+function reportFailureHookCrash(hookError: unknown, kind: string): void {
+  reportError(
+    new AppError(
+      "dbq.failure_hook_crashed",
+      "Playbook job failure hook crashed",
+      { cause: hookError },
+    ),
+    {
+      tags: { component: "playbooks", stage: "failure-hook", job_kind: kind },
+    },
+  );
+  console.warn("[playbooks] job failure hook crashed", {
+    kind,
+    error: safeError(hookError),
+  });
 }
 
 /**
