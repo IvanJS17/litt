@@ -8,8 +8,10 @@ answer. There is no switch to turn them on: the assistant decides when a task
 is worth delegating. Tabular review, workflows and the Word add-in do not use
 subagents.
 
-Subagents use more tokens than answering directly, and they run on the API
-keys the chat runs on.
+Subagents use more tokens than answering directly. They run on the
+conversation's model, or on a model route the user set up (see
+[Effort and model routes](#effort-and-model-routes)), with a key for that
+route's provider.
 
 ## What a subagent can do
 
@@ -75,11 +77,11 @@ deleted with its chat, its answer or the account. When a later turn continues
 a subagent, results from documents the user can no longer open, or versions
 that no longer exist, are left out.
 
-## Effort and model
+## Effort and model routes
 
-For each task the assistant picks an effort and a model tier, or a specific
-model. Explicit requests in the conversation ("be quick", "use a cheap
-model", "don't delegate") override its defaults.
+For each task the assistant picks an effort and, when the user has set up
+routes, a route. Explicit requests in the conversation ("be quick", "use the
+cheap route", "don't delegate") override its defaults.
 
 | Effort | Steps | Tokens | Time | Web searches / pages |
 | --- | --- | --- | --- | --- |
@@ -99,39 +101,51 @@ running finishes first.
 
 Quick and standard effort cap reasoning at low and medium; deep uses the
 chat's reasoning level. A reasoning level the assistant names for a task
-replaces the cap.
+replaces the cap, and a route's own reasoning level replaces both.
 
-| Tier | Model |
-| --- | --- |
-| Light | The provider's low-tier model (for example Claude Haiku) |
-| Standard | The provider's mid-tier model (for example Claude Sonnet) |
-| Same | The chat's model |
+### Model routes
 
-A tier never picks a more capable model than the chat. Models reached
-through a router, a cloud platform, a custom endpoint or Ollama run tiered
-subagents on the chat's model.
+Subagents run on the conversation's model unless the user sets up named
+routes in the **Subagentes** section of **Settings > Model Preferences**. A
+route has a name, a one-line description of what it is for, a model chosen
+among those the user has a connected key for, and optionally a reasoning
+level. A user can save up to 8 routes and choose one as the default, or no
+default.
 
-When the user asks for a particular model ("use two Fable subagents"), the
-assistant names it, and that wins over the tier. The assistant is shown the
-chat's model and the other built-in models of the same provider that the user
-has a key for, and can name any other model the user could pick for a chat.
-The server checks a named model the way it checks a chat's model (the saved
-router selections and the user's keys); one the user can't use falls back to
-the tier, and the assistant is told.
+The assistant sees only each route's name and description, never its
+provider or model. The `delegate` tool takes no model: besides the
+task itself, the assistant chooses only a `route` (one of the user's names,
+offered only when routes exist), an `effort` and a `reasoning` level. When
+the user asks for a model that no route offers, the assistant says so
+instead of picking another.
 
-In **Settings > Model Preferences**, *Subagent model* and *Subagent reasoning*
-set defaults for these choices; *Chosen per task* leaves them to the
-assistant. A default is only an instruction to the assistant: it uses it unless
-the conversation asks for something else ("use a cheap model for this"), and
-the server enforces nothing. A default model the user can't use falls back to
-the tier like any other named model.
+A task without a route runs on the default route if there is one, and
+otherwise on the conversation's model; with no routes set up, every subagent
+runs on the conversation's model. A continued subagent keeps its route. If
+that route was deleted, the subagent is not continued on another model; the
+assistant can start a new delegation or name another route.
 
-Each delegation shows the model and effort it ran with.
+Before a subagent starts, the server checks its route the way it checks a
+conversation's model: the user's keys and the organization's key policy and
+model lists. A route uses a key for its own provider: the conversation's key
+when the provider is the same, otherwise one the user can use for that
+provider. The route's provider, model and key reference are written to the
+audit log, with the route's name, before any text is sent. A route that
+cannot run (no usable key, a model no longer offered or not allowed) fails
+closed: the delegation does not start, no subagent runs on another model, and
+the assistant tells the user, who can fix the route in Settings. A route
+whose model left the catalog stays listed as unavailable until the user edits
+or deletes it.
+
+Each delegation shows the route and model it ran on; turn on **Response
+details** in **Settings > Features** to also see its effort and tokens. The
+delegation's result records its route, provider, model, effort and reasoning.
 
 ## Troubleshooting
 
 - Existing deployments must apply the `20261018_*` migrations from
-  `backend/migrations/` before subagents can be continued in a later turn.
+  `backend/migrations/` before subagents can be continued in a later turn,
+  and `20261030_50_litt_subagent_routes.sql` before users can save routes.
 - A subagent that ran in another chat, for another user, more than 30 days
   ago, or failed or was stopped cannot be continued. The assistant is told so
   and starts a new one.
