@@ -411,8 +411,9 @@ not end up in the image layers or `docker history`. `SENTRY_ORG` and
 Docker image uploads are opt-in: set `SENTRY_UPLOAD_ENABLED=1`. This
 non-secret build argument changes the build cache key when uploads are enabled,
 so a previously tokenless build is rebuilt. The default is `0`; tokenless
-builds keep working. When enabled, a missing token, organization or project
-fails the build instead of silently skipping upload.
+builds keep working. When the enabled build step executes, a missing token,
+organization or project fails the build instead of silently skipping upload.
+A cache hit skips that step and its credential validation.
 
 Docker Compose (Dokploy and similar): put these non-secret settings in the
 compose-root `.env` or the platform's environment:
@@ -459,12 +460,13 @@ required `--build-arg REACT_APP_WEB_APP_URL=https://<web app host>` (and
 `WORD_ADDIN_PUBLIC_URL` when configuring its manifest). Compose builds the web
 app only; build the add-in image separately.
 
-**Rotating the token or repeating an upload for unchanged source:** secret
-contents are excluded from BuildKit's cache key. Use
-`docker compose build --no-cache frontend`, or add `--no-cache` to the plain
-`docker build` command, to force another upload. Changing the upload switch
-from `0` to `1` already invalidates the build step; merely replacing the token
-while the switch stays `1` does not.
+**Rotating, removing or revalidating the token, or repeating an upload for
+unchanged source:** secret contents are excluded from BuildKit's cache key.
+Use `docker compose build --no-cache frontend`, or add `--no-cache` to the plain
+`docker build` command, before relying on credential validation or forcing
+another upload. Changing the upload switch from `0` to `1` already invalidates
+the build step; replacing or removing the token while the switch stays `1`
+does not. A cached successful build does not prove the current token is valid.
 
 A host-side `npm run build` uses `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and
 `SENTRY_PROJECT` directly from the process environment; the upload switch is
@@ -475,8 +477,9 @@ With uploads enabled, the Sentry plugin uploads the maps. Upload logs appear
 when plugin logging is enabled; the frontend uses `silent: !process.env.CI`,
 so a local Docker/host build can upload successfully without those log lines.
 Check **Settings → Projects → <project> → Source Maps** and confirm that a new
-test event resolves to the original source location. A rejected token fails
-the build rather than quietly shipping unmapped frames.
+test event resolves to the original source location. When the upload step
+executes, a rejected token fails the build rather than quietly shipping
+unmapped frames; use `--no-cache` when validating credentials.
 
 Only events reported after the rebuild are affected: Sentry resolves frames
 when it receives an event, so earlier issues keep their minified frames.
