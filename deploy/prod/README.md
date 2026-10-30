@@ -2,8 +2,12 @@
 
 Paquete operativo del despliegue al VPS compartido `staging-apps-dev`. Sigue el
 patrón de la casa: la app vive en `/srv/litt` con su propio compose (`name: litt`),
-**ningún puerto se publica al host**, el borde 80/443 lo sirve el Caddy compartido
-(de `escrituralab`) con un bloque dedicado, y el respaldo es restic por app.
+**ningún puerto se publica al host**, el borde 80/443 lo sirve el ingress compartido
+(`/srv/edge`, contenedor `edge-caddy-1`) con un bloque dedicado, y el respaldo es restic
+por app. El VPS es compartido: LiTT cumple las reglas del host (`HOST-RULES.md` del repo
+`asteroitt-ops`; copia en `/srv/edge/HOST-RULES.md`): retención de imágenes vivo + 1,
+sin `docker system/image/volume prune`, chequeo de espacio antes de construir y
+presupuesto de disco declarado (~6 GB: imágenes `litt-*` + Supabase + volúmenes).
 Los documentos viven en **Cloudflare R2** (bucket `litt-docs`) y los respaldos
 en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 él; no hay object storage local. El correo del sistema sale de
@@ -153,14 +157,18 @@ así que la red del Caddy compartido no alcanza el signup, el token, la API
 admin ni PostgREST.
 
 ```bash
-sudo -n cp /srv/escrituralab/deploy/Caddyfile /srv/escrituralab/deploy/Caddyfile.bak-$(date +%F-%H%M)
+sudo -n cp /srv/edge/conf/Caddyfile /srv/edge/conf/Caddyfile.bak-$(date -u +%Y%m%dT%H%M%SZ)
 # Insertar el contenido de deploy/prod/Caddyfile.litt (solo entre sus marcadores).
-sudo -n docker exec escrituralab-caddy-1 caddy validate --config /etc/caddy/Caddyfile
-sudo -n docker exec escrituralab-caddy-1 caddy reload  --config /etc/caddy/Caddyfile
+sudo -n docker exec edge-caddy-1 caddy validate --config /etc/caddy/Caddyfile
+sudo -n docker exec edge-caddy-1 caddy reload   --config /etc/caddy/Caddyfile
 ```
 
+`/srv/edge/conf/` se monta como directorio, así que editar el archivo en sitio es seguro
+(el antiguo bind de archivo suelto dejaba al Caddy leyendo una copia vieja).
+
 **Nombres en la red compartida.** Solo `litt-web` y `auth-edge` entran a la red del
-Caddy (`escrituralab_default`), que comparten otras apps. Compose da a cada servicio
+ingress (`escrituralab_default`, nombre heredado; el ingress también está en `edge` y
+la migración a `edge` queda pendiente en `HOST-RULES.md`), que comparten otras apps. Compose da a cada servicio
 su nombre como alias en todas sus redes, así que esos servicios deben tener nombres
 únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
 internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
