@@ -38,7 +38,19 @@ ENV REACT_APP_API_BASE_URL=/api \
 # Sentry source-map upload, as in frontend/Dockerfile.
 ARG SENTRY_ORG=
 ARG SENTRY_PROJECT=
-RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN npm run build
+# A non-secret switch participates in the cache key: enabling uploads must
+# rebuild a previously tokenless bundle. Token rotation/re-upload also needs
+# --no-cache because BuildKit deliberately excludes secret contents.
+ARG SENTRY_UPLOAD_ENABLED=0
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    case "$SENTRY_UPLOAD_ENABLED" in \
+      0) unset SENTRY_AUTH_TOKEN ;; \
+      1) if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ] || [ -z "$SENTRY_PROJECT" ]; then \
+           echo "Sentry upload requires the token build secret, SENTRY_ORG and SENTRY_PROJECT" >&2; exit 1; \
+         fi ;; \
+      *) echo "SENTRY_UPLOAD_ENABLED must be 0 or 1" >&2; exit 1 ;; \
+    esac; \
+    npm run build
 
 FROM node:22-slim
 WORKDIR /app

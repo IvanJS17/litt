@@ -376,6 +376,7 @@ services:
         # build secret below.
         SENTRY_ORG: ${SENTRY_ORG:-}
         SENTRY_PROJECT: ${SENTRY_PROJECT:-}
+        SENTRY_UPLOAD_ENABLED: ${SENTRY_UPLOAD_ENABLED:-0}
       secrets:
         - SENTRY_AUTH_TOKEN
     environment:
@@ -400,4 +401,5 @@ volumes:
 
 secrets:
   SENTRY_AUTH_TOKEN:
+    # Must be exported/injected into the Compose process, not only in .env.
     environment: SENTRY_AUTH_TOKEN

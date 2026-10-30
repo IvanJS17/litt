@@ -408,36 +408,75 @@ The token is read from a BuildKit secret, never a build argument, so it does
 not end up in the image layers or `docker history`. `SENTRY_ORG` and
 `SENTRY_PROJECT` are ordinary build arguments.
 
-Docker Compose (Dokploy and similar): add the three variables and `GIT_SHA`
-to the compose-root `.env` (or the platform's environment) and rebuild.
-`docker-compose.yml` already forwards them to the frontend build:
+Docker image uploads are opt-in: set `SENTRY_UPLOAD_ENABLED=1`. This
+non-secret build argument changes the build cache key when uploads are enabled,
+so a previously tokenless build is rebuilt. The default is `0`; tokenless
+builds keep working. When enabled, a missing token, organization or project
+fails the build instead of silently skipping upload.
+
+Docker Compose (Dokploy and similar): put these non-secret settings in the
+compose-root `.env` or the platform's environment:
 
 ```
-SENTRY_AUTH_TOKEN=sntrys_...
+SENTRY_UPLOAD_ENABLED=1
 SENTRY_ORG=<org slug>
 SENTRY_PROJECT=<web app project slug>
 GIT_SHA=<commit being deployed>
 SENTRY_ENVIRONMENT=production
 ```
 
-Plain `docker build`, from the repository root:
+Supply `SENTRY_AUTH_TOKEN` through the **environment of the Compose process**.
+A value set only in the compose-root `.env` is not reliably forwarded to the
+Bake secret provider across Compose versions. On a deployment platform, inject
+it as a build secret/environment variable available to the Compose process.
+For a local shell, read it from a restricted file outside the repository/build
+context (provision that file through your secret manager):
 
 ```bash
-SENTRY_AUTH_TOKEN=sntrys_... docker build -f frontend/Dockerfile \
-  --secret id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+export SENTRY_AUTH_TOKEN="$(cat /secure/path/sentry-token)"
+docker compose build frontend
+unset SENTRY_AUTH_TOKEN
+```
+
+The command text contains only the file path, so the token is not entered into
+shell history. Do not use an inline token assignment or enable shell tracing
+(`set -x`) while loading secrets. Compose forwards it to the BuildKit secret
+mount; the token is not a build argument or a container runtime variable.
+
+Plain `docker build`, from the repository root, can read the same file directly:
+
+```bash
+docker build -f frontend/Dockerfile \
+  --secret id=SENTRY_AUTH_TOKEN,src=/secure/path/sentry-token \
+  --build-arg SENTRY_UPLOAD_ENABLED=1 \
   --build-arg SENTRY_ORG=<org> --build-arg SENTRY_PROJECT=<project> \
   --build-arg GIT_SHA=$(git rev-parse HEAD) \
   --build-arg NEXT_PUBLIC_SENTRY_DSN=... .
 ```
 
-The same flags work for `word-addin/Dockerfile` with the add-in's project
-slug. A host-side `npm run build` picks the three variables up from the
-environment directly.
+For `word-addin/Dockerfile`, use the add-in's project slug and also pass its
+required `--build-arg REACT_APP_WEB_APP_URL=https://<web app host>` (and
+`WORD_ADDIN_PUBLIC_URL` when configuring its manifest). Compose builds the web
+app only; build the add-in image separately.
 
-With a token present the Sentry plugin logs its upload in the build output;
-afterwards the maps are listed under **Settings → Projects → <project> →
-Source Maps**. A rejected token fails the build rather than quietly shipping
-unmapped frames.
+**Rotating the token or repeating an upload for unchanged source:** secret
+contents are excluded from BuildKit's cache key. Use
+`docker compose build --no-cache frontend`, or add `--no-cache` to the plain
+`docker build` command, to force another upload. Changing the upload switch
+from `0` to `1` already invalidates the build step; merely replacing the token
+while the switch stays `1` does not.
+
+A host-side `npm run build` uses `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and
+`SENTRY_PROJECT` directly from the process environment; the upload switch is
+only for the Dockerfiles. For Next.js this also permits the usual local
+`.env*` loading; production add-in webpack builds require process variables.
+
+With uploads enabled, the Sentry plugin uploads the maps. Upload logs appear
+when plugin logging is enabled; the frontend uses `silent: !process.env.CI`,
+so a local Docker/host build can upload successfully without those log lines.
+Check **Settings → Projects → <project> → Source Maps** and confirm that a new
+test event resolves to the original source location. A rejected token fails
+the build rather than quietly shipping unmapped frames.
 
 Only events reported after the rebuild are affected: Sentry resolves frames
 when it receives an event, so earlier issues keep their minified frames.
