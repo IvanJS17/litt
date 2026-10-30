@@ -310,7 +310,8 @@ networks:
     internal: true
   # Egreso externo: backend (R2 + proveedores de IA) y auth (SMTP).
   egress:
-  # Red del Caddy compartido (proyecto escrituralab). El frontend entra con el
+  # Red del ingress compartido (/srv/edge; nombre heredado del antiguo proyecto
+  # escrituralab, migración a `edge` pendiente en HOST-RULES.md). El frontend entra con el
   # alias `litt` (lo que el Caddyfile resuelve); el resto del stack queda
   # aislado en la red interna.
   caddy:
