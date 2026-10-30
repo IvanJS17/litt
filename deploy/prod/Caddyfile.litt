@@ -1,9 +1,13 @@
 # BEGIN litt
-# LiTT — litt.asteroitt.com.mx (producción).
+# LiTT — litt.asteroitt.com (producción).
 # Bloque administrado por el paquete deploy/prod: editar SOLO entre los
 # marcadores, validar y recargar el Caddy compartido (ver README.md §Caddy).
-litt.asteroitt.com.mx {
+litt.asteroitt.com {
 	encode zstd gzip
+	# Enlaces de los correos de GoTrue: solo esta ruta llega a auth-edge.
+	handle /auth/v1/verify {
+		reverse_proxy litt-auth:8000
+	}
 	reverse_proxy litt:3000 {
 		# Preservar Host público + X-Forwarded-Host: sin esto, Next standalone
 		# genera URLs con el hostname interno del contenedor.
