@@ -6,6 +6,10 @@ import { resolveSourceCommit } from "./src/shared/lib/sourceCommit.mjs";
 const nextConfig: NextConfig = {
     /* config options here */
     reactCompiler: true,
+    // The production image (frontend/Dockerfile) sets NEXT_OUTPUT=standalone
+    // so it ships only the traced server files, not the full dependency tree.
+    // `next start` (e2e, local) keeps the default output.
+    ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const } : {}),
     typescript: {
         // `next build` type-checks this program instead of tsconfig.json. It
         // excludes test files, so the production image (built from an
