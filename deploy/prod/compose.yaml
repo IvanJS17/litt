@@ -94,9 +94,13 @@ services:
       retries: 24
       start_period: 10s
     # Egreso solo para el SMTP saliente (puerto 465 del servidor de correo).
+    # `litt-gotrue`: nombre único para auth-edge, que también está en la red
+    # compartida del Caddy.
     networks:
-    - default
-    - egress
+      default:
+        aliases:
+        - litt-gotrue
+      egress: {}
 
   # Borde público de GoTrue, solo para GET /auth/v1/verify (los enlaces de
   # confirmación, recuperación, invitación y cambio de correo). Va aparte del
@@ -258,11 +262,18 @@ services:
       start_period: 10s
     # Egreso externo (R2 + proveedores de IA): default es internal y no da
     # gateway; la red de egreso dedicada sí (mínima exposición).
+    # `litt-backend`: nombre único para el frontend, que también está en la
+    # red compartida del Caddy, donde `backend` es el de otra app.
     networks:
-    - default
-    - egress
+      default:
+        aliases:
+        - litt-backend
+      egress: {}
 
-  frontend:
+  # Nombre de servicio único: Compose da a cada servicio su nombre como alias
+  # en TODAS sus redes, y en la red compartida del Caddy `frontend` y `web`
+  # ya pertenecen a otras apps (EscrituraLab, eKate).
+  litt-web:
     image: litt-frontend:${LITT_SOURCE_COMMIT:?required}
     restart: unless-stopped
     mem_limit: 320m
@@ -273,7 +284,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: '1'
-      API_BASE_URL: http://backend:3001
+      API_BASE_URL: http://litt-backend:3001
     healthcheck:
       test:
       - CMD

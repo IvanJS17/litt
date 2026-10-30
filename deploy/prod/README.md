@@ -13,7 +13,7 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 
 | Archivo | Rol |
 |---|---|
-| `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, frontend) |
+| `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
 | `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
 | `Caddyfile.litt` | Bloque del dominio para el Caddy compartido (marcadores `# BEGIN/END litt`) |
@@ -139,13 +139,13 @@ cd /srv/litt
 C="docker compose --env-file .env -f deploy/prod/compose.yaml"
 $C up -d db auth rest gateway        # base + auth (el init de postgres tarda ~2-5 min)
 $C up db-init                        # esquema completo + migraciones pendientes (one-shot)
-$C up -d                             # backend + frontend
+$C up -d --remove-orphans            # backend + litt-web
 $C ps                                # todo healthy
 ```
 
 ## 5. Caddy compartido (quirúrgico)
 
-El bloque manda todo a `litt:3000` (frontend), salvo `/auth/v1/verify`, que va
+El bloque manda todo a `litt:3000` (servicio `litt-web`), salvo `/auth/v1/verify`, que va
 a `litt-auth:8000` (`auth-edge`). Esa es la ruta de los enlaces que llegan por
 correo para confirmar la cuenta, recuperar la contraseña, aceptar una
 invitación o cambiar el correo. `auth-edge` responde 404 a cualquier otra ruta,
@@ -158,6 +158,13 @@ sudo -n cp /srv/escrituralab/deploy/Caddyfile /srv/escrituralab/deploy/Caddyfile
 sudo -n docker exec escrituralab-caddy-1 caddy validate --config /etc/caddy/Caddyfile
 sudo -n docker exec escrituralab-caddy-1 caddy reload  --config /etc/caddy/Caddyfile
 ```
+
+**Nombres en la red compartida.** Solo `litt-web` y `auth-edge` entran a la red del
+Caddy (`escrituralab_default`), que comparten otras apps. Compose da a cada servicio
+su nombre como alias en todas sus redes, así que esos servicios deben tener nombres
+únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
+internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
+servicio a esa red, revisar `docker network inspect escrituralab_default`.
 
 ## 6. DNS
 
