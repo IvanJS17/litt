@@ -11,8 +11,8 @@ import {
 import { notifyError } from "@/app/lib/userFacingError";
 import {
   REASONING_LEVELS,
-  REASONING_LEVEL_LABELS,
   type ModelToggleOption,
+  type ReasoningLevel,
 } from "@/shared/ui/ModelToggleUI";
 import { GlassCardUI } from "@/shared/ui/GlassCardUI";
 import { PillButtonUI } from "@/shared/ui/PillButtonUI";
@@ -28,6 +28,16 @@ import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 const MAX_ROUTES = 8;
 const NAME_PATTERN = /^[a-z0-9-]{1,32}$/;
 const MAX_DESCRIPTION = 200;
+
+/** This section is in Spanish; ModelToggleUI's labels are English. */
+const REASONING_LABELS: Record<ReasoningLevel, string> = {
+  none: "Ninguno",
+  low: "Bajo",
+  medium: "Medio",
+  high: "Alto",
+  xhigh: "Muy alto",
+  max: "Máximo",
+};
 
 type Draft = { name: string; description: string; model: string; reasoning: string };
 const EMPTY_DRAFT: Draft = { name: "", description: "", model: "", reasoning: "" };
@@ -55,17 +65,27 @@ export function SubagentRoutesSection({
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [draftError, setDraftError] = useState<string | null>(null);
 
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
     const controller = new AbortController();
     getSubagentRoutes(controller.signal)
       .then((routes) => {
         if (!controller.signal.aborted) setSaved(routes);
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadFailed(true);
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setLoadFailed(true);
+        notifyError(error, {
+          action: "load the subagent routes",
+          onRetry: () => {
+            setLoadFailed(false);
+            setLoadAttempt((n) => n + 1);
+          },
+        });
       });
     return () => controller.abort();
-  }, []);
+  }, [loadAttempt]);
 
   const save = async (next: SubagentRoutes, action: string): Promise<boolean> => {
     setSaving(true);
@@ -111,8 +131,11 @@ export function SubagentRoutesSection({
     const model = models.find((m) => m.id === route.model);
     const level = REASONING_LEVELS.find((l) => l === route.reasoning);
     const reasoning = level
-      ? `razonamiento ${REASONING_LEVEL_LABELS[level].toLocaleLowerCase("es")}`
+      ? `razonamiento ${REASONING_LABELS[level].toLocaleLowerCase("es")}`
       : "razonamiento según la tarea";
+    if (route.unavailable) {
+      return `${route.model} · no disponible: el modelo ya no se ofrece; edítala o bórrala · ${reasoning}`;
+    }
     return model
       ? `${model.group} · ${model.label} · ${reasoning}`
       : `${route.model} · sin llave conectada · ${reasoning}`;
@@ -184,7 +207,10 @@ export function SubagentRoutesSection({
 
   const defaultChoices: { value: string | null; label: string }[] = [
     { value: null, label: "Ninguna: usan el modelo de la conversación" },
-    ...saved.routes.map((r) => ({ value: r.name, label: r.name })),
+    ...saved.routes.map((r) => ({
+      value: r.name,
+      label: r.unavailable ? `${r.name} (no disponible)` : r.name,
+    })),
   ];
 
   return (
@@ -194,8 +220,9 @@ export function SubagentRoutesSection({
           <SettingsLabel>Rutas</SettingsLabel>
           <SettingsDescription>
             LiTT elige una ruta por su descripción; solo ve el nombre y la
-            descripción, nunca el modelo. Si una ruta pierde su llave, el
-            subagente no corre en otro modelo: falla y te avisa.
+            descripción, nunca el modelo. Si una ruta pierde su llave o su
+            modelo deja de ofrecerse, el subagente no corre en otro modelo:
+            falla y te avisa.
           </SettingsDescription>
         </div>
         {saved.routes.length > 0 ? (
@@ -296,7 +323,7 @@ export function SubagentRoutesSection({
                 <option value="">Según la tarea</option>
                 {REASONING_LEVELS.map((level) => (
                   <option key={level} value={level}>
-                    {REASONING_LEVEL_LABELS[level]}
+                    {REASONING_LABELS[level]}
                   </option>
                 ))}
               </select>

@@ -109,6 +109,58 @@ describe("SubagentRoutesSection", () => {
     );
   });
 
+  it("shows a route whose model left the catalog as unavailable, also as the default", async () => {
+    vi.mocked(getSubagentRoutes).mockResolvedValue({
+      routes: [
+        { name: "vieja", description: "Ya no corre.", model: "retired-model-1", unavailable: true },
+      ],
+      default: "vieja",
+    });
+    renderSection();
+
+    const route = await screen.findByRole("listitem");
+    expect(
+      within(route).getByText(
+        "retired-model-1 · no disponible: el modelo ya no se ofrece; edítala o bórrala · razonamiento según la tarea",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "vieja (no disponible)", pressed: true }),
+    ).toBeInTheDocument();
+  });
+
+  it("names the reasoning level in Spanish, in the list and in the editor", async () => {
+    vi.mocked(getSubagentRoutes).mockResolvedValue({
+      routes: [{ ...saved.routes[0], reasoning: "xhigh" }],
+      default: null,
+    });
+    const user = userEvent.setup();
+    renderSection();
+
+    expect(
+      await screen.findByText("Gemini · Gemini 3.8 Flash · razonamiento muy alto"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar la ruta rapida" }));
+    const options = within(screen.getByLabelText("Razonamiento"))
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(options).toEqual(["Según la tarea", "Ninguno", "Bajo", "Medio", "Alto", "Muy alto", "Máximo"]);
+  });
+
+  it("reports a failed load through the shared error popup", async () => {
+    const failure = new Error("boom");
+    vi.mocked(getSubagentRoutes).mockRejectedValue(failure);
+    renderSection();
+
+    await waitFor(() =>
+      expect(notifyError).toHaveBeenCalledWith(
+        failure,
+        expect.objectContaining({ action: "load the subagent routes" }),
+      ),
+    );
+    expect(screen.getByText(/No se pudieron cargar las rutas de subagentes/)).toBeInTheDocument();
+  });
+
   it("keeps the saved routes and reports the failure when a save fails", async () => {
     vi.mocked(updateSubagentRoutes).mockRejectedValue(new Error("boom"));
     const user = userEvent.setup();
