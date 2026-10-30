@@ -40,7 +40,7 @@
         "dompurify": "^3.4.17",
         "exceljs": "^4.4.0",
         "katex": "^0.19.1",
-        "lucide-react": "^1.61.0",
+        "lucide-react": "^1.62.0",
         "luckyexcel": "^1.0.1",
         "marked": "^18.1.2",
         "next": "^16.4.3",
