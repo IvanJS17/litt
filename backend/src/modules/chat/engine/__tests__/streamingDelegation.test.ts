@@ -226,7 +226,7 @@ describe("runLLMStream delegation", () => {
       runs.push({ model: params.model, reasoning: params.reasoning, apiKeys: (params as { apiKeys?: unknown }).apiKeys });
       return { fullText: "Brief." };
     });
-    const govern = vi.fn(async (route: { model: string }) => governed(route.model));
+    const govern = vi.fn(async (route: { name: string; model: string }) => governed(route.model));
 
     const result = await runLLMStream({
       ...baseParams(),
@@ -631,7 +631,7 @@ describe("runDelegateCall", () => {
 
   it("continues a subagent on its own route unless another is asked for", async () => {
     const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Done.", events: [], citations: [] }));
-    const govern = vi.fn(async (route: { model: string }) => ({
+    const govern = vi.fn(async (route: { name: string; model: string }) => ({
       ok: true as const,
       model: route.model,
       provider: "claude",

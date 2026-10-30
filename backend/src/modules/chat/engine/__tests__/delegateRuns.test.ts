@@ -29,7 +29,6 @@ const transcript: SubagentTranscript = {
   task: "Summarise the lease.",
   text: "Rent rises yearly.",
   effort: "standard",
-  tier: "standard",
   omitted: 0,
   records: [
     record("read_document", [{ document_id: "doc-a", version_id: "v1" }]),
