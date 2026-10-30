@@ -235,7 +235,9 @@ npm run test:stack --prefix backend
 A change to a Dockerfile, a `.dockerignore`, a tsconfig, or an import that
 crosses an application boundary must be verified by building the affected
 image from the repository root, for example
-`docker build -f frontend/Dockerfile .`. The host-side build cannot catch a
+`docker build -f frontend/Dockerfile --build-arg GIT_SHA="$(git rev-parse HEAD)" .`
+(every image build requires `GIT_SHA`, the full commit SHA, and fails without
+it; see `deploy/prod/README.md`). The host-side build cannot catch a
 missing build-context file because every sibling directory exists on the
 host. LiTT does not build images on every pull request (Actions budget, TD-024),
 so run that build locally before handing off such a change.
@@ -287,8 +289,9 @@ sections above and win where they conflict.
 - **Identity and license.** LiTT is the user-visible product name. Keep
   AGPL-3.0-only, `LICENSE`, upstream copyright notices and the upstream
   attribution in `README.md`. A hosted modified version must offer its
-  Corresponding Source (AGPL §13; tracked as TD-016 in
-  `docs/TECHNICAL_DEBT.md`). Do not rename internal identifiers (`mikeApi.ts`,
+  Corresponding Source (AGPL §13). Every build embeds its commit SHA and the
+  app links to that exact source; keep that link working and follow the
+  per-deploy source procedure in `deploy/prod/README.md` (TD-016, closed). Do not rename internal identifiers (`mikeApi.ts`,
   `MikeApiError`, file and directory names, the `upstream` remote) for
   branding.
 - **Upstream.** Treat `upstream` as read-only input. Since the 2026-10-23
