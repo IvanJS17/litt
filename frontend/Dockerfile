@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build from the repository root: `docker build -f frontend/Dockerfile .`
 # (docker-compose.yml does the same). The image needs the frontend plus the
 # one sibling directory production code reaches through a tsconfig `paths`
@@ -35,7 +36,23 @@ ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_GIT_SHA=$GIT_SHA \
     GIT_SHA=$GIT_SHA
 
-RUN npm run build
+# Sentry source-map upload (docs/observability.md). Needs all three; the token
+# is a build secret so it never lands in an image layer.
+ARG SENTRY_ORG=
+ARG SENTRY_PROJECT=
+# A non-secret switch participates in the cache key: enabling uploads must
+# rebuild a previously tokenless bundle. Token rotation/re-upload also needs
+# --no-cache because BuildKit deliberately excludes secret contents.
+ARG SENTRY_UPLOAD_ENABLED=0
+RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN,env=SENTRY_AUTH_TOKEN \
+    case "$SENTRY_UPLOAD_ENABLED" in \
+      0) unset SENTRY_AUTH_TOKEN ;; \
+      1) if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ] || [ -z "$SENTRY_PROJECT" ]; then \
+           echo "Sentry upload requires the token build secret, SENTRY_ORG and SENTRY_PROJECT" >&2; exit 1; \
+         fi ;; \
+      *) echo "SENTRY_UPLOAD_ENABLED must be 0 or 1" >&2; exit 1 ;; \
+    esac; \
+    npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000
