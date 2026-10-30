@@ -113,7 +113,7 @@ level. A user can save up to 8 routes and choose one as the default, or no
 default.
 
 The assistant sees only each route's name and description, never its
-provider or model. The `delegate` tool takes no model or tier: besides the
+provider or model. The `delegate` tool takes no model: besides the
 task itself, the assistant chooses only a `route` (one of the user's names,
 offered only when routes exist), an `effort` and a `reasoning` level. When
 the user asks for a model that no route offers, the assistant says so
