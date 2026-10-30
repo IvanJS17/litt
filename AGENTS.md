@@ -312,7 +312,11 @@ sections above and win where they conflict.
   and matter tenancy with explicit membership for private matters; RLS and
   authorization epochs; insert-only audit and AI evidence records; governed
   BYOK (provider, model and credential fixed per conversation, no silent
-  fallback; a user-configured endpoint never reaches internal addresses);
+  fallback; chat subagents run only on the named model routes the user
+  configured and sees in Settings > Subagents, or on the conversation's model
+  when there are none, and a route that cannot run fails closed instead of
+  using another model; a user-configured endpoint never reaches internal
+  addresses);
   CourtListener removed; Google Drive publication fail-closed until an
   approved connector exists; no telemetry to third parties (Sentry removed);
   no desktop app; the preset template catalog ships empty.
