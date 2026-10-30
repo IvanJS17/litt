@@ -1,8 +1,9 @@
 #!/bin/bash
-# Respaldo diario de LiTT (patrón de la casa: restic por app → Hetzner).
+# Respaldo diario de LiTT: restic por app en Cloudflare R2, bucket
+# `litt-backups` (token propio, limitado a ese bucket). Ver README §7.
 # Instalar en /usr/local/sbin/litt-backup.sh (700 root) y agendar en cron 3:30.
-# Los DOCUMENTOS viven en Cloudflare R2 (fuera de este respaldo, por diseño:
-# la política del producto es borrado definitivo sin retención oculta).
+# Los DOCUMENTOS viven en el bucket R2 `litt-docs` (fuera de este respaldo, por
+# diseño: la política del producto es borrado definitivo sin retención oculta).
 set -Eeuo pipefail
 
 APP_DIR=/srv/litt
@@ -32,8 +33,13 @@ for f in "$APP_DIR/.env" "$RESTIC_ENV"; do
   }
 done
 
-set -a; source "$RESTIC_ENV"; set +a
-: "${RESTIC_REPOSITORY:?required}" "${AWS_ACCESS_KEY_ID:?required}" "${AWS_SECRET_ACCESS_KEY:?required}" "${RESTIC_PASSWORD_FILE:?required}"
+set -a
+# shellcheck source=litt-restic.env.example
+source "$RESTIC_ENV"
+set +a
+: "${RESTIC_REPOSITORY:?required}" "${RESTIC_PASSWORD:?required}" "${AWS_ACCESS_KEY_ID:?required}" "${AWS_SECRET_ACCESS_KEY:?required}"
+# R2 no tiene regiones; restic (minio-go) necesita una para firmar.
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 
 mkdir -p "$APP_DIR/backups"
 # Dump consistente del estado legal completo (base de datos).
