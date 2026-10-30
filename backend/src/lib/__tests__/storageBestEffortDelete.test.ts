@@ -26,9 +26,10 @@ vi.mock("@aws-sdk/client-s3", () => {
   };
 });
 
-// Stand-in for lib/bestEffort.ts with the same contract: swallow the
+// Stand-in for bestEffort (observability/report) with the same contract: swallow the
 // rejection, hand the ORIGINAL error to the caller once per call.
-vi.mock("../bestEffort", () => ({
+vi.mock("../observability/report", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../observability/report")>()),
   bestEffort: <T>(
     work: Promise<T>,
     context: { what: string; tags?: unknown },
@@ -39,7 +40,7 @@ vi.mock("../bestEffort", () => ({
     }),
 }));
 
-import { diagnosticErrorTags } from "../errorTags";
+import { diagnosticErrorTags } from "../observability/diagnostics";
 
 let storage: typeof import("../storage");
 
@@ -130,6 +131,7 @@ describe("deleteFileBestEffort / deleteFilesBestEffort", () => {
     const [{ error }] = mocks.reports;
     expect(error).toBeInstanceOf(storage.StorageOperationError);
     expect(diagnosticErrorTags(error)).toEqual({
+      error_kind: "storage.delete_failed",
       storage_operation: "delete",
       failure_code: "ECONNREFUSED",
     });
@@ -143,7 +145,7 @@ describe("deleteFileBestEffort / deleteFilesBestEffort", () => {
     );
     expect(mocks.send).toHaveBeenCalledTimes(2); // both still attempted
     expect(mocks.reports).toHaveLength(1);
-    expect(mocks.reports[0]!.what).toBe("storage-delete:seal-recover");
+    expect(mocks.reports[0]!.what).toBe("seal-recover");
     expect(diagnosticErrorTags(mocks.reports[0]!.error)).toMatchObject({
       storage_operation: "delete",
       failure_code: "InvalidAccessKeyId",

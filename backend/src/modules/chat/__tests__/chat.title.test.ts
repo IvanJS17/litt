@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeText } = vi.hoisted(() => ({
+const { completeText, reportError } = vi.hoisted(() => ({
     completeText: vi.fn(),
+    reportError: vi.fn(() => null),
 }));
 
 vi.mock("../../../lib/llm", () => ({ completeText }));
+vi.mock("../../../lib/observability/report", () => ({ reportError }));
 
 import { generateAssistantChatTitle, logChatTitleFailure } from "../chat.title";
 import { UserFacingError } from "../../../lib/userFacingError";
@@ -30,8 +32,8 @@ describe("logChatTitleFailure", () => {
     });
 
     // A provider or configuration failure is a warning: the reply already
-    // logged the same provider problem (MIKE-BACKEND-D), so the title line is
-    // context, not a new fault.
+    // logged the same provider problem, so the title line is context, not a
+    // new fault.
     it("logs a title failure the reply shares as a warning, not an error", () => {
         logChatTitleFailure("[t]", apiCallError(400), replyRejectedKey());
         expect(console.error).not.toHaveBeenCalled();
@@ -61,6 +63,11 @@ describe("logChatTitleFailure", () => {
             }),
         });
         logChatTitleFailure("[t]", retryError, null);
+        expect(reportError).toHaveBeenCalledTimes(1);
+        expect(reportError).toHaveBeenCalledWith(retryError, {
+            level: "warning",
+            tags: { component: "chat-title", operation: "chat.title" },
+        });
         expect(console.error).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalledTimes(1);
     });

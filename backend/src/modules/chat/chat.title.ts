@@ -1,6 +1,7 @@
 import { abortable } from "../../lib/abortable";
 import { completeText, type UserApiKeys } from "../../lib/llm";
 import { providerFailureStatus } from "../../lib/llm/providerErrors";
+import { reportError } from "../../lib/observability/report";
 import { UserFacingError } from "../../lib/userFacingError";
 
 const CAUSE_CHAIN_DEPTH = 8;
@@ -53,13 +54,24 @@ export function logChatTitleFailure(
     error: unknown,
     // Accepted for callers that already compute it; the title's own failure
     // class is what decides the level.
-    _replyFailure: unknown = null,
+    replyFailure: unknown = null,
 ): void {
     const titleClass = providerFailureClass(error);
     if (titleClass === null) {
         console.error(label, error);
         return;
     }
+    if (replyFailure !== null && providerFailureClass(replyFailure) === titleClass) {
+        // The reply reported this same failure; keep the operator's log line.
+        console.warn(label, error);
+        return;
+    }
+    // The title runs inside the turn's request, so the request's operation
+    // is chat.turn; the tag here names the title's own flow for this entry.
+    reportError(error, {
+        level: "warning",
+        tags: { component: "chat-title", operation: "chat.title" },
+    });
     console.warn(label, error);
 }
 

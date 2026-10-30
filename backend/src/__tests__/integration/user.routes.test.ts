@@ -5,6 +5,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.hoisted(() => { process.env.RATE_LIMIT_DATA_DELETE_MAX = "1000"; });
 import request from "supertest";
 import { createHash } from "node:crypto";
+import { AppError } from "../../lib/appError";
+
+// Every unexpected 5xx these routes answer is ONE report entry, written by
+// sendInternalError with the route's identity: asserted by kind and cause.
+const reportError = vi.hoisted(() => vi.fn((..._args: unknown[]) => null));
+vi.mock("../../lib/observability/report", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/observability/report")>()),
+    reportError,
+}));
 
 // ---------------------------------------------------------------------------
 // Hoisted mock fns we reconfigure per-test. These cover the three security
@@ -345,6 +354,15 @@ function rejectMfa(_req: unknown, res: any) {
         code: "mfa_verification_required",
         detail: "MFA verification required",
     });
+}
+
+// The one event a failed request reported: an AppError whose kind names the
+// flow and whose cause is the failure that actually happened.
+function reportedFailure(): AppError {
+    expect(reportError).toHaveBeenCalledOnce();
+    const [failure] = reportError.mock.calls[0] as unknown as [unknown];
+    expect(failure).toBeInstanceOf(AppError);
+    return failure as AppError;
 }
 
 describe("user.routes", () => {
@@ -1134,7 +1152,8 @@ describe("user.routes", () => {
         });
 
         it("returns 500 when saving the key throws", async () => {
-            saveUserApiKey.mockRejectedValue(new Error("kms unavailable"));
+            const cause = new Error("kms unavailable");
+            saveUserApiKey.mockRejectedValue(cause);
 
             const res = await request(app)
                 .put("/user/api-keys/claude")
@@ -1145,6 +1164,12 @@ describe("user.routes", () => {
             expect(res.body.detail).toBe(
                 "Something went wrong. Please try again.",
             );
+            const failure = reportedFailure();
+            expect(failure.kind).toBe("user.api_key_failed");
+            expect(failure.cause).toBe(cause);
+            expect(reportError.mock.calls[0]?.[1]).toMatchObject({
+                tags: { http_route: "/user/api-keys/:provider", http_status: 500 },
+            });
         });
 
         it("is rejected with 403 mfa_verification_required when MFA is unsatisfied", async () => {
@@ -1750,6 +1775,57 @@ describe("user.routes", () => {
             expect(res.body.code).toBe("mfa_verification_required");
             expect(buildUserAccountExport).not.toHaveBeenCalled();
         });
+
+        it("POST /user/exports reports a failed enqueue as export.failed and answers an opaque 500", async () => {
+            const cause = { code: "08006", message: "connection lost" };
+            supabaseState.tables.db_jobs = { data: null, error: cause };
+
+            const res = await request(app)
+                .post("/user/exports")
+                .set(...AUTH)
+                .send({ type: "account" });
+
+            expect(res.status).toBe(500);
+            expect(res.body).toMatchObject({
+                code: "internal_error",
+                detail: "Something went wrong. Please try again.",
+            });
+            expect(res.text).not.toContain("connection lost");
+            const failure = reportedFailure();
+            expect(failure.kind).toBe("export.failed");
+            // The enqueue's own failure, and the PostgREST code under it,
+            // stay on the cause chain for failure_code.
+            expect(failure.cause).toBeInstanceOf(AppError);
+            expect((failure.cause as AppError).kind).toBe("dbq.enqueue_failed");
+            expect((failure.cause as AppError).cause).toBe(cause);
+            expect(reportError.mock.calls[0]?.[1]).toMatchObject({
+                tags: { http_route: "/user/exports", http_status: 500 },
+            });
+        });
+    });
+
+    describe("GET /user/integrations/google-drive", () => {
+        it("reports a failed token-row query once, by kind, and answers an opaque 500", async () => {
+            const cause = { code: "08006", message: "connection lost" };
+            supabaseState.tables.user_google_drive_tokens = {
+                data: null,
+                error: cause,
+            };
+
+            const res = await request(app)
+                .get("/user/integrations/google-drive")
+                .set(...AUTH);
+
+            expect(res.status).toBe(500);
+            expect(res.body).toMatchObject({ code: "internal_error" });
+            expect(res.text).not.toContain("connection lost");
+            const failure = reportedFailure();
+            expect(failure.kind).toBe("db.query_failed");
+            expect(failure.cause).toBe(cause);
+            expect(reportError.mock.calls[0]?.[1]).toMatchObject({
+                tags: { http_route: "/user/integrations/google-drive", http_status: 500 },
+            });
+        });
     });
 
     // ── Data deletion endpoints (MFA-guarded, cleanup helpers) ────────────
@@ -2127,7 +2203,8 @@ describe("user.routes", () => {
         });
 
         it("DELETE /user/chats returns 500 when cleanup throws", async () => {
-            deleteAllUserChats.mockRejectedValue(new Error("cascade failed"));
+            const cause = new Error("cascade failed");
+            deleteAllUserChats.mockRejectedValue(cause);
 
             const res = await request(app)
                 .delete("/user/chats")
@@ -2137,6 +2214,9 @@ describe("user.routes", () => {
             expect(res.body.detail).toBe(
                 "Something went wrong. Please try again.",
             );
+            const failure = reportedFailure();
+            expect(failure.kind).toBe("db.query_failed");
+            expect(failure.cause).toBe(cause);
         });
 
         it("DELETE /user/account is rejected when MFA is unsatisfied (no cleanup)", async () => {

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { rateLimitedBody } from "./lib/httpError";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -36,6 +36,7 @@ import {
 } from "./middleware/internalErrorResponse";
 import { configuredAllowedOrigins } from "./lib/origins";
 import { envInt, sourceCommit } from "./lib/runtimeConfig";
+import { requestDiagnostics } from "./middleware/requestDiagnostics";
 
 export const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -180,13 +181,7 @@ const authMfaLimiter = makeLimiter({
 
 app.disable("x-powered-by");
 app.set("trust proxy", envInt("TRUST_PROXY_HOPS", 1));
-app.use((_req, res, next) => {
-  const requestId = randomUUID();
-  res.locals.requestId = requestId;
-  res.setHeader("X-Request-ID", requestId);
-  // Same id on the response body and the access log.
-  next();
-});
+app.use(requestDiagnostics);
 app.use(protectInternalErrorResponses);
 
 app.use(

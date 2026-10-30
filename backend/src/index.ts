@@ -7,7 +7,13 @@ import { app } from "./app";
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import { validateRuntimeConfiguration } from "./lib/runtimeConfig";
-import { startAllWorkers, stopAllWorkers } from "./workerRuntime";
+import {
+  startAllWorkers,
+  stopAllWorkers,
+  WORKER_ROLES,
+  type WorkerRole,
+} from "./workerRuntime";
+import { reportError } from "./lib/observability/report";
 import {
   closeHttpServer,
   createShutdown,
@@ -41,9 +47,11 @@ async function validateBootConfiguration(): Promise<void> {
 
 /**
  * Where background work runs, relative to this API process:
- *   "thread" (default) — a worker_thread in this process: queue workers and
- *            maintenance run off the main event loop, so a CPU-heavy job can
- *            never starve HTTP requests, with zero deployment changes.
+ *   "thread" (default) — worker_threads in this process, one per worker role:
+ *            queue workers and maintenance run off the main event loop, so a
+ *            CPU-heavy job can never starve HTTP requests, and upload
+ *            processing has a thread of its own, so a stuck job can never
+ *            stop uploads. Zero deployment changes.
  *   "inline" — on the main thread (the historical behavior; escape hatch,
  *            e.g. if a platform disallows worker_threads).
  *   "none"  — not here at all: a standalone worker process (src/worker.ts)
@@ -55,10 +63,10 @@ const WORKERS_MODE = (() => {
   return raw === "inline" || raw === "none" ? raw : "thread";
 })();
 
-let workerThread: ThreadWorker | null = null;
+const workerThreads = new Map<WorkerRole, ThreadWorker>();
 let shuttingDown = false;
 
-function spawnWorkerThread(): void {
+function spawnWorkerThread(role: WorkerRole): void {
   // In dev (tsx) this file is .ts and the thread entry must be too, loaded
   // through tsx's CJS require hook; in prod both are compiled .js in dist.
   const isTs = __filename.endsWith(".ts");
@@ -66,25 +74,42 @@ function spawnWorkerThread(): void {
     __dirname,
     isTs ? "workerThread.ts" : "workerThread.js",
   );
-  workerThread = new ThreadWorker(entry, {
-    execArgv: isTs ? ["--require", "tsx/cjs"] : [],
+  // Compiled mode inherits the parent's flags, including --enable-source-maps.
+  // Explicit process.execArgv would reject V8 flags such as --max-old-space-size.
+  const workerThread = new ThreadWorker(entry, {
+    ...(isTs ? { execArgv: ["--require", "tsx/cjs"] } : {}),
+    workerData: { role },
   });
+  workerThreads.set(role, workerThread);
   workerThread.on("error", (err) => {
-    // An uncaught throw inside the thread. What arrives here is a structured
-    // clone, so this supervisor view is only a log line; the thread logs its
-    // own failure with the real stack and job context.
-    console.error("[worker-thread] error", err);
+    // An uncaught throw inside the thread. The thread reports it with the real
+    // stack and job context; what arrives here is a structured clone, so this
+    // supervisor view is its own report entry ("a worker thread crashed", with
+    // a count) rather than doubling every thread failure.
+    reportError(err, {
+      tags: { component: "worker-thread-supervisor", worker_role: role },
+      fingerprint: ["worker-thread-supervisor-error"],
+    });
+    console.error(`[worker-thread:${role}] error`, err);
   });
   workerThread.on("exit", (code) => {
-    workerThread = null;
+    if (workerThreads.get(role) === workerThread) workerThreads.delete(role);
     if (shuttingDown || code === 0) return;
     // A crashed worker thread must not silently kill all background
     // processing — respawn after a short pause. Durable state (db_jobs,
     // Redis) means nothing is lost across the gap.
-    console.error(
-      `[worker-thread] exited with code ${code}; respawning in 5s`,
+    reportError(
+      new Error(`Background worker thread exited with code ${code}`),
+      {
+        tags: { component: "worker-thread-supervisor", worker_role: role },
+        extra: { exit_code: code },
+        fingerprint: ["worker-thread-exit"],
+      },
     );
-    setTimeout(spawnWorkerThread, 5_000).unref();
+    console.error(
+      `[worker-thread:${role}] exited with code ${code}; respawning in 5s`,
+    );
+    setTimeout(() => spawnWorkerThread(role), 5_000).unref();
   });
 }
 
@@ -110,7 +135,7 @@ async function main(): Promise<void> {
         `Mike backend running on port ${PORT} (workers: ${WORKERS_MODE})`,
       );
       if (WORKERS_MODE === "thread") {
-        spawnWorkerThread();
+        for (const role of WORKER_ROLES) spawnWorkerThread(role);
       } else if (WORKERS_MODE === "inline") {
         startAllWorkers();
       }
@@ -133,21 +158,24 @@ async function stopBackgroundWork(): Promise<void> {
     await stopAllWorkers();
     return;
   }
-  const thread = workerThread;
-  if (!thread) return;
-  await new Promise<void>((resolve) => {
-    const timeout = setTimeout(() => resolve(), 10_000);
-    timeout.unref();
-    thread.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
-    thread.postMessage("shutdown");
-  });
+  await Promise.all(
+    [...workerThreads.values()].map(
+      (thread) =>
+        new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => resolve(), 10_000);
+          timeout.unref();
+          thread.once("exit", () => {
+            clearTimeout(timeout);
+            resolve();
+          });
+          thread.postMessage("shutdown");
+        }),
+    ),
+  );
 }
 
 const shutdown = createShutdown({
-  // Set before anything stops so the worker thread's exit is not respawned.
+  // Set before anything stops so the worker threads' exits are not respawned.
   onStart: () => {
     shuttingDown = true;
   },

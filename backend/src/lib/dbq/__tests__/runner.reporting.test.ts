@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../supabase", () => ({ createServerSupabase: vi.fn() }));
 vi.mock("../../storage", () => ({ deleteFile: vi.fn() }));
 
-import { diagnosticErrorTags } from "../../errorTags";
+import { diagnosticErrorTags } from "../../observability/diagnostics";
 import { createDbJobClaimGate, processClaimedJob, runDbJobTick } from "../runner";
 import { DbJobDeferredError, type DbJob } from "../types";
 

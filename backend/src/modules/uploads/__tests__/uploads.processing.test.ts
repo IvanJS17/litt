@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { diagnosticErrorTags } from "../../../lib/errorTags";
+import { diagnosticErrorTags } from "../../../lib/observability/diagnostics";
 
 const mocks = vi.hoisted(() => ({
   deleteFile: vi.fn(),
@@ -23,6 +23,16 @@ const mocks = vi.hoisted(() => ({
   createServerSupabase: vi.fn(),
   enqueueStorageCleanup: vi.fn(),
   requestDocumentCleanupDelivery: vi.fn(),
+  reportError: vi.fn((_error: unknown, _context?: unknown) => null),
+  setOperation: vi.fn(),
+  markStage: vi.fn(),
+}));
+
+vi.mock("../../../lib/observability/report", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/observability/report")>()),
+  reportError: mocks.reportError,
+  setOperation: mocks.setOperation,
+  markStage: mocks.markStage,
 }));
 
 vi.mock("../../../lib/storage", async (importOriginal) => {
@@ -340,7 +350,7 @@ describe("upload processing", () => {
   });
 
   it("keeps the upload and reports a missing LibreOffice once, as a warning grouped by file type", async () => {
-    // MIKE-BACKEND-9: the worker on a host without soffice.
+    // The worker on a host without soffice.
     const officeFile = {
       ...baseFile,
       filename: "PRIVATE_NAME.docx",
@@ -566,10 +576,13 @@ describe("upload processing", () => {
       { data: { id: "v", storage_path: "old/key", content_sha256: "a".repeat(64) } },
       { data: null, error: null },
     ] });
-    await expect(processUploadFile(db as never, {
+    const thrown = await processUploadFile(db as never, {
       ...baseSession, purpose: "document_version_replace",
       destination: { document_id: "doc", version_id: "v", expected_content_sha256: "a".repeat(64) },
-    }, baseFile)).rejects.toMatchObject({ message: "document_changed", orphanedKeys: expect.arrayContaining([expect.stringContaining("doc")]) });
+    }, baseFile).catch((error: unknown) => error);
+    expect(thrown).toMatchObject({ message: "document_changed", orphanedKeys: expect.arrayContaining([expect.stringContaining("doc")]) });
+    // The kind, not the message, is what reaches the report line.
+    expect(diagnosticErrorTags(thrown)).toEqual({ error_kind: "upload.document_changed" });
   });
 
   it("hashes legacy stored bytes when the version has no recorded checksum", async () => {
@@ -591,9 +604,13 @@ describe("upload processing", () => {
   it("refuses to recreate a document deleted while the upload was processing", async () => {
     const db = scriptedDb([{ data: null, error: null }]);
 
-    await expect(
-      processUploadFile(db as never, baseSession, createdFile),
-    ).rejects.toThrow(/document_deleted/);
+    const thrown = await processUploadFile(
+      db as never,
+      baseSession,
+      createdFile,
+    ).catch((error: unknown) => error);
+    expect(thrown).toMatchObject({ message: expect.stringMatching(/document_deleted/) });
+    expect(diagnosticErrorTags(thrown)).toEqual({ error_kind: "upload.document_deleted" });
 
     expect(db.calls.some((call) => call.operation === "upsert")).toBe(false);
     expect(db.rpc).not.toHaveBeenCalled();
@@ -661,6 +678,33 @@ describe("upload processing", () => {
     expect(stamped).toBe(false);
   });
 
+  it("names a sealed object the store cannot serve as upload.sealed_missing", async () => {
+    const { StorageOperationError } = await import("../../../lib/storage.js");
+    const storageError = new StorageOperationError("download", {
+      cause: Object.assign(new Error("gone"), { name: "NoSuchKey" }),
+    });
+    mocks.createFileReadStream.mockImplementation(() =>
+      Readable.from(
+        (async function* () {
+          throw storageError;
+        })(),
+      ),
+    );
+    const db = fakeDb();
+
+    const thrown = await processUploadFile(db as never, baseSession, baseFile)
+      .catch((error: unknown) => error);
+
+    expect(thrown).toMatchObject({ message: "sealed_upload_not_found", kind: "upload.sealed_missing", cause: storageError });
+    // The deepest kind on the chain is the one reported: the store's own
+    // answer, with its code; the wrapper's kind stays on the thrown object.
+    expect(diagnosticErrorTags(thrown)).toEqual({
+      error_kind: "storage.download_failed",
+      storage_operation: "download",
+      failure_code: "NoSuchKey",
+    });
+  });
+
   it("marks a failed created document and safely queues the job for retry", async () => {
     mocks.createFileReadStream.mockImplementation(() =>
       Readable.from(
@@ -693,6 +737,15 @@ describe("upload processing", () => {
     ]);
 
     await processUploadJob(db as never, "job-1", "worker-1");
+
+    // The job names its flow once and marks the stages it passes, so the
+    // failure above arrives in the report under documents.upload.complete with
+    // the path it took (claimed, then failed inside process-file).
+    expect(mocks.setOperation).toHaveBeenCalledWith("documents.upload.complete");
+    expect(mocks.markStage.mock.calls.map(([stage]) => stage)).toEqual([
+      "claim",
+      "process-file",
+    ]);
 
     expect(db.calls).toEqual(
       expect.arrayContaining([
@@ -864,7 +917,7 @@ describe("upload processing", () => {
     }
   });
 
-  it("reports a claim loop that fails every tick once, with its code, and backs off (MIKE-BACKEND-K)", async () => {
+  it("reports a claim loop that fails every tick once, with its code, and backs off", async () => {
     vi.useFakeTimers();
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});

@@ -8,6 +8,7 @@ import {
   type WordTurnHandlers,
 } from "../api/stream";
 import { postWordChatToolResult, stopWordChatTurn } from "../api/mikeApi";
+import { reportError } from "../lib/errorReporting";
 import { useWordDoc } from "./useWordDoc";
 import type {
   DocumentReadActivity,
@@ -529,7 +530,22 @@ export function useWordAssistantChat({
                 // Nothing more to try. The backend times the tool call out
                 // and ends the turn with its own error frame, which the
                 // catch below turns into a message the user sees — a toast
-                // here would only duplicate it.
+                // here would only duplicate it. A cancel mid-delivery aborts
+                // the fetch: that is the user stopping the turn, not a
+                // failure to report.
+                const cancelled =
+                  controller.signal.aborted ||
+                  (error instanceof Error && error.name === "AbortError");
+                if (!cancelled) {
+                  reportError(error, {
+                    tags: {
+                      component: "word-chat",
+                      operation: "word_chat.turn",
+                      stage: "tool-result",
+                    },
+                    extra: { tool_call_id: call.toolCallId, tool: call.name },
+                  });
+                }
                 console.error("Failed to post Word tool result", error);
                 return;
               }
@@ -926,6 +942,25 @@ export function useWordAssistantChat({
           // state below always builds on the latest transcript.
           publishAssistantEventsNow();
           const sessionIsCurrent = sendIsCurrent();
+          if (!controller.signal.aborted && !(error instanceof WordChatTerminalError && error.reportingOwner === "backend")) {
+            // The stream failed for a reason other than the user stopping
+            // it. The 5xx/network layers already reported transport-level
+            // failures; this is the only report for mid-stream `error`
+            // frames and Office.js failures inside the turn. A terminal
+            // frame's backend code (when it is one the privacy boundary
+            // knows) says which server-side failure ended the turn.
+            reportError(error, {
+              tags: {
+                component: "word-chat",
+                operation: "word_chat.turn",
+                storage: wordChatStorage,
+                error_code:
+                  error instanceof WordChatTerminalError
+                    ? error.code ?? undefined
+                    : undefined,
+              },
+            });
+          }
           if (controller.signal.aborted) {
             if (sessionIsCurrent) {
               if (!clientToolsSeen) {
@@ -1010,6 +1045,7 @@ export function useWordAssistantChat({
             ...failureCopy,
             dedupeKey: "assistant-turn",
             page: "Assistant",
+            operation: "word_chat.turn",
             onRetry: retryInput
               ? async () => {
                   if (!sendIsCurrent()) {

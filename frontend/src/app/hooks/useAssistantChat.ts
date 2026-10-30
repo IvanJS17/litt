@@ -30,6 +30,7 @@ import {
   type LiveAssistantTurn,
 } from "@/app/lib/assistantTurns";
 import { assistantHistoryContent } from "@/app/lib/assistantHistoryContent";
+import { reportError } from "@/app/lib/errorReporting";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
@@ -37,6 +38,7 @@ import {
   UserVisibleError,
   describeError,
   notifyError,
+  type Operation,
   notifyInfo,
 } from "@/app/lib/userFacingError";
 import {
@@ -197,6 +199,9 @@ export function useAssistantChat({
   // no error. A layout effect still runs inside the switching commit, so no
   // async continuation from the old request can land in the new thread first.
   const threadKey = `${workspaceIdentity}:${projectId ?? ""}:${initialChatId ?? ""}`;
+  // The flow every report from this hook belongs to: the same failure in a
+  // project chat and in the general assistant is two issues, not one.
+  const turnOperation: Operation = projectId ? "project_chat.turn" : "chat.turn";
   const threadKeyRef = useRef(threadKey);
   const adoptedThreadKeyRef = useRef<string | null>(null);
   useLayoutEffect(() => {
@@ -628,7 +633,7 @@ export function useAssistantChat({
           onRejectedApiKey: () => {
             if (isCurrentRequest()) setRejectedApiKey({ model: model ?? null });
           },
-          onErrorFrame: ({ message: frameMessage, safeToDisplay }) => {
+          onErrorFrame: ({ message: frameMessage, safeToDisplay, code, requestId, reportingOwner }) => {
             // The bubble records that this turn failed; the toast is where
             // the user gets a way back. A server-side failure is one the
             // user cannot fix, so Contact support rides along with Retry.
@@ -637,9 +642,10 @@ export function useAssistantChat({
             // key, a model this deployment disallows): re-sending it would
             // fail identically, so it gets support without a Retry.
             notifyError(
-              errorFrameFailure(frameMessage, safeToDisplay),
+              errorFrameFailure(frameMessage, safeToDisplay, { code, requestId, reportingOwner }),
               {
                 action: "get a response",
+                operation: turnOperation,
                 dedupeKey: "assistant-chat",
           support: true,
                 onRetry: async () => {
@@ -688,7 +694,15 @@ export function useAssistantChat({
         sink.appendCancellation();
       } else {
         // The stream broke for a reason other than the user stopping it:
-        // end the turn and describe the failure instead of leaving a spinner.
+        // end the turn and describe the failure instead of leaving a spinner,
+        // recording the real error while the user sees a generic message.
+        reportError(error, {
+          tags: {
+            component: "assistant-chat",
+            operation: turnOperation,
+            project: Boolean(projectId),
+          },
+        });
         sink.endStreamingAfterFailure();
         if (cursor.chatId && cursor.turnId) {
           retrySnapshot.recoveryChatId = cursor.chatId;
@@ -711,6 +725,7 @@ export function useAssistantChat({
         }));
         notifyError(failure, {
           action: "get a response",
+          operation: turnOperation,
           fallback: TURN_FAILED_MESSAGE,
           dedupeKey: "assistant-chat",
           support: true,

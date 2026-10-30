@@ -15,7 +15,19 @@ import {
     type AccountDeletionOrgBlocker,
 } from "./user.dataCleanup";
 import { eraseAccount } from "./user.accountJobs";
+import { withKind, type ErrorKind } from "../../lib/appError";
+import { reportError } from "../../lib/observability/report";
 import { type Db, errorMessage } from "./user.shared";
+
+/**
+ * The failure as the route's sendInternalError should report it: its kind
+ * names the flow that broke, the thrown value (an Error or a PostgREST
+ * object) stays the cause so its code still extracts. Nothing is reported
+ * here — the route reports the same object once, with the request id.
+ */
+function deletionFailure(kind: ErrorKind, message: string, cause: unknown): Error {
+    return withKind(cause, kind, message);
+}
 
 /** Explain which organizations need an owner before account deletion. */
 export function describeAccountDeletionBlockers(
@@ -81,7 +93,10 @@ export async function deleteUserAccount(
                 if (current.length)
                     return { ok: false, kind: "org_successor_required", blockers: current };
             }
-            return { ok: false, error: requestError };
+            return {
+                ok: false,
+                error: deletionFailure("account.delete_failed", "request_account_deletion failed", requestError),
+            };
         }
 
         // Best-effort session revocation. requireAuth already refuses this
@@ -91,9 +106,17 @@ export async function deleteUserAccount(
             try {
                 await db.auth.admin.signOut(token, "global");
             } catch (signOutErr) {
+                // The request succeeded; the revoke that did not is a
+                // warning with its own kind, logged once it is reported.
+                const failure = deletionFailure(
+                    "account.delete_failed",
+                    "session revoke after deletion request failed",
+                    signOutErr,
+                );
+                reportError(failure, { level: "warning" });
                 console.error("[user/account] session revoke failed", {
                     userId,
-                    error: errorMessage(signOutErr),
+                    error: failure,
                 });
             }
         }
@@ -109,11 +132,18 @@ export async function deleteUserAccount(
         }
         return { ok: true, receiptToken };
     } catch (err) {
+        // LiTT logs the failure here (the route reports it too, with the
+        // request id); the kind names the flow that broke.
+        const failure = deletionFailure(
+            "account.delete_failed",
+            "account deletion failed",
+            err,
+        );
         console.error("[user/account] delete failed", {
             userId,
-            error: errorMessage(err),
+            error: errorMessage(failure),
         });
-        return { ok: false, error: err };
+        return { ok: false, error: failure };
     }
 }
 
@@ -178,12 +208,10 @@ export async function deleteUserChats(
         await deleteAllUserChats(db, userId, orgId);
         return { ok: true };
     } catch (err) {
-        const detail = errorMessage(err);
-        console.error("[user/chats] delete failed", {
-            userId,
-            error: detail,
-        });
-        return { ok: false, error: err };
+        return {
+            ok: false,
+            error: deletionFailure("db.query_failed", "chat deletion failed", err),
+        };
     }
 }
 
@@ -197,12 +225,10 @@ export async function deleteUserProjectsData(
         await deleteUserProjects(db, userId, orgId, userEmail);
         return { ok: true };
     } catch (err) {
-        const detail = errorMessage(err);
-        console.error("[user/projects] delete failed", {
-            userId,
-            error: detail,
-        });
-        return { ok: false, error: err };
+        return {
+            ok: false,
+            error: deletionFailure("db.query_failed", "project deletion failed", err),
+        };
     }
 }
 
@@ -215,12 +241,10 @@ export async function deleteUserTabularReviews(
         await deleteAllUserTabularReviews(db, userId, orgId);
         return { ok: true };
     } catch (err) {
-        const detail = errorMessage(err);
-        console.error("[user/tabular-reviews] delete failed", {
-            userId,
-            error: detail,
-        });
-        return { ok: false, error: err };
+        return {
+            ok: false,
+            error: deletionFailure("db.query_failed", "tabular review deletion failed", err),
+        };
     }
 }
 
@@ -239,10 +263,9 @@ export async function deletePrivateMemories(
         await deleteUserPrivateMemories(db, userId, orgId);
         return { ok: true };
     } catch (err) {
-        console.error("[user/memories] delete failed", {
-            userId,
-            error: errorMessage(err),
-        });
-        return { ok: false, error: err };
+        return {
+            ok: false,
+            error: deletionFailure("db.query_failed", "private memory deletion failed", err),
+        };
     }
 }

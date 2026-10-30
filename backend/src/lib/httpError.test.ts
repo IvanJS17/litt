@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const reportError = vi.hoisted(() => vi.fn());
+vi.mock("./observability/report", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./observability/report")>()),
+  reportError,
+}));
+
 import express from "express";
 import request from "supertest";
 import { SCHEMA_OUT_OF_DATE_MESSAGE, sendInternalError } from "./httpError";
@@ -38,6 +44,20 @@ describe("sendInternalError", () => {
       code: "internal_error",
       detail: "Something went wrong. Please try again.",
       request_id: "req-abc",
+    });
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledWith(failure, {
+      tags: {
+        component: "http",
+        http_status: 500,
+        request_id: "req-abc",
+        http_method: "GET",
+        // Grouping key: the MOUNTED Express route pattern, not the concrete
+        // URL and not the router-relative "/:projectId".
+        http_route: "/projects/:projectId",
+      },
+      // The concrete path (ids, filenames) is not offered to the report; the
+      // route pattern above is what identifies the endpoint.
     });
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain("private-oauth");
     const logged = consoleError.mock.calls[0]?.[1] as {
@@ -87,9 +107,9 @@ describe("sendInternalError", () => {
     });
   });
 
-  // MIKE-BACKEND-H: GET /chat on an install whose migrations were never
-  // applied (the list RPC does not exist, PGRST202) answered an opaque 500
-  // internal_error, and the operator log said nothing about migrations.
+  // GET /chat on an install whose migrations were never applied (the list
+  // RPC does not exist, PGRST202) answered an opaque 500 internal_error, and
+  // the operator log said nothing about migrations.
   it.each(["PGRST202", "PGRST204", "PGRST205", "42P01"])(
     "answers a schema-behind-code failure (%s) with an intentional 503, one log line, and an operator hint",
     async (code) => {

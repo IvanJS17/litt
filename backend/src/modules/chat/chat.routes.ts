@@ -39,9 +39,11 @@ import {
     parseOptionalProjectId,
     createReservedAssistantMessageUpdater,
     createSubagentRunStore,
-
+    logAssistantMessageFailure,
+    requestIdOf,
     reserveAssistantMessage,
 } from "./engine/index";
+import { setOperation } from "../../lib/observability/report";
 import { normalizeEmail } from "../../lib/access";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
@@ -216,6 +218,7 @@ chatRouter.post("/:chatId/leave", requireAuth, asyncRoute(async (req, res) => {
 // as it is for reading the transcript. Project chats use this too: the turn
 // is keyed by chat, not by the route that started it.
 chatRouter.get("/:chatId/turn/:turnId/stream", requireAuth, asyncRoute(async (req, res) => {
+    setOperation("chat.turn");
     const userId = res.locals.userId as string;
     const userEmail = res.locals.userEmail as string | undefined;
     const { chatId, turnId } = req.params;
@@ -507,6 +510,8 @@ chatRouter.delete("/:chatId", requireAuth, asyncRoute(async (req, res) => {
 
 // POST /chat — streaming
 chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
+    setOperation("chat.turn");
+    const requestId = requestIdOf(res);
     const userId = res.locals.userId as string;
     const body =
         req.body && typeof req.body === "object" && !Array.isArray(req.body)
@@ -666,10 +671,12 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 authorUserId: userId,
             });
             if (reserveError) {
-                console.error(
-                    "[chat/stream] failed to reserve assistant message",
-                    reserveError,
-                );
+                logAssistantMessageFailure({
+                    kind: "chat.message_reserve_failed",
+                    label: "[chat/stream] failed to reserve assistant message",
+                    cause: reserveError,
+                    component: "chat-stream",
+                });
                 run.finish();
                 return void res
                     .status(500)
@@ -802,6 +809,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                         message:
                             "The model returned an empty response. Try again, or pick a different model.",
                         safe_to_display: true,
+                        ...(requestId ? { request_id: requestId } : {}),
                     })}\n\n`,
                 );
                 write("data: [DONE]\n\n");
@@ -825,15 +833,19 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                     citations.length ? citations : null,
                 );
                 if (saveError) {
-                    console.error(
-                        "[chat/stream] failed to save assistant response",
-                        saveError,
-                    );
+                    logAssistantMessageFailure({
+                        kind: "chat.message_save_failed",
+                        label: "[chat/stream] failed to save assistant response",
+                        cause: saveError,
+                        component: "chat-stream",
+                    });
                     write(
                         `data: ${JSON.stringify({
                             type: "error",
                             message:
                                 "The response was generated but could not be saved.",
+                            reporting_owner: "backend",
+                            ...(requestId ? { request_id: requestId } : {}),
                         })}\n\n`,
                     );
                     write("data: [DONE]\n\n");
@@ -860,10 +872,11 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 // the chat untitled.
                 const saved = await updateChatTitle(db, { chatId, title });
                 if (!saved.ok) {
-                    console.error("[chat/stream] failed to save chat title", {
-                        chatId,
-                        message: (saved.error as { message?: string } | null)
-                            ?.message,
+                    logAssistantMessageFailure({
+                        kind: "chat.title_failed",
+                        label: "[chat/stream] failed to save chat title",
+                        cause: saved.error,
+                        component: "chat-stream",
                     });
                 } else {
                     chatTitle = title;
@@ -973,10 +986,12 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                         );
                     }
                     if (saveError) {
-                        console.error(
-                            "[chat/stream] failed to save aborted stream",
-                            saveError,
-                        );
+                        logAssistantMessageFailure({
+                            kind: "chat.message_save_failed",
+                            label: "[chat/stream] failed to save aborted stream",
+                            cause: saveError,
+                            component: "chat-stream",
+                        });
                     } else {
                         await subagentRuns.flush();
                     }
@@ -989,7 +1004,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 return;
             }
             console.error("[chat/stream] error:", err);
-            const errorPayload = assistantStreamErrorPayload(err);
+            const errorPayload = assistantStreamErrorPayload(err, requestId);
             const message = errorPayload.message;
             const errorEvents =
                 err instanceof AssistantStreamError
@@ -1016,13 +1031,20 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                     );
                 }
                 if (saveError)
-                    console.error(
-                        "[chat/stream] failed to save error",
-                        saveError,
-                    );
+                    logAssistantMessageFailure({
+                        kind: "chat.message_save_failed",
+                        label: "[chat/stream] failed to save error",
+                        cause: saveError,
+                        component: "chat-stream",
+                    });
                 else await subagentRuns.flush();
             } catch (saveErr) {
-                console.error("[chat/stream] failed to save error", saveErr);
+                logAssistantMessageFailure({
+                    kind: "chat.message_save_failed",
+                    label: "[chat/stream] failed to save error",
+                    cause: saveErr,
+                    component: "chat-stream",
+                });
             }
             try {
                 write(

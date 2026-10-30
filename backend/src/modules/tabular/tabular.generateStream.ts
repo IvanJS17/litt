@@ -43,6 +43,8 @@ import {
     type RunProgressUpdate,
 } from "../../lib/queue/runProgress";
 import { type UserApiKeys } from "../../lib/llm";
+import { AppError } from "../../lib/appError";
+import { reportError } from "../../lib/observability/report";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
 import { type ReviewRow } from "./tabular.rows";
 import {
@@ -52,6 +54,22 @@ import {
     type Db,
     type Log,
 } from "./tabular.shared";
+
+/**
+ * The progress channel could not be subscribed: the stream falls back to
+ * polling the database, so nothing fails for the caller, but a Redis that is
+ * down or misconfigured is one issue. Returns the reported object so the
+ * caller logs that (the console bridge then files nothing twice).
+ */
+function reportStreamFailure(cause: unknown): AppError {
+    const failure = new AppError(
+        "tabular.stream_failed",
+        "Tabular progress channel subscribe failed",
+        { cause },
+    );
+    reportError(failure);
+    return failure;
+}
 
 /** How often the DB-poll backstop reconciles cell state (ms). */
 const RECONCILE_INTERVAL_MS = 3_000;
@@ -260,8 +278,10 @@ async function tailTabularRun(args: {
                 }
             });
         } catch (err) {
+            // The stream degrades to the DB-poll backstop; worth an issue
+            // (the Redis error is the cause), not a failed response.
             log.error("[tabular/generate-async] subscribe failed", {
-                err,
+                err: reportStreamFailure(err),
                 reviewId,
             });
         }
@@ -413,7 +433,7 @@ export async function awaitCellTerminal(args: {
                     });
                 } catch (err) {
                     log.error("[tabular/regenerate-async] subscribe failed", {
-                        err,
+                        err: reportStreamFailure(err),
                         reviewId,
                     });
                 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { bestEffort } from "../bestEffort";
+import { bestEffort } from "../observability/report";
 
 describe("bestEffort", () => {
   afterEach(() => {
@@ -24,7 +24,10 @@ describe("bestEffort", () => {
       }),
     ).resolves.toBeUndefined();
 
-    expect(warn).toHaveBeenCalledOnce();
+    // A sanitized report line, then the local detail.
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls[0]?.[0]).toBe("[report]");
+    expect(String(warn.mock.calls[0]?.[1])).not.toContain("d-1");
     expect(warn).toHaveBeenCalledWith(
       "[best-effort] storage-delete:rollback failed",
       expect.objectContaining({

@@ -1,6 +1,6 @@
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import fs, { existsSync } from "node:fs";
-import { diagnosticErrorTags } from "../errorTags";
+import { diagnosticErrorTags } from "../observability/diagnostics";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,6 +47,7 @@ describe("office conversion deadline", () => {
     ).catch((error) => error);
     expect(failure.message).toMatch(/timed out after 200ms/);
     expect(diagnosticErrorTags(failure)).toEqual({
+      error_kind: "conversion.timeout",
       failure_code: "conversion_timeout",
     });
 
@@ -68,6 +69,7 @@ it("distinguishes an unavailable converter from a rejected document without stde
     join(directory, "work"),
   ).catch((error) => error);
   expect(diagnosticErrorTags(failure)).toEqual({
+    error_kind: "conversion.failed",
     failure_code: "conversion_failed",
   });
   vi.resetModules();
@@ -79,6 +81,7 @@ it("distinguishes an unavailable converter from a rejected document without stde
     .officeFileToPdf("PRIVATE_DOCUMENT.docx", directory)
     .catch((error) => error);
   expect(diagnosticErrorTags(missing)).toEqual({
+    error_kind: "conversion.unavailable",
     failure_code: "conversion_unavailable",
   });
 });
@@ -99,7 +102,9 @@ it("reports a clean soffice exit that wrote no PDF as a failed conversion", asyn
     join(directory, "work"),
   ).catch((error) => error);
   expect(failure).toBeInstanceOf(Error);
+  // Same legacy code as a non-zero exit; its own kind tells the two apart.
   expect(diagnosticErrorTags(failure)).toEqual({
+    error_kind: "conversion.no_output",
     failure_code: "conversion_failed",
   });
   // Operator log keeps LibreOffice's reason; the missing-file error is the cause.

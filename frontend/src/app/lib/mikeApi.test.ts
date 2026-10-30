@@ -7,6 +7,21 @@ import type { AssistantEvent, Chat } from "@/app/components/shared/types";
 import { subscribeTabularReviewChanges } from "./tabularReviewChanges";
 import { getTabularReviewHistoryStatuses } from "./mikeApi";
 
+// Backend 5xx responses are recorded against the operation that failed, with
+// the request id; the reporter is mocked so these tests assert the call, and
+// the reporter's own suite covers what it does with it.
+const reportApiFailure = vi.hoisted(() => vi.fn());
+const reportNetworkFailure = vi.hoisted(() => vi.fn());
+const reportError = vi.hoisted(() => vi.fn());
+const markErrorHandled = vi.hoisted(() => vi.fn());
+vi.mock("@/app/lib/errorReporting", () => ({
+    trackPendingRequest: () => () => {},
+    markErrorHandled,
+    reportApiFailure,
+    reportError,
+    reportNetworkFailure,
+}));
+
 import { userFacingApiError } from "./userFacingError";
 import {
     MikeApiError,
@@ -487,6 +502,18 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
             requestId: "req-public-123",
             message: "Something went wrong. Please try again.",
         });
+
+        expect(reportApiFailure).toHaveBeenCalledWith({
+            path: "/user/profile",
+            operation: "settings.profile",
+            method: "GET",
+            status: 500,
+            code: "internal_error",
+            requestId: "req-public-123",
+            // The thrown error itself travels along so a later
+            // console.error(..., error) is not recorded twice.
+            error: expect.any(MikeApiError),
+        });
     });
 
     // MIKE-BACKEND-H / MIKE-FRONTEND-F: a missing migration used to reach
@@ -572,6 +599,14 @@ describe("apiRequest plumbing (via thin wrappers)", () => {
         fetchMock.mockRejectedValueOnce(failure);
 
         await expect(createProject("Acme")).rejects.toBe(failure);
+
+        expect(reportNetworkFailure).toHaveBeenCalledOnce();
+        expect(reportNetworkFailure).toHaveBeenCalledWith(failure, {
+            method: "POST",
+            url: "/api/projects",
+            operation: "projects.manage",
+        });
+        expect(reportApiFailure).not.toHaveBeenCalled();
     });
 
     it("keeps a non-JSON 4xx an error", async () => {
@@ -658,6 +693,9 @@ describe("audit history", () => {
         fetchMock.mockResolvedValueOnce(jsonResponse(result));
         expect(await getAuditActors({ orgId: "org-1", search: "Alex & Pat", offset: 20 })).toEqual(result);
         expect(lastFetchCall().url).toBe("/api/audit/actors?org_id=org-1&q=Alex+%26+Pat&offset=20");
+        fetchMock.mockResolvedValueOnce(jsonResponse(result));
+        expect(await getAuditActors({ orgId: "org-1" })).toEqual(result);
+        expect(lastFetchCall().url).toBe("/api/audit/actors?org_id=org-1");
         fetchMock.mockResolvedValueOnce(jsonResponse({ events: [], total: 0, page: 1, pageSize: 50 }));
         await getAuditHistory({ orgId: "org-1", actorUserId: "actor-1" });
         expect(lastFetchCall().url).toBe("/api/audit?org_id=org-1&actor_user_id=actor-1");
@@ -992,6 +1030,23 @@ describe("API transport cancellation", () => {
             })).rejects.toBe(reason);
         },
     );
+
+    it("still reports a network failure when the signal is active", async () => {
+        const controller = new AbortController();
+        const error = new TypeError("Failed to fetch");
+        fetchMock.mockRejectedValueOnce(error);
+
+        await expect(streamChat({
+            messages: [],
+            signal: controller.signal,
+        })).rejects.toBe(error);
+
+        expect(reportNetworkFailure).toHaveBeenCalledExactlyOnceWith(error, {
+            method: "POST",
+            url: "/api/chat",
+            operation: "chat.turn",
+        });
+    });
 });
 
 describe("streamChat", () => {
