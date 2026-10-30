@@ -1,10 +1,13 @@
-# LiTT — despliegue de producción (`litt.asteroitt.com.mx`)
+# LiTT — despliegue de producción (`litt.asteroitt.com`)
 
 Paquete operativo del despliegue al VPS compartido `staging-apps-dev`. Sigue el
 patrón de la casa: la app vive en `/srv/litt` con su propio compose (`name: litt`),
 **ningún puerto se publica al host**, el borde 80/443 lo sirve el Caddy compartido
 (de `escrituralab`) con un bloque dedicado, y el respaldo es restic por app.
-Los documentos viven en **Cloudflare R2** (externo); no hay object storage local.
+Los documentos viven en **Cloudflare R2** (bucket `litt-docs`) y los respaldos
+en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
+él; no hay object storage local. El correo del sistema sale de
+`no-reply@asteroitt.com` por SMTP.
 
 ## Piezas
 
@@ -12,15 +15,20 @@ Los documentos viven en **Cloudflare R2** (externo); no hay object storage local
 |---|---|
 | `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, frontend) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
+| `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
 | `Caddyfile.litt` | Bloque del dominio para el Caddy compartido (marcadores `# BEGIN/END litt`) |
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
-| `litt-backup.sh` | Respaldo diario (pg_dump + restic; sin documentos, por diseño) |
+| `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
+| `litt-restic.env.example` | Nombres de las variables de `/etc/litt-restic.env` (sin valores) |
 
 ## Requisitos previos (una vez)
 
-- [ ] Bucket R2 en Cloudflare (`litt-docs`) + credenciales S3 + reglas CORS
-      para `https://litt.asteroitt.com.mx` (PUT/GET de las URLs firmadas).
+- [ ] Buckets R2 `litt-docs` y `litt-backups` (ya existen), cada uno con su
+      token S3 limitado a él; reglas CORS de `litt-docs` para
+      `https://litt.asteroitt.com` (PUT/GET de las URLs firmadas).
+- [ ] Buzón `no-reply@asteroitt.com` (Neubox) con SPF, DKIM y DMARC (ya
+      configurados).
 - [ ] Registro DNS `A litt` → `78.47.184.224` (Cloudflare; mismo modo que
       `contextlexmx`).
 - [ ] Imágenes del release construidas desde el commit exacto y verificadas
@@ -100,9 +108,29 @@ openssl rand -hex 32
 # Llaves de Supabase:
 JWT_SECRET=<el de arriba> python3 deploy/prod/supabase-jwt.py anon
 JWT_SECRET=<el de arriba> python3 deploy/prod/supabase-jwt.py service_role
-# R2: endpoint + access + secret + bucket del bucket dedicado.
+# R2 (litt-docs) y SMTP: ver la tabla de abajo.
 ```
 Nunca imprimir el contenido del `.env`.
+
+### Checklist: de dónde sale cada secreto
+
+Los valores viven en Bitwarden Secrets Manager; se pasan al VPS con `bws run`
+o por un canal seguro, sin imprimirlos ni copiarlos a Git, al chat o a un
+recibo. Los que no salen de Bitwarden se generan en el VPS.
+
+| Variable | Archivo en el VPS | Origen |
+|---|---|---|
+| `R2_ENDPOINT_URL` | `/srv/litt/.env` | BWS `LITT_R2_ENDPOINT_URL` |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | `/srv/litt/.env` | BWS `LITT_R2_DOCS_*` (token del bucket `litt-docs`) |
+| `GOTRUE_SMTP_PASS` | `/srv/litt/.env` | BWS `NO_REPLY_ASTEROITT` (buzón `no-reply@asteroitt.com`) |
+| `POSTGRES_PASSWORD`, `JWT_SECRET`, `DOWNLOAD_SIGNING_SECRET`, `USER_API_KEYS_ENCRYPTION_SECRET` | `/srv/litt/.env` | `openssl rand -hex 32` en el VPS |
+| `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | `/srv/litt/.env` | `supabase-jwt.py` con el `JWT_SECRET` de arriba |
+| `RESTIC_REPOSITORY` | `/etc/litt-restic.env` | `s3:` + valor de `LITT_R2_ENDPOINT_URL` + `/litt-backups` |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `/etc/litt-restic.env` | BWS `LITT_R2_BACKUPS_*` (token del bucket `litt-backups`) |
+| `RESTIC_PASSWORD` | `/etc/litt-restic.env` | BWS `LITT_RESTIC_PASSWORD` |
+
+Los demás valores del `.env` no son secretos y ya vienen en `.env.example`:
+el bucket, el host, el puerto y el usuario SMTP y el remitente.
 
 ## 4. Primer arranque
 
@@ -117,6 +145,13 @@ $C ps                                # todo healthy
 
 ## 5. Caddy compartido (quirúrgico)
 
+El bloque manda todo a `litt:3000` (frontend), salvo `/auth/v1/verify`, que va
+a `litt-auth:8000` (`auth-edge`). Esa es la ruta de los enlaces que llegan por
+correo para confirmar la cuenta, recuperar la contraseña, aceptar una
+invitación o cambiar el correo. `auth-edge` responde 404 a cualquier otra ruta,
+así que la red del Caddy compartido no alcanza el signup, el token, la API
+admin ni PostgREST.
+
 ```bash
 sudo -n cp /srv/escrituralab/deploy/Caddyfile /srv/escrituralab/deploy/Caddyfile.bak-$(date +%F-%H%M)
 # Insertar el contenido de deploy/prod/Caddyfile.litt (solo entre sus marcadores).
@@ -130,18 +165,21 @@ Registro `A litt` → `78.47.184.224` en Cloudflare (igual que `contextlexmx`).
 Verificar propagación con DoH (`cloudflare-dns.com/dns-query`); el certificado
 ACME lo emite Caddy solo cuando el DNS resuelve.
 
-## 7. Respaldo (patrón de la casa)
+## 7. Respaldo (restic en Cloudflare R2)
 
-1. Crear el bucket `litt-backups` en Hetzner Object Storage y la password en la
-   máquina de build (600): `/home/ijs/.secrets/restic-litt-password`.
-   **Escrutinio (escrow):** esa password debe existir también fuera del VPS —
-   sin ella, ni el respaldo ni los secretos cifrados son recuperables.
-2. En el VPS: transferir la password por canal seguro e instalarla en
-   `/etc/litt-restic-password` (`sudo install -m 600 -o root -g root`; nunca
-   imprimirla). Crear `/etc/litt-restic.env` (600 root:root) con
-   `RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/litt-backups`,
-   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y
-   `RESTIC_PASSWORD_FILE=/etc/litt-restic-password`.
+1. Destino: el bucket R2 `litt-backups`, que ya existe, con su propio token S3
+   limitado a ese bucket. No se usa el token de `litt-docs`. Hetzner Object
+   Storage queda como destino futuro posible, cambiando solo `RESTIC_REPOSITORY`
+   y su token.
+   **Custodia:** `RESTIC_PASSWORD` vive en Bitwarden (`LITT_RESTIC_PASSWORD`)
+   además de en el VPS; sin ella el respaldo no se puede restaurar.
+2. En el VPS, crear `/etc/litt-restic.env` (600 root:root) a partir de
+   `deploy/prod/litt-restic.env.example`, con los valores de la checklist de
+   §3 y sin imprimirlos:
+   `RESTIC_REPOSITORY=s3:https://<account-id>.r2.cloudflarestorage.com/litt-backups`,
+   `RESTIC_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y
+   `AWS_DEFAULT_REGION=auto`. La primera vez, `restic init` con ese entorno
+   cargado.
 3. `install -m 700 -o root -g root deploy/prod/litt-backup.sh /usr/local/sbin/litt-backup.sh`
    + `sha256sum` comparado en ambos lados.
 4. Cron (root, sin pisar): `30 3 * * * /usr/local/sbin/litt-backup.sh >> /var/log/litt-backup.log 2>&1`
@@ -164,8 +202,8 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
 ## 8. Verificación final (con Iván en el navegador)
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com.mx          # 200 (login)
-curl -s https://litt.asteroitt.com.mx/api/health                     # {"ok":true,"commit":"<SHA>"}
+curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com          # 200 (login)
+curl -s https://litt.asteroitt.com/api/health                     # {"ok":true,"commit":"<SHA>"}
 ```
 `/api/health` debe mostrar el `LITT_SOURCE_COMMIT` desplegado.
 
@@ -173,13 +211,21 @@ El enlace **Código fuente** no se comprueba con `curl`: `/login` se entrega
 como una página que el navegador arma al cargar, así que el HTML que devuelve
 `curl` no contiene el enlace. Se comprueba en el navegador:
 
-1. Abrir `https://litt.asteroitt.com.mx/login`.
+1. Abrir `https://litt.asteroitt.com/login`.
 2. Al pie, el enlace **Código fuente** debe abrir
    `https://github.com/IvanJS17/litt/tree/<SHA>` con el mismo
    `LITT_SOURCE_COMMIT`, y GitHub debe mostrar ese commit (no un 404).
 3. Repetir en Ajustes → Acerca de y en el add-in de Word (Ajustes).
-Luego: abrir en el navegador, crear la cuenta del owner, dar de alta la llave
-de IA (Ajustes) y subir un documento de prueba.
+Luego: abrir en el navegador y crear la cuenta del owner. Debe llegar el
+correo de confirmación de `LiTT <no-reply@asteroitt.com>`, con un enlace a
+`https://litt.asteroitt.com/auth/v1/verify…` que, al abrirlo, regresa a la app
+con la cuenta confirmada. Si no llega, revisar `$C logs auth` (sin imprimir el
+`.env`). Después, dar de alta la llave de IA (Ajustes) y subir un documento de
+prueba. Comprobar también «Olvidé mi contraseña» con la misma cuenta.
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com/auth/v1/signup   # 404 (auth-edge solo expone /verify)
+```
 
 ## Decisiones y pendientes conocidos
 
@@ -188,12 +234,24 @@ de IA (Ajustes) y subir un documento de prueba.
   las páginas de Drive (solo accesibles por URL manual) y el backend responde
   `drivePublicationUnavailable` de forma fail-closed. El workstream del conector
   real (self-serve) reescribirá esas páginas cuando se apruebe.
-- **Signup abierto + autoconfirmación** (aún sin SMTP): cerrar
-  (`DISABLE_SIGNUP=true`) cuando todo el equipo tenga cuenta. SMTP (correos
-  del sistema) pospuesto.
+- **Correo del sistema (SMTP)**: lo envía GoTrue desde `LiTT
+  <no-reply@asteroitt.com>`, con SSL implícito en el puerto 465 de
+  `svgs440.serverneubox.com.mx`, el nombre del servidor Neubox, que es para el
+  que vale su certificado. No se usa `mail.asteroitt.com`, porque pasa por el
+  proxy de Cloudflare y el SMTP no lo atraviesa. Fuente del 465: GoTrue v2.189.0
+  envía con `gopkg.in/gomail.v2` (`internal/mailer/mailmeclient`), cuyo
+  `NewDialer` activa TLS implícito cuando el puerto es 465. Los enlaces apuntan a
+  `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app. El
+  backend no envía correo propio: las invitaciones a organizaciones se ven
+  dentro de la app.
+- **Signup abierto con confirmación de correo** (`GOTRUE_MAILER_AUTOCONFIRM=false`):
+  una cuenta nueva no entra hasta confirmar su correo. Cerrar el signup
+  (`DISABLE_SIGNUP=true`) cuando todo el equipo tenga cuenta.
 - **Login con Google**: deshabilitado (requiere credenciales de sistema).
-- **Documentos en R2**: el respaldo NO los incluye (política de borrado
-  definitivo sin retención oculta); R2 es el almacén durable.
+- **Documentos en R2** (`litt-docs`): el respaldo NO los incluye (política de
+  borrado definitivo sin retención oculta); R2 es el almacén durable.
+- **Solo Cloudflare R2 por ahora**: documentos y respaldos, en buckets y con
+  tokens separados (§7 para el destino futuro).
 - **Esquema y upgrades de la base**: un solo mecanismo, el de upstream. El
   servicio `db-init` carga `backend/schema.sql` solo si la base está vacía (el
   esquema registra en `public.schema_migrations` todas las migraciones que ya
@@ -208,5 +266,5 @@ de IA (Ajustes) y subir un documento de prueba.
   los workers en un hilo propio (`WORKERS_MODE` por defecto).
 - **Telemetría**: ninguna. El árbol no incluye SDK de Sentry ni variables de
   telemetría de terceros.
-- **SMTP futuro**: cuando se habilite el correo, el servicio `auth` necesitará
-  egreso (añadirlo a la red `egress` del compose); hoy no lo requiere.
+- **Egreso de `auth`**: GoTrue está en la red `egress` solo para el SMTP
+  saliente; el resto del stack, salvo el backend, sigue en la red interna.
