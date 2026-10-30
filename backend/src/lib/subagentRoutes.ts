@@ -14,11 +14,21 @@ export const MAX_SUBAGENT_ROUTE_DESCRIPTION = 200;
 
 export const EMPTY_SUBAGENT_ROUTES: SubagentRoutes = { routes: [], default: null };
 
-const ROUTE_FIELDS = new Set(["name", "description", "model", "reasoning"]);
+/** `unavailable` is ours, sent back as read; it is never stored. */
+const ROUTE_FIELDS = new Set(["name", "description", "model", "reasoning", "unavailable"]);
+
+/**
+ * The database's own limit: `octet_length(subagent_routes::text) <= 6000`
+ * (migration 20261030_50_litt_subagent_routes.sql).
+ */
+export const MAX_SUBAGENT_ROUTES_BYTES = 6000;
 
 type Parsed = { ok: true; value: SubagentRoutes } | { ok: false; detail: string };
 
-function parseRoute(raw: unknown, index: number): SubagentRoute | string {
+/** Whether a route whose model left the catalog may stay as it is. */
+type KeepRetired = (name: string, model: string) => boolean;
+
+function parseRoute(raw: unknown, index: number, keepRetired: KeepRetired): SubagentRoute | string {
     const at = `Route ${index + 1}`;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return `${at} must be an object.`;
     const entry = raw as Record<string, unknown>;
@@ -36,20 +46,46 @@ function parseRoute(raw: unknown, index: number): SubagentRoute | string {
     ) {
         return `${at} needs a one-line description of up to ${MAX_SUBAGENT_ROUTE_DESCRIPTION} characters.`;
     }
-    const model = typeof entry.model === "string" ? resolveModel(entry.model.trim(), "") : "";
-    if (!model) return `${at} needs a supported model.`;
-    const route: SubagentRoute = { name, description, model };
+    const requested = typeof entry.model === "string" ? entry.model.trim() : "";
+    const model = requested ? resolveModel(requested, "") : "";
+    const retired = !model && Boolean(requested) && keepRetired(name, requested);
+    if (!model && !retired) return `${at} needs a supported model.`;
+    const route: SubagentRoute = { name, description, model: model || requested };
     if (entry.reasoning != null) {
         if (!(REASONING_LEVELS as readonly unknown[]).includes(entry.reasoning)) {
             return `${at} has an unknown reasoning level.`;
         }
         route.reasoning = entry.reasoning as ReasoningLevel;
     }
-    return route;
+    return retired ? { ...route, unavailable: true } : route;
 }
 
-/** Validate the routes a user saves; every failure names what to fix. */
-export function validateSubagentRoutes(body: unknown): Parsed {
+/**
+ * The size of `subagent_routes::text` as PostgreSQL prints a jsonb value:
+ * ", " and ": " separators, the same string escapes as JSON.stringify.
+ * Key order differs, length does not.
+ */
+export function storedSubagentRoutesBytes(routes: SubagentRoutes): number {
+    const text = (value: unknown): string => {
+        if (Array.isArray(value)) return `[${value.map(text).join(", ")}]`;
+        if (value && typeof value === "object") {
+            return `{${Object.entries(value)
+                .filter(([, v]) => v !== undefined)
+                .map(([k, v]) => `${JSON.stringify(k)}: ${text(v)}`)
+                .join(", ")}}`;
+        }
+        return JSON.stringify(value);
+    };
+    return Buffer.byteLength(text(routes), "utf8");
+}
+
+/**
+ * Validate the routes a user saves; every failure names what to fix. A
+ * route whose model left the catalog may be saved back exactly as `stored`
+ * has it, so editing another route does not erase it; it is stored without
+ * its `unavailable` mark.
+ */
+export function validateSubagentRoutes(body: unknown, stored?: SubagentRoutes): Parsed {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
         return { ok: false, detail: "Send the routes as an object." };
     }
@@ -58,10 +94,13 @@ export function validateSubagentRoutes(body: unknown): Parsed {
     if (rawRoutes.length > MAX_SUBAGENT_ROUTES) {
         return { ok: false, detail: `Save at most ${MAX_SUBAGENT_ROUTES} routes.` };
     }
+    const keepRetired: KeepRetired = (name, model) =>
+        Boolean(stored?.routes.some((r) => r.unavailable && r.name === name && r.model === model));
     const routes: SubagentRoute[] = [];
     for (const [index, raw] of rawRoutes.entries()) {
-        const route = parseRoute(raw, index);
-        if (typeof route === "string") return { ok: false, detail: route };
+        const parsed = parseRoute(raw, index, keepRetired);
+        if (typeof parsed === "string") return { ok: false, detail: parsed };
+        const { unavailable: _unavailable, ...route } = parsed;
         if (routes.some((r) => r.name === route.name)) {
             return { ok: false, detail: `The route name "${route.name}" repeats.` };
         }
@@ -74,19 +113,24 @@ export function validateSubagentRoutes(body: unknown): Parsed {
     if (fallback && !routes.some((r) => r.name === fallback)) {
         return { ok: false, detail: "The default must be one of the routes." };
     }
-    return { ok: true, value: { routes, default: fallback } };
+    const value = { routes, default: fallback };
+    if (storedSubagentRoutesBytes(value) > MAX_SUBAGENT_ROUTES_BYTES) {
+        return { ok: false, detail: "The routes are too long to save. Shorten their descriptions." };
+    }
+    return { ok: true, value };
 }
 
 /**
- * Read stored routes. A route that no longer validates (a model retired
- * from the catalog) is left out rather than repaired, and so is a default
- * that lost its route: the subagent then runs on the conversation's model.
+ * Read stored routes. A route whose model left the catalog is kept, marked
+ * `unavailable`, and stays the default if it was: a subagent sent to it
+ * fails and says why instead of running on another model. A malformed
+ * entry is left out, and so is a default that names no route.
  */
 export function storedSubagentRoutes(stored: unknown): SubagentRoutes {
     const raw = stored && typeof stored === "object" ? (stored as Record<string, unknown>) : {};
     const routes = (Array.isArray(raw.routes) ? raw.routes : [])
         .slice(0, MAX_SUBAGENT_ROUTES)
-        .map(parseRoute)
+        .map((entry, index) => parseRoute(entry, index, () => true))
         .filter((r): r is SubagentRoute => typeof r !== "string")
         .filter((r, i, all) => all.findIndex((o) => o.name === r.name) === i);
     const fallback =

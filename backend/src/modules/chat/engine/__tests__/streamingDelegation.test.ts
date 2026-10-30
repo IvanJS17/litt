@@ -681,6 +681,73 @@ describe("runDelegateCall", () => {
     );
   });
 
+  it("tells the assistant to start anew when a continued subagent's route was deleted, unless it names another", async () => {
+    const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Done.", events: [], citations: [] }));
+    const govern = vi.fn(async (route: { name: string; model: string }) => ({
+      ok: true as const,
+      model: route.model,
+      provider: "gemini",
+      apiKeys: { gemini: "k" },
+    }));
+    const ctx = context({
+      spawn,
+      runStore: {
+        save: vi.fn(),
+        load: vi.fn(async () => ({
+          v: 1 as const,
+          title: "Review lease",
+          task: "Review the lease.",
+          text: "Clause 4 is unusual.",
+          effort: "standard" as const,
+          route: "deep",
+          records: [],
+          omitted: 0,
+        })),
+      },
+      subagentRoutes: {
+        routes: {
+          routes: [{ name: "fast", description: "Fast.", model: "gemini-3.5-flash-lite" }],
+          default: "fast",
+        },
+        govern,
+      },
+    });
+
+    const refused = await runDelegateCall(delegate("d1", { continue: "run-1", task: "Now clause 5." }), ctx);
+    expect(refused.content).toContain('route \\"deep\\" no longer exists');
+    expect(refused.content).toContain("new delegation");
+    expect(refused.content).not.toContain("omit route");
+    expect(spawn).not.toHaveBeenCalled();
+
+    const switched = await runDelegateCall(
+      delegate("d2", { continue: "run-1", task: "Now clause 5.", route: "fast" }),
+      ctx,
+    );
+    expect(spawn.mock.calls.map(([child]) => child.model)).toEqual(["gemini-3.5-flash-lite"]);
+    expect(switched.event).toMatchObject({ route: "fast", continued_from: "run-1" });
+  });
+
+  it("refuses a route that is not a name instead of running the default", async () => {
+    const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Done.", events: [], citations: [] }));
+    const govern = vi.fn();
+    const ctx = context({
+      spawn,
+      subagentRoutes: {
+        routes: {
+          routes: [{ name: "fast", description: "Fast.", model: "gemini-3.5-flash-lite" }],
+          default: "fast",
+        },
+        govern,
+      },
+    });
+
+    const { content } = await runDelegateCall(delegate("d1", { route: ["fast"] }), ctx);
+
+    expect(content).toContain("route must be one of");
+    expect(govern).not.toHaveBeenCalled();
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
   it("continues a subagent that waited on approval with the server's record of the outcome", async () => {
     const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Sent.", events: [], citations: [] }));
     const ctx = context({

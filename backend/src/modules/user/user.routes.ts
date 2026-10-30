@@ -467,11 +467,15 @@ userRouter.get("/subagent-routes", requireAuth, asyncRoute(async (_req, res) => 
 
 // PUT /user/subagent-routes
 userRouter.put("/subagent-routes", requireAuth, asyncRoute(async (req, res) => {
-    const parsed = validateSubagentRoutes(req.body);
+    const userId = res.locals.userId as string;
+    const db = createServerSupabase();
+    // A route whose model left the catalog may be saved back as it is stored.
+    const stored = await getSubagentRoutes(db, userId);
+    if (!stored.ok) return void sendServiceFailure(res, stored);
+    const parsed = validateSubagentRoutes(req.body, stored.data);
     if (!parsed.ok) return void res.status(400).json({ detail: parsed.detail });
 
-    const userId = res.locals.userId as string;
-    const result = await saveSubagentRoutes(createServerSupabase(), userId, parsed.value);
+    const result = await saveSubagentRoutes(db, userId, parsed.value);
     if (!result.ok) return void sendServiceFailure(res, result);
     res.setHeader("Cache-Control", "private, no-store");
     res.json(result.data);

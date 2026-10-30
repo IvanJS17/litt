@@ -286,6 +286,11 @@ export type SubagentRoute = {
   description: string;
   model: string;
   reasoning?: string;
+  /**
+   * Set on read when the model left the catalog: the route is kept, and a
+   * subagent sent to it fails instead of running on another model. Never stored.
+   */
+  unavailable?: true;
 };
 
 /** A user's routes, in their order, and the one a task without a route uses. */
