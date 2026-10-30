@@ -98,8 +98,11 @@ import {
     getWebSearchSettings,
     validateWebSearchPayload,
     saveWebSearchSettings,
+    getSubagentRoutes,
+    saveSubagentRoutes,
     isWorkspaceExportType,
 } from "./user.service";
+import { validateSubagentRoutes } from "../../lib/subagentRoutes";
 
 export const userRouter = Router();
 
@@ -448,6 +451,27 @@ userRouter.put("/web-search", requireAuth, asyncRoute(async (req, res) => {
         userId,
         parsed.update,
     );
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.data);
+}));
+
+// GET /user/subagent-routes
+userRouter.get("/subagent-routes", requireAuth, asyncRoute(async (_req, res) => {
+    const userId = res.locals.userId as string;
+    const result = await getSubagentRoutes(createServerSupabase(), userId);
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.data);
+}));
+
+// PUT /user/subagent-routes
+userRouter.put("/subagent-routes", requireAuth, asyncRoute(async (req, res) => {
+    const parsed = validateSubagentRoutes(req.body);
+    if (!parsed.ok) return void res.status(400).json({ detail: parsed.detail });
+
+    const userId = res.locals.userId as string;
+    const result = await saveSubagentRoutes(createServerSupabase(), userId, parsed.value);
     if (!result.ok) return void sendServiceFailure(res, result);
     res.setHeader("Cache-Control", "private, no-store");
     res.json(result.data);

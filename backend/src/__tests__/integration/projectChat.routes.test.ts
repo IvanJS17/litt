@@ -456,6 +456,7 @@ describe("POST /projects/:projectId/chat", () => {
             memory_curator_model: null,
             subagent_model: null,
             subagent_reasoning: null,
+            subagent_routes: { routes: [], default: null },
             last_selected_reasoning_level: null,
             tabular_model: null,
             last_selected_chat_model: "gpt-6-luna",

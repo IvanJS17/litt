@@ -179,6 +179,11 @@ services:
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?required}
       R2_BUCKET_NAME: ${R2_BUCKET_NAME:?required}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_ANON_KEY:?required}
+      # Decisión de Iván (30-oct-2026, ledger §16 "Web search and subagents
+      # in chat"): subagentes encendidos, con las rutas de modelo con nombre
+      # que configura cada usuario; búsqueda web apagada.
+      LITT_CHAT_SUBAGENTS: ${LITT_CHAT_SUBAGENTS:-enabled}
+      LITT_CHAT_WEB_SEARCH: ${LITT_CHAT_WEB_SEARCH:-disabled}
     depends_on:
       db-init:
         condition: service_completed_successfully

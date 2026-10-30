@@ -1209,6 +1209,19 @@ export async function updateWebSearchSettings(
     });
 }
 
+/** LiTT: the named model routes chat subagents may run on (Settings > Subagents). */
+export async function getSubagentRoutes(signal?: AbortSignal): Promise<SubagentRoutes> {
+    return apiRequest<SubagentRoutes>("settings.profile", "/user/subagent-routes", { signal });
+}
+
+export async function updateSubagentRoutes(routes: SubagentRoutes): Promise<SubagentRoutes> {
+    return apiRequest<SubagentRoutes>("settings.profile", "/user/subagent-routes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(routes),
+    });
+}
+
 export async function completeUserOnboarding(
     payload: PersonalisationDetails = {},
 ): Promise<UserProfile> {
@@ -1596,6 +1609,7 @@ export async function setMcpToolEnabled(
 // ---------------------------------------------------------------------------
 
 export type GoogleDriveStatus = import("@mike/contracts").GoogleDriveStatus;
+type SubagentRoutes = import("@mike/contracts").SubagentRoutes;
 
 /**
  * Error code the backend attaches when a connector cannot start because the
@@ -2031,6 +2045,7 @@ export async function listOrgs(): Promise<Org[]> {
 }
 
 export type { DeletedOrganization } from "@mike/contracts";
+export type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 
 export async function listDeletedOrganizations(): Promise<import("@mike/contracts").DeletedOrganization[]> {
     return apiRequest("organizations.manage", "/orgs/deleted");

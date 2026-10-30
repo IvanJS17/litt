@@ -73,6 +73,12 @@ export {
 } from "./user.webSearch";
 
 export {
+    getSubagentRoutes,
+    loadSubagentRoutes,
+    saveSubagentRoutes,
+} from "./user.subagentRoutes";
+
+export {
     getApiKeyStatus,
     saveApiKey,
     saveApiKeyForOwner,
@@ -135,6 +141,8 @@ export {
     parseCredentialRef,
     pinChatRoute,
     recordChatEgress,
+    subagentRouteGovernor,
+    subagentRoutePlan,
     titleModelForRoute,
     type ChatCredentialOption,
     type ChatRoute,

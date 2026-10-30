@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // LiTT gate (ledger 16.3, "Web search and subagents in chat"): with the
 // deployment defaults no web-search tool, no provider search and no subagent
 // is offered, even when the user's settings plan a search and the route
-// hands a subagent store in. With the operator switch on, a subagent may
-// name only the conversation's own model.
+// hands a subagent store in. With the operator switch on, subagents run on
+// the routes the user configured (none here: the conversation's model).
 
 const { streamChatWithTools } = vi.hoisted(() => ({
   streamChatWithTools: vi.fn(async (_params: StreamChatCall) => ({ fullText: "" })),
@@ -70,14 +70,14 @@ describe("chat capabilities that need an owner decision", () => {
     expect(call.providerWebSearch ?? null).toBeNull();
   });
 
-  it("with subagents switched on, a subagent can name only the chat's model", async () => {
+  it("with subagents switched on and no routes, a subagent cannot name any model", async () => {
     process.env.LITT_CHAT_SUBAGENTS = "enabled";
     await runLLMStream(params() as never);
     const call = streamChatWithTools.mock.calls[0]![0];
     const delegate = call.tools.find((tool) => tool.function.name === "delegate");
     expect(delegate).toBeDefined();
-    const modelHelp = delegate!.function.parameters?.properties?.model?.description ?? "";
-    expect(modelHelp).toContain("gemini-3.8-flash");
-    expect(modelHelp).not.toMatch(/such as/);
+    const properties = delegate!.function.parameters?.properties ?? {};
+    expect(properties.model).toBeUndefined();
+    expect(properties.route).toBeUndefined();
   });
 });
