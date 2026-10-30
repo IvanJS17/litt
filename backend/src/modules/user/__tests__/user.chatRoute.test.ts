@@ -7,6 +7,7 @@ import {
     listChatCredentialOptions,
     loadPinnedChatRoute,
     pinChatRoute,
+    subagentRouteGovernor,
     titleModelForRoute,
 } from "../user.chatRoute";
 
@@ -32,6 +33,10 @@ function fakeDb(tables: Record<string, Row[]>) {
                     return builder;
                 },
                 is: () => builder,
+                insert: async (payload: Row) => {
+                    (tables[table] ??= []).push({ ...payload });
+                    return { error: null };
+                },
                 upsert: (payload: Row) => {
                     upsertPayload = payload;
                     return builder;
@@ -289,6 +294,59 @@ describe("governChatRoute", () => {
                 requestedCredentialRef: "user:u1:gemini:v1",
             }),
         ).resolves.toMatchObject({ ok: false, code: "chat_route_pinned" });
+    });
+});
+
+describe("subagentRouteGovernor", () => {
+    const conversation = {
+        provider: "gemini" as const,
+        model: "gemini-3.8-flash",
+        credentialRef: "user:u1:gemini:v1",
+    };
+    const scope = { userId: "u1", orgId: null, chatId: "c1", surface: "assistant", conversation };
+
+    it("runs a route on its own key and records its egress before it runs", async () => {
+        const { db, tables } = fakeDb({
+            user_api_keys: [
+                await keyRow({ kind: "user", id: "u1" }, "gemini", "sk-gem"),
+                await keyRow({ kind: "user", id: "u1" }, "claude", "sk-claude", 2),
+            ],
+        });
+        const govern = subagentRouteGovernor(db, scope);
+
+        const result = await govern({ name: "deep", description: "Deep.", model: "claude-opus-5-5" });
+
+        expect(result).toMatchObject({ ok: true, model: "claude-opus-5-5", provider: "claude" });
+        if (!result.ok) return;
+        expect(result.apiKeys.claude).toBe("sk-claude");
+        expect(result.apiKeys.disabledProviders).toContain("gemini");
+        expect(tables.audit_events).toEqual([
+            expect.objectContaining({
+                action: "llm.egress",
+                chat_id: "c1",
+                model: "claude-opus-5-5",
+                detail: expect.objectContaining({
+                    provider: "claude",
+                    credential_ref: "user:u1:claude:v2",
+                    subagent_route: "deep",
+                }),
+            }),
+        ]);
+    });
+
+    it("fails closed, with no egress, when the route's model has no key", async () => {
+        const { db, tables } = fakeDb({
+            user_api_keys: [await keyRow({ kind: "user", id: "u1" }, "gemini", "sk-gem")],
+        });
+
+        const result = await subagentRouteGovernor(db, scope)({
+            name: "deep",
+            description: "Deep.",
+            model: "claude-opus-5-5",
+        });
+
+        expect(result).toEqual({ ok: false, detail: expect.stringContaining("key") });
+        expect(tables.audit_events).toBeUndefined();
     });
 });
 

@@ -95,7 +95,33 @@ type TurnEvent = {
   }>;
   /** A delegation's own events: its subagent's documents are the turn's too. */
   events?: unknown[];
+  // LiTT: what a delegation ran on (DelegationEvent).
+  delegation_id?: string;
+  status?: string;
+  route?: string;
+  provider?: string;
+  model?: string;
+  reasoning?: string;
+  route_unavailable?: string;
 };
+
+/**
+ * LiTT: the route, provider, model and reasoning each subagent of a turn ran
+ * on, kept on the turn's insert-only audit row. Whether a route could not run
+ * is recorded; its message is not.
+ */
+function subagentRunsOf(events: TurnEvent[]): Record<string, unknown>[] {
+  return events
+    .filter((ev) => ev?.type === "delegation")
+    .map((ev) => {
+      const run: Record<string, unknown> = {};
+      for (const key of ["delegation_id", "status", "route", "provider", "model", "reasoning"] as const) {
+        if (ev[key]) run[key] = ev[key];
+      }
+      if (ev.route_unavailable) run.route_unavailable = true;
+      return run;
+    });
+}
 
 export type ChatTurnAuditBase = {
   userId: string;
@@ -128,6 +154,11 @@ export function chatTurnAuditEvents(
   events: unknown[] | null | undefined,
 ): AuditEventInput[] {
   const surface = base.surface ?? (base.projectId ? "project" : "assistant");
+  const subagents = subagentRunsOf((events ?? []) as TurnEvent[]);
+  const detail = {
+    ...(base.flags ?? {}),
+    ...(subagents.length ? { subagents } : {}),
+  };
   const rows: AuditEventInput[] = [
     {
       userId: base.userId,
@@ -140,7 +171,7 @@ export function chatTurnAuditEvents(
       projectId: base.projectId ?? null,
       chatId: base.chatId,
       model: base.model,
-      detail: base.flags && Object.keys(base.flags).length ? base.flags : null,
+      detail: Object.keys(detail).length ? detail : null,
     },
   ];
   const turnEvents = ((events ?? []) as TurnEvent[]).flatMap((ev) =>

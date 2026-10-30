@@ -89,6 +89,13 @@ create table if not exists public.user_profiles (
       jsonb_typeof(web_search) = 'object'
       and octet_length(web_search::text) <= 1000
     ),
+  -- LiTT: named model routes for chat subagents, from Settings > Subagents.
+  subagent_routes jsonb not null default '{"routes": [], "default": null}'::jsonb
+    constraint user_profiles_subagent_routes_check
+    check (
+      jsonb_typeof(subagent_routes) = 'object'
+      and octet_length(subagent_routes::text) <= 6000
+    ),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -16469,5 +16476,6 @@ insert into public.schema_migrations (filename) values
   ('20261024_04_org_member_data_policy.sql'),
   ('20261024_50_litt_memory_delete_opt_in.sql'),
   ('20261024_51_litt_account_erasure.sql'),
-  ('20261027_01_document_text_failed_jobs.sql')
+  ('20261027_01_document_text_failed_jobs.sql'),
+  ('20261030_50_litt_subagent_routes.sql')
 on conflict (filename) do nothing;

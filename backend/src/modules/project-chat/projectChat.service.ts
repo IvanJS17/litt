@@ -31,7 +31,7 @@ import {
     type AssistantEvent,
     type ChatDocumentReference,
     type ChatMessage,
-    type SubagentDefaults,
+    type SubagentRoutePlan,
 } from "../chat/chat.service";
 import {
     chatRouteColumns,
@@ -40,6 +40,7 @@ import {
     governChatRoute,
     recordChatEgress,
     resolveUserChatSelection,
+    subagentRoutePlan,
     titleModelForRoute,
     type ChatRoute,
 } from "../user/user.service";
@@ -148,7 +149,8 @@ export type PreparedProjectChatStream = {
     /** The organization the chat belongs to, whose keys and model lists apply. */
     orgId: string | null;
     titleModel: Awaited<ReturnType<typeof getUserModelSettings>>["title_model"];
-    subagentDefaults: SubagentDefaults;
+    /** LiTT: the user's routes for subagents; null runs them on the chat's model. */
+    subagentRoutes: SubagentRoutePlan | null;
     selectedModel: string;
     selectedReasoningLevel: ReturnType<
         typeof resolveEffectiveReasoningLevel
@@ -636,10 +638,14 @@ export async function prepareProjectChatStream(
                 route,
                 orgId: projectAccess.project.org_id ?? null,
                 titleModel,
-                subagentDefaults: {
-                    model: modelSettings.subagent_model,
-                    reasoning: modelSettings.subagent_reasoning,
-                },
+                subagentRoutes: subagentRoutePlan(db, modelSettings.subagent_routes, {
+                    userId,
+                    orgId: projectAccess.project.org_id ?? null,
+                    chatId,
+                    projectId,
+                    surface: "project",
+                    conversation: route,
+                }),
                 selectedModel,
                 selectedReasoningLevel,
                 nonce,

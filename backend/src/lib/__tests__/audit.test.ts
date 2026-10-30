@@ -104,6 +104,41 @@ describe("recordChatTurn artifact mining", () => {
     });
 });
 
+describe("chatTurnAuditEvents subagents (LiTT routes)", () => {
+    it("records on the turn's row the route, provider, model and reasoning each subagent ran on", () => {
+        const [row] = chatTurnAuditEvents(base, [
+            {
+                type: "delegation",
+                delegation_id: "d1",
+                status: "completed",
+                route: "deep",
+                provider: "claude",
+                model: "claude-opus-5-5",
+                reasoning: "high",
+                brief: "Clause 4 is unusual.",
+                events: [],
+            },
+            {
+                type: "delegation",
+                delegation_id: "d2",
+                status: "failed",
+                route: "fast",
+                model: "gemini-3.5-flash-lite",
+                reasoning: "low",
+                route_unavailable: "No key you can use.",
+                events: [],
+            },
+        ]);
+
+        expect(row.detail).toEqual({
+            subagents: [
+                { delegation_id: "d1", status: "completed", route: "deep", provider: "claude", model: "claude-opus-5-5", reasoning: "high" },
+                { delegation_id: "d2", status: "failed", route: "fast", model: "gemini-3.5-flash-lite", reasoning: "low", route_unavailable: true },
+            ],
+        });
+    });
+});
+
 describe("chatTurnAuditEvents surface", () => {
     it("derives assistant/project from projectId when no surface is given", () => {
         expect(chatTurnAuditEvents(base, [])[0].surface).toBe("assistant");

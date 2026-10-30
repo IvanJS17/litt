@@ -3,7 +3,6 @@ import type {
     ConnectorApprovalItem,
     DelegationEffort,
     DelegationEvent,
-    DelegationModelTier,
     McpToolEvent,
 } from "@mike/contracts";
 import { filterAccessibleDocumentIds } from "../../../../lib/access";
@@ -40,9 +39,8 @@ export type SubagentTranscript = {
     /** The documents a scoped run could use, by document id: labels change between turns. */
     documents?: string[];
     effort: DelegationEffort;
-    tier: DelegationModelTier;
-    /** Kept by a continuation. */
-    model?: string;
+    /** The user's route it ran on, kept by a continuation. */
+    route?: string;
     records: SubagentRecord[];
     omitted: number;
 };

@@ -29,9 +29,13 @@
 
 import type { Db } from "../../lib/supabase";
 import type { Provider, UserApiKeys } from "../../lib/llm";
-import { providerForModel } from "../../lib/llm/models";
+import type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
+import { providerForModel, resolveModel } from "../../lib/llm/models";
 import { getConfiguredModel } from "../../lib/llm/registry";
 import { recordAudit } from "../../lib/audit";
+import { resolveEffectiveChatModel } from "../../lib/modelSelection";
+import { AppError } from "../../lib/appError";
+import { reportError } from "../../lib/observability/report";
 import { checkProjectAccess, resolveStandaloneOrgId } from "../../lib/access";
 import {
     OWNER_TABLE,
@@ -641,4 +645,92 @@ export async function recordChatEgress(
             ...(args.extra ?? {}),
         },
     });
+}
+
+/**
+ * LiTT: how a conversation's subagents run on the user's named routes. A
+ * route gets the checks a conversation's own model gets — its credential
+ * (the conversation's own when the provider is the same), the
+ * organization's key policy and model lists — and its egress is recorded
+ * before any text is sent. It never falls back to another model: a route
+ * that cannot run returns why.
+ */
+export function subagentRoutePlan(
+    db: Db,
+    routes: SubagentRoutes | null | undefined,
+    scope: Parameters<typeof subagentRouteGovernor>[1],
+) {
+    return routes?.routes.length
+        ? { routes, govern: subagentRouteGovernor(db, scope) }
+        : null;
+}
+
+export function subagentRouteGovernor(
+    db: Db,
+    scope: {
+        userId: string;
+        orgId: string | null;
+        chatId: string | null;
+        projectId?: string | null;
+        surface: string;
+        /** The conversation's own pinned route. */
+        conversation: ChatRoute;
+    },
+): (
+    route: SubagentRoute,
+) => Promise<
+    | { ok: true; model: string; provider: Provider; apiKeys: UserApiKeys }
+    | { ok: false; detail: string }
+> {
+    return async (subagentRoute) => {
+        const model = resolveModel(subagentRoute.model, "");
+        if (!model) {
+            return { ok: false, detail: `The model of the route "${subagentRoute.name}" is no longer available.` };
+        }
+        try {
+            const sameProvider = providerForModel(model) === scope.conversation.provider;
+            const resolved = await pinChatRoute(db, {
+                userId: scope.userId,
+                orgId: scope.orgId,
+                model,
+                requestedCredentialRef: sameProvider ? scope.conversation.credentialRef : null,
+            });
+            // The conversation's own wording ("start a new conversation") does not fit a route.
+            if (!resolved.ok) {
+                return {
+                    ok: false,
+                    detail: `No key you can use for ${model} is available. Add one in Settings > Bring Your Own Keys, or change the route in Settings > Subagents.`,
+                };
+            }
+            const checked = await resolveEffectiveChatModel({
+                requested: model,
+                apiKeys: resolved.apiKeys,
+                userId: scope.userId,
+                db,
+                orgId: scope.orgId,
+            });
+            if (!checked.ok) return { ok: false, detail: checked.detail };
+            await recordChatEgress(db, {
+                userId: scope.userId,
+                orgId: scope.orgId,
+                chatId: scope.chatId,
+                projectId: scope.projectId,
+                surface: scope.surface,
+                resolved,
+                extra: { subagent_route: subagentRoute.name },
+            });
+            return {
+                ok: true,
+                model: checked.model,
+                provider: resolved.route.provider,
+                apiKeys: resolved.apiKeys,
+            };
+        } catch (error) {
+            reportError(
+                new AppError("chat.context_failed", "Subagent route check failed", { cause: error }),
+                { tags: { component: "chat-stream", operation: "chat.subagent" } },
+            );
+            return { ok: false, detail: "The route could not be checked. Try again later." };
+        }
+    };
 }

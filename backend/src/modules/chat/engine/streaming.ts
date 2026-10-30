@@ -13,13 +13,11 @@ import {
 } from "../../../lib/llm";
 import { resolveRequestedModel } from "../../../lib/routerModels";
 import {
-  resolveEffectiveChatModel,
 } from "../../../lib/modelSelection";
 import { UserFacingError } from "../../../lib/userFacingError";
 import { InvalidApiKeyError } from "../../../lib/llm/apiKeyErrors";
 import { markStage, reportError } from "../../../lib/observability/report";
 import { providerFailureKind } from "../../../lib/llm/providerErrors";
-import { safeError } from "../../../lib/safeError";
 import {
   chatSubagentsEnabled,
   chatWebSearchEnabled,
@@ -50,7 +48,7 @@ import {
   runDelegateCall,
   type DelegateContext,
   type DelegateResult,
-  type SubagentDefaults,
+  type SubagentRoutePlan,
 } from "./tools/delegateTools";
 import {
   type DocStore,
@@ -327,7 +325,8 @@ export async function runLLMStream(params: {
   /** Durable conversation id, forwarded to the provider as a cache hint. */
   conversationId?: string | null;
   subagentRuns?: SubagentRunStore | null;
-  subagentDefaults?: SubagentDefaults;
+  /** LiTT: the user's named routes for subagents; absent runs them on this model. */
+  subagentRoutes?: SubagentRoutePlan | null;
   /** Shares its answer's connector tools, web pages and document edits. */
   subagentRun?: {
     connectorTools: unknown[];
@@ -375,7 +374,7 @@ export async function runLLMStream(params: {
     nonce,
     conversationId,
     subagentRuns: requestedSubagentRuns = null,
-    subagentDefaults,
+    subagentRoutes,
     subagentRun,
   } = params;
   // LiTT gates (lib/chatFeatureGates.ts): off unless the operator turns them
@@ -415,8 +414,8 @@ export async function runLLMStream(params: {
     ...PLAYBOOK_TOOLS,
     ...webTools,
     ...(subagentRuns && chatModel
-      ? // A subagent runs on the conversation's pinned route only.
-        [delegateTool(chatModel, [chatModel])]
+      ? // LiTT: a subagent runs on a route the user configured, or on this model.
+        [delegateTool(subagentRoutes?.routes ?? null)]
       : []),
   ];
   const advertisedTools = [
@@ -467,7 +466,7 @@ export async function runLLMStream(params: {
             : MIKE_WEB_SEARCH_SYSTEM_PROMPT,
         ]
       : []),
-    ...(subagentRuns ? [delegateSystemPrompt(subagentDefaults)] : []),
+    ...(subagentRuns ? [delegateSystemPrompt(subagentRoutes?.routes ?? null)] : []),
   ].join("\n\n");
   const chatMessages: LlmMessage[] = rawMsgs
     .filter((m) => m.role !== "system")
@@ -637,30 +636,7 @@ export async function runLLMStream(params: {
     docStore,
     docIndex,
     runStore,
-    checkModel: async (requested) => {
-      // The conversation is fixed to one model and credential: a subagent
-      // may name only that model.
-      if (requested !== selectedModel) return null;
-      const checked = await resolveEffectiveChatModel({
-        requested,
-        apiKeys: apiKeys ?? {},
-        userId,
-        db,
-        orgId,
-      }).catch((error) => {
-        reportError(
-          new AppError("chat.context_failed", "Subagent model check failed", {
-            cause: error,
-          }),
-          { tags: { component: "chat-stream", operation: "chat.subagent" } },
-        );
-        // warn: the report above is the entry; the log keeps its
-        // redacted category.
-        console.warn("[subagents] model check failed", safeError(error));
-        return null;
-      });
-      return checked?.ok ? checked.model : null;
-    },
+    subagentRoutes: subagentRoutes ?? null,
     nonce,
     signal: delegationSignal,
     write,
@@ -686,7 +662,7 @@ export async function runLLMStream(params: {
         tabularStore,
         projectId,
         orgId,
-        apiKeys,
+        apiKeys: spawn.apiKeys ?? apiKeys,
         nonce,
         webSearch,
         onActivity: params.onActivity,

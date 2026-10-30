@@ -61,7 +61,7 @@ export {
   type AssistantEvent,
   type ChatDocumentReference,
   type ChatMessage,
-  type SubagentDefaults,
+  type SubagentRoutePlan,
   type TabularCellStore,
   TABULAR_TOOLS,
   parseOptionalDocumentContext,

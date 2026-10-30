@@ -21,7 +21,7 @@ import {
     type WebSearchPlan,
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
-import { attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentDefaults } from "./engine/index";
+import { attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     chatRouteColumns,
@@ -30,6 +30,7 @@ import {
     governChatRoute,
     recordChatEgress,
     resolveUserChatSelection,
+    subagentRoutePlan,
     titleModelForRoute,
     type ChatRoute,
 } from "../user/user.service";
@@ -99,7 +100,8 @@ export type PreparedChatStream = {
     titleModel: Awaited<
         ReturnType<typeof getUserModelSettings>
     >["title_model"];
-    subagentDefaults: SubagentDefaults;
+    /** LiTT: the user's routes for subagents; null runs them on the chat's model. */
+    subagentRoutes: SubagentRoutePlan | null;
     selectedModel: string;
     selectedReasoningLevel: ReturnType<
         typeof resolveEffectiveReasoningLevel
@@ -604,10 +606,14 @@ export async function prepareChatStream(
                 route,
                 orgId: contentOrgId,
                 titleModel,
-                subagentDefaults: {
-                    model: modelSettings.subagent_model,
-                    reasoning: modelSettings.subagent_reasoning,
-                },
+                subagentRoutes: subagentRoutePlan(db, modelSettings.subagent_routes, {
+                    userId,
+                    orgId: contentOrgId,
+                    chatId,
+                    projectId: resolvedProjectId,
+                    surface: resolvedProjectId ? "project" : "assistant",
+                    conversation: route,
+                }),
                 selectedModel,
                 selectedReasoningLevel,
                 nonce,

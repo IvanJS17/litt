@@ -9,6 +9,9 @@ import {
     type ResponseStyle,
 } from "./user.responseStyle";
 import { loadWebSearchSettings } from "./user.webSearch";
+import { loadSubagentRoutes } from "./user.subagentRoutes";
+import type { SubagentRoutes } from "@mike/contracts";
+import { EMPTY_SUBAGENT_ROUTES } from "../../lib/subagentRoutes";
 import {
     DEFAULT_WEB_SEARCH_SETTINGS,
     type WebSearchSettings,
@@ -36,6 +39,8 @@ export type UserModelSettings = {
     /** Cross-surface fallback used only when a chat has no saved level. */
     last_selected_reasoning_level: ReasoningLevel | null;
     web_search: WebSearchSettings;
+    /** LiTT: the named model routes chat subagents may run on. */
+    subagent_routes: SubagentRoutes;
     api_keys: UserApiKeys;
     personalisation?: {
         displayName: string | null;
@@ -83,6 +88,7 @@ export async function getUserModelSettings(
         customInstructions,
         responseStyle,
         webSearch,
+        subagentRoutes,
     ] = await Promise.all([
         client
             .from("user_profiles")
@@ -105,6 +111,11 @@ export async function getUserModelSettings(
         loadWebSearchSettings(client, userId).catch((error: unknown) => {
             reportSettingsReadFailure("web search settings load failed", error);
             return DEFAULT_WEB_SEARCH_SETTINGS;
+        }),
+        // A failed read runs subagents on the conversation's model, as with no routes.
+        loadSubagentRoutes(client, userId).catch((error: unknown) => {
+            reportSettingsReadFailure("subagent routes load failed", error);
+            return EMPTY_SUBAGENT_ROUTES;
         }),
     ]);
     let data = profileResult.data;
@@ -226,6 +237,7 @@ export async function getUserModelSettings(
             data?.last_selected_reasoning_level,
         ),
         web_search: webSearch,
+        subagent_routes: subagentRoutes,
         personalisation: {
             displayName:
                 typeof data?.display_name === "string"

@@ -276,7 +276,20 @@ export type WebToolEvent =
   | { type: "web_sources"; sources: WebSource[] };
 
 export type DelegationEffort = "quick" | "standard" | "deep";
-export type DelegationModelTier = "light" | "standard" | "same";
+
+/**
+ * LiTT: a named model route a user lets chat subagents run on (Settings >
+ * Subagents). The agent only sees `name` and `description`.
+ */
+export type SubagentRoute = {
+  name: string;
+  description: string;
+  model: string;
+  reasoning?: string;
+};
+
+/** A user's routes, in their order, and the one a task without a route uses. */
+export type SubagentRoutes = { routes: SubagentRoute[]; default: string | null };
 
 /**
  * One delegated task: a subagent's own steps and the brief it returned to the
@@ -299,6 +312,10 @@ export type DelegationEvent = {
   /** Approval items, held by the answer, that this paused subagent waits on. */
   approval_ids?: string[];
   events: AssistantEvent[];
+  /** The user's route the subagent ran on; absent when it used the chat's model. */
+  route?: string;
+  /** The provider of `model`. Older runs did not record it. */
+  provider?: string;
   model: string;
   effort: DelegationEffort;
   /** The reasoning level the subagent ran at. Older runs did not record it. */
@@ -306,6 +323,11 @@ export type DelegationEvent = {
   /** The tokens its effort allowed. Older runs did not record it. */
   token_budget?: number;
   usage?: { input_tokens: number; output_tokens: number };
+  /**
+   * Why its route could not run (a missing or revoked key, a model the
+   * organization does not allow), from the server's own checks. Nothing ran.
+   */
+  route_unavailable?: string;
 };
 
 /**

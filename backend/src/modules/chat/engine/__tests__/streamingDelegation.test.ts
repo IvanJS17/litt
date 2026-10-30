@@ -160,40 +160,139 @@ describe("runLLMStream delegation", () => {
     expect(subagentResults[0].content).toContain("not available");
   });
 
-  it("runs a subagent on the chat's own pinned model, whatever model or tier it names (LiTT)", async () => {
-    const subagentModels: string[] = [];
-    parentDelegates(
-      [delegate("d1", { model: "gemini-3.1-pro-preview" }), delegate("d2", { model: "light" })],
-      async (params) => {
-        subagentModels.push(params.model);
-        return { fullText: "Brief." };
+  // LiTT: named routes the user configured, after the Hermes advanced-delegation plugin.
+  const ROUTES = {
+    routes: [
+      { name: "fast", description: "Skims and extracts.", model: "gemini-3.5-flash-lite" },
+      {
+        name: "deep",
+        description: "Careful legal analysis.",
+        model: "claude-opus-5-5",
+        reasoning: "xhigh",
       },
+    ],
+    default: "fast",
+  };
+  const governed = (model: string) => ({
+    ok: true as const,
+    model,
+    provider: model.startsWith("claude") ? "claude" : "gemini",
+    apiKeys: { [model.startsWith("claude") ? "claude" : "gemini"]: `key-for-${model}` },
+  });
+  const delegateSchemaOf = (call: StreamChatCall) =>
+    call.tools.find((t) => t.function.name === "delegate")?.function.parameters as {
+      properties: Record<string, { enum?: string[]; description?: string }>;
+    };
+
+  it("without routes, offers no model choice and runs a subagent on the chat's model", async () => {
+    const subagentModels: string[] = [];
+    parentDelegates([delegate("d1", { model: "gemini-3.1-pro-preview", route: "deep" })], async (params) => {
+      subagentModels.push(params.model);
+      return { fullText: "Brief." };
+    });
+
+    const result = await runLLMStream(baseParams());
+
+    const parent = streamChatWithTools.mock.calls[0][0];
+    expect(Object.keys(delegateSchemaOf(parent).properties)).not.toEqual(
+      expect.arrayContaining(["model"]),
     );
-
-    await runLLMStream({ ...baseParams(), apiKeys: { gemini: "key", openrouter: "key" } });
-
-    const parentTools = streamChatWithTools.mock.calls[0][0].tools;
-    const schema = JSON.stringify(parentTools.find((t) => t.function.name === "delegate"));
-    expect(schema).not.toContain("gemini-3.1-pro-preview");
-    expect(schema).not.toContain("openrouter");
-    expect(subagentModels).toEqual(["gemini-3.8-flash", "gemini-3.8-flash"]);
+    expect(delegateSchemaOf(parent).properties.route).toBeUndefined();
+    expect(parent.systemPrompt).not.toMatch(/\blight\b|same only/);
+    expect(subagentModels).toEqual(["gemini-3.8-flash"]);
+    expect(delegationsIn(result.events)[0]).toMatchObject({ model: "gemini-3.8-flash", provider: "gemini" });
+    expect(delegationsIn(result.events)[0].route).toBeUndefined();
   });
 
-  it("tells the assistant the user's subagent defaults and runs at the reasoning it asks for", async () => {
+  it("with routes, offers only their names and descriptions, never a model id", async () => {
+    parentDelegates([], async () => ({ fullText: "" }));
+
+    await runLLMStream({ ...baseParams(), subagentRoutes: { routes: ROUTES, govern: vi.fn() } });
+
+    const parent = streamChatWithTools.mock.calls[0][0];
+    const { route, model } = delegateSchemaOf(parent).properties;
+    expect(model).toBeUndefined();
+    expect(route.enum).toEqual(["fast", "deep"]);
+    expect(route.description).toContain("fast: Skims and extracts.");
+    expect(route.description).toContain("deep: Careful legal analysis.");
+    const advertised = JSON.stringify(parent.tools) + parent.systemPrompt;
+    expect(advertised).not.toContain("claude-opus-5-5");
+    expect(advertised).not.toContain("gemini-3.5-flash-lite");
+  });
+
+  it("runs a chosen route on its model, keys and reasoning, and the default when none is chosen", async () => {
+    const runs: { model: string; reasoning?: string; apiKeys?: unknown }[] = [];
+    parentDelegates([delegate("d1", { route: "deep" }), delegate("d2")], async (params) => {
+      runs.push({ model: params.model, reasoning: params.reasoning, apiKeys: (params as { apiKeys?: unknown }).apiKeys });
+      return { fullText: "Brief." };
+    });
+    const govern = vi.fn(async (route: { model: string }) => governed(route.model));
+
+    const result = await runLLMStream({
+      ...baseParams(),
+      subagentRoutes: { routes: ROUTES, govern },
+    });
+
+    expect(govern.mock.calls.map(([route]) => route.name).sort()).toEqual(["deep", "fast"]);
+    expect(runs).toEqual(
+      expect.arrayContaining([
+        { model: "claude-opus-5-5", reasoning: "xhigh", apiKeys: { claude: "key-for-claude-opus-5-5" } },
+        expect.objectContaining({ model: "gemini-3.5-flash-lite", apiKeys: { gemini: "key-for-gemini-3.5-flash-lite" } }),
+      ]),
+    );
+    expect(delegationsIn(result.events)).toEqual([
+      expect.objectContaining({ route: "deep", provider: "claude", model: "claude-opus-5-5", reasoning: "xhigh" }),
+      expect.objectContaining({ route: "fast", provider: "gemini", model: "gemini-3.5-flash-lite" }),
+    ]);
+  });
+
+  it("refuses a route the user has not configured before any subagent starts", async () => {
+    const parentResults = parentDelegates([delegate("d1", { route: "cheap" })], async () => ({
+      fullText: "Brief.",
+    }));
+    const govern = vi.fn();
+
+    const result = await runLLMStream({ ...baseParams(), subagentRoutes: { routes: ROUTES, govern } });
+
+    expect(parentResults[0][0].content).toContain('Unknown route \\"cheap\\"');
+    expect(govern).not.toHaveBeenCalled();
+    expect(streamChatWithTools.mock.calls.filter(([call]) => isSubagent(call))).toHaveLength(0);
+    expect(delegationsIn(result.events)).toHaveLength(0);
+  });
+
+  it("fails closed when a route's model can no longer run, and never runs it on another model", async () => {
+    const parentResults = parentDelegates([delegate("d1", { route: "deep" })], async () => ({
+      fullText: "Brief.",
+    }));
+    const govern = vi.fn(async () => ({
+      ok: false as const,
+      detail: "An API key is required to use claude-opus-5-5.",
+    }));
+
+    const result = await runLLMStream({ ...baseParams(), subagentRoutes: { routes: ROUTES, govern } });
+
+    expect(streamChatWithTools.mock.calls.filter(([call]) => isSubagent(call))).toHaveLength(0);
+    expect(parentResults[0][0].content).toContain('route "deep" cannot run');
+    expect(parentResults[0][0].content).toContain("An API key is required to use claude-opus-5-5.");
+    expect(delegationsIn(result.events)).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        route: "deep",
+        model: "claude-opus-5-5",
+        route_unavailable: "An API key is required to use claude-opus-5-5.",
+      }),
+    ]);
+  });
+
+  it("runs at the reasoning the assistant asks for when the route sets none", async () => {
     let subagentReasoning: string | undefined;
     parentDelegates([delegate("d1", { effort: "quick", reasoning: "high" })], async (params) => {
       subagentReasoning = params.reasoning;
       return { fullText: "Brief." };
     });
 
-    const result = await runLLMStream({
-      ...baseParams(),
-      subagentDefaults: { model: "gemini-3.1-pro-preview", reasoning: "high" },
-    });
+    const result = await runLLMStream(baseParams());
 
-    const { systemPrompt } = streamChatWithTools.mock.calls[0][0];
-    expect(systemPrompt).toContain("gemini-3.1-pro-preview");
-    expect(systemPrompt).toContain("reasoning high");
     expect(subagentReasoning).toBe("high");
     // The record shows the reasoning it ran at and the tokens its effort allowed.
     expect(delegationsIn(result.events)[0]).toMatchObject({
@@ -460,7 +559,7 @@ describe("runDelegateCall", () => {
     docStore: new Map(),
     docIndex: {},
     runStore: runStore(),
-    checkModel: vi.fn(async () => null),
+    subagentRoutes: null,
     nonce: "turnnonce",
     write: vi.fn(),
     spawn: vi.fn(),
@@ -530,6 +629,58 @@ describe("runDelegateCall", () => {
     expect(ctx.spawn).not.toHaveBeenCalled();
   });
 
+  it("continues a subagent on its own route unless another is asked for", async () => {
+    const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Done.", events: [], citations: [] }));
+    const govern = vi.fn(async (route: { model: string }) => ({
+      ok: true as const,
+      model: route.model,
+      provider: "claude",
+      apiKeys: { claude: "k" },
+    }));
+    const earlierRun = {
+      v: 1 as const,
+      title: "Review lease",
+      task: "Review the lease.",
+      text: "Clause 4 is unusual.",
+      effort: "standard" as const,
+      route: "deep",
+      records: [],
+      omitted: 0,
+    };
+    const ctx = context({
+      spawn,
+      runStore: { save: vi.fn(), load: vi.fn(async () => earlierRun) },
+      subagentRoutes: {
+        routes: {
+          routes: [
+            { name: "fast", description: "Fast.", model: "gemini-3.5-flash-lite" },
+            { name: "deep", description: "Deep.", model: "claude-opus-5-5" },
+          ],
+          default: "fast",
+        },
+        govern,
+      },
+    });
+
+    const kept = await runDelegateCall(delegate("d1", { continue: "run-1", task: "Now clause 5." }), ctx);
+    const switched = await runDelegateCall(
+      delegate("d2", { continue: "run-1", task: "List the dates.", route: "fast" }),
+      ctx,
+    );
+
+    expect(spawn.mock.calls.map(([child]) => child.model)).toEqual([
+      "claude-opus-5-5",
+      "gemini-3.5-flash-lite",
+    ]);
+    expect(kept.event).toMatchObject({ route: "deep", continued_from: "run-1" });
+    expect(switched.event).toMatchObject({ route: "fast" });
+    expect(ctx.runStore.save).toHaveBeenCalledWith(
+      kept.event?.delegation_id,
+      "completed",
+      expect.objectContaining({ route: "deep" }),
+    );
+  });
+
   it("continues a subagent that waited on approval with the server's record of the outcome", async () => {
     const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({ fullText: "Sent.", events: [], citations: [] }));
     const ctx = context({
@@ -544,7 +695,6 @@ describe("runDelegateCall", () => {
           approval_ids: ["approval-1"],
           approvalOutcomes: ["Send email on Mail: approved and ran. Result: queued"],
           effort: "standard" as const,
-          tier: "standard" as const,
           records: [],
           omitted: 0,
         })),
