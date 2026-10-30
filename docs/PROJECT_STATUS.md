@@ -9,6 +9,22 @@
 
 ## Executive status
 
+### Deployment package 2026-10-30
+
+- **Production:** still not deployed. The package in
+  [`../deploy/prod/`](../deploy/prod/README.md) now carries the owner's inputs:
+  domain `litt.asteroitt.com`; Cloudflare R2 only, with documents in the
+  bucket `litt-docs` and the daily restic repository (30 days) in
+  `litt-backups`, each bucket with its own token; system mail from
+  `LiTT <no-reply@asteroitt.com>` through GoTrue over SMTP with implicit TLS
+  on port 465. Email confirmation is on in production
+  (`GOTRUE_MAILER_AUTOCONFIRM=false`), and only `GET /auth/v1/verify` of
+  GoTrue is public, through `auth-edge`. The restic commands, the
+  `auth-edge` routing, the Caddy block and the compose interpolation were
+  checked locally with synthetic values. Live mail delivery, R2 and the
+  restore drill are verified at deployment, which the owner authorized as the
+  last step.
+
 ### Reconciliation 2026-10-23 (upstream sync)
 
 - **Main:** `e6b003ba08a58cc3e454d5b4148d76f24e91308c`. It already contains the
