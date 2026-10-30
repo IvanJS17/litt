@@ -430,16 +430,23 @@ async function resolveDelegation(
         : requestedDocuments(call.input.documents, ctx);
     if (typeof documents === "string") return { error: documents };
     const routes = ctx.subagentRoutes?.routes;
+    const routeNames = routes?.routes.map((r) => r.name).join(", ") || "none";
+    if (call.input.route != null && typeof call.input.route !== "string") {
+        return { error: `route must be one of: ${routeNames}.` };
+    }
     const requestedRoute = routes ? textInput(call.input.route) : "";
     // A continuation keeps its route; a new task without one takes the default.
     const routeName = requestedRoute || (earlier ? earlier.route : routes?.default) || undefined;
     const route = routeName ? routes?.routes.find((r) => r.name === routeName) : undefined;
     if (routeName && !route) {
-        return {
-            error: `Unknown route "${routeName}". Use one of: ${
-                routes?.routes.map((r) => r.name).join(", ") || "none"
-            }, or omit route.`,
-        };
+        if (!requestedRoute && earlier) {
+            return {
+                error: `This subagent's route "${routeName}" no longer exists, so it cannot be continued. Start a new delegation without continue${
+                    routes?.routes.length ? `, or continue it on another route: ${routeNames}` : ""
+                }.`,
+            };
+        }
+        return { error: `Unknown route "${routeName}". Use one of: ${routeNames}, or omit route.` };
     }
     const reasoning = REASONING_LEVELS.find((level) => level === call.input.reasoning);
     return {

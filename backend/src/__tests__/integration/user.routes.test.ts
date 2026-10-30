@@ -911,6 +911,45 @@ describe("user.routes", () => {
         });
     });
 
+    describe("subagent routes", () => {
+        const retired = { name: "vieja", description: "Ya no corre.", model: "retired-model-1" };
+        const fast = { name: "rapida", description: "Extrae datos.", model: "gemini-3.8-flash" };
+
+        it("saves a route whose model left the catalog back as stored, without its mark", async () => {
+            const stored = { routes: [fast, retired], default: "vieja" };
+            supabaseState.tables.user_profiles = [
+                { data: { subagent_routes: stored }, error: null },
+                { data: { subagent_routes: { ...stored, default: "rapida" } }, error: null },
+            ];
+
+            const res = await request(app)
+                .put("/user/subagent-routes")
+                .set(...AUTH)
+                .send({ routes: [fast, { ...retired, unavailable: true }], default: "rapida" });
+
+            expect(res.status).toBe(200);
+            expect(supabaseState.updates.user_profiles).toEqual([
+                { subagent_routes: { routes: [fast, retired], default: "rapida" } },
+            ]);
+            expect(res.body.routes[1]).toEqual({ ...retired, unavailable: true });
+        });
+
+        it("answers 400, not a database failure, for routes over the stored size limit", async () => {
+            supabaseState.tables.user_profiles = { data: { subagent_routes: null }, error: null };
+            const routes = Array.from({ length: 8 }, (_, i) => ({
+                ...fast,
+                name: `r${i}`,
+                description: "\u0007".repeat(200),
+            }));
+
+            const res = await request(app).put("/user/subagent-routes").set(...AUTH).send({ routes, default: null });
+
+            expect(res.status).toBe(400);
+            expect(res.body.detail).toMatch(/too long/);
+            expect(supabaseState.updates.user_profiles).toBeUndefined();
+        });
+    });
+
     describe("response style", () => {
         it("returns the stored choices with defaults filled in", async () => {
             supabaseState.tables.user_profiles = {
