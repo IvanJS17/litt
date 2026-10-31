@@ -6,8 +6,10 @@ patrón de la casa: la app vive en `/srv/litt` con su propio compose (`name: lit
 (`/srv/edge`, contenedor `edge-caddy-1`) con un bloque dedicado, y el respaldo es restic
 por app. El VPS es compartido: LiTT cumple las reglas del host (`HOST-RULES.md` del repo
 `asteroitt-ops`; copia en `/srv/edge/HOST-RULES.md`): retención de imágenes vivo + 1,
-sin `docker system/image/volume prune`, chequeo de espacio antes de construir y
-presupuesto de disco declarado (~6 GB: imágenes `litt-*` + Supabase + volúmenes).
+sin `docker system/image/volume prune`, chequeo de espacio antes de cargar, marcador
+`/srv/litt/.deploy-in-progress` durante el deploy y presupuesto de disco declarado
+(~6 GB: imágenes `litt-*` + Supabase + volúmenes). `litt-deploy.sh` aplica esas reglas
+en cada deploy (§1).
 Los documentos viven en **Cloudflare R2** (bucket `litt-docs`) y los respaldos
 en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 él; no hay object storage local. El correo del sistema sale de
@@ -25,6 +27,8 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
 | `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
 | `litt-restic.env.example` | Nombres de las variables de `/etc/litt-restic.env` (sin valores) |
+| `litt-deploy.sh` | Deploy de un release en el VPS: marcador, espacio, carga verificada, árbol, salud y retención (§1) |
+| `litt-deploy.test.sh` | Pruebas de `litt-deploy.sh` con dobles de `docker` y `df` (`bash deploy/prod/litt-deploy.test.sh`) |
 
 ## Requisitos previos (una vez)
 
@@ -67,15 +71,38 @@ docker build -f frontend/Dockerfile --build-arg GIT_SHA="$SHA" -t "litt-frontend
 for i in backend frontend; do                                          # revisión == SHA; anotar el Id en el recibo
   docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}} {{.Id}}' "litt-$i:$SHA"
 done
-docker save "litt-backend:$SHA"  | gzip > /tmp/litt-backend.tgz
-docker save "litt-frontend:$SHA" | gzip > /tmp/litt-frontend.tgz
-scp /tmp/litt-*.tgz staging-apps-dev:/tmp/
-# En el VPS:
-gzip -dc /tmp/litt-backend.tgz  | docker load
-gzip -dc /tmp/litt-frontend.tgz | docker load
-docker image inspect --format '{{.Id}}' litt-backend:<SHA>   # == ID anotado
-docker image inspect --format '{{.Id}}' litt-frontend:<SHA>  # == ID anotado
+BID=$(docker image inspect --format '{{.Id}}' "litt-backend:$SHA")
+FID=$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")
+BYTES=$(( $(docker image inspect --format '{{.Size}}' "litt-backend:$SHA") \
+        + $(docker image inspect --format '{{.Size}}' "litt-frontend:$SHA") ))
+# Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
+scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
+git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
+docker save "litt-backend:$SHA" "litt-frontend:$SHA" | gzip -1 | ssh staging-apps-dev \
+  bash /tmp/litt-deploy.sh "$SHA" "$BYTES" "$BID" "$FID" "/tmp/litt-$SHA.tar.gz"
 ```
+
+`litt-deploy.sh` corre en el VPS como el dueño de `/srv/litt` y sigue las reglas del
+host (`HOST-RULES.md` §3–§5):
+
+1. Crea `/srv/litt/.deploy-in-progress` al empezar y lo borra al terminar, también si
+   falla (`trap`). Mientras exista, el guardián de disco del host no retira imágenes.
+2. **Antes de cargar** comprueba que haya libres al menos `max(7 GiB, 2 × BYTES + 5 GiB)`.
+   `BYTES` es la suma de los tamaños de las dos imágenes, una cota conservadora porque
+   comparten capas. Si no alcanza, retira primero las imágenes `litt-*` que no son la
+   viva y, si aún no alcanza, aborta sin cargar nada.
+3. Carga las imágenes y compara sus IDs con los de la máquina de build.
+4. Reemplaza el árbol del release. Conserva `.env` y `backups/`, y fija
+   `LITT_SOURCE_COMMIT` y `RELEASE_SHA`.
+5. `up -d --remove-orphans` (corre `db-init`, que aplica migraciones pendientes) y espera
+   a que todo servicio de larga vida esté corriendo y healthy y a que `/health` reporte
+   el SHA.
+6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
+   explícito. Nunca usa `docker system/image/volume/builder prune`.
+
+**Rollback:** la imagen anterior queda cargada. Volver a ella es correr el mismo
+procedimiento con el SHA anterior, y su árbol sale de `git archive`. Si no
+quedaron sus imágenes, reconstruirlas desde ese commit.
 
 La etiqueta de las imágenes es el SHA completo y queda en `.env` como
 `LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build
@@ -95,12 +122,11 @@ verde: `gh run list --repo IvanJS17/litt --workflow gitleaks.yml --commit "$SHA"
 
 ## 2. Árbol del release (VPS)
 
+`litt-deploy.sh` extrae en cada deploy el árbol del SHA desplegado. Solo la primera
+vez hay que crear el directorio. El dueño es `ivan`, igual que en `/srv/contextlex-mx`:
+
 ```bash
-# En la máquina de build (repo litt):
-git archive --format=tar.gz -o /tmp/litt.tar.gz <SHA-de-main> && scp /tmp/litt.tar.gz staging-apps-dev:/tmp/
-# En el VPS (owner ivan, como /srv/contextlex-mx):
 sudo -n mkdir -p /srv/litt && sudo -n chown ivan:ivan /srv/litt
-cd /srv/litt && tar -xzf /tmp/litt.tar.gz
 ```
 
 ## 3. Secretos (`/srv/litt/.env`, 600)
@@ -138,6 +164,10 @@ el bucket, el host, el puerto y el usuario SMTP y el remitente.
 
 ## 4. Primer arranque
 
+Solo en una base vacía; los deploys siguientes usan `litt-deploy.sh` (§1). Para esta
+primera vez, extraer el árbol a mano (`git archive` → `tar -xzf` en `/srv/litt`) y
+cargar las imágenes antes de arrancar:
+
 ```bash
 cd /srv/litt
 C="docker compose --env-file .env -f deploy/prod/compose.yaml"
@@ -156,23 +186,31 @@ invitación o cambiar el correo. `auth-edge` responde 404 a cualquier otra ruta,
 así que la red del Caddy compartido no alcanza el signup, el token, la API
 admin ni PostgREST.
 
+Un deploy normal no toca el Caddyfile. Para cambiar el bloque `litt` hay que seguir
+`HOST-RULES.md` §1: respaldar `/srv/edge/conf/Caddyfile` y probar **todos** sus dominios
+antes y después de recargar. Si cambió algún dominio ajeno, restaurar el respaldo y
+recargar de nuevo; `caddy validate` no detecta que se perdió el bloque de otra app.
+
 ```bash
-sudo -n cp /srv/edge/conf/Caddyfile /srv/edge/conf/Caddyfile.bak-$(date -u +%Y%m%dT%H%M%SZ)
-# Insertar el contenido de deploy/prod/Caddyfile.litt (solo entre sus marcadores).
+C=/srv/edge/conf/Caddyfile; B="$C.bak-$(date -u +%Y%m%dT%H%M%SZ)"; sudo -n cp "$C" "$B"
+probe() { for d in $(grep -oE '^[a-z0-9.-]+\.[a-z]+ \{' "$B" | cut -d' ' -f1 | sort -u); do
+  printf '%s %s\n' "$d" "$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "https://$d/")"; done; }
+probe > /tmp/edge.before
+# Editar SOLO entre `# BEGIN litt` y `# END litt` (contenido de deploy/prod/Caddyfile.litt).
 sudo -n docker exec edge-caddy-1 caddy validate --config /etc/caddy/Caddyfile
 sudo -n docker exec edge-caddy-1 caddy reload   --config /etc/caddy/Caddyfile
+probe > /tmp/edge.after; diff /tmp/edge.before /tmp/edge.after   # si cambió uno ajeno: sudo -n cp "$B" "$C" y recargar
 ```
 
 `/srv/edge/conf/` se monta como directorio, así que editar el archivo en sitio es seguro
 (el antiguo bind de archivo suelto dejaba al Caddy leyendo una copia vieja).
 
-**Nombres en la red compartida.** Solo `litt-web` y `auth-edge` entran a la red del
-ingress (`escrituralab_default`, nombre heredado; el ingress también está en `edge` y
-la migración a `edge` queda pendiente en `HOST-RULES.md`), que comparten otras apps. Compose da a cada servicio
+**Nombres en la red compartida.** Solo `litt-web` (alias `litt`) y `auth-edge` (alias
+`litt-auth`) entran a la red del ingress, `edge`, que comparten otras apps. Compose da a cada servicio
 su nombre como alias en todas sus redes, así que esos servicios deben tener nombres
 únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
 internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
-servicio a esa red, revisar `docker network inspect escrituralab_default`.
+servicio a esa red, revisar `docker network inspect edge`.
 
 ## 6. DNS
 
@@ -197,7 +235,7 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
    cargado.
 3. `install -m 700 -o root -g root deploy/prod/litt-backup.sh /usr/local/sbin/litt-backup.sh`
    + `sha256sum` comparado en ambos lados.
-4. Cron (root, sin pisar): `30 3 * * * /usr/local/sbin/litt-backup.sh >> /var/log/litt-backup.log 2>&1`
+4. Cron (root, sin pisar): `45 3 * * * /usr/local/sbin/litt-backup.sh >> /var/log/litt-backup.log 2>&1`
 5. Correrlo una vez y **probar la restauración con profundidad**:
    `restic restore latest --target /tmp/litt-restore` →
    `pg_restore --list /tmp/litt-restore/srv/litt/backups/db.dump` (dump legible) →
