@@ -2,8 +2,8 @@
 #
 # Patrón de la casa: la app vive en /srv/litt con su propio proyecto compose
 # (`name: litt`); NINGÚN puerto se publica al host (solo red interna); el borde
-# público 80/443 lo sirve el Caddy compartido con un bloque `litt` en su
-# Caddyfile; el frontend se une a la red del Caddy con el alias `litt`.
+# público 80/443 lo sirve el ingress compartido (/srv/edge, edge-caddy-1) con un
+# bloque `litt` en su Caddyfile; el frontend se une a la red `edge` con el alias `litt`.
 #
 # Almacén de documentos: Cloudflare R2, bucket `litt-docs` (externo). No hay
 # object storage local. Correo del sistema: SMTP de no-reply@asteroitt.com.
@@ -126,7 +126,7 @@ services:
       start_period: 5s
     networks:
       default: {}
-      caddy:
+      edge:
         aliases:
         - litt-auth
 
@@ -298,7 +298,7 @@ services:
       start_period: 20s
     networks:
       default: {}
-      caddy:
+      edge:
         aliases:
         - litt
 
@@ -310,10 +310,10 @@ networks:
     internal: true
   # Egreso externo: backend (R2 + proveedores de IA) y auth (SMTP).
   egress:
-  # Red del ingress compartido (/srv/edge; nombre heredado del antiguo proyecto
-  # escrituralab, migración a `edge` pendiente en HOST-RULES.md). El frontend entra con el
-  # alias `litt` (lo que el Caddyfile resuelve); el resto del stack queda
-  # aislado en la red interna.
-  caddy:
+  # Red del ingress compartido (/srv/edge, contenedor edge-caddy-1; HOST-RULES §1).
+  # Solo `litt-web` (alias `litt`) y `auth-edge` (alias `litt-auth`) entran:
+  # son los nombres que resuelve el bloque litt del Caddyfile. El resto del
+  # stack queda aislado en la red interna.
+  edge:
     external: true
-    name: escrituralab_default
+    name: edge
