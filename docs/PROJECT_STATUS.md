@@ -17,7 +17,10 @@
   (`HOST-RULES.md` of `asteroitt-ops`). The first deployment was on 2026-10-30
   from `main` `b044675d`; each deployment runs the exact published commit that
   `GET /api/health` reports (`commit`), which is also the target of the
-  **Código fuente** link (AGPL §13).
+  **Código fuente** link (AGPL §13). On 2026-10-31 `main` `db91148e` was deployed
+  with `deploy/prod/litt-deploy.sh` on the shared ingress network `edge`
+  (HOST-RULES): `/` 200, the other ingress domains unchanged, images kept as live +
+  1 previous, and the deploy marker removed.
 - **Verified on the server (2026-10-30/31):** every long-running service healthy;
   `/` and `/login` answer 200 through the shared ingress; `/auth/v1/signup` answers
   404 (only `/auth/v1/verify` is public); `/api/health` reports the deployed commit;

@@ -13,7 +13,8 @@
 #      si no alcanza, retira primero imágenes litt-* que no son la viva y, si aún no
 #      alcanza, aborta;
 #   3. carga las imágenes y verifica sus IDs contra los de la máquina de build;
-#   4. reemplaza el árbol del release (conserva .env y backups/) y fija LITT_SOURCE_COMMIT;
+#   4. reemplaza el árbol del release sin dejarlo vacío en ningún momento (extrae aparte y
+#      sincroniza con rsync; conserva .env y backups/) y fija LITT_SOURCE_COMMIT;
 #   5. `up -d --remove-orphans` y espera a que todo quede healthy y /health reporte el SHA;
 #   6. solo entonces aplica la retención: imagen viva + 1 anterior, retirando por tag
 #      explícito. Nunca usa prune.
@@ -37,13 +38,16 @@ done
 [ -f "$TREE_TGZ" ] || die "no existe el árbol del release: $TREE_TGZ"
 [ -f "$APP_DIR/.env" ] || die "falta $APP_DIR/.env (primer arranque: README §3)"
 
+STAGE="$APP_DIR/.release-$SHA"
 touch "$MARK"
-trap 'rm -f "$MARK"' EXIT
+trap 'rm -rf "$MARK" "$STAGE"' EXIT
 log "deploy $SHA iniciado (marcador $MARK)"
 
 LIVE=$(cat "$APP_DIR/RELEASE_SHA" 2>/dev/null || true)
 
-own_tags() { docker image ls "$1" --format '{{.Tag}}'; }
+# Tags con nombre de un repositorio propio; las imágenes colgantes (<none>) las retira el
+# guardián del host, y `docker rmi repo:<none>` fallaría.
+own_tags() { docker image ls "$1" --format '{{.Tag}}' | grep -vx '<none>' || true; }
 free_bytes() { df -B1 --output=avail / | tail -1 | tr -d ' '; }
 
 # 2. Espacio antes de cargar (HOST-RULES §5).
@@ -67,10 +71,15 @@ gzip -dc | docker load
 [ "$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")" = "$FRONTEND_ID" ] || die "ID de litt-frontend:$SHA distinto al construido"
 log "imágenes cargadas con los IDs esperados"
 
-# 4. Árbol del release.
-find "$APP_DIR" -mindepth 1 -maxdepth 1 ! -name .env ! -name backups ! -name .deploy-in-progress -exec rm -rf {} +
-tar -xzf "$TREE_TGZ" -C "$APP_DIR"
-rm -f "$TREE_TGZ"
+# 4. Árbol del release. Se extrae aparte y se sincroniza: rsync reemplaza cada archivo con
+# un rename atómico, así que los bind-mounts de contenedores vivos (gateway.conf,
+# auth-edge.conf) nunca desaparecen; borrar antes de extraer dejaría una ventana en la que
+# un reinicio haría que Docker los materializara como directorios.
+rm -rf "$STAGE"; mkdir -p "$STAGE"
+tar -xzf "$TREE_TGZ" -C "$STAGE"
+rsync -a --delete --exclude /.env --exclude /backups/ --exclude /.deploy-in-progress \
+  --exclude '/.release-*' "$STAGE"/ "$APP_DIR"/
+rm -rf "$STAGE" "$TREE_TGZ"
 sed -i "s/^LITT_SOURCE_COMMIT=.*/LITT_SOURCE_COMMIT=$SHA/" "$APP_DIR/.env"
 grep -qx "LITT_SOURCE_COMMIT=$SHA" "$APP_DIR/.env" || die "no se pudo fijar LITT_SOURCE_COMMIT en .env"
 echo "$SHA" > "$APP_DIR/RELEASE_SHA"
