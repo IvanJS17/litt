@@ -24,8 +24,8 @@ EOF
 #!/usr/bin/env bash
 echo "\$*" >> "$T/calls"
 case "\$1 \$2" in
-  "image ls") [ "\$3" = --filter ] && exit 0; grep -v '^\$' "$T/tags" || true ;;
-  "rmi "*) tag=\${2#*:}; grep -vx "\$tag" "$T/tags" > "$T/t2" || true; mv "$T/t2" "$T/tags"
+  "image ls") [ "\$3" = --filter ] && exit 0; grep -v '^\$' "$T/tags" || true; echo '<none>' ;;
+  "rmi "*) tag=\${2#*:}; [ "\$tag" = '<none>' ] && { echo "Error: invalid reference" >&2; exit 1; }; grep -vx "\$tag" "$T/tags" > "$T/t2" || true; mv "$T/t2" "$T/tags"
            echo \$(( \$(cat "$T/free") + 3 * $GIB )) > "$T/free" ;;
   "load ") cat > /dev/null; echo "$NEW" >> "$T/tags" ;;
   "image inspect") case "\$5" in litt-backend:*) echo "$BID";; *) echo "$FID";; esac ;;
@@ -60,6 +60,8 @@ check "árbol nuevo, .env y backups conservados" '[ -f "$T/app/nuevo.txt" ] && [
 check "LITT_SOURCE_COMMIT y RELEASE_SHA = nuevo" 'grep -qx "LITT_SOURCE_COMMIT=$NEW" "$T/app/.env" && [ "$(cat "$T/app/RELEASE_SHA")" = "$NEW" ]'
 check "retención: retira solo la vieja, por tag y después de up" 'grep -n "rmi litt-backend:$OLD" "$T/calls" | cut -d: -f1 > "$T/a"; grep -n "up -d" "$T/calls" | cut -d: -f1 > "$T/b"; [ "$(cat "$T/a")" -gt "$(cat "$T/b")" ] && ! grep -q "rmi .*:$LIVE" "$T/calls" && ! grep -q "rmi .*:$NEW" "$T/calls"'
 check "nunca usa prune" '! grep -q prune "$T/calls"'
+check "ignora imágenes colgantes (<none>)" '! grep -q "rmi .*<none>" "$T/calls"'
+check "sin carpeta temporal del release" '! ls -d "$T/app"/.release-* > /dev/null 2>&1'
 check "marcador borrado al terminar" '[ ! -e "$T/app/.deploy-in-progress" ]'
 rm -rf "$T"
 

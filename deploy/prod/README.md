@@ -92,17 +92,19 @@ host (`HOST-RULES.md` §3–§5):
    comparten capas. Si no alcanza, retira primero las imágenes `litt-*` que no son la
    viva y, si aún no alcanza, aborta sin cargar nada.
 3. Carga las imágenes y compara sus IDs con los de la máquina de build.
-4. Reemplaza el árbol del release. Conserva `.env` y `backups/`, y fija
-   `LITT_SOURCE_COMMIT` y `RELEASE_SHA`.
+4. Reemplaza el árbol del release. Lo extrae aparte y lo sincroniza con `rsync`, de modo
+   que el árbol nunca queda vacío mientras corren los contenedores, que montan archivos
+   de él. Conserva `.env` y `backups/`, y fija `LITT_SOURCE_COMMIT` y `RELEASE_SHA`.
 5. `up -d --remove-orphans` (corre `db-init`, que aplica migraciones pendientes) y espera
-   a que todo servicio de larga vida esté corriendo y healthy y a que `/health` reporte
-   el SHA.
+   a que todo servicio de larga vida esté corriendo, healthy si tiene healthcheck (`rest`
+   no tiene), y a que `/health` reporte el SHA.
 6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
    explícito. Nunca usa `docker system/image/volume/builder prune`.
 
-**Rollback:** la imagen anterior queda cargada. Volver a ella es correr el mismo
-procedimiento con el SHA anterior, y su árbol sale de `git archive`. Si no
-quedaron sus imágenes, reconstruirlas desde ese commit.
+**Rollback:** la imagen anterior sigue cargada en el VPS. Para volver a ella se corre el
+mismo procedimiento con el SHA anterior: las imágenes se vuelven a mandar por stdin, ya sea
+reconstruyéndolas en la máquina de build desde ese commit o con `docker save` de las que
+están en el VPS, y el árbol sale de `git archive` de ese commit.
 
 La etiqueta de las imágenes es el SHA completo y queda en `.env` como
 `LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build
