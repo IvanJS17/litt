@@ -3,15 +3,36 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-10-23<br>
+**Last reconciled:** 2026-10-31<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
 
+### Production 2026-10-31
+
+- **Production:** deployed. LiTT runs in production at `https://litt.asteroitt.com`
+  on the shared VPS `staging-apps-dev`, following
+  [`../deploy/prod/README.md`](../deploy/prod/README.md) and the host rules
+  (`HOST-RULES.md` of `asteroitt-ops`). The first deployment was on 2026-10-30
+  from `main` `b044675d`; each deployment runs the exact published commit that
+  `GET /api/health` reports (`commit`), which is also the target of the
+  **Código fuente** link (AGPL §13).
+- **Verified on the server (2026-10-30/31):** every long-running service healthy;
+  `/` and `/login` answer 200 through the shared ingress; `/auth/v1/signup` answers
+  404 (only `/auth/v1/verify` is public); `/api/health` reports the deployed commit;
+  the restic repository in R2 `litt-backups` holds the first backup and the nightly
+  03:45 run of 2026-10-31; a restore drill into a scratch database matched
+  production (89 public tables, 186 applied migrations) and was dropped afterwards.
+- **Still to verify by the owner in a browser:** no account exists yet, so
+  delivery of the confirmation and password-recovery mail, a document upload to
+  R2 and the **Código fuente** link have not been exercised. Signup stays open,
+  with email confirmation, until the team has accounts; then `DISABLE_SIGNUP=true`.
+- **No real client data** until Gate E (owner decision).
+
 ### Deployment package 2026-10-30
 
-- **Production:** still not deployed. The package in
+- **Production at the time:** not yet deployed (superseded by the section above). The package in
   [`../deploy/prod/`](../deploy/prod/README.md) now carries the owner's inputs:
   domain `litt.asteroitt.com`; Cloudflare R2 only, with documents in the
   bucket `litt-docs` and the daily restic repository (30 days) in
@@ -251,10 +272,10 @@ remote staging, a real provider/Drive canary or production.
 | Local staging harness | Versioned; historical local smokes are not current remote proof |
 | Remote staging | Not verified |
 | Real Shared Drive canary | Blocked pending dedicated account/token/folder and authorization |
-| Production deployment package | Versioned by PR #50 (`2eb27db8`); restored and adapted to the converged tree on the sync branch (S8a); no images built; deployment not verified |
+| Production deployment package | `deploy/prod/` on `main`; images are built per deployment from the exact commit and loaded by `litt-deploy.sh` (space check, deploy marker, retention live + 1) |
 | Upstream sync 2026-10-23 | 442 commits to `e7ab6bd4…` (367 without merges) classified (ledger §15) and matrixed (§16); S1–S7 landed with PASS on `sync/upstream-20261023` (§17); S8a in review; S8b merge commit pending; feature expansion paused until the merge |
 | Release candidate `fix/release-candidate-20261021` | Integrated by PR #51 at `23b888b8` |
-| Production | Not deployed or verified |
+| Production | Deployed at `https://litt.asteroitt.com` since 2026-10-30; server checks, nightly backup and restore drill verified; owner browser checks (mail, upload) pending |
 
 ## Current blockers and risks
 
