@@ -1,17 +1,22 @@
-# ponytail: single stage. LibreOffice dwarfs everything, multi-stage saves little.
-FROM node:22-slim
-
-# libreoffice-convert shells out to soffice for doc conversion (see src/lib/convert.ts)
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends libreoffice util-linux \
-  && rm -rf /var/lib/apt/lists/*
-
+# Two stages: the build needs the dev dependencies (TypeScript, test tooling, ~0.5 GB);
+# the runtime image keeps only LibreOffice and the production dependencies. Every
+# runtime entrypoint (API, worker, sync:workflows, the isolated parsers) runs the
+# compiled dist/*.js; tsx is only loaded for *.ts entries in development.
+FROM node:22-slim AS build
 WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
 COPY packages/contracts /packages/contracts
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
+
+FROM node:22-slim
+# libreoffice-convert shells out to soffice for doc conversion (see src/lib/convert.ts)
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends libreoffice util-linux \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /app ./
 
 # AGPL-3.0 §13: the full SHA of the published commit this image is built from.
 # /health reports it, and production refuses to start without it, so the build
