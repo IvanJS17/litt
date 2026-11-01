@@ -11,8 +11,18 @@
 # los comandos (ver README.md).
 name: litt
 
+# Rotación de logs propia de cada contenedor (10 MB × 3). Se fija aquí y no se
+# hereda del daemon: un contenedor creado antes de que el host tuviera ese límite
+# conserva logs sin tope hasta que se recrea.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '3'
+
 services:
   db:
+    logging: *logging
     image: supabase/postgres:17.6.1.136
     restart: unless-stopped
     mem_limit: 640m
@@ -39,6 +49,7 @@ services:
       start_period: 300s
 
   auth:
+    logging: *logging
     image: supabase/gotrue:v2.189.0
     restart: unless-stopped
     mem_limit: 192m
@@ -107,6 +118,7 @@ services:
   # gateway para no exponer signup, token ni /rest/v1 a la red del Caddy
   # compartido.
   auth-edge:
+    logging: *logging
     image: nginx:1.27.5-alpine
     restart: unless-stopped
     mem_limit: 32m
@@ -131,6 +143,7 @@ services:
         - litt-auth
 
   rest:
+    logging: *logging
     image: postgrest/postgrest:v14.12
     restart: unless-stopped
     mem_limit: 128m
@@ -152,6 +165,7 @@ services:
   # here (migrate.sh asks for a baseline) instead of being replayed blindly.
   # Application grants come from schema.sql and the migrations only.
   db-init:
+    logging: *logging
     image: supabase/postgres:17.6.1.136
     restart: 'no'
     mem_limit: 256m
@@ -193,6 +207,7 @@ services:
       disable: true
 
   gateway:
+    logging: *logging
     image: nginx:1.27.5-alpine
     restart: unless-stopped
     mem_limit: 64m
@@ -214,6 +229,7 @@ services:
       start_period: 5s
 
   backend:
+    logging: *logging
     # Tag = SHA completo del commit publicado del que se construyó la imagen
     # (AGPL §13: /health y el enlace "Código fuente" lo reportan; README §1).
     image: litt-backend:${LITT_SOURCE_COMMIT:?required}
@@ -274,6 +290,7 @@ services:
   # en TODAS sus redes, y en la red compartida del Caddy `frontend` y `web`
   # ya pertenecen a otras apps (EscrituraLab, eKate).
   litt-web:
+    logging: *logging
     image: litt-frontend:${LITT_SOURCE_COMMIT:?required}
     restart: unless-stopped
     mem_limit: 320m
