@@ -89,6 +89,11 @@ interface RuntimeMessageBase {
 export interface WordUserMessage extends RuntimeMessageBase {
   role: "user";
   content: string;
+  /**
+   * LiTT training: the approach a pasante wrote, kept only until the turn is
+   * sent. The server stores it as a private note; it is never read back.
+   */
+  attempt?: string;
 }
 
 export interface WordAssistantMessage extends RuntimeMessageBase {
@@ -111,6 +116,8 @@ export interface WordChatSubmission {
   playbook?: PlaybookAttachment;
   model: string;
   reasoning: ReasoningLevel;
+  /** LiTT training: a pasante's own approach; the server requires it. */
+  attempt?: string;
 }
 
 export interface WordChatSubmitOptions {

@@ -52,6 +52,11 @@ export function sendOrgFailure(
                 projects: result.projects,
                 workflows: result.workflows,
             });
+        case "training_mentor_has_pupils":
+            return void res.status(409).json({
+                code: "training_mentor_has_pupils",
+                detail: "This member mentors pupils. Release them or move them to another mentor first.",
+            });
         case "expired":
             // 410 Gone: the invitation existed and is no longer actionable,
             // which is a different story from "never heard of it" (404).

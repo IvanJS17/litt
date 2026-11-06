@@ -10,6 +10,7 @@
 // documented layering exception and lives in tabular.generateStream.ts — see
 // the note in that file's header.)
 
+import { launchTurnContrast } from "../../lib/trainingNotes";
 import { Router, type Response } from "express";
 import { randomUUID } from "node:crypto";
 import { requireAuth } from "../../middleware/auth";
@@ -1009,6 +1010,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
+        attempt: req.body?.attempt,
     });
     if (!preparation.ok) return void sendTabularFailure(res, preparation);
     const {
@@ -1028,6 +1030,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         sourceDocumentIds,
         tabularStore,
         titleModel,
+        trainingNote,
         writableMemoryProjectId,
     } = preparation.data;
     // The fence `prepareTabularChat` opened is released here unless this turn
@@ -1148,6 +1151,22 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                     saved.error,
                 );
             assistantSaved = saved.saved;
+            // LiTT training: the final answer is durable, so the pasante's
+            // private contrast is produced now, aside from the turn, with the
+            // conversation's own model and credential. It cannot fail the turn.
+            if (
+                assistantSaved &&
+                trainingNote &&
+                !persistedEvents.some((event) => event.type === "error")
+            ) {
+                launchTurnContrast(db, {
+                    noteId: trainingNote.id,
+                    attempt: trainingNote.attempt,
+                    answer: fullText ?? "",
+                    model: selectedChatModel,
+                    apiKeys: api_keys,
+                });
+            }
         }
 
         // Generate title on first exchange

@@ -228,6 +228,11 @@ for (const liveConnector of [false, "calendar", "drive"] as const) {
             );
           }
           if (path === "/api/chat") return json([chat]);
+          // LiTT training: what the server answers anybody with no notes to read on a chat.
+          if (path.startsWith("/api/training-notes/")) return Promise.resolve(new Response(
+              JSON.stringify({ detail: "Training notes not found" }),
+              { status: 404, headers: { "Content-Type": "application/json" } },
+          ));
           return json([]);
         };
       }, liveConnector);

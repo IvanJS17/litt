@@ -51,6 +51,8 @@ import {
     resolveContentOrgId,
 } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
+import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     DOCUMENT_WORKSPACE_MISMATCH_CODE,
     DOCUMENT_WORKSPACE_MISMATCH_DETAIL,
@@ -156,6 +158,8 @@ export type PreparedProjectChatStream = {
         typeof resolveEffectiveReasoningLevel
     >;
     nonce: ReturnType<typeof generateSpotlightNonce>;
+    /** LiTT training: a pasante's private note for this turn, pending its contrast. */
+    trainingNote: CreatedTurnNote | null;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -185,6 +189,8 @@ export async function prepareProjectChatStream(
             | undefined;
         /** The browser's IANA time zone; unvalidated request input. */
         requestedTimeZone?: unknown;
+        /** LiTT training: the author's own approach; required of a pasante. */
+        attempt?: unknown;
     },
 ): Promise<
     | { ok: true; prepared: PreparedProjectChatStream }
@@ -342,6 +348,26 @@ export async function prepareProjectChatStream(
         return { ok: false, internal: true, error };
     }
 
+    // LiTT training ("Tu turno primero"): a pasante's new message carries
+    // their own approach. Checked before anything is written.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    let trainingAttempt: string | null = null;
+    let trainingNote: CreatedTurnNote | null = null;
+    if (lastUser && !args.askInputsResponse) {
+        let stage;
+        try {
+            stage = await resolveTrainingStage(db, userId, {
+                orgId: projectAccess.project.org_id ?? null,
+                projectId,
+            });
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
+        const training = checkTrainingTurn(stage, args.attempt);
+        if (!training.ok) return training;
+        trainingAttempt = training.attempt;
+    }
+
     const selection = await resolveUserChatSelection(db, {
         userId,
         chatModel,
@@ -423,7 +449,6 @@ export async function prepareProjectChatStream(
         resolved: governed,
     });
 
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let completedTurnPersisted = true;
     let memoryTurn: MemoryConversationTurn | null = null;
     let approvalEvents: McpToolEvent[] = [];
@@ -486,6 +511,19 @@ export async function prepareProjectChatStream(
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
+        }
+        const noteOrgId = projectAccess.project.org_id ?? null;
+        if (trainingAttempt && noteOrgId && args.inputMessageId) {
+            const created = await createPendingTurnNote(db, {
+                surface: "chat",
+                orgId: noteOrgId,
+                traineeUserId: userId,
+                chatId,
+                messageId: args.inputMessageId,
+                attempt: trainingAttempt,
+            });
+            if (!created.ok) return { ok: false, internal: true, error: created.error };
+            trainingNote = created.note;
         }
     }
 
@@ -649,6 +687,7 @@ export async function prepareProjectChatStream(
                 selectedModel,
                 selectedReasoningLevel,
                 nonce,
+                trainingNote,
             },
         };
     } catch (error) {

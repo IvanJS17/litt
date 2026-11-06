@@ -2103,6 +2103,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     {chatOpen && (
                         <TRChatPanel
                             reviewId={reviewId}
+                            projectId={projectId}
                             reviewTitle={review?.title ?? null}
                             projectName={project?.name ?? null}
                             onCitationClick={handleTabularCitationClick}

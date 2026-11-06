@@ -32,6 +32,7 @@ import { PillButtonUI } from "@/shared/ui/PillButtonUI";
 //                    own rather than a section inside the frame
 //   Bring Your Own Keys  its owners and admins: the organization's model
 //                        provider keys, as in a person's own settings
+//   Formación        its owners and admins: who is a mentor, and of whom
 //
 // An organization's settings are part of its workspace: they open only while
 // that organization is the caller's active workspace, never from another
@@ -77,7 +78,7 @@ export function organizationSettingsHref(
 }
 
 type OrganizationSettingsSection =
-  "general" | "members" | "audit" | "providers" | "privacy-data";
+  "general" | "members" | "audit" | "providers" | "privacy-data" | "training";
 
 export function OrganizationSettingsProvider({
   orgId,
@@ -216,6 +217,12 @@ export function OrganizationSettingsFrame({
               // Named as the same setting is in a person's own settings.
               label: "Bring Your Own Keys",
               href: organizationSettingsHref(orgId, "providers"),
+            },
+            // LiTT training: who mentors whom (never the stages).
+            {
+              id: "training",
+              label: "Formación",
+              href: organizationSettingsHref(orgId, "training"),
             },
           ]
         : []),

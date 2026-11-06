@@ -9,6 +9,18 @@
 
 ## Executive status
 
+### Training layer 1a (2026-11-06)
+
+- **What:** mentors, pupils and per-practice stages (`pasante`, `junior`) inside
+  an organization, and «Tu turno primero»: a pasante's chat turn (web, project,
+  Word and tabular) carries their own approach, kept as a private note with a
+  separately generated contrast.
+  Behavior and rules: [`training.md`](training.md).
+- **State:** implemented on `feat/training-mentors-attempt` with migration
+  `20261106_50_litt_training.sql`; pending independent review, merge and
+  deployment. Nothing changes for a person without a stage.
+- **Next:** layer 1b, the export lock on pasante drafts, after 1a is integrated.
+
 ### Production 2026-10-31
 
 - **Production:** deployed. LiTT runs in production at `https://litt.asteroitt.com`

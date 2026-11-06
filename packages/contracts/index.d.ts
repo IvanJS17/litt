@@ -710,3 +710,83 @@ export type AccountDeletionReceipt =
 export interface AccountDeletionStarted {
   receipt_token: string;
 }
+
+// LiTT training (docs/training.md). A stage applies to one person in one
+// organization, for one practice area (`practice`, normalized as
+// lower(btrim(...))) or for all of them (`practice: null`).
+export type TrainingStage = "pasante" | "junior";
+export interface TrainingStageEntry {
+    practice: string | null;
+    stage: TrainingStage;
+}
+/** GET /training/me: one entry per organization where the caller has training. */
+export interface TrainingMembership {
+    org_id: string;
+    is_mentor: boolean;
+    mentor_user_id: string | null;
+    stages: TrainingStageEntry[];
+}
+/** GET /training/stage: the caller's effective stage where a turn would run. */
+export interface TrainingEffectiveStage {
+    stage: TrainingStage | null;
+}
+/** GET /orgs/:orgId/training/mentors: who mentors whom, for owners and admins. */
+export interface TrainingOrgOverview {
+    mentors: string[];
+    pupils: { trainee_user_id: string; mentor_user_id: string }[];
+}
+/** GET /orgs/:orgId/training/pupils: a mentor's pupils and who they could take on. */
+export interface TrainingMyPupils {
+    pupils: { user_id: string; stages: TrainingStageEntry[] }[];
+    candidates: string[];
+}
+
+// training turn notes (docs/training.md): a pasante's private record of a
+// chat turn, readable only by its author and their current mentor.
+export type TrainingContrastStatus = "pending" | "ready" | "failed";
+export interface TrainingTurnNote {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  /** The chat the note belongs to, whichever surface it is from. */
+  chat_id: string;
+  /** The user message the note is about. */
+  message_id: string;
+  /** What the pasante wrote before asking ("Tu planteamiento"). */
+  attempt: string;
+  /** Coincide / No coincide / Faltó; null until ready. */
+  contrast: string | null;
+  /** `failed` also covers a contrast still pending long after the turn. */
+  contrast_status: TrainingContrastStatus;
+  created_at: string;
+}
+/** GET /training-notes/chats/:chatId (404 when the caller may read none). */
+export interface TrainingTurnNotes {
+  notes: TrainingTurnNote[];
+}
+// Request bodies and queries of the training routes. `user_id` and
+// `mentor_user_id` are user uuids of members of the organization.
+/** POST /orgs/:orgId/training/mentors (owner or admin). */
+export interface TrainingDesignateMentorBody {
+    user_id: string;
+}
+/** POST /orgs/:orgId/training/pupils. Omitting `mentor_user_id` means the caller. */
+export interface TrainingAssignPupilBody {
+    user_id: string;
+    mentor_user_id?: string | null;
+}
+/** PUT /orgs/:orgId/training/pupils/:userId/stages (the pupil's mentor). `practice: null` covers every practice area; a blank string is rejected. */
+export interface TrainingSetStageBody {
+    practice: string | null;
+    stage: TrainingStage;
+}
+/** DELETE /orgs/:orgId/training/pupils/:userId/stages?practice= . Without `practice`, the stage that covers every practice area. */
+export interface TrainingRemoveStageQuery {
+    practice?: string;
+}
+/** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
+export interface TrainingStageQuery {
+    org_id?: string;
+    project_id?: string;
+    surface?: "word";
+}

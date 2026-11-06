@@ -4,6 +4,28 @@ import { describe, expect, it, vi } from "vitest";
 import { UserMessage } from "./UserMessage";
 
 describe("UserMessage", () => {
+    it("shows the private training note beside the message", () => {
+        render(
+            <UserMessage
+                content="¿Procede la rescisión?"
+                trainingNote={{
+                    attempt: "Creo que sí, por incumplimiento de la cláusula quinta.",
+                    contrast: "Coincide: la cláusula quinta aplica.",
+                    contrast_status: "ready",
+                }}
+            />,
+        );
+        expect(screen.getByText("Tu planteamiento")).toBeInTheDocument();
+        expect(
+            screen.getByText("Coincide: la cláusula quinta aplica."),
+        ).toBeInTheDocument();
+    });
+
+    it("shows nothing extra without a note", () => {
+        render(<UserMessage content="¿Procede la rescisión?" />);
+        expect(screen.queryByText("Tu planteamiento")).toBeNull();
+    });
+
     it("opens a document-backed file pill", async () => {
         const onFileClick = vi.fn();
         const user = userEvent.setup();
