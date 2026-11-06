@@ -110,12 +110,12 @@
        pressed lift tinta toward papel; soft fills are tinta tints, so a
        selected row or an informational chip stays in the brand neutrals. */
     --litt-interactive: var(--litt-tinta);
-    --litt-interactive-hover: color-mix(in oklab, var(--litt-tinta) 86%, var(--litt-papel));
-    --litt-interactive-pressed: color-mix(in oklab, var(--litt-tinta) 74%, var(--litt-papel));
+    --litt-interactive-hover: #2e333d; /* tinta 86%, papel */
+    --litt-interactive-pressed: #454a53; /* tinta 74%, papel */
     --litt-interactive-foreground: var(--litt-papel);
-    --litt-interactive-soft: color-mix(in oklab, var(--litt-tinta) 6%, transparent);
-    --litt-interactive-soft-strong: color-mix(in oklab, var(--litt-tinta) 11%, transparent);
-    --litt-interactive-border: color-mix(in oklab, var(--litt-tinta) 38%, transparent);
+    --litt-interactive-soft: rgb(21 26 38 / 6%); /* tinta 6%, transparent */
+    --litt-interactive-soft-strong: rgb(21 26 38 / 11%); /* tinta 11%, transparent */
+    --litt-interactive-border: rgb(21 26 38 / 38%); /* tinta 38%, transparent */
     --radius: 0.625rem;
     /* Light theme: papel canvas, tinta text. Panels sit between papel and
        white, so a mark on one keeps ámbar tinta at 4.75:1 or more. */
@@ -168,12 +168,12 @@
     /* Interactive primary, dark theme: papel on tinta, with tinta text on a
        papel fill. */
     --litt-interactive: var(--litt-papel);
-    --litt-interactive-hover: color-mix(in oklab, var(--litt-papel) 86%, var(--litt-tinta));
-    --litt-interactive-pressed: color-mix(in oklab, var(--litt-papel) 74%, var(--litt-tinta));
+    --litt-interactive-hover: #cacbc8; /* papel 86%, tinta */
+    --litt-interactive-pressed: #adafaf; /* papel 74%, tinta */
     --litt-interactive-foreground: var(--litt-tinta);
-    --litt-interactive-soft: color-mix(in oklab, var(--litt-papel) 8%, transparent);
-    --litt-interactive-soft-strong: color-mix(in oklab, var(--litt-papel) 14%, transparent);
-    --litt-interactive-border: color-mix(in oklab, var(--litt-papel) 42%, transparent);
+    --litt-interactive-soft: rgb(236 236 230 / 8%); /* papel 8%, transparent */
+    --litt-interactive-soft-strong: rgb(236 236 230 / 14%); /* papel 14%, transparent */
+    --litt-interactive-border: rgb(236 236 230 / 42%); /* papel 42%, transparent */
     /* Dark theme: tinta canvas, papel text. Surfaces are tinta lifted toward
        papel by 3.5-12 % (OKLab), so they stay in the tinta family. */
     --app-background: var(--litt-tinta);

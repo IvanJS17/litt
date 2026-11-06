@@ -15,11 +15,11 @@
     --editor-grid-line: var(--color-gray-100, #f4f4f0);
     --editor-table-header: var(--color-gray-50, #f9f9f7);
 
-    --pdf-highlight-background: color-mix(in oklab, var(--litt-tinta) 16%, transparent);
-    --pdf-selection-background: color-mix(in oklab, var(--litt-tinta) 22%, transparent);
-    --docx-highlight-background: color-mix(in oklab, var(--litt-tinta) 22%, transparent);
-    --case-highlight-background: color-mix(in oklab, var(--litt-tinta) 14%, var(--litt-papel));
-    --excerpt-selection-background: color-mix(in oklab, var(--litt-tinta) 14%, var(--litt-papel));
+    --pdf-highlight-background: rgb(21 26 38 / 16%); /* tinta 16%, transparent */
+    --pdf-selection-background: rgb(21 26 38 / 22%); /* tinta 22%, transparent */
+    --docx-highlight-background: rgb(21 26 38 / 22%); /* tinta 22%, transparent */
+    --case-highlight-background: #cacbc8; /* tinta 14%, papel */
+    --excerpt-selection-background: #cacbc8; /* tinta 14%, papel */
     --citation-selected-background: var(--litt-interactive-soft-strong);
     --citation-selected-text: var(--litt-tinta);
     --citation-selected-muted-text: var(--color-gray-700, #393e48);
@@ -40,7 +40,7 @@
     --shimmer-edge: #dcdcd7;
     --shimmer-middle: #c8c9c5;
 
-    --spreadsheet-header-tint: color-mix(in oklab, var(--litt-tinta) 8%, transparent);
+    --spreadsheet-header-tint: rgb(21 26 38 / 8%); /* tinta 8%, transparent */
     --spreadsheet-header-corner: #e6e6e0;
     --spreadsheet-header-hover: rgba(209, 213, 219, 0.65);
     --spreadsheet-header-selected: rgba(156, 163, 175, 0.28);
@@ -66,11 +66,11 @@
 
     /* PDF and DOCX pages stay white in the dark theme, so their marks
        remain tinta tints. */
-    --pdf-highlight-background: color-mix(in oklab, var(--litt-tinta) 16%, transparent);
-    --pdf-selection-background: color-mix(in oklab, var(--litt-tinta) 22%, transparent);
-    --docx-highlight-background: color-mix(in oklab, var(--litt-tinta) 22%, transparent);
-    --case-highlight-background: color-mix(in oklab, var(--litt-papel) 22%, transparent);
-    --excerpt-selection-background: color-mix(in oklab, var(--litt-papel) 24%, var(--litt-tinta));
+    --pdf-highlight-background: rgb(21 26 38 / 16%); /* tinta 16%, transparent */
+    --pdf-selection-background: rgb(21 26 38 / 22%); /* tinta 22%, transparent */
+    --docx-highlight-background: rgb(21 26 38 / 22%); /* tinta 22%, transparent */
+    --case-highlight-background: rgb(236 236 230 / 22%); /* papel 22%, transparent */
+    --excerpt-selection-background: #41464f; /* papel 24%, tinta */
     --citation-selected-background: var(--litt-interactive-soft-strong);
     --citation-selected-text: var(--litt-papel);
     --citation-selected-muted-text: #c7c9c6;
@@ -84,10 +84,10 @@
     --shimmer-edge: #2f343e;
     --shimmer-middle: #3d424c;
 
-    --spreadsheet-header-tint: color-mix(in oklab, var(--litt-tinta) 34%, transparent);
+    --spreadsheet-header-tint: rgb(21 26 38 / 34%); /* tinta 34%, transparent */
     --spreadsheet-header-corner: #2a2f3a;
-    --spreadsheet-header-hover: color-mix(in oklab, var(--litt-papel) 14%, transparent);
-    --spreadsheet-header-selected: color-mix(in oklab, var(--litt-papel) 20%, transparent);
+    --spreadsheet-header-hover: rgb(236 236 230 / 14%); /* papel 14%, transparent */
+    --spreadsheet-header-selected: rgb(236 236 230 / 20%); /* papel 20%, transparent */
     --spreadsheet-highlight-background: var(--litt-interactive-soft-strong);
     --spreadsheet-highlight-outline: var(--litt-interactive);
 }
