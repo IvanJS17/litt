@@ -185,7 +185,7 @@ export function PersonFilter({
           aria-pressed={Boolean(value)}
           title={value ? selectedTitle(personName(value)) : label}
           className={textButtonUIClassName({
-            className: `h-[18px] w-[22px] p-0 ${value ? "text-blue-600" : "text-gray-400"}`,
+            className: `h-[18px] w-[22px] p-0 ${value ? "text-interactive" : "text-gray-400"}`,
           })}
         >
           <ChevronDown aria-hidden className="h-3 w-3" />

@@ -31,7 +31,7 @@ export function ToggleSwitchUI({
             className={twMerge(
                 clsx(
                     "flex w-fit items-center gap-2.5 text-sm text-gray-600 outline-none disabled:cursor-default disabled:opacity-40",
-                    "focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2",
+                    "focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                     className,
                 ),
             )}
@@ -43,7 +43,7 @@ export function ToggleSwitchUI({
                 className={twMerge(
                     clsx(
                         "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors duration-200",
-                        checked ? "bg-blue-600" : "bg-gray-300",
+                        checked ? "bg-interactive" : "bg-gray-300",
                     ),
                 )}
             >
@@ -51,8 +51,10 @@ export function ToggleSwitchUI({
                     data-slot="toggle-switch-thumb"
                     className={twMerge(
                         clsx(
-                            "absolute left-1 top-1 h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200",
-                            checked ? "translate-x-4" : "translate-x-0",
+                            "absolute left-1 top-1 h-3 w-3 rounded-full shadow-sm transition-transform duration-200",
+                            checked
+                                ? "translate-x-4 bg-interactive-foreground"
+                                : "translate-x-0 bg-white",
                         ),
                     )}
                 />

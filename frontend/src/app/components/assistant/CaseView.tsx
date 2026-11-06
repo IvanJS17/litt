@@ -283,7 +283,7 @@ function CaseSubdocument({
             </div>
             {sanitizedHtml ? (
                 <div
-                    className="prose prose-sm max-w-none font-serif leading-7 text-gray-900 [&_*]:font-serif [&_.case-page-number]:mx-1 [&_.case-page-number]:text-xs [&_.case-page-number]:text-gray-400 [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-700 [&_p]:my-3"
+                    className="prose prose-sm max-w-none font-serif leading-7 text-gray-900 [&_*]:font-serif [&_.case-page-number]:mx-1 [&_.case-page-number]:text-xs [&_.case-page-number]:text-gray-400 [&_a]:text-interactive [&_a]:underline [&_a:hover]:text-interactive-hover [&_p]:my-3"
                     dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
                 />
             ) : (

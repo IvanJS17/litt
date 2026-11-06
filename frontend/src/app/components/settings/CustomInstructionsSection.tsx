@@ -131,7 +131,7 @@ export function CustomInstructionsSection() {
             onChange={(event) => setDraft(event.target.value)}
             // The same flat surface as the settings cards above it. The ring
             // shows for keyboard navigation only (keyboard-focus-ring).
-            className={`keyboard-focus-ring block min-h-96 max-h-[70vh] w-full resize-none [field-sizing:content] rounded-xl px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2 ${LIQUID_GLASS_FLAT_CLASS}`}
+            className={`keyboard-focus-ring block min-h-96 max-h-[70vh] w-full resize-none [field-sizing:content] rounded-xl px-4 py-3 text-sm text-gray-700 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${LIQUID_GLASS_FLAT_CLASS}`}
           />
           {tooLong ? (
             <p className="text-xs text-red-600" role="alert">

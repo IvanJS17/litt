@@ -2846,11 +2846,11 @@ export function DocTable({
                                         showFolderActions: false,
                                     });
                                 }}
-                                className={`group flex h-10 min-w-max items-center pr-3 cursor-pointer transition-colors ${isVersionDragOver ? "bg-blue-50 ring-1 ring-inset ring-blue-200" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS}`}
+                                className={`group flex h-10 min-w-max items-center pr-3 cursor-pointer transition-colors ${isVersionDragOver ? "bg-interactive-soft ring-1 ring-inset ring-interactive-border" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS}`}
                             >
                                 {(() => {
                                     const rowBg = isVersionDragOver
-                                        ? "bg-blue-50"
+                                        ? "bg-interactive-soft"
                                         : isSelected
                                           ? LIQUID_GLASS_SELECTED_CLASS
                                           : "";
@@ -3178,10 +3178,10 @@ export function DocTable({
                                         showFolderActions: true,
                                     });
                                 }}
-                                className={`group flex h-10 min-w-max items-center pr-3 ${folderExplicitlySelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS} cursor-pointer transition-colors ${isRenaming ? "" : "select-none"} ${dragOverFolderId === folder.id ? "bg-blue-50 ring-1 ring-inset ring-blue-200" : ""}`}
+                                className={`group flex h-10 min-w-max items-center pr-3 ${folderExplicitlySelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS} cursor-pointer transition-colors ${isRenaming ? "" : "select-none"} ${dragOverFolderId === folder.id ? "bg-interactive-soft ring-1 ring-inset ring-interactive-border" : ""}`}
                             >
                                 <div
-                                    className={`${DOC_TABLE_STICKY_CELL_CLASS} sticky left-0 z-[60] ${DOC_NAME_COL_W} py-2 pl-3 pr-2 ${dragOverFolderId === folder.id ? "bg-blue-50" : folderExplicitlySelected ? LIQUID_GLASS_SELECTED_CLASS : ""} transition-colors ${dragOverFolderId === folder.id || folderExplicitlySelected ? "" : LIQUID_GLASS_GROUP_HOVER_CLASS}`}
+                                    className={`${DOC_TABLE_STICKY_CELL_CLASS} sticky left-0 z-[60] ${DOC_NAME_COL_W} py-2 pl-3 pr-2 ${dragOverFolderId === folder.id ? "bg-interactive-soft" : folderExplicitlySelected ? LIQUID_GLASS_SELECTED_CLASS : ""} transition-colors ${dragOverFolderId === folder.id || folderExplicitlySelected ? "" : LIQUID_GLASS_GROUP_HOVER_CLASS}`}
                                     style={treeNameCellStyle(depth)}
                                 >
                                     <div className="flex items-center">
@@ -4534,10 +4534,10 @@ export function DocTable({
                 viewportOverlay={
                     <>
                         {dragOverRoot && dragOverFolderId === null && (
-                            <div className="absolute inset-0 z-[80] rounded-b-2xl border-2 border-blue-400 pointer-events-none" />
+                            <div className="absolute inset-0 z-[80] rounded-b-2xl border-2 border-interactive-border pointer-events-none" />
                         )}
                         {dragOverFileRoot && (
-                            <div className="absolute inset-0 z-[90] rounded-b-2xl border-2 border-blue-400 bg-blue-50/40 pointer-events-none" />
+                            <div className="absolute inset-0 z-[90] rounded-b-2xl border-2 border-interactive-border bg-interactive-soft/40 pointer-events-none" />
                         )}
                     </>
                 }
@@ -4818,10 +4818,10 @@ export function DocTable({
                                                                     showFolderActions: false,
                                                                 });
                                                             }}
-                                                            className={`group flex h-10 min-w-max items-center pr-3 cursor-pointer transition-colors ${isVersionDragOver ? "bg-blue-50 ring-1 ring-inset ring-blue-200" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS}`}
+                                                            className={`group flex h-10 min-w-max items-center pr-3 cursor-pointer transition-colors ${isVersionDragOver ? "bg-interactive-soft ring-1 ring-inset ring-interactive-border" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : LIQUID_GLASS_HOVER_CLASS}`}
                                                         >
                                                             <div
-                                                                className={`${DOC_TABLE_STICKY_CELL_CLASS} sticky left-0 z-[60] ${DOC_NAME_COL_W} ${isVersionDragOver ? "bg-blue-50" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : ""} py-2 pl-3 pr-2 transition-colors ${isVersionDragOver || isSelected ? "" : LIQUID_GLASS_GROUP_HOVER_CLASS}`}
+                                                                className={`${DOC_TABLE_STICKY_CELL_CLASS} sticky left-0 z-[60] ${DOC_NAME_COL_W} ${isVersionDragOver ? "bg-interactive-soft" : isSelected ? LIQUID_GLASS_SELECTED_CLASS : ""} py-2 pl-3 pr-2 transition-colors ${isVersionDragOver || isSelected ? "" : LIQUID_GLASS_GROUP_HOVER_CLASS}`}
                                                             >
                                                                 <div className="flex items-center">
                                                                     {isProcessing || isUploadingVersion ? (

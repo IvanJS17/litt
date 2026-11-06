@@ -64,7 +64,7 @@ export function MemorySaveStatus({
         </span>
         <button
           type="button"
-          className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2"
+          className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
           onClick={onRetry}
         >
           Retry

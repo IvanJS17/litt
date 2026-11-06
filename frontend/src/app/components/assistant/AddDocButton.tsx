@@ -37,7 +37,7 @@ export function AddDocButton({
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    className="flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                    className="flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     title="Add to message"
                     aria-label="Add to message"
                 >

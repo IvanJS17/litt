@@ -77,7 +77,7 @@ export function DocxCommentCard({
             data-active={thread.isActive || undefined}
             tabIndex={0}
             aria-label={`Comment by ${thread.author || "Unknown author"}`}
-            className={`w-[var(--mike-docx-comment-width)] p-3 focus-visible:outline-2 focus-visible:outline-blue-500/40 ${thread.activatable ? "cursor-pointer" : ""} ${LIQUID_FLOAT_PANEL_SURFACE_CLASS} ${thread.isActive ? "ring-1 ring-ring/30" : ""}`}
+            className={`w-[var(--mike-docx-comment-width)] p-3 focus-visible:outline-2 focus-visible:outline-focus ${thread.activatable ? "cursor-pointer" : ""} ${LIQUID_FLOAT_PANEL_SURFACE_CLASS} ${thread.isActive ? "ring-1 ring-ring/30" : ""}`}
             onClick={(event) => {
                 // Controls and forms inside the card keep their own behavior,
                 // and selecting card text to copy it must not jump the page.
@@ -104,7 +104,7 @@ export function DocxCommentCard({
                     className={
                         index === 0
                             ? "space-y-1"
-                            : "-mx-3 mt-3 space-y-1 border-t border-border px-3 pt-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-500/40"
+                            : "-mx-3 mt-3 space-y-1 border-t border-border px-3 pt-3 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
                     }
                 >
                     <div className="flex items-center justify-between gap-2">

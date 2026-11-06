@@ -116,7 +116,7 @@ export function EditCardUI({
                 // view; focusable so the scroll is reachable by keyboard.
                 <TextSlabUI
                     tabIndex={0}
-                    className="max-h-40 overflow-y-auto overscroll-contain font-sans text-xs leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                    className="max-h-40 overflow-y-auto overscroll-contain font-sans text-xs leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                     {previewContent !== undefined ? (
                         previewContent

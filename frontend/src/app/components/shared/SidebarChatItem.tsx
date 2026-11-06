@@ -129,7 +129,7 @@ export function SidebarChatItem({
                         <Loader2
                             role="status"
                             aria-label={`${chatTitle} response loading`}
-                            className="h-3.5 w-3.5 animate-spin text-blue-600 motion-reduce:animate-none"
+                            className="h-3.5 w-3.5 animate-spin text-interactive motion-reduce:animate-none"
                         />
                     ) : (
                         <ChatSkeuoIcon

@@ -444,7 +444,7 @@ export function PlaybookEditor({
           {isDropTarget && (
             <span
               aria-hidden="true"
-              className={`pointer-events-none absolute inset-x-2 h-0.5 rounded-full bg-blue-500 ${dropTarget.position === "before" ? "top-0" : "bottom-0"}`}
+              className={`pointer-events-none absolute inset-x-2 h-0.5 rounded-full bg-interactive ${dropTarget.position === "before" ? "top-0" : "bottom-0"}`}
             />
           )}
           <span
@@ -483,7 +483,7 @@ export function PlaybookEditor({
             )
               setDropTarget(null);
           }}
-          className={`flex min-h-0 min-w-0 flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${EDITOR_SURFACE_CLASS} ${dropTarget?.topicId === null && !dropTarget.ruleId ? "ring-2 ring-inset ring-blue-500/40" : ""}`}
+          className={`flex min-h-0 min-w-0 flex-col focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${EDITOR_SURFACE_CLASS} ${dropTarget?.topicId === null && !dropTarget.ruleId ? "ring-2 ring-inset ring-interactive/40" : ""}`}
         >
           <div
             className={`flex items-center justify-between gap-2 ${PLAYBOOK_SIDE_HEADER_CLASS}`}
@@ -531,7 +531,7 @@ export function PlaybookEditor({
                   }
                   onDragOver={(event) => dragOver(event, { topicId: topic.id })}
                   onDrop={(event) => dropRule(event, { topicId: topic.id })}
-                  className={`theme-dropdown-item grid min-w-0 grid-cols-[12px_minmax(0,1fr)_24px] items-center gap-2 rounded-lg px-2 ${dropTarget?.topicId === topic.id && !dropTarget.ruleId ? "ring-2 ring-inset ring-blue-500/40" : ""}`}
+                  className={`theme-dropdown-item grid min-w-0 grid-cols-[12px_minmax(0,1fr)_24px] items-center gap-2 rounded-lg px-2 ${dropTarget?.topicId === topic.id && !dropTarget.ruleId ? "ring-2 ring-inset ring-interactive/40" : ""}`}
                 >
                   <TextButtonUI
                     size="icon-xs"
@@ -573,7 +573,7 @@ export function PlaybookEditor({
                     }
                     aria-label={`Topic ${topicIndex + 1} name`}
                     title={topic.name}
-                    className="-mx-1 h-7 min-w-0 rounded-md bg-transparent px-1 py-0 text-xs text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40"
+                    className="-mx-1 h-7 min-w-0 rounded-md bg-transparent px-1 py-0 text-xs text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                   />
                   <HeaderActionsMenu
                     title={`Topic actions for ${topic.name || "Untitled topic"}`}
@@ -666,7 +666,7 @@ export function PlaybookEditor({
                   onKeyDown={(event) => {
                     if (event.key === "Enter") event.preventDefault();
                   }}
-                  className="keyboard-focus-ring block w-full min-w-0 resize-none rounded-md bg-transparent px-0 py-0.5 font-serif text-xl text-gray-900 outline-none transition-colors [field-sizing:content] [overflow-wrap:anywhere] placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:hover:bg-transparent"
+                  className="keyboard-focus-ring block w-full min-w-0 resize-none rounded-md bg-transparent px-0 py-0.5 font-serif text-xl text-gray-900 outline-none transition-colors [field-sizing:content] [overflow-wrap:anywhere] placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-focus disabled:hover:bg-transparent"
                 />
               </div>
               <HeaderActionsMenu

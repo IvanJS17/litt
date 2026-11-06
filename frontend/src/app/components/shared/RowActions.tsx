@@ -308,7 +308,7 @@ export function RowActions({
                     // The row itself is clickable; opening its menu must not
                     // also activate the row.
                     onClick={(event) => event.stopPropagation()}
-                    className={`flex h-6 w-6 items-center justify-center rounded leading-none text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${LIQUID_GLASS_HOVER_CLASS}`}
+                    className={`flex h-6 w-6 items-center justify-center rounded leading-none text-gray-700 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${LIQUID_GLASS_HOVER_CLASS}`}
                 >
                     <span aria-hidden className="text-xs tracking-widest">···</span>
                 </button>

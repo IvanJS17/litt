@@ -40,7 +40,7 @@ export function ProjectWorkspaceTips() {
                     type="button"
                     aria-label="Previous tip"
                     onClick={() => rotateTip(-1)}
-                    className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                    className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                     <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>
@@ -54,7 +54,7 @@ export function ProjectWorkspaceTips() {
                     type="button"
                     aria-label="Next tip"
                     onClick={() => rotateTip(1)}
-                    className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                    className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                     <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>

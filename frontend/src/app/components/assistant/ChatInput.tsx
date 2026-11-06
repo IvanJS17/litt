@@ -783,7 +783,7 @@ function ChatInputForChatImpl(
                         excerpts.length > 0) && (
                         <div className="flex flex-wrap gap-1.5 px-2 pt-2">
                             {selectedWorkflow && (
-                                <div className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full text-xs bg-blue-600 text-white border border-white/20 shadow">
+                                <div className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full text-xs bg-interactive text-interactive-foreground border border-white/20 shadow">
                                     <button
                                         type="button"
                                         onClick={() => {

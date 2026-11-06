@@ -619,7 +619,7 @@ function PositionCard({
           onChange={(event) =>
             onChange({ ...position, name: event.target.value })
           }
-          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-blue-500/40"
+          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-focus"
         />
         <HeaderActionsMenu
           title={`Actions for ${label}`}

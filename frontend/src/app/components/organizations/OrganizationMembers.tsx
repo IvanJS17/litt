@@ -86,11 +86,11 @@ const AFTER_DEPARTURE = "/settings/organizations";
 // violet for the middle one, grey for the base one. Amber is the app's
 // caution colour, so no role uses it.
 const ROLE_FILTER_OPTIONS: TableFilterOption<OrgRole>[] = [
-  { value: "owner", label: ORG_ROLE_LABELS.owner, className: "text-blue-700" },
+  { value: "owner", label: ORG_ROLE_LABELS.owner, className: "text-interactive" },
   {
     value: "admin",
     label: ORG_ROLE_LABELS.admin,
-    className: "text-violet-700",
+    className: "text-interactive",
   },
   {
     value: "member",
@@ -943,9 +943,9 @@ function OrganizationRoleTab({
   const editable = assignableRoles.length > 1;
   const tone =
     role === "owner"
-      ? "bg-blue-100 text-blue-700"
+      ? "bg-interactive-soft-strong text-interactive"
       : role === "admin"
-        ? "bg-violet-100 text-violet-700"
+        ? "bg-interactive-soft-strong text-interactive"
         : "bg-gray-100 text-gray-600";
   const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium ${tone}`;
 
@@ -960,7 +960,7 @@ function OrganizationRoleTab({
           type="button"
           aria-label={`Change role for ${label}`}
           disabled={disabled}
-          className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-wait disabled:opacity-50`}
+          className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait disabled:opacity-50`}
         >
           <span className="flex-1 text-center">{ORG_ROLE_LABELS[role]}</span>
           {disabled ? (
@@ -1034,7 +1034,7 @@ function ErrorState({
           <button
             type="button"
             onClick={() => void onRetry()}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <Loader2 className="h-3.5 w-3.5" />
             Try again

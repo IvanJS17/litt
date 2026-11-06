@@ -338,7 +338,7 @@ export function AssistantSidePanel({
                 onMouseDown={onMouseDown}
                 className={cn(
                     "absolute left-0 top-0 z-10 hidden h-full w-1 cursor-col-resize transition-colors md:block",
-                    "hover:bg-blue-600/60 active:bg-blue-600",
+                    "hover:bg-interactive/60 active:bg-interactive",
                 )}
                 style={{ marginLeft: -2 }}
             />
@@ -396,7 +396,7 @@ export function AssistantSidePanel({
                         <button
                             type="button"
                             onClick={onOpenDocuments}
-                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                         >
                             <BookOpenText aria-hidden="true" className="h-4 w-4" />
                             Open Documents

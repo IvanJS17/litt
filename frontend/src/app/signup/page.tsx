@@ -246,7 +246,7 @@ function SignupContent() {
                                     href="https://mikeoss.com/terms"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
+                                    className="text-interactive hover:underline"
                                 >
                                     Terms of Use
                                 </Link>{" "}
@@ -255,7 +255,7 @@ function SignupContent() {
                                     href="https://mikeoss.com/privacy"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
+                                    className="text-interactive hover:underline"
                                 >
                                     Privacy Policy
                                 </Link>

@@ -10,10 +10,12 @@ export type PillButtonUISize = "xs" | "icon-xs" | "sm" | "normal";
 
 // `black` is the primary action: tinta on the light theme and, through the
 // `primary` token, papel with tinta text on the dark one (Marca LiTT v1.0).
+// `blue` keeps its name for API stability; it renders the interactive tokens,
+// never blue.
 const toneClasses: Record<PillButtonUITone, string> = {
     black: "bg-gray-950/88 text-white shadow-[0_3px_9px_rgba(15,23,42,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(15,23,42,0.2)] hover:bg-gray-900/90 disabled:hover:bg-gray-950/88 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 dark:disabled:hover:bg-primary",
     white: `${LIQUID_GLASS_FLAT_CLASS} ${LIQUID_GLASS_HOVER_CLASS} text-gray-700`,
-    blue: "bg-blue-600/90 text-white shadow-[0_3px_9px_rgba(37,99,235,0.10),inset_1px_1px_0_rgba(255,255,255,0.28),inset_-1px_-1px_0_rgba(255,255,255,0.14),inset_-4px_-4px_9px_rgba(29,78,216,0.2)] hover:bg-blue-600 disabled:hover:bg-blue-600/90",
+    blue: "bg-interactive text-interactive-foreground shadow-[0_3px_9px_rgba(15,23,42,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.10),inset_-4px_-4px_9px_rgba(15,23,42,0.2)] hover:bg-interactive-hover disabled:hover:bg-interactive",
     danger: "bg-red-600/90 text-white shadow-[0_3px_9px_rgba(127,29,29,0.10),inset_1px_1px_0_rgba(255,255,255,0.22),inset_-1px_-1px_0_rgba(255,255,255,0.12),inset_-4px_-4px_9px_rgba(127,29,29,0.18)] hover:bg-red-600 disabled:hover:bg-red-600/90",
 };
 
@@ -44,7 +46,7 @@ export function pillButtonUIClassName({
 }) {
     return twMerge(
         clsx(
-            "inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100",
+            "inline-flex items-center justify-center gap-1.5 rounded-full font-medium transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100",
             toneClasses[tone],
             sizeClasses[size],
             className,

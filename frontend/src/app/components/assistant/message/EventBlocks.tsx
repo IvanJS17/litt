@@ -134,7 +134,7 @@ export function ReasoningContent({
                 role="region"
                 aria-label={label}
                 tabIndex={0}
-                className="max-h-36 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="max-h-36 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 <div
                     ref={contentRef}

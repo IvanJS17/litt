@@ -114,7 +114,7 @@ export const ModalRows = () => (
  * compact over-message controls such as scroll-to-bottom.
  */
 export const TranslucentAction = () => (
-    <div className="rounded-2xl bg-gradient-to-br from-blue-100 to-blue-200 p-8">
+    <div className="rounded-2xl bg-gradient-to-br from-interactive-soft-strong to-interactive-soft-strong p-8">
         <div
             className={`inline-flex rounded-full px-3 py-1.5 text-xs ${LIQUID_GLASS_TRANSLUCENT_CLASS} ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
         >

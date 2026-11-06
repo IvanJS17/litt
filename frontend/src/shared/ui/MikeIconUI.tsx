@@ -65,14 +65,15 @@ function tintPalette([c100, c200, c300, c400, c500, c600]: TintScale): IconPalet
     };
 }
 
-// Tailwind 100–600 for each hue.
+// Tailwind 100–600 for each hue. No blue family (Marca LiTT v1.0, "Sin
+// azul"), and no amber, which the brand reserves for focus and its marks.
 const TINT_PALETTES = {
-    sky: tintPalette(["#e0f2fe", "#bae6fd", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7"]),
-    violet: tintPalette(["#ede9fe", "#ddd6fe", "#c4b5fd", "#a78bfa", "#8b5cf6", "#7c3aed"]),
-    amber: tintPalette(["#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b", "#d97706"]),
-    pink: tintPalette(["#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777"]),
+    stone: tintPalette(["#f5f5f4", "#e7e5e4", "#d6d3d1", "#a8a29e", "#78716c", "#57534e"]),
     teal: tintPalette(["#ccfbf1", "#99f6e4", "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488"]),
-    indigo: tintPalette(["#e0e7ff", "#c7d2fe", "#a5b4fc", "#818cf8", "#6366f1", "#4f46e5"]),
+    rose: tintPalette(["#ffe4e6", "#fecdd3", "#fda4af", "#fb7185", "#f43f5e", "#e11d48"]),
+    lime: tintPalette(["#ecfccb", "#d9f99d", "#bef264", "#a3e635", "#84cc16", "#65a30d"]),
+    pink: tintPalette(["#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777"]),
+    emerald: tintPalette(["#d1fae5", "#a7f3d0", "#6ee7b7", "#34d399", "#10b981", "#059669"]),
 } satisfies Record<string, IconPalette>;
 
 export type MikeIconTint = keyof typeof TINT_PALETTES;

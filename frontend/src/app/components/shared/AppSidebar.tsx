@@ -513,7 +513,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             <Link
                                 href="/assistant"
                                 data-slot="sidebar-heading"
-                                className="flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40"
+                                className="flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                             >
                                 <LittWordmark x={22} />
                             </Link>
@@ -560,7 +560,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         onPointerLeave={() => setToggleHoverSuppressed(false)}
                         aria-label={isOpen ? "Close sidebar" : "Open sidebar"}
                         className={cn(
-                            "group flex h-8 w-8 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40",
+                            "group flex h-8 w-8 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                             isOpen ? "rounded-md" : "rounded-[16px]",
                             !toggleHoverSuppressed && LIQUID_GLASS_HOVER_CLASS,
                         )}
@@ -638,7 +638,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             <div>
                                 <button
                                     onClick={() => setProjectsCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -744,7 +744,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     aria-expanded={!historyCollapsed}
                                     aria-controls="sidebar-history"
                                     onClick={() => setHistoryCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -821,7 +821,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                                 onClick={() => reviewStatuses.clearStatus(review.id)}
                                                                 aria-current={active ? "page" : undefined}
                                                                 className={cn(
-                                                                    "flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40",
+                                                                    "flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                                                                     active
                                                                         ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                                                                         : `${LIQUID_GLASS_HOVER_CLASS} text-gray-700`,
@@ -829,7 +829,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                             >
                                                                 <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                                                                     {status === "loading" ? (
-                                                                        <Loader2 role="status" aria-label={`${title} review running`} className="h-3.5 w-3.5 animate-spin text-blue-600 motion-reduce:animate-none" />
+                                                                        <Loader2 role="status" aria-label={`${title} review running`} className="h-3.5 w-3.5 animate-spin text-interactive motion-reduce:animate-none" />
                                                                     ) : status === "complete" ? (
                                                                         <TabularReviewCompleteIcon className="h-3.5 w-3.5" />
                                                                     ) : (
@@ -914,7 +914,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                         <button
                                             type="button"
                                             onClick={() => void history.retry()}
-                                            className="mx-3.5 my-2 rounded text-left text-xs text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                            className="mx-3.5 my-2 rounded text-left text-xs text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                         >
                                             Some history could not be loaded. Try again
                                         </button>
@@ -937,7 +937,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 type="button"
                                 aria-label="Account menu"
                                 className={cn(
-                                    "flex h-9 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2",
+                                    "flex h-9 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                                     isOpen ? "rounded-xl" : "rounded-[18px]",
                                     !isOpen ? "hidden md:flex" : "",
                                     pathname.startsWith("/settings") ||

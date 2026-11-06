@@ -74,7 +74,7 @@ export default function SettingsLayout({
     if (authLoading) {
         return (
             <div className="h-dvh flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                <Loader2 className="h-8 w-8 animate-spin text-interactive" />
             </div>
         );
     }
@@ -99,7 +99,7 @@ export default function SettingsLayout({
                     ? {
                           ...tab,
                           badge: (
-                              <span className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-semibold tabular-nums text-white">
+                              <span className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-interactive px-1.5 text-xs font-semibold tabular-nums text-interactive-foreground">
                                   {invitationCount}{" "}
                                   <span className="sr-only">
                                       {invitationCount === 1

@@ -165,8 +165,8 @@ describe("AccessModal — per-recipient roles", () => {
         const ownerPill = within(creatorRow!).getByText("Owner");
         expect(ownerPill).toHaveClass(
             "h-6",
-            "bg-blue-100",
-            "text-blue-700",
+            "bg-interactive-soft-strong",
+            "text-interactive",
         );
         expect(ownerPill).not.toHaveClass("min-w-20");
         expect(ownerPill.className).not.toMatch(/(?:^|\s)(?:min-|max-)?w-/);
@@ -201,8 +201,8 @@ describe("AccessModal — per-recipient roles", () => {
         ).toBeTruthy();
         expect(roleToggle).toHaveAttribute("aria-haspopup", "menu");
         expect(roleToggle).not.toHaveClass("border-l");
-        expect(roleToggle).toHaveClass("bg-transparent", "text-violet-700");
-        expect(roleToggle).not.toHaveClass("bg-violet-100");
+        expect(roleToggle).toHaveClass("bg-transparent", "text-interactive");
+        expect(roleToggle).not.toHaveClass("bg-interactive-soft-strong");
         expect(roleToggle.querySelector("svg")).toHaveClass("text-gray-300");
         expect(addButton).toHaveClass(
             "self-stretch",
@@ -233,9 +233,9 @@ describe("AccessModal — per-recipient roles", () => {
         const editorOption = screen.getByRole("menuitem", { name: "Editor" });
         expect(editorOption).toHaveAttribute("data-selected", "true");
         expect(editorOption).toHaveClass(
-            "text-violet-700",
-            "hover:!bg-violet-100",
-            "data-[selected=true]:!bg-violet-100",
+            "text-interactive",
+            "hover:!bg-interactive-soft-strong",
+            "data-[selected=true]:!bg-interactive-soft-strong",
         );
     });
 
@@ -246,13 +246,13 @@ describe("AccessModal — per-recipient roles", () => {
         const roleToggle = await screen.findByRole("button", {
             name: /Role for the new recipient/,
         });
-        expect(roleToggle).toHaveClass("bg-transparent", "text-violet-700");
-        expect(roleToggle).not.toHaveClass("bg-violet-100");
+        expect(roleToggle).toHaveClass("bg-transparent", "text-interactive");
+        expect(roleToggle).not.toHaveClass("bg-interactive-soft-strong");
 
         await user.click(roleToggle);
         await user.click(screen.getByRole("menuitem", { name: "Owner" }));
-        expect(roleToggle).toHaveClass("bg-transparent", "text-blue-700");
-        expect(roleToggle).not.toHaveClass("bg-blue-100");
+        expect(roleToggle).toHaveClass("bg-transparent", "text-interactive");
+        expect(roleToggle).not.toHaveClass("bg-interactive-soft-strong");
 
         await user.click(roleToggle);
         await user.click(screen.getByRole("menuitem", { name: "Viewer" }));
@@ -289,8 +289,8 @@ describe("AccessModal — per-recipient roles", () => {
             "data-[selected=true]:!bg-gray-100",
         );
         expect(screen.getByRole("menuitem", { name: "Owner" })).toHaveClass(
-            "text-blue-700",
-            "hover:!bg-blue-100",
+            "text-interactive",
+            "hover:!bg-interactive-soft-strong",
         );
         expect(
             screen.getAllByRole("menuitem").map((item) => item.textContent),

@@ -672,7 +672,7 @@ export function AuditHistory({
                   tabIndex={0}
                   aria-haspopup="dialog"
                   aria-label={`View details for ${subject.name === "-" ? auditAction(event) : subject.name}`}
-                  className="h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40"
+                  className="h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                   onClick={(click) => {
                     click.currentTarget.focus();
                     setPreviewDocument(false);

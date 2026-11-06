@@ -83,7 +83,7 @@ export function TRFirstColumnCell({
                     }}
                     disabled={!rowDocument}
                     aria-label={`Open ${row.label}`}
-                    className="flex min-w-0 flex-1 items-center rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-default"
+                    className="flex min-w-0 flex-1 items-center rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-default"
                 >
                     <FileTypeIcon
                         fileType={row.label}
@@ -113,7 +113,7 @@ export function TRFirstColumnCell({
                                         setExpanded(false);
                                         onDocumentOpen(document);
                                     }}
-                                    className="flex min-h-7 w-full items-center rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
+                                    className="flex min-h-7 w-full items-center rounded-md py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     aria-label={`Open ${document.filename}`}
                                 >
                                     <CornerDownRight

@@ -248,7 +248,7 @@ describe("NewWorkflowModal editing", () => {
         expect(skip.parentElement).toBe(next.parentElement);
         expect(skip).toHaveClass("text-gray-500");
         expect(screen.getByRole("button", { name: "Back" })).toHaveClass(
-            "bg-blue-600/90",
+            "bg-interactive",
         );
 
         await user.click(next);

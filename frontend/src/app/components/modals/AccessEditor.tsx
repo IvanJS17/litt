@@ -42,7 +42,7 @@ export interface AccessRow {
 export type OrganizationAccessAssignment = AccessRow;
 
 const INPUT_GROUP_ROLE_TRIGGER_CLASS =
-    "flex h-10 shrink-0 items-center gap-1.5 px-3 text-xs shadow-none transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 data-[state=open]:opacity-80 [&[data-state=open]>svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50";
+    "flex h-10 shrink-0 items-center gap-1.5 px-3 text-xs shadow-none transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus data-[state=open]:opacity-80 [&[data-state=open]>svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function accessRoleLabel(role: AccessAssignmentRole): string {
     return role === "deny" ? "Deny" : PROJECT_ROLE_LABELS[role];
@@ -50,9 +50,9 @@ export function accessRoleLabel(role: AccessAssignmentRole): string {
 
 function accessRoleTone(role: AccessAssignmentRole): string {
     return role === "owner"
-        ? "bg-blue-100 text-blue-700"
+        ? "bg-interactive-soft-strong text-interactive"
         : role === "editor"
-          ? "bg-violet-100 text-violet-700"
+          ? "bg-interactive-soft-strong text-interactive"
           : role === "deny"
             ? "bg-red-100 text-red-700"
             : "bg-gray-100 text-gray-600";
@@ -60,9 +60,9 @@ function accessRoleTone(role: AccessAssignmentRole): string {
 
 function accessRoleTextTone(role: AccessAssignmentRole): string {
     return role === "owner"
-        ? "text-blue-700"
+        ? "text-interactive"
         : role === "editor"
-          ? "text-violet-700"
+          ? "text-interactive"
           : role === "deny"
             ? "text-red-700"
             : "text-gray-600";
@@ -70,9 +70,9 @@ function accessRoleTextTone(role: AccessAssignmentRole): string {
 
 function accessRoleMenuTone(role: AccessAssignmentRole): string {
     return role === "owner"
-        ? "text-blue-700 hover:!bg-blue-100 focus:!bg-blue-100 data-[highlighted]:!bg-blue-100 data-[selected=true]:!bg-blue-100"
+        ? "text-interactive hover:!bg-interactive-soft-strong focus:!bg-interactive-soft-strong data-[highlighted]:!bg-interactive-soft-strong data-[selected=true]:!bg-interactive-soft-strong"
         : role === "editor"
-          ? "text-violet-700 hover:!bg-violet-100 focus:!bg-violet-100 data-[highlighted]:!bg-violet-100 data-[selected=true]:!bg-violet-100"
+          ? "text-interactive hover:!bg-interactive-soft-strong focus:!bg-interactive-soft-strong data-[highlighted]:!bg-interactive-soft-strong data-[selected=true]:!bg-interactive-soft-strong"
           : role === "deny"
             ? "text-red-700 hover:!bg-red-100 focus:!bg-red-100 data-[highlighted]:!bg-red-100 data-[selected=true]:!bg-red-100"
             : "text-gray-600 hover:!bg-gray-100 focus:!bg-gray-100 data-[highlighted]:!bg-gray-100 data-[selected=true]:!bg-gray-100";
@@ -107,7 +107,7 @@ function AccessRolePill({
                     type="button"
                     aria-label={`Role for ${label}`}
                     disabled={disabled}
-                    className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-wait disabled:opacity-50`}
+                    className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait disabled:opacity-50`}
                 >
                     <span>{accessRoleLabel(role)}</span>
                     {loading ? (
@@ -155,7 +155,7 @@ function RemoveActionDropdown({
                     type="button"
                     aria-label={`Actions for ${label}`}
                     disabled={disabled}
-                    className="flex h-6 w-6 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-gray-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-50"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-gray-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
                 >
                     ···
                 </button>
@@ -193,7 +193,7 @@ function InfoLabelTooltip({
                 type="button"
                 aria-label={infoLabel}
                 aria-describedby={tooltipId}
-                className="peer flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="peer flex h-5 w-5 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 <Info className="h-3.5 w-3.5" />
             </button>
@@ -307,7 +307,7 @@ function OrganizationMemberPicker({
                                         setQuery("");
                                         setFocused(false);
                                     }}
-                                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 ${LIQUID_GLASS_HOVER_CLASS}`}
+                                    className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${LIQUID_GLASS_HOVER_CLASS}`}
                                 >
                                     <UserAvatar photo={member.profile_photo} name={member.display_name} email={member.email} />
                                     <span className="min-w-0 flex-1 text-xs [overflow-wrap:anywhere]">
@@ -674,7 +674,7 @@ export function OrganizationAccessEditor({
                                 aria-expanded={denyExpanded}
                                 aria-controls="organization-deny-list-content"
                                 onClick={toggleDenyExpanded}
-                                className="flex items-center gap-1.5 rounded-lg text-left text-sm font-medium text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                className="flex items-center gap-1.5 rounded-lg text-left text-sm font-medium text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                             >
                                 <span>
                                     {denyCount > 0

@@ -185,7 +185,7 @@ function KindIcon({
 }
 
 const CHEVRON_BUTTON_CLASS =
-  "mr-2 flex h-4 w-4 shrink-0 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40";
+  "mr-2 flex h-4 w-4 shrink-0 items-center justify-center rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 /**
  * The Departed view of an organization's Members page: the private work its
@@ -524,7 +524,7 @@ export function OrganizationDepartedMembers({
                     setLoadError(null);
                     void load();
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   <Loader2 className="h-3.5 w-3.5" />
                   Try again

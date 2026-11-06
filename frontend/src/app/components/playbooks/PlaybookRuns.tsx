@@ -382,7 +382,7 @@ export function PlaybookRuns({
                 >
                   <Loader2
                     aria-hidden="true"
-                    className="h-5 w-5 animate-spin text-blue-600 motion-reduce:animate-none"
+                    className="h-5 w-5 animate-spin text-interactive motion-reduce:animate-none"
                   />
                   <p className="text-sm text-gray-900">
                     Reviewing {runTitle(selected)}…
@@ -476,7 +476,7 @@ export function PlaybookRuns({
                     setError(null);
                     setAttempt((count) => count + 1);
                   }}
-                  className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                  className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   Try again
                 </button>
@@ -499,12 +499,12 @@ export function PlaybookRuns({
                       setSelectedId(run.id);
                       onCloseNewRun();
                     }}
-                    className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${active ? "theme-dropdown-selected text-gray-900" : "theme-dropdown-item text-gray-600 hover:text-gray-900"}`}
+                    className={`flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${active ? "theme-dropdown-selected text-gray-900" : "theme-dropdown-item text-gray-600 hover:text-gray-900"}`}
                   >
                     {run.status === "running" ? (
                       <Loader2
                         aria-hidden="true"
-                        className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-600 motion-reduce:animate-none"
+                        className="h-3.5 w-3.5 shrink-0 animate-spin text-interactive motion-reduce:animate-none"
                       />
                     ) : (
                       <FileTypeIcon

@@ -109,7 +109,7 @@ function CellMarkdown({
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 underline"
+                        className="text-interactive hover:text-interactive-hover underline"
                         {...props}
                     >
                         {children}

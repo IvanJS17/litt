@@ -139,7 +139,7 @@ export function CitationQuotesSection({
                                             className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-colors ${
                                                 currentIndex === index &&
                                                 !isUnverified
-                                                    ? "!bg-blue-100 !text-blue-900 font-medium dark:!bg-blue-950 dark:!text-white"
+                                                    ? "!bg-interactive-soft-strong !text-interactive font-medium dark:!bg-interactive-soft-strong dark:!text-white"
                                                     : isUnverified
                                                       ? "cursor-not-allowed !bg-red-100/85 !text-red-800 dark:!bg-red-950 dark:!text-white"
                                                       : "bg-gray-200/80 text-gray-800 hover:bg-gray-200 hover:text-gray-950"
@@ -240,7 +240,7 @@ function QuoteItem({
             <TextSlabUI
                 selected={isSelected}
                 tabIndex={0}
-                className="max-h-40 w-full overflow-y-auto overscroll-contain text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="max-h-40 w-full overflow-y-auto overscroll-contain text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 <div>
                     <p

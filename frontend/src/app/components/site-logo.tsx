@@ -39,7 +39,7 @@ export function SiteLogo({
                 href={LITT_HOME_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 {logo}
                 <span className="sr-only"> (opens in a new tab)</span>
