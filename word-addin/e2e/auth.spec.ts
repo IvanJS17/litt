@@ -124,7 +124,7 @@ test.describe("auth flow", () => {
     await page.getByRole("button", { name: "Log in" }).click();
 
     // LoginPage no longer echoes the server. The failure is recognised by its
-    // `invalid_credentials` CODE and stated in Mike's own words, so neither
+    // `invalid_credentials` CODE and stated in LiTT's own words, so neither
     // GoTrue's wording nor an "(HTTP 400)" suffix reaches the screen.
     const alert = page.getByRole("alert");
     await expect(alert).toBeVisible();
