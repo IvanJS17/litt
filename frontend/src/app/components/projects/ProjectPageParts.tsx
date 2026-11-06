@@ -78,7 +78,7 @@ export function DocIcon({
             {icon}
             <span
                 aria-hidden="true"
-                className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-amber-500 text-[7px] font-bold leading-none text-white ring-1 ring-white"
+                className="absolute -bottom-1 -right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-orange-500 text-[7px] font-bold leading-none text-white ring-1 ring-white"
             >
                 !
             </span>

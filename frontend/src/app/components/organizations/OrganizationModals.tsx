@@ -203,7 +203,7 @@ export function CreateOrganizationModal({
                           current.filter((value) => value !== email),
                         )
                       }
-                      className="rounded-full p-1 text-gray-400 hover:bg-app-surface-active hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-40"
+                      className="rounded-full p-1 text-gray-400 hover:bg-app-surface-active hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -405,7 +405,7 @@ export function InviteOrganizationMemberModal({
                         onClick={() =>
                           void runInvitationAction(invitation, "resend")
                         }
-                        className="rounded-full p-1.5 text-gray-400 hover:bg-app-surface-active hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-40"
+                        className="rounded-full p-1.5 text-gray-400 hover:bg-app-surface-active hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40"
                       >
                         <RotateCw className="h-3.5 w-3.5" />
                       </button>

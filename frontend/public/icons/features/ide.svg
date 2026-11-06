@@ -2,14 +2,14 @@
   <title id="ideTitle">Integrated Drafting Environment</title>
   <defs>
     <linearGradient id="idePanel" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#C6CBD3" stop-opacity="0.96"/>
-      <stop offset="0.5" stop-color="#BFC5CE" stop-opacity="0.94"/>
-      <stop offset="1" stop-color="#AEB5C0" stop-opacity="0.96"/>
+      <stop offset="0" stop-color="#CACBC8" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#C4C4C2" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#B3B4B3" stop-opacity="0.96"/>
     </linearGradient>
     <linearGradient id="ideRim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.15"/>
-      <stop offset="1" stop-color="#374151" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#3C4049" stop-opacity="0.4"/>
     </linearGradient>
     <linearGradient id="ideSheen" x1="0" y1="0" x2="0.25" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.16"/>
@@ -22,16 +22,16 @@
   <g>
     <rect x="24" y="36" width="36" height="168" rx="13" fill="url(#idePanel)" stroke="url(#ideRim)" stroke-width="5"/>
     <path d="M24 36 H60 V96 C49.92 116 34.08 116 24 92 Z" fill="url(#ideSheen)" clip-path="url(#ideClipLeft)"/>
-    <rect x="22" y="34" width="40" height="172" rx="15" fill="none" stroke="#6B7482" stroke-width="3" opacity="0.9"/>
+    <rect x="22" y="34" width="40" height="172" rx="15" fill="none" stroke="#717378" stroke-width="3" opacity="0.9"/>
   </g>
   <g>
     <rect x="90" y="36" width="60" height="168" rx="13" fill="url(#idePanel)" stroke="url(#ideRim)" stroke-width="5"/>
     <path d="M90 36 H150 V100 C133.2 120 106.8 120 90 96 Z" fill="url(#ideSheen)" clip-path="url(#ideClipMiddle)"/>
-    <rect x="88" y="34" width="64" height="172" rx="15" fill="none" stroke="#6B7482" stroke-width="3" opacity="0.9"/>
+    <rect x="88" y="34" width="64" height="172" rx="15" fill="none" stroke="#717378" stroke-width="3" opacity="0.9"/>
   </g>
   <g>
     <rect x="180" y="36" width="36" height="168" rx="13" fill="url(#idePanel)" stroke="url(#ideRim)" stroke-width="5"/>
     <path d="M180 36 H216 V96 C205.92 116 190.08 116 180 92 Z" fill="url(#ideSheen)" clip-path="url(#ideClipRight)"/>
-    <rect x="178" y="34" width="40" height="172" rx="15" fill="none" stroke="#6B7482" stroke-width="3" opacity="0.9"/>
+    <rect x="178" y="34" width="40" height="172" rx="15" fill="none" stroke="#717378" stroke-width="3" opacity="0.9"/>
   </g>
 </svg>

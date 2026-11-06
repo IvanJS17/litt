@@ -257,11 +257,11 @@ const CALENDAR_CLASSES = {
   month_grid: cn(calendarStyles.month_grid, "w-56 table-fixed"),
   button_previous: cn(
     calendarStyles.button_previous,
-    "theme-dropdown-item rounded-full text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/40",
+    "theme-dropdown-item rounded-full text-gray-500 focus-visible:ring-2 focus-visible:ring-focus",
   ),
   button_next: cn(
     calendarStyles.button_next,
-    "theme-dropdown-item rounded-full text-gray-500 focus-visible:ring-2 focus-visible:ring-blue-500/40",
+    "theme-dropdown-item rounded-full text-gray-500 focus-visible:ring-2 focus-visible:ring-focus",
   ),
   weekday: cn(
     calendarStyles.weekday,
@@ -269,7 +269,7 @@ const CALENDAR_CLASSES = {
   ),
   day_button: cn(
     calendarStyles.day_button,
-    "theme-dropdown-item text-xs font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+    "theme-dropdown-item text-xs font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
   ),
   selected: cn(calendarStyles.selected, "!text-xs !font-medium text-gray-900"),
 };

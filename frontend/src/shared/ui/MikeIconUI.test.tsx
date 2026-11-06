@@ -40,14 +40,14 @@ describe("MikeIcon", () => {
     });
 
     it("colours a tinted mark in both themes, under the status palettes", () => {
-        const { container, rerender } = render(<MikeIcon tint="violet" />);
-        expect(firstBladeFill(container)).toBe("rgb(139,92,246)");
+        const { container, rerender } = render(<MikeIcon tint="teal" />);
+        expect(firstBladeFill(container)).toBe("rgb(20,184,166)");
 
         document.documentElement.classList.add("dark");
-        rerender(<MikeIcon tint="violet" />);
-        expect(firstBladeFill(container)).toBe("rgb(139,92,246)");
+        rerender(<MikeIcon tint="teal" />);
+        expect(firstBladeFill(container)).toBe("rgb(20,184,166)");
 
-        rerender(<MikeIcon tint="violet" error />);
+        rerender(<MikeIcon tint="teal" error />);
         expect(firstBladeFill(container)).toBe("rgb(248,113,113)");
     });
 

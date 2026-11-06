@@ -31,14 +31,14 @@ describe("CitationPillUI", () => {
         expect(pill).toHaveAttribute("aria-current", "true");
         expect(pill).toHaveAttribute("data-active", "true");
         expect(pill).toHaveClass(
-            "!bg-blue-100",
-            "!text-blue-900",
-            "dark:!bg-blue-950",
+            "!bg-interactive-soft-strong",
+            "!text-interactive",
+            "dark:!bg-interactive-soft-strong",
             "dark:!text-white",
         );
         rerender(<CitationPillUI aria-label="Citation 4">4</CitationPillUI>);
         expect(pill).toHaveAttribute("aria-pressed", "false");
         expect(pill).not.toHaveAttribute("aria-current");
-        expect(pill).not.toHaveClass("!bg-blue-100");
+        expect(pill).not.toHaveClass("!bg-interactive-soft-strong");
     });
 });

@@ -49,6 +49,142 @@ screen, before opening a menu can trigger an image request.
 `frontend/public/_headers` preserves immutable caching for `/_next/static/*`
 on Cloudflare, whose asset server otherwise revalidates even hashed files.
 
+## Marca LiTT v1.0
+
+The norm is [`docs/brand/DESIGN.md`](brand/DESIGN.md), the brand package's
+specification, copied unchanged. This section summarizes it for UI work and
+says where it lives in code; when the two disagree, `DESIGN.md` wins. The
+outlined masters are in [`docs/brand/svg/`](brand/svg/), the QC sheet in
+[`docs/brand/qc/`](brand/qc/qc-sheet.png) and the OFL licenses of the two
+source faces in [`docs/brand/licencias/`](brand/licencias/).
+
+**The marks.** The wordmark is a Newsreader **L** followed by Departure Mono
+**ıTT**; the dot of the i is a square amber cursor. The reduced mark is the
+«L.» monogram: the L with that square, never the L alone. Both are drawn by
+`frontend/src/shared/ui/LittBrandUI.tsx` (the add-in imports it as
+`@mike/litt-brand-ui`):
+
+| Component | Use | Sizes |
+| --- | --- | --- |
+| `LittWordmark` | Auth and onboarding pages (`SiteLogo`), the sidebar in personal work, the add-in login (`WordAddinLogo`). | `x` = 22, 33, 44, 55, 66 or 88: X is the Departure Mono size and must be a multiple of 11 below 66. The box includes the 4u protection area (u = X / 11). |
+| `LittMonogramPixel` | Anywhere with less room than the 22px wordmark: the collapsed sidebar, an organization without its own logo, the chat greeting. | 16, 32 or 48 px only, drawn natively at each size. |
+
+The serif «L.» monogram is only for 64 px and up (avatars, the 180 px
+`apple-touch-icon.png`, the add-in's 80 px icon), and there is no component for
+it: use the rendered files.
+
+**Rules to keep in code** (the full list of 13 prohibitions is in
+`DESIGN.md`):
+
+- Never retype the wordmark in a font, and never set the monogram next to the
+  name typed out as if it were a lockup. In running text the name is
+  **LiTT**, in the text's own font, without imitating the mark.
+- The amber is the square's alone. Letters take `--litt-mark-ink`, the square
+  `--litt-mark-accent`; nothing else in a mark is amber.
+- Each theme gets its own version: tinta letters and ámbar tinta square on the
+  light theme, papel letters and ámbar fósforo square on the dark one. The
+  marks are transparent and their colors switch with `.dark`, so place them
+  only on papel or white surfaces in light and on tinta surfaces in dark.
+- Do not deform, tilt, rotate, outline, shadow, tint or rescale the marks, and
+  never animate the square: no cursor blink, no pulse. The wordmark links on
+  the auth pages and in the sidebar have no hover effect; they show focus with
+  the ring. The chat greeting's monogram stays still; only the greeting text
+  beside it fades in.
+- Do not scale the pixel monogram between its sizes, and keep
+  `shape-rendering="crispEdges"`. Favicons are used at their native sizes:
+  `favicon.ico` holds 16, 32 and 48 px, and `icon.svg` switches to the native
+  geometry of each size with width media queries.
+
+**Color.** `DesignTokensUI.css` declares the palette once for both targets:
+
+| Token | Hex | Where it may go |
+| --- | --- | --- |
+| `--litt-tinta` | `#151A26` | Dark-theme canvas; text on the light theme. |
+| `--litt-papel` | `#ECECE6` | Light-theme canvas; text on the dark theme. |
+| `--litt-ambar-fosforo` | `#FFB21E` | On tinta only (dark theme). |
+| `--litt-ambar-tinta` | `#965900` | On papel or white only (light theme). |
+
+`--litt-accent` resolves to the amber that belongs to the current theme. Its
+only use outside the marks is the keyboard focus ring (`--focus-ring-color`,
+`--ring`). Do not use amber for fills, text, buttons or status: it is a point
+accent. Primary actions are tinta on the light theme and papel on the dark one.
+
+Tailwind's gray scale is redefined from tinta and papel, so `text-gray-900` is
+tinta and the neutral fills keep the paper's warmth. Measured WCAG contrast of
+the pairs in use (minimum is 4.5:1 for text and 3:1 for the focus ring):
+
+| Pair | Contrast |
+| --- | --- |
+| Tinta on papel / on white | 14.66:1 / 17.39:1 |
+| `text-gray-500` `#5D6169` on papel / white / selected row `#E2E2DD` | 5.24:1 / 6.21:1 / 4.78:1 |
+| Ámbar tinta on papel / white / selected row | 4.75:1 / 5.64:1 / 4.34:1 |
+| Papel on tinta / on the lightest dark surface `#2A2F3A` | 14.66:1 / 11.31:1 |
+| Dark `text-gray-500` `#9B9D9F` on tinta / `#2A2F3A` | 6.39:1 / 4.93:1 |
+| Ámbar fósforo on tinta / `#2A2F3A` | 9.64:1 / 7.43:1 |
+| White on the `black` pill tone over white | 13.58:1 |
+| Ámbar fósforo on papel | 1.52:1, prohibited |
+
+`text-gray-400` stays below 4.5:1 in both themes (2.71:1 on papel, 4.82:1 on
+tinta but 3.72:1 on a selected dark row), as it did before: keep it for
+placeholders, disabled text and decoration, not for information.
+
+**Sin azul.** No blue, indigo, violet, purple, sky or cyan appears anywhere in
+the UI: not in utilities, not in token values and not in LiTT's own SVG
+illustrations (`public/icons/features`, `file-system`, `legal-sources`, which
+were moved to the tinta-papel neutral of the same luminance). Do not
+reintroduce those Tailwind families. This must return nothing:
+
+```bash
+grep -rnE '(blue|indigo|violet|purple|sky|cyan)-[0-9]{2,3}' frontend/src word-addin/src \
+  --include=*.tsx --include=*.ts --include=*.css | grep -vE '\.test\.|stories'
+```
+
+The only exceptions are third-party marks drawn in their owners' colors (file
+types, AI providers, Google), which stay as their owners publish them. The
+`slate` family, a blue-grey, is replaced by the tinta-derived `gray` scale,
+and so are Tailwind's stock cool greys: the shading inside LiTT's own SVG
+icons and the `MikeIconUI` white variant sit on the tinta→papel neutral of
+the same luminance, with no exception.
+The `blue` tone of `PillButtonUI` and the `"blue"` modal variant keep their
+names for API stability and render the interactive tokens.
+
+**Semantic interactive tokens.** Primary actions, active toggles, selection,
+action links and active-state indicators use these roles instead of a raw
+palette. They are declared in `DesignTokensUI.css` as `--litt-interactive-*`,
+switch with `.dark`, and are exposed to Tailwind through `@theme inline`:
+
+| Role | Utility | Light | Dark | Use |
+| --- | --- | --- | --- | --- |
+| Accent | `bg-interactive`, `text-interactive`, `border-interactive`, `ring-interactive` | tinta `#151A26` | papel `#ECECE6` | Primary fill, active toggle track, selected chip, action link text, drag and drop indicators. |
+| Accent hover | `hover:bg-interactive-hover`, `hover:text-interactive-hover` | `#2E333D` (tinta 86 % → papel) | `#CACBC8` (papel 86 % → tinta) | Hover on a primary fill or an action link. |
+| Accent pressed | `active:bg-interactive-pressed` | `#454A53` (tinta 74 %) | `#ADAFAF` (papel 74 %) | Pressed primary fill. |
+| Text on accent | `text-interactive-foreground` | papel | tinta | Text, icons and the toggle thumb on a solid accent fill. Never `text-white`, which disappears on the dark theme's papel fill. |
+| Soft accent | `bg-interactive-soft` | tinta at 6 % | papel at 8 % | Selected table rows and cells, hover tints. |
+| Soft accent, strong | `bg-interactive-soft-strong` | tinta at 11 % | papel at 14 % | Informational chips, role and type badges, selected citations, spreadsheet highlight. |
+| Accent border | `border-interactive-border`, `ring-interactive-border` | tinta at 50 % | papel at 42 % | Selection rings and drop-zone outlines (3:1 non-text minimum). |
+| Focus | `ring-focus`, `outline-focus`, `focus:border-focus` | ámbar tinta | ámbar fósforo | Keyboard focus only, as `--litt-accent`. |
+
+Measured WCAG contrast of the new pairs:
+
+| Pair | Contrast |
+| --- | --- |
+| Papel on accent / hover / pressed (light) | 14.66:1 / 10.69:1 / 7.51:1 |
+| Tinta on accent / hover / pressed (dark) | 14.66:1 / 10.67:1 / 7.89:1 |
+| `text-interactive` on soft-strong over white / papel (light) | 13.92:1 / 11.79:1 |
+| `text-interactive` on soft-strong over tinta / `#1B202C` (dark) | 10.04:1 / 9.20:1 |
+| Accent border over white / tinta | 3.36:1 / 3.60:1 |
+| Focus ring on soft-strong, light / dark | 4.51:1 / 6.60:1 |
+
+Document and spreadsheet highlights (`ThemeTokensUI.css`) are tinta tints:
+PDF and DOCX pages stay white on the dark theme, so their marks are tinta in
+both themes. Status colors (red for errors and destructive actions, green
+for success, orange for warnings) are functional, not brand. Warnings used
+Tailwind `amber`, whose 700-800 steps sit next to ámbar tinta, so they moved
+to `orange` (`text-orange-700` on `bg-orange-50` is 4.88:1) and Tailwind
+`amber` is no longer used anywhere: the brand ambers belong to the square
+and the focus ring. Categorical palettes (tags, currencies, avatars, column
+formats, subagent marks) use non-blue, non-amber hues.
+
 ## Color tokens
 
 Two families coexist. Prefer a token over a raw Tailwind palette class whenever
@@ -66,11 +202,16 @@ These back the "liquid glass" chrome and are the ones most feature code needs.
 
 | Token | Utility | Light value | Intent |
 | --- | --- | --- | --- |
-| `--app-background` | `bg-app-background` | `#f9fafb` | Page canvas behind panels. |
-| `--app-surface` | `bg-app-surface` | `#fdfdfe` | Resting surface of a panel, table header, menu. |
-| `--app-surface-hover` | `hover:bg-app-surface-hover` | `#f9fafb` | Row/item hover. |
-| `--app-surface-active` | `bg-app-surface-active` | `#eff0f3` | Selected or pressed row/item. |
-| `--app-floating` | `bg-app-floating` | `#fefefe` | Detached floating elements above a surface. |
+| `--app-background` | `bg-app-background` | papel `#ecece6` | Page canvas behind panels, including the auth and onboarding pages. |
+| `--app-surface` | `bg-app-surface` | `#f9f9f7` | Resting surface of a panel, table header, menu. |
+| `--app-surface-hover` | `hover:bg-app-surface-hover` | papel `#ecece6` | Row/item hover. |
+| `--app-surface-active` | `bg-app-surface-active` | `#e2e2dd` | Selected or pressed row/item. |
+| `--app-floating` | `bg-app-floating` | `#fcfcfb` | Detached floating elements above a surface. |
+
+Dark values are tinta `#151a26` for the canvas and tinta lifted toward papel
+for the rest (`#1b202c`, `#222732`, `#2a2f3a`, `#1f2430`). Tailwind's gray
+scale is redefined from the same two colors; see
+[Marca LiTT v1.0](#marca-litt-v10).
 
 Use the class-name constants in `components/ui/liquid-surface.ts` rather than
 retyping the utilities. Liquid-glass controls use
@@ -104,22 +245,40 @@ The standard shadcn set is present and wired through `@theme inline`:
 Use these when you pull a component from the shadcn registry, or when you want
 the meaning ("this is the destructive action") rather than a specific color.
 
-### Blue is overridden
+The chart series are not brand colors either: `chart-1` is the interactive
+neutral (tinta on light, papel on dark) and `chart-2`…`chart-5` take the
+categorical hues below (teal or emerald, rose, lime, stone), so no shadcn
+default indigo, purple or amber survives in them.
 
-`@theme inline` redefines part of Tailwind's blue scale to Mike's azure:
+### Primary actions use the interactive tokens
 
-```css
---color-blue:     rgb(0, 136, 255);
---color-blue-50:  rgba(0, 136, 255, 0.05);
---color-blue-100: rgba(0, 136, 255, 0.1);
---color-blue-200: rgba(0, 136, 255, 0.3);
---color-blue-600: rgb(0, 136, 255);
---color-blue-700: rgb(0, 120, 230);
-```
+There is no brand blue and no `--color-*` override of a Tailwind hue. A
+primary action, selection or action link uses the semantic interactive
+tokens listed under [Marca LiTT v1.0](#marca-litt-v10) (`bg-interactive`,
+`text-interactive-foreground`, `bg-interactive-soft-strong`…), and keyboard
+focus uses `ring-focus`.
 
-`bg-blue-600` is therefore Mike azure, not Tailwind blue. `blue-300`, `-400`,
-`-500`, `-800` and `-900` are *not* overridden, so the scale is discontinuous —
-stay on the overridden steps for brand blue.
+### Categorical palettes
+
+Categorical color tells items apart; it never carries brand or state. Every
+categorical palette draws from these Tailwind families and steps only, with
+no blue family and no amber:
+
+| Family | Steps used | Where |
+| --- | --- | --- |
+| stone | 100–600 (`#f5f5f4` … `#57534e`) | `MikeIconUI` tint, chart series 5 |
+| teal | 100–600 (`#ccfbf1` … `#0d9488`) | `MikeIconUI` tint, chart series 2 (light) |
+| rose | 100–600 (`#ffe4e6` … `#e11d48`) | `MikeIconUI` tint, chart series 3 |
+| lime | 100–600 (`#ecfccb` … `#65a30d`) | `MikeIconUI` tint, chart series 4 |
+| pink | 100–600 (`#fce7f3` … `#db2777`) | `MikeIconUI` tint |
+| emerald | 100–600 (`#d1fae5` … `#059669`) | `MikeIconUI` tint, chart series 2 (dark) |
+
+`MikeIconUI` (the animated response-status glyph) builds each tint from those
+six steps, in the order `stone, teal, rose, lime, pink, emerald`
+(`MIKE_ICON_TINTS`). Its white variant for dark surfaces is shaded with the
+tinta-papel gray ramp. Tags, currencies, avatars, column formats and subagent
+marks keep their own lists in their components, under the same rule: no
+blue, indigo, violet, purple, sky, cyan or amber.
 
 ### Dark mode
 
@@ -132,9 +291,10 @@ Settings > Appearance.
 
 `MikeIcon` is the exception: the mark is inline SVG, so no class-based
 remapping reaches its gradient stops. It subscribes to the document theme class
-itself and swaps its dark-glass blades for the white ones. Anything else drawing
-brand-colored SVG should follow the same pattern rather than hard-coding a
-single palette.
+itself and swaps its dark-glass blades for the white ones. It survives only as
+the animated response-status glyph; it is not the LiTT logo. The LiTT marks
+(`LittBrandUI.tsx`) need no subscription: their fills are
+`var(--litt-mark-ink)` and `var(--litt-mark-accent)`, which `.dark` switches.
 
 ### User avatars
 
@@ -160,10 +320,10 @@ filter searches distinct actors from the organization audit log, including
 former members, in a scrollable list of 20 people per page. Selecting a person
 filters by their ID and preserves that filter in CSV exports.
 
-Settings > Profile offers upload and a blue Edit button for saved images. Profile photos
+Settings > Profile offers upload and an Edit button (`bg-interactive`) for saved images. Profile photos
 and organization logos share `ImageCropModal`: both support dragging, keyboard
 positioning, zoom, preview, and explicit saving. Edit reopens the saved image.
-The footer places blue Save on the right and red Remove on the left.
+The footer places Save (`bg-interactive`) on the right and red Remove on the left.
 Save stays disabled until the image or framing changes.
 Photos use a circular preview
 and a crop that fills it. PNG, JPEG, and WebP source files up to 10 MB are
@@ -412,7 +572,7 @@ keep their own spacing and should not receive this attribute.
 
 | Primitive | Location | Use it for |
 | --- | --- | --- |
-| `PillButtonUI` | `shared/ui` | Primary action button (`tone`: black/white/blue/danger). |
+| `PillButtonUI` | `shared/ui` | Primary action button (`tone`: black/white/blue/danger; the `blue` tone keeps its name for API stability and renders the interactive tokens, not a blue). |
 | `TextButtonUI` | `shared/ui` | Background-free actions, with optional icons and loading state. Use `textButtonUIClassName` from `TextButtonUI.styles` for links. No background, border, or shadow; hover changes text color. |
 | `TabPillButtonUI` | `shared/ui` | Segmented filter/tab pills. Pass `active` to get `aria-pressed`. Resting text matches PageHeader actions (`text-gray-500`), with `text-gray-900` on hover or selection. |
 | `GlassIconButtonUI` | `shared/ui` | Circular glass icon button — modal close, panel dismiss. Requires `aria-label`. |
@@ -420,7 +580,7 @@ keep their own spacing and should not receive this attribute.
 | `GlassCardUI` | `shared/ui` | Canonical liquid-glass card surface. |
 | `TextSlabUI` | `shared/ui` | Inset slab holding quoted or proposed text inside a card — citation quotes, tracked-change diffs, and their loading/empty states. Owns shape, padding, and fill; the caller owns typography. |
 | `ToggleSwitchUI` | `shared/ui` | `role="switch"` toggle with an optional text label. |
-| `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and blue for the selected state. |
+| `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and the neutral interactive tint for the selected state (`bg-interactive-soft-strong` with `text-interactive`). |
 | `InputUI` | `shared/ui` | Canonical shadcn input for the web app and Word add-in. |
 | `form-field` | `components/ui` | `FormTextInput` (glass/minimal variants) and `FieldLabel` for app forms. |
 | `NoticeCardUI` | `shared/ui` | The one card every notice is drawn with: glass surface, tone icon (error/success/info), title, message, action row, close button. Do not use it directly in a screen; use one of the two wrappers below. |
@@ -521,12 +681,16 @@ primitive covers.
 These are the rules the primitives already follow. Match them in new work.
 
 - **Focus is always visible.** Every interactive primitive carries
-  `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40
+  `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus
   focus-visible:ring-offset-2`. If you write `outline-none` you owe the element a
   replacement indicator in the same class string.
-- **Focus rings are blue, never grey.** Use `ring-blue-500/40`, not `ring-ring`
-  or a gray. A control that sets nothing gets the same blue from the base-layer
-  `:focus-visible` rule in `ThemeTokensUI.css` (`--focus-ring-color`).
+- **Focus rings are amber, never grey.** Write `focus-visible:ring-focus` (or
+  `outline-focus` / `focus:border-focus`), not a gray or a raw palette ring.
+  `ring-focus` reads `--color-focus`, which is `--litt-accent`: ámbar tinta
+  (`#965900`) on the light theme and ámbar fósforo (`#FFB21E`) on the dark one
+  (see [Marca LiTT v1.0](#marca-litt-v10)). A control that sets nothing gets
+  the same amber from the base-layer `:focus-visible` rule, which draws
+  `--focus-ring-color`.
 - **An inset ring traces the hover fill.** A control carrying a hover or
   selected fill class (`LIQUID_GLASS_HOVER_CLASS`, `LIQUID_GLASS_SELECTED_CLASS`,
   and the modal-row pair) gets an inset ring on that fill's perimeter by

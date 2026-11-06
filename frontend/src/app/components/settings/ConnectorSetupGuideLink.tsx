@@ -5,7 +5,7 @@ export function ConnectorSetupGuideLink({ href }: { href: string }) {
         href={href}
         target="_blank"
         rel="noreferrer"
-        className="font-medium text-blue-600 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         Open connector setup guide
       </a>

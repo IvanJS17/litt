@@ -48,7 +48,7 @@ const UPDATED_COLUMN = "w-28 shrink-0";
 const ACTIONS_COLUMN = "w-8 shrink-0 justify-end";
 const DETAIL_TEXT = "truncate text-xs text-gray-600";
 const NAME_LINK_CLASS =
-  "flex w-full min-w-0 items-center rounded text-left text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40";
+  "flex w-full min-w-0 items-center rounded text-left text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus";
 
 /** Each playbook has its own page, so it can be linked, refreshed and shared. */
 export function playbookPath(id: string) {

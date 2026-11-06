@@ -284,7 +284,7 @@ export function DocumentTabBar({
                                             isActive ? "true" : "false"
                                         }
                                         className={cn(
-                                            "document-tab group relative flex h-7 min-w-0 max-w-[220px] shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-md pl-3 pr-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40",
+                                            "document-tab group relative flex h-7 min-w-0 max-w-[220px] shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-md pl-3 pr-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                                             isActive ? "z-20" : "z-10",
                                             onReorder &&
                                                 tabs.length > 1 &&
@@ -298,7 +298,7 @@ export function DocumentTabBar({
                                                 <span
                                                     aria-hidden="true"
                                                     className={cn(
-                                                        "pointer-events-none absolute inset-y-1 z-30 w-0.5 rounded-full bg-blue-500",
+                                                        "pointer-events-none absolute inset-y-1 z-30 w-0.5 rounded-full bg-interactive",
                                                         dropTarget.position ===
                                                             "before"
                                                             ? "left-0"
@@ -334,7 +334,7 @@ export function DocumentTabBar({
                                                 event.stopPropagation();
                                                 onClose(tab.id);
                                             }}
-                                            className="shrink-0 rounded-full p-0.5 text-gray-400 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                            className="shrink-0 rounded-full p-0.5 text-gray-400 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                             aria-label={`Close ${tab.title}`}
                                         >
                                             <X
@@ -355,7 +355,7 @@ export function DocumentTabBar({
                         aria-label={addLabel}
                         title={addLabel}
                         className={cn(
-                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                             LIQUID_GLASS_HOVER_CLASS,
                         )}
                     >

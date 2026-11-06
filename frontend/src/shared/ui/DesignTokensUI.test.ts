@@ -49,7 +49,7 @@ describe("DesignTokensUI.css", () => {
                 scopes.add(`@${at.name} ${at.params}`);
             }
         });
-        expect([...scopes].sort()).toEqual([".dark", ":root", "@theme inline"]);
+        expect([...scopes].sort()).toEqual([".dark", ":root", "@theme ", "@theme inline"]);
         // A parse that finds nothing would make every check below vacuous.
         expect(sharedTokens.size).toBeGreaterThan(50);
         expect(sharedTokens).toContain("--app-background");

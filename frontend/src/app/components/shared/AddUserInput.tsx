@@ -115,7 +115,7 @@ export function AddUserInput({
                         : "add-user-input"
                 }
                 className={cn(
-                    `flex min-h-10 items-center rounded-xl ${LIQUID_GLASS_SUBTLE_CLASS} transition-colors focus-within:ring-2 focus-within:ring-blue-500/40 focus-within:ring-offset-2`,
+                    `flex min-h-10 items-center rounded-xl ${LIQUID_GLASS_SUBTLE_CLASS} transition-colors focus-within:ring-2 focus-within:ring-focus focus-within:ring-offset-2`,
                     attachedSubmit
                         ? "gap-0 overflow-hidden pl-3"
                         : "gap-2 px-3 py-1.5",
@@ -151,7 +151,7 @@ export function AddUserInput({
                         onClick={() => void commitUser()}
                         disabled={!showAddButton || busy || checking}
                         title={submitLabel}
-                        className="flex h-10 shrink-0 items-center justify-center gap-1.5 self-stretch pl-3 pr-4 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300"
+                        className="flex h-10 shrink-0 items-center justify-center gap-1.5 self-stretch pl-3 pr-4 text-xs font-medium text-interactive transition-colors hover:bg-interactive-soft hover:text-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300"
                     >
                         {(busy || checking) && (
                             <Loader2 className="h-3 w-3 animate-spin" />

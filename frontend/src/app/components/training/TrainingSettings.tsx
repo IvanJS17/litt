@@ -148,7 +148,7 @@ function StageList({
                             type="button"
                             disabled={busy}
                             onClick={() => onRemove(entry.practice)}
-                            className="rounded text-sm text-gray-500 underline-offset-2 hover:text-gray-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-50"
+                            className="rounded text-sm text-gray-500 underline-offset-2 hover:text-gray-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
                         >
                             Quitar
                         </button>

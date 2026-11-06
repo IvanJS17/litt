@@ -161,7 +161,7 @@ describe("AppSidebar workspace switcher", () => {
     const user = userEvent.setup();
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
-    expect(heading()).toHaveTextContent("LiTT");
+    expect(within(heading()).getByRole("img", { name: "LiTT" })).toBeInTheDocument();
     await openAccountMenu(user);
     expect(screen.getByRole("menuitem", { name: "Settings" })).toBeVisible();
     expect(screen.queryByRole("menuitemradio")).not.toBeInTheDocument();
@@ -182,12 +182,12 @@ describe("AppSidebar workspace switcher", () => {
     );
   });
 
-  it("heads the sidebar with plain LiTT for personal work, even with organizations to switch to", () => {
+  it("heads the sidebar with the LiTT wordmark for personal work, even with organizations to switch to", () => {
     state.organizations = [ACME, BETA];
     state.workspaceId = "personal";
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
-    expect(heading()).toHaveTextContent("LiTT");
+    expect(within(heading()).getByRole("img", { name: "LiTT" })).toBeInTheDocument();
     expect(screen.queryByText("Personal")).not.toBeInTheDocument();
   });
 
@@ -204,21 +204,30 @@ describe("AppSidebar workspace switcher", () => {
     expect(screen.queryByText("LiTT")).not.toBeInTheDocument();
   });
 
-  it("sets an organization's name at the size LiTT is, in the same fixed header row", () => {
+  it("keeps the organization's name and the LiTT wordmark in the same fixed header row", () => {
     state.organizations = [ACME];
     state.workspaceId = ACME.id;
     const { unmount } = render(<AppSidebar isOpen onToggle={vi.fn()} />);
-    const organizationClasses = heading().className;
     expect(heading()).toHaveClass("text-xl");
     expect(
       screen.getByRole("button", { name: "Close sidebar" }).parentElement,
     ).toHaveClass("h-11");
     unmount();
 
-    // Switching workspace must not change how the header looks.
+    // Switching workspace must not change the header row: personal work is
+    // headed by the wordmark at X = 22, whose 37px box fits the 44px row.
     state.workspaceId = "personal";
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
-    expect(heading().className).toBe(organizationClasses);
+    expect(
+      screen.getByRole("button", { name: "Close sidebar" }).parentElement,
+    ).toHaveClass("h-11");
+    const mark = within(heading()).getByRole("img", { name: "LiTT" });
+    expect(mark).toHaveAttribute("data-x", "22");
+    expect(mark).toHaveAttribute("height", "37");
+    expect(screen.getByRole("link", { name: "LiTT" })).toHaveAttribute(
+      "href",
+      "/assistant",
+    );
   });
 
   it("names nothing beside the account button", () => {
@@ -560,6 +569,6 @@ describe("AppSidebar workspace switcher", () => {
     expect(
       vi.mocked(listProjectsPage).mock.calls[0][0]?.workspace,
     ).toBeUndefined();
-    expect(heading()).toHaveTextContent("LiTT");
+    expect(within(heading()).getByRole("img", { name: "LiTT" })).toBeInTheDocument();
   });
 });

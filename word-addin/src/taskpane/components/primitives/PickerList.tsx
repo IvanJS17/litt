@@ -62,7 +62,7 @@ export function PickerList({
 
   return (
     <>
-      <label className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 text-gray-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_7px_rgba(15,23,42,0.05)]">
+      <label className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 text-gray-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_7px_rgba(21,26,38,0.05)]">
         <Search className="h-3.5 w-3.5" />
         <input
           value={search}
@@ -94,7 +94,7 @@ export function PickerList({
                   aria-pressed={isSelected}
                   disabled={item.disabled}
                   onClick={() => onSelect(item.id)}
-                  className={`flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+                  className={`flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                     isSelected
                       ? "bg-gray-200 text-gray-900"
                       : "text-gray-700 hover:bg-gray-100"

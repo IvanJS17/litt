@@ -110,7 +110,7 @@ function AppToolbarButton({
       aria-label={title}
       aria-pressed={active}
       className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
         active && "bg-gray-300 text-gray-950 hover:bg-gray-300",
       )}
       onMouseDown={(e) => {
@@ -564,7 +564,7 @@ export function MarkdownEditor({
                     aria-label="Insert table"
                     aria-pressed={tablePickerOpen}
                     className={cn(
-                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                      "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-white hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
                       tablePickerOpen &&
                         "bg-gray-300 text-gray-950 hover:bg-gray-300",
                     )}
@@ -621,7 +621,7 @@ export function MarkdownEditor({
                                   onSelect={() => insertTable(rows, cols)}
                                   className={`h-4 w-4 min-w-0 rounded-[3px] border p-0 transition-colors ${
                                     selected
-                                      ? "border-blue-600 bg-blue-600 focus:bg-blue-600"
+                                      ? "border-interactive bg-interactive focus:bg-interactive"
                                       : "border-gray-200 bg-white hover:border-gray-400 focus:bg-white"
                                   }`}
                                 />
@@ -686,7 +686,7 @@ export function MarkdownEditor({
             onChange={(event) => handleRawChange(event.target.value)}
             readOnly={readOnly || suspended}
             spellCheck={false}
-            className="h-full min-h-full w-full flex-1 resize-none bg-transparent px-5 py-4 font-mono text-xs leading-6 text-gray-800 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-600/40 read-only:cursor-default"
+            className="h-full min-h-full w-full flex-1 resize-none bg-transparent px-5 py-4 font-mono text-xs leading-6 text-gray-800 outline-none placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus read-only:cursor-default"
             aria-label={`${ariaLabel} (raw Markdown)`}
           />
         ) : (

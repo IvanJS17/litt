@@ -6,8 +6,8 @@ import { SidebarLogo } from "./SidebarLogo";
 const mocks = vi.hoisted(() => ({ getOrgLogo: vi.fn() }));
 
 vi.mock("@/app/lib/mikeApi", () => ({ getOrgLogo: mocks.getOrgLogo }));
-vi.mock("@/shared/ui/MikeIconUI", () => ({
-    MikeIcon: () => <span data-testid="mike-icon" />,
+vi.mock("@/shared/ui/LittBrandUI", () => ({
+    LittMonogramPixel: () => <span data-testid="litt-monogram" />,
 }));
 
 const LOGO = "data:image/png;base64,AAAA";
@@ -28,13 +28,13 @@ beforeEach(() => {
 describe("SidebarLogo", () => {
     it("is the app's logo in the personal workspace", () => {
         render(<SidebarLogo organization={null} />);
-        expect(screen.getByTestId("mike-icon")).toBeInTheDocument();
+        expect(screen.getByTestId("litt-monogram")).toBeInTheDocument();
         expect(mocks.getOrgLogo).not.toHaveBeenCalled();
     });
 
     it("is the app's logo for an organization that has not set one, without asking", () => {
         render(<SidebarLogo organization={acme(null)} />);
-        expect(screen.getByTestId("mike-icon")).toBeInTheDocument();
+        expect(screen.getByTestId("litt-monogram")).toBeInTheDocument();
         expect(mocks.getOrgLogo).not.toHaveBeenCalled();
     });
 
@@ -46,11 +46,11 @@ describe("SidebarLogo", () => {
         await waitFor(() => expect(image(container)).not.toBeNull());
         const logo = image(container)!;
         expect(logo).toHaveAttribute("src", LOGO);
-        expect(logo.style.width).toBe("18px");
-        expect(logo.style.height).toBe("18px");
+        expect(logo.style.width).toBe("16px");
+        expect(logo.style.height).toBe("16px");
         // Decorative: the organization's name is the text beside it.
         expect(logo).toHaveAttribute("alt", "");
-        expect(screen.queryByTestId("mike-icon")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("litt-monogram")).not.toBeInTheDocument();
         expect(mocks.getOrgLogo).toHaveBeenCalledExactlyOnceWith("org-acme");
     });
 
@@ -59,16 +59,20 @@ describe("SidebarLogo", () => {
         const { container } = render(
             <SidebarLogo organization={acme("2026-10-12T10:00:00Z")} />,
         );
-        expect(
-            container.querySelector('[data-slot="sidebar-logo-loading"]'),
-        ).not.toBeNull();
-        expect(screen.queryByTestId("mike-icon")).not.toBeInTheDocument();
+        const placeholder = container.querySelector<HTMLElement>(
+            '[data-slot="sidebar-logo-loading"]',
+        );
+        expect(placeholder).not.toBeNull();
+        // The same box as the 16px monogram it may turn into.
+        expect(placeholder!.style.width).toBe("16px");
+        expect(placeholder!.style.height).toBe("16px");
+        expect(screen.queryByTestId("litt-monogram")).not.toBeInTheDocument();
     });
 
     it("falls back to the app's logo when the organization's cannot be read", async () => {
         mocks.getOrgLogo.mockRejectedValue(new Error("network"));
         render(<SidebarLogo organization={acme("2026-10-12T10:00:00Z")} />);
-        expect(await screen.findByTestId("mike-icon")).toBeInTheDocument();
+        expect(await screen.findByTestId("litt-monogram")).toBeInTheDocument();
     });
 
     it("fetches again when the logo changes, and not when nothing has", async () => {
@@ -100,7 +104,7 @@ describe("SidebarLogo", () => {
         await waitFor(() => expect(image(container)).not.toBeNull());
 
         rerender(<SidebarLogo organization={acme(null)} />);
-        expect(screen.getByTestId("mike-icon")).toBeInTheDocument();
+        expect(screen.getByTestId("litt-monogram")).toBeInTheDocument();
         expect(image(container)).toBeNull();
     });
 });

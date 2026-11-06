@@ -48,7 +48,7 @@ function WebPageName({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="[overflow-wrap:anywhere] hover:text-gray-700 hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            className="[overflow-wrap:anywhere] hover:text-gray-700 hover:underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
             {name}
         </a>

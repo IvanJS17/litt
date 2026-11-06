@@ -1,9 +1,9 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Web files">
   <defs>
     <linearGradient id="ocean" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1FA6E0"/>
-      <stop offset="0.46" stop-color="#0284C7"/>
-      <stop offset="1" stop-color="#075985"/>
+      <stop offset="0" stop-color="#9A9B9C"/>
+      <stop offset="0.46" stop-color="#7B7D81"/>
+      <stop offset="1" stop-color="#51555B"/>
     </linearGradient>
     <linearGradient id="land" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#9BDC50"/>
@@ -13,7 +13,7 @@
     <linearGradient id="globeRim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#082F49" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#282D37" stop-opacity="0.65"/>
     </linearGradient>
     <radialGradient id="globeSheen" cx="0.3" cy="0.18" r="0.72">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/>
@@ -25,7 +25,7 @@
     </clipPath>
   </defs>
 
-  <ellipse cx="32" cy="58" rx="20" ry="3.2" fill="#0F172A" opacity="0.2"/>
+  <ellipse cx="32" cy="58" rx="20" ry="3.2" fill="#151A26" opacity="0.2"/>
   <circle cx="32" cy="31" r="26" fill="url(#ocean)" stroke="url(#globeRim)" stroke-width="1.8"/>
 
   <g clip-path="url(#globeClip)">
@@ -39,7 +39,7 @@
     <path d="M49 42.3 L55.5 43.7 L58 48.5 L53.4 51.6 L48.2 48.4 Z" fill="url(#land)" stroke="#166534" stroke-opacity="0.28" stroke-width="0.8"/>
 
     <!-- Glass depth and subtle web grid -->
-    <g fill="none" stroke="#E0F2FE" stroke-width="1" opacity="0.22">
+    <g fill="none" stroke="#EFEFEB" stroke-width="1" opacity="0.22">
       <ellipse cx="32" cy="31" rx="13" ry="25"/>
       <path d="M7 31 H57"/>
       <path d="M11 20 C22 24 42 24 53 20"/>

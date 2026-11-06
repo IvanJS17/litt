@@ -30,7 +30,7 @@ test("a failed sign-in request names the request instead of only 'Load failed'",
   expect(text).not.toMatch(/Failed to fetch|Load failed|NetworkError/);
 });
 
-test("a rejected sign-in is stated in Mike's words, not GoTrue's", async ({
+test("a rejected sign-in is stated in LiTT's words, not GoTrue's", async ({
   addin,
   page,
 }) => {

@@ -33,7 +33,7 @@ export function CitationPillUI({
                 clsx(
                     BASE_CLASS_NAME,
                     active &&
-                        "!bg-blue-100 !text-blue-900 hover:!bg-blue-100 hover:!text-blue-900 dark:!bg-blue-950 dark:!text-white dark:hover:!bg-blue-900 dark:hover:!text-white",
+                        "!bg-interactive-soft-strong !text-interactive hover:!bg-interactive-soft-strong hover:!text-interactive-hover dark:!bg-interactive-soft-strong dark:!text-white dark:hover:!bg-interactive-soft-strong dark:hover:!text-white",
                     className,
                 ),
             )}

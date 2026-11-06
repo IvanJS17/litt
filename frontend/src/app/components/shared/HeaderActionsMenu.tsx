@@ -46,7 +46,7 @@ export function HeaderActionsMenu({
                     className={cn(
                         "inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-600 transition-all",
                         LIQUID_GLASS_HOVER_CLASS,
-                        "hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                        "hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                         triggerClassName,
                     )}
                     aria-label={title}

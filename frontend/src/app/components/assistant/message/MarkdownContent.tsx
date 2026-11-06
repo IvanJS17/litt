@@ -226,7 +226,7 @@ export function MarkdownContent({
                             return (
                                 <a
                                     href={href}
-                                    className="text-blue-600 hover:text-blue-700 underline"
+                                    className="text-interactive hover:text-interactive-hover underline"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     {...anchorProps}
@@ -238,7 +238,7 @@ export function MarkdownContent({
                         return (
                             <a
                                 href={href}
-                                className="text-blue-600 hover:text-blue-700 underline"
+                                className="text-interactive hover:text-interactive-hover underline"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 {...anchorProps}
@@ -257,7 +257,7 @@ export function MarkdownContent({
                             return (
                                 <a
                                     href={src}
-                                    className="text-blue-600 hover:text-blue-700 underline [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                                    className="text-interactive hover:text-interactive-hover underline [overflow-wrap:anywhere] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >

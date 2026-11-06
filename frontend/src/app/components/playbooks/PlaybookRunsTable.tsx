@@ -485,7 +485,7 @@ export function PlaybookRunsTable({
                       onOpen(run);
                     }}
                     title={runTitle(run)}
-                    className="min-w-0 truncate rounded text-left text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40"
+                    className="min-w-0 truncate rounded text-left text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                   >
                     {runTitle(run)}
                   </button>

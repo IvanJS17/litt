@@ -125,7 +125,7 @@ export function ChatInput({
         <div
             data-testid="chat-input"
             className={cn(
-                "rounded-[21px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
+                "rounded-[21px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(21,26,38,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
                 className,
             )}
         >
