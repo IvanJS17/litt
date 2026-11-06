@@ -45,12 +45,18 @@
     --color-app-floating: var(--app-floating);
     --font-sans: var(--font-inter);
     --font-serif: var(--font-eb-garamond);
-    --color-blue: rgb(0, 136, 255);
-    --color-blue-50: rgba(0, 136, 255, 0.05);
-    --color-blue-100: rgba(0, 136, 255, 0.1);
-    --color-blue-200: rgba(0, 136, 255, 0.3);
-    --color-blue-600: rgb(0, 136, 255);
-    --color-blue-700: rgb(0, 120, 230);
+    /* Interactive roles (Marca LiTT v1.0, "Sin azul"): primary fills,
+       active toggles, selection and action links. Tinta on the light theme,
+       papel on the dark one; never blue. */
+    --color-interactive: var(--litt-interactive);
+    --color-interactive-hover: var(--litt-interactive-hover);
+    --color-interactive-pressed: var(--litt-interactive-pressed);
+    --color-interactive-foreground: var(--litt-interactive-foreground);
+    --color-interactive-soft: var(--litt-interactive-soft);
+    --color-interactive-soft-strong: var(--litt-interactive-soft-strong);
+    --color-interactive-border: var(--litt-interactive-border);
+    /* Keyboard focus: the amber of the current background. */
+    --color-focus: var(--litt-accent);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -100,6 +106,16 @@
     /* The one amber accent outside the marks: the keyboard focus ring. Ámbar
        tinta on the light theme: 4.75:1 on papel, 5.64:1 on white. */
     --litt-accent: var(--litt-ambar-tinta);
+    /* Interactive primary, light theme: tinta on papel or white. Hover and
+       pressed lift tinta toward papel; soft fills are tinta tints, so a
+       selected row or an informational chip stays in the brand neutrals. */
+    --litt-interactive: var(--litt-tinta);
+    --litt-interactive-hover: color-mix(in oklab, var(--litt-tinta) 86%, var(--litt-papel));
+    --litt-interactive-pressed: color-mix(in oklab, var(--litt-tinta) 74%, var(--litt-papel));
+    --litt-interactive-foreground: var(--litt-papel);
+    --litt-interactive-soft: color-mix(in oklab, var(--litt-tinta) 6%, transparent);
+    --litt-interactive-soft-strong: color-mix(in oklab, var(--litt-tinta) 11%, transparent);
+    --litt-interactive-border: color-mix(in oklab, var(--litt-tinta) 38%, transparent);
     --radius: 0.625rem;
     /* Light theme: papel canvas, tinta text. Panels sit between papel and
        white, so a mark on one keeps ámbar tinta at 4.75:1 or more. */
@@ -149,6 +165,15 @@
     /* Ámbar fósforo on the dark theme: 9.64:1 on tinta, 7.43:1 on the
        lightest surface (--app-surface-active). */
     --litt-accent: var(--litt-ambar-fosforo);
+    /* Interactive primary, dark theme: papel on tinta, with tinta text on a
+       papel fill. */
+    --litt-interactive: var(--litt-papel);
+    --litt-interactive-hover: color-mix(in oklab, var(--litt-papel) 86%, var(--litt-tinta));
+    --litt-interactive-pressed: color-mix(in oklab, var(--litt-papel) 74%, var(--litt-tinta));
+    --litt-interactive-foreground: var(--litt-tinta);
+    --litt-interactive-soft: color-mix(in oklab, var(--litt-papel) 8%, transparent);
+    --litt-interactive-soft-strong: color-mix(in oklab, var(--litt-papel) 14%, transparent);
+    --litt-interactive-border: color-mix(in oklab, var(--litt-papel) 42%, transparent);
     /* Dark theme: tinta canvas, papel text. Surfaces are tinta lifted toward
        papel by 3.5-12 % (OKLab), so they stay in the tinta family. */
     --app-background: var(--litt-tinta);

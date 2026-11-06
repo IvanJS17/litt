@@ -22,12 +22,11 @@
     background-color: var(--liquid-glass-selected-background);
 }
 
-.table-surface .table-sticky-cell.bg-blue-50 {
-    background-color: var(--color-blue-50);
-}
-
-.dark .table-surface .table-sticky-cell.bg-blue-50 {
-    background-color: rgba(3, 73, 130, 0.3);
+/* A selected sticky cell layers the soft interactive tint over the opaque
+   page color, so it stays tinted without letting content show through. */
+.table-surface .table-sticky-cell.bg-interactive-soft {
+    background: linear-gradient(var(--litt-interactive-soft), var(--litt-interactive-soft)),
+        var(--table-cell-background);
 }
 
 .table-surface
@@ -40,7 +39,7 @@
     border: 1px solid var(--table-grid-border);
 }
 
-/* Most of Mike predates semantic color tokens and uses Tailwind's neutral
+/* Most of the app predates semantic color tokens and uses Tailwind's neutral
    palette directly. These mappings make those existing surfaces participate
    in the user-selected dark theme without requiring page-by-page forks.
    Values follow the LiTT tinta ramp (docs/design-system.md, Marca LiTT v1.0):
@@ -147,8 +146,6 @@
 .dark .text-green-700,
 .dark .text-green-800,
 .dark .text-emerald-700 { color: #6ee7b7; }
-.dark .bg-blue-50,
-.dark .bg-blue-100 { background-color: rgba(3, 73, 130, 0.3); }
 
 @layer base {
     * {
