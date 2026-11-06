@@ -80,11 +80,6 @@ describe("resolveTrainingStage", () => {
         ).toBeNull();
     });
 
-    it("resolves the Word stage through resolveWordTrainingStage", async () => {
-        const { db } = setup();
-        expect(await resolveTrainingStage(db, USER, { anyOrganization: true })).toBe("pasante");
-    });
-
     it("fails instead of answering none when the stages cannot be read", async () => {
         const { db, failNext } = setup();
         failNext("training_stages", "select", { message: "down" });

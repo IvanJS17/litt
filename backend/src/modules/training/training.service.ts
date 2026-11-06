@@ -43,6 +43,7 @@ import {
     isTrainingStage,
     normalizePractice,
     resolveTrainingStage,
+    resolveWordTrainingStage,
     TRAINING_PRACTICE_MAX_CHARS,
     type TrainingScope,
 } from "../../lib/training";
@@ -166,8 +167,14 @@ export async function getEffectiveTrainingStage(
     },
 ): Promise<ServiceResult<{ stage: TrainingStage | null }>> {
     let scope: TrainingScope;
-    if (args.surface === "word") scope = { anyOrganization: true };
-    else {
+    if (args.surface === "word") {
+        // No organization or project in Word: the one Word rule decides.
+        try {
+            return ok({ stage: (await resolveWordTrainingStage(db, args.userId)).stage });
+        } catch (error) {
+            return internalFailure(error);
+        }
+    } else {
         const orgId = readUserId(args.orgId);
         const projectId = readUserId(args.projectId);
         if (args.projectId !== undefined && args.projectId !== null && args.projectId !== "") {
