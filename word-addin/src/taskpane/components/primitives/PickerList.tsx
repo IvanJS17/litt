@@ -94,7 +94,7 @@ export function PickerList({
                   aria-pressed={isSelected}
                   disabled={item.disabled}
                   onClick={() => onSelect(item.id)}
-                  className={`flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+                  className={`flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                     isSelected
                       ? "bg-gray-200 text-gray-900"
                       : "text-gray-700 hover:bg-gray-100"

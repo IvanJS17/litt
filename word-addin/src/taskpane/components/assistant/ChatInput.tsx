@@ -611,7 +611,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                 excerpts.length > 0 ? (
                   <>
                     {selectedWorkflow && (
-                      <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-blue-600 py-0.5 pl-2.5 pr-1 text-xs text-white shadow">
+                      <div className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-interactive py-0.5 pl-2.5 pr-1 text-xs text-interactive-foreground shadow">
                         <Library className="h-2.5 w-2.5 shrink-0" />
                         <span className="max-w-[140px] truncate">
                           {selectedWorkflow.title}
