@@ -201,11 +201,40 @@ evidence in place.
 
 ### Releasable
 
-`assertReleasable(db, versionId)` in `backend/src/lib/trainingRelease.ts` is
-the one check for an output: a version is releasable when it has no seal, or
-when an approval exists for its current `content_sha256`. Changing the bytes
-in place therefore needs a new approval. Otherwise it answers
-`409 { code: "training_approval_required" }`. Connecting it to the outputs
-(downloads, signed URLs, tokens, exports, the approved report and Drive) is
-the next step, together with the `CODE_KINDS` entry. The lock is the firm's
-governance control, not DRM: what can be seen in the app can be captured.
+`backend/src/lib/trainingRelease.ts` holds the one rule for an output
+(`heldVersionIds`, with `assertVersionReleasable` for a loaded row and
+`assertReleasable` for a version id): a version is releasable when it has no
+seal, or when an approval exists for its current `content_sha256`. Changing
+the bytes in place therefore needs a new approval. Otherwise the output
+answers `409 { code: "training_approval_required" }` (in `CODE_KINDS`, shown
+with the server's sentence and no Retry). A failed read never releases.
+
+### The lock on outputs
+
+The check runs on the version row each output actually resolves, so
+`?version_id=` naming an older or non-current version is checked too.
+
+| Output | With a pasante's unapproved version |
+|---|---|
+| `POST /single-documents/download-zip` | `409` for the whole archive when any selected document's current version is held |
+| `GET /single-documents/:id/url` | `409`: no signed URL is issued. A URL already issued cannot be revoked and counts as released |
+| `GET /download/:token` | `409` after the access check, on the resolved row. This one gate covers every token: chat events, accepted or rejected edits, generated and replicated files, playbook reviews, and the tokens kept in chat history or a chats export |
+| `documents-zip` export (`POST /user/exports`) | the version is left out and named, with the reason, in `OMITIDOS.txt` inside the zip; a zip with only that list is still produced |
+| `GET /projects/:projectId/ai-executions/:executionId/review/approved-report` | `409` while the report of a pasante reviewer (sealed when produced) is not approved |
+| Drive publication of the approved report | `409` before any claim or upload, although publication already fails closed outside the fake transport |
+
+**Not locked (viewing inside LiTT):** `GET /single-documents/:id/display` and
+`GET /single-documents/:id/file` (the pasante's own DOCX editor needs it)
+answer `200` with `Content-Disposition: inline` and, for an unapproved
+version, `Cache-Control: no-store`. Playbook sources and catalog add-on assets
+are not document versions and carry no seal. Metadata (version lists, the
+project manifest, the account and chats exports) carries no document bytes.
+
+**Who approves:** see Approval above (a member with `content.edit` and no
+stage in the project, or the author's current mentor; never the author, a
+pasante or a junior). The approval binds the bytes, not the version id.
+
+**What the lock is not:** it is the firm's governance control over what
+leaves LiTT as a deliverable, not DRM. Whatever can be seen in the app (a
+viewed PDF, an open editor, a screenshot) can be captured by the person who
+sees it.

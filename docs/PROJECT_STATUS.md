@@ -16,10 +16,21 @@
   Word and tabular) carries their own approach, kept as a private note with a
   separately generated contrast.
   Behavior and rules: [`training.md`](training.md).
-- **State:** implemented on `feat/training-mentors-attempt` with migration
-  `20261106_50_litt_training.sql`; pending independent review, merge and
-  deployment. Nothing changes for a person without a stage.
-- **Next:** layer 1b, the export lock on pasante drafts, after 1a is integrated.
+- **State:** merged into `main` (PR #56) with migration
+  `20261106_50_litt_training.sql`; deployment is not recorded here. Nothing
+  changes for a person without a stage.
+
+### Training layer 1b: pasante seal and output lock (2026-11-06)
+
+- **What:** every version a pasante writes is sealed; it leaves LiTT
+  (downloads, signed URLs, `/download/` tokens, the `documents-zip` export, the
+  approved AI review report and its Drive publication) only once a person who
+  may approve it approves its current bytes. In-app views stay open. Rules:
+  [`training.md`](training.md#the-pasante-seal-and-its-approval-layer-1b).
+- **State:** backend implemented on `feat/training-1b-output-lock` with
+  migration `20261106_51_litt_training_output_lock.sql`; pending independent
+  review, merge and deployment. The UI (draft mark, approve button, hidden
+  download links) is a separate slice.
 
 ### Production 2026-10-31
 
