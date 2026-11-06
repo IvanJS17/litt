@@ -14,6 +14,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import {
     streamTabularChat,
     streamTabularChatTurn,
+    getTrainingTurnNotes,
     stopTabularChatTurn,
     getTabularChats,
     getTabularChatMessages,
@@ -56,6 +57,11 @@ import { HeaderActionsMenu } from "../shared/HeaderActionsMenu";
 import { cn } from "@/app/lib/utils";
 import { buildTabularChatHistory } from "@/app/lib/tabularChatHistory";
 import { CitationPillUI } from "@/shared/ui/CitationPillUI";
+import { TrainingNoteUI, type TrainingNoteView } from "@/shared/ui/TrainingNoteUI";
+import {
+    matchTrainingNotes,
+    useTrainingTurnNotes,
+} from "@/shared/hooks/useTrainingTurnNotes";
 import { subscribeToTabularChatSettingsUpdates } from "@/app/lib/tabularChatSettingsEvents";
 import { sortChatsByActivity, touchChatActivity } from "@/app/lib/chatActivity";
 import { WarningPopup } from "../popups/WarningPopup";
@@ -71,7 +77,11 @@ import {
 // ---------------------------------------------------------------------------
 
 interface TRMessage {
+    /** Server id of a saved user message; notes are matched on it. */
+    id?: string;
     role: "user" | "assistant";
+    /** LiTT training: the approach this just-sent message went out with. */
+    attempt?: string;
     content: string;
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
@@ -86,6 +96,8 @@ interface TRMessage {
 
 interface Props {
     reviewId: string;
+    /** The project holding the review, if any (decides the training stage). */
+    projectId?: string;
     reviewTitle?: string | null;
     projectName?: string | null;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
@@ -354,17 +366,25 @@ function TRAssistantMessage({
 
 function MessageBubble({
     msg,
+    trainingNote,
     onCitationClick,
 }: {
     msg: TRMessage;
+    trainingNote?: TrainingNoteView;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
     if (msg.role === "user") {
         return (
-            <div className="flex justify-end">
+            <div className="flex flex-col items-end gap-2">
                 <div className="max-w-[90%] rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-800 whitespace-pre-wrap">
                     {msg.content}
                 </div>
+                {trainingNote && (
+                    <TrainingNoteUI
+                        note={trainingNote}
+                        className="w-full max-w-[90%]"
+                    />
+                )}
             </div>
         );
     }
@@ -392,6 +412,7 @@ const COMPOSER_GAP = 16;
 
 export function TRChatPanel({
     reviewId,
+    projectId,
     reviewTitle,
     projectName,
     onCitationClick,
@@ -661,6 +682,11 @@ export function TRChatPanel({
         hasScrolledRef.current = false;
     }, [currentChatId]);
 
+    // LiTT training: private notes beside the pasante's own messages.
+    const trainingNotes = matchTrainingNotes(
+        messages,
+        useTrainingTurnNotes(currentChatId, isLoading, getTrainingTurnNotes),
+    );
     const hasMessages = messages.length > 0;
     const userMessageCount = messages.filter(
         (message) => message.role === "user",
@@ -1195,7 +1221,11 @@ export function TRChatPanel({
         const history = buildTabularChatHistory(transcriptBeforeSend);
         const allMessages = [...history, { role: "user", content: trimmed }];
 
-        const userMsg: TRMessage = { role: "user", content: trimmed };
+        const userMsg: TRMessage = {
+            role: "user",
+            content: trimmed,
+            ...(message.attempt ? { attempt: message.attempt } : {}),
+        };
         const assistantMsg: TRMessage = {
             role: "assistant",
             content: "",
@@ -1264,6 +1294,7 @@ export function TRChatPanel({
                     { reviewTitle, projectName },
                     message.model,
                     message.reasoning,
+                    message.attempt,
                 ),
         });
     }
@@ -2008,6 +2039,7 @@ export function TRChatPanel({
                             >
                                 <MessageBubble
                                     msg={msg}
+                                    trainingNote={trainingNotes.get(i)}
                                     onCitationClick={onCitationClick}
                                 />
                             </div>
@@ -2029,6 +2061,8 @@ export function TRChatPanel({
                     hideAddDocButton
                     hideWorkflowButton
                     offerCredentialChoice={false}
+                    trainingTurns
+                    projectId={projectId}
                     chatModel={currentChatModel}
                     chatReasoningLevel={currentChatReasoningLevel}
                     chatKey={

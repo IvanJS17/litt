@@ -20,6 +20,11 @@ import type {
   WordChatStorageMode,
   WordEditApplyMode,
 } from "../../lib/wordChatSettings";
+import {
+  matchTrainingNotes,
+  useTrainingTurnNotes,
+} from "@mike/training-turn-notes";
+import { getTrainingTurnNotes } from "../../api/client";
 import { ChatView } from "./ChatView";
 import type {
   ReasoningLevel,
@@ -167,6 +172,16 @@ export function ChatPanel({
   // stops a re-render (or a finished turn) from reattaching.
   const resumedSessionRef = useRef<number | null>(null);
   const resumeTurn = chat.resumeTurn;
+  // LiTT training: private notes beside the pasante's own messages. Device-only
+  // chats never reach the server, so they have none to read.
+  const trainingNotes = matchTrainingNotes(
+    chat.messages,
+    useTrainingTurnNotes(
+      wordChatStorage === "cloud" ? chatId : null,
+      chat.isResponseLoading,
+      getTrainingTurnNotes,
+    ),
+  );
   useEffect(() => {
     if (!chatId || !resumeTurnId) return;
     if (resumedSessionRef.current === sessionKey) return;
@@ -239,6 +254,7 @@ export function ChatPanel({
     <ChatView
       {...chat}
       {...trackedEdits}
+      trainingNotes={trainingNotes}
       sessionKey={sessionKey}
       chatModel={chatModel}
       lastSelectedModel={lastSelectedModel}

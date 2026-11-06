@@ -1,4 +1,5 @@
 import { abortable } from "../../lib/abortable";
+import { launchTurnContrast } from "../../lib/trainingNotes";
 import {
     attachAssistantTurnSse,
     startAssistantTurnRun,
@@ -138,6 +139,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
+        attempt: body.attempt,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);
@@ -166,6 +168,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         selectedReasoningLevel,
         nonce,
         approvalEvents,
+        trainingNote,
     } = prep.prepared;
     // Mutable: the title-generation flow below reassigns it once a title
     // has been persisted.
@@ -258,7 +261,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                       })
                 : Promise.resolve();
 
-            const { events, citations } = await runLLMStream({
+            const { fullText, events, citations } = await runLLMStream({
                 onActivity: run?.touch,
                 apiMessages,
                 docStore,
@@ -379,6 +382,19 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                     });
                     memoryTurnScheduled = scheduled != null;
                 }
+            }
+
+            // LiTT training: the final answer is durable, so the pasante's
+            // private contrast is produced now, aside from the turn, with the
+            // conversation's own model and credential. It cannot fail the turn.
+            if (trainingNote && !persistedEvents.some((event) => event.type === "error")) {
+                launchTurnContrast(db, {
+                    noteId: trainingNote.id,
+                    attempt: trainingNote.attempt,
+                    answer: fullText ?? "",
+                    model: selectedModel,
+                    apiKeys,
+                });
             }
 
             void enqueueChatTurnAudit(

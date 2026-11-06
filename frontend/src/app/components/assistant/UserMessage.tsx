@@ -13,6 +13,10 @@ import {
 } from "@/shared/lib/messageExcerpts";
 import { ExcerptModalUI } from "@/shared/ui/ExcerptModalUI";
 import { ExcerptPillUI } from "@/shared/ui/ExcerptPillUI";
+import {
+    TrainingNoteUI,
+    type TrainingNoteView,
+} from "@/shared/ui/TrainingNoteUI";
 
 interface Props {
     content: string;
@@ -23,6 +27,8 @@ interface Props {
     onFileClick?: (file: MessageFile) => void;
     /** Reveals the workflow this message ran, in the workflow modal. */
     onWorkflowClick?: (workflow: { id: string; title: string }) => void;
+    /** LiTT training: the private note beside this message, if any. */
+    trainingNote?: TrainingNoteView;
 }
 
 export function UserMessage({
@@ -32,6 +38,7 @@ export function UserMessage({
     playbook,
     onFileClick,
     onWorkflowClick,
+    trainingNote,
 }: Props) {
     const hasFiles = files && files.length > 0;
     // Passages quoted from an earlier response travel as leading blockquotes;
@@ -42,7 +49,7 @@ export function UserMessage({
     );
 
     return (
-        <div className="w-full flex justify-end">
+        <div className="w-full flex flex-col items-end gap-2">
             <div className="max-w-[80%] bg-gray-100 rounded-xl px-4 py-3">
                 {body && (
                     <p className="text-sm text-gray-900 whitespace-pre-wrap">
@@ -130,6 +137,12 @@ export function UserMessage({
                     </div>
                 )}
             </div>
+            {trainingNote && (
+                <TrainingNoteUI
+                    note={trainingNote}
+                    className="w-full max-w-[80%]"
+                />
+            )}
             <ExcerptModalUI
                 excerpt={openExcerpt}
                 onClose={() => setOpenExcerpt(null)}

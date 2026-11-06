@@ -62,6 +62,7 @@ import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { usePageChrome } from "@/app/contexts/PageChromeContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
 import { resolvePanelDocumentVersionResult } from "./panelDocumentVersion";
 import { LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS } from "@/app/components/ui/liquid-surface";
 import {
@@ -85,7 +86,7 @@ import { can, roleFrom } from "@/app/lib/permissions";
 import { AssistantChatHistoryMenu } from "./AssistantChatHistoryMenu";
 import { cn } from "@/app/lib/utils";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
-import { getPlaybook } from "@/app/lib/mikeApi";
+import { getPlaybook, getTrainingTurnNotes } from "@/app/lib/mikeApi";
 import { LINKED_PLAYBOOK_PARAM } from "@/app/lib/assistantPlaybookLink";
 
 interface Props {
@@ -300,6 +301,11 @@ export function AssistantChatColumn({
         (chatId ? chats?.find((entry) => entry.id === chatId) : null) ??
         (chat?.id === chatId ? chat : null) ??
         null;
+    // LiTT training: private notes beside the pasante's own messages.
+    const trainingNotes = matchTrainingNotes(
+        messages,
+        useTrainingTurnNotes(chatId, isResponseLoading, getTrainingTurnNotes),
+    );
     const permissionChat = chat?.id === chatId ? chat : activeChat;
     const activeChatRole = permissionChat ? roleFrom(permissionChat) : null;
     const canLeaveChat = permissionChat?.can_leave === true && permissionChat.project_id === null && activeChatRole !== "owner";
@@ -1103,6 +1109,7 @@ export function AssistantChatColumn({
                                             >
                                                 {msg.role === "user" ? (
                                                     <UserMessage
+                                                        trainingNote={trainingNotes.get(i)}
                                                         content={msg.content ?? ""}
                                                         files={msg.files}
                                                         workflow={msg.workflow}
@@ -1265,6 +1272,7 @@ export function AssistantChatColumn({
                                             onCancel={cancel}
                                         >
                                             <ChatInput
+                                                trainingTurns
                                                 ref={chatInputRef}
                                                 canSend={canSend}
                                                 chatLoading={chatLoading}

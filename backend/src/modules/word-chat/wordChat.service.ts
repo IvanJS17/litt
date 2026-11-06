@@ -1,5 +1,7 @@
 import { isUuid } from "../../lib/uuid";
 import { wordChatHasWorkspaceAttachments } from "../../lib/wordWorkspace";
+import { checkTrainingTurn, resolveWordTrainingStage } from "../../lib/training";
+import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 // Business logic + data-access for the word-chat module.
 //
 // Service layer behind wordChat.routes.ts. Every function takes an explicit
@@ -596,6 +598,8 @@ export type PreparedWordChatStream = {
   selectedModel: string;
   selectedReasoningLevel: ReturnType<typeof resolveEffectiveReasoningLevel>;
   nonce: ReturnType<typeof generateSpotlightNonce>;
+  /** LiTT training: a pasante's private note for this turn, pending its contrast. */
+  trainingNote: CreatedTurnNote | null;
 };
 
 export async function prepareWordChatStream(
@@ -623,6 +627,8 @@ export async function prepareWordChatStream(
       ReturnType<typeof resolveEffectiveReasoningLevel> | undefined;
     /** The task pane's IANA time zone; unvalidated request input. */
     requestedTimeZone?: unknown;
+    /** LiTT training: the author's own approach; required of a pasante. */
+    attempt?: unknown;
   },
 ): Promise<
   | { ok: true; prepared: PreparedWordChatStream }
@@ -680,6 +686,31 @@ export async function prepareWordChatStream(
       detail: "Could not validate Word chat attachments",
       error: withKind(error, "db.query_failed", "Word chat attachment check failed"),
     };
+  }
+
+  // LiTT training ("Tu turno primero"): a Word chat belongs to no
+  // organization or project, so the most junior stage that covers every
+  // practice area, across the user's active organizations, applies; a note
+  // about the turn belongs to that organization. Checked before anything is
+  // written.
+  let trainingAttempt: string | null = null;
+  let trainingNote: CreatedTurnNote | null = null;
+  let trainingOrgId: string | null = null;
+  if (lastUser) {
+    let stage;
+    try {
+      ({ stage, orgId: trainingOrgId } = await resolveWordTrainingStage(db, userId));
+    } catch (error) {
+      return {
+        ok: false,
+        status: 500,
+        detail: "Could not check the training stage",
+        error: withKind(error, "db.query_failed", "Word chat training stage check failed"),
+      };
+    }
+    const training = checkTrainingTurn(stage, args.attempt);
+    if (!training.ok) return training;
+    trainingAttempt = training.attempt;
   }
 
   if (persistChat) {
@@ -846,6 +877,27 @@ export async function prepareWordChatStream(
         error: withKind(error, "word.session_failed", "Word user message save failed"),
       };
     }
+    // A local-only chat (storage "local") is never kept server-side, so it
+    // has no note: the attempt was required but is not stored.
+    if (trainingAttempt && trainingOrgId && inputMessageId) {
+      const created = await createPendingTurnNote(db, {
+        surface: "word",
+        orgId: trainingOrgId,
+        traineeUserId: userId,
+        chatId,
+        messageId: inputMessageId,
+        attempt: trainingAttempt,
+      });
+      if (!created.ok) {
+        return {
+          ok: false,
+          status: 500,
+          detail: "Failed to save Word message",
+          error: withKind(created.error, "word.session_failed", "Word training note save failed"),
+        };
+      }
+      trainingNote = created.note;
+    }
   }
 
   if (lastUser && persistChat) {
@@ -966,6 +1018,7 @@ export async function prepareWordChatStream(
         selectedModel,
         selectedReasoningLevel,
         nonce,
+        trainingNote,
       },
     };
   } catch (error) {

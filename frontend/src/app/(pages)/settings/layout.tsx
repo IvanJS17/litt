@@ -39,6 +39,8 @@ const TABS: SettingsShellTab[] = [
         href: "/settings/byok",
     },
     { id: "connectors", label: "Connectors", href: "/settings/connectors" },
+    // LiTT training: a pupil's mentor and stages, and a mentor's pupils.
+    { id: "training", label: "Formación", href: "/settings/training" },
     // The organizations the person belongs to, and their invitations. Each
     // organization's own settings are a separate area, opened from here or
     // from the account menu.

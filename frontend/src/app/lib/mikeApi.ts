@@ -2240,6 +2240,132 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
     return apiRequest<OrgMember[]>("organizations.manage", `/orgs/${orgId}/members`);
 }
 
+// ---------------------------------------------------------------------------
+// LiTT training (docs/training.md): mentors, pupils and stages
+// ---------------------------------------------------------------------------
+
+export type {
+    TrainingStage,
+    TrainingStageEntry,
+    TrainingMembership,
+    TrainingOrgOverview,
+    TrainingMyPupils,
+} from "@mike/contracts";
+
+/** The caller's effective stage where a chat turn would run; the server decides. */
+export async function getTrainingStage(scope: {
+    orgId?: string | null;
+    projectId?: string | null;
+}): Promise<import("@mike/contracts").TrainingStage | null> {
+    const query = new URLSearchParams();
+    if (scope.orgId) query.set("org_id", scope.orgId);
+    if (scope.projectId) query.set("project_id", scope.projectId);
+    const result = await apiRequest<import("@mike/contracts").TrainingEffectiveStage>(
+        "training.read",
+        `/training/stage?${query}`,
+    );
+    return result.stage;
+}
+
+/**
+ * A pasante's private notes on a chat's turns (planteamiento + contraste).
+ * Only the author and their current mentor can read them; anyone else, and a
+ * chat with nothing to read, gets a uniform 404, which is "no notes" here.
+ */
+export async function getTrainingTurnNotes(
+    chatId: string,
+    messageId?: string,
+): Promise<import("@mike/contracts").TrainingTurnNote[]> {
+    const query = messageId
+        ? `?${new URLSearchParams({ message_id: messageId })}`
+        : "";
+    try {
+        const result = await apiRequest<import("@mike/contracts").TrainingTurnNotes>(
+            "training.read",
+            `/training-notes/chats/${encodeURIComponent(chatId)}${query}`,
+        );
+        return result.notes;
+    } catch (error) {
+        if (error instanceof MikeApiError && error.status === 404) return [];
+        throw error;
+    }
+}
+
+export async function getMyTraining(): Promise<import("@mike/contracts").TrainingMembership[]> {
+    const result = await apiRequest<{ memberships: import("@mike/contracts").TrainingMembership[] }>(
+        "training.read",
+        "/training/me",
+    );
+    return result.memberships;
+}
+
+export async function getOrgTraining(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingOrgOverview>(
+        "training.manage",
+        `/orgs/${orgId}/training/mentors`,
+    );
+}
+
+export async function designateTrainingMentor(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/mentors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+    });
+}
+
+export async function removeTrainingMentor(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/mentors/${userId}`, {
+        method: "DELETE",
+    });
+}
+
+export async function getMyPupils(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingMyPupils>(
+        "training.manage",
+        `/orgs/${orgId}/training/pupils`,
+    );
+}
+
+export async function assignTrainingPupil(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+    });
+}
+
+export async function releaseTrainingPupil(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}`, {
+        method: "DELETE",
+    });
+}
+
+/** `practice` null is the stage for every practice area. */
+export async function setTrainingStage(
+    orgId: string,
+    userId: string,
+    practice: string | null,
+    stage: import("@mike/contracts").TrainingStage,
+): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}/stages`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ practice, stage }),
+    });
+}
+
+export async function removeTrainingStage(
+    orgId: string,
+    userId: string,
+    practice: string | null,
+): Promise<void> {
+    const query = practice ? `?${new URLSearchParams({ practice })}` : "";
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}/stages${query}`, {
+        method: "DELETE",
+    });
+}
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {
@@ -3357,6 +3483,8 @@ export async function streamChat(payload: {
     credential_ref?: string;
     reasoning?: Message["reasoning"];
     ask_inputs_response?: AskInputsResponsePayload;
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { signal, ...body } = payload;
@@ -3389,6 +3517,8 @@ export async function streamProjectChat(payload: {
     displayed_doc?: { filename: string; document_id: string };
     attached_documents?: { filename: string; document_id: string }[];
     ask_inputs_response?: AskInputsResponsePayload;
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { projectId, signal, ...body } = payload;
@@ -3679,6 +3809,8 @@ export async function streamTabularChat(
     context?: { reviewTitle?: string | null; projectName?: string | null },
     model?: Message["model"],
     reasoning?: Message["reasoning"],
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string,
 ): Promise<Response> {
     return apiFetch(`${API_BASE}/tabular-review/${reviewId}/chat`, {
         method: "POST",
@@ -3690,6 +3822,7 @@ export async function streamTabularChat(
             project_name: context?.projectName ?? undefined,
             model,
             reasoning,
+            attempt,
             time_zone: browserTimeZone(),
         }),
         signal: signal ?? undefined,
@@ -3741,7 +3874,7 @@ export interface TRCitationAnnotation {
     quote: string;
 }
 
-interface RawTRMessage {
+export interface RawTRMessage {
     id: string;
     chat_id: string;
     role: "user" | "assistant";
@@ -3751,6 +3884,7 @@ interface RawTRMessage {
 }
 
 interface TRDisplayMessage {
+    id?: string;
     role: "user" | "assistant";
     content: string;
     events?: AssistantEvent[];
@@ -3799,6 +3933,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
     return raw.map((m) => {
         if (m.role === "user") {
             return {
+                id: m.id,
                 role: "user" as const,
                 content: typeof m.content === "string" ? m.content : "",
             };

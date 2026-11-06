@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 
+// The training describe at the end pushes this file past the chat limiter's
+// 30-requests-per-window budget. Hoisted so it precedes app.ts's limiter
+// construction; scoped to tests — production reads its own env.
+vi.hoisted(() => {
+    process.env.RATE_LIMIT_CHAT_MAX = "1000";
+});
+
 const {
     runLLMStream,
     checkProjectAccess,
@@ -95,6 +102,22 @@ function mockSupabase() {
 // to the title model's provider with the fake key below, and the suite passed
 // only because the provider rejected that key quickly: a slow response held
 // the test to its 20 s timeout. Same stub as chat.routes.test.ts.
+// LiTT training: the effective stage is driven per test; null (a lawyer)
+// keeps every other test in this suite on today's behavior.
+const { trainingStage } = vi.hoisted(() => ({
+    trainingStage: { value: null as "pasante" | "junior" | null },
+}));
+vi.mock("../../lib/training", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/training")>()),
+    resolveTrainingStage: vi.fn(async () => trainingStage.value),
+}));
+// The contrast of a pasante's turn is a model call; every other call to
+// completeText in this suite is a title, which is stubbed separately.
+vi.mock("../../lib/llm", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/llm")>()),
+    completeText: vi.fn(async () => "unused"),
+}));
+
 vi.mock("../../modules/chat/chat.title", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../modules/chat/chat.title")>()),
     generateAssistantChatTitle: vi.fn(async () => "Generated Title"),
@@ -957,4 +980,146 @@ describe("POST /projects/:projectId/chat", () => {
     );
     expect(scheduleMemoryConsolidation).toHaveBeenCalledTimes(1);
     });
+});
+
+
+describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat", () => {
+    const ATTEMPT =
+        "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+    const CONTRAST = "Coincide\n- La rescisión.\nNo coincide\n- El plazo.\nFaltó\n- La prescripción.";
+    beforeEach(() => {
+        resetAssistantTurnRunsForTests();
+        vi.clearAllMocks();
+        dbInserts.length = 0;
+        dbUpdates.length = 0;
+        trainingStage.value = null;
+        buildMessages.mockReturnValue([]);
+        buildProjectDocContext.mockResolvedValue({
+            docIndex: {},
+            docStore: new Map(),
+            folderPaths: new Map(),
+        });
+        runLLMStream.mockResolvedValue({
+            fullText: "La respuesta del abogado.",
+            events: [],
+            citations: [],
+        });
+        checkProjectAccess.mockResolvedValue({
+            ok: true,
+            isCreator: true,
+            orgRole: "member",
+            projectRole: "owner",
+            project: { id: "p1", user_id: "u1", org_id: "org-1" },
+        });
+        ensureChatAccess.mockResolvedValue({
+            ok: true,
+            isCreator: true,
+            orgRole: "member",
+            projectRole: "owner",
+        });
+    });
+
+    const userInsert = () =>
+        dbInserts.find(
+            ({ table, value }) =>
+                table === "chat_messages" && (value as { role?: unknown }).role === "user",
+        )?.value as Record<string, unknown> | undefined;
+    const noteInsert = () =>
+        dbInserts.find(({ table }) => table === "training_turn_notes")?.value as
+            | Record<string, unknown>
+            | undefined;
+    const noteUpdate = () =>
+        dbUpdates.find(({ table }) => table === "training_turn_notes")?.value as
+            | Record<string, unknown>
+            | undefined;
+    const send = (extra: Record<string, unknown> = {}) =>
+        request(app)
+            .post("/projects/p1/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, ...extra });
+
+    it.each([
+        ["without an attempt", {}],
+        ["with a 59-character attempt", { attempt: `  ${"a".repeat(59)}  ` }],
+    ])("answers a pasante 400 %s, before writing or calling a model", async (_label, extra) => {
+        trainingStage.value = "pasante";
+        const res = await send(extra);
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_attempt_required");
+        expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("answers an attempt over 4000 characters with its own message", async () => {
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: "a".repeat(4001) });
+        expect(res.status).toBe(400);
+        expect(res.body.detail).toContain("demasiado largo");
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("keeps the attempt in a private note of the project's organization, not in the prompt", async () => {
+        const { resolveTrainingStage } = await import("../../lib/training.js");
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: `  ${ATTEMPT}  ` });
+        expect(res.status).toBe(200);
+        expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
+            expect.anything(),
+            "u1",
+            { orgId: "org-1", projectId: "p1" },
+        );
+        expect(userInsert()).not.toHaveProperty("training_attempt");
+        expect(JSON.stringify(userInsert())).not.toContain(ATTEMPT);
+        const extra = String(buildMessages.mock.calls[0]?.[2] ?? "");
+        expect(extra).not.toContain(ATTEMPT);
+        expect(extra).not.toContain("Contraste con tu planteamiento");
+        expect(noteInsert()).toMatchObject({
+            org_id: "org-1",
+            trainee_user_id: "u1",
+            message_id: userInsert()!.id,
+            attempt: ATTEMPT,
+            contrast_status: "pending",
+        });
+    });
+
+    it("contrasts with the conversation's own model and credential, then stores it", async () => {
+        const { completeText } = await import("../../lib/llm/index.js");
+        vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT });
+        expect(res.status).toBe(200);
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        const params = vi.mocked(completeText).mock.calls[0][0];
+        const stream = runLLMStream.mock.calls[0][0] as { model: string; apiKeys: unknown };
+        expect(params.model).toBe(stream.model);
+        expect(params.apiKeys).toBe(stream.apiKeys);
+        expect(params.user).toContain(ATTEMPT);
+        expect(params.user).toContain("La respuesta del abogado.");
+        expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+    });
+
+    it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
+        const { completeText } = await import("../../lib/llm/index.js");
+        vi.mocked(completeText).mockRejectedValueOnce(new Error("provider down"));
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT });
+        expect(res.status).toBe(200);
+        expect(res.text).toContain("[DONE]");
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
+    });
+
+    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+        "ignores the attempt of %s and changes nothing",
+        async (_label, stage) => {
+            const { completeText } = await import("../../lib/llm/index.js");
+            trainingStage.value = stage;
+            const res = await send({ attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            expect(userInsert()).not.toHaveProperty("training_attempt");
+            expect(noteInsert()).toBeUndefined();
+            expect(completeText).not.toHaveBeenCalled();
+            expect(String(buildMessages.mock.calls[0]?.[2] ?? "")).not.toContain(ATTEMPT);
+        },
+    );
 });

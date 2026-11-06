@@ -253,6 +253,8 @@ export async function streamAssistant(
     documentName: string;
     wordChatStorage: "cloud" | "local";
     editApplyMode?: "direct" | "approval";
+    /** LiTT training: a pasante's own approach. */
+    attempt?: string;
     signal?: AbortSignal;
   },
   onText: (text: string) => void,
@@ -270,6 +272,7 @@ export async function streamAssistant(
     // Capability is advertised by the code that can actually honour it, so
     // the flag can never drift from the implementation.
     client_tools: !!params.onClientToolCall,
+    attempt: params.attempt,
     signal: params.signal,
   });
   await consumeTurnStream(res, params, onText);

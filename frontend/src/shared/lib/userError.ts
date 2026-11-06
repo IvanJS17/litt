@@ -213,6 +213,12 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // validation: the server's detail is shown and no Retry is offered.
     chat_route_pinned: "validation",
     chat_route_credential_unavailable: "validation",
+    // LiTT training: a pasante's turn needs their own approach first; a
+    // mentor with pupils, or a member who already has a mentor, needs an
+    // owner or admin (or the mentor) to move the pupils first.
+    training_attempt_required: "validation",
+    training_mentor_has_pupils: "conflict",
+    training_pupil_has_mentor: "conflict",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

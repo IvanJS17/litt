@@ -9,6 +9,7 @@ import {
     stopTabularChatTurn,
     streamTabularChat,
     streamTabularChatTurn,
+    getTrainingTurnNotes,
     type TRChat,
 } from "@/app/lib/mikeApi";
 import { TRChatPanel } from "./TRChatPanel";
@@ -26,6 +27,7 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
     streamTabularChat: vi.fn(),
     streamTabularChatTurn: vi.fn(),
     stopTabularChatTurn: vi.fn(),
+    getTrainingTurnNotes: vi.fn(async () => []),
 }));
 vi.mock("../assistant/ChatInput", () => ({
     ChatInput: ({
@@ -38,6 +40,7 @@ vi.mock("../assistant/ChatInput", () => ({
             content: string;
             model: string;
             reasoning: "medium";
+            attempt?: string;
         }) => void;
         onCancel?: () => void;
         canSend?: boolean;
@@ -56,6 +59,20 @@ vi.mock("../assistant/ChatInput", () => ({
                 }
             >
                 Send test message
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    onSubmit({
+                        role: "user",
+                        content: "Review this table",
+                        model: "claude-opus-4-7",
+                        reasoning: "medium",
+                        attempt: "Mi planteamiento",
+                    })
+                }
+            >
+                Send with attempt
             </button>
             <button type="button" onClick={() => onCancel?.()}>
                 Stop test message
@@ -107,7 +124,7 @@ describe("TRChatPanel header", () => {
         });
         render(<TRChatPanel reviewId="review-1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
         const user = userEvent.setup();
-        await user.click(await screen.findByRole("button", { name: "Current draft" }));
+        await user.click(await screen.findByRole("button", { name: "Current draft" }, { timeout: 5000 }));
         await user.click(screen.getByRole("menuitem", { name: /Earlier advice/ }));
         expect(await screen.findByText("Newly selected thread")).toBeInTheDocument();
         await act(async () => resolveInitial([{ id: "stale", chat_id: "chat-1", role: "user", content: "Stale initial history", created_at: "2026-09-29" }]));
@@ -331,6 +348,40 @@ describe("TRChatPanel header", () => {
                 "This chat’s messages could not be loaded. Please try again.",
             ),
         ).toBeInTheDocument();
+    });
+
+    it("sends the pasante's attempt and shows the private note beside the saved question", async () => {
+        vi.mocked(streamTabularChat).mockResolvedValue(
+            new Response("data: [DONE]\n\n", {
+                headers: { "Content-Type": "text/event-stream" },
+            }),
+        );
+        vi.mocked(getTabularChatMessages).mockResolvedValue([
+            { id: "m1", chat_id: "chat-1", role: "user", content: "Saved question", created_at: "2026-09-29" },
+        ]);
+        vi.mocked(getTrainingTurnNotes).mockResolvedValue([
+            {
+                id: "n1",
+                org_id: "o",
+                trainee_user_id: "u",
+                chat_id: "chat-1",
+                message_id: "m1",
+                attempt: "Mi planteamiento guardado",
+                contrast: "Coincide en lo esencial.",
+                contrast_status: "ready",
+                created_at: "2026-09-29",
+            },
+        ]);
+        const user = userEvent.setup();
+        const { container } = render(
+            <TRChatPanel reviewId="review-1" projectId="p1" initialChatId="chat-1" onCitationClick={vi.fn()} />,
+        );
+        expect(await screen.findByText("Mi planteamiento guardado")).toBeInTheDocument();
+        expect(screen.getByText("Coincide en lo esencial.")).toBeInTheDocument();
+        container.querySelector<HTMLDivElement>(".tr-chat-message-fades")!.scrollTo = vi.fn();
+        await user.click(screen.getByRole("button", { name: "Send with attempt" }));
+        await waitFor(() => expect(streamTabularChat).toHaveBeenCalled());
+        expect(vi.mocked(streamTabularChat).mock.calls[0][7]).toBe("Mi planteamiento");
     });
 
     it("opens the rejected-key popup for a tabular chat stream error", async () => {

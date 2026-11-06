@@ -64,6 +64,15 @@
       "@mike/toggle-switch-ui": [
         "../frontend/src/shared/ui/ToggleSwitchUI.tsx"
       ],
+      "@mike/training-note-ui": [
+        "../frontend/src/shared/ui/TrainingNoteUI.tsx"
+      ],
+      "@mike/training-turn-notes": [
+        "../frontend/src/shared/hooks/useTrainingTurnNotes.ts"
+      ],
+      "@mike/training-attempt-field-ui": [
+        "../frontend/src/shared/ui/TrainingAttemptFieldUI.tsx"
+      ],
       "@mike/source-code-link-ui": [
         "../frontend/src/shared/ui/SourceCodeLinkUI.tsx"
       ],

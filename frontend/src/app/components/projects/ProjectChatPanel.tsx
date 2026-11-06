@@ -16,13 +16,14 @@ import {
 import { useRouter } from "next/navigation";
 import { Brain, MessageSquare, Pencil, Trash2, X } from "lucide-react";
 import { findPendingAskInput } from "@/app/lib/pendingAskInput";
-import { deleteChat } from "@/app/lib/mikeApi";
+import { deleteChat, getTrainingTurnNotes } from "@/app/lib/mikeApi";
 import { loadAssistantChat } from "@/app/lib/assistantTurns";
 import {
     sortChatsByActivity,
     touchChatActivity,
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
     isChatAttachmentDrag,
@@ -282,6 +283,15 @@ export function ProjectChatPanel({
         projectId,
         tracksCurrentChat: !isSideChat,
     });
+    // LiTT training: private notes beside the pasante's own messages.
+    const trainingNotes = matchTrainingNotes(
+        messages,
+        useTrainingTurnNotes(
+            activeChatId || undefined,
+            isResponseLoading,
+            getTrainingTurnNotes,
+        ),
+    );
     // The model is what we asked for, so it identifies whose key was rejected.
     const rejectedKeyProvider = rejectedApiKey?.model
         ? getModelProvider(rejectedApiKey.model)
@@ -853,6 +863,7 @@ export function ProjectChatPanel({
                                         }
                                     >
                                         <UserMessage
+                                            trainingNote={trainingNotes.get(i)}
                                             content={msg.content ?? ""}
                                             files={msg.files}
                                             workflow={msg.workflow}
@@ -945,6 +956,7 @@ export function ProjectChatPanel({
                                 onCancel={cancel}
                             >
                                 <ChatInput
+                                    trainingTurns
                                     key={`${activeChatId || "new"}:${composerResetKey}`}
                                     ref={chatInputRef}
                                     onSubmit={handleSubmit}

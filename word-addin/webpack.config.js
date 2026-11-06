@@ -194,6 +194,14 @@ module.exports = async (_env, options) => {
           "TabPillButtonUI.tsx",
         ),
         "@mike/toggle-switch-ui": frontendSharedUi("ToggleSwitchUI.tsx"),
+        "@mike/training-note-ui": frontendSharedUi("TrainingNoteUI.tsx"),
+        "@mike/training-turn-notes": frontendShared(
+          "hooks",
+          "useTrainingTurnNotes.ts",
+        ),
+        "@mike/training-attempt-field-ui": frontendSharedUi(
+          "TrainingAttemptFieldUI.tsx",
+        ),
         "@mike/source-code-link-ui": frontendSharedUi("SourceCodeLinkUI.tsx"),
         "@mike/dropdown-ui": frontendSharedUi("dropdown.tsx"),
         "@mike/citation-pill-ui": frontendSharedUi("CitationPillUI.tsx"),
