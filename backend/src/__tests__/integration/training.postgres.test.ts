@@ -202,5 +202,26 @@ describe.skipIf(!container)("LiTT training rows in PostgreSQL", () => {
             psql(`delete from auth.users where id=${q(PUPIL)};`);
             expect(count("training_turn_notes")).toBe(0);
         });
+
+        it("goes, with every training row, when the organization row itself is deleted", () => {
+            // A firm is never deleted by the product (organizations_no_team_delete).
+            expect(failure(`delete from public.organizations where id=${q(ORG)};`))
+                .toContain("Organization deletion is not available");
+            expect(count("training_turn_notes")).toBe(3);
+            // An operator's purge lifts that guard and removes the firm's chats
+            // first (chats_org_id_fkey does not cascade). The Word and tabular
+            // notes are not tied to the organization by any chat, so they must
+            // go through the membership cascade, with the mentor still holding
+            // a pupil, leaving nothing behind.
+            psql(`begin;
+                alter table public.organizations disable trigger organizations_no_team_delete;
+                delete from public.chats where org_id=${q(ORG)};
+                delete from public.organizations where id=${q(ORG)};
+                alter table public.organizations enable trigger organizations_no_team_delete;
+                commit;`);
+            for (const table of ["training_mentors", "training_pupils", "training_stages", "training_turn_notes", "org_members"])
+                expect(count(table, `org_id=${q(ORG)}`), table).toBe(0);
+            expect(count("organizations", `id=${q(ORG)}`)).toBe(0);
+        });
     });
 });
