@@ -3,12 +3,12 @@
     <linearGradient id="tower" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#6B7280" stop-opacity="0.94"/>
       <stop offset="0.5" stop-color="#374151" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#111827" stop-opacity="0.97"/>
+      <stop offset="1" stop-color="#151A26" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="wing" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#4B5563" stop-opacity="0.94"/>
-      <stop offset="0.55" stop-color="#1F2937" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#030712" stop-opacity="0.97"/>
+      <stop offset="0.55" stop-color="#242933" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#151A26" stop-opacity="0.97"/>
     </linearGradient>
     <clipPath id="clipTower">
       <path d="M8 54 V15.5 Q8 12 11.5 12 H31 Q34.5 12 34.5 15.5 V54 Z"/>

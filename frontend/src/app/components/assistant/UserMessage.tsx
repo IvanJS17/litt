@@ -88,7 +88,7 @@ export function UserMessage({
                             <Link
                                 href={playbookPath(playbook.id)}
                                 aria-label={`Open playbook ${playbook.title}`}
-                                className="inline-flex min-w-0 items-center gap-1 rounded-full border border-slate-700 bg-slate-700 py-0.5 pl-2 pr-2.5 text-xs text-white shadow transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                className="inline-flex min-w-0 items-center gap-1 rounded-full border border-gray-700 bg-gray-700 py-0.5 pl-2 pr-2.5 text-xs text-white shadow transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                             >
                                 <ClipboardCheck className="h-2.5 w-2.5 shrink-0" />
                                 <span className="max-w-[140px] truncate">

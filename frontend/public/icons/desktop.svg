@@ -2,23 +2,23 @@
   <defs>
     <linearGradient id="laptopFrame" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="0.48" stop-color="#CBD5E1"/>
+      <stop offset="0.48" stop-color="#D4D5D1"/>
       <stop offset="1" stop-color="#64748B"/>
     </linearGradient>
     <linearGradient id="laptopScreen" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#B4D3FC"/>
-      <stop offset="0.5" stop-color="#93C5FD"/>
-      <stop offset="1" stop-color="#60A5FA"/>
+      <stop offset="0" stop-color="#D0D0CD"/>
+      <stop offset="0.5" stop-color="#C0C1BF"/>
+      <stop offset="1" stop-color="#A1A3A3"/>
     </linearGradient>
     <linearGradient id="laptopDeck" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#F8FAFC"/>
-      <stop offset="0.55" stop-color="#CBD5E1"/>
+      <stop offset="0.55" stop-color="#D4D5D1"/>
       <stop offset="1" stop-color="#94A3B8"/>
     </linearGradient>
     <linearGradient id="laptopRim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.95"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="#334155" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#3C4049" stop-opacity="0.65"/>
     </linearGradient>
     <radialGradient id="laptopSheen">
       <stop offset="0" stop-color="#FFFFFF"/>
@@ -30,11 +30,11 @@
     </clipPath>
   </defs>
 
-  <ellipse cx="32" cy="55" rx="26" ry="3.5" fill="#0F172A" opacity="0.18"/>
+  <ellipse cx="32" cy="55" rx="26" ry="3.5" fill="#151A26" opacity="0.18"/>
 
   <!-- Open display -->
   <rect x="8" y="7" width="48" height="38" rx="6" fill="url(#laptopFrame)" stroke="url(#laptopRim)" stroke-width="1.5"/>
-  <rect x="12" y="12" width="40" height="28" rx="3" fill="url(#laptopScreen)" stroke="#2563EB" stroke-opacity="0.28" stroke-width="1"/>
+  <rect x="12" y="12" width="40" height="28" rx="3" fill="url(#laptopScreen)" stroke="#6A6E72" stroke-opacity="0.28" stroke-width="1"/>
   <g clip-path="url(#screenClip)">
     <ellipse cx="26" cy="13" rx="25" ry="8" fill="url(#laptopSheen)" opacity="0.28"/>
     <ellipse cx="15" cy="25" rx="5" ry="14" fill="url(#laptopSheen)" opacity="0.1"/>

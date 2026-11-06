@@ -1,9 +1,9 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="historyFace" cx="36%" cy="28%" r="74%">
-      <stop offset="0" stop-color="#F1F5F9"/>
-      <stop offset="0.68" stop-color="#E9EEF4"/>
-      <stop offset="1" stop-color="#D7DEE7"/>
+      <stop offset="0" stop-color="#F5F5F1"/>
+      <stop offset="0.68" stop-color="#EEEEE8"/>
+      <stop offset="1" stop-color="#DDDDD9"/>
     </radialGradient>
     <!-- Brushed metal, matching settings.svg. User-space so the arc and the
          arrowhead share one light ramp instead of each resolving its own
@@ -32,13 +32,13 @@
       gradientUnits="userSpaceOnUse"
     >
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.72"/>
-      <stop offset="0.5" stop-color="#CBD5E1" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#0F172A" stop-opacity="0.62"/>
+      <stop offset="0.5" stop-color="#D4D5D1" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#151A26" stop-opacity="0.62"/>
     </linearGradient>
   </defs>
 
   <!-- Clock face -->
-  <circle cx="32.5" cy="33.5" r="16.6" fill="url(#historyFace)" stroke="#E2E8F0" stroke-width="1.2"/>
+  <circle cx="32.5" cy="33.5" r="16.6" fill="url(#historyFace)" stroke="#E7E7E2" stroke-width="1.2"/>
 
   <!-- Hands, matching the Lucide History symbol -->
   <path d="M32.5 23.5V33.5L41 37.8" fill="none" stroke="#475569" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
