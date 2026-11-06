@@ -45,7 +45,8 @@ export function useTrainingTurnNotes(
             } catch {
                 return;
             }
-            if (cancelled) return;
+            // The panel is secondary: a malformed answer must never take the chat down.
+            if (cancelled || !Array.isArray(notes)) return;
             setState({ chatId, notes });
             const waiting = notes.some((n) => n.contrast_status === "pending");
             const elapsed = Date.now() - (pollStartedAt.current ?? Date.now());

@@ -119,6 +119,13 @@ describe("useTrainingTurnNotes", () => {
         expect(result.current).toEqual([]);
     });
 
+    it("shows no notes, without throwing, when the answer is not a list", async () => {
+        getTrainingTurnNotes.mockResolvedValue(undefined);
+        const { result } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
+        await act(async () => {});
+        expect(result.current).toEqual([]);
+    });
+
     it("polls every 5 s while pending, then stops once ready", async () => {
         getTrainingTurnNotes
             .mockResolvedValueOnce([note("n1", "m1", "pending")])
