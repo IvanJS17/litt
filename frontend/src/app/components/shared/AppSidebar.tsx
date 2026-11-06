@@ -40,6 +40,7 @@ import {
 } from "@/shared/ui/dropdown";
 import { SidebarHeading } from "@/app/components/shared/SidebarHeading";
 import { SidebarLogo } from "@/app/components/shared/SidebarLogo";
+import { LittWordmark } from "@/shared/ui/LittBrandUI";
 import { SidebarProjectItem } from "@/app/components/shared/SidebarProjectItem";
 import {
     ChatSkeuoIcon,
@@ -273,6 +274,9 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             organizations === null
           ? null
           : "LiTT";
+    // Personal work is headed by the LiTT wordmark itself, never by the
+    // monogram beside the name typed in a font (that would retype the mark).
+    const headedByWordmark = !activeOrganization && sidebarHeading !== null;
     const [recentProjects, setRecentProjects] = useState<Project[] | null>(
         null,
     );
@@ -501,7 +505,21 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         !isOpen ? "hidden md:flex" : "flex"
                     }`}
                 >
-                    {isOpen && (
+                    {isOpen && headedByWordmark && (
+                        <div className="min-w-0 flex-1">
+                            {/* X = 22, the wordmark's on-screen minimum; its
+                                box carries the 4u protection area. The mark
+                                never fades on hover; focus shows the ring. */}
+                            <Link
+                                href="/assistant"
+                                data-slot="sidebar-heading"
+                                className="flex w-fit rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40"
+                            >
+                                <LittWordmark x={22} />
+                            </Link>
+                        </div>
+                    )}
+                    {isOpen && !headedByWordmark && (
                         <div className="min-w-0 flex-1 px-1.5">
                             <Link
                                 href="/assistant"
