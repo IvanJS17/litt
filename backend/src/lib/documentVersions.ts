@@ -36,6 +36,8 @@ interface VersionPathRow extends DocRow {
     current_version_id?: string | null;
     /** Content hash of the active version, including in-place byte updates. */
     content_sha256?: string | null;
+    /** The active version's pasante seal (docs/training.md), or null. */
+    training_stage?: string | null;
     /** Set from document_versions.version_number of the active version. */
     active_version_number?: number | null;
     /** Active-version file metadata. */
@@ -57,6 +59,9 @@ export interface ActiveVersion {
     size_bytes: number | null;
     page_count: number | null;
     textless_page_count: number | null;
+    /** Current bytes' hash and pasante seal: what lib/trainingRelease reads. */
+    content_sha256: string | null;
+    training_stage: string | null;
 }
 
 /**
@@ -86,7 +91,7 @@ export async function loadActiveVersion(
     const { data: v } = await db
         .from("document_versions")
         .select(
-            "id, document_id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count",
+            "id, document_id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count, content_sha256, training_stage",
         )
         .eq("id", targetVersionId)
         .is("deleted_at", null)
@@ -104,6 +109,8 @@ export async function loadActiveVersion(
         page_count: (v.page_count as number | null) ?? null,
         textless_page_count:
             (v.textless_page_count as number | null) ?? null,
+        content_sha256: (v.content_sha256 as string | null) ?? null,
+        training_stage: (v.training_stage as string | null) ?? null,
     };
 }
 
@@ -152,13 +159,14 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             d.page_count = null;
             d.textless_page_count = null;
             d.content_sha256 = null;
+            d.training_stage = null;
         }
         return docs;
     }
     const { data: rows } = await db
         .from("document_versions")
         .select(
-            "id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count, content_sha256",
+            "id, storage_path, pdf_storage_path, version_number, filename, source, file_type, size_bytes, page_count, textless_page_count, content_sha256, training_stage",
         )
         .in("id", versionIds)
         .is("deleted_at", null);
@@ -175,6 +183,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             page_count: number | null;
             textless_page_count: number | null;
             content_sha256: string | null;
+            training_stage: string | null;
         }
     >();
     for (const r of (rows ?? []) as {
@@ -189,6 +198,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         page_count: number | null;
         textless_page_count: number | null;
         content_sha256: string | null;
+        training_stage: string | null;
     }[]) {
         byId.set(r.id, {
             storage_path: r.storage_path ?? null,
@@ -201,6 +211,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             page_count: r.page_count ?? null,
             textless_page_count: r.textless_page_count ?? null,
             content_sha256: r.content_sha256 ?? null,
+            training_stage: r.training_stage ?? null,
         });
     }
     for (const d of docs) {
@@ -215,6 +226,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         d.page_count = v?.page_count ?? null;
         d.textless_page_count = v?.textless_page_count ?? null;
         d.content_sha256 = v?.content_sha256 ?? null;
+        d.training_stage = v?.training_stage ?? null;
     }
     return docs;
 }

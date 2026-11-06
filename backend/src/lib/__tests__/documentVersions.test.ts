@@ -69,6 +69,7 @@ const FULL_VERSION = {
     textless_page_count: 2,
     deleted_at: null,
     content_sha256: "a".repeat(64),
+    training_stage: "pasante",
 };
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,8 @@ describe("loadActiveVersion", () => {
             size_bytes: 1024,
             page_count: 12,
             textless_page_count: 2,
+            content_sha256: "a".repeat(64),
+            training_stage: "pasante",
         });
     });
 
@@ -171,6 +174,8 @@ describe("loadActiveVersion", () => {
             size_bytes: null,
             page_count: null,
             textless_page_count: null,
+            content_sha256: null,
+            training_stage: null,
         });
     });
 });
@@ -194,6 +199,7 @@ describe("attachActiveVersionPaths", () => {
         expect(doc).toMatchObject({
             filename: "Untitled document",
             content_sha256: null,
+            training_stage: null,
             storage_path: null,
             pdf_storage_path: null,
             file_type: null,
@@ -227,6 +233,7 @@ describe("attachActiveVersionPaths", () => {
             pdf_storage_path: "documents/u/doc-1/converted.pdf",
             active_version_number: 3,
             content_sha256: FULL_VERSION.content_sha256,
+            training_stage: "pasante",
             filename: "contract.pdf",
             file_type: "application/pdf",
             size_bytes: 1024,

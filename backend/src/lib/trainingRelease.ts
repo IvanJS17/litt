@@ -4,7 +4,7 @@
 // = 'pasante'). It is releasable when it has no seal, or when an approval
 // exists for its CURRENT content_sha256: an approval binds bytes, so changing
 // them in place (accepting an edit, replacing the file) needs a new one.
-// Every blocked output asks this one helper.
+// Every blocked output asks this file; `heldVersionIds` is the one rule.
 
 import {
   TRAINING_APPROVAL_REQUIRED_CODE,
@@ -17,6 +17,70 @@ import {
   type ServiceResult,
 } from "./serviceResult";
 import type { Db } from "./supabase";
+
+/** The columns of a document_versions row the release rule reads. */
+export type ReleaseCandidate = {
+  id: string;
+  training_stage?: string | null;
+  content_sha256?: string | null;
+};
+
+export type TrainingApprovalRequired = {
+  ok: false;
+  kind: "conflict";
+  detail: string;
+  code: typeof TRAINING_APPROVAL_REQUIRED_CODE;
+};
+
+/** The 409 every blocked output answers. */
+export function trainingApprovalRequired(): TrainingApprovalRequired {
+  return {
+    ok: false,
+    kind: "conflict",
+    detail: TRAINING_APPROVAL_REQUIRED_MESSAGE,
+    code: TRAINING_APPROVAL_REQUIRED_CODE,
+  };
+}
+
+/**
+ * The ids, among already-loaded `versions`, that may not leave: sealed and
+ * without an approval for their current bytes. Unsealed rows cost no query.
+ * A read failure is an internal failure, never a release.
+ */
+export async function heldVersionIds(
+  db: Db,
+  versions: readonly ReleaseCandidate[],
+): Promise<ServiceResult<Set<string>>> {
+  const sealed = versions.filter((version) => version.training_stage != null);
+  const held = new Set(sealed.map((version) => version.id));
+  const hashed = sealed.filter((version) => !!version.content_sha256);
+  if (hashed.length === 0) return ok(held);
+  const { data, error } = await db
+    .from("training_version_approvals")
+    .select("document_version_id, content_sha256")
+    .in("document_version_id", [...new Set(hashed.map((version) => version.id))]);
+  if (error) return internalFailure(error);
+  const approved = new Set(
+    ((data ?? []) as { document_version_id: string; content_sha256: string }[]).map(
+      (approval) => `${approval.document_version_id}:${approval.content_sha256}`,
+    ),
+  );
+  for (const version of hashed) {
+    if (approved.has(`${version.id}:${version.content_sha256}`))
+      held.delete(version.id);
+  }
+  return ok(held);
+}
+
+/** `ok` when this already-loaded version may leave, else the 409. */
+export async function assertVersionReleasable(
+  db: Db,
+  version: ReleaseCandidate,
+): Promise<ServiceResult<void>> {
+  const held = await heldVersionIds(db, [version]);
+  if (!held.ok) return held;
+  return held.data.size === 0 ? ok(undefined) : trainingApprovalRequired();
+}
 
 /**
  * `ok` when the version may be released; a 409 `training_approval_required`
@@ -37,20 +101,5 @@ export async function assertReleasable(
   if (error) return internalFailure(error);
   if (!version) return failure("not_found", "Version not found");
   const row = version as { training_stage: string | null; content_sha256: string | null };
-  if (row.training_stage === null) return ok(undefined);
-  if (row.content_sha256) {
-    const { data: approval, error: approvalError } = await db
-      .from("training_version_approvals")
-      .select("id")
-      .eq("document_version_id", versionId)
-      .eq("content_sha256", row.content_sha256)
-      .maybeSingle();
-    if (approvalError) return internalFailure(approvalError);
-    if (approval) return ok(undefined);
-  }
-  return failure(
-    "conflict",
-    TRAINING_APPROVAL_REQUIRED_MESSAGE,
-    TRAINING_APPROVAL_REQUIRED_CODE,
-  );
+  return assertVersionReleasable(db, { id: versionId, ...row });
 }
