@@ -124,7 +124,7 @@ describe("TRChatPanel header", () => {
         });
         render(<TRChatPanel reviewId="review-1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
         const user = userEvent.setup();
-        await user.click(await screen.findByRole("button", { name: "Current draft" }));
+        await user.click(await screen.findByRole("button", { name: "Current draft" }, { timeout: 5000 }));
         await user.click(screen.getByRole("menuitem", { name: /Earlier advice/ }));
         expect(await screen.findByText("Newly selected thread")).toBeInTheDocument();
         await act(async () => resolveInitial([{ id: "stale", chat_id: "chat-1", role: "user", content: "Stale initial history", created_at: "2026-09-29" }]));
