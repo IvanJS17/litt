@@ -405,6 +405,15 @@ export const test = base.extend<{ addin: Addin }>({
     // eager GET hermetic so unrelated specs never leak to a developer's live
     // backend (where a 401 can clear the seeded test session). History specs
     // register their own route later and therefore override this default.
+    // LiTT training: nobody has a stage unless a spec says so.
+    await page.route("**/training/stage**", (route, request) => {
+      if (request.method() !== "GET") return route.fallback();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ stage: null }),
+      });
+    });
     await page.route("**/word-chat?*", (route, request) => {
       if (request.method() !== "GET") return route.fallback();
       return route.fulfill({

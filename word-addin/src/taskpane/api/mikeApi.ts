@@ -488,6 +488,7 @@ interface WordChatServerMessage {
   files?: { filename: string; document_id?: string }[] | null;
   workflow?: { id: string; title: string } | null;
   playbook?: { id: string; title: string } | null;
+  training_attempt?: string | null;
   citations?: unknown;
   edits?: unknown;
 }
@@ -624,6 +625,9 @@ export async function getCloudWordChat(
           files: message.files ?? undefined,
           workflow: message.workflow ?? undefined,
           playbook: message.playbook ?? undefined,
+          ...(message.training_attempt
+            ? { training_attempt: message.training_attempt }
+            : {}),
         };
       }
       const events = normalizeStoredAssistantEvents(message.content);

@@ -758,6 +758,7 @@ export function ChatView({
                                         files={message.files}
                                         workflow={message.workflow}
                                         playbook={message.playbook}
+                                        trainingAttempt={message.training_attempt}
                                     />
                                 </div>
                             );

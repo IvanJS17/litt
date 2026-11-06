@@ -17,6 +17,11 @@ import { WorkflowModal } from "../workflows/WorkflowModal";
 import { PlaybookModal, playbookTitle } from "../playbooks/PlaybookModal";
 import { ChatInput as ChatInputShell } from "../../../shared/chat/ChatInput";
 import {
+  isTrainingAttemptReady,
+  TrainingAttemptFieldUI,
+} from "@mike/training-attempt-field-ui";
+import { getWordTrainingStage } from "../../api/client";
+import {
   getApiKeyStatus,
   failedUploadMessage,
   getUserProfile,
@@ -162,6 +167,23 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       apiKeyStatus: keyStatus,
     });
     const [modelError, setModelError] = useState<string | null>(null);
+    // LiTT training ("Tu turno primero"): a pasante writes their own
+    // approach before each turn. The server decides; this only shows it.
+    const [needsAttempt, setNeedsAttempt] = useState(false);
+    const [attempt, setAttempt] = useState("");
+    const [attemptError, setAttemptError] = useState(false);
+    useEffect(() => {
+      let cancelled = false;
+      getWordTrainingStage().then(
+        (stage) => {
+          if (!cancelled) setNeedsAttempt(stage === "pasante");
+        },
+        () => {},
+      );
+      return () => {
+        cancelled = true;
+      };
+    }, [sessionKey]);
     const [profileLastSelectedReasoningLevel, setProfileLastSelectedReasoningLevel] =
       useState<ReasoningLevel>(lastSelectedReasoningLevel);
     const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
@@ -475,6 +497,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         setModelError(unavailableModelMessage(model, keyStatus));
         return;
       }
+      if (needsAttempt && !isTrainingAttemptReady(attempt)) {
+        setAttemptError(true);
+        return;
+      }
       setModelError(null);
       const files = attachedDocuments.map((document) => ({
         filename: document.filename,
@@ -488,10 +514,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           playbook: selectedPlaybook ?? undefined,
           model,
           reasoning: resolvedReasoningLevel,
+          ...(needsAttempt ? { attempt: attempt.trim() } : {}),
         },
         {
           onAccepted: () => {
             setInput("");
+            setAttempt("");
+            setAttemptError(false);
             setAttachedDocuments([]);
             setExcerpts([]);
             onSelectedWorkflowChange(null);
@@ -539,6 +568,15 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
+          )}
+          {needsAttempt && (
+            <TrainingAttemptFieldUI
+              id="word-training-attempt"
+              className="mb-2"
+              value={attempt}
+              onChange={setAttempt}
+              showError={attemptError}
+            />
           )}
           <div ref={composerRef} className="relative">
             {slashMenuOpen && (

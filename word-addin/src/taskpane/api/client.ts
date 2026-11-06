@@ -472,6 +472,18 @@ function browserTimeZone(): string | undefined {
   }
 }
 
+/**
+ * LiTT training: the caller's stage for Word turns (a stage for every
+ * practice area, in any organization). Only tells the composer what to show.
+ */
+export async function getWordTrainingStage(): Promise<"pasante" | "junior" | null> {
+  const result = await apiRequest<{ stage: "pasante" | "junior" | null }>(
+    "word_chat.turn",
+    "/training/stage?surface=word",
+  );
+  return result.stage;
+}
+
 export async function streamWordChat(payload: {
   messages: {
     role: string;
@@ -490,6 +502,8 @@ export async function streamWordChat(payload: {
   edit_apply_mode: "direct" | "approval";
   /** Declares that this pane executes client_tool_call frames. */
   client_tools?: boolean;
+  /** LiTT training: a pasante's own approach; the server requires it. */
+  attempt?: string;
   signal?: AbortSignal;
 }): Promise<Response> {
   const { signal, ...body } = payload;

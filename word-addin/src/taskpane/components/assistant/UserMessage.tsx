@@ -17,12 +17,15 @@ function UserMessageImpl({
   files,
   workflow,
   playbook,
+  trainingAttempt,
 }: {
   content: string;
   files?: { filename: string; document_id?: string }[];
   workflow?: { id: string; title: string };
   /** The playbook this message ran, as the web thread shows it. */
   playbook?: { id: string; title: string };
+  /** LiTT training: the approach a pasante wrote before asking. */
+  trainingAttempt?: string;
 }): React.ReactElement {
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [canExpand, setCanExpand] = useState(false);
@@ -61,6 +64,16 @@ function UserMessageImpl({
   return (
     <div className="w-full flex justify-end">
       <div className="max-w-[80%] bg-gray-100 rounded-xl px-4 py-3">
+        {trainingAttempt && (
+          <div className="mb-3 border-b border-gray-200 pb-3">
+            <p className="text-xs font-medium text-gray-500">
+              Tu planteamiento
+            </p>
+            <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">
+              {trainingAttempt}
+            </p>
+          </div>
+        )}
         {body && (
           <div
             className="relative overflow-hidden"

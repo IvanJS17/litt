@@ -89,6 +89,8 @@ interface RuntimeMessageBase {
 export interface WordUserMessage extends RuntimeMessageBase {
   role: "user";
   content: string;
+  /** LiTT training: the approach a pasante wrote before this message. */
+  training_attempt?: string;
 }
 
 export interface WordAssistantMessage extends RuntimeMessageBase {
@@ -111,6 +113,8 @@ export interface WordChatSubmission {
   playbook?: PlaybookAttachment;
   model: string;
   reasoning: ReasoningLevel;
+  /** LiTT training: a pasante's own approach; the server requires it. */
+  attempt?: string;
 }
 
 export interface WordChatSubmitOptions {

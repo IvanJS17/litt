@@ -219,6 +219,9 @@ export function messageFromStorage(
       files: message.files,
       workflow: message.workflow,
       playbook: message.playbook,
+      ...(message.training_attempt
+        ? { training_attempt: message.training_attempt }
+        : {}),
       live: false,
     };
   }
