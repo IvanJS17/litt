@@ -20,6 +20,7 @@ import { AUDIT_CSV_FILENAME, buildAuditCsv, type AuditQuery } from "../../lib/au
 import { ensureDocAccess } from "../../lib/access";
 import { downloadFilenameForVersion, loadActiveVersion } from "../../lib/documentVersions";
 import { downloadFile, uploadFile } from "../../lib/storage";
+import { assertVersionReleasable } from "../../lib/trainingRelease";
 import { type Db, type DbJob } from "../../lib/dbq/types";
 import { buildMemoryArchive } from "../../lib/memory/archive";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
@@ -80,6 +81,23 @@ async function buildAuditCsvExport(
     };
 }
 
+/** The list of documents a "documents-zip" export left out, inside the zip. */
+const OMITTED_LIST_FILENAME = "OMITIDOS.txt";
+
+function omittedList(filenames: string[]): string {
+    return [
+        "Estos documentos no se incluyeron en la exportación:",
+        "",
+        ...filenames.map(
+            (name) =>
+                `- ${name}: borrador de pasante pendiente de aprobación.`,
+        ),
+        "",
+        "Una persona que puede aprobar la versión debe aprobarla en LiTT antes de exportarla.",
+        "",
+    ].join("\n");
+}
+
 async function buildDocumentsZipExport(
     db: Db,
     job: DbJob,
@@ -113,6 +131,7 @@ async function buildDocumentsZipExport(
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
     let added = 0;
+    const omitted: string[] = [];
     for (const doc of (rawDocs ?? []) as {
         id: string;
         user_id: string;
@@ -127,22 +146,30 @@ async function buildDocumentsZipExport(
         if (!access.ok) continue;
         const active = await loadActiveVersion(doc.id, db);
         if (!active) continue;
+        const filename = downloadFilenameForVersion(
+            active.filename,
+            active.version_number,
+            active.source === "assistant_edit",
+        );
+        // A pasante's unapproved draft stays in LiTT (docs/training.md): it
+        // is left out and named in OMITIDOS.txt. A failed check retries.
+        const releasable = await assertVersionReleasable(db, active);
+        if (!releasable.ok) {
+            if (releasable.kind !== "conflict")
+                throw new Error(`[export.build] release check failed on job ${job.id}`);
+            omitted.push(filename);
+            continue;
+        }
         const raw = await downloadFile(active.storage_path);
         if (!raw) continue;
         // Sequential, unlike the sync route's Promise.all: this path exists
         // for selections large enough that fetching every file at once is
         // what would blow the memory ceiling.
-        zip.file(
-            downloadFilenameForVersion(
-                active.filename,
-                active.version_number,
-                active.source === "assistant_edit",
-            ),
-            Buffer.from(raw),
-        );
+        zip.file(filename, Buffer.from(raw));
         added++;
     }
-    if (added === 0) {
+    if (omitted.length > 0) zip.file(OMITTED_LIST_FILENAME, omittedList(omitted));
+    if (added === 0 && omitted.length === 0) {
         throw new Error(
             `[export.build] no accessible documents for job ${job.id}`,
         );
