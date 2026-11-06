@@ -79,11 +79,7 @@ export function pickEffectiveStage(
  * Where a turn happens. `orgId` null is the personal space, where nobody has
  * a stage. (Word has no organization or project: see resolveWordTrainingStage.)
  */
-export type TrainingScope =
-    | { orgId: string | null; projectId?: string | null }
-    // Word: see resolveWordTrainingStage. Kept so GET /training/stage answers
-    // with the very rule the Word turn applies.
-    | { anyOrganization: true };
+export type TrainingScope = { orgId: string | null; projectId?: string | null };
 
 /**
  * The one resolver of a person's effective stage in an organization and,
@@ -95,7 +91,6 @@ export async function resolveTrainingStage(
     userId: string,
     scope: TrainingScope,
 ): Promise<TrainingStage | null> {
-    if ("anyOrganization" in scope) return (await resolveWordTrainingStage(db, userId)).stage;
     if (!scope.orgId) return null;
     const { data, error } = await db
         .from("training_stages")
