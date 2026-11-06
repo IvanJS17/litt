@@ -156,6 +156,10 @@ export function DocumentSidePanel({
         DEFAULT_DOC_COLUMN_WIDTH + RESIZER_WIDTH + DEFAULT_DATA_COLUMN_WIDTH,
     );
 
+    // The post-delete close runs after a short confirmation; cancel it if the panel unmounts first.
+    const deleteCloseTimer = useRef<number | undefined>(undefined);
+    useEffect(() => () => window.clearTimeout(deleteCloseTimer.current), []);
+
     useEffect(() => setMounted(true), []);
 
     useEffect(() => {
@@ -436,7 +440,7 @@ export function DocumentSidePanel({
         try {
             await onDelete(activeDoc);
             setDeleteDocumentStatus("deleted");
-            window.setTimeout(() => {
+            deleteCloseTimer.current = window.setTimeout(() => {
                 setConfirmDeleteDocumentOpen(false);
                 setDeleteDocumentStatus("idle");
                 onClose();

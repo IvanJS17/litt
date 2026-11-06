@@ -62,14 +62,14 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
         onDelete: vi.fn(),
         ...overrides,
     };
-    render(
+    const view = render(
         <>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <DocumentSidePanel {...(props as any)} />
             <ToastViewportUI />
         </>,
     );
-    return props;
+    return { ...props, unmount: view.unmount };
 }
 
 describe("DocumentSidePanel failures", () => {
@@ -102,6 +102,17 @@ describe("DocumentSidePanel failures", () => {
         await user.click(await screen.findByRole("button", { name: "Retry" }));
 
         expect(onDelete).toHaveBeenCalledTimes(2);
+    });
+
+    it("drops the post-delete close when the panel unmounts first", async () => {
+        const user = userEvent.setup();
+        const { onClose, unmount } = renderPanel({ onDelete: vi.fn().mockResolvedValue(undefined) });
+
+        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+        unmount();
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it("reports a failed version delete", async () => {
