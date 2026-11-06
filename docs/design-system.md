@@ -88,8 +88,8 @@ it: use the rendered files.
 - Do not deform, tilt, rotate, outline, shadow, tint or rescale the marks, and
   never animate the square: no cursor blink, no pulse. The wordmark links on
   the auth pages and in the sidebar have no hover effect; they show focus with
-  the ring. The chat greeting slides the monogram into place once, together
-  with the greeting text; the square itself never changes.
+  the ring. The chat greeting's monogram stays still; only the greeting text
+  beside it fades in.
 - Do not scale the pixel monogram between its sizes, and keep
   `shape-rendering="crispEdges"`. Favicons are used at their native sizes:
   `favicon.ico` holds 16, 32 and 48 px, and `icon.svg` switches to the native
@@ -128,8 +128,59 @@ the pairs in use (minimum is 4.5:1 for text and 3:1 for the focus ring):
 tinta but 3.72:1 on a selected dark row), as it did before: keep it for
 placeholders, disabled text and decoration, not for information.
 
-Azure (`bg-blue-600`, the `blue` pill tone) and the status colors are not part
-of the brand palette and are unchanged by v1.0.
+**Sin azul.** No blue, indigo, violet, purple, sky or cyan appears anywhere in
+the UI: not in utilities, not in token values and not in LiTT's own SVG
+illustrations (`public/icons/features`, `file-system`, `legal-sources`, which
+were moved to the tinta-papel neutral of the same luminance). Do not
+reintroduce those Tailwind families. This must return nothing:
+
+```bash
+grep -rnE '(blue|indigo|violet|purple|sky|cyan)-[0-9]{2,3}' frontend/src word-addin/src \
+  --include=*.tsx --include=*.ts --include=*.css | grep -vE '\.test\.|stories'
+```
+
+The only exceptions are third-party marks drawn in their owners' colors (file
+types, AI providers, Google), which stay as their owners publish them. The
+`slate` family, a blue-grey, is replaced by the tinta-derived `gray` scale.
+The `blue` tone of `PillButtonUI` and the `"blue"` modal variant keep their
+names for API stability and render the interactive tokens.
+
+**Semantic interactive tokens.** Primary actions, active toggles, selection,
+action links and active-state indicators use these roles instead of a raw
+palette. They are declared in `DesignTokensUI.css` as `--litt-interactive-*`,
+switch with `.dark`, and are exposed to Tailwind through `@theme inline`:
+
+| Role | Utility | Light | Dark | Use |
+| --- | --- | --- | --- | --- |
+| Accent | `bg-interactive`, `text-interactive`, `border-interactive`, `ring-interactive` | tinta `#151A26` | papel `#ECECE6` | Primary fill, active toggle track, selected chip, action link text, drag and drop indicators. |
+| Accent hover | `hover:bg-interactive-hover`, `hover:text-interactive-hover` | `#2E333D` (tinta 86 % → papel) | `#CACBC8` (papel 86 % → tinta) | Hover on a primary fill or an action link. |
+| Accent pressed | `active:bg-interactive-pressed` | `#454A53` (tinta 74 %) | `#ADAFAF` (papel 74 %) | Pressed primary fill. |
+| Text on accent | `text-interactive-foreground` | papel | tinta | Text, icons and the toggle thumb on a solid accent fill. Never `text-white`, which disappears on the dark theme's papel fill. |
+| Soft accent | `bg-interactive-soft` | tinta at 6 % | papel at 8 % | Selected table rows and cells, hover tints. |
+| Soft accent, strong | `bg-interactive-soft-strong` | tinta at 11 % | papel at 14 % | Informational chips, role and type badges, selected citations, spreadsheet highlight. |
+| Accent border | `border-interactive-border`, `ring-interactive-border` | tinta at 50 % | papel at 42 % | Selection rings and drop-zone outlines (3:1 non-text minimum). |
+| Focus | `ring-focus`, `outline-focus`, `focus:border-focus` | ámbar tinta | ámbar fósforo | Keyboard focus only, as `--litt-accent`. |
+
+Measured WCAG contrast of the new pairs:
+
+| Pair | Contrast |
+| --- | --- |
+| Papel on accent / hover / pressed (light) | 14.66:1 / 10.69:1 / 7.51:1 |
+| Tinta on accent / hover / pressed (dark) | 14.66:1 / 10.67:1 / 7.89:1 |
+| `text-interactive` on soft-strong over white / papel (light) | 13.92:1 / 11.79:1 |
+| `text-interactive` on soft-strong over tinta / `#1B202C` (dark) | 10.04:1 / 9.20:1 |
+| Accent border over white / tinta | 3.36:1 / 3.60:1 |
+| Focus ring on soft-strong, light / dark | 4.51:1 / 6.60:1 |
+
+Document and spreadsheet highlights (`ThemeTokensUI.css`) are tinta tints:
+PDF and DOCX pages stay white on the dark theme, so their marks are tinta in
+both themes. Status colors (red for errors and destructive actions, green
+for success, orange for warnings) are functional, not brand. Warnings used
+Tailwind `amber`, whose 700-800 steps sit next to ámbar tinta, so they moved
+to `orange` (`text-orange-700` on `bg-orange-50` is 4.88:1) and Tailwind
+`amber` is no longer used anywhere: the brand ambers belong to the square
+and the focus ring. Categorical palettes (tags, currencies, avatars, column
+formats, subagent marks) use non-blue, non-amber hues.
 
 ## Color tokens
 
