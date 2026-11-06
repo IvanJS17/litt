@@ -740,3 +740,27 @@ export interface TrainingMyPupils {
     pupils: { user_id: string; stages: TrainingStageEntry[] }[];
     candidates: string[];
 }
+
+// training turn notes (docs/training.md): a pasante's private record of a
+// chat turn, readable only by its author and their current mentor.
+export type TrainingContrastStatus = "pending" | "ready" | "failed";
+export interface TrainingTurnNote {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  /** The chat the note belongs to, whichever surface it is from. */
+  chat_id: string;
+  /** The user message the note is about. */
+  message_id: string;
+  /** What the pasante wrote before asking ("Tu planteamiento"). */
+  attempt: string;
+  /** Coincide / No coincide / Faltó; null until ready. */
+  contrast: string | null;
+  /** `failed` also covers a contrast still pending long after the turn. */
+  contrast_status: TrainingContrastStatus;
+  created_at: string;
+}
+/** GET /training-notes/chats/:chatId (404 when the caller may read none). */
+export interface TrainingTurnNotes {
+  notes: TrainingTurnNote[];
+}
