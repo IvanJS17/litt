@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import quickActionsIcon from "@icons/features/quick-actions.svg";
 import { getUserProfile } from "../../api/mikeApi";
 import { LittMonogramPixel } from "@mike/litt-brand-ui";
@@ -8,7 +8,7 @@ import { quickActionDisplayName } from "../../lib/quickActions";
 
 // The «L.» pixel monogram at one of its native sizes; it is never scaled.
 const ICON_SIZE = 32;
-const GREETING_GAP = 6;
+const GREETING_GAP = 10; // px between the monogram and the greeting
 
 export function InitialView({
   onSelect,
@@ -16,11 +16,8 @@ export function InitialView({
   onSelect: (action: QuickAction) => void;
 }): React.ReactElement {
   const [name, setName] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [iconOffset, setIconOffset] = useState(0);
-  const [textOffset, setTextOffset] = useState(0);
+  const [shown, setShown] = useState(false);
   const quickActions = useQuickActions();
-  const textRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,57 +36,36 @@ export function InitialView({
     };
   }, []);
 
-  useLayoutEffect(() => {
-    if (!name || !textRef.current) return;
-    setLoaded(false);
-    const textWidth = textRef.current.offsetWidth;
-    setIconOffset((textWidth + GREETING_GAP) / 2);
-    setTextOffset((ICON_SIZE + GREETING_GAP) / 2);
-  }, [name]);
-
+  // The greeting mounts transparent and fades in on the next frame; the
+  // monogram beside it is drawn in place and never moves.
   useEffect(() => {
-    if (!name || !iconOffset) return;
-    const timer = window.setTimeout(() => setLoaded(true), 100);
-    return () => window.clearTimeout(timer);
-  }, [iconOffset, name]);
+    if (!name) return;
+    const frame = window.requestAnimationFrame(() => setShown(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, [name]);
 
   return (
     <div className="flex w-full flex-col items-center text-center">
-      <div className="relative mb-8 h-10 w-full">
+      {/* The monogram stays still (Marca LiTT v1.0, prohibition 10: the
+          square is never animated). It waits for the name so the centered
+          row has its final width the moment it appears; only the greeting's
+          opacity transitions. */}
+      <div className="mb-8 flex min-h-10 w-full items-center justify-center">
         {name && (
-          <>
-            <div
-              data-testid="initial-mike-icon"
-              className="absolute h-8 w-8"
-              style={{
-                left: "50%",
-                top: "50%",
-                transform: loaded
-                  ? `translate(calc(-50% - ${iconOffset}px), -50%)`
-                  : "translate(-50%, -50%)",
-                transition:
-                  "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-              }}
-            >
+          <div
+            className="flex min-w-0 items-center justify-center"
+            style={{ gap: GREETING_GAP }}
+          >
+            <div data-testid="initial-mike-icon" className="h-8 w-8 shrink-0">
               <LittMonogramPixel size={ICON_SIZE} decorative />
             </div>
             <h1
-              ref={textRef}
-              className="absolute whitespace-nowrap font-serif text-3xl font-light text-gray-900"
-              style={{
-                left: "50%",
-                top: "50%",
-                transform: loaded
-                  ? `translate(calc(-50% + ${textOffset}px), -50%)`
-                  : "translate(-50%, -50%)",
-                opacity: loaded ? 1 : 0,
-                transition:
-                  "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
-              }}
+              className="min-w-0 text-left font-serif text-3xl font-light text-gray-900 transition-opacity duration-700 ease-in-out [overflow-wrap:anywhere] motion-reduce:transition-none"
+              style={{ opacity: shown ? 1 : 0 }}
             >
               Hi, {name}
             </h1>
-          </>
+          </div>
         )}
       </div>
       <div className="flex h-5 items-center justify-center">
@@ -112,7 +88,7 @@ export function InitialView({
               key={action.id}
               type="button"
               onClick={() => onSelect(action)}
-              className="inline-flex h-8 items-center justify-center rounded-full border border-white/70 bg-white/55 px-3 font-medium text-gray-600 shadow-[0_3px_9px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.86),inset_0_-1px_0_rgba(255,255,255,0.58)] transition-all hover:bg-white hover:text-gray-900 active:scale-[0.98]"
+              className="inline-flex h-8 items-center justify-center rounded-full border border-white/70 bg-white/55 px-3 font-medium text-gray-600 shadow-[0_3px_9px_rgba(21,26,38,0.06),inset_0_1px_0_rgba(255,255,255,0.86),inset_0_-1px_0_rgba(255,255,255,0.58)] transition-all hover:bg-white hover:text-gray-900 active:scale-[0.98]"
             >
               {quickActionDisplayName(action)}
             </button>
