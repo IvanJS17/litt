@@ -3995,6 +3995,35 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         },
     );
 
+    it("continues an ask_inputs turn of a pasante without a new attempt or a second note", async () => {
+        trainingStage.value = "pasante";
+        const item = { id: "choice-1", kind: "choice", question: "Continue?", options: [{ value: "Yes" }], allow_other: false, other_label: "Other" };
+        dbControl.assistantMessageRows = [{
+            id: "assistant-existing",
+            chat_id: "chat-1",
+            role: "assistant",
+            content: [{ type: "ask_inputs", event_id: "ask-1", items: [item] }],
+            citations: null,
+            author_user_id: "u1",
+            created_at: "2026-01-01T00:00:00Z",
+        }];
+        const res = await send({
+            chat_id: "chat-1",
+            ask_inputs_response: {
+                assistant_message_id: "assistant-existing",
+                ask_event_id: "ask-1",
+                responses: [{ id: "choice-1", kind: "choice", question: "Continue?", answer: "Yes" }],
+            },
+        });
+        expect(res.status).toBe(200);
+        expect(res.body?.code).not.toBe("training_attempt_required");
+        expect(res.text).not.toContain('"type":"error"');
+        expect(runLLMStream).toHaveBeenCalledTimes(1);
+        expect(noteInsert()).toBeUndefined();
+        expect(userInsert()).toBeUndefined();
+        expect(await contrastCalls()).toHaveLength(0);
+    });
+
     afterEach(() => {
         trainingOrg.value = null;
     });

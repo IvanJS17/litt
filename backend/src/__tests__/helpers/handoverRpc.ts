@@ -99,6 +99,9 @@ export function handoverRpcResult(
     const orgId = args?.p_org_id;
     if (name === "remove_org_member") {
         const from = args?.p_user_id;
+        // org_members_training_departure: a mentor with pupils cannot leave.
+        if ((tables.training_pupils ?? []).some((p) => p.org_id === orgId && p.mentor_user_id === from))
+            return { data: null, error: { code: "LT001", message: "A training mentor with pupils cannot leave the organization" } };
         const to = args?.p_successor_id ?? (tables.org_members ?? []).find((m) => m.org_id === orgId && m.role === "owner" && m.user_id !== from)?.user_id;
         const items = departureItems(tables, orgId, [from]);
         handoverRpcResult(tables, "assign_org_member_items", { p_org_id: orgId, p_from_user_id: from, p_to_user_id: to, p_assigned_by: args?.p_actor_id });

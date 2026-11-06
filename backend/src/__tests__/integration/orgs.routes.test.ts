@@ -577,6 +577,21 @@ describe("org membership", () => {
         expect(tables.org_members.map((m) => m.user_id)).toEqual(["owner-1"]);
     });
 
+    it("409s with a code when removing or leaving as a training mentor with pupils", async () => {
+        tables.training_pupils = [{ org_id: "org-1", trainee_user_id: "owner-1", mentor_user_id: "member-1" }];
+        as("owner-1", "owner@firm.example");
+        const removed = await request(app).delete("/orgs/org-1/members/member-1").set(...AUTH);
+        expect(removed.status).toBe(409);
+        expect(removed.body.code).toBe("training_mentor_has_pupils");
+        as("member-1", "member@firm.example");
+        const left = await request(app).delete("/orgs/org-1/members/member-1").set(...AUTH);
+        expect(left.status).toBe(409);
+        expect(left.body.code).toBe("training_mentor_has_pupils");
+        expect(tables.org_members.map((m) => m.user_id)).toContain("member-1");
+        tables.training_pupils = [];
+        expect((await request(app).delete("/orgs/org-1/members/member-1").set(...AUTH)).status).toBe(204);
+    });
+
     // A member's public projects and workflows that nobody else owns are
     // handed to a named successor before they can go.
     describe("with work only they own", () => {
