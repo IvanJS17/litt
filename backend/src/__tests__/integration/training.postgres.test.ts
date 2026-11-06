@@ -32,6 +32,11 @@ const ORG = 10;
 const OWNER = 1;
 const MENTOR = 2;
 const PUPIL = 3;
+const CHAT = 20;
+const WORD_CHAT = 21;
+const REVIEW_CHAT = 22;
+const MESSAGE = 30;
+const ATTEMPT = "x".repeat(60);
 
 describe.skipIf(!container)("LiTT training rows in PostgreSQL", () => {
     let created = false;
@@ -124,5 +129,78 @@ describe.skipIf(!container)("LiTT training rows in PostgreSQL", () => {
         psql(`delete from auth.users where id=${q(MENTOR)};`);
         expect(count("training_mentors")).toBe(0);
         expect(count("training_pupils")).toBe(0);
+    });
+
+    describe("training_turn_notes", () => {
+        const noteInsert = (column: string, chat: number, message: number, extra = "") =>
+            `insert into public.training_turn_notes(org_id,trainee_user_id,${column},message_id,attempt${extra ? "," + extra.split("|")[0] : ""})
+                values (${q(ORG)},${q(PUPIL)},${q(chat)},${q(message)},'${ATTEMPT}'${extra ? "," + extra.split("|")[1] : ""});`;
+
+        beforeEach(() => {
+            psql(`insert into public.chats(id,user_id,org_id) values (${q(CHAT)},${q(PUPIL)},${q(ORG)});
+                insert into public.word_documents(id,user_id,client_document_id)
+                    values (${q(40)},${q(PUPIL)},${q(41)});
+                insert into public.word_chats(id,word_document_id,user_id)
+                    values (${q(WORD_CHAT)},${q(40)},${q(PUPIL)});
+                insert into public.tabular_reviews(id,user_id,title) values (${q(42)},${q(PUPIL)},'Revisión');
+                insert into public.tabular_review_chats(id,review_id,user_id)
+                    values (${q(REVIEW_CHAT)},${q(42)},${q(PUPIL)});
+                ${noteInsert("chat_id", CHAT, MESSAGE)}
+                ${noteInsert("word_chat_id", WORD_CHAT, MESSAGE + 1)}
+                ${noteInsert("tabular_chat_id", REVIEW_CHAT, MESSAGE + 2)}`);
+        });
+
+        it("starts pending, and is closed to the browser roles", () => {
+            expect(psql(`select distinct contrast_status from public.training_turn_notes`)).toBe("pending");
+            expect(psql(`select relrowsecurity from pg_class where relname='training_turn_notes'`)).toBe("t");
+            expect(psql(`select has_table_privilege('authenticated','public.training_turn_notes','select')
+                or has_table_privilege('anon','public.training_turn_notes','select')`)).toBe("f");
+            expect(psql(`select has_table_privilege('service_role','public.training_turn_notes','insert')`)).toBe("t");
+        });
+
+        it("rejects what the rules forbid at the table level", () => {
+            expect(failure(`insert into public.training_turn_notes(org_id,trainee_user_id,chat_id,message_id,attempt)
+                values (${q(ORG)},${q(PUPIL)},${q(CHAT)},${q(MESSAGE + 9)},'corto');`))
+                .toContain("training_turn_notes_attempt_check");
+            expect(failure(`insert into public.training_turn_notes(org_id,trainee_user_id,chat_id,message_id,attempt)
+                values (${q(ORG)},${q(PUPIL)},${q(CHAT)},${q(MESSAGE + 9)},'${"x".repeat(4001)}');`))
+                .toContain("training_turn_notes_attempt_check");
+            expect(failure(`insert into public.training_turn_notes(org_id,trainee_user_id,message_id,attempt)
+                values (${q(ORG)},${q(PUPIL)},${q(MESSAGE + 9)},'${ATTEMPT}');`))
+                .toContain("training_turn_notes_one_chat");
+            expect(failure(`insert into public.training_turn_notes(org_id,trainee_user_id,chat_id,word_chat_id,message_id,attempt)
+                values (${q(ORG)},${q(PUPIL)},${q(CHAT)},${q(WORD_CHAT)},${q(MESSAGE + 9)},'${ATTEMPT}');`))
+                .toContain("training_turn_notes_one_chat");
+            expect(failure(`update public.training_turn_notes set contrast_status='ready' where chat_id=${q(CHAT)};`))
+                .toContain("training_turn_notes_contrast_check");
+            expect(failure(`update public.training_turn_notes set contrast_status='listo' where chat_id=${q(CHAT)};`))
+                .toContain("training_turn_notes_status_check");
+            expect(failure(noteInsert("chat_id", CHAT, MESSAGE))).toContain("training_turn_notes_message_key");
+            expect(failure(`insert into public.training_turn_notes(org_id,trainee_user_id,chat_id,message_id,attempt)
+                values (${q(ORG)},${q(MENTOR + 50)},${q(CHAT)},${q(MESSAGE + 9)},'${ATTEMPT}');`))
+                .toContain("training_turn_notes_member_fkey");
+            psql(`update public.training_turn_notes set contrast='Coincide', contrast_status='ready'
+                where chat_id=${q(CHAT)};`);
+        });
+
+        it("goes with its chat, whichever surface it is from", () => {
+            psql(`delete from public.chats where id=${q(CHAT)};
+                delete from public.word_chats where id=${q(WORD_CHAT)};
+                delete from public.tabular_review_chats where id=${q(REVIEW_CHAT)};`);
+            expect(count("training_turn_notes")).toBe(0);
+        });
+
+        it("stays when the pupil is released, and goes when the membership ends", () => {
+            psql(`delete from public.training_pupils where trainee_user_id=${q(PUPIL)};`);
+            expect(count("training_turn_notes")).toBe(3);
+            psql(`select public.remove_org_member(${q(ORG)},${q(PUPIL)},${q(PUPIL)},null);`);
+            expect(count("training_turn_notes")).toBe(0);
+            expect(count("chats")).toBe(1);
+        });
+
+        it("goes with the account", () => {
+            psql(`delete from auth.users where id=${q(PUPIL)};`);
+            expect(count("training_turn_notes")).toBe(0);
+        });
     });
 });
