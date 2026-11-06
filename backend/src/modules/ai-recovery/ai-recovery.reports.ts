@@ -10,6 +10,7 @@
 
 import type { Db } from "../../lib/supabase";
 import { resolveTrainingStage } from "../../lib/training";
+import { assertReleasable } from "../../lib/trainingRelease";
 import type { AuthenticatedIdentity } from "../../lib/recovery/identity/authStateMatrix";
 import type { AuthorizationScope } from "../../lib/recovery/authorization/evaluateAccess";
 import {
@@ -376,6 +377,26 @@ export async function readReport(
       (input.revision !== undefined && review.revision !== input.revision)
     )
       return NOT_FOUND;
+
+    // A pasante reviewer's report is sealed (docs/training.md): its bytes do
+    // not leave until a person who may approve it approves this version.
+    // ai_review_exports is insert-only, so the row read here is the one the
+    // persistence reads below.
+    let exportQuery = db
+      .from("ai_review_exports")
+      .select("artifact_document_version_id")
+      .eq("project_id", input.project_id)
+      .eq("execution_id", input.execution_id);
+    if (input.revision !== undefined)
+      exportQuery = exportQuery.eq("review_revision", input.revision);
+    const exportRow = await exportQuery.maybeSingle();
+    if (exportRow.error) throw new Error("approved report export read failed");
+    const artifactVersionId = (
+      exportRow.data as { artifact_document_version_id?: unknown } | null
+    )?.artifact_document_version_id;
+    if (typeof artifactVersionId !== "string") return NOT_FOUND;
+    const releasable = await assertReleasable(db, artifactVersionId);
+    if (!releasable.ok) return releasable;
 
     const resourceScopePort = createBoundEvidenceResourceScopePort(db, {
       organization_id: evidence.execution.organization_id,

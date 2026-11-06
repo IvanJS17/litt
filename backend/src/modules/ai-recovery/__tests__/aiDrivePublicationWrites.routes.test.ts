@@ -12,6 +12,12 @@ const state = vi.hoisted(() => ({
   fresh: true,
   resource: null as Record<string, unknown> | null,
   storage: new Map<string, Uint8Array>(),
+  // The artifact version's pasante seal and its approvals (docs/training.md).
+  artifactSeal: { training_stage: null, content_sha256: null } as {
+    training_stage: string | null;
+    content_sha256: string | null;
+  },
+  approvals: [] as Array<{ document_version_id: string; content_sha256: string }>,
 }));
 
 const IDS = {
@@ -116,6 +122,22 @@ const {
   headFile,
 } = vi.hoisted(() => {
   const from = vi.fn((table: string) => {
+    if (table === "document_versions") {
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        is: vi.fn(() => query),
+        maybeSingle: vi.fn(async () => ({ data: state.artifactSeal, error: null })),
+      };
+      return query;
+    }
+    if (table === "training_version_approvals") {
+      const query = {
+        select: vi.fn(() => query),
+        in: vi.fn(async () => ({ data: state.approvals, error: null })),
+      };
+      return query;
+    }
     if (table !== "ai_review_exports") throw new Error("unexpected table");
     const filters: Record<string, unknown> = {};
     const query = {
@@ -274,6 +296,8 @@ const publishPath = `/projects/${IDS.project}/ai-executions/${IDS.execution}/rev
 
 beforeEach(() => {
   state.exportRow = exportRow();
+  state.artifactSeal = { training_stage: null, content_sha256: artifactHash };
+  state.approvals = [];
   state.intent = null;
   state.evidence = {
     execution_id: IDS.execution,
@@ -424,6 +448,36 @@ describe("Drive publication write routes", () => {
 
     expect(response.status).toBe(400);
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("holds a pasante's sealed report until its current bytes are approved", async () => {
+    const drive = createFakeDrive();
+    const app = makeApp(drive);
+    const publish = () =>
+      request(app)
+        .post(publishPath)
+        .set("x-test-auth", "yes")
+        .send({ export_id: IDS.export, expected_review_revision: 3 });
+    state.artifactSeal = { training_stage: "pasante", content_sha256: artifactHash };
+
+    const held = await publish();
+    expect(held.status).toBe(409);
+    expect(held.body).toMatchObject({ code: "training_approval_required" });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(drive.uploadCount).toBe(0);
+
+    // Approved for earlier bytes: the version was modified after approval.
+    state.approvals = [
+      { document_version_id: IDS.artifactVersion, content_sha256: "f".repeat(64) },
+    ];
+    expect((await publish()).status).toBe(409);
+    expect(drive.uploadCount).toBe(0);
+
+    state.approvals = [
+      { document_version_id: IDS.artifactVersion, content_sha256: artifactHash },
+    ];
+    expect((await publish()).status).toBe(201);
+    expect(drive.uploadCount).toBe(1);
   });
 
   it("keeps outsiders opaque and reports MFA denial without claiming", async () => {

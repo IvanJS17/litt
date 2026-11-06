@@ -38,6 +38,7 @@ import {
   type ServiceResult,
 } from "../../lib/serviceResult";
 import { createApprovedArtifactStorage } from "./ai-recovery.storage";
+import { assertReleasable } from "../../lib/trainingRelease";
 import { authorizeExecution } from "./ai-recovery.authorization";
 import {
   APPROVED_ARTIFACT_EXPORT_COLUMNS,
@@ -306,6 +307,16 @@ export async function publishApprovedArtifact(
       })
     )
       return NOT_FOUND;
+
+    // Checked even while only the fake transport exists: a pasante
+    // reviewer's sealed report never reaches Drive unapproved
+    // (docs/training.md).
+    const releasable = await assertReleasable(
+      db,
+      (exportRow as { artifact_document_version_id: string })
+        .artifact_document_version_id,
+    );
+    if (!releasable.ok) return releasable;
 
     const transport = input.transport;
     if (!isFakeDriveTransport(transport)) return PUBLICATION_UNAVAILABLE;
