@@ -1273,6 +1273,9 @@ export function AssistantChatColumn({
                                         >
                                             <ChatInput
                                                 trainingTurns
+                                                // A project chat opened here takes the stage of
+                                                // its project's practice area, as in the project.
+                                                projectId={permissionChat?.project_id ?? undefined}
                                                 ref={chatInputRef}
                                                 canSend={canSend}
                                                 chatLoading={chatLoading}
