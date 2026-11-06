@@ -56,6 +56,20 @@ describe("matchTrainingNotes", () => {
         expect(matched.has(3)).toBe(false);
     });
 
+    it("treats a just-sent message with a client id (Word) as just sent", () => {
+        const matched = matchTrainingNotes(
+            [
+                { id: "m1", role: "user" },
+                { id: "user-local-1", role: "user", attempt: "x" },
+                { id: "user-local-2", role: "user" },
+            ],
+            [note("n1", "m1"), note("n2", "m8")],
+        );
+        expect(matched.get(0)?.id).toBe("n1");
+        expect(matched.get(1)?.id).toBe("n2");
+        expect(matched.has(2)).toBe(false);
+    });
+
     it("leaves older just-sent messages bare when notes run short", () => {
         const matched = matchTrainingNotes(
             [

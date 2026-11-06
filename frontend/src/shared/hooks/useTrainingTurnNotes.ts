@@ -65,9 +65,10 @@ export function useTrainingTurnNotes(
 
 /**
  * The note of each user message, by message index. Saved messages match on
- * their id. A message just sent in this session has no id yet; it carries
- * the `attempt` it was sent with, and takes the notes no saved message
- * claimed, newest with newest.
+ * their id. A message just sent in this session has no saved id yet (the web
+ * leaves the id out, the Word add-in gives it one of its own); it carries the
+ * `attempt` it was sent with, and takes the notes no saved message claimed,
+ * newest with newest.
  */
 export function matchTrainingNotes(
     messages: NoteMessage[],
@@ -84,7 +85,7 @@ export function matchTrainingNotes(
         if (note) {
             matched.set(index, note);
             claimed.add(note.id);
-        } else if (!m.id && m.attempt) {
+        } else if (m.attempt) {
             live.push(index);
         }
     });
