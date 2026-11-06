@@ -39,7 +39,7 @@ export function LoginPage(): React.ReactElement {
   };
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50/80">
+    <div className="h-full overflow-y-auto bg-app-background">
       <main className="relative flex min-h-full items-center justify-center px-6 py-10">
         <div className="absolute top-5 left-1/2 -translate-x-1/2 @sm:top-6">
           <WordAddinLogo size="lg" />
