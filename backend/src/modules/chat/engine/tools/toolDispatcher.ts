@@ -20,7 +20,7 @@ import {
 import { logError } from "../../../../lib/log";
 import { diagnosticErrorTags } from "../../../../lib/observability/diagnostics";
 import { documentSearchFailure } from "./documentSearchErrors";
-import { findDocumentText, createDocumentVersions } from "../../../documents/documents.service";
+import { findDocumentText, createDocumentVersions, type VersionAuthorship } from "../../../documents/documents.service";
 import { executeMcpToolCall, type McpToolEvent } from "../../../../lib/mcpConnectors";
 import {
   APPROVAL_UNAVAILABLE_MESSAGE,
@@ -1420,7 +1420,12 @@ export async function runToolCalls(
               fail("Failed to record replicated documents");
             } else {
               // Bulk insert N versions in one round-trip.
+              // Copies keep the source's seal (docs/training.md).
+              const authorship: VersionAuthorship = active
+                ? { kind: "copy", sourceVersionId: active.id }
+                : { kind: "copy", sourceStoragePath: sourcePath };
               const versionRows = newDocs.map((d, idx) => ({
+                authorship,
                 document_id: d.id,
                 storage_path: newKeys[idx],
                 pdf_storage_path: newPdfKeys[idx],

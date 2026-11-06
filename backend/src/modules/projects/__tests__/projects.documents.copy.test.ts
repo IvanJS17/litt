@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   projectAccess: vi.fn(),
   docAccess: vi.fn(),
   downloadFile: vi.fn(),
+  uploadFile: vi.fn(),
 }));
 vi.mock("../../../lib/access", async (original) => ({
   ...(await original<typeof import("../../../lib/access")>()),
@@ -18,6 +19,7 @@ vi.mock("../../../lib/documentVersions", async (original) => ({
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   downloadFile: mocks.downloadFile,
+  uploadFile: mocks.uploadFile,
 }));
 import { assignOrCopyDocument } from "../projects.service";
 
@@ -180,5 +182,38 @@ it.each([
   mocks.downloadFile.mockRejectedValueOnce(error);
   expect(await assignOrCopyDocument(fake.db, { projectId: "destination", documentId: "doc", userId: "actor" }))
     .toEqual({ ok: false, kind: "read_failed", error });
+  fake.done();
+});
+
+it.each([
+  ["a pasante's version keeps its author, not the copying actor", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }], true],
+  ["an unsealed version stays unsealed", [], false],
+])("copying a document: %s", async (_name, sourceSeal, sealed) => {
+  mocks.projectAccess.mockResolvedValue({ ok: true, projectRole: "owner", project: { org_id: null } });
+  mocks.docAccess.mockResolvedValue({ ok: true, projectRole: "owner", isCreator: true });
+  mocks.downloadFile.mockResolvedValue(new ArrayBuffer(4));
+  mocks.uploadFile.mockResolvedValue(undefined);
+  const source = { ...firmDoc, project_id: null, org_id: null, workflow_id: "workflow" };
+  const fake = scriptedDb([
+    { table: "documents", data: source },
+    { table: "documents", data: [source] },
+    { table: "document_versions", data: { storage_path: "src/key.pdf", filename: "Source.pdf", file_type: "pdf", version_number: 1 } },
+    { table: "projects", data: { org_id: null } },
+    { table: "documents", op: "insert", data: { id: "copy" } },
+    { table: "document_versions", data: sourceSeal },
+    { rpc: "create_document_version", data: { id: "copy-version" } },
+    { table: "documents", data: { id: "copy" } },
+  ]);
+  expect(await assignOrCopyDocument(fake.db, { projectId: "destination", documentId: "doc", userId: "actor" }))
+    .toMatchObject({ ok: true, status: 201 });
+  const seal = fake.calls.find(c => c.table === "document_versions" && c.op === "select" && c.filters.length === 1 && c.filters[0][0] === "eq" && c.filters[0][1] === "id");
+  expect(seal?.filters).toEqual([["eq", "id", "v1"]]);
+  const version = (fake.calls.find(c => c.op === "rpc")?.args as { p_version: Record<string, unknown> }).p_version;
+  expect(version).not.toHaveProperty("authorship");
+  if (sealed) expect(version).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
+  else {
+    expect(version).not.toHaveProperty("training_author_user_id");
+    expect(version).not.toHaveProperty("training_stage");
+  }
   fake.done();
 });

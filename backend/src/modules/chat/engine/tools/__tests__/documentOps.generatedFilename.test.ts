@@ -55,7 +55,9 @@ afterAll(() => {
 type Insert = { table: string; payload: Record<string, unknown> };
 
 // Chainable Supabase double: records inserts, returns fixed ids.
-function makeDb() {
+// `seal` answers the facade's pasante-seal reads: the document's org and the
+// actor's training stages. Without it the document has no org, so no seal.
+function makeDb(seal?: { stages: unknown[] }) {
   const inserts: Insert[] = [];
   function from(table: string) {
     const b: Record<string, unknown> = {
@@ -71,8 +73,16 @@ function makeDb() {
           data: { id: table === "documents" ? "doc-db-1" : "ver-db-1" },
           error: null,
         }),
+      maybeSingle: () =>
+        Promise.resolve({
+          data: seal ? { org_id: "org-1", project_id: null } : null,
+          error: null,
+        }),
       then: (onF: (v: unknown) => unknown) =>
-        Promise.resolve({ data: null, error: null }).then(onF),
+        Promise.resolve({
+          data: table === "training_stages" ? seal?.stages ?? null : null,
+          error: null,
+        }).then(onF),
     };
     return b;
   }
@@ -95,8 +105,11 @@ type Generated = {
   download_url: string;
 };
 
-async function generate(extension: "docx" | "xlsx" | "pptx", title: string) {
-  const db = makeDb();
+async function generate(
+  extension: "docx" | "xlsx" | "pptx",
+  title: string,
+  db = makeDb(),
+) {
   const uploadCallStart = uploadFile.mock.calls.length;
   const result =
     extension === "docx"
@@ -115,6 +128,7 @@ async function generate(extension: "docx" | "xlsx" | "pptx", title: string) {
 
   return {
     filename: generated.filename,
+    version: version?.payload,
     versionFilename: version?.payload.filename,
     versionStoragePath: version?.payload.storage_path,
     uploadedKey: upload![0],
@@ -257,4 +271,17 @@ describe("generated document naming", () => {
       expect(archive.file("[Content_Types].xml")).not.toBeNull();
     },
   );
+});
+
+describe("generated document pasante seal", () => {
+  it("seals the generated version with a pasante author", async () => {
+    const out = await generate("docx", "Contrato", makeDb({ stages: [{ practice: null, stage: "pasante" }] }));
+    expect(out.version).toMatchObject({ training_author_user_id: "user-1", training_stage: "pasante" });
+  });
+
+  it("leaves the generated version unsealed for a lawyer", async () => {
+    const out = await generate("docx", "Contrato", makeDb({ stages: [] }));
+    expect(out.version).not.toHaveProperty("training_author_user_id");
+    expect(out.version).not.toHaveProperty("training_stage");
+  });
 });

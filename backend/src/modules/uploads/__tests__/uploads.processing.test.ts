@@ -79,7 +79,11 @@ import {
 
 type QueryResult = { data?: unknown; error?: unknown };
 
-function fakeDb(singleResults: Record<string, QueryResult[]> = {}) {
+function fakeDb(
+  singleResults: Record<string, QueryResult[]> = {},
+  // What an awaited (list) read of a table returns; unlisted tables read none.
+  listResults: Record<string, unknown> = {},
+) {
   class Query {
     constructor(private readonly table: string) {}
     select() {
@@ -130,7 +134,10 @@ function fakeDb(singleResults: Record<string, QueryResult[]> = {}) {
       return this.single();
     }
     then(resolve: (result: QueryResult) => unknown) {
-      return Promise.resolve({ data: null, error: null }).then(resolve);
+      return Promise.resolve({
+        data: listResults[this.table] ?? null,
+        error: null,
+      }).then(resolve);
     }
   }
 
@@ -288,7 +295,7 @@ describe("upload processing", () => {
       folder_id: null,
       library_folder_id: null,
     };
-    const db = fakeDb({ documents: [{ data: document, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: document, error: null }] });
 
     const result = await processUploadFile(db as never, baseSession, baseFile);
 
@@ -330,7 +337,7 @@ describe("upload processing", () => {
       folder_id: null,
       library_folder_id: null,
     };
-    const db = fakeDb({ documents: [{ data: document, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: document, error: null }] });
     mocks.officeFileToPdf.mockImplementation(
       async (inputPath: string, outputDirectory: string) => {
         expect(inputPath).toBe(join(outputDirectory, "source.docx"));
@@ -364,7 +371,7 @@ describe("upload processing", () => {
       folder_id: null,
       library_folder_id: null,
     };
-    const db = fakeDb({ documents: [{ data: document, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: document, error: null }] });
     mocks.officeFileToPdf.mockRejectedValue(
       Object.assign(new Error("LibreOffice (soffice) was not found"), {
         code: "conversion_unavailable",
@@ -399,7 +406,7 @@ describe("upload processing", () => {
       filename: baseFile.filename,
     };
     const db = fakeDb({
-      documents: [{ data: asset, error: null }],
+      documents: [{ data: null, error: null }, { data: asset, error: null }],
     });
 
     const result = await processUploadFile(
@@ -498,6 +505,70 @@ describe("upload processing", () => {
     expect(mocks.deleteFile).not.toHaveBeenCalled();
   });
 
+  describe("pasante seal", () => {
+    const orgDoc = { data: { org_id: "org-1", project_id: null }, error: null };
+    const pasante = [{ practice: null, stage: "pasante" }];
+    const sealed = { training_author_user_id: baseSession.user_id, training_stage: "pasante" };
+    const unsealed = (row: Record<string, unknown>) => {
+      expect(row).not.toHaveProperty("training_author_user_id");
+      expect(row).not.toHaveProperty("training_stage");
+    };
+    const document = { id: baseFile.resource_id, user_id: baseSession.user_id, folder_id: null, library_folder_id: null };
+    const newVersionSession = {
+      ...baseSession,
+      purpose: "document_version_create" as const,
+      destination: { document_id: "55555555-5555-4555-8555-555555555555" },
+    };
+    const newVersionDb = (stages: unknown[]) => fakeDb({
+      documents: [orgDoc],
+      document_versions: [
+        { data: null, error: null },
+        { data: { version_number: 2 }, error: null },
+        { data: { id: baseFile.resource_id }, error: null },
+      ],
+    }, { training_stages: stages });
+    const rpcVersion = (db: { rpc: { mock: { calls: unknown[][] } } }) =>
+      (db.rpc.mock.calls[0]![1] as { p_version: Record<string, unknown> }).p_version;
+
+    it("seals a new document's V1 for a pasante", async () => {
+      const db = fakeDb({ documents: [orgDoc, { data: document, error: null }] }, { training_stages: pasante });
+      await processUploadFile(db as never, baseSession, baseFile);
+      expect(rpcVersion(db)).toMatchObject(sealed);
+    });
+
+    it("does not seal a new document's V1 for a lawyer", async () => {
+      const db = fakeDb({ documents: [orgDoc, { data: document, error: null }] }, { training_stages: [] });
+      await processUploadFile(db as never, baseSession, baseFile);
+      unsealed(rpcVersion(db));
+    });
+
+    it("seals a new version for a pasante", async () => {
+      const db = newVersionDb(pasante);
+      await processUploadFile(db as never, newVersionSession, baseFile);
+      expect(rpcVersion(db)).toMatchObject(sealed);
+    });
+
+    it("does not seal a new version for a lawyer", async () => {
+      const db = newVersionDb([]);
+      await processUploadFile(db as never, newVersionSession, baseFile);
+      unsealed(rpcVersion(db));
+    });
+
+    it.each([
+      ["a pasante", [orgDoc, { data: pasante }], true],
+      ["a lawyer", [orgDoc, { data: [] }], false],
+    ])("%s replacing a version: the update payload is sealed only for the pasante", async (_who, reads, isSealed) => {
+      const db = scriptedDb([{ data: { id: "v", storage_path: "old/source.pdf" } }, ...reads, { data: { id: "v" } }]);
+      await processUploadFile(db as never, {
+        ...baseSession, purpose: "document_version_replace",
+        destination: { document_id: "doc", version_id: "v", generate_pdf: false },
+      }, baseFile);
+      const patch = db.calls.find((call) => call.operation === "update")?.payload as Record<string, unknown>;
+      if (isSealed) expect(patch).toMatchObject(sealed);
+      else unsealed(patch);
+    });
+  });
+
   it("rejects a sealed object whose size no longer matches the reservation", async () => {
     mocks.createFileReadStream.mockImplementation(() =>
       Readable.from([Buffer.from([1, 2])]),
@@ -512,6 +583,7 @@ describe("upload processing", () => {
   it.each([false, undefined])("replaces DOCX bytes with generate_pdf=%s and invalidates obsolete renditions", async (generatePdf) => {
     const db = scriptedDb([
       { data: { id: "v", storage_path: "old/source.docx", pdf_storage_path: "old/rendition.pdf", content_sha256: "a".repeat(64) } },
+      { data: null },
       { data: { id: "v" } },
     ]);
     expect(await processUploadFile(db as never, {
@@ -541,6 +613,7 @@ describe("upload processing", () => {
   it("keeps a PDF source as its own rendition when generation is disabled", async () => {
     const db = scriptedDb([
       { data: { id: "v", storage_path: "old/source.pdf" } },
+      { data: null },
       { data: { id: "v" } },
     ]);
     await processUploadFile(db as never, {
@@ -644,7 +717,7 @@ describe("upload processing", () => {
     // No marker on the file row, and no documents row either: the lookup
     // must not even be consulted, so the only scripted `documents` result is
     // the post-upsert update.
-    const db = fakeDb({ documents: [{ data: document, error: null }] });
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: document, error: null }] });
 
     const result = await processUploadFile(db as never, baseSession, {
       ...baseFile,
@@ -1045,7 +1118,7 @@ describe("upload processing", () => {
         folder_id: null,
         library_folder_id: null,
       };
-      const db = fakeDb({ documents: [{ data: document, error: null }] });
+      const db = fakeDb({ documents: [{ data: null, error: null }, { data: document, error: null }] });
       const rows: Record<string, unknown>[] = [];
       const from = db.from;
       db.from = vi.fn((table: string) => {

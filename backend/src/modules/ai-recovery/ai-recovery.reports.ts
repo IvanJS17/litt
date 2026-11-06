@@ -9,6 +9,7 @@
  */
 
 import type { Db } from "../../lib/supabase";
+import { resolveTrainingStage } from "../../lib/training";
 import type { AuthenticatedIdentity } from "../../lib/recovery/identity/authStateMatrix";
 import type { AuthorizationScope } from "../../lib/recovery/authorization/evaluateAccess";
 import {
@@ -236,12 +237,17 @@ export async function produceReport(
       return true;
     };
 
+    const trainingStage = await resolveTrainingStage(db, input.identity.user_id, {
+      orgId: grantedScope.organization_id,
+      projectId: input.project_id,
+    });
     const persistence = createApprovedArtifactPersistence({
       client: db as unknown as ApprovedArtifactPersistenceClient,
       context: {
         actor_user_id: input.identity.user_id,
         organization_id: grantedScope.organization_id,
         authorization_epoch: grantedScope.authorization_epoch,
+        training_stage: trainingStage === "pasante" ? "pasante" : null,
       },
       storage: storage(),
       revalidateBeforeUpload: revalidateCurrent,
@@ -418,6 +424,7 @@ export async function readReport(
         actor_user_id: input.identity.user_id,
         organization_id: grantedScope.organization_id,
         authorization_epoch: grantedScope.authorization_epoch,
+        training_stage: null, // read only: never appends
       },
       storage: storage(),
       revalidateBeforeUpload: revalidateCurrent,

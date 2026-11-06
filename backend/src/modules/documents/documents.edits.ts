@@ -181,7 +181,7 @@ export async function resolveEdit(
             pdf_storage_path: null,
             size_bytes: ab.byteLength,
         },
-        { expectedStoragePath: latestPath },
+        { actorUserId: userId, expectedStoragePath: latestPath },
     );
     if (versionErr || !updated) {
         // A definite comparison miss left the new object unreferenced. On a

@@ -15,6 +15,7 @@ describe("document version persistence boundary", () => {
     const db = { rpc } as unknown as Db;
     expect(
       await createDocumentVersion(db, {
+        authorship: { kind: "catalog" },
         document_id: "doc",
         id: "v",
         storage_path: "new/key",
@@ -41,6 +42,7 @@ describe("document version persistence boundary", () => {
     await createDocumentVersion(
       { rpc } as unknown as Db,
       {
+        authorship: { kind: "catalog" },
         document_id: "doc",
         storage_path: "key",
         source: "assistant_edit",
@@ -56,6 +58,7 @@ describe("document version persistence boundary", () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error });
     const versions = [
       {
+        authorship: { kind: "catalog" } as const,
         document_id: "doc",
         storage_path: "key",
         source: "upload",
@@ -65,8 +68,9 @@ describe("document version persistence boundary", () => {
     expect(
       await createDocumentVersions({ rpc } as unknown as Db, versions),
     ).toEqual({ data: null, error });
+    const { authorship: _authorship, ...row } = versions[0];
     expect(rpc).toHaveBeenCalledExactlyOnceWith("create_document_versions", {
-      p_versions: versions,
+      p_versions: [row],
     });
   });
 
@@ -86,13 +90,14 @@ describe("document version persistence boundary", () => {
 
   it("replacement repeats the document boundary and excludes tombstones", async () => {
     const fake = scriptedDb([
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: { id: "v" } },
     ]);
     await updateDocumentVersion(fake.db, "doc", "v", {
       storage_path: "new/key",
       pdf_storage_path: null,
-    });
-    expect(fake.calls[0].filters).toEqual([
+    }, { actorUserId: "lawyer" });
+    expect(fake.calls[1].filters).toEqual([
       ["eq", "id", "v"],
       ["eq", "document_id", "doc"],
       ["is", "deleted_at", null],
@@ -101,13 +106,13 @@ describe("document version persistence boundary", () => {
   });
 
   it.each([null, "original-hash"])("atomically guards editor saves against intervening writes (%s)", async (hash) => {
-    const fake = scriptedDb([{ table: "document_versions", op: "update", data: null }]);
+    const fake = scriptedDb([{ table: "documents", data: null }, { table: "document_versions", op: "update", data: null }]);
     const result = await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new/key" }, {
-      expectedStoragePath: "old/key", expectedContentSha256: hash,
+      actorUserId: "lawyer", expectedStoragePath: "old/key", expectedContentSha256: hash,
     });
     expect(result.data).toBeNull();
-    expect(fake.calls[0].filters).toContainEqual(["eq", "storage_path", "old/key"]);
-    expect(fake.calls[0].filters).toContainEqual([hash === null ? "is" : "eq", "content_sha256", hash]);
+    expect(fake.calls[1].filters).toContainEqual(["eq", "storage_path", "old/key"]);
+    expect(fake.calls[1].filters).toContainEqual([hash === null ? "is" : "eq", "content_sha256", hash]);
     fake.done();
   });
 });
@@ -128,6 +133,7 @@ afterEach(() => {
 it("cleans replaced bytes and cache inline with workers disabled while retaining shared bytes", async () => {
   vi.stubEnv("DB_JOBS_ENABLED", "false");
   const fake = scriptedDb([
+    { table: "documents", data: null },
     {
       table: "document_versions",
       data: {
@@ -145,12 +151,12 @@ it("cleans replaced bytes and cache inline with workers disabled while retaining
     storage_path: "new",
     pdf_storage_path: null,
     content_sha256: "new-hash",
-  });
+  }, { actorUserId: "lawyer" });
   expect(storage.deleteFile.mock.calls.flat()).toEqual([
     "old",
     "extracted-text/v.txt",
   ]);
-  expect(fake.calls[0].filters).toEqual([
+  expect(fake.calls[1].filters).toEqual([
     ["eq", "id", "v"],
     ["eq", "document_id", "doc"],
     ["is", "deleted_at", null],
@@ -162,10 +168,11 @@ it.each([{ data: null }, { error: { message: "write failed" } }])(
   async (result) => {
     vi.stubEnv("DB_JOBS_ENABLED", "false");
     const fake = scriptedDb([
+      { table: "documents", data: null },
       { table: "document_versions", data: { storage_path: "old" } },
       { table: "document_versions", op: "update", ...result },
     ]);
-    await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new" });
+    await updateDocumentVersion(fake.db, "doc", "v", { storage_path: "new" }, { actorUserId: "lawyer" });
     expect(storage.deleteFile).not.toHaveBeenCalled();
     fake.done();
   },
@@ -173,11 +180,12 @@ it.each([{ data: null }, { error: { message: "write failed" } }])(
 it("preserves cached text when only the filename changes", async () => {
   vi.stubEnv("DB_JOBS_ENABLED", "false");
   const fake = scriptedDb([
+    { table: "documents", data: null },
     { table: "document_versions", op: "update", data: { id: "v" } },
   ]);
   await updateDocumentVersion(fake.db, "doc", "v", {
     filename: "renamed.docx",
-  });
+  }, { actorUserId: "lawyer" });
   expect(storage.deleteFile).not.toHaveBeenCalled();
   fake.done();
 });

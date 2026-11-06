@@ -240,6 +240,7 @@ export async function copyDocumentsToWorkflowAssets(
 
     for (const plan of plans) {
       const { error } = await createDocumentVersion(db, {
+          authorship: { kind: "copy", sourceVersionId: plan.sourceVersion.id },
           id: plan.versionId,
           document_id: plan.documentId,
           storage_path: plan.sourcePath,

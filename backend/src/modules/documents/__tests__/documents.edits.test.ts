@@ -83,6 +83,7 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: { id: "v1" } },
       { table: "document_edits", op: "update" },
       { table: "document_edits", data: [] },
@@ -104,6 +105,7 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       // Another writer changed storage_path while the resolved bytes uploaded.
       { table: "document_versions", op: "update", data: null },
     ]);
@@ -118,6 +120,7 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", error: { message: "write failed" } },
     ]);
     expect(await run(fake.db)).toMatchObject({ ok: false, error: { message: "write failed" } });
@@ -131,6 +134,7 @@ describe("resolving a tracked edit", () => {
     const fake = scriptedDb([
       { table: "document_edits", data: PENDING_EDIT },
       { table: "documents", data: DOC },
+      { table: "documents", data: null },
       { table: "document_versions", data: { storage_path: "docs/v1.docx", pdf_storage_path: "renditions/v1.pdf", content_sha256: "old" } },
       { table: "document_versions", op: "update", data: { id: "v1" } },
       { rpc: "document_cache_writer_active", data: false },
@@ -141,6 +145,30 @@ describe("resolving a tracked edit", () => {
     ]);
     expect((await run(fake.db)).ok).toBe(true);
     expect(storage.deleteFile.mock.calls.flat()).toEqual(expect.arrayContaining(["docs/v1.docx", "renditions/v1.pdf", "extracted-text/v1.txt"]));
+    fake.done();
+  });
+
+  it.each([
+    ["a pasante", [{ practice: null, stage: "pasante" }], { training_author_user_id: "user-1", training_stage: "pasante" }],
+    ["a lawyer", [], {}],
+  ])("seals the replaced version for %s only", async (_who, stages, seal) => {
+    arrange();
+    const fake = scriptedDb([
+      { table: "document_edits", data: PENDING_EDIT },
+      { table: "documents", data: DOC },
+      { table: "documents", data: { org_id: "org-1", project_id: null } },
+      { table: "training_stages", data: stages },
+      { table: "document_versions", op: "update", data: { id: "v1" } },
+      { table: "document_edits", op: "update" },
+      { table: "document_edits", data: [] },
+    ]);
+    expect((await run(fake.db)).ok).toBe(true);
+    const payload = fake.calls.find(call => call.table === "document_versions")?.payload as Record<string, unknown>;
+    expect(payload).toMatchObject(seal);
+    if (!("training_stage" in seal)) {
+      expect(payload).not.toHaveProperty("training_author_user_id");
+      expect(payload).not.toHaveProperty("training_stage");
+    }
     fake.done();
   });
 });

@@ -292,6 +292,7 @@ export async function assignOrCopyDocument(
       }));
 
       const { data: newV, error: newVError } = await createDocumentVersion(db, {
+          authorship: { kind: "copy", sourceVersionId: doc.current_version_id },
           document_id: copy.id,
           storage_path: newKey,
           pdf_storage_path: newPdfPath,

@@ -463,6 +463,7 @@ async function processCreatedDocument(
       : null;
 
   const { error: versionError } = await createDocumentVersion(db, {
+    authorship: { kind: "author", userId: session.user_id },
     id: versionId,
     document_id: documentId,
     storage_path: sourcePath,
@@ -560,6 +561,7 @@ async function processNewDocumentVersion(
       : null;
 
   const { data: version, error } = await createDocumentVersion(db, {
+    authorship: { kind: "author", userId: session.user_id },
     id: versionId,
     document_id: documentId,
     storage_path: sourcePath,
@@ -691,9 +693,10 @@ async function processReplacementDocumentVersion(
       created_at: new Date().toISOString(),
     },
     expectedHash ? {
+      actorUserId: session.user_id,
       expectedStoragePath: current.storage_path,
       expectedContentSha256: current.content_sha256 ?? null,
-    } : undefined,
+    } : { actorUserId: session.user_id },
   );
   if (!error && !updated && expectedHash)
     throw new ChangedDocumentError([sourcePath, ...(pdfPath ? [pdfPath] : [])]);

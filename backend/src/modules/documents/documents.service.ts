@@ -60,6 +60,7 @@ export { handleDocumentCleanup } from "./documents.cleanupJobs";
 export { copyDocumentVersionFiles } from "./documents.copyFiles";
 export { captureInlineDocumentCleanup, completeInlineDocumentCleanup } from "./documents.cleanupJobs";
 export { createDocumentVersions, activateDocumentVersion, updateDocumentVersion } from "./documents.lifecycle";
+export type { VersionAuthorship } from "./documents.lifecycle";
 
 export { runConversionJob, setDocumentTerminalStatus } from "./documents.conversion";
 

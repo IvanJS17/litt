@@ -265,6 +265,8 @@ export async function createVersionFromDocument(
     const { data: versionRow, error: verErr } = await createDocumentVersion(
         db,
         {
+            // The bytes are the source version's: its seal, not the actor's.
+            authorship: { kind: "copy", sourceVersionId: active.id },
             document_id: documentId,
             storage_path: key,
             pdf_storage_path: pdfStoragePath,

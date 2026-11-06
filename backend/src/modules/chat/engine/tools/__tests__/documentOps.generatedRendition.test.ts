@@ -76,6 +76,9 @@ function makeDb() {
           error: null,
         });
       },
+      maybeSingle() {
+        return Promise.resolve({ data: null, error: null });
+      },
       then(onF: (v: unknown) => unknown) {
         return Promise.resolve({ data: null, error: null }).then(onF);
       },

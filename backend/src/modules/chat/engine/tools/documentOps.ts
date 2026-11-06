@@ -985,6 +985,7 @@ async function persistGeneratedFile(params: {
   const documentId = docRow.id as string;
 
   const { data: versionRow, error: verErr } = await createDocumentVersion(db, {
+      authorship: { kind: "author", userId },
       document_id: documentId,
       storage_path: key,
       pdf_storage_path: pdfStoragePath,

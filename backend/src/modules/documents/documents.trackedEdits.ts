@@ -173,7 +173,7 @@ export async function applyTrackedEditsToDocument(params: {
       storage_path: newPath,
       file_type: "docx", size_bytes: editedBytes.byteLength, page_count: null,
       content_sha256: contentSha256(editedBytes), pdf_storage_path: null,
-    }, { expectedStoragePath: reuseVersion.storagePath });
+    }, { actorUserId: userId, expectedStoragePath: reuseVersion.storagePath });
     if (updated.error || !updated.data) {
       // A transport/database error may arrive after the update committed. Only
       // an acknowledged no-row result proves this new object is unreferenced;
@@ -207,6 +207,7 @@ export async function applyTrackedEditsToDocument(params: {
     versionFilename = inheritedFilename;
 
     const { data: versionRow, error: verErr } = await createDocumentVersion(db, {
+        authorship: { kind: "author", userId },
         document_id: documentId,
         storage_path: newPath,
         source: "assistant_edit",

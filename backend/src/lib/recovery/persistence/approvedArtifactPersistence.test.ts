@@ -107,6 +107,8 @@ function client(initial: unknown = null) {
     };
     delete (current as Record<string, unknown>).document_id;
     delete (current as Record<string, unknown>).document_version_id;
+    // The seal goes on the artifact's document version, not the export row.
+    delete (current as Record<string, unknown>).training_stage;
     return {
       data: {
         disposition: "applied",
@@ -135,6 +137,7 @@ function options(
     putIfAbsent: (...args: never[]) => Promise<"created" | "exists">;
     getStrict: (...args: never[]) => Promise<Uint8Array | null>;
   },
+  trainingStage: "pasante" | null = null,
 ) {
   return {
     client: db as never,
@@ -142,6 +145,7 @@ function options(
       actor_user_id: "reviewer",
       organization_id: "org",
       authorization_epoch: 1,
+      training_stage: trainingStage,
     },
     storage,
     revalidateBeforeUpload: vi.fn(async () => true),
@@ -273,6 +277,33 @@ describe("approved artifact persistence", () => {
     expect(storage.getStrict).toHaveBeenCalledTimes(3);
     expect(storage.putIfAbsent).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["pasante", { training_stage: "pasante" }],
+    [null, {}],
+  ] as const)(
+    "asks the RPC to seal the report only for a pasante reviewer (%s)",
+    async (stage, expected) => {
+      const objects = new Map<string, Uint8Array>();
+      const storage = {
+        putIfAbsent: vi.fn(async (key: string, value: Uint8Array) => {
+          objects.set(key, new Uint8Array(value));
+          return "created" as const;
+        }),
+        getStrict: vi.fn(async (key: string) => objects.get(key) ?? null),
+      };
+      const db = client();
+      await createApprovedArtifactPersistence(
+        options(db, storage, stage),
+      ).append(artifact);
+      const submitted = db.rpc.mock.calls[0]?.[1]?.p_artifact as Record<
+        string,
+        unknown
+      >;
+      if (stage) expect(submitted).toMatchObject(expected);
+      else expect(submitted).not.toHaveProperty("training_stage");
+    },
+  );
 
   it("retains a written object when the RPC outcome is unknown and reconciles after restart", async () => {
     const objects = new Map<string, Uint8Array>();

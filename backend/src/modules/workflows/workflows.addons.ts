@@ -308,6 +308,8 @@ export async function importWorkflowAddon(
       });
       if (documentError) throw documentError;
       const { error: versionError } = await createDocumentVersion(db, {
+          // Catalog material is nobody's draft: never sealed.
+          authorship: { kind: "catalog" },
           id: versionId,
           document_id: documentId,
           storage_path: sourcePath,
