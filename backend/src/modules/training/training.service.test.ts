@@ -1,10 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../lib/supabase";
+import { normalizePractice } from "../../lib/training";
 import { memoryDb, type Row } from "../../__tests__/helpers/memoryDb";
 
 // Roles and the organization's kind are read from the same in-memory rows.
 vi.mock("../../lib/access", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/access")>()),
+    // Project access: a member of the project's organization.
+    checkProjectAccess: vi.fn(async (projectId: string, userId: string, _email: unknown, db: Db) => {
+        const { data: project } = await db.from("projects").select("*").eq("id", projectId).maybeSingle();
+        const row = project as { id: string; org_id: string | null; private_to?: string } | null;
+        if (!row) return { ok: false };
+        if (row.private_to && row.private_to !== userId) return { ok: false };
+        const { data: member } = await db
+            .from("org_members").select("role").eq("org_id", row.org_id).eq("user_id", userId).maybeSingle();
+        return member ? { ok: true, project: row } : { ok: false };
+    }),
     getOrgRole: vi.fn(async (userId: string, orgId: string, db: Db) => {
         const { data } = await db
             .from("org_members")
@@ -155,12 +166,7 @@ describe("pupils", () => {
             {
                 action: "training.pupil_assigned",
                 orgId: ORG,
-                detail: {
-                    org_id: ORG,
-                    target_user_id: PUPIL,
-                    mentor_user_id: MENTOR,
-                    previous_mentor_user_id: null,
-                },
+                detail: { org_id: ORG, target_user_id: PUPIL },
             },
         ]);
     });
@@ -200,9 +206,10 @@ describe("pupils", () => {
         expect(rows("training_pupils")).toEqual([
             expect.objectContaining({ trainee_user_id: PUPIL, mentor_user_id: MENTOR2, assigned_by: ADMIN }),
         ]);
-        expect(audits.at(-1)).toMatchObject({
+        expect(audits.at(-1)).toEqual({
             action: "training.pupil_assigned",
-            detail: { previous_mentor_user_id: MENTOR, mentor_user_id: MENTOR2 },
+            orgId: ORG,
+            detail: { org_id: ORG, target_user_id: PUPIL },
         });
     });
 
@@ -210,11 +217,11 @@ describe("pupils", () => {
         withPupil();
         expect(await releasePupil(state.db, { ...as(MENTOR2), userId: PUPIL })).toMatchObject({
             ok: false,
-            kind: "forbidden",
+            kind: "not_found",
         });
         expect(await releasePupil(state.db, { ...as(PUPIL), userId: PUPIL })).toMatchObject({
             ok: false,
-            kind: "forbidden",
+            kind: "not_found",
         });
         expect(await releasePupil(state.db, { ...as(MENTOR), userId: PUPIL })).toEqual({ ok: true, data: null });
         expect(rows("training_pupils")).toEqual([]);
@@ -242,17 +249,25 @@ describe("stages", () => {
             [null, "pasante"],
         ]);
         expect(audits.map((a) => a.detail)).toEqual([
-            { org_id: ORG, target_user_id: PUPIL, practice: "laboral", stage: "pasante", previous_stage: null },
-            { org_id: ORG, target_user_id: PUPIL, practice: "laboral", stage: "junior", previous_stage: "pasante" },
-            { org_id: ORG, target_user_id: PUPIL, practice: null, stage: "pasante", previous_stage: null },
+            { org_id: ORG, target_user_id: PUPIL },
+            { org_id: ORG, target_user_id: PUPIL },
+            { org_id: ORG, target_user_id: PUPIL },
         ]);
     });
 
     it("refuses anybody but the current mentor, and an unknown stage", async () => {
-        for (const actor of [OWNER, ADMIN, MENTOR2, PUPIL])
+        for (const actor of [OWNER, ADMIN, PUPIL])
             expect(
                 await setStage(state.db, { ...as(actor), userId: PUPIL, practice: null, stage: "pasante" }),
             ).toMatchObject({ ok: false, kind: "forbidden" });
+        // Anybody else cannot tell this member is in training: same 404 as for a non-pupil.
+        const outsiderView = await setStage(state.db, { ...as(MENTOR2), userId: PUPIL, practice: null, stage: "pasante" });
+        const nonPupilView = await setStage(state.db, { ...as(MENTOR2), userId: MEMBER, practice: null, stage: "pasante" });
+        expect(outsiderView).toEqual(nonPupilView);
+        expect(outsiderView).toMatchObject({ ok: false, kind: "not_found" });
+        expect(await removeStage(state.db, { ...as(MENTOR2), userId: PUPIL, practice: null })).toEqual(
+            await removeStage(state.db, { ...as(MENTOR2), userId: MEMBER, practice: null }),
+        );
         expect(
             await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: null, stage: "socio" }),
         ).toMatchObject({ ok: false, kind: "validation" });
@@ -279,7 +294,7 @@ describe("stages", () => {
         expect(audits.at(-1)).toEqual({
             action: "training.stage_removed",
             orgId: ORG,
-            detail: { org_id: ORG, target_user_id: PUPIL, practice: "fiscal", stage: "junior" },
+            detail: { org_id: ORG, target_user_id: PUPIL },
         });
     });
 });
@@ -312,7 +327,7 @@ describe("reads", () => {
             ok: true,
             data: {
                 pupils: [{ user_id: PUPIL, stages: [{ practice: "laboral", stage: "pasante" }] }],
-                candidates: [OWNER, ADMIN, MENTOR2, MEMBER],
+                candidates: [MENTOR2, MEMBER],
             },
         });
         expect(await getMyPupils(state.db, as(ADMIN))).toMatchObject({ ok: false, kind: "forbidden" });
@@ -344,5 +359,170 @@ describe("reads", () => {
             ok: true,
             data: { stage: null },
         });
+    });
+});
+
+describe("authorization corrections", () => {
+    it("an owner or admin cannot move a pupil to themselves", async () => {
+        withPupil();
+        for (const actor of [OWNER, ADMIN]) {
+            rows("training_mentors").push({ org_id: ORG, user_id: actor });
+            expect(
+                await assignPupil(state.db, { ...as(actor), userId: PUPIL, mentorUserId: actor }),
+            ).toMatchObject({ ok: false, kind: "forbidden" });
+            expect(
+                await assignPupil(state.db, { ...as(actor), userId: PUPIL }),
+            ).toMatchObject({ ok: false, kind: "forbidden" });
+        }
+        expect(rows("training_pupils")[0]).toMatchObject({ mentor_user_id: MENTOR });
+        // Moving to somebody else still works, and so does taking a pupil who has no mentor.
+        expect(
+            await assignPupil(state.db, { ...as(ADMIN), userId: PUPIL, mentorUserId: MENTOR2 }),
+        ).toMatchObject({ ok: true });
+        expect(await assignPupil(state.db, { ...as(ADMIN), userId: MEMBER })).toMatchObject({ ok: true });
+    });
+
+    it("only members with the member role can be pupils, on taking and on moving", async () => {
+        for (const target of [OWNER, ADMIN])
+            expect(await assignPupil(state.db, { ...as(MENTOR), userId: target })).toMatchObject({
+                ok: false,
+                kind: "validation",
+            });
+        withPupil();
+        expect(
+            await assignPupil(state.db, { ...as(OWNER), userId: ADMIN, mentorUserId: MENTOR2 }),
+        ).toMatchObject({ ok: false, kind: "validation" });
+        expect(rows("training_pupils")).toHaveLength(1);
+        expect(audits).toEqual([]);
+        // Candidates are members only.
+        expect(await getMyPupils(state.db, as(MENTOR2))).toMatchObject({
+            ok: true,
+            data: { candidates: [MENTOR, MEMBER] },
+        });
+    });
+
+    it("a promoted pupil cannot release themselves, while their mentor still can", async () => {
+        withPupil();
+        state.tables.org_members.find((r) => r.user_id === PUPIL)!.role = "admin";
+        expect(await releasePupil(state.db, { ...as(PUPIL), userId: PUPIL })).toMatchObject({
+            ok: false,
+            kind: "not_found",
+        });
+        expect(await releasePupil(state.db, { ...as(MENTOR), userId: PUPIL })).toMatchObject({ ok: true });
+    });
+
+    it("every training audit event carries only org and affected user", async () => {
+        await designateMentor(state.db, { ...as(OWNER), userId: MEMBER });
+        await assignPupil(state.db, { ...as(MENTOR), userId: PUPIL });
+        await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: "Fiscal", stage: "pasante" });
+        await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: "Fiscal", stage: "junior" });
+        await removeStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: "fiscal" });
+        await assignPupil(state.db, { ...as(ADMIN), userId: PUPIL, mentorUserId: MENTOR2 });
+        await releasePupil(state.db, { ...as(ADMIN), userId: PUPIL });
+        await removeMentor(state.db, { ...as(OWNER), userId: MEMBER });
+        expect(audits.map((a) => a.action)).toEqual([
+            "training.mentor_designated",
+            "training.pupil_assigned",
+            "training.stage_set",
+            "training.stage_set",
+            "training.stage_removed",
+            "training.pupil_assigned",
+            "training.pupil_released",
+            "training.mentor_removed",
+        ]);
+        for (const event of audits) {
+            expect(Object.keys(event.detail as object).sort()).toEqual(["org_id", "target_user_id"]);
+            expect(JSON.stringify(event.detail)).not.toMatch(/pasante|junior|fiscal/);
+        }
+    });
+});
+
+describe("practice validation", () => {
+    beforeEach(withPupil);
+
+    it("a blank practice is a 400, never 'all practice areas'", async () => {
+        for (const practice of ["", "   ", "\t", "\u00a0 \u00a0", "\n"]) {
+            expect(
+                await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice, stage: "pasante" }),
+            ).toMatchObject({ ok: false, kind: "validation" });
+            expect(await removeStage(state.db, { ...as(MENTOR), userId: PUPIL, practice })).toMatchObject({
+                ok: false,
+                kind: "validation",
+            });
+        }
+        expect(rows("training_stages")).toEqual([]);
+        // Absent or null still means every practice area.
+        expect(
+            await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: null, stage: "pasante" }),
+        ).toMatchObject({ ok: true, data: { practice: null } });
+    });
+
+    it("rejects control characters and labels that lowercase differently in SQL", async () => {
+        for (const practice of ["lab\u0000oral", "lab\u0007oral", "İstanbul"])
+            expect(
+                await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice, stage: "pasante" }),
+            ).toMatchObject({ ok: false, kind: "validation" });
+    });
+
+    it("stores and resolves with the same normalization", async () => {
+        const cases: [string, string][] = [
+            ["LABORAL", "laboral"],
+            ["  Laboral  ", "laboral"],
+            ["Derecho   Civil", "derecho civil"],
+            ["Derecho\tCivil", "derecho civil"],
+            ["\u00a0Derecho\u00a0Civil\u00a0", "derecho civil"],
+            ["Propiedad Intelectual", "propiedad intelectual"],
+            ["Penal ÁÉ", "penal áé"],
+            ["PENAL AE", "penal ae"],
+        ];
+        for (const [input, expected] of cases) {
+            expect(normalizePractice(input)).toBe(expected);
+            expect(normalizePractice(expected)).toBe(expected); // idempotent: a fixed point
+            // What the service stores is what lower(btrim(...)) leaves untouched.
+            expect(expected).toBe(expected.trim().toLowerCase());
+        }
+        // Accents are kept as typed: these are different practice areas.
+        expect(normalizePractice("penal áé")).not.toBe(normalizePractice("penal ae"));
+        expect(normalizePractice("   ")).toBeNull();
+
+        // Set through the service with one spelling, resolved from a project spelled another way.
+        await setStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: "Derecho\tCivil", stage: "pasante" });
+        expect(rows("training_stages")[0].practice).toBe("derecho civil");
+        for (const spelling of ["DERECHO CIVIL", " derecho   civil ", "Derecho\u00a0Civil"]) {
+            state.tables.projects[0].practice = spelling;
+            expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
+                ok: true,
+                data: { stage: "pasante" },
+            });
+        }
+        state.tables.projects[0].practice = "Derecho Civil Y Mercantil";
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
+            ok: true,
+            data: { stage: null },
+        });
+        // Removing uses the same normalization.
+        expect(
+            await removeStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: " DERECHO\u00a0civil " }),
+        ).toMatchObject({ ok: true });
+    });
+});
+
+describe("GET /training/stage project access", () => {
+    beforeEach(() => {
+        withPupil();
+        rows("training_stages").push({ org_id: ORG, trainee_user_id: PUPIL, practice: "laboral", stage: "pasante" });
+    });
+
+    it("answers 404 for a project the caller cannot open, and for a malformed or missing one", async () => {
+        const secret = id(201);
+        rows("projects").push({ id: secret, org_id: ORG, practice: "Fiscal", private_to: OWNER });
+        for (const projectId of [secret, id(999), "not-a-uuid"])
+            expect(
+                await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId }),
+            ).toMatchObject({ ok: false, kind: "not_found" });
+        // Somebody outside the organization gets the same answer for a real project.
+        expect(
+            await getEffectiveTrainingStage(state.db, { userId: OUTSIDER, projectId: PROJECT }),
+        ).toMatchObject({ ok: false, kind: "not_found" });
     });
 });

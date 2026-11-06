@@ -17,7 +17,9 @@
 //                                      an owner or admin sees who mentors
 //                                      whom, never the stages
 //
-// Each change writes one insert-only audit event, with ids and labels only.
+// Each change writes one insert-only audit event: the action, the
+// organization, the actor and the affected user. Never the stage, the practice
+// area or the mentor: those are learning data (docs/training.md).
 
 import type {
     TrainingMembership,
@@ -26,7 +28,7 @@ import type {
     TrainingStage,
     TrainingStageEntry,
 } from "@mike/contracts";
-import { getOrgRole, isOrgAdmin, type OrgRole } from "../../lib/access";
+import { checkProjectAccess, getOrgRole, isOrgAdmin, type OrgRole } from "../../lib/access";
 import { recordAudit } from "../../lib/audit";
 import { isPersonalOrg } from "../../lib/personalOrgs";
 import {
@@ -37,6 +39,7 @@ import {
 } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import {
+    isStorablePractice,
     isTrainingStage,
     normalizePractice,
     resolveTrainingStage,
@@ -92,7 +95,7 @@ function audit(
     db: Db,
     actor: Actor,
     action: string,
-    detail: Record<string, unknown>,
+    affectedUserId: string,
 ): Promise<void> {
     return recordAudit(db, {
         userId: actor.actorId,
@@ -100,7 +103,7 @@ function audit(
         orgId: actor.orgId,
         action,
         surface: "organization",
-        detail: { org_id: actor.orgId, ...detail },
+        detail: { org_id: actor.orgId, target_user_id: affectedUserId },
     });
 }
 
@@ -154,21 +157,31 @@ export async function getMyTraining(
  */
 export async function getEffectiveTrainingStage(
     db: Db,
-    args: { userId: string; orgId?: unknown; projectId?: unknown; surface?: unknown },
+    args: {
+        userId: string;
+        userEmail?: string | null;
+        orgId?: unknown;
+        projectId?: unknown;
+        surface?: unknown;
+    },
 ): Promise<ServiceResult<{ stage: TrainingStage | null }>> {
     let scope: TrainingScope;
     if (args.surface === "word") scope = { anyOrganization: true };
     else {
         const orgId = readUserId(args.orgId);
         const projectId = readUserId(args.projectId);
-        if (projectId) {
-            const { data, error } = await db
-                .from("projects")
-                .select("org_id")
-                .eq("id", projectId)
-                .maybeSingle();
-            if (error) return internalFailure(error);
-            scope = { orgId: (data as { org_id?: string | null } | null)?.org_id ?? null, projectId };
+        if (args.projectId !== undefined && args.projectId !== null && args.projectId !== "") {
+            // The project decides the organization, and only somebody who
+            // can open it learns anything about it.
+            if (!projectId) return failure("not_found", "Project not found");
+            let access;
+            try {
+                access = await checkProjectAccess(projectId, args.userId, args.userEmail, db);
+            } catch (error) {
+                return internalFailure(error);
+            }
+            if (!access.ok) return failure("not_found", "Project not found");
+            scope = { orgId: access.project.org_id ?? null, projectId };
         } else scope = { orgId };
     }
     try {
@@ -218,7 +231,7 @@ export async function getMyPupils(
             .select("trainee_user_id")
             .eq("org_id", actor.orgId)
             .eq("mentor_user_id", actor.actorId),
-        db.from("org_members").select("user_id").eq("org_id", actor.orgId),
+        db.from("org_members").select("user_id, role").eq("org_id", actor.orgId),
         db.from("training_pupils").select("trainee_user_id").eq("org_id", actor.orgId),
     ]);
     const error = pupils.error ?? members.error ?? assigned.error;
@@ -242,7 +255,8 @@ export async function getMyPupils(
     );
     return ok({
         pupils: pupilIds.map((id) => ({ user_id: id, stages: stagesByPupil.get(id) ?? [] })),
-        candidates: ((members.data ?? []) as { user_id: string }[])
+        candidates: ((members.data ?? []) as { user_id: string; role: string }[])
+            .filter((row) => row.role === "member")
             .map((row) => row.user_id)
             .filter((id) => id !== actor.actorId && !taken.has(id)),
     });
@@ -276,7 +290,7 @@ export async function designateMentor(
         if (error.code === "23505") return ok({ user_id: userId });
         return internalFailure(error);
     }
-    await audit(db, actor, "training.mentor_designated", { target_user_id: userId });
+    await audit(db, actor, "training.mentor_designated", userId);
     return ok({ user_id: userId });
 }
 
@@ -310,7 +324,7 @@ export async function removeMentor(
         return internalFailure(error);
     }
     if ((data ?? []).length === 0) return failure("not_found", "Mentor not found");
-    await audit(db, actor, "training.mentor_removed", { target_user_id: actor.userId });
+    await audit(db, actor, "training.mentor_removed", actor.userId);
     return ok(null);
 }
 
@@ -355,13 +369,19 @@ export async function assignPupil(
         return mentorId === actor.actorId
             ? failure("forbidden", "Only a mentor can do that.")
             : failure("validation", "Choose a mentor of this organization.");
-    if (!(await getOrgRole(traineeId, actor.orgId, db)))
-        return failure("validation", "Choose a member of this organization.");
+    const traineeRole = await getOrgRole(traineeId, actor.orgId, db);
+    if (!traineeRole) return failure("validation", "Choose a member of this organization.");
+    // Only a plain member can be a pupil, never an owner or an admin.
+    if (traineeRole !== "member")
+        return failure("validation", "Only members with the member role can be pupils.");
 
     const current = await loadPupil(db, actor.orgId, traineeId);
     if (!current.ok) return current;
     if (current.data) {
         if (current.data.mentor_user_id === mentorId) return ok(current.data);
+        // A reassignment never lands on whoever makes it.
+        if (admin && mentorId === actor.actorId)
+            return failure("forbidden", "You cannot move a pupil to yourself.");
         if (!admin)
             return failure(
                 "conflict",
@@ -395,11 +415,7 @@ export async function assignPupil(
             return internalFailure(error);
         }
     }
-    await audit(db, actor, "training.pupil_assigned", {
-        target_user_id: traineeId,
-        mentor_user_id: mentorId,
-        previous_mentor_user_id: current.data?.mentor_user_id ?? null,
-    });
+    await audit(db, actor, "training.pupil_assigned", traineeId);
     return ok({ trainee_user_id: traineeId, mentor_user_id: mentorId });
 }
 
@@ -413,22 +429,21 @@ export async function releasePupil(
     if (!isUuid(actor.userId)) return failure("not_found", "Pupil not found");
     const current = await loadPupil(db, actor.orgId, actor.userId);
     if (!current.ok) return current;
-    const mine = current.data?.mentor_user_id === actor.actorId;
-    if (!mine && !isOrgAdmin(role.data))
-        return current.data
-            ? failure("forbidden", "Only their mentor or an organization owner or admin can do that.")
-            : failure("not_found", "Pupil not found");
     if (!current.data) return failure("not_found", "Pupil not found");
+    const mine = current.data.mentor_user_id === actor.actorId;
+    // An owner or admin never releases themselves (a pupil promoted after
+    // being taken keeps no way out of their own training).
+    const admin = isOrgAdmin(role.data) && actor.userId !== actor.actorId;
+    // Anybody else gets the same 404 as for a member who is not a pupil:
+    // who is in training is not theirs to learn.
+    if (!mine && !admin) return failure("not_found", "Pupil not found");
     const { error } = await db
         .from("training_pupils")
         .delete()
         .eq("org_id", actor.orgId)
         .eq("trainee_user_id", actor.userId);
     if (error) return internalFailure(error);
-    await audit(db, actor, "training.pupil_released", {
-        target_user_id: actor.userId,
-        mentor_user_id: current.data.mentor_user_id,
-    });
+    await audit(db, actor, "training.pupil_released", actor.userId);
     return ok(null);
 }
 
@@ -436,12 +451,18 @@ export async function releasePupil(
 // Stages
 // ---------------------------------------------------------------------------
 
+/**
+ * The practice area of a request. Absent or null means every practice area;
+ * anything else must be a real label: blank is a 400, never "all".
+ */
 function readPractice(value: unknown): ServiceResult<string | null> {
-    if (value === undefined || value === null || value === "") return ok(null);
+    if (value === undefined || value === null) return ok(null);
     if (typeof value !== "string") return failure("validation", "Choose a practice area.");
     const practice = normalizePractice(value);
-    if (practice && practice.length > TRAINING_PRACTICE_MAX_CHARS)
+    if (!practice) return failure("validation", "Choose a practice area.");
+    if (practice.length > TRAINING_PRACTICE_MAX_CHARS)
         return failure("validation", "That practice area name is too long.");
+    if (!isStorablePractice(value)) return failure("validation", "Choose a practice area.");
     return ok(practice);
 }
 
@@ -456,8 +477,14 @@ async function requireCurrentMentor(
     const current = await loadPupil(db, actor.orgId, actor.userId);
     if (!current.ok) return current;
     if (!current.data) return failure("not_found", "Pupil not found");
-    if (current.data.mentor_user_id !== actor.actorId)
-        return failure("forbidden", "Only the pupil's mentor can do that.");
+    if (current.data.mentor_user_id !== actor.actorId) {
+        // Only the pupil and the organization's owners and admins may learn
+        // that this member is in training; to everybody else it is a 404.
+        const knows = actor.actorId === actor.userId || isOrgAdmin(role.data);
+        return knows
+            ? failure("forbidden", "Only the pupil's mentor can do that.")
+            : failure("not_found", "Pupil not found");
+    }
     return ok(null);
 }
 
@@ -498,14 +525,10 @@ export async function setStage(
     if (error) {
         if (error.code === "23505")
             return failure("conflict", "The stage changed meanwhile. Try again.");
+        if (error.code === "23514") return failure("validation", "Choose a practice area.");
         return internalFailure(error);
     }
-    await audit(db, actor, "training.stage_set", {
-        target_user_id: actor.userId,
-        practice: practice.data,
-        stage,
-        previous_stage: previous?.stage ?? null,
-    });
+    await audit(db, actor, "training.stage_set", actor.userId);
     return ok({ practice: practice.data, stage });
 }
 
@@ -527,10 +550,6 @@ export async function removeStage(
     if (error) return internalFailure(error);
     const removed = (data ?? []) as { stage: string }[];
     if (removed.length === 0) return failure("not_found", "Stage not found");
-    await audit(db, actor, "training.stage_removed", {
-        target_user_id: actor.userId,
-        practice: practice.data,
-        stage: removed[0].stage,
-    });
+    await audit(db, actor, "training.stage_removed", actor.userId);
     return ok(null);
 }

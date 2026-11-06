@@ -28,11 +28,32 @@ export function isTrainingStage(value: unknown): value is TrainingStage {
     return value === "pasante" || value === "junior";
 }
 
-/** A practice area as stored and compared: lower(btrim(practice)), or null. */
+/**
+ * A practice area as stored and compared, and the only place it is
+ * normalized: every run of whitespace (spaces, tabs, line breaks, NBSP, any
+ * Unicode space) becomes one space, the ends are trimmed and the text is
+ * lowercased; accents stay as typed. The result is also a fixed point of
+ * SQL's lower(btrim(...)), which the column check requires. Blank or
+ * non-string input gives null.
+ */
 export function normalizePractice(value: unknown): string | null {
     if (typeof value !== "string") return null;
-    const normalized = value.trim().toLowerCase();
+    const normalized = value.replace(/[\s\u00a0\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+/gu, " ").trim().toLowerCase();
     return normalized ? normalized : null;
+}
+
+/**
+ * Whether a practice label, as typed, may be stored: no control characters
+ * (whitespace such as a tab is normalized away instead), and no
+ * character whose lowercase form is more than one character (e.g. "İ"),
+ * where JS and PostgreSQL lowercase differently.
+ */
+export function isStorablePractice(value: string): boolean {
+    for (const char of value) {
+        if (/\p{Cc}/u.test(char) && !/\s/u.test(char)) return false;
+        if ([...char.toLowerCase()].length !== 1) return false;
+    }
+    return true;
 }
 
 export type TrainingStageRow = { practice: string | null; stage: string };
