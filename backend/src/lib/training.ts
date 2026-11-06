@@ -17,7 +17,7 @@ export const TRAINING_STAGES: readonly TrainingStage[] = ["pasante", "junior"];
 
 /** The shortest attempt a pasante may send, after trimming. */
 export const TRAINING_ATTEMPT_MIN_CHARS = 60;
-/** The longest attempt kept with a message (matches the column check). */
+/** The longest attempt kept in a note (matches the column check). */
 export const TRAINING_ATTEMPT_MAX_CHARS = 4000;
 /** The longest practice-area label (matches the column check). */
 export const TRAINING_PRACTICE_MAX_CHARS = 200;
@@ -56,35 +56,25 @@ export function pickEffectiveStage(
 
 /**
  * Where a turn happens. `orgId` null is the personal space, where nobody has
- * a stage. `anyOrganization` is the Word add-in, whose chats belong to no
- * organization or project: there only a stage that covers every practice
- * area applies, from whichever organization the person holds it in, with
- * `pasante` taking precedence over `junior`.
+ * a stage. (Word has no organization or project: see resolveWordTrainingStage.)
  */
 export type TrainingScope =
     | { orgId: string | null; projectId?: string | null }
+    // Word: see resolveWordTrainingStage. Kept so GET /training/stage answers
+    // with the very rule the Word turn applies.
     | { anyOrganization: true };
 
 /**
- * The one resolver of a person's effective stage. A read failure throws:
- * answering "no stage" would let a pasante's turn skip what it requires.
+ * The one resolver of a person's effective stage in an organization and,
+ * optionally, a project. A read failure throws: answering "no stage" would let
+ * a pasante's turn skip what it requires.
  */
 export async function resolveTrainingStage(
     db: Db,
     userId: string,
     scope: TrainingScope,
 ): Promise<TrainingStage | null> {
-    if ("anyOrganization" in scope) {
-        const { data, error } = await db
-            .from("training_stages")
-            .select("stage")
-            .eq("trainee_user_id", userId)
-            .is("practice", null);
-        if (error) throw readFailure(error);
-        const stages = ((data ?? []) as { stage: string }[]).map((row) => row.stage);
-        if (stages.includes("pasante")) return "pasante";
-        return stages.includes("junior") ? "junior" : null;
-    }
+    if ("anyOrganization" in scope) return (await resolveWordTrainingStage(db, userId)).stage;
     if (!scope.orgId) return null;
     const { data, error } = await db
         .from("training_stages")
@@ -98,6 +88,49 @@ export async function resolveTrainingStage(
         ? await projectPractice(db, scope.projectId)
         : null;
     return pickEffectiveStage(rows, practice);
+}
+
+export type WordTrainingStage = { stage: TrainingStage | null; orgId: string | null };
+
+/**
+ * The stage that applies to a Word turn. A Word chat has no project or
+ * practice area, so only the stage that covers every practice area
+ * (`practice` null) can apply, and the person may hold one in several
+ * organizations: the most junior wins (`pasante` before `junior`), so Word is
+ * no shortcut around the requirement. Deleted organizations do not count.
+ * `orgId` is the organization whose stage was applied; a note about the turn
+ * belongs to it. Ties between organizations go to the lowest org id, so the
+ * answer is stable. A read failure throws, as in resolveTrainingStage.
+ */
+export async function resolveWordTrainingStage(
+    db: Db,
+    userId: string,
+): Promise<WordTrainingStage> {
+    const { data, error } = await db
+        .from("training_stages")
+        .select("org_id, stage")
+        .eq("trainee_user_id", userId)
+        .is("practice", null);
+    if (error) throw readFailure(error);
+    const rows = (data ?? []) as { org_id: string; stage: string }[];
+    if (rows.length === 0) return { stage: null, orgId: null };
+    const { data: orgs, error: orgError } = await db
+        .from("organizations")
+        .select("id")
+        .in("id", rows.map((row) => row.org_id))
+        .eq("kind", "team")
+        .is("deleted_at", null);
+    if (orgError) throw readFailure(orgError);
+    const active = new Set(((orgs ?? []) as { id: string }[]).map((org) => org.id));
+    const live = rows
+        .filter((row) => active.has(row.org_id) && isTrainingStage(row.stage))
+        .sort((a, b) => (a.org_id < b.org_id ? -1 : a.org_id > b.org_id ? 1 : 0));
+    const pick =
+        live.find((row) => row.stage === "pasante") ??
+        live.find((row) => row.stage === "junior");
+    return pick
+        ? { stage: pick.stage as TrainingStage, orgId: pick.org_id }
+        : { stage: null, orgId: null };
 }
 
 /** The project's practice area, or failing that its linked matter's. */
@@ -123,6 +156,8 @@ function readFailure(cause: unknown): AppError {
     return new AppError("db.query_failed", "Failed to read the training stage", { cause });
 }
 
+export const TRAINING_ATTEMPT_TOO_LONG_DETAIL = `Tu planteamiento es demasiado largo (máximo ${TRAINING_ATTEMPT_MAX_CHARS} caracteres).`;
+
 export type TrainingTurnCheck =
     | { ok: true; attempt: string | null }
     | { ok: false; status: 400; code: typeof TRAINING_ATTEMPT_REQUIRED_CODE; detail: string };
@@ -130,6 +165,7 @@ export type TrainingTurnCheck =
 /**
  * What a user turn needs given the author's effective stage. A pasante's
  * turn carries their own attempt first; anybody else's `attempt` is ignored.
+ * Length counts characters (code points), the way the column check does.
  */
 export function checkTrainingTurn(
     stage: TrainingStage | null,
@@ -137,7 +173,15 @@ export function checkTrainingTurn(
 ): TrainingTurnCheck {
     if (stage !== "pasante") return { ok: true, attempt: null };
     const text = typeof attempt === "string" ? attempt.trim() : "";
-    if (text.length < TRAINING_ATTEMPT_MIN_CHARS || text.length > TRAINING_ATTEMPT_MAX_CHARS)
+    const length = [...text].length;
+    if (length > TRAINING_ATTEMPT_MAX_CHARS)
+        return {
+            ok: false,
+            status: 400,
+            code: TRAINING_ATTEMPT_REQUIRED_CODE,
+            detail: TRAINING_ATTEMPT_TOO_LONG_DETAIL,
+        };
+    if (length < TRAINING_ATTEMPT_MIN_CHARS)
         return {
             ok: false,
             status: 400,

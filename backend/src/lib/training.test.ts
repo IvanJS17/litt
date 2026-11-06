@@ -5,6 +5,7 @@ import {
     normalizePractice,
     pickEffectiveStage,
     resolveTrainingStage,
+    resolveWordTrainingStage,
 } from "./training";
 
 const ORG = "00000000-0000-4000-8000-000000000010";
@@ -47,6 +48,10 @@ describe("resolveTrainingStage", () => {
                 { org_id: ORG, trainee_user_id: USER, practice: null, stage: "junior" },
                 { org_id: OTHER_ORG, trainee_user_id: USER, practice: null, stage: "pasante" },
             ],
+            organizations: [
+                { id: ORG, kind: "team", deleted_at: null },
+                { id: OTHER_ORG, kind: "team", deleted_at: null },
+            ],
             projects: [{ id: PROJECT, practice: null }],
             matters: [{ project_id: PROJECT, practice: " Laboral" }],
         });
@@ -75,7 +80,7 @@ describe("resolveTrainingStage", () => {
         ).toBeNull();
     });
 
-    it("in the Word add-in, takes a general pasante stage from any organization", async () => {
+    it("resolves the Word stage through resolveWordTrainingStage", async () => {
         const { db } = setup();
         expect(await resolveTrainingStage(db, USER, { anyOrganization: true })).toBe("pasante");
     });
@@ -84,6 +89,73 @@ describe("resolveTrainingStage", () => {
         const { db, failNext } = setup();
         failNext("training_stages", "select", { message: "down" });
         await expect(resolveTrainingStage(db, USER, { orgId: ORG })).rejects.toThrow();
+    });
+});
+
+describe("resolveWordTrainingStage", () => {
+    const THIRD_ORG = "00000000-0000-4000-8000-000000000012";
+    const stage = (org_id: string, stage: string, practice: string | null = null) => ({
+        org_id,
+        trainee_user_id: USER,
+        practice,
+        stage,
+    });
+    const orgs = (...rows: { id: string; deleted_at?: string | null; kind?: string }[]) =>
+        rows.map((r) => ({ kind: "team", deleted_at: null, ...r }));
+
+    it("is none without any general stage, even with a stage in one practice area", async () => {
+        const { db } = memoryDb({
+            training_stages: [stage(ORG, "pasante", "laboral")],
+            organizations: orgs({ id: ORG }),
+        });
+        expect(await resolveWordTrainingStage(db, USER)).toEqual({ stage: null, orgId: null });
+    });
+
+    it("lets a pasante in one organization win over a junior in another", async () => {
+        const { db } = memoryDb({
+            training_stages: [stage(ORG, "junior"), stage(OTHER_ORG, "pasante")],
+            organizations: orgs({ id: ORG }, { id: OTHER_ORG }),
+        });
+        expect(await resolveWordTrainingStage(db, USER)).toEqual({
+            stage: "pasante",
+            orgId: OTHER_ORG,
+        });
+    });
+
+    it("falls to junior when that is the most junior general stage", async () => {
+        const { db } = memoryDb({
+            training_stages: [stage(OTHER_ORG, "junior")],
+            organizations: orgs({ id: OTHER_ORG }),
+        });
+        expect(await resolveWordTrainingStage(db, USER)).toEqual({
+            stage: "junior",
+            orgId: OTHER_ORG,
+        });
+    });
+
+    it("excludes deleted organizations and a stage in an unknown one", async () => {
+        const { db } = memoryDb({
+            training_stages: [stage(ORG, "pasante"), stage(OTHER_ORG, "junior"), stage(THIRD_ORG, "pasante")],
+            organizations: orgs({ id: ORG, deleted_at: "2026-11-01T00:00:00Z" }, { id: OTHER_ORG }),
+        });
+        expect(await resolveWordTrainingStage(db, USER)).toEqual({
+            stage: "junior",
+            orgId: OTHER_ORG,
+        });
+    });
+
+    it("breaks ties between organizations by the lowest id", async () => {
+        const { db } = memoryDb({
+            training_stages: [stage(OTHER_ORG, "pasante"), stage(ORG, "pasante")],
+            organizations: orgs({ id: ORG }, { id: OTHER_ORG }),
+        });
+        expect((await resolveWordTrainingStage(db, USER)).orgId).toBe(ORG);
+    });
+
+    it("fails instead of answering none when the stages cannot be read", async () => {
+        const { db, failNext } = memoryDb({ training_stages: [], organizations: [] });
+        failNext("training_stages", "select", { message: "down" });
+        await expect(resolveWordTrainingStage(db, USER)).rejects.toThrow();
     });
 });
 
@@ -97,6 +169,17 @@ describe("checkTrainingTurn", () => {
         });
         expect(checkTrainingTurn("pasante", `   ${"x".repeat(59)}   `)).toMatchObject({ ok: false });
         expect(checkTrainingTurn("pasante", ` ${sixty} `)).toEqual({ ok: true, attempt: sixty });
+    });
+    it("answers an attempt over 4000 characters with its own message", () => {
+        const tooLong = checkTrainingTurn("pasante", "x".repeat(4001));
+        expect(tooLong).toMatchObject({ ok: false, status: 400, code: "training_attempt_required" });
+        expect((tooLong as { detail: string }).detail).toContain("demasiado largo");
+        expect((tooLong as { detail: string }).detail).not.toContain("mínimo");
+        expect(checkTrainingTurn("pasante", "x".repeat(4000))).toMatchObject({ ok: true });
+    });
+    it("counts characters, not UTF-16 units", () => {
+        expect(checkTrainingTurn("pasante", "😀".repeat(59))).toMatchObject({ ok: false });
+        expect(checkTrainingTurn("pasante", "😀".repeat(60))).toMatchObject({ ok: true });
     });
     it("ignores the attempt of a junior or a lawyer", () => {
         expect(checkTrainingTurn("junior", sixty)).toEqual({ ok: true, attempt: null });
