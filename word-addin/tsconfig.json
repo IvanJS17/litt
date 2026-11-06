@@ -79,6 +79,9 @@
       "@mike/mike-icon-ui": [
         "../frontend/src/shared/ui/MikeIconUI.tsx"
       ],
+      "@mike/litt-brand-ui": [
+        "../frontend/src/shared/ui/LittBrandUI.tsx"
+      ],
       "@mike/google-icon-ui": [
         "../frontend/src/shared/ui/GoogleIconUI.tsx"
       ],

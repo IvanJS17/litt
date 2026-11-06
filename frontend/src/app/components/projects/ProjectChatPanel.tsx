@@ -47,7 +47,7 @@ import {
     getModelProvider,
     providerLabel,
 } from "@/app/lib/modelAvailability";
-import { MikeIcon } from "@/shared/ui/MikeIconUI";
+import { LittMonogramPixel } from "@/shared/ui/LittBrandUI";
 import type {
     Chat,
     Citation,
@@ -61,7 +61,8 @@ import { cn } from "@/app/lib/utils";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import type { MessageExcerpt } from "@/shared/lib/messageExcerpts";
 
-const ICON_SIZE = 28;
+// The «L.» pixel monogram at one of its native sizes; it is never scaled.
+const ICON_SIZE = 32;
 const GAP = 14;
 const DEFAULT_ASSISTANT_BOTTOM_PADDING = 116;
 const ASSISTANT_HEADER_HEIGHT = 48;
@@ -100,7 +101,7 @@ function AssistantGreeting({ username }: { username: string }) {
                             "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                     }}
                 >
-                    <MikeIcon size={ICON_SIZE} />
+                    <LittMonogramPixel size={ICON_SIZE} decorative />
                 </div>
                 <h1
                     ref={textRef}

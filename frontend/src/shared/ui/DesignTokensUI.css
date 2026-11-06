@@ -66,6 +66,16 @@
 }
 
 :root {
+    /* LiTT brand palette, v1.0 (docs/brand/DESIGN.md). The two ambers are
+       never interchangeable: ámbar fósforo goes only on tinta, ámbar tinta
+       only on papel or white. */
+    --litt-tinta: #151a26;
+    --litt-papel: #ecece6;
+    --litt-ambar-fosforo: #ffb21e;
+    --litt-ambar-tinta: #965900;
+    /* Colors of the wordmark and monogram (LittBrandUI.tsx) in this theme. */
+    --litt-mark-ink: var(--litt-tinta);
+    --litt-mark-accent: var(--litt-ambar-tinta);
     --radius: 0.625rem;
     --app-background: #f9fafb;
     --app-surface: #fdfdfe;
@@ -108,6 +118,8 @@
 
 .dark {
     color-scheme: dark;
+    --litt-mark-ink: var(--litt-papel);
+    --litt-mark-accent: var(--litt-ambar-fosforo);
     --app-background: #0b0f14;
     --app-surface: #131922;
     --app-surface-hover: #19212c;

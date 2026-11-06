@@ -6,7 +6,7 @@ import quickActionsIcon from "../../../../public/icons/features/quick-actions.sv
 import { MoreHorizontal } from "lucide-react";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
-import { MikeIcon } from "@/shared/ui/MikeIconUI";
+import { LittMonogramPixel } from "@/shared/ui/LittBrandUI";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { Document, Message, QuickAction } from "../shared/types";
 import {
@@ -22,7 +22,8 @@ interface InitialViewProps {
     onEditQuickActions: () => void;
 }
 
-const ICON_SIZE = 30;
+// The «L.» pixel monogram at one of its native sizes; it is never scaled.
+const ICON_SIZE = 32;
 const GAP = 12; // gap-4 = 1rem = 16px
 export function InitialView({
     onSubmit,
@@ -83,7 +84,7 @@ export function InitialView({
             <div className="flex min-h-0 items-end justify-center pb-6">
                 <div className="relative h-10 w-full max-w-4xl px-0 xl:px-8">
                     <div
-                        className="absolute h-[30px] w-[30px]"
+                        className="absolute h-8 w-8"
                         style={{
                             left: "50%",
                             top: "50%",
@@ -94,7 +95,7 @@ export function InitialView({
                                 "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                         }}
                     >
-                        <MikeIcon size={ICON_SIZE} />
+                        <LittMonogramPixel size={ICON_SIZE} decorative />
                     </div>
                     <h1
                         ref={textRef}
