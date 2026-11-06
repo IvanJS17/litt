@@ -141,7 +141,10 @@ grep -rnE '(blue|indigo|violet|purple|sky|cyan)-[0-9]{2,3}' frontend/src word-ad
 
 The only exceptions are third-party marks drawn in their owners' colors (file
 types, AI providers, Google), which stay as their owners publish them. The
-`slate` family, a blue-grey, is replaced by the tinta-derived `gray` scale.
+`slate` family, a blue-grey, is replaced by the tinta-derived `gray` scale,
+and so are Tailwind's stock cool greys: the shading inside LiTT's own SVG
+icons and the `MikeIconUI` white variant sit on the tinta→papel neutral of
+the same luminance, with no exception.
 The `blue` tone of `PillButtonUI` and the `"blue"` modal variant keep their
 names for API stability and render the interactive tokens.
 
@@ -242,22 +245,40 @@ The standard shadcn set is present and wired through `@theme inline`:
 Use these when you pull a component from the shadcn registry, or when you want
 the meaning ("this is the destructive action") rather than a specific color.
 
-### Blue is overridden
+The chart series are not brand colors either: `chart-1` is the interactive
+neutral (tinta on light, papel on dark) and `chart-2`…`chart-5` take the
+categorical hues below (teal or emerald, rose, lime, stone), so no shadcn
+default indigo, purple or amber survives in them.
 
-`@theme inline` redefines part of Tailwind's blue scale to Mike's azure:
+### Primary actions use the interactive tokens
 
-```css
---color-blue:     rgb(0, 136, 255);
---color-blue-50:  rgba(0, 136, 255, 0.05);
---color-blue-100: rgba(0, 136, 255, 0.1);
---color-blue-200: rgba(0, 136, 255, 0.3);
---color-blue-600: rgb(0, 136, 255);
---color-blue-700: rgb(0, 120, 230);
-```
+There is no brand blue and no `--color-*` override of a Tailwind hue. A
+primary action, selection or action link uses the semantic interactive
+tokens listed under [Marca LiTT v1.0](#marca-litt-v10) (`bg-interactive`,
+`text-interactive-foreground`, `bg-interactive-soft-strong`…), and keyboard
+focus uses `ring-focus`.
 
-`bg-blue-600` is therefore Mike azure, not Tailwind blue. `blue-300`, `-400`,
-`-500`, `-800` and `-900` are *not* overridden, so the scale is discontinuous —
-stay on the overridden steps for brand blue.
+### Categorical palettes
+
+Categorical color tells items apart; it never carries brand or state. Every
+categorical palette draws from these Tailwind families and steps only, with
+no blue family and no amber:
+
+| Family | Steps used | Where |
+| --- | --- | --- |
+| stone | 100–600 (`#f5f5f4` … `#57534e`) | `MikeIconUI` tint, chart series 5 |
+| teal | 100–600 (`#ccfbf1` … `#0d9488`) | `MikeIconUI` tint, chart series 2 (light) |
+| rose | 100–600 (`#ffe4e6` … `#e11d48`) | `MikeIconUI` tint, chart series 3 |
+| lime | 100–600 (`#ecfccb` … `#65a30d`) | `MikeIconUI` tint, chart series 4 |
+| pink | 100–600 (`#fce7f3` … `#db2777`) | `MikeIconUI` tint |
+| emerald | 100–600 (`#d1fae5` … `#059669`) | `MikeIconUI` tint, chart series 2 (dark) |
+
+`MikeIconUI` (the animated response-status glyph) builds each tint from those
+six steps, in the order `stone, teal, rose, lime, pink, emerald`
+(`MIKE_ICON_TINTS`). Its white variant for dark surfaces is shaded with the
+tinta-papel gray ramp. Tags, currencies, avatars, column formats and subagent
+marks keep their own lists in their components, under the same rule: no
+blue, indigo, violet, purple, sky, cyan or amber.
 
 ### Dark mode
 
@@ -299,10 +320,10 @@ filter searches distinct actors from the organization audit log, including
 former members, in a scrollable list of 20 people per page. Selecting a person
 filters by their ID and preserves that filter in CSV exports.
 
-Settings > Profile offers upload and a blue Edit button for saved images. Profile photos
+Settings > Profile offers upload and an Edit button (`bg-interactive`) for saved images. Profile photos
 and organization logos share `ImageCropModal`: both support dragging, keyboard
 positioning, zoom, preview, and explicit saving. Edit reopens the saved image.
-The footer places blue Save on the right and red Remove on the left.
+The footer places Save (`bg-interactive`) on the right and red Remove on the left.
 Save stays disabled until the image or framing changes.
 Photos use a circular preview
 and a crop that fills it. PNG, JPEG, and WebP source files up to 10 MB are
@@ -551,7 +572,7 @@ keep their own spacing and should not receive this attribute.
 
 | Primitive | Location | Use it for |
 | --- | --- | --- |
-| `PillButtonUI` | `shared/ui` | Primary action button (`tone`: black/white/blue/danger). |
+| `PillButtonUI` | `shared/ui` | Primary action button (`tone`: black/white/blue/danger; the `blue` tone keeps its name for API stability and renders the interactive tokens, not a blue). |
 | `TextButtonUI` | `shared/ui` | Background-free actions, with optional icons and loading state. Use `textButtonUIClassName` from `TextButtonUI.styles` for links. No background, border, or shadow; hover changes text color. |
 | `TabPillButtonUI` | `shared/ui` | Segmented filter/tab pills. Pass `active` to get `aria-pressed`. Resting text matches PageHeader actions (`text-gray-500`), with `text-gray-900` on hover or selection. |
 | `GlassIconButtonUI` | `shared/ui` | Circular glass icon button — modal close, panel dismiss. Requires `aria-label`. |
@@ -559,7 +580,7 @@ keep their own spacing and should not receive this attribute.
 | `GlassCardUI` | `shared/ui` | Canonical liquid-glass card surface. |
 | `TextSlabUI` | `shared/ui` | Inset slab holding quoted or proposed text inside a card — citation quotes, tracked-change diffs, and their loading/empty states. Owns shape, padding, and fill; the caller owns typography. |
 | `ToggleSwitchUI` | `shared/ui` | `role="switch"` toggle with an optional text label. |
-| `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and blue for the selected state. |
+| `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and the neutral interactive tint for the selected state (`bg-interactive-soft-strong` with `text-interactive`). |
 | `InputUI` | `shared/ui` | Canonical shadcn input for the web app and Word add-in. |
 | `form-field` | `components/ui` | `FormTextInput` (glass/minimal variants) and `FieldLabel` for app forms. |
 | `NoticeCardUI` | `shared/ui` | The one card every notice is drawn with: glass surface, tone icon (error/success/info), title, message, action row, close button. Do not use it directly in a screen; use one of the two wrappers below. |
@@ -660,15 +681,16 @@ primitive covers.
 These are the rules the primitives already follow. Match them in new work.
 
 - **Focus is always visible.** Every interactive primitive carries
-  `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40
+  `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus
   focus-visible:ring-offset-2`. If you write `outline-none` you owe the element a
   replacement indicator in the same class string.
-- **Focus rings are amber, never grey.** Keep writing `ring-blue-500/40` (or
-  the other `focus*:ring-blue-*` steps already in use), not `ring-ring` or a
-  gray: `ThemeTokensUI.css` points those classes at `--focus-ring-color`, which
-  is ámbar tinta (`#965900`) on the light theme and ámbar fósforo (`#FFB21E`)
-  on the dark one (see [Marca LiTT v1.0](#marca-litt-v10)). A control that sets
-  nothing gets the same amber from the base-layer `:focus-visible` rule.
+- **Focus rings are amber, never grey.** Write `focus-visible:ring-focus` (or
+  `outline-focus` / `focus:border-focus`), not a gray or a raw palette ring.
+  `ring-focus` reads `--color-focus`, which is `--litt-accent`: ámbar tinta
+  (`#965900`) on the light theme and ámbar fósforo (`#FFB21E`) on the dark one
+  (see [Marca LiTT v1.0](#marca-litt-v10)). A control that sets nothing gets
+  the same amber from the base-layer `:focus-visible` rule, which draws
+  `--focus-ring-color`.
 - **An inset ring traces the hover fill.** A control carrying a hover or
   selected fill class (`LIQUID_GLASS_HOVER_CLASS`, `LIQUID_GLASS_SELECTED_CLASS`,
   and the modal-row pair) gets an inset ring on that fill's perimeter by
