@@ -8,11 +8,11 @@
       <stop offset="1" stop-color="#58311D"/>
     </linearGradient>
     <linearGradient id="leatherBlue" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#1B3C6E"/>
-      <stop offset="0.18" stop-color="#1F5B9D"/>
-      <stop offset="0.52" stop-color="#366EA7"/>
-      <stop offset="0.82" stop-color="#1A5091"/>
-      <stop offset="1" stop-color="#183761"/>
+      <stop offset="0" stop-color="#383C46"/>
+      <stop offset="0.18" stop-color="#575A61"/>
+      <stop offset="0.52" stop-color="#686C71"/>
+      <stop offset="0.82" stop-color="#4D5058"/>
+      <stop offset="1" stop-color="#333740"/>
     </linearGradient>
     <linearGradient id="leatherRed" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#6E1F25"/>
@@ -61,8 +61,8 @@
   <g>
     <rect x="19" y="8" width="11.5" height="45" rx="3" fill="url(#leatherBlue)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="19.7" y="8.7" width="10.1" height="43.6" rx="2.4" fill="url(#spineGloss)"/>
-    <path d="M21.2 12V49" stroke="#B9DCFF" stroke-opacity="0.3" stroke-width="0.65"/>
-    <path d="M28.8 11.5V49.5" stroke="#071A31" stroke-opacity="0.62" stroke-width="0.8"/>
+    <path d="M21.2 12V49" stroke="#D8D8D4" stroke-opacity="0.3" stroke-width="0.65"/>
+    <path d="M28.8 11.5V49.5" stroke="#151A26" stroke-opacity="0.62" stroke-width="0.8"/>
     <rect x="20.5" y="14.6" width="8.5" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
     <rect x="20.5" y="39.5" width="8.5" height="1.2" rx="0.6" fill="url(#gilt)" opacity="0.8"/>
     <rect x="20.5" y="46.8" width="8.5" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>

@@ -22,7 +22,7 @@ describe("ToggleSwitchUI", () => {
         );
 
         expect(toggle).toHaveAttribute("aria-checked", "true");
-        expect(track).toHaveClass("bg-blue-600", "h-5", "w-9");
+        expect(track).toHaveClass("bg-interactive", "h-5", "w-9");
         expect(thumb).toHaveClass("h-3", "w-3", "left-1", "top-1");
 
         fireEvent.click(toggle);

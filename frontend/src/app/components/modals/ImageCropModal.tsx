@@ -274,7 +274,7 @@ export function ImageCropModal({
                   onPointerUp={endDrag}
                   onPointerCancel={endDrag}
                   onKeyDown={onKeyDown}
-                  className={`touch-none ${isPhoto ? "rounded-full" : "rounded-2xl"} bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2 ${
+                  className={`touch-none ${isPhoto ? "rounded-full" : "rounded-2xl"} bg-gray-100 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${
                     frame ? "cursor-grab active:cursor-grabbing" : ""
                   }`}
                   style={{ width: FRAME_SIDE, height: FRAME_SIDE }}
@@ -307,7 +307,7 @@ export function ImageCropModal({
                   const zoom = Number(event.target.value);
                   change((current) => ({ ...current, zoom }));
                 }}
-                className="block w-full accent-blue-600 disabled:opacity-40"
+                className="block w-full accent-interactive disabled:opacity-40"
               />
               <p className="text-xs text-gray-500">
                 {isPhoto ? "Drag to position your photo and zoom to frame your face." : "Zoom out to keep the whole image, or in on the part that reads best small."}

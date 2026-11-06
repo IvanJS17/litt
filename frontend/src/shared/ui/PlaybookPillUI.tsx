@@ -25,10 +25,10 @@ export function PlaybookPillUI({
     );
     return (
         <div
-            className={`inline-flex items-center gap-1 rounded-full border bg-slate-700 py-0.5 text-xs text-white shadow ${
+            className={`inline-flex items-center gap-1 rounded-full border bg-gray-700 py-0.5 text-xs text-white shadow ${
                 onRemove
                     ? "border-white/20 pl-2.5 pr-1"
-                    : "border-slate-700 pl-2 pr-2.5"
+                    : "border-gray-700 pl-2 pr-2.5"
             }`}
         >
             {onOpen ? (

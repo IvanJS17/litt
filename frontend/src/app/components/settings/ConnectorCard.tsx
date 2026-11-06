@@ -39,7 +39,7 @@ export function ConnectorCard({
             <span
               data-connector-placeholder
               aria-hidden="true"
-              className={placeholderClassName ?? "h-5 w-5 rounded-full bg-violet-400"}
+              className={placeholderClassName ?? "h-5 w-5 rounded-full bg-stone-400"}
             />
           )}
         </div>
@@ -70,7 +70,7 @@ export function ConnectorCard({
       <GlassCardUI>
         {onOpen ? (
           <div
-            className="cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+            className="cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             role="button"
             tabIndex={0}
             aria-label={`Manage ${name}`}

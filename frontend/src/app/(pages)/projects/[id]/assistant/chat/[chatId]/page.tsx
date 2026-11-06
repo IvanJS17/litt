@@ -175,7 +175,7 @@ function Divider({ onDrag }: { onDrag: (dx: number) => void }) {
                 className="absolute inset-y-0 -left-1 -right-1 flex cursor-col-resize items-stretch justify-center"
             >
                 {isDragging && (
-                    <div className="w-1 bg-blue-600 transition-colors" />
+                    <div className="w-1 bg-interactive transition-colors" />
                 )}
             </div>
         </div>
@@ -1443,7 +1443,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                             className={cn(
                                 "relative h-full flex-1 overflow-y-auto rounded-bl-2xl rounded-br-lg",
                                 explorerDragOver &&
-                                    "bg-blue-50 ring-2 ring-inset ring-blue-400",
+                                    "bg-interactive-soft ring-2 ring-inset ring-interactive-border",
                             )}
                             onDragOver={(e) => {
                                 e.preventDefault();
@@ -1468,7 +1468,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         >
                             {explorerDragOver && (
                                 <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                                    <p className="text-xs text-blue-500 font-medium">
+                                    <p className="text-xs text-interactive font-medium">
                                         Drop to upload
                                     </p>
                                 </div>

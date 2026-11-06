@@ -459,8 +459,8 @@ describe("AssistantMessage timeline", () => {
             );
             const running = laneIcon("Review the lease");
             const done = laneIcon("Check the guarantee");
-            expect(running).toEqual({ tint: "sky", spinning: true });
-            expect(done).toEqual({ tint: "violet", spinning: false });
+            expect(running).toEqual({ tint: "stone", spinning: true });
+            expect(done).toEqual({ tint: "teal", spinning: false });
         });
 
         it("marks a subagent that couldn't finish with the error mark", () => {
@@ -485,8 +485,8 @@ describe("AssistantMessage timeline", () => {
                 />,
             );
             openTimeline("Completed in 3 steps · 3 subagents");
-            expect(laneIcon("Check the guarantee").tint).toBe("violet");
-            expect(laneIcon("Recheck the guarantee").tint).toBe("violet");
+            expect(laneIcon("Check the guarantee").tint).toBe("teal");
+            expect(laneIcon("Recheck the guarantee").tint).toBe("teal");
         });
 
     });

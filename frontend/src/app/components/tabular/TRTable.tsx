@@ -260,7 +260,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
             >
                 <div className="relative flex min-h-0 flex-1">
                     {dragOverFiles && (
-                        <div className="absolute inset-0 z-[90] border-2 border-blue-400 bg-blue-50/40 pointer-events-none" />
+                        <div className="absolute inset-0 z-[90] border-2 border-interactive-border bg-interactive-soft/40 pointer-events-none" />
                     )}
                     <EmptyState
                         className="mx-auto w-full max-w-xs flex-1 justify-center"
@@ -350,7 +350,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
         >
                 <div className="relative min-h-0 flex-1">
                     {dragOverFiles && (
-                        <div className="absolute inset-0 z-[90] border-2 border-blue-400 bg-blue-50/40 pointer-events-none" />
+                        <div className="absolute inset-0 z-[90] border-2 border-interactive-border bg-interactive-soft/40 pointer-events-none" />
                     )}
                     {uploadingFilenames.map((filename) => (
                     <div
@@ -427,7 +427,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                                 return (
                                     <div
                                         key={col.index}
-                                        className={`${COL_W} border-b border-r border-gray-200 transition-colors ${isHighlighted ? "bg-blue-200" : ""}`}
+                                        className={`${COL_W} border-b border-r border-gray-200 transition-colors ${isHighlighted ? "bg-interactive-soft-strong" : ""}`}
                                     >
                                         {cell && (
                                             <TabularCellComponent

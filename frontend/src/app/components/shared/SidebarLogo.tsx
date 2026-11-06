@@ -2,7 +2,7 @@
 
 import { useOrganizationLogo } from "@/app/hooks/useOrganizationLogo";
 import type { Org } from "@/app/lib/mikeApi";
-import { MikeIcon } from "@/shared/ui/MikeIconUI";
+import { LittMonogramPixel } from "@/shared/ui/LittBrandUI";
 
 /**
  * The mark at the top of the sidebar: the active organization's own logo
@@ -14,14 +14,18 @@ import { MikeIcon } from "@/shared/ui/MikeIconUI";
  */
 export function SidebarLogo({
     organization,
-    size = 18,
+    size = 16,
 }: {
     /** The active organization, or null in the personal workspace. */
     organization: Pick<Org, "id" | "name" | "logo_updated_at"> | null;
     size?: number;
 }) {
     const logo = useOrganizationLogo(organization);
-    if (logo === null) return <MikeIcon size={size} />;
+    // The app's own mark is the «L.» pixel monogram, which exists only at its
+    // native 16px and is never scaled. The organization's logo and its
+    // loading placeholder take the same 16px box, so swapping one for the
+    // other never shifts the row.
+    if (logo === null) return <LittMonogramPixel size={16} decorative />;
     const box = { width: size, height: size };
     if (logo === undefined)
         return (

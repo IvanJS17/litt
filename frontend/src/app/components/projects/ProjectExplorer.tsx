@@ -333,7 +333,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                 }}
                                 className={`group flex cursor-pointer select-none items-center gap-1.5 rounded-lg py-1.5 pr-2 transition-colors ${
                                     isDragTarget
-                                        ? "bg-blue-50 ring-1 ring-inset ring-blue-200"
+                                        ? "bg-interactive-soft ring-1 ring-inset ring-interactive-border"
                                         : "theme-dropdown-item"
                                 }`}
                                 style={{ paddingLeft: basePadding }}
@@ -449,7 +449,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
 
     return (
         <ul
-            className={`relative h-full rounded-bl-2xl rounded-br-lg p-1 ${dragOverRoot && dragOverFolderId === null ? "ring-2 ring-blue-400 ring-inset" : ""}`}
+            className={`relative h-full rounded-bl-2xl rounded-br-lg p-1 ${dragOverRoot && dragOverFolderId === null ? "ring-2 ring-interactive-border ring-inset" : ""}`}
             onContextMenu={(e) => {
                 // Only fires if not stopped by a child
                 openContextMenu(e, null);

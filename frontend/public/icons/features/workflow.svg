@@ -1,14 +1,14 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="nPurple" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#C4B5FD" stop-opacity="0.96"/>
-      <stop offset="0.5" stop-color="#8B5CF6" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#6D28D9" stop-opacity="0.97"/>
+      <stop offset="0" stop-color="#BEBFBC" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#797C7F" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#55585F" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="nBlue" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#93C5FD" stop-opacity="0.96"/>
-      <stop offset="0.5" stop-color="#3B82F6" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#1D4ED8" stop-opacity="0.97"/>
+      <stop offset="0" stop-color="#C0C1BF" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#838688" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#595C62" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="nYellow" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FDE68A" stop-opacity="0.96"/>
@@ -23,11 +23,11 @@
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.15"/>
-      <stop offset="1" stop-color="#1F2937" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#242933" stop-opacity="0.45"/>
     </linearGradient>
     <linearGradient id="pipe" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#D1D5DB" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#9CA3AF" stop-opacity="0.9"/>
+      <stop offset="0" stop-color="#D5D5D1" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#A1A3A3" stop-opacity="0.9"/>
     </linearGradient>
     <radialGradient id="sheen">
       <stop offset="0" stop-color="#FFFFFF"/>

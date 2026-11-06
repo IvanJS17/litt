@@ -230,7 +230,7 @@ export function SidebarProjectItem({
                     setLoadError(false);
                     setReloadKey((key) => key + 1);
                 }}
-                className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 Retry
             </button>
@@ -285,7 +285,7 @@ export function SidebarProjectItem({
                     aria-controls={expanded ? listId : undefined}
                     aria-label={`${expanded ? "Hide" : "Show"} recent chats and reviews in ${project.name}`}
                     className={cn(
-                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition-opacity hover:text-gray-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                        "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition-opacity hover:text-gray-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                         expanded || isActive
                             ? "opacity-100"
                             : "opacity-0 group-hover:opacity-100",
@@ -354,7 +354,7 @@ export function SidebarProjectItem({
                                                 itemActive ? "page" : undefined
                                             }
                                             className={cn(
-                                                "flex h-7 w-full items-center gap-2 rounded-md pl-2 pr-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40",
+                                                "flex h-7 w-full items-center gap-2 rounded-md pl-2 pr-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                                                 itemActive
                                                     ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                                                     : `text-gray-600 ${LIQUID_GLASS_HOVER_CLASS}`,
@@ -388,7 +388,7 @@ export function SidebarProjectItem({
                                         onClick={() => void seeMore()}
                                         disabled={loadingMore}
                                         aria-controls={listId}
-                                        className="flex h-7 w-full items-center rounded-md pl-2 pr-2 text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/40 disabled:cursor-default"
+                                        className="flex h-7 w-full items-center rounded-md pl-2 pr-2 text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-default"
                                     >
                                         {loadingMore ? "Loading..." : "See more"}
                                     </button>

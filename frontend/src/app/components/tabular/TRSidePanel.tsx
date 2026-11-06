@@ -84,8 +84,8 @@ type TRPanelCitation = {
 
 const FLAG_BADGE: Record<string, string> = {
     green: "bg-emerald-600 border border-emerald-300/20 text-white shadow-md",
-    grey: "bg-slate-500 border border-slate-300/20 text-white shadow-md",
-    yellow: "bg-amber-500 border border-amber-300/20 text-white shadow-md",
+    grey: "bg-gray-500 border border-gray-300/20 text-white shadow-md",
+    yellow: "bg-orange-500 border border-orange-300/20 text-white shadow-md",
     red: "bg-red-600 border border-red-300/20 text-white shadow-md",
 };
 
@@ -344,7 +344,7 @@ export function TRSidePanel({
                         onPointerMove={handleDocumentResizePointerMove}
                         onPointerUp={handleDocumentResizePointerEnd}
                         onPointerCancel={handleDocumentResizePointerEnd}
-                        className="absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-blue-600/60 active:bg-blue-600"
+                        className="absolute inset-y-0 left-0 z-20 w-1.5 cursor-col-resize touch-none bg-transparent transition-colors hover:bg-interactive/60 active:bg-interactive"
                         title="Resize document pane"
                     />
                     <DocumentPaneTitle
@@ -889,7 +889,7 @@ function MarkdownContent({
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 underline"
+                        className="text-interactive hover:text-interactive-hover underline"
                         {...props}
                     >
                         {children}

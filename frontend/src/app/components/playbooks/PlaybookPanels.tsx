@@ -161,7 +161,7 @@ export function PlaybookPanels({
           >
             <div className="absolute inset-y-0 -left-1 -right-1" />
             <div
-              className={`pointer-events-none absolute inset-y-2 left-0.5 w-0.5 rounded-full transition-colors group-focus-visible:bg-blue-600 ${dragging ? "bg-blue-600" : "group-hover:bg-blue-600/60"}`}
+              className={`pointer-events-none absolute inset-y-2 left-0.5 w-0.5 rounded-full transition-colors group-focus-visible:bg-interactive ${dragging ? "bg-interactive" : "group-hover:bg-interactive/60"}`}
             />
           </div>
         )}

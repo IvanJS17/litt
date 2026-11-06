@@ -77,7 +77,7 @@ export default function SsoLoginPage() {
     };
 
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-gray-50/80 px-6 py-10">
+        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
             <div className="absolute top-4 left-1/2 -translate-x-1/2 md:top-8">
                 <SiteLogo size="lg" asLink />
             </div>

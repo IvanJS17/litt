@@ -41,7 +41,7 @@ const toneIcon: Record<NoticeTone, ReactNode> = {
             aria-hidden
         />
     ),
-    info: <Info className="h-3 w-3 shrink-0 text-blue-600" aria-hidden />,
+    info: <Info className="h-3 w-3 shrink-0 text-interactive" aria-hidden />,
 };
 
 const toneTitleClass: Record<NoticeTone, string> = {
@@ -132,7 +132,7 @@ export function NoticeCardUI({
                     "pointer-events-auto relative flex rounded-2xl px-2 py-2 text-xs",
                     LIQUID_GLASS_FLOAT_CLASS,
                     // Only visible when a toast is focused with the keyboard.
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-2",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                 ),
                 className,
             )}

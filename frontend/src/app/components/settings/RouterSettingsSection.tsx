@@ -503,7 +503,7 @@ function RouterModelsSetting({
                 setActiveCatalogIndex(-1);
                 if (nextOpen) inputRef.current?.focus();
               }}
-              className="absolute inset-y-0 right-3 flex items-center text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-default disabled:opacity-40"
+              className="absolute inset-y-0 right-3 flex items-center text-gray-400 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-default disabled:opacity-40"
             >
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform duration-200 ${catalogOpen ? "rotate-180" : ""}`}
