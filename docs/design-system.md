@@ -49,6 +49,88 @@ screen, before opening a menu can trigger an image request.
 `frontend/public/_headers` preserves immutable caching for `/_next/static/*`
 on Cloudflare, whose asset server otherwise revalidates even hashed files.
 
+## Marca LiTT v1.0
+
+The norm is [`docs/brand/DESIGN.md`](brand/DESIGN.md), the brand package's
+specification, copied unchanged. This section summarizes it for UI work and
+says where it lives in code; when the two disagree, `DESIGN.md` wins. The
+outlined masters are in [`docs/brand/svg/`](brand/svg/), the QC sheet in
+[`docs/brand/qc/`](brand/qc/qc-sheet.png) and the OFL licenses of the two
+source faces in [`docs/brand/licencias/`](brand/licencias/).
+
+**The marks.** The wordmark is a Newsreader **L** followed by Departure Mono
+**ıTT**; the dot of the i is a square amber cursor. The reduced mark is the
+«L.» monogram: the L with that square, never the L alone. Both are drawn by
+`frontend/src/shared/ui/LittBrandUI.tsx` (the add-in imports it as
+`@mike/litt-brand-ui`):
+
+| Component | Use | Sizes |
+| --- | --- | --- |
+| `LittWordmark` | Auth and onboarding pages (`SiteLogo`), the sidebar in personal work, the add-in login (`WordAddinLogo`). | `x` = 22, 33, 44, 55, 66 or 88: X is the Departure Mono size and must be a multiple of 11 below 66. The box includes the 4u protection area (u = X / 11). |
+| `LittMonogramPixel` | Anywhere with less room than the 22px wordmark: the collapsed sidebar, an organization without its own logo, the chat greeting. | 16, 32 or 48 px only, drawn natively at each size. |
+
+The serif «L.» monogram is only for 64 px and up (avatars, the 180 px
+`apple-touch-icon.png`, the add-in's 80 px icon), and there is no component for
+it: use the rendered files.
+
+**Rules to keep in code** (the full list of 13 prohibitions is in
+`DESIGN.md`):
+
+- Never retype the wordmark in a font, and never set the monogram next to the
+  name typed out as if it were a lockup. In running text the name is
+  **LiTT**, in the text's own font, without imitating the mark.
+- The amber is the square's alone. Letters take `--litt-mark-ink`, the square
+  `--litt-mark-accent`; nothing else in a mark is amber.
+- Each theme gets its own version: tinta letters and ámbar tinta square on the
+  light theme, papel letters and ámbar fósforo square on the dark one. The
+  marks are transparent and their colors switch with `.dark`, so place them
+  only on papel or white surfaces in light and on tinta surfaces in dark.
+- Do not deform, tilt, rotate, outline, shadow, tint or rescale the marks, and
+  never animate the square: no cursor blink, no pulse. The wordmark links on
+  the auth pages and in the sidebar have no hover effect; they show focus with
+  the ring. The chat greeting slides the monogram into place once, together
+  with the greeting text; the square itself never changes.
+- Do not scale the pixel monogram between its sizes, and keep
+  `shape-rendering="crispEdges"`. Favicons are used at their native sizes:
+  `favicon.ico` holds 16, 32 and 48 px, and `icon.svg` switches to the native
+  geometry of each size with width media queries.
+
+**Color.** `DesignTokensUI.css` declares the palette once for both targets:
+
+| Token | Hex | Where it may go |
+| --- | --- | --- |
+| `--litt-tinta` | `#151A26` | Dark-theme canvas; text on the light theme. |
+| `--litt-papel` | `#ECECE6` | Light-theme canvas; text on the dark theme. |
+| `--litt-ambar-fosforo` | `#FFB21E` | On tinta only (dark theme). |
+| `--litt-ambar-tinta` | `#965900` | On papel or white only (light theme). |
+
+`--litt-accent` resolves to the amber that belongs to the current theme. Its
+only use outside the marks is the keyboard focus ring (`--focus-ring-color`,
+`--ring`). Do not use amber for fills, text, buttons or status: it is a point
+accent. Primary actions are tinta on the light theme and papel on the dark one.
+
+Tailwind's gray scale is redefined from tinta and papel, so `text-gray-900` is
+tinta and the neutral fills keep the paper's warmth. Measured WCAG contrast of
+the pairs in use (minimum is 4.5:1 for text and 3:1 for the focus ring):
+
+| Pair | Contrast |
+| --- | --- |
+| Tinta on papel / on white | 14.66:1 / 17.39:1 |
+| `text-gray-500` `#5D6169` on papel / white / selected row `#E2E2DD` | 5.24:1 / 6.21:1 / 4.78:1 |
+| Ámbar tinta on papel / white / selected row | 4.75:1 / 5.64:1 / 4.34:1 |
+| Papel on tinta / on the lightest dark surface `#2A2F3A` | 14.66:1 / 11.31:1 |
+| Dark `text-gray-500` `#9B9D9F` on tinta / `#2A2F3A` | 6.39:1 / 4.93:1 |
+| Ámbar fósforo on tinta / `#2A2F3A` | 9.64:1 / 7.43:1 |
+| White on the `black` pill tone over white | 13.58:1 |
+| Ámbar fósforo on papel | 1.52:1, prohibited |
+
+`text-gray-400` stays below 4.5:1 in both themes (2.71:1 on papel, 4.82:1 on
+tinta but 3.72:1 on a selected dark row), as it did before: keep it for
+placeholders, disabled text and decoration, not for information.
+
+Azure (`bg-blue-600`, the `blue` pill tone) and the status colors are not part
+of the brand palette and are unchanged by v1.0.
+
 ## Color tokens
 
 Two families coexist. Prefer a token over a raw Tailwind palette class whenever
@@ -66,11 +148,16 @@ These back the "liquid glass" chrome and are the ones most feature code needs.
 
 | Token | Utility | Light value | Intent |
 | --- | --- | --- | --- |
-| `--app-background` | `bg-app-background` | `#f9fafb` | Page canvas behind panels. |
-| `--app-surface` | `bg-app-surface` | `#fdfdfe` | Resting surface of a panel, table header, menu. |
-| `--app-surface-hover` | `hover:bg-app-surface-hover` | `#f9fafb` | Row/item hover. |
-| `--app-surface-active` | `bg-app-surface-active` | `#eff0f3` | Selected or pressed row/item. |
-| `--app-floating` | `bg-app-floating` | `#fefefe` | Detached floating elements above a surface. |
+| `--app-background` | `bg-app-background` | papel `#ecece6` | Page canvas behind panels, including the auth and onboarding pages. |
+| `--app-surface` | `bg-app-surface` | `#f9f9f7` | Resting surface of a panel, table header, menu. |
+| `--app-surface-hover` | `hover:bg-app-surface-hover` | papel `#ecece6` | Row/item hover. |
+| `--app-surface-active` | `bg-app-surface-active` | `#e2e2dd` | Selected or pressed row/item. |
+| `--app-floating` | `bg-app-floating` | `#fcfcfb` | Detached floating elements above a surface. |
+
+Dark values are tinta `#151a26` for the canvas and tinta lifted toward papel
+for the rest (`#1b202c`, `#222732`, `#2a2f3a`, `#1f2430`). Tailwind's gray
+scale is redefined from the same two colors; see
+[Marca LiTT v1.0](#marca-litt-v10).
 
 Use the class-name constants in `components/ui/liquid-surface.ts` rather than
 retyping the utilities. Liquid-glass controls use
@@ -132,9 +219,10 @@ Settings > Appearance.
 
 `MikeIcon` is the exception: the mark is inline SVG, so no class-based
 remapping reaches its gradient stops. It subscribes to the document theme class
-itself and swaps its dark-glass blades for the white ones. Anything else drawing
-brand-colored SVG should follow the same pattern rather than hard-coding a
-single palette.
+itself and swaps its dark-glass blades for the white ones. It survives only as
+the animated response-status glyph; it is not the LiTT logo. The LiTT marks
+(`LittBrandUI.tsx`) need no subscription: their fills are
+`var(--litt-mark-ink)` and `var(--litt-mark-accent)`, which `.dark` switches.
 
 ### User avatars
 
@@ -524,9 +612,12 @@ These are the rules the primitives already follow. Match them in new work.
   `focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40
   focus-visible:ring-offset-2`. If you write `outline-none` you owe the element a
   replacement indicator in the same class string.
-- **Focus rings are blue, never grey.** Use `ring-blue-500/40`, not `ring-ring`
-  or a gray. A control that sets nothing gets the same blue from the base-layer
-  `:focus-visible` rule in `ThemeTokensUI.css` (`--focus-ring-color`).
+- **Focus rings are amber, never grey.** Keep writing `ring-blue-500/40` (or
+  the other `focus*:ring-blue-*` steps already in use), not `ring-ring` or a
+  gray: `ThemeTokensUI.css` points those classes at `--focus-ring-color`, which
+  is ámbar tinta (`#965900`) on the light theme and ámbar fósforo (`#FFB21E`)
+  on the dark one (see [Marca LiTT v1.0](#marca-litt-v10)). A control that sets
+  nothing gets the same amber from the base-layer `:focus-visible` rule.
 - **An inset ring traces the hover fill.** A control carrying a hover or
   selected fill class (`LIQUID_GLASS_HOVER_CLASS`, `LIQUID_GLASS_SELECTED_CLASS`,
   and the modal-row pair) gets an inset ring on that fill's perimeter by

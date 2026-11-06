@@ -38,6 +38,7 @@ infrastructure, and development workflow, including optional local integrations.
 | [shadcn/ui](https://ui.shadcn.com/) and [Radix Primitives](https://www.radix-ui.com/primitives) | Reusable interface components and accessible interactions. |
 | [Lucide](https://lucide.dev/) | Interface icons. |
 | [Lobe Icons](https://github.com/lobehub/lobe-icons) | Provider logos vendored from `@lobehub/icons-static-svg` 1.95.1 (MIT); license in `frontend/public/icons/providers/`. Brand marks belong to their respective owners. |
+| [Newsreader](https://github.com/productiontype/Newsreader) and [Departure Mono](https://github.com/rektdeckard/departure-mono) | The LiTT wordmark and monogram are outlined from these faces (SIL OFL 1.1); no font file ships. Licenses in `docs/brand/licencias/`. |
 | [Tiptap](https://github.com/ueberdosis/tiptap) and [ProseMirror](https://prosemirror.net/) | Rich-text editing in the web app and Word add-in. |
 | [react-markdown](https://github.com/remarkjs/react-markdown), [remark](https://github.com/remarkjs/remark), and [rehype](https://github.com/rehypejs/rehype) | Rendering Markdown, tables, and formatted assistant responses. |
 | [Marked](https://github.com/markedjs/marked) | Markdown parsing. |
