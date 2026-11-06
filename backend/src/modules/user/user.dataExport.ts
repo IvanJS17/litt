@@ -854,10 +854,10 @@ export async function buildUserAccountExport(
 
     // The holder's own training (docs/training.md): who mentors them and
     // their stage per practice area, in each organization (in one, for an
-    // organization's export). Their pupils are other people's data.
-    // TODO(1a-chat): add training_turn_notes once that table exists.
+    // organization's export), with the private notes of their own turns.
+    // Their pupils are other people's data.
     const trainingScope = (query: any) => (orgId ? query.eq("org_id", orgId) : query);
-    const [trainingMentor, trainingPupil, trainingStages] = await Promise.all([
+    const [trainingMentor, trainingPupil, trainingStages, trainingNotes] = await Promise.all([
         selectAll(db, "training_mentors", (query) =>
             trainingScope(query.eq("user_id", userId)).order("created_at", { ascending: true }),
         ),
@@ -866,6 +866,13 @@ export async function buildUserAccountExport(
         ),
         selectAll(db, "training_stages", (query) =>
             trainingScope(query.eq("trainee_user_id", userId)).order("updated_at", { ascending: true }),
+        ),
+        selectAll(
+            db,
+            "training_turn_notes",
+            (query) =>
+                trainingScope(query.eq("trainee_user_id", userId)).order("created_at", { ascending: true }),
+            "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at",
         ),
     ]);
 
@@ -944,6 +951,7 @@ export async function buildUserAccountExport(
             mentor_designations: trainingMentor,
             as_pupil: trainingPupil,
             stages: trainingStages,
+            turn_notes: trainingNotes,
         },
         audit_events: auditEvents,
     };

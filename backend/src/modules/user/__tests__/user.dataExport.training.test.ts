@@ -30,6 +30,24 @@ function tables(): Record<string, Row[]> {
             { org_id: "org-b", trainee_user_id: userId, practice: null, stage: "junior" },
             { org_id: "org-a", trainee_user_id: other, practice: null, stage: "pasante" },
         ],
+        training_turn_notes: [
+            {
+                id: "n1", org_id: "org-a", trainee_user_id: userId, chat_id: "c1", word_chat_id: null,
+                tabular_chat_id: null, message_id: "m1", attempt: "mi planteamiento", contrast: "Coincide",
+                contrast_status: "ready", created_at: "2026-01-01T00:00:00Z",
+            },
+            {
+                id: "n2", org_id: "org-b", trainee_user_id: userId, chat_id: null, word_chat_id: "w1",
+                tabular_chat_id: null, message_id: "m2", attempt: "otro", contrast: null,
+                contrast_status: "failed", created_at: "2026-01-02T00:00:00Z",
+            },
+            // Somebody else's note: not the holder's data.
+            {
+                id: "n3", org_id: "org-a", trainee_user_id: other, chat_id: "c2", word_chat_id: null,
+                tabular_chat_id: null, message_id: "m3", attempt: "ajeno", contrast: null,
+                contrast_status: "pending", created_at: "2026-01-03T00:00:00Z",
+            },
+        ],
     };
 }
 
@@ -46,6 +64,17 @@ describe("account export: the holder's training", () => {
             ["org-a", "laboral", "pasante"],
             ["org-b", null, "junior"],
         ]);
+        expect(out.training.turn_notes).toEqual([
+            expect.objectContaining({
+                id: "n1", org_id: "org-a", chat_id: "c1", message_id: "m1",
+                attempt: "mi planteamiento", contrast: "Coincide", contrast_status: "ready",
+                created_at: "2026-01-01T00:00:00Z",
+            }),
+            expect.objectContaining({
+                id: "n2", org_id: "org-b", word_chat_id: "w1", message_id: "m2",
+                attempt: "otro", contrast: null, contrast_status: "failed",
+            }),
+        ]);
     });
 
     it("an organization's export carries only that organization's", async () => {
@@ -54,5 +83,6 @@ describe("account export: the holder's training", () => {
         expect(out.training.mentor_designations).toEqual([]);
         expect(out.training.as_pupil.map((r: Row) => r.org_id)).toEqual(["org-b"]);
         expect(out.training.stages.map((r: Row) => r.org_id)).toEqual(["org-b"]);
+        expect(out.training.turn_notes.map((r: Row) => r.id)).toEqual(["n2"]);
     });
 });
