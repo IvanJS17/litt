@@ -401,10 +401,6 @@ export const test = base.extend<{ addin: Addin }>({
       return route.fallback();
     });
 
-    // Chat history preloads on every authenticated Assistant mount. Keep that
-    // eager GET hermetic so unrelated specs never leak to a developer's live
-    // backend (where a 401 can clear the seeded test session). History specs
-    // register their own route later and therefore override this default.
     // LiTT training: nobody has a stage unless a spec says so.
     await page.route("**/training/stage**", (route, request) => {
       if (request.method() !== "GET") return route.fallback();
@@ -414,6 +410,23 @@ export const test = base.extend<{ addin: Addin }>({
         body: JSON.stringify({ stage: null }),
       });
     });
+    // LiTT training: a cloud chat reads its private notes once it has an id,
+    // and again after every turn. Nobody has notes unless a spec says so. The
+    // server's answer for that is a 404, which the client reads as "no notes",
+    // but the browser logs every 4xx as a console error and specs that fail on
+    // console errors would trip over it, so the default is the empty list.
+    await page.route("**/training-notes/chats/**", (route, request) => {
+      if (request.method() !== "GET") return route.fallback();
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ notes: [] }),
+      });
+    });
+    // Chat history preloads on every authenticated Assistant mount. Keep that
+    // eager GET hermetic so unrelated specs never leak to a developer's live
+    // backend (where a 401 can clear the seeded test session). History specs
+    // register their own route later and therefore override this default.
     await page.route("**/word-chat?*", (route, request) => {
       if (request.method() !== "GET") return route.fallback();
       return route.fulfill({
