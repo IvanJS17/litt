@@ -5,6 +5,11 @@
 //
 // Thin handlers: parse, call the facade, map the ServiceResult.
 
+import type {
+    TrainingAssignPupilBody,
+    TrainingDesignateMentorBody,
+    TrainingSetStageBody,
+} from "@mike/contracts";
 import { Router, type Response } from "express";
 import type { ServiceResult } from "../../lib/serviceResult";
 import { sendServiceFailure } from "../../lib/serviceResult";
@@ -49,6 +54,7 @@ trainingRouter.get("/me", requireAuth, asyncRoute(async (_req, res) => {
 trainingRouter.get("/stage", requireAuth, asyncRoute(async (req, res) => {
     send(res, await getEffectiveTrainingStage(createServerSupabase(), {
         userId: res.locals.userId as string,
+        userEmail: (res.locals.userEmail as string | undefined) ?? null,
         orgId: req.query.org_id,
         projectId: req.query.project_id,
         surface: req.query.surface,
@@ -66,7 +72,7 @@ orgTrainingRouter.get("/mentors", requireAuth, asyncRoute(async (req, res) => {
 orgTrainingRouter.post("/mentors", requireAuth, asyncRoute(async (req, res) => {
     send(res, await designateMentor(createServerSupabase(), {
         ...actorOf(req, res),
-        userId: req.body?.user_id,
+        userId: (req.body as Partial<TrainingDesignateMentorBody> | undefined)?.user_id,
     }), 201);
 }));
 
@@ -84,8 +90,8 @@ orgTrainingRouter.get("/pupils", requireAuth, asyncRoute(async (req, res) => {
 orgTrainingRouter.post("/pupils", requireAuth, asyncRoute(async (req, res) => {
     send(res, await assignPupil(createServerSupabase(), {
         ...actorOf(req, res),
-        userId: req.body?.user_id,
-        mentorUserId: req.body?.mentor_user_id,
+        userId: (req.body as Partial<TrainingAssignPupilBody> | undefined)?.user_id,
+        mentorUserId: (req.body as Partial<TrainingAssignPupilBody> | undefined)?.mentor_user_id,
     }), 201);
 }));
 
@@ -100,12 +106,12 @@ orgTrainingRouter.put("/pupils/:userId/stages", requireAuth, asyncRoute(async (r
     send(res, await setStage(createServerSupabase(), {
         ...actorOf(req, res),
         userId: req.params.userId,
-        practice: req.body?.practice,
-        stage: req.body?.stage,
+        practice: (req.body as Partial<TrainingSetStageBody> | undefined)?.practice,
+        stage: (req.body as Partial<TrainingSetStageBody> | undefined)?.stage,
     }));
 }));
 
-// DELETE …/stages?practice=<name>; without `practice`, the stage for every practice area.
+// DELETE …/stages?practice=<name>; without `practice`, the stage that covers every practice area.
 orgTrainingRouter.delete("/pupils/:userId/stages", requireAuth, asyncRoute(async (req, res) => {
     send(res, await removeStage(createServerSupabase(), {
         ...actorOf(req, res),

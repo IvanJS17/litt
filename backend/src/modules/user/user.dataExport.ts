@@ -852,6 +852,23 @@ export async function buildUserAccountExport(
             : Promise.resolve([]),
     ]);
 
+    // The holder's own training (docs/training.md): who mentors them and
+    // their stage per practice area, in each organization (in one, for an
+    // organization's export). Their pupils are other people's data.
+    // TODO(1a-chat): add training_turn_notes once that table exists.
+    const trainingScope = (query: any) => (orgId ? query.eq("org_id", orgId) : query);
+    const [trainingMentor, trainingPupil, trainingStages] = await Promise.all([
+        selectAll(db, "training_mentors", (query) =>
+            trainingScope(query.eq("user_id", userId)).order("created_at", { ascending: true }),
+        ),
+        selectAll(db, "training_pupils", (query) =>
+            trainingScope(query.eq("trainee_user_id", userId)).order("created_at", { ascending: true }),
+        ),
+        selectAll(db, "training_stages", (query) =>
+            trainingScope(query.eq("trainee_user_id", userId)).order("updated_at", { ascending: true }),
+        ),
+    ]);
+
     const playbooks = await loadUserPlaybooks(
         db,
         userId,
@@ -923,6 +940,11 @@ export async function buildUserAccountExport(
             tabular_reviews: sharedTabularReviews,
         },
         memory: appMemory,
+        training: {
+            mentor_designations: trainingMentor,
+            as_pupil: trainingPupil,
+            stages: trainingStages,
+        },
         audit_events: auditEvents,
     };
 }

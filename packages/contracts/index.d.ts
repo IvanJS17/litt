@@ -764,3 +764,29 @@ export interface TrainingTurnNote {
 export interface TrainingTurnNotes {
   notes: TrainingTurnNote[];
 }
+// Request bodies and queries of the training routes. `user_id` and
+// `mentor_user_id` are user uuids of members of the organization.
+/** POST /orgs/:orgId/training/mentors (owner or admin). */
+export interface TrainingDesignateMentorBody {
+    user_id: string;
+}
+/** POST /orgs/:orgId/training/pupils. Omitting `mentor_user_id` means the caller. */
+export interface TrainingAssignPupilBody {
+    user_id: string;
+    mentor_user_id?: string | null;
+}
+/** PUT /orgs/:orgId/training/pupils/:userId/stages (the pupil's mentor). `practice: null` covers every practice area; a blank string is rejected. */
+export interface TrainingSetStageBody {
+    practice: string | null;
+    stage: TrainingStage;
+}
+/** DELETE /orgs/:orgId/training/pupils/:userId/stages?practice= . Without `practice`, the stage that covers every practice area. */
+export interface TrainingRemoveStageQuery {
+    practice?: string;
+}
+/** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
+export interface TrainingStageQuery {
+    org_id?: string;
+    project_id?: string;
+    surface?: "word";
+}
