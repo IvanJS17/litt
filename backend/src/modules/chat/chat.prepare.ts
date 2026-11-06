@@ -21,7 +21,7 @@ import {
     type WebSearchPlan,
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
-import { attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
+import { attachPriorReasoning, buildDocContext, buildMessages, buildTrainingTurnPrompt, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     chatRouteColumns,
@@ -52,6 +52,7 @@ import { resolveEffectiveReasoningLevel } from "../../lib/modelSelection";
 import { replaysReasoning } from "../../lib/llm/registry";
 import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type MemoryConversationTurn } from "../../lib/memory/schedule";
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
+import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
 
 // ---------------------------------------------------------------------------
 // Pre-stream preparation for POST /chat (streaming)
@@ -141,6 +142,8 @@ export async function prepareChatStream(
          * or for one in a project.
          */
         requestedOrgId?: unknown;
+        /** LiTT training: the author's own approach; required of a pasante. */
+        attempt?: unknown;
     },
 ): Promise<
     | { ok: true; prepared: PreparedChatStream }
@@ -327,6 +330,25 @@ export async function prepareChatStream(
         return { ok: false, internal: true, error };
     }
 
+    // LiTT training ("Tu turno primero"): a pasante's new message carries
+    // their own approach. Checked before anything is written.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    let trainingAttempt: string | null = null;
+    if (lastUser && !args.askInputsResponse) {
+        let stage;
+        try {
+            stage = await resolveTrainingStage(db, userId, {
+                orgId: contentOrgId,
+                projectId: resolvedProjectId,
+            });
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
+        const training = checkTrainingTurn(stage, args.attempt);
+        if (!training.ok) return training;
+        trainingAttempt = training.attempt;
+    }
+
     const selection = await resolveUserChatSelection(db, {
         userId,
         chatModel,
@@ -439,7 +461,6 @@ export async function prepareChatStream(
         resolved: governed,
     });
 
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let completedTurnPersisted = true;
     let memoryTurn: MemoryConversationTurn | null = null;
     let approvalEvents: McpToolEvent[] = [];
@@ -500,6 +521,7 @@ export async function prepareChatStream(
                 workflow: lastUser.workflow ?? null,
                 playbook: lastUser.playbook ?? null,
                 author_user_id: userId,
+                ...(trainingAttempt ? { training_attempt: trainingAttempt } : {}),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
@@ -567,10 +589,16 @@ export async function prepareChatStream(
             enrichedMessages,
             !!args.askInputsResponse,
         );
+        const systemPromptExtra = [
+            personalisationPrompt,
+            trainingAttempt ? buildTrainingTurnPrompt(trainingAttempt, nonce) : "",
+        ]
+            .filter(Boolean)
+            .join("\n\n");
         const apiMessages = buildMessages(
             enrichedMessages,
             docAvailability,
-            personalisationPrompt || undefined,
+            systemPromptExtra || undefined,
             undefined,
             nonce,
             "append",

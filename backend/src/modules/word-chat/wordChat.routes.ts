@@ -700,6 +700,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     requestedCredentialRef: parsedCredentialRef.value,
     requestedReasoning: parsedReasoning.value,
     requestedTimeZone: req.body?.time_zone,
+    attempt: body.attempt,
   });
   if (!prep.ok) {
     if (prep.status === 500 && "error" in prep)

@@ -18,6 +18,7 @@ import type { McpToolEvent } from "@mike/contracts";
 import {
     buildProjectDocContext,
     buildMessages,
+    buildTrainingTurnPrompt,
     buildUserPersonalisationPrompt,
     buildWorkflowStore,
     attachPriorReasoning,
@@ -51,6 +52,7 @@ import {
     resolveContentOrgId,
 } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
+import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
 import {
     DOCUMENT_WORKSPACE_MISMATCH_CODE,
     DOCUMENT_WORKSPACE_MISMATCH_DETAIL,
@@ -185,6 +187,8 @@ export async function prepareProjectChatStream(
             | undefined;
         /** The browser's IANA time zone; unvalidated request input. */
         requestedTimeZone?: unknown;
+        /** LiTT training: the author's own approach; required of a pasante. */
+        attempt?: unknown;
     },
 ): Promise<
     | { ok: true; prepared: PreparedProjectChatStream }
@@ -342,6 +346,25 @@ export async function prepareProjectChatStream(
         return { ok: false, internal: true, error };
     }
 
+    // LiTT training ("Tu turno primero"): a pasante's new message carries
+    // their own approach. Checked before anything is written.
+    const lastUser = [...messages].reverse().find((m) => m.role === "user");
+    let trainingAttempt: string | null = null;
+    if (lastUser && !args.askInputsResponse) {
+        let stage;
+        try {
+            stage = await resolveTrainingStage(db, userId, {
+                orgId: projectAccess.project.org_id ?? null,
+                projectId,
+            });
+        } catch (error) {
+            return { ok: false, internal: true, error };
+        }
+        const training = checkTrainingTurn(stage, args.attempt);
+        if (!training.ok) return training;
+        trainingAttempt = training.attempt;
+    }
+
     const selection = await resolveUserChatSelection(db, {
         userId,
         chatModel,
@@ -423,7 +446,6 @@ export async function prepareProjectChatStream(
         resolved: governed,
     });
 
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let completedTurnPersisted = true;
     let memoryTurn: MemoryConversationTurn | null = null;
     let approvalEvents: McpToolEvent[] = [];
@@ -483,6 +505,7 @@ export async function prepareProjectChatStream(
                 files: lastUser.files ?? null,
                 workflow: lastUser.workflow ?? null,
                 author_user_id: userId,
+                ...(trainingAttempt ? { training_attempt: trainingAttempt } : {}),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
@@ -594,6 +617,9 @@ export async function prepareProjectChatStream(
         );
         if (personalisationPrompt) {
             systemPromptExtra += `\n\n${personalisationPrompt}`;
+        }
+        if (trainingAttempt) {
+            systemPromptExtra += `\n\n${buildTrainingTurnPrompt(trainingAttempt, nonce)}`;
         }
         const userSentAt = await loadUserMessageSentTimes(
             db,

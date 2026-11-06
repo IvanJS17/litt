@@ -1,5 +1,6 @@
 import { isUuid } from "../../lib/uuid";
 import { wordChatHasWorkspaceAttachments } from "../../lib/wordWorkspace";
+import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
 // Business logic + data-access for the word-chat module.
 //
 // Service layer behind wordChat.routes.ts. Every function takes an explicit
@@ -25,6 +26,7 @@ import {
   ACTIVE_WORD_DOCUMENT_ID,
   buildDocContext,
   buildMessages,
+  buildTrainingTurnPrompt,
   buildUserPersonalisationPrompt,
   buildWordChatSystemPrompt,
   buildWorkflowStore,
@@ -623,6 +625,8 @@ export async function prepareWordChatStream(
       ReturnType<typeof resolveEffectiveReasoningLevel> | undefined;
     /** The task pane's IANA time zone; unvalidated request input. */
     requestedTimeZone?: unknown;
+    /** LiTT training: the author's own approach; required of a pasante. */
+    attempt?: unknown;
   },
 ): Promise<
   | { ok: true; prepared: PreparedWordChatStream }
@@ -680,6 +684,27 @@ export async function prepareWordChatStream(
       detail: "Could not validate Word chat attachments",
       error: withKind(error, "db.query_failed", "Word chat attachment check failed"),
     };
+  }
+
+  // LiTT training ("Tu turno primero"): a Word chat belongs to no
+  // organization or project, so the stage that covers every practice area
+  // applies. Checked before anything is written.
+  let trainingAttempt: string | null = null;
+  if (lastUser) {
+    let stage;
+    try {
+      stage = await resolveTrainingStage(db, userId, { anyOrganization: true });
+    } catch (error) {
+      return {
+        ok: false,
+        status: 500,
+        detail: "Could not check the training stage",
+        error: withKind(error, "db.query_failed", "Word chat training stage check failed"),
+      };
+    }
+    const training = checkTrainingTurn(stage, args.attempt);
+    if (!training.ok) return training;
+    trainingAttempt = training.attempt;
   }
 
   if (persistChat) {
@@ -837,6 +862,7 @@ export async function prepareWordChatStream(
       workflow: lastUser.workflow ?? null,
       playbook: lastUser.playbook ?? null,
       author_user_id: userId,
+      ...(trainingAttempt ? { training_attempt: trainingAttempt } : {}),
     });
     if (error) {
       return {
@@ -928,6 +954,7 @@ export async function prepareWordChatStream(
     const wordSystemPrompt = [
       buildWordChatSystemPrompt(args.clientToolsEnabled),
       personalisationPrompt,
+      trainingAttempt ? buildTrainingTurnPrompt(trainingAttempt, nonce) : "",
     ]
       .filter(Boolean)
       .join("\n\n");

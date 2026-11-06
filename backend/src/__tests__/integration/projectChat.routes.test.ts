@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 
+// The training describe at the end pushes this file past the chat limiter's
+// 30-requests-per-window budget. Hoisted so it precedes app.ts's limiter
+// construction; scoped to tests — production reads its own env.
+vi.hoisted(() => {
+    process.env.RATE_LIMIT_CHAT_MAX = "1000";
+});
+
 const {
     runLLMStream,
     checkProjectAccess,
@@ -95,6 +102,16 @@ function mockSupabase() {
 // to the title model's provider with the fake key below, and the suite passed
 // only because the provider rejected that key quickly: a slow response held
 // the test to its 20 s timeout. Same stub as chat.routes.test.ts.
+// LiTT training: the effective stage is driven per test; null (a lawyer)
+// keeps every other test in this suite on today's behavior.
+const { trainingStage } = vi.hoisted(() => ({
+    trainingStage: { value: null as "pasante" | "junior" | null },
+}));
+vi.mock("../../lib/training", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/training")>()),
+    resolveTrainingStage: vi.fn(async () => trainingStage.value),
+}));
+
 vi.mock("../../modules/chat/chat.title", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../modules/chat/chat.title")>()),
     generateAssistantChatTitle: vi.fn(async () => "Generated Title"),
@@ -957,4 +974,89 @@ describe("POST /projects/:projectId/chat", () => {
     );
     expect(scheduleMemoryConsolidation).toHaveBeenCalledTimes(1);
     });
+});
+
+
+describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat", () => {
+    const ATTEMPT =
+        "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+    beforeEach(() => {
+        resetAssistantTurnRunsForTests();
+        vi.clearAllMocks();
+        dbInserts.length = 0;
+        dbUpdates.length = 0;
+        trainingStage.value = null;
+        buildMessages.mockReturnValue([]);
+        buildProjectDocContext.mockResolvedValue({
+            docIndex: {},
+            docStore: new Map(),
+            folderPaths: new Map(),
+        });
+        runLLMStream.mockResolvedValue({ fullText: "", events: [], citations: [] });
+        checkProjectAccess.mockResolvedValue({
+            ok: true,
+            isCreator: true,
+            orgRole: "member",
+            projectRole: "owner",
+            project: { id: "p1", user_id: "u1", org_id: "org-1" },
+        });
+        ensureChatAccess.mockResolvedValue({
+            ok: true,
+            isCreator: true,
+            orgRole: "member",
+            projectRole: "owner",
+        });
+    });
+
+    const userInsert = () =>
+        dbInserts.find(
+            ({ table, value }) =>
+                table === "chat_messages" && (value as { role?: unknown }).role === "user",
+        )?.value as Record<string, unknown> | undefined;
+
+    it("answers a pasante without an attempt 400, before writing or calling a model", async () => {
+        trainingStage.value = "pasante";
+        const res = await request(app)
+            .post("/projects/p1/chat")
+            .set("Authorization", "Bearer test")
+            .send(VALID_BODY);
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_attempt_required");
+        expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("resolves the stage in the project's organization and asks for the contrast", async () => {
+        const { resolveTrainingStage } = await import("../../lib/training.js");
+        trainingStage.value = "pasante";
+        const res = await request(app)
+            .post("/projects/p1/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, attempt: ATTEMPT });
+        expect(res.status).toBe(200);
+        expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
+            expect.anything(),
+            "u1",
+            { orgId: "org-1", projectId: "p1" },
+        );
+        expect(userInsert()).toMatchObject({ training_attempt: ATTEMPT });
+        const extra = buildMessages.mock.calls[0]?.[2] as string;
+        expect(extra).toContain("Contraste con tu planteamiento");
+    });
+
+    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+        "ignores the attempt of %s and changes nothing",
+        async (_label, stage) => {
+            trainingStage.value = stage;
+            const res = await request(app)
+                .post("/projects/p1/chat")
+                .set("Authorization", "Bearer test")
+                .send({ ...VALID_BODY, attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            expect(userInsert()).not.toHaveProperty("training_attempt");
+            expect(String(buildMessages.mock.calls[0]?.[2] ?? "")).not.toContain(
+                "Contraste con tu planteamiento",
+            );
+        },
+    );
 });

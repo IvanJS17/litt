@@ -586,6 +586,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
         requestedOrgId: req.body?.org_id,
+        attempt: body.attempt,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);

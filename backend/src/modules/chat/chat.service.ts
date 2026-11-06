@@ -47,6 +47,7 @@ export {
   userMessageStamper,
   type MessageTimeContext,
   buildUserPersonalisationPrompt,
+  buildTrainingTurnPrompt,
   buildWorkflowStore,
   attachPriorReasoning,
   enrichWithPriorEvents,

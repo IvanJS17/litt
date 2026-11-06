@@ -125,6 +125,16 @@ function mockSupabase() {
   };
 }
 
+// LiTT training: the effective stage is driven per test; null (a lawyer)
+// keeps every other test in this suite on today's behavior.
+const { trainingStage } = vi.hoisted(() => ({
+    trainingStage: { value: null as "pasante" | "junior" | null },
+}));
+vi.mock("../../lib/training", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/training")>()),
+    resolveTrainingStage: vi.fn(async () => trainingStage.value),
+}));
+
 vi.mock("../../lib/supabase", () => ({
   createServerSupabase: vi.fn(() => mockSupabase()),
 }));
@@ -1185,4 +1195,83 @@ describe("POST /word-chat — governed BYOK route", () => {
     expect(res.body.code).toBe("chat_route_pinned");
     expect(runLLMStream).not.toHaveBeenCalled();
   });
+});
+
+
+describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
+  const ATTEMPT =
+    "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+  const BODY = {
+    messages: [{ role: "user", content: "Revise this clause" }],
+    document_id: DOCUMENT_ID,
+    document_name: "Contract.docx",
+    storage: "cloud",
+    model: "gemini-3-flash-preview",
+  };
+  beforeEach(() => {
+    vi.clearAllMocks();
+    recordedQueries.length = 0;
+    resetDbState();
+    trainingStage.value = null;
+    dbState.chatDetail = {
+      data: { id: CHAT_ID, title: null, user_id: "u1" },
+      error: null,
+    };
+    runLLMStream.mockResolvedValue({
+      events: [{ type: "content", text: "Response" }],
+      citations: [],
+    });
+  });
+
+  const userInsert = () =>
+    recordedQueries.find(
+      ({ table, payload }) =>
+        table === "word_chat_messages" &&
+        (payload as { role?: unknown } | undefined)?.role === "user",
+    )?.payload as Record<string, unknown> | undefined;
+
+  it("answers a pasante without an attempt 400, before writing or calling a model", async () => {
+    trainingStage.value = "pasante";
+    const res = await request(app).post("/word-chat").set(...AUTH).send(BODY);
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("training_attempt_required");
+    expect(recordedQueries.some(({ op }) => op === "insert")).toBe(false);
+    expect(runLLMStream).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pasante's attempt with the message and asks for the contrast", async () => {
+    const chatLib = await import("../../modules/chat/engine/index.js");
+    const { resolveTrainingStage } = await import("../../lib/training.js");
+    trainingStage.value = "pasante";
+    const res = await request(app)
+      .post("/word-chat")
+      .set(...AUTH)
+      .send({ ...BODY, attempt: ATTEMPT });
+    expect(res.status).toBe(200);
+    expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
+      expect.anything(),
+      "u1",
+      { anyOrganization: true },
+    );
+    expect(userInsert()).toMatchObject({ training_attempt: ATTEMPT });
+    const extra = vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] as string;
+    expect(extra).toContain("Contraste con tu planteamiento");
+  });
+
+  it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+    "ignores the attempt of %s and changes nothing",
+    async (_label, stage) => {
+      const chatLib = await import("../../modules/chat/engine/index.js");
+      trainingStage.value = stage;
+      const res = await request(app)
+        .post("/word-chat")
+        .set(...AUTH)
+        .send({ ...BODY, attempt: ATTEMPT });
+      expect(res.status).toBe(200);
+      expect(userInsert()).not.toHaveProperty("training_attempt");
+      expect(
+        String(vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] ?? ""),
+      ).not.toContain("Contraste con tu planteamiento");
+    },
+  );
 });

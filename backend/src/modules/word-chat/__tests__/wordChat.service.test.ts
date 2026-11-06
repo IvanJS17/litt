@@ -15,6 +15,11 @@ vi.mock("../../../lib/observability/report", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   reportError: mocks.reportError,
 }));
+// LiTT training: these failures are a lawyer's turn (no stage).
+vi.mock("../../../lib/training", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/training")>()),
+  resolveTrainingStage: vi.fn(async () => null),
+}));
 vi.mock("../../../lib/wordWorkspace", () => ({
   wordChatHasWorkspaceAttachments: async () => false,
 }));

@@ -72,6 +72,16 @@ const { streamWithProvider, unexpectedFetch } = vi.hoisted(() => ({
     }),
 }));
 
+// LiTT training: the effective stage is driven per test; null (a lawyer)
+// keeps every other test in this suite on today's behavior.
+const { trainingStage } = vi.hoisted(() => ({
+    trainingStage: { value: null as "pasante" | "junior" | null },
+}));
+vi.mock("../../lib/training", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/training")>()),
+    resolveTrainingStage: vi.fn(async () => trainingStage.value),
+}));
+
 vi.mock("../../modules/chat/chat.title", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../modules/chat/chat.title.js")>()),
     generateAssistantChatTitle: vi.fn(async () => "Generated Title"),
@@ -3822,4 +3832,85 @@ describe("POST /chat — governed BYOK route", () => {
         expect(res.body.code).toBe("chat_route_credential_unavailable");
         expect(runLLMStream).not.toHaveBeenCalled();
     });
+});
+
+
+describe("LiTT training: «Tu turno primero» on POST /chat", () => {
+    const ATTEMPT =
+        "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+    beforeEach(() => {
+        vi.clearAllMocks();
+        runLLMStream.mockReset();
+        dbInserts.length = 0;
+        dbUpdates.length = 0;
+        dbRpcCalls.length = 0;
+        dbControl.failUserMessageInsert = false;
+        dbControl.failAssistantReservation = false;
+        dbControl.terminalUpdateFailures = 0;
+        dbControl.terminalUpdateAttempts = 0;
+        dbControl.terminalUpdateGate = null;
+        dbControl.wordChatMissing = false;
+        dbControl.failContentGrantLookup = false;
+        dbControl.assistantMessageRows = null;
+        dbControl.chatRoute = null;
+        trainingStage.value = null;
+        runLLMStream.mockResolvedValue({ fullText: "hi", events: [], citations: [] });
+    });
+
+    const userInsert = () =>
+        dbInserts.find(
+            ({ table, value }) =>
+                table === "chat_messages" && (value as { role?: unknown }).role === "user",
+        )?.value as Record<string, unknown> | undefined;
+
+    it.each([
+        ["without an attempt", {}],
+        ["with a 59-character attempt", { attempt: `  ${"a".repeat(59)}  ` }],
+    ])("answers a pasante 400 %s, before writing or calling a model", async (_label, extra) => {
+        trainingStage.value = "pasante";
+        const res = await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, ...extra });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_attempt_required");
+        expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("keeps a pasante's attempt with the message and asks for the contrast", async () => {
+        const chatLib = await import("../../modules/chat/engine/index.js");
+        const { resolveTrainingStage } = await import("../../lib/training.js");
+        trainingStage.value = "pasante";
+        const res = await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, attempt: `  ${ATTEMPT}  ` });
+        expect(res.status).toBe(200);
+        expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
+            expect.anything(),
+            "u1",
+            { orgId: null, projectId: null },
+        );
+        expect(userInsert()).toMatchObject({ training_attempt: ATTEMPT });
+        const extra = vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] as string;
+        expect(extra).toContain("Contraste con tu planteamiento");
+        expect(extra).toContain(ATTEMPT);
+    });
+
+    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+        "ignores the attempt of %s and changes nothing",
+        async (_label, stage) => {
+            const chatLib = await import("../../modules/chat/engine/index.js");
+            trainingStage.value = stage;
+            const res = await request(app)
+                .post("/chat")
+                .set("Authorization", "Bearer test")
+                .send({ ...VALID_BODY, attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            expect(userInsert()).not.toHaveProperty("training_attempt");
+            const extra = String(vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] ?? "");
+            expect(extra).not.toContain("Contraste con tu planteamiento");
+        },
+    );
 });
