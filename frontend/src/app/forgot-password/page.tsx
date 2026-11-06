@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
 
     return (
         <div
-            className={`relative flex min-h-dvh justify-center bg-gray-50/80 px-6 ${
+            className={`relative flex min-h-dvh justify-center bg-app-background px-6 ${
                 submitted
                     ? "items-center py-10"
                     : "items-start pb-10 pt-32 md:pt-40"

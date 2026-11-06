@@ -3,17 +3,17 @@
        color does; liquid-glass classes separately describe surface depth. */
     --document-canvas-background: var(--color-gray-100, #f3f4f6);
     --document-tab-active-background: var(--app-surface, #fdfdfe);
-    --document-tab-inactive-background: #f3f4f6;
-    --document-tab-active-text: #1f2937;
-    --document-tab-inactive-text: #4b5563;
+    --document-tab-inactive-background: var(--color-gray-100, #f4f4f0);
+    --document-tab-active-text: var(--color-gray-800, #262b37);
+    --document-tab-inactive-text: var(--color-gray-600, #4d515a);
 
-    --editor-text: #374151;
-    --editor-heading: #111827;
-    --editor-strong-text: #1f2937;
-    --editor-muted-text: #4b5563;
-    --editor-border: #e5e7eb;
-    --editor-grid-line: #f3f4f6;
-    --editor-table-header: #f9fafb;
+    --editor-text: var(--color-gray-700, #393e48);
+    --editor-heading: var(--litt-tinta, #151a26);
+    --editor-strong-text: var(--color-gray-800, #262b37);
+    --editor-muted-text: var(--color-gray-600, #4d515a);
+    --editor-border: var(--color-gray-200, #d3d4d1);
+    --editor-grid-line: var(--color-gray-100, #f4f4f0);
+    --editor-table-header: var(--color-gray-50, #f9f9f7);
 
     --pdf-highlight-background: rgba(37, 99, 235, 0.2);
     --pdf-selection-background: rgba(0, 136, 255, 0.25);
@@ -25,23 +25,23 @@
     --citation-selected-muted-text: #1e3a8a;
 
     --dropdown-input-background: var(--color-gray-100, #f3f4f6);
-    --liquid-glass-hover-background: #f5f6f8;
-    --liquid-glass-selected-background: var(--app-surface-active, #eff0f3);
-    --liquid-glass-modal-row-hover-background: #f3f4f6;
-    --liquid-glass-modal-row-selected-background: #e5e7eb;
-    /* Matches Tailwind's `ring-blue-500/40`, the ring every primitive uses. */
-    --focus-ring-color: color-mix(
-        in oklab,
-        var(--color-blue-500, #3b82f6) 40%,
-        transparent
-    );
+    --liquid-glass-hover-background: #f1f1ec;
+    --liquid-glass-selected-background: var(--app-surface-active, #e2e2dd);
+    --liquid-glass-modal-row-hover-background: var(--color-gray-100, #f4f4f0);
+    --liquid-glass-modal-row-selected-background: #e2e2dd;
+    /* Keyboard focus is LiTT's one amber accent outside the marks:
+       --litt-accent is ámbar tinta here and ámbar fósforo under `.dark`
+       (DesignTokensUI.css), so each amber only ever sits on its own
+       background. The primitives' `focus*:ring-blue-*` classes are pointed at
+       it below. */
+    --focus-ring-color: var(--litt-accent, #965900);
 
-    --content-fade-color: var(--app-surface, #fdfdfe);
-    --shimmer-edge: #e5e7eb;
-    --shimmer-middle: #d1d5db;
+    --content-fade-color: var(--app-surface, #f9f9f7);
+    --shimmer-edge: #dcdcd7;
+    --shimmer-middle: #c8c9c5;
 
     --spreadsheet-header-tint: rgba(148, 163, 184, 0.18);
-    --spreadsheet-header-corner: #eceef2;
+    --spreadsheet-header-corner: #e6e6e0;
     --spreadsheet-header-hover: rgba(209, 213, 219, 0.65);
     --spreadsheet-header-selected: rgba(156, 163, 175, 0.28);
     --spreadsheet-highlight-background: rgba(59, 130, 246, 0.16);
@@ -49,20 +49,20 @@
 }
 
 .dark {
-    --dropdown-input-background: var(--color-gray-800, #1f2937);
-    --document-canvas-background: var(--app-surface-hover, #19212c);
-    --document-tab-active-background: var(--app-surface, #131922);
-    --document-tab-inactive-background: var(--app-surface-hover, #19212c);
-    --document-tab-active-text: #f3f4f6;
-    --document-tab-inactive-text: #9ca3af;
+    --dropdown-input-background: #2a2f3a;
+    --document-canvas-background: var(--app-surface-hover, #222732);
+    --document-tab-active-background: var(--app-surface, #1b202c);
+    --document-tab-inactive-background: var(--app-surface-hover, #222732);
+    --document-tab-active-text: var(--litt-papel, #ecece6);
+    --document-tab-inactive-text: #9b9d9f;
 
-    --editor-text: #d1d5db;
-    --editor-heading: #f3f4f6;
-    --editor-strong-text: #e5e7eb;
-    --editor-muted-text: #9ca3af;
-    --editor-border: rgba(255, 255, 255, 0.12);
-    --editor-grid-line: rgba(255, 255, 255, 0.08);
-    --editor-table-header: var(--app-surface-hover, #19212c);
+    --editor-text: #c7c9c6;
+    --editor-heading: var(--litt-papel, #ecece6);
+    --editor-strong-text: #dbdbd7;
+    --editor-muted-text: #9b9d9f;
+    --editor-border: rgba(236, 236, 230, 0.12);
+    --editor-grid-line: rgba(236, 236, 230, 0.08);
+    --editor-table-header: var(--app-surface-hover, #222732);
 
     --pdf-highlight-background: rgba(96, 165, 250, 0.28);
     --pdf-selection-background: rgba(96, 165, 250, 0.35);
@@ -73,17 +73,17 @@
     --citation-selected-text: #dbeafe;
     --citation-selected-muted-text: #93c5fd;
 
-    --liquid-glass-hover-background: var(--app-surface-hover, #19212c);
-    --liquid-glass-selected-background: var(--app-surface-active, #222c38);
-    --liquid-glass-modal-row-hover-background: rgba(25, 33, 44, 0.9);
-    --liquid-glass-modal-row-selected-background: #222c38;
+    --liquid-glass-hover-background: var(--app-surface-hover, #222732);
+    --liquid-glass-selected-background: var(--app-surface-active, #2a2f3a);
+    --liquid-glass-modal-row-hover-background: rgba(34, 39, 50, 0.9);
+    --liquid-glass-modal-row-selected-background: #2a2f3a;
 
-    --content-fade-color: var(--app-surface, #131922);
-    --shimmer-edge: #253142;
-    --shimmer-middle: #364152;
+    --content-fade-color: var(--app-surface, #1b202c);
+    --shimmer-edge: #2f343e;
+    --shimmer-middle: #3d424c;
 
     --spreadsheet-header-tint: rgba(15, 23, 42, 0.34);
-    --spreadsheet-header-corner: #222c38;
+    --spreadsheet-header-corner: #2a2f3a;
     --spreadsheet-header-hover: rgba(51, 65, 85, 0.72);
     --spreadsheet-header-selected: rgba(71, 85, 105, 0.58);
     --spreadsheet-highlight-background: rgba(96, 165, 250, 0.24);
@@ -231,6 +231,23 @@
         outline: 2px solid var(--focus-ring-color);
         outline-offset: -2px;
     }
+}
+
+/* Every primitive draws its focus ring with a `focus*:ring-blue-*` utility.
+   Unlayered, these win over Tailwind's utilities layer and recolor all of
+   them to the theme's amber without editing each component. Selection rings
+   (`ring-blue-200`, `ring-blue-400`) are not focus and keep their blue. */
+:is(
+    .focus-visible\:ring-blue-500,
+    .focus-visible\:ring-blue-500\/40,
+    .focus-visible\:ring-blue-500\/50,
+    .focus-visible\:ring-blue-500\/60,
+    .focus-visible\:ring-blue-600,
+    .focus-visible\:ring-blue-600\/40
+):focus-visible,
+.focus-within\:ring-blue-500\/40:focus-within,
+.focus\:ring-blue-500:focus {
+    --tw-ring-color: var(--focus-ring-color);
 }
 
 .citation-quote-selected {

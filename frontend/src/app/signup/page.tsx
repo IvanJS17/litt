@@ -153,7 +153,7 @@ function SignupContent() {
     // Success View
     if (success || isAccountCreatedPreview) {
         return (
-            <div className="relative flex min-h-dvh items-center justify-center bg-gray-50/80 px-6 py-10">
+            <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
                 <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
                     <SiteLogo size="lg" asLink />
                 </div>
@@ -183,7 +183,7 @@ function SignupContent() {
 
     // Default Signup Form View
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-gray-50/80 px-6 py-24">
+        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-24">
             <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
                 <SiteLogo size="lg" asLink />
             </div>
