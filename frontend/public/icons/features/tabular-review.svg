@@ -1,7 +1,7 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F9FAFB" stop-opacity="0.96"/>
+      <stop offset="0" stop-color="#FAFAF8" stop-opacity="0.96"/>
       <stop offset="0.5" stop-color="#EFEFEA" stop-opacity="0.94"/>
       <stop offset="1" stop-color="#D5D5D1" stop-opacity="0.96"/>
     </linearGradient>
