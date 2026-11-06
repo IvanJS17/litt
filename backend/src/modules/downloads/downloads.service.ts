@@ -10,6 +10,10 @@ import { downloadFile } from "../../lib/storage";
 import { verifyDownload } from "../../lib/downloadTokens";
 import { ensureDocAccess } from "../../lib/access";
 import {
+    assertVersionReleasable,
+    type TrainingApprovalRequired,
+} from "../../lib/trainingRelease";
+import {
     contentTypeForDocumentType,
     documentSuffix,
 } from "../../lib/documentTypes";
@@ -23,6 +27,11 @@ function contentTypeFor(filename: string): string {
  * storage path is still backed by a live document version the caller can
  * access. Every failure after token verification collapses to "not_found" so
  * a valid-looking token cannot be used to probe for foreign files.
+ *
+ * This is the one gate for every issued token (chat events, edits, generated
+ * files, playbook reviews, chat history and exports): a pasante's unapproved
+ * version of the resolved row answers the training 409, after access, so the
+ * answer reveals nothing to someone who cannot read the document.
  */
 export async function resolveTokenDownload(
     db: Db,
@@ -30,13 +39,15 @@ export async function resolveTokenDownload(
 ): Promise<
     | { ok: true; bytes: Buffer; contentType: string; filename: string }
     | { ok: false; kind: "invalid_link" | "not_found" }
+    | TrainingApprovalRequired
+    | { ok: false; kind: "error"; error: unknown }
 > {
     const info = verifyDownload(args.token);
     if (!info) return { ok: false, kind: "invalid_link" };
 
     const { data: version } = await db
         .from("document_versions")
-        .select("id, document_id")
+        .select("id, document_id, training_stage, content_sha256")
         .eq("storage_path", info.path)
         .is("deleted_at", null)
         .maybeSingle();
@@ -51,6 +62,21 @@ export async function resolveTokenDownload(
 
     const access = await ensureDocAccess(doc, args.userId, args.userEmail, db);
     if (!access.ok) return { ok: false, kind: "not_found" };
+
+    const releasable = await assertVersionReleasable(
+        db,
+        version as {
+            id: string;
+            training_stage: string | null;
+            content_sha256: string | null;
+        },
+    );
+    if (!releasable.ok) {
+        if (releasable.kind === "conflict") return releasable as TrainingApprovalRequired;
+        if (releasable.kind === "error")
+            return { ok: false, kind: "error", error: releasable.error };
+        return { ok: false, kind: "not_found" };
+    }
 
     const raw = await downloadFile(info.path);
     if (!raw) return { ok: false, kind: "not_found" };
