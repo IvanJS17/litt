@@ -21,7 +21,7 @@ import {
     type WebSearchPlan,
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
-import { attachPriorReasoning, buildDocContext, buildMessages, buildTrainingTurnPrompt, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
+import { attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     chatRouteColumns,
@@ -53,6 +53,7 @@ import { replaysReasoning } from "../../lib/llm/registry";
 import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type MemoryConversationTurn } from "../../lib/memory/schedule";
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
 import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 
 // ---------------------------------------------------------------------------
 // Pre-stream preparation for POST /chat (streaming)
@@ -108,6 +109,8 @@ export type PreparedChatStream = {
         typeof resolveEffectiveReasoningLevel
     >;
     nonce: ReturnType<typeof generateSpotlightNonce>;
+    /** LiTT training: a pasante's private note for this turn, pending its contrast. */
+    trainingNote: CreatedTurnNote | null;
 };
 
 /** Authorize and prepare a chat turn, refusing active turns before saving input. */
@@ -334,6 +337,7 @@ export async function prepareChatStream(
     // their own approach. Checked before anything is written.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let trainingAttempt: string | null = null;
+    let trainingNote: CreatedTurnNote | null = null;
     if (lastUser && !args.askInputsResponse) {
         let stage;
         try {
@@ -521,10 +525,21 @@ export async function prepareChatStream(
                 workflow: lastUser.workflow ?? null,
                 playbook: lastUser.playbook ?? null,
                 author_user_id: userId,
-                ...(trainingAttempt ? { training_attempt: trainingAttempt } : {}),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
+        }
+        if (trainingAttempt && contentOrgId && args.inputMessageId) {
+            const created = await createPendingTurnNote(db, {
+                surface: "chat",
+                orgId: contentOrgId,
+                traineeUserId: userId,
+                chatId,
+                messageId: args.inputMessageId,
+                attempt: trainingAttempt,
+            });
+            if (!created.ok) return { ok: false, internal: true, error: created.error };
+            trainingNote = created.note;
         }
     }
 
@@ -589,16 +604,10 @@ export async function prepareChatStream(
             enrichedMessages,
             !!args.askInputsResponse,
         );
-        const systemPromptExtra = [
-            personalisationPrompt,
-            trainingAttempt ? buildTrainingTurnPrompt(trainingAttempt, nonce) : "",
-        ]
-            .filter(Boolean)
-            .join("\n\n");
         const apiMessages = buildMessages(
             enrichedMessages,
             docAvailability,
-            systemPromptExtra || undefined,
+            personalisationPrompt || undefined,
             undefined,
             nonce,
             "append",
@@ -645,6 +654,7 @@ export async function prepareChatStream(
                 selectedModel,
                 selectedReasoningLevel,
                 nonce,
+                trainingNote,
             },
         };
     } catch (error) {

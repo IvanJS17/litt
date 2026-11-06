@@ -185,6 +185,21 @@ vi.mock("../../middleware/auth", async () => {
     return authMock();
 });
 
+// LiTT training: the effective stage is driven per test; null (a lawyer)
+// keeps every other test in this suite on today's behavior.
+const { trainingStage } = vi.hoisted(() => ({
+    trainingStage: { value: null as "pasante" | "junior" | null },
+}));
+vi.mock("../../lib/training", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/training")>()),
+    resolveTrainingStage: vi.fn(async () => trainingStage.value),
+}));
+// The contrast of a pasante's turn is a model call.
+vi.mock("../../lib/llm", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/llm")>()),
+    completeText: vi.fn(async () => "unused"),
+}));
+
 vi.mock("../../modules/chat/engine/index", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../modules/chat/engine/index")>()),
     runLLMStream: (...args: unknown[]) => runLLMStream(...args),
@@ -3378,5 +3393,142 @@ describe("tabular.routes", () => {
                 .set(...AUTH);
             expect(del.status).toBe(204);
         });
+    });
+
+    describe("LiTT training: «Tu turno primero» on POST /tabular-review/:reviewId/chat", () => {
+        const ATTEMPT =
+            "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+        const CONTRAST = "Coincide\n- La rescisión.\nNo coincide\n- El plazo.\nFaltó\n- La prescripción.";
+
+        beforeEach(() => {
+            trainingStage.value = null;
+            supabaseState.tables.tabular_reviews = {
+                data: {
+                    id: "r1",
+                    user_id: "u1",
+                    org_id: "org-1",
+                    project_id: "p1",
+                    title: "Review",
+                    columns_config: [],
+                },
+                error: null,
+            };
+            supabaseState.tables.tabular_cells = { data: [], error: null };
+            supabaseState.tables.tabular_review_rows = { data: [], error: null };
+            supabaseState.tables.tabular_review_chats = {
+                data: {
+                    id: "review-chat-1",
+                    title: "Existing title",
+                    review_id: "r1",
+                    user_id: "u1",
+                    model: "claude-sonnet-5-5",
+                    reasoning_level: "high",
+                },
+                error: null,
+            };
+            supabaseState.tables.tabular_review_chat_messages = { data: null, error: null };
+            supabaseState.tables.training_turn_notes = { data: { id: "note-1" }, error: null };
+        });
+
+        const send = (extra: Record<string, unknown> = {}) =>
+            request(app)
+                .post("/tabular-review/r1/chat")
+                .set(...AUTH)
+                .send({
+                    messages: [{ role: "user", content: "Summarise" }],
+                    chat_id: "review-chat-1",
+                    model: "claude-sonnet-5-5",
+                    ...extra,
+                });
+        const insertOf = (table: string) =>
+            supabaseState.inserts.find((i) => i.table === table)?.payload as
+                | Record<string, unknown>
+                | undefined;
+        const noteUpdate = () =>
+            supabaseState.updates.find((u) => u.table === "training_turn_notes")?.payload;
+
+        it.each([
+            ["without an attempt", {}],
+            ["with a 59-character attempt", { attempt: `  ${"a".repeat(59)}  ` }],
+        ])("answers a pasante 400 %s, before writing or calling a model", async (_label, extra) => {
+            trainingStage.value = "pasante";
+            const res = await send(extra);
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+            expect(insertOf("tabular_review_chat_messages")).toBeUndefined();
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("answers an attempt over 4000 characters with its own message", async () => {
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: "a".repeat(4001) });
+            expect(res.status).toBe(400);
+            expect(res.body.detail).toContain("demasiado largo");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("keeps the attempt in a private note of the review's organization", async () => {
+            const { resolveTrainingStage } = await import("../../lib/training.js");
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: `  ${ATTEMPT}  ` });
+            expect(res.status).toBe(200);
+            expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
+                expect.anything(),
+                "u1",
+                { orgId: "org-1", projectId: "p1" },
+            );
+            const message = insertOf("tabular_review_chat_messages")!;
+            expect(JSON.stringify(message)).not.toContain(ATTEMPT);
+            expect(insertOf("training_turn_notes")).toMatchObject({
+                org_id: "org-1",
+                trainee_user_id: "u1",
+                tabular_chat_id: "review-chat-1",
+                message_id: message.id,
+                attempt: ATTEMPT,
+                contrast_status: "pending",
+            });
+        });
+
+        it("contrasts with the conversation's own model and credential, then stores it", async () => {
+            const { completeText } = await import("../../lib/llm/index.js");
+            vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+            const params = vi.mocked(completeText).mock.calls[0][0];
+            const stream = runLLMStream.mock.calls[0][0] as { model: string; apiKeys: unknown };
+            expect(params.model).toBe(stream.model);
+            expect(params.apiKeys).toBe(stream.apiKeys);
+            expect(params.user).toContain(ATTEMPT);
+            expect(params.user).toContain("Answer");
+            expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+        });
+
+        it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
+            const { completeText } = await import("../../lib/llm/index.js");
+            vi.mocked(completeText).mockRejectedValueOnce(new Error("provider down"));
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            expect(res.text).toContain("[DONE]");
+            await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+            expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
+        });
+
+        it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+            "ignores the attempt of %s and changes nothing",
+            async (_label, stage) => {
+                const { completeText } = await import("../../lib/llm/index.js");
+                trainingStage.value = stage;
+                const res = await send({ attempt: ATTEMPT });
+                expect(res.status).toBe(200);
+                expect(insertOf("training_turn_notes")).toBeUndefined();
+                expect(completeText).not.toHaveBeenCalled();
+                expect(JSON.stringify(insertOf("tabular_review_chat_messages"))).not.toContain(
+                    ATTEMPT,
+                );
+            },
+        );
     });
 });

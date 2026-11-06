@@ -4,6 +4,8 @@
 // and building the system + history messages the agentic review chat streams
 // over. The streaming loop itself stays in tabular.routes.ts.
 
+import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     loadUserMessageSentTimes,
     parseOptionalModel,
@@ -582,6 +584,8 @@ export type PreparedTabularChat = {
     /** The durable activity fence; the route releases it unless the turn
      *  ends up scheduling consolidation. */
     memoryTurn: MemoryConversationTurn | null;
+    /** LiTT training: a pasante's private note for this turn, pending its contrast. */
+    trainingNote: CreatedTurnNote | null;
 };
 
 /**
@@ -611,6 +615,8 @@ export async function prepareTabularChat(
         requestedReasoning: string | undefined;
         /** The browser's IANA time zone; unvalidated request input. */
         requestedTimeZone?: unknown;
+        /** LiTT training: the author's own approach; required of a pasante. */
+        attempt?: unknown;
     },
 ): Promise<TabularResult<PreparedTabularChat>> {
     const {
@@ -750,6 +756,26 @@ export async function prepareTabularChat(
         }
     }
 
+    // LiTT training ("Tu turno primero"): a pasante's turn carries their own
+    // approach first, in the review's organization and project. Checked before
+    // anything is written.
+    let trainingAttempt: string | null = null;
+    try {
+        const stage = await resolveTrainingStage(db, userId, {
+            orgId: review.org_id ?? null,
+            projectId: review.project_id ?? null,
+        });
+        const training = checkTrainingTurn(stage, args.attempt);
+        if (!training.ok)
+            return statusFailure(training.status, {
+                code: training.code,
+                detail: training.detail,
+            });
+        trainingAttempt = training.attempt;
+    } catch (error) {
+        return internalFailure(error);
+    }
+
     const selection = await resolveUserChatSelection(db, {
         userId,
         chatModel,
@@ -870,6 +896,20 @@ export async function prepareTabularChat(
         if (userMessageError) return internalFailure(userMessageError);
     }
 
+    let trainingNote: CreatedTurnNote | null = null;
+    if (chatId && trainingAttempt && review.org_id) {
+        const created = await createPendingTurnNote(db, {
+            surface: "tabular",
+            orgId: review.org_id as string,
+            traineeUserId: userId,
+            chatId,
+            messageId: inputMessageId,
+            attempt: trainingAttempt,
+        });
+        if (!created.ok) return internalFailure(created.error);
+        trainingNote = created.note;
+    }
+
     if (chatId) {
         // Fail open: the lease is only a checkpoint marker, and
         // beginMemoryConversationTurn now returns null instead of throwing
@@ -920,6 +960,7 @@ export async function prepareTabularChat(
             writableMemoryProjectId,
             memorySharedAudience,
             memoryTurn,
+            trainingNote,
         },
     };
 }

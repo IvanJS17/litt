@@ -18,7 +18,6 @@ import type { McpToolEvent } from "@mike/contracts";
 import {
     buildProjectDocContext,
     buildMessages,
-    buildTrainingTurnPrompt,
     buildUserPersonalisationPrompt,
     buildWorkflowStore,
     attachPriorReasoning,
@@ -53,6 +52,7 @@ import {
 } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
 import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     DOCUMENT_WORKSPACE_MISMATCH_CODE,
     DOCUMENT_WORKSPACE_MISMATCH_DETAIL,
@@ -158,6 +158,8 @@ export type PreparedProjectChatStream = {
         typeof resolveEffectiveReasoningLevel
     >;
     nonce: ReturnType<typeof generateSpotlightNonce>;
+    /** LiTT training: a pasante's private note for this turn, pending its contrast. */
+    trainingNote: CreatedTurnNote | null;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -350,6 +352,7 @@ export async function prepareProjectChatStream(
     // their own approach. Checked before anything is written.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
     let trainingAttempt: string | null = null;
+    let trainingNote: CreatedTurnNote | null = null;
     if (lastUser && !args.askInputsResponse) {
         let stage;
         try {
@@ -505,10 +508,22 @@ export async function prepareProjectChatStream(
                 files: lastUser.files ?? null,
                 workflow: lastUser.workflow ?? null,
                 author_user_id: userId,
-                ...(trainingAttempt ? { training_attempt: trainingAttempt } : {}),
             });
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
+        }
+        const noteOrgId = projectAccess.project.org_id ?? null;
+        if (trainingAttempt && noteOrgId && args.inputMessageId) {
+            const created = await createPendingTurnNote(db, {
+                surface: "chat",
+                orgId: noteOrgId,
+                traineeUserId: userId,
+                chatId,
+                messageId: args.inputMessageId,
+                attempt: trainingAttempt,
+            });
+            if (!created.ok) return { ok: false, internal: true, error: created.error };
+            trainingNote = created.note;
         }
     }
 
@@ -618,9 +633,6 @@ export async function prepareProjectChatStream(
         if (personalisationPrompt) {
             systemPromptExtra += `\n\n${personalisationPrompt}`;
         }
-        if (trainingAttempt) {
-            systemPromptExtra += `\n\n${buildTrainingTurnPrompt(trainingAttempt, nonce)}`;
-        }
         const userSentAt = await loadUserMessageSentTimes(
             db,
             "chat_messages",
@@ -675,6 +687,7 @@ export async function prepareProjectChatStream(
                 selectedModel,
                 selectedReasoningLevel,
                 nonce,
+                trainingNote,
             },
         };
     } catch (error) {

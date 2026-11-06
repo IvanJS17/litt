@@ -74,12 +74,25 @@ const { streamWithProvider, unexpectedFetch } = vi.hoisted(() => ({
 
 // LiTT training: the effective stage is driven per test; null (a lawyer)
 // keeps every other test in this suite on today's behavior.
-const { trainingStage } = vi.hoisted(() => ({
+const { trainingStage, trainingOrg } = vi.hoisted(() => ({
     trainingStage: { value: null as "pasante" | "junior" | null },
+    // When set, a standalone chat is filed under this organization.
+    trainingOrg: { value: null as string | null },
 }));
+vi.mock("../../lib/access", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../lib/access")>();
+    return {
+        ...actual,
+        resolveStandaloneOrgId: (...args: Parameters<typeof actual.resolveStandaloneOrgId>) =>
+            trainingOrg.value
+                ? Promise.resolve({ ok: true as const, orgId: trainingOrg.value })
+                : actual.resolveStandaloneOrgId(...args),
+    };
+});
 vi.mock("../../lib/training", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/training")>()),
     resolveTrainingStage: vi.fn(async () => trainingStage.value),
+    resolveWordTrainingStage: vi.fn(async () => ({ stage: trainingStage.value, orgId: null })),
 }));
 
 vi.mock("../../modules/chat/chat.title", async (importOriginal) => ({
@@ -3838,6 +3851,7 @@ describe("POST /chat — governed BYOK route", () => {
 describe("LiTT training: «Tu turno primero» on POST /chat", () => {
     const ATTEMPT =
         "Creo que procede la rescisión por incumplimiento de la cláusula quinta del contrato.";
+    const CONTRAST = "Coincide\n- La rescisión.\nNo coincide\n- El plazo.\nFaltó\n- La prescripción.";
     beforeEach(() => {
         vi.clearAllMocks();
         runLLMStream.mockReset();
@@ -3854,7 +3868,8 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         dbControl.assistantMessageRows = null;
         dbControl.chatRoute = null;
         trainingStage.value = null;
-        runLLMStream.mockResolvedValue({ fullText: "hi", events: [], citations: [] });
+        trainingOrg.value = "org-1";
+        runLLMStream.mockResolvedValue({ fullText: "La respuesta del abogado.", events: [], citations: [] });
     });
 
     const userInsert = () =>
@@ -3862,40 +3877,107 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
             ({ table, value }) =>
                 table === "chat_messages" && (value as { role?: unknown }).role === "user",
         )?.value as Record<string, unknown> | undefined;
+    const noteInsert = () =>
+        dbInserts.find(({ table }) => table === "training_turn_notes")?.value as
+            | Record<string, unknown>
+            | undefined;
+    const noteUpdate = () =>
+        dbUpdates.find(({ table }) => table === "training_turn_notes")?.value as
+            | Record<string, unknown>
+            | undefined;
+    const contrastCalls = async () => {
+        const { completeText } = await import("../../lib/llm/index.js");
+        return vi
+            .mocked(completeText)
+            .mock.calls.map(([params]) => params)
+            .filter((params) => String(params.systemPrompt ?? "").includes("supervisor"));
+    };
+    const answerContrastWith = async (impl: () => Promise<string>) => {
+        const { completeText } = await import("../../lib/llm/index.js");
+        vi.mocked(completeText).mockImplementation(async (params) =>
+            String(params.systemPrompt ?? "").includes("supervisor") ? impl() : "Generated Title",
+        );
+    };
+    const send = (extra: Record<string, unknown> = {}) =>
+        request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, ...extra });
 
     it.each([
         ["without an attempt", {}],
         ["with a 59-character attempt", { attempt: `  ${"a".repeat(59)}  ` }],
     ])("answers a pasante 400 %s, before writing or calling a model", async (_label, extra) => {
         trainingStage.value = "pasante";
-        const res = await request(app)
-            .post("/chat")
-            .set("Authorization", "Bearer test")
-            .send({ ...VALID_BODY, ...extra });
+        const res = await send(extra);
         expect(res.status).toBe(400);
         expect(res.body.code).toBe("training_attempt_required");
         expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
         expect(runLLMStream).not.toHaveBeenCalled();
     });
 
-    it("keeps a pasante's attempt with the message and asks for the contrast", async () => {
+    it("answers an attempt over 4000 characters with its own message", async () => {
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: "a".repeat(4001) });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_attempt_required");
+        expect(res.body.detail).toContain("demasiado largo");
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
+    it("keeps the attempt in a private note, not on the message or in the prompt", async () => {
         const chatLib = await import("../../modules/chat/engine/index.js");
         const { resolveTrainingStage } = await import("../../lib/training.js");
+        await answerContrastWith(async () => CONTRAST);
         trainingStage.value = "pasante";
-        const res = await request(app)
-            .post("/chat")
-            .set("Authorization", "Bearer test")
-            .send({ ...VALID_BODY, attempt: `  ${ATTEMPT}  ` });
+        const res = await send({ attempt: `  ${ATTEMPT}  ` });
         expect(res.status).toBe(200);
         expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
             expect.anything(),
             "u1",
-            { orgId: null, projectId: null },
+            { orgId: "org-1", projectId: null },
         );
-        expect(userInsert()).toMatchObject({ training_attempt: ATTEMPT });
-        const extra = vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] as string;
-        expect(extra).toContain("Contraste con tu planteamiento");
-        expect(extra).toContain(ATTEMPT);
+        expect(userInsert()).not.toHaveProperty("training_attempt");
+        expect(JSON.stringify(userInsert())).not.toContain(ATTEMPT);
+        const extra = String(vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] ?? "");
+        expect(extra).not.toContain(ATTEMPT);
+        expect(extra).not.toContain("Contraste con tu planteamiento");
+        expect(noteInsert()).toMatchObject({
+            org_id: "org-1",
+            trainee_user_id: "u1",
+            chat_id: expect.any(String),
+            message_id: userInsert()!.id,
+            attempt: ATTEMPT,
+            contrast_status: "pending",
+        });
+    });
+
+    it("contrasts with the conversation's own model and credential, then stores it", async () => {
+        await answerContrastWith(async () => CONTRAST);
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT });
+        expect(res.status).toBe(200);
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        const calls = await contrastCalls();
+        expect(calls).toHaveLength(1);
+        const stream = runLLMStream.mock.calls[0][0] as { model: string; apiKeys: unknown };
+        expect(calls[0].model).toBe(stream.model);
+        expect(calls[0].apiKeys).toBe(stream.apiKeys);
+        expect(calls[0].user).toContain(ATTEMPT);
+        expect(calls[0].user).toContain("La respuesta del abogado.");
+        expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+    });
+
+    it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
+        await answerContrastWith(async () => {
+            throw new Error("provider down");
+        });
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT });
+        expect(res.status).toBe(200);
+        expect(res.text).toContain("[DONE]");
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
     });
 
     it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
@@ -3903,14 +3985,17 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         async (_label, stage) => {
             const chatLib = await import("../../modules/chat/engine/index.js");
             trainingStage.value = stage;
-            const res = await request(app)
-                .post("/chat")
-                .set("Authorization", "Bearer test")
-                .send({ ...VALID_BODY, attempt: ATTEMPT });
+            const res = await send({ attempt: ATTEMPT });
             expect(res.status).toBe(200);
             expect(userInsert()).not.toHaveProperty("training_attempt");
+            expect(noteInsert()).toBeUndefined();
+            expect(await contrastCalls()).toHaveLength(0);
             const extra = String(vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] ?? "");
-            expect(extra).not.toContain("Contraste con tu planteamiento");
+            expect(extra).not.toContain(ATTEMPT);
         },
     );
+
+    afterEach(() => {
+        trainingOrg.value = null;
+    });
 });

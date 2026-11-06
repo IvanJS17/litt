@@ -91,6 +91,16 @@ export function memoryDb(tables: Record<string, Row[]>) {
                 const data = result.data as Row[];
                 return Promise.resolve({ data: data[0] ?? null, error: null });
             },
+            single: () => {
+                const result = run();
+                if (result.error) return Promise.resolve(result);
+                const data = result.data as Row[];
+                return Promise.resolve(
+                    data[0]
+                        ? { data: data[0], error: null }
+                        : { data: null, error: { message: "no rows" } },
+                );
+            },
             then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
                 Promise.resolve(run()).then(resolve, reject),
         };
