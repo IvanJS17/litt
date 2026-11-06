@@ -19,11 +19,17 @@ implemented. Nothing here changes anything for a person without a stage.
   2. otherwise the stage for every practice area;
   3. otherwise none.
 
-  In the personal space it is always none. A Word add-in chat belongs to no
-  organization or project, so there only a stage for every practice area
-  applies, from any organization the person holds one in, with `pasante`
-  taking precedence over `junior`. A read failure fails the turn instead of
-  answering "no stage".
+  In the personal space it is always none. A read failure fails the turn
+  instead of answering "no stage".
+- **Word.** A Word add-in chat has no project and so no practice area. This is a
+  deliberate deviation from "the personal space is always none": without it,
+  Word would be a way around the requirement. The effective stage there is the
+  stage for every practice area (`practice null`) that is the most junior among
+  the person's organizations (`pasante` before `junior`; a tie goes to the
+  lowest organization id), ignoring deleted organizations. It is resolved by
+  `resolveWordTrainingStage` in the same file; a stage for one practice area
+  alone never applies in Word. The note of a Word turn belongs to the
+  organization whose stage was applied.
 - **Mentor.** Designated by an owner or admin of the organization. Each pupil
   has exactly one current mentor per organization.
 
@@ -39,10 +45,13 @@ Migration `backend/migrations/20261106_50_litt_training.sql` (also in
 | `training_stages` | unique `(org_id, trainee_user_id, coalesce(practice, ''))` | `stage in ('pasante','junior')`; `practice` normalized or null; FK to `training_pupils`, cascade |
 
 RLS is on and there are no policies or browser grants: every read and write
-goes through `backend/src/modules/training/`.
+goes through the backend (`modules/training/`, and `modules/training-notes/` for
+the notes).
 
-`chat_messages.training_attempt` and `word_chat_messages.training_attempt` keep
-the approach a pasante wrote before a turn.
+| `training_turn_notes` | `id` | a pasante's private notes on their chat turns: `attempt` (60–4,000 characters), `contrast`, `contrast_status in ('pending','ready','failed')`; FK `(org_id, trainee_user_id)` to the pupil's `org_members` row (cascade); one FK per surface to its chat (`chat_id` → `chats`, `word_chat_id` → `word_chats`, `tabular_chat_id` → `tabular_review_chats`, all cascade, exactly one set); `message_id` is the user message, unique |
+
+The attempt and its contrast are learning data. They are **not** stored on the
+chat message, so the people who can read the chat never see them.
 
 ### When membership ends
 
@@ -90,22 +99,45 @@ client acts on are in `CODE_KINDS`.
 
 Every user turn whose author's effective stage is `pasante` in that chat:
 
-- carries `attempt`, at least 60 characters after trimming (at most 4,000);
-  otherwise the server answers `400 training_attempt_required` before writing
-  anything or calling a model;
-- keeps the attempt with the user message (`training_attempt`), shown in the
-  thread as «Tu planteamiento»;
-- adds to the system prompt the instruction to open with a section
-  «Contraste con tu planteamiento» (what is right, what is not, what is
-  missing), then help in full, explain the reasoning and sources, and remind
-  that the result is a training draft. The attempt is fenced like other user
-  text and treated as data, not instructions.
+- carries `attempt`, at least 60 characters after trimming (counted as
+  characters, not UTF-16 units) and at most 4,000; otherwise the server answers
+  `400 training_attempt_required` before writing anything or calling a model,
+  with a different message for "too short" and "too long";
+- gets the same answer a lawyer would get. The attempt is **not** injected into
+  the prompt and the message is stored as it is;
+- leaves a private note (`training_turn_notes`, `contrast_status = 'pending'`)
+  tied to the user message, with the attempt;
+- once the final answer is persisted, triggers one more model call that
+  produces the contrast. It runs on the **same provider, model and credential**
+  the conversation is fixed to (governed BYOK, no fallback; not the title
+  model), receives the attempt and the final answer fenced as data with a
+  nonce, and answers in Spanish with three short sections: «Coincide», «No
+  coincide», «Faltó». The result is stored in the note (`ready`). If the call
+  fails or its answer lacks the sections the note is marked `failed` and the
+  turn is unaffected. A contrast still `pending` ten minutes after the turn is
+  reported as `failed` (its call was lost, for example in a restart).
 
-For a junior or a lawyer, `attempt` is ignored. The surfaces are the web chat
-(`POST /chat`), the project chat (`POST /projects/:id/chat`) and the Word chat
-(`POST /word-chat`); answering an ask-inputs question continues a turn and is
-not a new one. The tabular review chat is not a training surface in this
-layer.
+The contrast runs in the same process right after the turn instead of as a
+queued job (`lib/dbq`): a job would have to carry the decrypted credential, and
+losing an in-flight call costs only a note that reads as failed.
+
+For a junior or a lawyer, `attempt` is ignored and nothing is stored. The
+surfaces are the web chat (`POST /chat`), the project chat
+(`POST /projects/:id/chat`), the Word chat (`POST /word-chat`) and the tabular
+review chat (`POST /tabular-review/:reviewId/chat`, which resolves the stage in
+the review's organization and project). Answering an ask-inputs question
+continues a turn and is not a new one; a turn paused by ask-inputs gets its
+contrast from the answer so far. A Word chat with `storage: "local"` has no
+server-side transcript: the attempt is still required but no note is kept.
+
+### Reading the notes
+
+`GET /training-notes/chats/:chatId` (optionally `?message_id=`) returns
+`{ notes }` for a chat of any surface. Only the author and the author's
+**current** mentor (`training_pupils`) can read a note; owners, admins, other
+participants of the chat and a previous mentor cannot. Any other case, and any
+chat without readable notes, is the same `404`. Notes are deleted with the
+membership, with the chat, and with the account.
 
 The composers (web and Word) show the required field
 «Tu planteamiento (2–3 líneas)» with a counter when `GET /training/stage` says
