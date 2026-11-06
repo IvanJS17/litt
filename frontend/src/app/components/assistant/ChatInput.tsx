@@ -44,6 +44,11 @@ import {
     useSelectedReasoning,
 } from "@/app/hooks/useSelectedModel";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { useTrainingStage } from "@/app/hooks/useTrainingStage";
+import {
+    isTrainingAttemptReady,
+    TrainingAttemptFieldUI,
+} from "@/shared/ui/TrainingAttemptFieldUI";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { useModelRouterSelections } from "@/app/hooks/useModelRouterSelections";
 import {
@@ -146,6 +151,11 @@ interface Props {
      * run on the server's default key for their review and do not.
      */
     offerCredentialChoice?: boolean;
+    /**
+     * LiTT training: whether this composer starts assistant chat turns
+     * ("Tu turno primero"). A pasante's turn there needs their approach.
+     */
+    trainingTurns?: boolean;
 }
 
 /**
@@ -193,6 +203,7 @@ function ChatInputForChatImpl(
         chatReasoningLevel,
         chatKey,
         offerCredentialChoice = true,
+        trainingTurns = false,
     }: Props,
     ref: ForwardedRef<ChatInputHandle>,
 ) {
@@ -258,6 +269,15 @@ function ChatInputForChatImpl(
         projectId,
         orgId: workspaceOrgId,
     });
+    // LiTT training: a pasante writes their own approach before each turn.
+    const trainingStage = useTrainingStage({
+        orgId: workspaceOrgId,
+        projectId,
+        enabled: trainingTurns && canSend === true,
+    });
+    const needsAttempt = trainingStage === "pasante";
+    const [attempt, setAttempt] = useState("");
+    const [attemptError, setAttemptError] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const controlsRef = useRef<HTMLDivElement>(null);
     const [compactControls, setCompactControls] = useState(false);
@@ -649,6 +669,10 @@ function ChatInputForChatImpl(
             setModelRequiredWarning(true);
             return;
         }
+        if (needsAttempt && !isTrainingAttemptReady(attempt)) {
+            setAttemptError(true);
+            return;
+        }
         if (
             apiKeys &&
             !isModelAvailable(model, apiKeys, configuredModelIds)
@@ -675,6 +699,8 @@ function ChatInputForChatImpl(
         setSelectedWorkflow(null);
         setSelectedPlaybook(null);
         setExcerpts([]);
+        setAttempt("");
+        setAttemptError(false);
 
         onSubmit?.({
             role: "user",
@@ -687,6 +713,7 @@ function ChatInputForChatImpl(
                 ? { credential_ref: credential.value }
                 : {}),
             reasoning: reasoningLevel,
+            ...(needsAttempt ? { training_attempt: attempt.trim() } : {}),
         });
     };
 
@@ -863,6 +890,17 @@ function ChatInputForChatImpl(
                                 />
                             ))}
                         </div>
+                    )}
+
+                    {needsAttempt && (
+                        <TrainingAttemptFieldUI
+                            id="chat-training-attempt"
+                            className="px-4 pt-4"
+                            value={attempt}
+                            onChange={setAttempt}
+                            disabled={!composerOpen}
+                            showError={attemptError}
+                        />
                     )}
 
                     {/* Input */}

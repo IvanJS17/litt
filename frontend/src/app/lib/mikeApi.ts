@@ -109,6 +109,8 @@ interface ServerMessage {
     workflow?: { id: string; title: string } | null;
     playbook?: { id: string; title: string } | null;
     citations?: Citation[] | null;
+    /** LiTT training: the approach a pasante wrote before this message. */
+    training_attempt?: string | null;
     created_at: string;
 }
 interface ServerChatDetailOut {
@@ -2240,6 +2242,108 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
     return apiRequest<OrgMember[]>("organizations.manage", `/orgs/${orgId}/members`);
 }
 
+// ---------------------------------------------------------------------------
+// LiTT training (docs/training.md): mentors, pupils and stages
+// ---------------------------------------------------------------------------
+
+export type {
+    TrainingStage,
+    TrainingStageEntry,
+    TrainingMembership,
+    TrainingOrgOverview,
+    TrainingMyPupils,
+} from "@mike/contracts";
+
+/** The caller's effective stage where a chat turn would run; the server decides. */
+export async function getTrainingStage(scope: {
+    orgId?: string | null;
+    projectId?: string | null;
+}): Promise<import("@mike/contracts").TrainingStage | null> {
+    const query = new URLSearchParams();
+    if (scope.orgId) query.set("org_id", scope.orgId);
+    if (scope.projectId) query.set("project_id", scope.projectId);
+    const result = await apiRequest<import("@mike/contracts").TrainingEffectiveStage>(
+        "training.read",
+        `/training/stage?${query}`,
+    );
+    return result.stage;
+}
+
+export async function getMyTraining(): Promise<import("@mike/contracts").TrainingMembership[]> {
+    const result = await apiRequest<{ memberships: import("@mike/contracts").TrainingMembership[] }>(
+        "training.read",
+        "/training/me",
+    );
+    return result.memberships;
+}
+
+export async function getOrgTraining(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingOrgOverview>(
+        "training.manage",
+        `/orgs/${orgId}/training/mentors`,
+    );
+}
+
+export async function designateTrainingMentor(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/mentors`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+    });
+}
+
+export async function removeTrainingMentor(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/mentors/${userId}`, {
+        method: "DELETE",
+    });
+}
+
+export async function getMyPupils(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingMyPupils>(
+        "training.manage",
+        `/orgs/${orgId}/training/pupils`,
+    );
+}
+
+export async function assignTrainingPupil(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+    });
+}
+
+export async function releaseTrainingPupil(orgId: string, userId: string): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}`, {
+        method: "DELETE",
+    });
+}
+
+/** `practice` null is the stage for every practice area. */
+export async function setTrainingStage(
+    orgId: string,
+    userId: string,
+    practice: string | null,
+    stage: import("@mike/contracts").TrainingStage,
+): Promise<void> {
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}/stages`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ practice, stage }),
+    });
+}
+
+export async function removeTrainingStage(
+    orgId: string,
+    userId: string,
+    practice: string | null,
+): Promise<void> {
+    const query = practice ? `?${new URLSearchParams({ practice })}` : "";
+    await apiRequest("training.manage", `/orgs/${orgId}/training/pupils/${userId}/stages${query}`, {
+        method: "DELETE",
+    });
+}
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {
@@ -3152,6 +3256,9 @@ export async function getChat(chatId: string): Promise<ChatDetailOut> {
                 files: m.files ?? undefined,
                 workflow: m.workflow ?? undefined,
                 playbook: m.playbook ?? undefined,
+                ...(m.training_attempt
+                    ? { training_attempt: m.training_attempt }
+                    : {}),
             };
         }
         const events = Array.isArray(m.content)
@@ -3357,6 +3464,8 @@ export async function streamChat(payload: {
     credential_ref?: string;
     reasoning?: Message["reasoning"];
     ask_inputs_response?: AskInputsResponsePayload;
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { signal, ...body } = payload;
@@ -3389,6 +3498,8 @@ export async function streamProjectChat(payload: {
     displayed_doc?: { filename: string; document_id: string };
     attached_documents?: { filename: string; document_id: string }[];
     ask_inputs_response?: AskInputsResponsePayload;
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { projectId, signal, ...body } = payload;

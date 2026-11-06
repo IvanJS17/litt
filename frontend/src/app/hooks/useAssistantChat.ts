@@ -581,6 +581,7 @@ export function useAssistantChat({
               attached_documents:
                 attachedDocs.length > 0 ? attachedDocs : undefined,
               ask_inputs_response: opts?.askInputsResponse,
+              attempt: message.training_attempt,
               signal: controller.signal,
             })
           : streamChat({
@@ -592,6 +593,7 @@ export function useAssistantChat({
               credential_ref: credentialRef,
               reasoning,
               ask_inputs_response: opts?.askInputsResponse,
+              attempt: message.training_attempt,
               signal: controller.signal,
             });
       // The frames go to the turn record (lib/assistantTurnStream), which

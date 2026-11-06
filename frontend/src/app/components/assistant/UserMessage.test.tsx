@@ -4,6 +4,24 @@ import { describe, expect, it, vi } from "vitest";
 import { UserMessage } from "./UserMessage";
 
 describe("UserMessage", () => {
+    it("shows a pasante's approach as «Tu planteamiento» above the question", () => {
+        render(
+            <UserMessage
+                content="¿Procede la rescisión?"
+                trainingAttempt="Creo que sí, por incumplimiento de la cláusula quinta."
+            />,
+        );
+        expect(screen.getByText("Tu planteamiento")).toBeInTheDocument();
+        expect(
+            screen.getByText("Creo que sí, por incumplimiento de la cláusula quinta."),
+        ).toBeInTheDocument();
+    });
+
+    it("shows nothing extra without an approach", () => {
+        render(<UserMessage content="¿Procede la rescisión?" />);
+        expect(screen.queryByText("Tu planteamiento")).toBeNull();
+    });
+
     it("opens a document-backed file pill", async () => {
         const onFileClick = vi.fn();
         const user = userEvent.setup();

@@ -883,6 +883,7 @@ export function ProjectChatPanel({
                                         }
                                     >
                                         <UserMessage
+                                            trainingAttempt={msg.training_attempt}
                                             content={msg.content ?? ""}
                                             files={msg.files}
                                             workflow={msg.workflow}
@@ -975,6 +976,7 @@ export function ProjectChatPanel({
                                 onCancel={cancel}
                             >
                                 <ChatInput
+                                    trainingTurns
                                     key={`${activeChatId || "new"}:${composerResetKey}`}
                                     ref={chatInputRef}
                                     onSubmit={handleSubmit}

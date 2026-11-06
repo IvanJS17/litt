@@ -117,6 +117,7 @@ export function InitialView({
 
             <div className="w-full max-w-4xl justify-self-center px-0 xl:px-8">
                 <ChatInput
+                    trainingTurns
                     ref={chatInputRef}
                     onSubmit={onSubmit}
                     onDocumentClick={onDocumentClick}

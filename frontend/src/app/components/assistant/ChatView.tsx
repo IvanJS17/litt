@@ -1103,6 +1103,7 @@ export function AssistantChatColumn({
                                             >
                                                 {msg.role === "user" ? (
                                                     <UserMessage
+                                                        trainingAttempt={msg.training_attempt}
                                                         content={msg.content ?? ""}
                                                         files={msg.files}
                                                         workflow={msg.workflow}
@@ -1265,6 +1266,7 @@ export function AssistantChatColumn({
                                             onCancel={cancel}
                                         >
                                             <ChatInput
+                                                trainingTurns
                                                 ref={chatInputRef}
                                                 canSend={canSend}
                                                 chatLoading={chatLoading}

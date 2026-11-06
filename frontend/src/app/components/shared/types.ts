@@ -337,6 +337,8 @@ export interface Message {
   /** LiTT: the credential chosen for a NEW conversation's first turn. */
   credential_ref?: string;
   reasoning?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
+  /** LiTT training: the approach a pasante wrote before this message. */
+  training_attempt?: string;
   citations?: Citation[];
   citationStatus?: "started" | "partial" | "final";
   events?: AssistantEvent[];
