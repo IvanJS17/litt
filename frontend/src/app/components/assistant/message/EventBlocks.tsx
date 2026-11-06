@@ -55,10 +55,10 @@ export function EventBlock({
 }) {
     const dotColorClass =
         dotColor === "green"
-            ? "bg-green-400 shadow-[0_1px_3px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+            ? "bg-green-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
             : dotColor === "red"
-              ? "bg-red-400 shadow-[0_1px_3px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
-              : "bg-gray-500 shadow-[0_1px_3px_rgba(15,23,42,0.15)]";
+              ? "bg-red-400 shadow-[0_1px_3px_rgba(21,26,38,0.15),inset_0_1px_0_rgba(255,255,255,0.5)]"
+              : "bg-gray-500 shadow-[0_1px_3px_rgba(21,26,38,0.15)]";
     return (
         <div className="flex items-start text-sm font-serif text-gray-500 relative">
             {showConnector && <EventConnector />}

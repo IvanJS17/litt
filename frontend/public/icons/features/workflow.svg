@@ -26,8 +26,8 @@
       <stop offset="1" stop-color="#242933" stop-opacity="0.45"/>
     </linearGradient>
     <linearGradient id="pipe" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#D1D5DB" stop-opacity="0.9"/>
-      <stop offset="1" stop-color="#9CA3AF" stop-opacity="0.9"/>
+      <stop offset="0" stop-color="#D5D5D1" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#A1A3A3" stop-opacity="0.9"/>
     </linearGradient>
     <radialGradient id="sheen">
       <stop offset="0" stop-color="#FFFFFF"/>

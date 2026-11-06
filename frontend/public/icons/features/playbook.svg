@@ -1,16 +1,16 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="board" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#64748B"/>
-      <stop offset="1" stop-color="#3B4656"/>
+      <stop offset="0" stop-color="#717378"/>
+      <stop offset="1" stop-color="#42464E"/>
     </linearGradient>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#ECEEF1"/>
+      <stop offset="1" stop-color="#EEEEE9"/>
     </linearGradient>
     <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#E5E7EB"/>
-      <stop offset="1" stop-color="#9CA3AF"/>
+      <stop offset="0" stop-color="#E7E7E2"/>
+      <stop offset="1" stop-color="#A1A3A3"/>
     </linearGradient>
     <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#34D399"/>
@@ -30,12 +30,12 @@
   <rect x="13" y="13" width="38" height="44" rx="4" fill="url(#paper)"/>
   <circle cx="22" cy="24" r="5" fill="url(#green)"/>
   <path d="M19.75 24 l1.75 1.75 l3.0 -3.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M31 24 H44" stroke="#B6BCC6" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M31 24 H44" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
   <circle cx="22" cy="35" r="5" fill="url(#green)"/>
   <path d="M19.75 35 l1.75 1.75 l3.0 -3.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M31 35 H41" stroke="#B6BCC6" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M31 35 H41" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
   <circle cx="22" cy="46" r="5" fill="url(#red)"/>
   <path d="M20.0 44.0 L24.0 48.0 M24.0 44.0 L20.0 48.0" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
-  <path d="M31 46 H44" stroke="#B6BCC6" stroke-width="3.5" stroke-linecap="round"/>
-  <rect x="22" y="3" width="20" height="10" rx="4" fill="url(#metal)" stroke="#6B7280" stroke-width="1"/>
+  <path d="M31 46 H44" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="22" y="3" width="20" height="10" rx="4" fill="url(#metal)" stroke="#6F7176" stroke-width="1"/>
 </svg>

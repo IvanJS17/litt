@@ -16,9 +16,9 @@
       <stop offset="1" stop-color="#242933" stop-opacity="0.45"/>
     </linearGradient>
     <linearGradient id="cord" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#94A3B8"/>
-      <stop offset="0.5" stop-color="#64748B"/>
-      <stop offset="1" stop-color="#475569"/>
+      <stop offset="0" stop-color="#A0A2A3"/>
+      <stop offset="0.5" stop-color="#717378"/>
+      <stop offset="1" stop-color="#51555B"/>
     </linearGradient>
     <radialGradient id="sheen">
       <stop offset="0" stop-color="#FFFFFF"/>

@@ -7,9 +7,9 @@
       <stop offset="1" stop-color="#898B8E" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="ideDocument" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#9AA3B2" stop-opacity="0.97"/>
-      <stop offset="0.5" stop-color="#909AAA" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#838E9F" stop-opacity="0.97"/>
+      <stop offset="0" stop-color="#A1A3A3" stop-opacity="0.97"/>
+      <stop offset="0.5" stop-color="#98999B" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#8B8D90" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="ideAssistant" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#929495" stop-opacity="0.97"/>
@@ -19,7 +19,7 @@
     <linearGradient id="ideRim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.15"/>
-      <stop offset="1" stop-color="#374151" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#3C4049" stop-opacity="0.4"/>
     </linearGradient>
     <linearGradient id="ideSheen" x1="0" y1="0" x2="0.25" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"/>
@@ -39,7 +39,7 @@
   <g>
     <rect x="90" y="36" width="60" height="168" rx="13" fill="url(#ideDocument)" stroke="url(#ideRim)" stroke-width="5"/>
     <path d="M90 36 H150 V100 C133.2 120 106.8 120 90 96 Z" fill="url(#ideSheen)" clip-path="url(#ideClipMiddle)"/>
-    <rect x="88" y="34" width="64" height="172" rx="15" fill="none" stroke="#444D5C" stroke-width="3" opacity="0.9"/>
+    <rect x="88" y="34" width="64" height="172" rx="15" fill="none" stroke="#494C54" stroke-width="3" opacity="0.9"/>
   </g>
   <!-- assistant -->
   <g>

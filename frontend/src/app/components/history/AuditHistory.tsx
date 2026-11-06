@@ -99,7 +99,7 @@ const STATUS_DOT_STYLES: Record<string, string> = {
 };
 
 const GLASS_DOT =
-  "h-2.5 w-2.5 shrink-0 rounded-full border border-white/80 shadow-[0_1px_2px_rgba(15,23,42,0.08),inset_0_1px_1px_rgba(255,255,255,0.55)]";
+  "h-2.5 w-2.5 shrink-0 rounded-full border border-white/80 shadow-[0_1px_2px_rgba(21,26,38,0.08),inset_0_1px_1px_rgba(255,255,255,0.55)]";
 
 const STATUS_OPTIONS = [
   { value: "completed", label: "Completed" },

@@ -14,7 +14,7 @@ import { LittMonogramPixel } from "@/shared/ui/LittBrandUI";
  */
 export function SidebarLogo({
     organization,
-    size = 18,
+    size = 16,
 }: {
     /** The active organization, or null in the personal workspace. */
     organization: Pick<Org, "id" | "name" | "logo_updated_at"> | null;
@@ -22,7 +22,9 @@ export function SidebarLogo({
 }) {
     const logo = useOrganizationLogo(organization);
     // The app's own mark is the «L.» pixel monogram, which exists only at its
-    // native 16px: it is never scaled to the organization logo's size.
+    // native 16px and is never scaled. The organization's logo and its
+    // loading placeholder take the same 16px box, so swapping one for the
+    // other never shifts the row.
     if (logo === null) return <LittMonogramPixel size={16} decorative />;
     const box = { width: size, height: size };
     if (logo === undefined)

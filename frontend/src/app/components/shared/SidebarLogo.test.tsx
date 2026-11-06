@@ -46,8 +46,8 @@ describe("SidebarLogo", () => {
         await waitFor(() => expect(image(container)).not.toBeNull());
         const logo = image(container)!;
         expect(logo).toHaveAttribute("src", LOGO);
-        expect(logo.style.width).toBe("18px");
-        expect(logo.style.height).toBe("18px");
+        expect(logo.style.width).toBe("16px");
+        expect(logo.style.height).toBe("16px");
         // Decorative: the organization's name is the text beside it.
         expect(logo).toHaveAttribute("alt", "");
         expect(screen.queryByTestId("litt-monogram")).not.toBeInTheDocument();
@@ -59,9 +59,13 @@ describe("SidebarLogo", () => {
         const { container } = render(
             <SidebarLogo organization={acme("2026-10-12T10:00:00Z")} />,
         );
-        expect(
-            container.querySelector('[data-slot="sidebar-logo-loading"]'),
-        ).not.toBeNull();
+        const placeholder = container.querySelector<HTMLElement>(
+            '[data-slot="sidebar-logo-loading"]',
+        );
+        expect(placeholder).not.toBeNull();
+        // The same box as the 16px monogram it may turn into.
+        expect(placeholder!.style.width).toBe("16px");
+        expect(placeholder!.style.height).toBe("16px");
         expect(screen.queryByTestId("litt-monogram")).not.toBeInTheDocument();
     });
 

@@ -1,7 +1,7 @@
 :root {
     /* Color roles shared by the web app and Word add-in. These describe what a
        color does; liquid-glass classes separately describe surface depth. */
-    --document-canvas-background: var(--color-gray-100, #f3f4f6);
+    --document-canvas-background: var(--color-gray-100, #f4f4f0);
     --document-tab-active-background: var(--app-surface, #fdfdfe);
     --document-tab-inactive-background: var(--color-gray-100, #f4f4f0);
     --document-tab-active-text: var(--color-gray-800, #262b37);
@@ -24,7 +24,7 @@
     --citation-selected-text: var(--litt-tinta);
     --citation-selected-muted-text: var(--color-gray-700, #393e48);
 
-    --dropdown-input-background: var(--color-gray-100, #f3f4f6);
+    --dropdown-input-background: var(--color-gray-100, #f4f4f0);
     --liquid-glass-hover-background: #f1f1ec;
     --liquid-glass-selected-background: var(--app-surface-active, #e2e2dd);
     --liquid-glass-modal-row-hover-background: var(--color-gray-100, #f4f4f0);

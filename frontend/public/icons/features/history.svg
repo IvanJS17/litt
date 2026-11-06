@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
     <linearGradient id="clock-face" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e5e7eb"/>
-      <stop offset="1" stop-color="#d1d5db"/>
+      <stop offset="0" stop-color="#E7E7E2"/>
+      <stop offset="1" stop-color="#D5D5D1"/>
     </linearGradient>
     <filter id="clock-shadow" x="-25%" y="-25%" width="150%" height="160%">
       <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#151A26" flood-opacity="0.16"/>

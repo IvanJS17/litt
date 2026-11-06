@@ -77,7 +77,7 @@ function AssistantGreeting({ username }: { username: string }) {
     return (
         <div className="flex-1 flex items-center justify-center">
             <div
-                className="flex h-[30px] items-center justify-center"
+                className="flex h-8 items-center justify-center"
                 style={{ gap: GAP }}
             >
                 <LittMonogramPixel size={ICON_SIZE} decorative />

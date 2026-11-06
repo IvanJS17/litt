@@ -143,11 +143,13 @@
     --border: #cfd0cc;
     --input: #cfd0cc;
     --ring: var(--litt-accent);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+    /* Chart series: the interactive neutral first, then categorical hues
+       (teal, rose, lime, stone). No blue, indigo, purple or amber. */
+    --chart-1: var(--litt-interactive);
+    --chart-2: oklch(0.6 0.118 184.704); /* teal-600 */
+    --chart-3: oklch(0.586 0.253 17.585); /* rose-600 */
+    --chart-4: oklch(0.648 0.2 131.684); /* lime-600 */
+    --chart-5: oklch(0.553 0.013 58.071); /* stone-500 */
     --sidebar: var(--litt-papel);
     --sidebar-foreground: var(--litt-tinta);
     --sidebar-primary: var(--litt-tinta);
@@ -200,11 +202,11 @@
     --border: rgb(236 236 230 / 10%);
     --input: rgb(236 236 230 / 15%);
     --ring: var(--litt-accent);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
+    --chart-1: var(--litt-interactive);
+    --chart-2: oklch(0.696 0.17 162.48); /* emerald-500 */
+    --chart-3: oklch(0.712 0.194 13.428); /* rose-400 */
+    --chart-4: oklch(0.841 0.238 128.85); /* lime-400 */
+    --chart-5: oklch(0.709 0.01 56.259); /* stone-400 */
     --sidebar: var(--litt-tinta);
     --sidebar-foreground: var(--litt-papel);
     --sidebar-primary: var(--litt-papel);
