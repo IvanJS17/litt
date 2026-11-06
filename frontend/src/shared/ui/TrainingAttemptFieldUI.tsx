@@ -8,9 +8,19 @@ import { twMerge } from "tailwind-merge";
 
 /** The shortest approach the server accepts, after trimming. */
 export const TRAINING_ATTEMPT_MIN_CHARS = 60;
+/** The longest one. */
+export const TRAINING_ATTEMPT_MAX_CHARS = 4000;
+
+/** Length as the server counts it: Unicode code points, after trimming. */
+export function trainingAttemptLength(value: string): number {
+  return [...value.trim()].length;
+}
 
 export function isTrainingAttemptReady(value: string): boolean {
-  return value.trim().length >= TRAINING_ATTEMPT_MIN_CHARS;
+  const length = trainingAttemptLength(value);
+  return (
+    length >= TRAINING_ATTEMPT_MIN_CHARS && length <= TRAINING_ATTEMPT_MAX_CHARS
+  );
 }
 
 export function TrainingAttemptFieldUI({
@@ -29,8 +39,10 @@ export function TrainingAttemptFieldUI({
   showError?: boolean;
   className?: string;
 }) {
-  const length = value.trim().length;
+  const length = trainingAttemptLength(value);
   const missing = Math.max(0, TRAINING_ATTEMPT_MIN_CHARS - length);
+  const excess = Math.max(0, length - TRAINING_ATTEMPT_MAX_CHARS);
+  const invalid = missing > 0 || excess > 0;
   const hintId = `${id}-hint`;
   return (
     <div className={twMerge(clsx("flex min-w-0 flex-col gap-1", className))}>
@@ -43,7 +55,7 @@ export function TrainingAttemptFieldUI({
         rows={2}
         required
         disabled={disabled}
-        aria-invalid={showError && missing > 0 ? true : undefined}
+        aria-invalid={showError && invalid ? true : undefined}
         aria-describedby={hintId}
         placeholder="Antes de preguntar, escribe cómo lo resolverías tú."
         onChange={(event) => onChange(event.target.value)}
@@ -59,12 +71,14 @@ export function TrainingAttemptFieldUI({
         aria-live="polite"
         className={clsx(
           "text-xs",
-          showError && missing > 0 ? "text-red-600" : "text-gray-500",
+          (showError && invalid) || excess > 0 ? "text-red-600" : "text-gray-500",
         )}
       >
-        {missing > 0
-          ? `${length}/${TRAINING_ATTEMPT_MIN_CHARS} caracteres: faltan ${missing}. La respuesta empezará contrastando tu planteamiento.`
-          : "Listo. La respuesta empezará contrastando tu planteamiento."}
+        {excess > 0
+          ? `${length}/${TRAINING_ATTEMPT_MAX_CHARS} caracteres: sobran ${excess}.`
+          : missing > 0
+            ? `${length}/${TRAINING_ATTEMPT_MIN_CHARS} caracteres: faltan ${missing}. Después de la respuesta verás un contraste con tu planteamiento.`
+            : "Listo. Después de la respuesta verás un contraste con tu planteamiento."}
       </p>
     </div>
   );

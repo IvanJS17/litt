@@ -62,6 +62,7 @@ import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { usePageChrome } from "@/app/contexts/PageChromeContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@/app/hooks/useTrainingTurnNotes";
 import { resolvePanelDocumentVersionResult } from "./panelDocumentVersion";
 import { LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS } from "@/app/components/ui/liquid-surface";
 import {
@@ -300,6 +301,11 @@ export function AssistantChatColumn({
         (chatId ? chats?.find((entry) => entry.id === chatId) : null) ??
         (chat?.id === chatId ? chat : null) ??
         null;
+    // LiTT training: private notes beside the pasante's own messages.
+    const trainingNotes = matchTrainingNotes(
+        messages,
+        useTrainingTurnNotes(chatId, isResponseLoading),
+    );
     const permissionChat = chat?.id === chatId ? chat : activeChat;
     const activeChatRole = permissionChat ? roleFrom(permissionChat) : null;
     const canLeaveChat = permissionChat?.can_leave === true && permissionChat.project_id === null && activeChatRole !== "owner";
@@ -1103,7 +1109,7 @@ export function AssistantChatColumn({
                                             >
                                                 {msg.role === "user" ? (
                                                     <UserMessage
-                                                        trainingAttempt={msg.training_attempt}
+                                                        trainingNote={trainingNotes.get(i)}
                                                         content={msg.content ?? ""}
                                                         files={msg.files}
                                                         workflow={msg.workflow}

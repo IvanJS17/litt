@@ -713,7 +713,7 @@ function ChatInputForChatImpl(
                 ? { credential_ref: credential.value }
                 : {}),
             reasoning: reasoningLevel,
-            ...(needsAttempt ? { training_attempt: attempt.trim() } : {}),
+            ...(needsAttempt ? { attempt: attempt.trim() } : {}),
         });
     };
 

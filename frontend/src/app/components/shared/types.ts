@@ -337,8 +337,12 @@ export interface Message {
   /** LiTT: the credential chosen for a NEW conversation's first turn. */
   credential_ref?: string;
   reasoning?: "none" | "low" | "medium" | "high" | "xhigh" | "max";
-  /** LiTT training: the approach a pasante wrote before this message. */
-  training_attempt?: string;
+  /**
+   * LiTT training: the approach a pasante wrote, carried with the message
+   * only until its request is sent (the new-chat hand-off included). The
+   * server keeps it as a private note; it is never read back or shown here.
+   */
+  attempt?: string;
   citations?: Citation[];
   citationStatus?: "started" | "partial" | "final";
   events?: AssistantEvent[];

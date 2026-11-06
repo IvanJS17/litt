@@ -200,6 +200,7 @@ import {
     stopChatTurn,
     streamProjectChat,
     streamTabularChat,
+    getTrainingTurnNotes,
     streamTabularChatTurn,
     stopTabularChatTurn,
     stopTabularGeneration,
@@ -961,7 +962,7 @@ describe("mapTRMessages", () => {
         ]);
 
         expect(mapped).toEqual([
-            { role: "user", content: "question" },
+            { id: "m1", role: "user", content: "question" },
             {
                 role: "assistant",
                 content: "Answer",
@@ -1198,6 +1199,51 @@ describe("streamTabularChat", () => {
             reasoning: "low",
             time_zone: BROWSER_TIME_ZONE,
         });
+    });
+});
+
+describe("streamTabularChat training attempt", () => {
+    it("sends the pasante's attempt with the turn", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        await streamTabularChat(
+            "r1",
+            [{ role: "user", content: "summarize" }],
+            null,
+            undefined,
+            undefined,
+            "openai-gpt-5.2",
+            "low",
+            "Mi planteamiento",
+        );
+        expect(JSON.parse(lastFetchCall().init.body as string).attempt).toBe(
+            "Mi planteamiento",
+        );
+    });
+});
+
+describe("getTrainingTurnNotes", () => {
+    const note = { id: "n1", message_id: "m1", attempt: "a" };
+
+    it("reads a chat's notes, optionally one message's", async () => {
+        fetchMock.mockImplementation(async () => jsonResponse({ notes: [note] }));
+        await expect(getTrainingTurnNotes("c 1")).resolves.toEqual([note]);
+        expect(lastFetchCall().url).toBe("/api/training-notes/chats/c%201");
+        await getTrainingTurnNotes("c1", "m1");
+        expect(lastFetchCall().url).toBe(
+            "/api/training-notes/chats/c1?message_id=m1",
+        );
+    });
+
+    it("treats the uniform 404 as no notes", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({}, { status: 404 }));
+        await expect(getTrainingTurnNotes("c1")).resolves.toEqual([]);
+    });
+
+    it("rethrows any other failure", async () => {
+        fetchMock.mockResolvedValue(jsonResponse({}, { status: 500 }));
+        await expect(getTrainingTurnNotes("c1")).rejects.toBeInstanceOf(
+            MikeApiError,
+        );
     });
 });
 
@@ -2319,7 +2365,7 @@ describe("query and payload defaults", () => {
                 created_at: "2026-01-01",
             },
         ]);
-        expect(mapped).toEqual([{ role: "user", content: "" }]);
+        expect(mapped).toEqual([{ id: "m1", role: "user", content: "" }]);
     });
 });
 

@@ -109,8 +109,6 @@ interface ServerMessage {
     workflow?: { id: string; title: string } | null;
     playbook?: { id: string; title: string } | null;
     citations?: Citation[] | null;
-    /** LiTT training: the approach a pasante wrote before this message. */
-    training_attempt?: string | null;
     created_at: string;
 }
 interface ServerChatDetailOut {
@@ -2269,6 +2267,30 @@ export async function getTrainingStage(scope: {
     return result.stage;
 }
 
+/**
+ * A pasante's private notes on a chat's turns (planteamiento + contraste).
+ * Only the author and their current mentor can read them; anyone else, and a
+ * chat with nothing to read, gets a uniform 404, which is "no notes" here.
+ */
+export async function getTrainingTurnNotes(
+    chatId: string,
+    messageId?: string,
+): Promise<import("@mike/contracts").TrainingTurnNote[]> {
+    const query = messageId
+        ? `?${new URLSearchParams({ message_id: messageId })}`
+        : "";
+    try {
+        const result = await apiRequest<import("@mike/contracts").TrainingTurnNotes>(
+            "training.read",
+            `/training-notes/chats/${encodeURIComponent(chatId)}${query}`,
+        );
+        return result.notes;
+    } catch (error) {
+        if (error instanceof MikeApiError && error.status === 404) return [];
+        throw error;
+    }
+}
+
 export async function getMyTraining(): Promise<import("@mike/contracts").TrainingMembership[]> {
     const result = await apiRequest<{ memberships: import("@mike/contracts").TrainingMembership[] }>(
         "training.read",
@@ -3256,9 +3278,6 @@ export async function getChat(chatId: string): Promise<ChatDetailOut> {
                 files: m.files ?? undefined,
                 workflow: m.workflow ?? undefined,
                 playbook: m.playbook ?? undefined,
-                ...(m.training_attempt
-                    ? { training_attempt: m.training_attempt }
-                    : {}),
             };
         }
         const events = Array.isArray(m.content)
@@ -3790,6 +3809,8 @@ export async function streamTabularChat(
     context?: { reviewTitle?: string | null; projectName?: string | null },
     model?: Message["model"],
     reasoning?: Message["reasoning"],
+    /** LiTT training: a pasante's own approach; the server requires it. */
+    attempt?: string,
 ): Promise<Response> {
     return apiFetch(`${API_BASE}/tabular-review/${reviewId}/chat`, {
         method: "POST",
@@ -3801,6 +3822,7 @@ export async function streamTabularChat(
             project_name: context?.projectName ?? undefined,
             model,
             reasoning,
+            attempt,
             time_zone: browserTimeZone(),
         }),
         signal: signal ?? undefined,
@@ -3852,7 +3874,7 @@ export interface TRCitationAnnotation {
     quote: string;
 }
 
-interface RawTRMessage {
+export interface RawTRMessage {
     id: string;
     chat_id: string;
     role: "user" | "assistant";
@@ -3862,6 +3884,7 @@ interface RawTRMessage {
 }
 
 interface TRDisplayMessage {
+    id?: string;
     role: "user" | "assistant";
     content: string;
     events?: AssistantEvent[];
@@ -3910,6 +3933,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
     return raw.map((m) => {
         if (m.role === "user") {
             return {
+                id: m.id,
                 role: "user" as const,
                 content: typeof m.content === "string" ? m.content : "",
             };

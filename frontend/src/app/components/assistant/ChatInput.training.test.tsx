@@ -94,7 +94,7 @@ describe("ChatInput — «Tu turno primero»", () => {
         expect(onSubmit).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: "¿Procede la rescisión?",
-                training_attempt: ATTEMPT,
+                attempt: ATTEMPT,
             }),
         );
     });
@@ -107,7 +107,7 @@ describe("ChatInput — «Tu turno primero»", () => {
             expect(screen.queryByLabelText("Tu planteamiento (2–3 líneas)")).toBeNull();
             send("¿Procede la rescisión?");
             expect(onSubmit).toHaveBeenCalledTimes(1);
-            expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("training_attempt");
+            expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("attempt");
         },
     );
 

@@ -4,20 +4,24 @@ import { describe, expect, it, vi } from "vitest";
 import { UserMessage } from "./UserMessage";
 
 describe("UserMessage", () => {
-    it("shows a pasante's approach as «Tu planteamiento» above the question", () => {
+    it("shows the private training note beside the message", () => {
         render(
             <UserMessage
                 content="¿Procede la rescisión?"
-                trainingAttempt="Creo que sí, por incumplimiento de la cláusula quinta."
+                trainingNote={{
+                    attempt: "Creo que sí, por incumplimiento de la cláusula quinta.",
+                    contrast: "Coincide: la cláusula quinta aplica.",
+                    contrast_status: "ready",
+                }}
             />,
         );
         expect(screen.getByText("Tu planteamiento")).toBeInTheDocument();
         expect(
-            screen.getByText("Creo que sí, por incumplimiento de la cláusula quinta."),
+            screen.getByText("Coincide: la cláusula quinta aplica."),
         ).toBeInTheDocument();
     });
 
-    it("shows nothing extra without an approach", () => {
+    it("shows nothing extra without a note", () => {
         render(<UserMessage content="¿Procede la rescisión?" />);
         expect(screen.queryByText("Tu planteamiento")).toBeNull();
     });

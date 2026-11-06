@@ -13,6 +13,10 @@ import {
 } from "@/shared/lib/messageExcerpts";
 import { ExcerptModalUI } from "@/shared/ui/ExcerptModalUI";
 import { ExcerptPillUI } from "@/shared/ui/ExcerptPillUI";
+import {
+    TrainingNoteUI,
+    type TrainingNoteView,
+} from "@/shared/ui/TrainingNoteUI";
 
 interface Props {
     content: string;
@@ -23,8 +27,8 @@ interface Props {
     onFileClick?: (file: MessageFile) => void;
     /** Reveals the workflow this message ran, in the workflow modal. */
     onWorkflowClick?: (workflow: { id: string; title: string }) => void;
-    /** LiTT training: the approach a pasante wrote before asking. */
-    trainingAttempt?: string;
+    /** LiTT training: the private note beside this message, if any. */
+    trainingNote?: TrainingNoteView;
 }
 
 export function UserMessage({
@@ -34,7 +38,7 @@ export function UserMessage({
     playbook,
     onFileClick,
     onWorkflowClick,
-    trainingAttempt,
+    trainingNote,
 }: Props) {
     const hasFiles = files && files.length > 0;
     // Passages quoted from an earlier response travel as leading blockquotes;
@@ -45,18 +49,8 @@ export function UserMessage({
     );
 
     return (
-        <div className="w-full flex justify-end">
+        <div className="w-full flex flex-col items-end gap-2">
             <div className="max-w-[80%] bg-gray-100 rounded-xl px-4 py-3">
-                {trainingAttempt && (
-                    <div className="mb-3 border-b border-gray-200 pb-3">
-                        <p className="text-xs font-medium text-gray-500">
-                            Tu planteamiento
-                        </p>
-                        <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">
-                            {trainingAttempt}
-                        </p>
-                    </div>
-                )}
                 {body && (
                     <p className="text-sm text-gray-900 whitespace-pre-wrap">
                         {body}
@@ -143,6 +137,12 @@ export function UserMessage({
                     </div>
                 )}
             </div>
+            {trainingNote && (
+                <TrainingNoteUI
+                    note={trainingNote}
+                    className="w-full max-w-[80%]"
+                />
+            )}
             <ExcerptModalUI
                 excerpt={openExcerpt}
                 onClose={() => setOpenExcerpt(null)}

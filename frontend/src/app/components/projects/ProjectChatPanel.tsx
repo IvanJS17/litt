@@ -23,6 +23,7 @@ import {
     touchChatActivity,
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@/app/hooks/useTrainingTurnNotes";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
     isChatAttachmentDrag,
@@ -312,6 +313,11 @@ export function ProjectChatPanel({
         projectId,
         tracksCurrentChat: !isSideChat,
     });
+    // LiTT training: private notes beside the pasante's own messages.
+    const trainingNotes = matchTrainingNotes(
+        messages,
+        useTrainingTurnNotes(activeChatId || undefined, isResponseLoading),
+    );
     // The model is what we asked for, so it identifies whose key was rejected.
     const rejectedKeyProvider = rejectedApiKey?.model
         ? getModelProvider(rejectedApiKey.model)
@@ -883,7 +889,7 @@ export function ProjectChatPanel({
                                         }
                                     >
                                         <UserMessage
-                                            trainingAttempt={msg.training_attempt}
+                                            trainingNote={trainingNotes.get(i)}
                                             content={msg.content ?? ""}
                                             files={msg.files}
                                             workflow={msg.workflow}
