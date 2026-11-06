@@ -29,7 +29,9 @@ import {
     renameVersion,
     deleteVersion,
     resolveEdit,
+    approveTrainingVersion,
 } from "./documents.service";
+import { sendServiceFailure } from "../../lib/serviceResult";
 
 export const documentsRouter = Router();
 
@@ -312,6 +314,24 @@ documentsRouter.post(
             return void res.status(status).json({ detail: result.detail });
         }
         res.status(201).json(result.version);
+    }),
+);
+
+// POST /single-documents/:documentId/versions/:versionId/training-approval
+// Approve a pasante's version as it is now (docs/training.md).
+documentsRouter.post(
+    "/:documentId/versions/:versionId/training-approval",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.training_approval");
+        const result = await approveTrainingVersion(createServerSupabase(), {
+            documentId: req.params.documentId,
+            versionId: req.params.versionId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.json(result.data);
     }),
 );
 

@@ -790,3 +790,14 @@ export interface TrainingStageQuery {
     project_id?: string;
     surface?: "word";
 }
+
+/**
+ * POST /single-documents/:documentId/versions/:versionId/training-approval:
+ * the approval of a pasante's version, bound to the bytes it had
+ * (docs/training.md).
+ */
+export interface TrainingVersionApproval {
+    document_version_id: string;
+    content_sha256: string;
+    approved_at: string;
+}
