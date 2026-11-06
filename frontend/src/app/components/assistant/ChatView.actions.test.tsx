@@ -84,13 +84,14 @@ const spreadsheet = {
 } as Document;
 vi.mock("./ChatInput", () => ({
     ChatInput: ({
-        onDocumentClick, ref, projectId,
+        onDocumentClick, ref, projectId, dropUploadsToProject,
     }: {
         onDocumentClick?: (document: Document) => void;
         ref?: Ref<ChatInputHandle>;
         projectId?: string;
+        dropUploadsToProject?: boolean;
     }) => {
-        chatInputProjectId(projectId);
+        chatInputProjectId(projectId, dropUploadsToProject);
         useImperativeHandle(ref, () => ({ addDoc, addFiles: vi.fn(), addExcerpt: vi.fn(), startWorkflow: vi.fn(), startWorkflowDocumentSelection: vi.fn(), attachPlaybook }));
         return <button onClick={() => onDocumentClick?.(spreadsheet)}>
             Open Budget.xlsx
@@ -837,12 +838,12 @@ describe("ChatView composer gating", () => {
     it("gives the composer the chat's project, so a pasante gets that practice area's stage", () => {
         activeChat.project_id = "project-1";
         renderView();
-        expect(chatInputProjectId).toHaveBeenLastCalledWith("project-1");
+        expect(chatInputProjectId).toHaveBeenLastCalledWith("project-1", false);
     });
 
     it("gives a standalone chat's composer no project", () => {
         renderView();
-        expect(chatInputProjectId).toHaveBeenLastCalledWith(undefined);
+        expect(chatInputProjectId).toHaveBeenLastCalledWith(undefined, false);
     });
 
     it("renders the composer by default for callers that know the standing", () => {

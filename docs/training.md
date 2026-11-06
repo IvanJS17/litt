@@ -67,7 +67,8 @@ Audit events are insert-only and stay.
 The product never deletes a firm (`organizations_no_team_delete`). If an
 operator's purge lifts that guard, every `training_*` row and every note of the
 organization goes with it, Word and tabular notes included, through the
-membership cascade; `training.postgres.test.ts` covers this.
+membership cascade; `training.postgres.test.ts` covers this. Such a purge must
+delete the organization's chats first: `chats.org_id` is `on delete restrict`.
 
 ## Rules
 
