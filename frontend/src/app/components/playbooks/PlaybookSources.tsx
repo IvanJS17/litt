@@ -200,7 +200,7 @@ export function PlaybookSources({
           aria-pressed={active}
           title={entry.filename}
           onClick={() => setSelectedId(entry.id)}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <FileTypeIcon fileType={entry.filename} className="h-3.5 w-3.5" />
           <span className="min-w-0 truncate">{entry.filename}</span>

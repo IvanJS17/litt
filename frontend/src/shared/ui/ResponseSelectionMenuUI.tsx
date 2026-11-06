@@ -286,7 +286,7 @@ function AnnotationBubble({
                     type="submit"
                     aria-label="Add annotation to chat"
                     disabled={!trimmed}
-                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60`}
+                    className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus`}
                 >
                     <ArrowUp aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>

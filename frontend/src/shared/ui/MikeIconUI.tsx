@@ -65,14 +65,17 @@ function tintPalette([c100, c200, c300, c400, c500, c600]: TintScale): IconPalet
     };
 }
 
-// Tailwind 100–600 for each hue.
+// Tailwind 100–600 for each hue: the categorical palette documented in
+// docs/design-system.md ("Categorical palettes"). No blue family (Marca LiTT
+// v1.0, "Sin azul"), and no amber, which the brand reserves for focus and its
+// marks.
 const TINT_PALETTES = {
-    sky: tintPalette(["#e0f2fe", "#bae6fd", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7"]),
-    violet: tintPalette(["#ede9fe", "#ddd6fe", "#c4b5fd", "#a78bfa", "#8b5cf6", "#7c3aed"]),
-    amber: tintPalette(["#fef3c7", "#fde68a", "#fcd34d", "#fbbf24", "#f59e0b", "#d97706"]),
-    pink: tintPalette(["#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777"]),
+    stone: tintPalette(["#f5f5f4", "#e7e5e4", "#d6d3d1", "#a8a29e", "#78716c", "#57534e"]),
     teal: tintPalette(["#ccfbf1", "#99f6e4", "#5eead4", "#2dd4bf", "#14b8a6", "#0d9488"]),
-    indigo: tintPalette(["#e0e7ff", "#c7d2fe", "#a5b4fc", "#818cf8", "#6366f1", "#4f46e5"]),
+    rose: tintPalette(["#ffe4e6", "#fecdd3", "#fda4af", "#fb7185", "#f43f5e", "#e11d48"]),
+    lime: tintPalette(["#ecfccb", "#d9f99d", "#bef264", "#a3e635", "#84cc16", "#65a30d"]),
+    pink: tintPalette(["#fce7f3", "#fbcfe8", "#f9a8d4", "#f472b6", "#ec4899", "#db2777"]),
+    emerald: tintPalette(["#d1fae5", "#a7f3d0", "#6ee7b7", "#34d399", "#10b981", "#059669"]),
 } satisfies Record<string, IconPalette>;
 
 export type MikeIconTint = keyof typeof TINT_PALETTES;
@@ -80,16 +83,17 @@ export type MikeIconTint = keyof typeof TINT_PALETTES;
 /** The tints in the order a list of marks should take them. */
 export const MIKE_ICON_TINTS = Object.keys(TINT_PALETTES) as MikeIconTint[];
 
-// The dark mark, inverted for dark surfaces: white glass blades, with the
-// depth cues (inner shading, hairline border) darkened instead of lightened
-// so overlapping blades stay readable against a dark background.
+// The dark mark, inverted for dark surfaces: white glass blades shaded with
+// the tinta-papel gray ramp, with the depth cues (inner shading, hairline
+// border) darkened instead of lightened so overlapping blades stay readable
+// against a dark background.
 const WHITE_PALETTE: IconPalette = {
-    fillStops: ["#ffffff", "#eef2f7", "#f8fafc", "#ffffff"],
+    fillStops: ["#ffffff", "#f2f2ed", "#f9f9f7", "#ffffff"],
     fillOpacities: [0.95, 0.85, 0.9, 0.95],
     specularStops: [0.7, 0.3, 0, 0],
-    borderStops: ["#0f172a", "#475569", "#0f172a"],
+    borderStops: ["#151a26", "#4d515a", "#151a26"],
     borderOpacities: [0.28, 0.12, 0.18],
-    innerStops: ["#0f172a", "#334155", "#e2e8f0", "#0f172a"],
+    innerStops: ["#151a26", "#393e48", "#e7e7e2", "#151a26"],
     innerOpacities: [0, 0.1, 0.06, 0],
 };
 

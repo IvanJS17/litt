@@ -6,9 +6,9 @@ import { cn } from "@/app/lib/utils";
 // Dark enough for white initials in either theme. Never use a random colour:
 // normalized email identifies the same person across every roster and session.
 const COLOURS = [
-  "bg-slate-700", "bg-red-700", "bg-orange-700", "bg-amber-800",
-  "bg-emerald-700", "bg-teal-700", "bg-cyan-800", "bg-indigo-700",
-  "bg-violet-700", "bg-pink-700",
+  "bg-gray-700", "bg-red-700", "bg-orange-700", "bg-rose-800",
+  "bg-emerald-700", "bg-teal-700", "bg-lime-800", "bg-stone-600",
+  "bg-green-800", "bg-pink-700",
 ];
 
 /** Selects a stable monogram background from normalized email, then display name, then a shared fallback key. */

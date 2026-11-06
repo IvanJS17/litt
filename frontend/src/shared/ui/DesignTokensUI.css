@@ -14,6 +14,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Tailwind's gray scale, re-derived from the LiTT brand colors (Marca LiTT
+   v1.0 in docs/design-system.md). 200-800 are OKLab mixes of tinta and papel,
+   50 and 100 lie between papel and white, and 900 is tinta itself. Most of
+   the app's text and fills use these classes, so the light theme reads as
+   tinta on papel without touching each component. Measured contrast: 500 is
+   5.24:1 on papel, 6.21:1 on white and 4.78:1 on a selected row
+   (--app-surface-active); 600 is 6.71:1 on papel. */
+@theme {
+    --color-gray-50: #f9f9f7;
+    --color-gray-100: #f4f4f0;
+    --color-gray-200: #d3d4d1;
+    --color-gray-300: #c0c2c0;
+    --color-gray-400: #8d9093;
+    --color-gray-500: #5d6169;
+    --color-gray-600: #4d515a;
+    --color-gray-700: #393e48;
+    --color-gray-800: #262b37;
+    --color-gray-900: #151a26;
+    --color-gray-950: #0e121b;
+}
+
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
@@ -24,12 +45,18 @@
     --color-app-floating: var(--app-floating);
     --font-sans: var(--font-inter);
     --font-serif: var(--font-eb-garamond);
-    --color-blue: rgb(0, 136, 255);
-    --color-blue-50: rgba(0, 136, 255, 0.05);
-    --color-blue-100: rgba(0, 136, 255, 0.1);
-    --color-blue-200: rgba(0, 136, 255, 0.3);
-    --color-blue-600: rgb(0, 136, 255);
-    --color-blue-700: rgb(0, 120, 230);
+    /* Interactive roles (Marca LiTT v1.0, "Sin azul"): primary fills,
+       active toggles, selection and action links. Tinta on the light theme,
+       papel on the dark one; never blue. */
+    --color-interactive: var(--litt-interactive);
+    --color-interactive-hover: var(--litt-interactive-hover);
+    --color-interactive-pressed: var(--litt-interactive-pressed);
+    --color-interactive-foreground: var(--litt-interactive-foreground);
+    --color-interactive-soft: var(--litt-interactive-soft);
+    --color-interactive-soft-strong: var(--litt-interactive-soft-strong);
+    --color-interactive-border: var(--litt-interactive-border);
+    /* Keyboard focus: the amber of the current background. */
+    --color-focus: var(--litt-accent);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -66,83 +93,126 @@
 }
 
 :root {
+    /* LiTT brand palette, v1.0 (docs/brand/DESIGN.md). The two ambers are
+       never interchangeable: ámbar fósforo goes only on tinta, ámbar tinta
+       only on papel or white. */
+    --litt-tinta: #151a26;
+    --litt-papel: #ecece6;
+    --litt-ambar-fosforo: #ffb21e;
+    --litt-ambar-tinta: #965900;
+    /* Colors of the wordmark and monogram (LittBrandUI.tsx) in this theme. */
+    --litt-mark-ink: var(--litt-tinta);
+    --litt-mark-accent: var(--litt-ambar-tinta);
+    /* The one amber accent outside the marks: the keyboard focus ring. Ámbar
+       tinta on the light theme: 4.75:1 on papel, 5.64:1 on white. */
+    --litt-accent: var(--litt-ambar-tinta);
+    /* Interactive primary, light theme: tinta on papel or white. Hover and
+       pressed lift tinta toward papel; soft fills are tinta tints, so a
+       selected row or an informational chip stays in the brand neutrals. */
+    --litt-interactive: var(--litt-tinta);
+    --litt-interactive-hover: #2e333d; /* tinta 86%, papel */
+    --litt-interactive-pressed: #454a53; /* tinta 74%, papel */
+    --litt-interactive-foreground: var(--litt-papel);
+    --litt-interactive-soft: rgb(21 26 38 / 6%); /* tinta 6%, transparent */
+    --litt-interactive-soft-strong: rgb(21 26 38 / 11%); /* tinta 11%, transparent */
+    --litt-interactive-border: rgb(21 26 38 / 50%); /* tinta 50%, transparent */
     --radius: 0.625rem;
-    --app-background: #f9fafb;
-    --app-surface: #fdfdfe;
-    --app-surface-hover: #f9fafb;
-    --app-surface-active: #eff0f3;
-    --app-floating: #fefefe;
-    --table-grid-border: #e5e7eb;
-    --background: oklch(0.985 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    /* Light theme: papel canvas, tinta text. Panels sit between papel and
+       white, so a mark on one keeps ámbar tinta at 4.75:1 or more. */
+    --app-background: var(--litt-papel);
+    --app-surface: #f9f9f7;
+    --app-surface-hover: var(--litt-papel);
+    --app-surface-active: #e2e2dd;
+    --app-floating: #fcfcfb;
+    --table-grid-border: #cfd0cc;
+    --background: var(--litt-papel);
+    --foreground: var(--litt-tinta);
+    --card: #fcfcfb;
+    --card-foreground: var(--litt-tinta);
+    --popover: #ffffff;
+    --popover-foreground: var(--litt-tinta);
+    --primary: var(--litt-tinta);
+    --primary-foreground: var(--litt-papel);
+    --secondary: #f4f4f0;
+    --secondary-foreground: var(--litt-tinta);
+    --muted: #f4f4f0;
+    --muted-foreground: #5d6169;
+    --accent: #f4f4f0;
+    --accent-foreground: var(--litt-tinta);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --border: #cfd0cc;
+    --input: #cfd0cc;
+    --ring: var(--litt-accent);
+    /* Chart series: the interactive neutral first, then categorical hues
+       (teal, rose, lime, stone). No blue, indigo, purple or amber. */
+    --chart-1: var(--litt-interactive);
+    --chart-2: oklch(0.6 0.118 184.704); /* teal-600 */
+    --chart-3: oklch(0.586 0.253 17.585); /* rose-600 */
+    --chart-4: oklch(0.648 0.2 131.684); /* lime-600 */
+    --chart-5: oklch(0.553 0.013 58.071); /* stone-500 */
+    --sidebar: var(--litt-papel);
+    --sidebar-foreground: var(--litt-tinta);
+    --sidebar-primary: var(--litt-tinta);
+    --sidebar-primary-foreground: var(--litt-papel);
+    --sidebar-accent: #f4f4f0;
+    --sidebar-accent-foreground: var(--litt-tinta);
+    --sidebar-border: #cfd0cc;
+    --sidebar-ring: var(--litt-accent);
 }
 
 .dark {
     color-scheme: dark;
-    --app-background: #0b0f14;
-    --app-surface: #131922;
-    --app-surface-hover: #19212c;
-    --app-surface-active: #222c38;
-    --app-floating: #171e28;
-    --table-grid-border: #2b3645;
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --litt-mark-ink: var(--litt-papel);
+    --litt-mark-accent: var(--litt-ambar-fosforo);
+    /* Ámbar fósforo on the dark theme: 9.64:1 on tinta, 7.43:1 on the
+       lightest surface (--app-surface-active). */
+    --litt-accent: var(--litt-ambar-fosforo);
+    /* Interactive primary, dark theme: papel on tinta, with tinta text on a
+       papel fill. */
+    --litt-interactive: var(--litt-papel);
+    --litt-interactive-hover: #cacbc8; /* papel 86%, tinta */
+    --litt-interactive-pressed: #adafaf; /* papel 74%, tinta */
+    --litt-interactive-foreground: var(--litt-tinta);
+    --litt-interactive-soft: rgb(236 236 230 / 8%); /* papel 8%, transparent */
+    --litt-interactive-soft-strong: rgb(236 236 230 / 14%); /* papel 14%, transparent */
+    --litt-interactive-border: rgb(236 236 230 / 42%); /* papel 42%, transparent */
+    /* Dark theme: tinta canvas, papel text. Surfaces are tinta lifted toward
+       papel by 3.5-12 % (OKLab), so they stay in the tinta family. */
+    --app-background: var(--litt-tinta);
+    --app-surface: #1b202c;
+    --app-surface-hover: #222732;
+    --app-surface-active: #2a2f3a;
+    --app-floating: #1f2430;
+    --table-grid-border: #323641;
+    --background: var(--litt-tinta);
+    --foreground: var(--litt-papel);
+    --card: #1b202c;
+    --card-foreground: var(--litt-papel);
+    --popover: #1f2430;
+    --popover-foreground: var(--litt-papel);
+    --primary: var(--litt-papel);
+    --primary-foreground: var(--litt-tinta);
+    --secondary: #2a2f3a;
+    --secondary-foreground: var(--litt-papel);
+    --muted: #2a2f3a;
+    --muted-foreground: #9b9d9f;
+    --accent: #2a2f3a;
+    --accent-foreground: var(--litt-papel);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --border: rgb(236 236 230 / 10%);
+    --input: rgb(236 236 230 / 15%);
+    --ring: var(--litt-accent);
+    --chart-1: var(--litt-interactive);
+    --chart-2: oklch(0.696 0.17 162.48); /* emerald-500 */
+    --chart-3: oklch(0.712 0.194 13.428); /* rose-400 */
+    --chart-4: oklch(0.841 0.238 128.85); /* lime-400 */
+    --chart-5: oklch(0.709 0.01 56.259); /* stone-400 */
+    --sidebar: var(--litt-tinta);
+    --sidebar-foreground: var(--litt-papel);
+    --sidebar-primary: var(--litt-papel);
+    --sidebar-primary-foreground: var(--litt-tinta);
+    --sidebar-accent: #2a2f3a;
+    --sidebar-accent-foreground: var(--litt-papel);
+    --sidebar-border: rgb(236 236 230 / 10%);
+    --sidebar-ring: var(--litt-accent);
 }

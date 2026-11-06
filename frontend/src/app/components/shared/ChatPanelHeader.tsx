@@ -18,7 +18,7 @@ import { formatElapsedTime } from "@/app/lib/formatElapsedTime";
 import { chatActivityAt, sortChatsByActivity } from "@/app/lib/chatActivity";
 
 const HEADER_PILL_CLASS = `flex shrink-0 items-center gap-1 rounded-full px-1 py-0.5 ${LIQUID_GLASS_SUBTLE_CLASS} backdrop-blur-xl`;
-const HEADER_PILL_BUTTON_CLASS = `flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${LIQUID_GLASS_HOVER_CLASS}`;
+const HEADER_PILL_BUTTON_CLASS = `flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${LIQUID_GLASS_HOVER_CLASS}`;
 
 type HistoryChat = Pick<Chat, "id" | "title"> &
     Partial<Pick<Chat, "created_at" | "updated_at">>;
@@ -65,7 +65,7 @@ export function buildChatHistoryItems({
                         <Loader2
                             role="status"
                             aria-label={`${title} response loading`}
-                            className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-600 motion-reduce:animate-none"
+                            className="h-3.5 w-3.5 shrink-0 animate-spin text-interactive motion-reduce:animate-none"
                         />
                     ) : (
                         <ChatSkeuoIcon
@@ -192,7 +192,7 @@ export function ChatPanelHeader({
                                     titleEdit.onCancel();
                                 }
                             }}
-                            className="h-6 w-48 max-w-full rounded-full border-0 bg-transparent px-1.5 font-sans text-xs font-medium text-gray-700 shadow-none focus-visible:ring-2 focus-visible:ring-blue-500/40 focus-visible:ring-offset-0"
+                            className="h-6 w-48 max-w-full rounded-full border-0 bg-transparent px-1.5 font-sans text-xs font-medium text-gray-700 shadow-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-0"
                         />
                     </div>
                 ) : (
@@ -212,7 +212,7 @@ export function ChatPanelHeader({
                                 <button
                                     type="button"
                                     className={cn(
-                                        "flex h-6 min-w-0 items-center gap-1 rounded-full px-1.5 text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40",
+                                        "flex h-6 min-w-0 items-center gap-1 rounded-full px-1.5 text-gray-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                                         LIQUID_GLASS_HOVER_CLASS,
                                     )}
                                 >

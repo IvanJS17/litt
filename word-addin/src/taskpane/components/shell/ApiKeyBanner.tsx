@@ -64,13 +64,13 @@ export function ApiKeyBanner(): React.ReactElement | null {
   return (
     <div
       role="status"
-      className="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+      className="shrink-0 border-b border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900"
     >
       <div className="flex items-start gap-2">
-        <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+        <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-orange-600" />
         <p className="min-w-0 flex-1">
           <span className="font-medium">No AI provider key is set up.</span>{" "}
-          <span className="text-amber-800">
+          <span className="text-orange-800">
             Chat and actions will fail until you add one.
           </span>
         </p>
@@ -78,7 +78,7 @@ export function ApiKeyBanner(): React.ReactElement | null {
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss"
-          className="shrink-0 rounded p-0.5 text-amber-500 transition-colors hover:bg-amber-100 hover:text-amber-700"
+          className="shrink-0 rounded p-0.5 text-orange-500 transition-colors hover:bg-orange-100 hover:text-orange-700"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -86,7 +86,7 @@ export function ApiKeyBanner(): React.ReactElement | null {
       <button
         type="button"
         onClick={openApiKeysPage}
-        className="mt-1.5 ml-[22px] rounded-md bg-amber-600 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-amber-700"
+        className="mt-1.5 ml-[22px] rounded-md bg-orange-600 px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-orange-700"
       >
         Set up API keys
       </button>

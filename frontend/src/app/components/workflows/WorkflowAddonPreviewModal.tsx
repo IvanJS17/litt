@@ -379,7 +379,7 @@ function WorkflowAddonPreviewDialog({
                       onClick={() =>
                         setDescriptionExpanded((expanded) => !expanded)
                       }
-                      className="ml-1 inline font-medium text-blue-600 transition-colors hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60"
+                      className="ml-1 inline font-medium text-interactive transition-colors hover:text-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       {descriptionExpanded ? "Show less" : "Show more"}
                     </button>
@@ -444,7 +444,7 @@ function WorkflowAddonPreviewDialog({
                           key={file.id}
                           type="button"
                           onClick={() => setSelectedAsset(file)}
-                          className={`flex w-full items-center gap-3 border-b border-white/50 px-3 py-3 text-left text-xs transition-colors last:border-b-0 ${LIQUID_GLASS_HOVER_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/60`}
+                          className={`flex w-full items-center gap-3 border-b border-white/50 px-3 py-3 text-left text-xs transition-colors last:border-b-0 ${LIQUID_GLASS_HOVER_CLASS} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus`}
                         >
                           <FileTypeIcon
                             fileType={file.file_type || file.filename}

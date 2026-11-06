@@ -54,7 +54,7 @@ const POSITION_GROUPS: Record<
     usage: "preferred",
   },
   fallbacks: {
-    dot: "bg-amber-500",
+    dot: "bg-orange-500",
     title: "Fallback positions",
     label: "Fallback",
     empty: "None yet.",
@@ -619,7 +619,7 @@ function PositionCard({
           onChange={(event) =>
             onChange({ ...position, name: event.target.value })
           }
-          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-blue-500/40"
+          className="h-8 min-w-0 flex-1 rounded-md bg-transparent px-1 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 hover:bg-app-surface-hover focus-visible:ring-2 focus-visible:ring-focus"
         />
         <HeaderActionsMenu
           title={`Actions for ${label}`}
@@ -755,7 +755,7 @@ function SampleClause({
         )}
       />
       {conflict && (
-        <p id={conflictId} className="px-3 pb-2 text-xs text-amber-800">
+        <p id={conflictId} className="px-3 pb-2 text-xs text-orange-800">
           {conflict}
         </p>
       )}

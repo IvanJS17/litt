@@ -76,7 +76,7 @@ const STATUS_COPY: Record<
   // would put a second revision over the first.
   unverified: {
     copy: UNVERIFIED_APPLY_MESSAGE,
-    className: "text-amber-700",
+    className: "text-orange-700",
   },
   incomplete: {
     copy: "Incomplete change — not applied.",
@@ -84,7 +84,7 @@ const STATUS_COPY: Record<
   },
   unmanaged: {
     copy: "Applied in Word — review it from Word’s Review tab.",
-    className: "text-amber-700",
+    className: "text-orange-700",
   },
   error: { copy: "Couldn’t apply this change.", className: "text-red-500" },
   historical: { copy: "Historical change.", className: "text-gray-400" },
@@ -165,7 +165,7 @@ export function EditCard({
       : (ambiguousCopy ?? multiApplyCopy ?? statusCopy?.copy);
   const messageClass =
     status === "pending" || status === "ready"
-      ? "text-amber-700"
+      ? "text-orange-700"
       : (statusCopy?.className ?? "");
 
   return (

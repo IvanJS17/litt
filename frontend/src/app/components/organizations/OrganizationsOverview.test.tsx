@@ -164,7 +164,7 @@ describe("OrganizationsOverview", () => {
     ]);
   });
 
-  it("opens the settings of the workspace the person is in from its blue Manage button", async () => {
+  it("opens the settings of the workspace the person is in from its primary Manage button", async () => {
     const user = userEvent.setup();
     render(<OrganizationsOverview />);
     await screen.findByText("Elite Law LLP");
@@ -173,7 +173,7 @@ describe("OrganizationsOverview", () => {
       name: "Manage Elite Law LLP",
     });
     expect(manage).toHaveTextContent("Manage");
-    expect(manage.className).toMatch(/bg-blue-/);
+    expect(manage.className).toMatch(/\bbg-interactive\b/);
     // The card itself is not a second way in.
     expect(
       screen.getAllByRole("button", { name: "Manage Elite Law LLP" }),

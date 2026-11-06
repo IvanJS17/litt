@@ -43,7 +43,7 @@ export function PlaybookReviewDocuments({
     <section
       aria-labelledby={labelledBy}
       aria-busy={disabled}
-      className={`rounded-xl bg-gray-100 p-4 transition-colors ${dragging && !disabled ? "ring-2 ring-inset ring-blue-500/40" : ""}`}
+      className={`rounded-xl bg-gray-100 p-4 transition-colors ${dragging && !disabled ? "ring-2 ring-inset ring-interactive/40" : ""}`}
       onDragEnter={(event) => {
         if (!event.dataTransfer.types.includes("Files")) return;
         event.preventDefault();
@@ -77,7 +77,7 @@ export function PlaybookReviewDocuments({
             <button
               type="button"
               onClick={onAddDocuments}
-              className="mb-3 block rounded-md text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+              className="mb-3 block rounded-md text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
               {dragging
                 ? "Drop documents to add them"
@@ -144,7 +144,7 @@ export function PlaybookReviewDocuments({
           type="button"
           onClick={onAddDocuments}
           disabled={disabled}
-          className="w-full rounded-lg py-4 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:cursor-not-allowed"
+          className="w-full rounded-lg py-4 text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed"
         >
           {/* The field's label sits above the area, as for other fields. */}
           <span className="block text-sm text-gray-700">

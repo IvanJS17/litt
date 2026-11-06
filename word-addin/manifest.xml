@@ -7,7 +7,7 @@
 
   <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
   <Version>1.0.0.1</Version>
-  <ProviderName>MikeOSS</ProviderName>
+  <ProviderName>LiTT</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="LiTT" />
   <Description DefaultValue="AI-powered legal assistant for Word" />

@@ -100,7 +100,7 @@ function UserMessageImpl({
                 }
                 aria-expanded={expanded}
                 onClick={() => setExpanded((current) => !current)}
-                className="absolute bottom-0 left-1/2 z-10 inline-flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-200/90 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="absolute bottom-0 left-1/2 z-10 inline-flex h-7 w-9 -translate-x-1/2 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-200/90 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
               >
                 {expanded ? (
                   <ChevronUp className="h-4 w-4" />
@@ -126,7 +126,7 @@ function UserMessageImpl({
               />
             ))}
             {workflow && (
-              <div className="inline-flex items-center gap-1 rounded-full border border-blue-600 bg-blue-600 py-0.5 pl-2 pr-2.5 text-xs text-white shadow">
+              <div className="inline-flex items-center gap-1 rounded-full border border-interactive bg-interactive py-0.5 pl-2 pr-2.5 text-xs text-interactive-foreground shadow">
                 <Waypoints className="h-2.5 w-2.5 shrink-0" />
                 <span className="max-w-[140px] truncate">{workflow.title}</span>
               </div>

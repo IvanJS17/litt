@@ -5,7 +5,9 @@ import "./globals.css";
 import { Providers } from "@/app/components/providers";
 
 export const metadata: Metadata = {
-    metadataBase: new URL("https://app.mikeoss.com"),
+    // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream,
+    // is credited in the README.
+    metadataBase: new URL("https://litt.asteroitt.com"),
     title: "LiTT - Legal AI Platform",
     description:
         "AI-powered legal document analysis and contract review platform.",
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     },
     openGraph: {
         type: "website",
-        url: "https://app.mikeoss.com",
+        url: "https://litt.asteroitt.com",
         siteName: "LiTT",
         title: "LiTT - Legal AI Platform",
         description:

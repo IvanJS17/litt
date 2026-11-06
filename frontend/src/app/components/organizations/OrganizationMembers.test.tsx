@@ -513,7 +513,7 @@ describe("OrganizationMembers", () => {
     );
     expect(
       screen.getByRole("button", { name: "Change role for Jane Lee" }),
-    ).toHaveClass("bg-violet-100", "text-violet-700");
+    ).toHaveClass("bg-interactive-soft-strong", "text-interactive");
   });
 
   it("shows last-owner failures with the warning primitive", async () => {
@@ -982,8 +982,8 @@ describe("OrganizationMembers", () => {
         ).not.toBeInTheDocument();
       }
       expect(screen.getByText("Owner")).toHaveClass(
-        "bg-blue-100",
-        "text-blue-700",
+        "bg-interactive-soft-strong",
+        "text-interactive",
       );
     });
 

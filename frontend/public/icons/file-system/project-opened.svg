@@ -1,17 +1,17 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#47A9FF"/>
-      <stop offset="1" stop-color="#207ACE"/>
+      <stop offset="0" stop-color="#A2A4A4"/>
+      <stop offset="1" stop-color="#76787C"/>
     </linearGradient>
     <linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#86C5FF"/>
-      <stop offset="0.48" stop-color="#339FFF"/>
-      <stop offset="1" stop-color="#298EEC"/>
+      <stop offset="0" stop-color="#BEBFBD"/>
+      <stop offset="0.48" stop-color="#9A9B9C"/>
+      <stop offset="1" stop-color="#898B8E"/>
     </linearGradient>
     <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#E5E7EB"/>
+      <stop offset="1" stop-color="#E7E7E2"/>
     </linearGradient>
     <radialGradient id="sheen">
       <stop offset="0" stop-color="#FFFFFF"/>
@@ -33,7 +33,7 @@
           fill="url(#back)"/>
 
     <rect x="14" y="17" width="36" height="14" rx="2.5" fill="url(#paper)"/>
-    <g stroke="#9CA3AF" stroke-width="1.4" stroke-linecap="round" opacity="0.8">
+    <g stroke="#A1A3A3" stroke-width="1.4" stroke-linecap="round" opacity="0.8">
       <line x1="19" y1="21.5" x2="45" y2="21.5"/>
     </g>
 
