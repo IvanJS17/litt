@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, FileText, Waypoints } from "lucide-react";
 import { ExcerptModalUI } from "@mike/excerpt-modal-ui";
 import { ExcerptPillUI } from "@mike/excerpt-pill-ui";
 import { PlaybookPillUI } from "@mike/playbook-pill-ui";
+import { TrainingNoteUI, type TrainingNoteView } from "@mike/training-note-ui";
 import { parseExcerpts, type MessageExcerpt } from "@mike/message-excerpts";
 
 const COLLAPSED_CONTENT_HEIGHT = 144;
@@ -17,15 +18,15 @@ function UserMessageImpl({
   files,
   workflow,
   playbook,
-  trainingAttempt,
+  trainingNote,
 }: {
   content: string;
   files?: { filename: string; document_id?: string }[];
   workflow?: { id: string; title: string };
   /** The playbook this message ran, as the web thread shows it. */
   playbook?: { id: string; title: string };
-  /** LiTT training: the approach a pasante wrote before asking. */
-  trainingAttempt?: string;
+  /** LiTT training: the private note beside this message, if any. */
+  trainingNote?: TrainingNoteView;
 }): React.ReactElement {
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [canExpand, setCanExpand] = useState(false);
@@ -62,18 +63,8 @@ function UserMessageImpl({
   }, [content]);
 
   return (
-    <div className="w-full flex justify-end">
+    <div className="w-full flex flex-col items-end gap-2">
       <div className="max-w-[80%] bg-gray-100 rounded-xl px-4 py-3">
-        {trainingAttempt && (
-          <div className="mb-3 border-b border-gray-200 pb-3">
-            <p className="text-xs font-medium text-gray-500">
-              Tu planteamiento
-            </p>
-            <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words">
-              {trainingAttempt}
-            </p>
-          </div>
-        )}
         {body && (
           <div
             className="relative overflow-hidden"
@@ -153,6 +144,12 @@ function UserMessageImpl({
           </div>
         )}
       </div>
+      {trainingNote && (
+        <TrainingNoteUI
+          note={trainingNote}
+          className="w-full max-w-[80%]"
+        />
+      )}
       <ExcerptModalUI
         excerpt={openExcerpt}
         onClose={() => setOpenExcerpt(null)}

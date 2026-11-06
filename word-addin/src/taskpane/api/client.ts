@@ -12,6 +12,7 @@ import type {
 // parity tests) never pull this module, and its runtime imports, into
 // the web app's type-check graph.
 export type { ApiKeyStatus } from "../types";
+import type { TrainingTurnNote, TrainingTurnNotes } from "@mike/contracts";
 import type { RouterProfileLists } from "@mike/model-catalog";
 import { SERVER_FAILURE_MESSAGE } from "@mike/user-error";
 import { networkFailure } from "../lib/networkError";
@@ -482,6 +483,26 @@ export async function getWordTrainingStage(): Promise<"pasante" | "junior" | nul
     "/training/stage?surface=word",
   );
   return result.stage;
+}
+
+/**
+ * LiTT training: a pasante's private notes on a Word chat's turns. Only the
+ * author and their current mentor can read them; any other caller, and a chat
+ * with nothing to read, gets a uniform 404, which is "no notes" here.
+ */
+export async function getTrainingTurnNotes(
+  chatId: string,
+): Promise<TrainingTurnNote[]> {
+  try {
+    const result = await apiRequest<TrainingTurnNotes>(
+      "training.read",
+      `/training-notes/chats/${encodeURIComponent(chatId)}`,
+    );
+    return result.notes;
+  } catch (error) {
+    if (error instanceof MikeApiError && error.status === 404) return [];
+    throw error;
+  }
 }
 
 export async function streamWordChat(payload: {

@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TrainingTurnNote } from "@mike/contracts";
-import { getTrainingTurnNotes } from "@/app/lib/mikeApi";
 
 /** How often a pending contrast is looked up again, and for how long. */
 export const TRAINING_NOTES_POLL_MS = 5_000;
@@ -24,6 +23,8 @@ interface NoteMessage {
 export function useTrainingTurnNotes(
     chatId: string | null | undefined,
     isResponseLoading: boolean,
+    /** Reads the notes of a chat; the web app and the Word add-in each have their own client. */
+    getTrainingTurnNotes: (chatId: string) => Promise<TrainingTurnNote[]>,
 ): TrainingTurnNote[] {
     const [state, setState] = useState<{
         chatId: string;
@@ -57,7 +58,7 @@ export function useTrainingTurnNotes(
             cancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [chatId, isResponseLoading]);
+    }, [chatId, isResponseLoading, getTrainingTurnNotes]);
 
     return state && state.chatId === chatId ? state.notes : [];
 }
@@ -91,8 +92,10 @@ export function matchTrainingNotes(
         .filter((n) => !claimed.has(n.id))
         .sort((a, b) => a.created_at.localeCompare(b.created_at));
     const count = Math.min(live.length, spare.length);
-    for (let i = 1; i <= count; i++) {
-        matched.set(live[live.length - i], spare[spare.length - i]);
-    }
+    const liveTail = live.slice(live.length - count);
+    const spareTail = spare.slice(spare.length - count);
+    liveTail.forEach((messageIndex, k) => {
+        matched.set(messageIndex, spareTail[k] as TrainingTurnNote);
+    });
     return matched;
 }

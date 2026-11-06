@@ -169,8 +169,6 @@ export interface Message {
   workflow?: { id: string; title: string };
   /** The playbook the user attached to this message, shown as a pill. */
   playbook?: { id: string; title: string };
-  /** LiTT training: the approach a pasante wrote before this message. */
-  training_attempt?: string;
   /** Assistant turns preserve their content and activity in event order. */
   events?: WordAssistantEvent[];
   /** Canonical normalized edits for this assistant message. */

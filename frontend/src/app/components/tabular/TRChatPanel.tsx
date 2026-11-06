@@ -14,6 +14,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import {
     streamTabularChat,
     streamTabularChatTurn,
+    getTrainingTurnNotes,
     stopTabularChatTurn,
     getTabularChats,
     getTabularChatMessages,
@@ -60,7 +61,7 @@ import { TrainingNoteUI, type TrainingNoteView } from "@/shared/ui/TrainingNoteU
 import {
     matchTrainingNotes,
     useTrainingTurnNotes,
-} from "@/app/hooks/useTrainingTurnNotes";
+} from "@/shared/hooks/useTrainingTurnNotes";
 import { subscribeToTabularChatSettingsUpdates } from "@/app/lib/tabularChatSettingsEvents";
 import { sortChatsByActivity, touchChatActivity } from "@/app/lib/chatActivity";
 import { WarningPopup } from "../popups/WarningPopup";
@@ -684,7 +685,7 @@ export function TRChatPanel({
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,
-        useTrainingTurnNotes(currentChatId, isLoading),
+        useTrainingTurnNotes(currentChatId, isLoading, getTrainingTurnNotes),
     );
     const hasMessages = messages.length > 0;
     const userMessageCount = messages.filter(

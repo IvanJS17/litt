@@ -201,6 +201,16 @@ import {
     streamProjectChat,
     streamTabularChat,
     getTrainingTurnNotes,
+    getTrainingStage,
+    getMyTraining,
+    getOrgTraining,
+    designateTrainingMentor,
+    removeTrainingMentor,
+    getMyPupils,
+    assignTrainingPupil,
+    releaseTrainingPupil,
+    setTrainingStage,
+    removeTrainingStage,
     streamTabularChatTurn,
     stopTabularChatTurn,
     stopTabularGeneration,
@@ -1218,6 +1228,45 @@ describe("streamTabularChat training attempt", () => {
         expect(JSON.parse(lastFetchCall().init.body as string).attempt).toBe(
             "Mi planteamiento",
         );
+    });
+});
+
+describe("training API", () => {
+    const ok = () => fetchMock.mockImplementation(async () => jsonResponse({ stage: "pasante", memberships: [], mentors: [] }));
+
+    it("reads the stage for an org and a project", async () => {
+        ok();
+        await expect(getTrainingStage({ orgId: "o1", projectId: "p1" })).resolves.toBe("pasante");
+        expect(lastFetchCall().url).toBe("/api/training/stage?org_id=o1&project_id=p1");
+        await getTrainingStage({});
+        expect(lastFetchCall().url).toBe("/api/training/stage?");
+    });
+
+    it("reads the caller's memberships, the org overview and pupils", async () => {
+        ok();
+        await expect(getMyTraining()).resolves.toEqual([]);
+        expect(lastFetchCall().url).toBe("/api/training/me");
+        await getOrgTraining("o1");
+        expect(lastFetchCall().url).toBe("/api/orgs/o1/training/mentors");
+        await getMyPupils("o1");
+        expect(lastFetchCall().url).toBe("/api/orgs/o1/training/pupils");
+    });
+
+    it.each([
+        ["designate", () => designateTrainingMentor("o1", "u1"), "POST", "/api/orgs/o1/training/mentors", { user_id: "u1" }],
+        ["remove mentor", () => removeTrainingMentor("o1", "u1"), "DELETE", "/api/orgs/o1/training/mentors/u1", undefined],
+        ["assign", () => assignTrainingPupil("o1", "u1"), "POST", "/api/orgs/o1/training/pupils", { user_id: "u1" }],
+        ["release", () => releaseTrainingPupil("o1", "u1"), "DELETE", "/api/orgs/o1/training/pupils/u1", undefined],
+        ["set stage", () => setTrainingStage("o1", "u1", null, "junior"), "PUT", "/api/orgs/o1/training/pupils/u1/stages", { practice: null, stage: "junior" }],
+        ["remove stage", () => removeTrainingStage("o1", "u1", null), "DELETE", "/api/orgs/o1/training/pupils/u1/stages", undefined],
+        ["remove practice stage", () => removeTrainingStage("o1", "u1", "civil"), "DELETE", "/api/orgs/o1/training/pupils/u1/stages?practice=civil", undefined],
+    ] as const)("%s", async (_name, call, method, url, body) => {
+        fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+        await call();
+        const { url: calledUrl, init } = lastFetchCall();
+        expect(calledUrl).toBe(url);
+        expect(init.method).toBe(method);
+        if (body) expect(JSON.parse(init.body as string)).toEqual(body);
     });
 });
 

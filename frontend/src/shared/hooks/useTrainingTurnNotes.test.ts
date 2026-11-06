@@ -7,9 +7,8 @@ import {
     matchTrainingNotes,
     useTrainingTurnNotes,
 } from "./useTrainingTurnNotes";
-import { getTrainingTurnNotes } from "@/app/lib/mikeApi";
 
-vi.mock("@/app/lib/mikeApi", () => ({ getTrainingTurnNotes: vi.fn() }));
+const getTrainingTurnNotes = vi.fn();
 
 const note = (
     id: string,
@@ -76,13 +75,13 @@ describe("matchTrainingNotes", () => {
 describe("useTrainingTurnNotes", () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.mocked(getTrainingTurnNotes).mockReset();
+        getTrainingTurnNotes.mockReset();
     });
     afterEach(() => vi.useRealTimers());
 
     it("reads nothing without a chat or while a response streams", () => {
         const { result, rerender } = renderHook(
-            ({ id, loading }) => useTrainingTurnNotes(id, loading),
+            ({ id, loading }) => useTrainingTurnNotes(id, loading, getTrainingTurnNotes),
             { initialProps: { id: undefined as string | undefined, loading: false } },
         );
         rerender({ id: "c1", loading: true });
@@ -91,9 +90,9 @@ describe("useTrainingTurnNotes", () => {
     });
 
     it("loads once when nothing is pending and drops them when the chat changes", async () => {
-        vi.mocked(getTrainingTurnNotes).mockResolvedValue([note("n1", "m1")]);
+        getTrainingTurnNotes.mockResolvedValue([note("n1", "m1")]);
         const { result, rerender } = renderHook(
-            ({ id }) => useTrainingTurnNotes(id, false),
+            ({ id }) => useTrainingTurnNotes(id, false, getTrainingTurnNotes),
             { initialProps: { id: "c1" } },
         );
         await act(async () => {});
@@ -107,10 +106,10 @@ describe("useTrainingTurnNotes", () => {
     });
 
     it("polls every 5 s while pending, then stops once ready", async () => {
-        vi.mocked(getTrainingTurnNotes)
+        getTrainingTurnNotes
             .mockResolvedValueOnce([note("n1", "m1", "pending")])
             .mockResolvedValueOnce([note("n1", "m1", "ready")]);
-        const { result } = renderHook(() => useTrainingTurnNotes("c1", false));
+        const { result } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         await act(async () => {});
         expect(result.current[0].contrast_status).toBe("pending");
         await act(async () => {
@@ -124,24 +123,24 @@ describe("useTrainingTurnNotes", () => {
     });
 
     it("gives up after two minutes", async () => {
-        vi.mocked(getTrainingTurnNotes).mockResolvedValue([
+        getTrainingTurnNotes.mockResolvedValue([
             note("n1", "m1", "pending"),
         ]);
-        renderHook(() => useTrainingTurnNotes("c1", false));
+        renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         await act(async () => {
             await vi.advanceTimersByTimeAsync(TRAINING_NOTES_POLL_MAX_MS * 2);
         });
-        expect(vi.mocked(getTrainingTurnNotes).mock.calls.length).toBe(
+        expect(getTrainingTurnNotes.mock.calls.length).toBe(
             TRAINING_NOTES_POLL_MAX_MS / TRAINING_NOTES_POLL_MS + 1,
         );
     });
 
     it("cancels the poll on unmount and ignores a late reply", async () => {
         let resolve!: (n: TrainingTurnNote[]) => void;
-        vi.mocked(getTrainingTurnNotes).mockReturnValueOnce(
+        getTrainingTurnNotes.mockReturnValueOnce(
             new Promise((r) => (resolve = r)),
         );
-        const { unmount } = renderHook(() => useTrainingTurnNotes("c1", false));
+        const { unmount } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         unmount();
         await act(async () => resolve([note("n1", "m1", "pending")]));
         await act(async () => {
@@ -151,10 +150,10 @@ describe("useTrainingTurnNotes", () => {
     });
 
     it("clears a scheduled poll on unmount", async () => {
-        vi.mocked(getTrainingTurnNotes).mockResolvedValue([
+        getTrainingTurnNotes.mockResolvedValue([
             note("n1", "m1", "pending"),
         ]);
-        const { unmount } = renderHook(() => useTrainingTurnNotes("c1", false));
+        const { unmount } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         await act(async () => {});
         unmount();
         await act(async () => {
@@ -164,8 +163,8 @@ describe("useTrainingTurnNotes", () => {
     });
 
     it("keeps quiet when the read fails", async () => {
-        vi.mocked(getTrainingTurnNotes).mockRejectedValue(new Error("down"));
-        const { result } = renderHook(() => useTrainingTurnNotes("c1", false));
+        getTrainingTurnNotes.mockRejectedValue(new Error("down"));
+        const { result } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         await act(async () => {});
         expect(result.current).toEqual([]);
     });

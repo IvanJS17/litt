@@ -22,6 +22,7 @@ import type {
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
 import { selectDocumentText } from "../../hooks/useWordDoc";
 import { UserVisibleError, notifyError } from "../../lib/notify";
+import type { TrainingNoteView } from "@mike/training-note-ui";
 
 const CHAT_MESSAGE_TOP_GAP = 12;
 const CHAT_MESSAGES_BOTTOM_GAP = 16;
@@ -42,6 +43,8 @@ interface ChatViewProps
             | "acceptAndApplyEdit"
         > {
     sessionKey: number;
+    /** LiTT training: private notes by message index. */
+    trainingNotes?: ReadonlyMap<number, TrainingNoteView>;
     chatModel?: string | null;
     lastSelectedModel?: string | null;
     chatReasoningLevel?: ReasoningLevel | null;
@@ -141,6 +144,7 @@ function animateScrollTo(
 
 export function ChatView({
     sessionKey,
+    trainingNotes,
     chatModel,
     lastSelectedModel,
     chatReasoningLevel,
@@ -758,7 +762,7 @@ export function ChatView({
                                         files={message.files}
                                         workflow={message.workflow}
                                         playbook={message.playbook}
-                                        trainingAttempt={message.training_attempt}
+                                        trainingNote={trainingNotes?.get(index)}
                                     />
                                 </div>
                             );

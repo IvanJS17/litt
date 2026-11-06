@@ -89,8 +89,11 @@ interface RuntimeMessageBase {
 export interface WordUserMessage extends RuntimeMessageBase {
   role: "user";
   content: string;
-  /** LiTT training: the approach a pasante wrote before this message. */
-  training_attempt?: string;
+  /**
+   * LiTT training: the approach a pasante wrote, kept only until the turn is
+   * sent. The server stores it as a private note; it is never read back.
+   */
+  attempt?: string;
 }
 
 export interface WordAssistantMessage extends RuntimeMessageBase {

@@ -342,9 +342,7 @@ export function useWordAssistantChat({
               files: submission.files,
               workflow: submission.workflow,
               playbook: submission.playbook,
-              ...(submission.attempt
-                ? { training_attempt: submission.attempt }
-                : {}),
+              ...(submission.attempt ? { attempt: submission.attempt } : {}),
             }
           : null;
         // A resume appends to the transcript as loaded: the user turn is

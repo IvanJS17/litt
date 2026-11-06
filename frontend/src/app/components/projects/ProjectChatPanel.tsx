@@ -16,14 +16,14 @@ import {
 import { useRouter } from "next/navigation";
 import { Brain, MessageSquare, Pencil, Trash2, X } from "lucide-react";
 import { findPendingAskInput } from "@/app/lib/pendingAskInput";
-import { deleteChat } from "@/app/lib/mikeApi";
+import { deleteChat, getTrainingTurnNotes } from "@/app/lib/mikeApi";
 import { loadAssistantChat } from "@/app/lib/assistantTurns";
 import {
     sortChatsByActivity,
     touchChatActivity,
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
-import { matchTrainingNotes, useTrainingTurnNotes } from "@/app/hooks/useTrainingTurnNotes";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
     isChatAttachmentDrag,
@@ -316,7 +316,11 @@ export function ProjectChatPanel({
     // LiTT training: private notes beside the pasante's own messages.
     const trainingNotes = matchTrainingNotes(
         messages,
-        useTrainingTurnNotes(activeChatId || undefined, isResponseLoading),
+        useTrainingTurnNotes(
+            activeChatId || undefined,
+            isResponseLoading,
+            getTrainingTurnNotes,
+        ),
     );
     // The model is what we asked for, so it identifies whose key was rejected.
     const rejectedKeyProvider = rejectedApiKey?.model
