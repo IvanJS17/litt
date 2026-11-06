@@ -15,13 +15,14 @@ const note = (
     message_id: string,
     status: TrainingTurnNote["contrast_status"] = "ready",
     created_at = `2026-01-01T00:00:0${id.slice(1)}Z`,
+    attempt = "a",
 ): TrainingTurnNote => ({
     id,
     org_id: "o",
     trainee_user_id: "u",
     chat_id: "c1",
     message_id,
-    attempt: "a",
+    attempt,
     contrast: status === "ready" ? "Coincide" : null,
     contrast_status: status,
     created_at,
@@ -40,15 +41,19 @@ describe("matchTrainingNotes", () => {
         expect([...matched.keys()]).toEqual([0]);
     });
 
-    it("gives just-sent messages the unclaimed notes, newest with newest", () => {
+    it("gives a just-sent message the unclaimed note with its exact attempt", () => {
         const matched = matchTrainingNotes(
             [
                 { id: "m1", role: "user" },
                 { role: "user", attempt: "x" },
-                { role: "user", attempt: "y" },
+                { role: "user", attempt: " y " },
                 { role: "user" },
             ],
-            [note("n3", "m9"), note("n1", "m1"), note("n2", "m8")],
+            [
+                note("n3", "m9", "ready", undefined, "y"),
+                note("n1", "m1"),
+                note("n2", "m8", "ready", undefined, "x"),
+            ],
         );
         expect(matched.get(0)?.id).toBe("n1");
         expect(matched.get(1)?.id).toBe("n2");
@@ -63,22 +68,39 @@ describe("matchTrainingNotes", () => {
                 { id: "user-local-1", role: "user", attempt: "x" },
                 { id: "user-local-2", role: "user" },
             ],
-            [note("n1", "m1"), note("n2", "m8")],
+            [note("n1", "m1"), note("n2", "m8", "ready", undefined, "x")],
         );
         expect(matched.get(0)?.id).toBe("n1");
         expect(matched.get(1)?.id).toBe("n2");
         expect(matched.has(2)).toBe(false);
     });
 
-    it("leaves older just-sent messages bare when notes run short", () => {
+    it("leaves a just-sent message bare when its note was never created", () => {
+        // The newer turn's note failed: it must not borrow the older one's.
         const matched = matchTrainingNotes(
             [
                 { role: "user", attempt: "x" },
                 { role: "user", attempt: "y" },
             ],
-            [note("n1", "m9")],
+            [note("n1", "m9", "ready", undefined, "x")],
         );
-        expect([...matched.keys()]).toEqual([1]);
+        expect([...matched.keys()]).toEqual([0]);
+        expect(matched.get(0)?.id).toBe("n1");
+    });
+
+    it("pairs identical attempts newest with newest", () => {
+        const matched = matchTrainingNotes(
+            [
+                { role: "user", attempt: "x" },
+                { role: "user", attempt: "x" },
+            ],
+            [
+                note("n2", "m8", "ready", undefined, "x"),
+                note("n1", "m9", "ready", undefined, "x"),
+            ],
+        );
+        expect(matched.get(0)?.id).toBe("n1");
+        expect(matched.get(1)?.id).toBe("n2");
     });
 
     it("is empty without notes", () => {
