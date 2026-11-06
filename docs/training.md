@@ -151,3 +151,61 @@ The composers (web and Word) show the required field
   stages; «Mis pupilos» lets a mentor take members without a mentor, set their
   stage per practice area («Todas las materias», the practice options, or
   another), and release them.
+
+## The pasante seal and its approval (layer 1b)
+
+Migration `backend/migrations/20261106_51_litt_training_output_lock.sql` (also
+in `backend/schema.sql`).
+
+### Seal
+
+`document_versions` has `training_author_user_id` and `training_stage`
+(`'pasante'` or null; both set or both null). A sealed version is a pasante's
+draft. Every insertion declares whose content it holds
+(`VersionAuthorship` in `modules/documents/documents.lifecycle.ts`), and the
+facade decides the seal before calling `create_document_version`:
+
+| Paths | Authorship | Seal |
+|---|---|---|
+| A1 upload, A2 new version, A4 assistant edit, A6 generated file | the actor | sealed with the actor as author when the actor's effective stage (`resolveTrainingStage`, in the document's organization and project) is `pasante` |
+| A3 version from another document, A5 replicate, A8 copy to workflow assets, A9 copy to another project | a copy of the source version | the source's seal and author, whoever copies |
+| A7 workflow add-on from the catalog | catalog | never |
+| A10 approved AI review report | the reviewer | `append_ai_review_export` seals it when the backend passes `training_stage: 'pasante'` |
+| U1 accept/reject an edit, U2 same-turn edit, U3 replacement (editor save) | the actor (`updateDocumentVersion` requires `actorUserId`) | a pasante seals the version in place |
+| U4 conversion (rendition only) | — | no change |
+
+A seal is never removed or handed to somebody else: the trigger
+`document_versions_training_seal_keep` restores it on every update, so a
+lawyer's change to a pasante's version leaves it sealed. The author has no
+foreign key on purpose; the seal outlives the account. A read failure while
+deciding a seal fails the write. Versions written before 1b have no seal.
+
+### Approval
+
+`POST /single-documents/:documentId/versions/:versionId/training-approval`
+(`modules/documents/documents.trainingApproval.ts`, payload
+`TrainingVersionApproval` in `packages/contracts`) records the approval of
+the version's **current** `content_sha256` in `training_version_approvals`.
+It can be given by a member with `content.edit` in the document's project
+whose effective stage there is none, or by the author's current mentor; never
+by the author, a pasante or a junior. A person who can read the document but
+may not approve gets `403`, whatever the reason; one who cannot read it gets
+`404`. Approving the same bytes again returns the first approval. Each new
+approval writes the audit event `training.version_approved` with
+`{ org_id, target_user_id }` only.
+
+`training_version_approvals` is insert-only (`ai_append_only_guard`), has RLS
+with no policies, only `select, insert` for `service_role`, and no foreign
+keys: deleting the document, the organization or an account leaves the
+evidence in place.
+
+### Releasable
+
+`assertReleasable(db, versionId)` in `backend/src/lib/trainingRelease.ts` is
+the one check for an output: a version is releasable when it has no seal, or
+when an approval exists for its current `content_sha256`. Changing the bytes
+in place therefore needs a new approval. Otherwise it answers
+`409 { code: "training_approval_required" }`. Connecting it to the outputs
+(downloads, signed URLs, tokens, exports, the approved report and Drive) is
+the next step, together with the `CODE_KINDS` entry. The lock is the firm's
+governance control, not DRM: what can be seen in the app can be captured.
