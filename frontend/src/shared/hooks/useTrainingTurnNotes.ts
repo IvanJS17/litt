@@ -68,8 +68,11 @@ export function useTrainingTurnNotes(
  * The note of each user message, by message index. Saved messages match on
  * their id. A message just sent in this session has no saved id yet (the web
  * leaves the id out, the Word add-in gives it one of its own); it carries the
- * `attempt` it was sent with, and takes the notes no saved message claimed,
- * newest with newest.
+ * `attempt` it was sent with and takes an unclaimed note with exactly that
+ * attempt, newest with newest. A just-sent message whose note was never
+ * created stays bare instead of borrowing another turn's note. The one case
+ * left ambiguous is two just-sent turns with the identical attempt, whose
+ * notes then differ only in their contrast (see docs/training.md).
  */
 export function matchTrainingNotes(
     messages: NoteMessage[],
@@ -79,7 +82,7 @@ export function matchTrainingNotes(
     if (notes.length === 0) return matched;
     const byId = new Map(notes.map((n) => [n.message_id, n]));
     const claimed = new Set<string>();
-    const live: number[] = [];
+    const live: { index: number; attempt: string }[] = [];
     messages.forEach((m, index) => {
         if (m.role !== "user") return;
         const note = m.id ? byId.get(m.id) : undefined;
@@ -87,17 +90,17 @@ export function matchTrainingNotes(
             matched.set(index, note);
             claimed.add(note.id);
         } else if (m.attempt) {
-            live.push(index);
+            live.push({ index, attempt: m.attempt.trim() });
         }
     });
     const spare = notes
         .filter((n) => !claimed.has(n.id))
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
-    const count = Math.min(live.length, spare.length);
-    const liveTail = live.slice(live.length - count);
-    const spareTail = spare.slice(spare.length - count);
-    liveTail.forEach((messageIndex, k) => {
-        matched.set(messageIndex, spareTail[k] as TrainingTurnNote);
-    });
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    for (const { index, attempt } of live.reverse()) {
+        const at = spare.findIndex((n) => n.attempt === attempt);
+        if (at < 0) continue;
+        matched.set(index, spare[at] as TrainingTurnNote);
+        spare.splice(at, 1);
+    }
     return matched;
 }
