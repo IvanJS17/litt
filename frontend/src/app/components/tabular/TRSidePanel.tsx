@@ -85,7 +85,7 @@ type TRPanelCitation = {
 const FLAG_BADGE: Record<string, string> = {
     green: "bg-emerald-600 border border-emerald-300/20 text-white shadow-md",
     grey: "bg-gray-500 border border-gray-300/20 text-white shadow-md",
-    yellow: "bg-amber-500 border border-amber-300/20 text-white shadow-md",
+    yellow: "bg-orange-500 border border-orange-300/20 text-white shadow-md",
     red: "bg-red-600 border border-red-300/20 text-white shadow-md",
 };
 

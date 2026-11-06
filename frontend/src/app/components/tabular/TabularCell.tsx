@@ -29,7 +29,7 @@ interface Props {
 const FLAG_STYLES = {
     green: "bg-green-500",
     grey: "bg-gray-400",
-    yellow: "bg-amber-400",
+    yellow: "bg-orange-400",
     red: "bg-red-500",
 } as const;
 

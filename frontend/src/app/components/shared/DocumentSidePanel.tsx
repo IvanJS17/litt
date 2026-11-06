@@ -758,7 +758,7 @@ export function DocumentSidePanel({
                                 }
                             />
                             {selectedTextLayerWarning && (
-                                <p className="flex items-start gap-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                                <p className="flex items-start gap-1.5 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-800">
                                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                                     {selectedTextLayerWarning}
                                 </p>

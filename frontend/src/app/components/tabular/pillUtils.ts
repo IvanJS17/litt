@@ -7,7 +7,7 @@ export const TAG_COLORS = [
     "bg-pink-100 text-pink-700",
     "bg-orange-100 text-orange-700",
     "bg-teal-100 text-teal-700",
-    "bg-amber-100 text-amber-700",
+    "bg-green-100 text-green-800",
     "bg-emerald-100 text-emerald-800",
     "bg-rose-100 text-rose-700",
 ];
@@ -23,7 +23,7 @@ const CURRENCY_COLORS: Record<string, string> = {
     SGD: "bg-pink-100 text-pink-700",
     HKD: "bg-rose-100 text-rose-700",
     NZD: "bg-lime-100 text-lime-700",
-    CNY: "bg-amber-100 text-amber-700",
+    CNY: "bg-green-100 text-green-800",
 };
 
 export function getPillClass(content: string, column?: ColumnConfig): string {

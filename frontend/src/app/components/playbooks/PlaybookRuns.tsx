@@ -60,7 +60,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_TONE: Record<string, string> = {
   unacceptable: "text-red-600",
   missing_required: "text-red-600",
-  needs_review: "text-amber-700",
+  needs_review: "text-orange-700",
   acceptable: "text-green-700",
   not_applicable: "text-gray-500",
   outside_scope: "text-gray-500",
@@ -78,7 +78,7 @@ const FINDING_GROUPS: {
     dot: "bg-red-500",
     statuses: ["unacceptable", "missing_required"],
   },
-  { title: "Needs review", dot: "bg-amber-500", statuses: ["needs_review"] },
+  { title: "Needs review", dot: "bg-orange-500", statuses: ["needs_review"] },
   { title: "Acceptable", dot: "bg-emerald-500", statuses: ["acceptable"] },
   {
     title: "Not applicable",

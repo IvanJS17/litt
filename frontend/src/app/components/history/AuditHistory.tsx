@@ -94,7 +94,7 @@ import {
 
 const STATUS_DOT_STYLES: Record<string, string> = {
   completed: "bg-green-400/80",
-  cancelled: "bg-amber-400/80",
+  cancelled: "bg-orange-400/80",
   failed: "bg-red-400/80",
 };
 

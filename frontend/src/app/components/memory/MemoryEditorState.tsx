@@ -21,13 +21,13 @@ export function MemoryConflictNotice({
 }) {
   return (
     <div
-      className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900"
+      className="rounded-xl bg-orange-50 px-4 py-3 text-sm text-orange-900"
       role="alert"
     >
       <p className="font-medium">
         {project ? "Project memory" : "Memory"} changed while you were editing
       </p>
-      <p className="mt-1 text-xs text-amber-800">
+      <p className="mt-1 text-xs text-orange-800">
         Reload what is saved now, or keep your draft and let it save over the
         change.
       </p>

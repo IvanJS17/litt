@@ -115,7 +115,7 @@
     --litt-interactive-foreground: var(--litt-papel);
     --litt-interactive-soft: rgb(21 26 38 / 6%); /* tinta 6%, transparent */
     --litt-interactive-soft-strong: rgb(21 26 38 / 11%); /* tinta 11%, transparent */
-    --litt-interactive-border: rgb(21 26 38 / 38%); /* tinta 38%, transparent */
+    --litt-interactive-border: rgb(21 26 38 / 50%); /* tinta 50%, transparent */
     --radius: 0.625rem;
     /* Light theme: papel canvas, tinta text. Panels sit between papel and
        white, so a mark on one keeps ámbar tinta at 4.75:1 or more. */
