@@ -710,3 +710,33 @@ export type AccountDeletionReceipt =
 export interface AccountDeletionStarted {
   receipt_token: string;
 }
+
+// LiTT training (docs/training.md). A stage applies to one person in one
+// organization, for one practice area (`practice`, normalized as
+// lower(btrim(...))) or for all of them (`practice: null`).
+export type TrainingStage = "pasante" | "junior";
+export interface TrainingStageEntry {
+    practice: string | null;
+    stage: TrainingStage;
+}
+/** GET /training/me: one entry per organization where the caller has training. */
+export interface TrainingMembership {
+    org_id: string;
+    is_mentor: boolean;
+    mentor_user_id: string | null;
+    stages: TrainingStageEntry[];
+}
+/** GET /training/stage: the caller's effective stage where a turn would run. */
+export interface TrainingEffectiveStage {
+    stage: TrainingStage | null;
+}
+/** GET /orgs/:orgId/training/mentors: who mentors whom, for owners and admins. */
+export interface TrainingOrgOverview {
+    mentors: string[];
+    pupils: { trainee_user_id: string; mentor_user_id: string }[];
+}
+/** GET /orgs/:orgId/training/pupils: a mentor's pupils and who they could take on. */
+export interface TrainingMyPupils {
+    pupils: { user_id: string; stages: TrainingStageEntry[] }[];
+    candidates: string[];
+}

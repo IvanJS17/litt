@@ -745,6 +745,22 @@ describe("last-owner protection", () => {
         ).resolves.toMatchObject({ ok: true });
         expect(db._tables.org_members).toHaveLength(1);
     });
+
+    it("keeps a training mentor with pupils in the organization (LT001)", async () => {
+        const db = seedSoleOwner();
+        const realRpc = db.rpc.bind(db);
+        db.rpc = async (name: string, args?: Record<string, unknown>) =>
+            name === "remove_org_member"
+                ? { data: null, error: { code: "LT001", message: "A training mentor with pupils cannot leave the organization" } }
+                : realRpc(name, args);
+        await expect(
+            removeMember(db, {
+                actorId: "member1",
+                orgId: "o1",
+                targetUserId: "member1",
+            }),
+        ).resolves.toEqual({ ok: false, kind: "training_mentor_has_pupils" });
+    });
 });
 
 // ---------------------------------------------------------------------------

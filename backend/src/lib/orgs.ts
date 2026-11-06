@@ -123,6 +123,9 @@ export type OrgResult<T> =
           workflows: number;
       }
     | { ok: false; kind: "expired" }
+    // LiTT training: a mentor with pupils is not taken out of the
+    // organization until the pupils are released or moved.
+    | { ok: false; kind: "training_mentor_has_pupils" }
     | { ok: false; kind: "db_error"; detail: string };
 
 // ---------------------------------------------------------------------------
@@ -732,6 +735,8 @@ export async function removeMember(
     });
     if (error) {
         if (isLastOwnerViolation(error)) return { ok: false, kind: "last_owner" };
+        // org_members_training_departure (20261106_50_litt_training.sql).
+        if (error.code === "LT001") return { ok: false, kind: "training_mentor_has_pupils" };
         if (error.code === "42501") return { ok: false, kind: "forbidden" };
         if (error.code === "P0002") return { ok: false, kind: "not_found" };
         if (error.code === "23514") return { ok: false, kind: "validation", detail: "Choose another current organization member." };
