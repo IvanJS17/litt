@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
 import quickActionsIcon from "../../../../public/icons/features/quick-actions.svg";
 import { MoreHorizontal } from "lucide-react";
@@ -24,7 +24,7 @@ interface InitialViewProps {
 
 // The «L.» pixel monogram at one of its native sizes; it is never scaled.
 const ICON_SIZE = 32;
-const GAP = 12; // gap-4 = 1rem = 16px
+const GAP = 12; // px between the monogram and the greeting
 export function InitialView({
     onSubmit,
     onDocumentClick,
@@ -34,29 +34,13 @@ export function InitialView({
 }: InitialViewProps) {
     const { user } = useAuth();
     const { profile } = useUserProfile();
-    const [loaded, setLoaded] = useState(false);
-    const [iconOffset, setIconOffset] = useState(0);
-    const [textOffset, setTextOffset] = useState(0);
-    const textRef = useRef<HTMLHeadingElement>(null);
+    const loaded = !!profile;
     const localInputRef = useRef<ChatInputHandle>(null);
     const chatInputRef = inputRef ?? localInputRef;
 
     const username =
         profile?.displayName?.trim() || user?.email?.split("@")[0] || "there";
     const visibleQuickActions = quickActions.filter((action) => action.enabled);
-
-    useLayoutEffect(() => {
-        if (!profile || !textRef.current) return;
-        const h1Width = textRef.current.offsetWidth;
-        setIconOffset((h1Width + GAP) / 2);
-        setTextOffset((ICON_SIZE + GAP) / 2);
-    }, [profile]);
-
-    useEffect(() => {
-        if (!iconOffset) return;
-        const t = setTimeout(() => setLoaded(true), 100);
-        return () => clearTimeout(t);
-    }, [iconOffset]);
 
     function handleQuickAction(action: QuickAction) {
         const workflow = action.workflow;
@@ -82,34 +66,17 @@ export function InitialView({
     return (
         <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] px-6">
             <div className="flex min-h-0 items-end justify-center pb-6">
-                <div className="relative h-10 w-full max-w-4xl px-0 xl:px-8">
-                    <div
-                        className="absolute h-8 w-8"
-                        style={{
-                            left: "50%",
-                            top: "50%",
-                            transform: loaded
-                                ? `translate(calc(-50% - ${iconOffset}px), -50%)`
-                                : "translate(-50%, -50%)",
-                            transition:
-                                "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-                        }}
-                    >
-                        <LittMonogramPixel size={ICON_SIZE} decorative />
-                    </div>
+                {/* The monogram stays still (Marca LiTT v1.0, prohibition
+                    10: the square is never animated); only the greeting
+                    fades in beside it once the profile has loaded. */}
+                <div
+                    className="flex h-10 w-full max-w-4xl items-center justify-center px-0 xl:px-8"
+                    style={{ gap: GAP }}
+                >
+                    <LittMonogramPixel size={ICON_SIZE} decorative />
                     <h1
-                        ref={textRef}
-                        className="absolute text-4xl font-serif font-light text-gray-900 whitespace-nowrap"
-                        style={{
-                            left: "50%",
-                            top: "50%",
-                            transform: loaded
-                                ? `translate(calc(-50% + ${textOffset}px), -50%)`
-                                : "translate(-50%, -50%)",
-                            opacity: loaded ? 1 : 0,
-                            transition:
-                                "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
-                        }}
+                        className="text-4xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+                        style={{ opacity: loaded ? 1 : 0 }}
                     >
                         Hi, {username}
                     </h1>

@@ -67,54 +67,23 @@ const GAP = 14;
 const DEFAULT_ASSISTANT_BOTTOM_PADDING = 116;
 const ASSISTANT_HEADER_HEIGHT = 48;
 
+// The monogram stays still (Marca LiTT v1.0, prohibition 10: the square is
+// never animated); only the greeting fades in beside it once the profile
+// has loaded.
 function AssistantGreeting({ username }: { username: string }) {
     const { profile } = useUserProfile();
-    const [loaded, setLoaded] = useState(false);
-    const [iconOffset, setIconOffset] = useState(0);
-    const [textOffset, setTextOffset] = useState(0);
-    const textRef = useRef<HTMLHeadingElement>(null);
-
-    useLayoutEffect(() => {
-        if (!profile || !textRef.current) return;
-        const h1Width = textRef.current.offsetWidth;
-        setIconOffset((h1Width + GAP) / 2);
-        setTextOffset((ICON_SIZE + GAP) / 2);
-    }, [profile]);
-
-    useEffect(() => {
-        if (!iconOffset) return;
-        const t = setTimeout(() => setLoaded(true), 100);
-        return () => clearTimeout(t);
-    }, [iconOffset]);
+    const loaded = !!profile;
 
     return (
         <div className="flex-1 flex items-center justify-center">
-            <div className="relative flex items-center justify-center h-[28px]">
-                <div
-                    className="absolute h-[30px]"
-                    style={{
-                        left: "50%",
-                        transform: loaded
-                            ? `translateX(calc(-50% - ${iconOffset}px))`
-                            : "translateX(-50%)",
-                        transition:
-                            "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-                    }}
-                >
-                    <LittMonogramPixel size={ICON_SIZE} decorative />
-                </div>
+            <div
+                className="flex h-[30px] items-center justify-center"
+                style={{ gap: GAP }}
+            >
+                <LittMonogramPixel size={ICON_SIZE} decorative />
                 <h1
-                    ref={textRef}
-                    className="absolute text-3xl font-serif font-light text-gray-900 whitespace-nowrap"
-                    style={{
-                        left: "50%",
-                        transform: loaded
-                            ? `translateX(calc(-50% + ${textOffset}px))`
-                            : "translateX(-50%)",
-                        opacity: loaded ? 1 : 0,
-                        transition:
-                            "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
-                    }}
+                    className="text-3xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+                    style={{ opacity: loaded ? 1 : 0 }}
                 >
                     Hi, {username}
                 </h1>
