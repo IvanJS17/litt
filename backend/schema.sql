@@ -16392,22 +16392,60 @@ create trigger org_members_training_departure
   before delete on public.org_members
   for each row execute procedure public.org_members_training_departure();
 
--- The attempt a pasante wrote before the turn ("Tu planteamiento").
-alter table public.chat_messages
-  add column if not exists training_attempt text;
-alter table public.chat_messages
-  drop constraint if exists chat_messages_training_attempt_check;
-alter table public.chat_messages
-  add constraint chat_messages_training_attempt_check
-  check (training_attempt is null or char_length(training_attempt) <= 4000);
+-- A pasante's private notes: the attempt they wrote before a chat turn
+-- ("Tu planteamiento") and the contrast the model produced afterwards with
+-- the conversation's own provider, model and credential. They are learning
+-- data: only the author and their current mentor read them (through the
+-- backend; there is no policy or grant), and they are deleted with the
+-- membership like the other training_* tables. The chat message itself
+-- carries neither.
+--
+-- One note belongs to exactly one chat, in the table of the surface that
+-- created it: chats (web and project chat), word_chats or
+-- tabular_review_chats. A real foreign key per surface makes the note go with
+-- its chat. message_id is the user message the note is about.
+create table if not exists public.training_turn_notes (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null,
+  trainee_user_id uuid not null,
+  chat_id uuid references public.chats(id) on delete cascade,
+  word_chat_id uuid references public.word_chats(id) on delete cascade,
+  tabular_chat_id uuid references public.tabular_review_chats(id) on delete cascade,
+  message_id uuid not null,
+  attempt text not null,
+  contrast text,
+  contrast_status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  constraint training_turn_notes_member_fkey foreign key (org_id, trainee_user_id)
+    references public.org_members(org_id, user_id) on delete cascade,
+  constraint training_turn_notes_one_chat check (
+    num_nonnulls(chat_id, word_chat_id, tabular_chat_id) = 1
+  ),
+  constraint training_turn_notes_attempt_check check (
+    char_length(attempt) between 60 and 4000
+  ),
+  constraint training_turn_notes_status_check check (
+    contrast_status in ('pending', 'ready', 'failed')
+  ),
+  constraint training_turn_notes_contrast_check check (
+    (contrast_status = 'ready') = (contrast is not null)
+    and (contrast is null or char_length(contrast) <= 8000)
+  )
+);
+create unique index if not exists training_turn_notes_message_key
+  on public.training_turn_notes(message_id);
+create index if not exists training_turn_notes_chat_idx
+  on public.training_turn_notes(chat_id) where chat_id is not null;
+create index if not exists training_turn_notes_word_chat_idx
+  on public.training_turn_notes(word_chat_id) where word_chat_id is not null;
+create index if not exists training_turn_notes_tabular_chat_idx
+  on public.training_turn_notes(tabular_chat_id) where tabular_chat_id is not null;
+create index if not exists training_turn_notes_trainee_idx
+  on public.training_turn_notes(org_id, trainee_user_id);
+alter table public.training_turn_notes enable row level security;
+revoke all on public.training_turn_notes from anon, authenticated;
+grant select, insert, update, delete on public.training_turn_notes to service_role;
 
-alter table public.word_chat_messages
-  add column if not exists training_attempt text;
-alter table public.word_chat_messages
-  drop constraint if exists word_chat_messages_training_attempt_check;
-alter table public.word_chat_messages
-  add constraint word_chat_messages_training_attempt_check
-  check (training_attempt is null or char_length(training_attempt) <= 4000);
 
 -- ===== end of LiTT extension =====
 
