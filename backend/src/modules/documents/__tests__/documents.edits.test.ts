@@ -87,13 +87,15 @@ describe("resolving a tracked edit", () => {
       { table: "document_versions", op: "update", data: { id: "v1" } },
       { table: "document_edits", op: "update" },
       { table: "document_edits", data: [] },
+      // The card learns whether the new bytes may leave (lib/trainingRelease).
+      { table: "document_versions", data: { training_stage: null, content_sha256: "h" } },
     ]);
     storage.uploadFile.mockImplementation(async (key) => {
       expect(key).not.toBe("docs/v1.docx");
       expect(fake.calls.filter(call => call.table === "document_versions")).toHaveLength(0);
     });
     expect((await run(fake.db)).ok).toBe(true);
-    const writes = fake.calls.filter(call => call.table === "document_versions");
+    const writes = fake.calls.filter(call => call.table === "document_versions" && call.op === "update");
     expect(writes).toHaveLength(1);
     expect(writes[0].payload).toEqual({ storage_path: storage.uploadFile.mock.calls[0][0], content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/), pdf_storage_path: null, size_bytes: 3 });
     expect(writes[0].filters).toEqual([["eq", "id", "v1"], ["eq", "document_id", "doc-1"], ["is", "deleted_at", null], ["eq", "storage_path", "docs/v1.docx"]]);
@@ -142,6 +144,7 @@ describe("resolving a tracked edit", () => {
       { table: "db_jobs", data: [] },
       { table: "document_edits", op: "update" },
       { table: "document_edits", data: [] },
+      { table: "document_versions", data: { training_stage: null, content_sha256: "h" } },
     ]);
     expect((await run(fake.db)).ok).toBe(true);
     expect(storage.deleteFile.mock.calls.flat()).toEqual(expect.arrayContaining(["docs/v1.docx", "renditions/v1.pdf", "extracted-text/v1.txt"]));
@@ -161,8 +164,15 @@ describe("resolving a tracked edit", () => {
       { table: "document_versions", op: "update", data: { id: "v1" } },
       { table: "document_edits", op: "update" },
       { table: "document_edits", data: [] },
+      ...("training_stage" in seal
+        ? [
+            { table: "document_versions", data: { training_stage: "pasante", content_sha256: "h" } },
+            { table: "training_version_approvals", data: [] },
+          ]
+        : [{ table: "document_versions", data: { training_stage: null, content_sha256: "h" } }]),
     ]);
-    expect((await run(fake.db)).ok).toBe(true);
+    const result = await run(fake.db);
+    expect(result).toMatchObject({ ok: true, body: { training_held: "training_stage" in seal } });
     const payload = fake.calls.find(call => call.table === "document_versions")?.payload as Record<string, unknown>;
     expect(payload).toMatchObject(seal);
     if (!("training_stage" in seal)) {

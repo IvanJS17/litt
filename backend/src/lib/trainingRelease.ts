@@ -72,6 +72,30 @@ export async function heldVersionIds(
   return ok(held);
 }
 
+/**
+ * `heldVersionIds` for display: when the approvals cannot be read, every
+ * sealed row counts as held, so the UI never offers what the server refuses.
+ */
+export async function heldVersionIdsOrSealed(
+  db: Db,
+  versions: readonly ReleaseCandidate[],
+): Promise<Set<string>> {
+  const held = await heldVersionIds(db, versions);
+  if (held.ok) return held.data;
+  return new Set(
+    versions.filter((version) => version.training_stage != null).map((version) => version.id),
+  );
+}
+
+/** Whether one version is held; any doubt (a failed read, no live row) holds it. */
+export async function isVersionHeld(db: Db, versionId: string): Promise<boolean> {
+  try {
+    return !(await assertReleasable(db, versionId)).ok;
+  } catch {
+    return true;
+  }
+}
+
 /** `ok` when this already-loaded version may leave, else the 409. */
 export async function assertVersionReleasable(
   db: Db,

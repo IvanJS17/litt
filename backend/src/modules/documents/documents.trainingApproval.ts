@@ -9,7 +9,7 @@
 
 import type { TrainingVersionApproval } from "@mike/contracts";
 import { recordAudit } from "../../lib/audit";
-import { can } from "../../lib/permissions";
+import { can, type ProjectRole } from "../../lib/permissions";
 import {
   failure,
   internalFailure,
@@ -68,14 +68,7 @@ export async function approveTrainingVersion(
 
     const author = version.training_author_user_id;
     const orgId = doc.org_id ?? null;
-    if (input.userId === author || !orgId) return FORBIDDEN;
-    const stage = await resolveTrainingStage(db, input.userId, {
-      orgId,
-      projectId: doc.project_id ?? null,
-    });
-    if (stage !== null) return FORBIDDEN;
-    const lawyer = !!doc.project_id && can(access.projectRole, "content.edit");
-    if (!lawyer && !(await isCurrentMentor(db, orgId, author, input.userId)))
+    if (!orgId || !(await mayApproveTrainingVersion(db, access, input.userId, author)))
       return FORBIDDEN;
 
     const approval = await insertApproval(db, {
@@ -101,6 +94,30 @@ export async function approveTrainingVersion(
   } catch (error) {
     return internalFailure(error);
   }
+}
+
+/**
+ * Whether `userId`, who can read the document (`access`), may approve a
+ * version `authorId` sealed: not the author, no stage of their own where the
+ * document lives, and a lawyer there (content.edit) or the author's mentor.
+ * The approval route and the versions list ask the same question.
+ */
+export async function mayApproveTrainingVersion(
+  db: Db,
+  access: { doc: unknown; projectRole: ProjectRole },
+  userId: string,
+  authorId: string,
+): Promise<boolean> {
+  const doc = access.doc as { org_id?: string | null; project_id?: string | null };
+  const orgId = doc.org_id ?? null;
+  if (userId === authorId || !orgId) return false;
+  const stage = await resolveTrainingStage(db, userId, {
+    orgId,
+    projectId: doc.project_id ?? null,
+  });
+  if (stage !== null) return false;
+  const lawyer = !!doc.project_id && can(access.projectRole, "content.edit");
+  return lawyer || isCurrentMentor(db, orgId, authorId, userId);
 }
 
 async function isCurrentMentor(

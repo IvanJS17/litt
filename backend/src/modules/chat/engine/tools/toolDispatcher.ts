@@ -320,6 +320,8 @@ export async function runToolCalls(
       const versionNumber =
         (result as { version_number?: number }).version_number ?? null;
       const storagePath = (result as { storage_path?: string }).storage_path;
+      const trainingHeld =
+        (result as { training_held?: boolean }).training_held === true;
 
       if (documentId && storagePath && docIndex) {
         let i = 0;
@@ -343,6 +345,7 @@ export async function runToolCalls(
           type: "doc_created",
           filename: dlFilename,
           download_url: dlUrl,
+          training_held: trainingHeld,
           document_id: documentId,
           version_id: versionId,
           version_number: versionNumber,
@@ -351,6 +354,7 @@ export async function runToolCalls(
       docsCreated.push({
         filename: dlFilename,
         download_url: dlUrl,
+        training_held: trainingHeld,
         document_id: documentId,
         version_id: versionId,
         version_number: versionNumber,
@@ -893,6 +897,7 @@ export async function runToolCalls(
               version_id: run.editedVersionId,
               version_number: run.editedVersionNumber,
               download_url: run.editedDownloadUrl ?? "",
+              training_held: run.editedTrainingHeld,
               annotations,
             };
             docsEdited.push(payload);
@@ -1188,6 +1193,7 @@ export async function runToolCalls(
             version_id: result.version_id,
             version_number: result.version_number,
             download_url: result.download_url,
+            training_held: result.training_held,
             annotations: result.annotations,
           };
           docsEdited.push(payload);

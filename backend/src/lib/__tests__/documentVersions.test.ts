@@ -200,6 +200,7 @@ describe("attachActiveVersionPaths", () => {
             filename: "Untitled document",
             content_sha256: null,
             training_stage: null,
+            training_held: false,
             storage_path: null,
             pdf_storage_path: null,
             file_type: null,
@@ -251,6 +252,24 @@ describe("attachActiveVersionPaths", () => {
             storage_path: null,
             filename: "Untitled document",
         });
+    });
+
+    it("marks a pasante's active version held until its current bytes are approved", async () => {
+        const plain = { ...FULL_VERSION, id: "ver-2", training_stage: null };
+        const approval = { document_version_id: "ver-1", content_sha256: FULL_VERSION.content_sha256 };
+        const unapproved = await attachActiveVersionPaths<TestDoc>(
+            makeDb({ document_versions: [FULL_VERSION, plain] }),
+            [
+                { id: "doc-1", current_version_id: "ver-1" },
+                { id: "doc-2", current_version_id: "ver-2" },
+            ],
+        );
+        expect(unapproved.map((doc) => doc.training_held)).toEqual([true, false]);
+        const [approved] = await attachActiveVersionPaths<TestDoc>(
+            makeDb({ document_versions: [FULL_VERSION], training_version_approvals: [approval] }),
+            [{ id: "doc-1", current_version_id: "ver-1" }],
+        );
+        expect(approved.training_held).toBe(false);
     });
 
     it("reflects in-place byte updates without changing the version or document timestamp", async () => {

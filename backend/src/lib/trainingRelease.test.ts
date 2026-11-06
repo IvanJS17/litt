@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { scriptedDb } from "../__tests__/helpers/scriptedDb";
-import { assertReleasable, heldVersionIds } from "./trainingRelease";
+import {
+  assertReleasable,
+  heldVersionIds,
+  heldVersionIdsOrSealed,
+  isVersionHeld,
+} from "./trainingRelease";
 
 const HASH = "a".repeat(64);
 
@@ -103,5 +108,33 @@ describe("heldVersionIds", () => {
       data: new Set(),
     });
     fake.done();
+  });
+});
+
+describe("display helpers", () => {
+  it("counts every sealed row as held when the approvals cannot be read", async () => {
+    const fake = scriptedDb([{ table: "training_version_approvals", error: { message: "down" } }]);
+    const held = await heldVersionIdsOrSealed(fake.db, [
+      { id: "sealed", training_stage: "pasante", content_sha256: HASH },
+      { id: "plain", training_stage: null, content_sha256: HASH },
+    ]);
+    expect([...held]).toEqual(["sealed"]);
+    fake.done();
+  });
+
+  it("answers held for a sealed version and for any doubt", async () => {
+    const plain = scriptedDb([
+      { table: "document_versions", data: { training_stage: null, content_sha256: HASH } },
+    ]);
+    expect(await isVersionHeld(plain.db, "v")).toBe(false);
+    const sealed = scriptedDb([
+      { table: "document_versions", data: { training_stage: "pasante", content_sha256: HASH } },
+      { table: "training_version_approvals", data: [] },
+    ]);
+    expect(await isVersionHeld(sealed.db, "v")).toBe(true);
+    const missing = scriptedDb([{ table: "document_versions", data: null }]);
+    expect(await isVersionHeld(missing.db, "v")).toBe(true);
+    const broken = { from: () => { throw new Error("boom"); } } as unknown as Parameters<typeof isVersionHeld>[0];
+    expect(await isVersionHeld(broken, "v")).toBe(true);
   });
 });

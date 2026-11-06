@@ -9,6 +9,7 @@ import { can, ensureDocAccess } from "../../lib/access";
 import { applyTrackedEdits, type EditInput } from "../../lib/docxTrackedChanges";
 import { contentSha256, loadActiveVersion } from "../../lib/documentVersions";
 import { buildDownloadUrl } from "../../lib/downloadTokens";
+import { isVersionHeld } from "../../lib/trainingRelease";
 import { deleteFileBestEffort, downloadFile, uploadFile } from "../../lib/storage";
 import { reportError } from "../../lib/observability/report";
 import type { Db } from "../../lib/supabase";
@@ -67,6 +68,8 @@ export async function applyTrackedEditsToDocument(params: {
       version_number: number;
       storage_path: string;
       download_url: string;
+      /** A pasante's unapproved version (docs/training.md): no download link. */
+      training_held: boolean;
       annotations: EditAnnotation[];
       errors: { index: number; reason: string }[];
     }
@@ -294,6 +297,7 @@ export async function applyTrackedEditsToDocument(params: {
     version_number: nextVersionNumber,
     storage_path: newPath,
     download_url: permalink,
+    training_held: await isVersionHeld(db, versionRowId),
     annotations,
     errors,
   };

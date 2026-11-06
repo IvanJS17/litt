@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Db } from "./supabase";
+import { heldVersionIdsOrSealed } from "./trainingRelease";
 
 type Supa = Db;
 
@@ -38,6 +39,8 @@ interface VersionPathRow extends DocRow {
     content_sha256?: string | null;
     /** The active version's pasante seal (docs/training.md), or null. */
     training_stage?: string | null;
+    /** Sealed and not approved for its current bytes: it may not leave LiTT. */
+    training_held?: boolean;
     /** Set from document_versions.version_number of the active version. */
     active_version_number?: number | null;
     /** Active-version file metadata. */
@@ -160,6 +163,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             d.textless_page_count = null;
             d.content_sha256 = null;
             d.training_stage = null;
+            d.training_held = false;
         }
         return docs;
     }
@@ -214,6 +218,10 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             training_stage: r.training_stage ?? null,
         });
     }
+    const held = await heldVersionIdsOrSealed(
+        db,
+        ((rows ?? []) as { id: string; training_stage: string | null; content_sha256: string | null }[]),
+    );
     for (const d of docs) {
         const v = d.current_version_id ? byId.get(d.current_version_id) : null;
         d.storage_path = v?.storage_path ?? null;
@@ -227,6 +235,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         d.textless_page_count = v?.textless_page_count ?? null;
         d.content_sha256 = v?.content_sha256 ?? null;
         d.training_stage = v?.training_stage ?? null;
+        d.training_held = !!d.current_version_id && held.has(d.current_version_id);
     }
     return docs;
 }

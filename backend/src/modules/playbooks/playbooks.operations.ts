@@ -2188,7 +2188,7 @@ async function applyReviewEdits(args: {
   findings: PlaybookFinding[];
 }): Promise<{
   findings: PlaybookFinding[];
-  version: { id: string; number: number; downloadUrl: string } | null;
+  version: { id: string; number: number; downloadUrl: string; trainingHeld: boolean } | null;
 }> {
   const planned: { index: number; edit: EditInput }[] = [];
   args.findings.forEach((finding, index) => {
@@ -2254,6 +2254,7 @@ async function applyReviewEdits(args: {
       id: result.version_id,
       number: result.version_number,
       downloadUrl: result.download_url,
+      trainingHeld: result.training_held,
     },
   };
 }
@@ -2619,6 +2620,7 @@ export async function runPlaybookReview(
       /** For the response that made them; a stored run has only the id. */
       editedVersionNumber: version?.number ?? null,
       editedDownloadUrl: version?.downloadUrl ?? null,
+      editedTrainingHeld: version?.trainingHeld ?? false,
       reviewMode: work.reviewMode,
       reviewScope: scope,
       status: "completed" as const,

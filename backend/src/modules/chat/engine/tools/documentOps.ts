@@ -14,6 +14,7 @@ import { enqueueConversion } from "../../../../lib/queue/conversionQueue";
 import { enqueueDbJob } from "../../../../lib/dbq/enqueue";
 import type { Db } from "../../../../lib/supabase";
 import { buildDownloadUrl } from "../../../../lib/downloadTokens";
+import { isVersionHeld } from "../../../../lib/trainingRelease";
 import {
   contentSha256,
   loadActiveVersion,
@@ -1030,6 +1031,7 @@ async function persistGeneratedFile(params: {
   return {
     filename,
     download_url: downloadUrl,
+    training_held: await isVersionHeld(db, versionId),
     document_id: documentId,
     version_id: versionId,
     version_number: 1,
@@ -1678,6 +1680,8 @@ export type DocEditedResult = {
   version_id: string;
   version_number: number | null;
   download_url: string;
+  /** A pasante's unapproved version (docs/training.md): no download link. */
+  training_held?: boolean;
   annotations: EditAnnotation[];
 };
 
@@ -1701,6 +1705,8 @@ export type TurnReadState = Map<
 export type DocCreatedResult = {
   filename: string;
   download_url: string;
+  /** A pasante's unapproved version (docs/training.md): no download link. */
+  training_held?: boolean;
   document_id?: string;
   version_id?: string;
   version_number?: number | null;

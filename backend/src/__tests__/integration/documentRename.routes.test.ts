@@ -54,6 +54,7 @@ const enrichedFields = {
   content_sha256: activeVersion.content_sha256,
   // The active version's pasante seal (docs/training.md); unsealed here.
   training_stage: null,
+  training_held: false,
 };
 const paths = [
   "/projects/p/documents/doc",

@@ -958,6 +958,7 @@ export async function runLLMStream(params: {
             type: "doc_created",
             filename: dl.filename,
             download_url: dl.download_url,
+            training_held: dl.training_held,
             document_id: dl.document_id,
             version_id: dl.version_id,
             version_number: dl.version_number ?? null,
@@ -986,6 +987,7 @@ export async function runLLMStream(params: {
             version_id: e.version_id,
             version_number: e.version_number,
             download_url: e.download_url,
+            training_held: e.training_held,
             annotations: e.annotations,
           });
         }
