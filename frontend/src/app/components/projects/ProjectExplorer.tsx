@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld } from "@/shared/ui/TrainingHeldNoteUI";
 import { isProjectItemDrag } from "@/app/lib/projectDragTypes";
 import { setRowDragPreview } from "@/app/lib/rowDragPreview";
 import {
@@ -512,7 +513,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                     {contextDocument && documentContextMenuItems({
                         onOpen: () => onDocClick(contextDocument),
                         onAddToChat: onAddToChat ? () => onAddToChat(contextDocument) : undefined,
-                        onDownload: onDownloadDoc ? () => onDownloadDoc(contextDocument) : undefined,
+                        onDownload: onDownloadDoc && !isTrainingHeld(contextDocument) ? () => onDownloadDoc(contextDocument) : undefined,
                         onRename: onRenameDoc ? () => {
                             setRenameValue(contextDocument.filename);
                             setRenamingDocId(contextDocument.id);

@@ -365,3 +365,35 @@ describe("DocTable creator filter", () => {
         expect(screen.getByRole("button", { name: "Filter by creator" })).toBeInTheDocument();
     });
 });
+
+describe("DocTable and the training lock (docs/training.md)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        clearToasts();
+    });
+
+    it("marks a pasante draft in plain text and offers no download for it or for a selection with it", async () => {
+        const user = userEvent.setup();
+        render(<Harness
+            initialDocuments={[
+                { ...document("doc-1", "Draft.pdf"), training_held: true },
+                document("doc-2", "Final.pdf"),
+            ]}
+            tableOperations={operations(vi.fn())}
+        />);
+        expect(screen.getAllByText("Borrador de pasante, pendiente de aprobación")).toHaveLength(1);
+
+        fireEvent.contextMenu(screen.getByText("Draft.pdf"), { clientX: 40, clientY: 40 });
+        expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
+        await user.keyboard("{Escape}");
+
+        fireEvent.contextMenu(screen.getByText("Final.pdf"), { clientX: 40, clientY: 40 });
+        expect(screen.getByRole("menuitem", { name: "Download" })).toBeInTheDocument();
+        await user.keyboard("{Escape}");
+
+        await user.click(screen.getByLabelText("Select Draft.pdf"));
+        await user.click(screen.getByLabelText("Select Final.pdf"));
+        await user.click(screen.getByRole("button", { name: "Actions" }));
+        expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
+    });
+});

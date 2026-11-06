@@ -17,6 +17,8 @@ import { VersionChip } from "./VersionChip";
 import type { PanelDocument } from "./types";
 import type { DocxSaveState } from "./views/DocxRenderer.types";
 import { DocxSaveErrorPopup } from "./views/DocxSaveErrorPopup";
+import { useTrainingVersionStatus } from "@/app/hooks/useTrainingVersionStatus";
+import { TrainingVersionStatus } from "./TrainingVersionStatus";
 
 type ExternalSourceLink = {
     href: string;
@@ -49,6 +51,13 @@ export function DocumentTitleRow({
         document.type === "pdf" ||
         document.type === "spreadsheet";
     const versionNumber = document.version_number;
+    // LiTT training: a pasante's unapproved draft is viewed here, never
+    // downloaded; the download below reads /file, which stays open.
+    const training = useTrainingVersionStatus(
+        document.document_id,
+        document.version_id ?? null,
+        isFile,
+    );
 
     return (
         <div className="shrink-0 px-3 py-2">
@@ -126,7 +135,7 @@ export function DocumentTitleRow({
                             <SquarePen aria-hidden="true" className="h-3.5 w-3.5" />
                         </TextButtonUI>
                     )}
-                    {isFile && (
+                    {isFile && training.release === "released" && (
                         <DownloadButton
                             documentId={document.document_id}
                             versionId={document.version_id ?? null}
@@ -155,6 +164,16 @@ export function DocumentTitleRow({
                     )}
                 </div>
             </div>
+            {isFile && (
+                <TrainingVersionStatus
+                    className="mt-1"
+                    documentId={document.document_id}
+                    versionId={training.versionId}
+                    held={training.release === "held"}
+                    canApprove={training.canApprove}
+                    onApproved={training.refresh}
+                />
+            )}
             {document.metadata.length > 0 && (
                 <div className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 font-serif text-sm text-gray-600">
                     {document.metadata.map((item, index) => (

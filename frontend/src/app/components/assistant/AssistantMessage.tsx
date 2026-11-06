@@ -154,8 +154,10 @@ export function AssistantMessage({
     const [isCopied, setIsCopied] = useState(false);
     // Per-document override of the download URL, set as Accept/Reject resolves
     // each tracked change and produces a new version.
+    // The new version's training status rides along: a pasante's unapproved
+    // draft keeps its card but loses the download (docs/training.md).
     const [resolvedOverrides, setResolvedOverrides] = useState<
-        Record<string, string>
+        Record<string, { url: string; trainingHeld: boolean }>
     >({});
 
     const handleEditResolved = (args: {
@@ -164,11 +166,15 @@ export function AssistantMessage({
         status: "accepted" | "rejected";
         versionId: string | null;
         downloadUrl: string | null;
+        trainingHeld?: boolean;
     }) => {
         if (args.downloadUrl) {
             setResolvedOverrides((prev) => ({
                 ...prev,
-                [args.documentId]: args.downloadUrl as string,
+                [args.documentId]: {
+                    url: args.downloadUrl as string,
+                    trainingHeld: args.trainingHeld === true,
+                },
             }));
         }
         onEditResolved?.(args);
@@ -917,8 +923,14 @@ export function AssistantMessage({
                                 <DocDownloadBlock
                                     filename={e.filename}
                                     download_url={
-                                        resolvedOverrides[e.document_id] ??
+                                        resolvedOverrides[e.document_id]?.url ??
                                         e.download_url
+                                    }
+                                    trainingHeld={
+                                        resolvedOverrides[e.document_id]
+                                            ? resolvedOverrides[e.document_id]
+                                                  .trainingHeld
+                                            : e.training_held === true
                                     }
                                     versionNumber={e.version_number ?? null}
                                     onOpen={
@@ -979,6 +991,7 @@ export function AssistantMessage({
                                         key={i}
                                         filename={e.filename}
                                         download_url={e.download_url}
+                                        trainingHeld={e.training_held === true}
                                         versionNumber={versionNumber}
                                         onOpen={
                                             canOpen

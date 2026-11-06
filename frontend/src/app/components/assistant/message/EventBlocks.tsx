@@ -9,8 +9,10 @@ import {
 } from "@/app/components/assistant/message/EventDisclosure";
 import { WorkflowSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { VersionChip } from "@/app/components/shared/VersionChip";
-import { API_BASE } from "@/app/lib/mikeApi";
-import { authenticatedFetch } from "@/app/lib/authEvents";
+import { getTokenDownload } from "@/app/lib/mikeApi";
+import { downloadBlob } from "@/app/lib/downloadDocument";
+import { notifyError } from "@/app/lib/userFacingError";
+import { TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import type { AssistantEvent } from "../../shared/types";
 import { FileTypeIcon } from "../../shared/FileTypeIcon";
 import {
@@ -401,12 +403,15 @@ export function DocDownloadBlock({
     onOpen,
     isReloading = false,
     versionNumber,
+    trainingHeld = false,
 }: {
     filename: string;
     download_url: string;
     onOpen?: () => void;
     isReloading?: boolean;
     versionNumber?: number | null;
+    /** LiTT training: a pasante's unapproved draft is opened, never downloaded. */
+    trainingHeld?: boolean;
 }) {
     const extMatch = filename.match(/\.(\w+)$/);
     const rawBasename = extMatch
@@ -419,7 +424,7 @@ export function DocDownloadBlock({
     // Only backend-relative URLs are accepted. Downloads stay on the
     // same-origin gateway so HttpOnly auth cookies are never sent elsewhere.
     const isSafeHref = download_url.startsWith("/");
-    const href = isSafeHref ? `${API_BASE}${download_url}` : null;
+    const href = isSafeHref && !trainingHeld ? download_url : null;
     const [busy, setBusy] = useState(false);
 
     const handleDownload = async (e?: {
@@ -431,17 +436,12 @@ export function DocDownloadBlock({
         if (busy || isReloading || !href) return;
         setBusy(true);
         try {
-            const resp = await authenticatedFetch(href);
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const blob = await resp.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            const { blob } = await getTokenDownload(href);
+            downloadBlob(blob, filename);
+        } catch (error) {
+            // A 409 training_approval_required arrives here as the server's
+            // own Spanish sentence (docs/training.md).
+            notifyError(error, { action: "download this document" });
         } finally {
             setBusy(false);
         }
@@ -465,11 +465,12 @@ export function DocDownloadBlock({
                     </p>
                     <VersionChip n={versionNumber} size="lg" />
                 </div>
+                {trainingHeld && <TrainingHeldNoteUI />}
             </div>
         </div>
     );
 
-    const downloadIcon = spinning ? (
+    const downloadIcon = trainingHeld ? null : spinning ? (
         <div
             aria-disabled
             className="shrink-0 flex items-center bg-white/25 px-4 text-gray-400 cursor-not-allowed @md:px-6"
@@ -504,7 +505,7 @@ export function DocDownloadBlock({
         );
     }
 
-    if (spinning) {
+    if (spinning || trainingHeld) {
         return (
             <div
                 className={`@container flex items-stretch overflow-hidden w-full font-serif ${RESPONSE_GLASS_SURFACE}`}

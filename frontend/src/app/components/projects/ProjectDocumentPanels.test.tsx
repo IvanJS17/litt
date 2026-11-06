@@ -11,6 +11,15 @@ import {
 } from "./ProjectDocumentPanels";
 
 const localExport = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+// LiTT training: these documents are not pasante drafts.
+vi.mock("@/app/hooks/useTrainingVersionStatus", () => ({
+    useTrainingVersionStatus: (_doc: string, versionId: string | null) => ({
+        versionId,
+        release: "released",
+        canApprove: false,
+        refresh: () => {},
+    }),
+}));
 vi.mock("@/app/lib/authEvents", () => ({ authenticatedFetch: vi.fn() }));
 vi.mock("./ProjectWorkspaceTips", () => ({
     ProjectWorkspaceTips: () => <p>Open a document</p>,

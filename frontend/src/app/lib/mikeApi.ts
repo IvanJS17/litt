@@ -2977,6 +2977,22 @@ export interface DocumentVersion {
     textless_page_count?: number | null;
     deleted_at?: string | null;
     deleted_by?: string | null;
+    /** LiTT training: a pasante's version not approved for its current bytes; it may not leave LiTT. */
+    training_held?: boolean;
+    /** Whether the caller may approve it (the server's own rule). */
+    training_can_approve?: boolean;
+}
+
+/** Approve a pasante's version as it is now (docs/training.md). */
+export async function approveTrainingVersion(
+    documentId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").TrainingVersionApproval> {
+    return apiRequest(
+        "documents.directory",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/training-approval`,
+        { method: "POST" },
+    );
 }
 
 export async function listDocumentVersions(documentId: string): Promise<{
@@ -3158,6 +3174,8 @@ interface DocumentEditResolution {
     status?: "accepted" | "rejected";
     version_id: string | null;
     download_url: string | null;
+    /** The resulting version may not leave LiTT yet (docs/training.md). */
+    training_held?: boolean;
     remaining_pending?: number;
 }
 
@@ -3170,6 +3188,19 @@ export async function resolveDocumentEdit(
         "documents.directory", `/single-documents/${encodeURIComponent(documentId)}/edits/${encodeURIComponent(editId)}/${verb}`,
         { method: "POST" },
     );
+}
+
+/**
+ * The bytes behind a `/download/:token` link the server issued (a chat's
+ * document card). Only backend-relative links are accepted, so the auth
+ * cookies never reach another origin.
+ */
+export async function getTokenDownload(downloadUrl: string): Promise<{
+    blob: Blob;
+    filename: string | null;
+}> {
+    if (!downloadUrl.startsWith("/")) throw new Error("Unsafe download link");
+    return apiBlobRequest("documents.directory", downloadUrl);
 }
 
 export async function getDocumentUrl(

@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld } from "@/shared/ui/TrainingHeldNoteUI";
 import {
   forwardRef,
   useEffect,
@@ -462,7 +463,7 @@ export const WorkflowAssets = forwardRef<
                 >
                   <RowActions
                     onView={() => view(file)}
-                    onDownload={() => void download(file)}
+                    onDownload={isTrainingHeld(file) ? undefined : () => void download(file)}
                     onUploadNewVersion={
                       readOnly
                         ? undefined
@@ -500,6 +501,11 @@ export const WorkflowAssets = forwardRef<
         }}
         onDownloadVersion={async (_assetId, versionId) => {
           if (viewingFile) await download(viewingFile, versionId);
+        }}
+        onTrainingApproved={(assetId) => {
+          refreshVersionState(assetId).catch((caught: unknown) =>
+            notifyError(caught, { action: "refresh this file" }),
+          );
         }}
         onRenameVersion={async (assetId, versionId, filename) => {
           await renameDocumentVersion(assetId, versionId, filename);

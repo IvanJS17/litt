@@ -37,6 +37,8 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { TrainingVersionStatus } from "./TrainingVersionStatus";
 import { formatBytes } from "@/app/components/projects/ProjectPageParts";
 
 const MIN_DOC_COLUMN_WIDTH = 420;
@@ -86,6 +88,8 @@ interface DocumentSidePanelProps {
     /** Read-only panels only: copies the document into the caller's collection. */
     onAdd?: (doc: Document) => void;
     addLabel?: string;
+    /** LiTT training: a version was approved; reload what shows its status. */
+    onTrainingApproved?: (docId: string) => void;
 }
 
 export function DocumentSidePanel({
@@ -110,6 +114,7 @@ export function DocumentSidePanel({
     onDelete,
     onAdd,
     addLabel = "Add",
+    onTrainingApproved,
 }: DocumentSidePanelProps) {
     const [mounted, setMounted] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -295,6 +300,11 @@ export function DocumentSidePanel({
         selectedVersion?.version_number ?? doc.active_version_number ?? null;
     const selectedUploadedAt = selectedVersion?.created_at ?? doc.created_at;
     const selectedExtension = filenameExtension(selectedFilename);
+    // LiTT training: before the versions load, the row's own status speaks
+    // for the current version.
+    const selectedHeld = selectedVersion
+        ? isTrainingHeld(selectedVersion)
+        : isTrainingHeld(doc);
     const replaceFileType = replaceTargetVersion
         ? fileTypeForVersion(replaceTargetVersion, selectedFileType)
         : selectedFileType;
@@ -761,6 +771,13 @@ export function DocumentSidePanel({
                                         : "—"
                                 }
                             />
+                            <TrainingVersionStatus
+                                documentId={doc.id}
+                                versionId={selectedVersionId}
+                                held={selectedHeld}
+                                canApprove={selectedVersion?.training_can_approve === true}
+                                onApproved={() => onTrainingApproved?.(doc.id)}
+                            />
                             {selectedTextLayerWarning && (
                                 <p className="flex items-start gap-1.5 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-800">
                                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
@@ -923,6 +940,7 @@ export function DocumentSidePanel({
                                                                         <Upload className="h-3 w-3" />
                                                                     )}
                                                                 </button>
+                                                                {!isTrainingHeld(version) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={(
@@ -941,6 +959,7 @@ export function DocumentSidePanel({
                                                                 >
                                                                     <Download className="h-3 w-3" />
                                                                 </button>
+                                                                )}
                                                                 <button
                                                                     type="button"
                                                                     onClick={(
@@ -980,6 +999,9 @@ export function DocumentSidePanel({
                                                         )}
                                                     </div>
                                                 </div>
+                                                {isTrainingHeld(version) && (
+                                                    <TrainingHeldNoteUI className="text-[11px]" />
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -1007,6 +1029,7 @@ export function DocumentSidePanel({
                     >
                         {readOnly ? (
                             <>
+                                {!isTrainingHeld(doc) && (
                                 <PillButtonUI
                                     tone="white"
                                     size="normal"
@@ -1018,6 +1041,7 @@ export function DocumentSidePanel({
                                     <Download className="h-3.5 w-3.5 shrink-0" />
                                     Download
                                 </PillButtonUI>
+                                )}
                                 {onAdd && (
                                     <PillButtonUI
                                         tone="blue"

@@ -89,3 +89,72 @@ it("titles the document view and lists the latest version first", () => {
         "Download Version 1",
     ]);
 });
+
+it("marks a pasante draft, hides its downloads and lets an approver approve it", async () => {
+    const approve = vi.spyOn(await import("@/app/lib/mikeApi"), "approveTrainingVersion");
+    approve.mockResolvedValue({ document_version_id: "v2", content_sha256: "h", approved_at: "t" });
+    const onTrainingApproved = vi.fn();
+    const onDownloadVersion = vi.fn();
+    const held: DocumentVersion = {
+        id: "v2",
+        version_number: 2,
+        source: "upload",
+        created_at: "2026-09-02T00:00:00Z",
+        filename: "agreement-v2.docx",
+        training_held: true,
+        training_can_approve: true,
+    };
+    const released: DocumentVersion = { ...held, id: "v1", version_number: 1, filename: "agreement-v1.docx", training_held: false, training_can_approve: false };
+    render(
+        <DocumentSidePanel
+            doc={doc}
+            versions={[released, held]}
+            versionsLoading={false}
+            currentVersionId="v2"
+            onClose={vi.fn()}
+            onLoadVersions={vi.fn()}
+            onSelectVersion={vi.fn()}
+            onDownloadDocument={vi.fn()}
+            onDownloadVersion={onDownloadVersion}
+            onRenameVersion={vi.fn()}
+            onDeleteVersion={vi.fn()}
+            onUploadNewVersion={vi.fn()}
+            onReplaceVersion={vi.fn()}
+            onDelete={vi.fn()}
+            onTrainingApproved={onTrainingApproved}
+        />,
+    );
+    // The selected version's mark, and the one in its history row.
+    expect(screen.getAllByText("Borrador de pasante, pendiente de aprobación")).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Download V2" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Download/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aprobar esta versión" }));
+    await vi.waitFor(() => expect(onTrainingApproved).toHaveBeenCalledWith("doc-1"));
+    expect(approve).toHaveBeenCalledWith("doc-1", "v2");
+    approve.mockRestore();
+});
+
+it("speaks for the current version from the row before the versions load, and hides the read-only download", () => {
+    render(
+        <DocumentSidePanel
+            doc={{ ...doc, training_held: true }}
+            readOnly
+            versions={[]}
+            versionsLoading={false}
+            onClose={vi.fn()}
+            onLoadVersions={vi.fn()}
+            onSelectVersion={vi.fn()}
+            onDownloadDocument={vi.fn()}
+            onDownloadVersion={vi.fn()}
+            onRenameVersion={vi.fn()}
+            onDeleteVersion={vi.fn()}
+            onUploadNewVersion={vi.fn()}
+            onReplaceVersion={vi.fn()}
+            onDelete={vi.fn()}
+        />,
+    );
+    expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Download/ })).toBeNull();
+    // Nobody said this caller may approve.
+    expect(screen.queryByRole("button", { name: "Aprobar esta versión" })).toBeNull();
+});

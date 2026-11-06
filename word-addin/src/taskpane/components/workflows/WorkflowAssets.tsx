@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Document } from "../../types";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/training-held-note-ui";
 import {
   deleteWorkflowAsset,
   getWorkflowAssetUrl,
@@ -147,9 +148,13 @@ export function WorkflowAssets({
               key={file.id}
               className="flex items-center gap-2 rounded-md bg-white/55 px-2 py-1.5"
             >
-              <span className="min-w-0 flex-1 truncate text-gray-600">
-                {file.filename}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-gray-600">{file.filename}</span>
+                {isTrainingHeld(file) && (
+                  <TrainingHeldNoteUI className="text-[10px]" />
+                )}
               </span>
+              {!isTrainingHeld(file) && (
               <button
                 type="button"
                 onClick={() =>
@@ -168,6 +173,7 @@ export function WorkflowAssets({
               >
                 Download
               </button>
+              )}
               {!readOnly && (
                 <>
                   <button

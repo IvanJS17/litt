@@ -3,6 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { DocumentContent } from "@/app/components/shared/DocumentContent";
 import { DocumentTitleRow } from "./DocumentTitleRow";
 
+// LiTT training: these documents are not pasante drafts.
+vi.mock("@/app/hooks/useTrainingVersionStatus", () => ({
+    useTrainingVersionStatus: (_doc: string, versionId: string | null) => ({
+        versionId,
+        release: "released",
+        canApprove: false,
+        refresh: () => {},
+    }),
+}));
 vi.mock("./views/DocxView", () => ({
     DocxView: ({ defaultMode, filename }: { defaultMode: string; filename: string }) =>
         <div data-testid="docx-editor" data-mode={defaultMode}>{filename}</div>,

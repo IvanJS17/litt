@@ -195,6 +195,7 @@ module.exports = async (_env, options) => {
         ),
         "@mike/toggle-switch-ui": frontendSharedUi("ToggleSwitchUI.tsx"),
         "@mike/training-note-ui": frontendSharedUi("TrainingNoteUI.tsx"),
+        "@mike/training-held-note-ui": frontendSharedUi("TrainingHeldNoteUI.tsx"),
         "@mike/training-turn-notes": frontendShared(
           "hooks",
           "useTrainingTurnNotes.ts",

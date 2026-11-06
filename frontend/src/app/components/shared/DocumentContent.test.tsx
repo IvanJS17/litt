@@ -25,6 +25,15 @@ const { viewer, resolveEdit, loadVersions } = vi.hoisted(() => ({
     resolveEdit: vi.fn(),
     loadVersions: vi.fn(),
 }));
+// LiTT training: these documents are not pasante drafts.
+vi.mock("@/app/hooks/useTrainingVersionStatus", () => ({
+    useTrainingVersionStatus: (_doc: string, versionId: string | null) => ({
+        versionId,
+        release: "released",
+        canApprove: false,
+        refresh: () => {},
+    }),
+}));
 vi.mock("./views/DocxView", () => ({
     DocxView: (props: unknown) => {
         viewer(props);
@@ -324,6 +333,7 @@ describe.each(["assistant", "project"] as const)(
                     status: "accepted",
                     versionId: "v1",
                     downloadUrl: null,
+                    trainingHeld: false,
                 }),
             );
             expect(resolveEdit).toHaveBeenCalledWith("doc", "edit", "accept");

@@ -40,6 +40,8 @@ function BulkEditActions({
         status: "accepted" | "rejected";
         versionId: string | null;
         downloadUrl: string | null;
+        /** The new version is a pasante's unapproved draft (docs/training.md). */
+        trainingHeld?: boolean;
     }) => void;
     onError?: (args: {
         editId: string;
@@ -96,6 +98,7 @@ function BulkEditActions({
                         status: nextStatus,
                         versionId: data.version_id,
                         downloadUrl: data.download_url,
+                        trainingHeld: data.training_held === true,
                     });
                 } catch (e) {
                     console.error("[BulkEditActions] resolve failed", e);
@@ -206,6 +209,8 @@ export function EditCardsSection({
         status: "accepted" | "rejected";
         versionId: string | null;
         downloadUrl: string | null;
+        /** The new version is a pasante's unapproved draft (docs/training.md). */
+        trainingHeld?: boolean;
     }) => void;
     onError?: (args: {
         editId: string;

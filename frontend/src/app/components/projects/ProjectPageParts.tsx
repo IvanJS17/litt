@@ -18,6 +18,7 @@ import { FileTypeIcon } from "@/app/components/shared/FileTypeIcon";
 import type { Project } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { RowActions } from "@/app/components/shared/RowActions";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
 import { tableTreeCellStyle } from "@/app/components/shared/TablePrimitive";
@@ -312,6 +313,9 @@ export function DocVersionHistory({
                                         {displayLabel}
                                     </span>
                                 )}
+                                {!isEditing && isTrainingHeld(v) && (
+                                    <TrainingHeldNoteUI className="ml-2 text-[11px]" />
+                                )}
                             </div>
                         </div>
                         <div
@@ -375,12 +379,15 @@ export function DocVersionHistory({
                                             : undefined
                                     }
                                     renameLabel="Rename version"
-                                    onDownload={() =>
-                                        onDownloadVersion(
-                                            docId,
-                                            v.id,
-                                            downloadFilename,
-                                        )
+                                    onDownload={
+                                        isTrainingHeld(v)
+                                            ? undefined
+                                            : () =>
+                                                  onDownloadVersion(
+                                                      docId,
+                                                      v.id,
+                                                      downloadFilename,
+                                                  )
                                     }
                                 />
                             )}
