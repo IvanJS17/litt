@@ -60,8 +60,14 @@ person's pupil row, stages and mentor row. A mentor who still has pupils cannot
 leave: the trigger `org_members_training_departure` raises `LT001`, which the
 API answers as `409 training_mentor_has_pupils`. The exceptions are the
 cascades that are not a choice: account erasure
-(`prepare_account_org_departures`) and the deletion of the account row itself
-release that mentor's pupils instead. Audit events are insert-only and stay.
+(`prepare_account_org_departures`), the deletion of the account row itself and
+the deletion of the organization row release that mentor's pupils instead.
+Audit events are insert-only and stay.
+
+The product never deletes a firm (`organizations_no_team_delete`). If an
+operator's purge lifts that guard, every `training_*` row and every note of the
+organization goes with it, Word and tabular notes included, through the
+membership cascade; `training.postgres.test.ts` covers this.
 
 ## Rules
 
@@ -77,7 +83,19 @@ Enforced in `training.service.ts` and covered by
 | Release a pupil (mentor and stages) | their mentor, or an owner or admin |
 | Read | the pupil: their mentor and stages; a mentor: their pupils' stages; an owner or admin: who mentors whom, never the stages |
 
-Nobody is their own pupil. Each change writes one insert-only audit event, with
+Nobody is their own pupil.
+
+**Accepted: a mentor can tell that a member already has a mentor.** The list of
+members a mentor may take (`candidates` in `GET …/pupils`) leaves out those who
+have one, and taking one of them answers `409 training_pupil_has_mentor`. This
+is kept on purpose. The approved specification limits the owner's and admin's
+role to naming mentors, so pupils cannot be assigned only by them, and a mentor
+cannot take a pupil without a list of members who are free. What can be
+inferred is only that somebody has a mentor: never who, never a stage, never a
+note. Only designated mentors see it (`candidates` and the `POST` require being
+one); owners and admins already see who mentors whom.
+
+Each change writes one insert-only audit event, with
 ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
 `training.pupil_assigned`, `training.pupil_released`, `training.stage_set`,
 `training.stage_removed`.
@@ -139,9 +157,25 @@ participants of the chat and a previous mentor cannot. Any other case, and any
 chat without readable notes, is the same `404`. Notes are deleted with the
 membership, with the chat, and with the account.
 
+Beside a message the panel finds its note by the message id. A message sent
+in this session has no saved id in the client yet (the web leaves it out, the
+Word add-in gives it one of its own), so it takes the unclaimed note whose
+attempt is exactly the one it was sent with, newest with newest
+(`matchTrainingNotes`). A message whose note was never created stays bare. The
+one case left ambiguous is two turns just sent in the same chat with the
+identical attempt: their notes may be shown swapped, and they differ only in
+the contrast. After a reload every message has its id and the match is exact.
+Using the id instead would mean the stream announcing the saved user message
+id and each client (the web turn registry, the tabular panel and the Word
+add-in, whose local chats keep their own ids) adopting it mid-turn, a change to
+three separate stream pipelines that this narrow, read-only case does not
+justify.
+
 The composers (web and Word) show the required field
 «Tu planteamiento (2–3 líneas)» with a counter when `GET /training/stage` says
-`pasante`; the server decides either way.
+`pasante`; the server decides either way. A composer in a project chat,
+including one opened from the assistant's chat list, asks with that project
+(`project_id`), so it shows the stage for the project's practice area.
 
 ## Settings
 
