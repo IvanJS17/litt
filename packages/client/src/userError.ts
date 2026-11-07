@@ -237,6 +237,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     playbook_changes_pending: "validation",
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
+    // LiTT matters: a matter's new owner must be a current member of the
+    // firm; choosing another member fixes it, retrying does not.
+    matter_owner_target_invalid: "validation",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",
