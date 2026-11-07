@@ -13,9 +13,9 @@ import {
   REASONING_LEVELS,
   type ModelToggleOption,
   type ReasoningLevel,
-} from "@/shared/ui/ModelToggleUI";
-import { GlassCardUI } from "@/shared/ui/GlassCardUI";
-import { PillButtonUI } from "@/shared/ui/PillButtonUI";
+} from "@mike/ui";
+import { GlassCardUI } from "@mike/ui";
+import { PillButtonUI } from "@mike/ui";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import {
   SettingsDescription,

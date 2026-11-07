@@ -5,14 +5,13 @@ import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import type { Citation } from "../../shared/types";
-import { CitationPillUI } from "@/shared/ui/CitationPillUI";
+import { CitationPillUI, EXCERPT_SOURCE_PROPS } from "@mike/ui";
 import { withoutMarkdownNode } from "./messageStyles";
 import { citationTooltip } from "./CitationSources";
 import {
     citationVerificationAriaLabel,
     citationVerificationPillClassName,
 } from "./citationVerification";
-import { EXCERPT_SOURCE_PROPS } from "@/shared/ui/ResponseSelectionMenuUI";
 
 function isSameOrigin(url: string): boolean {
     if (typeof window === "undefined") return false;

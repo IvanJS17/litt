@@ -9,7 +9,7 @@ import {
     startUserExport,
     type UserExportType,
 } from "@/app/lib/mikeApi";
-import { UserVisibleError } from "@/shared/lib/userError";
+import { UserVisibleError } from "@mike/client";
 
 // Tests drive the loop with fake-fast polling; 2s is the interactive rate.
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;

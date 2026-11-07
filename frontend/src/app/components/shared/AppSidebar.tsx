@@ -37,10 +37,10 @@ import {
     DropdownRadioItem,
     DropdownSeparator,
     DropdownTrigger,
-} from "@/shared/ui/dropdown";
+} from "@mike/ui";
 import { SidebarHeading } from "@/app/components/shared/SidebarHeading";
 import { SidebarLogo } from "@/app/components/shared/SidebarLogo";
-import { LittWordmark } from "@/shared/ui/LittBrandUI";
+import { LittWordmark } from "@mike/ui";
 import { SidebarProjectItem } from "@/app/components/shared/SidebarProjectItem";
 import {
     ChatSkeuoIcon,

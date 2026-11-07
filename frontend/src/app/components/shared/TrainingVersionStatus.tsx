@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { approveTrainingVersion } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
-import { TextButtonUI } from "@/shared/ui/TextButtonUI";
-import { TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { TextButtonUI } from "@mike/ui";
+import { TrainingHeldNoteUI } from "@mike/ui";
 
 export const APPROVE_TRAINING_VERSION_LABEL = "Aprobar esta versión";
 

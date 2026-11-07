@@ -10,7 +10,7 @@ vi.mock("@/app/lib/mikeApi", () => ({ getTokenDownload: mocks.getTokenDownload }
 vi.mock("@/app/lib/downloadDocument", () => ({ downloadBlob: mocks.downloadBlob }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: mocks.notifyError }));
 
-import { TRAINING_HELD_LABEL } from "@/shared/ui/TrainingHeldNoteUI";
+import { TRAINING_HELD_LABEL } from "@mike/ui";
 import { DocDownloadBlock } from "./EventBlocks";
 
 beforeEach(() => vi.clearAllMocks());

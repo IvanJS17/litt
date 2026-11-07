@@ -1,7 +1,14 @@
 import { execFileSync } from "node:child_process";
+import path from "node:path";
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
-import { resolveSourceCommit } from "./src/shared/lib/sourceCommit.mjs";
+import { resolveSourceCommit } from "@mike/client";
+
+// The repository root: the parent of this directory, here and in the Docker
+// image (frontend/Dockerfile mirrors the layout at /app/frontend and
+// /app/packages). The shared packages the app imports, @mike/ui and
+// @mike/client (packages/ui, packages/client), live there.
+const REPO_ROOT = path.resolve(__dirname, "..");
 
 const nextConfig: NextConfig = {
     /* config options here */
@@ -19,7 +26,28 @@ const nextConfig: NextConfig = {
         tsconfigPath: "tsconfig.build.json",
     },
     turbopack: {
-        root: __dirname,
+        // Turbopack resolves nothing outside its root, and Next uses the same
+        // directory as outputFileTracingRoot (the two must agree). The root
+        // is therefore the repository, so the tsconfig `paths` aliases for the
+        // shared packages resolve; standalone output nests under frontend/.
+        root: REPO_ROOT,
+    },
+    experimental: {
+        // Webpack builds (`next build --webpack`) transpile only files under
+        // this directory unless told otherwise; the shared packages live one
+        // level up.
+        externalDir: true,
+    },
+    webpack: (config) => {
+        // The shared packages have no node_modules of their own. A bare import
+        // from a file under packages/ walks up to the repository root and never
+        // reaches this directory's node_modules, so add it as the fallback
+        // (word-addin/webpack.config.js does the same for the add-in).
+        config.resolve.modules = [
+            ...(config.resolve.modules ?? ["node_modules"]),
+            path.join(__dirname, "node_modules"),
+        ];
+        return config;
     },
     async rewrites() {
         return [

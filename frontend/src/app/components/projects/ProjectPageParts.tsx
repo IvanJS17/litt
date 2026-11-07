@@ -18,7 +18,7 @@ import { FileTypeIcon } from "@/app/components/shared/FileTypeIcon";
 import type { Project } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { RowActions } from "@/app/components/shared/RowActions";
-import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
 import { tableTreeCellStyle } from "@/app/components/shared/TablePrimitive";

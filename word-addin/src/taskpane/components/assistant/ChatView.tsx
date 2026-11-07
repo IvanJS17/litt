@@ -13,7 +13,7 @@ import { ChatInput } from "./ChatInput";
 import type { ChatInputHandle } from "./ChatInput";
 import { InitialView } from "./InitialView";
 import { UserMessage } from "./UserMessage";
-import { ResponseSelectionMenuUI } from "@mike/response-selection-menu-ui";
+import { ResponseSelectionMenuUI } from "@mike/ui";
 import type {
     EditDecision,
     ReasoningLevel,
@@ -24,7 +24,7 @@ import type {
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
 import { selectDocumentText } from "../../hooks/useWordDoc";
 import { UserVisibleError, notifyError } from "../../lib/notify";
-import type { TrainingNoteView } from "@mike/training-note-ui";
+import type { TrainingNoteView } from "@mike/ui";
 
 const CHAT_MESSAGE_TOP_GAP = 12;
 const CHAT_MESSAGES_BOTTOM_GAP = 16;

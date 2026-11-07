@@ -1,5 +1,5 @@
 import type { Operation } from "@/app/lib/errorReporting";
-import { settleWithConcurrency } from "@/shared/lib/settleWithConcurrency";
+import { settleWithConcurrency } from "@mike/client";
 import type {
     TabularReviewHistoryStatus,
     AuditActor,
@@ -28,7 +28,7 @@ export type {
 import { isPanelDocument } from "@/app/components/shared/types";
 import { authenticatedFetch } from "@/app/lib/authEvents";
 import { notifyTabularReviewsChanged } from "@/app/lib/tabularReviewChanges";
-import type { RouterProfileLists } from "@/shared/lib/modelCatalog";
+import type { RouterProfileLists } from "@mike/client";
 import {
     reportApiFailure,
     reportError,
@@ -47,7 +47,7 @@ import {
     type UploadProgressStatus,
     type UploadSessionInput,
     type UploadSessionPurpose,
-} from "@/shared/api/uploadSessionClient";
+} from "@mike/client";
 // The role vocabulary is defined once, next to the capability matrix that
 // gives it meaning, and re-exported here so API consumers do not need two
 // imports to describe one row.

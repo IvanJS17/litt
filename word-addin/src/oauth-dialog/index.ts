@@ -3,7 +3,7 @@ import {
   GOOGLE_OAUTH_MESSAGE_TYPE,
   type GoogleOAuthDialogMessage,
 } from "../taskpane/auth/oauthProtocol";
-import { describeError } from "@mike/user-error";
+import { describeError } from "@mike/client";
 
 const API_BASE = (process.env.REACT_APP_API_BASE_URL || "/api").replace(
   /\/+$/,

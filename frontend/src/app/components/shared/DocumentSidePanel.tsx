@@ -20,8 +20,7 @@ import { DocumentPaneTitle } from "@/app/components/shared/DocumentPaneTitle";
 import { PdfView } from "@/app/components/shared/views/PdfView";
 import { DocxView } from "@/app/components/shared/views/DocxView";
 import { SpreadsheetView } from "@/app/components/shared/views/SpreadsheetView";
-import { CloseButton } from "@/shared/ui/CloseButton";
-import { PillButtonUI } from "@/shared/ui/PillButtonUI";
+import { CloseButton, PillButtonUI } from "@mike/ui";
 import type { Document } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
@@ -37,7 +36,7 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@/app/components/ui/liquid-surface";
-import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { TrainingVersionStatus } from "./TrainingVersionStatus";
 import { formatBytes } from "@/app/components/projects/ProjectPageParts";
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { Document } from "../../types";
-import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/training-held-note-ui";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import {
   deleteWorkflowAsset,
   getWorkflowAssetUrl,

@@ -1,6 +1,6 @@
 "use client";
 
-import { isTrainingHeld, TRAINING_HELD_LABEL } from "@/shared/ui/TrainingHeldNoteUI";
+import { isTrainingHeld, TRAINING_HELD_LABEL } from "@mike/ui";
 import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
 import caseLaw from "../../../../public/icons/legal-sources/case-law.svg";
 import legislation from "../../../../public/icons/legal-sources/legislation.svg";

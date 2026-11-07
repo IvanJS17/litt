@@ -6,13 +6,15 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `fa37b86d4add8e24286f54ef6a83b0a715a6ed96`
-(2026-11-04, the merge of #702), reached by cycle 7 of the
+**Current pin:** upstream `05d9aebcd30e6d9aef4d7190dfa0833475dd2500`
+(2026-11-04, the merge of #703), reached by cycle 8 of the
 2026-11-06 intake (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §26).
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §27).
 The pin takes effect on `main` with that cycle's merge into `main`. The
-previous pins were `74aad3019efa903a8fb89ec9c07617b2ab61126a` (2026-11-04),
-reached by cycle 6 of the same intake (ledger §25);
+previous pins were `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` (2026-11-04),
+reached by cycle 7 of the same intake (ledger §26);
+`74aad3019efa903a8fb89ec9c07617b2ab61126a` (2026-11-04),
+by cycle 6 (ledger §25);
 `d0a7ca7550bdaa3f21284b730c3139951ac89576` (2026-11-03),
 by cycle 5 (ledger §24);
 `31539729f4609cdf642a61bb963995668b97cac4` (2026-11-01),
@@ -228,6 +230,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-11-07 (cycle 5/10) | `31539729f4609cdf642a61bb963995668b97cac4` | `d0a7ca7550bdaa3f21284b730c3139951ac89576` | 65 new (72 in `31539729..d0a7ca75`, 7 already in `main` through cycle 2; 1 merge) | #749 3-Nov tranche and merge: SQL M-S2…M-S9 and M-B6 (job payload and folder name indexes, set-based ownerless items, departure root candidates, audit person filter among actors, paged private catalogue, text backfill from unfinished rows, batched memory wipe), tabular row sync, batched and keyset reads, exports by container, Word add-in bulk decisions and device chats, PDF viewer | adopt, except `ownerless_org_item_ids`, `org_members_departure_items` and `organization_audit_events_page` (adapt: `20261107_50_litt_departure_root_candidates_private_matter`, `20261107_51_litt_ownerless_items_private_matter`, `20261107_52_litt_audit_username_filter_order`), the CourtListener half of `85838120` (reject, no net change) and the Sentry e2e of `851f57a9` (reject) (ledger §24) | merge commit on `sync/upstream-c5-d0a7ca75`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §24) | fifth of ten cycles, last of #749; cycle-4 departure reservation investigated and recorded as an open product question with W2; no new debt |
 | 2026-11-07 (cycle 6/10) | `d0a7ca7550bdaa3f21284b730c3139951ac89576` | `74aad3019efa903a8fb89ec9c07617b2ab61126a` | 8 (7 without the merge, all from #786) | #786 PDF upload validation: the worker refuses a PDF upload without `%PDF-` in its first 1 KiB that pdf.js cannot open either, with the terminal file code `invalid_pdf_file`; the web app names the file, classifies the refusal as the user's to fix and leaves it out of Retry | adopt; the one test conflict keeps LiTT's comment without upstream's Sentry issue id (ledger §25) | merge commit on `sync/upstream-c6-74aad301`; one test adaptation in a separate commit, no product code adaptation; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §25) | sixth of ten cycles; no new debt |
 | 2026-11-07 (cycle 7/10) | `74aad3019efa903a8fb89ec9c07617b2ab61126a` | `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` | 9 (8 without the merge, all from #702) | #702 service boundaries: cross-domain account, purge and export workflows in `backend/src/application/`, provider credentials in `lib/providerCredentials/`, playbook types and schemas in their own files, paged and batched export reads, tests beside their owners, and a dependency-cycle gate over every application | adapt: LiTT's account erasure, exports (training data, C4 stamp, pasante release check), governed BYOK, pinned playbook routes and the org deletion refusal carried to the new files; `user.courtlistener.ts` and its test stay deleted; the cycle gate runs without the removed desktop app (ledger §26) | merge commit on `sync/upstream-c7-fa37b86d`, ports in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §26) | seventh of ten cycles; no new debt |
+| 2026-11-07 (cycle 8/10) | `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` | `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` | 7 (6 without the merge, all from #703) | #703 shared packages: `frontend/src/shared` moves to `packages/ui` (`@mike/ui`) and `packages/client` (`@mike/client`) behind one barrel each, with the aliases, tsconfigs, webpack, Next, Vitest and Dockerfiles that consume them and an executable import boundary | adapt: LiTT's brand, AGPL source link, training UI, `CODE_KINDS` and add-in wiring carried into the packages and exported from their barrels; the Sentry modules, `releaseName`, `desktop/` and the Sentry docs stay deleted; the frontend image's standalone runtime follows the nested layout (ledger §27) | merge commit on `sync/upstream-c8-05d9aebc`, ports in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §27) | eighth of ten cycles; no new debt |
 
 ## Release metadata
 

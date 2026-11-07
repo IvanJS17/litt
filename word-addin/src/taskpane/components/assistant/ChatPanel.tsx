@@ -23,7 +23,7 @@ import type {
 import {
   matchTrainingNotes,
   useTrainingTurnNotes,
-} from "@mike/training-turn-notes";
+} from "@mike/ui";
 import { getTrainingTurnNotes } from "../../api/client";
 import { ChatView } from "./ChatView";
 import type {

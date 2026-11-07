@@ -35,8 +35,13 @@ import { useQuickActions } from "@/app/hooks/useQuickActions";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 import type { ChatInputHandle } from "./ChatInput";
 import { ChatInputPrompt } from "./ChatInputPrompt";
-import { ResponseSelectionMenuUI } from "@/shared/ui/ResponseSelectionMenuUI";
-import type { MessageExcerpt } from "@/shared/lib/messageExcerpts";
+import {
+    ResponseSelectionMenuUI,
+    HeaderButtonUI,
+    HeaderButtonsUI,
+    headerButtonClassName,
+} from "@mike/ui";
+import type { MessageExcerpt } from "@mike/client";
 import { assistantSidePanelTabId } from "./AssistantSidePanel";
 import { AssistantDocumentPanelHost } from "./AssistantDocumentPanelHost";
 import {
@@ -62,14 +67,9 @@ import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { usePageChrome } from "@/app/contexts/PageChromeContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
-import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
 import { resolvePanelDocumentVersionResult } from "./panelDocumentVersion";
 import { LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS } from "@/app/components/ui/liquid-surface";
-import {
-    HeaderButtonUI,
-    HeaderButtonsUI,
-    headerButtonClassName,
-} from "@/shared/ui/HeaderButtonsUI";
 import {
     HeaderActionsMenu,
     type HeaderActionsMenuItem,
