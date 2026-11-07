@@ -1,13 +1,15 @@
 // A deployment that has not run the login-MFA migration has no
 // user_profiles.mfa_on_login column. The preference lookup then fails with
 // 42703. LiTT fails closed (an unreadable preference is not "MFA is off"), so
-// the request gets the generic 500; the missing column is named once per
-// process so operators know the migration is what is missing.
+// the request is refused with 503 schema_out_of_date; the missing column is
+// reported once per process, through the same schema-out-of-date gate as every
+// other missing migration, so operators know the migration is what is missing.
 import express from "express";
 import rateLimit from "express-rate-limit";
 import request from "supertest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../lib/appError";
+import { resetSchemaOutOfDateReportsForTests } from "../lib/schemaOutOfDate";
 
 const mocks = vi.hoisted(() => ({
   reportError: vi.fn((..._args: unknown[]) => "event-1"),
@@ -72,33 +74,51 @@ const get = () => request(app()).get("/projects").set("Authorization", "Bearer s
 
 describe("login MFA preference column missing (pre-migration database)", () => {
   beforeEach(() => {
+    resetSchemaOutOfDateReportsForTests();
     vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
   afterEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
-  it("refuses the request and names the missing column once per process", async () => {
+  it("refuses the request and reports the missing column once, through the schema-out-of-date gate", async () => {
     mocks.mfaLookup.mockResolvedValue({ data: null, error: COLUMN_MISSING });
-    const columnReports = () =>
-      mocks.reportError.mock.calls.filter(
-        ([failure]) => (failure as AppError).kind === "auth.login_mfa_column_missing",
-      );
 
     const first = await get();
-    expect(first.status).toBe(500);
-    expect(first.body.code).toBe("internal_error");
+    expect(first.status).toBe(503);
+    expect(first.body.code).toBe("schema_out_of_date");
 
-    expect(columnReports()).toHaveLength(1);
-    const [failure, options] = columnReports()[0] as unknown as [AppError, unknown];
+    expect(mocks.reportError).toHaveBeenCalledOnce();
+    const [failure, options] = mocks.reportError.mock.calls[0] as unknown as [AppError, unknown];
     expect(failure).toBeInstanceOf(AppError);
+    // One kind and one level for every missing migration, so the org
+    // alert rule fires on it like on any other.
+    expect(failure.kind).toBe("schema_out_of_date");
     expect(failure.cause).toBe(COLUMN_MISSING);
-    expect(options).toMatchObject({ level: "warning", tags: { component: "http" } });
+    // The operation keeps the report's meaning (login MFA refusing requests)
+    // in its tags; it is still the single schema_out_of_date report of the
+    // gate: sendInternalError does not add a second one for the 503.
+    expect(options).toMatchObject({
+      level: "error",
+      tags: { component: "http", operation: "auth.login_mfa" },
+    });
+    expect(String(vi.mocked(console.warn).mock.calls[0]?.[0])).toContain(
+      "authenticated requests are refused until the migration runs",
+    );
 
     const second = await get();
-    expect(second.status).toBe(500);
-    expect(columnReports()).toHaveLength(1);
+    expect(second.status).toBe(503);
+    expect(mocks.reportError).toHaveBeenCalledOnce();
+
+    // The once-state is the gate's, not a second flag of its own: forget
+    // the gate and the same failure is news again. A private once-flag
+    // would stay quiet here, and could report the column a second time
+    // beside the gate.
+    resetSchemaOutOfDateReportsForTests();
+    await get();
+    expect(mocks.reportError).toHaveBeenCalledTimes(2);
   });
 
   it("still answers 500 for any other preference lookup failure", async () => {
