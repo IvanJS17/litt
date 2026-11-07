@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -236,6 +236,64 @@ describe("table surface", () => {
         render(<TableStickyCell header>Header</TableStickyCell>);
 
         expect(screen.getByText("Header")).toHaveClass("table-sticky-cell");
+    });
+});
+
+describe("table horizontal overflow hint", () => {
+    // jsdom has no layout: give the viewport the sizes a browser would.
+    function sizeViewport(
+        viewport: HTMLElement,
+        { scrollWidth, clientWidth }: { scrollWidth: number; clientWidth: number },
+    ) {
+        Object.defineProperty(viewport, "scrollWidth", { configurable: true, value: scrollWidth });
+        Object.defineProperty(viewport, "clientWidth", { configurable: true, value: clientWidth });
+    }
+
+    function renderTable() {
+        const onScroll = vi.fn();
+        const scrollRef = { current: null as HTMLDivElement | null };
+        render(
+            <TableScrollArea scrollRef={scrollRef} onScroll={onScroll}>
+                <div>Rows</div>
+            </TableScrollArea>,
+        );
+        const viewport = screen.getByText("Rows").parentElement as HTMLElement;
+        const hint = viewport.parentElement?.querySelector(
+            '[data-scroll-hint="end"]',
+        ) as HTMLElement;
+        return { viewport, hint, onScroll, scrollRef };
+    }
+
+    it("is a size container, so columns can size from the table's width", () => {
+        const { viewport } = renderTable();
+        expect(viewport).toHaveClass("@container");
+    });
+
+    it("fades the right edge while columns are hidden past it", () => {
+        const { viewport, hint, onScroll, scrollRef } = renderTable();
+        expect(scrollRef.current).toBe(viewport);
+        expect(hint).toHaveAttribute("aria-hidden", "true");
+        expect(hint).toHaveClass("pointer-events-none", "opacity-0");
+
+        sizeViewport(viewport, { scrollWidth: 1200, clientWidth: 800 });
+        fireEvent.scroll(viewport);
+        expect(hint).toHaveClass("opacity-100");
+        expect(onScroll).toHaveBeenCalledTimes(1);
+        expect(viewport).not.toHaveAttribute("data-scrolled-x");
+
+        // Scrolled to the far right: nothing left to hint at, and the
+        // pinned column is marked so it can cast its edge.
+        viewport.scrollLeft = 400;
+        fireEvent.scroll(viewport);
+        expect(hint).toHaveClass("opacity-0");
+        expect(viewport).toHaveAttribute("data-scrolled-x", "true");
+    });
+
+    it("shows no hint when every column fits", () => {
+        const { viewport, hint } = renderTable();
+        sizeViewport(viewport, { scrollWidth: 800, clientWidth: 800 });
+        fireEvent.scroll(viewport);
+        expect(hint).toHaveClass("opacity-0");
     });
 });
 

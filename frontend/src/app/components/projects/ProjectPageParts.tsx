@@ -36,8 +36,14 @@ export type ProjectContextMenu = {
     showFolderActions: boolean;
 };
 
+// The Name column takes what the table's other columns leave (684px: Type,
+// Size, Version, Creator, Created, Updated, the actions cell and the row's
+// right padding), between 248px and 592px. It is sized from the table's own
+// width (TableScrollArea is a size container), not the window's, so a
+// sidebar or side panel does not push Updated off the edge; on a phone, Type
+// stays in view beside the names.
 export const DOC_NAME_COL_W =
-    "w-[292px] sm:w-[332px] md:w-[392px] lg:w-[452px] xl:w-[532px] 2xl:w-[592px] shrink-0";
+    "w-[clamp(248px,calc(100cqw_-_684px),592px)] shrink-0";
 
 export const treeNameCellStyle = tableTreeCellStyle;
 
