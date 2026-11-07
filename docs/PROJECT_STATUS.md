@@ -14,14 +14,14 @@
 - **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
   22:30 CST. It carries training layer 1 (1a and 1b with its UI and
   follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycles 1 to 5 of 10 are in
-  `main` `36524205` (PRs #61–#65); production does not run them yet.
-  Cycle 6 of 10 (`sync/upstream-c6-74aad301`) is in review.
-- **Upstream pin:** `d0a7ca7550bdaa3f21284b730c3139951ac89576` (2026-11-03,
-  merge of #749) on `main`; cycle 6 moves it to
-  `74aad3019efa903a8fb89ec9c07617b2ab61126a` (2026-11-04, merge of #786) when
+- **Integrated, not deployed:** upstream sync cycles 1 to 6 of 10 are in
+  `main` `4710f6a7` (PRs #61–#66); production does not run them yet.
+  Cycle 7 of 10 (`sync/upstream-c7-fa37b86d`) is in review.
+- **Upstream pin:** `74aad3019efa903a8fb89ec9c07617b2ab61126a` (2026-11-04,
+  merge of #786) on `main`; cycle 7 moves it to
+  `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` (2026-11-04, merge of #702) when
   it is merged. Policy: [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
-  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§25.
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§26.
 - **Open product question (ledger §24.3):** a matter whose project is private
   is reached by nobody once its creator leaves the firm. The rule is
   unchanged until the owner decides.

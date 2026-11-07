@@ -1499,3 +1499,69 @@ bytes before its header is still accepted.
 
 No Dependabot pull request is covered by this range. The open ones stay for
 the dependency cycle (9 of 10).
+
+## 26. Cycle 2026-11-07, 7 of 10
+
+Pin `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` (2026-11-04), the merge of
+upstream #702. The range `74aad301..fa37b86d` has 9 commits, one of them the
+merge, and 104 files (+2342/−1735). Nothing after the pin is integrated.
+
+### 26.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| Service boundaries: cross-domain account, purge and export workflows move to `backend/src/application/` (`accounts/`, `exports/`, `jobs/`, `organizations/`); provider credentials to `lib/providerCredentials/` behind one facade; playbook types and schemas to `playbooks.types.ts` and `playbooks.schemas.ts`; project export and lifecycle to `projects.export.ts` and `projects.lifecycle.ts`; `lib/serviceData.ts` limited to the legacy throw helper | `877f4598` `1f764484` | adapt |
+| Export reads paged by key and batched with the shared query helpers | `a66ef7ac` | adapt |
+| Tests moved beside their owners; architecture and dependency-cycle gates | `c9e487ed` `1bc85db1` `c01d7ac6` `38ec9bb9` `2a87c9a4` | adapt |
+| Merge of #702 | `fa37b86d` | adapt |
+
+The merge stops on 18 content conflicts and 2 modify/delete conflicts. The
+modify/delete pair is `user.courtlistener.ts` and its test: CourtListener stays
+removed, so both are deleted again. Every content conflict is a file LiTT had
+changed that #702 moves or splits; the rule is to carry LiTT's logic to the new
+location, not to keep the old one.
+
+### 26.2 Where LiTT's logic now lives
+
+| LiTT logic | Before | Now |
+|---|---|---|
+| Account erasure (owner decision 2026-10-24): queued job, receipt with the 30-day backup note, confirmed-email matching, audit and AI evidence kept as "Deleted user" | `modules/user/user.accountJobs.ts`, `user.account.ts` | `application/jobs/accountDelete.ts`, `application/accounts/deleteAccount.ts` |
+| A private matter's project is deleted only if the leaving person may still delete it | `modules/user/user.dataCleanup.ts`, `user.account.ts` | `application/accounts/dataCleanup.ts`, `application/accounts/clearAccountData.ts` |
+| Training data erased with the account | SQL: `prepare_account_org_departures` and the departure path in `schema.sql`, called when the erasure is requested | unchanged; the range changes no SQL |
+| Data export with the holder's training data | `modules/user/user.dataExport.ts` | `application/exports/buildJsonExport.ts`, now through the keyset helpers; `training_mentors` and `training_pupils` have no `id`, so they page on `org_id`, unique for one person |
+| Readable review cells and transcripts in the export | `modules/user/user.dataExport.ts` | `application/exports/buildJsonExport.ts` |
+| Documents ZIP: pasante release check and `OMITIDOS.txt`; C4 authorization stamp | `modules/user/user.exportJobs.ts` | `application/exports/buildExport.ts`; the queue adapter is `application/jobs/exportBuild.ts` |
+| C4 stamp when an export is requested; LiTT file names | `modules/user/user.export.ts`, `user.dataExport.ts` | `application/exports/requestExport.ts`, `buildJsonExport.ts`, `modules/projects/projects.export.ts` |
+| Governed BYOK: `opencode-zen`, no CourtListener, organization key scope with `allow_personal_api_keys`, no silent fallback | `modules/user/user.apiKeyStore.ts` | `lib/providerCredentials/store.ts` and `types.ts`; `user.chatRoute.ts` reads it through `lib/providerCredentials/index` |
+| Pinned playbook route and C4 stamp on import and review work | `modules/playbooks/playbooks.operations.ts` | `playbooks.operations.ts` and `playbooks.types.ts` |
+| No organization or organization-data deletion route (405) | `modules/orgs/orgs.routes.ts` | unchanged; the upstream purge workflow in `application/organizations/purgeContent.ts` is not reachable from any route |
+
+LiTT's own tests move with their owners and none is deleted:
+`user.dataExport.training`, `user.exportEpoch` and `user.exportFilename` to
+`application/exports/__tests__/`, `user.exportJobs.trainingLock` to
+`application/jobs/__tests__/`, and `user.operatorEndpoint` to
+`lib/providerCredentials/`. The playbook suites mock the credential facade as
+well as the user facade, keeping the real module for everything else.
+
+### 26.3 LiTT checks
+
+- **Architecture.** `architecture.test.ts` passes with upstream's new rules
+  (application workflows are HTTP-agnostic, only the credential facade is
+  imported from outside it). `dependencyCycles.test.ts` lists the
+  applications to scan; LiTT has no desktop app, so the list is backend, web
+  and Word, and the documentation says the same.
+- **Telemetry.** The moved files keep LiTT's local reporter
+  (`lib/observability/report`); none imports `observability/sentry`.
+- **CourtListener.** No runtime path names it; `courtlistenerExclusion.test.ts`
+  still passes.
+- **SQL.** The range changes no migration or `schema.sql`.
+
+### 26.4 Owner-visible changes
+
+None. The reorganization changes where the code lives, not what a lawyer sees.
+The export of a large account is read in pages, so it does not stop early on a
+capped database response.
+
+### 26.5 Dependabot
+
+No Dependabot pull request is covered by this range.
