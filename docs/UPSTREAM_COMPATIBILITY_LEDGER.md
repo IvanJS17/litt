@@ -1293,6 +1293,9 @@ Proof, all in the schema-drift CI loop:
   `performance.litt-private-matters.sql` pins it. Whether a matter's team
   should reach a private-visibility project is for the owner to decide;
   nothing changes until then.
+  *Resolved by the owner on 2026-11-07 (§29.6, question 1):* the active team
+  now reaches it with its matter roles (`20261107_70`), and the same file
+  pins the new rule.
 - **W3:** the negative controls run in CI
   (`performance.litt-private-matters-controls.sql`).
   `littPrivateMatterLists.postgres.test.ts` keeps the full-file swaps for
@@ -1410,26 +1413,32 @@ review chat, generation, export) still goes through `filterReadableReviewRows`.
 
 The departure trigger (`cleanup_removed_org_member_overrides`, branch
 `if org_is_team`) clears `user_id` on every project the leaver created,
-matter projects included. This is unchanged behaviour. The matter exclusion
-keeps those projects out of the departure items: they are not archived, not
-handed to the successor and not "ownerless".
-`performance.litt-matter-departure.sql` (CI) fixes who reaches them
-afterwards:
+matter projects included, and the matter exclusion keeps those projects out
+of the departure items: they are not archived, not handed to the successor
+and not "ownerless". That upstream function is unchanged.
 
-| Who | Matter with an organization-visible project | Matter with a private project (W2) |
-|---|---|---|
-| Matter teammate (editor) | reaches and lists it, as before | nobody reached it but the creator before; still nobody |
-| Organization owner | no | no |
-| Organization admin | no | no |
-| Successor chosen in the departure | no | no |
-| Former creator | no | no |
+The owner decided the rest on 2026-11-07 (§29.6, questions 1 and 2).
+`20261107_70_litt_matter_succession.sql` adds a second departure trigger,
+`org_members_matter_succession`, which runs after upstream's (triggers fire
+in name order). It revokes the leaver's matter memberships and, on each
+private matter left without an active owner, promotes the teammate with the
+highest role. With no teammate left, it makes the departure's successor the
+owner. The team reaches the project through overrides kept in step with
+`matter_memberships`. `performance.litt-matter-departure.sql` (CI) fixes who
+reaches the matters afterwards:
 
-**Open product question, with W2 (§23.3):** after its creator leaves, a matter
-whose project is private stays in the database but no one can open it in
-LiTT. That contradicts the owner's retention decision of 2026-10-24, under
-which work inside a firm's matters stays with the firm. The rule is unchanged
-until the owner decides.
-The test pins today's behaviour so that any change is deliberate.
+| Who | Private matter, team of four, private project (A) | Private matter, organization-visible project (B) | Private matter, only its creator (C) | Public matter (D) |
+|---|---|---|---|---|
+| Earliest editor | becomes owner | becomes owner | — | unchanged (editor of the matter; the private project is nobody's) |
+| Other editor / viewer | keep editor / viewer | — | — | — |
+| Successor chosen in the departure | no | no | becomes owner | no |
+| Organization owner | no | no | no | no |
+| Organization admin | no | no | no | no |
+| Former creator | no | no | no | no |
+
+Before this change, matter A was out of everyone's reach after the departure,
+which contradicted the owner's 2026-10-24 rule that work inside a firm's
+matters stays with the firm.
 
 ### 24.4 Owner-visible changes
 
@@ -1799,16 +1808,27 @@ No Dependabot pull request is covered by this range.
 
 ### 29.6 Open product questions recorded during the cycles
 
-None of these blocks the sync; each rule stays as it is until the owner
-decides, and a test pins today's behaviour.
+Questions 1 and 2 were resolved by the owner on 2026-11-07 and implemented in
+`20261107_70_litt_matter_succession.sql`. Question 3 is still open; its rule
+stays as it is until the owner decides, and a test pins today's behaviour.
 
-1. **Private project inside a matter (W2, cycle-3 review, recorded in §23.3).** A matter whose
-   project is private is reached only by the project's creator; the rest of
-   the matter team does not see it.
-2. **Matter left unreachable when its creator leaves (cycle 5, §24.3).** After
-   the creator of a private matter project leaves the firm, nobody can open it
-   in LiTT, which conflicts with the 2026-10-24 rule that matter work stays
-   with the firm.
+1. **Private project inside a matter (W2, cycle-3 review, recorded in §23.3).
+   Resolved by the owner on 2026-11-07.** The whole active team of a private
+   matter reaches its project, each member with their matter role
+   (`matter_owner` → owner, `editor` → editor, `viewer` → viewer), whatever the
+   project's own visibility. Nobody outside the team reaches it: an
+   organization owner or admin is not on the team just by holding that role.
+   Public matters are unchanged.
+2. **Matter left unreachable when its creator leaves (cycle 5, §24.3).
+   Resolved by the owner on 2026-11-07.** The matter stays with its team. When
+   the leaver was the last active `matter_owner` of a private matter, the
+   active teammate with the highest role becomes `matter_owner` (editor before
+   viewer; the earliest member on a tie). With no teammate left, the successor
+   chosen for the departure becomes `matter_owner`. An organization owner or
+   admin can also name any current member of the firm, themselves included,
+   as the owner of one of its matters, and can list the matters left without
+   an owner (no titles). Every succession and appointment is audited without
+   the matter's title.
 3. **Private catalogue without a matter exclusion (cycle 5, §24.2).**
    `list_org_private_content` is safe today only because
    `can_access_org_private_content` is false in LiTT. If the private catalogue
