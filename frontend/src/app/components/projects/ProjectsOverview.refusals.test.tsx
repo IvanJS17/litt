@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { deleteProject } from "@/app/lib/mikeApi";
 import { usePaginatedProjects } from "@/app/hooks/usePaginatedProjects";
 import type { Project } from "@/app/components/shared/types";
@@ -76,6 +76,10 @@ async function bulkDelete() {
         new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+    const dialog = await screen.findByRole("dialog", {
+        name: "Delete selected projects?",
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
 }
 
 describe("ProjectsOverview bulk delete", () => {

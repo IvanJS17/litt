@@ -170,6 +170,10 @@ export function ProjectsOverview() {
     const [selectionCameFromSelectAll, setSelectionCameFromSelectAll] =
         useState(false);
     const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
+    // A project delete takes every document and chat with it and has no
+    // undo, so a row's Delete asks first.
+    const [projectPendingDelete, setProjectPendingDelete] =
+        useState<Project | null>(null);
     const [filterOptions, setFilterOptions] = useState<ProjectFilterOptions>({
         practices: [],
         owners: [],
@@ -476,11 +480,7 @@ export function ProjectsOverview() {
 
     function requestDeleteSelected() {
         setActionsOpen(false);
-        if (selectionCameFromSelectAll) {
-            setConfirmDeleteAllOpen(true);
-            return;
-        }
-        void handleDeleteSelected();
+        setConfirmDeleteAllOpen(true);
     }
 
     async function handleDeleteProjectRow(project: Project) {
@@ -588,7 +588,7 @@ export function ProjectsOverview() {
                     appliesToSelection || !project
                         ? requestDeleteSelected
                         : canManage
-                          ? () => handleDeleteProjectRow(project!)
+                          ? () => setProjectPendingDelete(project!)
                           : undefined
                 }
                 deleteLabel={
@@ -955,7 +955,7 @@ export function ProjectsOverview() {
                                             onDelete={
                                                 canManage
                                                     ? () =>
-                                                          handleDeleteProjectRow(
+                                                          setProjectPendingDelete(
                                                               project,
                                                           )
                                                     : undefined
@@ -1011,12 +1011,33 @@ export function ProjectsOverview() {
             />
             <ConfirmPopup
                 open={confirmDeleteAllOpen && selectedIds.length > 0}
-                title="Delete all selected projects?"
-                message={`This will permanently delete every selected project you administer, including selected projects not currently shown. Every file within those projects will also be deleted. Projects you cannot delete will be skipped. ${selectedIds.length} projects are selected.`}
+                title={
+                    selectionCameFromSelectAll
+                        ? "Delete all selected projects?"
+                        : "Delete selected projects?"
+                }
+                message={
+                    selectionCameFromSelectAll
+                        ? `This will permanently delete every selected project you administer, including selected projects not currently shown. Every file within those projects will also be deleted. Projects you cannot delete will be skipped. ${selectedIds.length} projects are selected.`
+                        : `This will permanently delete ${selectedIds.length === 1 ? "the selected project" : `the ${selectedIds.length} selected projects`} you administer, with every document and chat within them. Projects you cannot delete will be skipped. This can't be undone.`
+                }
                 confirmLabel="Delete"
                 confirmVariant="danger"
                 onCancel={() => setConfirmDeleteAllOpen(false)}
                 onConfirm={() => void handleDeleteSelected()}
+            />
+            <ConfirmPopup
+                open={!!projectPendingDelete}
+                title="Delete project?"
+                message={`“${projectPendingDelete?.name ?? ""}” will be permanently deleted, with every document and chat in it. This can't be undone.`}
+                confirmLabel="Delete"
+                confirmVariant="danger"
+                onCancel={() => setProjectPendingDelete(null)}
+                onConfirm={() => {
+                    const project = projectPendingDelete;
+                    setProjectPendingDelete(null);
+                    if (project) void handleDeleteProjectRow(project);
+                }}
             />
         </div>
     );

@@ -83,6 +83,14 @@ function project(id: string, name: string): Project {
     } as Project;
 }
 
+async function confirmIn(
+    user: ReturnType<typeof userEvent.setup>,
+    title: string,
+) {
+    const dialog = await screen.findByRole("dialog", { name: title });
+    await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+}
+
 function renderOverview() {
     return render(
         <>
@@ -125,6 +133,7 @@ describe("ProjectsOverview failures", () => {
 
         await user.click(screen.getByRole("button", { name: "Open row actions" }));
         await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await confirmIn(user, "Delete project?");
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent(/Couldn't delete/);
@@ -134,6 +143,49 @@ describe("ProjectsOverview failures", () => {
         expect(
             within(alert).getByRole("button", { name: "Retry" }),
         ).toBeInTheDocument();
+    });
+
+    it("asks before deleting a project from its row menu", async () => {
+        const user = userEvent.setup();
+        rows.current = [project("p1", "Matter A")];
+
+        renderOverview();
+
+        await user.click(screen.getByRole("button", { name: "Open row actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete project?",
+        });
+        expect(dialog).toHaveTextContent(
+            "“Matter A” will be permanently deleted, with every document and chat in it. This can't be undone.",
+        );
+        expect(deleteProject).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+        await waitFor(() =>
+            expect(deleteProject).toHaveBeenCalledExactlyOnceWith("p1"),
+        );
+    });
+
+    it("keeps the project when its delete confirmation is cancelled", async () => {
+        const user = userEvent.setup();
+        rows.current = [project("p1", "Matter A")];
+
+        renderOverview();
+
+        await user.click(screen.getByRole("button", { name: "Open row actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete project?",
+        });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(deleteProject).not.toHaveBeenCalled();
+        expect(screen.getByText("Matter A")).toBeInTheDocument();
+        expect(
+            screen.queryByRole("dialog", { name: "Delete project?" }),
+        ).not.toBeInTheDocument();
     });
 
     it("reports how many rows a bulk delete could not remove", async () => {
@@ -148,6 +200,7 @@ describe("ProjectsOverview failures", () => {
 
         await user.click(screen.getByRole("button", { name: "Actions" }));
         await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await confirmIn(user, "Delete selected projects?");
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent(
