@@ -37,7 +37,7 @@ import {
 } from "./modules/memory/memory.routes";
 import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
-import { matterSettingsRouter } from "./modules/matters/matters.routes";
+import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   handleUnhandledError,
@@ -325,6 +325,7 @@ app.use("/word-chat", wordChatRouter);
 app.use("/models", modelsRouter);
 app.use("/projects/:projectId/ai-executions", aiRecoveryRouter);
 app.use("/projects/:projectId/matters", matterSettingsRouter);
+app.use("/matters", mattersRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);
 app.use("/projects", projectsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
