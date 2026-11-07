@@ -48,6 +48,45 @@ function tables(): Record<string, Row[]> {
                 contrast_status: "pending", created_at: "2026-01-03T00:00:00Z",
             },
         ],
+        training_work_reviews: [
+            {
+                id: "r1", org_id: "org-a", trainee_user_id: userId, chat_id: "c1", word_chat_id: null,
+                tabular_chat_id: null, status: "ready", covered_through: "2026-01-01T00:00:00Z",
+                proposed: [{ source: "attempt", text: "propuse" }], ai_corrected: [], doubts: [], unverified: [],
+                signals: {}, model_provider: "openai", model: "gpt", credential_ref: "user:mentor:v1",
+                generated_by: other, generated_at: "2026-01-02T00:00:00Z", reviewed_at: null, reviewed_by: null,
+                created_at: "2026-01-02T00:00:00Z", updated_at: "2026-01-02T00:00:00Z",
+            },
+            // Somebody else's review: not the holder's data.
+            {
+                id: "r2", org_id: "org-a", trainee_user_id: other, chat_id: "c2", status: "pending",
+                created_at: "2026-01-03T00:00:00Z",
+            },
+        ],
+        training_defenses: [
+            {
+                id: "d1", org_id: "org-a", trainee_user_id: userId, practice: "laboral", work_review_id: "r1",
+                questions_status: "ready", questions: [{ kind: "base", text: "¿por qué?", listen_for: "x" }],
+                model_provider: "openai", model: "gpt", credential_ref: "user:mentor:v1", generated_by: other,
+                outcome: "approved", outcome_note: "bien", held_at: "2026-01-04T00:00:00Z", recorded_by: other,
+                created_at: "2026-01-03T00:00:00Z",
+            },
+            // Scheduled, not held yet: its questions stay out, as in the app.
+            {
+                id: "d2", org_id: "org-b", trainee_user_id: userId, practice: null, work_review_id: null,
+                questions_status: "ready", questions: [{ kind: "cambio_de_hechos", text: "¿y si?", listen_for: "y" }],
+                outcome: null, outcome_note: null, held_at: null, created_at: "2026-01-05T00:00:00Z",
+            },
+            { id: "d3", org_id: "org-a", trainee_user_id: other, questions_status: "none", created_at: "2026-01-06T00:00:00Z" },
+        ],
+        training_urgency_passes: [
+            {
+                id: "p1", org_id: "org-b", trainee_user_id: userId, project_id: "proj-1", granted_by: other,
+                starts_at: "2026-01-06T00:00:00Z", expires_at: "2026-01-06T08:00:00Z", reason_code: "plazo",
+                reason_note: "vence hoy", revoked_at: null, revoked_by: null, created_at: "2026-01-06T00:00:00Z",
+            },
+            { id: "p2", org_id: "org-a", trainee_user_id: other, project_id: "proj-2", created_at: "2026-01-07T00:00:00Z" },
+        ],
     };
 }
 
@@ -77,6 +116,29 @@ describe("account export: the holder's training", () => {
         ]);
     });
 
+    it("carries the supervision kept about the holder, without other people's ids or keys", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        expect(out.training.work_reviews).toEqual([
+            expect.objectContaining({
+                id: "r1", org_id: "org-a", chat_id: "c1", status: "ready",
+                proposed: [{ source: "attempt", text: "propuse" }], model_provider: "openai", model: "gpt",
+            }),
+        ]);
+        expect(out.training.defenses.map((r: Row) => [r.id, r.outcome, r.questions])).toEqual([
+            ["d1", "approved", [{ kind: "base", text: "¿por qué?", listen_for: "x" }]],
+            ["d2", null, null],
+        ]);
+        expect(out.training.urgency_passes).toEqual([
+            expect.objectContaining({ id: "p1", project_id: "proj-1", reason_code: "plazo", reason_note: "vence hoy" }),
+        ]);
+        const kept = [...out.training.work_reviews, ...out.training.defenses, ...out.training.urgency_passes];
+        for (const row of kept) {
+            for (const key of ["trainee_user_id", "credential_ref", "generated_by", "reviewed_by", "recorded_by", "granted_by", "revoked_by"])
+                expect(row, key).not.toHaveProperty(key);
+        }
+    });
+
     it("an organization's export carries only that organization's", async () => {
         const { db } = makeExportDb(tables());
         const out = (await buildUserAccountExport(db, userId, "h@example.test", "org-b")) as any;
@@ -84,5 +146,8 @@ describe("account export: the holder's training", () => {
         expect(out.training.as_pupil.map((r: Row) => r.org_id)).toEqual(["org-b"]);
         expect(out.training.stages.map((r: Row) => r.org_id)).toEqual(["org-b"]);
         expect(out.training.turn_notes.map((r: Row) => r.id)).toEqual(["n2"]);
+        expect(out.training.work_reviews).toEqual([]);
+        expect(out.training.defenses.map((r: Row) => r.id)).toEqual(["d2"]);
+        expect(out.training.urgency_passes.map((r: Row) => r.id)).toEqual(["p1"]);
     });
 });

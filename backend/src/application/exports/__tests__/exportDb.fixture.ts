@@ -18,6 +18,9 @@ export function makeExportDb(
             row.id === undefined ? { id: `${table}-${index + 1}`, ...row } : row,
         );
         const orders: Array<[string, boolean]> = [];
+        // A plain column list is projected, as PostgREST does; `*` and
+        // embedded selects return whole rows.
+        let columns: string[] | null = null;
         let limit = Infinity;
         let from = 0;
         let to = Infinity;
@@ -25,7 +28,10 @@ export function makeExportDb(
         const compare = (left: unknown, right: unknown) =>
             left === right ? 0 : String(left ?? "") < String(right ?? "") ? -1 : 1;
         const builder: any = {
-            select: () => builder,
+            select: (list?: string) => {
+                if (list && /^[\w\s,]+$/.test(list)) columns = list.split(",").map((c) => c.trim());
+                return builder;
+            },
             order: (col: string, options?: { ascending?: boolean }) => {
                 orders.push([col, options?.ascending !== false]);
                 return builder;
@@ -99,7 +105,9 @@ export function makeExportDb(
                     return 0;
                 });
                 const page = sorted.slice(from, to + 1);
-                const data = page.slice(0, Math.min(limit, maxRows));
+                const data = page.slice(0, Math.min(limit, maxRows)).map((row) =>
+                    columns ? Object.fromEntries(columns.filter((c) => c in row).map((c) => [c, row[c]])) : row,
+                );
                 return Promise.resolve({
                     data: error ? null : data,
                     error,
