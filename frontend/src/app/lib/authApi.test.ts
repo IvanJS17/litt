@@ -8,6 +8,7 @@ import {
     clearLegacyBrowserAuthStorage,
     enrollMfa,
     exchangeAuthCode,
+    getAuthProviders,
     getAuthSession,
     getMfaAssurance,
     listMfaFactors,
@@ -242,6 +243,27 @@ describe("cookie auth client", () => {
         );
 
         await expect(getAuthSession()).resolves.toEqual(user);
+    });
+
+    it("reads which optional sign-in routes the server has on", async () => {
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ sso: false, google: null }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+            }),
+        );
+
+        await expect(getAuthProviders()).resolves.toEqual({
+            sso: false,
+            google: null,
+        });
+        expect(fetchMock).toHaveBeenCalledWith(
+            "/api/auth/providers",
+            expect.objectContaining({ credentials: "include", cache: "no-store" }),
+        );
+        expect((fetchMock.mock.calls[0][1] as RequestInit).method ?? "GET").toBe(
+            "GET",
+        );
     });
 
     it("does not hide non-401 session errors", async () => {
