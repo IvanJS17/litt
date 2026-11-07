@@ -19,6 +19,7 @@ import {
     type AuthUser,
 } from "@/app/lib/authApi";
 import { AUTH_SESSION_INVALIDATED_EVENT } from "@/app/lib/authEvents";
+import { useHydrationSnapshot } from "@/app/hooks/useHydrationSnapshot";
 import {
     describeError,
     isOnAuthRoute,
@@ -380,8 +381,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 }
 
+/** What the server rendered with: no session answer yet. */
+function authServerSnapshot(
+    context: AuthContextType | undefined,
+): AuthContextType | undefined {
+    return context && {
+        ...context,
+        user: null,
+        isAuthenticated: false,
+        authLoading: true,
+        authError: null,
+    };
+}
+
+/**
+ * The session as this component may render it: while it hydrates, the
+ * state the server rendered (still loading), so a page whose boundary
+ * hydrates after the session request settled matches its HTML. It switches
+ * to the real state right after hydration.
+ */
 export function useOptionalAuth() {
-    return useContext(AuthContext);
+    return useHydrationSnapshot(useContext(AuthContext), authServerSnapshot);
 }
 
 export function useAuth() {

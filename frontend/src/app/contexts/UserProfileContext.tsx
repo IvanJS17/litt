@@ -42,6 +42,7 @@ import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
+import { useHydrationSnapshot } from "@/app/hooks/useHydrationSnapshot";
 import {
     ROUTER_PROFILE_FIELDS,
     routerProfileLists,
@@ -844,8 +845,24 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     );
 }
 
+/** What the server rendered with: no profile yet. */
+function profileServerSnapshot(
+    context: UserProfileContextType | undefined,
+): UserProfileContextType | undefined {
+    return context && {
+        ...context,
+        profile: null,
+        loading: true,
+        apiKeysDegraded: false,
+    };
+}
+
+/** The profile as this component may render it; see `useOptionalAuth`. */
 export function useOptionalUserProfile() {
-    return useContext(UserProfileContext);
+    return useHydrationSnapshot(
+        useContext(UserProfileContext),
+        profileServerSnapshot,
+    );
 }
 
 export function useUserProfile() {
