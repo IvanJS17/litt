@@ -18,6 +18,11 @@ vi.mock("../../../lib/llm", async (original) => ({
 vi.mock("../../user/user.service", async () =>
   (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
 );
+vi.mock("../../../lib/providerCredentials/index", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/providerCredentials/index")>()),
+  getUserApiKeys,
+  getEffectiveApiKeys: (userId: string) => getUserApiKeys(userId),
+}));
 vi.mock("../../../lib/audit", () => ({ recordAudit }));
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),

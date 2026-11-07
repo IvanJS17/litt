@@ -49,7 +49,7 @@ import {
     type ApiKeyOwner,
     type ApiKeyProvider,
     type EncryptedKeyRow,
-} from "./user.apiKeyStore";
+} from "../../lib/providerCredentials/index";
 
 export type ChatRoute = {
     provider: Provider;

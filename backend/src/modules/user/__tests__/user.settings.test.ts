@@ -5,7 +5,7 @@ const { getEffectiveApiKeys, getEffectiveRouterModels } = vi.hoisted(() => ({
     getEffectiveRouterModels: vi.fn(),
 }));
 
-vi.mock("../user.apiKeyStore", () => ({
+vi.mock("../../../lib/providerCredentials/index", () => ({
     getEffectiveApiKeys: (...args: unknown[]) => getEffectiveApiKeys(...args),
 }));
 

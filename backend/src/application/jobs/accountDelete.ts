@@ -1,0 +1,249 @@
+// Account-deletion queue adapter. Recheck blockers and erase the auth identity last.
+//
+// Account erasure (owner decision 2026-10-24; TD-008 partial). Everything the
+// person kept outside the firm's matters is deleted, then the Auth user;
+// matter content stays with the organization, detached from its author, and
+// insert-only audit and AI evidence keep naming the account by id (it shows
+// as "Deleted user"). The job is idempotent and resumable: every step is a
+// delete or a detach, and a run that finds the Auth user already gone only
+// closes the receipt.
+import type { AccountDeletionReceiptContent } from "@mike/contracts";
+import {
+    deleteUserAccountData,
+    listOrgsBlockingAccountDeletion,
+} from "../accounts/dataCleanup";
+import { NonRetryableJobError } from "../../lib/dbq/runner";
+import { mapWithConcurrency } from "../../lib/concurrency";
+import { deleteFile } from "../../lib/storage";
+import { type Db, type DbJob } from "../../lib/dbq/types";
+
+/** The receipt's content. Written only after every step has succeeded. */
+export const ACCOUNT_DELETION_RECEIPT: AccountDeletionReceiptContent = {
+    deleted: [
+        "Personal documents, their versions, extracted text and search index",
+        "Personal projects, chats, tabular reviews and Word conversations",
+        "Private workflows, playbooks, playbook reviews and quick actions",
+        "Memory, preferences and custom instructions",
+        "Connections: Google accounts and MCP connectors, with their tokens",
+        "Personal AI provider keys",
+        "Your profile and sign-in account",
+    ],
+    retained: [
+        {
+            item: "Work you created in your firm's matters: documents, versions, chats, reviews, and the firm's shared workflows and playbooks",
+            reason: "It belongs to the firm. It now shows “Deleted user” as its author.",
+        },
+        {
+            item: "Audit history and AI evidence",
+            reason: "They are insert-only records of what happened and are never edited. They now show “Deleted user”.",
+        },
+        {
+            item: "Backups",
+            reason: "Backups are never edited. Each one is deleted 30 days after it was taken.",
+        },
+    ],
+};
+
+/** An address may match grants and invitations only once it is confirmed. */
+function confirmedEmail(user: Record<string, unknown>): string | null {
+    return typeof user.email === "string" && user.email && user.email_confirmed_at
+        ? user.email.toLowerCase()
+        : null;
+}
+
+export async function handleAccountDelete(db: Db, job: DbJob): Promise<void> {
+    const userId = job.payload.userId as string | undefined;
+    if (!userId) return;
+    await eraseAccount(db, userId, job.id);
+}
+
+/**
+ * The whole erasure. `jobId` is the queue row running it, which the queue
+ * purge below must spare (it is the receipt's link to its progress).
+ */
+export async function eraseAccount(
+    db: Db,
+    userId: string,
+    jobId: string,
+): Promise<void> {
+    const { data: auth, error: authError } =
+        await db.auth.admin.getUserById(userId);
+    if (authError && !/not\s*found/i.test(authError.message))
+        throw new Error(`Failed to load auth user: ${authError.message}`);
+    // A previous run deleted the Auth user, which comes last: only the
+    // receipt is left to close.
+    if (auth?.user) {
+        const email = confirmedEmail(
+            auth.user as unknown as Record<string, unknown>,
+        );
+        await eraseAccountData(db, userId, jobId, email);
+    }
+
+    const { error } = await db.rpc("complete_account_deletion", {
+        p_user_id: userId,
+        p_receipt: ACCOUNT_DELETION_RECEIPT,
+    });
+    if (error)
+        throw new Error(`Failed to close the deletion receipt: ${error.message}`);
+}
+
+async function eraseAccountData(
+    db: Db,
+    userId: string,
+    jobId: string,
+    userEmail: string | null,
+): Promise<void> {
+    // REFUSAL BEFORE DESTRUCTION. The route already answered 409 for an
+    // account that is the sole owner of an organization with members or
+    // content, but the org can change between the request and this job, and
+    // this handler is also reachable by requeueing an old row. Ask first,
+    // while nothing has been touched.
+    //
+    // Non-retryable on purpose: an organization does not acquire a second
+    // owner because we asked twenty more times over the next few hours. The
+    // row lands in `failed` with the reason legible on the first attempt.
+    const blockers = await listOrgsBlockingAccountDeletion(db, userId);
+    if (blockers.length > 0) {
+        throw new NonRetryableJobError(
+            `Account is the only owner of ${blockers.length} organization(s) that still hold members or content: ${blockers
+                .map((b) => `${b.org_id} (${b.reason})`)
+                .join(", ")}`,
+        );
+    }
+
+    // The whole cascade is deletes — idempotent by nature, so a crash midway
+    // simply re-runs. The user's sessions were revoked by the route, so no new
+    // data can appear underneath us.
+    await deleteUserAccountData(db, userId, userEmail);
+
+    // Erase the user's leftovers in the queue itself: export artifacts hold a
+    // full copy of their data, and queued audit payloads hold titles/prompts.
+    //
+    // FILE BEFORE POINTER, and loudly. result.storage_path on these rows is
+    // the only record of where the artifacts live, and the row purge below
+    // destroys it. A swallowed storage failure here would let the purge
+    // proceed and orphan a full copy of the user's data with nothing left
+    // anywhere to retry the delete — so lookup and delete failures throw
+    // instead: the job stays retryable (the route enqueues it with
+    // maxAttempts 20) and the rows survive until their files are actually
+    // gone. deleteUserAccountData already purged the exports/<userId>/
+    // prefix with the same throwing semantics; this per-row pass covers
+    // listings a storage backend serves stale.
+    const { data: exportJobs, error: exportJobsError } = await db
+        .from("db_jobs")
+        .select("id, result")
+        .eq("kind", "export.build")
+        .filter("payload->>userId", "eq", userId);
+    if (exportJobsError) {
+        throw new Error(
+            `Failed to load export jobs: ${exportJobsError.message}`,
+        );
+    }
+    const exportRows = (exportJobs ?? []) as Pick<DbJob, "id" | "result">[];
+    let artifactFailures = 0;
+    await mapWithConcurrency(exportRows, 8, async (row) => {
+        const path = row.result?.storage_path;
+        if (typeof path === "string" && path.length > 0) {
+            try {
+                await deleteFile(path);
+            } catch {
+                artifactFailures += 1;
+            }
+        }
+    });
+    if (artifactFailures > 0) {
+        throw new Error(
+            `${artifactFailures}/${exportRows.length} export artifact deletes failed`,
+        );
+    }
+    const { data: actorMemoryJobs, error: actorMemoryJobsError } = await db
+        .from("db_jobs")
+        .select("payload")
+        .eq("kind", "memory.consolidate")
+        .filter("payload->>actorUserId", "eq", userId);
+    if (actorMemoryJobsError) {
+        throw new Error("Failed to load account memory jobs");
+    }
+    const purges = [
+        await db
+            .from("db_jobs")
+            .delete()
+            .filter("payload->>userId", "eq", userId)
+            .neq("id", jobId),
+        await db
+            .from("db_jobs")
+            .delete()
+            .filter("payload->base->>userId", "eq", userId)
+            .neq("id", jobId),
+        // Memory consolidation payloads intentionally use actorUserId: in a
+        // shared project chat the actor is the owner of the app-memory pass.
+        // storage.cleanup rows have no actorUserId and must survive erasure so
+        // their already-durable object deletion can still complete.
+        await db
+            .from("db_jobs")
+            .delete()
+            .eq("kind", "memory.consolidate")
+            .filter("payload->>actorUserId", "eq", userId)
+            .neq("id", jobId),
+    ];
+    for (const purge of purges) {
+        if (purge.error) {
+            throw new Error(
+                `Failed to purge queue rows: ${purge.error.message}`,
+            );
+        }
+    }
+
+    // Deleting this actor's queued app pass also removes any project pass it
+    // carried. Recompute surviving organization-project status after those
+    // rows are gone so their UI cannot remain permanently "scheduled".
+    const projectEpochs = new Map<string, number>();
+    for (const row of (actorMemoryJobs ?? []) as Array<{
+        payload?: Record<string, unknown>;
+    }>) {
+        const projectId = row.payload?.projectId;
+        const epoch = Number(row.payload?.projectEpoch);
+        if (
+            typeof projectId === "string" &&
+            projectId &&
+            Number.isSafeInteger(epoch) &&
+            epoch >= 0
+        ) {
+            projectEpochs.set(projectId, epoch);
+        }
+    }
+    for (const [projectId, epoch] of projectEpochs) {
+        const { data: file, error: fileError } = await db
+            .from("memory_files")
+            .select("id")
+            .eq("scope", "project")
+            .eq("project_id", projectId)
+            .eq("epoch", epoch)
+            .maybeSingle();
+        if (fileError) throw new Error("Failed to refresh project memory status");
+        if (!file?.id) continue;
+        const { error: refreshError } = await db.rpc(
+            "refresh_memory_file_status",
+            {
+                p_memory_file_id: file.id,
+                p_expected_epoch: epoch,
+                p_current_job_id: jobId,
+                p_requested_status: "idle",
+                p_error_code: null,
+            },
+        );
+        if (refreshError) {
+            throw new Error("Failed to refresh project memory status");
+        }
+    }
+
+    // The auth user goes LAST, and only once every row above is gone.
+    //
+    // The data cascade removes personal content and detaches retained
+    // organization content first. Version triggers preserve cleanup intent;
+    // only after that work succeeds do we remove the authentication identity.
+    const { error } = await db.auth.admin.deleteUser(userId);
+    // "not found" is success: a previous attempt got this far before dying.
+    if (error && !/not\s*found/i.test(error.message))
+        throw new Error(`Failed to delete auth user: ${error.message}`);
+}

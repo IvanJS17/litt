@@ -48,7 +48,7 @@ import {
     resolveDepartureArchive,
     resolveDepartureArchives,
 } from "./orgs.service";
-import { normalizeApiKeyProvider } from "../user/user.service";
+import { normalizeApiKeyProvider } from "../../lib/providerCredentials/index";
 
 export const orgsRouter = Router();
 

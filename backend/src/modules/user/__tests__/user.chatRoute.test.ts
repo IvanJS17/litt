@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../../lib/supabase";
-import { saveApiKeyFor } from "../user.apiKeyStore";
+import { saveApiKeyFor } from "../../../lib/providerCredentials/store";
 import {
     chatRouteHost,
     governChatRoute,
