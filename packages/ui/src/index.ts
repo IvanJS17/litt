@@ -49,7 +49,8 @@ export * from "./ResponseSelectionMenuUI";
 export * from "./PlaybookPillUI";
 export * from "./useReasoningDisclosure";
 
-// Brand and auth
+// Brand and auth (LittBrandUI is LiTT's wordmark and pixel monogram)
+export * from "./LittBrandUI";
 export * from "./MikeIconUI";
 export * from "./GoogleIconUI";
 export * from "./AuthDividerUI";

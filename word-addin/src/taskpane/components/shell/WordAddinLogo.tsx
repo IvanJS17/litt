@@ -1,5 +1,5 @@
 import React from "react";
-import { LittWordmark } from "@mike/litt-brand-ui";
+import { LittWordmark } from "@mike/ui";
 import { cn } from "../../../shared/lib/utils";
 
 interface WordAddinLogoProps {
