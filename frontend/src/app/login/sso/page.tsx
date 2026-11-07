@@ -1,10 +1,10 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { SiteLogo } from "@/app/components/site-logo";
 import { authGlassCardUIClassName, authInputUIClassName, InputUI, PillButtonUI } from "@mike/ui";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -72,10 +72,7 @@ export default function SsoLoginPage() {
     };
 
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 md:top-8">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     <div className="mb-6">
@@ -166,6 +163,6 @@ export default function SsoLoginPage() {
                     </Link>
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }

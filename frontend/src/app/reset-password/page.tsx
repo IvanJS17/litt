@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -11,7 +12,6 @@ import {
     authGlassCardUIClassName,
     authInputUIClassName,
 } from "@mike/ui";
-import { SiteLogo } from "@/app/components/site-logo";
 import {
     MIN_PASSWORD_LENGTH,
     isPasswordTooLong,
@@ -140,16 +140,7 @@ function ResetPasswordContent() {
     }
 
     return (
-        <div
-            className={`relative flex min-h-dvh justify-center bg-app-background px-6 ${
-                verticallyCentered
-                    ? "items-center py-10"
-                    : "items-start pb-10 pt-32 md:pt-40"
-            }`}
-        >
-            <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell align={verticallyCentered ? "center" : "top"}>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {!displayedReady ? (
@@ -284,7 +275,7 @@ function ResetPasswordContent() {
                     )}
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }
 

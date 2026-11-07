@@ -1,9 +1,9 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { SiteLogo } from "@/app/components/site-logo";
 import { PillButtonUI, authGlassCardUIClassName } from "@mike/ui";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { challengeAndVerifyMfa, listMfaFactors } from "@/app/lib/authApi";
@@ -176,10 +176,7 @@ export default function VerifyMfaPage() {
     }
 
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
-            <div className="absolute left-1/2 top-4 -translate-x-1/2 md:top-8">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className={`w-full max-w-md ${authGlassCardUIClassName}`}>
                 <div className="mb-8 space-y-2">
                     <h1 className="font-serif text-2xl font-medium text-gray-950">
@@ -273,7 +270,7 @@ export default function VerifyMfaPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }
 
