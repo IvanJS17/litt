@@ -1,0 +1,14 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "close": "Cerrar",
+    "retry": "Reintentar",
+    "loading": "Cargando…",
+    "back": "Atrás",
+    "continue": "Continuar",
+    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "greeting": "Hola, {name}"
+  }
+}

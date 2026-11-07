@@ -63,6 +63,12 @@ create table if not exists public.user_profiles (
   -- token count it used (Settings > Features).
   response_details_visible boolean not null default false,
   dark_mode boolean not null default false,
+  -- LiTT: interface language the user chose. NULL means automatic (browser
+  -- or Word language, then es-MX). Copied to auth.users user_metadata.locale
+  -- for the GoTrue emails.
+  ui_locale text
+    constraint user_profiles_ui_locale_check
+    check (ui_locale is null or ui_locale in ('en-US', 'es-MX')),
   -- Whether projects this user creates start with shared memory enabled. Any
   -- project owner can still turn a given project's memory on or off later.
   project_memory_default boolean not null default true,
@@ -19358,5 +19364,6 @@ insert into public.schema_migrations (filename) values
   ('20261107_53_litt_playbook_starter.sql'),
   ('20261107_60_litt_training_supervision.sql'),
   ('20261107_61_litt_training_urgency_pass_grant.sql'),
-  ('20261107_70_litt_matter_succession.sql')
+  ('20261107_70_litt_matter_succession.sql'),
+  ('20261107_80_litt_user_ui_locale.sql')
 on conflict (filename) do nothing;

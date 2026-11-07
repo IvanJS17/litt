@@ -1,5 +1,5 @@
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import type { ReactNode } from "react";
-import { SiteLogo } from "@/app/components/site-logo";
 import { authGlassCardUIClassName } from "@mike/ui";
 
 // A form step fits the narrow card; the provider grid wants room for two
@@ -23,10 +23,7 @@ export function OnboardingShell({
     children: ReactNode;
 }) {
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-24">
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 md:top-8">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className={`w-full ${CARD_WIDTH_CLASS[width]}`}>
                 <div className={authGlassCardUIClassName}>
                     <p className="mb-2 text-xs font-medium text-gray-400">
@@ -43,6 +40,6 @@ export function OnboardingShell({
                     <div className="mt-6">{children}</div>
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }
