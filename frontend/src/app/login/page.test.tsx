@@ -18,7 +18,8 @@ const {
     startGoogleOAuth: vi.fn(),
     // Unanswered by default: the page as it looks while the read is in flight.
     getAuthProviders: vi.fn(
-        (): Promise<{ sso: boolean }> => new Promise(() => {}),
+        (): Promise<{ sso: boolean; google: boolean | null }> =>
+            new Promise(() => {}),
     ),
     refreshSession: vi.fn(),
     retrySession: vi.fn(),
@@ -158,7 +159,7 @@ describe("LoginPage", () => {
     });
 
     it("keeps Continue with SSO while the server's answer is pending and when SSO is on", async () => {
-        let answer!: (value: { sso: boolean }) => void;
+        let answer!: (value: { sso: boolean; google: boolean | null }) => void;
         getAuthProviders.mockReturnValueOnce(
             new Promise((resolve) => {
                 answer = resolve;
@@ -169,14 +170,14 @@ describe("LoginPage", () => {
             screen.getByRole("button", { name: "Continue with SSO" }),
         ).toBeInTheDocument();
 
-        await act(async () => answer({ sso: true }));
+        await act(async () => answer({ sso: true, google: true }));
         expect(
             screen.getByRole("button", { name: "Continue with SSO" }),
         ).toBeInTheDocument();
     });
 
     it("hides Continue with SSO once the server says SSO is off", async () => {
-        getAuthProviders.mockResolvedValueOnce({ sso: false });
+        getAuthProviders.mockResolvedValueOnce({ sso: false, google: true });
         render(<LoginPage />);
 
         await waitFor(() =>
@@ -187,6 +188,49 @@ describe("LoginPage", () => {
         expect(
             screen.getByRole("button", { name: "Continue with Google" }),
         ).toBeInTheDocument();
+    });
+
+    // The divider is aria-hidden, so it is found by its text.
+    const divider = () => screen.queryByText("or", { selector: "span" });
+
+    it.each([
+        ["on", true],
+        ["unknown", null],
+    ])("keeps Continue with Google when GoTrue's Google is %s", async (_label, google) => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google });
+        render(<LoginPage />);
+
+        await act(async () => {});
+        expect(
+            screen.getByRole("button", { name: "Continue with Google" }),
+        ).toBeInTheDocument();
+        expect(divider()).toBeInTheDocument();
+    });
+
+    it("hides Continue with Google once the server says Google is off", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google: false });
+        render(<LoginPage />);
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole("button", { name: "Continue with Google" }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByRole("button", { name: "Continue with SSO" }),
+        ).toBeInTheDocument();
+        expect(divider()).toBeInTheDocument();
+    });
+
+    it("drops the divider when no external sign-in route is left", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: false, google: false });
+        render(<LoginPage />);
+
+        await waitFor(() => expect(divider()).not.toBeInTheDocument());
+        expect(
+            screen.queryByRole("button", { name: /Continue with/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument();
     });
 
     it("keeps Continue with SSO when the server can't say whether SSO is on", async () => {

@@ -3,7 +3,8 @@
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getAuthProviders, login } from "@/app/lib/authApi";
+import { login } from "@/app/lib/authApi";
+import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
     PillButtonUI,
@@ -91,21 +92,7 @@ export default function LoginPage() {
         setSessionWarningDismissed(false);
     }
 
-    // Hidden only once the server says SSO is off. While the answer is on
-    // its way, or if it never comes, the button stays: hiding a sign-in
-    // route that may well work is worse than one that answers "not enabled".
-    const [ssoDisabled, setSsoDisabled] = useState(false);
-    useEffect(() => {
-        let cancelled = false;
-        getAuthProviders()
-            .then((providers) => {
-                if (!cancelled && providers?.sso === false) setSsoDisabled(true);
-            })
-            .catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+    const { showSso, showGoogle } = useAuthProviders();
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -255,13 +242,15 @@ export default function LoginPage() {
                                 {loading ? "Logging in..." : "Log in"}
                             </PillButtonUI>
                         </div>
-                        <AuthDividerUI />
-                        <GoogleAuthButton
-                            onError={(nextError) => setError(nextError)}
-                            disabled={loading}
-                            onLoadingChange={setLoading}
-                        />
-                        {!ssoDisabled && <SsoAuthButton disabled={loading} />}
+                        {(showGoogle || showSso) && <AuthDividerUI />}
+                        {showGoogle && (
+                            <GoogleAuthButton
+                                onError={(nextError) => setError(nextError)}
+                                disabled={loading}
+                                onLoadingChange={setLoading}
+                            />
+                        )}
+                        {showSso && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">
