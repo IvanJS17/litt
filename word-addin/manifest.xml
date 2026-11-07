@@ -5,6 +5,8 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xsi:type="TaskPaneApp">
 
+  <!-- LiTT: placeholder GUID inherited from upstream. Replace it with a LiTT-owned
+       GUID when the owner decides to publish the add-in. -->
   <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
   <Version>1.0.0.1</Version>
   <ProviderName>LiTT</ProviderName>
@@ -44,7 +46,7 @@
 
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
-              <Group id="MikeOSS.Group">
+              <Group id="LiTT.Group">
                 <Label resid="GroupLabel" />
                 <Icon>
                   <bt:Image size="16" resid="Icon.16x16" />
@@ -52,7 +54,7 @@
                   <bt:Image size="80" resid="Icon.80x80" />
                 </Icon>
 
-                <Control xsi:type="Button" id="MikeOSS.OpenMike">
+                <Control xsi:type="Button" id="LiTT.OpenMike">
                   <Label resid="TaskpaneButton.Label" />
                   <Supertip>
                     <Title resid="TaskpaneButton.Label" />
