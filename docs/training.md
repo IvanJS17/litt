@@ -519,7 +519,10 @@ proposals are computed on every read and never stored
 - Not proposed, with `blocked_by`: `not_approved_after`, or
   `general_stage_remains` for `junior → abogado` in a practice area while a
   general stage exists (removing the practice stage would leave the general
-  one, not a lawyer).
+  one, not a lawyer). `blocked_by` says what would stop a proposal even with
+  the counts met, so it is set whether or not they are met yet: the mentor
+  learns about it before collecting more evidence, and the counts next to it
+  say what is still missing.
 - Accepting recomputes the proposal and requires it to still hold
   (otherwise `409 training_promotion_not_proposed`), then changes the stage
   only through `setStage` (to `junior`) or `removeStage` (to `abogado`) of

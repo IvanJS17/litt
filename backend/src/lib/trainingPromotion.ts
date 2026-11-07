@@ -50,10 +50,12 @@ function evidence(rows: readonly { id: string; at: string }[]): TrainingPromotio
  * from the moment the stage last changed; for a practice area only that
  * area's evidence counts, for the general stage any area's does.
  *
- * Not proposed, with the reason: a defense not approved after the last
- * approved one, or junior → abogado in a practice area while a general
- * stage remains (removing the practice stage would leave the general one,
- * not a lawyer).
+ * `blocked_by` is what would stop a proposal even with the counts met: a
+ * defense not approved after the last approved one, or junior → abogado in
+ * a practice area while a general stage remains (removing the practice
+ * stage would leave the general one, not a lawyer). It is reported whether
+ * or not the counts are met yet, so the mentor sees it before collecting
+ * more evidence.
  */
 export function proposePromotions(input: PromotionInput): TrainingPromotionProposal[] {
     const hasGeneral = input.stages.some((stage) => stage.practice === null);
