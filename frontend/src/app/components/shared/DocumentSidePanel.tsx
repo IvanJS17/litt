@@ -589,8 +589,11 @@ export function DocumentSidePanel({
                 </div>
             </div>
 
+            {/* Two rows on desktop: the title row, then the view. The details
+                column starts on the second row, so it stays level with the
+                view however many lines a long filename wraps onto. */}
             <div
-                className="grid min-h-0 flex-1"
+                className="grid min-h-0 flex-1 md:grid-rows-[auto_minmax(0,1fr)]"
                 style={{
                     gridTemplateColumns: isMobile
                         ? "minmax(0, 1fr)"
@@ -599,7 +602,7 @@ export function DocumentSidePanel({
             >
                 <section
                     className={cn(
-                        "min-h-0 min-w-0 flex-col md:flex",
+                        "min-h-0 min-w-0 flex-col md:row-span-2 md:grid md:grid-rows-subgrid",
                         mobilePane === "document" ? "flex" : "hidden",
                     )}
                 >
@@ -645,7 +648,7 @@ export function DocumentSidePanel({
                 <div
                     onMouseDown={handleResizeMouseDown}
                     className={cn(
-                        "relative z-10 hidden w-1.5 -translate-x-1/2 cursor-col-resize transition-colors md:block",
+                        "relative z-10 hidden w-1.5 -translate-x-1/2 cursor-col-resize transition-colors md:row-span-2 md:block",
                         "bg-transparent hover:bg-interactive/60 active:bg-interactive",
                     )}
                     title="Resize document panel"
@@ -653,7 +656,7 @@ export function DocumentSidePanel({
 
                 <aside
                     className={cn(
-                        "mt-2 mr-3 ml-5 min-h-0 flex-col md:mt-11",
+                        "mt-2 mr-3 ml-5 min-h-0 flex-col md:col-start-3 md:row-start-2 md:mt-0",
                         mobilePane === "details" ? "flex" : "hidden md:flex",
                     )}
                 >
