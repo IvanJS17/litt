@@ -11,8 +11,19 @@ the `@litt/` scope.
   under one top-level namespace each (`common`, `auth`, `settings`, ...). A key
   used by both apps exists once.
 - `src/index.ts` exports `LOCALES`, `DEFAULT_LOCALE` (`es-MX`),
-  `LOCALE_COOKIE`, `negotiateLocale` and `loadMessages`. It is framework-free
-  and imports nothing by bare name.
+  `LOCALE_COOKIE`, `negotiateLocale`, `parseAcceptLanguage` and
+  `loadMessages`. It is framework-free and imports nothing by bare name.
+  - `negotiateLocale(tags)` takes an **array** of bare tags already in order
+    of preference (`[cookie, ...browserLanguages]`); it ignores `q` values
+    and throws on a bare string. An `Accept-Language` header goes through
+    `parseAcceptLanguage(header)` first, which sorts by `q` and drops `q=0`.
+  - `loadMessages(locale)` returns that locale over `en-US`, so a missing
+    translation shows the English text; an unsupported value loads `es-MX`.
+- `src/catalog.test.ts` compares each `es-MX` message with its source: the
+  same arguments and types (`isStructurallySame`), the same `select` options,
+  `=N` cases, `offset` and number/date skeletons, and plural categories that
+  exist in Spanish (`one`, `many`, `other`), keeping every one the source uses
+  that Spanish also has.
 - `GLOSSARY.md` fixes how recurring terms are translated.
 
 Applications import it by name, `@litt/i18n`, through the alias in
