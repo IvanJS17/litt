@@ -92,7 +92,7 @@ contexts or that every business dependency is captured by imports.
 HTTP and application-layer rules. `dependencyCycles.test.ts` resolves local
 imports and configured aliases, including re-exports, literal dynamic imports,
 CommonJS requires, erased type references and `/// <reference path>` directives.
-It checks production source across backend, web, Word and desktop, the shared
+It checks production source across backend, web and Word (LiTT has no desktop app), the shared
 `packages/` sources, and every local file those reach (so code moved into a
 package stays covered), and also checks the backend domain graph excluding route
 entrypoints. Hand-written declaration files are nodes like any other source.

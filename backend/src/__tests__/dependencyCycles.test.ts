@@ -10,7 +10,8 @@ import {
     resolveDependency,
 } from "./helpers/sourceDependencies";
 const ROOT = resolve(__dirname, "../../..");
-const APPS = ["backend", "frontend", "word-addin", "desktop"];
+// LiTT has no desktop app (removed; AGENTS.md "LiTT fork").
+const APPS = ["backend", "frontend", "word-addin"];
 beforeAll(loadSourceParser);
 /** A throwaway repository: `files` maps repo-relative paths to contents. */
 function repository(files: Record<string, string>) {
@@ -133,7 +134,7 @@ describe("source dependency contracts", () => {
             expect(cycles(graph)).toEqual([]);
         });
     });
-    it("has no cycles across backend, web, Word, desktop and the shared packages, including type-only dependencies", () => {
+    it("has no cycles across backend, web, Word and the shared packages, including type-only dependencies", () => {
         const graph = dependencyGraph(ROOT, APPS);
         // The shared packages are in the graph, not only edges into nothing.
         expect(graph.has("packages/contracts/index.d.ts")).toBe(true);
