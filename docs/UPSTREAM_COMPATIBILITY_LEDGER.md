@@ -1795,7 +1795,7 @@ No Dependabot pull request is covered by this range.
 | 7 (§26) | `fa37b86d` | #67 | #702 service boundaries adopted; LiTT account erasure, exports, BYOK and playbook rules moved to the new files |
 | 8 (§27) | `05d9aebc` | #68 | #703 shared packages adopted; LiTT brand, AGPL link and training UI moved to `@mike/ui` / `@mike/client` |
 | 9 (§28) | `b91d1bdf` | #70 | #788 dependencies and #797 startup hardening adopted without Sentry; login MFA kept fail-closed |
-| 10 (§29) | `366fa4e9` | this cycle's PR | #793/#779 stable session and one report per failure adapted to the local seam; #782, #801 and the desktop half of #799 rejected |
+| 10 (§29) | `366fa4e9` | #72 | #793/#779 stable session and one report per failure adapted to the local seam; #782, #801 and the desktop half of #799 rejected |
 
 ### 29.6 Open product questions recorded during the cycles
 
