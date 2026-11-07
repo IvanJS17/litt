@@ -6,7 +6,7 @@
 import express from "express";
 import { Readable } from "node:stream";
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { memoryDb, type Row } from "../helpers/memoryDb";
 
 const HASH = "a".repeat(64);
@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   headFile: vi.fn(),
   downloadFile: vi.fn(),
   createFileReadStream: vi.fn(),
+  // When set, replaces the zip export's per-document access checker.
+  accessChecker: null as null | (() => Promise<{ ok: boolean }>),
 }));
 
 vi.mock("../../middleware/auth", () => ({
@@ -33,10 +35,15 @@ vi.mock("../../middleware/auth", () => ({
   },
 }));
 vi.mock("../../lib/supabase", () => ({ createServerSupabase: () => mocks.db }));
-vi.mock("../../lib/access", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../lib/access")>()),
-  ensureDocAccess: mocks.ensureDocAccess,
-}));
+vi.mock("../../lib/access", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/access")>();
+  return {
+    ...actual,
+    ensureDocAccess: mocks.ensureDocAccess,
+    createDocumentAccessChecker: (...args: Parameters<typeof actual.createDocumentAccessChecker>) =>
+      mocks.accessChecker ?? actual.createDocumentAccessChecker(...args),
+  };
+});
 vi.mock("../../lib/storage", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/storage")>()),
   getSignedUrl: mocks.getSignedUrl,
@@ -160,6 +167,39 @@ describe.each(outputs)("$name", ({ send }) => {
     approve();
     version().content_sha256 = CHANGED;
     expect((await send()).status).toBe(409);
+  });
+});
+
+// Layer 2: an urgency pass lifts «Tu turno primero», never the lock.
+describe("with an urgency pass in force on the document's matter", () => {
+  beforeEach(() => {
+    Object.assign(tables.documents[0], { org_id: "org", project_id: "project" });
+    // The author can open the matter's document (access is not what is tested).
+    mocks.accessChecker = async () => ({ ok: true });
+    tables.training_urgency_passes = [
+      {
+        id: "pass-1",
+        org_id: "org",
+        trainee_user_id: "author",
+        project_id: "project",
+        starts_at: new Date(Date.now() - 60_000).toISOString(),
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        reason_code: "audiencia",
+        revoked_at: null,
+      },
+    ];
+  });
+
+  it.each(outputs)("$name still answers 409 until the version is approved", async ({ send }) => {
+    const response = await send();
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("training_approval_required");
+    approve();
+    expect((await send()).status).toBe(200);
+  });
+
+  afterEach(() => {
+    mocks.accessChecker = null;
   });
 });
 

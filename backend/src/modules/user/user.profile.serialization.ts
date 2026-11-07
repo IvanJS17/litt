@@ -3,6 +3,7 @@ import { normalizeOptionalModelPreference, normalizeReasoningLevel } from "../..
 import { type ApiKeyStatus } from "../../lib/providerCredentials/index";
 import { ROUTER_SLUGS, type RouterModelSelections } from "../../lib/routerModels";
 import { UserProfileRow, MONTHLY_CREDIT_LIMIT } from "./user.profile.storage";
+import { isUiLocale } from "../../lib/uiLocale";
 
 import { ROUTER_PROFILE_FIELDS } from "./user.profile.routerPreferences";
 
@@ -65,6 +66,8 @@ export function serializeProfile(
         responseDetailsVisible: row.response_details_visible === true,
         darkMode: row.dark_mode === true,
         projectMemoryDefault: row.project_memory_default !== false,
+        // null = automatic. Older databases without the column read as null.
+        uiLocale: isUiLocale(row.ui_locale) ? row.ui_locale : null,
         ...Object.fromEntries(
             ROUTER_SLUGS.map((slug) => [
                 ROUTER_PROFILE_FIELDS[slug],

@@ -345,6 +345,7 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
     it.each<[string, string, boolean, string]>([
         ["playbook_draft", "validation", false, "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones."],
         ["playbook_changes_pending", "validation", false, "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de marcarlo como listo."],
+        ["playbook_model_empty", "validation", false, "Un playbook sin reglas no puede marcarse como modelo. Agrega al menos una regla."],
         ["playbook_change_stale", "conflict", true, "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos."],
     ])("shows the server's own 409 %s message", (code, kind, retryable, message) => {
         const described = describeError(

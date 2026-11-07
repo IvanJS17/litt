@@ -15,6 +15,11 @@ export const PLAYBOOK_CHANGES_PENDING_CODE = "playbook_changes_pending";
 export const PLAYBOOK_CHANGES_PENDING_MESSAGE =
   "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de marcarlo como listo.";
 
+/** 409: a model is a starting point; one without rules is not. */
+export const PLAYBOOK_MODEL_EMPTY_CODE = "playbook_model_empty";
+export const PLAYBOOK_MODEL_EMPTY_MESSAGE =
+  "Un playbook sin reglas no puede marcarse como modelo. Agrega al menos una regla.";
+
 /** 409: the rule changed after the change was proposed; reloading helps. */
 export const PLAYBOOK_CHANGE_STALE_CODE = "playbook_change_stale";
 export const PLAYBOOK_CHANGE_STALE_MESSAGE =

@@ -441,6 +441,28 @@ describe("useAssistantChat retry", () => {
             "Too many chat requests.",
         );
     });
+
+    it("has the composer read «Tu turno primero» again when the server asks for an approach", async () => {
+        // e.g. an urgency pass that expired between reading it and sending.
+        const stale = vi.fn();
+        window.addEventListener("litt:training-stage-stale", stale);
+        fetchMock.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    code: "training_attempt_required",
+                    detail: "Escribe tu planteamiento antes de preguntar (mínimo 60 caracteres).",
+                }),
+                { status: 400, headers: { "Content-Type": "application/json" } },
+            ),
+        );
+        const { result } = renderHook(() => ({ chat: useAssistantChat(), toasts: useToasts() }));
+        await act(async () => {
+            await result.current.chat.handleChat(userMessage());
+        });
+        window.removeEventListener("litt:training-stage-stale", stale);
+        expect(stale).toHaveBeenCalledTimes(1);
+        expect(result.current.toasts[0]?.message).toContain("Escribe tu planteamiento");
+    });
 });
 
 it.each([undefined, "chat-existing"])("does not repost an uncertain delivery before metadata (%s)", async (chatId) => {

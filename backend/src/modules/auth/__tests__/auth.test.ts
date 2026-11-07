@@ -380,6 +380,51 @@ describe("auth routes", () => {
     expect(authClient.auth.signUp).not.toHaveBeenCalled();
   });
 
+  it("passes the sign-up screen's language to GoTrue as user metadata", async () => {
+    authClient.auth.signUp.mockResolvedValue({
+      data: { user, session: null },
+      error: null,
+    });
+
+    const response = await request(app)
+      .post("/auth/signup")
+      .set("Origin", origin)
+      .send({ email: user.email, password: "long-enough-1", locale: "es-MX" });
+
+    expect(response.status).toBe(201);
+    expect(authClient.auth.signUp).toHaveBeenCalledWith({
+      email: user.email,
+      password: "long-enough-1",
+      options: {
+        emailRedirectTo: expect.any(String),
+        data: { locale: "es-MX" },
+      },
+    });
+  });
+
+  it("signs up without metadata when no language is sent, and refuses an unknown one", async () => {
+    authClient.auth.signUp.mockResolvedValue({
+      data: { user, session: null },
+      error: null,
+    });
+
+    const plain = await request(app)
+      .post("/auth/signup")
+      .set("Origin", origin)
+      .send({ email: user.email, password: "long-enough-1" });
+    expect(plain.status).toBe(201);
+    expect(authClient.auth.signUp.mock.calls[0][0].options).toEqual({
+      emailRedirectTo: expect.any(String),
+    });
+
+    const unknown = await request(app)
+      .post("/auth/signup")
+      .set("Origin", origin)
+      .send({ email: user.email, password: "long-enough-1", locale: "fr-FR" });
+    expect(unknown.status).toBe(400);
+    expect(authClient.auth.signUp).toHaveBeenCalledTimes(1);
+  });
+
   it("enforces the sign-up minimum length on the API, not only in the form", async () => {
     const response = await request(app)
       .post("/auth/signup")

@@ -55,6 +55,8 @@ export type PlaybookImportStage =
 /** An import attempt as the page follows it. */
 export type PlaybookImport = {
   id: string;
+  /** LiTT: what the row compiles: a file, or a draft from the questionnaire. */
+  kind: "import" | "draft" | "proposal";
   status: "running" | "completed" | "failed";
   stage: string;
   error: string | null;
@@ -160,4 +162,41 @@ export type PlaybookReviewWork = PlaybookReviewInput & {
   documentId: string | null;
   documentName: string | null;
   startedAt: string;
+};
+/** LiTT: what a draft from the questionnaire is asked to do (POST /playbooks/drafts). */
+export type PlaybookDraftRequest = {
+  userId: string;
+  userEmail?: string | null;
+  model: string;
+  name?: string;
+  workspace?: unknown;
+  visibility?: unknown;
+  /** Answers by question id; parsed by parseAnswers. */
+  answers?: unknown;
+  /** Up to five staged uploads ({ storageKey, filename }) or saved documents ({ documentId }). */
+  attachments?: unknown;
+  db?: Db;
+};
+/**
+ * What compiling a draft needs besides its row's request_json, which holds
+ * the answers and the attachments: ids, the pinned route, and the staged
+ * upload keys the job removes once the draft has an outcome. Never the
+ * answers: db_jobs.payload holds no client content.
+ */
+export type PlaybookDraftWork = {
+  attemptId: string;
+  userId: string;
+  userEmail: string | null;
+  name: string | null;
+  model: string;
+  orgId: string | null;
+  visibility: "private" | "organization" | null;
+  /** Chosen up front so a re-run saves the same playbook instead of a second one. */
+  newPlaybookId: string;
+  /** One per attachment, in order, so a re-run stores each source once. */
+  sourceIds: string[];
+  stagedKeys: string[];
+  startedAt: string;
+  route: ChatRoute;
+  authorization: AuthorizationStamp | null;
 };

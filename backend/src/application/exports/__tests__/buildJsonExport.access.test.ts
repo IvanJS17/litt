@@ -138,13 +138,15 @@ describe("exports enforce current read access", () => {
     it("leaves the account itself to the Personal export", async () => {
         const { db } = makeExportDb({
             ...fixtures(),
-            user_profiles: [{ id: "profile", user_id: userId }],
+            user_profiles: [{ id: "profile", user_id: userId, ui_locale: "es-MX" }],
             quick_actions: [{ id: "quick-action", user_id: userId }],
         });
         const personal = await buildUserAccountExport(db, userId, email, null);
         const firm = await buildUserAccountExport(db, userId, email, "current-org");
 
         expect(ids(personal.profile!)).toEqual(["profile"]);
+        // The whole profile row is exported, interface language included.
+        expect(personal.profile![0]).toMatchObject({ ui_locale: "es-MX" });
         expect(ids(personal.quick_actions!)).toEqual(["quick-action"]);
         expect(personal.org_members).toMatchObject([{ org_id: "current-org", user_id: userId, role: "member" }]);
         for (const key of ["profile", "api_keys", "router_models", "organizations", "org_members", "org_invitations", "quick_actions", "hidden_workflows"])

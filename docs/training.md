@@ -117,7 +117,7 @@ ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run (the client only uses it to decide what to show) |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
 | `PUT/DELETE /orgs/:orgId/training/pupils/:userId/stages` | the current mentor; `DELETE` takes `?practice=`, none for every practice area |
@@ -187,7 +187,8 @@ justify.
 
 The composers (web and Word) show the required field
 «Tu planteamiento (2–3 líneas)» with a counter when `GET /training/stage` says
-`pasante`; the server decides either way. A composer in a project chat,
+`attempt_required` (a pasante without an urgency pass there); the server
+decides either way. A composer in a project chat,
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
 
@@ -380,3 +381,62 @@ filled, and returned, only when `ready`. Regenerating clears «reviewed»: the
 mentor marks the new review again. The audit gets
 `training.work_review_generated` and `training.work_review_marked` with the
 chat id and `{ org_id, target_user_id }` only.
+
+### Urgency pass
+
+A pupil's **current** mentor may lift «Tu turno primero» for one matter's
+project and a limited time (specification §6.3; open questions 1 and 2 of the
+layer-2 plan, decided with their recommendation):
+
+| Route | Who | Purpose |
+|---|---|---|
+| `POST /orgs/:orgId/training/pupils/:userId/passes` | the current mentor | `{ project_id, duration_minutes?, reason_code, reason_note? }` |
+| `GET …/passes` | the current mentor | the pupil's passes, newest first |
+| `DELETE …/passes/:passId` | the current mentor | revoke (again: `204`, nothing changes) |
+
+- Anybody else (the pupil, a previous mentor, another mentor, an owner, an
+  admin, another member) gets the uniform `404` of `assertLearningAccess`; the
+  pupil sees their passes in `GET /training/me/supervision`.
+- 30 minutes to 72 hours, 8 hours when omitted, at most 5 in force per pupil
+  (`lib/trainingPass.ts`). The end is rounded down to the minute; the same
+  grant twice is `409 training_pass_duplicate`, a sixth pass
+  `409 training_pass_limit_reached`, a bad duration, reason or note
+  `400 training_pass_invalid`.
+- The mentor and the pupil must both be able to open the project, which must
+  belong to the organization: one the mentor cannot open is a `404`, one the
+  pupil cannot open `409 training_pass_pupil_no_access`.
+- `reason_code` is one of `plazo`, `audiencia`, `cliente_urgente`, `otro`.
+  The audit event `training.urgency_pass_granted` keeps who granted it
+  (`user_id`), to whom (`target_user_id`), the project (`project_id`),
+  `expires_at` and `reason_code`; `training.urgency_pass_revoked` keeps the
+  project. The free `reason_note` is learning data: it stays on the row and
+  goes with the pupil.
+- The grant itself is `training_grant_urgency_pass`
+  (`20261107_61_litt_training_urgency_pass_grant.sql`): it re-checks the
+  current mentor and the project and counts the passes in force under a lock
+  on the pupil's row. `performance.litt-training-urgency-pass.sql` and
+  `trainingUrgencyPass.postgres.test.ts` prove that nobody else can grant.
+
+**What a pass changes.** `resolveTurnTraining` (`lib/trainingPass.ts`) tells a
+turn whether it needs the attempt: `attemptRequired = stage === "pasante" &&
+!passActive`. While a pass is in force in the chat's project the turn needs no
+attempt, keeps no note and makes no contrast call; the answer is the same as
+ever (the attempt is never in the prompt). A pass is read at every turn, so
+one that expires or is revoked asks for the attempt again; the web composer
+reads `GET /training/stage` again at the pass's end and after a refused turn,
+and shows «Pase de urgencia vigente hasta …» in place of the field. A failed
+read of the passes asks for the attempt (a failed read of the stage fails the
+turn).
+
+**What it does not change.** The stage. `resolveTrainingStage` still decides
+the seal, the approvals and the AI review's approved report, so a document a
+pasante produces during a pass is sealed and its outputs answer
+`409 training_approval_required` until it is approved. Any later behavior that
+depends on the stage for the AI (layers 3 and 4) reads `resolveTurnTraining`;
+the seal and the approvals read `resolveTrainingStage`.
+`trainingUrgencyPass.lock.test.ts` holds this contract.
+
+**Where it applies.** The web chat, the project chat and the tabular review
+chat, in the chat's project. A chat without a project has no matter, so no
+pass. The Word chat has no project either: Word never honors a pass, and a
+pupil with one still sees the field there.

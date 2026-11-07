@@ -8,3 +8,8 @@ export {
     REVIEW_IN_PROGRESS_CODE,
     REVIEW_KEY_REQUIRED_CODE,
 } from "./trainingSupervision.reviews";
+export {
+    grantUrgencyPass,
+    listUrgencyPasses,
+    revokeUrgencyPass,
+} from "./trainingSupervision.passes";

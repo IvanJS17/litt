@@ -220,6 +220,13 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_attempt_required: "validation",
     training_mentor_has_pupils: "conflict",
     training_pupil_has_mentor: "conflict",
+    // Urgency passes (layer 2): a grant the mentor must change (duration,
+    // reason, a matter the pupil cannot open) or one that already exists or
+    // would pass the limit. Retrying the same grant cannot help.
+    training_pass_invalid: "validation",
+    training_pass_pupil_no_access: "validation",
+    training_pass_duplicate: "conflict",
+    training_pass_limit_reached: "conflict",
     // A pasante's version leaves LiTT only once approved for its current
     // bytes. Retrying cannot help, so the server's detail is shown as-is.
     training_approval_required: "validation",
@@ -236,6 +243,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // is decided. Retrying cannot help, so the server's detail is shown.
     playbook_draft: "validation",
     playbook_changes_pending: "validation",
+    // A model is a starting point; one without rules cannot be marked.
+    playbook_model_empty: "validation",
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
     // LiTT does not publish a firm's workflow to upstream's public catalog;

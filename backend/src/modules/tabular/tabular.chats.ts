@@ -4,7 +4,8 @@
 // and building the system + history messages the agentic review chat streams
 // over. The streaming loop itself stays in tabular.routes.ts.
 
-import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { checkTrainingTurn } from "../../lib/training";
+import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
 import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     loadUserMessageSentTimes,
@@ -755,15 +756,16 @@ export async function prepareTabularChat(
     }
 
     // LiTT training ("Tu turno primero"): a pasante's turn carries their own
-    // approach first, in the review's organization and project. Checked before
-    // anything is written.
+    // approach first, in the review's organization and project, unless an
+    // urgency pass on that project lifts it. Checked before anything is
+    // written.
     let trainingAttempt: string | null = null;
     try {
-        const stage = await resolveTrainingStage(db, userId, {
+        const turn = await resolveTurnTraining(db, userId, {
             orgId: review.org_id ?? null,
             projectId: review.project_id ?? null,
         });
-        const training = checkTrainingTurn(stage, args.attempt);
+        const training = checkTrainingTurn(turnStage(turn), args.attempt);
         if (!training.ok)
             return statusFailure(training.status, {
                 code: training.code,

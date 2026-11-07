@@ -733,6 +733,19 @@ export interface TrainingMembership {
 /** GET /training/stage: the caller's effective stage where a turn would run. */
 export interface TrainingEffectiveStage {
     stage: TrainingStage | null;
+    /**
+     * Whether a turn there must carry the caller's own attempt («Tu turno
+     * primero»): a pasante's, unless an urgency pass on that project is in
+     * force. The server decides again on every turn.
+     */
+    attempt_required: boolean;
+    /** The urgency pass in force on that project (never in Word), or null. */
+    urgency_pass: TrainingUrgencyPassInForce | null;
+}
+/** The end of the urgency pass that lifts «Tu turno primero» on a project. */
+export interface TrainingUrgencyPassInForce {
+    project_id: string;
+    expires_at: string;
 }
 /** GET /orgs/:orgId/training/mentors: who mentors whom, for owners and admins. */
 export interface TrainingOrgOverview {
@@ -931,6 +944,23 @@ export interface TrainingUrgencyPass {
     reason_note: string | null;
     revoked_at: string | null;
 }
+/**
+ * POST /orgs/:orgId/training/pupils/:userId/passes (the pupil's current
+ * mentor). `duration_minutes` from 30 to 4320 (72 h), 480 (8 h) when
+ * omitted; at most 5 passes in force per pupil. `reason_note` (up to 500
+ * characters) is learning data and never reaches the audit; the audit keeps
+ * `reason_code`.
+ */
+export interface TrainingGrantUrgencyPassBody {
+    project_id: string;
+    duration_minutes?: number;
+    reason_code: TrainingUrgencyReason;
+    reason_note?: string | null;
+}
+/** GET /orgs/:orgId/training/pupils/:userId/passes (the pupil's current mentor). */
+export interface TrainingUrgencyPasses {
+    passes: TrainingUrgencyPass[];
+}
 /** GET /training/me/supervision?org_id= : what the caller's mentor sees of them there. */
 export interface TrainingSupervision {
     org_id: string;
@@ -952,3 +982,11 @@ export interface TrainingVersionApproval {
     content_sha256: string;
     approved_at: string;
 }
+
+/**
+ * Interface language a user can choose (`uiLocale` in `GET`/`PATCH
+ * /user/profile`, `locale` in `POST /auth/signup`). `null` in the profile
+ * means automatic: the client negotiates from the browser or Word language
+ * and falls back to `es-MX`.
+ */
+export type UiLocale = "en-US" | "es-MX";

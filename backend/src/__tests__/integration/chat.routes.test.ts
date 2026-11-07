@@ -74,10 +74,17 @@ const { streamWithProvider, unexpectedFetch } = vi.hoisted(() => ({
 
 // LiTT training: the effective stage is driven per test; null (a lawyer)
 // keeps every other test in this suite on today's behavior.
-const { trainingStage, trainingOrg } = vi.hoisted(() => ({
+const { trainingStage, trainingOrg, trainingProject, urgencyPasses } = vi.hoisted(() => ({
     trainingStage: { value: null as "pasante" | "junior" | null },
     // When set, a standalone chat is filed under this organization.
     trainingOrg: { value: null as string | null },
+    // When set, the caller may write in this project of trainingOrg.
+    trainingProject: { value: null as string | null },
+    // What a read of training_urgency_passes answers (layer 2).
+    urgencyPasses: {
+        value: [] as Record<string, unknown>[],
+        error: null as { message: string } | null,
+    },
 }));
 vi.mock("../../lib/access", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../lib/access")>();
@@ -87,6 +94,20 @@ vi.mock("../../lib/access", async (importOriginal) => {
             trainingOrg.value
                 ? Promise.resolve({ ok: true as const, orgId: trainingOrg.value })
                 : actual.resolveStandaloneOrgId(...args),
+        checkProjectAccess: (...args: Parameters<typeof actual.checkProjectAccess>) =>
+            trainingProject.value && args[0] === trainingProject.value
+                ? Promise.resolve({
+                      ok: true as const,
+                      isCreator: false,
+                      orgRole: "member" as const,
+                      projectRole: "editor" as const,
+                      project: { id: trainingProject.value, org_id: trainingOrg.value },
+                  } as Awaited<ReturnType<typeof actual.checkProjectAccess>>)
+                : actual.checkProjectAccess(...args),
+        resolveContentOrgId: (...args: Parameters<typeof actual.resolveContentOrgId>) =>
+            trainingProject.value && args[1].projectId === trainingProject.value
+                ? Promise.resolve({ ok: true as const, orgId: trainingOrg.value })
+                : actual.resolveContentOrgId(...args),
     };
 });
 vi.mock("../../lib/training", async (importOriginal) => ({
@@ -145,16 +166,21 @@ afterEach(() => {
 // routes only read `.id`/`.title` and check `.error`, so this is enough to let
 // a request flow through chat creation and message inserts without real IO.
 function makeQuery(table: string) {
-    let result: { data: unknown; error: { message: string } | null } = {
-        data: {
-            id: "chat-1",
-            title: null,
-            user_id: "u1",
-            project_id: null,
-            ...(dbControl.chatRoute ?? {}),
-        },
-        error: null,
-    };
+    let result: { data: unknown; error: { message: string } | null } =
+        table === "training_urgency_passes"
+            ? urgencyPasses.error
+                ? { data: null, error: urgencyPasses.error }
+                : { data: urgencyPasses.value, error: null }
+            : {
+                  data: {
+                      id: "chat-1",
+                      title: null,
+                      user_id: "u1",
+                      project_id: null,
+                      ...(dbControl.chatRoute ?? {}),
+                  },
+                  error: null,
+              };
     const q: Record<string, unknown> = {};
     let activeUpdate:
         | {
@@ -4022,6 +4048,71 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         expect(noteInsert()).toBeUndefined();
         expect(userInsert()).toBeUndefined();
         expect(await contrastCalls()).toHaveLength(0);
+    });
+
+    describe("urgency pass (layer 2)", () => {
+        const pass = (extra: Record<string, unknown> = {}) => ({
+            org_id: "org-1",
+            trainee_user_id: "u1",
+            project_id: "proj-1",
+            starts_at: new Date(Date.now() - 60_000).toISOString(),
+            expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+            revoked_at: null,
+            ...extra,
+        });
+        beforeEach(() => {
+            trainingStage.value = "pasante";
+            trainingProject.value = "proj-1";
+            urgencyPasses.value = [];
+            urgencyPasses.error = null;
+        });
+        afterEach(() => {
+            trainingProject.value = null;
+            urgencyPasses.value = [];
+            urgencyPasses.error = null;
+        });
+
+        it("answers a pasante without a pass 400 in the project", async () => {
+            const res = await send({ project_id: "proj-1" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+        });
+
+        it("lets a pasante with a pass in force write without an attempt, with no note or contrast", async () => {
+            urgencyPasses.value = [pass()];
+            const res = await send({ project_id: "proj-1", attempt: ATTEMPT });
+            expect(res.status).toBe(200);
+            expect(runLLMStream).toHaveBeenCalledTimes(1);
+            expect(noteInsert()).toBeUndefined();
+            expect(await contrastCalls()).toHaveLength(0);
+            expect(JSON.stringify(userInsert())).not.toContain(ATTEMPT);
+        });
+
+        it.each([
+            ["expired", { expires_at: new Date(Date.now() - 1000).toISOString() }],
+            ["revoked", { revoked_at: new Date(Date.now() - 1000).toISOString() }],
+        ])("asks for the attempt again with a pass %s", async (_label, extra) => {
+            urgencyPasses.value = [pass(extra)];
+            const res = await send({ project_id: "proj-1" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("has no pass in a chat without a matter", async () => {
+            urgencyPasses.value = [pass()];
+            const res = await send();
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+        });
+
+        it("asks for the attempt, not a 500, when the passes cannot be read", async () => {
+            vi.spyOn(console, "warn").mockImplementation(() => {});
+            urgencyPasses.error = { message: "boom" };
+            const res = await send({ project_id: "proj-1" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+        });
     });
 
     afterEach(() => {

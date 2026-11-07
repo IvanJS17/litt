@@ -5,10 +5,8 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xsi:type="TaskPaneApp">
 
-  <!-- LiTT: placeholder GUID inherited from upstream. Replace it with a LiTT-owned
-       GUID when the owner decides to publish the add-in. -->
-  <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
-  <Version>1.0.0.1</Version>
+  <Id>462ba401-01f2-4b55-ad88-f4722c3a29fa</Id>
+  <Version>1.0.0.2</Version>
   <ProviderName>LiTT</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="LiTT" />
@@ -16,7 +14,7 @@
 
   <IconUrl DefaultValue="https://localhost:3200/assets/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3200/assets/icon-80.png" />
-  <SupportUrl DefaultValue="https://localhost:3200" />
+  <SupportUrl DefaultValue="https://litt.asteroitt.com" />
 
   <AppDomains>
     <AppDomain>https://localhost:3200</AppDomain>

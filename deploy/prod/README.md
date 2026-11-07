@@ -19,16 +19,17 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
 
 | Archivo | Rol |
 |---|---|
-| `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web) |
+| `compose.yaml` | Stack completo (db, auth, rest, db-init, gateway, backend, litt-web, litt-word) |
 | `gateway.conf` | Fachada interna de Supabase (gotrue+postgrest) para el backend |
 | `auth-edge.conf` | Borde público de GoTrue: solo `GET /auth/v1/verify` (enlaces de los correos) |
-| `Caddyfile.litt` | Bloque del dominio para el Caddy compartido (marcadores `# BEGIN/END litt`) |
+| `Caddyfile.litt` | Bloques de `litt.asteroitt.com` y `word.litt.asteroitt.com` para el Caddy compartido (marcadores `# BEGIN/END litt`) |
 | `.env.example` | Contrato de variables (copiar a `/srv/litt/.env`, 600) |
 | `supabase-jwt.py` | Generador de las llaves JWT `anon` / `service_role` |
 | `litt-backup.sh` | Respaldo diario (pg_dump + restic en R2; sin documentos, por diseño) |
 | `litt-restic.env.example` | Nombres de las variables de `/etc/litt-restic.env` (sin valores) |
 | `litt-deploy.sh` | Deploy de un release en el VPS: marcador, espacio, carga verificada, árbol, salud y retención (§1) |
 | `litt-deploy.test.sh` | Pruebas de `litt-deploy.sh` con dobles de `docker` y `df` (`bash deploy/prod/litt-deploy.test.sh`) |
+| `word-addin-install.md` | Guía de una página para el administrador de Microsoft 365 de cada despacho (§9) |
 
 ## Requisitos previos (una vez)
 
@@ -39,6 +40,7 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
       configurados).
 - [ ] Registro DNS `A litt` → `78.47.184.224` (Cloudflare; mismo modo que
       `contextlexmx`).
+- [ ] Registro DNS `A word.litt` → la misma IP, sin proxy de Cloudflare (§9).
 - [ ] Imágenes del release construidas desde el commit exacto y verificadas
       (sección 1).
 
@@ -68,18 +70,25 @@ git fetch origin && git merge-base --is-ancestor "$SHA" origin/main   # publicad
 gh api "repos/IvanJS17/litt/commits/$SHA" --jq .sha                   # == $SHA (visible en GitHub)
 docker build -f backend/Dockerfile  --build-arg GIT_SHA="$SHA" -t "litt-backend:$SHA" .
 docker build -f frontend/Dockerfile --build-arg GIT_SHA="$SHA" -t "litt-frontend:$SHA" .
-for i in backend frontend; do                                          # revisión == SHA; anotar el Id en el recibo
+# Complemento de Word (§9). REACT_APP_API_BASE_URL=/api lo fija el Dockerfile.
+docker build -f word-addin/Dockerfile --build-arg GIT_SHA="$SHA" \
+  --build-arg WORD_ADDIN_PUBLIC_URL=https://word.litt.asteroitt.com \
+  --build-arg REACT_APP_WEB_APP_URL=https://litt.asteroitt.com \
+  -t "litt-word:$SHA" .
+for i in backend frontend word; do                                     # revisión == SHA; anotar el Id en el recibo
   docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}} {{.Id}}' "litt-$i:$SHA"
 done
 BID=$(docker image inspect --format '{{.Id}}' "litt-backend:$SHA")
 FID=$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")
+WID=$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")
 BYTES=$(( $(docker image inspect --format '{{.Size}}' "litt-backend:$SHA") \
-        + $(docker image inspect --format '{{.Size}}' "litt-frontend:$SHA") ))
+        + $(docker image inspect --format '{{.Size}}' "litt-frontend:$SHA") \
+        + $(docker image inspect --format '{{.Size}}' "litt-word:$SHA") ))
 # Deploy (el árbol del release viaja aparte; las imágenes, por stdin y sin copias en disco):
 scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
 git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
-docker save "litt-backend:$SHA" "litt-frontend:$SHA" | gzip -1 | ssh staging-apps-dev \
-  bash /tmp/litt-deploy.sh "$SHA" "$BYTES" "$BID" "$FID" "/tmp/litt-$SHA.tar.gz"
+docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
+  bash /tmp/litt-deploy.sh "$SHA" "$BYTES" "$BID" "$FID" "$WID" "/tmp/litt-$SHA.tar.gz"
 ```
 
 `litt-deploy.sh` corre en el VPS como el dueño de `/srv/litt` y sigue las reglas del
@@ -88,7 +97,7 @@ host (`HOST-RULES.md` §3–§5):
 1. Crea `/srv/litt/.deploy-in-progress` al empezar y lo borra al terminar, también si
    falla (`trap`). Mientras exista, el guardián de disco del host no retira imágenes.
 2. **Antes de cargar** comprueba que haya libres al menos `max(7 GiB, 2 × BYTES + 5 GiB)`.
-   `BYTES` es la suma de los tamaños de las dos imágenes, una cota conservadora porque
+   `BYTES` es la suma de los tamaños de las tres imágenes, una cota conservadora porque
    comparten capas. Si no alcanza, retira primero las imágenes `litt-*` que no son la
    viva y, si aún no alcanza, aborta sin cargar nada.
 3. Carga las imágenes y compara sus IDs con los de la máquina de build.
@@ -97,7 +106,10 @@ host (`HOST-RULES.md` §3–§5):
    de él. Conserva `.env` y `backups/`, y fija `LITT_SOURCE_COMMIT` y `RELEASE_SHA`.
 5. `up -d --remove-orphans` (corre `db-init`, que aplica migraciones pendientes) y espera
    a que todo servicio de larga vida esté corriendo, healthy si tiene healthcheck (`rest`
-   no tiene), y a que `/health` reporte el SHA.
+   no tiene), a que `/health` reporte el SHA y a que `litt-word` sirva un `manifest.xml`
+   cuyo panel apunta a `WORD_ADDIN_URL` del `.env` (una imagen construida con otra URL
+   pública aborta el deploy). Sin `WORD_ADDIN_URL` en el `.env`, el script aborta antes
+   de cargar nada.
 6. Solo entonces aplica la retención: imagen viva + 1 anterior, retirando el resto por tag
    explícito. Nunca usa `docker system/image/volume/builder prune`.
 
@@ -110,10 +122,8 @@ La etiqueta de las imágenes es el SHA completo y queda en `.env` como
 `LITT_SOURCE_COMMIT`; `compose.yaml` no arranca sin ella. El contexto de build
 es la raíz del repositorio (los Dockerfiles copian `packages/contracts`). El
 deploy NO compila en el VPS; la comparación de IDs tras `docker load` ata el
-deploy a los bytes construidos y verificados. Si se publica el add-in de Word,
-su imagen se construye igual (`docker build -f word-addin/Dockerfile
---build-arg GIT_SHA="$SHA" …`, más las URLs de `docs/word-addin-development.md`)
-y su enlace está en Ajustes del panel.
+deploy a los bytes construidos y verificados. La imagen del complemento de Word
+lleva el mismo SHA; su enlace **Código fuente** está en Ajustes del panel.
 
 **Sin secretos en lo que se ofrece.** El código ofrecido es el árbol público de
 GitHub en ese SHA. Los secretos viven solo en `/srv/litt/.env` (fuera de Git,
@@ -135,7 +145,8 @@ sudo -n mkdir -p /srv/litt && sudo -n chown ivan:ivan /srv/litt
 
 ```bash
 cp deploy/prod/.env.example /srv/litt/.env && chmod 600 /srv/litt/.env
-# POSTGRES_PASSWORD, JWT_SECRET, DOWNLOAD_SIGNING_SECRET, USER_API_KEYS_ENCRYPTION_SECRET:
+# POSTGRES_PASSWORD, JWT_SECRET, DOWNLOAD_SIGNING_SECRET, USER_API_KEYS_ENCRYPTION_SECRET,
+# AUTH_HANDOFF_ENCRYPTION_SECRET (uno distinto para cada uno):
 openssl rand -hex 32
 # Llaves de Supabase:
 JWT_SECRET=<el de arriba> python3 deploy/prod/supabase-jwt.py anon
@@ -155,7 +166,7 @@ recibo. Los que no salen de Bitwarden se generan en el VPS.
 | `R2_ENDPOINT_URL` | `/srv/litt/.env` | BWS `LITT_R2_ENDPOINT_URL` |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | `/srv/litt/.env` | BWS `LITT_R2_DOCS_*` (token del bucket `litt-docs`) |
 | `GOTRUE_SMTP_PASS` | `/srv/litt/.env` | BWS `NO_REPLY_ASTEROITT` (buzón `no-reply@asteroitt.com`) |
-| `POSTGRES_PASSWORD`, `JWT_SECRET`, `DOWNLOAD_SIGNING_SECRET`, `USER_API_KEYS_ENCRYPTION_SECRET` | `/srv/litt/.env` | `openssl rand -hex 32` en el VPS |
+| `POSTGRES_PASSWORD`, `JWT_SECRET`, `DOWNLOAD_SIGNING_SECRET`, `USER_API_KEYS_ENCRYPTION_SECRET`, `AUTH_HANDOFF_ENCRYPTION_SECRET` | `/srv/litt/.env` | `openssl rand -hex 32` en el VPS |
 | `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | `/srv/litt/.env` | `supabase-jwt.py` con el `JWT_SECRET` de arriba |
 | `RESTIC_REPOSITORY` | `/etc/litt-restic.env` | `s3:` + valor de `LITT_R2_ENDPOINT_URL` + `/litt-backups` |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | `/etc/litt-restic.env` | BWS `LITT_R2_BACKUPS_*` (token del bucket `litt-backups`) |
@@ -175,7 +186,7 @@ cd /srv/litt
 C="docker compose --env-file .env -f deploy/prod/compose.yaml"
 $C up -d db auth rest gateway        # base + auth (el init de postgres tarda ~2-5 min)
 $C up db-init                        # esquema completo + migraciones pendientes (one-shot)
-$C up -d --remove-orphans            # backend + litt-web
+$C up -d --remove-orphans            # backend + litt-web + litt-word
 $C ps                                # todo healthy
 ```
 
@@ -207,8 +218,8 @@ probe > /tmp/edge.after; diff /tmp/edge.before /tmp/edge.after   # si cambió un
 `/srv/edge/conf/` se monta como directorio, así que editar el archivo en sitio es seguro
 (el antiguo bind de archivo suelto dejaba al Caddy leyendo una copia vieja).
 
-**Nombres en la red compartida.** Solo `litt-web` (alias `litt`) y `auth-edge` (alias
-`litt-auth`) entran a la red del ingress, `edge`, que comparten otras apps. Compose da a cada servicio
+**Nombres en la red compartida.** Solo `litt-web` (alias `litt`), `auth-edge` (alias
+`litt-auth`) y `litt-word` (alias `litt-word`) entran a la red del ingress, `edge`, que comparten otras apps. Compose da a cada servicio
 su nombre como alias en todas sus redes, así que esos servicios deben tener nombres
 únicos en el host (`frontend`, `backend` y `web` ya son de otras apps) y sus llamadas
 internas usan alias propios (`litt-backend`, `litt-gotrue`). Antes de agregar un
@@ -259,6 +270,7 @@ ACME lo emite Caddy solo cuando el DNS resuelve.
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com          # 200 (login)
 curl -s https://litt.asteroitt.com/api/health                     # {"ok":true,"commit":"<SHA>"}
+curl -s https://word.litt.asteroitt.com/api/health                # el mismo, por el complemento de Word (§9)
 ```
 `/api/health` debe mostrar el `LITT_SOURCE_COMMIT` desplegado.
 
@@ -281,6 +293,88 @@ prueba. Comprobar también «Olvidé mi contraseña» con la misma cuenta.
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com/auth/v1/signup   # 404 (auth-edge solo expone /verify)
 ```
+
+## 9. Complemento de Word (`word.litt.asteroitt.com`)
+
+Decisión de Iván (7-nov-2026): el complemento se publica en
+`https://word.litt.asteroitt.com` con un manifiesto propio de LiTT, y el
+administrador de Microsoft 365 de cada despacho lo instala para todos desde
+«Aplicaciones integradas» (implementación centralizada) siguiendo
+[`word-addin-install.md`](word-addin-install.md). AppSource queda para después.
+
+**Servicio.** `litt-word` (imagen `litt-word:<SHA>`, puerto interno 3200) sirve el
+panel, `manifest.xml` y los iconos, y reenvía `/api/*` a `http://litt-backend:3001`
+(`WORD_ADDIN_BACKEND_ORIGIN`). Así la API queda en el mismo origen que el panel y la
+cookie de sesión es de primera parte en Word de escritorio y en la web. Solo los
+archivos con hash de contenido se guardan en caché como inmutables; `manifest.xml`,
+el HTML y los iconos van con `no-cache`.
+
+**Manifiesto.** `word-addin/manifest.xml` es la fuente; el build
+(`scripts/build-manifest.js`) cambia `https://localhost:3200` por
+`WORD_ADDIN_PUBLIC_URL` y deja el resultado en `dist/manifest.xml`, que es lo que se
+publica en `https://word.litt.asteroitt.com/manifest.xml`. El `<Id>` de LiTT es
+`462ba401-01f2-4b55-ad88-f4722c3a29fa` y **no cambia nunca**: Microsoft 365 identifica
+el complemento por él, y uno nuevo obligaría a cada despacho a quitarlo e instalarlo
+de nuevo. Cada cambio del manifiesto sube `<Version>`.
+
+**Variables** (`/srv/litt/.env`, §3; nunca en el repo):
+
+| Variable | Valor | Uso |
+|---|---|---|
+| `WORD_ADDIN_URL` | `https://word.litt.asteroitt.com` | El backend acepta ese origen, usa cookies particionadas para Word en la web y habilita el traspaso de sesión. También forma la segunda entrada de `GOTRUE_URI_ALLOW_LIST`. `compose.yaml` y `litt-deploy.sh` no arrancan sin ella. |
+| `AUTH_HANDOFF_ENCRYPTION_SECRET` | `openssl rand -hex 32` en el VPS | Cifra los boletos del traspaso de sesión. El backend no arranca si falta o tiene menos de 32 caracteres con `WORD_ADDIN_URL` puesto. |
+
+La URL de regreso del inicio de sesión con un proveedor externo dentro de Word es
+`https://word.litt.asteroitt.com/oauth-dialog.html`. En GoTrue va en
+`GOTRUE_URI_ALLOW_LIST` (lista separada por comas; GoTrue v2.189.0 la lee como
+`URIAllowList []string`), y `compose.yaml` ya la arma como
+`${PUBLIC_URL},${WORD_ADDIN_URL}/oauth-dialog.html`. Hoy no hay proveedores externos
+activos (`GOTRUE_EXTERNAL_GOOGLE_ENABLED=false`); la entrada deja listo el día en que
+se active uno. La tabla del traspaso (`20260825_01_auth_handoff_tickets.sql`) ya está
+en el esquema y en las migraciones que aplica `db-init`.
+
+**DNS.** `A word.litt` → `78.47.184.224`, la misma IP que `litt`, **sin proxy de
+Cloudflare (nube gris)**: el certificado universal de Cloudflare cubre
+`*.asteroitt.com` pero no un segundo nivel como `*.litt.asteroitt.com`, así que con
+proxy el navegador no tendría un certificado válido. Caddy emite el suyo por ACME en
+cuanto el nombre resuelve a la IP. Verificar con DoH (`cloudflare-dns.com/dns-query`)
+antes de recargar Caddy.
+
+**Caddy.** `Caddyfile.litt` trae el bloque `word.litt.asteroitt.com` →
+`litt-word:3200` dentro de los mismos marcadores `# BEGIN litt` / `# END litt`. Se
+aplica con el procedimiento de §5: respaldo, `probe` de **todos** los dominios antes,
+editar solo entre los marcadores, `caddy validate`, `caddy reload`, `probe` después y
+`diff`. Si cambió un dominio ajeno, restaurar el respaldo y recargar. `word.litt`
+aparece en el `probe` de después (el de antes no lo conoce), lo esperado es `200`.
+
+### Checklist de la primera publicación
+
+1. [ ] Este PR revisado y en `main`; el SHA de `main` es el que se construye (§1).
+2. [ ] En `/srv/litt/.env` (sin imprimirlo): agregar `WORD_ADDIN_URL=https://word.litt.asteroitt.com`
+       y `AUTH_HANDOFF_ENCRYPTION_SECRET=<openssl rand -hex 32>`. Comprobar con
+       `grep -c '^WORD_ADDIN_URL=\|^AUTH_HANDOFF_ENCRYPTION_SECRET=' /srv/litt/.env` → `2`.
+3. [ ] DNS `A word.litt` → `78.47.184.224`, sin proxy; resuelve por DoH.
+4. [ ] Construir las tres imágenes y desplegar con `litt-deploy.sh` (§1). El script
+       comprueba que `litt-word` esté healthy y que su manifiesto apunte a `WORD_ADDIN_URL`.
+5. [ ] Caddy: bloque `word.litt.asteroitt.com` con el procedimiento de §5; ningún dominio
+       ajeno cambia en el `diff`.
+6. [ ] Verificar desde fuera:
+       ```bash
+       curl -s https://word.litt.asteroitt.com/health                      # {"ok":true}
+       curl -s https://word.litt.asteroitt.com/manifest.xml | grep -c 'word.litt.asteroitt.com'   # > 0
+       curl -s https://word.litt.asteroitt.com/manifest.xml | grep -c localhost                   # 0
+       curl -s https://word.litt.asteroitt.com/api/health                  # {"ok":true,"commit":"<SHA>"}
+       curl -s -o /dev/null -w '%{http_code}\n' https://word.litt.asteroitt.com/taskpane.html     # 200
+       ```
+7. [ ] Prueba con Iván: instalación manual (sideload) en Word en la web con ese
+       `manifest.xml` (`word-addin-install.md` §Instalación manual), inicio de sesión,
+       una pregunta en el chat con respuesta en streaming y el enlace **Código fuente** de
+       Ajustes → `https://github.com/IvanJS17/litt/tree/<SHA>`.
+8. [ ] Entregar `word-addin-install.md` al administrador de Microsoft 365 del primer
+       despacho.
+
+En los deploys siguientes basta el paso 4. Si cambia el manifiesto (nueva `<Version>`),
+el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
 
 ## Decisiones y pendientes conocidos
 

@@ -50,6 +50,7 @@ import { useTrainingStage } from "@/app/hooks/useTrainingStage";
 import {
     isTrainingAttemptReady,
     TrainingAttemptFieldUI,
+    TrainingUrgencyPassLineUI,
 } from "@mike/ui";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { useModelRouterSelections } from "@/app/hooks/useModelRouterSelections";
@@ -266,12 +267,13 @@ function ChatInputForChatImpl(
         orgId: workspaceOrgId,
     });
     // LiTT training: a pasante writes their own approach before each turn.
-    const trainingStage = useTrainingStage({
+    // A mentor's urgency pass on the matter lifts it (the server decides).
+    const trainingTurn = useTrainingStage({
         orgId: workspaceOrgId,
         projectId,
         enabled: trainingTurns && canSend === true,
     });
-    const needsAttempt = trainingStage === "pasante";
+    const needsAttempt = trainingTurn.attemptRequired;
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -888,7 +890,7 @@ function ChatInputForChatImpl(
                         </div>
                     )}
 
-                    {needsAttempt && (
+                    {needsAttempt ? (
                         <TrainingAttemptFieldUI
                             id="chat-training-attempt"
                             className="px-4 pt-4"
@@ -897,7 +899,12 @@ function ChatInputForChatImpl(
                             disabled={!composerOpen}
                             showError={attemptError}
                         />
-                    )}
+                    ) : trainingTurn.urgencyPassExpiresAt ? (
+                        <TrainingUrgencyPassLineUI
+                            className="px-4 pt-4"
+                            expiresAt={trainingTurn.urgencyPassExpiresAt}
+                        />
+                    ) : null}
 
                     {/* Input */}
                     <div className="px-4 pt-4">
