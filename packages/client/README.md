@@ -6,6 +6,11 @@ Client behavior shared by the Mike web app (`frontend/`) and the Word add-in
 - `userError.ts`, `toastStore.ts`, `errorNotifier.ts`: one classification of a
   thrown value and one toast store, so a failure reads the same in Word as on
   the web. `CODE_KINDS` is the table of server `code`s a client acts on.
+- `locale.ts`: the one translator (`createTranslator` from `use-intl`) that
+  text made outside React reads: failure messages (`errors.*` in
+  `@litt/i18n`), toast labels and the web app's auth sentences. Each app calls
+  `configureClientLocale(locale, messages)` once it knows the locale; until
+  then it speaks the en-US source catalog.
 - `modelCatalog.ts`: the model catalog both pickers are built from, kept in
   line with `backend/src/lib/llm/models.ts` by
   `frontend/src/wordAddin/catalogParity.test.ts`.
@@ -34,6 +39,9 @@ under `src/` that `index.ts` does not re-export are internal.
 - Framework-free. No React (type-only imports excepted), no DOM access at
   module scope, nothing from `frontend/src/app/` or `word-addin/src/`. The
   add-in's Playwright suite loads this package directly in Node.
+- Bare imports are limited to the peers in `package.json`: `@litt/i18n`,
+  `use-intl` (only `createTranslator`, which needs no provider; the package
+  loads React internally, which both apps have) and React's types.
 - `@mike/ui` may depend on this package; this package never depends on
   `@mike/ui`.
 

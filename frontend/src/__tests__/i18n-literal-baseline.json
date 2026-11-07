@@ -1,7 +1,12 @@
 {
   "migrated": [
     "frontend/src/app/layout.tsx",
+    "frontend/src/app/lib/userFacingError.ts",
     "frontend/src/i18n",
+    "packages/client/src/locale.ts",
+    "packages/client/src/reportedUpstream.ts",
+    "packages/client/src/toastStore.ts",
+    "packages/client/src/userError.ts",
     "packages/i18n/src"
   ],
   "allowed": {}

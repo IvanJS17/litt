@@ -67,6 +67,7 @@ export function knownErrorCodeMessage(
 import {
     UserVisibleError,
     buildSupportMailto,
+    clientTranslator,
     describeError as describeSharedError,
     type DescribeErrorOptions,
     type UserFacingError,
@@ -286,7 +287,7 @@ export const notifyError = createErrorNotifier<NotifyErrorOptions>({
                 described.kind === "unauthenticated" && signInHref
                     ? [
                           {
-                              label: "Sign in",
+                              label: clientTranslator()("errors.signIn"),
                               onClick: () => window.location.assign(signInHref),
                           },
                       ]
