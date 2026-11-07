@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import enUS from "../messages/en-US.json";
 import esMX from "../messages/es-MX.json";
+import { PENDING_TRANSLATION } from "../../../scripts/i18n/literals.mjs";
 import { LOCALES, type Locale } from "./index";
 
 type Tree = { [key: string]: string | Tree };
@@ -118,6 +119,18 @@ describe("@litt/i18n catalog", () => {
         const missing = [...source.keys()].filter((k) => !target.has(k));
         const extra = [...target.keys()].filter((k) => !source.has(k));
         expect({ missing, extra }, "es-MX must match en-US key for key").toEqual({ missing: [], extra: [] });
+    });
+
+    it("no message is still waiting for its translation", () => {
+        // scripts/i18n/extract.mjs writes the other catalog's copy of a new
+        // key with this mark: es-MX normally, en-US for Spanish source text.
+        const isPending = (v: unknown) => typeof v === "string" && v.startsWith(PENDING_TRANSLATION);
+        expect(isPending(`${PENDING_TRANSLATION}Save`)).toBe(true);
+        const pending = [
+            ...[...source].filter(([, v]) => isPending(v)).map(([k]) => `en-US ${k}`),
+            ...[...target].filter(([, v]) => isPending(v)).map(([k]) => `es-MX ${k}`),
+        ];
+        expect(pending, "Translate these messages (packages/i18n/GLOSSARY.md)").toEqual([]);
     });
 
     it("every message is a non-empty string", () => {
