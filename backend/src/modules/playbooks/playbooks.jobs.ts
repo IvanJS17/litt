@@ -48,6 +48,7 @@ import { isStagedPlaybookImportKey } from "./playbooks.staging";
 import {
   beginPlaybookDraft,
   compilePlaybookDraft,
+  discardDraftPlaybook,
   recordDraftAudit,
   stagedDraftKeys,
 } from "./playbooks.draft";
@@ -311,7 +312,12 @@ export async function handlePlaybookDraft(db: Db, job: DbJob): Promise<void> {
   await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
 }
 
-/** Retries exhausted: the draft ends as interrupted, with its answers and uploads. */
+/**
+ * Retries exhausted: the draft ends as interrupted, and its answers, uploads
+ * and any half-saved draft playbook go with it. Only a row this hook fails
+ * (one whose outcome was never recorded) removes the playbook, so a draft
+ * that completed is never deleted.
+ */
 export async function markPlaybookDraftJobFailed(
   db: Db,
   job: DbJob,
@@ -324,10 +330,12 @@ export async function markPlaybookDraftJobFailed(
     INTERRUPTED_DRAFT_ERROR,
     { request_json: null },
   );
-  if (row)
+  if (row) {
+    await discardDraftPlaybook(db, payload);
     await recordDraftAudit(db, payload, {
       failedStage: typeof row.stage === "string" ? row.stage : null,
     });
+  }
   await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
 }
 

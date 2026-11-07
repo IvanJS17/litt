@@ -43,7 +43,11 @@ import {
   draftPrompt,
   verifyDraftProvenance,
 } from "../playbooks.draft";
-import { handlePlaybookDraft, queuePlaybookDraft } from "../playbooks.jobs";
+import {
+  handlePlaybookDraft,
+  markPlaybookDraftJobFailed,
+  queuePlaybookDraft,
+} from "../playbooks.jobs";
 import { playbookContentSchema } from "../playbooks.operations";
 import { parseAnswers, playbookQuestionnaire } from "../playbooks.questionnaire";
 import type { PlaybookDraftWork } from "../playbooks.types";
@@ -295,6 +299,48 @@ function job(payload: unknown): DbJob {
   };
 }
 
+/**
+ * The database drops the connection on every terminal write to the attempt
+ * (completed or failed) unless `lose` is off, so the row keeps reading
+ * running; either way deleting a
+ * playbook takes its sources with it, as the foreign key cascades.
+ */
+function lostTerminalWrites(db: Db, tables: Record<string, Row[]>, lose = true): Db {
+  const lost = {
+    eq: () => lost,
+    select: () => lost,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({ data: null, error: { message: "connection reset" } }).then(resolve),
+  };
+  return {
+    from(table: string) {
+      const query = db.from(table as never) as unknown as Record<string, unknown>;
+      if (table === "playbook_imports" && lose) {
+        const update = query.update as (value: Row) => unknown;
+        query.update = (value: Row) =>
+          value.status === "completed" || value.status === "failed" ? lost : update(value);
+      }
+      if (table === "playbooks") {
+        const remove = query.delete as () => Record<string, unknown>;
+        query.delete = () => {
+          const chain = remove();
+          const then = chain.then as (resolve: (value: unknown) => unknown) => Promise<unknown>;
+          chain.then = (resolve: (value: unknown) => unknown) =>
+            then((result) => {
+              const kept = new Set(tables.playbooks.map((row) => row.id));
+              tables.playbook_sources = (tables.playbook_sources ?? []).filter((row) =>
+                kept.has(row.playbook_id),
+              );
+              return resolve(result);
+            });
+          return chain;
+        };
+      }
+      return query;
+    },
+  } as unknown as Db;
+}
+
 /** Inserting a playbook id that exists fails as Postgres does. */
 function uniquePlaybookIds(db: Db, tables: Record<string, Row[]>): Db {
   return {
@@ -424,6 +470,48 @@ describe("a draft from the questionnaire, end to end", () => {
 
     expect(tables.playbooks).toHaveLength(1);
     expect(tables.playbook_imports[0]).toMatchObject({ status: "completed" });
+  });
+
+  it("leaves no playbook and no answers when the outcome was lost and retries ran out", async () => {
+    const { db, tables } = await queued();
+    storage.downloadFile.mockResolvedValue(await docx(`Cláusula quinta. ${CLAUSE}`));
+    completeText.mockResolvedValue(output([rule({ origin: { kind: "answer", questionIds: ["q6"] } })]));
+    const work = tables.db_jobs[0].payload as PlaybookDraftWork;
+    const flaky = lostTerminalWrites(db, tables);
+
+    await expect(handlePlaybookDraft(flaky, job(work))).rejects.toBeTruthy();
+    // Half-saved: the draft and its source exist, the row still runs.
+    expect(tables.playbooks).toEqual([expect.objectContaining({ id: work.newPlaybookId, status: "draft" })]);
+    expect(tables.playbook_sources).toHaveLength(1);
+    const sourceKey = tables.playbook_sources[0].storage_key;
+    expect(tables.playbook_imports[0]).toMatchObject({ status: "running" });
+
+    const cascading = lostTerminalWrites(db, tables, false);
+    await markPlaybookDraftJobFailed(cascading, job(work));
+
+    expect(tables.playbooks).toEqual([]);
+    expect(tables.playbook_sources).toEqual([]);
+    expect(storage.deleteFile).toHaveBeenCalledWith(sourceKey);
+    expect(tables.playbook_imports[0]).toMatchObject({ status: "failed", request_json: null });
+    expect(JSON.stringify(tables)).not.toContain(RED_LINE);
+    // A second run of the hook finds nothing left and does not fail.
+    await expect(markPlaybookDraftJobFailed(cascading, job(work))).resolves.toBeUndefined();
+  });
+
+  it("never removes a draft that completed, nor a playbook that is ready", async () => {
+    const { db, tables } = await queued({ attachments: [] });
+    completeText.mockResolvedValue(output([rule()]));
+    const work = tables.db_jobs[0].payload as PlaybookDraftWork;
+    await handlePlaybookDraft(db, job(work));
+
+    await markPlaybookDraftJobFailed(db, job(work));
+    expect(tables.playbooks).toEqual([expect.objectContaining({ id: work.newPlaybookId, status: "draft" })]);
+
+    // A row left running whose playbook is already ready keeps the playbook.
+    Object.assign(tables.playbooks[0], { status: "ready" });
+    Object.assign(tables.playbook_imports[0], { status: "running" });
+    await markPlaybookDraftJobFailed(db, job(work));
+    expect(tables.playbooks).toEqual([expect.objectContaining({ id: work.newPlaybookId, status: "ready" })]);
   });
 
   it("refuses a model without a key with missing_api_key, records nothing and asks no model", async () => {

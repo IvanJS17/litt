@@ -893,7 +893,12 @@ export async function compilePlaybookDraft(
   }
 }
 
-async function discardDraftPlaybook(db: Db, work: PlaybookDraftWork): Promise<void> {
+/**
+ * Remove a draft that never finished, with its sources' stored objects. Only
+ * a playbook still in draft goes, so a ready one is never touched, and a
+ * second call finds nothing to remove.
+ */
+export async function discardDraftPlaybook(db: Db, work: PlaybookDraftWork): Promise<void> {
   try {
     const rows = await listPlaybookSourceRows(db, work.newPlaybookId);
     const { error } = await db
