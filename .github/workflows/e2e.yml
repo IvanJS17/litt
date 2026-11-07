@@ -34,6 +34,9 @@ on:
   schedule:
     - cron: "47 3 * * 1"
 
+permissions:
+  contents: read
+
 # Cancel only PR runs that a newer push to the same PR has superseded;
 # scheduled and dispatched runs are never cancelled.
 concurrency:
