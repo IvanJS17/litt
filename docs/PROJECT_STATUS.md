@@ -11,29 +11,29 @@
 
 ### Production and integration 2026-11-07
 
-- **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
-  22:30 CST. It carries training layer 1 (1a and 1b with its UI and
-  follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycles 1 to 9 of 10 (PRs
-  #61–#68 and #70) and training layer 2, card 1 (supervision data, contracts
-  and access, PR #69) are in `main` `c6012115`; production does not run them
-  yet. Cycle 10 of 10 (`sync/upstream-c10-366fa4e9`) is in review; once it is
-  merged, `main` holds all ten cycles, still not deployed.
-- **Upstream pin:** `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05,
-  merge of #798) on `main`; cycle 10 moves it to
-  `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06, merge of #777),
-  which was `upstream/main` when the cycle was cut: with that merge LiTT is up
+- **Production:** `39ca4b38` (PR #72) is deployed since 2026-11-07
+  09:32 CST. It carries everything up to that commit: training layer 1
+  (PRs #56, #58–#60), the visual identity v1.0 (PR #57), the ten upstream
+  sync cycles (PRs #61–#68, #70 and #72), training layer 2, card 1
+  (supervision data, contracts and access, PR #69) and playbooks layer 1, T1
+  (draft and ready, model mark, server-owned provenance, PR #71). The deploy
+  applied migrations up to `20261107_60`; services were healthy and the other
+  ingress domains answered as before. The previous release `fe5c9070` stays
+  loaded as the rollback image.
+- **Upstream pin:** `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06,
+  merge of #777), which was `upstream/main` when the cycle was cut: LiTT is up
   to date with upstream. The weekly read-only intake (Mondays 9:00 CDMX, next
   2026-11-09) reports anything newer. Policy:
   [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
   [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§29.
-- **In progress:** training layer 2, cards 2 and 3; playbooks layer 1, T1
-  (PR #71) in review.
-- **Before the next deploy:** the backend refuses to start when
+- **In progress:** training layer 2, cards 2 (urgency pass) and 3 (two-minute
+  review, PR #73); playbooks layer 1, T2 (draft from the questionnaire,
+  PR #74).
+- **Startup secrets:** the backend refuses to start when
   `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
-  `backend/.env.example` placeholder or is shorter than 32 characters; the
-  production `.env` must be checked for both before deploying (cycle 9,
-  ledger §28.2). Cycle 10 adds no startup requirement.
+  `backend/.env.example` placeholder or is shorter than 32 characters (cycle 9,
+  ledger §28.2). Production's `.env` was checked before the `39ca4b38` deploy:
+  both hold 64 characters and neither is the placeholder.
 - **Open product questions (ledger §29.6):** a private project inside a matter
   is reached only by its creator (W2); a matter whose project is private is
   reached by nobody once its creator leaves the firm (§24.3); the private
