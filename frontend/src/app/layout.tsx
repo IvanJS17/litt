@@ -1,58 +1,67 @@
 import type { Metadata } from "next";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 // Self-hosted Inter and EB Garamond; sets --font-inter and --font-eb-garamond.
 import "./fonts/fonts.css";
 import "./globals.css";
 import { Providers } from "@/app/components/providers";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 
-export const metadata: Metadata = {
-    // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream,
-    // is credited in the README.
-    metadataBase: new URL("https://litt.asteroitt.com"),
-    title: "LiTT - Legal AI Platform",
-    description:
-        "AI-powered legal document analysis and contract review platform.",
-    icons: {
-        icon: [
-            { url: "/icon.svg", type: "image/svg+xml" },
-            { url: "/favicon.ico" },
-        ],
-        apple: "/apple-touch-icon.png",
-    },
-    openGraph: {
-        type: "website",
-        url: "https://litt.asteroitt.com",
-        siteName: "LiTT",
-        title: "LiTT - Legal AI Platform",
-        description:
-            "AI-powered legal document analysis and contract review platform.",
-        images: [
-            {
-                url: "/link-image.jpg",
-                width: 1200,
-                height: 651,
-                alt: "LiTT",
-            },
-        ],
-    },
-    twitter: {
-        card: "summary_large_image",
-        title: "LiTT - Legal AI Platform",
-        description:
-            "AI-powered legal document analysis and contract review platform.",
-        images: ["/link-image.jpg"],
-    },
-};
+// LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
+// credited in the README.
+const SITE_URL = "https://litt.asteroitt.com";
 
-export default function RootLayout({
+export async function generateMetadata(): Promise<Metadata> {
+    const [t, locale] = await Promise.all([getTranslations("common.meta"), getLocale()]);
+    const title = t("title");
+    const description = t("description");
+    return {
+        metadataBase: new URL(SITE_URL),
+        title,
+        description,
+        icons: {
+            icon: [
+                { url: "/icon.svg", type: "image/svg+xml" },
+                { url: "/favicon.ico" },
+            ],
+            apple: "/apple-touch-icon.png",
+        },
+        openGraph: {
+            type: "website",
+            url: SITE_URL,
+            siteName: "LiTT",
+            locale: locale.replace("-", "_"),
+            title,
+            description,
+            images: [
+                {
+                    url: "/link-image.jpg",
+                    width: 1200,
+                    height: 651,
+                    alt: "LiTT",
+                },
+            ],
+        },
+        twitter: {
+            card: "summary_large_image",
+            title,
+            description,
+            images: ["/link-image.jpg"],
+        },
+    };
+}
+
+export default async function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    // The locale request.ts resolved (cookie, browser, es-MX) and its catalog.
+    const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
     return (
         // The boot script may add `dark` and color-scheme to <html> before
         // React hydrates it; that difference is intended.
-        <html lang="en" suppressHydrationWarning>
+        <html lang={locale} suppressHydrationWarning>
             <head>
                 <script
                     dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
@@ -61,7 +70,9 @@ export default function RootLayout({
             <body
                 className="font-sans antialiased"
             >
-                <Providers>{children}</Providers>
+                <IntlClientProvider locale={locale} messages={messages}>
+                    <Providers>{children}</Providers>
+                </IntlClientProvider>
             </body>
         </html>
     );

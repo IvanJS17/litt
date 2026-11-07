@@ -160,6 +160,9 @@ export interface ModelToggleUIProps {
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
   reasoningLevels?: readonly ReasoningLevel[];
+  /** Open state, for a host that opens the picker itself; uncontrolled when omitted. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 // The grey filled field of ModalSelect's flat variant, so the two can sit
@@ -193,9 +196,12 @@ export function ModelToggleUI({
   reasoningLevel,
   onReasoningChange,
   reasoningLevels = REASONING_LEVELS,
+  open: openProp,
+  onOpenChange,
 }: ModelToggleUIProps) {
   const TriggerButton = toolbar ? TabPillButtonUI : "button";
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = openProp ?? uncontrolledOpen;
   const reasoningInputRef = React.useRef<HTMLInputElement>(null);
   const selected = models.find((model) => model.id === value);
   const [expandedGroup, setExpandedGroup] =
@@ -219,11 +225,19 @@ export function ModelToggleUI({
   const reasoningProgress =
     (reasoningIndex / Math.max(1, reasoningLevels.length - 1)) * 100;
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    setOpen(nextOpen);
-    if (nextOpen) {
+  // Every opening, by the trigger or by the host, starts on the selected
+  // model's group. Set while rendering, so the menu never paints collapsed.
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
       setExpandedGroup(selected?.group ?? availableGroups[0]?.group ?? null);
     }
+  }
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (openProp === undefined) setUncontrolledOpen(nextOpen);
+    onOpenChange?.(nextOpen);
   };
 
   if (!loading && models.length === 0) {

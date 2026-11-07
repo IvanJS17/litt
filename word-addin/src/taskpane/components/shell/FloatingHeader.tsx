@@ -125,7 +125,7 @@ export function FloatingHeader({
         className="pointer-events-none absolute -bottom-2 left-0 right-2 top-0 z-0"
       >
         <div className="absolute inset-0 backdrop-blur-[8px] [-webkit-mask-image:linear-gradient(to_bottom,black_0%,black_16%,rgba(0,0,0,0.55)_46%,rgba(0,0,0,0.2)_72%,transparent_100%)] [mask-image:linear-gradient(to_bottom,black_0%,black_16%,rgba(0,0,0,0.55)_46%,rgba(0,0,0,0.2)_72%,transparent_100%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.62)_48%,rgba(255,255,255,0.22)_76%,rgba(255,255,255,0)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.85)_0%,rgba(255,255,255,0.62)_48%,rgba(255,255,255,0.22)_76%,rgba(255,255,255,0)_100%)] dark:bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--app-background)_85%,transparent)_0%,color-mix(in_srgb,var(--app-background)_62%,transparent)_48%,color-mix(in_srgb,var(--app-background)_22%,transparent)_76%,transparent_100%)]" />
       </div>
 
       <div className="relative z-10 flex items-center gap-2">
