@@ -471,8 +471,12 @@ The current mentor prepares and records an oral defense (specification §6.2):
   work, or of the pupil's works in the defense's practice area the mentor can
   open (the newest notes), fenced with a per-call nonce. The answer must be
   strict JSON with exactly that shape, and it fails if it names an article, a
-  thesis or a registry number that the pupil's text and the contrasts do not
-  (`lib/trainingSupervisionAi.ts`). No work to rest on: `400`.
+  fraction of an article, a thesis or a registry number that the pupil's text
+  and the contrasts do not (`legalReferences` in
+  `lib/trainingSupervisionAi.ts`). Each number of an enumeration counts on its
+  own («artículos 1949, 2000 y 2001», «registros 2021234 y 2021235»), and a
+  range («1949 a 1951») names every number in it (one wider than 100 names
+  only its ends and itself). No work to rest on: `400`.
 - **Model.** The mentor's route, exactly as for a review (stored on the
   defense, no fallback, never the pupil's key; `llm.egress` first with the
   defense's id), and the same states: one generation at a time
