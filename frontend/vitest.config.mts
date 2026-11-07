@@ -53,6 +53,10 @@ export default defineConfig({
                 replacement: resolvePath("../packages/client/src/index.ts"),
             },
             {
+                find: /^@litt\/i18n$/,
+                replacement: resolvePath("../packages/i18n/src/index.ts"),
+            },
+            {
                 find: /^@\/(.*)$/,
                 replacement: resolvePath("./src/$1"),
             },
@@ -74,6 +78,7 @@ export default defineConfig({
             "@testing-library/react",
             "@testing-library/user-event",
             "postcss",
+            "@formatjs/icu-messageformat-parser",
         ],
     },
     server: {
@@ -100,6 +105,7 @@ export default defineConfig({
             // the web app and the add-in both already depend on.
             "../packages/ui/src/**/*.test.{ts,tsx}",
             "../packages/client/src/**/*.test.{ts,tsx}",
+            "../packages/i18n/src/**/*.test.ts",
         ],
         exclude: ["node_modules/**", "e2e/**", "**/*.spec.ts"],
         // Generous timeouts to absorb cold-start jsdom + transform latency on CI.

@@ -30,6 +30,7 @@
       "@mike/contracts": ["../packages/contracts/index.d.ts"],
       "@mike/ui": ["../packages/ui/src/index.ts"],
       "@mike/client": ["../packages/client/src/index.ts"],
+      "@litt/i18n": ["../packages/i18n/src/index.ts"],
       // The packages have no node_modules of their own: their dependencies
       // are this application's. Node-style lookup from packages/ walks up to
       // the repository root and never reaches frontend/node_modules, so name
@@ -51,7 +52,8 @@
       "vitest": ["./node_modules/vitest"],
       "@testing-library/react": ["./node_modules/@testing-library/react"],
       "@testing-library/user-event": ["./node_modules/@testing-library/user-event"],
-      "postcss": ["./node_modules/postcss"]
+      "postcss": ["./node_modules/postcss"],
+      "@formatjs/icu-messageformat-parser": ["./node_modules/@formatjs/icu-messageformat-parser"]
     }
   },
   "include": [
@@ -66,7 +68,8 @@
     "../packages/ui/src/**/*.ts",
     "../packages/ui/src/**/*.tsx",
     "../packages/ui/stories/*.tsx",
-    "../packages/client/src/**/*.ts"
+    "../packages/client/src/**/*.ts",
+    "../packages/i18n/src/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

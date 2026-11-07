@@ -1,0 +1,14 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "close": "Close",
+    "retry": "Retry",
+    "loading": "Loading…",
+    "back": "Back",
+    "continue": "Continue",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "greeting": "Hi, {name}"
+  }
+}
