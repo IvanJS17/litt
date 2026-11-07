@@ -59,10 +59,20 @@ playbooksRouter.use(requireAuth);
 
 // A malformed id reached Postgres as `uuid = 'not-a-uuid'` (22P02) and
 // surfaced as a 500. An id that cannot exist is not found, before any query.
-playbooksRouter.param("playbookId", (_req, res, next, value: string) => {
-  if (!UUID.test(value))
-    return void res.status(404).json({ detail: "Playbook not found." });
-  next();
+playbooksRouter.param("playbookId", async (req, res, next, value: string) => {
+  if (UUID.test(value)) return next();
+  // POST /:playbookId/sources clears the caller's staged upload in its
+  // finally; refused here, the handler never runs, so clear it the same way.
+  // Only a key minted for this caller is ever touched.
+  const storageKey =
+    typeof req.body?.storageKey === "string" ? req.body.storageKey : "";
+  if (
+    req.method === "POST" &&
+    /^\/[^/]+\/sources\/?$/.test(req.path) &&
+    isStagedPlaybookSourceKey(res.locals.userId as string, storageKey)
+  )
+    await removePlaybookObjects([storageKey], { ids: { playbook_id: value } });
+  res.status(404).json({ detail: "Playbook not found." });
 });
 
 // The same holds for the ids under a playbook. Each answers with the message
