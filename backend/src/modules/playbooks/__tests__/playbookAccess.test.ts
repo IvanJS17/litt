@@ -11,6 +11,11 @@ vi.mock("../../../lib/llm", async (original) => ({
 vi.mock("../../user/user.service", async () =>
   (await import("./routeMock.js")).userServiceMock(getUserApiKeys),
 );
+vi.mock("../../../lib/providerCredentials/index", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/providerCredentials/index")>()),
+  getUserApiKeys,
+  getEffectiveApiKeys: (userId: string) => getUserApiKeys(userId),
+}));
 const docs = vi.hoisted(() => ({
   applyTrackedEditsToDocument: vi.fn(),
   loadCurrentVersionBytes: vi.fn(),

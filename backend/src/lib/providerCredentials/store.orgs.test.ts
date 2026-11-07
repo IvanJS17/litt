@@ -7,7 +7,7 @@ import {
     orgKeyOwner,
     saveApiKeyFor,
     userKeyOwner,
-} from "../user.apiKeyStore";
+} from "./store";
 
 // Whose key a piece of work runs on. The tests go through the real store —
 // encryption included — against an in-memory copy of the four tables it

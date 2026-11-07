@@ -1,7 +1,7 @@
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { type UserApiKeys } from "../../lib/llm";
 import { type ReasoningLevel } from "../../lib/llm";
-import { getEffectiveApiKeys } from "./user.apiKeyStore";
+import { getEffectiveApiKeys } from "../../lib/providerCredentials/index";
 import { loadCustomInstructions } from "./user.customInstructions";
 import {
     DEFAULT_RESPONSE_STYLE,

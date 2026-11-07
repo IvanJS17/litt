@@ -1,8 +1,16 @@
+import type { ApiKeyProvider, ApiKeyOwner, SettingsApiKeyProvider, ApiKeyStatus } from "./types";
+export type {
+    ApiKeyProvider,
+    ApiKeySource,
+    ApiKeyOwner,
+    SettingsApiKeyProvider,
+    ApiKeyStatus,
+} from "./types";
 import crypto from "crypto";
-import { createServerSupabase } from "../../lib/supabase";
-import type { Db } from "../../lib/supabase";
-import { logError } from "../../lib/log";
-import type { ProviderSettings, UserApiKeys } from "../../lib/llm";
+import { createServerSupabase } from "../supabase";
+import type { Db } from "../supabase";
+import { logError } from "../log";
+import type { ProviderSettings, UserApiKeys } from "../llm";
 import {
     envAzureCredentials,
     envAzureFoundryCredentials,
@@ -14,35 +22,8 @@ import {
     normalizeAzureFoundryEndpoint,
     normalizeCustomBaseUrl,
     normalizeVertexLocation,
-} from "../../lib/llm/cloudProviders";
-import { WEB_SEARCH_BACKENDS, type WebSearchBackend } from "../../lib/webSearch";
-
-export type ApiKeyProvider =
-    | "claude"
-    | "gemini"
-    | "openai"
-    | "mistral"
-    | "openrouter"
-    | "vercel"
-    | "opencode-go"
-    | "opencode-zen"
-    | "bedrock"
-    | "azure"
-    | "azure-foundry"
-    | "vertex"
-    | "xai"
-    | "custom"
-    | WebSearchBackend;
-export type ApiKeySource = "user" | "org" | "env" | null;
-
-/**
- * Whose key a row is. A person's keys and an organization's keys have the
- * same shape, encryption and rules, in two tables; everything below reads
- * and writes either through this, so there is one implementation of both.
- */
-export type ApiKeyOwner =
-    | { kind: "user"; id: string }
-    | { kind: "org"; id: string };
+} from "../llm/cloudProviders";
+import { WEB_SEARCH_BACKENDS } from "../webSearch";
 
 export const OWNER_TABLE = {
     user: { table: "user_api_keys", column: "user_id" },
@@ -57,18 +38,6 @@ export const orgKeyOwner = (orgId: string): ApiKeyOwner => ({
     kind: "org",
     id: orgId,
 });
-/** Providers whose key is only usable together with a non-secret setting. */
-export type SettingsApiKeyProvider = keyof ProviderSettings;
-export type ApiKeyStatus = Record<ApiKeyProvider, boolean> & {
-    sources: Record<ApiKeyProvider, ApiKeySource>;
-    enabled: Partial<Record<ApiKeyProvider, boolean>>;
-    /**
-     * The settings saved with the user's own key. Deployment (env) settings
-     * are not echoed back: an operator's Azure resource is not the user's
-     * business.
-     */
-    settings: ProviderSettings;
-};
 
 export type EncryptedKeyRow = {
     provider: ApiKeyProvider;

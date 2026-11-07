@@ -31,7 +31,7 @@ import {
     deleteAllUserTabularReviews,
     deleteUserProjects,
     deleteUserAccountData,
-} from "../user.dataCleanup";
+} from "../dataCleanup";
 
 const deleteFileMock = vi.mocked(deleteFile);
 const listFilesMock = vi.mocked(listFiles);

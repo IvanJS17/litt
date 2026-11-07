@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { loadMemoryExport } from "../../lib/memory/export";
 import {
     checkProjectAccess,
     checkWorkflowAccess,
@@ -7,14 +7,12 @@ import {
     type OrgRole,
 } from "../../lib/access";
 import { mapWithConcurrency } from "../../lib/concurrency";
-import { chunkArray } from "../../lib/arrays";
-import { ID_FILTER_BATCH_SIZE } from "../../lib/batchedQuery";
-import { sealManifest } from "../../lib/manifestSigning";
+import { selectAllByKey, selectInBatches, sortRows, uniqueIds } from "../../lib/batchedQuery";
 import { type Db } from "../../lib/supabase";
 import {
     resolvePlaybookRoles,
     type PlaybookAccessRow,
-} from "../playbooks/playbooks.service";
+} from "../../modules/playbooks/playbooks.service";
 import {
     filterReadableChatMessages,
     filterReadableReviewRows,
@@ -22,9 +20,7 @@ import {
     selectCompleteChatMessages,
     withReadableTitles,
 } from "../../lib/tabularReadAccess";
-import { throwIfError, uniqueStrings } from "./user.shared";
 
-const PAGE_SIZE = 1000;
 
 function nowStamp() {
     return new Date().toISOString().replace(/[:.]/g, "-");
@@ -39,52 +35,47 @@ export function userExportFilename(
     return `litt-${kind}-export-${userId.slice(0, 8)}${workspace}-${nowStamp()}.json`;
 }
 
+type Row = Record<string, unknown>;
+
+type ReadOptions = {
+    /** Narrows the builder; no `order`/`limit` — paging adds them. */
+    filter?: (query: any) => any;
+    /** Must include `id`, the paging key. */
+    columns?: string;
+    /** The order the export promises, applied after the complete read. */
+    order?: string[];
+};
+
+/**
+ * Every row of `table` the filter matches. Keyset-paged on `id` to an empty
+ * page: the `.range` loop this replaced stopped on a short page, which a
+ * gateway configured below the page size returns long before the end.
+ */
 async function selectAll(
     db: Db,
     table: string,
-    configure: (query: any) => any,
-    columns = "*",
-): Promise<Record<string, unknown>[]> {
-    const rows: Record<string, unknown>[] = [];
-
-    for (let from = 0; ; from += PAGE_SIZE) {
-        const to = from + PAGE_SIZE - 1;
-        const query = configure(
-            (db as any)
-                .from(table)
-                .select(columns)
-                .range(from, to),
-        );
-        const { data, error } = await query;
-        await throwIfError(error, `Failed to export ${table}`);
-        const batch = (data ?? []) as Record<string, unknown>[];
-        rows.push(...batch);
-        if (batch.length < PAGE_SIZE) break;
-    }
-
-    return rows;
+    { filter = (query) => query, columns = "*", order = [] }: ReadOptions = {},
+): Promise<Row[]> {
+    const rows = await selectAllByKey<Row>(`export ${table}`, () =>
+        filter((db as any).from(table).select(columns)),
+    );
+    return sortRows(rows, ...order);
 }
 
-/**
- * Every row whose `column` is one of `ids`. The ids go 50 per request (an
- * export can name thousands of documents, past the gateway's URL limit),
- * each batch read in full pages; `configure` adds further filters, and rows
- * are returned oldest first across batches.
- */
+/** Rows whose `column` is one of `ids`: URL-safe id batches, each paged. */
 async function selectByIds(
     db: Db,
     table: string,
     column: string,
     ids: string[],
-    configure: (query: any) => any = (query) => query,
-    columns = "*",
-): Promise<Record<string, unknown>[]> {
-    const rows: Record<string, unknown>[] = [];
-    for (const batch of chunkArray(uniqueStrings(ids), ID_FILTER_BATCH_SIZE))
-        rows.push(...(await selectAll(db, table, (query) => configure(query.in(column, batch)), columns)));
-    return rows.sort((a, b) =>
-        String(a.created_at ?? "").localeCompare(String(b.created_at ?? "")),
+    { filter = (query) => query, columns = "*", order = ["created_at"] }: ReadOptions = {},
+): Promise<Row[]> {
+    const rows = await selectInBatches<Row>(`export ${table}`, ids, (batch) =>
+        selectAllByKey<Row>(`export ${table}`, () =>
+            filter((db as any).from(table).select(columns).in(column, batch)),
+        ),
     );
+    return sortRows(rows, ...order);
 }
 
 /**
@@ -98,19 +89,19 @@ function inWorkspace(query: any, orgId: ExportWorkspace, column = "org_id") {
     return orgId ? query.eq(column, orgId) : query.is(column, null);
 }
 
-function rowInWorkspace(row: Record<string, unknown>, orgId: ExportWorkspace) {
+function rowInWorkspace(row: Row, orgId: ExportWorkspace) {
     return (typeof row.org_id === "string" ? row.org_id : null) === orgId;
 }
 
-function idsFrom(rows: Record<string, unknown>[], column = "id"): string[] {
-    return uniqueStrings(
+function idsFrom(rows: Row[], column = "id"): string[] {
+    return uniqueIds(
         rows.map((row) =>
             typeof row[column] === "string" ? (row[column] as string) : null,
         ),
     );
 }
 
-type ExportResourceRow = Record<string, unknown> & {
+type ExportResourceRow = Row & {
     id: string;
     user_id: string | null;
     project_id: string | null;
@@ -125,9 +116,9 @@ type ExportResourceRow = Record<string, unknown> & {
  * Check at build time, since membership or sharing may change while queued.
  */
 async function readableRows(
-    rows: Record<string, unknown>[],
+    rows: Row[],
     authorize: (row: ExportResourceRow) => Promise<{ ok: boolean }>,
-): Promise<Record<string, unknown>[]> {
+): Promise<Row[]> {
     const allowed = await mapWithConcurrency(rows, 8, async (row) =>
         typeof row.id === "string" && !row.archived_at
             ? (await authorize(row as ExportResourceRow)).ok
@@ -199,85 +190,14 @@ async function loadUserReviews(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
-    const reviews = await selectAll(db, "tabular_reviews", (query) =>
-        inWorkspace(query.eq("user_id", userId), orgId).order("created_at", {
-            ascending: true,
-        }),
-    );
+    const reviews = await selectAll(db, "tabular_reviews", {
+        filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
+        order: ["created_at"],
+    });
     return readableRows(
         reviews,
         createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
     );
-}
-
-/**
- * One memory file: a project's, or a person's for one workspace. A person
- * has one per workspace, so the user scope names which (`orgId`, null for
- * Personal) — read unnarrowed, the first of them would stand in for all.
- */
-async function loadMemoryExport(
-    db: Db,
-    scope: "user" | "project",
-    ownerId: string,
-    orgId: ExportWorkspace = null,
-) {
-    const ownerColumn = scope === "user" ? "user_id" : "project_id";
-    const rows = await selectAll(
-        db,
-        "memory_files",
-        (query) => {
-            const owned = query.eq("scope", scope).eq(ownerColumn, ownerId);
-            return scope === "user" ? inWorkspace(owned, orgId) : owned;
-        },
-        "id, enabled, epoch, revision, content, content_sha256, size_bytes, status, last_source, updated_by, created_at, updated_at",
-    );
-    const file = rows[0];
-    if (!file) {
-        return {
-            // Missing state is legacy/corrupt and must never be reported as an
-            // implicit opt-in. New owners receive an explicit row at creation.
-            enabled: false,
-            epoch: 0,
-            revision: 0,
-            status: "idle",
-            created_at: null,
-            updated_at: null,
-            markdown: "",
-            content_sha256: null,
-            size_bytes: 0,
-            source: null,
-            updated_by: null,
-        };
-    }
-
-    const markdown = typeof file.content === "string" ? file.content : "";
-    const storedHash =
-        typeof file.content_sha256 === "string" ? file.content_sha256 : null;
-    if (storedHash) {
-        const actualHash = createHash("sha256")
-            .update(markdown, "utf8")
-            .digest("hex");
-        if (actualHash !== storedHash) {
-            throw new Error("Memory export content checksum mismatch");
-        }
-    }
-
-    return {
-        enabled: file.enabled === true,
-        epoch: Number(file.epoch),
-        revision: Number(file.revision),
-        status: String(file.status ?? "idle"),
-        created_at:
-            typeof file.created_at === "string" ? file.created_at : null,
-        updated_at:
-            typeof file.updated_at === "string" ? file.updated_at : null,
-        markdown,
-        content_sha256: storedHash,
-        size_bytes: Number(file.size_bytes ?? 0),
-        source: typeof file.last_source === "string" ? file.last_source : null,
-        updated_by:
-            typeof file.updated_by === "string" ? file.updated_by : null,
-    };
 }
 
 async function loadUserChats(
@@ -286,11 +206,10 @@ async function loadUserChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
-    const candidates = await selectAll(db, "chats", (query) =>
-        inWorkspace(query.eq("user_id", userId), orgId).order("created_at", {
-            ascending: true,
-        }),
-    );
+    const candidates = await selectAll(db, "chats", {
+        filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
+        order: ["created_at"],
+    });
     const chats = await readableRows(
         candidates,
         createSharedRowAccessChecker("chat", userId, userEmail, db),
@@ -301,12 +220,14 @@ async function loadUserChats(
 }
 
 async function loadUserWordChats(db: Db, userId: string) {
-    const documents = await selectAll(db, "word_documents", (query) =>
-        query.eq("user_id", userId).order("created_at", { ascending: true }),
-    );
-    const chats = await selectAll(db, "word_chats", (query) =>
-        query.eq("user_id", userId).order("created_at", { ascending: true }),
-    );
+    const documents = await selectAll(db, "word_documents", {
+        filter: (query) => query.eq("user_id", userId),
+        order: ["created_at"],
+    });
+    const chats = await selectAll(db, "word_chats", {
+        filter: (query) => query.eq("user_id", userId),
+        order: ["created_at"],
+    });
     const messages = await selectByIds(
         db,
         "word_chat_messages",
@@ -322,9 +243,10 @@ async function loadUserTabularChats(
     userEmail: string | null | undefined,
     orgId: ExportWorkspace,
 ) {
-    const candidates = await selectAll(db, "tabular_review_chats", (query) =>
-        query.eq("user_id", userId).order("created_at", { ascending: true }),
-    );
+    const candidates = await selectAll(db, "tabular_review_chats", {
+        filter: (query) => query.eq("user_id", userId),
+        order: ["created_at"],
+    });
     // A review chat retains its creator after that person leaves the team.
     // Its parent review, not that creator id, controls access to the transcript.
     const reviews = await selectByIds(
@@ -365,7 +287,7 @@ async function loadUserPlaybooks(
     db: Db,
     userId: string,
     userEmail: string | null | undefined,
-    orgMemberships: Record<string, unknown>[],
+    orgMemberships: Row[],
     orgId: ExportWorkspace,
 ) {
     const orgRoles = new Map<string, OrgRole>();
@@ -375,15 +297,18 @@ async function loadUserPlaybooks(
     }
 
     const [created, runCandidates, imports] = await Promise.all([
-        selectAll(db, "playbooks", (query) =>
-            query.eq("user_id", userId).order("created_at", { ascending: true }),
-        ),
-        selectAll(db, "playbook_runs", (query) =>
-            query.eq("user_id", userId).order("started_at", { ascending: true }),
-        ),
-        selectAll(db, "playbook_imports", (query) =>
-            query.eq("user_id", userId).order("started_at", { ascending: true }),
-        ),
+        selectAll(db, "playbooks", {
+            filter: (query) => query.eq("user_id", userId),
+            order: ["created_at"],
+        }),
+        selectAll(db, "playbook_runs", {
+            filter: (query) => query.eq("user_id", userId),
+            order: ["started_at"],
+        }),
+        selectAll(db, "playbook_imports", {
+            filter: (query) => query.eq("user_id", userId),
+            order: ["started_at"],
+        }),
     ]);
     const createdIds = new Set(idsFrom(created));
     const runPlaybooks = await selectByIds(
@@ -408,19 +333,9 @@ async function loadUserPlaybooks(
         ),
     );
     const playbooks = created.filter((row) => inScope.has(row.id as string));
-    const playbookIds = idsFrom(playbooks);
-    const sources =
-        playbookIds.length === 0
-            ? []
-            : await selectAll(
-                  db,
-                  "playbook_sources",
-                  (query) =>
-                      query
-                          .in("playbook_id", playbookIds)
-                          .order("created_at", { ascending: true }),
-                  "id, playbook_id, filename, file_type, size_bytes, text_length, created_at",
-              );
+    const sources = await selectByIds(db, "playbook_sources", "playbook_id", idsFrom(playbooks), {
+        columns: "id, playbook_id, filename, file_type, size_bytes, text_length, created_at",
+    });
 
     return {
         playbooks,
@@ -441,14 +356,13 @@ async function loadUserPlaybooks(
 }
 
 async function loadApiKeyStatus(db: Db, userId: string) {
-    const rows = await selectAll(db, "user_api_keys", (query) =>
-        query
-            .eq("user_id", userId)
-            .order("provider", { ascending: true }),
+    const rows = await selectAll(db, "user_api_keys", {
+        filter: (query) => query.eq("user_id", userId),
         // Never the key material (encrypted_key, iv, auth_tag): only what
         // the user can already see in Settings.
-        "provider, settings, enabled, created_at, updated_at",
-    );
+        columns: "id, provider, settings, enabled, created_at, updated_at",
+        order: ["provider"],
+    });
     return rows.map((row) => ({
         provider: row.provider,
         has_key: true,
@@ -521,118 +435,6 @@ export async function buildUserTabularReviewsExport(
     };
 }
 
-export function projectManifestFilename(projectId: string) {
-    return `litt-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
-}
-
-/**
- * Tamper-evident manifest for one project: every document version with its
- * content_sha256, plus the accept/reject trail. To check an exported file
- * against what the workspace held, recompute its SHA-256 and compare.
- *
- * `sealManifest` then hashes the body and signs that digest with the
- * deployment's Ed25519 key, if it has one. Unsigned, the manifest shows the
- * *files* are unmodified but says nothing about itself.
- *
- * Versions written before content hashing shipped carry a null hash rather
- * than a wrong one, so an old file set reads as unverifiable and never as
- * verified.
- */
-export async function buildProjectExportManifest(db: Db, projectId: string) {
-    const { data: project, error: projectError } = await db
-        .from("projects")
-        .select("id, name, cm_number, created_at")
-        .eq("id", projectId)
-        .single();
-    await throwIfError(projectError, "Failed to export project");
-
-    const memory = await loadMemoryExport(db, "project", projectId);
-
-    const documents = await selectAll(
-        db,
-        "documents",
-        (query) =>
-            query
-                .eq("project_id", projectId)
-                .order("created_at", { ascending: true })
-                .order("id", { ascending: true }),
-        "id, project_id, status, current_version_id, created_at",
-    );
-    const documentIds = idsFrom(documents);
-
-    const [versions, edits] = await Promise.all([
-        documentIds.length === 0
-            ? Promise.resolve([])
-            : selectAll(
-                  db,
-                  "document_versions",
-                  (query) =>
-                      query
-                          .in("document_id", documentIds)
-                          .order("created_at", { ascending: true })
-                          .order("id", { ascending: true }),
-                  "id, document_id, version_number, source, filename, file_type, size_bytes, content_sha256, deleted_at, created_at",
-              ),
-        documentIds.length === 0
-            ? Promise.resolve([])
-            : selectAll(
-                  db,
-                  "document_edits",
-                  (query) =>
-                      query
-                          .in("document_id", documentIds)
-                          .order("created_at", { ascending: true })
-                          .order("id", { ascending: true }),
-                  "id, document_id, version_id, change_id, status, created_at, resolved_at",
-              ),
-    ]);
-
-    const groupByDocument = (rows: Record<string, unknown>[]) => {
-        const byDoc = new Map<string, Record<string, unknown>[]>();
-        for (const row of rows) {
-            const docId = row.document_id as string;
-            const list = byDoc.get(docId) ?? [];
-            list.push(row);
-            byDoc.set(docId, list);
-        }
-        return byDoc;
-    };
-    const versionsByDoc = groupByDocument(versions);
-    const editsByDoc = groupByDocument(edits);
-
-    return sealManifest({
-        manifest_version: 1,
-        exported_at: new Date().toISOString(),
-        project,
-        memory,
-        documents: documents.map((doc) => ({
-            id: doc.id,
-            status: doc.status,
-            current_version_id: doc.current_version_id,
-            created_at: doc.created_at,
-            versions: (versionsByDoc.get(doc.id as string) ?? []).map((v) => ({
-                id: v.id,
-                version_number: v.version_number,
-                source: v.source,
-                filename: v.filename,
-                file_type: v.file_type,
-                size_bytes: v.size_bytes,
-                content_sha256: v.content_sha256,
-                deleted_at: v.deleted_at,
-                created_at: v.created_at,
-            })),
-            edits: (editsByDoc.get(doc.id as string) ?? []).map((e) => ({
-                id: e.id,
-                version_id: e.version_id,
-                change_id: e.change_id,
-                status: e.status,
-                created_at: e.created_at,
-                resolved_at: e.resolved_at,
-            })),
-        })),
-    });
-}
-
 /**
  * The account JSON for one workspace. Personal's carries the account itself
  * as well — profile, keys, preferences, the organizations the person belongs
@@ -648,6 +450,7 @@ export async function buildUserAccountExport(
     // Account-level data has no workspace; it leaves with Personal's export.
     const personalOnly = <T>(load: () => Promise<T>, empty: T): Promise<T> =>
         orgId ? Promise.resolve(empty) : load();
+    const normalizedEmail = userEmail?.trim().toLowerCase();
     const [
         profile,
         apiKeys,
@@ -670,125 +473,103 @@ export async function buildUserAccountExport(
         appMemory,
     ] = await Promise.all([
         personalOnly(
-            () =>
-                selectAll(db, "user_profiles", (query) =>
-                    query.eq("user_id", userId),
-                ),
+            () => selectAll(db, "user_profiles", { filter: (query) => query.eq("user_id", userId) }),
             [],
         ),
         personalOnly(() => loadApiKeyStatus(db, userId), null),
         personalOnly(
             () =>
-                selectAll(db, "user_router_models", (query) =>
-                    query
-                        .eq("user_id", userId)
-                        .order("router", { ascending: true })
-                        .order("sort_order", { ascending: true }),
-                ),
+                selectAll(db, "user_router_models", {
+                    filter: (query) => query.eq("user_id", userId),
+                    order: ["router", "sort_order"],
+                }),
             [],
         ),
-        selectAll(db, "projects", (query) =>
-            inWorkspace(query.eq("user_id", userId), orgId).order("created_at", {
-                ascending: true,
-            }),
-        ).then((rows) =>
+        selectAll(db, "projects", {
+            filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
+            order: ["created_at"],
+        }).then((rows) =>
             readableRows(rows, (row) =>
                 checkProjectAccess(row.id, userId, userEmail, db),
             ),
         ),
-        selectAll(db, "documents", (query) =>
-            inWorkspace(query.eq("user_id", userId).is("project_id", null), orgId)
-                .order("created_at", { ascending: true }),
-        ),
-        selectAll(db, "workflows", (query) =>
-            inWorkspace(query.eq("user_id", userId), orgId).order("created_at", {
-                ascending: true,
-            }),
-        ).then((rows) =>
+        selectAll(db, "documents", {
+            filter: (query) =>
+                inWorkspace(query.eq("user_id", userId).is("project_id", null), orgId),
+            order: ["created_at"],
+        }),
+        selectAll(db, "workflows", {
+            filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
+            order: ["created_at"],
+        }).then((rows) =>
             readableRows(rows, (row) =>
                 checkWorkflowAccess(row.id, userId, userEmail, db),
             ),
         ),
         personalOnly(
             () =>
-                selectAll(db, "default_workflow_installations", (query) =>
-                    query
-                        .eq("user_id", userId)
-                        .order("installed_at", { ascending: true }),
-                ),
+                selectAll(db, "default_workflow_installations", {
+                    filter: (query) => query.eq("user_id", userId),
+                    order: ["installed_at"],
+                }),
             [],
         ),
         personalOnly(
             () =>
-                selectAll(db, "quick_actions", (query) =>
-                    query.eq("user_id", userId).order("sort_order", { ascending: true }),
-                ),
+                selectAll(db, "quick_actions", {
+                    filter: (query) => query.eq("user_id", userId),
+                    order: ["sort_order"],
+                }),
             [],
         ),
         personalOnly(
             () =>
-                selectAll(db, "workflow_open_source_submissions", (query) =>
-                    query
-                        .eq("submitted_by_user_id", userId)
-                        .order("submitted_at", { ascending: true }),
-                ),
+                selectAll(db, "workflow_open_source_submissions", {
+                    filter: (query) => query.eq("submitted_by_user_id", userId),
+                    order: ["submitted_at"],
+                }),
             [],
         ),
         personalOnly(
             () =>
-                selectAll(db, "hidden_workflows", (query) =>
-                    query.eq("user_id", userId).order("created_at", { ascending: true }),
-                ),
+                selectAll(db, "hidden_workflows", {
+                    filter: (query) => query.eq("user_id", userId),
+                    order: ["created_at"],
+                }),
             [],
         ),
         // Narrowed to the exported workflows below.
-        selectAll(db, "workflow_shares", (query) =>
-            query
-                .eq("shared_by_user_id", userId)
-                .order("created_at", { ascending: true }),
-        ),
+        selectAll(db, "workflow_shares", {
+            filter: (query) => query.eq("shared_by_user_id", userId),
+            order: ["created_at"],
+        }),
         userEmail
             ? personalOnly(
                   () =>
-                      selectAll(db, "workflow_shares", (query) =>
-                          query
-                              .eq("shared_with_email", userEmail)
-                              .order("created_at", { ascending: true }),
-                      ),
+                      selectAll(db, "workflow_shares", {
+                          filter: (query) => query.eq("shared_with_email", userEmail),
+                          order: ["created_at"],
+                      }),
                   [],
               )
             : Promise.resolve([]),
         loadUserChats(db, userId, userEmail, orgId),
         loadUserTabularChats(db, userId, userEmail, orgId),
         loadUserReviews(db, userId, userEmail, orgId),
-        userEmail
+        normalizedEmail
             ? (async () => {
                   // Grants are candidates too: stale grants cannot override
                   // current organization membership or resource permissions.
-                  const grantRows = await selectAll(
-                      db,
-                      "project_access_grants",
-                      (query) =>
-                          query.eq(
-                              "email",
-                              userEmail.trim().toLowerCase(),
-                          ),
-                      "project_id",
-                  );
-                  const projectIds = [
-                      ...new Set(
-                          grantRows
-                              .map((row) => row.project_id as string | null)
-                              .filter((id): id is string => !!id),
-                      ),
-                  ];
+                  const grantRows = await selectAll(db, "project_access_grants", {
+                      filter: (query) => query.eq("email", normalizedEmail),
+                      columns: "id, project_id",
+                  });
+                  const projectIds = idsFrom(grantRows, "project_id");
                   if (projectIds.length === 0) return [];
-                  return selectByIds(db, "projects", "id", projectIds, (query) =>
-                      inWorkspace(query.neq("user_id", userId), orgId).order("created_at", {
-                          ascending: true,
-                      }),
-                      "id, user_id, org_id, name, cm_number, created_at, updated_at",
-                  ).then(async (rows) => {
+                  return selectByIds(db, "projects", "id", projectIds, {
+                      filter: (query) => inWorkspace(query.neq("user_id", userId), orgId),
+                      columns: "id, user_id, org_id, name, cm_number, created_at, updated_at",
+                  }).then(async (rows) => {
                       const readable = await readableRows(rows, (row) =>
                           checkProjectAccess(row.id, userId, userEmail, db),
                       );
@@ -796,33 +577,18 @@ export async function buildUserAccountExport(
                   });
               })()
             : Promise.resolve([]),
-        userEmail
+        normalizedEmail
             ? (async () => {
-                  const grantRows = await selectAll(
-                      db,
-                      "tabular_review_access_grants",
-                      (query) =>
-                          query.eq(
-                              "email",
-                              userEmail.trim().toLowerCase(),
-                          ),
-                      "tabular_review_id",
-                  );
-                  const reviewIds = [
-                      ...new Set(
-                          grantRows
-                              .map(
-                                  (row) =>
-                                      row.tabular_review_id as string | null,
-                              )
-                              .filter((id): id is string => !!id),
-                      ),
-                  ];
+                  const grantRows = await selectAll(db, "tabular_review_access_grants", {
+                      filter: (query) => query.eq("email", normalizedEmail),
+                      columns: "id, tabular_review_id",
+                  });
+                  const reviewIds = idsFrom(grantRows, "tabular_review_id");
                   if (reviewIds.length === 0) return [];
-                  return selectByIds(db, "tabular_reviews", "id", reviewIds, (query) =>
-                      query.neq("user_id", userId).order("created_at", { ascending: true }),
-                      "id, user_id, project_id, org_id, archived_at, title, practice, created_at, updated_at",
-                  ).then(async (rows) => {
+                  return selectByIds(db, "tabular_reviews", "id", reviewIds, {
+                      filter: (query) => query.neq("user_id", userId),
+                      columns: "id, user_id, project_id, org_id, archived_at, title, practice, created_at, updated_at",
+                  }).then(async (rows) => {
                       const readable = await readableRows(
                           rows.filter((row) => rowInWorkspace(row, orgId)),
                           createSharedRowAccessChecker("tabular_review", userId, userEmail, db),
@@ -833,31 +599,30 @@ export async function buildUserAccountExport(
                   });
               })()
             : Promise.resolve([]),
-        selectAll(db, "audit_events", (query) =>
-            inWorkspace(query.eq("user_id", userId), orgId).order("created_at", {
-                ascending: true,
-            }),
-        ),
+        selectAll(db, "audit_events", {
+            filter: (query) => inWorkspace(query.eq("user_id", userId), orgId),
+            order: ["created_at"],
+        }),
         loadMemoryExport(db, "user", userId, orgId),
     ]);
 
     // Organization membership + the orgs the user belongs to and the
     // invitations addressed to them, for a complete GDPR-style export of
     // their multi-tenant footprint.
-    const orgMemberships = await selectAll(db, "org_members", (query) =>
-        query.eq("user_id", userId).order("created_at", { ascending: true }),
-    );
+    const orgMemberships = await selectAll(db, "org_members", {
+        filter: (query) => query.eq("user_id", userId),
+        order: ["created_at"],
+    });
     const orgIds = idsFrom(orgMemberships, "org_id");
     const [organizations, orgInvitations] = await Promise.all([
         personalOnly(() => selectByIds(db, "organizations", "id", orgIds), []),
-        userEmail
+        normalizedEmail
             ? personalOnly(
                   () =>
-                      selectAll(db, "org_invitations", (query) =>
-                          query
-                              .eq("email", userEmail.trim().toLowerCase())
-                              .order("created_at", { ascending: true }),
-                      ),
+                      selectAll(db, "org_invitations", {
+                          filter: (query) => query.eq("email", normalizedEmail),
+                          order: ["created_at"],
+                      }),
                   [],
               )
             : Promise.resolve([]),
@@ -869,22 +634,26 @@ export async function buildUserAccountExport(
     // Their pupils are other people's data.
     const trainingScope = (query: any) => (orgId ? query.eq("org_id", orgId) : query);
     const [trainingMentor, trainingPupil, trainingStages, trainingNotes] = await Promise.all([
-        selectAll(db, "training_mentors", (query) =>
-            trainingScope(query.eq("user_id", userId)).order("created_at", { ascending: true }),
-        ),
-        selectAll(db, "training_pupils", (query) =>
-            trainingScope(query.eq("trainee_user_id", userId)).order("created_at", { ascending: true }),
-        ),
-        selectAll(db, "training_stages", (query) =>
-            trainingScope(query.eq("trainee_user_id", userId)).order("updated_at", { ascending: true }),
-        ),
-        selectAll(
-            db,
-            "training_turn_notes",
-            (query) =>
-                trainingScope(query.eq("trainee_user_id", userId)).order("created_at", { ascending: true }),
-            "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at",
-        ),
+        // These two have no `id`: their key is (org_id, person), so for one
+        // person org_id is the unique paging key.
+        selectAllByKey<Row>("export training_mentors", () =>
+            trainingScope((db as any).from("training_mentors").select("*").eq("user_id", userId)),
+            "org_id",
+        ).then((rows) => sortRows(rows, "created_at", "org_id")),
+        selectAllByKey<Row>("export training_pupils", () =>
+            trainingScope((db as any).from("training_pupils").select("*").eq("trainee_user_id", userId)),
+            "org_id",
+        ).then((rows) => sortRows(rows, "created_at", "org_id")),
+        selectAll(db, "training_stages", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            order: ["updated_at"],
+        }),
+        selectAll(db, "training_turn_notes", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at",
+            order: ["created_at"],
+        }),
     ]);
 
     const playbooks = await loadUserPlaybooks(

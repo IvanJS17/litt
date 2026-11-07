@@ -1,4 +1,4 @@
-// accountJobs — implementation behind the module facade.
+// Account-deletion queue adapter. Recheck blockers and erase the auth identity last.
 //
 // Account erasure (owner decision 2026-10-24; TD-008 partial). Everything the
 // person kept outside the firm's matters is deleted, then the Auth user;
@@ -11,7 +11,7 @@ import type { AccountDeletionReceiptContent } from "@mike/contracts";
 import {
     deleteUserAccountData,
     listOrgsBlockingAccountDeletion,
-} from "./user.dataCleanup";
+} from "../accounts/dataCleanup";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { mapWithConcurrency } from "../../lib/concurrency";
 import { deleteFile } from "../../lib/storage";
