@@ -95,7 +95,8 @@ export async function getPlaybookSourceFile(
   };
 }
 
-async function extractSourceText(
+/** The text a review reads from a supplementary document. */
+export async function extractPlaybookSourceText(
   fileType: PlaybookSourceFileType,
   bytes: ArrayBuffer,
 ): Promise<string> {
@@ -116,11 +117,23 @@ async function extractSourceText(
   return text.replace(/\u0000/g, "").slice(0, MAX_STORED_TEXT_CHARS);
 }
 
-async function storeSource(
+/**
+ * Store bytes as one of a playbook's supplementary documents. The caller has
+ * authorized the write. `id` lets a re-run store the same source again under
+ * the same key instead of a second copy; `text` is the extraction the caller
+ * already made of these bytes.
+ */
+export async function addPlaybookSourceBytes(
   db: Db,
-  playbook: Playbook,
+  playbook: Pick<Playbook, "id" | "userId">,
   userId: string,
-  file: { filename: string; fileType: PlaybookSourceFileType; bytes: ArrayBuffer },
+  file: {
+    filename: string;
+    fileType: PlaybookSourceFileType;
+    bytes: ArrayBuffer;
+    id?: string;
+    text?: string;
+  },
 ): Promise<PublicPlaybookSource> {
   const existing = await listPlaybookSourceRows(db, playbook.id);
   if (existing.length >= MAX_PLAYBOOK_SOURCES)
@@ -128,8 +141,9 @@ async function storeSource(
       `A playbook can keep up to ${MAX_PLAYBOOK_SOURCES} supplementary documents.`,
       409,
     );
-  const text = await extractSourceText(file.fileType, file.bytes);
-  const id = crypto.randomUUID();
+  const text =
+    file.text ?? (await extractPlaybookSourceText(file.fileType, file.bytes));
+  const id = file.id ?? crypto.randomUUID();
   const storageKey = `playbooks/${playbook.userId}/${playbook.id}/sources/${id}.${file.fileType}`;
   await uploadFile(
     storageKey,
@@ -189,7 +203,7 @@ export async function addPlaybookSourceFromUpload(
   const bytes = await downloadFile(upload.storageKey);
   if (!bytes)
     throw new PlaybookRequestError("The uploaded document could not be read.");
-  return storeSource(db, playbook, userId, {
+  return addPlaybookSourceBytes(db, playbook, userId, {
     filename: upload.filename,
     fileType,
     bytes,
@@ -220,7 +234,7 @@ export async function addPlaybookSourceFromDocument(
   if (source.size > MAX_PLAYBOOK_SOURCE_FILE_BYTES) throw sizeError();
   const bytes = await downloadFile(source.storagePath);
   if (!bytes) throw new PlaybookRequestError("The document could not be read.");
-  return storeSource(db, playbook, userId, {
+  return addPlaybookSourceBytes(db, playbook, userId, {
     filename: source.filename,
     fileType,
     bytes,

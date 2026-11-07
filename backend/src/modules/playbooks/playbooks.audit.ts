@@ -22,6 +22,9 @@ export type PlaybookAuditAction =
   // LiTT: a draft marked ready (with its counts of unbacked rules and
   // unverified references), and the model mark set or cleared.
   | "playbook.marked_ready"
+  // LiTT: a draft from the questionnaire, completed or failed, with counts
+  // of its rules, unbacked rules and unverified references; never answers.
+  | "playbook.draft_created"
   | "playbook.model_marked"
   | "playbook.model_unmarked";
 

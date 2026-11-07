@@ -13,8 +13,11 @@ import {
   playbookContentSchema,
 } from "./playbooks.operations";
 import {
+  allRules,
   PLAYBOOK_CHANGES_PENDING_CODE,
   PLAYBOOK_CHANGES_PENDING_MESSAGE,
+  PLAYBOOK_MODEL_EMPTY_CODE,
+  PLAYBOOK_MODEL_EMPTY_MESSAGE,
   provenanceCounts,
 } from "./playbooks.starter";
 import type { Playbook } from "./playbooks.types";
@@ -61,9 +64,16 @@ export async function setPlaybookState(
       409,
     );
   if (!markReady && nextModel === playbook.isModel) return playbook;
+  // A model is offered as a starting point: an empty one is not one.
+  if (nextModel && !playbook.isModel && allRules(playbook.content).length === 0)
+    throw new PlaybookRequestError(PLAYBOOK_MODEL_EMPTY_MESSAGE, 409, {
+      code: PLAYBOOK_MODEL_EMPTY_CODE,
+    });
 
+  // Any state write, the model mark alone included, waits for a replacement
+  // or proposals compiling over this playbook.
+  await assertPlaybookNotBeingReplaced(db, id);
   if (markReady) {
-    await assertPlaybookNotBeingReplaced(db, id);
     if (!playbookContentSchema.safeParse(playbook.content).success)
       throw new PlaybookRequestError(
         "Completa el nombre, las reglas y las posiciones antes de marcar el playbook como listo.",

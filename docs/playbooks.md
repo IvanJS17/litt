@@ -26,10 +26,9 @@ review. There is no publishing step or numbered playbook version.
 ### Draft and ready, and models (LiTT)
 
 A playbook is **ready** or a **draft**. Every playbook imported from a file or
-started from scratch is ready, as before. A draft is what LiTT will produce
-when the model writes a playbook from a questionnaire or proposes changes for
-a copy (later cards of the same layer); until then the state is set only
-through the endpoint below.
+started from scratch is ready, as before. A playbook the model writes from
+the questionnaire (see "Starting a playbook with questions") is a draft, and
+so will be a copy with proposed changes (a later card of the same layer).
 
 A draft cannot be used in a review. Every way of starting one refuses it
 before anything is recorded, with `409` and the code `playbook_draft`:
@@ -49,7 +48,11 @@ playbook picker leave drafts out.
   block it; the audit row records how many there were.
 - **Model** marks a ready playbook as a starting point for its workspace,
   personal or organization. A draft cannot be a model (the database refuses
-  it too), unless the same request marks it ready.
+  it too), unless the same request marks it ready. A playbook without rules
+  cannot be marked a model either (`409` `playbook_model_empty`); removing
+  the mark is always allowed.
+- Any state change, the model mark alone included, waits with `409` while a
+  replacement import compiles over the playbook, as saving its rules does.
 - The change applies only over the version that was read: if an edit was
   saved in between, it answers `409` and nothing changes; reload and retry.
 
@@ -157,6 +160,64 @@ document types, jurisdictions, description, and, in an organization, Private
 or Public. Mike then opens the new playbook on **Rules**. It starts with one
 ungrouped rule and no topics. A rule always
 needs a concept, so the first one carries placeholder text to replace.
+
+## Starting a playbook with questions
+
+`GET /playbooks/questionnaire` returns LiTT's ten fixed questions (who the
+client represents, its sector, the document type, jurisdiction and governing
+law, risk appetite, red lines, what it can concede, preferred clauses,
+background, and language, currency and signature format), with the limits
+below. Every question is optional, and the questions are product text: LiTT
+ships no rule, position or law with them.
+
+`POST /playbooks/drafts` takes `{ model, name?, workspace?, visibility?,
+answers?, attachments? }` and answers `202` with the attempt, in the same
+shape as an import (`kind: "draft"`), which `GET /playbooks/imports/:id`
+follows. It needs an MFA-verified session where MFA is enrolled and shares the
+import rate limit.
+
+- **Answers** are `{ "q1": "…", …, "q10": "…" }`; unknown ids are refused,
+  blank answers count as unanswered, each answer holds up to 4,000 characters
+  and all of them up to 30,000.
+- **Attachments** (question 8) are up to five `.docx` or `.pdf` files, each a
+  key from `POST /playbooks/import/upload-url` with its `filename`, or a
+  `documentId` the caller can open. Each may hold up to 40,000 extracted
+  characters, and all of them up to 80,000; beyond that the draft fails
+  instead of being truncated. They are kept as the new playbook's references,
+  so a rule's attached-clause origin can be opened.
+- **Model.** The draft uses the model selector and the user's or the
+  organization's keys, as an import does: the provider, model and key are
+  fixed when it is requested, and the job uses exactly that route. Without a
+  key for the chosen model the request is refused with `400`
+  `missing_api_key`; a key removed before the job runs fails the draft. No
+  other model or key is ever tried.
+
+The request is checked and recorded at once; a `playbook.draft` job compiles
+it, with the restarts, heartbeat and interruption of the other background jobs
+below. The answers and attachments are kept on the attempt's row (never in
+the job's payload) while it runs, and cleared when it ends. The model receives
+them inside blocks marked with a random value, and is told they are the
+client's data, not instructions. An invalid answer from the model gets one
+repair request, as an import does; a second one fails the draft.
+
+The model states where each rule comes from, and the server decides:
+
+| The model says | The server keeps it when | Otherwise |
+| --- | --- | --- |
+| An answer (`questionIds`) | Every question it names was answered. | General practice, without backing. |
+| An attached clause (`sourceId`, `quote`) | The quote, ignoring case, accents and spacing, is in that attachment's text. | General practice, without backing. |
+| General practice, or nothing | — | Marked "suggestion without backing, review". |
+| A legal reference | It quotes an attachment, verifiably as above. | "Not verified". |
+
+A rule that mentions an article, a law, a code, a standard or case law
+without listing it gets an unverified reference saying so. LiTT ships no legal
+sources, so a legal reference is verified only when the lawyer attached its
+text. Nothing is dropped: the marks are lowered, never the rules.
+
+The draft is saved as a **draft** playbook, with the answers stored apart from
+its rules (they are not copied into review snapshots or sent to the review
+model). It cannot be used in a review until an editor marks it ready. A draft
+that fails leaves no playbook behind.
 
 ## Importing a playbook
 
@@ -375,7 +436,8 @@ their own runs, including on a shared playbook, and the rules snapshot stored
 with a run is never returned by either list.
 
 The current one-pass safety limits are 150,000 extracted characters per
-imported playbook, 100,000 serialized characters per playbook, and
+imported playbook, 100,000 serialized characters per playbook (its rules as
+the review receives them, without provenance), and
 180,000 characters per reviewed contract. Oversized inputs fail explicitly
 instead of being silently truncated.
 
@@ -393,6 +455,7 @@ surface, as chat, document, and tabular review activity is:
 | `playbook.deleted` | A playbook is deleted. |
 | `playbook.run` | A review completes or fails. The row holds the model and the stored document reviewed, if any; `detail` holds the playbook and run ids, scope, posture, and, for a completed review, the number of findings per status. |
 | `playbook.run.deleted` | A review run is deleted. |
+| `playbook.draft_created` | A draft from the questionnaire ends. The row holds the model; `detail` holds the attempt and playbook ids and, for a completed draft, the number of rules, of rules without backing, of unverified legal references, of origins the server lowered, of answered questions and of attachments. A failed one carries its `stage`. Never the answers. |
 | `playbook.marked_ready` | An editor marks a draft ready; `detail` holds the number of rules, of rules without backing, and of unverified legal references. |
 | `playbook.model_marked` | An editor marks a ready playbook as a model. |
 | `playbook.model_unmarked` | An editor removes the model mark. |
