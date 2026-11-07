@@ -109,7 +109,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
-function parseAttachments(userId: string, raw: unknown): DraftAttachment[] {
+export function parseAttachments(userId: string, raw: unknown): DraftAttachment[] {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw))
     throw new PlaybookRequestError("Los adjuntos deben enviarse como una lista.");
@@ -153,7 +153,7 @@ export function stagedDraftKeys(userId: string, raw: unknown): string[] {
 }
 
 /** Checked in the request: the staged object exists, or the document opens. */
-async function checkAttachments(
+export async function checkAttachments(
   db: Db,
   userId: string,
   userEmail: string | null | undefined,
@@ -361,7 +361,7 @@ function text(value: unknown, max: number): string | undefined {
  * it may send are ignored (the server sets them), and file markers it may
  * invent in sourceRefs are dropped. The rule itself is left for the schema.
  */
-function normalizeDraftRule(rule: unknown): unknown {
+export function normalizeDraftRule(rule: unknown): unknown {
   if (!isObject(rule)) return rule;
   const { sourceRefs: _sourceRefs, origin: rawOrigin, legalRefs: rawRefs, ...rest } = rule;
   const origin = isObject(rawOrigin) ? rawOrigin : {};
@@ -553,12 +553,15 @@ export function checkDraftOutput(
   return verifyDraftProvenance(content, evidence);
 }
 
-/** One repair attempt, as an import gets: a second invalid answer fails the draft. */
-export async function validateDraftWithRetry(args: {
+/**
+ * One repair attempt, as an import gets: a second invalid answer fails the
+ * draft (or the proposals, which check their own output shape).
+ */
+export async function validateDraftWithRetry<T>(args: {
   raw: string;
-  check: (raw: string) => { content: PlaybookContent; counts: DraftProvenanceCounts };
+  check: (raw: string) => T;
   retry: (validationError: string) => Promise<string>;
-}): Promise<{ content: PlaybookContent; counts: DraftProvenanceCounts }> {
+}): Promise<T> {
   try {
     return args.check(args.raw);
   } catch (firstError) {
@@ -575,7 +578,7 @@ export async function validateDraftWithRetry(args: {
 }
 
 /** The labels the model cited (A1…), replaced by the stored sources' ids. */
-function withSourceIds(content: PlaybookContent, ids: Map<string, string>): PlaybookContent {
+export function withSourceIds(content: PlaybookContent, ids: Map<string, string>): PlaybookContent {
   const map = (rule: Rule): Rule => ({
     ...rule,
     ...(rule.origin?.sourceId
@@ -598,7 +601,7 @@ function withSourceIds(content: PlaybookContent, ids: Map<string, string>): Play
 
 // --- The job ---------------------------------------------------------------------
 
-function storedRequest(raw: unknown): DraftRequestJson {
+export function storedRequest(raw: unknown): DraftRequestJson {
   const value = typeof raw === "string" ? (JSON.parse(raw) as unknown) : raw;
   if (!isObject(value) || !Array.isArray(value.attachments))
     throw new PlaybookRequestError(
@@ -611,9 +614,9 @@ function storedRequest(raw: unknown): DraftRequestJson {
   };
 }
 
-async function readDraftSource(
+export async function readDraftSource(
   db: Db,
-  work: PlaybookDraftWork,
+  work: Pick<PlaybookDraftWork, "userId" | "userEmail">,
   attachment: DraftAttachment,
   label: string,
 ): Promise<DraftSource> {
@@ -651,13 +654,16 @@ async function readDraftSource(
   return { label, filename, fileType, text: extracted, bytes };
 }
 
-function draftFailureMessage(error: unknown): string {
+export function draftFailureMessage(
+  error: unknown,
+  fallback: string = DRAFT_FAILURE_MESSAGE,
+): string {
   if (error instanceof Error && error.name === "TimeoutError") {
     const minutes = Math.max(1, Math.round(playbookCompilationTimeoutMs() / 60_000));
     return `El modelo elegido no terminó en ${minutes} minuto${minutes === 1 ? "" : "s"}. Inténtalo de nuevo o elige otro modelo.`;
   }
   if (error instanceof PlaybookRequestError) return error.message;
-  return DRAFT_FAILURE_MESSAGE;
+  return fallback;
 }
 
 /**

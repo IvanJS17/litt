@@ -27,6 +27,7 @@ import {
     compilePlaybookImport,
     INTERRUPTED_DRAFT_ERROR,
     INTERRUPTED_IMPORT_ERROR,
+    INTERRUPTED_PROPOSAL_ERROR,
     INTERRUPTED_RUN_ERROR,
     MAX_PLAYBOOK_IMPORT_BYTES,
     playbookImportDocument,
@@ -52,7 +53,18 @@ import {
   recordDraftAudit,
   stagedDraftKeys,
 } from "./playbooks.draft";
-import type { PlaybookDraftRequest, PlaybookDraftWork } from "./playbooks.types";
+import type {
+  PlaybookDraftRequest,
+  PlaybookDraftWork,
+  PlaybookProposalWork,
+} from "./playbooks.types";
+import {
+  beginPlaybookProposals,
+  compilePlaybookProposals,
+  discardProposal,
+  recordProposalAudit,
+  type PlaybookProposalRequest,
+} from "./playbooks.proposals";
 import {
   removePlaybookObjects,
   reportPlaybookFailure,
@@ -65,8 +77,18 @@ import {
 
 export const PLAYBOOK_REVIEW_JOB = "playbook.review";
 export const PLAYBOOK_IMPORT_JOB = "playbook.import";
-/** LiTT: a draft from the questionnaire (playbooks.draft.ts). */
+/**
+ * LiTT: a draft from the questionnaire (playbooks.draft.ts), or changes
+ * proposed for a copy (playbooks.proposals.ts): one job kind, told apart by
+ * the payload's and the row's `kind`.
+ */
 export const PLAYBOOK_DRAFT_JOB = "playbook.draft";
+
+type PlaybookDraftJobPayload = PlaybookDraftWork | PlaybookProposalWork;
+
+function isProposal(payload: PlaybookDraftJobPayload): payload is PlaybookProposalWork {
+  return (payload as { kind?: unknown }).kind === "proposal";
+}
 
 /**
  * Attempts per job. Only a crash or an unrecordable outcome uses one: a
@@ -301,12 +323,15 @@ export async function markPlaybookImportJobFailed(
 
 export async function handlePlaybookDraft(db: Db, job: DbJob): Promise<void> {
   setOperation("playbooks.draft");
-  const payload = job.payload as unknown as PlaybookDraftWork;
+  const payload = job.payload as unknown as PlaybookDraftJobPayload;
   const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
-  // The answers are read from the row, never from the job's payload.
-  if (row)
+  // The answers are read from the row, never from the job's payload. A row
+  // and a payload that disagree on what they are run nothing.
+  if (row && (row.kind === "proposal") === isProposal(payload))
     await untilRecorded(db, "playbook_imports", payload.attemptId, () =>
-      compilePlaybookDraft(db, payload, row.request_json),
+      isProposal(payload)
+        ? compilePlaybookProposals(db, payload, row.request_json)
+        : compilePlaybookDraft(db, payload, row.request_json),
     );
   // Reached only once the draft has an outcome; a retry still needs the files.
   await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
@@ -322,7 +347,25 @@ export async function markPlaybookDraftJobFailed(
   db: Db,
   job: DbJob,
 ): Promise<void> {
-  const payload = job.payload as unknown as PlaybookDraftWork;
+  const payload = job.payload as unknown as PlaybookDraftJobPayload;
+  if (isProposal(payload)) {
+    // A copy is a draft too: a failed proposal never discards a playbook.
+    const row = await markFailed(
+      db,
+      "playbook_imports",
+      payload.attemptId,
+      INTERRUPTED_PROPOSAL_ERROR,
+      { request_json: null },
+    );
+    if (row) {
+      await discardProposal(db, payload);
+      await recordProposalAudit(db, payload, {
+        failedStage: typeof row.stage === "string" ? row.stage : null,
+      });
+    }
+    await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
+    return;
+  }
   const row = await markFailed(
     db,
     "playbook_imports",
@@ -518,6 +561,35 @@ export async function queuePlaybookDraft(
   let begun: Awaited<ReturnType<typeof beginPlaybookDraft>>;
   try {
     begun = await beginPlaybookDraft({ ...args, db });
+  } catch (error) {
+    await removePlaybookObjects(stagedDraftKeys(args.userId, args.attachments), {
+      stage: "import.cleanup",
+    });
+    throw error;
+  }
+  await dispatch(
+    db,
+    PLAYBOOK_DRAFT_JOB,
+    playbookImportJobKey(begun.work.attemptId),
+    begun.work,
+    handlePlaybookDraft,
+    markPlaybookDraftJobFailed,
+  );
+  return begun.attempt;
+}
+
+/**
+ * LiTT: checks and records changes proposed for a copy, then queues their
+ * compile on the draft job. A refused request removes the caller's staged
+ * attachments; once queued they belong to the job.
+ */
+export async function queuePlaybookProposals(
+  args: PlaybookProposalRequest,
+): Promise<PlaybookImport> {
+  const db = args.db ?? createServerSupabase();
+  let begun: Awaited<ReturnType<typeof beginPlaybookProposals>>;
+  try {
+    begun = await beginPlaybookProposals({ ...args, db });
   } catch (error) {
     await removePlaybookObjects(stagedDraftKeys(args.userId, args.attachments), {
       stage: "import.cleanup",
