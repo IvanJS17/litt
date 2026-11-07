@@ -8,13 +8,13 @@ export type ApiKeyProvider =
     | "openrouter"
     | "vercel"
     | "opencode-go"
+    | "opencode-zen"
     | "bedrock"
     | "azure"
     | "azure-foundry"
     | "vertex"
     | "xai"
     | "custom"
-    | "courtlistener"
     | WebSearchBackend;
 export type ApiKeySource = "user" | "org" | "env" | null;
 /**

@@ -5,12 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // address, so no user request or saved setting may set or change where it
 // sends a conversation. Only the deployment's declaration decides.
 
-import { completeWithProvider } from "../../../lib/llm/providers";
-import { resetModelRegistryCache } from "../../../lib/llm/registry";
+import { completeWithProvider } from "../llm/providers";
+import { resetModelRegistryCache } from "../llm/registry";
 import {
     normalizeApiKeyProvider,
     isSettingsApiKeyProvider,
-} from "../user.apiKeyStore";
+} from "./store";
 
 const originalConfig = process.env.MIKE_MODEL_CONFIG_JSON;
 
