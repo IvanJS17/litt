@@ -13,7 +13,10 @@ begin
   analyze public.audit_events;
   assert (select count(*)=2 from public.organization_audit_actors(org,owner_id)), 'one identity per actor';
   assert (select count(*)=0 from public.organization_audit_actors(org,member_id)), 'members cannot use admin picker';
-  assert (select count(*)=1 from public.organization_audit_actors(org,owner_id,'recorded-10000')), 'latest recorded email is searchable';
+  -- LiTT (account erasure, owner decision 2026-10-24): audit rows record no
+  -- actor address (audit_events_without_actor_email), so no recorded address,
+  -- latest or old, is searchable; the picker reads the live profile instead.
+  assert (select count(*)=0 from public.organization_audit_actors(org,owner_id,'recorded-10000')), 'LiTT: no recorded address is stored';
   assert (select count(*)=0 from public.organization_audit_actors(org,owner_id,'recorded-2@')), 'old recorded email is not the latest identity';
   select prosrc into body from pg_proc where oid='public.organization_audit_actors(uuid,uuid,text,integer,integer)'::regprocedure;
   body:=replace(replace(replace(replace(replace(body,'p_org_id',quote_literal(org)||'::uuid'),

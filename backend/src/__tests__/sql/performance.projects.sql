@@ -20,7 +20,9 @@ begin
   insert into public.projects(user_id,org_id,name,visibility) values(owner_id,org,'Denied','organization') returning id into pid;
   insert into public.project_org_access_overrides(project_id,org_id,user_id,role) values(pid,org,member_id,'deny');
   insert into public.projects(user_id,org_id,name) values(member_id,org,'Opened') returning id into pid;
-  perform public.open_org_private_content(org,owner_id,'project',pid);
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,owner_id,'project',pid);
   insert into public.projects(user_id,org_id,name,archived_at) values(owner_id,org,'Archived',now());
   insert into public.projects(user_id,org_id,name) select outsider,other_org,'Unrelated '||n from generate_series(1,1000) n;
   perform set_config('mike.test_project_actor',owner_id::text,true);

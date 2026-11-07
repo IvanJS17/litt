@@ -18,7 +18,9 @@ begin
   insert into public.workflow_shares(workflow_id,shared_with_email,shared_by_user_id,role) values(wid,actor||'@example.test',other_actor,'viewer');
   update public.workflows set archived_at=now() where id=wid;
   insert into public.workflows(user_id,org_id,title,type) values(other_actor,org,'Opened','assistant') returning id into wid;
-  perform public.open_org_private_content(org,actor,'workflow',wid);
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,actor,'workflow',wid);
   insert into public.workflows(user_id,org_id,title,type) select other_actor,foreign_org,'Unrelated '||n,'assistant' from generate_series(1,1000) n;
   perform set_config('mike.test_workflow_actor',actor::text,true);
 end;

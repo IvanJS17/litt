@@ -53,10 +53,14 @@ begin
     assert pg_temp.directory_has(actor,private_item),'explicit private role admits exactly the grantee';
   end loop;
   perform public.set_org_private_content_permission(org,owner_id,admin_id,true);
-  perform public.open_org_private_content(org,owner_id,'project',opened_item);
-  perform public.open_org_private_content(org,admin_id,'project',opened_item);
-  assert pg_temp.directory_has(owner_id,opened_item) and pg_temp.directory_has(admin_id,opened_item)
-    and not pg_temp.directory_has(member_id,opened_item),'administrative private openings are explicit and actor-specific';
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,owner_id,'project',opened_item);
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,admin_id,'project',opened_item);
+  assert not pg_temp.directory_has(owner_id,opened_item) and not pg_temp.directory_has(admin_id,opened_item)
+    and not pg_temp.directory_has(member_id,opened_item),'LiTT: administrative private openings grant nobody';
   -- Compare the whole result set with the detail-access oracle for every
   -- actor/workspace combination; exact ids detect both leaks and omissions.
   foreach actor in array array[owner_id,admin_id,member_id,creator,departed,outsider] loop

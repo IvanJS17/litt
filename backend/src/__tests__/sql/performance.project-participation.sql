@@ -183,7 +183,9 @@ begin
   insert into public.project_access_grants(project_id,email,role,created_by) values(personal_share,actor||'@example.test','viewer',peer);
   insert into public.project_org_access_overrides(project_id,org_id,user_id,role) values(org_public,org,actor,'viewer'),(org_private,org,actor,'viewer');
   perform public.set_org_private_content_permission(org,peer,actor,true);
-  perform public.open_org_private_content(org,actor,'project',opened);
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,actor,'project',opened);
   -- Document counts remain part of the same filtered/sorted query.
   insert into public.documents(user_id,project_id) values(actor,own_item),(peer,personal_share),(peer,personal_share),(peer,personal_share),(peer,org_public),(peer,org_public);
 

@@ -25,8 +25,10 @@ begin
   result:=public.search_project_directory(actor::text,actor||'@example.test','Needle',1,2,null);
   assert result->0->>'id'=p3::text,'filename-only match remains searchable';
   assert not exists(select 1 from jsonb_array_elements(public.search_project_directory(actor::text,'','Needle',100,0,null)) p where p->>'id'=hidden::text),'organization ownership alone does not reveal private project';
-  perform public.open_org_private_content(org,actor,'project',hidden);
-  assert exists(select 1 from jsonb_array_elements(public.search_project_directory(actor::text,'','Needle',100,0,org::text)) p where p->>'id'=hidden::text),'explicit private opening is searchable';
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,actor,'project',hidden);
+  assert not exists(select 1 from jsonb_array_elements(public.search_project_directory(actor::text,'','Needle',100,0,org::text)) p where p->>'id'=hidden::text),'LiTT: a recorded administrative opening reveals nothing';
   foreach scope in array array[null::text,'personal',org::text] loop
     select array_agg(project_id order by project_id) into expected from public.project_list_access(actor::text,actor||'@example.test',scope);
     select array_agg((p->>'id')::uuid order by (p->>'id')::uuid) into actual from jsonb_array_elements(public.search_project_directory(actor::text,actor||'@example.test','',100,0,scope)) p;

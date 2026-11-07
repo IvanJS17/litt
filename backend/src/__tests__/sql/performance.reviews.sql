@@ -17,7 +17,9 @@ begin
   insert into public.tabular_reviews(id,user_id,title) values(direct_review,other_actor,'Directly shared');
   insert into public.tabular_review_access_grants(tabular_review_id,email,role,created_by) values(direct_review,actor||'@example.test','viewer',other_actor);
   insert into public.tabular_reviews(id,org_id,user_id,title) values(opened,org,other_actor,'Opened private');
-  perform public.open_org_private_content(org,actor,'tabular_review',opened);
+  -- LiTT: open_org_private_content refuses (no standing owner/admin access to
+  -- private content, C2). The opening is recorded directly and must grant nothing.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,actor,'tabular_review',opened);
   insert into public.tabular_reviews(user_id,title) select other_actor,'Unrelated '||n from generate_series(1,1000) n;
   insert into review_scopes values(null),(project::text),(foreign_project::text),('invalid');
   perform set_config('mike.test_review_actor',actor::text,true);perform set_config('mike.test_review_project',project::text,true);
