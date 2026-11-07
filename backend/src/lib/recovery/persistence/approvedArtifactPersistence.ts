@@ -62,6 +62,12 @@ export type ApprovedArtifactPersistenceOptions = {
     actor_user_id: string;
     organization_id: string;
     authorization_epoch: number;
+    /**
+     * The actor's effective training stage in the review's project
+     * (lib/training.ts). A pasante's report is sealed as theirs
+     * (docs/training.md); a persistence used only to read passes null.
+     */
+    training_stage: "pasante" | null;
   };
   storage: ApprovedArtifactStorage;
   revalidateBeforeUpload: ApprovedArtifactRevalidator;
@@ -428,6 +434,8 @@ export function createApprovedArtifactPersistence(
             ...ids,
             storage_path: storagePath,
             size_bytes: bytes.length,
+            // Always stated, so the RPC can refuse a contract without it.
+            training_stage: context.training_stage === "pasante" ? "pasante" : null,
           },
         });
       } catch {

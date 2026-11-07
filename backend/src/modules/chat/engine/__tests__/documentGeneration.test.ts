@@ -28,6 +28,7 @@ function fakeDb() {
       query.select = vi.fn(() => query);
       query.update = vi.fn(() => query);
       query.eq = vi.fn(() => query);
+      query.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
       query.single = vi.fn(async () => ({
         data: { id: table === "documents" ? "doc-1" : "version-1" },
         error: null,

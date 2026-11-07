@@ -67,6 +67,13 @@ function replicationDb(callOrder: string[] = []) {
             }
             if (table === "document_versions") {
                 return {
+                    // The facade's read of the copy source's seal: none here.
+                    select: () => ({
+                        eq: async () => ({
+                            data: [{ training_author_user_id: null, training_stage: null }],
+                            error: null,
+                        }),
+                    }),
                     insert(rows: Record<string, unknown>[]) {
                         callOrder.push("insert:document_versions");
                         versionRows.push(rows);

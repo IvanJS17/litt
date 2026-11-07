@@ -79,6 +79,26 @@ describe("WorkflowAssets", () => {
         );
     });
 
+    // LiTT training (W3): a pasante's copied draft is marked in its row.
+    it("marks a held asset in plain text in its row", async () => {
+        listWorkflowAssets.mockResolvedValue([
+            {
+                id: "reference-1",
+                workflow_id: "workflow-1",
+                filename: "Precedent.docx",
+                file_type: "docx",
+                size_bytes: 42,
+                training_held: true,
+                created_at: "2026-08-28T00:00:00.000Z",
+                updated_at: "2026-08-28T00:00:00.000Z",
+            },
+        ]);
+        render(<WorkflowAssets workflowId="workflow-1" readOnly={false} />);
+        expect(
+            await screen.findByText("Borrador de pasante, pendiente de aprobación"),
+        ).toBeVisible();
+    });
+
     it("copies selected saved documents into the workflow assets", async () => {
         const ref = createRef<WorkflowAssetsHandle>();
         render(

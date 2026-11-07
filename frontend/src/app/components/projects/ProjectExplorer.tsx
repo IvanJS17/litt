@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import { isProjectItemDrag } from "@/app/lib/projectDragTypes";
 import { setRowDragPreview } from "@/app/lib/rowDragPreview";
 import {
@@ -430,8 +431,13 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                     onClick={(event) => event.stopPropagation()}
                                 />
                             ) : (
-                                <span className="truncate text-xs">
-                                    {doc.filename}
+                                <span className="flex min-w-0 flex-col">
+                                    <span className="truncate text-xs">
+                                        {doc.filename}
+                                    </span>
+                                    {isTrainingHeld(doc) && (
+                                        <TrainingHeldNoteUI className="text-[11px]" />
+                                    )}
                                 </span>
                             )}
                             <VersionChip
@@ -512,7 +518,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                     {contextDocument && documentContextMenuItems({
                         onOpen: () => onDocClick(contextDocument),
                         onAddToChat: onAddToChat ? () => onAddToChat(contextDocument) : undefined,
-                        onDownload: onDownloadDoc ? () => onDownloadDoc(contextDocument) : undefined,
+                        onDownload: onDownloadDoc && !isTrainingHeld(contextDocument) ? () => onDownloadDoc(contextDocument) : undefined,
                         onRename: onRenameDoc ? () => {
                             setRenameValue(contextDocument.filename);
                             setRenamingDocId(contextDocument.id);

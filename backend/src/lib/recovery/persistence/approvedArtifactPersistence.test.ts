@@ -107,6 +107,8 @@ function client(initial: unknown = null) {
     };
     delete (current as Record<string, unknown>).document_id;
     delete (current as Record<string, unknown>).document_version_id;
+    // The seal goes on the artifact's document version, not the export row.
+    delete (current as Record<string, unknown>).training_stage;
     return {
       data: {
         disposition: "applied",
@@ -135,6 +137,7 @@ function options(
     putIfAbsent: (...args: never[]) => Promise<"created" | "exists">;
     getStrict: (...args: never[]) => Promise<Uint8Array | null>;
   },
+  trainingStage: "pasante" | null = null,
 ) {
   return {
     client: db as never,
@@ -142,6 +145,7 @@ function options(
       actor_user_id: "reviewer",
       organization_id: "org",
       authorization_epoch: 1,
+      training_stage: trainingStage,
     },
     storage,
     revalidateBeforeUpload: vi.fn(async () => true),
@@ -225,7 +229,8 @@ describe("approved artifact persistence", () => {
     db.rpc.mockImplementation(async (...args) => {
       order.push("rpc");
       const submitted = args[1]?.p_artifact as Record<string, unknown>;
-      const { document_id, document_version_id, ...metadata } = submitted;
+      // The export row has no seal column: training_stage is the RPC's input.
+      const { document_id, document_version_id, training_stage: _stage, ...metadata } = submitted;
       db.setCurrent({
         id: "export",
         ...metadata,
@@ -273,6 +278,32 @@ describe("approved artifact persistence", () => {
     expect(storage.getStrict).toHaveBeenCalledTimes(3);
     expect(storage.putIfAbsent).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ["pasante", { training_stage: "pasante" }],
+    [null, { training_stage: null }],
+  ] as const)(
+    "always states the reviewer's seal to the RPC, sealing only for a pasante (%s)",
+    async (stage, expected) => {
+      const objects = new Map<string, Uint8Array>();
+      const storage = {
+        putIfAbsent: vi.fn(async (key: string, value: Uint8Array) => {
+          objects.set(key, new Uint8Array(value));
+          return "created" as const;
+        }),
+        getStrict: vi.fn(async (key: string) => objects.get(key) ?? null),
+      };
+      const db = client();
+      await createApprovedArtifactPersistence(
+        options(db, storage, stage),
+      ).append(artifact);
+      const submitted = db.rpc.mock.calls[0]?.[1]?.p_artifact as Record<
+        string,
+        unknown
+      >;
+      expect(submitted).toMatchObject(expected);
+    },
+  );
 
   it("retains a written object when the RPC outcome is unknown and reconciles after restart", async () => {
     const objects = new Map<string, Uint8Array>();

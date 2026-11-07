@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld, TRAINING_HELD_LABEL } from "@/shared/ui/TrainingHeldNoteUI";
 import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
 import caseLaw from "../../../../public/icons/legal-sources/case-law.svg";
 import legislation from "../../../../public/icons/legal-sources/legislation.svg";
@@ -79,13 +80,14 @@ export function ProjectDocumentTabs({
                         tab.sourceDocument?.version_number ??
                         document?.active_version_number ??
                         document?.latest_version_number,
+                    note: isTrainingHeld(document) ? TRAINING_HELD_LABEL : undefined,
                     actions: {
                         onAddToChat:
                             document && onAddToChat
                                 ? () => onAddToChat(document)
                                 : undefined,
                         onDownload:
-                            document && onDownloadDoc
+                            document && onDownloadDoc && !isTrainingHeld(document)
                                 ? () => onDownloadDoc(document)
                                 : undefined,
                         onRename:

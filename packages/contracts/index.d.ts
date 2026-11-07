@@ -419,6 +419,8 @@ export type AssistantEvent =
       type: "doc_created";
       filename: string;
       download_url: string;
+      /** A pasante's unapproved version (docs/training.md): the card offers no download. */
+      training_held?: boolean;
       document_id?: string;
       version_id?: string;
       version_number?: number | null;
@@ -444,6 +446,8 @@ export type AssistantEvent =
       /** Per-document monotonic Vn; null if backend couldn't determine it. */
       version_number: number | null;
       download_url: string;
+      /** A pasante's unapproved version (docs/training.md): the card offers no download. */
+      training_held?: boolean;
       annotations: EditAnnotation[];
     }
   | McpToolEvent
@@ -789,4 +793,15 @@ export interface TrainingStageQuery {
     org_id?: string;
     project_id?: string;
     surface?: "word";
+}
+
+/**
+ * POST /single-documents/:documentId/versions/:versionId/training-approval:
+ * the approval of a pasante's version, bound to the bytes it had
+ * (docs/training.md).
+ */
+export interface TrainingVersionApproval {
+    document_version_id: string;
+    content_sha256: string;
+    approved_at: string;
 }

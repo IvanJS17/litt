@@ -12,6 +12,14 @@ export function rateLimitedBody(detail: string): {
 } {
   return { code: RATE_LIMITED_CODE, detail };
 }
+/**
+ * 409 for a pasante's version that leaves the firm before it is approved
+ * (docs/training.md). Emitted through assertReleasable (lib/trainingRelease.ts).
+ */
+export const TRAINING_APPROVAL_REQUIRED_CODE = "training_approval_required";
+export const TRAINING_APPROVAL_REQUIRED_MESSAGE =
+  "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.";
+
 export const INTERNAL_ERROR_MESSAGE =
   "Something went wrong. Please try again.";
 

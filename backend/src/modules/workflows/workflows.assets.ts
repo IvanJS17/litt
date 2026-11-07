@@ -228,6 +228,9 @@ export async function copyDocumentsToWorkflowAssets(
       plans.map((plan) => ({
         id: plan.documentId,
         project_id: null,
+        // Without a project the database stamps no organization; the
+        // workflow's is where a pasante's copy gets approved.
+        org_id: access.workflow.org_id ?? null,
         user_id: userId,
         status: "ready",
         folder_id: null,
@@ -240,6 +243,7 @@ export async function copyDocumentsToWorkflowAssets(
 
     for (const plan of plans) {
       const { error } = await createDocumentVersion(db, {
+          authorship: { kind: "copy", sourceVersionId: plan.sourceVersion.id },
           id: plan.versionId,
           document_id: plan.documentId,
           storage_path: plan.sourcePath,

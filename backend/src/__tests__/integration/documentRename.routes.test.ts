@@ -41,6 +41,7 @@ const activeVersion = {
   page_count: 2,
   textless_page_count: 1,
   content_sha256: "a".repeat(64),
+  training_stage: null,
 };
 const enrichedFields = {
   storage_path: activeVersion.storage_path,
@@ -52,6 +53,9 @@ const enrichedFields = {
   page_count: activeVersion.page_count,
   textless_page_count: activeVersion.textless_page_count,
   content_sha256: activeVersion.content_sha256,
+  // The active version's pasante seal (docs/training.md); unsealed here.
+  training_stage: null,
+  training_held: false,
 };
 const paths = [
   "/projects/p/documents/doc",

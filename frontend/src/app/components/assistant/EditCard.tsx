@@ -128,6 +128,8 @@ interface Props {
         status: "accepted" | "rejected";
         versionId: string | null;
         downloadUrl: string | null;
+        /** The new version is a pasante's unapproved draft (docs/training.md). */
+        trainingHeld?: boolean;
     }) => void;
     /**
      * Fires when the backend accept/reject call fails. The optimistic
@@ -205,6 +207,7 @@ export function EditCard({
                 status: nextStatus,
                 versionId: data.version_id,
                 downloadUrl: data.download_url,
+                trainingHeld: data.training_held === true,
             });
         } catch (e) {
             console.error("EditCard resolve failed", e);

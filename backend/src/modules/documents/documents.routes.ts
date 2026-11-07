@@ -29,7 +29,9 @@ import {
     renameVersion,
     deleteVersion,
     resolveEdit,
+    approveTrainingVersion,
 } from "./documents.service";
+import { sendServiceFailure } from "../../lib/serviceResult";
 
 export const documentsRouter = Router();
 
@@ -96,6 +98,7 @@ documentsRouter.get("/:documentId/display", requireAuth, asyncRoute(async (req, 
             return void sendInternalError(res, result.error);
         return void res.status(404).json({ detail: result.detail });
     }
+    if (result.held) res.setHeader("Cache-Control", "no-store");
     sendDocumentDisplay(res, result.display);
 }));
 
@@ -130,6 +133,8 @@ documentsRouter.get("/:documentId/file", requireAuth, asyncRoute(async (req, res
         "Content-Disposition",
         buildContentDisposition("inline", result.filename),
     );
+    // A pasante's unapproved draft is viewed, not kept (docs/training.md).
+    if (result.held) res.setHeader("Cache-Control", "no-store");
     const source = createFileReadStream(result.storagePath);
     try {
         await pipeline(source, res);
@@ -173,6 +178,8 @@ documentsRouter.post("/download-zip", requireAuth, asyncRoute(async (req, res) =
     if (!result.ok) {
         if (result.kind === "internal")
             return void sendInternalError(res, result.error);
+        if (result.kind === "conflict")
+            return void sendServiceFailure(res, result);
         const status = result.kind === "limit" ? 413 : 404;
         return void res.status(status).json({ detail: result.detail });
     }
@@ -232,8 +239,11 @@ documentsRouter.get("/:documentId/url", requireAuth, asyncRoute(async (req, res)
         db,
     );
     if (!result.ok) {
-        const status = result.kind === "storage" ? 503 : 404;
-        return void res.status(status).json({ detail: result.detail });
+        if (result.kind === "storage")
+            return void res.status(503).json({ detail: result.detail });
+        if (result.kind === "not_found")
+            return void res.status(404).json({ detail: result.detail });
+        return void sendServiceFailure(res, result);
     }
     res.json(result.payload);
 }));
@@ -312,6 +322,24 @@ documentsRouter.post(
             return void res.status(status).json({ detail: result.detail });
         }
         res.status(201).json(result.version);
+    }),
+);
+
+// POST /single-documents/:documentId/versions/:versionId/training-approval
+// Approve a pasante's version as it is now (docs/training.md).
+documentsRouter.post(
+    "/:documentId/versions/:versionId/training-approval",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.training_approval");
+        const result = await approveTrainingVersion(createServerSupabase(), {
+            documentId: req.params.documentId,
+            versionId: req.params.versionId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.json(result.data);
     }),
 );
 

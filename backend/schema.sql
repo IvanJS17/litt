@@ -8361,14 +8361,15 @@ begin
   insert into public.document_versions(
     id, document_id, storage_path, pdf_storage_path, source, version_number,
     filename, file_type, size_bytes, page_count, textless_page_count,
-    content_sha256
+    content_sha256, training_author_user_id, training_stage
   ) values (
     v_id, p_document_id, p_version->>'storage_path', p_version->>'pdf_storage_path',
     coalesce(p_version->>'source', 'upload'), v_number,
     p_version->>'filename', p_version->>'file_type',
     (p_version->>'size_bytes')::integer, (p_version->>'page_count')::integer,
     (p_version->>'textless_page_count')::integer,
-    p_version->>'content_sha256'
+    p_version->>'content_sha256',
+    (p_version->>'training_author_user_id')::uuid, p_version->>'training_stage'
   ) returning * into v_row;
   if p_activate then
     update public.documents set current_version_id = v_id, updated_at = now()
@@ -13551,9 +13552,13 @@ declare
 begin
   if not public.ai_jsonb_exact_keys(
     p_artifact,
-    array['idempotency_key','review_id','review_revision','execution_id','organization_id','matter_id','project_id','document_id','document_version_id','source_document_sha256','evidence_receipt_sha256','filename','mime_type','artifact_sha256','artifact_document_id','artifact_document_version_id','storage_path','size_bytes']
+    array['idempotency_key','review_id','review_revision','execution_id','organization_id','matter_id','project_id','document_id','document_version_id','source_document_sha256','evidence_receipt_sha256','filename','mime_type','artifact_sha256','artifact_document_id','artifact_document_version_id','storage_path','size_bytes','training_stage']
   )
      or not public.ai_valid_idempotency_key(p_artifact->>'idempotency_key')
+     -- LiTT training: the reviewer's effective stage, resolved by the backend
+     -- and always stated: 'pasante' seals the report, null does not
+     -- (docs/training.md). A missing or other value is refused.
+     or (p_artifact->'training_stage' in ('null'::jsonb, '"pasante"'::jsonb)) is not true
      or not public.ai_valid_sha256(p_artifact->>'source_document_sha256')
      or not public.ai_valid_sha256(p_artifact->>'evidence_receipt_sha256')
      or not public.ai_valid_sha256(p_artifact->>'artifact_sha256')
@@ -13668,12 +13673,15 @@ begin
   end if;
   insert into public.document_versions(
     id, document_id, storage_path, filename, file_type, size_bytes,
-    content_sha256, source, created_at
+    content_sha256, source, created_at,
+    training_author_user_id, training_stage
   ) values (
     v_artifact_version_id, v_artifact_document_id,
     p_artifact->>'storage_path', p_artifact->>'filename',
     p_artifact->>'mime_type', (p_artifact->>'size_bytes')::integer,
-    p_artifact->>'artifact_sha256', 'ai_review_report', now()
+    p_artifact->>'artifact_sha256', 'ai_review_report', now(),
+    case when p_artifact->>'training_stage' = 'pasante' then p_actor_user_id end,
+    p_artifact->>'training_stage'
   ) on conflict (id) do nothing;
   if not exists (
     select 1 from public.document_versions
@@ -16446,6 +16454,68 @@ alter table public.training_turn_notes enable row level security;
 revoke all on public.training_turn_notes from anon, authenticated;
 grant select, insert, update, delete on public.training_turn_notes to service_role;
 
+-- LiTT training, layer 1b: the pasante seal and its approvals
+-- (backend/migrations/20261106_51_litt_training_output_lock.sql; the two
+-- insertion functions it changes are create_document_version and
+-- append_ai_review_export above).
+alter table public.document_versions
+  add column if not exists training_author_user_id uuid,
+  add column if not exists training_stage text;
+
+alter table public.document_versions
+  drop constraint if exists document_versions_training_stage_check;
+alter table public.document_versions
+  add constraint document_versions_training_stage_check
+  check (training_stage = 'pasante');
+alter table public.document_versions
+  drop constraint if exists document_versions_training_seal_check;
+alter table public.document_versions
+  add constraint document_versions_training_seal_check
+  check ((training_stage is null) = (training_author_user_id is null));
+
+-- A seal is never removed or handed to somebody else.
+create or replace function public.document_versions_training_seal_keep()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.training_stage is not null then
+    new.training_stage := old.training_stage;
+    new.training_author_user_id := old.training_author_user_id;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.document_versions_training_seal_keep() from public, anon, authenticated;
+
+drop trigger if exists document_versions_training_seal_keep on public.document_versions;
+create trigger document_versions_training_seal_keep
+  before update on public.document_versions
+  for each row execute function public.document_versions_training_seal_keep();
+
+create table if not exists public.training_version_approvals (
+  id uuid primary key default gen_random_uuid(),
+  document_version_id uuid not null,
+  content_sha256 text not null,
+  org_id uuid,
+  approved_by uuid not null,
+  created_at timestamptz not null default now(),
+  constraint training_version_approvals_sha256_check
+    check (content_sha256 ~ '^[0-9a-f]{64}$')
+);
+create unique index if not exists training_version_approvals_version_hash_key
+  on public.training_version_approvals(document_version_id, content_sha256);
+
+alter table public.training_version_approvals enable row level security;
+revoke all on public.training_version_approvals from public, anon, authenticated, service_role;
+grant select, insert on public.training_version_approvals to service_role;
+
+drop trigger if exists training_version_approvals_insert_only on public.training_version_approvals;
+create trigger training_version_approvals_insert_only
+  before update or delete on public.training_version_approvals
+  for each row execute function public.ai_append_only_guard();
+
 
 -- ===== end of LiTT extension =====
 
@@ -16636,5 +16706,6 @@ insert into public.schema_migrations (filename) values
   ('20261024_51_litt_account_erasure.sql'),
   ('20261027_01_document_text_failed_jobs.sql'),
   ('20261030_50_litt_subagent_routes.sql'),
-  ('20261106_50_litt_training.sql')
+  ('20261106_50_litt_training.sql'),
+  ('20261106_51_litt_training_output_lock.sql')
 on conflict (filename) do nothing;

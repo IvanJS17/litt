@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { downloadFile, uploadFile, deleteFileBestEffort, versionStorageKey } from "../../lib/storage";
 import { resolveTrackedChange } from "../../lib/docxTrackedChanges";
 import { buildDownloadUrl } from "../../lib/downloadTokens";
+import { isVersionHeld } from "../../lib/trainingRelease";
 import { contentSha256, loadActiveVersion } from "../../lib/documentVersions";
 import { ensureDocAccess } from "../../lib/access";
 import { can, DOCUMENT_EDIT_FORBIDDEN } from "../../lib/permissions";
@@ -84,6 +85,10 @@ export async function resolveEdit(
                       ),
                   )
                 : null,
+            // A pasante\'s unapproved version: the card hides its download link.
+            training_held: doc.current_version_id
+                ? await isVersionHeld(db, doc.current_version_id)
+                : false,
             remaining_pending: 0,
         };
         devLog(`[edit-resolution] returning already-resolved payload`, payload);
@@ -156,6 +161,10 @@ export async function resolveEdit(
                     active?.source === "assistant_edit",
                 ),
             ),
+            // A pasante\'s unapproved version: the card hides its download link.
+            training_held: doc.current_version_id
+                ? await isVersionHeld(db, doc.current_version_id)
+                : false,
             remaining_pending: 0,
         };
         devLog(`[edit-resolution] returning not-found payload`, payload);
@@ -181,7 +190,7 @@ export async function resolveEdit(
             pdf_storage_path: null,
             size_bytes: ab.byteLength,
         },
-        { expectedStoragePath: latestPath },
+        { actorUserId: userId, expectedStoragePath: latestPath },
     );
     if (versionErr || !updated) {
         // A definite comparison miss left the new object unreferenced. On a
@@ -222,6 +231,10 @@ export async function resolveEdit(
                 active?.source === "assistant_edit",
             ),
         ),
+        // A pasante\'s unapproved version: the card hides its download link.
+        training_held: doc.current_version_id
+            ? await isVersionHeld(db, doc.current_version_id)
+            : false,
         remaining_pending: remainingPending ?? 0,
     };
     devLog(`[edit-resolution] returning success payload`, payload);

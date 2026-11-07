@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import {
     type Dispatch,
     type DragEvent,
@@ -610,6 +611,19 @@ export function DocTable({
         // Opening — expand immediately so the user sees a loading state.
         await loadDocumentVersions(docId, { expand: true });
     };
+
+    // LiTT training: after an approval, or a download the server held, reload
+    // the versions and the row so the mark and the downloads match the server.
+    function refreshTrainingStatus(docId: string) {
+        void loadDocumentVersions(docId, { force: true });
+        getDocument(docId).then(
+            (latest) =>
+                setDocuments((prev) =>
+                    prev.map((d) => (d.id === docId ? { ...d, ...latest } : d)),
+                ),
+            (error) => notifyError(error, { action: "refresh this document" }),
+        );
+    }
 
     async function downloadDocVersion(docId: string, versionId: string, filename: string) {
         try {
@@ -2666,7 +2680,7 @@ export function DocTable({
                           setViewingDoc(doc);
                       },
             ...catalogAddActions([doc]),
-            onDownload: () => void downloadDoc(doc.id),
+            onDownload: isTrainingHeld(doc) ? undefined : () => void downloadDoc(doc.id),
         };
     }
 
@@ -2916,8 +2930,13 @@ export function DocTable({
                                                             onBlur={() => void submitDocumentRename(doc.id)}
                                                         />
                                                     ) : (
-                                                        <span className="text-xs text-gray-800 truncate">
-                                                            {docName}
+                                                        <span className="flex min-w-0 flex-col">
+                                                            <span className="text-xs text-gray-800 truncate">
+                                                                {docName}
+                                                            </span>
+                                                            {isTrainingHeld(doc) && (
+                                                                <TrainingHeldNoteUI className="text-[11px]" />
+                                                            )}
                                                         </span>
                                                     )}
                                                 </div>
@@ -2982,7 +3001,7 @@ export function DocTable({
                                                                 setRenamingDocumentId(doc.id);
                                                             }}
                                                             renameLabel="Rename document"
-                                                            onDownload={() => downloadDoc(doc.id)}
+                                                            onDownload={isTrainingHeld(doc) ? undefined : () => downloadDoc(doc.id)}
                                                             onShowAllVersions={
                                                                 hasVersions && !isVersionsOpen
                                                                     ? () => void toggleVersions(doc.id)
@@ -3311,7 +3330,7 @@ export function DocTable({
     // ── Loading skeleton ──────────────────────────────────────────────────────
 
     const docs = serverDocuments ?? documents;
-    const downloadDoc = useCallback(async (docId: string) => {
+    const startDocDownload = useCallback(async (docId: string) => {
         const { url, filename } = catalog
             ? catalog.resolveDocumentUrl(docId)
             : await getDocumentUrl(docId);
@@ -3320,6 +3339,22 @@ export function DocTable({
         a.download = filename;
         a.click();
     }, [catalog]);
+    async function downloadDoc(docId: string) {
+        try {
+            await startDocDownload(docId);
+        } catch (e) {
+            notifyError(e, {
+                action: "download this document",
+                onRetry: () => {
+                    void downloadDoc(docId);
+                },
+            });
+            // LiTT training: the row said released but the server holds a
+            // pasante's draft (a new version since the list loaded).
+            if (e instanceof MikeApiError && e.code === "training_approval_required")
+                refreshTrainingStatus(docId);
+        }
+    }
 
     const selectedFolderRootIds = useMemo(
         () => folderSelectionRootIds(folders, selectedFolderIds),
@@ -3351,6 +3386,11 @@ export function DocTable({
         [selectedDocIds, selectedFolderDocumentIdSet],
     );
 
+    const selectionHasTrainingHeld = useMemo(
+        () => docs.some((doc) => effectiveSelectedDocIdSet.has(doc.id) && isTrainingHeld(doc)),
+        [docs, effectiveSelectedDocIdSet],
+    );
+
     const selectedStandaloneDocIds = useMemo(
         () =>
             selectedDocIds.filter(
@@ -3365,7 +3405,7 @@ export function DocTable({
                 selectedStandaloneDocIds.length === 1 &&
                 selectedFolderRootIds.length === 0
             ) {
-                await downloadDoc(selectedStandaloneDocIds[0]);
+                await startDocDownload(selectedStandaloneDocIds[0]);
                 return;
             }
             // Doc-only selections above the threshold go through the async
@@ -3400,7 +3440,7 @@ export function DocTable({
                 },
             });
         }
-    }, [downloadDoc, selectedFolderRootIds, selectedStandaloneDocIds]);
+    }, [startDocDownload, selectedFolderRootIds, selectedStandaloneDocIds]);
 
     // Takes the ids explicitly so a "Retry" can re-run exactly the rows that
     // failed. Reading the selection again would resend the whole original
@@ -4195,7 +4235,11 @@ export function DocTable({
                 <RowActionMenuItems
                     onClose={onClose}
                     onDeselect={clearCollectionSelection}
-                    onDownload={handleDownloadSelectedDocs}
+                    onDownload={
+                        // One pasante draft in the selection: the server
+                        // refuses the whole archive (docs/training.md).
+                        selectionHasTrainingHeld ? undefined : handleDownloadSelectedDocs
+                    }
                     onRemoveFromFolder={
                         selectedStandaloneDocIds.some(
                             (id) => docs.find((doc) => doc.id === id)?.folder_id,
@@ -4223,7 +4267,7 @@ export function DocTable({
                     setRenamingDocumentId(menuDoc.id);
                 }}
                 renameLabel="Rename document"
-                onDownload={() => downloadDoc(menuDoc.id)}
+                onDownload={isTrainingHeld(menuDoc) ? undefined : () => downloadDoc(menuDoc.id)}
                 onShowAllVersions={
                     menuDocHasVersions && !menuDocVersionsOpen
                         ? () => void toggleVersions(menuDoc.id)
@@ -4883,8 +4927,13 @@ export function DocTable({
                                                                             }
                                                                         />
                                                                     ) : (
-                                                                        <span className="text-xs text-gray-800 truncate">
-                                                                            {docName}
+                                                                        <span className="flex min-w-0 flex-col">
+                                                                            <span className="text-xs text-gray-800 truncate">
+                                                                                {docName}
+                                                                            </span>
+                                                                            {isTrainingHeld(doc) && (
+                                                                                <TrainingHeldNoteUI className="text-[11px]" />
+                                                                            )}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -4951,7 +5000,7 @@ export function DocTable({
                                                                                 setRenamingDocumentId(doc.id);
                                                                             }}
                                                                             renameLabel="Rename document"
-                                                                            onDownload={() => downloadDoc(doc.id)}
+                                                                            onDownload={isTrainingHeld(doc) ? undefined : () => downloadDoc(doc.id)}
                                                                             onShowAllVersions={
                                                                                 hasVersions && !isVersionsOpen
                                                                                     ? () => void toggleVersions(doc.id)
@@ -5078,6 +5127,7 @@ export function DocTable({
                 onDownloadDocument={downloadDoc}
                 onDownloadVersion={downloadDocVersion}
                 onRenameVersion={handleRenameVersion}
+                onTrainingApproved={refreshTrainingStatus}
                 onDeleteVersion={handleDeleteVersion}
                 onUploadNewVersion={submitNewVersion}
                 onReplaceVersion={replaceVersionFile}

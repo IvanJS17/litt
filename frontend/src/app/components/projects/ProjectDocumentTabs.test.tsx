@@ -230,3 +230,27 @@ it.each([
     />);
     expect(screen.getByText(expected)).toBeVisible();
 });
+
+// LiTT training (W3): a pasante's held draft carries its mark in the tab.
+describe("a held document's tab", () => {
+    it("shows the mark in full, names it for assistive tech and offers no download", () => {
+        const doc = { id: "a", filename: "First.docx", training_held: true } as Document;
+        render(
+            <ProjectDocumentTabs
+                tabs={[{ documentId: "a", filename: "First.docx" }]}
+                documents={[doc]}
+                activeTabId="a"
+                onActivate={vi.fn()}
+                onClose={vi.fn()}
+                onReorder={vi.fn()}
+                onDownloadDoc={vi.fn()}
+            />,
+        );
+        expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+        const tab = screen.getByRole("tab", {
+            name: "First.docx, Borrador de pasante, pendiente de aprobación",
+        });
+        fireEvent.contextMenu(tab, { clientX: 10, clientY: 10 });
+        expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
+    });
+});

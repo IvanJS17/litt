@@ -134,6 +134,8 @@ export interface Document {
   active_version_number?: number | null;
   /** Legacy: max version_number across assistant_edit rows, null if doc is unedited. */
   latest_version_number?: number | null;
+  /** LiTT training: the active version is a pasante's, not approved for its current bytes; it may not leave LiTT. */
+  training_held?: boolean;
 }
 
 export type PanelDocumentType = SourceDocumentType;

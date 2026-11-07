@@ -15,6 +15,24 @@ import {
 } from "../../lib/documentDisplay";
 import { downloadFilenameForVersion, type Db } from "./documents.shared";
 import { ensureDocumentAccess } from "./documents.access";
+import {
+    assertVersionReleasable,
+    heldVersionIds,
+    trainingApprovalRequired,
+    type SealStage,
+    type TrainingApprovalRequired,
+} from "../../lib/trainingRelease";
+import type { ServiceFailure } from "../../lib/serviceResult";
+
+/**
+ * In-app views (/display, /file) stay open for a pasante's unapproved
+ * version, the author's editor needs them (docs/training.md), but the route
+ * marks the bytes not to be cached. Any doubt (a failed approval read) marks
+ * them too: the flag only tightens headers.
+ */
+async function isHeld(db: Db, version: Parameters<typeof assertVersionReleasable>[1]) {
+    return !(await assertVersionReleasable(db, version)).ok;
+}
 
 // ---------------------------------------------------------------------------
 // Display
@@ -36,7 +54,7 @@ export async function getDisplayableVersion(
     versionIdParam: string | null,
     db: Db,
 ): Promise<
-    | { ok: true; display: DocumentDisplayPayload }
+    | { ok: true; display: DocumentDisplayPayload; held: boolean }
     | { ok: false; kind: "not_found"; detail: string }
     | { ok: false; kind: "error"; error: unknown }
 > {
@@ -67,7 +85,7 @@ export async function getDisplayableVersion(
                 kind: "not_found",
                 detail: "Document not found in storage",
             };
-        return { ok: true, display };
+        return { ok: true, display, held: await isHeld(db, active) };
     } catch (error) {
         return { ok: false, kind: "error", error };
     }
@@ -117,6 +135,8 @@ type DownloadDocumentRow = {
     filename?: string | null;
     source?: string | null;
     active_version_number?: number | null;
+    content_sha256?: string | null;
+    training_stage?: SealStage;
 };
 
 /** One file to place in the archive, already named and sized. */
@@ -147,6 +167,8 @@ export async function resolveZipExportDocuments(
     | { ok: true; entries: ZipExportEntry[] }
     | { ok: false; kind: "limit"; detail: string }
     | { ok: false; kind: "not_found"; detail: string }
+    // A pasante's unapproved version is in the selection (docs/training.md).
+    | TrainingApprovalRequired
     // Database and object-storage failures are opaque to the client: the
     // route hands the raw error to sendInternalError.
     | { ok: false; kind: "internal"; error: unknown }
@@ -319,6 +341,25 @@ export async function resolveZipExportDocuments(
     if (activeDocs.length === 0)
         return { ok: false, kind: "not_found", detail: "No files available" };
 
+    // A file with bytes has a live current version, so current_version_id is
+    // the row whose seal decides. One unapproved draft blocks the archive.
+    const held = await heldVersionIds(
+        db,
+        activeDocs.map((doc) => ({
+            id: doc.current_version_id as string,
+            // A seal never read (undefined) holds the archive, as a seal does.
+            training_stage: doc.training_stage === null ? null : "pasante",
+            content_sha256: doc.content_sha256 ?? null,
+        })),
+    );
+    if (!held.ok)
+        return {
+            ok: false,
+            kind: "internal",
+            error: "error" in held ? held.error : held,
+        };
+    if (held.data.size > 0) return trainingApprovalRequired();
+
     // HEAD every object to learn the archive's total size before committing to
     // it; bounded concurrency keeps a large selection from opening one request
     // per document at once.
@@ -379,6 +420,7 @@ export async function getDownloadUrl(
     | { ok: true; payload: Record<string, unknown> }
     | { ok: false; kind: "not_found"; detail: string }
     | { ok: false; kind: "storage"; detail: string }
+    | ServiceFailure
 > {
     const access = await ensureDocumentAccess(documentId, userId, userEmail, db);
     if (!access.ok)
@@ -387,6 +429,11 @@ export async function getDownloadUrl(
     const active = await loadActiveVersion(documentId, db, versionIdParam);
     if (!active)
         return { ok: false, kind: "not_found", detail: "No file available" };
+
+    // A signed URL cannot be revoked once issued: the check is on issuing it,
+    // for the row actually resolved (?version_id= may name any live version).
+    const releasable = await assertVersionReleasable(db, active);
+    if (!releasable.ok) return releasable;
 
     const downloadFilename = downloadFilenameForVersion(
         active.filename,
@@ -435,6 +482,7 @@ export async function getFileStreamSource(
           fileType: string | null;
           size: number;
           filename: string;
+          held: boolean;
       }
     | { ok: false; detail: string }
 > {
@@ -456,5 +504,6 @@ export async function getFileStreamSource(
             active.version_number,
             active.source === "assistant_edit",
         ),
+        held: await isHeld(db, active),
     };
 }

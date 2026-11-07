@@ -69,6 +69,7 @@ const FULL_VERSION = {
     textless_page_count: 2,
     deleted_at: null,
     content_sha256: "a".repeat(64),
+    training_stage: "pasante",
 };
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,8 @@ describe("loadActiveVersion", () => {
             size_bytes: 1024,
             page_count: 12,
             textless_page_count: 2,
+            content_sha256: "a".repeat(64),
+            training_stage: "pasante",
         });
     });
 
@@ -171,6 +174,8 @@ describe("loadActiveVersion", () => {
             size_bytes: null,
             page_count: null,
             textless_page_count: null,
+            content_sha256: null,
+            training_stage: null,
         });
     });
 });
@@ -194,6 +199,8 @@ describe("attachActiveVersionPaths", () => {
         expect(doc).toMatchObject({
             filename: "Untitled document",
             content_sha256: null,
+            training_stage: null,
+            training_held: false,
             storage_path: null,
             pdf_storage_path: null,
             file_type: null,
@@ -227,6 +234,7 @@ describe("attachActiveVersionPaths", () => {
             pdf_storage_path: "documents/u/doc-1/converted.pdf",
             active_version_number: 3,
             content_sha256: FULL_VERSION.content_sha256,
+            training_stage: "pasante",
             filename: "contract.pdf",
             file_type: "application/pdf",
             size_bytes: 1024,
@@ -244,6 +252,24 @@ describe("attachActiveVersionPaths", () => {
             storage_path: null,
             filename: "Untitled document",
         });
+    });
+
+    it("marks a pasante's active version held until its current bytes are approved", async () => {
+        const plain = { ...FULL_VERSION, id: "ver-2", training_stage: null };
+        const approval = { document_version_id: "ver-1", content_sha256: FULL_VERSION.content_sha256 };
+        const unapproved = await attachActiveVersionPaths<TestDoc>(
+            makeDb({ document_versions: [FULL_VERSION, plain] }),
+            [
+                { id: "doc-1", current_version_id: "ver-1" },
+                { id: "doc-2", current_version_id: "ver-2" },
+            ],
+        );
+        expect(unapproved.map((doc) => doc.training_held)).toEqual([true, false]);
+        const [approved] = await attachActiveVersionPaths<TestDoc>(
+            makeDb({ document_versions: [FULL_VERSION], training_version_approvals: [approval] }),
+            [{ id: "doc-1", current_version_id: "ver-1" }],
+        );
+        expect(approved.training_held).toBe(false);
     });
 
     it("reflects in-place byte updates without changing the version or document timestamp", async () => {

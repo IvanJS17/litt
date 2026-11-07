@@ -17,6 +17,7 @@ import { CaseView } from "../assistant/CaseView";
 import { useResolvedPanelDocument } from "../assistant/useResolvedPanelDocument";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { DocumentTitleRow } from "./DocumentTitleRow";
+import type { TrainingRelease } from "@/app/hooks/useTrainingVersionStatus";
 import { DocumentAnnotationLayer } from "./DocumentAnnotationLayer";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 
@@ -90,6 +91,8 @@ export interface DocumentContentProps {
     onVersionChange?: (version: DocumentVersion) => void;
     onCloseGuardReady?: (guard: DocxCloseGuard | null) => void;
     onDownloadReady?: (download: (() => Promise<void>) | null) => void;
+    /** LiTT training: whether the shown version may leave LiTT (docs/training.md). */
+    onTrainingReleaseChange?: (release: TrainingRelease) => void;
 }
 
 /** Shared viewer content; hosts own tab state, sizing and annotation lifecycle. */
@@ -107,6 +110,7 @@ export function DocumentContent({
     initialScrollTop,
     onScrollChange,
     onDownloadReady,
+    onTrainingReleaseChange,
     onCloseGuardReady,
     refetchKey,
     cacheBytes = true,
@@ -245,6 +249,7 @@ export function DocumentContent({
                         saveState={saveState}
                         onVersionChange={onVersionChange}
                         onDownload={() => localDownload.current?.()}
+                        onTrainingReleaseChange={onTrainingReleaseChange}
                         toolbarVisible={toolbarVisible}
                         onToggleToolbar={
                             viewType === "docx" && canEdit

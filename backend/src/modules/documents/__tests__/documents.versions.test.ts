@@ -71,9 +71,20 @@ const row = {
   storage_path: "private",
   content_sha256: "private-hash",
 };
-const db = () => {
+const UNSEALED = { training_author_user_id: null, training_stage: null };
+// `sourceRows` answers the copy's seal read on document_versions; a sealed
+// copy then reads the destination's organization from documents.
+const db = (sourceRows: unknown[] = [UNSEALED]) => {
   const rpc = vi.fn().mockResolvedValue({ data: row, error: null });
-  return { rpc, db: { rpc } as unknown as Db };
+  const query = {
+    select: () => query,
+    eq: () => query,
+    maybeSingle: () => Promise.resolve({ data: { org_id: "org" }, error: null }),
+    then: (resolve: (value: unknown) => unknown) =>
+      resolve({ data: sourceRows, error: null }),
+  };
+  const from = vi.fn(() => query);
+  return { rpc, from, db: { rpc, from } as unknown as Db };
 };
 beforeEach(() => {
   vi.resetAllMocks();
@@ -81,6 +92,7 @@ beforeEach(() => {
   vi.stubEnv("ASYNC_DOCUMENT_CONVERSION", "true");
   mocks.access.mockResolvedValue(access());
   mocks.active.mockResolvedValue({
+    id: "source-version",
     storage_path: "source/key",
     pdf_storage_path: "source/pdf",
     filename: "Clause.docx",
@@ -123,6 +135,21 @@ describe("version copy caller policy", () => {
         }),
       }),
     );
+  });
+  it.each([
+    ["a pasante's source keeps its author, not the copying actor", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }], { training_author_user_id: "pasante-1", training_stage: "pasante" }],
+    ["an unsealed source stays unsealed", [UNSEALED], undefined],
+  ])("%s", async (_name, sourceRows, seal) => {
+    const fake = db(sourceRows);
+    expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });
+    expect(fake.from).toHaveBeenCalledWith("document_versions");
+    const version = fake.rpc.mock.calls[0][1].p_version;
+    if (seal) expect(version).toMatchObject(seal);
+    else {
+      expect(version).not.toHaveProperty("training_author_user_id");
+      expect(version).not.toHaveProperty("training_stage");
+    }
+    expect(version).not.toHaveProperty("authorship");
   });
   it("moves a creator-owned source only after the destination commits", async () => {
     const fake = db();

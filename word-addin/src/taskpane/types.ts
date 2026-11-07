@@ -25,6 +25,8 @@ export interface Document {
   file_type: string | null;
   size_bytes: number | null;
   created_at: string | null;
+  /** LiTT training: a pasante's unapproved draft; it may not leave LiTT. */
+  training_held?: boolean;
 }
 
 export interface Chat {

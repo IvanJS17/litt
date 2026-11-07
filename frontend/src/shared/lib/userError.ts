@@ -219,6 +219,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_attempt_required: "validation",
     training_mentor_has_pupils: "conflict",
     training_pupil_has_mentor: "conflict",
+    // A pasante's version leaves LiTT only once approved for its current
+    // bytes. Retrying cannot help, so the server's detail is shown as-is.
+    training_approval_required: "validation",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

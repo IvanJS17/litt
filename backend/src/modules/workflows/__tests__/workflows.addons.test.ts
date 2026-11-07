@@ -505,6 +505,13 @@ describe("importWorkflowAddon", () => {
     });
     const ready = calls.find((c) => c.table === "documents" && c.op === "update");
     expect(ready?.payload).toMatchObject({ status: "ready" });
+    // Catalog material is nobody's draft: no seal keys, and no seal reads.
+    expect(versionInsert?.payload).not.toHaveProperty("authorship");
+    expect(versionInsert?.payload).not.toHaveProperty("training_author_user_id");
+    expect(versionInsert?.payload).not.toHaveProperty("training_stage");
+    expect(calls.some((c) => c.table === "training_stages")).toBe(false);
+    expect(calls.filter((c) => c.table === "documents" && c.op === "select")).toHaveLength(0);
+    expect(calls.filter((c) => c.table === "document_versions" && c.op === "select")).toHaveLength(0);
   });
 
   it("rolls the workflow back and queues storage cleanup when an asset copy fails", async () => {

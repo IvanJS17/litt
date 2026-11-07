@@ -8,6 +8,7 @@ import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
 import { buildContentDisposition } from "../../lib/storage";
+import { sendServiceFailure } from "../../lib/serviceResult";
 import { resolveTokenDownload } from "./downloads.service";
 
 export const downloadsRouter = Router();
@@ -22,6 +23,8 @@ downloadsRouter.get("/:token", requireAuth, asyncRoute(async (req, res) => {
         userId,
         userEmail,
     });
+    if (!result.ok && (result.kind === "conflict" || result.kind === "error"))
+        return void sendServiceFailure(res, result);
     if (!result.ok)
         return void res.status(404).json({
             detail:

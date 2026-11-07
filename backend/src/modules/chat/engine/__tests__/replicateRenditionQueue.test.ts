@@ -8,8 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 //   - flag on  → no LibreOffice in-band; copies are inserted without a
 //     rendition and one conversion job per copy fills it in
 
-const { downloadFile, uploadFile, docxToPdf, enqueueConversion } = vi.hoisted(
+const { downloadFile, uploadFile, docxToPdf, enqueueConversion, loadActiveVersion } = vi.hoisted(
     () => ({
+        loadActiveVersion: vi.fn(),
         downloadFile: vi.fn(),
         uploadFile: vi.fn(),
         docxToPdf: vi.fn(),
@@ -23,6 +24,14 @@ vi.mock("../../../../lib/storage", async (importOriginal) => {
         ...actual,
         downloadFile: (...args: unknown[]) => downloadFile(...args),
         uploadFile: (...args: unknown[]) => uploadFile(...args),
+    };
+});
+
+vi.mock("../../../../lib/documentVersions", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../../../lib/documentVersions")>();
+    return {
+        ...actual,
+        loadActiveVersion: (...args: unknown[]) => loadActiveVersion(...args),
     };
 });
 
@@ -52,8 +61,13 @@ import type { DocIndex, DocStore } from "../types";
 
 // Same double as workflowAssetReplication.test.ts: documents echo their
 // client-generated ids; versions get deterministic new-version-N ids.
-function replicationDb() {
+// `sealRows` answers the facade's read of the copy source's pasante seal; a
+// sealed copy then reads its new document's organization back.
+const UNSEALED = { training_author_user_id: null, training_stage: null };
+function replicationDb(sealRows: unknown[] = [UNSEALED]) {
+    const documents = new Map<string, Record<string, unknown>>();
     const versionRows: Record<string, unknown>[][] = [];
+    const sealReads: Array<[string, unknown]> = [];
     const db = {
         rpc: vi.fn(async (name: string, args: { p_versions: Record<string, unknown>[] }) => {
             expect(name).toBe("create_document_versions");
@@ -63,7 +77,13 @@ function replicationDb() {
         from(table: string) {
             if (table === "documents") {
                 return {
+                    select: () => ({
+                        eq: (_column: string, id: string) => ({
+                            maybeSingle: async () => ({ data: documents.get(id) ?? null, error: null }),
+                        }),
+                    }),
                     insert(rows: Record<string, unknown>[]) {
+                        for (const row of rows) documents.set(row.id as string, row);
                         return {
                             select: async () => ({
                                 data: rows.map((row) => ({ id: row.id })),
@@ -81,6 +101,12 @@ function replicationDb() {
             }
             if (table === "document_versions") {
                 return {
+                    select: () => ({
+                        eq: async (column: string, value: unknown) => {
+                            sealReads.push([column, value]);
+                            return { data: sealRows, error: null };
+                        },
+                    }),
                     insert(rows: Record<string, unknown>[]) {
                         versionRows.push(rows);
                         return {
@@ -98,7 +124,7 @@ function replicationDb() {
             throw new Error(`Unexpected table: ${table}`);
         },
     };
-    return { db, versionRows };
+    return { db, versionRows, sealReads };
 }
 
 // A DOCX workflow asset with no rendition — the exact case that pays for
@@ -118,7 +144,7 @@ function makeStore(): DocStore {
     ]);
 }
 
-async function replicate(db: unknown, index: DocIndex, count?: number) {
+async function replicate(db: unknown, index: DocIndex, count?: number, orgId: string | null = "org") {
     return runToolCalls(
         [
             {
@@ -140,11 +166,17 @@ async function replicate(db: unknown, index: DocIndex, count?: number) {
         undefined,
         undefined,
         index,
+        undefined,
+        undefined,
+        null,
+        undefined,
+        { orgId },
     );
 }
 
 beforeEach(() => {
     vi.clearAllMocks();
+    loadActiveVersion.mockResolvedValue(null);
     downloadFile.mockResolvedValue(new TextEncoder().encode("docx").buffer);
     uploadFile.mockResolvedValue(undefined);
     docxToPdf.mockResolvedValue(Buffer.from("pdf-bytes"));
@@ -212,5 +244,57 @@ describe("replicate_document rendition path", () => {
         expect(content.ok).toBe(true);
         expect(content.copies).toHaveLength(1);
         expect(index["doc-0"]).toBeDefined();
+    });
+
+    it.each([
+        ["a pasante's workflow-asset source keeps its author", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }]],
+        ["an unsealed source stays unsealed", [UNSEALED]],
+    ])("%s", async (_name, sealRows) => {
+        process.env.ASYNC_DOCUMENT_CONVERSION = "true";
+        const { db, versionRows, sealReads } = replicationDb(sealRows);
+
+        await replicate(db, {});
+
+        expect(sealReads).toEqual([["storage_path", "workflow-assets/precedent.docx"]]);
+        const row = versionRows[0][0];
+        expect(row).not.toHaveProperty("authorship");
+        if (sealRows[0].training_stage) expect(row).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
+        else {
+            expect(row).not.toHaveProperty("training_author_user_id");
+            expect(row).not.toHaveProperty("training_stage");
+        }
+    });
+
+    it("a pasante's source document version keeps its author, read by version id", async () => {
+        process.env.ASYNC_DOCUMENT_CONVERSION = "true";
+        loadActiveVersion.mockResolvedValue({
+            id: "source-version",
+            storage_path: "documents/source.docx",
+            pdf_storage_path: null,
+        });
+        const { db, versionRows, sealReads } = replicationDb([
+            { training_author_user_id: "pasante-1", training_stage: "pasante" },
+        ]);
+
+        await replicate(db, { [SOURCE_LABEL]: { document_id: "source-doc", filename: "Precedent.docx" } });
+
+        expect(sealReads).toEqual([["id", "source-version"]]);
+        expect(versionRows[0][0]).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
+    });
+
+    // A5: outside a project the copy takes the conversation's organization;
+    // with none, nobody could approve a pasante's copy, so none is made.
+    it("refuses a pasante's copy in a chat without an organization", async () => {
+        process.env.ASYNC_DOCUMENT_CONVERSION = "true";
+        const { db, versionRows } = replicationDb([
+            { training_author_user_id: "pasante-1", training_stage: "pasante" },
+        ]);
+
+        const result = await replicate(db, {}, undefined, null);
+
+        expect(JSON.parse((result.toolResults[0] as { content: string }).content)).toMatchObject({
+            ok: false,
+        });
+        expect(versionRows).toEqual([]);
     });
 });

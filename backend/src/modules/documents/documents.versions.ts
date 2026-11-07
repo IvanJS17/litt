@@ -29,6 +29,8 @@ import {
 } from "../../lib/documentTypes";
 import { deleteDocumentAndVersionFiles, type Db } from "./documents.shared";
 import { canManageDocument, ensureDocumentAccess } from "./documents.access";
+import { mayApproveTrainingVersion } from "./documents.trainingApproval";
+import { heldVersionIdsOrSealed, type SealStage } from "../../lib/trainingRelease";
 
 // ---------------------------------------------------------------------------
 // Versions list
@@ -58,7 +60,7 @@ export async function listVersions(
     const { data: rows } = await db
         .from("document_versions")
         .select(
-            "id, version_number, source, created_at, filename, file_type, size_bytes, page_count, textless_page_count, deleted_at, deleted_by",
+            "id, version_number, source, created_at, filename, file_type, size_bytes, page_count, textless_page_count, deleted_at, deleted_by, content_sha256, training_stage, training_author_user_id",
         )
         .eq("document_id", documentId)
         .order("created_at", { ascending: true });
@@ -66,8 +68,45 @@ export async function listVersions(
     return {
         ok: true,
         current_version_id: access.doc.current_version_id ?? null,
-        versions: rows ?? [],
+        versions: await withTrainingRelease(
+            db,
+            access,
+            userId,
+            (rows ?? []) as TrainingVersionRow[],
+        ),
     };
+}
+
+type TrainingVersionRow = {
+    id: string;
+    content_sha256: string | null;
+    training_stage: SealStage;
+    training_author_user_id: string | null;
+    [column: string]: unknown;
+};
+
+/**
+ * LiTT training (docs/training.md): per version, whether it may not leave
+ * LiTT yet (`training_held`) and whether the caller may approve it
+ * (`training_can_approve`). The author's id stays on the server.
+ */
+async function withTrainingRelease(
+    db: Db,
+    access: Parameters<typeof mayApproveTrainingVersion>[1],
+    userId: string,
+    rows: TrainingVersionRow[],
+): Promise<Record<string, unknown>[]> {
+    const held = await heldVersionIdsOrSealed(db, rows);
+    return Promise.all(
+        rows.map(async ({ training_author_user_id: author, content_sha256: _hash, ...row }) => {
+            const isHeld = held.has(row.id);
+            const canApprove =
+                isHeld && !!author && !row.deleted_at
+                    ? await mayApproveTrainingVersion(db, access, userId, author).catch(() => false)
+                    : false;
+            return { ...row, training_held: isHeld, training_can_approve: canApprove };
+        }),
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +304,8 @@ export async function createVersionFromDocument(
     const { data: versionRow, error: verErr } = await createDocumentVersion(
         db,
         {
+            // The bytes are the source version's: its seal, not the actor's.
+            authorship: { kind: "copy", sourceVersionId: active.id },
             document_id: documentId,
             storage_path: key,
             pdf_storage_path: pdfStoragePath,

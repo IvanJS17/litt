@@ -74,6 +74,7 @@ import {
     getDocument,
     getDocumentFile,
     getDocumentFileUrl,
+    getTokenDownload,
     getDocumentUrl,
     getConfiguredModels,
     getLibrary,
@@ -146,6 +147,7 @@ import {
     updateOrgMember,
     updateOrg,
     listDocumentVersions,
+    approveTrainingVersion,
     listLibraryDocumentIds,
     listMcpConnectors,
     listProjectChats,
@@ -2297,6 +2299,33 @@ describe("query and payload defaults", () => {
         expect(await selected.blob.text()).toBe("selected");
     });
 
+    it("getTokenDownload reads a server-issued download link and refuses any other origin", async () => {
+        fetchMock.mockResolvedValueOnce(
+            new Response("bytes", {
+                status: 200,
+                headers: { "content-disposition": 'attachment; filename="draft.docx"' },
+            }),
+        );
+        const file = await getTokenDownload("/download/token-1");
+        expect(lastFetchCall().url).toBe("/api/download/token-1");
+        expect(file.filename).toBe("draft.docx");
+        await expect(getTokenDownload("https://evil.example/x")).rejects.toThrow("Unsafe download link");
+
+        fetchMock.mockResolvedValueOnce(
+            jsonResponse(
+                {
+                    code: "training_approval_required",
+                    detail: "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
+                },
+                { status: 409 },
+            ),
+        );
+        await expect(getTokenDownload("/download/token-2")).rejects.toMatchObject({
+            status: 409,
+            code: "training_approval_required",
+        });
+    });
+
     it("getDocumentUrl appends version_id only when a version is requested", async () => {
         fetchMock.mockImplementation(() =>
             Promise.resolve(
@@ -3017,6 +3046,12 @@ describe("thin endpoint wrappers", () => {
             name: "listDocumentVersions",
             call: () => listDocumentVersions("d1"),
             url: "/single-documents/d1/versions",
+        },
+        {
+            name: "approveTrainingVersion",
+            call: () => approveTrainingVersion("d 1", "v 1"),
+            url: "/single-documents/d%201/versions/v%201/training-approval",
+            method: "POST",
         },
         {
             name: "copyDocumentVersionFromDocument",

@@ -80,16 +80,31 @@ const initial = () => [
   { table: "documents", data: { id: "doc" } },
   { table: "user_profiles", data: { display_name: "Author" } },
 ];
+// After activation the result says whether the version may leave
+// (lib/trainingRelease): one read, plus the approvals when it is sealed.
+const UNSEALED_RELEASE = [
+  { table: "document_versions", data: { training_stage: null, content_sha256: "hash" } },
+];
+const SEALED_RELEASE = [
+  { table: "document_versions", data: { training_stage: "pasante", content_sha256: "hash" } },
+  { table: "training_version_approvals", data: [] },
+];
+
 function newVersionDb(
   options: {
     editsFail?: boolean;
     createFail?: boolean;
     activation?: boolean;
+    seal?: Array<{ table: string; data?: unknown }>;
+    release?: Array<{ table: string; data?: unknown }>;
   } = {},
 ) {
+  const reachesRelease =
+    !options.editsFail && !options.createFail && options.activation !== false;
   const fake = scriptedDb([
     ...initial(),
     { table: "document_versions", data: { filename: "Renamed.docx" } },
+    ...(options.seal ?? [{ table: "documents", data: null }]),
     ...(!options.createFail
       ? [
           {
@@ -100,6 +115,7 @@ function newVersionDb(
           },
         ]
       : []),
+    ...(reachesRelease ? (options.release ?? UNSEALED_RELEASE) : []),
   ]);
   const rpc = vi.fn(async (name: string, params: Record<string, unknown>) => {
     if (name === "create_document_version") {
@@ -297,8 +313,10 @@ describe("assistant document-edit lifecycle", () => {
     mocks.active.mockResolvedValue({ id: "reused", filename: "Renamed.docx", storage_path: "same-turn" });
     const fake = scriptedDb([
       ...initial(),
+      { table: "documents", data: null },
       { table: "document_versions", op: "update", data: { id: "reused" } },
       { table: "document_edits", op: "insert", data: [editRow] },
+      ...UNSEALED_RELEASE,
     ]);
     const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
     mocks.uploadFile.mockImplementation(async (path) => {
@@ -321,8 +339,9 @@ describe("assistant document-edit lifecycle", () => {
       p_document_id: "doc",
       p_version_id: "reused",
     });
-    expect(fake.calls[2].filters).toContainEqual(["eq", "storage_path", "same-turn"]);
-    expect(fake.calls[2].payload).toMatchObject({
+    const update = fake.calls.find((call) => call.op === "update")!;
+    expect(update.filters).toContainEqual(["eq", "storage_path", "same-turn"]);
+    expect(update.payload).toMatchObject({
       storage_path: mocks.uploadFile.mock.calls[0][0],
       content_sha256: "hash",
       pdf_storage_path: null,
@@ -343,7 +362,7 @@ describe("assistant document-edit lifecycle", () => {
   });
   it("retires only the new object when a concurrent edit wins publication", async () => {
     mocks.active.mockResolvedValue({ id: "reused", filename: "Renamed.docx", storage_path: "same-turn" });
-    const fake = scriptedDb([...initial(), { table: "document_versions", op: "update", data: null }]);
+    const fake = scriptedDb([...initial(), { table: "documents", data: null }, { table: "document_versions", op: "update", data: null }]);
     expect(await run(fake.db, { versionId: "reused", versionNumber: 7, storagePath: "same-turn" })).toMatchObject({ ok: false });
     const uploadedPath = mocks.uploadFile.mock.calls[0][0];
     expect(uploadedPath).not.toBe("same-turn");
@@ -353,11 +372,54 @@ describe("assistant document-edit lifecycle", () => {
 
   it("preserves the uploaded object when an update error leaves commit success unknown", async () => {
     mocks.active.mockResolvedValue({ id: "reused", filename: "Renamed.docx", storage_path: "same-turn" });
-    const fake = scriptedDb([...initial(), { table: "document_versions", op: "update", data: null, error: { message: "connection lost after commit" } }]);
+    const fake = scriptedDb([...initial(), { table: "documents", data: null }, { table: "document_versions", op: "update", data: null, error: { message: "connection lost after commit" } }]);
     expect(await run(fake.db, { versionId: "reused", versionNumber: 7, storagePath: "same-turn" })).toMatchObject({ ok: false });
     expect(mocks.uploadFile).toHaveBeenCalledOnce();
     expect(mocks.deleteFileBestEffort).not.toHaveBeenCalled();
     fake.done();
   });
-
+  const pasanteSeal = [
+    { table: "documents", data: { org_id: "org", project_id: null } },
+    { table: "training_stages", data: [{ practice: null, stage: "pasante" }] },
+  ];
+  const lawyerSeal = [
+    { table: "documents", data: { org_id: "org", project_id: null } },
+    { table: "training_stages", data: [] },
+  ];
+  it.each([
+    ["a pasante", pasanteSeal, { training_author_user_id: "actor", training_stage: "pasante" }],
+    ["a lawyer", lawyerSeal, undefined],
+  ])("seals the assistant's new tracked-edit version for %s only", async (_who, seal, expected) => {
+    const fake = newVersionDb({ seal, release: expected ? SEALED_RELEASE : UNSEALED_RELEASE });
+    expect(await run(fake.db)).toMatchObject({ ok: true, training_held: !!expected });
+    const version = fake.rpc.mock.calls[0][1].p_version;
+    if (expected) expect(version).toMatchObject(expected);
+    else {
+      expect(version).not.toHaveProperty("training_author_user_id");
+      expect(version).not.toHaveProperty("training_stage");
+    }
+    fake.done();
+  });
+  it.each([
+    ["a pasante", pasanteSeal, true],
+    ["a lawyer", lawyerSeal, false],
+  ])("seals a reused same-turn version for %s only", async (_who, seal, sealed) => {
+    mocks.active.mockResolvedValue({ id: "reused", filename: "Renamed.docx", storage_path: "same-turn" });
+    const fake = scriptedDb([
+      ...initial(),
+      ...seal,
+      { table: "document_versions", op: "update", data: { id: "reused" } },
+      { table: "document_edits", op: "insert", data: [editRow] },
+      ...(sealed ? SEALED_RELEASE : UNSEALED_RELEASE),
+    ]);
+    const rpc = vi.fn().mockResolvedValue({ data: true, error: null });
+    expect(await run({ ...fake.db, rpc } as unknown as Db, { versionId: "reused", versionNumber: 7, storagePath: "same-turn" })).toMatchObject({ ok: true, training_held: sealed });
+    const payload = fake.calls.find((call) => call.op === "update")!.payload as Record<string, unknown>;
+    if (sealed) expect(payload).toMatchObject({ training_author_user_id: "actor", training_stage: "pasante" });
+    else {
+      expect(payload).not.toHaveProperty("training_author_user_id");
+      expect(payload).not.toHaveProperty("training_stage");
+    }
+    fake.done();
+  });
 });

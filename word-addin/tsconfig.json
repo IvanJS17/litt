@@ -67,6 +67,9 @@
       "@mike/training-note-ui": [
         "../frontend/src/shared/ui/TrainingNoteUI.tsx"
       ],
+      "@mike/training-held-note-ui": [
+        "../frontend/src/shared/ui/TrainingHeldNoteUI.tsx"
+      ],
       "@mike/training-turn-notes": [
         "../frontend/src/shared/hooks/useTrainingTurnNotes.ts"
       ],

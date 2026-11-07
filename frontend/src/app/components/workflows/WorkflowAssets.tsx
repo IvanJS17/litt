@@ -1,5 +1,6 @@
 "use client";
 
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import {
   forwardRef,
   useEffect,
@@ -443,8 +444,13 @@ export const WorkflowAssets = forwardRef<
                     fileType={file.file_type || file.filename}
                     className="mr-2 h-4 w-4"
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs text-gray-800">
-                    {file.filename}
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="min-w-0 truncate text-xs text-gray-800">
+                      {file.filename}
+                    </span>
+                    {isTrainingHeld(file) && (
+                      <TrainingHeldNoteUI className="text-[11px]" />
+                    )}
                   </span>
                 </TableStickyCell>
                 <TableCell className="ml-auto w-20 text-xs uppercase text-gray-500">
@@ -462,7 +468,7 @@ export const WorkflowAssets = forwardRef<
                 >
                   <RowActions
                     onView={() => view(file)}
-                    onDownload={() => void download(file)}
+                    onDownload={isTrainingHeld(file) ? undefined : () => void download(file)}
                     onUploadNewVersion={
                       readOnly
                         ? undefined
@@ -500,6 +506,11 @@ export const WorkflowAssets = forwardRef<
         }}
         onDownloadVersion={async (_assetId, versionId) => {
           if (viewingFile) await download(viewingFile, versionId);
+        }}
+        onTrainingApproved={(assetId) => {
+          refreshVersionState(assetId).catch((caught: unknown) =>
+            notifyError(caught, { action: "refresh this file" }),
+          );
         }}
         onRenameVersion={async (assetId, versionId, filename) => {
           await renameDocumentVersion(assetId, versionId, filename);
