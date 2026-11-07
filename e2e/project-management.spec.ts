@@ -125,10 +125,22 @@ test("delete a project", async ({ page }) => {
     const deleteBtn = page.getByRole("menuitem", { name: "Delete", exact: true });
     await expect(deleteBtn).toBeVisible({ timeout: 3_000 });
 
-    // REGRESSION: fails if `handleDeleteSelected` is removed
     await deleteBtn.click();
 
-    /* handleDeleteSelected removes the project from local state immediately.
+    /* A project delete takes its documents and chats with it and has no undo,
+       so Delete only asks. Cancelling keeps the project. */
+    const dialog = page.getByRole("dialog", { name: "Delete project?" });
+    await expect(dialog).toContainText(projectName);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(row).toBeVisible();
+
+    await actionsBtn.click();
+    await deleteBtn.click();
+    // REGRESSION: fails if confirming no longer reaches `handleDeleteProjectRow`
+    await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+
+    /* The confirmed delete removes the project from local state immediately.
        Scope to table rows in main so a stale sidebar entry can't keep this
        truthy. */
     await expect(
