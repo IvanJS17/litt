@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 // LiTT C2 against upstream's list and permission rewrites (#749, cycles 3
-// and 4: 20261030_*, 20261101_*): performance.litt-private-matters.sql checks
+// to 5: 20261030_*, 20261101_*): performance.litt-private-matters.sql checks
 // every function those tranches created or redefined. This suite also proves
-// the whole file depends on LiTT's guards: with upstream's project_access_role
-// or departure rewrite alone, or with the private-matter guard switched off,
+// the whole file depends on LiTT's guards: with upstream's project_access_role,
+// departure or ownerless rewrite alone, or with the private-matter guard switched off,
 // it fails. performance.litt-private-matters-controls.sql runs the same swaps
 // in CI against a smaller fixture. Opt in with
 // MIKE_TEST_POSTGRES_CONTAINER=<postgres container>; the suite owns a
@@ -29,7 +29,7 @@ function sqlError(query: string): string {
     return "";
 }
 
-describe.skipIf(!container)("private matters in upstream's cycle-3 and cycle-4 lists (PostgreSQL)", () => {
+describe.skipIf(!container)("private matters in upstream's cycle-3 to cycle-5 lists (PostgreSQL)", () => {
     let created = false;
     beforeAll(() => {
         execFileSync("docker", ["exec", container!, "createdb", "-U", "postgres", database]);
@@ -60,11 +60,19 @@ describe.skipIf(!container)("private matters in upstream's cycle-3 and cycle-4 l
     }, 120_000);
 
     it("needs the LiTT departure migration: upstream's rewrite alone hands a matter project to departure", () => {
-        sql(read("migrations/20261101_08_departure_reverse_references.sql"));
+        sql(read("migrations/20261101_18_departure_root_candidates.sql"));
         expect(sqlError(assertions())).toMatch(/org_members_departure_items: matter project stays with the matter team/);
-        // Filename order on an existing database: upstream's file, then LiTT's.
-        sql(read("migrations/20261101_51_litt_departure_private_matter.sql"));
-        sql(read("migrations/20261101_51_litt_departure_private_matter.sql"));
+        // Filename order on an existing database: upstream's file, then LiTT's
+        // (twice: the migration is safe to re-run).
+        sql(read("migrations/20261107_50_litt_departure_root_candidates_private_matter.sql"));
+        sql(read("migrations/20261107_50_litt_departure_root_candidates_private_matter.sql"));
+        sql(assertions());
+    }, 120_000);
+
+    it("needs the LiTT ownerless migration: upstream's set-based list alone offers a matter project to the owner", () => {
+        sql(read("migrations/20261101_17_ownerless_items_set_based.sql"));
+        expect(sqlError(assertions())).toMatch(/ownerless_org_item_ids: a matter project is never ownerless/);
+        sql(read("migrations/20261107_51_litt_ownerless_items_private_matter.sql"));
         sql(assertions());
     }, 120_000);
 

@@ -30,7 +30,8 @@
 
 import type { OrgMemberHandover } from "@mike/contracts";
 import type { Db } from "./supabase";
-import { selectAllPages, selectInBatches } from "./batchedQuery";
+import { selectAllByKey, selectInBatches } from "./batchedQuery";
+import { INTERNAL_ERROR_MESSAGE } from "./httpError";
 import { safeError } from "./safeError";
 import { recordAudit } from "./audit";
 import {
@@ -328,21 +329,8 @@ export async function listOrgResources(
     // so an organization past 1000 projects or workflows silently lost the
     // rest (or, for the override tables, the grants that admit a member).
     type Row = { id?: unknown; user_id?: unknown; visibility?: unknown; created_at?: unknown };
-    const pageBy = <T extends Record<string, unknown>>(
-        label: string,
-        key: string,
-        build: () => {
-            order(column: string, options: { ascending: boolean }): {
-                limit(count: number): PromiseLike<{ data: unknown; error: unknown }> & {
-                    gt(column: string, value: unknown): PromiseLike<{ data: unknown; error: unknown }>;
-                };
-            };
-        },
-    ) =>
-        selectAllPages<T>(label, (after, limit) => {
-            const query = build().order(key, { ascending: true }).limit(limit);
-            return (after ? query.gt(key, after[key]) : query) as PromiseLike<{ data: T[] | null; error: unknown }>;
-        });
+    const pageBy = <T extends Record<string, unknown>>(label: string, key: string, build: () => unknown) =>
+        selectAllByKey<T>(label, build, key);
     let projectRows: Row[];
     let workflowRows: Row[];
     let projectOverrideRows: Record<string, unknown>[];
@@ -351,14 +339,14 @@ export async function listOrgResources(
         [projectRows, workflowRows, projectOverrideRows, workflowOverrideRows] =
             await Promise.all([
                 pageBy<Row & Record<string, unknown>>("org projects", "id", () =>
-                    db
+                      db
                         .from("projects")
                         .select("id, user_id, org_id, visibility, name, cm_number, practice, created_at, updated_at")
                         .eq("org_id", params.orgId)
                         .is("archived_at", null),
                 ),
                 pageBy<Row & Record<string, unknown>>("org workflows", "id", () =>
-                    db
+                      db
                         .from("workflows")
                         .select(
                             "id, user_id, org_id, visibility, title, type, practice, created_at",
@@ -367,14 +355,14 @@ export async function listOrgResources(
                         .is("archived_at", null),
                 ),
                 pageBy("project overrides", "project_id", () =>
-                    db
+                      db
                         .from("project_org_access_overrides")
                         .select("project_id, role")
                         .eq("org_id", params.orgId)
                         .eq("user_id", params.userId),
                 ),
                 pageBy("workflow overrides", "workflow_id", () =>
-                    db
+                      db
                         .from("workflow_org_access_overrides")
                         .select("workflow_id, role")
                         .eq("org_id", params.orgId)
@@ -687,22 +675,51 @@ async function authorizeRemoval(
     db: Db,
     params: { actorId: string; orgId: string; targetUserId: string },
 ): Promise<RemovalGate> {
+    const [gate] = await authorizeRemovals(db, { ...params, targetUserIds: [params.targetUserId] });
+    return gate;
+}
+
+/**
+ * authorizeRemoval for several departing members at once: the actor's role
+ * is read once and every target's role in one batched org_members read
+ * (same join on live organizations as getOrgRole), instead of two
+ * sequential role lookups per member. Gates come back in input order.
+ */
+async function authorizeRemovals(
+    db: Db,
+    params: { actorId: string; orgId: string; targetUserIds: string[] },
+): Promise<RemovalGate[]> {
     const actorRole = await getOrgRole(params.actorId, params.orgId, db);
-    if (!actorRole) return { ok: false, kind: "not_found" };
-    // A member may remove themselves (leave); removing others needs admin.
-    const isSelf = params.actorId === params.targetUserId;
-    if (!isSelf && !isOrgAdmin(actorRole))
-        return { ok: false, kind: "forbidden" };
-
-    const targetRole = await getOrgRole(params.targetUserId, params.orgId, db);
-    if (!targetRole) return { ok: false, kind: "not_found" };
-
-    // Leaving is always the member's own call. Removing somebody else is
-    // not: an admin may remove members, and only an owner may remove an
-    // admin or another owner.
-    if (!isSelf && !canManageOrgRole(actorRole, targetRole))
-        return { ok: false, kind: "owner_required" };
-    return { ok: true, isSelf, targetRole };
+    if (!actorRole) return params.targetUserIds.map(() => ({ ok: false, kind: "not_found" }));
+    const members = await selectInBatches<{ user_id: string; role: unknown }>(
+        "departing member roles",
+        params.targetUserIds,
+        (batch) =>
+            db
+                .from("org_members")
+                .select("user_id, role, organizations!inner(id)")
+                .is("organizations.deleted_at", null)
+                .eq("org_id", params.orgId)
+                .in("user_id", batch),
+    );
+    const roleByUser = new Map(
+        members.flatMap((member) =>
+            isOrgRole(member.role) ? [[member.user_id, member.role] as const] : [],
+        ),
+    );
+    return params.targetUserIds.map((targetUserId): RemovalGate => {
+        // A member may remove themselves (leave); removing others needs admin.
+        const isSelf = params.actorId === targetUserId;
+        if (!isSelf && !isOrgAdmin(actorRole)) return { ok: false, kind: "forbidden" };
+        const targetRole = roleByUser.get(targetUserId);
+        if (!targetRole) return { ok: false, kind: "not_found" };
+        // Leaving is always the member's own call. Removing somebody else is
+        // not: an admin may remove members, and only an owner may remove an
+        // admin or another owner.
+        if (!isSelf && !canManageOrgRole(actorRole, targetRole))
+            return { ok: false, kind: "owner_required" };
+        return { ok: true, isSelf, targetRole };
+    });
 }
 
 /**
@@ -719,15 +736,17 @@ export async function getMemberHandover(
         otherIds.some((id) => typeof id !== "string" || !id)
     )) return { ok: false, kind: "validation", detail: "Choose valid organization members." };
     const userIds = [...new Set([params.targetUserId, ...((otherIds ?? []) as string[])])];
-    for (const targetUserId of userIds) {
-        const gate = await authorizeRemoval(db, { ...params, targetUserId });
+    for (const gate of await authorizeRemovals(db, { ...params, targetUserIds: userIds }))
         if (!gate.ok) return gate;
-    }
     const loaded = await loadMemberHandover(db, params.orgId, userIds);
     if (!loaded.ok)
         return { ok: false, kind: "db_error", detail: loaded.detail };
     return { ok: true, handover: loaded.handover };
 }
+
+/** Deadlock and serialization failures: the transaction was rolled back whole. */
+const TRANSIENT_LOCK_CODES = new Set(["40P01", "40001"]);
+const REMOVAL_RETRY_DELAY_MS = 150;
 
 export async function removeMember(
     db: Db,
@@ -774,12 +793,27 @@ export async function removeMember(
     // The RPC rechecks roles and ownership under an organization lock, then
     // transfers/archives and removes membership in the same transaction.
     const assignedTo = typeof assignTo === "string" && assignTo ? assignTo : null;
-    const { error } = await db.rpc("remove_org_member", {
-        p_org_id: params.orgId,
-        p_user_id: params.targetUserId,
-        p_actor_id: params.actorId,
-        p_successor_id: assignedTo,
-    });
+    const removal = () =>
+        db.rpc("remove_org_member", {
+            p_org_id: params.orgId,
+            p_user_id: params.targetUserId,
+            p_actor_id: params.actorId,
+            p_successor_id: assignedTo,
+        });
+    let { error } = await removal();
+    // The departure fence locks the departing member's documents, then (on a
+    // rare late path) chats and reviews. A concurrent writer holding those in
+    // the reverse order makes Postgres abort one side with a deadlock
+    // (40P01) or serialization failure (40001); the whole transaction rolled
+    // back, so trying once more after a short pause is safe and usually wins.
+    if (error && TRANSIENT_LOCK_CODES.has(String(error.code))) {
+        await new Promise((resolve) => setTimeout(resolve, REMOVAL_RETRY_DELAY_MS));
+        ({ error } = await removal());
+        // Still contended: say so as the retryable conflict it is, not as an
+        // internal failure.
+        if (error && TRANSIENT_LOCK_CODES.has(String(error.code)))
+            return { ok: false, kind: "conflict", detail: INTERNAL_ERROR_MESSAGE };
+    }
     if (error) {
         if (isLastOwnerViolation(error)) return { ok: false, kind: "last_owner" };
         // org_members_training_departure (20261106_50_litt_training.sql).

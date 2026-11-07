@@ -13,6 +13,7 @@ import {
     listOrgsBlockingAccountDeletion,
 } from "./user.dataCleanup";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
+import { mapWithConcurrency } from "../../lib/concurrency";
 import { deleteFile } from "../../lib/storage";
 import { type Db, type DbJob } from "../../lib/dbq/types";
 
@@ -140,7 +141,7 @@ async function eraseAccountData(
     }
     const exportRows = (exportJobs ?? []) as Pick<DbJob, "id" | "result">[];
     let artifactFailures = 0;
-    for (const row of exportRows) {
+    await mapWithConcurrency(exportRows, 8, async (row) => {
         const path = row.result?.storage_path;
         if (typeof path === "string" && path.length > 0) {
             try {
@@ -149,7 +150,7 @@ async function eraseAccountData(
                 artifactFailures += 1;
             }
         }
-    }
+    });
     if (artifactFailures > 0) {
         throw new Error(
             `${artifactFailures}/${exportRows.length} export artifact deletes failed`,

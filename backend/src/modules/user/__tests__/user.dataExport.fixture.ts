@@ -3,7 +3,7 @@ import { ownerlessRpcResult } from "../../../__tests__/helpers/ownerlessRpc";
 export type Row = Record<string, unknown>;
 
 // Read-only fake supporting the query subset buildUserAccountExport uses
-// (select/range/eq/neq/in/order/filter + thenable).
+// (select/range/eq/neq/gt/in/order/filter + thenable).
 export function makeExportDb(
     tables: Record<string, Row[]>,
     errors: Record<string, { message: string }> = {},
@@ -13,6 +13,18 @@ export function makeExportDb(
         let rows = [...(tables[table] ?? [])];
         let from = 0;
         let to = Infinity;
+        const orders: [string, boolean][] = [];
+        const sorted = () =>
+            orders.length === 0
+                ? rows
+                : [...rows].sort((a, b) => {
+                      for (const [col, asc] of orders) {
+                          const x = String(a[col] ?? "");
+                          const y = String(b[col] ?? "");
+                          if (x !== y) return (x < y ? -1 : 1) * (asc ? 1 : -1);
+                      }
+                      return 0;
+                  });
         const error = errors[table] ?? null;
         const builder: any = {
             select: () => builder,
@@ -21,8 +33,18 @@ export function makeExportDb(
                 to = end;
                 return builder;
             },
-            order: () => builder,
+            // Applied when the query resolves, first call first (PostgREST
+            // order), so a keyset page's `.gt` cursor is the real maximum.
+            order: (col: string, options?: { ascending?: boolean }) => {
+                orders.push([col, options?.ascending !== false]);
+                return builder;
+            },
             limit: () => builder,
+            // Keyset pages (selectAllByKey): rows past the cursor.
+            gt: (col: string, val: unknown) => {
+                rows = rows.filter((r) => String(r[col]) > String(val));
+                return builder;
+            },
             eq: (col: string, val: unknown) => {
                 rows = rows.filter((r) => r[col] === val);
                 return builder;
@@ -71,7 +93,7 @@ export function makeExportDb(
                 reject?: (e: unknown) => unknown,
             ) =>
                 Promise.resolve({
-                    data: error ? null : rows.slice(from, to + 1),
+                    data: error ? null : sorted().slice(from, to + 1),
                     error,
                     count: rows.length,
                 }).then(resolve, reject),

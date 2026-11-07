@@ -12,7 +12,7 @@ import {
   type OrgRole,
 } from "../../lib/access";
 import { PERSONAL_WORKSPACE, resolveWorkspaceFilter, workspaceMatches, type WorkspaceFilter } from "../../lib/workspace";
-import { selectInBatches } from "../../lib/batchedQuery";
+import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import type { EditAnnotation } from "@mike/contracts";
 import { extractDocxBodyText, type EditInput } from "../../lib/docxTrackedChanges";
 import { loadActiveVersion } from "../../lib/documentVersions";
@@ -936,12 +936,17 @@ async function authorizePlaybookRows(
   };
 }
 
-export async function listPlaybooks(
+/**
+ * The playbooks the caller may open in the workspace (`columns` of each, which
+ * must include the access columns), with their roles.
+ */
+async function readVisiblePlaybooks(
+  db: Db,
   userId: string,
-  db: Db = createServerSupabase(),
-  options: { workspace?: unknown; email?: string | null } = {},
-): Promise<Playbook[]> {
-  const scope = await playbookListScope(userId, db, options.workspace);
+  email: string | null | undefined,
+  scope: PlaybookListScope,
+  columns: string,
+): Promise<{ visible: Record<string, unknown>[]; roles: Map<string, PlaybookRole> }> {
   const { workspace } = scope;
   // Organization-visible playbooks only from organizations the workspace
   // can show: none for Personal, just that one for an organization.
@@ -950,28 +955,41 @@ export async function listPlaybooks(
     : workspace !== PERSONAL_WORKSPACE && scope.orgRoles.has(workspace)
       ? [workspace]
       : [];
-  const granted = await grantedPlaybookIds(db, userId, options.email);
+  const granted = await grantedPlaybookIds(db, userId, email);
+  // Typed as `*` (untyped rows either way): a column-list variable defeats
+  // the builder's select-string parser.
+  const playbooks = () => db.from("playbooks").select(columns as "*");
+  // One user or organization can own more playbooks than max_rows: those
+  // two reads are paged in full (a truncated list would drop playbooks, and
+  // with them their runs from History). Granted ids are 50 per request.
   const [own, shared, direct] = await Promise.all([
-    selectInBatches<Record<string, unknown>>("own playbooks", [userId], () =>
-      inPlaybookWorkspace(db.from("playbooks").select("*").eq("user_id", userId), workspace),
+    selectAllByKey<Record<string, unknown>>("own playbooks", () =>
+      inPlaybookWorkspace(playbooks().eq("user_id", userId), workspace),
     ),
     selectInBatches<Record<string, unknown>>("organization playbooks", orgIds, (batch) =>
-      db
-        .from("playbooks")
-        .select("*")
-        .eq("visibility", "organization")
-        .in("org_id", batch),
+      selectAllByKey<Record<string, unknown>>("organization playbooks", () =>
+        playbooks().eq("visibility", "organization").in("org_id", batch),
+      ),
     ),
     selectInBatches<Record<string, unknown>>("granted playbooks", granted, (batch) =>
-      inPlaybookWorkspace(db.from("playbooks").select("*").in("id", batch), workspace),
+      inPlaybookWorkspace(playbooks().in("id", batch), workspace),
     ),
   ]);
-  const { visible, roles } = await authorizePlaybookRows(
+  return authorizePlaybookRows(db, [...own, ...shared, ...direct], userId, email, scope);
+}
+
+export async function listPlaybooks(
+  userId: string,
+  db: Db = createServerSupabase(),
+  options: { workspace?: unknown; email?: string | null } = {},
+): Promise<Playbook[]> {
+  const scope = await playbookListScope(userId, db, options.workspace);
+  const { visible, roles } = await readVisiblePlaybooks(
     db,
-    [...own, ...shared, ...direct],
     userId,
     options.email,
     scope,
+    "*",
   );
   const [creators, recipients] = await Promise.all([
     loadCreatorProfiles(db, visible),
@@ -2898,11 +2916,16 @@ export async function listAllPlaybookRuns(
  * The caller's newest runs (up to `limit`, before `before`) of playbooks they
  * can still open in the workspace, with those playbooks' names.
  *
- * Reads the caller's runs first and authorizes only the playbooks those runs
- * name, instead of listing every reachable playbook in full (content and
- * all) to build a name map and an unbounded `.in("playbook_id", …)`. Runs of
- * playbooks the caller can no longer open are skipped and the read continues,
- * so a page is still full when more visible runs exist.
+ * Eligibility comes BEFORE the limit: the playbooks the caller may open are
+ * listed first (only the access columns and the name, never content), and
+ * runs are read only for those, so the page holds the newest visible runs
+ * however many newer runs of other workspaces or revoked playbooks exist.
+ * Reading the caller's runs first and filtering afterwards could not tell
+ * "no more visible runs" from "a scan budget spent on hidden ones".
+ *
+ * The playbook ids go out in bounded `.in()` batches. Each batch's newest
+ * `limit` runs include every run of that batch that can make the page, so
+ * merging the batches newest first and keeping `limit` rows is exact.
  */
 async function readVisibleRuns(
   userId: string,
@@ -2911,47 +2934,38 @@ async function readVisibleRuns(
   read: { columns: string; limit: number },
 ): Promise<{ rows: Record<string, unknown>[]; names: Map<string, string> }> {
   const scope = await playbookListScope(userId, db, options.workspace);
-  const names = new Map<string, string>();
-  const decided = new Set<string>();
-  const rows: Record<string, unknown>[] = [];
-  let before = options.before;
-  // Bounded: each round reads `limit` runs; stop after a fixed number of
-  // rounds of runs the caller can no longer see.
-  for (let round = 0; round < 20 && rows.length < read.limit; round++) {
-    let query = db
-      .from("playbook_runs")
-      .select(read.columns)
-      .eq("user_id", userId);
-    if (before) query = query.lt("started_at", before);
-    const { data, error } = await query
-      .order("started_at", { ascending: false })
-      .limit(read.limit);
-    if (error) throw error;
-    const page = ((data ?? []) as unknown as Record<string, unknown>[]).sort((a, b) =>
-      String(b.started_at).localeCompare(String(a.started_at)),
-    );
-    const unknownIds = [...new Set(page.map((row) => String(row.playbook_id)))]
-      .filter((id) => !decided.has(id));
-    if (unknownIds.length) {
-      const playbooks = await selectInBatches<Record<string, unknown>>(
-        "run playbooks",
-        unknownIds,
-        (batch) =>
-          inPlaybookWorkspace(
-            db.from("playbooks").select("id, name, user_id, org_id, visibility").in("id", batch),
-            scope.workspace,
-          ),
-      );
-      const { visible } = await authorizePlaybookRows(db, playbooks, userId, options.email, scope);
-      for (const playbook of visible) names.set(String(playbook.id), String(playbook.name));
-      for (const id of unknownIds) decided.add(id);
-    }
-    for (const row of page) {
-      if (rows.length < read.limit && names.has(String(row.playbook_id))) rows.push(row);
-    }
-    if (page.length < read.limit) break;
-    before = String(page[page.length - 1].started_at);
-  }
+  const { visible } = await readVisiblePlaybooks(
+    db,
+    userId,
+    options.email,
+    scope,
+    "id, name, user_id, org_id, visibility",
+  );
+  const names = new Map(visible.map((row) => [String(row.id), String(row.name)]));
+  const runs = await selectInBatches<Record<string, unknown>>(
+    "visible playbook runs",
+    names.keys(),
+    (batch) => {
+      let query = db
+        .from("playbook_runs")
+        .select(read.columns as "*")
+        .eq("user_id", userId)
+        .in("playbook_id", batch);
+      if (options.before) query = query.lt("started_at", options.before);
+      return query
+        .order("started_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(read.limit);
+    },
+  );
+  // Newest first by (started_at, id), so ties keep one order across batches.
+  const rows = runs
+    .sort(
+      (a, b) =>
+        String(b.started_at).localeCompare(String(a.started_at)) ||
+        String(b.id).localeCompare(String(a.id)),
+    )
+    .slice(0, read.limit);
   return { rows, names };
 }
 

@@ -1698,24 +1698,47 @@ as $$
 $$;
 
 -- Every private item without an Owner in the given organizations, for the
--- backend's list filters. Normally empty or close to it.
+-- backend's list filters. Normally empty or close to it. LiTT re-creates it
+-- with the matter exclusion (C2) in the
+-- 20261107_51_litt_ownerless_items_private_matter section below.
 create or replace function public.ownerless_org_item_ids(p_org_ids uuid[])
 returns table (kind text, item_id uuid)
 language sql
 stable
 set search_path = public
 as $$
+  -- project_is_ownerless / workflow_is_ownerless, written as anti-joins so
+  -- the planner evaluates them for the whole set at once instead of calling
+  -- a function (three subqueries) per private item. Keep the conditions in
+  -- step with those functions: not archived, creator no longer a member of
+  -- the item's organization, and no 'owner' override.
   select 'project'::text, p.id
   from public.projects p
   where p.org_id = any(p_org_ids)
     and p.visibility <> 'organization'
-    and public.project_is_ownerless(p.id, p.user_id, p.org_id)
+    and p.archived_at is null
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = p.org_id and creator.user_id = p.user_id
+    )
+    and not exists (
+      select 1 from public.project_org_access_overrides o
+      where o.project_id = p.id and o.role = 'owner'
+    )
   union all
   select 'workflow'::text, w.id
   from public.workflows w
   where w.org_id = any(p_org_ids)
     and w.visibility <> 'organization'
-    and public.workflow_is_ownerless(w.id, w.user_id, w.org_id);
+    and w.archived_at is null
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = w.org_id and creator.user_id = w.user_id
+    )
+    and not exists (
+      select 1 from public.workflow_org_access_overrides o
+      where o.workflow_id = w.id and o.role = 'owner'
+    );
 $$;
 
 create or replace function public.workflow_access_role(
@@ -5659,6 +5682,54 @@ begin
 end;
 $$;
 
+-- Migration date: 2026-11-01
+-- Batch form of wipe_memory_file for erasure loops (account and
+-- organization deletion), one round trip instead of one per file. Each id
+-- is wiped by wipe_memory_file itself, so locking, epoch/revision fencing,
+-- validation and errors are identical; ids are taken once each, in id
+-- order, so concurrent batches lock rows in the same order. The whole batch
+-- is one transaction: a missing id (memory_file_not_found, P0002) or an
+-- invalid source (22023) rolls back every wipe in it.
+create or replace function public.wipe_memory_files(
+  p_ids uuid[],
+  p_enabled boolean,
+  p_updated_by uuid default null,
+  p_source text default 'wipe'
+)
+returns table(
+  memory_file_id uuid,
+  new_epoch bigint,
+  new_revision bigint,
+  effective_enabled boolean,
+  mutation_at timestamptz,
+  mutation_by uuid
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  file_id uuid;
+begin
+  if p_source is null or p_source not in ('wipe', 'settings') then
+    raise exception using errcode = '22023', message = 'invalid_memory_source';
+  end if;
+  for file_id in
+    select distinct requested.id from unnest(coalesce(p_ids, '{}'::uuid[])) requested(id)
+    order by requested.id
+  loop
+    return query
+      select file_id, wiped.new_epoch, wiped.new_revision, wiped.effective_enabled,
+        wiped.mutation_at, wiped.mutation_by
+      from public.wipe_memory_file(file_id, p_enabled, p_updated_by, p_source) wiped;
+  end loop;
+end;
+$$;
+revoke all on function public.wipe_memory_files(uuid[], boolean, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.wipe_memory_files(uuid[], boolean, uuid, text)
+  to service_role;
+
 -- Settings' "Delete all memory" clears one workspace. With p_org_id null that
 -- is Personal: the person's Personal memory and the memories of the private
 -- projects they created, all-or-nothing, excluding every organization project
@@ -8780,14 +8851,49 @@ $$;
 create or replace function public.list_org_private_content(p_org_id uuid,p_actor_id uuid,p_limit integer default 50,p_offset integer default 0,p_search text default '')
 returns table(kind text,item_id uuid,title text,user_id uuid,display_name text,email text,has_access boolean)
 language plpgsql stable set search_path=public,pg_temp as $$
+declare page_end bigint := greatest(0,p_offset)::bigint+greatest(1,least(p_limit,101));
 begin
   if not public.can_access_org_private_content(p_org_id,p_actor_id) then
     raise exception 'Private content permission required' using errcode='42501';
   end if;
+  -- The catalogue of org_private_content_items, one arm per kind. The page
+  -- is ordered by (lower(title), kind, item_id) and kind is constant within
+  -- an arm, so the page can only contain each arm's first offset+limit rows
+  -- in (lower(title), id) order: each arm stops there (index order for
+  -- projects, workflows, chats and reviews) and only those are sorted.
   return query select item.kind,item.item_id,item.title,item.user_id,profile.display_name,profile.email,
     exists(select 1 from public.org_private_content_access a where a.org_id=p_org_id and a.user_id=p_actor_id and a.kind=item.kind and a.item_id=item.item_id)
-    from public.org_private_content_items(p_org_id) item left join public.user_profiles profile on profile.user_id=item.user_id
-    where item.user_id is distinct from p_actor_id and (p_search='' or position(lower(p_search) in lower(coalesce(item.title,'')))>0)
+    from (
+      select * from (select 'project'::text kind,p.id item_id,p.name title,p.user_id
+        from public.projects p
+        where p.org_id=p_org_id and p.archived_at is null and p.visibility='private' and p.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(p.name,'')))>0)
+        order by lower(p.name) nulls last,p.id limit page_end) project_page
+      union all
+      select * from (select 'workflow'::text kind,w.id item_id,w.title title,w.user_id
+        from public.workflows w
+        where w.org_id=p_org_id and w.archived_at is null and w.visibility='private' and w.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(w.title,'')))>0)
+        order by lower(w.title) nulls last,w.id limit page_end) workflow_page
+      union all
+      select * from (select 'chat'::text kind,c.id item_id,c.title title,c.user_id
+        from public.chats c
+        where c.org_id=p_org_id and c.archived_at is null and c.project_id is null and c.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(c.title,'')))>0)
+        order by lower(c.title) nulls last,c.id limit page_end) chat_page
+      union all
+      select * from (select 'tabular_review'::text kind,r.id item_id,r.title title,r.user_id
+        from public.tabular_reviews r
+        where r.org_id=p_org_id and r.archived_at is null and r.project_id is null and r.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(r.title,'')))>0)
+        order by lower(r.title) nulls last,r.id limit page_end) tabular_review_page
+      union all
+      select * from (select 'document'::text kind,d.id item_id,coalesce(v.filename,'Untitled document') title,d.user_id
+        from public.documents d left join public.document_versions v on v.id=d.current_version_id and v.deleted_at is null
+        where d.org_id=p_org_id and d.archived_at is null and d.project_id is null and d.workflow_id is null and d.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(coalesce(v.filename,'Untitled document'),'')))>0)
+        order by lower(coalesce(v.filename,'Untitled document')) nulls last,d.id limit page_end) document_page
+    ) item left join public.user_profiles profile on profile.user_id=item.user_id
     order by lower(item.title) nulls last,item.kind,item.item_id
     limit greatest(1,least(p_limit,101)) offset greatest(0,p_offset);
 end;
@@ -9390,6 +9496,8 @@ grant execute on function public.organization_audit_events(uuid,uuid,text) to se
 
 -- Page and count authorized metadata before resolving resource access. Title
 -- search/sort deliberately redact first so hidden titles cannot affect results.
+-- LiTT re-creates it with the live-profile person order in the
+-- 20261107_52_litt_audit_username_filter_order section below.
 create or replace function public.organization_audit_events_page(
   p_org_id uuid, p_actor_id uuid, p_actor_email text,
   p_filter jsonb default '{}'::jsonb,
@@ -9413,9 +9521,25 @@ begin
   -- remain bound parameters, including arrays, search patterns and dates.
   candidates:=$query$
     select a.* from public.audit_events a where a.org_id=$1
+      -- Profile matches are resolved once per call: the organization's
+      -- distinct actors (an index seek per actor, as organization_audit_actors
+      -- does), each profile read by its key, instead of a profile probe per
+      -- event or a pass over every profile on the platform.
       and ($4->>'username_pattern' is null or a.user_email ilike $4->>'username_pattern'
-        or exists(select 1 from public.user_profiles profile where profile.user_id=a.user_id
-          and (profile.display_name ilike $4->>'username_pattern' or profile.email ilike $4->>'username_pattern')))
+        or a.user_id = any(array(
+          with recursive actors as (
+            (select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id is not null order by e.user_id limit 1)
+            union all
+            select next_actor.user_id from actors previous cross join lateral (
+              select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id>previous.user_id order by e.user_id limit 1
+            ) next_actor
+          )
+          select profile.user_id from actors cross join lateral (
+            select p.user_id,p.display_name,p.email from public.user_profiles p where p.user_id=actors.user_id offset 0
+          ) profile
+          where profile.display_name ilike $4->>'username_pattern' or profile.email ilike $4->>'username_pattern')))
       and ($4->>'action' is null or a.action=$4->>'action')
       and ($4->>'status' is null or a.status=$4->>'status')
       and ($4->>'surface' is null or a.surface=$4->>'surface')
@@ -9581,12 +9705,20 @@ create or replace function public.backfill_document_text(p_limit integer default
 returns integer language plpgsql security invoker set search_path=public,pg_temp as $$
 declare row record; queued integer := 0;
 begin
+  -- Work starts from the unfinished text rows (partial index). Every live
+  -- version with a source file has a row for its current revision and
+  -- extractor: document_text_changed queues one on insert and on every
+  -- revision change, and 20261101_23 turned versions from before text
+  -- search into pending rows. So no live version is missing a row or has a
+  -- stale one, and "pending or processing" is the whole old work list.
+  -- Bumping extractor_version must turn its outdated rows pending likewise.
   for row in
-    select v.id from public.document_versions v join public.documents d on d.id=v.document_id
-    left join public.document_version_texts t on t.version_id=v.id
-    where v.deleted_at is null and v.storage_path is not null and d.archived_at is null
-      and (t.version_id is null or t.source_revision<>v.text_revision or t.extractor_version<>1
-        or t.status in ('pending','processing') or (p_retry_failed and t.status='failed'))
+    select v.id from public.document_version_texts t
+    join public.document_versions v on v.id=t.version_id
+    join public.documents d on d.id=v.document_id
+    where t.status <> 'ready'
+      and (t.status in ('pending','processing') or (p_retry_failed and t.status='failed'))
+      and v.deleted_at is null and v.storage_path is not null and d.archived_at is null
       and not exists(select 1 from public.db_jobs j where j.dedupe_key='document.text:'||v.id||':'||v.text_revision
         and j.status in ('pending','running'))
     order by (v.id=d.current_version_id) desc, v.id
@@ -9890,9 +10022,11 @@ $$;
 
 -- org_members_departure_items: upstream 20261030_04, 20261101_06 (S11) and
 -- 20261101_08 (S4b) rewrite it to classify a departing member's documents by
--- reverse reference lookups. LiTT defines upstream's final text once, in the
--- 20261101_51_litt_departure_private_matter section below, because it needs
--- public.matters (C2 point 3), which is created later in this file.
+-- reverse reference lookups, and 20261101_18 (M-S5) finds the possible roots
+-- by departing user first. LiTT defines upstream's final text once, in the
+-- 20261107_50_litt_departure_root_candidates_private_matter section below,
+-- because it needs public.matters (C2 point 3), which is created later in
+-- this file.
 
 -- Migration date: 2026-10-30
 -- Candidate ids are a union of indexed ownership/membership/grant lookups.
@@ -11680,6 +11814,60 @@ create index if not exists chat_messages_files_idx
   on public.chat_messages using gin (files jsonb_path_ops) where files is not null;
 create index if not exists tabular_reviews_document_ids_idx
   on public.tabular_reviews using gin (document_ids);
+
+-- Migration date: 2026-11-01
+-- Payload lookups the backend runs against db_jobs. Without these each one
+-- reads the whole queue table, done and failed history included:
+--  * account erasure deletes every job naming the user (payload userId, or
+--    base.userId) and lists that user's export.build jobs;
+--  * account erasure lists the user's memory.consolidate jobs by actorUserId
+--    in any status (the epoch index covers only live ones);
+--  * document_cache_writer_active and the inline text runner find a
+--    version's precompute/extract jobs by versionId.
+-- Partial predicates keep each index to the rows that carry the key; an
+-- equality on the expression implies "is not null", so the planner can use
+-- them for parameterized queries.
+create index if not exists db_jobs_payload_user_idx
+  on public.db_jobs((payload->>'userId')) where (payload->>'userId') is not null;
+create index if not exists db_jobs_payload_base_user_idx
+  on public.db_jobs((payload->'base'->>'userId')) where (payload->'base'->>'userId') is not null;
+create index if not exists db_jobs_memory_actor_idx
+  on public.db_jobs((payload->>'actorUserId')) where kind = 'memory.consolidate';
+create index if not exists db_jobs_text_version_idx
+  on public.db_jobs((payload->>'versionId'))
+  where kind in ('document.extract_text', 'document.precompute_text');
+
+-- Migration date: 2026-11-01
+-- resolve_project_folder_path / resolve_library_folder_path look a sibling
+-- up by its case- and space-insensitive name once per path segment, and
+-- once per "(2)", "(3)" ... rename probe. With only (project_id) or
+-- (user_id, library_kind) indexed, each lookup read every folder in the
+-- project or library. Keyed by the normalized name, a lookup reads only
+-- the folders of that name; the parent (matched with IS NOT DISTINCT FROM,
+-- which no index can serve) and workspace are checked on those few rows.
+create index if not exists project_subfolders_name_idx
+  on public.project_subfolders(project_id,lower(btrim(name)));
+create index if not exists library_folders_name_idx
+  on public.library_folders(user_id,library_kind,lower(btrim(name)));
+
+-- Migration date: 2026-11-01
+-- list_org_private_content pages an organization's private catalogue by
+-- lower(title), item id. Each kind's catalogue rows, in that order, so a
+-- page reads about offset + limit rows per kind instead of sorting them all.
+create index if not exists projects_private_catalogue_idx
+  on public.projects(org_id,lower(name),id) where archived_at is null and visibility = 'private';
+create index if not exists workflows_private_catalogue_idx
+  on public.workflows(org_id,lower(title),id) where archived_at is null and visibility = 'private';
+create index if not exists chats_private_catalogue_idx
+  on public.chats(org_id,lower(title),id) where archived_at is null and project_id is null;
+create index if not exists tabular_reviews_private_catalogue_idx
+  on public.tabular_reviews(org_id,lower(title),id) where archived_at is null and project_id is null;
+
+-- Migration date: 2026-11-01
+-- backfill_document_text's work list: text rows not yet ready. Ready rows
+-- (almost all of them) stay out of the index.
+create index if not exists document_version_texts_unfinished_idx
+  on public.document_version_texts(status,version_id) where status <> 'ready';
 
 -- ===== LiTT extension (LiTT sync 2026-10-23) =====
 -- LiTT tables, guards and policies on top of upstream's schema. Each block
@@ -17793,6 +17981,317 @@ $$;
 revoke all on function public.org_members_departure_items(uuid,uuid[]) from public,anon,authenticated;
 grant execute on function public.org_members_departure_items(uuid,uuid[]) to service_role;
 
+-- ---------------------------------------------------------------------------
+-- 20261107_50_litt_departure_root_candidates_private_matter.sql
+-- ---------------------------------------------------------------------------
+--
+-- LiTT adaptation of upstream 20261101_18_departure_root_candidates (M-S5)
+-- (upstream cycle 5 of 10, pin d0a7ca75). Upstream finds a departure's
+-- possible roots by departing user first (creator index, owner overrides and
+-- owner grants) instead of testing every item in the organization. Its text
+-- copies the departure roots without LiTT's private-matter rule, which
+-- 20261101_51_litt_departure_private_matter had restored over upstream's
+-- earlier rewrites:
+--
+--   * C2 point 3 (20261023_13): a project bound to a matter is never a
+--     departing member's item. It is not archived away from the matter team
+--     and not handed to a successor chosen by an organization owner.
+--
+-- Upstream's 20261101_18 sorts before 20261101_51, so a database that already
+-- ran 20261101_51 would run 20261101_18 afterwards and lose the guard. This
+-- migration sorts after both and re-creates the function from upstream's
+-- 20261101_18 text with the guard; the rest is upstream's text.
+-- backend/src/__tests__/sql/performance.litt-private-matters.sql and
+-- performance.references.sql prove the guard: a departing creator's matter
+-- project is not listed. Control 4 in
+-- performance.litt-private-matters-controls.sql proves upstream's text alone
+-- would list it.
+--
+-- Safe to re-run: create or replace, same signature.
+
+create or replace function public.org_members_departure_items(p_org_id uuid,p_user_ids uuid[])
+returns table(kind text,item_id uuid,title text,disposition text)
+language sql stable set search_path = public as $$
+  with roots as (
+select 'project'::text kind,item.id item_id,
+    case when item.visibility='organization' then item.name else null::text end title,
+    case when (item.visibility='organization' or exists (select 1 from public.project_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.project_id=item.id and g.role in ('owner','editor','viewer') and not (holder.user_id = any(p_user_ids)))) then 'transfer' else 'archive' end disposition
+  from public.projects item where item.id in (
+      -- Only items a departing member created or co-owns can be roots; the
+      -- conditions below are evaluated for those, not every org project.
+      -- Per departing member, a lookup by creator (user_id index); the
+      -- organization is checked on the few rows found, never scanned.
+      select p.id from unnest(p_user_ids) leaver(id)
+        cross join lateral (select own.id,own.org_id from public.projects own where own.user_id=leaver.id offset 0) p
+        where p.org_id=p_org_id
+      union select g.project_id from unnest(p_user_ids) leaver(id) join public.project_org_access_overrides g on g.user_id=leaver.id
+        join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id
+        where g.role='owner')
+    and item.org_id=p_org_id and item.archived_at is null
+    -- LiTT C2: a matter's project stays with the matter team when a member
+    -- leaves; it is neither archived nor handed to a successor.
+    and not exists (select 1 from public.matters mt where mt.project_id=item.id)
+
+    and (item.user_id=any(p_user_ids) or exists (select 1 from public.project_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.project_id=item.id and g.role='owner' and holder.user_id = any(p_user_ids)))
+    and not exists (select 1 from public.org_members m where m.org_id=p_org_id and m.user_id=item.user_id and not(m.user_id=any(p_user_ids)))
+    and not exists (select 1 from public.project_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.project_id=item.id and g.role='owner' and not (holder.user_id = any(p_user_ids)))
+ union all
+select 'workflow'::text kind,item.id item_id,
+    case when item.visibility='organization' then item.title else null::text end title,
+    case when (item.visibility='organization' or exists (select 1 from public.workflow_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.workflow_id=item.id and g.role in ('owner','editor','viewer') and not (holder.user_id = any(p_user_ids)))) then 'transfer' else 'archive' end disposition
+  from public.workflows item where item.id in (
+      select w.id from unnest(p_user_ids) leaver(id)
+        cross join lateral (select own.id,own.org_id from public.workflows own where own.user_id=leaver.id offset 0) w
+        where w.org_id=p_org_id
+      union select g.workflow_id from unnest(p_user_ids) leaver(id) join public.workflow_org_access_overrides g on g.user_id=leaver.id
+        join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id
+        where g.role='owner')
+    and item.org_id=p_org_id and item.archived_at is null
+
+    and (item.user_id=any(p_user_ids) or exists (select 1 from public.workflow_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.workflow_id=item.id and g.role='owner' and holder.user_id = any(p_user_ids)))
+    and not exists (select 1 from public.org_members m where m.org_id=p_org_id and m.user_id=item.user_id and not(m.user_id=any(p_user_ids)))
+    and not exists (select 1 from public.workflow_org_access_overrides g join public.org_members holder on holder.user_id=g.user_id and holder.org_id=p_org_id where g.workflow_id=item.id and g.role='owner' and not (holder.user_id = any(p_user_ids)))
+ union all
+select 'chat'::text kind,item.id item_id,
+    null::text title,
+    case when (exists (select 1 from public.chat_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.chat_id=item.id and g.role in ('owner','editor','viewer') and not (holder.user_id = any(p_user_ids)))) then 'transfer' else 'archive' end disposition
+  from public.chats item where item.id in (
+      select c.id from unnest(p_user_ids) leaver(id)
+        cross join lateral (select own.id,own.org_id from public.chats own where own.user_id=leaver.id offset 0) c
+        where c.org_id=p_org_id
+      union select g.chat_id from unnest(p_user_ids) leaver(id) join public.user_profiles profile on profile.user_id=leaver.id
+        join public.chat_access_grants g on g.email=lower(profile.email)
+        join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id
+        where profile.email is not null and btrim(profile.email)<>'' and g.role='owner')
+    and item.org_id=p_org_id and item.archived_at is null
+    and item.project_id is null
+    and (item.user_id=any(p_user_ids) or exists (select 1 from public.chat_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.chat_id=item.id and g.role='owner' and holder.user_id = any(p_user_ids)))
+    and not exists (select 1 from public.org_members m where m.org_id=p_org_id and m.user_id=item.user_id and not(m.user_id=any(p_user_ids)))
+    and not exists (select 1 from public.chat_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.chat_id=item.id and g.role='owner' and not (holder.user_id = any(p_user_ids)))
+ union all
+select 'tabular_review'::text kind,item.id item_id,
+    null::text title,
+    case when (exists (select 1 from public.tabular_review_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.tabular_review_id=item.id and g.role in ('owner','editor','viewer') and not (holder.user_id = any(p_user_ids)))) then 'transfer' else 'archive' end disposition
+  from public.tabular_reviews item where item.id in (
+      select r.id from unnest(p_user_ids) leaver(id)
+        cross join lateral (select own.id,own.org_id from public.tabular_reviews own where own.user_id=leaver.id offset 0) r
+        where r.org_id=p_org_id
+      union select g.tabular_review_id from unnest(p_user_ids) leaver(id) join public.user_profiles profile on profile.user_id=leaver.id
+        join public.tabular_review_access_grants g on g.email=lower(profile.email)
+        join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id
+        where profile.email is not null and btrim(profile.email)<>'' and g.role='owner')
+    and item.org_id=p_org_id and item.archived_at is null
+    and item.project_id is null
+    and (item.user_id=any(p_user_ids) or exists (select 1 from public.tabular_review_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.tabular_review_id=item.id and g.role='owner' and holder.user_id = any(p_user_ids)))
+    and not exists (select 1 from public.org_members m where m.org_id=p_org_id and m.user_id=item.user_id and not(m.user_id=any(p_user_ids)))
+    and not exists (select 1 from public.tabular_review_access_grants g join public.user_profiles profile on lower(profile.email)=g.email and profile.email is not null and btrim(profile.email)<>'' join public.org_members holder on holder.user_id=profile.user_id and holder.org_id=p_org_id where g.tabular_review_id=item.id and g.role='owner' and not (holder.user_id = any(p_user_ids)))
+  ), retained_documents as materialized (
+    -- Start from the departing members' standalone documents (few) and look
+    -- up who references each one, instead of expanding every chat message
+    -- and review row in the organization. A reference counts when its chat
+    -- or review is retained: live in this org, its project not archived, and
+    -- neither it nor its project archived by this departure.
+    select distinct d.id document_id
+    from public.documents d
+    cross join lateral public.document_referencing_items(d.id) ref
+    left join public.chats c on ref.kind='chat' and c.id=ref.item_id
+    left join public.tabular_reviews tr on ref.kind='tabular_review' and tr.id=ref.item_id
+    where d.org_id=p_org_id and d.user_id=any(p_user_ids)
+      and d.project_id is null and d.workflow_id is null and d.archived_at is null
+      and case ref.kind when 'chat' then c.org_id=p_org_id and c.archived_at is null
+        else tr.org_id=p_org_id and tr.archived_at is null end
+      and not exists(select 1 from public.projects p where p.id=ref.project_id and p.archived_at is not null)
+      and not exists(select 1 from roots r where r.kind=ref.kind and r.item_id=ref.item_id and r.disposition='archive')
+      and (ref.project_id is null or not exists(select 1 from roots r where r.kind='project' and r.item_id=ref.project_id and r.disposition='archive'))
+  ), documents as (
+    select 'document'::text kind,d.id item_id,null::text title,
+      case when d.id in (select document_id from retained_documents) then 'transfer' else 'archive' end disposition
+    from public.documents d where d.org_id=p_org_id and d.user_id=any(p_user_ids)
+      and d.project_id is null and d.workflow_id is null and d.archived_at is null
+  ) select * from roots union all select * from documents;
+$$;
+revoke all on function public.org_members_departure_items(uuid,uuid[]) from public,anon,authenticated;
+grant execute on function public.org_members_departure_items(uuid,uuid[]) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261107_51_litt_ownerless_items_private_matter.sql
+-- ---------------------------------------------------------------------------
+--
+-- LiTT adaptation of upstream 20261101_17_ownerless_items_set_based (upstream
+-- cycle 5 of 10, pin d0a7ca75). Upstream rewrites ownerless_org_item_ids as
+-- anti-joins instead of calling project_is_ownerless / workflow_is_ownerless
+-- per item. The inlined project conditions are upstream's, without the
+-- private-matter rule LiTT adds to project_is_ownerless
+-- (20261023_13_litt_private_matter_lists, C2):
+--
+--   * a project bound to a matter is never "ownerless": an organization owner
+--     does not take it over when its creator leaves the organization.
+--
+-- This migration re-creates the function from upstream's text with that
+-- condition, so the set-based list and the per-item function agree again.
+-- backend/src/__tests__/sql/performance.litt-private-matters.sql proves it.
+-- Control 5 in performance.litt-private-matters-controls.sql proves
+-- upstream's text alone would list the matter project.
+--
+-- Safe to re-run: create or replace, same signature.
+
+create or replace function public.ownerless_org_item_ids(p_org_ids uuid[])
+returns table (kind text, item_id uuid)
+language sql
+stable
+set search_path = public
+as $$
+  -- project_is_ownerless / workflow_is_ownerless, written as anti-joins so
+  -- the planner evaluates them for the whole set at once instead of calling
+  -- a function (three subqueries) per private item. Keep the conditions in
+  -- step with those functions: not archived, creator no longer a member of
+  -- the item's organization, and no 'owner' override (and, for projects,
+  -- LiTT's matter exclusion).
+  select 'project'::text, p.id
+  from public.projects p
+  where p.org_id = any(p_org_ids)
+    and p.visibility <> 'organization'
+    and p.archived_at is null
+    -- LiTT C2, as in project_is_ownerless: a matter's project belongs to the
+    -- matter team, never to the organization's owners, whoever created it.
+    and not exists (select 1 from public.matters mt where mt.project_id = p.id)
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = p.org_id and creator.user_id = p.user_id
+    )
+    and not exists (
+      select 1 from public.project_org_access_overrides o
+      where o.project_id = p.id and o.role = 'owner'
+    )
+  union all
+  select 'workflow'::text, w.id
+  from public.workflows w
+  where w.org_id = any(p_org_ids)
+    and w.visibility <> 'organization'
+    and w.archived_at is null
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = w.org_id and creator.user_id = w.user_id
+    )
+    and not exists (
+      select 1 from public.workflow_org_access_overrides o
+      where o.workflow_id = w.id and o.role = 'owner'
+    );
+$$;
+revoke all on function public.ownerless_org_item_ids(uuid[])
+  from public, anon, authenticated;
+grant execute on function public.ownerless_org_item_ids(uuid[])
+  to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261107_52_litt_audit_username_filter_order.sql
+-- ---------------------------------------------------------------------------
+--
+-- LiTT adaptation of upstream 20261101_19_audit_username_filter_actors
+-- (upstream cycle 5 of 10, pin d0a7ca75). Upstream resolves the audit
+-- page's person filter once per call, over the organization's distinct
+-- actors, instead of probing a profile per event. Its text starts from
+-- upstream's page, which sorts "by person" on the address copied into each
+-- audit row. LiTT stopped copying addresses into the insert-only audit rows
+-- (20261024_51_litt_account_erasure), so its page sorts by the live profile
+-- (public.audit_actor_email) and a deleted account's events sort last.
+--
+-- Upstream's 20261101_19 sorts after 20261024_51 and would drop that order on
+-- upgraded databases. This migration sorts after it and re-creates the page
+-- from LiTT's 20261024_51 text with upstream's person filter; the rest is
+-- unchanged. performance.litt-audit-pagination.sql proves both.
+--
+-- Safe to re-run: create or replace, same signature.
+
+create or replace function public.organization_audit_events_page(
+  p_org_id uuid, p_actor_id uuid, p_actor_email text,
+  p_filter jsonb default '{}'::jsonb,
+  p_sort_by text default 'created_at', p_sort_direction text default 'desc',
+  p_offset integer default 0, p_limit integer default 50
+) returns jsonb language plpgsql stable set search_path = public, pg_temp as $$
+declare candidates text; filtered text; result jsonb; ordering text;
+begin
+  if not exists(select 1 from public.active_org_members m
+    where m.org_id=p_org_id and m.user_id=p_actor_id and m.role in ('owner','admin')) then
+    return jsonb_build_object('events','[]'::jsonb,'total',0);
+  end if;
+  if p_sort_by is null or p_sort_by not in ('created_at','user_email','title','model')
+    or p_sort_direction is null or p_sort_direction not in ('asc','desc') then
+    raise exception 'Invalid audit sort' using errcode='22023';
+  end if;
+  p_limit:=greatest(1,least(coalesce(p_limit,50),2000));
+  p_offset:=greatest(0,least(coalesce(p_offset,0),200000000));
+  -- New audit rows carry no address; sorting by person uses the live
+  -- profile, so a deleted account's events sort last.
+  ordering:=case when p_sort_by='user_email'
+    then format('public.audit_actor_email(user_id) %s nulls last, id asc',p_sort_direction)
+    else format('%I %s nulls last, id asc',p_sort_by,p_sort_direction) end;
+  -- Only allowlisted sort identifiers are interpolated. All filter values
+  -- remain bound parameters, including arrays, search patterns and dates.
+  candidates:=$query$
+    select a.* from public.audit_events a where a.org_id=$1
+      -- Profile matches are resolved once per call: the organization's
+      -- distinct actors (an index seek per actor, as organization_audit_actors
+      -- does), each profile read by its key, instead of a profile probe per
+      -- event or a pass over every profile on the platform.
+      and ($4->>'username_pattern' is null or a.user_email ilike $4->>'username_pattern'
+        or a.user_id = any(array(
+          with recursive actors as (
+            (select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id is not null order by e.user_id limit 1)
+            union all
+            select next_actor.user_id from actors previous cross join lateral (
+              select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id>previous.user_id order by e.user_id limit 1
+            ) next_actor
+          )
+          select profile.user_id from actors cross join lateral (
+            select p.user_id,p.display_name,p.email from public.user_profiles p where p.user_id=actors.user_id offset 0
+          ) profile
+          where profile.display_name ilike $4->>'username_pattern' or profile.email ilike $4->>'username_pattern')))
+      and ($4->>'action' is null or a.action=$4->>'action')
+      and ($4->>'status' is null or a.status=$4->>'status')
+      and ($4->>'surface' is null or a.surface=$4->>'surface')
+      and ($4->>'actor_user_id' is null or a.user_id=($4->>'actor_user_id')::uuid)
+      and ($4->>'from' is null or a.created_at>=($4->>'from')::timestamptz)
+      and ($4->>'to' is null or a.created_at<=($4->>'to')::timestamptz)
+      and (not ($4 ? 'event_ids') or a.id=any(array(select jsonb_array_elements_text($4->'event_ids')::uuid)))
+      and (not ($4 ? 'user_ids') or a.user_id=any(array(select jsonb_array_elements_text($4->'user_ids')::uuid)))
+  $query$;
+  if p_filter->>'title_pattern' is not null or p_sort_by='title' then
+    -- These operations depend on visible titles, so they necessarily inspect
+    -- the metadata-filtered candidates. Materialize once for both count/page.
+    filtered:=format($query$
+      with candidates as (%s), visible as materialized (
+        select * from public.organization_audit_events($1,$2,$3,array(select id from candidates))
+      ), filtered as not materialized (
+        select * from visible where $4->>'title_pattern' is null or title ilike $4->>'title_pattern'
+      ), page as (select * from filtered order by %s limit $5 offset $6)
+      select jsonb_build_object(
+        'events',coalesce((select jsonb_agg(to_jsonb(page) order by %s) from page),'[]'::jsonb),
+        'total',(select count(*) from filtered))
+    $query$,candidates,ordering,ordering);
+  else
+    -- NOT MATERIALIZED permits the count and page to use separate index scans.
+    -- The expensive resource joins/permission checks see only this page's IDs.
+    filtered:=format($query$
+      with candidates as not materialized (%s),
+      page as materialized (select id from candidates order by %s limit $5 offset $6),
+      visible as (
+        select * from public.organization_audit_events($1,$2,$3,array(select id from page))
+      )
+      select jsonb_build_object(
+        'events',coalesce((select jsonb_agg(to_jsonb(visible) order by %s) from visible),'[]'::jsonb),
+        'total',(select count(*) from candidates))
+    $query$,candidates,ordering,ordering);
+  end if;
+  execute filtered into result using p_org_id,p_actor_id,p_actor_email,coalesce(p_filter,'{}'::jsonb),p_limit,p_offset;
+  return result;
+end;
+$$;
+revoke all on function public.organization_audit_events_page(uuid,uuid,text,jsonb,text,text,integer,integer) from public,anon,authenticated;
+grant execute on function public.organization_audit_events_page(uuid,uuid,text,jsonb,text,text,integer,integer) to service_role;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -18011,10 +18510,23 @@ insert into public.schema_migrations (filename) values
   ('20261101_12_overview_counts_after_page.sql'),
   ('20261101_13_document_text_search_per_version.sql'),
   ('20261101_14_claim_jobs_index_order.sql'),
+  ('20261101_15_db_jobs_payload_indexes.sql'),
+  ('20261101_16_folder_name_indexes.sql'),
+  ('20261101_17_ownerless_items_set_based.sql'),
+  ('20261101_18_departure_root_candidates.sql'),
+  ('20261101_19_audit_username_filter_actors.sql'),
+  ('20261101_20_private_catalogue_indexes.sql'),
+  ('20261101_21_private_catalogue_paged_per_kind.sql'),
+  ('20261101_22_document_text_unfinished_index.sql'),
+  ('20261101_23_document_text_backfill_from_unfinished.sql'),
+  ('20261101_24_wipe_memory_files_batch.sql'),
   ('20261101_50_litt_project_access_private_matter.sql'),
   ('20261101_51_litt_departure_private_matter.sql'),
   ('20261106_50_litt_training.sql'),
   ('20261106_51_litt_training_output_lock.sql'),
   ('20261106_52_litt_training_seal_org.sql'),
-  ('20261106_53_litt_chat_overview_private_matter.sql')
+  ('20261106_53_litt_chat_overview_private_matter.sql'),
+  ('20261107_50_litt_departure_root_candidates_private_matter.sql'),
+  ('20261107_51_litt_ownerless_items_private_matter.sql'),
+  ('20261107_52_litt_audit_username_filter_order.sql')
 on conflict (filename) do nothing;
