@@ -1632,3 +1632,80 @@ None. The move changes where shared code lives, not what a lawyer sees.
 ### 27.5 Dependabot
 
 No Dependabot pull request is covered by this range.
+
+## 28. Cycle 2026-11-07, 9 of 10
+
+Pin `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05), the merge of
+upstream #798. The range `05d9aebc..b91d1bdf` has 50 commits, 10 of them
+first-parent merges, and 51 files (+2038/−1475). Nothing after the pin is
+integrated. No migration or `schema.sql` change is in the range.
+
+### 28.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| #788 Dependabot: priority-2 production and priority-3 development groups for the root, backend, frontend and Word add-in, `@types/node`, `@types/office-js` kept at 1.0.615, `docker/login-action` | `01cbfe50` `8746f450` `a81b8658` `3cdaf46f` `4b05510b` `e4898270` `70a4d61f` `f8566eff` `63ea9614` `d36fca69` `4fbfed25` `3ae8da8a` `ee32e735` `2a87c3c8` `3866badc` `3f40d305` `9330d596` `9fc032a3` | adopt, without the `@sentry/*` packages; `docker/login-action` lives only in `publish-images.yml`, which LiTT deleted (no net change) |
+| #797 startup hardening: placeholder, whitespace-only and short secrets refused at boot; 15 s model-catalog timeouts; least-privilege `permissions` in the remaining workflows; the local e2e stack fills throwaway secrets; deployment notes on rotation | `39bdb938` `0d6c93ef` `a582b462` `6e5855e9` `33afc161` `135dadd2` `425427b8` `772a10ae` `4b3fbe56` `88539c64` `25bd887d` | adopt, except the `stack-script.yml` half of `33afc161`/`772a10ae` (the workflow stays deleted, ledger §16) |
+| #797 missing `user_profiles.mfa_on_login` column | `461f9338` `c4a032e4` | adapt: LiTT keeps the fail-closed lookup (generic 500); upstream's once-per-process report names the missing column; the test asserts the refusal |
+| #715 README anchor | `29390435` `877d1b77` | adopt: LiTT's `CONTRIBUTING.md` has the `Mike Workflows` heading, so the anchor was broken; the rest of the README is LiTT's |
+| #750 release publication follow-up | `132b7edc` `71d81f04` | reject (Sentry and image publication); every file stays deleted or LiTT's, so no net change |
+| #699 weekly cleanup: shared `isAbortError`, unused playbook class | `df03c043` `5af2d20f` `38ba1abe` | adopt |
+| #755 delegate calls without a title | `36e4e623` `2127826c` `8061e967` | adopt: only the title defaults to `Subagent`; route resolution, the pinned model and the fail-closed route are unchanged |
+| #725 audit canary isolation | `851989a5` `12ff4976` | adopt |
+| #757 stop notices outside hidden citation blocks | `6bf54c22` `94cdbed5` `70786b18` | adopt |
+| #704 spreadsheet cells kept when a side-panel tab reopens | `c0b1ab06` `7a48d9f1` | adopt |
+| #798 shared abort-error imports | `e0e76ff2` `b91d1bdf` | adopt |
+
+The merge stops on 10 content conflicts and 6 modify/delete conflicts. Every
+modify/delete is a file LiTT retired (`publish-images.yml` and its
+`releaseVersion` test, `sentry.test.ts`, `docs/observability.md`, the
+`/monitoring` route test, `stack-script.yml`): the deletion is kept. The
+content conflicts are the three `package.json` files and their lockfiles
+(upstream's versions without Sentry; the lockfiles are upstream's, pruned with
+`npm install --package-lock-only`, adding no package), `.env.example` and
+`errorReporting.ts` (LiTT's Sentry-free versions), `e2e.yml` (upstream's
+`permissions` with LiTT's concurrency note) and `auth.ts` (below).
+
+Without net change against `main` (byte-identical): `.env.example`,
+`frontend/src/app/lib/errorReporting.ts` (upstream changed only Sentry
+comments) and the six retired files above.
+
+### 28.2 LiTT checks
+
+- **Secrets at boot.** `validateRuntimeConfiguration` refuses
+  `DOWNLOAD_SIGNING_SECRET=replace-with-a-random-32-byte-hex-string` and
+  `USER_API_KEYS_ENCRYPTION_SECRET=your-long-random-secret` (the
+  `backend/.env.example` values), and any set value of either variable that is
+  shorter than 32 characters after trimming, whitespace-only values included.
+  Unset values still pass and fail on first use. `deploy/prod/compose.yaml`
+  requires both variables and `deploy/prod/README.md` generates them with
+  `openssl rand -hex 32`; `compose.staging.yml` requires its own values; the
+  README and `docs/local-development.md` already told local users to generate
+  both. `scripts/e2e-local-stack.sh` fills CI's throwaway values;
+  `scripts/local-secrets.test.sh` passes locally and does not run in CI, as
+  `stack-script.yml` stays deleted.
+- **Login MFA.** An unreadable `mfa_on_login` (the missing column included)
+  is not "MFA is off": the request keeps getting the generic 500, and the
+  missing column is named once per process as `auth.login_mfa_column_missing`.
+- **Subagents.** #755 changes only the title; the named-route resolution and
+  its fail-closed refusal are untouched (TD-044, TD-045 unchanged).
+- **Telemetry.** No `@sentry/*` package, runtime import, env variable or
+  workflow is added; `132b7edc` has no net change.
+- **Identity.** No blue is added and no visible text says «Mike».
+- **Audit allowlist.** The range does not touch `scripts/audit-allowlist.json`;
+  the braces exception (`GHSA-vfj7-8cjw-p6xm`) stays while braces has no
+  patched release.
+
+### 28.3 Owner-visible changes
+
+- A delegated task without a title shows «Subagent» instead of failing.
+- A cut-off answer shows its warning even inside a citation block.
+- A spreadsheet reopened in the side panel keeps its cells.
+- An operator whose `.env` still holds a template secret sees the backend
+  refuse to start, with the variable named.
+
+### 28.4 Dependabot
+
+The range covers LiTT's open Dependabot pull requests #50–#55: each version
+they raise is at or above theirs in this cycle's `package.json` files. They are
+closed with a comment pointing at this cycle.

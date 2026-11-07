@@ -41,8 +41,9 @@ under `src/` that `index.ts` does not re-export are internal.
 
 This is a source package with no build step and no `node_modules`. Each
 application maps the name to `src/index.ts` with a tsconfig `paths` entry (and,
-for the add-in, a webpack alias). Both Dockerfiles copy this directory to
-`/packages/client`, the path the aliases resolve to in the image;
+for the add-in, a webpack alias). The frontend Dockerfile copies this
+directory to `/app/packages/client` and the add-in Dockerfile to
+`/packages/client`, the paths the aliases resolve to in each image;
 `frontend/src/__tests__/architecture.test.ts` checks that the alias and the
 copy agree.
 
