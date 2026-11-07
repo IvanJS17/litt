@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { Blob as NodeBlob } from "node:buffer";
+import { vi } from "vitest";
 
 // Vitest's jsdom environment always overrides `globalThis.Blob` with jsdom's
 // own Blob implementation, which never implemented `.text()`/`.arrayBuffer()`/
@@ -11,3 +12,11 @@ import { Blob as NodeBlob } from "node:buffer";
 // `node:buffer`) keeps `response.blob()` usable the same way on every
 // supported Node version. See #361.
 globalThis.Blob = NodeBlob as unknown as typeof Blob;
+
+// Testing Library renders under the en-US intl provider by default (plan
+// i18n R2); see src/__tests__/support/intlRender.tsx.
+vi.mock("@testing-library/react", async (importOriginal) => {
+    const rtl = await importOriginal<typeof import("@testing-library/react")>();
+    const { intlRenderers } = await import("./src/__tests__/support/intlRender");
+    return { ...rtl, ...intlRenderers(rtl) };
+});
