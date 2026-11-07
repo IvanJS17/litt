@@ -119,6 +119,12 @@ import {
   type PlaybookReportStage,
 } from "./playbooks.reporting";
 import { markStage } from "../../lib/observability/report";
+import {
+  keepServerOwnedRuleFields,
+  PLAYBOOK_DRAFT_CODE,
+  PLAYBOOK_DRAFT_MESSAGE,
+  stripProvenance,
+} from "./playbooks.starter";
 
 type Db = ReturnType<typeof createServerSupabase>;
 
@@ -145,15 +151,26 @@ export function runFailureMessage(error: unknown): string {
  */
 export class PlaybookRequestError extends AppError {
   readonly status: 400 | 403 | 404 | 409;
+  /** A code the client acts on (CODE_KINDS in @mike/client), when there is one. */
+  readonly code?: string;
 
   constructor(
     message: string,
     status: 400 | 403 | 404 | 409 = 400,
-    options?: ErrorOptions,
+    options?: ErrorOptions & { code?: string },
   ) {
     super("playbooks.request_invalid", message, options);
     this.status = status;
+    if (options?.code) this.code = options.code;
   }
+}
+
+/** A draft is refused, before anything is recorded, by every review entry. */
+export function assertPlaybookReady(playbook: Pick<Playbook, "status">): void {
+  if (playbook.status === "draft")
+    throw new PlaybookRequestError(PLAYBOOK_DRAFT_MESSAGE, 409, {
+      code: PLAYBOOK_DRAFT_CODE,
+    });
 }
 
 /**
@@ -708,6 +725,11 @@ function publicPlaybook(
     content,
     sourceFilename: row.source_filename ? String(row.source_filename) : null,
     importModel: row.import_model ? String(row.import_model) : null,
+    status: row.status === "draft" ? "draft" : "ready",
+    isModel: row.is_model === true,
+    derivedFromPlaybookId: row.derived_from_playbook_id
+      ? String(row.derived_from_playbook_id)
+      : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -1143,7 +1165,7 @@ export const PLAYBOOK_EDITED_DURING_REPLACEMENT_ERROR =
  * holds the playbook, because only such an import compares against it; one
  * that will never finish (interruptedPlaybookWork) holds nothing.
  */
-async function assertPlaybookNotBeingReplaced(
+export async function assertPlaybookNotBeingReplaced(
   db: Db,
   playbookId: string,
 ): Promise<void> {
@@ -1821,7 +1843,11 @@ export async function updatePlaybookContent(
     throw new PlaybookRequestError(
       "The playbook contains an invalid field or exceeds a field limit.",
     );
-  const content = stableIds(parsed.data);
+  // LiTT: a rule's origin and legal references are the server's, kept from
+  // the stored rule with the same id (before new rules are given ids).
+  const content = stableIds(
+    keepServerOwnedRuleFields(playbook.content, parsed.data),
+  );
   const visibility = parseContentVisibility(access.visibility, playbook.orgId);
   if (!visibility.ok) throw new PlaybookRequestError(visibility.detail);
   const updates: Record<string, unknown> = {
@@ -1916,7 +1942,7 @@ Return JSON only:
 
 REVIEW MODE: ${mode}
 ${scope === "issues" ? "REVIEW SCOPE: issues only. Report only rules whose status is unacceptable, missing_required, or needs_review; leave acceptable, not_applicable, and outside_scope rules out of findings, and summarise the issues.\n" : ""}${supplementaryDocumentList(sources)}PLAYBOOK:
-${JSON.stringify(content).slice(0, 100_000)}
+${JSON.stringify(stripProvenance(content)).slice(0, 100_000)}
 
 CONTRACT:
 ${documentText.slice(0, 180_000)}`;
@@ -2218,6 +2244,8 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     db,
     args.userEmail,
   );
+  // LiTT: one gate for the review route, run_playbook and chained reviews.
+  assertPlaybookReady(playbook);
   const parsedContent = playbookContentSchema.safeParse(playbook.content);
   if (!parsedContent.success)
     throw new PlaybookRequestError(

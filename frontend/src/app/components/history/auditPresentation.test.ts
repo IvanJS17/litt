@@ -125,6 +125,9 @@ describe("audit event presentation", () => {
     expect(auditAction({ ...run, action: "playbook.run.deleted" })).toBe(
       "Playbook run deleted",
     );
+    expect(auditAction({ ...run, action: "playbook.marked_ready" })).toBe(
+      "Playbook marcado como listo",
+    );
   });
 
   it("keeps failed actions from reading as successful changes", () => {

@@ -230,6 +230,13 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // where to add it); a second request while one runs waits for it.
     training_review_key_required: "validation",
     training_review_in_progress: "conflict",
+    // LiTT playbooks: a draft is used in reviews only once an editor marks
+    // it ready, and a copy is marked ready only after every proposed change
+    // is decided. Retrying cannot help, so the server's detail is shown.
+    playbook_draft: "validation",
+    playbook_changes_pending: "validation",
+    // The rule changed after the change was proposed: reloading helps.
+    playbook_change_stale: "conflict",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

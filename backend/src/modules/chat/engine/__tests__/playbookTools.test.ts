@@ -16,6 +16,7 @@ vi.mock("../../../playbooks/playbooks.service", async (original) => ({
 }));
 
 import { runToolCalls } from "../tools/toolDispatcher";
+import { assertPlaybookReady } from "../../../playbooks/playbooks.service";
 
 const db = {} as Db;
 const annotation = {
@@ -78,6 +79,15 @@ it("lists the playbooks the user can run in this workspace", async () => {
       name: "NDA",
       description: "Mutual NDAs",
       content: { documentTypes: ["NDA"], representedParty: "Recipient" },
+      status: "ready",
+    },
+    // LiTT: run_playbook would refuse a draft, so the model is not offered it.
+    {
+      id: "pb-draft",
+      name: "Borrador",
+      description: "",
+      content: { documentTypes: [], representedParty: "" },
+      status: "draft",
     },
   ]);
 
@@ -226,6 +236,24 @@ it("reviews the open Word document from its request text, without saving a versi
   );
   expect(content).toMatchObject({ run_id: "run-2", tracked_changes: 0 });
   expect(content.next_required_action).toMatch(/open Word document/);
+});
+
+it("hands the model the draft refusal's message, as for any refused review", async () => {
+  playbooks.reviewWithPlaybook.mockImplementation(async () =>
+    assertPlaybookReady({ status: "draft" }),
+  );
+
+  const result = await dispatch([
+    call("run_playbook", { playbook_id: "pb-1", doc_id: "doc-0" }),
+  ]);
+
+  expect(
+    JSON.parse((result.toolResults[0] as { content: string }).content),
+  ).toEqual({
+    error:
+      "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones.",
+  });
+  expect(reportError).not.toHaveBeenCalled();
 });
 
 it("refuses a document that is not attached, and a turn without a model", async () => {
