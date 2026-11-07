@@ -88,6 +88,10 @@ import { cn } from "@/app/lib/utils";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { getPlaybook, getTrainingTurnNotes } from "@/app/lib/mikeApi";
 import { LINKED_PLAYBOOK_PARAM } from "@/app/lib/assistantPlaybookLink";
+import {
+    composerFadeBackground,
+    useComposerInset,
+} from "@/app/hooks/useComposerInset";
 
 interface Props {
     chatId?: string | null;
@@ -179,8 +183,6 @@ interface ColumnProps extends Props {
 const MOBILE_BREAKPOINT_PX = 768;
 const DEFAULT_ASSISTANT_BOTTOM_PADDING = 116;
 const CHAT_MESSAGE_TOP_PADDING = 76;
-const SCROLL_BUTTON_INPUT_GAP = 16;
-const CHAT_INPUT_BOTTOM_OFFSET = 12;
 
 /**
  * The assistant page for one chat: the conversation with its document side
@@ -505,7 +507,6 @@ export function AssistantChatColumn({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const latestUserMessageRef = useRef<HTMLDivElement>(null);
     const chatInputRef = useRef<ChatInputHandle | null>(null);
-    const measuredInputRef = useRef<HTMLDivElement>(null);
     // Seed "already in place" when messages exist at mount (a freshly created
     // chat arrives with its first message in hand). Otherwise the skeleton +
     // opacity-0 gate would flash the message out and fade it back in on every
@@ -520,20 +521,14 @@ export function AssistantChatColumn({
     );
     const [showScrollButton, setShowScrollButton] = useState(false);
     const scrollButtonVisibleRef = useRef(false);
-    const [inputHeight, setInputHeight] = useState(0);
     const [minHeight, setMinHeight] = useState("0px");
-
-    useEffect(() => {
-        const el = measuredInputRef.current;
-        if (!el) return;
-        const update = () => setInputHeight(el.offsetHeight);
-        const observer = new ResizeObserver(update);
-        observer.observe(el);
-        update();
-        return () => observer.disconnect();
-        // Re-runs when the composer mounts: it is absent until access
-        // resolves, and the scroll button is positioned from its height.
-    }, [accessResolved]);
+    // The thread reserves the composer's real height, so its end stays above
+    // the composer, and it fades out where it runs under it.
+    const {
+        composerRef,
+        bottomPadding: messagesBottomPadding,
+        fadeHeight,
+    } = useComposerInset(DEFAULT_ASSISTANT_BOTTOM_PADDING);
 
     useEffect(() => {
         const container = messagesContainerRef.current;
@@ -555,7 +550,7 @@ export function AssistantChatColumn({
                         // One list gap before the response and one before
                         // the trailing scroll anchor (messagesEndRef).
                         messageGap * 2 -
-                        DEFAULT_ASSISTANT_BOTTOM_PADDING,
+                        messagesBottomPadding,
                 )}px`,
             );
         };
@@ -564,7 +559,7 @@ export function AssistantChatColumn({
         observer.observe(container);
         observer.observe(userMessage);
         return () => observer.disconnect();
-    }, [messages.length]);
+    }, [messages.length, messagesBottomPadding]);
 
     const isInitialView = Boolean(onInitialSubmit);
     useEffect(() => {
@@ -945,7 +940,6 @@ export function AssistantChatColumn({
         </>
     );
 
-    const messagesBottomPadding = DEFAULT_ASSISTANT_BOTTOM_PADDING;
     // Readers of a shared chat may view its documents but not change them.
     const canWrite =
         accessResolved && (canSend === undefined || canSend === true);
@@ -1216,31 +1210,22 @@ export function AssistantChatColumn({
                             </div>
                         </div>
 
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
-                            <div className="mx-auto h-28 w-full max-w-4xl px-4 md:px-6">
-                                <div className="assistant-chat-input-fade h-full w-full" />
-                            </div>
-                        </div>
-
-                        {/* Scroll to bottom button */}
-                        {showScrollButton && (
-                            <div
-                                className="absolute left-1/2 -translate-x-1/2 z-19"
-                                style={{
-                                    bottom:
-                                        inputHeight +
-                                        CHAT_INPUT_BOTTOM_OFFSET +
-                                        SCROLL_BUTTON_INPUT_GAP,
-                                }}
-                            >
-                                <button
-                                    type="button"
-                                    aria-label="Scroll to bottom"
-                                    onClick={scrollToBottom}
-                                    className={`cursor-pointer rounded-full p-2 transition-all ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
+                        {fadeHeight !== null && (
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10">
+                                <div
+                                    data-slot="chat-composer-fade"
+                                    className="mx-auto w-full max-w-4xl px-4 md:px-6"
+                                    style={{ height: fadeHeight }}
                                 >
-                                    <ArrowDown className="h-6 w-6 text-gray-500" />
-                                </button>
+                                    <div
+                                        className="h-full w-full"
+                                        style={{
+                                            background: composerFadeBackground(
+                                                "color-mix(in srgb, var(--app-background) 85%, transparent)",
+                                            ),
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -1253,9 +1238,24 @@ export function AssistantChatColumn({
                                     </div>
                                 </div>
                                 <div
-                                    ref={measuredInputRef}
+                                    ref={composerRef}
+                                    data-slot="chat-composer"
                                     className="relative z-20 w-full max-w-4xl mx-auto px-4 md:px-6"
                                 >
+                                    {/* Scroll to bottom: astride the
+                                        composer's top edge, where the thread
+                                        has already faded out, never over its
+                                        text or tables. */}
+                                    {showScrollButton && (
+                                        <button
+                                            type="button"
+                                            aria-label="Scroll to bottom"
+                                            onClick={scrollToBottom}
+                                            className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-all md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
+                                        >
+                                            <ArrowDown className="h-6 w-6 text-gray-500" />
+                                        </button>
+                                    )}
                                     <div className="w-full rounded-t-[20px] bg-transparent">
                                         <ChatInputPrompt
                                             messages={messages}

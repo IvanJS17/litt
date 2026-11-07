@@ -26,6 +26,10 @@ import { useAssistantChat } from "@/app/hooks/useAssistantChat";
 import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
+    composerFadeBackground,
+    useComposerInset,
+} from "@/app/hooks/useComposerInset";
+import {
     isChatAttachmentDrag,
     isExternalFileDrag,
 } from "@/app/lib/projectDragTypes";
@@ -336,13 +340,17 @@ export function ProjectChatPanel({
 
     const hasAutoSent = useRef(false);
     const hasInitialScrolled = useRef(false);
+    // The thread reserves the composer's real height and fades under it.
+    const { composerRef, bottomPadding, fadeHeight } = useComposerInset(
+        DEFAULT_ASSISTANT_BOTTOM_PADDING,
+    );
     const { minHeight, scrollLatestUserToTop } = useAssistantMessageLayout({
         containerRef: messagesContainerRef,
         userMessageRef: latestUserMessageRef,
         ready: chatLoaded,
         messageCount: messages.length,
         chatKey: activeChatId,
-        bottomPadding: DEFAULT_ASSISTANT_BOTTOM_PADDING,
+        bottomPadding,
         headerHeight: ASSISTANT_HEADER_HEIGHT,
     });
 
@@ -777,10 +785,17 @@ export function ProjectChatPanel({
                     aria-hidden="true"
                     className="pointer-events-none absolute left-0 right-3 top-0 z-30 h-16 bg-gradient-to-b from-app-surface/85 via-app-surface/60 via-50% to-transparent"
                 />
-                <div
-                    aria-hidden="true"
-                    className="pointer-events-none absolute bottom-0 left-0 right-3 z-20 h-28 bg-gradient-to-t from-app-surface to-transparent"
-                />
+                {fadeHeight !== null && (
+                    <div
+                        aria-hidden="true"
+                        data-slot="chat-composer-fade"
+                        className="pointer-events-none absolute bottom-0 left-0 right-3 z-20"
+                        style={{
+                            height: fadeHeight,
+                            background: composerFadeBackground("var(--app-surface)"),
+                        }}
+                    />
+                )}
 
                 {/* Messages / greeting / shimmer */}
                 {!chatLoaded ? (
@@ -808,7 +823,7 @@ export function ProjectChatPanel({
                         ref={messagesContainerRef}
                         className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pt-[72px] md:space-y-8 md:pt-20"
                         style={{
-                            paddingBottom: DEFAULT_ASSISTANT_BOTTOM_PADDING,
+                            paddingBottom: bottomPadding,
                             scrollbarGutter: "stable",
                         }}
                     >
@@ -907,7 +922,11 @@ export function ProjectChatPanel({
                 {composerReady && (
                     <div className="absolute bottom-3 left-3 right-3 z-30">
                         <div className="pointer-events-none absolute -bottom-3 inset-x-0 z-0 h-7 bg-app-surface" />
-                        <div className="relative z-20 w-full">
+                        <div
+                            ref={composerRef}
+                            data-slot="chat-composer"
+                            className="relative z-20 w-full"
+                        >
                             <ChatInputPrompt
                                 messages={messages}
                                 chatKey={activeChatId}

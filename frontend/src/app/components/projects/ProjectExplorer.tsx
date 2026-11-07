@@ -65,6 +65,10 @@ interface Props {
     }>;
 }
 
+/** A tree name: up to two lines, long unbroken names wrap; the full name is
+ * in the row's `title`. */
+const EXPLORER_NAME_CLASS = "line-clamp-2 text-xs [overflow-wrap:anywhere]";
+
 export interface ProjectExplorerHandle {
     createRootFolder: () => void;
 }
@@ -261,7 +265,10 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                 className="h-3.5 w-3.5"
                                 muted
                             />
-                            <span className="min-w-0 flex-1 truncate text-xs">
+                            <span
+                                title={upload.filename}
+                                className={`min-w-0 flex-1 ${EXPLORER_NAME_CLASS}`}
+                            >
                                 {upload.filename}
                             </span>
                             <Loader2
@@ -369,7 +376,12 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                         onClick={(e) => e.stopPropagation()}
                                     />
                                 ) : (
-                                    <span className="text-xs text-gray-600 truncate">{folder.name}</span>
+                                    <span
+                                        title={folder.name}
+                                        className={`min-w-0 text-gray-600 ${EXPLORER_NAME_CLASS}`}
+                                    >
+                                        {folder.name}
+                                    </span>
                                 )}
                             </div>
                             {isExpanded && (
@@ -436,7 +448,10 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                 />
                             ) : (
                                 <span className="flex min-w-0 flex-col">
-                                    <span className="truncate text-xs">
+                                    <span
+                                        title={doc.filename}
+                                        className={EXPLORER_NAME_CLASS}
+                                    >
                                         {doc.filename}
                                     </span>
                                     {isTrainingHeld(doc) && (
@@ -493,7 +508,12 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                     onContextMenu={(e) => { e.stopPropagation(); openContextMenu(e, null); }}
                 >
                     <ProjectSvgIcon open className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate text-xs font-semibold text-gray-500">{projectName}</span>
+                    <span
+                        title={projectName}
+                        className={`min-w-0 font-semibold text-gray-500 ${EXPLORER_NAME_CLASS}`}
+                    >
+                        {projectName}
+                    </span>
                 </li>
             )}
 
