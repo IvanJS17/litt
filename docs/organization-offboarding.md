@@ -57,16 +57,21 @@ project; instead:
   a tie). With no teammate left, the successor chosen for the departure (by
   default an organization owner) becomes its owner.
 - An organization owner or admin can name any current member of the firm,
-  themselves included, as the owner of one of its matters
-  (`POST /matters/:id/owner`). The previous owners stay on the team as
-  editors. Naming someone else gives the person naming nothing. A member of
+  themselves included, as the owner of a matter **left without an active
+  owner** (`POST /matters/:id/owner`). A matter that still has an active owner
+  is refused (409 `matter_has_owner`) and nobody's role changes: naming never
+  displaces or demotes an owner, so neither an owner nor an admin can take a
+  private matter from its team by naming themselves. The database enforces
+  this rule. Naming someone else gives the person naming nothing. A member of
   another firm, or one who is deleting their account, cannot be named.
 - Owners and admins can list the firm's matters without an active owner
   (`GET /matters/without-owner?org=…`). The list shows the CM number, the
   creation date, the last owner and the team size, never the matter's title.
 - Every succession (`matter.owner_succeeded`) and appointment
   (`matter.owner_assigned`) is an insert-only audit event with the
-  organization, matter, new owner and reason, and no title or content.
+  organization, matter, new owner and reason, and no title or content. An
+  appointment also records the matter's last owner (`last_owner_user_id`,
+  null when it never had one).
 
 Public matters keep their rules. The screens for these actions are pending
 (TD-029). Apply `20261107_70_litt_matter_succession.sql` before deploying the

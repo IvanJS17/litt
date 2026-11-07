@@ -1825,10 +1825,12 @@ stays as it is until the owner decides, and a test pins today's behaviour.
    active teammate with the highest role becomes `matter_owner` (editor before
    viewer; the earliest member on a tie). With no teammate left, the successor
    chosen for the departure becomes `matter_owner`. An organization owner or
-   admin can also name any current member of the firm, themselves included,
-   as the owner of one of its matters, and can list the matters left without
-   an owner (no titles). Every succession and appointment is audited without
-   the matter's title.
+   admin can list the matters left without an owner (no titles) and name any
+   current member of the firm, themselves included, as the owner of one of
+   them. A matter with an active owner is refused (`matter_has_owner`, enforced
+   by `assign_matter_owner`): naming never displaces or demotes an owner, so
+   it cannot take a private matter from its team. Every succession and
+   appointment is audited without the matter's title.
 3. **Private catalogue without a matter exclusion (cycle 5, §24.2).**
    `list_org_private_content` is safe today only because
    `can_access_org_private_content` is false in LiTT. If the private catalogue
