@@ -146,7 +146,7 @@ vi.mock("../../lib/storage", () => ({
     downloadFileIfAvailable: (...a: unknown[]) => downloadFile(...a),
 }));
 
-import { ACCOUNT_DELETION_RECEIPT } from "../../modules/user/user.service";
+import { ACCOUNT_DELETION_RECEIPT } from "../../application/jobs/accountDelete";
 import {
     handleChatTurnAudit,
     handleAccountDelete,

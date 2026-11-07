@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { userExportFilename } from "../user.dataExport";
+import { userExportFilename } from "../buildJsonExport";
 
 // LiTT: download names carry the product brand; storage keys and signing
 // contexts keep their internal identifiers.

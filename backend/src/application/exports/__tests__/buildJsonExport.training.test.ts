@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildUserAccountExport } from "../user.dataExport";
-import { makeExportDb, type Row } from "./user.dataExport.fixture";
+import { buildUserAccountExport } from "../buildJsonExport";
+import { makeExportDb, type Row } from "./exportDb.fixture";
 
 const userId = "holder";
 const other = "colleague";

@@ -12,7 +12,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
   ensureDocAccess: async () => ({ ok: true }),
 }));
 
-import { handleExportBuild } from "../user.exportJobs";
+import { handleExportBuild } from "../exportBuild";
 
 const HASH = "a".repeat(64);
 const download = vi.fn<(key: string) => Promise<ArrayBuffer | null>>();

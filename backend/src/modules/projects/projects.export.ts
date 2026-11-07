@@ -7,7 +7,7 @@ type Row = Record<string, unknown>;
 function nowStamp() { return new Date().toISOString().replace(/[:.]/g, "-"); }
 function idsFrom(rows: Row[], column = "id"): string[] { return uniqueIds(rows.map(row => typeof row[column] === "string" ? row[column] as string : null)); }
 export function projectManifestFilename(projectId: string) {
-    return `mike-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
+    return `litt-project-manifest-${projectId.slice(0, 8)}-${nowStamp()}.json`;
 }
 /**
  * Every row of `table` for the given documents, in creation order. The

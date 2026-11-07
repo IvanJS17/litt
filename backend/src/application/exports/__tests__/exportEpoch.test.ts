@@ -26,13 +26,13 @@ vi.mock("../../../lib/audit", () => ({ recordAudit }));
 const buildUserChatsExport = vi.hoisted(() =>
   vi.fn(async () => ({ exported_at: "now" })),
 );
-vi.mock("../user.dataExport", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../user.dataExport")>()),
+vi.mock("../buildJsonExport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../buildJsonExport")>()),
   buildUserChatsExport,
 }));
 
-import { startUserExport } from "../user.export";
-import { handleExportBuild } from "../user.exportJobs";
+import { startUserExport } from "../requestExport";
+import { handleExportBuild } from "../../jobs/exportBuild";
 
 /** organizations.authorization_epoch, plus the org-audit gate's own lookups. */
 function makeDb(epoch: number) {
