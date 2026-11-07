@@ -1709,3 +1709,107 @@ comments) and the six retired files above.
 The range covers LiTT's open Dependabot pull requests #50–#55: each version
 they raise is at or above theirs in this cycle's `package.json` files. They are
 closed with a comment pointing at this cycle.
+
+## 29. Cycle 2026-11-07, 10 of 10
+
+Pin `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06), the merge of
+upstream #777 and `upstream/main` when the cycle was cut. The range
+`b91d1bdf..366fa4e9` has 66 commits, 7 of them first-parent merges, and 66
+files (+3270/−311). No migration or `schema.sql` change is in the range. With
+this cycle **LiTT is up to date with upstream at `366fa4e9`**: the ten cycles
+of the 2026-11-06 intake are complete.
+
+### 29.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| #793 one failure, one report: a GoTrue outage answers API routes with 503 `upstream_unavailable` instead of a sign-out; only an unreachable GoTrue (no answer, 502/503/504) counts as an outage; a missing column (42703) and an ambiguous RPC (PGRST203) are schema drift; schema drift is reported once per process per route or operation, with an hourly reminder; clients do not report a 5xx the server already reported; the web app keeps the session during an outage | `0a322840` `bfe3d344` `a65566a6` `671f9288` `3e4ab0b0` `08bdc1d9` `ebbc30a9` `7a081bb9` `aa8b8364` `a2f4323c` `f1e8dffa` `163973cf` `a85eded5` `382c5084` `b32cb058` `6e1a2ac1` `4f75f743` `d1b97b65` | adapt: every report goes through the local seam `lib/observability/report.ts` (sanitized `[report]` lines, allowlisted tags only); the web and Word `errorReporting.ts` stay LiTT's no-op seams; login MFA stays fail-closed (29.2) |
+| #779 session refresh without fan-out: one refresh per page-load burst shared only by callers already waiting, no cookie written after the response, a refused cookie session is 401, `retry-after: 5` on every `upstream_unavailable`, a single retry of an unreachable session check | `eb31091a` `9bc94787` `b9f0ead8` `a6f37810` `156d0fde` `4496d584` `7ef04aa1` `0cdd0b3b` `698917d8` `e15cd4fc` `4140befb` `9af2b163` `5e8fb458` `c839605a` `dde8fde1` `763f28ec` `cddcb4dc` `6443b718` `c342e823` `22ea9f61` | adopt the session and 503 behaviour; adapt the reporting comments and tests to the local seam |
+| #782 Sentry off in development builds (`buildMode.ts`, `SENTRY_SOURCE_RUN_IS_INSTALL`, DSN resolution, README and `.env` examples) | `8dc204d3` `1dc4e2b7` `576c70a7` `161dc3ba` `60908a6a` `45c135b9` `ecc20a1b` `1a6fb62c` `784cd578` `80a73278` `890247e4` `b6513142` `d281a677` `3513f36b` | reject: no third-party telemetry. `buildMode.ts` is used only by the Sentry client, so it is not added; every other file has no net change |
+| #799 parser children in Electron's Node mode | `9b77c4f0` `12a94a19` | reject the desktop half (LiTT has no desktop app): `isolated.ts` has no net change. The test that an ambient `ELECTRON_RUN_AS_NODE` is not forwarded to the parser is kept: the parser environment is an allowlist |
+| #800 document search starts in a new chat (e2e) | `cd8dd53c` `75f4838c` | adopt |
+| #801 packaged desktop extraction smoke | `9d400b58` `26900f82` `ecafe693` | reject: `desktop/` stays deleted, no net change |
+| #777 typed `find_documents` failure: a database error is a typed `chat.document_search_failed` report, at warning level for a timeout or an unreachable database; the local log line keeps the category and the allowlisted `failure_code` | `3bfb16a8` `d8cdcf82` `db0e35b9` `b261dc34` `627428cf` `5d7f6397` `366fa4e9` | adopt, reporting through the local seam |
+
+The merge stops on 19 content conflicts and 8 modify/delete conflicts (27
+paths). Every modify/delete is a file LiTT retired (`sentry.ts`,
+`sentry.test.ts`, `packages/client/src/sentryEvent.ts`,
+`docs/observability.md`, `desktop/README.md`, `desktop/e2e/local.e2e.mjs`,
+the Word `error-reporting.spec.ts` and `operationReporting.test.tsx`): the
+deletion is kept.
+
+Without net change against `main` (byte-identical): `README.md`,
+`backend/.env.example`, `frontend/.env.local.example`,
+`word-addin/.env.example`, `backend/src/lib/extraction/isolated.ts`, the web
+and Word `errorReporting.ts`, `errorReporting.test.ts`,
+`frontend/src/wordAddin/errorReporting.test.tsx`, `mikeApi.test.ts`, and the
+retired files above.
+
+### 29.2 LiTT checks
+
+- **Login MFA.** An unreadable `mfa_on_login` is still a refusal, never "MFA
+  is off". A missing column (42703) is now schema drift: the request answers
+  503 `schema_out_of_date`, and the gate writes one error-level
+  `schema_out_of_date` report under `operation: auth.login_mfa` per process
+  (the consequence reads "authenticated requests are refused until the
+  migration runs"); `sendInternalError` adds no second report for it. Any
+  other lookup failure is still the generic 500.
+- **Session.** A GoTrue outage keeps the user signed in: API routes answer 503
+  `upstream_unavailable` with `retry-after: 5`, no session cookie is cleared,
+  and the web app retries. A GoTrue 500 stays a reported 500.
+- **Error messages.** Web and Word show the fixed sentences of
+  `packages/client/src/reportedUpstream.ts` through `describeError` /
+  `notifyError`; the backend copy (`reportedUpstreamCodes.ts`) is kept equal
+  by `reportedUpstreamParity.test.ts`. `upstream_unavailable` was already in
+  `CODE_KINDS`; no new client-acted code is added.
+- **Document search (#777, #800).** Only the reporting of a failed
+  `find_documents` changes. `find_document_text`, `document_text_access` and
+  the private-matter guard (C2) are untouched; the range has no SQL.
+- **Telemetry.** No `@sentry/*` package, runtime import, environment variable,
+  file or workflow is added; the runtime word count of «sentry» stays 0.
+- **Identity.** No blue is added and no visible text says «Mike».
+
+### 29.3 Owner-visible changes
+
+- When the sign-in service is briefly down, LiTT keeps the lawyer signed in,
+  says «The server is temporarily unreachable. Please try again shortly.» and
+  retries, instead of sending them back to the login page.
+- An install whose database is missing an update shows «The server's database
+  needs an update…» on the affected screen, and the operator log names the
+  missing object once, with the commands to run.
+
+### 29.4 Dependabot
+
+No Dependabot pull request is covered by this range.
+
+### 29.5 The ten cycles of the 2026-11-06 intake
+
+| Cycle | Pin | LiTT PR | Decision |
+|---|---|---|---|
+| 1 (§20) | `1f7ae19f` | #61 | chat list adapted with the private-matter guard; named upload failures, onboarding model step and settings search adopted; Sentry tunnel rejected |
+| 2 (§21) | `14d695f1` | #62 | playbook ids checked before Postgres, extended to share and source ids; Word advisories adopted; Sentry filter rejected (no net change) |
+| 3 (§22) | `27683564` | #63 | #749 30-Oct SQL performance adopted; departure items adapted with the matter exclusion |
+| 4 (§23) | `31539729` | #64 | #749 1-Nov SQL adopted; `project_access_role` and departure items adapted with LiTT migrations `20261101_50`/`_51` |
+| 5 (§24) | `d0a7ca75` | #65 | #749 3-Nov SQL adopted; ownerless items, departure roots and the audit page adapted; private catalogue kept closed |
+| 6 (§25) | `74aad301` | #66 | #786 PDF upload validation adopted |
+| 7 (§26) | `fa37b86d` | #67 | #702 service boundaries adopted; LiTT account erasure, exports, BYOK and playbook rules moved to the new files |
+| 8 (§27) | `05d9aebc` | #68 | #703 shared packages adopted; LiTT brand, AGPL link and training UI moved to `@mike/ui` / `@mike/client` |
+| 9 (§28) | `b91d1bdf` | #70 | #788 dependencies and #797 startup hardening adopted without Sentry; login MFA kept fail-closed |
+| 10 (§29) | `366fa4e9` | this cycle's PR | #793/#779 stable session and one report per failure adapted to the local seam; #782, #801 and the desktop half of #799 rejected |
+
+### 29.6 Open product questions recorded during the cycles
+
+None of these blocks the sync; each rule stays as it is until the owner
+decides, and a test pins today's behaviour.
+
+1. **Private project inside a matter (W2, cycle-3 review, recorded in §23.3).** A matter whose
+   project is private is reached only by the project's creator; the rest of
+   the matter team does not see it.
+2. **Matter left unreachable when its creator leaves (cycle 5, §24.3).** After
+   the creator of a private matter project leaves the firm, nobody can open it
+   in LiTT, which conflicts with the 2026-10-24 rule that matter work stays
+   with the firm.
+3. **Private catalogue without a matter exclusion (cycle 5, §24.2).**
+   `list_org_private_content` is safe today only because
+   `can_access_org_private_content` is false in LiTT. If the private catalogue
+   is ever opened, it must first exclude matter content.
