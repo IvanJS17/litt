@@ -1,7 +1,8 @@
 // A deployment that has not run the login-MFA migration has no
 // user_profiles.mfa_on_login column. The preference lookup then fails with
-// 42703 and enforcement cannot apply, so the request proceeds as before — but
-// the degraded state is reported once per process instead of being silent.
+// 42703. LiTT fails closed (an unreadable preference is not "MFA is off"), so
+// the request gets the generic 500; the missing column is named once per
+// process so operators know the migration is what is missing.
 import express from "express";
 import rateLimit from "express-rate-limit";
 import request from "supertest";
@@ -12,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   reportError: vi.fn((..._args: unknown[]) => "event-1"),
   mfaLookup: vi.fn(),
 }));
-vi.mock("../lib/observability/sentry", async (importOriginal) => ({
+vi.mock("../lib/observability/report", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   reportError: mocks.reportError,
 }));
@@ -78,23 +79,26 @@ describe("login MFA preference column missing (pre-migration database)", () => {
     vi.restoreAllMocks();
   });
 
-  it("lets the request through and reports the degraded state once per process", async () => {
+  it("refuses the request and names the missing column once per process", async () => {
     mocks.mfaLookup.mockResolvedValue({ data: null, error: COLUMN_MISSING });
+    const columnReports = () =>
+      mocks.reportError.mock.calls.filter(
+        ([failure]) => (failure as AppError).kind === "auth.login_mfa_column_missing",
+      );
 
     const first = await get();
-    expect(first.status).toBe(200);
-    expect(first.body).toEqual({ ok: true });
+    expect(first.status).toBe(500);
+    expect(first.body.code).toBe("internal_error");
 
-    expect(mocks.reportError).toHaveBeenCalledOnce();
-    const [failure, options] = mocks.reportError.mock.calls[0] as unknown as [AppError, unknown];
+    expect(columnReports()).toHaveLength(1);
+    const [failure, options] = columnReports()[0] as unknown as [AppError, unknown];
     expect(failure).toBeInstanceOf(AppError);
-    expect(failure.kind).toBe("auth.login_mfa_column_missing");
     expect(failure.cause).toBe(COLUMN_MISSING);
     expect(options).toMatchObject({ level: "warning", tags: { component: "http" } });
 
     const second = await get();
-    expect(second.status).toBe(200);
-    expect(mocks.reportError).toHaveBeenCalledOnce();
+    expect(second.status).toBe(500);
+    expect(columnReports()).toHaveLength(1);
   });
 
   it("still answers 500 for any other preference lookup failure", async () => {
