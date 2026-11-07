@@ -9,6 +9,8 @@
 import { REASONING_LEVELS, resolveModel } from "../../lib/llm";
 import { ROUTER_SLUGS, type RouterSlug } from "../../lib/routerModels";
 import { ROUTER_PROFILE_FIELDS, normalizeRouterModels } from "./user.profile.routerPreferences";
+import { isUiLocale } from "../../lib/uiLocale";
+import type { UiLocale } from "@mike/contracts";
 
 const PRACTICE_SETTINGS = new Set([
     "private_practice",
@@ -160,6 +162,7 @@ export function validateProfilePayload(body: unknown):
               last_selected_reasoning_level?: string | null;
               quick_actions_visible?: boolean;
               response_details_visible?: boolean;
+              ui_locale?: UiLocale | null;
               updated_at: string;
           };
           routerModels?: Partial<Record<RouterSlug, string[]>>;
@@ -188,6 +191,7 @@ export function validateProfilePayload(body: unknown):
         "responseDetailsVisible",
         "darkMode",
         "projectMemoryDefault",
+        "uiLocale",
         ...ROUTER_SLUGS.map((slug) => ROUTER_PROFILE_FIELDS[slug]),
     ]);
     const invalidField = Object.keys(raw).find(
@@ -218,6 +222,7 @@ export function validateProfilePayload(body: unknown):
         response_details_visible?: boolean;
         dark_mode?: boolean;
         project_memory_default?: boolean;
+        ui_locale?: UiLocale | null;
         updated_at: string;
     } = { updated_at: new Date().toISOString() };
     const routerModels: Partial<Record<RouterSlug, string[]>> = {};
@@ -451,6 +456,21 @@ export function validateProfilePayload(body: unknown):
             };
         }
         update.project_memory_default = raw.projectMemoryDefault;
+    }
+
+    // null (or "") clears the choice: the client goes back to negotiating
+    // the language from the browser or Word.
+    if ("uiLocale" in raw) {
+        if (raw.uiLocale === null || raw.uiLocale === "") {
+            update.ui_locale = null;
+        } else if (isUiLocale(raw.uiLocale)) {
+            update.ui_locale = raw.uiLocale;
+        } else {
+            return {
+                ok: false,
+                detail: "uiLocale must be en-US, es-MX or null",
+            };
+        }
     }
 
     return { ok: true, update, routerModels };
