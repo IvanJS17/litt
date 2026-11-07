@@ -17820,6 +17820,79 @@ $$;
 revoke all on function public.training_can_read_learning(uuid, uuid, uuid) from public, anon, authenticated;
 grant execute on function public.training_can_read_learning(uuid, uuid, uuid) to service_role;
 
+-- Granting an urgency pass (20261107_61_litt_training_urgency_pass_grant.sql):
+-- the pupil's current mentor only, for a project of the organization, with
+-- the passes in force counted under a lock on the pupil's row.
+create or replace function public.training_grant_urgency_pass(
+  p_actor uuid,
+  p_org uuid,
+  p_trainee uuid,
+  p_project uuid,
+  p_duration_minutes integer,
+  p_reason_code text,
+  p_reason_note text,
+  p_max_active integer
+)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_now timestamptz := now();
+  v_expires timestamptz;
+  v_row public.training_urgency_passes;
+begin
+  if p_actor is null or p_actor = p_trainee
+    or not coalesce(public.training_can_read_learning(p_actor, p_org, p_trainee), false) then
+    return jsonb_build_object('outcome', 'not_found');
+  end if;
+  perform 1 from public.training_pupils p
+    where p.org_id = p_org and p.trainee_user_id = p_trainee and p.mentor_user_id = p_actor
+    for update;
+  if not found then
+    return jsonb_build_object('outcome', 'not_found');
+  end if;
+  if not exists (
+    select 1 from public.projects pr
+    where pr.id = p_project and pr.org_id = p_org and pr.archived_at is null
+  ) then
+    return jsonb_build_object('outcome', 'project_not_found');
+  end if;
+  if p_duration_minutes is null or p_duration_minutes <= 0 then
+    return jsonb_build_object('outcome', 'invalid_duration');
+  end if;
+  v_expires := date_trunc('minute', v_now + make_interval(mins => p_duration_minutes));
+  if exists (
+    select 1 from public.training_urgency_passes u
+    where u.org_id = p_org and u.trainee_user_id = p_trainee and u.project_id = p_project
+      and u.revoked_at is null and u.expires_at = v_expires
+  ) then
+    return jsonb_build_object('outcome', 'duplicate');
+  end if;
+  if (
+    select count(*) from public.training_urgency_passes u
+    where u.org_id = p_org and u.trainee_user_id = p_trainee
+      and u.revoked_at is null and u.starts_at <= v_now and u.expires_at > v_now
+  ) >= p_max_active then
+    return jsonb_build_object('outcome', 'limit');
+  end if;
+  insert into public.training_urgency_passes(
+    org_id, trainee_user_id, project_id, granted_by, starts_at, expires_at, reason_code, reason_note
+  ) values (
+    p_org, p_trainee, p_project, p_actor, v_now, v_expires, p_reason_code, p_reason_note
+  )
+  returning * into v_row;
+  return jsonb_build_object('outcome', 'granted', 'pass', to_jsonb(v_row));
+end;
+$$;
+
+revoke all on function public.training_grant_urgency_pass(uuid, uuid, uuid, uuid, integer, text, text, integer)
+  from public, anon, authenticated;
+grant execute on function public.training_grant_urgency_pass(uuid, uuid, uuid, uuid, integer, text, text, integer)
+  to service_role;
+
 -- ---------------------------------------------------------------------------
 -- 20261030_51_litt_departure_private_matter.sql
 -- ---------------------------------------------------------------------------
@@ -18799,5 +18872,6 @@ insert into public.schema_migrations (filename) values
   ('20261107_50_litt_departure_root_candidates_private_matter.sql'),
   ('20261107_51_litt_ownerless_items_private_matter.sql'),
   ('20261107_52_litt_audit_username_filter_order.sql'),
-  ('20261107_60_litt_training_supervision.sql')
+  ('20261107_60_litt_training_supervision.sql'),
+  ('20261107_61_litt_training_urgency_pass_grant.sql')
 on conflict (filename) do nothing;

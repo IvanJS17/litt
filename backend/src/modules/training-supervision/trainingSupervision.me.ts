@@ -6,6 +6,7 @@ import type { TrainingSupervision } from "@mike/contracts";
 import { ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { assertLearningAccess } from "./trainingSupervision.access";
+import { readUrgencyPasses } from "./trainingSupervision.passes";
 
 export async function getMySupervision(
     db: Db,
@@ -17,10 +18,12 @@ export async function getMySupervision(
         traineeId: args.userId,
     });
     if (!access.ok) return access;
+    const passes = await readUrgencyPasses(db, args.orgId as string, args.userId);
+    if (!passes.ok) return passes;
     return ok({
         org_id: args.orgId as string,
         work_reviews: [],
         defenses: [],
-        urgency_passes: [],
+        urgency_passes: passes.data,
     });
 }
