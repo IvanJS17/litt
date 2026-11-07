@@ -14,6 +14,13 @@ const LONG_PROMPT =
   "compara la pena convencional por terminación anticipada con la actualización de la renta conforme al INPC y señala cualquier contradicción " +
   "con el convenio de confidencialidad, cláusula por cláusula, citando el texto exacto de cada una.";
 
+const noneConfigured = {
+  claude: false,
+  gemini: false,
+  openai: false,
+  openrouter: false,
+  sources: { claude: null, gemini: null, openai: null, openrouter: null },
+};
 
 async function mockProfile(
   page: Page,
@@ -37,6 +44,17 @@ async function mockProfile(
   });
 }
 
+/** Record what the pane hands to the browser instead of opening it. */
+async function recordOpenedUrls(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const opened: string[] = [];
+    (window as unknown as { __openedUrls: string[] }).__openedUrls = opened;
+    window.open = ((url?: string | URL) => {
+      opened.push(String(url));
+      return {} as Window;
+    }) as typeof window.open;
+  });
+}
 
 test.beforeEach(async ({ addin, page }) => {
   addin.seedToken("test-jwt-token");
@@ -117,4 +135,61 @@ test("scrolls long composer text on whole lines instead of cutting the top one",
   // line boundary.
   expect(metrics.clientHeight % metrics.lineHeight).toBe(0);
   expect(metrics.clientHeight / metrics.lineHeight).toBe(6);
+});
+
+test.describe("Select a model warning", () => {
+  test("opens the model picker when there are models to choose", async ({
+    addin,
+    page,
+  }) => {
+    await mockProfile(page, { lastSelectedChatModel: null });
+    await addin.gotoTaskpane();
+    await addin.expectAuthedShell();
+    // At pane width the picker is an icon button; nothing is selected yet.
+    await expect(
+      page.getByRole("button", { name: "Choose model" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    await page.getByPlaceholder("How can I help?").fill("Hola");
+    await page.getByRole("button", { name: "Send message" }).click();
+
+    const warning = page.getByRole("alert");
+    await expect(warning).toContainText(
+      "Select a model before sending your message.",
+    );
+    await warning.getByRole("button", { name: "Choose model" }).click();
+    await expect(page.getByRole("menu")).toBeVisible();
+  });
+
+  test("links to Bring Your Own Keys when there are no models", async ({
+    addin,
+    page,
+  }) => {
+    await recordOpenedUrls(page);
+    await mockProfile(page, { lastSelectedChatModel: null });
+    await addin.mockApiJson("GET", "**/user/api-keys", noneConfigured);
+    await addin.gotoTaskpane();
+    await addin.expectAuthedShell();
+    await expect(
+      page.getByRole("button", { name: "No models available" }),
+    ).toBeVisible();
+
+    await page.getByPlaceholder("How can I help?").fill("Hola");
+    await page.getByRole("button", { name: "Send message" }).click();
+
+    const warning = page.getByRole("alert");
+    await expect(warning).toContainText(
+      "Select a model before sending your message.",
+    );
+    await warning
+      .getByRole("button", { name: "Open Bring Your Own Keys" })
+      .click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as unknown as { __openedUrls: string[] }).__openedUrls,
+        ),
+      )
+      .toEqual(["http://localhost:3000/settings/byok"]);
+  });
 });
