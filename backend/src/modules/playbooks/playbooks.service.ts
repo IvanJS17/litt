@@ -50,7 +50,11 @@ export {
   handlePlaybookImport,
   markPlaybookReviewJobFailed,
   markPlaybookImportJobFailed,
+  queuePlaybookDraft,
+  handlePlaybookDraft,
+  markPlaybookDraftJobFailed,
 } from "./playbooks.jobs";
+export { playbookQuestionnaire } from "./playbooks.questionnaire";
 
 export {
   listPlaybookSources,

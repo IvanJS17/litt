@@ -6,7 +6,7 @@ import { handleMcpRefreshToken } from "../modules/user/user.service";
 import { handleDocumentCleanup, handleDocumentExtractText, markDocumentTextFailed, handleDocumentPrecomputeText, handleConversionConvert, markConversionFailed } from "../modules/documents/documents.service";
 import { handleExtractionExtract, markExtractionJobFailed } from "../modules/tabular/tabular.service";
 import { handleMemoryConsolidation, markMemoryConsolidationFailed } from "../modules/memory/memory.service";
-import { handlePlaybookImport, handlePlaybookReview, markPlaybookImportJobFailed, markPlaybookReviewJobFailed } from "../modules/playbooks/playbooks.service";
+import { handlePlaybookDraft, handlePlaybookImport, handlePlaybookReview, markPlaybookDraftJobFailed, markPlaybookImportJobFailed, markPlaybookReviewJobFailed } from "../modules/playbooks/playbooks.service";
 import { handleStorageCleanup } from "../lib/dbq/storageCleanup";
 import { type DbJobHandlers } from "../lib/dbq/types";
 import { type DbJobFailureHook } from "../lib/dbq/runner";
@@ -25,6 +25,7 @@ export const DB_JOB_HANDLERS: DbJobHandlers = {
   "memory.consolidate": handleMemoryConsolidation,
   "playbook.review": handlePlaybookReview,
   "playbook.import": handlePlaybookImport,
+  "playbook.draft": handlePlaybookDraft,
 };
 export const DB_JOB_FAILURE_HOOKS: Record<string, DbJobFailureHook> = {
   "conversion.convert": markConversionFailed,
@@ -33,6 +34,7 @@ export const DB_JOB_FAILURE_HOOKS: Record<string, DbJobFailureHook> = {
   "memory.consolidate": markMemoryConsolidationFailed,
   "playbook.review": markPlaybookReviewJobFailed,
   "playbook.import": markPlaybookImportJobFailed,
+  "playbook.draft": markPlaybookDraftJobFailed,
 };
 export {
   handleChatTurnAudit,
