@@ -1813,3 +1813,13 @@ decides, and a test pins today's behaviour.
    `list_org_private_content` is safe today only because
    `can_access_org_private_content` is false in LiTT. If the private catalogue
    is ever opened, it must first exclude matter content.
+
+## 30. LiTT changes inside upstream hot zones
+
+Files upstream edits often. A LiTT change here must be re-applied by hand when
+an upstream cycle rewrites the same lines; the test named in each row fails if
+it is lost.
+
+| LiTT change | Files | What to keep on conflict | Test |
+|---|---|---|---|
+| Interface language per user (i18n I18N-0B, 2026-11-07): `user_profiles.ui_locale` (`en-US`, `es-MX` or null = automatic), migration `20261107_80_litt_user_ui_locale.sql` | `modules/user/user.profile.validation.ts` (`uiLocale` in `PATCH /user/profile`), `user.profile.serialization.ts` (`uiLocale` in the profile), `user.profile.storage.ts` (`ui_locale` in the newest select plus its own retry tier), `user.profile.operations.ts` (copy to GoTrue `user_metadata.locale`), `modules/auth/auth.service.ts` (`locale` in sign-up, sent as `data.locale`), `lib/uiLocale.ts`, `UiLocale` in `packages/contracts` | The `uiLocale` field and its validation, `ui_locale` at the end of `PROFILE_SELECT_NEWEST` with the `PROFILE_SELECT_NO_UI_LOCALE` tier, and the metadata copy after the profile update. If the copy to GoTrue fails, the profile keeps the saved value, the request still succeeds and a warning is logged; the emails use the previous metadata value until the next successful save. | `user.routes.test.ts` (`PATCH /user/profile uiLocale`); `auth.test.ts` (sign-up language); `buildJsonExport.access.test.ts` (profile export) |

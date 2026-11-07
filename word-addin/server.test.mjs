@@ -34,6 +34,8 @@ before(async () => {
     path.join(staticRoot, "taskpane.html"),
     "<!doctype html><title>Mike Word</title>",
   );
+  await writeFile(path.join(staticRoot, "manifest.xml"), "<OfficeApp />");
+  await writeFile(path.join(staticRoot, "taskpane.0123abcd.js"), "");
 
   backend = http.createServer((req, res) => {
     observedRequest = {
@@ -72,6 +74,17 @@ test("serves health and the task pane", async () => {
   const taskpane = await fetch(`${addinOrigin}/`);
   assert.equal(taskpane.status, 200);
   assert.match(await taskpane.text(), /Mike Word/);
+});
+
+test("caches only content-hashed files as immutable", async () => {
+  const cacheControl = async (file) =>
+    (await fetch(`${addinOrigin}/${file}`)).headers.get("cache-control");
+  assert.equal(await cacheControl("manifest.xml"), "no-cache");
+  assert.equal(await cacheControl("taskpane.html"), "no-cache");
+  assert.equal(
+    await cacheControl("taskpane.0123abcd.js"),
+    "public, max-age=31536000, immutable",
+  );
 });
 
 test("streams the API while preserving auth headers and cookies", async () => {

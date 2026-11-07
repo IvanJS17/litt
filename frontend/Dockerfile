@@ -2,8 +2,9 @@
 # (docker-compose.yml does the same). The image mirrors the repository layout
 # under /app: the frontend at /app/frontend plus the sibling directories
 # production code reaches through tsconfig `paths` aliases, `@mike/contracts`
-# -> /app/packages/contracts, `@mike/ui` -> /app/packages/ui and
-# `@mike/client` -> /app/packages/client. Nothing else. The layout matters:
+# -> /app/packages/contracts, `@mike/ui` -> /app/packages/ui,
+# `@mike/client` -> /app/packages/client and `@litt/i18n` -> /app/packages/i18n.
+# Nothing else. The layout matters:
 # next.config.ts sets the Turbopack root to the frontend's parent directory,
 # which must contain the packages. `next build` type-checks
 # tsconfig.build.json, which leaves test files -- and their imports of shared
@@ -27,6 +28,7 @@ COPY frontend/ ./
 COPY packages/contracts /app/packages/contracts
 COPY packages/ui /app/packages/ui
 COPY packages/client /app/packages/client
+COPY packages/i18n /app/packages/i18n
 
 # AGPL-3.0 §13: the full SHA of the published commit this image is built
 # from. next.config.ts inlines it into the "Código fuente" link and fails the

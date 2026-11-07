@@ -5,6 +5,8 @@ import { replaceUserRouterModels, ROUTER_SLUGS, type RouterSlug } from "../../li
 import { type Db } from "./user.shared";
 import { ensureProfileRow, loadProfile } from "./user.profile.load";
 import { AppError, type ErrorKind } from "../../lib/appError";
+import { safeError } from "../../lib/safeError";
+import { isUiLocale } from "../../lib/uiLocale";
 
 import { PersonalisationUpdate } from "./user.profile.validation";
 
@@ -34,6 +36,33 @@ export async function getUserProfile(
     });
     if (error) return { ok: false, error };
     return { ok: true, body: { ...data, apiKeyStatus } };
+}
+
+/**
+ * Copies the interface language to GoTrue's user_metadata.locale, which the
+ * auth email templates read. user_profiles.ui_locale stays the source of
+ * truth: the profile row is already saved when this runs, so a failed copy is
+ * logged and the request still succeeds. Until the next successful save the
+ * emails GoTrue sends use the previous metadata value (the sign-up language,
+ * or none). GoTrue merges user_metadata
+ * keys, and a null value removes the key, so clearing the choice also clears
+ * the email language.
+ */
+async function copyLocaleToAuthMetadata(
+    db: Db,
+    userId: string,
+    locale: string | null,
+): Promise<void> {
+    try {
+        const { error } = await db.auth.admin.updateUserById(userId, {
+            user_metadata: { locale },
+        });
+        if (error) throw error;
+    } catch (error) {
+        console.warn("[user/profile] locale copy to auth metadata failed", {
+            error: safeError(error),
+        });
+    }
 }
 
 /** Returns the minimal identity needed to offer a new direct share. */
@@ -69,6 +98,14 @@ export async function updateUserProfile(
         .update(update)
         .eq("user_id", userId);
     if (updateError) return { ok: false, error: updateError };
+
+    if ("ui_locale" in update) {
+        await copyLocaleToAuthMetadata(
+            db,
+            userId,
+            isUiLocale(update.ui_locale) ? update.ui_locale : null,
+        );
+    }
 
     for (const slug of ROUTER_SLUGS) {
         const models = routerModels?.[slug];

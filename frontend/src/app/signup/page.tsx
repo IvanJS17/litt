@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";
@@ -13,7 +14,6 @@ import {
     AuthDividerUI,
 } from "@mike/ui";
 import Link from "next/link";
-import { SiteLogo } from "@/app/components/site-logo";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { cn } from "@/app/lib/utils";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
@@ -154,10 +154,7 @@ function SignupContent() {
     // Success View
     if (success || isAccountCreatedPreview) {
         return (
-            <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
-                <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
-                    <SiteLogo size="lg" asLink />
-                </div>
+            <AuthPageShell>
                 <div className="w-full max-w-md">
                     <div className={authGlassCardUIClassName}>
                         <h1 className="font-serif text-2xl font-medium text-gray-950">
@@ -178,16 +175,13 @@ function SignupContent() {
                         </Link>
                     </div>
                 </div>
-            </div>
+            </AuthPageShell>
         );
     }
 
     // Default Signup Form View
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-24">
-            <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={cn(authGlassCardUIClassName, "mb-4")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
@@ -308,7 +302,7 @@ function SignupContent() {
                     ) : undefined
                 }
             />
-        </div>
+        </AuthPageShell>
     );
 }
 

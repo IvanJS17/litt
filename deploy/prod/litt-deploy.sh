@@ -4,8 +4,8 @@
 # Uso, desde la máquina de build (README §1):
 #   scp deploy/prod/litt-deploy.sh staging-apps-dev:/tmp/litt-deploy.sh
 #   git archive --format=tar.gz "$SHA" | ssh staging-apps-dev "cat > /tmp/litt-$SHA.tar.gz"
-#   docker save "litt-backend:$SHA" "litt-frontend:$SHA" | gzip -1 | ssh staging-apps-dev \
-#     bash /tmp/litt-deploy.sh "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "/tmp/litt-$SHA.tar.gz"
+#   docker save "litt-backend:$SHA" "litt-frontend:$SHA" "litt-word:$SHA" | gzip -1 | ssh staging-apps-dev \
+#     bash /tmp/litt-deploy.sh "$SHA" "$IMAGE_BYTES" "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID" "/tmp/litt-$SHA.tar.gz"
 #
 # Las imágenes llegan por stdin (sin copias temporales en disco). El script:
 #   1. marca el deploy en curso (/srv/litt/.deploy-in-progress, borrado con trap);
@@ -15,28 +15,31 @@
 #   3. carga las imágenes y verifica sus IDs contra los de la máquina de build;
 #   4. reemplaza el árbol del release sin dejarlo vacío en ningún momento (extrae aparte y
 #      sincroniza con rsync; conserva .env y backups/) y fija LITT_SOURCE_COMMIT;
-#   5. `up -d --remove-orphans` y espera a que todo quede healthy y /health reporte el SHA;
+#   5. `up -d --remove-orphans` y espera a que todo quede healthy, /health reporte el SHA y
+#      el complemento de Word sirva un manifest.xml con su URL pública (WORD_ADDIN_URL);
 #   6. solo entonces aplica la retención: imagen viva + 1 anterior, retirando por tag
 #      explícito. Nunca usa prune.
 set -euo pipefail
 
 APP_DIR=${LITT_APP_DIR:-/srv/litt}   # LITT_APP_DIR solo lo usa litt-deploy.test.sh
 MARK="$APP_DIR/.deploy-in-progress"
-REPOS=(litt-backend litt-frontend)
+REPOS=(litt-backend litt-frontend litt-word)
 GIB=$((1024 * 1024 * 1024))
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 log() { echo "$(date -u +%FT%TZ) $*"; }
 
-[ "$#" -eq 5 ] || die "uso: litt-deploy.sh <SHA> <IMAGE_BYTES> <BACKEND_ID> <FRONTEND_ID> <TREE_TGZ>"
-SHA=$1 IMAGE_BYTES=$2 BACKEND_ID=$3 FRONTEND_ID=$4 TREE_TGZ=$5
+[ "$#" -eq 6 ] || die "uso: litt-deploy.sh <SHA> <IMAGE_BYTES> <BACKEND_ID> <FRONTEND_ID> <WORD_ID> <TREE_TGZ>"
+SHA=$1 IMAGE_BYTES=$2 BACKEND_ID=$3 FRONTEND_ID=$4 WORD_ID=$5 TREE_TGZ=$6
 [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die "SHA debe ser el commit completo (40 hex)"
 [[ "$IMAGE_BYTES" =~ ^[1-9][0-9]*$ ]] || die "IMAGE_BYTES debe ser un entero positivo"
-for id in "$BACKEND_ID" "$FRONTEND_ID"; do
+for id in "$BACKEND_ID" "$FRONTEND_ID" "$WORD_ID"; do
   [[ "$id" =~ ^sha256:[0-9a-f]{64}$ ]] || die "ID de imagen inválido: $id"
 done
 [ -f "$TREE_TGZ" ] || die "no existe el árbol del release: $TREE_TGZ"
 [ -f "$APP_DIR/.env" ] || die "falta $APP_DIR/.env (primer arranque: README §3)"
+WORD_URL=$(sed -n 's/^WORD_ADDIN_URL=//p' "$APP_DIR/.env" | tail -1)
+[[ "$WORD_URL" =~ ^https://[a-z0-9.-]+$ ]] || die "WORD_ADDIN_URL en .env debe ser un origen https (README §Complemento de Word)"
 
 STAGE="$APP_DIR/.release-$SHA"
 touch "$MARK"
@@ -69,6 +72,7 @@ log "espacio ok: libres $FREE >= necesarios $NEED"
 gzip -dc | docker load
 [ "$(docker image inspect --format '{{.Id}}' "litt-backend:$SHA")" = "$BACKEND_ID" ] || die "ID de litt-backend:$SHA distinto al construido"
 [ "$(docker image inspect --format '{{.Id}}' "litt-frontend:$SHA")" = "$FRONTEND_ID" ] || die "ID de litt-frontend:$SHA distinto al construido"
+[ "$(docker image inspect --format '{{.Id}}' "litt-word:$SHA")" = "$WORD_ID" ] || die "ID de litt-word:$SHA distinto al construido"
 log "imágenes cargadas con los IDs esperados"
 
 # 4. Árbol del release. Se extrae aparte y se sincroniza: rsync reemplaza cada archivo con
@@ -107,6 +111,13 @@ fetch('http://127.0.0.1:3001/health').then(r => r.json()).then(b => {
   if (!b.ok || b.commit !== '$SHA') { console.error('health', JSON.stringify(b)); process.exit(1); }
 }).catch(e => { console.error(e.message); process.exit(1); })" || die "/health no reporta $SHA"
 log "/health reporta $SHA"
+# El manifiesto lleva la URL pública con la que se construyó la imagen; si no coincide con
+# WORD_ADDIN_URL del backend, Word cargaría un panel que el backend rechaza.
+"${C[@]}" exec -T litt-word node -e "
+fetch('http://127.0.0.1:3200/manifest.xml').then(r => r.text()).then(m => {
+  if (!m.includes('<SourceLocation DefaultValue=\"$WORD_URL/taskpane.html\"')) { console.error('manifest sin $WORD_URL'); process.exit(1); }
+}).catch(e => { console.error(e.message); process.exit(1); })" || die "manifest.xml de litt-word no apunta a $WORD_URL"
+log "manifest.xml apunta a $WORD_URL"
 
 # 6. Retención: viva ($SHA) + 1 anterior ($LIVE), por tag explícito.
 for repo in "${REPOS[@]}"; do

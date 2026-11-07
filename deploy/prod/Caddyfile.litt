@@ -15,4 +15,11 @@ litt.asteroitt.com {
 		header_up X-Forwarded-Host {host}
 	}
 }
+# Complemento de Word (servicio litt-word): panel, manifest.xml y /api/* en el
+# mismo origen. Caddy conserva el Host público; litt-word lo pasa al backend
+# como X-Forwarded-Host.
+word.litt.asteroitt.com {
+	encode zstd gzip
+	reverse_proxy litt-word:3200
+}
 # END litt
