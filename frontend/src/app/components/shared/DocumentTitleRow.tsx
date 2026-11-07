@@ -17,7 +17,10 @@ import { VersionChip } from "./VersionChip";
 import type { PanelDocument } from "./types";
 import type { DocxSaveState } from "./views/DocxRenderer.types";
 import { DocxSaveErrorPopup } from "./views/DocxSaveErrorPopup";
-import { useTrainingVersionStatus } from "@/app/hooks/useTrainingVersionStatus";
+import {
+    useTrainingVersionStatus,
+    type TrainingRelease,
+} from "@/app/hooks/useTrainingVersionStatus";
 import { TrainingVersionStatus } from "./TrainingVersionStatus";
 
 type ExternalSourceLink = {
@@ -35,6 +38,7 @@ export function DocumentTitleRow({
     onVersionChange,
     toolbarVisible,
     onToggleToolbar,
+    onTrainingReleaseChange,
 }: {
     document: PanelDocument;
     isReloading: boolean;
@@ -45,6 +49,8 @@ export function DocumentTitleRow({
     onVersionChange?: (version: DocumentVersion) => void;
     toolbarVisible?: boolean;
     onToggleToolbar?: () => void;
+    /** Tells a host with its own download (a tab menu) whether to offer it. */
+    onTrainingReleaseChange?: (release: TrainingRelease) => void;
 }) {
     const isFile =
         document.type === "docx" ||
@@ -58,6 +64,9 @@ export function DocumentTitleRow({
         document.version_id ?? null,
         isFile,
     );
+    useEffect(() => {
+        onTrainingReleaseChange?.(training.release);
+    }, [onTrainingReleaseChange, training.release]);
 
     return (
         <div className="shrink-0 px-3 py-2">

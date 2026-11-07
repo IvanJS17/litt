@@ -55,3 +55,17 @@ it("asks nothing for a legal source", () => {
     );
     expect(useTrainingVersionStatus).toHaveBeenCalledWith("doc-1", null, false);
 });
+
+it("reports the release to a host that offers its own download", () => {
+    const onTrainingReleaseChange = vi.fn();
+    set("held");
+    const { rerender } = render(
+        <DocumentTitleRow document={doc} isReloading={false} compactActions onTrainingReleaseChange={onTrainingReleaseChange} />,
+    );
+    expect(onTrainingReleaseChange).toHaveBeenLastCalledWith("held");
+    set("released");
+    rerender(
+        <DocumentTitleRow document={doc} isReloading={false} compactActions onTrainingReleaseChange={onTrainingReleaseChange} />,
+    );
+    expect(onTrainingReleaseChange).toHaveBeenLastCalledWith("released");
+});

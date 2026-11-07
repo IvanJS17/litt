@@ -6,7 +6,7 @@ import {
     waitFor,
     within,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectDocumentTabs } from "../projects/ProjectDocumentTabs";
 import { AssistantSidePanel } from "../assistant/AssistantSidePanel";
 import type { Document } from "./types";
@@ -14,15 +14,22 @@ import type { Document } from "./types";
 vi.mock("@/app/hooks/useDocumentPermissions", () => ({ useDocumentPermissions: (_ids: string[], enabled: boolean) => () => ({ canEdit: enabled, canDelete: enabled }) }));
 
 const localDownload = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+// What the viewer reports about its version's training release.
+const viewerRelease = vi.hoisted(() => ({ current: "released" as string }));
 vi.mock("@/app/components/shared/DocumentContent", () => ({
     DocumentContent: ({
         onDownloadReady,
+        onTrainingReleaseChange,
     }: {
         onDownloadReady?: (download: () => Promise<void>) => void;
+        onTrainingReleaseChange?: (release: string) => void;
     }) => {
         useEffect(() => {
             onDownloadReady?.(localDownload);
         }, [onDownloadReady]);
+        useEffect(() => {
+            onTrainingReleaseChange?.(viewerRelease.current);
+        }, [onTrainingReleaseChange]);
         return <div>Document body</div>;
     },
 }));
@@ -99,6 +106,24 @@ function Harness({
         />
     );
 }
+
+afterEach(() => {
+    viewerRelease.current = "released";
+});
+
+// LiTT training (W1): the assistant tab menu downloads the open /file, so it
+// offers Download only once the viewer knows the version is released.
+describe.each(["held", "unknown"])("assistant tab of a %s version", (release) => {
+    it("hides Download and keeps the other actions", () => {
+        viewerRelease.current = release;
+        render(<Harness surface="assistant" rename={vi.fn()} action={vi.fn()} />);
+        expect(
+            within(menuFor())
+                .getAllByRole("menuitem")
+                .map((item) => item.textContent),
+        ).toEqual(["Add to chat", "Rename", "Delete file"]);
+    });
+});
 
 function menuFor(name = "Second.docx") {
     fireEvent.contextMenu(screen.getByRole("tab", { name }), {

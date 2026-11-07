@@ -8,6 +8,7 @@ import {
     type CSSProperties,
 } from "react";
 import { useDocumentViewers } from "@/app/hooks/useDocumentViewers";
+import type { TrainingRelease } from "@/app/hooks/useTrainingVersionStatus";
 import { useDocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 import { type DocumentActions } from "../shared/DocumentTabActions";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
@@ -246,6 +247,14 @@ export function AssistantSidePanel({
     const panelRef = useRef<HTMLDivElement>(null);
     const permissions = useDocumentPermissions(tabs.filter((tab) => !["case", "legislation"].includes(tab.document.type)).map((tab) => tab.document.document_id), canEdit);
     const viewers = useDocumentViewers();
+    // LiTT training: each open viewer reports whether its version may leave
+    // LiTT; a tab offers its download only once it is known to be released.
+    const [releases, setReleases] = useState<Record<string, TrainingRelease>>({});
+    const reportRelease = useCallback((tabId: string, release: TrainingRelease) => {
+        setReleases((current) =>
+            current[tabId] === release ? current : { ...current, [tabId]: release },
+        );
+    }, []);
     // One width beside a single chat and another beside two, so closing the
     // second chat gives the panel back the width it had before.
     const split = chatCount > 1;
@@ -380,7 +389,7 @@ export function AssistantSidePanel({
                         actions: {
                             ...actions,
                             onRename: permissions(tab.document.document_id).canEdit ? actions?.onRename : undefined,
-                            onDownload: isLegalSource ? undefined : () => viewers.download(tab.id, tab.document.document_id, tab.document.version_id, tab.document.title),
+                            onDownload: isLegalSource || releases[tab.id] !== "released" ? undefined : () => viewers.download(tab.id, tab.document.document_id, tab.document.version_id, tab.document.title),
                             onDelete: permissions(tab.document.document_id).canDelete ? actions?.onDelete : undefined,
                         },
                     };
@@ -438,6 +447,7 @@ export function AssistantSidePanel({
                                 showToolbarToggle
                                 canEdit={permissions(tab.document.document_id).canEdit}
                                 onDownloadReady={(download) => viewers.registerDownload(tab.id, download)}
+                                onTrainingReleaseChange={(release) => reportRelease(tab.id, release)}
                                 onCloseGuardReady={(guard) => viewers.registerCloseGuard(tab.id, guard)}
                                 active={isActive}
                                 onVersionChange={
