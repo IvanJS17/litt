@@ -135,8 +135,8 @@ export function SidebarChatItem({
                         <ChatSkeuoIcon
                             tone={
                                 responseStatus === "complete"
-                                    ? "green"
-                                    : "blue"
+                                    ? "complete"
+                                    : "default"
                             }
                             className="h-3.5 w-3.5"
                         />

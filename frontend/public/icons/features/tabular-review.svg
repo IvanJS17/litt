@@ -6,8 +6,8 @@
       <stop offset="1" stop-color="#D5D5D1" stop-opacity="0.96"/>
     </linearGradient>
     <linearGradient id="header" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#34D399"/>
-      <stop offset="1" stop-color="#059669"/>
+      <stop offset="0" stop-color="#FFB21E"/>
+      <stop offset="1" stop-color="#965900"/>
     </linearGradient>
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>

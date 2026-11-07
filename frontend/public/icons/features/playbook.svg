@@ -12,13 +12,13 @@
       <stop offset="0" stop-color="#E7E7E2"/>
       <stop offset="1" stop-color="#A1A3A3"/>
     </linearGradient>
-    <linearGradient id="green" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#34D399"/>
-      <stop offset="1" stop-color="#059669"/>
+    <linearGradient id="check" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFB21E"/>
+      <stop offset="1" stop-color="#965900"/>
     </linearGradient>
-    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F87171"/>
-      <stop offset="1" stop-color="#DC2626"/>
+    <linearGradient id="cross" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5C6270"/>
+      <stop offset="1" stop-color="#151A26"/>
     </linearGradient>
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.6"/>
@@ -28,13 +28,13 @@
   </defs>
   <rect x="8" y="6" width="48" height="56" rx="8" fill="url(#board)" stroke="url(#rim)" stroke-width="1.4"/>
   <rect x="13" y="13" width="38" height="44" rx="4" fill="url(#paper)"/>
-  <circle cx="22" cy="24" r="5" fill="url(#green)"/>
+  <circle cx="22" cy="24" r="5" fill="url(#check)"/>
   <path d="M19.75 24 l1.75 1.75 l3.0 -3.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M31 24 H44" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
-  <circle cx="22" cy="35" r="5" fill="url(#green)"/>
+  <circle cx="22" cy="35" r="5" fill="url(#check)"/>
   <path d="M19.75 35 l1.75 1.75 l3.0 -3.5" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M31 35 H41" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
-  <circle cx="22" cy="46" r="5" fill="url(#red)"/>
+  <circle cx="22" cy="46" r="5" fill="url(#cross)"/>
   <path d="M20.0 44.0 L24.0 48.0 M24.0 44.0 L20.0 48.0" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
   <path d="M31 46 H44" stroke="#BABCBA" stroke-width="3.5" stroke-linecap="round"/>
   <rect x="22" y="3" width="20" height="10" rx="4" fill="url(#metal)" stroke="#6F7176" stroke-width="1"/>

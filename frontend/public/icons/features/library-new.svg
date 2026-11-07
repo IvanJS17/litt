@@ -1,19 +1,19 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="leatherBlue" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="leatherSlate" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#818386"/>
       <stop offset="0.4" stop-color="#575A61"/>
       <stop offset="1" stop-color="#2D313B"/>
     </linearGradient>
-    <linearGradient id="leatherRed" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#C45A5F"/>
-      <stop offset="0.4" stop-color="#A0232C"/>
-      <stop offset="1" stop-color="#5E1921"/>
+    <linearGradient id="leatherAmber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D08A1C"/>
+      <stop offset="0.4" stop-color="#965900"/>
+      <stop offset="1" stop-color="#5C3700"/>
     </linearGradient>
-    <linearGradient id="leatherGreen" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3FA578"/>
-      <stop offset="0.4" stop-color="#1E6D4F"/>
-      <stop offset="1" stop-color="#173F31"/>
+    <linearGradient id="leatherInk" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5C6270"/>
+      <stop offset="0.4" stop-color="#3A3F4C"/>
+      <stop offset="1" stop-color="#151A26"/>
     </linearGradient>
     <linearGradient id="pages" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFBF0"/>
@@ -31,8 +31,8 @@
       <stop offset="1" stop-color="#B07E2C"/>
     </linearGradient>
     <linearGradient id="ribbon" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F59E0B"/>
-      <stop offset="1" stop-color="#B45309"/>
+      <stop offset="0" stop-color="#FFB21E"/>
+      <stop offset="1" stop-color="#965900"/>
     </linearGradient>
     <radialGradient id="sheen">
       <stop offset="0" stop-color="#FFFFFF"/>
@@ -41,9 +41,9 @@
     </radialGradient>
   </defs>
 
-  <!-- bottom: blue book, spine left, with a ribbon marker -->
+  <!-- bottom: slate book, spine left, with a ribbon marker -->
   <g>
-    <rect x="5" y="44" width="54" height="14" rx="3" fill="url(#leatherBlue)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="5" y="44" width="54" height="14" rx="3" fill="url(#leatherSlate)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="15" y="47.75" width="42" height="6.5" rx="1.2" fill="url(#pages)"/>
     <g stroke="#C9B48A" stroke-width="0.5" opacity="0.8">
       <path d="M16 50 H56"/><path d="M16 52 H56"/>
@@ -54,9 +54,9 @@
     <path d="M40 55.5 V62 L42 60.4 L44 62 V55.5 Z" fill="url(#ribbon)"/>
   </g>
 
-  <!-- middle: red book, spine right -->
+  <!-- middle: amber book, spine right -->
   <g transform="rotate(-3 32 44)">
-    <rect x="8" y="30" width="49" height="14" rx="3" fill="url(#leatherRed)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="8" y="30" width="49" height="14" rx="3" fill="url(#leatherAmber)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="10" y="33.75" width="36" height="6.5" rx="1.2" fill="url(#pages)"/>
     <g stroke="#C9B48A" stroke-width="0.5" opacity="0.8">
       <path d="M11 36 H45"/><path d="M11 38 H45"/>
@@ -66,9 +66,9 @@
     <ellipse cx="42" cy="31.3" rx="11" ry="1.1" fill="url(#sheen)" opacity="0.45"/>
   </g>
 
-  <!-- top: green book, spine left -->
+  <!-- top: ink book, spine left -->
   <g transform="rotate(2.5 31 30)">
-    <rect x="9" y="16" width="44" height="14" rx="3" fill="url(#leatherGreen)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="9" y="16" width="44" height="14" rx="3" fill="url(#leatherInk)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="18" y="19.75" width="33" height="6.5" rx="1.2" fill="url(#pages)"/>
     <g stroke="#C9B48A" stroke-width="0.5" opacity="0.8">
       <path d="M19 22 H50"/><path d="M19 24 H50"/>
