@@ -868,11 +868,9 @@ async function verifyQueuedMutationApplied(
   for (const range of ranges) {
     try {
       const collection = range.getTrackedChanges();
-      collection.load("items");
+      collection.load(TRACKED_CHANGE_FIELDS);
       await context.sync();
       if (collection.items.length === 0) continue;
-      for (const change of collection.items) change.load(["type", "text"]);
-      await context.sync();
       if (pickEditRevisionSubset(collection.items, edit)) return true;
     } catch {
       // A stale range cannot prove that the mutation landed. Try the next
@@ -948,6 +946,13 @@ function matchesForSides(
   };
 }
 
+/**
+ * Load a tracked-change collection's items together with the properties
+ * every matcher reads, in ONE round trip. Loading "items" and then each
+ * item's type/text costs a second sync for data the first could carry.
+ */
+const TRACKED_CHANGE_FIELDS = "items/type,items/text";
+
 function trackedObjectsFor(
   entry: PendingTrackedEdit,
 ): OfficeExtension.ClientObject[] {
@@ -1003,15 +1008,45 @@ async function removePersistentAnchorForEntry(
 }
 
 /**
+ * Split items by the request context their tracked proxies belong to. Tracked
+ * proxies can only be batched with objects of their own context: everything
+ * one apply batch or one restore pass produced shares one. An item without
+ * proxies, or whose proxies span contexts, is returned on its own.
+ */
+function groupByRequestContext<T>(
+  items: readonly T[],
+  objectsOf: (item: T) => OfficeExtension.ClientObject[],
+): { groups: T[][]; singles: T[] } {
+  const groups = new Map<unknown, T[]>();
+  const singles: T[] = [];
+  for (const item of items) {
+    const objects = objectsOf(item);
+    const context = objects[0]?.context;
+    if (!context || objects.some((object) => object.context !== context)) {
+      singles.push(item);
+      continue;
+    }
+    const group = groups.get(context);
+    if (group) group.push(item);
+    else groups.set(context, [item]);
+  }
+  return { groups: [...groups.values()], singles };
+}
+
+/**
  * Untrack (and optionally delete the bookmark of) many entries with one
  * Word.run + sync per request context, instead of one or two per entry.
  *
  * Tracked proxies can only be batched with objects of their own request
  * context, so entries are grouped by it: everything one apply batch or one
- * restore pass produced shares a context and is released together. If a
- * group's batch fails (one stale proxy fails the whole sync), each of its
- * entries falls back to the original per-entry cleanup, so the failure is
- * attributed to the entry that left something behind.
+ * restore pass produced shares a context and is released together.
+ *
+ * If a group's batch fails (one stale proxy fails the whole sync), the
+ * failure is reported once and every entry of the group gets
+ * PROXY_CLEANUP_FAILURE. Retrying untrack per entry would prove nothing:
+ * untrack() clears the client-side tracking flag when it is queued, so a
+ * second untrack is a local no-op that "succeeds" whatever the host did.
+ * Bookmark deletion, a document command, is still retried per entry.
  *
  * Returns the fixed cleanup sentences per entry (never host text).
  */
@@ -1025,19 +1060,7 @@ async function releaseEntryProxies(
   const failures = new Map<PendingTrackedEdit, string[]>(
     entries.map((entry) => [entry, []]),
   );
-  const groups = new Map<unknown, PendingTrackedEdit[]>();
-  const singles: PendingTrackedEdit[] = [];
-  for (const entry of entries) {
-    const objects = trackedObjectsFor(entry);
-    const context = objects[0]?.context;
-    if (!context || objects.some((object) => object.context !== context)) {
-      singles.push(entry);
-      continue;
-    }
-    const group = groups.get(context);
-    if (group) group.push(entry);
-    else groups.set(context, [entry]);
-  }
+  const { groups, singles } = groupByRequestContext(entries, trackedObjectsFor);
   const perEntry = async (entry: PendingTrackedEdit): Promise<void> => {
     const left = failures.get(entry)!;
     if (options.deleteBookmarks) {
@@ -1053,7 +1076,7 @@ async function releaseEntryProxies(
       left.push(PROXY_CLEANUP_FAILURE);
     }
   };
-  for (const group of groups.values()) {
+  for (const group of groups) {
     try {
       await Word.run(group.flatMap(trackedObjectsFor), async (context) => {
         if (options.deleteBookmarks) {
@@ -1065,8 +1088,14 @@ async function releaseEntryProxies(
         await context.sync();
       });
     } catch (error) {
-      console.debug("[tracked-edit/cleanup] batched cleanup failed; retrying per edit", error);
-      for (const entry of group) await perEntry(entry);
+      options.onUntrackFailure(error);
+      for (const entry of group) {
+        const left = failures.get(entry)!;
+        if (options.deleteBookmarks) {
+          left.push(...(await removePersistentAnchorForEntry(entry, false)));
+        }
+        left.push(PROXY_CLEANUP_FAILURE);
+      }
     }
   }
   for (const entry of singles) await perEntry(entry);
@@ -1095,7 +1124,7 @@ async function scanAnchorForEdit(
 ): Promise<AnchorEditScan> {
   return Word.run([range], async (context) => {
     const collection = range.getTrackedChanges();
-    collection.load("items");
+    collection.load(TRACKED_CHANGE_FIELDS);
     await context.sync();
     if (collection.items.length === 0) {
       return {
@@ -1105,8 +1134,6 @@ async function scanAnchorForEdit(
         formattedMatches: 0,
       };
     }
-    for (const change of collection.items) change.load(["type", "text"]);
-    await context.sync();
     const matches = matchesForSides(collection.items, edit);
     return {
       pendingCount: collection.items.length,
@@ -1129,9 +1156,7 @@ async function resolveEditSidesThroughAnchor(
 ): Promise<"resolved" | "changed"> {
   return Word.run([range], async (context) => {
     const collection = range.getTrackedChanges();
-    collection.load("items");
-    await context.sync();
-    for (const change of collection.items) change.load(["type", "text"]);
+    collection.load(TRACKED_CHANGE_FIELDS);
     await context.sync();
     const matches = matchesForSides(collection.items, edit);
     if (sides.added && matches.added.length !== 1) return "changed" as const;
@@ -1262,11 +1287,9 @@ async function resolveEditThroughBodyOnce(
     context: Word.RequestContext,
   ): Promise<"resolved" | "changed" | "empty" | "ambiguous"> => {
     const collection = context.document.body.getTrackedChanges();
-    collection.load("items");
+    collection.load(TRACKED_CHANGE_FIELDS);
     await context.sync();
     if (collection.items.length === 0) return "empty" as const;
-    for (const change of collection.items) change.load(["type", "text"]);
-    await context.sync();
     const raw = matchesForSides(collection.items, edit);
     const sides = editRevisionSides(edit);
 
@@ -1429,45 +1452,81 @@ async function pickEditDocumentRevisionsInContext(
   edit: RedlineEdit,
   index?: RevisionIndex<DocumentRevisionView>,
 ): Promise<DocumentRevisionView[] | null> {
+  const plan = planEditDocumentRevisions(views, edit, index);
+  if (plan.kind === "escalate") await context.sync();
+  return finishEditDocumentRevisionPlan(plan);
+}
+
+/**
+ * The read-free half of pickEditDocumentRevisionsInContext: either a final
+ * answer, or the adjacency probes for the empty-Delete escalation QUEUED
+ * (not synced), so a caller with many edits can sync every edit's probes in
+ * one round trip and then finish each plan.
+ */
+type DocumentRevisionPlan =
+  | { kind: "done"; targets: DocumentRevisionView[] | null }
+  | {
+      kind: "escalate";
+      addedMatch: DocumentRevisionView;
+      emptyDeletes: readonly DocumentRevisionView[];
+      relations: OfficeExtension.ClientResult<Word.LocationRelation>[];
+    };
+
+function planEditDocumentRevisions(
+  views: readonly DocumentRevisionView[],
+  edit: RedlineEdit,
+  index?: RevisionIndex<DocumentRevisionView>,
+): DocumentRevisionPlan {
   const direct = pickEditDocumentRevisions(views, edit, index);
-  if (direct) return direct;
+  if (direct) return { kind: "done", targets: direct };
 
   const sides = editRevisionSides(edit);
-  if (!sides.added || !sides.deleted) return null;
+  if (!sides.added || !sides.deleted) return { kind: "done", targets: null };
   const wordReplacement = normalizeBreaks(toWordText(edit.replacement));
   const added = index ? index.matching("Insert", wordReplacement) : views.filter(
     (view) => view.type === "Insert" && view.text === wordReplacement,
   );
   const addedMatch = added.length === 1 ? added[0] : undefined;
-  if (!addedMatch) return null;
+  if (!addedMatch) return { kind: "done", targets: null };
   const emptyDeletes = index ? index.matching("Delete", "") : views.filter(
     (view) => view.type === "Delete" && view.text.length === 0,
   );
-  if (emptyDeletes.length < 2) return null;
+  if (emptyDeletes.length < 2) return { kind: "done", targets: null };
 
-  const relations = emptyDeletes.map((view) =>
-    view.revision.range.compareLocationWith(addedMatch.revision.range),
-  );
-  await context.sync();
-  const adjacent = emptyDeletes.filter((_view, index) => {
-    const relation = String(relations[index]?.value ?? "").toLowerCase();
+  return {
+    kind: "escalate",
+    addedMatch,
+    emptyDeletes,
+    relations: emptyDeletes.map((view) =>
+      view.revision.range.compareLocationWith(addedMatch.revision.range),
+    ),
+  };
+}
+
+/** Complete a plan once its queued probes (if any) have been synced. */
+function finishEditDocumentRevisionPlan(
+  plan: DocumentRevisionPlan,
+): DocumentRevisionView[] | null {
+  if (plan.kind === "done") return plan.targets;
+  const adjacent = plan.emptyDeletes.filter((_view, index) => {
+    const relation = String(plan.relations[index]?.value ?? "").toLowerCase();
     return relation === "adjacentbefore" || relation === "adjacentafter";
   });
   if (adjacent.length !== 1) return null;
   const adjacentDelete = adjacent[0];
-  return adjacentDelete ? [addedMatch, adjacentDelete] : null;
+  return adjacentDelete ? [plan.addedMatch, adjacentDelete] : null;
 }
 
-/** Load the document's pending revisions as plain views (two syncs). */
+/** Load the document's pending revisions as plain views (one sync). */
 async function loadDocumentRevisionViews(
   context: Word.RequestContext,
 ): Promise<DocumentRevisionView[]> {
   const collection = context.document.revisions;
-  collection.load("items/type");
+  // Each item's range is a navigation property, so its text loads with
+  // the items in the same round trip.
+  collection.load("items/type,items/range/text");
   await context.sync();
   if (collection.items.length === 0) return [];
-  for (const revision of collection.items) revision.range.load("text");
-  await context.sync();
   return collection.items.map((revision) => ({
     revision,
     type: String(revision.type),
@@ -1988,7 +2047,7 @@ async function restoreTrackedEditNow(
       if (range.isNullObject) return { status: "not-found" as const };
 
       const collection = range.getTrackedChanges();
-      collection.load("items");
+      collection.load(TRACKED_CHANGE_FIELDS);
       await context.sync();
       if (collection.items.length === 0) {
         context.document.deleteBookmark(bookmarkName);
@@ -1996,8 +2055,6 @@ async function restoreTrackedEditNow(
         return { status: "resolved" as const };
       }
 
-      for (const change of collection.items) change.load(["type", "text"]);
-      await context.sync();
       // The bookmark range can report sibling revisions from the same
       // paragraph — or, on Word for the web, only one half of the
       // replacement pair. Manage the unambiguous subset that reconstructs
@@ -2007,11 +2064,7 @@ async function restoreTrackedEditNow(
       let managedCollection = collection;
       if (!editRevisions) {
         const bodyCollection = context.document.body.getTrackedChanges();
-        bodyCollection.load("items");
-        await context.sync();
-        for (const change of bodyCollection.items) {
-          change.load(["type", "text"]);
-        }
+        bodyCollection.load(TRACKED_CHANGE_FIELDS);
         await context.sync();
         editRevisions = pickEditRevisionSubset(bodyCollection.items, edit);
         managedCollection = bodyCollection;
@@ -2194,7 +2247,7 @@ async function restoreTrackedEditsNow(
             continue;
           }
           const collection = range.getTrackedChanges();
-          collection.load("items");
+          collection.load(TRACKED_CHANGE_FIELDS);
           present.push({ candidate, range, collection });
         }
         if (present.length > 0) await context.sync();
@@ -2208,14 +2261,9 @@ async function restoreTrackedEditsNow(
             byCandidate.set(entry.candidate, { status: "resolved" });
             continue;
           }
-          for (const change of entry.collection.items) {
-            change.load(["type", "text"]);
-          }
           withRevisions.push(entry);
         }
-        if (staleBookmarkQueued || withRevisions.length > 0) {
-          await context.sync();
-        }
+        if (staleBookmarkQueued) await context.sync();
 
         let trackingQueued = false;
         let bodyFallback: typeof present = [];
@@ -2253,13 +2301,18 @@ async function restoreTrackedEditsNow(
           const revisionIndex = createRevisionIndex(views, view => view.type, view => view.text);
           const consumedRevisions = new Set<Word.Revision>();
           const remaining: typeof present = [];
-          for (const entry of bodyFallback) {
-            const targets = await pickEditDocumentRevisionsInContext(
-              context,
-              views,
-              entry.candidate.edit,
-              revisionIndex,
-            );
+          // Plan every candidate first, queueing each one's empty-Delete
+          // adjacency probes, then sync ONCE for all of them. Mac reads every
+          // Delete as empty (office-js#5188), so nearly every candidate
+          // escalates; one sync per candidate made opening a chat cost a
+          // round trip per restored edit. Picks do not depend on each other;
+          // the consumed set below is still applied in candidate order.
+          const plans = bodyFallback.map((entry) =>
+            planEditDocumentRevisions(views, entry.candidate.edit, revisionIndex),
+          );
+          if (plans.some((plan) => plan.kind === "escalate")) await context.sync();
+          for (const [planIndex, entry] of bodyFallback.entries()) {
+            const targets = finishEditDocumentRevisionPlan(plans[planIndex]!);
             if (
               !targets ||
               targets.some((target) => consumedRevisions.has(target.revision))
@@ -2288,11 +2341,7 @@ async function restoreTrackedEditsNow(
           // The consumed set stops two edits from ever binding the same
           // revision proxy.
           const bodyCollection = context.document.body.getTrackedChanges();
-          bodyCollection.load("items");
-          await context.sync();
-          for (const change of bodyCollection.items) {
-            change.load(["type", "text"]);
-          }
+          bodyCollection.load(TRACKED_CHANGE_FIELDS);
           await context.sync();
           const revisionIndex = createRevisionIndex(bodyCollection.items, change => String(change.type).toLowerCase(), change => change.text);
           const consumed = new Set<Word.TrackedChange>();
@@ -2478,8 +2527,12 @@ export interface TrackedEditValidationResult {
 
 /**
  * Check whether one proposed edit can be located safely without changing the
- * document. Review mode uses this before exposing its Apply action; the real
- * apply repeats the same checks because the document may change meanwhile.
+ * document. Review mode uses this before exposing its Apply action, and the
+ * verdict is binding, not advisory: a non-ready verdict hides Apply and is
+ * persisted as apply_status "failed" (apply also repeats the checks, but
+ * only for a card that got an Apply button). A non-ready verdict reached in
+ * a shared batch is therefore confirmed by the one-edit path before it is
+ * returned.
  */
 export function validateTrackedEdit(
   edit: RedlineEdit,
@@ -2613,6 +2666,14 @@ async function validateTrackedEditsNow(
           );
         }
       });
+      // A non-ready verdict hides Apply and is persisted, so confirm each
+      // one through the original one-edit path before it sticks; the
+      // multi-search batch is only trusted for the common "ready" answer.
+      for (const index of searchable) {
+        if (results[index]?.status !== "ready") {
+          results[index] = await validateTrackedEditNow(edits[index]!);
+        }
+      }
     } catch (error) {
       // One failing command fails the whole shared sync. Re-validate each
       // edit on its own, so a failure stays attributed to its own card.
@@ -2811,66 +2872,74 @@ export function resolveTrackedEdit(
 }
 
 /**
- * Resolve unambiguous text edits from one fresh document inventory. Ambiguous,
- * formatting, and stale-host cases retain the existing anchor-scoped fallback.
- * The index lives only inside this Word.run: it is never cached across edits.
+ * Resolve many edits through the revision proxies each one retained when Mike
+ * wrote (or restored) it: one Word.run per request context instead of one per
+ * edit. Those proxies ARE the edit's revisions, so acting on them needs no
+ * text match. A revision found elsewhere in the document by its text proves
+ * nothing about whose it is: the user may have amended Mike's insertion, and
+ * an unrelated pending insertion may carry the replacement text.
+ *
+ * Before any decision is queued, the group's proxies are read back in one
+ * sync. A stale proxy fails that read with the document untouched, and the
+ * group's edits go to the per-edit resolver, which proves ownership through
+ * the edit's own anchors (its bookmark/range) before touching a revision, as
+ * do edits that retained no proxies.
+ *
+ * Decisions then sync ONE EDIT AT A TIME inside the same Word.run. An Office
+ * batch is not a transaction: a sync that fails on its fifth command has
+ * already run the first four. Syncing per edit means a failure can only be
+ * ambiguous for the edit whose sync failed; every edit before it is known to
+ * be decided (and is recorded, with its cleanup, as soon as its sync
+ * returns), and the failing edit and those after it go to the per-edit
+ * resolver, which re-reads live revisions and owns the honest
+ * partial-failure verdicts. One sync per edit is still one Word.run per
+ * request context, where per-edit resolution costs at least two runs.
  */
-async function resolveUniqueEditBatch(
+async function resolveRetainedEditBatch(
   handles: readonly TrackedEditHandle[],
   decision: TrackedEditDecision,
   deferred: DeferredResolveCleanup[],
 ): Promise<Map<TrackedEditHandle, TrackedEditResolutionResult>> {
-  const entries = new Map<TrackedEditHandle, PendingTrackedEdit>();
-  for (const handle of handles) {
-    const entry = pendingTrackedEdits.get(handle);
-    if (entry && !isFormatEdit(entry.expectedEdit)) entries.set(handle, entry);
-  }
   const results = new Map<TrackedEditHandle, TrackedEditResolutionResult>();
-  if (entries.size < 2) return results;
-  let resolved: TrackedEditHandle[];
-  try {
-    resolved = await Word.run(async context => {
-      const planned = new Map<TrackedEditHandle, (Word.Revision | Word.TrackedChange)[]>();
-      const consumed = new Set<Word.Revision | Word.TrackedChange>();
-      if (supportsDesktopRevisions()) {
-        const views = await loadDocumentRevisionViews(context);
-        const index = createRevisionIndex(views, view => view.type, view => view.text);
-        for (const [handle, entry] of entries) {
-          const targets = pickEditDocumentRevisions(views, entry.expectedEdit, index)?.map(view => view.revision);
-          if (!targets || targets.some(target => consumed.has(target))) continue;
-          targets.forEach(target => consumed.add(target));
-          planned.set(handle, targets);
-        }
-      } else {
-        const collection = context.document.body.getTrackedChanges();
-        collection.load("items/type,items/text");
-        await context.sync();
-        const index = createRevisionIndex(collection.items, change => String(change.type).toLowerCase(), change => change.text);
-        for (const [handle, entry] of entries) {
-          const targets = pickEditRevisionSubset(collection.items, entry.expectedEdit, index);
-          if (!targets || targets.some(target => consumed.has(target))) continue;
-          targets.forEach(target => consumed.add(target));
-          planned.set(handle, targets);
-        }
-      }
-      for (const targets of planned.values()) for (const target of targets) {
-        if (decision === "accept") target.accept(); else target.reject();
-      }
-      if (planned.size) await context.sync();
-      return [...planned.keys()];
-    });
-  } catch {
-    // Office can fail partway through a batch. The ordinary resolver re-reads
-    // live revisions and owns the existing honest partial-failure semantics.
-    return results;
+  const retained: { handle: TrackedEditHandle; entry: PendingTrackedEdit }[] = [];
+  for (const handle of new Set(handles)) {
+    const entry = pendingTrackedEdits.get(handle);
+    if (entry && entry.changes.length > 0) retained.push({ handle, entry });
   }
-  for (const handle of resolved) {
-    const entry = entries.get(handle)!;
+  if (retained.length < 2) return results;
+  const decided = (handle: TrackedEditHandle, entry: PendingTrackedEdit) => {
     pendingTrackedEdits.delete(handle);
     rememberTerminalState(handle, decision);
-    const result: TrackedEditResolutionResult = { handle, status: decision === "accept" ? "accepted" : "rejected", resolvedAs: decision };
+    const result: TrackedEditResolutionResult = {
+      handle,
+      status: decision === "accept" ? "accepted" : "rejected",
+      resolvedAs: decision,
+    };
     deferred.push({ entry, result });
     results.set(handle, result);
+  };
+  const { groups } = groupByRequestContext(retained, ({ entry }) => trackedObjectsFor(entry));
+  for (const group of groups) {
+    try {
+      await Word.run(group.flatMap(({ entry }) => trackedObjectsFor(entry)), async (context) => {
+        for (const { entry } of group) {
+          for (const change of entry.changes) change.load("type");
+        }
+        await context.sync();
+        for (const { handle, entry } of group) {
+          for (const change of entry.changes) {
+            if (decision === "accept") change.accept();
+            else change.reject();
+          }
+          await context.sync();
+          decided(handle, entry);
+        }
+      });
+    } catch (error) {
+      // Edits decided before the failure are already recorded; the rest
+      // (still pending) fall through to the per-edit resolver.
+      console.debug("[tracked-edit/resolve] retained batch failed", error);
+    }
   }
   return results;
 }
@@ -2924,7 +2993,7 @@ export function resolveTrackedEdits(
 ): Promise<TrackedEditResolutionResult[]> {
   return serializeWordMutation(async () => {
     const deferred: DeferredResolveCleanup[] = [];
-    const batched = await resolveUniqueEditBatch(handles, decision, deferred);
+    const batched = await resolveRetainedEditBatch(handles, decision, deferred);
     const results: TrackedEditResolutionResult[] = [];
     for (const handle of handles) {
       results.push(batched.get(handle) ?? await resolveTrackedEditNow(handle, decision, deferred));
@@ -3460,7 +3529,7 @@ export function useWordDoc() {
                     }
                   }
                   const collection = match.getTrackedChanges();
-                  collection.load("items");
+                  collection.load(TRACKED_CHANGE_FIELDS);
                   return collection;
                 });
                 // A rejected sync is ambiguous: Office may fail before sending
@@ -3516,11 +3585,6 @@ export function useWordDoc() {
                 }
 
                 if (exactRevisions) {
-                  for (const change of generatedChanges) {
-                    change.load(["type", "text"]);
-                  }
-                  await context.sync();
-
                   const verifiedSubset = pickEditRevisionSubset(
                     generatedChanges,
                     edit,
@@ -3547,17 +3611,13 @@ export function useWordDoc() {
                   ];
                   const rereadCollections = rereadTargets.map((range) => {
                     const collection = range.getTrackedChanges();
-                    collection.load("items");
+                    collection.load(TRACKED_CHANGE_FIELDS);
                     return collection;
                   });
                   await context.sync();
                   const rereadChanges = rereadCollections.flatMap(
                     (collection) => collection.items,
                   );
-                  for (const change of rereadChanges) {
-                    change.load(["type", "text"]);
-                  }
-                  await context.sync();
 
                   // Evaluate each collection on its own: the same underlying
                   // revision reaches this batch as a distinct proxy per
@@ -3597,14 +3657,12 @@ export function useWordDoc() {
                 // Word.run completes: the exact children when they were
                 // verified, and always the edited passage itself.
                 trackingQueued = true;
-                const queueRevisionTracking = (): void => {
-                  if (!exactRevisions) return;
+                if (exactRevisions) {
                   for (const collection of managedCollections) {
                     collection.track();
                   }
                   for (const change of managedChanges) change.track();
-                };
-                queueRevisionTracking();
+                }
                 const revisionRanges = exactRevisions
                   ? managedChanges
                       .map((change) => ({
@@ -3636,12 +3694,15 @@ export function useWordDoc() {
                     ];
                 for (const range of candidateRanges) range.track();
 
-                // The hidden bookmark is queued in the same round trip as the
-                // tracking above. Its failure must stay a warning, never an
-                // apply failure, and a failed sync does not say which command
-                // failed -- so on failure both are re-run apart, exactly as
-                // they ran before they shared a sync: tracking first (fatal),
-                // then the bookmark (a warning).
+                await context.sync();
+
+                // The hidden bookmark keeps its own round trip after the
+                // tracking sync. Sharing that sync would save one round trip
+                // per edit, but a failed shared sync does not say which
+                // command failed, and retrying would re-track proxies and
+                // re-read ranges from the failed batch -- whose validity on a
+                // real host is unproven. A refused bookmark must stay a
+                // warning, never an unmanaged edit, so it stays separate.
                 let bookmarkName: string | undefined;
                 const persistentEditId = edit.stableEditId;
                 const reportBookmarkFailure = (error: unknown): void => {
@@ -3691,29 +3752,12 @@ export function useWordDoc() {
                   });
                 };
                 const queuedBookmark = queueBookmark();
-                if (!queuedBookmark) {
-                  await context.sync();
-                } else {
+                if (queuedBookmark) {
                   try {
                     await context.sync();
                     commitBookmark(queuedBookmark);
                   } catch (error) {
-                    console.debug(
-                      "[tracked-edit/apply] tracking + bookmark batch failed; retrying apart",
-                      logErrorMessage(error),
-                    );
-                    queueRevisionTracking();
-                    for (const range of candidateRanges) range.track();
-                    await context.sync();
-                    const retriedBookmark = queueBookmark();
-                    if (retriedBookmark) {
-                      try {
-                        await context.sync();
-                        commitBookmark(retriedBookmark);
-                      } catch (bookmarkError) {
-                        reportBookmarkFailure(bookmarkError);
-                      }
-                    }
+                    reportBookmarkFailure(error);
                   }
                 }
 

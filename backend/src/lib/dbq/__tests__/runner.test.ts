@@ -9,7 +9,8 @@ import {
     NonRetryableJobError,
     processClaimedJob,
     retryDelayMs,
-    runDbJobTick,
+    createDbJobPool,
+    createDbJobClaimGate,
     startDbJobRunner,
     stopDbJobRunner,
     runDbJobRetentionSweep,
@@ -68,6 +69,10 @@ function makeDb(opts?: {
             },
             lt(col: string, val: unknown) {
                 state.filters[`lt:${col}`] = val;
+                return b;
+            },
+            in(col: string, vals: unknown[]) {
+                state.filters[col] = vals;
                 return b;
             },
             order() {
@@ -130,6 +135,19 @@ const JOB = (over: Partial<DbJob> = {}): DbJob => ({
     created_at: "2026-08-21T00:00:00Z",
     ...over,
 });
+
+
+/** One claim through the production pool, then wait for the claimed jobs. */
+async function claimAndRun(
+    db: unknown,
+    handlers: Parameters<typeof createDbJobPool>[1],
+    failureHooks: Parameters<typeof createDbJobPool>[2] = {},
+    claimGate = createDbJobClaimGate(),
+) {
+    const pool = createDbJobPool(db as never, handlers, failureHooks, { claimGate });
+    await pool.fill();
+    await pool.drain();
+}
 
 describe("retryDelayMs", () => {
     it("backs off exponentially and caps at 30 minutes", () => {
@@ -346,7 +364,7 @@ describe("processClaimedJob", () => {
     });
 });
 
-describe("runDbJobTick", () => {
+describe("job pool claim and run", () => {
     it("survives a claim failure (e.g. migration not applied) without throwing", async () => {
         const db = makeDb({
             rpc: async () => ({
@@ -354,14 +372,14 @@ describe("runDbJobTick", () => {
                 error: { message: "relation db_jobs does not exist" },
             }),
         });
-        await expect(runDbJobTick(db as never, {})).resolves.toBe(0);
+        await expect(claimAndRun(db, {})).resolves.toBeUndefined();
     });
 
     it("processes every claimed job even when one handler rejects unexpectedly", async () => {
         const jobs = [JOB({ id: "a" }), JOB({ id: "b" })];
         const db = makeDb({ rpc: async () => ({ data: jobs, error: null }) });
         const seen: string[] = [];
-        await runDbJobTick(db as never, {
+        await claimAndRun(db, {
             "test.kind": async (_db, job) => {
                 seen.push(job.id);
                 if (job.id === "a") throw new Error("boom");
@@ -401,6 +419,13 @@ describe("startDbJobRunner", () => {
     });
 });
 
+/** Row ids the sweep deleted, whether one by one or as a batch. */
+function deletedIds(deletes: Record<string, unknown>[]): string[] {
+    return deletes.flatMap((d) =>
+        Array.isArray(d.id) ? (d.id as string[]) : typeof d.id === "string" ? [d.id] : [],
+    );
+}
+
 describe("runDbJobRetentionSweep", () => {
     it("deletes an expired export's storage object BEFORE dropping its row", async () => {
         const order: string[] = [];
@@ -416,7 +441,7 @@ describe("runDbJobRetentionSweep", () => {
             },
         });
         expect(order).toEqual(["file:exports/u/e1.json"]);
-        expect(origThen.some((d) => d.id === "e1")).toBe(true);
+        expect(deletedIds(origThen)).toContain("e1");
     });
 
     it("keeps the row when the artifact delete fails, so the next sweep retries", async () => {
@@ -430,7 +455,7 @@ describe("runDbJobRetentionSweep", () => {
                 throw new Error("storage down");
             },
         });
-        expect(db.deletes.some((d) => d.id === "e1")).toBe(false);
+        expect(deletedIds(db.deletes)).not.toContain("e1");
     });
 
     // The keep-to-retry promise above is only real if no OTHER deleter can
@@ -469,7 +494,27 @@ describe("runDbJobRetentionSweep", () => {
             },
         });
         expect(deleted).toHaveLength(250);
-        expect(db.deletes.filter((d) => typeof d.id === "string")).toHaveLength(250);
+        expect(deletedIds(db.deletes)).toHaveLength(250);
+    });
+
+    it("removes a batch's artifacts concurrently and their rows together", async () => {
+        const keysetRows = Array.from({ length: 40 }, (_, i) => ({
+            id: `e${String(i).padStart(3, "0")}`,
+            result: { storage_path: `exports/u/${i}.json` },
+        }));
+        const db = makeDb({ keysetRows });
+        let inFlight = 0;
+        let peak = 0;
+        await runDbJobRetentionSweep(db as never, {
+            deleteStoredFile: async () => {
+                peak = Math.max(peak, ++inFlight);
+                await new Promise((resolve) => setTimeout(resolve, 1));
+                inFlight--;
+            },
+        });
+        expect(peak).toBeGreaterThan(1);
+        expect(peak).toBeLessThanOrEqual(8);
+        expect(db.deletes.filter((d) => Array.isArray(d.id))).toHaveLength(1);
     });
 
     it("never sweeps failed cleanup rows that own private object pointers", async () => {
@@ -491,7 +536,7 @@ describe("explicit failure hooks", () => {
             expect(seenJob).toBe(job);
             expect(db.updates[0].payload.status).toBe("failed");
         });
-        await runDbJobTick(db as never, { "test.kind": async () => { throw new Error("terminal"); } }, { "test.kind": hook });
+        await claimAndRun(db, { "test.kind": async () => { throw new Error("terminal"); } }, { "test.kind": hook });
         expect(hook).toHaveBeenCalledOnce();
     });
     it("does not call terminal hooks for retryable or deferred work", async () => {
@@ -506,7 +551,7 @@ describe("explicit failure hooks", () => {
     it("contains a hook failure without abandoning later batch jobs", async () => {
         const db = makeDb({ rpc: async () => ({ data: [JOB({ attempts: 3 }), JOB({ id: "next", kind: "success" })], error: null }) });
         const hook = vi.fn(async () => { throw new Error("hook unavailable"); });
-        await runDbJobTick(db as never, { "test.kind": async () => { throw new Error("terminal"); }, success: async () => {} }, { "test.kind": hook });
+        await claimAndRun(db, { "test.kind": async () => { throw new Error("terminal"); }, success: async () => {} }, { "test.kind": hook });
         expect(hook).toHaveBeenCalledOnce();
         expect(db.updates.find(row => row.id === "next")?.payload.status).toBe("done");
     });

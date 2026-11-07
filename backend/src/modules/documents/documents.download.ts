@@ -8,7 +8,8 @@ import {
 } from "../../lib/documentVersions";
 import { checkProjectAccess, createDocumentAccessChecker } from "../../lib/access";
 import { mapWithConcurrency } from "../../lib/concurrency";
-import { BatchedQueryError, selectAllPages, selectInBatches } from "../../lib/batchedQuery";
+import { folderSubtreeIds } from "../../lib/folderSubtree";
+import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { zipExportLimitDetail } from "../../lib/zipExport";
 import {
     loadDocumentDisplay,
@@ -96,32 +97,6 @@ export async function getDisplayableVersion(
 // Download zip
 // ---------------------------------------------------------------------------
 
-/**
- * Expand a set of selected folders into every folder id beneath them.
- * `allFolders` is the caller's full folder set for the relevant scope, so the
- * walk is a fixpoint over an in-memory list rather than one query per level.
- */
-export function collectFolderDescendantIds(
-    roots: Array<{ id: unknown }>,
-    allFolders: Array<{ id: unknown; parent_folder_id: unknown }>,
-) {
-    const selected = new Set(roots.map((folder) => String(folder.id)));
-    let changed = true;
-    while (changed) {
-        changed = false;
-        for (const folder of allFolders) {
-            const id = String(folder.id);
-            const parentId = folder.parent_folder_id
-                ? String(folder.parent_folder_id)
-                : null;
-            if (!parentId || !selected.has(parentId) || selected.has(id))
-                continue;
-            selected.add(id);
-            changed = true;
-        }
-    }
-    return [...selected];
-}
 
 // A `type` (not an interface) so it keeps the implicit index signature that
 // attachActiveVersionPaths's row constraint requires.
@@ -192,16 +167,11 @@ export async function resolveZipExportDocuments(
     type FolderRow = { id: string; project_id?: string; library_kind?: string; parent_folder_id: string | null };
     const documentsWhereIn = (column: "id" | "folder_id" | "library_folder_id", ids: string[]) =>
         selectInBatches<DownloadDocumentRow>("download documents", ids, (batch) =>
-            selectAllPages<DownloadDocumentRow>("download documents", (after, limit) => {
-                let query = db
+            selectAllByKey<DownloadDocumentRow>("download documents", () =>
+                  db
                     .from("documents")
                     .select(DOCUMENT_COLUMNS)
-                    .in(column, batch)
-                    .order("id", { ascending: true })
-                    .limit(limit);
-                if (after) query = query.gt("id", after.id);
-                return query;
-            }),
+                    .in(column, batch)),
         );
     try {
         for (const doc of await documentsWhereIn("id", documentIds))
@@ -237,50 +207,46 @@ export async function resolveZipExportDocuments(
                     .filter((result) => result.access.ok)
                     .map((result) => result.projectId),
             );
-            const accessibleProjectRoots = projectRoots.filter((folder) =>
-                accessibleProjectIds.has(folder.project_id as string),
-            );
             const libraryKinds = [
                 ...new Set(libraryRoots.map((folder) => folder.library_kind as string)),
             ];
 
-            const [projectFolders, libraryFolders] = await Promise.all([
-                selectInBatches<FolderRow>("download project subtree", accessibleProjectIds, (batch) =>
-                    selectAllPages<FolderRow>("download project subtree", (after, limit) => {
-                        let query = db
+            // Walk down from the selected roots (per project, in that
+            // project; library roots within the caller's own folders of
+            // those kinds) instead of reading every folder of every
+            // project involved.
+            const projectFolderIds: string[] = [];
+            for (const projectId of accessibleProjectIds) {
+                const roots = projectRoots
+                    .filter((folder) => folder.project_id === projectId)
+                    .map((folder) => folder.id);
+                projectFolderIds.push(
+                    ...(await folderSubtreeIds("download project subtree", roots, (parents) =>
+                        db
                             .from("project_subfolders")
-                            .select("id, project_id, parent_folder_id")
-                            .in("project_id", batch)
-                            .order("id", { ascending: true })
-                            .limit(limit);
-                        if (after) query = query.gt("id", after.id);
-                        return query;
-                    }),
-                ),
-                libraryKinds.length > 0
-                    ? selectAllPages<FolderRow>("download library subtree", (after, limit) => {
-                          let query = db
+                            .select("id")
+                            .eq("project_id", projectId)
+                            .in("parent_folder_id", parents),
+                    )),
+                );
+            }
+            const libraryFolderIds = libraryRoots.length
+                ? await folderSubtreeIds(
+                      "download library subtree",
+                      libraryRoots.map((folder) => folder.id),
+                      (parents) =>
+                          db
                               .from("library_folders")
-                              .select("id, user_id, library_kind, parent_folder_id")
+                              .select("id")
                               .eq("user_id", userId)
                               .in("library_kind", libraryKinds)
-                              .order("id", { ascending: true })
-                              .limit(limit);
-                          if (after) query = query.gt("id", after.id);
-                          return query;
-                      })
-                    : [],
-            ]);
+                              .in("parent_folder_id", parents),
+                  )
+                : [];
 
             const [projectFolderDocs, libraryFolderDocs] = await Promise.all([
-                documentsWhereIn(
-                    "folder_id",
-                    collectFolderDescendantIds(accessibleProjectRoots, projectFolders),
-                ),
-                documentsWhereIn(
-                    "library_folder_id",
-                    collectFolderDescendantIds(libraryRoots, libraryFolders),
-                ),
+                documentsWhereIn("folder_id", projectFolderIds),
+                documentsWhereIn("library_folder_id", libraryFolderIds),
             ]);
             for (const doc of [...projectFolderDocs, ...libraryFolderDocs])
                 rawDocsById.set(doc.id, doc);
@@ -289,7 +255,7 @@ export async function resolveZipExportDocuments(
         return {
             ok: false,
             kind: "internal",
-            error: error instanceof BatchedQueryError ? error.cause : error,
+            error: queryFailureCause(error),
         };
     }
 

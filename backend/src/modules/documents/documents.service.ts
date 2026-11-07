@@ -27,7 +27,6 @@ export {
 
 export {
     getDisplayableVersion,
-    collectFolderDescendantIds,
     resolveZipExportDocuments,
     getDownloadUrl,
     getFileStreamSource,

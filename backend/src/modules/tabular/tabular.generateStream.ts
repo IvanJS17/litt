@@ -48,7 +48,7 @@ import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { extractRowColumns, finalizeCell } from "./tabular.extractRow";
 import { type ReviewRow } from "./tabular.rows";
-import { mutateInBatches, selectAllPages, selectInBatches } from "../../lib/batchedQuery";
+import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import {
     finishGeneration,
     parseCellContent,
@@ -292,8 +292,13 @@ async function tailTabularRun(args: {
 
     // Backstop: reconcile against the DB in case a pub/sub frame was missed (or,
     // for a reconnecting view, to replay progress that happened while away).
+    // One reconcile at a time: a tick is now ceil(pending rows / 50) reads,
+    // and on a slow database overlapping ticks would pile up behind each
+    // other. A tick that finds the previous one still running is skipped.
+    let reconciling = false;
     poll = setInterval(() => {
-        if (finished) return;
+        if (finished || reconciling) return;
+        reconciling = true;
         void (async () => {
             // Only the rows still waiting, and only cells that reached a
             // terminal state: re-reading every cell's content of the whole
@@ -306,22 +311,24 @@ async function tailTabularRun(args: {
                 status: string;
                 content: unknown;
             };
+            // Narrowed to the pending columns too, so the content of a
+            // pending row's already-resolved columns is not re-sent each tick
+            // (a row's cells still pending are a subset of these columns).
+            const pendingColumns = [
+                ...new Set([...pending].map((key) => Number(key.slice(key.lastIndexOf(":") + 1)))),
+            ];
             const cells = await selectInBatches<PolledCell>(
                 "reconcile poll",
                 [...pending].map((key) => key.slice(0, key.lastIndexOf(":"))),
                 (batch) =>
-                    selectAllPages<PolledCell>("reconcile poll", (after, limit) => {
-                        let query = db
+                    selectAllByKey<PolledCell>("reconcile poll", () =>
+                          db
                             .from("tabular_cells")
                             .select("id, row_id, column_index, status, content")
                             .eq("review_id", reviewId)
                             .in("row_id", batch)
-                            .in("status", ["done", "error"])
-                            .order("id", { ascending: true })
-                            .limit(limit);
-                        if (after) query = query.gt("id", after.id);
-                        return query;
-                    }),
+                            .in("column_index", pendingColumns)
+                            .in("status", ["done", "error"])),
             );
             for (const c of cells) {
                 const key = cellKey(c.row_id, c.column_index);
@@ -344,12 +351,16 @@ async function tailTabularRun(args: {
                     });
                 }
             }
-        })().catch((err) =>
-            log.error("[tabular/generate-async] reconcile poll failed", {
-                err,
-                reviewId,
-            }),
-        );
+        })()
+            .catch((err) =>
+                log.error("[tabular/generate-async] reconcile poll failed", {
+                    err,
+                    reviewId,
+                }),
+            )
+            .finally(() => {
+                reconciling = false;
+            });
     }, RECONCILE_INTERVAL_MS);
     if (typeof poll.unref === "function") poll.unref();
 

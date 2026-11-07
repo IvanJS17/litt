@@ -1705,17 +1705,38 @@ language sql
 stable
 set search_path = public
 as $$
+  -- project_is_ownerless / workflow_is_ownerless, written as anti-joins so
+  -- the planner evaluates them for the whole set at once instead of calling
+  -- a function (three subqueries) per private item. Keep the conditions in
+  -- step with those functions: not archived, creator no longer a member of
+  -- the item's organization, and no 'owner' override.
   select 'project'::text, p.id
   from public.projects p
   where p.org_id = any(p_org_ids)
     and p.visibility <> 'organization'
-    and public.project_is_ownerless(p.id, p.user_id, p.org_id)
+    and p.archived_at is null
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = p.org_id and creator.user_id = p.user_id
+    )
+    and not exists (
+      select 1 from public.project_org_access_overrides o
+      where o.project_id = p.id and o.role = 'owner'
+    )
   union all
   select 'workflow'::text, w.id
   from public.workflows w
   where w.org_id = any(p_org_ids)
     and w.visibility <> 'organization'
-    and public.workflow_is_ownerless(w.id, w.user_id, w.org_id);
+    and w.archived_at is null
+    and not exists (
+      select 1 from public.org_members creator
+      where creator.org_id = w.org_id and creator.user_id = w.user_id
+    )
+    and not exists (
+      select 1 from public.workflow_org_access_overrides o
+      where o.workflow_id = w.id and o.role = 'owner'
+    );
 $$;
 
 create or replace function public.workflow_access_role(
@@ -5659,6 +5680,54 @@ begin
 end;
 $$;
 
+-- Migration date: 2026-11-01
+-- Batch form of wipe_memory_file for erasure loops (account and
+-- organization deletion), one round trip instead of one per file. Each id
+-- is wiped by wipe_memory_file itself, so locking, epoch/revision fencing,
+-- validation and errors are identical; ids are taken once each, in id
+-- order, so concurrent batches lock rows in the same order. The whole batch
+-- is one transaction: a missing id (memory_file_not_found, P0002) or an
+-- invalid source (22023) rolls back every wipe in it.
+create or replace function public.wipe_memory_files(
+  p_ids uuid[],
+  p_enabled boolean,
+  p_updated_by uuid default null,
+  p_source text default 'wipe'
+)
+returns table(
+  memory_file_id uuid,
+  new_epoch bigint,
+  new_revision bigint,
+  effective_enabled boolean,
+  mutation_at timestamptz,
+  mutation_by uuid
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  file_id uuid;
+begin
+  if p_source is null or p_source not in ('wipe', 'settings') then
+    raise exception using errcode = '22023', message = 'invalid_memory_source';
+  end if;
+  for file_id in
+    select distinct requested.id from unnest(coalesce(p_ids, '{}'::uuid[])) requested(id)
+    order by requested.id
+  loop
+    return query
+      select file_id, wiped.new_epoch, wiped.new_revision, wiped.effective_enabled,
+        wiped.mutation_at, wiped.mutation_by
+      from public.wipe_memory_file(file_id, p_enabled, p_updated_by, p_source) wiped;
+  end loop;
+end;
+$$;
+revoke all on function public.wipe_memory_files(uuid[], boolean, uuid, text)
+  from public, anon, authenticated;
+grant execute on function public.wipe_memory_files(uuid[], boolean, uuid, text)
+  to service_role;
+
 -- Settings' "Delete all memory" clears one workspace. With p_org_id null that
 -- is Personal: the person's Personal memory and the memories of the private
 -- projects they created, all-or-nothing, excluding every organization project
@@ -8780,14 +8849,49 @@ $$;
 create or replace function public.list_org_private_content(p_org_id uuid,p_actor_id uuid,p_limit integer default 50,p_offset integer default 0,p_search text default '')
 returns table(kind text,item_id uuid,title text,user_id uuid,display_name text,email text,has_access boolean)
 language plpgsql stable set search_path=public,pg_temp as $$
+declare page_end bigint := greatest(0,p_offset)::bigint+greatest(1,least(p_limit,101));
 begin
   if not public.can_access_org_private_content(p_org_id,p_actor_id) then
     raise exception 'Private content permission required' using errcode='42501';
   end if;
+  -- The catalogue of org_private_content_items, one arm per kind. The page
+  -- is ordered by (lower(title), kind, item_id) and kind is constant within
+  -- an arm, so the page can only contain each arm's first offset+limit rows
+  -- in (lower(title), id) order: each arm stops there (index order for
+  -- projects, workflows, chats and reviews) and only those are sorted.
   return query select item.kind,item.item_id,item.title,item.user_id,profile.display_name,profile.email,
     exists(select 1 from public.org_private_content_access a where a.org_id=p_org_id and a.user_id=p_actor_id and a.kind=item.kind and a.item_id=item.item_id)
-    from public.org_private_content_items(p_org_id) item left join public.user_profiles profile on profile.user_id=item.user_id
-    where item.user_id is distinct from p_actor_id and (p_search='' or position(lower(p_search) in lower(coalesce(item.title,'')))>0)
+    from (
+      select * from (select 'project'::text kind,p.id item_id,p.name title,p.user_id
+        from public.projects p
+        where p.org_id=p_org_id and p.archived_at is null and p.visibility='private' and p.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(p.name,'')))>0)
+        order by lower(p.name) nulls last,p.id limit page_end) project_page
+      union all
+      select * from (select 'workflow'::text kind,w.id item_id,w.title title,w.user_id
+        from public.workflows w
+        where w.org_id=p_org_id and w.archived_at is null and w.visibility='private' and w.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(w.title,'')))>0)
+        order by lower(w.title) nulls last,w.id limit page_end) workflow_page
+      union all
+      select * from (select 'chat'::text kind,c.id item_id,c.title title,c.user_id
+        from public.chats c
+        where c.org_id=p_org_id and c.archived_at is null and c.project_id is null and c.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(c.title,'')))>0)
+        order by lower(c.title) nulls last,c.id limit page_end) chat_page
+      union all
+      select * from (select 'tabular_review'::text kind,r.id item_id,r.title title,r.user_id
+        from public.tabular_reviews r
+        where r.org_id=p_org_id and r.archived_at is null and r.project_id is null and r.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(r.title,'')))>0)
+        order by lower(r.title) nulls last,r.id limit page_end) tabular_review_page
+      union all
+      select * from (select 'document'::text kind,d.id item_id,coalesce(v.filename,'Untitled document') title,d.user_id
+        from public.documents d left join public.document_versions v on v.id=d.current_version_id and v.deleted_at is null
+        where d.org_id=p_org_id and d.archived_at is null and d.project_id is null and d.workflow_id is null and d.user_id is distinct from p_actor_id
+          and (p_search='' or position(lower(p_search) in lower(coalesce(coalesce(v.filename,'Untitled document'),'')))>0)
+        order by lower(coalesce(v.filename,'Untitled document')) nulls last,d.id limit page_end) document_page
+    ) item left join public.user_profiles profile on profile.user_id=item.user_id
     order by lower(item.title) nulls last,item.kind,item.item_id
     limit greatest(1,least(p_limit,101)) offset greatest(0,p_offset);
 end;
@@ -9413,9 +9517,25 @@ begin
   -- remain bound parameters, including arrays, search patterns and dates.
   candidates:=$query$
     select a.* from public.audit_events a where a.org_id=$1
+      -- Profile matches are resolved once per call: the organization's
+      -- distinct actors (an index seek per actor, as organization_audit_actors
+      -- does), each profile read by its key, instead of a profile probe per
+      -- event or a pass over every profile on the platform.
       and ($4->>'username_pattern' is null or a.user_email ilike $4->>'username_pattern'
-        or exists(select 1 from public.user_profiles profile where profile.user_id=a.user_id
-          and (profile.display_name ilike $4->>'username_pattern' or profile.email ilike $4->>'username_pattern')))
+        or a.user_id = any(array(
+          with recursive actors as (
+            (select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id is not null order by e.user_id limit 1)
+            union all
+            select next_actor.user_id from actors previous cross join lateral (
+              select e.user_id from public.audit_events e
+              where e.org_id=$1 and e.user_id>previous.user_id order by e.user_id limit 1
+            ) next_actor
+          )
+          select profile.user_id from actors cross join lateral (
+            select p.user_id,p.display_name,p.email from public.user_profiles p where p.user_id=actors.user_id offset 0
+          ) profile
+          where profile.display_name ilike $4->>'username_pattern' or profile.email ilike $4->>'username_pattern')))
       and ($4->>'action' is null or a.action=$4->>'action')
       and ($4->>'status' is null or a.status=$4->>'status')
       and ($4->>'surface' is null or a.surface=$4->>'surface')
@@ -9581,12 +9701,20 @@ create or replace function public.backfill_document_text(p_limit integer default
 returns integer language plpgsql security invoker set search_path=public,pg_temp as $$
 declare row record; queued integer := 0;
 begin
+  -- Work starts from the unfinished text rows (partial index). Every live
+  -- version with a source file has a row for its current revision and
+  -- extractor: document_text_changed queues one on insert and on every
+  -- revision change, and 20261101_23 turned versions from before text
+  -- search into pending rows. So no live version is missing a row or has a
+  -- stale one, and "pending or processing" is the whole old work list.
+  -- Bumping extractor_version must turn its outdated rows pending likewise.
   for row in
-    select v.id from public.document_versions v join public.documents d on d.id=v.document_id
-    left join public.document_version_texts t on t.version_id=v.id
-    where v.deleted_at is null and v.storage_path is not null and d.archived_at is null
-      and (t.version_id is null or t.source_revision<>v.text_revision or t.extractor_version<>1
-        or t.status in ('pending','processing') or (p_retry_failed and t.status='failed'))
+    select v.id from public.document_version_texts t
+    join public.document_versions v on v.id=t.version_id
+    join public.documents d on d.id=v.document_id
+    where t.status <> 'ready'
+      and (t.status in ('pending','processing') or (p_retry_failed and t.status='failed'))
+      and v.deleted_at is null and v.storage_path is not null and d.archived_at is null
       and not exists(select 1 from public.db_jobs j where j.dedupe_key='document.text:'||v.id||':'||v.text_revision
         and j.status in ('pending','running'))
     order by (v.id=d.current_version_id) desc, v.id
@@ -11680,6 +11808,60 @@ create index if not exists chat_messages_files_idx
   on public.chat_messages using gin (files jsonb_path_ops) where files is not null;
 create index if not exists tabular_reviews_document_ids_idx
   on public.tabular_reviews using gin (document_ids);
+
+-- Migration date: 2026-11-01
+-- Payload lookups the backend runs against db_jobs. Without these each one
+-- reads the whole queue table, done and failed history included:
+--  * account erasure deletes every job naming the user (payload userId, or
+--    base.userId) and lists that user's export.build jobs;
+--  * account erasure lists the user's memory.consolidate jobs by actorUserId
+--    in any status (the epoch index covers only live ones);
+--  * document_cache_writer_active and the inline text runner find a
+--    version's precompute/extract jobs by versionId.
+-- Partial predicates keep each index to the rows that carry the key; an
+-- equality on the expression implies "is not null", so the planner can use
+-- them for parameterized queries.
+create index if not exists db_jobs_payload_user_idx
+  on public.db_jobs((payload->>'userId')) where (payload->>'userId') is not null;
+create index if not exists db_jobs_payload_base_user_idx
+  on public.db_jobs((payload->'base'->>'userId')) where (payload->'base'->>'userId') is not null;
+create index if not exists db_jobs_memory_actor_idx
+  on public.db_jobs((payload->>'actorUserId')) where kind = 'memory.consolidate';
+create index if not exists db_jobs_text_version_idx
+  on public.db_jobs((payload->>'versionId'))
+  where kind in ('document.extract_text', 'document.precompute_text');
+
+-- Migration date: 2026-11-01
+-- resolve_project_folder_path / resolve_library_folder_path look a sibling
+-- up by its case- and space-insensitive name once per path segment, and
+-- once per "(2)", "(3)" ... rename probe. With only (project_id) or
+-- (user_id, library_kind) indexed, each lookup read every folder in the
+-- project or library. Keyed by the normalized name, a lookup reads only
+-- the folders of that name; the parent (matched with IS NOT DISTINCT FROM,
+-- which no index can serve) and workspace are checked on those few rows.
+create index if not exists project_subfolders_name_idx
+  on public.project_subfolders(project_id,lower(btrim(name)));
+create index if not exists library_folders_name_idx
+  on public.library_folders(user_id,library_kind,lower(btrim(name)));
+
+-- Migration date: 2026-11-01
+-- list_org_private_content pages an organization's private catalogue by
+-- lower(title), item id. Each kind's catalogue rows, in that order, so a
+-- page reads about offset + limit rows per kind instead of sorting them all.
+create index if not exists projects_private_catalogue_idx
+  on public.projects(org_id,lower(name),id) where archived_at is null and visibility = 'private';
+create index if not exists workflows_private_catalogue_idx
+  on public.workflows(org_id,lower(title),id) where archived_at is null and visibility = 'private';
+create index if not exists chats_private_catalogue_idx
+  on public.chats(org_id,lower(title),id) where archived_at is null and project_id is null;
+create index if not exists tabular_reviews_private_catalogue_idx
+  on public.tabular_reviews(org_id,lower(title),id) where archived_at is null and project_id is null;
+
+-- Migration date: 2026-11-01
+-- backfill_document_text's work list: text rows not yet ready. Ready rows
+-- (almost all of them) stay out of the index.
+create index if not exists document_version_texts_unfinished_idx
+  on public.document_version_texts(status,version_id) where status <> 'ready';
 
 -- ===== LiTT extension (LiTT sync 2026-10-23) =====
 -- LiTT tables, guards and policies on top of upstream's schema. Each block
@@ -18011,6 +18193,16 @@ insert into public.schema_migrations (filename) values
   ('20261101_12_overview_counts_after_page.sql'),
   ('20261101_13_document_text_search_per_version.sql'),
   ('20261101_14_claim_jobs_index_order.sql'),
+  ('20261101_15_db_jobs_payload_indexes.sql'),
+  ('20261101_16_folder_name_indexes.sql'),
+  ('20261101_17_ownerless_items_set_based.sql'),
+  ('20261101_18_departure_root_candidates.sql'),
+  ('20261101_19_audit_username_filter_actors.sql'),
+  ('20261101_20_private_catalogue_indexes.sql'),
+  ('20261101_21_private_catalogue_paged_per_kind.sql'),
+  ('20261101_22_document_text_unfinished_index.sql'),
+  ('20261101_23_document_text_backfill_from_unfinished.sql'),
+  ('20261101_24_wipe_memory_files_batch.sql'),
   ('20261101_50_litt_project_access_private_matter.sql'),
   ('20261101_51_litt_departure_private_matter.sql'),
   ('20261106_50_litt_training.sql'),

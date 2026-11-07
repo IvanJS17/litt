@@ -18,6 +18,11 @@ import { createServerSupabase } from "../supabase";
 import { jobErrorMessage } from "./jobError";
 import { runIsolated } from "./jobScope";
 import { deleteFile } from "../storage";
+import { mapWithConcurrency } from "../concurrency";
+import { mutateInBatches } from "../batchedQuery";
+
+/** Object deletes in flight at once, per sweep or cleanup. */
+const STORAGE_DELETE_CONCURRENCY = 8;
 import { enqueueAppJobDelivery } from "../queue/appJobsQueue";
 import { redisEnabled } from "./driver";
 import {
@@ -350,7 +355,7 @@ async function claimDbJobs(
         // asReportableError keeps the PostgREST object as the cause, so its
         // `code` (PGRST202 = RPC missing) reaches failure_code and the log
         // line says why; re-wrapping `error.message` in a new Error lost it.
-        const failure = asReportableError(error, runDbJobTick);
+        const failure = asReportableError(error, claimDbJobs);
         if (claimGate.failure(failure).report) {
             // The Error object, not a string: the log keeps the stack and the
             // PostgREST code on its cause chain.
@@ -366,23 +371,7 @@ async function claimDbJobs(
     return (data ?? []) as DbJob[];
 }
 
-/** One poll tick: claim a batch and run every claimed job to completion. */
-export async function runDbJobTick(
-    db: Db,
-    handlers: DbJobHandlers,
-    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
-    claimGate: PollFailureGate = defaultClaimGate,
-): Promise<number> {
-    const jobs = await claimDbJobs(db, CLAIM_BATCH, claimGate);
-    // allSettled defensively: processClaimedJob handles its own errors, but
-    // one job's unexpected rejection must never abandon the rest of a batch.
-    await Promise.allSettled(
-        jobs.map((job) => processClaimedJob(db, handlers, job, failureHooks)),
-    );
-    return jobs.length;
-}
-
-type DbJobPool = {
+export type DbJobPool = {
     /** Claim jobs for every free slot (no-op while a claim is in flight). */
     fill(): Promise<void>;
     /** Jobs currently executing. */
@@ -399,7 +388,7 @@ type DbJobPool = {
  * for more work, so a slow job only ever occupies its own slot. Concurrency
  * is still capped at `capacity` per process, as before.
  */
-function createDbJobPool(
+export function createDbJobPool(
     db: Db,
     handlers: DbJobHandlers,
     failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
@@ -494,7 +483,9 @@ export async function runDbJobRetentionSweep(
         if (after) query = query.gt("id", after);
         const { data: expired } = await query;
         const rows = (expired ?? []) as Pick<DbJob, "id" | "result">[];
-        for (const row of rows) {
+        // Objects are removed a few at a time rather than one after another,
+        // and the rows whose object is gone are deleted together.
+        const removable = await mapWithConcurrency(rows, STORAGE_DELETE_CONCURRENCY, async (row) => {
             const path = row.result?.storage_path;
             if (typeof path === "string" && path.length > 0) {
                 try {
@@ -505,10 +496,20 @@ export async function runDbJobRetentionSweep(
                         id: row.id,
                         err,
                     });
-                    continue;
+                    return null;
                 }
             }
-            await db.from("db_jobs").delete().eq("id", row.id);
+            return row.id;
+        });
+        try {
+            await mutateInBatches(
+                "export row expiry",
+                removable.filter((id): id is string => id !== null),
+                (ids) => db.from("db_jobs").delete().in("id", ids),
+            );
+        } catch (err) {
+            // As before, a failed row delete leaves the row for the next sweep.
+            console.error("[dbq] export row delete failed", { err });
         }
         if (rows.length < EXPORT_EXPIRY_BATCH) break;
         after = rows[rows.length - 1].id;

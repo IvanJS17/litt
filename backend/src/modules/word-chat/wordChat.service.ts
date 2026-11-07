@@ -16,7 +16,7 @@ import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingN
 // chat-activity write (`recordWordChatActivity`) live here.
 
 import { randomUUID } from "node:crypto";
-import { BatchedQueryError, selectInBatches } from "../../lib/batchedQuery";
+import { queryFailureCause, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import type { Db } from "../../lib/supabase";
 import { resolveRequestTimeZone } from "../../lib/userTime";
 import {
@@ -319,20 +319,27 @@ export async function getWordChatWithMessages(
   if (assistantMessageIds.length > 0) {
     let edits: Record<string, unknown>[];
     try {
-      // Grouped per message below, so per-batch block_index order suffices.
+      // Paged per batch: 50 long assistant turns can carry more edits than
+      // max_rows, and a truncated read dropped the rest from the transcript.
       edits = await selectInBatches<Record<string, unknown>>(
         "Word document edits load",
         assistantMessageIds,
         (batch) =>
-          db
-            .from("word_document_edits")
-            .select("*")
-            .in("word_chat_message_id", batch)
-            .order("block_index", { ascending: true }),
+          selectAllByKey<Record<string, unknown>>("Word document edits load", () =>
+            db
+              .from("word_document_edits")
+              .select("*")
+              .in("word_chat_message_id", batch),
+          ),
+      );
+      // Grouped per message below; within a message, document order.
+      edits.sort(
+        (a, b) =>
+          Number(a.block_index ?? 0) - Number(b.block_index ?? 0) ||
+          String(a.id).localeCompare(String(b.id)),
       );
     } catch (editsError) {
-      const cause = editsError instanceof BatchedQueryError ? editsError.cause : editsError;
-      return serviceFailure("db.query_failed", "Word document edits load failed", cause);
+      return serviceFailure("db.query_failed", "Word document edits load failed", queryFailureCause(editsError));
     }
     for (const edit of edits) {
       const messageId = edit.word_chat_message_id;

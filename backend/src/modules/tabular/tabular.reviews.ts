@@ -6,7 +6,7 @@
 
 import { recordAudit } from "../../lib/audit";
 import { chunkArray } from "../../lib/arrays";
-import { mutateInBatches, selectAllPages, selectInBatches } from "../../lib/batchedQuery";
+import { mutateInBatches, selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { walkFolderGraph } from "../../lib/folderTree";
 import type { TabularReviewHistoryStatus } from "@mike/contracts";
 import {
@@ -330,10 +330,14 @@ export async function rebuildRowsForReview(
  * rows. Deleting a row cascades to its cells (tabular_cells.row_id is ON
  * DELETE CASCADE), so the old delete-everything rebuild threw away every
  * finished — paid-for — answer whenever one document was added or removed.
- * Here a row is replaced only when its own membership changes: a removed
- * document's row, and under folder grouping the row of any folder that
- * gains or loses a document (its answers covered the old folder contents).
- * Rows are then renumbered by label exactly as a rebuild would order them.
+ * Here a row is kept only when its group is unchanged: the same documents
+ * would form it today. Under document grouping that is "its document is
+ * still selected". Under folder grouping it is compared against the
+ * documents' CURRENT folders, not just the selection: a document that moved
+ * folders since the row was built changes both its old and its new group,
+ * whether or not the selection change touched them. Every other row is
+ * rebuilt (its cells start over), and rows are renumbered by label exactly
+ * as a rebuild would order them.
  */
 export async function syncRowsForDocumentChange(
     db: Db,
@@ -348,43 +352,56 @@ export async function syncRowsForDocumentChange(
     const rowKey = (row: ReviewRow) => {
         if (row.row_type !== "folder")
             return `document:${row.source_document_ids?.[0] ?? row.document_id}`;
-        // A folder row whose folder was deleted (folder_id set null) never
-        // merges with anything.
+        // A folder row whose folder was deleted (folder_id set null) matches
+        // no current group, so it is rebuilt from its documents.
         const key = rowKeyOf("folder", row, null);
         return key === "document:null" ? `row:${row.id}` : key;
     };
     const kept = new Map<string, ReviewRow>();
     const dropped: ReviewRow[] = [];
-    for (const row of rows) {
-        const sources = row.source_document_ids ?? [];
-        const intact = sources.length > 0 && sources.every((id) => next.has(id));
-        if (intact && !kept.has(rowKey(row))) kept.set(rowKey(row), row);
-        else dropped.push(row);
-    }
-    const covered = new Set([...kept.values()].flatMap((row) => row.source_document_ids ?? []));
-    let docs = await fetchSourceDocuments(
-        db,
-        [...next].filter((id) => !covered.has(id)),
-    );
-    // A new document joining a folder that still has a row: that folder row
-    // is rebuilt with its old members plus the newcomer.
-    const joined = new Set(docs.map((doc) => rowKeyOf(grouping, doc, doc.id)));
-    const merged = [...kept].filter(
-        ([key]) => !key.startsWith("document:") && joined.has(key),
-    );
-    if (merged.length) {
-        for (const [key, row] of merged) {
-            kept.delete(key);
-            dropped.push(row);
+    let docs: SourceDocument[];
+    if (grouping === "folder") {
+        // One batched read of every selected document's current folder; the
+        // groups are derived once and each row is compared with its group.
+        docs = await fetchSourceDocuments(db, [...next]);
+        const members = new Map<string, Set<string>>();
+        for (const doc of docs) {
+            const key = rowKeyOf(grouping, doc, doc.id);
+            const group = members.get(key);
+            if (group) group.add(doc.id);
+            else members.set(key, new Set([doc.id]));
         }
-        docs = [
-            ...docs,
-            ...(await fetchSourceDocuments(
-                db,
-                merged.flatMap(([, row]) => row.source_document_ids ?? []),
-            )),
-        ];
+        for (const row of rows) {
+            const key = rowKey(row);
+            const sources = new Set(row.source_document_ids ?? []);
+            const group = members.get(key);
+            const unchanged =
+                !!group &&
+                !kept.has(key) &&
+                group.size === sources.size &&
+                [...group].every((id) => sources.has(id));
+            if (unchanged) kept.set(key, row);
+            else dropped.push(row);
+        }
+        docs = docs.filter((doc) => !kept.has(rowKeyOf(grouping, doc, doc.id)));
+    } else {
+        for (const row of rows) {
+            const sources = row.source_document_ids ?? [];
+            const intact = sources.length > 0 && sources.every((id) => next.has(id));
+            if (intact && !kept.has(rowKey(row))) kept.set(rowKey(row), row);
+            else dropped.push(row);
+        }
+        const covered = new Set([...kept.values()].flatMap((row) => row.source_document_ids ?? []));
+        docs = await fetchSourceDocuments(
+            db,
+            [...next].filter((id) => !covered.has(id)),
+        );
     }
+
+    // Every read (folder labels included) happens before the first write: a
+    // failure here must leave the grid as it was, not with rows deleted
+    // (their finished cells cascading away) and nothing inserted.
+    const inputs = await buildRowInputs(db, userId, docs, grouping);
 
     await mutateInBatches(
         "review row delete",
@@ -396,8 +413,6 @@ export async function syncRowsForDocumentChange(
                 .eq("review_id", reviewId)
                 .in("id", batch),
     );
-
-    const inputs = await buildRowInputs(db, userId, docs, grouping);
     const order = [
         ...[...kept.values()].map((row) => ({ label: row.label, row, input: null as RowInput | null })),
         ...inputs.map((input) => ({ label: input.label, row: null as ReviewRow | null, input })),
@@ -431,19 +446,11 @@ export async function syncCellsForReviewRows(
 ): Promise<void> {
     // Both reads are paged: a truncated cell read made every cell past the
     // first max_rows look missing, and the insert below then duplicated it.
-    const rows = await selectAllPages<{ id: string; document_id: string | null }>(
-        "review rows",
-        (after, limit) => {
-            let query = db
+    const rows = await selectAllByKey<{ id: string; document_id: string | null }>("review rows", () =>
+              db
                 .from("tabular_review_rows")
                 .select("id,document_id")
-                .eq("review_id", reviewId)
-                .order("id", { ascending: true })
-                .limit(limit);
-            if (after) query = query.gt("id", after.id);
-            return query;
-        },
-    );
+                .eq("review_id", reviewId));
     const cells = await loadReviewCells<{ id: string; row_id: string; column_index: number }>(
         db,
         reviewId,
@@ -1392,17 +1399,21 @@ export async function updateTabularReview(
                 activeColumns,
                 normalizeGrouping(updatedReview.document_grouping),
             );
-        } else if (rowShapeChanged) {
-            await syncRowsForDocumentChange(
-                db,
-                reviewId,
-                userId,
-                (updatedReview.document_ids ?? []) as string[],
-                activeColumns,
-                normalizeGrouping(updatedReview.document_grouping),
-            );
-        } else if (Array.isArray(body.columns_config)) {
-            await syncCellsForReviewRows(db, reviewId, activeColumns);
+        } else {
+            if (rowShapeChanged)
+                await syncRowsForDocumentChange(
+                    db,
+                    reviewId,
+                    userId,
+                    (updatedReview.document_ids ?? []) as string[],
+                    activeColumns,
+                    normalizeGrouping(updatedReview.document_grouping),
+                );
+            // The grid sends its columns with every document change, so both
+            // can change in one PATCH: rows the sync kept still need cells for
+            // an added column and must lose those of a removed one.
+            if (Array.isArray(body.columns_config))
+                await syncCellsForReviewRows(db, reviewId, activeColumns);
         }
     } catch (syncError) {
         // The cause stays in the server log; a database message is not a
