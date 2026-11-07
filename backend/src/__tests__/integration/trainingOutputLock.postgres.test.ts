@@ -142,7 +142,7 @@ describe.skipIf(!container)("LiTT pasante seal and approvals in PostgreSQL", () 
         expect(psql("select count(*) from public.training_version_approvals")).toBe("1");
     });
 
-    it("lets append_ai_review_export accept only the pasante seal in its artifact", () => {
+    it("lets append_ai_review_export accept only a stated pasante seal or null in its artifact", () => {
         const artifact = (extra: string) => `jsonb_build_object(
             'idempotency_key','k1','review_id',${q(40)},'review_revision',1,'execution_id',${q(41)},
             'organization_id',${q(42)},'matter_id',${q(43)},'project_id',${q(44)},'document_id',${q(45)},
@@ -156,9 +156,12 @@ describe.skipIf(!container)("LiTT pasante seal and approvals in PostgreSQL", () 
         const call = (extra: string) =>
             failure(`select public.append_ai_review_export(${q(LAWYER)},${q(42)},1,${artifact(extra)});`);
         // A valid contract gets past the shape check to the (absent) review.
-        expect(call("")).toContain("AI review export scope is invalid");
+        expect(call(",'training_stage',null")).toContain("AI review export scope is invalid");
         expect(call(",'training_stage','pasante'")).toContain("AI review export scope is invalid");
+        // The seal is always stated: a missing key fails closed.
+        expect(call("")).toContain("Invalid AI review export contract");
         expect(call(",'training_stage','junior'")).toContain("Invalid AI review export contract");
+        expect(call(",'training_stage',true")).toContain("Invalid AI review export contract");
         expect(call(",'other','x'")).toContain("Invalid AI review export contract");
     });
 });

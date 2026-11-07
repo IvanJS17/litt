@@ -13551,13 +13551,14 @@ declare
   v_artifact_version_id uuid;
 begin
   if not public.ai_jsonb_exact_keys(
-    p_artifact - 'training_stage',
-    array['idempotency_key','review_id','review_revision','execution_id','organization_id','matter_id','project_id','document_id','document_version_id','source_document_sha256','evidence_receipt_sha256','filename','mime_type','artifact_sha256','artifact_document_id','artifact_document_version_id','storage_path','size_bytes']
+    p_artifact,
+    array['idempotency_key','review_id','review_revision','execution_id','organization_id','matter_id','project_id','document_id','document_version_id','source_document_sha256','evidence_receipt_sha256','filename','mime_type','artifact_sha256','artifact_document_id','artifact_document_version_id','storage_path','size_bytes','training_stage']
   )
      or not public.ai_valid_idempotency_key(p_artifact->>'idempotency_key')
-     -- LiTT training: the reviewer's effective stage, resolved by the backend;
-     -- only 'pasante' seals the report (docs/training.md).
-     or coalesce(p_artifact->>'training_stage', 'pasante') <> 'pasante'
+     -- LiTT training: the reviewer's effective stage, resolved by the backend
+     -- and always stated: 'pasante' seals the report, null does not
+     -- (docs/training.md). A missing or other value is refused.
+     or (p_artifact->'training_stage' in ('null'::jsonb, '"pasante"'::jsonb)) is not true
      or not public.ai_valid_sha256(p_artifact->>'source_document_sha256')
      or not public.ai_valid_sha256(p_artifact->>'evidence_receipt_sha256')
      or not public.ai_valid_sha256(p_artifact->>'artifact_sha256')

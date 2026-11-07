@@ -229,7 +229,8 @@ describe("approved artifact persistence", () => {
     db.rpc.mockImplementation(async (...args) => {
       order.push("rpc");
       const submitted = args[1]?.p_artifact as Record<string, unknown>;
-      const { document_id, document_version_id, ...metadata } = submitted;
+      // The export row has no seal column: training_stage is the RPC's input.
+      const { document_id, document_version_id, training_stage: _stage, ...metadata } = submitted;
       db.setCurrent({
         id: "export",
         ...metadata,
@@ -280,9 +281,9 @@ describe("approved artifact persistence", () => {
 
   it.each([
     ["pasante", { training_stage: "pasante" }],
-    [null, {}],
+    [null, { training_stage: null }],
   ] as const)(
-    "asks the RPC to seal the report only for a pasante reviewer (%s)",
+    "always states the reviewer's seal to the RPC, sealing only for a pasante (%s)",
     async (stage, expected) => {
       const objects = new Map<string, Uint8Array>();
       const storage = {
@@ -300,8 +301,7 @@ describe("approved artifact persistence", () => {
         string,
         unknown
       >;
-      if (stage) expect(submitted).toMatchObject(expected);
-      else expect(submitted).not.toHaveProperty("training_stage");
+      expect(submitted).toMatchObject(expected);
     },
   );
 

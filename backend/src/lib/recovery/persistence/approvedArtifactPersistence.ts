@@ -434,9 +434,8 @@ export function createApprovedArtifactPersistence(
             ...ids,
             storage_path: storagePath,
             size_bytes: bytes.length,
-            ...(context.training_stage === "pasante"
-              ? { training_stage: "pasante" }
-              : {}),
+            // Always stated, so the RPC can refuse a contract without it.
+            training_stage: context.training_stage === "pasante" ? "pasante" : null,
           },
         });
       } catch {
