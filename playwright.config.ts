@@ -7,6 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 /** Specs that mock the API in the browser; see the "synthetic" project. */
 const SYNTHETIC_SPECS = [
     /assistant-streaming\.spec\.ts/,
+    /i18n-request-locale\.spec\.ts/,
     /tabular-chat-lifecycle\.spec\.ts/,
     /settings-search-latency\.spec\.ts/,
 ];
@@ -45,6 +46,10 @@ export default defineConfig({
         : "list",
     /* Shared settings for all the projects below */
     use: {
+        /* The suite asserts English text. The app picks its language from
+           the browser (Accept-Language) when there is no LITT_LOCALE cookie
+           and otherwise defaults to es-MX, so pin English (plan i18n R2). */
+        locale: "en-US",
         baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
         video: process.env.PW_VIDEO === "1"
             ? { mode: "on", size: { width: 1280, height: 720 } }
