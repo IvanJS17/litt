@@ -110,7 +110,10 @@ function sendError(res: Response, error: unknown): void {
     });
   }
   if (error instanceof PlaybookRequestError) {
-    return void res.status(error.status).json({ detail: error.message });
+    return void res.status(error.status).json({
+      detail: error.message,
+      ...(error.code ? { code: error.code } : {}),
+    });
   }
   sendInternalError(res, error);
 }

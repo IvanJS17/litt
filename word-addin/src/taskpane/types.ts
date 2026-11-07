@@ -204,6 +204,9 @@ export interface Playbook {
   name: string;
   description: string;
   content: { documentTypes: string[] };
+  /** LiTT: a draft cannot be used in a review until an editor marks it ready. */
+  status?: "draft" | "ready";
+  isModel?: boolean;
 }
 
 export interface QuickAction {

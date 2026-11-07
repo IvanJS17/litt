@@ -36,6 +36,7 @@ export {
     deletePlaybookRun,
     deletePlaybook,
     playbookConfiguration,
+    assertPlaybookReady,
 } from "./playbooks.operations";
 export { type PlaybookImport } from "./playbooks.types";
 

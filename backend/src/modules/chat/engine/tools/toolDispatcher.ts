@@ -830,7 +830,8 @@ export async function runToolCalls(
           role: "tool",
           tool_call_id: tc.id,
           content: JSON.stringify(
-            playbooks.map((playbook) => ({
+            // LiTT: a draft would only be refused by run_playbook.
+            playbooks.filter((playbook) => playbook.status !== "draft").map((playbook) => ({
               id: playbook.id,
               name: playbook.name,
               description: playbook.description,
