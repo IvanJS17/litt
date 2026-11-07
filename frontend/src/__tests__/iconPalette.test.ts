@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 
 // LiTT's own icons stay inside the brand palette (DESIGN.md, Marca LiTT
 // v1.0): tinta, papel and the two ambers, with their tints. Blue and cyan
-// are never used; green is kept for success, so only an icon that means
-// "done" (`*-complete.svg`) may carry it. Third-party marks keep their own
+// are never used; red and orange are kept for errors and never decorate;
+// green is kept for success, so only an icon that means "done"
+// (`*-complete.svg`) may carry it. Third-party marks keep their own
 // colors and are left out: AI provider logos, the Office and PDF file
 // types, the globe, and the integrations' raster logos.
 
@@ -65,6 +66,10 @@ const isBlueOrCyan = (c: ReturnType<typeof hsl>) =>
     chromatic(c) && c.h >= 170 && c.h <= 260;
 const isGreen = (c: ReturnType<typeof hsl>) =>
     chromatic(c) && c.h >= 85 && c.h < 170;
+// Red and orange belong to errors, so they never decorate an icon. Both
+// ambers sit at hue 35-40 (ámbar tinta #965900 is 35.6), above this band.
+const isRedOrOrange = (c: ReturnType<typeof hsl>) =>
+    chromatic(c) && (c.h < 33 || c.h >= 330);
 
 const own = svgFiles(ICONS)
     .map((path) => relative(ICONS, path).replaceAll("\\", "/"))
@@ -85,6 +90,17 @@ describe("LiTT icon palette", () => {
         expect(isGreen(hsl("059669"))).toBe(true);
         expect(isGreen(hsl("ffb21e"))).toBe(false); // ámbar fósforo
         expect(isGreen(hsl("965900"))).toBe(false); // ámbar tinta
+        expect(isRedOrOrange(hsl("ef4444"))).toBe(true);
+        expect(isRedOrOrange(hsl("b45309"))).toBe(true);
+        expect(isRedOrOrange(hsl("ffb21e"))).toBe(false);
+        expect(isRedOrOrange(hsl("965900"))).toBe(false);
+    });
+
+    it.each(own)("%s uses no decorative red or orange", (name) => {
+        const svg = readFileSync(join(ICONS, name), "utf8");
+        expect(
+            hexColors(svg).filter((hex) => isRedOrOrange(hsl(hex))),
+        ).toEqual([]);
     });
 
     it.each(own)("%s uses no blue or cyan", (name) => {
