@@ -7,6 +7,8 @@
 import { test, expect } from "./support/fixtures";
 import type { Page } from "@playwright/test";
 
+const LONG_NAME = "Alejandra Montserrat Villaseñor Castañeda";
+
 const LONG_PROMPT =
   "Revisa la cláusula segunda del contrato de arrendamiento comercial y dime si el mantenimiento mayor a cargo del arrendatario es razonable; " +
   "compara la pena convencional por terminación anticipada con la actualización de la renta conforme al INPC y señala cualquier contradicción " +
@@ -68,6 +70,26 @@ test.describe("profile theme", () => {
 
     await expect(page.locator("html")).not.toHaveClass(/(^|\s)dark(\s|$)/);
   });
+});
+
+test("greets by first name so a long name keeps to one line", async ({
+  addin,
+  page,
+}) => {
+  await mockProfile(page, { displayName: LONG_NAME });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const greeting = page.getByRole("heading", {
+    name: "Hi, Alejandra",
+    exact: true,
+  });
+  await expect(greeting).toBeVisible();
+  const lines = await greeting.evaluate((element) => {
+    const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+    return Math.round(element.getBoundingClientRect().height / lineHeight);
+  });
+  expect(lines).toBe(1);
 });
 
 test("scrolls long composer text on whole lines instead of cutting the top one", async ({
