@@ -190,6 +190,13 @@ describe("SignupPage", () => {
         );
     });
 
+    it("links no upstream terms or privacy documents", () => {
+        const { container } = render(<SignupPage />);
+        const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
+        expect(hrefs.filter((href) => /mikeoss\.com/i.test(href))).toEqual([]);
+        expect(container.textContent).not.toMatch(/by signing up, you agree/i);
+    });
+
     it("places Google after the primary signup action without offering SSO", () => {
         render(<SignupPage />);
 

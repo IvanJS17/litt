@@ -12,7 +12,8 @@
  * framework-free and must not import from an application (`frontend/src/app/` or `word-addin/src/`).
  */
 
-export const SUPPORT_EMAIL = "will@mikeoss.com";
+// LiTT support. Upstream wrote to its own maintainer; userError.test.ts guards it.
+export const SUPPORT_EMAIL = "soporte@asteroitt.com";
 
 export type UserErrorKind =
     | "offline"
@@ -252,6 +253,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // change decided by another click or editor is decided: reloading helps.
     playbook_proposals_running: "conflict",
     playbook_change_decided: "conflict",
+    // LiTT does not publish a firm's workflow to upstream's public catalog;
+    // the route answers this code whatever the deployment's env says.
+    workflow_open_source_disabled: "not_found",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",
