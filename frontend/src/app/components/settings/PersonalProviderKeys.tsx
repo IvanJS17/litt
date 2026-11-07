@@ -41,8 +41,9 @@ const PROVIDER_SECTIONS = [
 
 const DEFAULT_INTRO = (
     <SettingsDescription>
-        Your keys are used in your Personal workspace only. In an organization,
-        models run on the keys its admins set up.
+        Your keys run your work in your Personal workspace. In an
+        organization its own keys come first, and yours cover any provider it
+        has not set up, unless its owners turn members&rsquo; own keys off.
     </SettingsDescription>
 );
 

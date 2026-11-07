@@ -117,6 +117,25 @@ describe("OnboardingModelsPage", () => {
         expect(screen.getByRole("button", { name: "Finish" })).toBeEnabled();
     });
 
+    it("says a joined organization also takes the person's own keys, unless it turned them off", async () => {
+        window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
+        mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
+        mocks.getOrgApiKeys.mockResolvedValue({
+            effective: { claude: true, sources: { claude: "org" } },
+            allow_personal_api_keys: true,
+        });
+        const { unmount } = render(<OnboardingModelsPage />);
+        expect(await screen.findByText(/in Example LLP, for any provider it has not set up/)).toBeVisible();
+        unmount();
+
+        mocks.getOrgApiKeys.mockResolvedValue({
+            effective: { claude: true, sources: { claude: "org" } },
+            allow_personal_api_keys: false,
+        });
+        render(<OnboardingModelsPage />);
+        expect(await screen.findByText(/Example LLP runs on its own keys only/)).toBeVisible();
+    });
+
     it("keeps the general wording when the joined organization has no models", async () => {
         window.localStorage.setItem("mike.activeWorkspace.user-1", "org-1");
         mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);

@@ -51,6 +51,12 @@ function hasUsableProvider(
     });
 }
 
+type JoinedOrganization = {
+    name: string;
+    hasModels: boolean;
+    allowsOwnKeys: boolean;
+};
+
 /**
  * The organization the person accepted an invitation to in the previous
  * step, and whether it already has models to run on. Onboarding runs
@@ -58,10 +64,7 @@ function hasUsableProvider(
  * resolved here. Null until known, or when there is nothing to say.
  */
 function useJoinedOrganization(userId: string) {
-    const [joined, setJoined] = useState<{
-        name: string;
-        hasModels: boolean;
-    } | null>(null);
+    const [joined, setJoined] = useState<JoinedOrganization | null>(null);
 
     useEffect(() => {
         const orgId = readStoredWorkspace(userId);
@@ -77,6 +80,9 @@ function useJoinedOrganization(userId: string) {
                     hasModels: hasUsableProvider(
                         apiKeyStateFromStatus(keys.effective),
                     ),
+                    // LiTT: members' own keys are allowed unless the owners
+                    // turned them off (on by default).
+                    allowsOwnKeys: keys.allow_personal_api_keys !== false,
                 });
             },
             () => {
@@ -92,12 +98,19 @@ function useJoinedOrganization(userId: string) {
     return joined;
 }
 
+// LiTT keeps personal BYOK inside an organization: a member's own key covers
+// any provider the organization has not set up, unless its owners turn that
+// off. The copy never says a key is for the Personal workspace only unless
+// the organization the person joined says so.
 function stepDescription(
     keys: ApiKeyState | undefined,
-    joined: { name: string; hasModels: boolean } | null,
+    joined: JoinedOrganization | null,
 ): string {
     if (joined?.hasModels) {
-        return `You joined ${joined.name}, and its models are available in that workspace, so you can finish now. Keys you add here are used in your Personal workspace only.`;
+        const ownKeys = joined.allowsOwnKeys
+            ? `Your own keys work in your Personal workspace and, in ${joined.name}, for any provider it has not set up.`
+            : `${joined.name} runs on its own keys only, so keys you add here are for your Personal workspace.`;
+        return `You joined ${joined.name}, and its models are available there, so you can finish now. ${ownKeys}`;
     }
     if (hasUsableProvider(keys, "user")) {
         return "Your key is saved. Add more providers now, or change them later in Settings.";
@@ -105,7 +118,7 @@ function stepDescription(
     if (hasUsableProvider(keys, "env")) {
         return "This deployment already provides models, so you can finish now. A key you add here replaces the deployment's for your Personal workspace.";
     }
-    return "Add an API key for at least one provider to start using Mike in your Personal workspace. You can add or change keys later in Settings.";
+    return "Add an API key for at least one provider to start using LiTT. Your key also works in an organization for any provider it has not set up, unless its owners turn that off. You can add or change keys later in Settings.";
 }
 
 function ModelStep({ userId }: { userId: string }) {
