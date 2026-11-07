@@ -46,6 +46,9 @@ const MIME_TYPES = new Map([
   [".xml", "application/xml; charset=utf-8"],
 ]);
 
+// `[name].[contenthash].ext` as emitted by webpack.config.js.
+const CONTENT_HASHED = /\.[0-9a-f]{8,}\.[a-z0-9]+$/;
+
 const HOP_BY_HOP = new Set([
   "connection",
   "keep-alive",
@@ -137,9 +140,12 @@ async function serveStatic(req, res, distRoot) {
     const info = await stat(filename);
     if (!info.isFile()) throw new Error("not a file");
     res.writeHead(200, {
-      "cache-control": relative.endsWith(".html")
-        ? "no-cache"
-        : "public, max-age=31536000, immutable",
+      // Only webpack's content-hashed files never change under the same name.
+      // HTML, manifest.xml and the ribbon icons keep fixed names that the
+      // Microsoft 365 admin center and Word re-read after each release.
+      "cache-control": CONTENT_HASHED.test(path.basename(relative))
+        ? "public, max-age=31536000, immutable"
+        : "no-cache",
       "content-length": info.size,
       "content-type":
         MIME_TYPES.get(path.extname(filename).toLowerCase()) ??
