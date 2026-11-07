@@ -527,7 +527,7 @@ describe("ConnectorsPage operator setup guidance", () => {
             screen.getByRole("link", { name: "Open connector setup guide" }),
         ).toHaveAttribute(
             "href",
-            "https://github.com/open-legal-products/mike/blob/main/docs/connectors.md#slack",
+            "https://github.com/IvanJS17/litt/blob/main/docs/connectors.md#slack",
         );
         expect(refreshMcpConnectorTools).not.toHaveBeenCalled();
         expect(startMcpConnectorOAuth).not.toHaveBeenCalled();
