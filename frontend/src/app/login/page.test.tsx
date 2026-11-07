@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "./page";
@@ -7,6 +7,7 @@ import { AuthApiError } from "@/app/lib/authApi";
 const {
     login,
     startGoogleOAuth,
+    getAuthProviders,
     refreshSession,
     retrySession,
     authState,
@@ -15,6 +16,10 @@ const {
 } = vi.hoisted(() => ({
     login: vi.fn(),
     startGoogleOAuth: vi.fn(),
+    // Unanswered by default: the page as it looks while the read is in flight.
+    getAuthProviders: vi.fn(
+        (): Promise<{ sso: boolean }> => new Promise(() => {}),
+    ),
     refreshSession: vi.fn(),
     retrySession: vi.fn(),
     authState: { error: null as string | null },
@@ -30,6 +35,7 @@ vi.mock("@/app/lib/authApi", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/lib/authApi")>()),
     login,
     startGoogleOAuth,
+    getAuthProviders,
 }));
 
 vi.mock("@/app/contexts/AuthContext", () => ({
@@ -149,6 +155,49 @@ describe("LoginPage", () => {
             google.compareDocumentPosition(sso) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
+    });
+
+    it("keeps Continue with SSO while the server's answer is pending and when SSO is on", async () => {
+        let answer!: (value: { sso: boolean }) => void;
+        getAuthProviders.mockReturnValueOnce(
+            new Promise((resolve) => {
+                answer = resolve;
+            }),
+        );
+        render(<LoginPage />);
+        expect(
+            screen.getByRole("button", { name: "Continue with SSO" }),
+        ).toBeInTheDocument();
+
+        await act(async () => answer({ sso: true }));
+        expect(
+            screen.getByRole("button", { name: "Continue with SSO" }),
+        ).toBeInTheDocument();
+    });
+
+    it("hides Continue with SSO once the server says SSO is off", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: false });
+        render(<LoginPage />);
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole("button", { name: "Continue with SSO" }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByRole("button", { name: "Continue with Google" }),
+        ).toBeInTheDocument();
+    });
+
+    it("keeps Continue with SSO when the server can't say whether SSO is on", async () => {
+        getAuthProviders.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+        render(<LoginPage />);
+
+        await act(async () => {});
+        expect(getAuthProviders).toHaveBeenCalled();
+        expect(
+            screen.getByRole("button", { name: "Continue with SSO" }),
+        ).toBeInTheDocument();
     });
 });
 

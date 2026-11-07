@@ -3,7 +3,7 @@
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/app/lib/authApi";
+import { getAuthProviders, login } from "@/app/lib/authApi";
 import {
     InputUI,
     PillButtonUI,
@@ -90,6 +90,22 @@ export default function LoginPage() {
         setSessionError(null);
         setSessionWarningDismissed(false);
     }
+
+    // Hidden only once the server says SSO is off. While the answer is on
+    // its way, or if it never comes, the button stays: hiding a sign-in
+    // route that may well work is worse than one that answers "not enabled".
+    const [ssoDisabled, setSsoDisabled] = useState(false);
+    useEffect(() => {
+        let cancelled = false;
+        getAuthProviders()
+            .then((providers) => {
+                if (!cancelled && providers?.sso === false) setSsoDisabled(true);
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -245,7 +261,7 @@ export default function LoginPage() {
                             disabled={loading}
                             onLoadingChange={setLoading}
                         />
-                        <SsoAuthButton disabled={loading} />
+                        {!ssoDisabled && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">

@@ -137,6 +137,11 @@ export async function getAuthSession(
     }
 }
 
+/** Which optional sign-in routes the server has switched on. */
+export function getAuthProviders() {
+    return authRequest<{ sso: boolean }>("auth.signin", "/providers");
+}
+
 export async function login(email: string, password: string) {
     return authRequest<{ user: AuthUser }>("auth.signin", "/login", {
         method: "POST",
