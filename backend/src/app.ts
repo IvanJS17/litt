@@ -11,7 +11,7 @@ import { projectsRouter } from "./modules/projects/projects.routes";
 import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
-import { trainingSupervisionRouter } from "./modules/training-supervision/trainingSupervision.routes";
+import { pupilWorksRouter, trainingSupervisionRouter } from "./modules/training-supervision/trainingSupervision.routes";
 import { projectChatRouter } from "./modules/project-chat/projectChat.routes";
 import { documentsRouter } from "./modules/documents/documents.routes";
 import { libraryRouter } from "./modules/library/library.routes";
@@ -259,6 +259,8 @@ app.post("/tabular-review/:reviewId/generate", chatLimiter);
 // A playbook review is one large model call (or a tool loop when the playbook
 // has supplementary documents), so it shares the chat lane's budget.
 app.post("/playbooks/:playbookId/review", chatLimiter);
+// A training work review is one model call on the mentor's key.
+app.post("/orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
@@ -310,6 +312,7 @@ app.use("/projects/:projectId/ai-executions", aiRecoveryRouter);
 app.use("/projects/:projectId/matters", matterSettingsRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);
 app.use("/projects", projectsRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training", trainingRouter);

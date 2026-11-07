@@ -11,8 +11,8 @@
 // in-flight call only leaves a note that reads as failed (see
 // effectiveContrastStatus), never a failed turn.
 
-import { randomBytes } from "node:crypto";
 import { completeText, type UserApiKeys } from "./llm";
+import { fenced, promptNonce } from "./promptFence";
 import type { Db } from "./supabase";
 
 export type TurnNoteSurface = "chat" | "word" | "tabular";
@@ -63,14 +63,7 @@ export async function createPendingTurnNote(
     return { ok: true, note: { id, attempt: args.attempt } };
 }
 
-/** Text that must not be able to close the block that carries it. */
-function fenced(text: string, tag: string, nonce: string): string {
-    const safe = text
-        .split(nonce)
-        .join("[redacted-nonce]")
-        .replace(/<(\/?)(trainee-attempt|assistant-answer)/gi, "&lt;$1$2");
-    return `<${tag} nonce="${nonce}">\n${safe}\n</${tag} nonce="${nonce}">`;
-}
+const CONTRAST_TAGS = ["trainee-attempt", "assistant-answer"] as const;
 
 export const CONTRAST_SYSTEM_PROMPT =
     "Eres un supervisor que ayuda a un pasante de derecho a aprender. Compara el " +
@@ -86,16 +79,37 @@ export const CONTRAST_SYSTEM_PROMPT =
 export function buildContrastPrompt(attempt: string, answer: string, nonce: string): string {
     return [
         "Planteamiento del pasante:",
-        fenced(attempt, "trainee-attempt", nonce),
+        fenced(attempt, "trainee-attempt", nonce, CONTRAST_TAGS),
         "",
         "Respuesta final recibida:",
-        fenced(answer.slice(0, ANSWER_MAX_CHARS), "assistant-answer", nonce),
+        fenced(answer.slice(0, ANSWER_MAX_CHARS), "assistant-answer", nonce, CONTRAST_TAGS),
     ].join("\n");
 }
 
 /** The contrast must carry the three sections; anything else is a failure. */
 export function isValidContrast(text: string): boolean {
     return /coincide/i.test(text) && /no coincide/i.test(text) && /falt[óo]/i.test(text);
+}
+
+export type ContrastSections = { coincide: string[]; noCoincide: string[]; falto: string[] };
+
+/**
+ * The bullets of a ready contrast, per section (CONTRAST_SYSTEM_PROMPT's
+ * format). A heading may carry Markdown marks or a colon; «Nada» is no bullet.
+ */
+export function contrastSections(contrast: string): ContrastSections {
+    const sections: ContrastSections = { coincide: [], noCoincide: [], falto: [] };
+    let current: keyof ContrastSections | null = null;
+    for (const raw of contrast.split(/\r?\n/)) {
+        const heading = raw.replace(/[#*_:>]/g, "").trim().toLowerCase();
+        if (heading === "coincide") { current = "coincide"; continue; }
+        if (heading === "no coincide") { current = "noCoincide"; continue; }
+        if (heading === "faltó" || heading === "falto") { current = "falto"; continue; }
+        const line = raw.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim();
+        if (!current || !line || /^nada\.?$/i.test(line)) continue;
+        sections[current].push(line);
+    }
+    return sections;
 }
 
 export type GenerateContrastArgs = {
@@ -143,7 +157,7 @@ export async function generateTurnContrast(
             user: buildContrastPrompt(
                 args.attempt,
                 args.answer,
-                randomBytes(8).toString("hex"),
+                promptNonce(),
             ),
             maxTokens: CONTRAST_MAX_TOKENS,
             apiKeys: args.apiKeys,
