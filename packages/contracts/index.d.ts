@@ -807,22 +807,89 @@ export interface TrainingReviewItem {
     /** Id of what the line points at (a note, a message, a version), when there is one. */
     ref?: string | null;
 }
-/** The two-minute review of one piece of work: one chat with turn notes. */
+/** Where a piece of work was done: the web or project chat, Word, a tabular review. */
+export type TrainingWorkSurface = "chat" | "word" | "tabular";
+/** Counted, never generated: what the review's lines rest on. */
+export interface TrainingWorkSignals {
+    notes: number;
+    contrasts_ready: number;
+    citations: number;
+    citations_unverified: number;
+    edits_accepted: number;
+    edits_rejected: number;
+    edits_pending: number;
+    /** The pupil's sealed drafts from this work still without an approval. */
+    held_versions: number;
+}
+/**
+ * The two-minute review of one piece of work: one chat with turn notes.
+ * Exactly one of `chat_id`, `word_chat_id`, `tabular_chat_id` is set, the
+ * one of `surface`. The lists are null unless `status` is `ready`.
+ */
 export interface TrainingWorkReview {
     id: string;
     org_id: string;
     trainee_user_id: string;
-    /** The chat, whichever surface it is from. */
-    chat_id: string;
+    surface: TrainingWorkSurface;
+    chat_id: string | null;
+    word_chat_id: string | null;
+    tabular_chat_id: string | null;
+    /** `failed` also covers a generation still pending long after it started. */
     status: TrainingGenerationStatus;
     /** The newest turn note it covers; a later note means new work. */
     covered_through: string | null;
+    /** The pupil's own attempts, as written. */
     proposed: TrainingReviewItem[] | null;
+    /** From the contrasts, put in order by the model. */
     ai_corrected: TrainingReviewItem[] | null;
+    /** Inferred by the model from the signals: every line has source `inferred`. */
     doubts: TrainingReviewItem[] | null;
+    /** Computed, never generated: unverified citations, held drafts, «Faltó». */
     unverified: TrainingReviewItem[] | null;
+    signals: TrainingWorkSignals | null;
+    /** The mentor's route that generated it (never the credential). */
+    model_provider: string | null;
+    model: string | null;
     generated_at: string | null;
     reviewed_at: string | null;
+}
+/** One piece of work of a pupil, with its review when there is one. */
+export interface TrainingPupilWork {
+    surface: TrainingWorkSurface;
+    /** The chat's id in the table of its surface. */
+    chat_id: string;
+    /** The matter's project, when the work was done in one. */
+    project_id: string | null;
+    title: string | null;
+    notes: number;
+    last_note_at: string;
+    review: TrainingWorkReview | null;
+    /** A turn note newer than what the review covers. */
+    has_new_work: boolean;
+}
+/** Whether the mentor can generate reviews, and on which of their keys. */
+export type TrainingReviewGeneration =
+    | {
+          available: true;
+          model: string;
+          credential_options: { credential_ref: string; source: "personal" | "organization" | "deployment" | "operator" }[];
+          /** What is used without an explicit choice; null: the mentor must choose. */
+          default_credential_ref: string | null;
+      }
+    | { available: false; code: "training_review_key_required" };
+/** GET /orgs/:orgId/training/pupils/:userId/works (the pupil's current mentor). */
+export interface TrainingPupilWorks {
+    org_id: string;
+    trainee_user_id: string;
+    works: TrainingPupilWork[];
+    /** Works in matters the mentor cannot open: counted, never shown. */
+    works_without_access: number;
+    generation: TrainingReviewGeneration;
+}
+/** POST /orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review */
+export interface TrainingWorkReviewBody {
+    /** One of the mentor's credential options; omitted, the stored route or the default. */
+    credential_ref?: string | null;
 }
 export type TrainingDefenseQuestionKind = "base" | "cambio_de_hechos";
 export interface TrainingDefenseQuestion {

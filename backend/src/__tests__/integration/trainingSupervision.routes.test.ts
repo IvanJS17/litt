@@ -4,9 +4,10 @@ import request from "supertest";
 // HTTP mapping of training layer 2; the rule is covered against PostgreSQL in
 // src/__tests__/sql/performance.litt-training-supervision.sql.
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
-vi.mock("../../lib/supabase", () => ({
-    createServerSupabase: vi.fn(() => ({ rpc })),
-}));
+vi.mock("../../lib/supabase", async () => {
+    const { memoryDb } = await import("../helpers/memoryDb.js");
+    return { createServerSupabase: vi.fn(() => ({ ...memoryDb({}).db, rpc })) };
+});
 // The caller is a real uuid: the pupil's id is checked like any other.
 const USER = "00000000-0000-4000-8000-000000000001";
 vi.mock("../../middleware/auth", async () => {

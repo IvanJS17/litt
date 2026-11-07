@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Db } from "../../lib/supabase";
+import { memoryDb } from "../../__tests__/helpers/memoryDb";
 import { assertLearningAccess, getMySupervision, LEARNING_NOT_FOUND } from "./trainingSupervision.service";
 
 // The rule itself is PostgreSQL's (training_can_read_learning); its role
@@ -12,7 +13,8 @@ const MENTOR = "00000000-0000-4000-8000-000000000002";
 
 const fakeDb = (answer: { data?: unknown; error?: unknown }) => {
     const rpc = vi.fn(async () => ({ data: answer.data ?? null, error: answer.error ?? null }));
-    return { db: { rpc } as unknown as Db, rpc };
+    const { db } = memoryDb({ training_work_reviews: [] });
+    return { db: { ...db, rpc } as unknown as Db, rpc };
 };
 const notFound = { ok: false, kind: "not_found", detail: LEARNING_NOT_FOUND };
 

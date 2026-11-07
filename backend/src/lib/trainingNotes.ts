@@ -91,6 +91,27 @@ export function isValidContrast(text: string): boolean {
     return /coincide/i.test(text) && /no coincide/i.test(text) && /falt[óo]/i.test(text);
 }
 
+export type ContrastSections = { coincide: string[]; noCoincide: string[]; falto: string[] };
+
+/**
+ * The bullets of a ready contrast, per section (CONTRAST_SYSTEM_PROMPT's
+ * format). A heading may carry Markdown marks or a colon; «Nada» is no bullet.
+ */
+export function contrastSections(contrast: string): ContrastSections {
+    const sections: ContrastSections = { coincide: [], noCoincide: [], falto: [] };
+    let current: keyof ContrastSections | null = null;
+    for (const raw of contrast.split(/\r?\n/)) {
+        const heading = raw.replace(/[#*_:>]/g, "").trim().toLowerCase();
+        if (heading === "coincide") { current = "coincide"; continue; }
+        if (heading === "no coincide") { current = "noCoincide"; continue; }
+        if (heading === "faltó" || heading === "falto") { current = "falto"; continue; }
+        const line = raw.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim();
+        if (!current || !line || /^nada\.?$/i.test(line)) continue;
+        sections[current].push(line);
+    }
+    return sections;
+}
+
 export type GenerateContrastArgs = {
     noteId: string;
     attempt: string;
