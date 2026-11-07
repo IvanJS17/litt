@@ -339,7 +339,7 @@ export default function SettingsPage() {
 
       {/* About: AGPL-3.0 §13 source offer for the running version */}
       <section className="space-y-3">
-        <SettingsHeading>Acerca de</SettingsHeading>
+        <SettingsHeading id="acerca-de">Acerca de</SettingsHeading>
         <GlassCardUI>
           <SettingsRow>
             <div className="min-w-0">

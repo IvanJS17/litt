@@ -125,4 +125,25 @@ describe("searchSettings", () => {
             expect(entry.href.startsWith("/settings")).toBe(true);
         }
     });
+
+    describe("LiTT sections", () => {
+        it("finds Formación, Subagentes, the source offer, data download and account deletion", () => {
+            expect(ids(searchSettings("formación"))[0]).toBe("training");
+            expect(ids(searchSettings("mentor"))).toEqual(expect.arrayContaining(["training", "training-pupils"]));
+            expect(ids(searchSettings("subagentes"))[0]).toBe("models-subagents");
+            expect(ids(searchSettings("código fuente"))[0]).toBe("account-source-code");
+            expect(ids(searchSettings("agpl"))).toContain("account-source-code");
+            expect(ids(searchSettings("descargar datos"))).toContain("privacy-export");
+            expect(ids(searchSettings("borrar cuenta"))[0]).toBe("account-delete");
+        });
+
+        it("has no CourtListener and never names Mike", () => {
+            expect(searchSettings("courtlistener")).toEqual([]);
+            expect(ids(searchSettings("case law"))).not.toContain("connectors-discover");
+            for (const entry of SETTINGS_SEARCH_ENTRIES) {
+                const text = [entry.title, entry.description, ...entry.keywords].join(" ");
+                expect(text, entry.id).not.toMatch(/\bmike\b|courtlistener/i);
+            }
+        });
+    });
 });

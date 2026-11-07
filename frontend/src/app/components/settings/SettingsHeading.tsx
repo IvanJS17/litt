@@ -15,7 +15,7 @@ export function SettingsHeading({
       // Settings search scrolls a heading into view and focuses it; the
       // margin keeps it clear of the top edge and the ring reads as a mark,
       // not a control.
-      className={`scroll-mt-6 rounded-sm font-sans text-xl font-medium outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 ${
+      className={`scroll-mt-6 rounded-sm font-sans text-xl font-medium outline-none focus-visible:ring-2 focus-visible:ring-focus ${
         tone === "danger" ? "text-red-600" : "text-gray-900"
       }`}
     >
