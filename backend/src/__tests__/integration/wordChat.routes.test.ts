@@ -756,6 +756,21 @@ describe("POST /word-chat — attached playbook", () => {
     expect(recordedQueries.some(({ op }) => op === "insert")).toBe(false);
   });
 
+  it("refuses a draft playbook with the review's 409 and code, before anything is stored", async () => {
+    getPlaybook.mockResolvedValue({ id: PLAYBOOK.id, orgId: null, status: "draft" });
+
+    const res = await send(PLAYBOOK);
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({
+      detail:
+        "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones.",
+      code: "playbook_draft",
+    });
+    expect(runLLMStream).not.toHaveBeenCalled();
+    expect(recordedQueries.some(({ op }) => op === "insert")).toBe(false);
+  });
+
   it("answers 404 without a lookup for an id that cannot name a playbook", async () => {
     const res = await send({ id: "not-a-uuid", title: "NDA review" });
 

@@ -49,6 +49,7 @@ import {
   PlaybookRequestError,
   playbookConfiguration,
   queuePlaybookReview,
+  setPlaybookState,
   updatePlaybookContent,
 } from "./playbooks.service";
 
@@ -110,7 +111,10 @@ function sendError(res: Response, error: unknown): void {
     });
   }
   if (error instanceof PlaybookRequestError) {
-    return void res.status(error.status).json({ detail: error.message });
+    return void res.status(error.status).json({
+      detail: error.message,
+      ...(error.code ? { code: error.code } : {}),
+    });
   }
   sendInternalError(res, error);
 }
@@ -774,6 +778,28 @@ playbooksRouter.put("/:playbookId", requireMfaIfEnrolled, async (req, res) => {
     sendError(res, error);
   }
 });
+
+// LiTT: mark a draft ready, or set or clear the model mark. Editor or owner.
+playbooksRouter.patch(
+  "/:playbookId/state",
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    setOperation("playbooks.save");
+    try {
+      res.json(
+        await setPlaybookState(
+          res.locals.userId as string,
+          req.params.playbookId,
+          req.body ?? {},
+          undefined,
+          res.locals.userEmail,
+        ),
+      );
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 playbooksRouter.post("/:playbookId/review", async (req, res) => {
   setOperation("playbooks.review");

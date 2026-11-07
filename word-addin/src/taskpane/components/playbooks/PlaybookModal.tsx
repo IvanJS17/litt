@@ -43,7 +43,9 @@ export function PlaybookModal({
     setSelectedId(initialPlaybookId ?? "");
     listPlaybooks()
       .then((items) => {
-        if (!cancelled) setPlaybooks(items ?? []);
+        // LiTT: a draft would only be refused by the review.
+        if (!cancelled)
+          setPlaybooks((items ?? []).filter((item) => item.status !== "draft"));
       })
       .catch((reason: unknown) => {
         if (cancelled) return;

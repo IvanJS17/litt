@@ -33,6 +33,12 @@ export type Playbook = {
   content: PlaybookContent;
   sourceFilename: string | null;
   importModel: string | null;
+  /** LiTT: a draft cannot be used in a review until an editor marks it ready. */
+  status: "draft" | "ready";
+  /** LiTT: offered as a starting point in its workspace; always ready. */
+  isModel: boolean;
+  /** LiTT: the playbook a copy started from, while it exists. */
+  derivedFromPlaybookId: string | null;
   createdAt: string;
   updatedAt: string;
 };

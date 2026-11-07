@@ -18,7 +18,12 @@ export type PlaybookAuditAction =
   | "playbook.replaced"
   | "playbook.deleted"
   | "playbook.run"
-  | "playbook.run.deleted";
+  | "playbook.run.deleted"
+  // LiTT: a draft marked ready (with its counts of unbacked rules and
+  // unverified references), and the model mark set or cleared.
+  | "playbook.marked_ready"
+  | "playbook.model_marked"
+  | "playbook.model_unmarked";
 
 export function recordPlaybookAudit(
   db: Db,

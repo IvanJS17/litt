@@ -333,13 +333,19 @@ async function loadUserPlaybooks(
         ),
     );
     const playbooks = created.filter((row) => inScope.has(row.id as string));
-    const sources = await selectByIds(db, "playbook_sources", "playbook_id", idsFrom(playbooks), {
-        columns: "id, playbook_id, filename, file_type, size_bytes, text_length, created_at",
-    });
+    const [sources, changes] = await Promise.all([
+        selectByIds(db, "playbook_sources", "playbook_id", idsFrom(playbooks), {
+            columns: "id, playbook_id, filename, file_type, size_bytes, text_length, created_at",
+        }),
+        // LiTT: the changes proposed for the user's playbooks and their
+        // decisions, as the playbooks themselves are exported.
+        selectByIds(db, "playbook_changes", "playbook_id", idsFrom(playbooks)),
+    ]);
 
     return {
         playbooks,
         playbook_sources: sources,
+        playbook_changes: changes,
         playbook_runs: runCandidates.filter(
             (row) =>
                 typeof row.playbook_id === "string" &&

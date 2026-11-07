@@ -315,6 +315,13 @@ describe("exports enforce current read access", () => {
                 { id: "source-personal", playbook_id: "playbook-personal", filename: "policy.pdf", extracted_text: "secret" },
                 { id: "source-colleague", playbook_id: "playbook-colleague-public", filename: "theirs.pdf" },
             ],
+            // LiTT: proposed changes leave with their playbook.
+            playbook_changes: [
+                { id: "change-personal", playbook_id: "playbook-personal", created_at: "2026-11-07" },
+                { id: "change-current", playbook_id: "playbook-current", created_at: "2026-11-07" },
+                { id: "change-colleague", playbook_id: "playbook-colleague-public", created_at: "2026-11-07" },
+                { id: "change-departed", playbook_id: "playbook-departed", created_at: "2026-11-07" },
+            ],
             playbook_runs: [
                 { id: "run-personal", playbook_id: "playbook-personal", user_id: userId, findings_json: [] },
                 { id: "run-departed", playbook_id: "playbook-departed", user_id: userId },
@@ -334,6 +341,7 @@ describe("exports enforce current read access", () => {
         expect(ids(result.playbooks)).toEqual(["playbook-personal"]);
         expect(result.playbooks[0].content_json).toEqual({ name: "playbook-personal" });
         expect(ids(result.playbook_sources)).toEqual(["source-personal"]);
+        expect(ids(result.playbook_changes)).toEqual(["change-personal"]);
         expect(ids(result.playbook_runs)).toEqual(["run-personal"]);
         expect(ids(result.playbook_imports)).toEqual(["import-personal"]);
 
@@ -341,6 +349,7 @@ describe("exports enforce current read access", () => {
 
         expect(ids(firm.playbooks)).toEqual(["playbook-current"]);
         expect(ids(firm.playbook_sources)).toEqual([]);
+        expect(ids(firm.playbook_changes)).toEqual(["change-current"]);
         expect(ids(firm.playbook_runs)).toEqual(["run-colleague-public"]);
         expect(ids(firm.playbook_imports)).toEqual([]);
     });
