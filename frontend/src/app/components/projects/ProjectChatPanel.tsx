@@ -40,7 +40,7 @@ import {
     type ChatInputHandle,
 } from "@/app/components/assistant/ChatInput";
 import { ChatInputPrompt } from "@/app/components/assistant/ChatInputPrompt";
-import { ResponseSelectionMenuUI, MikeIcon } from "@mike/ui";
+import { ResponseSelectionMenuUI } from "@mike/ui";
 import { ChatPanelHeader } from "@/app/components/shared/ChatPanelHeader";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import { ApiKeyMissingPopup } from "@/app/components/popups/ApiKeyMissingPopup";
