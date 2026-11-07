@@ -14,8 +14,12 @@ import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { HeaderButtonUI, HeaderButtonsUI } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 
-/** The project workspace (explorer, documents and chat). */
-const PROJECT_WORKSPACE_PATH = /^\/projects\/[^/]+\/assistant\/chat\/[^/]+\/?$/;
+/**
+ * The project workspace (explorer, documents and chat). "New chat" renders
+ * the same page without a chat id.
+ */
+const PROJECT_WORKSPACE_PATH =
+    /^\/projects\/[^/]+\/assistant\/chat(?:\/[^/]+)?\/?$/;
 
 export default function MikeLayout({
     children,

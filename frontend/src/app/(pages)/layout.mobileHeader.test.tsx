@@ -122,8 +122,13 @@ describe("mobile page header", () => {
 describe("desktop sidebar persistence", () => {
     // The workspace collapses the sidebar; opening it first and collapsing it
     // after the page mounts slid the whole workspace sideways (CLS 0.11-0.17).
-    it("renders the sidebar collapsed from the start in the project workspace", () => {
-        navigation.pathname = "/projects/project-1/assistant/chat/chat-1";
+    // "New chat" (no chat id) renders the same workspace page.
+    it.each([
+        "/projects/project-1/assistant/chat/chat-1",
+        "/projects/project-1/assistant/chat",
+        "/projects/project-1/assistant/chat/",
+    ])("renders the sidebar collapsed from the start on %s", (pathname) => {
+        navigation.pathname = pathname;
 
         render(
             <MikeLayout>
@@ -131,8 +136,26 @@ describe("desktop sidebar persistence", () => {
             </MikeLayout>,
         );
 
-        expect(sidebarState.rendered).not.toContain(true);
+        expect(sidebarState.rendered.length).toBeGreaterThan(0);
+        expect(sidebarState.rendered.every((open) => open === false)).toBe(
+            true,
+        );
     });
+
+    it.each(["/projects/project-1", "/projects/project-1/assistant/chats"])(
+        "keeps the sidebar open on %s",
+        (pathname) => {
+            navigation.pathname = pathname;
+
+            render(
+                <MikeLayout>
+                    <div>Page</div>
+                </MikeLayout>,
+            );
+
+            expect(sidebarState.isOpen).toBe(true);
+        },
+    );
 
     it("stores the state the sidebar is rendered with", () => {
         localStorage.setItem("sidebarOpen", "false");
