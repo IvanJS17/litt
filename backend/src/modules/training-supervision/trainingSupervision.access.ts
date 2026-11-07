@@ -30,3 +30,17 @@ export async function assertLearningAccess(
     if (data !== true) return failure("not_found", LEARNING_NOT_FOUND);
     return ok(null);
 }
+
+/**
+ * The gate of every mentor route: the pupil's current mentor, never the
+ * pupil themself (who reads through GET /training/me/supervision).
+ */
+export async function assertCurrentMentor(
+    db: Db,
+    actor: { actorId: string; orgId: unknown; traineeId: unknown },
+): Promise<ServiceResult<{ orgId: string; traineeId: string }>> {
+    if (actor.actorId === actor.traineeId) return failure("not_found", LEARNING_NOT_FOUND);
+    const access = await assertLearningAccess(db, actor);
+    if (!access.ok) return access;
+    return ok({ orgId: actor.orgId as string, traineeId: actor.traineeId as string });
+}

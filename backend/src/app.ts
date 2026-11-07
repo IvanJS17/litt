@@ -12,7 +12,9 @@ import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
 import {
+    pupilDefensesRouter,
     pupilPassesRouter,
+    pupilPromotionRouter,
     pupilWorksRouter,
     trainingSupervisionRouter,
 } from "./modules/training-supervision/trainingSupervision.routes";
@@ -35,7 +37,7 @@ import {
 } from "./modules/memory/memory.routes";
 import { playbooksRouter } from "./modules/playbooks/playbooks.routes";
 import { aiRecoveryRouter } from "./modules/ai-recovery/ai-recovery.routes";
-import { matterSettingsRouter } from "./modules/matters/matters.routes";
+import { matterSettingsRouter, mattersRouter } from "./modules/matters/matters.routes";
 import { manifestPublicKey } from "./lib/manifestSigning";
 import {
   handleUnhandledError,
@@ -265,6 +267,8 @@ app.post("/tabular-review/:reviewId/generate", chatLimiter);
 app.post("/playbooks/:playbookId/review", chatLimiter);
 // A training work review is one model call on the mentor's key.
 app.post("/orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review", chatLimiter);
+// So are a defense's questions.
+app.post("/orgs/:orgId/training/pupils/:userId/defenses/:defenseId/questions", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
@@ -321,10 +325,13 @@ app.use("/word-chat", wordChatRouter);
 app.use("/models", modelsRouter);
 app.use("/projects/:projectId/ai-executions", aiRecoveryRouter);
 app.use("/projects/:projectId/matters", matterSettingsRouter);
+app.use("/matters", mattersRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);
 app.use("/projects", projectsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training", trainingRouter);

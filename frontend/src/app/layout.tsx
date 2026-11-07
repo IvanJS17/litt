@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./fonts/fonts.css";
 import "./globals.css";
 import { Providers } from "@/app/components/providers";
+import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 
 export const metadata: Metadata = {
     // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream,
@@ -49,7 +50,14 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        // The boot script may add `dark` and color-scheme to <html> before
+        // React hydrates it; that difference is intended.
+        <html lang="en" suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+                />
+            </head>
             <body
                 className="font-sans antialiased"
             >

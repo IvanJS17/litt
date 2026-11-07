@@ -247,6 +247,11 @@ case's questionnaire, with the same rules and limits as a draft (see
 - It needs **Editor** or **Owner** of a draft. On a ready playbook it answers
   `409` `playbook_not_draft`; while earlier proposed changes await a decision,
   it answers `409` `playbook_changes_pending`.
+- Only one proposal runs per copy: the database holds a single running
+  proposal row per copy, so of two requests sent at once the second answers
+  `409` `playbook_proposals_running`. A proposal that will never finish (no
+  heartbeat and no job left) ends as interrupted, with its pending changes,
+  when the next one is requested.
 - The playbook's rules may hold up to 100,000 characters, as for a review, and
   the playbook may keep up to 20 reference documents counting the new
   attachments.
@@ -278,8 +283,13 @@ A removal carries no origin, only its rationale.
 Changes are stored in `playbook_changes` as pending. On success the copy keeps
 the new case's answers apart from its rules (as a draft does), and the
 attachments become its reference documents; the copy's rules are not
-rewritten. A proposal that fails leaves no change and no reference document
-behind, and the copy stays as it was.
+rewritten. The answers are written only once the proposal's outcome is
+recorded; if that last write is lost (the copy was saved in the same instant)
+the changes stand without the answers. A proposal that fails leaves no change
+and no reference document behind, and the copy, its rules and its answers,
+stays as it was. Its reference documents are removed only while the copy is
+still a draft, and only the ones it stored: a copy marked ready meanwhile
+keeps them.
 
 - **`GET /playbooks/:id/changes`** lists the playbook's changes, pending and
   decided, in the order proposed (Viewer or more). Each has `id`, `op`,
@@ -291,13 +301,20 @@ behind, and the copy stays as it was.
   answers `{ playbook, change }`. Changes are decided one by one: there is no
   accept-all. Rejecting records the decision and leaves the rules untouched.
 - Accepting applies the change only over the rule it was proposed for. If that
-  rule was edited, moved or removed since, or the topic of an added rule is
-  gone, or another save landed meanwhile, it answers `409`
+  rule's content was edited or the rule removed since, or the topic of an
+  added rule is gone, or another save landed meanwhile, it answers `409`
   `playbook_change_stale` and the change stays pending; reload the changes. A
-  change already decided answers `409` `playbook_change_decided`, so a second
-  click never applies it twice.
+  rule moved to another topic with its content unchanged is not stale: the
+  change applies where the rule now is. A change already decided answers
+  `409` `playbook_change_decided`, so a second click never applies it twice.
+- The change is marked accepted and the rules saved in one database
+  transaction, under the playbook's row lock and only over the version the
+  server read, so no other write lands between them.
 - The copy cannot be marked ready while any change is pending (`409`
-  `playbook_changes_pending`, see "Draft and ready, and models (LiTT)").
+  `playbook_changes_pending`, see "Draft and ready, and models (LiTT)"). This
+  holds when both requests arrive at once: marking ready writes only over the
+  version it read, so it either sees the change still pending or finds that
+  version replaced by the accepted change.
 
 ## Importing a playbook
 
@@ -540,7 +557,7 @@ surface, as chat, document, and tabular review activity is:
 | `playbook.model_marked` | An editor marks a ready playbook as a model. |
 | `playbook.model_unmarked` | An editor removes the model mark. |
 | `playbook.copied` | A playbook is copied as a starting point; `detail` holds the copy's and the original's ids and the number of rules. |
-| `playbook.proposals_ready` | Proposed changes for a copy end. The row holds the model; `detail` holds the attempt and copy ids and, when they completed, the number of changes (added, modified, removed), of operations dropped, of rules without backing, of unverified legal references, of origins the server lowered, of answered questions and of attachments. A failed one carries its `stage`. Never the answers or rule text. |
+| `playbook.proposals_ready` | Proposed changes for a copy end. The row holds the model; `detail` holds the attempt and copy ids and, when they completed, the number of changes (added, modified, removed), of operations dropped, of rules without backing, of unverified legal references, of origins the server lowered, of answered questions and of attachments. A failed or interrupted one carries its `stage` and, as its title, the copy's current name. Never the answers or rule text. |
 | `playbook.change_accepted` | An editor accepts a proposed change; `detail` holds the playbook and change ids, the operation and the rule id. |
 | `playbook.change_rejected` | An editor rejects one; same `detail`. |
 

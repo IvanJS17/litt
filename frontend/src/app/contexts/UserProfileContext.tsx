@@ -42,6 +42,7 @@ import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
+import { useHydrationSnapshot } from "@/app/hooks/useHydrationSnapshot";
 import {
     ROUTER_PROFILE_FIELDS,
     routerProfileLists,
@@ -206,7 +207,7 @@ function toProfile(data: ApiUserProfile): UserProfile {
 
 /** Loads the authenticated profile and shares persisted updates across settings, navigation, and account consumers. */
 export function UserProfileProvider({ children }: { children: ReactNode }) {
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, authLoading } = useAuth();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [apiKeysDegraded, setApiKeysDegraded] = useState(false);
@@ -334,9 +335,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         }
     }, [isAuthenticated, userId, loadProfile]);
 
+    // Until the session and profile answer, keep the theme the boot script
+    // painted from the last visit; signed out, the app is light.
+    const signedOut = !authLoading && !isAuthenticated;
+    const darkMode = profile ? profile.darkMode === true : signedOut ? false : null;
     useEffect(() => {
-        applyDarkMode(profile?.darkMode === true);
-    }, [profile?.darkMode]);
+        if (darkMode !== null) applyDarkMode(darkMode);
+    }, [darkMode]);
 
     /** Persists a photo change before publishing the returned value to every profile consumer. */
     const updateProfilePhoto = useCallback(async (photo: string | null) => {
@@ -840,8 +845,24 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     );
 }
 
+/** What the server rendered with: no profile yet. */
+function profileServerSnapshot(
+    context: UserProfileContextType | undefined,
+): UserProfileContextType | undefined {
+    return context && {
+        ...context,
+        profile: null,
+        loading: true,
+        apiKeysDegraded: false,
+    };
+}
+
+/** The profile as this component may render it; see `useOptionalAuth`. */
 export function useOptionalUserProfile() {
-    return useContext(UserProfileContext);
+    return useHydrationSnapshot(
+        useContext(UserProfileContext),
+        profileServerSnapshot,
+    );
 }
 
 export function useUserProfile() {

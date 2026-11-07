@@ -6,7 +6,8 @@
  * The store is a module singleton so any layer, including non-React code
  * such as the API client, can raise a notification with `showToast`. React
  * subscribes through `useToasts`, and `ToastViewportUI` renders the stack
- * once near the root of each client, at the top centre of the page.
+ * once near the root of each client, at the top centre of the page by
+ * default (the web app passes a class that moves it to the bottom-right).
  *
  * The viewport also owns the slot a web `WarningPopup` renders into, so
  * popups and toasts share one column and never cover each other.

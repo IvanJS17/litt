@@ -169,7 +169,7 @@ describe("SignupPage", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent(shown);
     });
 
-    it("shows a failure as a popup that can be dismissed", async () => {
+    it("shows a failure inside the card and lets it be dismissed", async () => {
         await fillAndSubmit("x".repeat(73));
 
         expect(await screen.findByRole("alert")).toHaveTextContent(

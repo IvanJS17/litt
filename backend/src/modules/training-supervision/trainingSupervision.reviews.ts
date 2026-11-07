@@ -60,13 +60,20 @@ import {
     type ChatRouteFailure,
     type ResolvedChatRoute,
 } from "../user/user.service";
-import { assertLearningAccess, LEARNING_NOT_FOUND } from "./trainingSupervision.access";
-import { groupWorks, loadTraineeNotes, loadWorkSignals, surfaceOf, type Work } from "./trainingSupervision.signals";
+import { assertCurrentMentor, LEARNING_NOT_FOUND } from "./trainingSupervision.access";
+import {
+    groupWorks,
+    loadTraineeNotes,
+    loadWorkSignals,
+    surfaceOf,
+    type NoteRow,
+    type Work,
+} from "./trainingSupervision.signals";
 
 export const REVIEW_IN_PROGRESS_CODE = "training_review_in_progress";
 export const REVIEW_KEY_REQUIRED_CODE = "training_review_key_required";
 const KEY_REQUIRED =
-    "Add a key for your model in Settings → Bring Your Own Keys to generate reviews.";
+    "Add a key for your model in Settings → Bring Your Own Keys to generate reviews and questions.";
 const IN_PROGRESS = "This review is already being generated.";
 const NOT_READY = "Generate the review before marking it as reviewed.";
 
@@ -123,14 +130,6 @@ export function serializeReview(row: ReviewRow, now: number = Date.now()): Train
     };
 }
 
-/** The shared gate of every mentor route: the current mentor, not the pupil. */
-async function mentorGate(db: Db, actor: Actor): Promise<ServiceResult<{ orgId: string; traineeId: string }>> {
-    if (actor.actorId === actor.traineeId) return notFound();
-    const access = await assertLearningAccess(db, actor);
-    if (!access.ok) return access;
-    return ok({ orgId: actor.orgId as string, traineeId: actor.traineeId as string });
-}
-
 async function loadReviews(
     db: Db,
     orgId: string,
@@ -161,7 +160,7 @@ export async function listOwnReviews(
 }
 
 /** Whether the mentor can generate at all, and on which of their keys. */
-async function mentorGeneration(
+export async function mentorGeneration(
     db: Db,
     actorId: string,
     orgId: string,
@@ -188,7 +187,7 @@ export async function listPupilWorks(
     db: Db,
     actor: Actor,
 ): Promise<ServiceResult<TrainingPupilWorks>> {
-    const gate = await mentorGate(db, actor);
+    const gate = await assertCurrentMentor(db, actor);
     if (!gate.ok) return gate;
     const { orgId, traineeId } = gate.data;
     const notes = await loadTraineeNotes(db, { orgId, traineeId });
@@ -250,7 +249,7 @@ async function targetWork(
 ): Promise<ServiceResult<{ orgId: string; traineeId: string; work: Work; projectId: string | null }>> {
     if (!isWorkSurface(target.surface) || typeof target.chatId !== "string" || !isUuid(target.chatId))
         return notFound();
-    const gate = await mentorGate(db, target);
+    const gate = await assertCurrentMentor(db, target);
     if (!gate.ok) return gate;
     const { orgId, traineeId } = gate.data;
     const surface: TurnNoteSurface = target.surface;
@@ -285,18 +284,21 @@ async function loadReview(
     return ok((data as ReviewRow | null) ?? null);
 }
 
-function routeFailure(failed: ChatRouteFailure): ServiceFailure {
+export function routeFailure(failed: ChatRouteFailure): ServiceFailure {
     return failure(failed.status === 409 ? "conflict" : "validation", failed.detail, failed.code);
 }
 
+type StoredRoute = { model: string | null; model_provider: string | null; credential_ref: string | null };
+
 /**
- * The mentor's route for this review: the stored one unless the mentor
- * explicitly chose a key; otherwise their model on the chosen or default
- * key. Never another model or key on failure.
+ * The mentor's route for one generation (a review, a defense's questions):
+ * the one stored on the row unless the mentor explicitly chose a key;
+ * otherwise their model on the chosen or default key. Never another model or
+ * key on failure, and never the pupil's route.
  */
-async function reviewRoute(
+export async function mentorRoute(
     db: Db,
-    args: { actorId: string; orgId: string; row: ReviewRow | null; credentialRef: string | null },
+    args: { actorId: string; orgId: string; row: StoredRoute | null; credentialRef: string | null },
 ): Promise<ServiceResult<ResolvedChatRoute>> {
     const stored = args.row ? chatRouteOf(args.row) : null;
     if (stored && !args.credentialRef) {
@@ -318,8 +320,9 @@ async function reviewRoute(
     return pinned.ok ? ok(pinned) : routeFailure(pinned);
 }
 
-function reviewInput(work: Work) {
-    return work.notes.slice(-REVIEW_MAX_NOTES).map((note) => {
+/** The newest notes as model input: each attempt with its contrast's sections. */
+export function noteInputs(notes: readonly NoteRow[]) {
+    return notes.slice(-REVIEW_MAX_NOTES).map((note) => {
         const sections =
             note.contrast_status === "ready" && note.contrast
                 ? contrastSections(note.contrast)
@@ -351,7 +354,7 @@ export async function generateWorkReview(
     if (row && effectiveGenerationStatus(row.status, row.updated_at) === "pending")
         return failure("conflict", IN_PROGRESS, REVIEW_IN_PROGRESS_CODE);
 
-    const route = await reviewRoute(db, {
+    const route = await mentorRoute(db, {
         actorId: target.actorId,
         orgId,
         row,
@@ -416,7 +419,7 @@ export async function generateWorkReview(
         extra: { work_review_id: reviewId },
     });
 
-    const input = reviewInput(work);
+    const input = noteInputs(work.notes);
     let generated: ReturnType<typeof parseWorkReview> = null;
     try {
         const text = await completeSupervision({

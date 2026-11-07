@@ -73,10 +73,10 @@ begin
       current_setting('litt.mentor_a')::uuid, now(), now(), current_setting('litt.mentor_a')::uuid);
   insert into public.training_defenses(org_id, trainee_user_id, practice, work_review_id,
       questions, questions_status, model_provider, model, credential_ref, generated_by,
-      outcome, outcome_note, held_at, recorded_by)
+      outcome, outcome_reason, outcome_note, held_at, recorded_by)
     values (org, current_setting('litt.pupil')::uuid, 'laboral', review,
       pg_temp.questions(4, 1), 'ready', 'openai', 'gpt', 'user:x', current_setting('litt.mentor_a')::uuid,
-      'approved', 'nota', now(), current_setting('litt.mentor_a')::uuid);
+      'approved', 'razonamiento_solido', 'nota', now(), current_setting('litt.mentor_a')::uuid);
   insert into public.training_urgency_passes(org_id, trainee_user_id, project_id, granted_by,
       expires_at, reason_code, reason_note)
     values (org, current_setting('litt.pupil')::uuid, project, current_setting('litt.mentor_a')::uuid,
@@ -327,10 +327,22 @@ begin
   perform pg_temp.rejects(format(ins_defense, 'outcome_note', '''nota'''), 'training_defenses_outcome_check');
   perform pg_temp.rejects(format(ins_defense, 'recorded_by', quote_literal(current_setting('litt.mentor_a'))),
     'training_defenses_outcome_check');
-  execute format(ins_defense, 'outcome,held_at,recorded_by', '''not_approved'',now(),' || quote_literal(current_setting('litt.mentor_a')));
+  -- The reason is part of the outcome: required with it, from a closed list;
+  -- the note takes up to 500 characters (20261107_90).
+  perform pg_temp.rejects(format(ins_defense, 'outcome,held_at', '''approved'',now()'), 'training_defenses_outcome_check');
+  perform pg_temp.rejects(format(ins_defense, 'outcome_reason', '''otro'''), 'training_defenses_outcome_check');
+  perform pg_temp.rejects(format(ins_defense, 'outcome,outcome_reason,held_at', '''approved'',''excelente'',now()'),
+    'training_defenses_outcome_check');
+  perform pg_temp.rejects(format(ins_defense, 'outcome,outcome_reason,outcome_note,held_at',
+    '''approved'',''otro'',' || quote_literal(repeat('x', 501)) || ',now()'), 'training_defenses_outcome_check');
+  execute format(ins_defense, 'outcome,outcome_reason,outcome_note,held_at',
+    '''approved'',''otro'',' || quote_literal(repeat('x', 500)) || ',now()');
+  execute format(ins_defense, 'outcome,outcome_reason,held_at,recorded_by', '''not_approved'',''sin_sustento'',now(),' || quote_literal(current_setting('litt.mentor_a')));
   perform pg_temp.rejects('update public.training_defenses set outcome=''not_approved'' where outcome=''approved''',
     'A training defense outcome is recorded once');
   perform pg_temp.rejects('update public.training_defenses set outcome_note=''otra'' where outcome=''approved''',
+    'A training defense outcome is recorded once');
+  perform pg_temp.rejects('update public.training_defenses set outcome_reason=''otro'' where outcome=''not_approved''',
     'A training defense outcome is recorded once');
   perform pg_temp.rejects(format('update public.training_defenses set recorded_by=%L where outcome=''approved''',
     current_setting('litt.mentor_b')), 'A training defense outcome is recorded once');
@@ -354,7 +366,8 @@ begin
     current_setting('litt.org'), current_setting('litt.outsider')), 'training_defenses_member_fkey');
   -- Deleting the review keeps the defense, unlinked.
   delete from public.training_work_reviews;
-  assert (select count(*) from public.training_defenses where outcome = 'approved' and work_review_id is null) = 1,
+  assert (select count(*) from public.training_defenses where outcome = 'approved' and outcome_note = 'nota'
+      and work_review_id is null) = 1,
     'the defense outlives the review it was about';
 end;
 $$;
@@ -381,6 +394,8 @@ rollback;
 begin;
 \ir ../../../migrations/20261107_60_litt_training_supervision.sql
 \ir ../../../migrations/20261107_60_litt_training_supervision.sql
+-- The later migration that reshapes the defense outcome, as the runner would.
+\ir ../../../migrations/20261107_90_litt_training_defense_outcome.sql
 select pg_temp.fixture();
 do $$
 declare got text;
