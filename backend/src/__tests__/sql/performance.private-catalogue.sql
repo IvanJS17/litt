@@ -1,7 +1,31 @@
 -- M-S9: the private-content catalogue pages each kind in (lower(title), id)
 -- order and stops at offset+limit rows per kind; pages, order, titles and
 -- access flags equal the original full sort.
+--
+-- LiTT: the catalogue is closed (C2, can_access_org_private_content is
+-- false), so list_org_private_content refuses everyone; that is asserted
+-- first. The paging equivalence is then checked with the permission switched
+-- on inside this rolled-back transaction only, so upstream's rewrite stays
+-- correct should LiTT ever open the catalogue. The product rule is not
+-- changed.
 begin;
+do $$
+declare owner_id uuid:=gen_random_uuid(); org uuid:=gen_random_uuid();
+begin
+  insert into auth.users(id,email) values(owner_id,owner_id||'@example.test');
+  insert into public.organizations(id,name,created_by) values(org,'Closed catalogue',owner_id);
+  insert into public.org_members(org_id,user_id,role) values(org,owner_id,'owner');
+  begin
+    perform * from public.list_org_private_content(org,owner_id,10,0,'');
+    raise exception 'LiTT: list_org_private_content must refuse the organization owner';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$$;
+create or replace function public.can_access_org_private_content(p_org_id uuid,p_user_id uuid)
+returns boolean language sql stable set search_path=public,pg_temp as $$
+  select exists(select 1 from public.org_members m where m.org_id=p_org_id and m.user_id=p_user_id and m.role='owner');
+$$;
 -- The function as it was before paging per kind.
 create function pg_temp.private_catalogue_oracle(p_org_id uuid,p_actor_id uuid,p_limit integer default 50,p_offset integer default 0,p_search text default '')
 returns table(kind text,item_id uuid,title text,user_id uuid,display_name text,email text,has_access boolean)
@@ -48,7 +72,7 @@ begin
       update public.documents set current_version_id=(select id from public.document_versions where document_id=doc) where id=doc;
     end if;
   end loop;
-  perform public.open_org_private_content(org,owner_id,'chat',(select id from public.chats where org_id=org and project_id is null order by id limit 1));
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) select org,owner_id,'chat',(select id from public.chats where org_id=org and project_id is null order by id limit 1);
   for probe in select * from (values(''),('alpha'),('ALPHA'),('a'),('missing')) s(search) cross join (values(0),(3),(10),(40),(70)) o(page_offset) cross join (values(1),(7),(101)) l(page_limit) loop
     select coalesce(jsonb_agg(to_jsonb(x)),'[]') into expected from pg_temp.private_catalogue_oracle(org,owner_id,probe.page_limit,probe.page_offset,probe.search) x;
     select coalesce(jsonb_agg(to_jsonb(x)),'[]') into actual from public.list_org_private_content(org,owner_id,probe.page_limit,probe.page_offset,probe.search) x;

@@ -31,7 +31,9 @@ begin
   insert into public.workflows(user_id,org_id,title,type,visibility) values(actor,org,'Overridden','assistant','private') returning id into wid;
   insert into public.workflow_org_access_overrides(workflow_id,org_id,user_id,role) values(wid,org,other_actor,'viewer');
   insert into public.workflows(user_id,org_id,title,type,visibility) values(null,org,'Ownerless','assistant','private');
-  perform public.open_org_private_content(org,admin_id,'workflow',wid);
+  -- Written directly: open_org_private_content refuses in LiTT (C2), and
+  -- the ladder must still give the recorded opening no access.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,admin_id,'workflow',wid);
   insert into public.workflows(user_id,org_id,title,type,visibility) values(actor,org,'Public, denied','assistant','organization') returning id into wid;
   insert into public.workflow_org_access_overrides(workflow_id,org_id,user_id,role) values(wid,org,other_actor,'deny'),(wid,org,admin_id,'deny');
   perform set_config('mike.test_workflow_actor',actor::text,true);

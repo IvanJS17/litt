@@ -33,7 +33,9 @@ begin
   -- override, and an ownerless private project only the org Owner inherits.
   insert into public.projects(user_id,org_id,name,visibility) select owner_id,org,'Owner private '||n,'private' from generate_series(1,200) n;
   insert into public.projects(user_id,org_id,name,visibility) values(owner_id,org,'Overridden','private') returning id into pid;
-  perform public.open_org_private_content(org,admin_id,'project',pid);
+  -- Written directly: open_org_private_content refuses in LiTT (C2), and
+  -- the ladder must still give the recorded opening no access.
+  insert into public.org_private_content_access(org_id,user_id,kind,item_id) values(org,admin_id,'project',pid);
   insert into public.project_org_access_overrides(project_id,org_id,user_id,role) values(pid,org,member_id,'viewer');
   insert into public.projects(user_id,org_id,name,visibility) values(null,org,'Ownerless','private');
   perform set_config('mike.test_project_actor',owner_id::text,true);
