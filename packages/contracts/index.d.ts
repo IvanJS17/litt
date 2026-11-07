@@ -795,6 +795,86 @@ export interface TrainingStageQuery {
     surface?: "word";
 }
 
+// LiTT training, layer 2 «Supervisión» (docs/training.md). Learning data:
+// only the pupil and their current mentor read it
+// (training_can_read_learning); nothing here is a score or a ranking.
+export type TrainingGenerationStatus = "pending" | "ready" | "failed";
+/** One line of a work review, with where it comes from. */
+export interface TrainingReviewItem {
+    /** e.g. `attempt`, `contrast`, `citation`, `inferred`: inferred lines are marked as such. */
+    source: string;
+    text: string;
+    /** Id of what the line points at (a note, a message, a version), when there is one. */
+    ref?: string | null;
+}
+/** The two-minute review of one piece of work: one chat with turn notes. */
+export interface TrainingWorkReview {
+    id: string;
+    org_id: string;
+    trainee_user_id: string;
+    /** The chat, whichever surface it is from. */
+    chat_id: string;
+    status: TrainingGenerationStatus;
+    /** The newest turn note it covers; a later note means new work. */
+    covered_through: string | null;
+    proposed: TrainingReviewItem[] | null;
+    ai_corrected: TrainingReviewItem[] | null;
+    doubts: TrainingReviewItem[] | null;
+    unverified: TrainingReviewItem[] | null;
+    generated_at: string | null;
+    reviewed_at: string | null;
+}
+export type TrainingDefenseQuestionKind = "base" | "cambio_de_hechos";
+export interface TrainingDefenseQuestion {
+    kind: TrainingDefenseQuestionKind;
+    text: string;
+    /** What the mentor should listen for. */
+    listen_for: string;
+}
+export type TrainingDefenseOutcome = "approved" | "not_approved";
+/** An oral defense: five questions (one a change of facts) and its outcome, recorded once. */
+export interface TrainingDefense {
+    id: string;
+    org_id: string;
+    trainee_user_id: string;
+    practice: string | null;
+    work_review_id: string | null;
+    questions_status: "none" | TrainingGenerationStatus;
+    /**
+     * For the pupil, null until the outcome is recorded: before that they
+     * see only that a defense is scheduled.
+     */
+    questions: TrainingDefenseQuestion[] | null;
+    outcome: TrainingDefenseOutcome | null;
+    /** For the pupil, null until the outcome is recorded, like `questions`. */
+    outcome_note: string | null;
+    held_at: string | null;
+    created_at: string;
+}
+export type TrainingUrgencyReason = "plazo" | "audiencia" | "cliente_urgente" | "otro";
+/** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */
+export interface TrainingUrgencyPass {
+    id: string;
+    org_id: string;
+    trainee_user_id: string;
+    project_id: string;
+    starts_at: string;
+    expires_at: string;
+    reason_code: TrainingUrgencyReason;
+    reason_note: string | null;
+    revoked_at: string | null;
+}
+/** GET /training/me/supervision?org_id= : what the caller's mentor sees of them there. */
+export interface TrainingSupervision {
+    org_id: string;
+    work_reviews: TrainingWorkReview[];
+    defenses: TrainingDefense[];
+    urgency_passes: TrainingUrgencyPass[];
+}
+export interface TrainingSupervisionQuery {
+    org_id: string;
+}
+
 /**
  * POST /single-documents/:documentId/versions/:versionId/training-approval:
  * the approval of a pasante's version, bound to the bytes it had

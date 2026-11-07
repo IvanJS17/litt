@@ -636,10 +636,20 @@ export async function buildUserAccountExport(
 
     // The holder's own training (docs/training.md): who mentors them and
     // their stage per practice area, in each organization (in one, for an
-    // organization's export), with the private notes of their own turns.
-    // Their pupils are other people's data.
+    // organization's export), with the private notes of their own turns and
+    // what their mentor keeps about them (layer 2: work reviews, defenses,
+    // urgency passes). Their pupils are other people's data, and so is the
+    // mentor's credential reference.
     const trainingScope = (query: any) => (orgId ? query.eq("org_id", orgId) : query);
-    const [trainingMentor, trainingPupil, trainingStages, trainingNotes] = await Promise.all([
+    const [
+        trainingMentor,
+        trainingPupil,
+        trainingStages,
+        trainingNotes,
+        trainingWorkReviews,
+        trainingDefenses,
+        trainingUrgencyPasses,
+    ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
         selectAllByKey<Row>("export training_mentors", () =>
@@ -658,6 +668,28 @@ export async function buildUserAccountExport(
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
                 "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at",
+            order: ["created_at"],
+        }),
+        selectAll(db, "training_work_reviews", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, chat_id, word_chat_id, tabular_chat_id, status, covered_through, proposed, ai_corrected, doubts, unverified, signals, model_provider, model, generated_at, reviewed_at, created_at, updated_at",
+            order: ["created_at"],
+        }),
+        // A defense's questions reach the holder once its outcome is
+        // recorded, as in the app: before that, only that it is scheduled.
+        selectAll(db, "training_defenses", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, practice, work_review_id, questions_status, questions, model_provider, model, outcome, outcome_note, held_at, created_at, updated_at",
+            order: ["created_at"],
+        }).then((rows) =>
+            rows.map((row) => (row.outcome == null ? { ...row, questions: null } : row)),
+        ),
+        selectAll(db, "training_urgency_passes", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, project_id, starts_at, expires_at, reason_code, reason_note, revoked_at, created_at",
             order: ["created_at"],
         }),
     ]);
@@ -738,6 +770,9 @@ export async function buildUserAccountExport(
             as_pupil: trainingPupil,
             stages: trainingStages,
             turn_notes: trainingNotes,
+            work_reviews: trainingWorkReviews,
+            defenses: trainingDefenses,
+            urgency_passes: trainingUrgencyPasses,
         },
         audit_events: auditEvents,
     };

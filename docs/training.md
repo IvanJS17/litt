@@ -295,3 +295,41 @@ pasante or a junior). The approval binds the bytes, not the version id.
 leaves LiTT as a deliverable, not DRM. Whatever can be seen in the app (a
 viewed PDF, an open editor, a screenshot) can be captured by the person who
 sees it.
+
+## Supervision data (layer 2)
+
+Migration `20261107_60_litt_training_supervision.sql` adds the data a mentor
+keeps while supervising a pupil. It is learning data, like the turn notes.
+
+| Table | Key | Notes |
+|---|---|---|
+| `training_work_reviews` | `id` | the two-minute review of one piece of work: exactly one of `chat_id` / `word_chat_id` / `tabular_chat_id` (cascade with its chat, unique per chat); `status in ('pending','ready','failed')`; `proposed`, `ai_corrected`, `doubts`, `unverified` (JSON lists of `{ source, text, ref? }`, required when `ready`); the mentor's route (`model_provider`, `model`, `credential_ref`: identifiers only); `reviewed_at` / `reviewed_by` |
+| `training_defenses` | `id` | an oral defense: `practice` (normalized or null), optional `work_review_id` of the same pupil (set to null if that review goes); `questions` ready = five, exactly one `cambio_de_hechos`; `outcome in ('approved','not_approved')` with `held_at`, recorded once (`LT002` on a change) |
+| `training_urgency_passes` | `id` | a mentor's pass for one `project_id`: `starts_at < expires_at`, `reason_code in ('plazo','audiencia','cliente_urgente','otro')`, `reason_note` up to 500 characters, `revoked_at` / `revoked_by`; FK to `training_pupils` (cascade) |
+
+**Who reads it.** One rule, in the database:
+`training_can_read_learning(actor, org, trainee)` is true only for the person
+themselves and for their **current** mentor (`training_pupils`), both members
+of the organization. No role grants it: an owner, an admin, a previous mentor,
+another mentor or another member get the same `404` from every route that
+serves this data (`assertLearningAccess` in `modules/training-supervision/`).
+RLS is on, with no policies or browser grants.
+
+**When it goes.** Reviews and defenses hang off the pupil's `org_members`
+row, so leaving the organization or erasing the account deletes them;
+releasing the pupil keeps them (a new mentor sees them) and ends the pupil's
+urgency passes. When a mentor's account goes, the ids of what they did
+(`generated_by`, `reviewed_by`, `recorded_by`, `granted_by`, `revoked_by`)
+become null and the pupil's rows stay. Audit events stay (insert-only).
+
+`GET /training/me/supervision?org_id=` returns what the caller's mentor keeps
+about them there (empty lists until the layer-2 features land). A defense's
+questions reach the pupil once its outcome is recorded, here and in the
+account export (`training.work_reviews`, `training.defenses`,
+`training.urgency_passes`).
+
+The rule's role matrix, deletion and a generic check of every
+`public.training_*` table with `trainee_user_id` run against PostgreSQL in
+`backend/src/__tests__/sql/performance.litt-training-supervision.sql` (CI,
+schema-drift workflow) and `trainingSupervision.postgres.test.ts` (local, with
+`MIKE_TEST_POSTGRES_CONTAINER`).
