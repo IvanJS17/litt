@@ -219,7 +219,7 @@ function parseJson(value: unknown): unknown {
   }
 }
 
-function parseModelJson(raw: string): unknown {
+export function parseModelJson(raw: string): unknown {
   const cleaned = raw
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -313,7 +313,7 @@ function validateCompiledPlaybookOutput(
   );
 }
 
-function validationErrorMessage(error: unknown): string {
+export function validationErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message.slice(0, 2_000);
 }
@@ -338,7 +338,7 @@ export async function validatePlaybookCompilationWithRetry(args: {
   }
 }
 
-function stableIds(content: PlaybookContent): PlaybookContent {
+export function stableIds(content: PlaybookContent): PlaybookContent {
   // Preserve explicit IDs where possible, and keep generated IDs from
   // colliding with IDs on later rules. Duplicate model IDs otherwise merge
   // unrelated rules in normalizeFindings and in the editor's selection.
@@ -428,7 +428,7 @@ function validateImportedSources(
   };
 }
 
-function validateModel(model: string): void {
+export function validateModel(model: string): void {
   if (!model.trim()) throw new PlaybookRequestError("Select a model.");
   try {
     providerForModel(model.trim());
@@ -498,8 +498,12 @@ async function assertPlaybookModelAvailable(
     ? await getEffectiveApiKeys(userId, orgId, db)
     : await getUserApiKeys(userId, db);
   const availability = playbookModelAvailability(model, apiKeys);
+  // No silent fallback: without a key for the chosen model the request is
+  // refused with a code the client acts on, never sent to another model.
   if (!availability.available)
-    throw new PlaybookRequestError(availability.reason);
+    throw new PlaybookRequestError(availability.reason, 400, {
+      code: "missing_api_key",
+    });
   return apiKeys;
 }
 
@@ -510,7 +514,7 @@ async function assertPlaybookModelAvailable(
  * (a queued job, a retry) uses exactly that route and fails closed if the
  * credential is gone. Only the pinned credential reaches the model layer.
  */
-async function pinPlaybookRoute(
+export async function pinPlaybookRoute(
   db: Db,
   userId: string,
   model: string,
@@ -518,11 +522,12 @@ async function pinPlaybookRoute(
 ): Promise<ResolvedChatRoute> {
   await assertPlaybookModelAvailable(userId, model, db, orgId);
   const pinned = await pinChatRoute(db, { userId, orgId, model });
-  if (!pinned.ok) throw new PlaybookRequestError(pinned.detail, 409);
+  if (!pinned.ok)
+    throw new PlaybookRequestError(pinned.detail, 409, { code: pinned.code });
   return pinned;
 }
 
-async function loadPlaybookRoute(
+export async function loadPlaybookRoute(
   db: Db,
   userId: string,
   orgId: string | null,
@@ -534,7 +539,8 @@ async function loadPlaybookRoute(
       409,
     );
   const loaded = await loadPinnedChatRoute(db, { userId, orgId, route });
-  if (!loaded.ok) throw new PlaybookRequestError(loaded.detail, 409);
+  if (!loaded.ok)
+    throw new PlaybookRequestError(loaded.detail, 409, { code: loaded.code });
   return loaded;
 }
 
@@ -577,7 +583,7 @@ async function availablePlaybookModels(
 }
 
 /** Whether this write landed: false once another claim finished the attempt. */
-async function updateImportAttempt(
+export async function updateImportAttempt(
   db: Db,
   attemptId: string,
   values: Record<string, unknown>,
@@ -650,7 +656,7 @@ export function playbookImportFailureMessage(
  * cancel the request already in flight, because completeText exposes no
  * abort signal. The name is what playbookImportFailureMessage matches on.
  */
-async function withCompilationTimeout<T>(
+export async function withCompilationTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
 ): Promise<T> {
@@ -735,7 +741,7 @@ function publicPlaybook(
   };
 }
 
-async function creationScope(db: Db, userId: string, raw: unknown) {
+export async function creationScope(db: Db, userId: string, raw: unknown) {
   const result = await resolveWorkspaceFilter(db, userId, raw);
   if (!result.ok)
     throw new PlaybookRequestError(
@@ -1064,7 +1070,10 @@ export function playbookReviewJobKey(runId: string): string {
   return `playbook.review:${runId}`;
 }
 
-/** The db_jobs dedupe key of the job that compiles an import. */
+/**
+ * The db_jobs dedupe key of the job that compiles a playbook_imports row:
+ * an import, or a draft from the questionnaire (playbooks.draft.ts).
+ */
 export function playbookImportJobKey(importId: string): string {
   return `playbook.import:${importId}`;
 }
@@ -1110,10 +1119,11 @@ async function interruptedPlaybookWork(
 }
 
 /** Bump a running row's heartbeat until the returned stop is called. */
-function keepPlaybookWorkAttended(
+export function keepPlaybookWorkAttended(
   db: Db,
   table: "playbook_runs" | "playbook_imports",
   id: string,
+  importKind: "playbook.import" | "playbook.draft" = "playbook.import",
 ): () => void {
   // One report per piece of work: a database that is down fails every beat.
   let reported = false;
@@ -1131,7 +1141,7 @@ function keepPlaybookWorkAttended(
           reportPlaybookFailure(error, {
             stage: "heartbeat",
             level: "warning",
-            jobKind: review ? "playbook.review" : "playbook.import",
+            jobKind: review ? "playbook.review" : importKind,
             ids: review ? { run_id: id } : { import_id: id },
           });
         }
@@ -1148,6 +1158,10 @@ function keepPlaybookWorkAttended(
 
 export const INTERRUPTED_IMPORT_ERROR =
   "The import stopped before it finished. Import the playbook again.";
+
+/** LiTT: the same, for a draft from the questionnaire. */
+export const INTERRUPTED_DRAFT_ERROR =
+  "El borrador se interrumpió antes de terminar. Vuelve a enviar el cuestionario.";
 
 /** A content write refused while a replacement import of the playbook runs. */
 export const PLAYBOOK_BEING_REPLACED_ERROR =
@@ -1192,19 +1206,24 @@ export async function assertPlaybookNotBeingReplaced(
  * An import's state as readers should see it; `interrupted` holds the ids
  * interruptedPlaybookWork found will never finish.
  */
-function publicImport(
+export function publicImport(
   row: Record<string, unknown>,
   interrupted: ReadonlySet<string>,
 ): PlaybookImport {
   const stopped = interrupted.has(String(row.id));
   const status = stopped ? "failed" : String(row.status);
+  const kind =
+    row.kind === "draft" || row.kind === "proposal" ? row.kind : "import";
   return {
     id: String(row.id),
+    kind,
     status:
       status === "completed" || status === "failed" ? status : "running",
     stage: String(row.stage),
     error: stopped
-      ? INTERRUPTED_IMPORT_ERROR
+      ? kind === "import"
+        ? INTERRUPTED_IMPORT_ERROR
+        : INTERRUPTED_DRAFT_ERROR
       : row.error
         ? String(row.error)
         : null,
@@ -1217,7 +1236,7 @@ function publicImport(
 }
 
 const IMPORT_COLUMNS =
-  "id, status, stage, error, filename, requested_name, playbook_id, started_at, completed_at, updated_at";
+  "id, kind, status, stage, error, filename, requested_name, playbook_id, started_at, completed_at, updated_at";
 
 /** One of the caller's import attempts. */
 export async function getPlaybookImport(
@@ -1375,7 +1394,7 @@ export async function playbookImportDocument(
  * failure later in the import arrives with, so a throw in `saving_playbook`
  * is told apart from the same throw reached from `storing_source`.
  */
-function enterImportStage(stage: PlaybookImportStage): PlaybookImportStage {
+export function enterImportStage(stage: PlaybookImportStage): PlaybookImportStage {
   markStage(importReportStage(stage));
   return stage;
 }
@@ -1466,7 +1485,7 @@ export async function beginPlaybookImport(
 }
 
 /** Postgres unique_violation. */
-const UNIQUE_VIOLATION = "23505";
+export const UNIQUE_VIOLATION = "23505";
 
 /**
  * Compiles a recorded import from its file and saves the playbook. Safe to
@@ -2262,7 +2281,8 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     db,
     stored ? stored.orgId : playbook.orgId,
   );
-  if (JSON.stringify(content).length > 100_000)
+  // Measured on what the review prompt sends: the rules without provenance.
+  if (JSON.stringify(stripProvenance(content)).length > 100_000)
     throw new PlaybookRequestError(
       "The playbook is too large for a complete review. Split it into smaller playbooks.",
     );

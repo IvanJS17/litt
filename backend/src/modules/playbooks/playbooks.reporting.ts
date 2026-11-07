@@ -17,7 +17,11 @@ import { safeError } from "../../lib/safeError";
 import { deleteFile } from "../../lib/storage";
 import type { PlaybookImportStage } from "./playbooks.types";
 
-export type PlaybookJobKind = "playbook.review" | "playbook.import";
+export type PlaybookJobKind =
+  | "playbook.review"
+  | "playbook.import"
+  // LiTT: a draft from the questionnaire (playbooks.draft.ts).
+  | "playbook.draft";
 
 export type PlaybookReportStage =
   | "import.read"

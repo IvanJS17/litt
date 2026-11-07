@@ -25,6 +25,7 @@ import {
     beginPlaybookImport,
     beginPlaybookReview,
     compilePlaybookImport,
+    INTERRUPTED_DRAFT_ERROR,
     INTERRUPTED_IMPORT_ERROR,
     INTERRUPTED_RUN_ERROR,
     MAX_PLAYBOOK_IMPORT_BYTES,
@@ -44,7 +45,19 @@ import {
     type PlaybookReviewRequest,
 } from "./playbooks.types";
 import { isStagedPlaybookImportKey } from "./playbooks.staging";
-import { reportPlaybookFailure, type PlaybookJobKind } from "./playbooks.reporting";
+import {
+  beginPlaybookDraft,
+  compilePlaybookDraft,
+  discardDraftPlaybook,
+  recordDraftAudit,
+  stagedDraftKeys,
+} from "./playbooks.draft";
+import type { PlaybookDraftRequest, PlaybookDraftWork } from "./playbooks.types";
+import {
+  removePlaybookObjects,
+  reportPlaybookFailure,
+  type PlaybookJobKind,
+} from "./playbooks.reporting";
 import {
   recordPlaybookImportAudit,
   recordPlaybookRunAudit,
@@ -52,6 +65,8 @@ import {
 
 export const PLAYBOOK_REVIEW_JOB = "playbook.review";
 export const PLAYBOOK_IMPORT_JOB = "playbook.import";
+/** LiTT: a draft from the questionnaire (playbooks.draft.ts). */
+export const PLAYBOOK_DRAFT_JOB = "playbook.draft";
 
 /**
  * Attempts per job. Only a crash or an unrecordable outcome uses one: a
@@ -141,11 +156,13 @@ async function markFailed(
   table: Table,
   id: string,
   message: string,
+  extra: Record<string, unknown> = {},
 ): Promise<Record<string, unknown> | null> {
   const completedAt = new Date().toISOString();
   const { data, error } = await db
     .from(table)
     .update({
+      ...extra,
       status: "failed",
       error: message,
       completed_at: completedAt,
@@ -188,26 +205,41 @@ export async function markPlaybookReviewJobFailed(
     });
 }
 
-/** Remove a staged upload once nothing will read it again. */
-async function clearStagedImport(payload: PlaybookImportJobPayload) {
-  if (!("storageKey" in payload)) return;
-  // Only an object the upload route minted for this user (see
-  // playbooks.staging.ts): the payload is ours, but a key is a delete target.
-  if (!isStagedPlaybookImportKey(payload.userId, payload.storageKey)) return;
-  await deleteFile(payload.storageKey).catch((error) => {
-    // The upload is orphaned in storage: worth knowing, never worth failing
-    // an import that has already recorded its outcome.
-    reportPlaybookFailure(error, {
-      stage: "import.cleanup",
-      level: "warning",
-      jobKind: "playbook.import",
-      ids: { import_id: payload.attemptId },
+/** Remove staged uploads once nothing will read them again. */
+async function clearStagedKeys(
+  userId: string,
+  keys: readonly string[],
+  attemptId: string,
+  jobKind: PlaybookJobKind,
+) {
+  for (const key of keys) {
+    // Only an object the upload route minted for this user (see
+    // playbooks.staging.ts): the payload is ours, but a key is a delete target.
+    if (!isStagedPlaybookImportKey(userId, key)) continue;
+    await deleteFile(key).catch((error) => {
+      // The upload is orphaned in storage: worth knowing, never worth failing
+      // work that has already recorded its outcome.
+      reportPlaybookFailure(error, {
+        stage: "import.cleanup",
+        level: "warning",
+        jobKind,
+        ids: { import_id: attemptId },
+      });
+      console.warn("[playbooks] staged upload cleanup failed", {
+        storageKey: key,
+        error: safeError(error),
+      });
     });
-    console.warn("[playbooks] staged upload cleanup failed", {
-      storageKey: payload.storageKey,
-      error: safeError(error),
-    });
-  });
+  }
+}
+
+function clearStagedImport(payload: PlaybookImportJobPayload) {
+  return clearStagedKeys(
+    payload.userId,
+    "storageKey" in payload ? [payload.storageKey] : [],
+    payload.attemptId,
+    "playbook.import",
+  );
 }
 
 /** The file an import compiles, or a reason written for the user. */
@@ -265,6 +297,46 @@ export async function markPlaybookImportJobFailed(
       failedStage: typeof row.stage === "string" ? row.stage : null,
     });
   await clearStagedImport(payload);
+}
+
+export async function handlePlaybookDraft(db: Db, job: DbJob): Promise<void> {
+  setOperation("playbooks.draft");
+  const payload = job.payload as unknown as PlaybookDraftWork;
+  const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
+  // The answers are read from the row, never from the job's payload.
+  if (row)
+    await untilRecorded(db, "playbook_imports", payload.attemptId, () =>
+      compilePlaybookDraft(db, payload, row.request_json),
+    );
+  // Reached only once the draft has an outcome; a retry still needs the files.
+  await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
+}
+
+/**
+ * Retries exhausted: the draft ends as interrupted, and its answers, uploads
+ * and any half-saved draft playbook go with it. Only a row this hook fails
+ * (one whose outcome was never recorded) removes the playbook, so a draft
+ * that completed is never deleted.
+ */
+export async function markPlaybookDraftJobFailed(
+  db: Db,
+  job: DbJob,
+): Promise<void> {
+  const payload = job.payload as unknown as PlaybookDraftWork;
+  const row = await markFailed(
+    db,
+    "playbook_imports",
+    payload.attemptId,
+    INTERRUPTED_DRAFT_ERROR,
+    { request_json: null },
+  );
+  if (row) {
+    await discardDraftPlaybook(db, payload);
+    await recordDraftAudit(db, payload, {
+      failedStage: typeof row.stage === "string" ? row.stage : null,
+    });
+  }
+  await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
 }
 
 /**
@@ -432,4 +504,33 @@ export async function queuePlaybookImport(
     markPlaybookImportJobFailed,
   );
   return attempt;
+}
+
+/**
+ * Checks and records a draft from the questionnaire, then queues its
+ * compile. A refused request removes the caller's staged attachments; once
+ * queued they belong to the job, which removes them at the draft's outcome.
+ */
+export async function queuePlaybookDraft(
+  args: PlaybookDraftRequest,
+): Promise<PlaybookImport> {
+  const db = args.db ?? createServerSupabase();
+  let begun: Awaited<ReturnType<typeof beginPlaybookDraft>>;
+  try {
+    begun = await beginPlaybookDraft({ ...args, db });
+  } catch (error) {
+    await removePlaybookObjects(stagedDraftKeys(args.userId, args.attachments), {
+      stage: "import.cleanup",
+    });
+    throw error;
+  }
+  await dispatch(
+    db,
+    PLAYBOOK_DRAFT_JOB,
+    playbookImportJobKey(begun.work.attemptId),
+    begun.work,
+    handlePlaybookDraft,
+    markPlaybookDraftJobFailed,
+  );
+  return begun.attempt;
 }
