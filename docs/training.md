@@ -205,7 +205,7 @@ facade decides the seal before calling `create_document_version`:
 | A1 upload, A2 new version, A4 assistant edit, A6 generated file | the actor | sealed with the actor as author when the actor's effective stage (`resolveTrainingStage`, in the document's organization and project) is `pasante` |
 | A3 version from another document, A5 replicate, A8 copy to workflow assets, A9 copy to another project | a copy of the source version | the source's seal and author, whoever copies |
 | A7 workflow add-on from the catalog | catalog | never |
-| A10 approved AI review report | the reviewer | `append_ai_review_export` seals it when the backend passes `training_stage: 'pasante'` |
+| A10 approved AI review report | the reviewer | the backend always states `training_stage` (`'pasante'` or `null`); `append_ai_review_export` refuses a contract without it |
 | U1 accept/reject an edit, U2 same-turn edit, U3 replacement (editor save) | the actor (`updateDocumentVersion` requires `actorUserId`) | a pasante seals the version in place |
 | U4 conversion (rendition only) | — | no change |
 
@@ -213,7 +213,11 @@ A seal is never removed or handed to somebody else: the trigger
 `document_versions_training_seal_keep` restores it on every update, so a
 lawyer's change to a pasante's version leaves it sealed. The author has no
 foreign key on purpose; the seal outlives the account. A read failure while
-deciding a seal fails the write. Versions written before 1b have no seal.
+deciding a seal fails the write, and so does a copy whose source version is
+not found. A sealed copy is made only into a document with an organization,
+where it can be approved: a workflow asset takes its workflow's
+organization, and a copy that would have none (a chat or a workflow outside
+an organization) is refused. Versions written before 1b have no seal.
 
 ### Approval
 
@@ -222,7 +226,7 @@ deciding a seal fails the write. Versions written before 1b have no seal.
 `TrainingVersionApproval` in `packages/contracts`) records the approval of
 the version's **current** `content_sha256` in `training_version_approvals`.
 It can be given by a member with `content.edit` in the document's project
-whose effective stage there is none, or by the author's current mentor; never
+(or, for a workflow asset, its workflow) whose effective stage there is none, or by the author's current mentor; never
 by the author, a pasante or a junior. A person who can read the document but
 may not approve gets `403`, whatever the reason; one who cannot read it gets
 `404`. Approving the same bytes again returns the first approval. Each new
@@ -256,7 +260,7 @@ The check runs on the version row each output actually resolves, so
 | `GET /download/:token` | `409` after the access check, on the resolved row. This one gate covers every token: chat events, accepted or rejected edits, generated and replicated files, playbook reviews, and the tokens kept in chat history or a chats export |
 | `documents-zip` export (`POST /user/exports`) | the version is left out and named, with the reason, in `OMITIDOS.txt` inside the zip; a zip with only that list is still produced |
 | `GET /projects/:projectId/ai-executions/:executionId/review/approved-report` | `409` while the report of a pasante reviewer (sealed when produced) is not approved |
-| Drive publication of the approved report | `409` before any claim or upload, although publication already fails closed outside the fake transport |
+| Drive publication of the approved report, and its reconcile | `409` before any claim or upload, although publication already fails closed outside the fake transport |
 
 **Not locked (viewing inside LiTT):** `GET /single-documents/:id/display` and
 `GET /single-documents/:id/file` (the pasante's own DOCX editor needs it)
