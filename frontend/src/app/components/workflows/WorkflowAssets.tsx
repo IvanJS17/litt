@@ -1,6 +1,6 @@
 "use client";
 
-import { isTrainingHeld } from "@/shared/ui/TrainingHeldNoteUI";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import {
   forwardRef,
   useEffect,
@@ -444,8 +444,13 @@ export const WorkflowAssets = forwardRef<
                     fileType={file.file_type || file.filename}
                     className="mr-2 h-4 w-4"
                   />
-                  <span className="min-w-0 flex-1 truncate text-xs text-gray-800">
-                    {file.filename}
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="min-w-0 truncate text-xs text-gray-800">
+                      {file.filename}
+                    </span>
+                    {isTrainingHeld(file) && (
+                      <TrainingHeldNoteUI className="text-[11px]" />
+                    )}
                   </span>
                 </TableStickyCell>
                 <TableCell className="ml-auto w-20 text-xs uppercase text-gray-500">

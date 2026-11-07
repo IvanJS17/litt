@@ -25,6 +25,8 @@ export interface DocumentTabItem {
     icon?: ReactNode;
     versionNumber?: number | null;
     actions?: DocumentActions;
+    /** A status shown in full under the title (LiTT training's held mark). */
+    note?: string;
 }
 
 interface Props {
@@ -192,7 +194,7 @@ export function DocumentTabBar({
                                                 : -1
                                         }
                                         aria-selected={isActive}
-                                        aria-label={tab.title}
+                                        aria-label={tab.note ? `${tab.title}, ${tab.note}` : tab.title}
                                         draggable={
                                             !renaming &&
                                             !!onReorder &&
@@ -284,7 +286,8 @@ export function DocumentTabBar({
                                             isActive ? "true" : "false"
                                         }
                                         className={cn(
-                                            "document-tab group relative flex h-7 min-w-0 max-w-[220px] shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-md pl-3 pr-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
+                                            "document-tab group relative flex min-w-0 max-w-[220px] shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-md pl-3 pr-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
+                                            tab.note ? "min-h-7 py-0.5" : "h-7",
                                             isActive ? "z-20" : "z-10",
                                             onReorder &&
                                                 tabs.length > 1 &&
@@ -314,11 +317,18 @@ export function DocumentTabBar({
                                                 />
                                             )}
                                             {renameInput || (
-                                                <span
-                                                    className="min-w-0 flex-1 truncate text-xs font-normal"
-                                                    title={tab.title}
-                                                >
-                                                    {tab.title}
+                                                <span className="flex min-w-0 flex-1 flex-col">
+                                                    <span
+                                                        className="min-w-0 truncate text-xs font-normal"
+                                                        title={tab.title}
+                                                    >
+                                                        {tab.title}
+                                                    </span>
+                                                    {tab.note && (
+                                                        <span className="min-w-0 break-words text-[10px] leading-tight text-muted-foreground">
+                                                            {tab.note}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             )}
                                             {showVersion && (
