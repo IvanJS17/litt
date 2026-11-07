@@ -242,6 +242,7 @@ describe("a held document's tab", () => {
                 activeTabId="a"
                 onActivate={vi.fn()}
                 onClose={vi.fn()}
+                onReorder={vi.fn()}
                 onDownloadDoc={vi.fn()}
             />,
         );
