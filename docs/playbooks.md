@@ -28,7 +28,7 @@ review. There is no publishing step or numbered playbook version.
 A playbook is **ready** or a **draft**. Every playbook imported from a file or
 started from scratch is ready, as before. A playbook the model writes from
 the questionnaire (see "Starting a playbook with questions") is a draft, and
-so will be a copy with proposed changes (a later card of the same layer).
+so is a copy made with "Use as a starting point" (see "Using a playbook as a starting point").
 
 A draft cannot be used in a review. Every way of starting one refuses it
 before anything is recorded, with `409` and the code `playbook_draft`:
@@ -218,6 +218,86 @@ The draft is saved as a **draft** playbook, with the answers stored apart from
 its rules (they are not copied into review snapshots or sent to the review
 model). It cannot be used in a review until an editor marks it ready. A draft
 that fails leaves no playbook behind.
+
+## Using a playbook as a starting point
+
+`POST /playbooks/:id/copy` with `{ name?, workspace?, visibility? }` answers
+`201` with the new playbook. Anyone who can open the original (Viewer or more)
+can copy it; someone who cannot open it gets `404`, as for every read. The
+copy is created in the original's workspace unless `workspace` names another
+one the caller can create in (the same check as creating a playbook). The name
+defaults to the original's.
+
+The copy belongs to the caller (owner), is a draft, is never a model, and
+records the original in `derivedFromPlaybookId`. It takes the topics and
+rules, and each rule's origin and legal references (they belong to the rule).
+It takes nothing of the original's case: no questionnaire answers, no
+reference documents, no source file. Rules' file markers (`sourceRefs`) are
+emptied because they point into the original's file; a rule whose origin is
+an attached clause keeps its quote, but the document stays with the original.
+The original is only
+read, and copying does not call the model.
+
+`POST /playbooks/:id/proposals` with `{ model, answers?, attachments? }`
+answers `202` with the attempt (`kind: "proposal"`), which
+`GET /playbooks/imports/:id` follows. Answers and attachments are the new
+case's questionnaire, with the same rules and limits as a draft (see
+"Starting a playbook with questions").
+
+- It needs **Editor** or **Owner** of a draft. On a ready playbook it answers
+  `409` `playbook_not_draft`; while earlier proposed changes await a decision,
+  it answers `409` `playbook_changes_pending`.
+- The playbook's rules may hold up to 100,000 characters, as for a review, and
+  the playbook may keep up to 20 reference documents counting the new
+  attachments.
+- It needs an MFA-verified session where enrolled, and shares the import rate
+  limit.
+- Model, provider and key are fixed when it is requested, exactly as for a
+  draft: no other model or key is ever tried, and a key removed before the job
+  runs fails the proposals.
+
+The `playbook.draft` job computes it (the same job kind as a draft, told apart
+by `kind`). While it runs, the copy is read-only: saving its rules, changing
+its state or accepting a change answers `409` `playbook_proposals_running`.
+The model reads the copy's rules (without provenance) and the fenced answers
+and attachments, and answers with operations on the copy's rules: `add_rule`
+(into an existing topic or outside topics), `modify_rule` or `remove_rule`. It
+never returns a whole playbook. One repair request is made on an invalid
+answer, as for a draft.
+
+The server checks each operation against the copy as it is. An operation on a
+rule or topic that does not exist, a modification that changes none of the
+compared fields (name, concept, scope, required, guidance, standard, fallbacks,
+unacceptable, conditions, actions), a second operation on the same rule, or an
+invalid rule is dropped and counted. At most 40 changes are kept. The rule's
+state before the change is always read from the copy, never taken from the
+model. Each added or modified rule's origin and legal references are decided
+exactly as a draft's are (the table in "Starting a playbook with questions").
+A removal carries no origin, only its rationale.
+
+Changes are stored in `playbook_changes` as pending. On success the copy keeps
+the new case's answers apart from its rules (as a draft does), and the
+attachments become its reference documents; the copy's rules are not
+rewritten. A proposal that fails leaves no change and no reference document
+behind, and the copy stays as it was.
+
+- **`GET /playbooks/:id/changes`** lists the playbook's changes, pending and
+  decided, in the order proposed (Viewer or more). Each has `id`, `op`,
+  `ruleId`, `topicId`, `before`, `after`, `changedFields`, `rationale`,
+  `status` (`pending`, `accepted` or `rejected`), `decidedBy`, `decidedAt` and
+  `createdAt`.
+- **`PATCH /playbooks/:id/changes/:changeId`** with
+  `{ "decision": "accept" | "reject" }` (Editor or Owner; a Viewer gets `403`)
+  answers `{ playbook, change }`. Changes are decided one by one: there is no
+  accept-all. Rejecting records the decision and leaves the rules untouched.
+- Accepting applies the change only over the rule it was proposed for. If that
+  rule was edited, moved or removed since, or the topic of an added rule is
+  gone, or another save landed meanwhile, it answers `409`
+  `playbook_change_stale` and the change stays pending; reload the changes. A
+  change already decided answers `409` `playbook_change_decided`, so a second
+  click never applies it twice.
+- The copy cannot be marked ready while any change is pending (`409`
+  `playbook_changes_pending`, see "Draft and ready, and models (LiTT)").
 
 ## Importing a playbook
 
@@ -459,6 +539,10 @@ surface, as chat, document, and tabular review activity is:
 | `playbook.marked_ready` | An editor marks a draft ready; `detail` holds the number of rules, of rules without backing, and of unverified legal references. |
 | `playbook.model_marked` | An editor marks a ready playbook as a model. |
 | `playbook.model_unmarked` | An editor removes the model mark. |
+| `playbook.copied` | A playbook is copied as a starting point; `detail` holds the copy's and the original's ids and the number of rules. |
+| `playbook.proposals_ready` | Proposed changes for a copy end. The row holds the model; `detail` holds the attempt and copy ids and, when they completed, the number of changes (added, modified, removed), of operations dropped, of rules without backing, of unverified legal references, of origins the server lowered, of answered questions and of attachments. A failed one carries its `stage`. Never the answers or rule text. |
+| `playbook.change_accepted` | An editor accepts a proposed change; `detail` holds the playbook and change ids, the operation and the rule id. |
+| `playbook.change_rejected` | An editor rejects one; same `detail`. |
 
 Rows carry the playbook's name as their title and ids in `detail`, never
 rule text, findings, or contract text. An import refused in the request that
