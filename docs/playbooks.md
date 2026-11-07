@@ -23,6 +23,47 @@ Changes save automatically. Reviews use the latest saved rules and retain a
 content snapshot so later edits do not change an in-progress or historical
 review. There is no publishing step or numbered playbook version.
 
+### Draft and ready, and models (LiTT)
+
+A playbook is **ready** or a **draft**. Every playbook imported from a file or
+started from scratch is ready, as before. A draft is what LiTT will produce
+when the model writes a playbook from a questionnaire or proposes changes for
+a copy (later cards of the same layer); until then the state is set only
+through the endpoint below.
+
+A draft cannot be used in a review. Every way of starting one refuses it
+before anything is recorded, with `409` and the code `playbook_draft`:
+`POST /playbooks/:id/review`, the assistant's `run_playbook` tool (which
+returns the same message to the model), and a Word chat message with the
+draft attached. The assistant's `list_playbooks` tool and the Word add-in's
+playbook picker leave drafts out.
+
+`PATCH /playbooks/:id/state` with `{ "status": "ready" }` and/or
+`{ "isModel": true | false }` changes the state. It needs **Editor** or
+**Owner**, like editing the rules.
+
+- **Marking ready** is one way: there is no return to draft. It checks the
+  complete rules, as a review does, and refuses with `409`
+  `playbook_changes_pending` while changes proposed for the playbook await a
+  decision. Rules without backing and unverified legal references do not
+  block it; the audit row records how many there were.
+- **Model** marks a ready playbook as a starting point for its workspace,
+  personal or organization. A draft cannot be a model (the database refuses
+  it too), unless the same request marks it ready.
+- The change applies only over the version that was read: if an edit was
+  saved in between, it answers `409` and nothing changes; reload and retry.
+
+Each rule may carry an `origin` (an answer to the questionnaire, an attached
+clause, or general practice suggested by the model, which is marked as having
+no backing) and `legalRefs` (legal references, each verified or not). Both
+belong to the server: saving a playbook keeps the ones stored for each rule's
+id, whatever the editor sends, and a new rule arrives without them. They are
+kept in the snapshot a review stores, but not sent to the review model.
+
+The changes proposed for a copy are stored in `playbook_changes`, one row per
+rule added, modified or removed, each pending, accepted or rejected. They are
+deleted with their playbook and included in the account export.
+
 ## Browsing and editing
 
 The Playbooks table shows each playbook on one line, with its access, creator,
@@ -64,7 +105,8 @@ files. Their private and personal playbooks, the reviews and imports they ran,
 and shares addressed to them are deleted with the account. The account export
 in **Settings > Privacy & Data** includes the playbooks they created and can
 still open, the reviews they ran on playbooks they can still open, the
-supplementary documents' details, and their import records. An
+supplementary documents' details, the changes proposed for those playbooks,
+and their import records. An
 organization's owners can delete all of its playbooks, public and private,
 from the organization's **Privacy & Data** settings.
 
@@ -351,6 +393,9 @@ surface, as chat, document, and tabular review activity is:
 | `playbook.deleted` | A playbook is deleted. |
 | `playbook.run` | A review completes or fails. The row holds the model and the stored document reviewed, if any; `detail` holds the playbook and run ids, scope, posture, and, for a completed review, the number of findings per status. |
 | `playbook.run.deleted` | A review run is deleted. |
+| `playbook.marked_ready` | An editor marks a draft ready; `detail` holds the number of rules, of rules without backing, and of unverified legal references. |
+| `playbook.model_marked` | An editor marks a ready playbook as a model. |
+| `playbook.model_unmarked` | An editor removes the model mark. |
 
 Rows carry the playbook's name as their title and ids in `detail`, never
 rule text, findings, or contract text. An import refused in the request that
