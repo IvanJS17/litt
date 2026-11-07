@@ -173,6 +173,22 @@ describe("auth routes", () => {
     expect(createRequestSupabase).not.toHaveBeenCalled();
   });
 
+  it("tells a signed-out page whether SSO is on, and nothing else", async () => {
+    const off = await request(app).get("/auth/providers");
+    expect(off.status).toBe(200);
+    expect(off.headers["cache-control"]).toBe("private, no-store");
+    expect(off.body).toEqual({ sso: false });
+
+    process.env.SSO_ENABLED = " TRUE ";
+    process.env.SSO_ALLOWED_DOMAINS = "example.com, other.example";
+    const on = await request(app).get("/auth/providers");
+    expect(on.status).toBe(200);
+    // The allowed domains say which firms use the instance: never public.
+    expect(on.body).toEqual({ sso: true });
+    expect(on.text).not.toContain("example.com");
+    expect(createRequestSupabase).not.toHaveBeenCalled();
+  });
+
   it("extracts a normalized email domain and uses the shared callback", async () => {
     process.env.SSO_ENABLED = "true";
     process.env.SSO_ALLOWED_DOMAINS = "example.com, other.example";

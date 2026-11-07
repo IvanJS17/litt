@@ -617,8 +617,11 @@ SSO_ALLOWED_DOMAINS=example.com
 ```
 
 `SSO_ENABLED` defaults to false and enables only with `true` (case-insensitive).
-The SSO screen asks for a company email and uses its normalized domain to find
-the matching provider; the email itself is not sent to GoTrue during provider
+The login page asks the public `GET /api/auth/providers` (`{ "sso": boolean }`,
+nothing else) and hides "Continue with SSO" only when it answers `false`; while
+the answer is pending, or if the read fails, the button stays. The SSO screen
+asks for a company email and uses its normalized domain to find the matching
+provider; the email itself is not sent to GoTrue during provider
 discovery. `SSO_ALLOWED_DOMAINS` is an optional comma-separated list of exact
 domains. Use DNS names, or punycode for international domains, without URLs or
 wildcards. Invalid domain settings fail closed. Omitting the allowlist permits
