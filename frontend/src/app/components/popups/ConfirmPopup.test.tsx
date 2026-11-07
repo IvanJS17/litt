@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { ConfirmPopup } from "./ConfirmPopup";
 import { ModalUI } from "@mike/ui";
 
@@ -131,5 +132,46 @@ describe("ConfirmPopup", () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("moves focus to Cancel, keeps Tab inside, and returns focus on close", async () => {
+    // Focus stayed on the trigger behind the popup and Tab walked the page.
+    const user = userEvent.setup();
+    const scene = (popupOpen: boolean) => (
+      <>
+        <button type="button">Delete project</button>
+        <button type="button">Elsewhere</button>
+        <ConfirmPopup
+          open={popupOpen}
+          title="Delete project?"
+          confirmLabel="Delete"
+          confirmVariant="danger"
+          onConfirm={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </>
+    );
+    const { rerender } = render(scene(false));
+    const trigger = screen.getByRole("button", { name: "Delete project" });
+    trigger.focus();
+
+    rerender(scene(true));
+    const dialog = screen.getByRole("dialog", { name: "Delete project?" });
+    const cancel = within(dialog).getByRole("button", { name: "Cancel" });
+    const confirm = within(dialog).getByRole("button", { name: "Delete" });
+    const close = within(dialog).getByRole("button", {
+      name: "Close confirmation",
+    });
+    expect(cancel).toHaveFocus();
+
+    await user.tab();
+    expect(confirm).toHaveFocus();
+    await user.tab();
+    expect(close).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(confirm).toHaveFocus();
+
+    rerender(scene(false));
+    expect(trigger).toHaveFocus();
   });
 });
