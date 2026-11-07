@@ -354,6 +354,8 @@ interface UserProfile extends Partial<RouterProfileLists> {
   lastSelectedChatModel: string | null;
   lastSelectedReasoningLevel: ReasoningLevel;
   mfaOnLogin: boolean;
+  /** The profile's dark theme, which the web app also follows. */
+  darkMode?: boolean;
   apiKeyStatus: ApiKeyStatus;
 }
 

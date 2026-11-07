@@ -3,9 +3,15 @@
 import * as React from "react";
 import { ArrowRight, Square } from "lucide-react";
 
-import { COMPOSER_SEND_BUTTON_CLASS } from "@mike/ui";
+import {
+    COMPOSER_SEND_BUTTON_CLASS,
+    LIQUID_GLASS_TRANSLUCENT_CLASS,
+} from "@mike/ui";
 
 import { cn } from "../lib/utils";
+
+/** Lines the composer grows to before its text scrolls. */
+const COMPOSER_MAX_LINES = 6;
 
 interface ChatInputProps {
     value: string;
@@ -62,14 +68,21 @@ export function ChatInput({
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const inputAreaRef = React.useRef<HTMLDivElement>(null);
 
-    // 160px is the effective cap: a narrow-pane adaptation tighter than the
-    // web composer's max-h-48 (192px), which the textarea also carries so a
-    // growing value can never swallow the pane before this effect runs.
+    // The cap is a whole number of lines (6 × 24px = 144px), a narrow-pane
+    // adaptation tighter than the web composer's max-h-48 (192px), which the
+    // textarea also carries so a growing value can never swallow the pane
+    // before this effect runs. Past the cap the text scrolls inside the
+    // field; with whole lines, the scrolled-to-the-end view starts on a line
+    // boundary instead of cutting the top line in half.
     const resizeTextarea = React.useCallback((): void => {
         const el = textareaRef.current;
         if (!el) return;
+        const lineHeight =
+            Number.parseFloat(getComputedStyle(el).lineHeight) || 24;
+        const cap = lineHeight * COMPOSER_MAX_LINES;
         el.style.height = "0px";
-        el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+        el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
+        el.style.overflowY = el.scrollHeight > cap ? "auto" : "hidden";
     }, []);
 
     // Auto-grow when content changes.
@@ -125,7 +138,9 @@ export function ChatInput({
         <div
             data-testid="chat-input"
             className={cn(
-                "rounded-[21px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(21,26,38,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
+                // The web composer's glass, so the pane follows the dark theme.
+                "rounded-[21px]",
+                LIQUID_GLASS_TRANSLUCENT_CLASS,
                 className,
             )}
         >

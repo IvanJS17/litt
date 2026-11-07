@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ModelToggleUI, type ModelToggleOption } from "./ModelToggleUI";
 
@@ -44,5 +45,39 @@ describe("ModelToggleUI as a form field", () => {
         expect(screen.getByRole("button", { name: "No models available" })).toHaveClass(
             "bg-app-surface-active",
         );
+    });
+});
+
+describe("ModelToggleUI opened by its host", () => {
+    it("opens on the selected model's group and reports the trigger closing it", async () => {
+        const onOpenChange = vi.fn();
+        const { rerender } = render(
+            <ModelToggleUI
+                value=""
+                onChange={vi.fn()}
+                models={models}
+                open={false}
+                onOpenChange={onOpenChange}
+            />,
+        );
+        expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+        rerender(
+            <ModelToggleUI
+                value=""
+                onChange={vi.fn()}
+                models={models}
+                open
+                onOpenChange={onOpenChange}
+            />,
+        );
+        expect(await screen.findByRole("menu")).toBeInTheDocument();
+        // The only group starts expanded, as when the trigger opens it.
+        expect(
+            screen.getByRole("menuitem", { name: /Claude Opus 5.5/ }),
+        ).toBeInTheDocument();
+
+        await userEvent.keyboard("{Escape}");
+        expect(onOpenChange).toHaveBeenLastCalledWith(false);
     });
 });

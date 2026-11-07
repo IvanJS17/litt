@@ -1,3 +1,5 @@
+import { applyDarkMode as applyDocumentDarkMode } from "@mike/client";
+
 /**
  * The theme this browser last showed, so a reload paints dark before the
  * profile (the source of truth) answers. Not a preference of its own: it
@@ -5,10 +7,14 @@
  */
 export const THEME_STORAGE_KEY = "litt:theme";
 
+/**
+ * The web app's theme switch: the document change is shared with the Word
+ * add-in (`@mike/client`); the web app also remembers it for the next first
+ * paint.
+ */
 export function applyDarkMode(enabled: boolean): void {
     if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", enabled);
-    document.documentElement.style.colorScheme = enabled ? "dark" : "light";
+    applyDocumentDarkMode(enabled);
     try {
         window.localStorage.setItem(
             THEME_STORAGE_KEY,
