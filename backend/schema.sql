@@ -19161,6 +19161,77 @@ $$;
 revoke all on function public.list_matters_without_owner(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.list_matters_without_owner(uuid, uuid) to service_role;
 
+-- LiTT 20261107_54_litt_playbook_change_guards: one running proposal per
+-- copy; a change accepted in one transaction under the playbook's row lock;
+-- a failed proposal's documents removed only from a copy still in draft.
+create unique index if not exists idx_playbook_imports_one_running_proposal
+  on public.playbook_imports(playbook_id)
+  where status = 'running' and kind = 'proposal';
+
+create or replace function public.accept_playbook_change(
+  p_playbook_id uuid,
+  p_change_id uuid,
+  p_user_id uuid,
+  p_read_updated_at timestamptz,
+  p_content jsonb
+)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  current_version timestamptz;
+begin
+  select updated_at into current_version
+  from public.playbooks
+  where id = p_playbook_id
+  for update;
+  if not found then return 'missing'; end if;
+  -- Another write landed since the backend read the rules.
+  if current_version is distinct from p_read_updated_at then return 'stale'; end if;
+  update public.playbook_changes
+  set status = 'accepted', decided_by = p_user_id, decided_at = now()
+  where id = p_change_id and playbook_id = p_playbook_id and status = 'pending';
+  if not found then return 'decided'; end if;
+  update public.playbooks
+  set content_json = p_content, updated_at = clock_timestamp()
+  where id = p_playbook_id;
+  return 'accepted';
+end;
+$$;
+
+create or replace function public.discard_playbook_proposal_sources(
+  p_playbook_id uuid,
+  p_source_ids uuid[]
+)
+returns setof text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform 1 from public.playbooks
+  where id = p_playbook_id and status = 'draft'
+  for update;
+  -- A ready playbook (or one already gone) keeps its documents.
+  if not found then return; end if;
+  return query
+    delete from public.playbook_sources
+    where playbook_id = p_playbook_id and id = any(p_source_ids)
+    returning storage_key;
+end;
+$$;
+
+revoke all on function public.accept_playbook_change(uuid, uuid, uuid, timestamptz, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.accept_playbook_change(uuid, uuid, uuid, timestamptz, jsonb)
+  to service_role;
+revoke all on function public.discard_playbook_proposal_sources(uuid, uuid[])
+  from public, anon, authenticated;
+grant execute on function public.discard_playbook_proposal_sources(uuid, uuid[])
+  to service_role;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -19399,6 +19470,7 @@ insert into public.schema_migrations (filename) values
   ('20261107_51_litt_ownerless_items_private_matter.sql'),
   ('20261107_52_litt_audit_username_filter_order.sql'),
   ('20261107_53_litt_playbook_starter.sql'),
+  ('20261107_54_litt_playbook_change_guards.sql'),
   ('20261107_60_litt_training_supervision.sql'),
   ('20261107_61_litt_training_urgency_pass_grant.sql'),
   ('20261107_70_litt_matter_succession.sql'),

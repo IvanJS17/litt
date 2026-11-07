@@ -46,6 +46,7 @@ import {
 } from "../playbooks.jobs";
 import { getPlaybook, updatePlaybookContent } from "../playbooks.operations";
 import { setPlaybookState } from "../playbooks.state";
+import { discardProposal } from "../playbooks.proposals";
 import type { PlaybookContent, PlaybookProposalWork } from "../playbooks.types";
 import { database, type Row } from "./playbookTestDb";
 
@@ -500,25 +501,20 @@ describe("deciding each change", () => {
       code: "playbook_change_stale",
     });
     const row = tables.playbook_changes.find((change) => change.id === changes[0].id)!;
-    expect(row).toMatchObject({ status: "pending", decided_by: null, decided_at: null });
+    expect(row.status).toBe("pending");
+    expect(row.decided_by ?? null).toBeNull();
+    expect(row.decided_at ?? null).toBeNull();
     expect(topicRules(copyRow(tables, copy.id))[0].guidance).toBe("Editada a mano.");
   });
 
-  it("puts the change back to pending when another save lands meanwhile", async () => {
+  it("keeps the change pending when another save lands meanwhile", async () => {
     const { db, tables, copy, changes } = await computed();
-    // The guarded write finds the playbook's version changed.
+    // Another save lands between the accept's read and its transaction.
     const racing = {
-      from(table: string) {
-        const query = db.from(table as never) as unknown as Record<string, unknown>;
-        if (table !== "playbooks") return query;
-        const update = query.update as (value: Row) => Record<string, unknown>;
-        query.update = (value: Row) => {
-          const chain = update(value);
-          if (!("content_json" in value)) return chain;
-          const lost = { eq: () => lost, select: async () => ({ data: [], error: null }) };
-          return lost;
-        };
-        return query;
+      from: db.from,
+      rpc(name: string, args: Row) {
+        copyRow(tables, copy.id).updated_at = "2026-11-07T00:00:00.000Z";
+        return db.rpc(name, args);
       },
     } as unknown as Db;
 
@@ -529,6 +525,66 @@ describe("deciding each change", () => {
     expect(tables.playbook_changes.find((change) => change.id === changes[0].id)).toMatchObject({
       status: "pending",
     });
+    expect(topicRules(copyRow(tables, copy.id))[0].concept).toBe("La pena no excede un mes de renta.");
+  });
+
+  // W1: accepting and marking ready at once. Accepting claims the change and
+  // saves the rules in one transaction (accept_playbook_change), so marking
+  // ready sees either the change pending (and refuses) or the rules saved
+  // (and its version is gone): never a ready copy with a pending change.
+  it("never leaves a ready copy with a pending change when accept and ready interleave", async () => {
+    const fixture = await proposed([modifyPena]);
+    await handlePlaybookDraft(fixture.db, job(fixture.work));
+    const { db, tables, copy } = fixture;
+    const [change] = await listPlaybookChanges(LAWYER.id, copy.id, db, LAWYER.email);
+    const ready = (on: Db) => setPlaybookState(LAWYER.id, copy.id, { status: "ready" }, on, LAWYER.email);
+
+    // Ready runs after the accept has read the rules, before it commits.
+    let refused: unknown;
+    const readyInside = {
+      from: db.from,
+      async rpc(name: string, args: Row) {
+        refused = await ready(db).catch((error: unknown) => error);
+        return db.rpc(name, args);
+      },
+    } as unknown as Db;
+    await decide(readyInside, copy.id, change.id, "accept");
+    expect(refused).toMatchObject({ status: 409, code: "playbook_changes_pending" });
+    expect(copyRow(tables, copy.id).status).toBe("draft");
+    expect(tables.playbook_changes[0].status).toBe("accepted");
+
+    // Ready has read the copy when the accept commits.
+    const again = await proposed([modifyPena]);
+    await handlePlaybookDraft(again.db, job(again.work));
+    const [second] = await listPlaybookChanges(LAWYER.id, again.copy.id, again.db, LAWYER.email);
+    let accepted = false;
+    const acceptInside = {
+      from(table: string) {
+        if (table === "playbook_changes" && !accepted) {
+          accepted = true;
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  limit: async () => {
+                    await decide(again.db, again.copy.id, second.id, "accept");
+                    return again.db.from("playbook_changes").select("id").eq("playbook_id", again.copy.id).eq("status", "pending").limit(1);
+                  },
+                }),
+              }),
+            }),
+          };
+        }
+        return again.db.from(table as never);
+      },
+      rpc: again.db.rpc,
+    } as unknown as Db;
+    await expect(
+      setPlaybookState(LAWYER.id, again.copy.id, { status: "ready" }, acceptInside, LAWYER.email),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(accepted).toBe(true);
+    expect(copyRow(again.tables, again.copy.id).status).toBe("draft");
+    expect(again.tables.playbook_changes[0].status).toBe("accepted");
   });
 
   it("lets a reader list the changes but not decide them", async () => {
@@ -565,5 +621,144 @@ describe("deciding each change", () => {
     await expect(
       setPlaybookState(LAWYER.id, copy.id, { status: "ready" }, db, LAWYER.email),
     ).resolves.toMatchObject({ status: "ready" });
+  });
+});
+
+// The guards the T3 review asked for (W3, W4, W6, I1).
+describe("a proposal's guards", () => {
+  const ask = (db: Db, playbookId: string) =>
+    queuePlaybookProposals({ userId: LAWYER.id, userEmail: LAWYER.email, playbookId, model: MODEL, db });
+
+  it("starts one proposal per copy when two requests race past the checks", async () => {
+    const { db, tables, copy } = await copied();
+    // The second request runs whole while the first is about to insert.
+    let raced = false;
+    const racing = {
+      from(table: string) {
+        const query = db.from(table as never) as unknown as Record<string, unknown>;
+        if (table !== "playbook_imports" || raced) return query;
+        const insert = query.insert as (value: Row) => PromiseLike<unknown>;
+        query.insert = (value: Row) => {
+          raced = true;
+          return {
+            then: (resolve: (value: unknown) => unknown, reject: (error: unknown) => unknown) =>
+              ask(db, copy.id).then(() => insert(value)).then(resolve, reject),
+          };
+        };
+        return query;
+      },
+      rpc: db.rpc,
+    } as unknown as Db;
+
+    await expect(ask(racing, copy.id)).rejects.toMatchObject({
+      status: 409,
+      code: "playbook_proposals_running",
+    });
+    expect(raced).toBe(true);
+    expect(
+      tables.playbook_imports.filter((row) => row.kind === "proposal" && row.status === "running"),
+    ).toHaveLength(1);
+  });
+
+  it("ends a proposal that will never finish before starting the next one", async () => {
+    const { db, tables, copy } = await copied();
+    // Silent for hours and with no job left: interrupted.
+    (tables.playbook_imports ??= []).push({
+      id: "lost",
+      kind: "proposal",
+      status: "running",
+      stage: "compiling",
+      playbook_id: copy.id,
+      user_id: LAWYER.id,
+      org_id: null,
+      model: MODEL,
+      target_updated_at: copy.updatedAt,
+      started_at: T0,
+      updated_at: T0,
+    });
+    tables.playbook_changes = [
+      { id: "c-lost", playbook_id: copy.id, import_id: "lost", status: "pending", op: "remove_rule", rule_id: "r-garantia" },
+    ];
+
+    await expect(ask(db, copy.id)).resolves.toMatchObject({ status: "running" });
+
+    expect(tables.playbook_imports.find((row) => row.id === "lost")).toMatchObject({
+      status: "failed",
+      request_json: null,
+    });
+    expect(tables.playbook_changes).toEqual([]);
+    expect(
+      tables.playbook_imports.filter((row) => row.kind === "proposal" && row.status === "running"),
+    ).toHaveLength(1);
+    expect(recordAudit.mock.calls.map(([, event]) => event)).toContainEqual(
+      expect.objectContaining({
+        action: "playbook.proposals_ready",
+        status: "failed",
+        title: "Arrendamientos",
+        detail: { import_id: "lost", playbook_id: copy.id, stage: "compiling" },
+      }),
+    );
+  });
+
+  it("keeps the documents of a copy marked ready meanwhile, and never another playbook's", async () => {
+    const { db, tables, copy, work } = await proposed([]);
+    tables.playbook_sources.push({
+      id: "src-new",
+      playbook_id: copy.id,
+      filename: "Caso.docx",
+      storage_key: "copy-key",
+      created_at: T0,
+    });
+    const mine = { ...work, sourceIds: ["src-new"] };
+
+    copyRow(tables, copy.id).status = "ready";
+    await discardProposal(db, mine);
+    expect(tables.playbook_sources.map((row) => row.id)).toEqual(["src-1", "src-new"]);
+    expect(storage.deleteFile).not.toHaveBeenCalled();
+
+    // Still a draft: only its own rows go, and only their files. src-1 is
+    // the original's.
+    copyRow(tables, copy.id).status = "draft";
+    await discardProposal(db, { ...mine, sourceIds: ["src-new", "src-1"] });
+    expect(tables.playbook_sources.map((row) => row.id)).toEqual(["src-1"]);
+    expect(storage.deleteFile.mock.calls).toEqual([["copy-key"]]);
+  });
+
+  it("leaves the copy's answers as they were when it fails at the last step", async () => {
+    const { db, tables, copy, work } = await proposed([modifyPena]);
+    const earlier = { answers: { q1: "Caso anterior." } };
+    copyRow(tables, copy.id).intake_json = earlier;
+    // Recording the outcome fails, after every change was stored.
+    const failing = {
+      from(table: string) {
+        const query = db.from(table as never) as unknown as Record<string, unknown>;
+        if (table !== "playbook_imports") return query;
+        const update = query.update as (value: Row) => unknown;
+        query.update = (value: Row) => {
+          if (value.status !== "completed") return update(value);
+          const lost = {
+            eq: () => lost,
+            select: async () => ({ data: null, error: new Error("connection lost") }),
+          };
+          return lost;
+        };
+        return query;
+      },
+      rpc: db.rpc,
+    } as unknown as Db;
+
+    await handlePlaybookDraft(failing, job(work));
+
+    expect(copyRow(tables, copy.id).intake_json).toEqual(earlier);
+    expect(tables.playbook_changes).toEqual([]);
+    expect(tables.playbook_imports.at(-1)).toMatchObject({ status: "failed", request_json: null });
+    // The failed outcome carries the copy's name, as every playbook row.
+    expect(recordAudit.mock.calls.map(([, event]) => event)).toContainEqual(
+      expect.objectContaining({
+        action: "playbook.proposals_ready",
+        status: "failed",
+        title: "Arrendamientos",
+      }),
+    );
   });
 });

@@ -1104,7 +1104,7 @@ export function playbookWorkAttended(
  * whose lease has not yet expired, will still run). Only a row that is both
  * silent and jobless is interrupted.
  */
-async function interruptedPlaybookWork(
+export async function interruptedPlaybookWork(
   db: Db,
   rows: Record<string, unknown>[],
   jobKey: (id: string) => string,

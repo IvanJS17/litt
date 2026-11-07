@@ -316,8 +316,10 @@ function decided(): PlaybookRequestError {
 
 /**
  * The content with one change applied, or playbook_change_stale when the
- * rule it was proposed for is no longer what it was (edited, moved away,
- * removed) or the topic an added rule goes to is gone.
+ * rule it was proposed for is no longer what it was (edited or removed) or
+ * the topic an added rule goes to is gone. A rule moved to another topic
+ * with its content unchanged is not stale: the change applies where the
+ * rule now is.
  */
 export function applyChange(content: PlaybookContent, change: PlaybookChange): PlaybookContent {
   const located = locateRules(content).get(change.ruleId);
@@ -346,10 +348,12 @@ export function applyChange(content: PlaybookContent, change: PlaybookChange): P
 
 /**
  * Accept or reject one proposed change. Editor or owner. Rejecting records
- * the decision only. Accepting claims the change (so a second click cannot
- * apply it twice), applies it over the rule it was proposed for, and saves
- * only over the version read; when either check fails the change goes back
- * to pending and the answer is 409 playbook_change_stale.
+ * the decision only. Accepting applies the change over the rule it was
+ * proposed for, then claims it and saves the rules in one transaction
+ * (accept_playbook_change) under the playbook's row lock and only over the
+ * version read, so a second click cannot apply it twice and no write lands
+ * in between; when either check fails the change stays pending and the
+ * answer is 409 playbook_change_stale.
  */
 export async function decidePlaybookChange(
   userId: string,
@@ -372,53 +376,47 @@ export async function decidePlaybookChange(
   if (found.error) throw found.error;
   if (!found.data) throw new PlaybookRequestError("Cambio no encontrado.", 404);
   if (found.data.status !== "pending") throw decided();
-  // Applying a change rewrites the rules: it waits, as any edit does, while
-  // proposals are computed over the playbook.
-  if (decision === "accept") await assertPlaybookNotBeingReplaced(db, playbookId);
-
-  const decidedAt = new Date().toISOString();
-  const claimed = await db
-    .from("playbook_changes")
-    .update({
-      status: decision === "accept" ? "accepted" : "rejected",
-      decided_by: userId,
-      decided_at: decidedAt,
-    })
-    .eq("id", changeId)
-    .eq("status", "pending")
-    .select("*");
-  if (claimed.error) throw claimed.error;
-  const row = ((claimed.data ?? []) as Record<string, unknown>[])[0];
-  if (!row) throw decided();
-  const change = publicChange(row);
+  let change = publicChange(found.data as Record<string, unknown>);
 
   if (decision === "accept") {
-    try {
-      const current = await getPlaybook(userId, playbookId, db, email);
-      const parsed = editablePlaybookSchema.safeParse(applyChange(current.content, change));
-      if (!parsed.success)
-        throw new PlaybookRequestError(
-          "Aplicar este cambio dejaría el playbook fuera de sus límites.",
-        );
-      const saved = await db
-        .from("playbooks")
-        .update({ content_json: parsed.data, updated_at: new Date().toISOString() })
-        .eq("id", playbookId)
-        .eq("updated_at", current.updatedAt)
-        .select("id");
-      if (saved.error) throw saved.error;
-      // Another write landed between the read and this one.
-      if (!saved.data?.length) throw stale();
-    } catch (error) {
-      // Only this claim is undone: back to pending, as if never decided.
-      await db
-        .from("playbook_changes")
-        .update({ status: "pending", decided_by: null, decided_at: null })
-        .eq("id", changeId)
-        .eq("status", "accepted")
-        .eq("decided_at", decidedAt);
-      throw error;
-    }
+    // Applying a change rewrites the rules: it waits, as any edit does,
+    // while proposals are computed over the playbook.
+    await assertPlaybookNotBeingReplaced(db, playbookId);
+    const current = await getPlaybook(userId, playbookId, db, email);
+    const parsed = editablePlaybookSchema.safeParse(applyChange(current.content, change));
+    if (!parsed.success)
+      throw new PlaybookRequestError(
+        "Aplicar este cambio dejaría el playbook fuera de sus límites.",
+      );
+    // The claim and the new rules in one transaction, under the playbook's
+    // row lock, over the version read: a change is never accepted without
+    // its rules, so marking the playbook ready cannot slip in between.
+    const accepted = await db.rpc("accept_playbook_change", {
+      p_playbook_id: playbookId,
+      p_change_id: changeId,
+      p_user_id: userId,
+      p_read_updated_at: current.updatedAt,
+      p_content: parsed.data,
+    });
+    if (accepted.error) throw accepted.error;
+    if (accepted.data === "decided") throw decided();
+    if (accepted.data === "missing") throw new PlaybookRequestError("Playbook no encontrado.", 404);
+    // Another write landed between the read and this one.
+    if (accepted.data !== "accepted") throw stale();
+    const decidedRow = await db.from("playbook_changes").select("*").eq("id", changeId).maybeSingle();
+    if (decidedRow.error) throw decidedRow.error;
+    if (decidedRow.data) change = publicChange(decidedRow.data as Record<string, unknown>);
+  } else {
+    const claimed = await db
+      .from("playbook_changes")
+      .update({ status: "rejected", decided_by: userId, decided_at: new Date().toISOString() })
+      .eq("id", changeId)
+      .eq("status", "pending")
+      .select("*");
+    if (claimed.error) throw claimed.error;
+    const row = ((claimed.data ?? []) as Record<string, unknown>[])[0];
+    if (!row) throw decided();
+    change = publicChange(row);
   }
 
   void recordPlaybookAudit(db, {
