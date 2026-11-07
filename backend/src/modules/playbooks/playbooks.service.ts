@@ -38,6 +38,7 @@ export {
     playbookConfiguration,
     assertPlaybookReady,
 } from "./playbooks.operations";
+export { setPlaybookState } from "./playbooks.state";
 export { type PlaybookImport } from "./playbooks.types";
 
 export { removePlaybookObjects } from "./playbooks.reporting";

@@ -339,6 +339,56 @@ describe("replacing a playbook from a Word file", () => {
   });
 });
 
+describe("draft playbooks over HTTP (LiTT)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("refuses to review a draft with 409 and the playbook_draft code", async () => {
+    from.mockImplementation((table: string) =>
+      queryReturning(table === "playbooks" ? playbookRow({ status: "draft" }) : []),
+    );
+
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/review`)
+      .send({ documentText: "Contrato", model: "claude-opus-5" });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({
+      detail:
+        "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones.",
+      code: "playbook_draft",
+    });
+    expect(from).not.toHaveBeenCalledWith("playbook_runs");
+  });
+
+  it("answers a state change refused for pending changes with its code", async () => {
+    from.mockImplementation((table: string) =>
+      queryReturning(
+        table === "playbooks"
+          ? playbookRow({ status: "draft" })
+          : table === "playbook_changes"
+            ? [{ id: "change-1" }]
+            : [],
+      ),
+    );
+
+    const response = await request(app)
+      .patch(`/playbooks/${PLAYBOOK_ID}/state`)
+      .send({ status: "ready" });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("playbook_changes_pending");
+  });
+
+  it("answers 404 for a state change on an id that cannot exist", async () => {
+    const response = await request(app)
+      .patch("/playbooks/not-a-uuid/state")
+      .send({ status: "ready" });
+
+    expect(response.status).toBe(404);
+    expect(from).not.toHaveBeenCalled();
+  });
+});
+
 describe("playbook input validation", () => {
   beforeEach(() => vi.clearAllMocks());
 
