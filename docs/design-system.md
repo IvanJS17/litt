@@ -739,9 +739,17 @@ The title, message and supplementary content share one text column beside
 the icon. Callers should not add their own left padding to supplementary
 content.
 
-Both appear in one column at the top centre of the page. `ToastViewportUI`
-owns that column, and a `WarningPopup` renders into it, so a popup and a
-toast stack instead of covering each other.
+Both appear in one column in the bottom-right corner of the page
+(`NOTICE_STACK_POSITION_CLASS` in `WarningPopup.tsx`; full width above the
+home indicator on a phone), so a notice never covers the page header or the
+first lines of the page. `ToastViewportUI` owns that column, and a
+`WarningPopup` renders into it, so a popup and a toast stack instead of
+covering each other.
+
+The signed-out screens are the exception: their wordmark sits at the top
+and the form is the whole page, so a failure there is shown inside the card
+with `AuthFormError` (`components/auth/`), with the same title, message,
+Retry and Contact support a `WarningPopup` would carry.
 
 | | Toast (`notifySuccess`, `notifyInfo`, `showToast`) | `WarningPopup` |
 | --- | --- | --- |
@@ -770,7 +778,7 @@ Use a **toast** only for a short confirmation ("Changes saved") or
 information.
 
 The Word add-in has no `WarningPopup`, so there `ToastViewportUI` draws
-errors as toasts in the same top column.
+errors as toasts, in its default column at the top centre of the task pane.
 
 ## Component catalog
 

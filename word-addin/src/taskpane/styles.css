@@ -6,6 +6,9 @@
 @import "../shared/styles/tokens.css";
 @import "../../../packages/ui/styles/LiquidGlassUI.css";
 @import "../../../packages/ui/styles/ThemeTokensUI.css";
+/* The web app's dark mappings for the neutral palette, so the pane follows
+   the profile's dark theme the same way (useProfileTheme). */
+@import "../../../packages/ui/styles/DarkPaletteUI.css";
 
 /* Tailwind v4 content detection: scan all add-in component sources. */
 @source "../";

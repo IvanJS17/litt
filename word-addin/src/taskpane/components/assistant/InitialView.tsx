@@ -23,8 +23,10 @@ export function InitialView({
     let cancelled = false;
     void getUserProfile()
       .then((profile) => {
-        const displayName = profile.displayName?.trim();
-        if (!cancelled) setName(displayName || "there");
+        // First name only: in a 350px pane a full name in the large serif
+        // wraps to three lines and pushes the quick actions down.
+        const firstName = profile.displayName?.trim().split(/\s+/)[0];
+        if (!cancelled) setName(firstName || "there");
       })
       .catch(() => {
         // Only the greeting's name is at stake; "Hi there" is a complete

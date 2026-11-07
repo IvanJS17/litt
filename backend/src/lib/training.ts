@@ -150,7 +150,7 @@ export async function resolveWordTrainingStage(
 }
 
 /** The project's practice area, or failing that its linked matter's. */
-async function projectPractice(db: Db, projectId: string): Promise<string | null> {
+export async function projectPractice(db: Db, projectId: string): Promise<string | null> {
     const { data: project, error } = await db
         .from("projects")
         .select("practice")

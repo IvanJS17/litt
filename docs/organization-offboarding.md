@@ -39,6 +39,45 @@ must appoint another owner or explicitly delete the organization, even when the
 organization is empty. No editor is automatically promoted to organization
 owner.
 
+## Matters
+
+A matter's work belongs to its team, not to the person who created it (owner
+decisions of 2026-11-07). The rules above do not move or archive a matter's
+project; instead:
+
+- The active team of a private matter reaches its project with each member's
+  matter role (matter owner → owner, editor → editor, viewer → viewer),
+  whatever the project's own visibility. Nobody else does: being an
+  organization owner or admin gives no access to a private matter. The
+  database keeps this access in step with the team, so adding, promoting or
+  removing a member changes it in the same transaction.
+- A departing member leaves every matter team in the organization. When they
+  were the last active owner of a private matter, the active teammate with the
+  highest role becomes its owner (editor before viewer, the earliest member on
+  a tie). With no teammate left, the successor chosen for the departure (by
+  default an organization owner) becomes its owner.
+- An organization owner or admin can name any current member of the firm,
+  themselves included, as the owner of a matter **left without an active
+  owner** (`POST /matters/:id/owner`). A matter that still has an active owner
+  is refused (409 `matter_has_owner`) and nobody's role changes: naming never
+  displaces or demotes an owner, so neither an owner nor an admin can take a
+  private matter from its team by naming themselves. The database enforces
+  this rule. Naming someone else gives the person naming nothing. A member of
+  another firm, or one who is deleting their account, cannot be named.
+- Owners and admins can list the firm's matters without an active owner
+  (`GET /matters/without-owner?org=…`). The list shows the CM number, the
+  creation date, the last owner and the team size, never the matter's title.
+- Every succession (`matter.owner_succeeded`) and appointment
+  (`matter.owner_assigned`) is an insert-only audit event with the
+  organization, matter, new owner and reason, and no title or content. An
+  appointment also records the matter's last owner (`last_owner_user_id`,
+  null when it never had one).
+
+Public matters keep their rules. The screens for these actions are pending
+(TD-029). Apply `20261107_70_litt_matter_succession.sql` before deploying the
+backend; it also gives the teams of existing private matters their project
+access.
+
 ## Joining during signup
 
 After signing up and verifying their email, a user can view and accept pending

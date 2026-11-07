@@ -18,6 +18,7 @@ import {
   serializeExcerpts,
   type MessageExcerpt,
   NO_MODELS_MESSAGES,
+  isOrganizationNoModelsReason,
   routerSelections as routerSelectionsFromProfile,
   type RouterSelections,
 } from "@mike/client";
@@ -52,6 +53,7 @@ import { AddDocumentsModal } from "../documents/AddDocumentsModal";
 import { FileTypeIcon } from "../documents/DirectoryIcons";
 import { DocumentSourceMenu } from "../documents/DocumentSourceMenu";
 import { ModelToggle } from "./ModelToggle";
+import { openApiKeysPage } from "../shell/ApiKeyBanner";
 import type {
   PlaybookAttachment,
   WorkflowAttachment,
@@ -70,6 +72,37 @@ import {
   WORD_WORKFLOW_SLASH_MENU_ID,
   WorkflowSlashMenu,
 } from "./WorkflowSlashMenu";
+
+const SELECT_MODEL_MESSAGE = "Select a model before sending your message.";
+
+/** Where a model warning leads: the picker, or the web app's API keys. */
+type ModelErrorAction = "choose-model" | "api-keys";
+
+interface ModelError {
+  message: string;
+  action?: ModelErrorAction;
+}
+
+/**
+ * The picker has no model to offer. The user's own keys are fixed in Bring
+ * Your Own Keys, so the warning links there; an organization's providers are
+ * only an admin's to fix, so that warning says whom to ask and links nowhere,
+ * as on the web.
+ */
+function noModelsError(
+  status: ApiKeyStatus | null,
+  selections: RouterSelections | null,
+  personalMessage?: string,
+): ModelError {
+  const reason = noModelsReason(status, selections ?? {});
+  if (isOrganizationNoModelsReason(reason)) {
+    return { message: NO_MODELS_MESSAGES[reason] };
+  }
+  return {
+    message: personalMessage ?? NO_MODELS_MESSAGES[reason],
+    action: "api-keys",
+  };
+}
 
 export interface ChatInputHandle {
   setDraft: (prompt: string) => void;
@@ -164,7 +197,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       routerSelections: profileLoaded ? routerSelections : null,
       apiKeyStatus: keyStatus,
     });
-    const [modelError, setModelError] = useState<string | null>(null);
+    const [modelError, setModelError] = useState<ModelError | null>(null);
+    // The "Select a model" warning opens the picker when it has models, or
+    // points to Bring Your Own Keys in the web app when it has none.
+    const [modelPickerOpen, setModelPickerOpen] = useState(false);
+    const [hasModels, setHasModels] = useState<boolean | null>(null);
     // LiTT training ("Tu turno primero"): a pasante writes their own
     // approach before each turn. The server decides; this only shows it.
     const [needsAttempt, setNeedsAttempt] = useState(false);
@@ -488,11 +525,15 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       }
       if ((!content && !hasAnnotatedExcerpt) || isResponseLoading) return;
       if (!model) {
-        setModelError("Select a model before sending your message.");
+        setModelError(
+          hasModels === false
+            ? noModelsError(keyStatus, routerSelections, SELECT_MODEL_MESSAGE)
+            : { message: SELECT_MODEL_MESSAGE, action: "choose-model" },
+        );
         return;
       }
       if (!isModelAvailable(model, keyStatus)) {
-        setModelError(unavailableModelMessage(model, keyStatus));
+        setModelError({ message: unavailableModelMessage(model, keyStatus) });
         return;
       }
       if (needsAttempt && !isTrainingAttemptReady(attempt)) {
@@ -529,7 +570,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       );
     };
 
-    const composerError = requestError ?? documentUploadError ?? modelError;
+    const composerError =
+      requestError ?? documentUploadError ?? modelError?.message ?? null;
+    const composerErrorAction =
+      requestError || documentUploadError ? undefined : modelError?.action;
 
     return (
       <>
@@ -552,7 +596,27 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               role="alert"
               className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50/95 px-3 py-2 text-xs text-gray-700 shadow-sm backdrop-blur-xl"
             >
-              <span>{composerError}</span>
+              <span className="min-w-0">
+                {composerError}
+                {composerErrorAction && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        composerErrorAction === "choose-model"
+                          ? setModelPickerOpen(true)
+                          : openApiKeysPage()
+                      }
+                      className="rounded font-medium text-gray-900 underline underline-offset-2 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                      {composerErrorAction === "choose-model"
+                        ? "Choose model"
+                        : "Open Bring Your Own Keys"}
+                    </button>
+                  </>
+                )}
+              </span>
               <button
                 type="button"
                 onClick={() => {
@@ -764,12 +828,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                           .then(() => onReasoningSelected(next));
                     }}
                     onNoModelsClick={() => {
-                      setModelError(
-                        NO_MODELS_MESSAGES[
-                          noModelsReason(keyStatus, routerSelections ?? {})
-                        ],
-                      );
+                      setModelError(noModelsError(keyStatus, routerSelections));
                     }}
+                    open={modelPickerOpen}
+                    onOpenChange={setModelPickerOpen}
+                    onHasModelsChange={setHasModels}
                   />
                 )
               }

@@ -5,6 +5,7 @@ import "./fonts/fonts.css";
 import "./globals.css";
 import { Providers } from "@/app/components/providers";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
+import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 
 // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
 // credited in the README.
@@ -58,7 +59,14 @@ export default async function RootLayout({
     // The locale request.ts resolved (cookie, browser, es-MX) and its catalog.
     const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
     return (
-        <html lang={locale}>
+        // The boot script may add `dark` and color-scheme to <html> before
+        // React hydrates it; that difference is intended.
+        <html lang={locale} suppressHydrationWarning>
+            <head>
+                <script
+                    dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+                />
+            </head>
             <body
                 className="font-sans antialiased"
             >

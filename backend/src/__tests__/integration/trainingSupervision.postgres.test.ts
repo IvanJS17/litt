@@ -15,6 +15,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const container = process.env.MIKE_TEST_POSTGRES_CONTAINER;
 const database = `mike_test_training_supervision_${process.pid}_${Date.now()}`;
 const MIGRATION = "migrations/20261107_60_litt_training_supervision.sql";
+// Redefines the defense outcome's check and once-only trigger.
+const LATER_MIGRATION = "migrations/20261107_90_litt_training_defense_outcome.sql";
 const ASSERTIONS = "src/__tests__/sql/performance.litt-training-supervision.sql";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 // psql reads the file from stdin here, so its \ir includes are inlined.
@@ -48,9 +50,12 @@ describe.skipIf(!container)("LiTT training supervision data in PostgreSQL", () =
             create function auth.uid() returns uuid language sql stable as
                 $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;`);
         sql(read("schema.sql"));
-        // Re-running the migration over the final shape must be a no-op.
+        // Re-running the migration and the later ones that reshape its
+        // tables, in order, must land on the final shape again.
         sql(read(MIGRATION));
         sql(read(MIGRATION));
+        sql(read(LATER_MIGRATION));
+        sql(read(LATER_MIGRATION));
     }, 120_000);
     afterAll(() => {
         if (created) execFileSync("docker", ["exec", container!, "dropdb", "-U", "postgres", "--force", database]);
@@ -71,6 +76,7 @@ describe.skipIf(!container)("LiTT training supervision data in PostgreSQL", () =
             $$;`);
         expect(sqlError(assertions())).toMatch(/matrix: admin reads pupil; .*owner reads pupil/);
         sql(read(MIGRATION));
+        sql(read(LATER_MIGRATION));
         expect(sqlError(assertions())).toBe("");
     }, 120_000);
 

@@ -25,6 +25,9 @@ export function ModelToggle({
   onNoModelsClick,
   reasoningLevel,
   onReasoningChange,
+  open,
+  onOpenChange,
+  onHasModelsChange,
 }: {
   value: string;
   onChange: (model: string) => void;
@@ -38,6 +41,11 @@ export function ModelToggle({
   onNoModelsClick?: () => void;
   reasoningLevel?: ReasoningLevel;
   onReasoningChange?: (level: ReasoningLevel) => void;
+  /** Lets the composer open the picker, from the "Select a model" warning. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Whether the picker has any model to offer, once the preflight is done. */
+  onHasModelsChange?: (hasModels: boolean) => void;
 }): React.ReactElement {
   const [ollamaModels, setOllamaModels] = useState<ModelOption[]>([]);
 
@@ -72,6 +80,10 @@ export function ModelToggle({
         model.group === "Local" || isModelAvailable(model.id, keyStatus),
     );
   }, [keyStatus, ollamaModels, routerSelections]);
+  const hasModels = models.length > 0;
+  useEffect(() => {
+    if (!keyStatusLoading) onHasModelsChange?.(hasModels);
+  }, [hasModels, keyStatusLoading, onHasModelsChange]);
   const selected = models.find((model) => model.id === value);
   const supportedReasoningLevels = reasoningLevelsForModel(value);
   const normalizedReasoningLevel = reasoningLevel
@@ -108,6 +120,8 @@ export function ModelToggle({
       reasoningLevel={normalizedReasoningLevel}
       onReasoningChange={onReasoningChange}
       reasoningLevels={supportedReasoningLevels}
+      open={open}
+      onOpenChange={onOpenChange}
     />
   );
 }

@@ -53,6 +53,19 @@ export function database(
         if (op === "insert") {
           // One row or a list of rows, as the client takes either.
           const inserted = Array.isArray(payload) ? (payload as Row[]) : [payload];
+          // idx_playbook_imports_one_running_proposal.
+          const runningProposal = (row: Row) => row.kind === "proposal" && row.status === "running";
+          if (
+            table === "playbook_imports" &&
+            inserted.some(
+              (row) =>
+                runningProposal(row) &&
+                (tables[table] ?? []).some(
+                  (other) => runningProposal(other) && other.playbook_id === row.playbook_id,
+                ),
+            )
+          )
+            return { data: [] as Row[], error: { code: "23505", message: "duplicate key" } };
           (tables[table] ??= []).push(...inserted);
           result = inserted;
         }
@@ -83,7 +96,7 @@ export function database(
           }
           return 0;
         });
-      return { data: result, error: null };
+      return { data: result, error: null as { code: string; message: string } | null };
     };
     const query = {
       select: () => query,
@@ -153,5 +166,37 @@ export function database(
     };
     return query;
   };
-  return { db: { from } as unknown as Db, writes, tables };
+  // The SQL functions of 20261107_54_litt_playbook_change_guards, each one
+  // statement here as it is one transaction there.
+  const rpc = async (name: string, args: Row) => {
+    const playbook = (tables.playbooks ?? []).find((row) => row.id === args.p_playbook_id);
+    if (name === "accept_playbook_change") {
+      if (!playbook) return { data: "missing", error: null };
+      if (playbook.updated_at !== args.p_read_updated_at) return { data: "stale", error: null };
+      const change = (tables.playbook_changes ?? []).find(
+        (row) =>
+          row.id === args.p_change_id &&
+          row.playbook_id === args.p_playbook_id &&
+          row.status === "pending",
+      );
+      if (!change) return { data: "decided", error: null };
+      const now = new Date().toISOString();
+      Object.assign(change, { status: "accepted", decided_by: args.p_user_id, decided_at: now });
+      Object.assign(playbook, { content_json: args.p_content, updated_at: now });
+      writes.push({ table: "playbooks", op: "rpc", payload: { name } });
+      return { data: "accepted", error: null };
+    }
+    if (name === "discard_playbook_proposal_sources") {
+      if (playbook?.status !== "draft") return { data: [], error: null };
+      const ids = args.p_source_ids as unknown[];
+      const gone = (tables.playbook_sources ?? []).filter(
+        (row) => row.playbook_id === args.p_playbook_id && ids.includes(row.id),
+      );
+      tables.playbook_sources = (tables.playbook_sources ?? []).filter((row) => !gone.includes(row));
+      writes.push({ table: "playbook_sources", op: "rpc", payload: { name } });
+      return { data: gone.map((row) => row.storage_key), error: null };
+    }
+    throw new Error(`unexpected rpc ${name}`);
+  };
+  return { db: { from, rpc } as unknown as Db, writes, tables };
 }

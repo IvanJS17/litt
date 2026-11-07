@@ -19,7 +19,7 @@ import { completeText } from "../../lib/llm";
 import { safeError } from "../../lib/safeError";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { chatRouteColumns, recordChatEgress } from "../user/user.service";
-import { recordPlaybookAudit } from "./playbooks.audit";
+import { playbookAuditContext, recordPlaybookAudit } from "./playbooks.audit";
 import {
   checkProposalOutput,
   type ProposalCounts,
@@ -42,13 +42,17 @@ import {
   assertPlaybookNotBeingReplaced,
   editablePlaybook,
   enterImportStage,
+  INTERRUPTED_PROPOSAL_ERROR,
+  interruptedPlaybookWork,
   isPlaybookRefusal,
   keepPlaybookWorkAttended,
   loadPlaybookRoute,
   pinPlaybookRoute,
   playbookCompilationTimeoutMs,
+  playbookImportJobKey,
   PlaybookRequestError,
   publicImport,
+  UNIQUE_VIOLATION,
   updateImportAttempt,
   validateModel,
   withCompilationTimeout,
@@ -62,6 +66,8 @@ import {
   PLAYBOOK_CHANGES_PENDING_PROPOSAL_MESSAGE,
   PLAYBOOK_NOT_DRAFT_CODE,
   PLAYBOOK_NOT_DRAFT_MESSAGE,
+  PLAYBOOK_PROPOSALS_RUNNING_CODE,
+  PLAYBOOK_PROPOSALS_RUNNING_MESSAGE,
   stripProvenance,
 } from "./playbooks.starter";
 import type {
@@ -88,6 +94,61 @@ export type PlaybookProposalRequest = {
   attachments?: unknown;
   db?: Db;
 };
+
+function proposalsRunning(): PlaybookRequestError {
+  return new PlaybookRequestError(PLAYBOOK_PROPOSALS_RUNNING_MESSAGE, 409, {
+    code: PLAYBOOK_PROPOSALS_RUNNING_CODE,
+  });
+}
+
+/**
+ * A running proposal over the copy that will never finish (silent and
+ * jobless) ends as interrupted, with its pending changes, as the job's own
+ * failure hook would have ended it. Only one proposal runs per copy (a
+ * unique index), so without this one lost job would hold the copy forever.
+ * Called after assertPlaybookNotBeingReplaced, which refuses a live one.
+ */
+async function retireInterruptedProposals(db: Db, playbookId: string): Promise<void> {
+  const { data, error } = await db
+    .from("playbook_imports")
+    .select("id, user_id, org_id, model, stage, status, started_at, updated_at")
+    .eq("playbook_id", playbookId)
+    .eq("kind", "proposal")
+    .eq("status", "running");
+  if (error) throw error;
+  const rows = (data ?? []) as Record<string, unknown>[];
+  if (!rows.length) return;
+  const interrupted = await interruptedPlaybookWork(db, rows, playbookImportJobKey);
+  for (const row of rows) {
+    const attemptId = String(row.id);
+    if (!interrupted.has(attemptId)) continue;
+    const ended = await updateImportAttempt(db, attemptId, {
+      status: "failed",
+      error: INTERRUPTED_PROPOSAL_ERROR,
+      request_json: null,
+      completed_at: new Date().toISOString(),
+    });
+    if (!ended) continue;
+    const removed = await db
+      .from("playbook_changes")
+      .delete()
+      .eq("import_id", attemptId)
+      .eq("status", "pending");
+    if (removed.error) throw removed.error;
+    await recordProposalAudit(
+      db,
+      {
+        attemptId,
+        playbookId,
+        userId: String(row.user_id),
+        userEmail: null,
+        orgId: (row.org_id as string | null) ?? null,
+        model: String(row.model),
+      },
+      { failedStage: typeof row.stage === "string" ? row.stage : null },
+    );
+  }
+}
 
 async function hasPendingChanges(db: Db, playbookId: string): Promise<boolean> {
   const { data, error } = await db
@@ -119,6 +180,7 @@ export async function beginPlaybookProposals(
       code: PLAYBOOK_NOT_DRAFT_CODE,
     });
   await assertPlaybookNotBeingReplaced(db, copy.id);
+  await retireInterruptedProposals(db, copy.id);
   if (await hasPendingChanges(db, copy.id))
     throw new PlaybookRequestError(PLAYBOOK_CHANGES_PENDING_PROPOSAL_MESSAGE, 409, {
       code: PLAYBOOK_CHANGES_PENDING_CODE,
@@ -161,6 +223,8 @@ export async function beginPlaybookProposals(
     updated_at: now,
   };
   const inserted = await db.from("playbook_imports").insert(row);
+  // Another request started one first (one running proposal per copy).
+  if (inserted.error?.code === UNIQUE_VIOLATION) throw proposalsRunning();
   if (inserted.error) throw inserted.error;
   return {
     attempt: publicImport(row, new Set()),
@@ -289,10 +353,13 @@ function withChangeSourceIds(
   );
 }
 
-/** `playbook.proposals_ready`: ids, model and counts, never answers or rule text. */
+/**
+ * `playbook.proposals_ready`: ids, model and counts, never answers or rule
+ * text. A failed one carries the copy's current name, as every playbook row.
+ */
 export async function recordProposalAudit(
   db: Db,
-  work: PlaybookProposalWork,
+  work: Pick<PlaybookProposalWork, "attemptId" | "playbookId" | "userId" | "userEmail" | "orgId" | "model">,
   outcome:
     | { playbook: Playbook; counts: ProposalCounts; answered: number; attachments: number }
     | { failedStage: string | null },
@@ -304,7 +371,7 @@ export async function recordProposalAudit(
     orgId: work.orgId,
     action: "playbook.proposals_ready",
     status: playbook ? "completed" : "failed",
-    title: playbook?.name ?? null,
+    title: playbook ? playbook.name : (await playbookAuditContext(db, work.playbookId)).name,
     model: work.model,
     detail: {
       import_id: work.attemptId,
@@ -322,7 +389,11 @@ export async function recordProposalAudit(
 
 /**
  * What a failed proposal leaves: nothing. Its pending changes and the
- * sources it stored go; the copy itself, a draft like any other, stays.
+ * sources it stored go; the copy itself, a draft like any other, stays. The
+ * sources go only while the copy is still a draft, in one statement under
+ * its row lock (discard_playbook_proposal_sources), and only the files of
+ * the rows that statement deleted are removed: a copy marked ready
+ * meanwhile keeps its documents, and no other playbook's are touched.
  */
 export async function discardProposal(db: Db, work: PlaybookProposalWork): Promise<void> {
   try {
@@ -333,23 +404,19 @@ export async function discardProposal(db: Db, work: PlaybookProposalWork): Promi
       .eq("status", "pending");
     if (removed.error) throw removed.error;
     if (!work.sourceIds.length) return;
-    const rows = (await listPlaybookSourceRows(db, work.playbookId)).filter((row) =>
-      work.sourceIds.includes(row.id),
-    );
-    if (!rows.length) return;
-    const deleted = await db
-      .from("playbook_sources")
-      .delete()
-      .eq("playbook_id", work.playbookId)
-      .in(
-        "id",
-        rows.map((row) => row.id),
-      );
+    const deleted = await db.rpc("discard_playbook_proposal_sources", {
+      p_playbook_id: work.playbookId,
+      p_source_ids: work.sourceIds,
+    });
     if (deleted.error) throw deleted.error;
-    await removePlaybookObjects(
-      rows.map((row) => row.storageKey),
-      { stage: "import.cleanup", ids: { import_id: work.attemptId, playbook_id: work.playbookId } },
+    const keys = ((deleted.data ?? []) as unknown[]).filter(
+      (key): key is string => typeof key === "string",
     );
+    if (!keys.length) return;
+    await removePlaybookObjects(keys, {
+      stage: "import.cleanup",
+      ids: { import_id: work.attemptId, playbook_id: work.playbookId },
+    });
   } catch (cleanupError) {
     reportPlaybookFailure(cleanupError, {
       stage: "import.cleanup",
@@ -544,26 +611,8 @@ export async function compilePlaybookProposals(
       });
     }
 
-    // The copy keeps the new case's answers, written only over the version
-    // the proposals were computed from (its updated_at is left as it is).
-    const intake = await db
-      .from("playbooks")
-      .update({
-        intake_json: {
-          answers: request.answers,
-          attachments: sources.map((source, index) => ({
-            sourceId: work.sourceIds[index],
-            filename: source.filename,
-          })),
-          model,
-          createdAt: work.startedAt,
-        },
-      })
-      .eq("id", work.playbookId)
-      .eq("updated_at", work.targetUpdatedAt)
-      .select("id");
-    if (intake.error) throw intake.error;
-    if (!intake.data?.length) throw new PlaybookRequestError(COPY_CHANGED_MESSAGE, 409);
+    // The copy as the proposals were computed from, checked last.
+    assertCopyUnchanged(await editablePlaybook(userId, work.playbookId, db, work.userEmail), work);
 
     stage = enterImportStage("completed");
     const recorded = await updateImportAttempt(db, attemptId, {
@@ -572,13 +621,42 @@ export async function compilePlaybookProposals(
       request_json: null,
       completed_at: new Date().toISOString(),
     });
-    if (recorded)
+    if (recorded) {
+      // Only now, with the outcome recorded, does the copy keep the new
+      // case's answers: a proposal that fails leaves them as they were. The
+      // write goes only over the version the proposals were computed from
+      // and leaves updated_at as it is; if it is lost the proposal stands,
+      // without its answers.
+      const intake = await db
+        .from("playbooks")
+        .update({
+          intake_json: {
+            answers: request.answers,
+            attachments: sources.map((source, index) => ({
+              sourceId: work.sourceIds[index],
+              filename: source.filename,
+            })),
+            model,
+            createdAt: work.startedAt,
+          },
+        })
+        .eq("id", work.playbookId)
+        .eq("updated_at", work.targetUpdatedAt)
+        .select("id");
+      if (intake.error || !intake.data?.length)
+        reportPlaybookFailure(intake.error ?? new Error("playbook changed before its answers were kept"), {
+          stage: "import.record",
+          level: "warning",
+          jobKind: "playbook.draft",
+          ids: { import_id: attemptId, playbook_id: work.playbookId },
+        });
       await recordProposalAudit(db, work, {
         playbook: copy,
         counts,
         answered: Object.keys(request.answers).length,
         attachments: sources.length,
       });
+    }
     return copy;
   } catch (error) {
     const recorded = await recordProposalFailure(db, work, stage, error);

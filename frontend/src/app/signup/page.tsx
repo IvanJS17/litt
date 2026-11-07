@@ -8,7 +8,6 @@ import {
     InputUI,
     PillButtonUI,
     pillButtonUIClassName,
-    noticeActionClassName,
     authGlassCardUIClassName,
     authInputUIClassName,
     AuthDividerUI,
@@ -16,7 +15,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { cn } from "@/app/lib/utils";
-import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { AuthFormError } from "@/app/components/auth/AuthFormError";
 import {
     reportFault,
     UserVisibleError,
@@ -234,6 +233,24 @@ function SignupContent() {
                             />
                         </div>
 
+                        {/* In the card, next to the action that failed: a
+                            floating notice would cover the wordmark. */}
+                        {error && (
+                            <AuthFormError
+                                title={error.title}
+                                message={error.message}
+                                supportHref={
+                                    error.supportable
+                                        ? supportMailtoFor(
+                                              error,
+                                              "Failed to create an account.",
+                                          )
+                                        : undefined
+                                }
+                                onDismiss={() => setError(null)}
+                            />
+                        )}
+
                         <div className="space-y-3 pt-2">
                             {/* LiTT: no terms or privacy notice until LiTT's own texts
                                 are approved (being drafted in Kanban t_014f1869); a later
@@ -267,25 +284,6 @@ function SignupContent() {
                     </Link>
                 </div>
             </div>
-            <WarningPopup
-                open={!!error}
-                onClose={() => setError(null)}
-                title={error?.title}
-                message={error?.message}
-                actions={
-                    error?.supportable ? (
-                        <a
-                            href={supportMailtoFor(
-                                error,
-                                "Failed to create an account.",
-                            )}
-                            className={noticeActionClassName()}
-                        >
-                            Contact support
-                        </a>
-                    ) : undefined
-                }
-            />
         </AuthPageShell>
     );
 }

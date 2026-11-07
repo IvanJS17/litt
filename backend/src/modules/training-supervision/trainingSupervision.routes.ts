@@ -8,19 +8,31 @@
 //   /orgs/:orgId/training/pupils/:userId/passes
 //       GET | POST                          urgency passes
 //       DELETE /:passId                     revoke one
+//   /orgs/:orgId/training/pupils/:userId/defenses
+//       GET | POST                          oral defenses
+//       POST   /:defenseId/questions        generate the five questions
+//       PUT    /:defenseId/outcome          record the outcome, once
+//   /orgs/:orgId/training/pupils/:userId/promotion
+//       GET | POST                          proposals; accept one
 //
 // The /orgs routes are the pupil's current mentor's only. Thin handlers:
 // parse, call the facade, map the ServiceResult.
 
-import type { TrainingWorkReviewBody } from "@mike/contracts";
+import type { TrainingDefenseQuestionsBody, TrainingWorkReviewBody } from "@mike/contracts";
 import { Router, type Request, type Response } from "express";
 import { sendServiceFailure, type ServiceResult } from "../../lib/serviceResult";
 import { createServerSupabase } from "../../lib/supabase";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { requireAuth } from "../../middleware/auth";
 import {
+    acceptPromotion,
+    createDefense,
+    generateDefenseQuestions,
     generateWorkReview,
     getMySupervision,
+    getPromotion,
+    listDefenses,
+    recordDefenseOutcome,
     grantUrgencyPass,
     listPupilWorks,
     listUrgencyPasses,
@@ -103,3 +115,46 @@ pupilPassesRouter.delete("/:passId", requireAuth, asyncRoute(async (req, res) =>
 }));
 
 pupilPassesRouter.use(routerErrorHandler("[training-supervision]"));
+
+/** Mounted at /orgs/:orgId/training/pupils/:userId/defenses. */
+export const pupilDefensesRouter = Router({ mergeParams: true });
+
+pupilDefensesRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
+    send(res, await listDefenses(createServerSupabase(), mentorOf(req, res)));
+}));
+
+pupilDefensesRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
+    send(res, await createDefense(createServerSupabase(), { ...mentorOf(req, res), body: req.body }), 201);
+}));
+
+pupilDefensesRouter.post("/:defenseId/questions", requireAuth, asyncRoute(async (req, res) => {
+    const body = (req.body ?? {}) as TrainingDefenseQuestionsBody;
+    send(res, await generateDefenseQuestions(createServerSupabase(), {
+        ...mentorOf(req, res),
+        defenseId: req.params.defenseId,
+        credentialRef: body.credential_ref,
+    }));
+}));
+
+pupilDefensesRouter.put("/:defenseId/outcome", requireAuth, asyncRoute(async (req, res) => {
+    send(res, await recordDefenseOutcome(createServerSupabase(), {
+        ...mentorOf(req, res),
+        defenseId: req.params.defenseId,
+        body: req.body,
+    }));
+}));
+
+pupilDefensesRouter.use(routerErrorHandler("[training-supervision]"));
+
+/** Mounted at /orgs/:orgId/training/pupils/:userId/promotion. */
+export const pupilPromotionRouter = Router({ mergeParams: true });
+
+pupilPromotionRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
+    send(res, await getPromotion(createServerSupabase(), mentorOf(req, res)));
+}));
+
+pupilPromotionRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
+    send(res, await acceptPromotion(createServerSupabase(), { ...mentorOf(req, res), body: req.body }));
+}));
+
+pupilPromotionRouter.use(routerErrorHandler("[training-supervision]"));

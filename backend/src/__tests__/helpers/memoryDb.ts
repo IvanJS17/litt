@@ -77,6 +77,12 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
                 filters.push((row) => (row[column] ?? null) === value);
                 return builder;
             },
+            // Only the `not(column, "is", null)` form.
+            not: (column: string, operator: string, value: unknown) => {
+                if (operator !== "is" || value !== null) throw new Error(`memoryDb: not ${operator} unsupported`);
+                filters.push((row) => (row[column] ?? null) !== null);
+                return builder;
+            },
             in: (column: string, values: unknown[]) => {
                 filters.push((row) => values.includes(row[column]));
                 return builder;
