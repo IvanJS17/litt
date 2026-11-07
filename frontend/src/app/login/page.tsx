@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
@@ -12,7 +13,6 @@ import {
     noticeActionClassName,
 } from "@mike/ui";
 import Link from "next/link";
-import { SiteLogo } from "@/app/components/site-logo";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { cn } from "@/app/lib/utils";
 import { SsoAuthButton } from "@/app/components/auth/SsoAuthButton";
@@ -159,10 +159,7 @@ export default function LoginPage() {
           : undefined;
 
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
-            <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 {/* Login Form */}
                 <div className={cn(authGlassCardUIClassName, "mb-4")}>
@@ -262,6 +259,6 @@ export default function LoginPage() {
                 }
                 primaryAction={retryAction}
             />
-        </div>
+        </AuthPageShell>
     );
 }

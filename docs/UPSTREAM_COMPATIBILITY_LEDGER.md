@@ -788,6 +788,8 @@ access, which S2 must close.
 | Word add-in | Document-scoped taskpane with session recovery, failed-answer retry, device-only saves and replayed edits; hermetic e2e in 4 workers | Approved-redline contract (`approvedRedline.ts` and panel); LiTT login card and model catalog | combine | Upstream shell (as in §4) with LiTT `approvedRedline.ts`, its panel and the approved bundle fetched from the backend; LiTT e2e assertions kept over upstream's. | S5 | `word-addin/src/taskpane/hooks/useWordDoc.ts`, `api/mikeApi.ts`, `lib/redline.ts`, `App.tsx`, `word-addin/e2e/**` | `word-addin/e2e/approved-redline*`; `history.spec.ts`; `chat.spec.ts`; `auth.spec.ts` | other-09, other-11, other-12 |
 | Third-party telemetry | Sentry in backend, web and add-in, reporting by default to the upstream organization; diagnostic grouping series | No third-party telemetry by default (invariant 11) | reject | SDKs, init files, DSNs and environment entries removed; the error-classification pieces without SDK may return later as local work. | S7 | `backend/src/instrument.ts`, `backend/src/lib/observability/**`, `frontend/sentry.*.config.ts`, `frontend/src/instrumentation*.ts`, `word-addin/src/taskpane/lib/errorReporting.ts`, three `package.json` | new RED: no `@sentry/*` dependency and no default DSN anywhere | G08, G09, FR-14, other-15 |
 | CourtListener | Connector listed in Discover, research tools, two index tables | Removed (TD-013); not a Mexican authority | reject | As implemented in S7: files, tools, key type and UI entry removed; the historical upstream migrations stay in the series, and one LiTT migration, `20261023_18_litt_remove_courtlistener`, drops the two index tables and `user_profiles.legal_research_us` and removes the key provider, stopping for an owner decision if a saved CourtListener key exists. The pre-sync removal migrations (`20260905_01_recovery_core_convergence`, `20260909_03_recovery_remove_us_research_preference`) were not carried over. | S7 | `backend/src/lib/courtlistener.ts`, `modules/chat/engine/tools/courtlistener*.ts`, `CourtListenerConnector.tsx`, `docs/courtlistener.md`, `backend/migrations/20261023_18_litt_remove_courtlistener.sql` | `courtlistenerExclusion.test.ts`; `migrationLedger.test.ts` | G24, FR-20 |
+| Workflow open-source submission | "Open source this" on a workflow (`OpenSourceWorkflowModal.tsx`) and `POST /workflows/:id/open-source` record a submission in `workflow_open_source_submissions` for upstream to publish in `Open-Legal-Products/mike-workflows` and on mikeoss.com; off unless `WORKFLOW_CONTRIBUTIONS_ENABLED` / `NEXT_PUBLIC_WORKFLOW_CONTRIBUTIONS_ENABLED` | A firm's workflow never leaves LiTT for a third party, and nobody reviews such submissions for LiTT | reject | Fail-closed whatever the env says (decision 2026-11-07): a LiTT switch (`LITT_WORKFLOW_OPEN_SOURCE_REJECTED`) answers the route with 404 `workflow_open_source_disabled` before upstream's flag check and hides the action and the modal. Upstream's handler, modal, submission service and table stay untouched so the weekly merge does not conflict; the catalog import from `mike-workflows` (inbound only) is unaffected. | S7 | `backend/src/modules/workflows/workflows.routes.ts`, `workflows.types.ts`, `frontend/src/app/components/workflows/WorkflowDetailPage.tsx` | `workflows.routes.test.ts` ("rejects open-source submission even when the env enables it"); `WorkflowDetailPage.openSource.test.tsx` | — |
+| Upstream contact points | Support e-mail `will@mikeoss.com`, sign-up links to mikeoss.com terms and privacy, Word fallback `https://app.mikeoss.com`, local Auth sender `noreply@mikeoss.com`, connector guides and security reports on `open-legal-products/mike` | Users reach LiTT, never upstream's maintainers or another company's legal texts | reject | `SUPPORT_EMAIL` is `soporte@asteroitt.com` (guarded by `userError.test.ts`); sign-up shows no terms notice until LiTT's texts are approved; Word falls back to `https://litt.asteroitt.com`; guides and security reports point at `IvanJS17/litt`. Re-check these on every merge: an upstream change to them must not be taken. | S7 | `packages/client/src/userError.ts`, `frontend/src/app/signup/page.tsx`, `word-addin/**`, `SECURITY.md`, `CONTRIBUTING.md`, `backend/supabase/config.toml` | `userError.test.ts`; `signup/page.test.tsx`; `connectors/page.test.tsx` | — |
 | Desktop app | macOS Electron app with a self-contained local database, filesystem storage driver and two `macos-15` CI jobs | Single governed data plane; Actions budget (TD-024) | reject | `desktop/` and `desktop.yml` removed; revisit 2026-11-20 as a product decision. | S7 | `desktop/**`, `.github/workflows/desktop.yml`, `backend/src/lib/storage.ts` | new RED: no `desktop/` tree and no macOS job | other-14 |
 | CI workflows | Evals job removed; backend coverage ratchet; Stryker scope; PR triggers and `workflow_dispatch`; spec typecheck; Supabase ports `21320-21322`; run cancellation; Docker image builds on every PR; e2e split into several Supabase jobs; nightly stress; stack-script workflow; add-in e2e in 4 workers; `loadtest.yml` deleted | TD-024 reductions: superseded runs cancelled, docs-only changes skip e2e, Stack and CodeQL, weekly scheduled e2e; `loadtest.yml` kept | combine | Adopt the savings and fixes (evals removal, coverage ratchet, spec typecheck, port move, 4 add-in workers, architecture test for test files outside images). Revert `docker-images.yml` (image builds move to the deployment gate), `stack-script.yml` (the script stays), the e2e job split and nightly stress. Keep `loadtest.yml`. | S6 | `.github/workflows/**` | Exact-head CI on the draft PR; `frontend/src/__tests__/architecture.test.ts`; `docs/e2e-ci.md` census | other-01, other-02, other-03, other-04, other-07, other-08, other-09, other-10 |
 | Browser e2e harness | Per-worker accounts; stable locators; local Anthropic-protocol stub so chat flows run without a key | Default CI and local e2e make no real provider or Google call (invariant 11) | adopt | Adopted on LiTT specs; the stub keeps the zero-real-call rule while turning skipped chat specs into coverage. | S6 | `e2e/**`, `.github/workflows/e2e.yml`, `docs/e2e-ci.md` | `e2e/chat-management.spec.ts`; `e2e/critical-path.spec.ts`; `anthropic-stub.check.mjs` | other-05, other-06 |
@@ -1293,6 +1295,9 @@ Proof, all in the schema-drift CI loop:
   `performance.litt-private-matters.sql` pins it. Whether a matter's team
   should reach a private-visibility project is for the owner to decide;
   nothing changes until then.
+  *Resolved by the owner on 2026-11-07 (§29.6, question 1):* the active team
+  now reaches it with its matter roles (`20261107_70`), and the same file
+  pins the new rule.
 - **W3:** the negative controls run in CI
   (`performance.litt-private-matters-controls.sql`).
   `littPrivateMatterLists.postgres.test.ts` keeps the full-file swaps for
@@ -1410,26 +1415,32 @@ review chat, generation, export) still goes through `filterReadableReviewRows`.
 
 The departure trigger (`cleanup_removed_org_member_overrides`, branch
 `if org_is_team`) clears `user_id` on every project the leaver created,
-matter projects included. This is unchanged behaviour. The matter exclusion
-keeps those projects out of the departure items: they are not archived, not
-handed to the successor and not "ownerless".
-`performance.litt-matter-departure.sql` (CI) fixes who reaches them
-afterwards:
+matter projects included, and the matter exclusion keeps those projects out
+of the departure items: they are not archived, not handed to the successor
+and not "ownerless". That upstream function is unchanged.
 
-| Who | Matter with an organization-visible project | Matter with a private project (W2) |
-|---|---|---|
-| Matter teammate (editor) | reaches and lists it, as before | nobody reached it but the creator before; still nobody |
-| Organization owner | no | no |
-| Organization admin | no | no |
-| Successor chosen in the departure | no | no |
-| Former creator | no | no |
+The owner decided the rest on 2026-11-07 (§29.6, questions 1 and 2).
+`20261107_70_litt_matter_succession.sql` adds a second departure trigger,
+`org_members_matter_succession`, which runs after upstream's (triggers fire
+in name order). It revokes the leaver's matter memberships and, on each
+private matter left without an active owner, promotes the teammate with the
+highest role. With no teammate left, it makes the departure's successor the
+owner. The team reaches the project through overrides kept in step with
+`matter_memberships`. `performance.litt-matter-departure.sql` (CI) fixes who
+reaches the matters afterwards:
 
-**Open product question, with W2 (§23.3):** after its creator leaves, a matter
-whose project is private stays in the database but no one can open it in
-LiTT. That contradicts the owner's retention decision of 2026-10-24, under
-which work inside a firm's matters stays with the firm. The rule is unchanged
-until the owner decides.
-The test pins today's behaviour so that any change is deliberate.
+| Who | Private matter, team of four, private project (A) | Private matter, organization-visible project (B) | Private matter, only its creator (C) | Public matter (D) |
+|---|---|---|---|---|
+| Earliest editor | becomes owner | becomes owner | — | unchanged (editor of the matter; the private project is nobody's) |
+| Other editor / viewer | keep editor / viewer | — | — | — |
+| Successor chosen in the departure | no | no | becomes owner | no |
+| Organization owner | no | no | no | no |
+| Organization admin | no | no | no | no |
+| Former creator | no | no | no | no |
+
+Before this change, matter A was out of everyone's reach after the departure,
+which contradicted the owner's 2026-10-24 rule that work inside a firm's
+matters stays with the firm.
 
 ### 24.4 Owner-visible changes
 
@@ -1799,17 +1810,40 @@ No Dependabot pull request is covered by this range.
 
 ### 29.6 Open product questions recorded during the cycles
 
-None of these blocks the sync; each rule stays as it is until the owner
-decides, and a test pins today's behaviour.
+Questions 1 and 2 were resolved by the owner on 2026-11-07 and implemented in
+`20261107_70_litt_matter_succession.sql`. Question 3 is still open; its rule
+stays as it is until the owner decides, and a test pins today's behaviour.
 
-1. **Private project inside a matter (W2, cycle-3 review, recorded in §23.3).** A matter whose
-   project is private is reached only by the project's creator; the rest of
-   the matter team does not see it.
-2. **Matter left unreachable when its creator leaves (cycle 5, §24.3).** After
-   the creator of a private matter project leaves the firm, nobody can open it
-   in LiTT, which conflicts with the 2026-10-24 rule that matter work stays
-   with the firm.
+1. **Private project inside a matter (W2, cycle-3 review, recorded in §23.3).
+   Resolved by the owner on 2026-11-07.** The whole active team of a private
+   matter reaches its project, each member with their matter role
+   (`matter_owner` → owner, `editor` → editor, `viewer` → viewer), whatever the
+   project's own visibility. Nobody outside the team reaches it: an
+   organization owner or admin is not on the team just by holding that role.
+   Public matters are unchanged.
+2. **Matter left unreachable when its creator leaves (cycle 5, §24.3).
+   Resolved by the owner on 2026-11-07.** The matter stays with its team. When
+   the leaver was the last active `matter_owner` of a private matter, the
+   active teammate with the highest role becomes `matter_owner` (editor before
+   viewer; the earliest member on a tie). With no teammate left, the successor
+   chosen for the departure becomes `matter_owner`. An organization owner or
+   admin can list the matters left without an owner (no titles) and name any
+   current member of the firm, themselves included, as the owner of one of
+   them. A matter with an active owner is refused (`matter_has_owner`, enforced
+   by `assign_matter_owner`): naming never displaces or demotes an owner, so
+   it cannot take a private matter from its team. Every succession and
+   appointment is audited without the matter's title.
 3. **Private catalogue without a matter exclusion (cycle 5, §24.2).**
    `list_org_private_content` is safe today only because
    `can_access_org_private_content` is false in LiTT. If the private catalogue
    is ever opened, it must first exclude matter content.
+
+## 30. LiTT changes inside upstream hot zones
+
+Files upstream edits often. A LiTT change here must be re-applied by hand when
+an upstream cycle rewrites the same lines; the test named in each row fails if
+it is lost.
+
+| LiTT change | Files | What to keep on conflict | Test |
+|---|---|---|---|
+| Interface language per user (i18n I18N-0B, 2026-11-07): `user_profiles.ui_locale` (`en-US`, `es-MX` or null = automatic), migration `20261107_80_litt_user_ui_locale.sql` | `modules/user/user.profile.validation.ts` (`uiLocale` in `PATCH /user/profile`), `user.profile.serialization.ts` (`uiLocale` in the profile), `user.profile.storage.ts` (`ui_locale` in the newest select plus its own retry tier), `user.profile.operations.ts` (copy to GoTrue `user_metadata.locale`), `modules/auth/auth.service.ts` (`locale` in sign-up, sent as `data.locale`), `lib/uiLocale.ts`, `UiLocale` in `packages/contracts` | The `uiLocale` field and its validation, `ui_locale` at the end of `PROFILE_SELECT_NEWEST` with the `PROFILE_SELECT_NO_UI_LOCALE` tier, and the metadata copy after the profile update. If the copy to GoTrue fails, the profile keeps the saved value, the request still succeeds and a warning is logged; the emails use the previous metadata value until the next successful save. | `user.routes.test.ts` (`PATCH /user/profile uiLocale`); `auth.test.ts` (sign-up language); `buildJsonExport.access.test.ts` (profile export) |

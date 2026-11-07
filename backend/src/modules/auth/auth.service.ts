@@ -19,6 +19,7 @@ import {
 } from "./auth.messages";
 import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import { consumeAuthHandoff, issueAuthHandoff } from "../../lib/authHandoff";
+import { UI_LOCALES } from "../../lib/uiLocale";
 
 // ---------------------------------------------------------------------------
 // Request payload schemas
@@ -72,6 +73,9 @@ export const credentialsSchema = z.object({
 /** Sign-up applies the length policy; login accepts whatever was set. */
 export const signupSchema = credentialsSchema.extend({
   password: passwordField(PASSWORD_MIN_LENGTH),
+  // Language of the sign-up screen, copied to user_metadata.locale so the
+  // confirmation email is written in it. Optional: older clients omit it.
+  locale: z.enum(UI_LOCALES).optional(),
 });
 export const handoffRequestIdSchema = z
   .string()
@@ -154,12 +158,13 @@ export function signInWithPassword(
 
 export function signUpWithPassword(
   client: SupabaseClient,
-  credentials: Credentials,
+  { email, password, locale }: z.infer<typeof signupSchema>,
   emailRedirectTo: string,
 ) {
   return client.auth.signUp({
-    ...credentials,
-    options: { emailRedirectTo },
+    email,
+    password,
+    options: { emailRedirectTo, ...(locale ? { data: { locale } } : {}) },
   });
 }
 

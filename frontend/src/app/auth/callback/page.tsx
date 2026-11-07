@@ -1,10 +1,10 @@
 "use client";
 
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { SiteLogo } from "@/app/components/site-logo";
 import { pillButtonUIClassName, authGlassCardUIClassName } from "@mike/ui";
 import { authErrorDescription, safeAuthNext } from "@/app/lib/authRedirects";
 import { exchangeAuthCode, getAuthSession } from "@/app/lib/authApi";
@@ -129,10 +129,7 @@ function AuthCallbackContent() {
     }, [isErrorPreview, refreshSession, router, searchParams]);
 
     return (
-        <div className="relative flex min-h-dvh items-center justify-center bg-app-background px-6 py-10">
-            <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
-                <SiteLogo size="lg" asLink />
-            </div>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {displayedMessage ? (
@@ -183,7 +180,7 @@ function AuthCallbackContent() {
                     )}
                 </div>
             </div>
-        </div>
+        </AuthPageShell>
     );
 }
 

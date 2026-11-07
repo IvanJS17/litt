@@ -982,3 +982,11 @@ export interface TrainingVersionApproval {
     content_sha256: string;
     approved_at: string;
 }
+
+/**
+ * Interface language a user can choose (`uiLocale` in `GET`/`PATCH
+ * /user/profile`, `locale` in `POST /auth/signup`). `null` in the profile
+ * means automatic: the client negotiates from the browser or Word language
+ * and falls back to `es-MX`.
+ */
+export type UiLocale = "en-US" | "es-MX";

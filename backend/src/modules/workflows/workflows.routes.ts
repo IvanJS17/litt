@@ -39,6 +39,7 @@ import {
   withSystemWorkflowAccess,
   submitOpenSourceWorkflow,
   WORKFLOW_CONTRIBUTIONS_ENABLED,
+  LITT_WORKFLOW_OPEN_SOURCE_REJECTED,
   parseAssetDocumentIds,
   listWorkflowAssets,
   copyDocumentsToWorkflowAssets,
@@ -334,6 +335,16 @@ workflowsRouter.delete("/:workflowId", requireAuth, asyncRoute(async (req, res) 
 
 // POST /workflows/:workflowId/open-source
 workflowsRouter.post("/:workflowId/open-source", requireAuth, asyncRoute(async (req, res) => {
+  // LiTT: rejected regardless of WORKFLOW_CONTRIBUTIONS_ENABLED. Submitting
+  // a firm's workflow to upstream's public catalog is egress to a third
+  // party, and nobody reviews these submissions for LiTT
+  // (docs/UPSTREAM_COMPATIBILITY_LEDGER.md, "Workflow open-source submission").
+  if (LITT_WORKFLOW_OPEN_SOURCE_REJECTED) {
+    return void res.status(404).json({
+      detail: "Publishing workflows outside LiTT is not available",
+      code: "workflow_open_source_disabled",
+    });
+  }
   if (!WORKFLOW_CONTRIBUTIONS_ENABLED) {
     return void res.status(404).json({ detail: "Workflow contributions are disabled" });
   }

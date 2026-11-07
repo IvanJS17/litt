@@ -123,6 +123,8 @@ import {
   keepServerOwnedRuleFields,
   PLAYBOOK_DRAFT_CODE,
   PLAYBOOK_DRAFT_MESSAGE,
+  PLAYBOOK_PROPOSALS_RUNNING_CODE,
+  PLAYBOOK_PROPOSALS_RUNNING_MESSAGE,
   stripProvenance,
 } from "./playbooks.starter";
 
@@ -1163,6 +1165,10 @@ export const INTERRUPTED_IMPORT_ERROR =
 export const INTERRUPTED_DRAFT_ERROR =
   "El borrador se interrumpió antes de terminar. Vuelve a enviar el cuestionario.";
 
+/** LiTT: the same, for changes proposed for a copy. */
+export const INTERRUPTED_PROPOSAL_ERROR =
+  "Los cambios propuestos se interrumpieron antes de terminar. Vuelve a enviar el cuestionario.";
+
 /** A content write refused while a replacement import of the playbook runs. */
 export const PLAYBOOK_BEING_REPLACED_ERROR =
   "This playbook is being replaced. Wait for the import to finish.";
@@ -1178,6 +1184,10 @@ export const PLAYBOOK_EDITED_DURING_REPLACEMENT_ERROR =
  * the version it began from). Only an import that has resolved its target
  * holds the playbook, because only such an import compares against it; one
  * that will never finish (interruptedPlaybookWork) holds nothing.
+ *
+ * LiTT: changes being proposed for a copy hold it the same way (their row
+ * records the copy's updated_at as its target), so the copy is read-only
+ * until they are computed; that refusal carries its own code.
  */
 export async function assertPlaybookNotBeingReplaced(
   db: Db,
@@ -1185,7 +1195,7 @@ export async function assertPlaybookNotBeingReplaced(
 ): Promise<void> {
   const { data, error } = await db
     .from("playbook_imports")
-    .select("id, status, started_at, updated_at, target_updated_at")
+    .select("id, kind, status, started_at, updated_at, target_updated_at")
     .eq("playbook_id", playbookId)
     .eq("status", "running");
   if (error) throw error;
@@ -1198,7 +1208,12 @@ export async function assertPlaybookNotBeingReplaced(
     replacing,
     playbookImportJobKey,
   );
-  if (replacing.some((row) => !interrupted.has(String(row.id))))
+  const holding = replacing.filter((row) => !interrupted.has(String(row.id)));
+  if (holding.some((row) => row.kind === "proposal"))
+    throw new PlaybookRequestError(PLAYBOOK_PROPOSALS_RUNNING_MESSAGE, 409, {
+      code: PLAYBOOK_PROPOSALS_RUNNING_CODE,
+    });
+  if (holding.length)
     throw new PlaybookRequestError(PLAYBOOK_BEING_REPLACED_ERROR, 409);
 }
 
@@ -1223,7 +1238,9 @@ export function publicImport(
     error: stopped
       ? kind === "import"
         ? INTERRUPTED_IMPORT_ERROR
-        : INTERRUPTED_DRAFT_ERROR
+        : kind === "proposal"
+          ? INTERRUPTED_PROPOSAL_ERROR
+          : INTERRUPTED_DRAFT_ERROR
       : row.error
         ? String(row.error)
         : null,

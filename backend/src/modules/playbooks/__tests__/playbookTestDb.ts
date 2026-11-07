@@ -51,8 +51,10 @@ export function database(
       if (op !== "select") {
         writes.push({ table, op, payload });
         if (op === "insert") {
-          (tables[table] ??= []).push(payload);
-          result = [payload];
+          // One row or a list of rows, as the client takes either.
+          const inserted = Array.isArray(payload) ? (payload as Row[]) : [payload];
+          (tables[table] ??= []).push(...inserted);
+          result = inserted;
         }
         if (op === "update")
           result.forEach((row) => Object.assign(row, payload));

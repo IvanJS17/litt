@@ -61,7 +61,10 @@ services:
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD:?required}@db:5432/postgres
       GOTRUE_SITE_URL: ${PUBLIC_URL:?required}
-      GOTRUE_URI_ALLOW_LIST: ${PUBLIC_URL:?required}
+      # Lista separada por comas. La segunda entrada es la página que cierra el
+      # inicio de sesión con proveedor externo dentro de Word (README
+      # §Complemento de Word); hoy no hay proveedores activos.
+      GOTRUE_URI_ALLOW_LIST: ${PUBLIC_URL:?required},${WORD_ADDIN_URL:?required}/oauth-dialog.html
       GOTRUE_JWT_SECRET: ${JWT_SECRET:?required}
       GOTRUE_JWT_EXP: '3600'
       GOTRUE_JWT_AUD: authenticated
@@ -256,6 +259,11 @@ services:
       # que configura cada usuario; búsqueda web apagada.
       LITT_CHAT_SUBAGENTS: ${LITT_CHAT_SUBAGENTS:-enabled}
       LITT_CHAT_WEB_SEARCH: ${LITT_CHAT_WEB_SEARCH:-disabled}
+      # Complemento de Word (servicio litt-word). Con WORD_ADDIN_URL el backend
+      # acepta ese origen, usa cookies particionadas para Word en la web y
+      # exige AUTH_HANDOFF_ENCRYPTION_SECRET (>= 32 caracteres) al arrancar.
+      WORD_ADDIN_URL: ${WORD_ADDIN_URL:?required}
+      AUTH_HANDOFF_ENCRYPTION_SECRET: ${AUTH_HANDOFF_ENCRYPTION_SECRET:?required}
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -319,6 +327,39 @@ services:
         aliases:
         - litt
 
+  # Complemento de Word: sirve el panel y manifest.xml, y reenvía /api/* al
+  # backend en el mismo origen (cookies de sesión de primera parte en Word).
+  # Mismo cuidado de nombres que litt-web: `litt-word` es único en `edge`.
+  litt-word:
+    logging: *logging
+    image: litt-word:${LITT_SOURCE_COMMIT:?required}
+    restart: unless-stopped
+    # Servidor de archivos estáticos + proxy; menos que litt-web (Next).
+    mem_limit: 192m
+    memswap_limit: 320m
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      WORD_ADDIN_BACKEND_ORIGIN: http://litt-backend:3001
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - 'fetch(''http://127.0.0.1:3200/health'').then((r) => process.exit(r.ok ? 0 : 1)).catch(() =>
+        process.exit(1))'
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+    networks:
+      default: {}
+      edge:
+        aliases:
+        - litt-word
+
 volumes:
   db_data:
 
@@ -328,8 +369,9 @@ networks:
   # Egreso externo: backend (R2 + proveedores de IA) y auth (SMTP).
   egress:
   # Red del ingress compartido (/srv/edge, contenedor edge-caddy-1; HOST-RULES §1).
-  # Solo `litt-web` (alias `litt`) y `auth-edge` (alias `litt-auth`) entran:
-  # son los nombres que resuelve el bloque litt del Caddyfile. El resto del
+  # Solo `litt-web` (alias `litt`), `auth-edge` (alias `litt-auth`) y
+  # `litt-word` (alias `litt-word`) entran: son los nombres que resuelve el
+  # bloque litt del Caddyfile. El resto del
   # stack queda aislado en la red interna.
   edge:
     external: true
