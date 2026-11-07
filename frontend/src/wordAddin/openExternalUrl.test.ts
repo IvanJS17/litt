@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openExternalUrl } from "../../../word-addin/src/taskpane/lib/openExternalUrl";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { openExternalUrl, WEB_APP_URL } from "../../../word-addin/src/taskpane/lib/openExternalUrl";
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -70,5 +72,24 @@ describe("opening links outside the Word pane", () => {
         vi.spyOn(window, "open").mockImplementation(() => { throw new Error("blocked"); });
 
         expect(openExternalUrl(url)).toBe(false);
+    });
+});
+
+describe("LiTT identity of the Word add-in", () => {
+    it("falls back to LiTT's web app, never upstream's", () => {
+        expect(WEB_APP_URL).not.toMatch(/mikeoss/i);
+    });
+
+    it("ships a manifest with no upstream address and LiTT control ids", () => {
+        const manifest = readFileSync(
+            resolve(__dirname, "../../../word-addin/manifest.xml"),
+            "utf8",
+        );
+        expect(manifest).not.toMatch(/mikeoss/i);
+        const controlIds = [
+            ...manifest.matchAll(/<(?:Group|Control)\b[^>]*\bid="([^"]+)"/g),
+        ].map((m) => m[1]);
+        expect(controlIds.length).toBeGreaterThan(0);
+        expect(controlIds.filter((id) => !id.startsWith("LiTT."))).toEqual([]);
     });
 });

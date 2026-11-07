@@ -90,7 +90,7 @@ it does not produce backend runtime data.
 
 ## Security
 
-Do not open a public issue for security vulnerabilities. Use [GitHub's private vulnerability reporting](https://github.com/Open-Legal-Products/mike/security/advisories/new) instead.
+Do not open a public issue for security vulnerabilities. Use [GitHub's private vulnerability reporting](https://github.com/IvanJS17/litt/security/advisories/new) instead.
 
 We will aim to respond promptly and coordinate a disclosure timeline with you.
 

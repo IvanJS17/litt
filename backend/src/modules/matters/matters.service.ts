@@ -11,9 +11,12 @@
  * configuration surface, not content access.
  *
  * LiTT never managed matter members from this surface (no team roster here),
- * so there is deliberately no membership write. Adding a member would also
- * have to create the corresponding project override so the member can open a
- * private matter's project; that belongs to whoever introduces the roster.
+ * so there is deliberately no membership write. The database keeps a private
+ * matter's project access in step with its team (20261107_70), so a future
+ * roster only writes matter_memberships.
+ *
+ * Naming a matter's owner and listing matters without one live in
+ * matters.succession.ts, behind this facade.
  */
 
 import type { Db } from "../../lib/supabase";
@@ -35,6 +38,13 @@ import {
   ok,
   type ServiceResult,
 } from "../../lib/serviceResult";
+
+export {
+  assignMatterOwner,
+  listMattersWithoutOwner,
+  type MatterOwnerAssignment,
+  type MatterWithoutOwner,
+} from "./matters.succession";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

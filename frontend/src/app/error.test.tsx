@@ -73,7 +73,7 @@ describe("app error boundary", () => {
         const href = decodeURIComponent(
             support.getAttribute("href") ?? "",
         ).replace(/%20/g, " ");
-        expect(href).toContain("mailto:will@mikeoss.com");
+        expect(href).toContain("mailto:soporte@asteroitt.com");
         expect(href).toContain("Error reference: abc123");
         expect(
             screen.queryByText(/undefined is not a function/),

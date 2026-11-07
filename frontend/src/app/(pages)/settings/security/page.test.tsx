@@ -88,7 +88,7 @@ describe("SecurityPage", () => {
         ).toBeInTheDocument();
         expect(
             screen.getByRole("link", { name: "Contact support" }),
-        ).toHaveAttribute("href", expect.stringContaining("will@mikeoss.com"));
+        ).toHaveAttribute("href", expect.stringContaining("soporte@asteroitt.com"));
     });
 
     it("retries enrollment on the provider's name-conflict code", async () => {
