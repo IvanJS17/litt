@@ -1,0 +1,8 @@
+{
+  "migrated": [
+    "frontend/src/app/layout.tsx",
+    "frontend/src/i18n",
+    "packages/i18n/src"
+  ],
+  "allowed": {}
+}
