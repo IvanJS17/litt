@@ -1074,7 +1074,6 @@ export function AssistantMessage(props: Props) {
     const handlers = useMemo(() => ({
         onCitationClick: ((...args) => latest.current.onCitationClick?.(...args)) as NonNullable<Props["onCitationClick"]>,
         onOpenCitationSource: ((...args) => latest.current.onOpenCitationSource?.(...args)) as NonNullable<Props["onOpenCitationSource"]>,
-        onCaseClick: ((...args) => latest.current.onCaseClick?.(...args)) as NonNullable<Props["onCaseClick"]>,
         onWorkflowClick: ((...args) => latest.current.onWorkflowClick?.(...args)) as NonNullable<Props["onWorkflowClick"]>,
         onEditViewClick: ((...args) => latest.current.onEditViewClick?.(...args)) as NonNullable<Props["onEditViewClick"]>,
         onOpenDocument: ((...args) => latest.current.onOpenDocument?.(...args)) as NonNullable<Props["onOpenDocument"]>,
@@ -1085,7 +1084,6 @@ export function AssistantMessage(props: Props) {
     return <MemoAssistantMessage {...props}
         onCitationClick={props.onCitationClick ? handlers.onCitationClick : undefined}
         onOpenCitationSource={props.onOpenCitationSource ? handlers.onOpenCitationSource : undefined}
-        onCaseClick={props.onCaseClick ? handlers.onCaseClick : undefined}
         onWorkflowClick={props.onWorkflowClick ? handlers.onWorkflowClick : undefined}
         onEditViewClick={props.onEditViewClick ? handlers.onEditViewClick : undefined}
         onOpenDocument={props.onOpenDocument ? handlers.onOpenDocument : undefined}
