@@ -2,7 +2,7 @@
 //
 // The approval binds the version's CURRENT bytes (content_sha256); new bytes
 // in place need a new approval (lib/trainingRelease.ts). Who approves: a
-// member with content.edit in the document's project whose effective stage
+// member with content.edit in the document's project (or workflow) whose effective stage
 // there is none (a lawyer), or the author's current mentor; never the author,
 // never a pasante or a junior. Somebody who can read the document but may not
 // approve gets one 403 whatever the reason; somebody who cannot read it, 404.
@@ -108,7 +108,11 @@ export async function mayApproveTrainingVersion(
   userId: string,
   authorId: string,
 ): Promise<boolean> {
-  const doc = access.doc as { org_id?: string | null; project_id?: string | null };
+  const doc = access.doc as {
+    org_id?: string | null;
+    project_id?: string | null;
+    workflow_id?: string | null;
+  };
   const orgId = doc.org_id ?? null;
   if (userId === authorId || !orgId) return false;
   const stage = await resolveTrainingStage(db, userId, {
@@ -116,7 +120,9 @@ export async function mayApproveTrainingVersion(
     projectId: doc.project_id ?? null,
   });
   if (stage !== null) return false;
-  const lawyer = !!doc.project_id && can(access.projectRole, "content.edit");
+  // The container's role: a project's, or a workflow's for its assets.
+  const lawyer =
+    !!(doc.project_id || doc.workflow_id) && can(access.projectRole, "content.edit");
   return lawyer || isCurrentMentor(db, orgId, authorId, userId);
 }
 

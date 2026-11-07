@@ -61,8 +61,11 @@ import type { DocIndex, DocStore } from "../types";
 
 // Same double as workflowAssetReplication.test.ts: documents echo their
 // client-generated ids; versions get deterministic new-version-N ids.
-// `sealRows` answers the facade's read of the copy source's pasante seal.
-function replicationDb(sealRows: unknown[] = []) {
+// `sealRows` answers the facade's read of the copy source's pasante seal; a
+// sealed copy then reads its new document's organization back.
+const UNSEALED = { training_author_user_id: null, training_stage: null };
+function replicationDb(sealRows: unknown[] = [UNSEALED]) {
+    const documents = new Map<string, Record<string, unknown>>();
     const versionRows: Record<string, unknown>[][] = [];
     const sealReads: Array<[string, unknown]> = [];
     const db = {
@@ -74,7 +77,13 @@ function replicationDb(sealRows: unknown[] = []) {
         from(table: string) {
             if (table === "documents") {
                 return {
+                    select: () => ({
+                        eq: (_column: string, id: string) => ({
+                            maybeSingle: async () => ({ data: documents.get(id) ?? null, error: null }),
+                        }),
+                    }),
                     insert(rows: Record<string, unknown>[]) {
+                        for (const row of rows) documents.set(row.id as string, row);
                         return {
                             select: async () => ({
                                 data: rows.map((row) => ({ id: row.id })),
@@ -135,7 +144,7 @@ function makeStore(): DocStore {
     ]);
 }
 
-async function replicate(db: unknown, index: DocIndex, count?: number) {
+async function replicate(db: unknown, index: DocIndex, count?: number, orgId: string | null = "org") {
     return runToolCalls(
         [
             {
@@ -157,6 +166,11 @@ async function replicate(db: unknown, index: DocIndex, count?: number) {
         undefined,
         undefined,
         index,
+        undefined,
+        undefined,
+        null,
+        undefined,
+        { orgId },
     );
 }
 
@@ -234,7 +248,7 @@ describe("replicate_document rendition path", () => {
 
     it.each([
         ["a pasante's workflow-asset source keeps its author", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }]],
-        ["an unsealed source stays unsealed", []],
+        ["an unsealed source stays unsealed", [UNSEALED]],
     ])("%s", async (_name, sealRows) => {
         process.env.ASYNC_DOCUMENT_CONVERSION = "true";
         const { db, versionRows, sealReads } = replicationDb(sealRows);
@@ -244,7 +258,7 @@ describe("replicate_document rendition path", () => {
         expect(sealReads).toEqual([["storage_path", "workflow-assets/precedent.docx"]]);
         const row = versionRows[0][0];
         expect(row).not.toHaveProperty("authorship");
-        if (sealRows.length) expect(row).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
+        if (sealRows[0].training_stage) expect(row).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
         else {
             expect(row).not.toHaveProperty("training_author_user_id");
             expect(row).not.toHaveProperty("training_stage");
@@ -266,5 +280,21 @@ describe("replicate_document rendition path", () => {
 
         expect(sealReads).toEqual([["id", "source-version"]]);
         expect(versionRows[0][0]).toMatchObject({ training_author_user_id: "pasante-1", training_stage: "pasante" });
+    });
+
+    // A5: outside a project the copy takes the conversation's organization;
+    // with none, nobody could approve a pasante's copy, so none is made.
+    it("refuses a pasante's copy in a chat without an organization", async () => {
+        process.env.ASYNC_DOCUMENT_CONVERSION = "true";
+        const { db, versionRows } = replicationDb([
+            { training_author_user_id: "pasante-1", training_stage: "pasante" },
+        ]);
+
+        const result = await replicate(db, {}, undefined, null);
+
+        expect(JSON.parse((result.toolResults[0] as { content: string }).content)).toMatchObject({
+            ok: false,
+        });
+        expect(versionRows).toEqual([]);
     });
 });

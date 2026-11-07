@@ -71,12 +71,15 @@ const row = {
   storage_path: "private",
   content_sha256: "private-hash",
 };
-// `sourceRows` answers the copy's seal read on document_versions.
-const db = (sourceRows: unknown[] = []) => {
+const UNSEALED = { training_author_user_id: null, training_stage: null };
+// `sourceRows` answers the copy's seal read on document_versions; a sealed
+// copy then reads the destination's organization from documents.
+const db = (sourceRows: unknown[] = [UNSEALED]) => {
   const rpc = vi.fn().mockResolvedValue({ data: row, error: null });
   const query = {
     select: () => query,
     eq: () => query,
+    maybeSingle: () => Promise.resolve({ data: { org_id: "org" }, error: null }),
     then: (resolve: (value: unknown) => unknown) =>
       resolve({ data: sourceRows, error: null }),
   };
@@ -135,7 +138,7 @@ describe("version copy caller policy", () => {
   });
   it.each([
     ["a pasante's source keeps its author, not the copying actor", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }], { training_author_user_id: "pasante-1", training_stage: "pasante" }],
-    ["an unsealed source stays unsealed", [], undefined],
+    ["an unsealed source stays unsealed", [UNSEALED], undefined],
   ])("%s", async (_name, sourceRows, seal) => {
     const fake = db(sourceRows);
     expect(await createVersionFromDocument(args, fake.db)).toMatchObject({ ok: true });

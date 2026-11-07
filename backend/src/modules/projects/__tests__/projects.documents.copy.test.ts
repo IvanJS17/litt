@@ -187,7 +187,7 @@ it.each([
 
 it.each([
   ["a pasante's version keeps its author, not the copying actor", [{ training_author_user_id: "pasante-1", training_stage: "pasante" }], true],
-  ["an unsealed version stays unsealed", [], false],
+  ["an unsealed version stays unsealed", [{ training_author_user_id: null, training_stage: null }], false],
 ])("copying a document: %s", async (_name, sourceSeal, sealed) => {
   mocks.projectAccess.mockResolvedValue({ ok: true, projectRole: "owner", project: { org_id: null } });
   mocks.docAccess.mockResolvedValue({ ok: true, projectRole: "owner", isCreator: true });
@@ -201,6 +201,8 @@ it.each([
     { table: "projects", data: { org_id: null } },
     { table: "documents", op: "insert", data: { id: "copy" } },
     { table: "document_versions", data: sourceSeal },
+    // A sealed copy is only made where it can be approved: an organization.
+    ...(sealed ? [{ table: "documents", data: { org_id: "org" } }] : []),
     { rpc: "create_document_version", data: { id: "copy-version" } },
     { table: "documents", data: { id: "copy" } },
   ]);

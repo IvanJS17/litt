@@ -205,3 +205,40 @@ describe.each(["display", "file"])("GET /single-documents/:id/%s (in-app view)",
     expect(response.headers["cache-control"]).toBeUndefined();
   });
 });
+
+// A8: a pasante's document copied into a workflow is a workflow asset in the
+// workflow's organization, with no project. A lawyer who may edit the
+// workflow (or the pasante's mentor) approves it, and its download is released.
+describe("a pasante's copy in a workflow asset", () => {
+  beforeEach(() => {
+    Object.assign(tables.documents[0], { org_id: "org", workflow_id: "workflow" });
+    version().training_author_user_id = "pupil";
+    tables.training_stages = [];
+    tables.training_pupils = [];
+  });
+
+  const approveIt = () =>
+    request(app).post("/single-documents/doc-1/versions/ver-2/training-approval");
+
+  it.each([
+    ["a lawyer with content.edit on the workflow", "editor", false],
+    ["the pupil's mentor without content.edit", "viewer", true],
+  ])("is approved by %s and its download released", async (_who, projectRole, mentor) => {
+    mocks.ensureDocAccess.mockResolvedValue({ ok: true, isCreator: false, projectRole });
+    if (mentor)
+      tables.training_pupils.push({ org_id: "org", trainee_user_id: "pupil", mentor_user_id: "author" });
+    expect((await request(app).get("/single-documents/doc-1/url")).status).toBe(409);
+    const approval = await approveIt();
+    expect(approval.status).toBe(200);
+    expect(tables.training_version_approvals).toEqual([
+      expect.objectContaining({ document_version_id: "ver-2", content_sha256: HASH, org_id: "org" }),
+    ]);
+    expect((await request(app).get("/single-documents/doc-1/url")).status).toBe(200);
+  });
+
+  it("is not approved by a viewer who is not the mentor", async () => {
+    mocks.ensureDocAccess.mockResolvedValue({ ok: true, isCreator: false, projectRole: "viewer" });
+    expect((await approveIt()).status).toBe(403);
+    expect(tables.training_version_approvals).toEqual([]);
+  });
+});

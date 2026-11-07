@@ -117,6 +117,50 @@ describe("document version persistence boundary", () => {
   });
 });
 
+describe("a copy's seal fails closed", () => {
+  const copy = (sourceVersionId = "source") => ({
+    authorship: { kind: "copy", sourceVersionId } as const,
+    document_id: "copy-doc",
+    storage_path: "copy/key",
+    source: "upload",
+    filename: "Copia.docx",
+  });
+
+  it("refuses a copy whose source version is gone instead of leaving it unsealed", async () => {
+    const fake = scriptedDb([{ table: "document_versions", data: [] }]);
+    const result = await createDocumentVersion(fake.db, copy());
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ kind: "training.copy_source_missing" });
+    fake.done();
+  });
+
+  it("refuses a pasante's copy into a document outside an organization", async () => {
+    const fake = scriptedDb([
+      { table: "document_versions", data: [{ training_author_user_id: "pupil", training_stage: "pasante" }] },
+      { table: "documents", data: { org_id: null } },
+    ]);
+    const result = await createDocumentVersion(fake.db, copy());
+    expect(result.data).toBeNull();
+    expect(result.error).toMatchObject({ kind: "training.copy_without_org" });
+    expect(fake.calls[1].filters).toEqual([["eq", "id", "copy-doc"]]);
+    fake.done();
+  });
+
+  it("seals a pasante's copy inside an organization", async () => {
+    const fake = scriptedDb([
+      { table: "document_versions", data: [{ training_author_user_id: "pupil", training_stage: "pasante" }] },
+      { table: "documents", data: { org_id: "org" } },
+      { rpc: "create_document_version", data: { id: "v" } },
+    ]);
+    await createDocumentVersion(fake.db, copy());
+    expect((fake.calls[2].args as { p_version: object }).p_version).toMatchObject({
+      training_author_user_id: "pupil",
+      training_stage: "pasante",
+    });
+    fake.done();
+  });
+});
+
 const storage = vi.hoisted(() => ({
   deleteFile: vi.fn(),
   assertStorageConfigured: vi.fn(),

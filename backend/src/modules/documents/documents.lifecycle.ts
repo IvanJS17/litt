@@ -207,13 +207,29 @@ async function resolveSeal(
       : query.eq("storage_path", authorship.sourceStoragePath);
   const { data, error } = await query;
   if (error) throw error;
+  const rows = (data ?? []) as TrainingSeal[];
+  // A source that vanished cannot vouch for being unsealed: refuse the copy.
+  if (rows.length === 0)
+    throw new AppError("training.copy_source_missing", "The copied version's source was not found");
   // Several rows can share an object; any seal among them is kept.
-  const sealed = ((data ?? []) as TrainingSeal[]).find(
+  const sealed = rows.find(
     (row) => row.training_stage === "pasante" && row.training_author_user_id,
   );
-  return sealed
-    ? { training_author_user_id: sealed.training_author_user_id, training_stage: "pasante" }
-    : NO_SEAL;
+  if (!sealed) return NO_SEAL;
+  // Approval is decided inside an organization (documents.trainingApproval):
+  // a sealed copy outside one could never be released, so it is not made.
+  const { data: target, error: targetError } = await db
+    .from("documents")
+    .select("org_id")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (targetError) throw targetError;
+  if (!(target as { org_id: string | null } | null)?.org_id)
+    throw new AppError(
+      "training.copy_without_org",
+      "A pasante's version cannot be copied outside an organization",
+    );
+  return { training_author_user_id: sealed.training_author_user_id, training_stage: "pasante" };
 }
 
 /** Sealed with `userId` as author when they are a pasante where the document lives. */
