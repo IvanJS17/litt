@@ -14,7 +14,6 @@ import type {
 export type { ApiKeyStatus } from "../types";
 import type { TrainingTurnNote, TrainingTurnNotes } from "@mike/contracts";
 import type { RouterProfileLists } from "@mike/client";
-import { SERVER_FAILURE_MESSAGE } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
 import {
