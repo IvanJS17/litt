@@ -63,6 +63,13 @@ belong to the server: saving a playbook keeps the ones stored for each rule's
 id, whatever the editor sends, and a new rule arrives without them. They are
 kept in the snapshot a review stores, but not sent to the review model.
 
+`GET /playbooks/:id` also returns `intake`, `{ "answers": { "q6": "…" } }`, to
+an **Editor** or **Owner**: the answers the playbook was written from, so the
+editor can read the answer a rule rests on. It is `null` for a playbook not
+drafted from questions. A **Viewer** gets no `intake`, nor does any list, and
+the rest of what the questionnaire stored (model, date, attachments) is never
+returned.
+
 The changes proposed for a copy are stored in `playbook_changes`, one row per
 rule added, modified or removed, each pending, accepted or rejected. They are
 deleted with their playbook and included in the account export.
