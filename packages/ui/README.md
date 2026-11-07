@@ -41,8 +41,9 @@ for the add-in, a webpack alias), and resolves the package's dependencies from
 its own `node_modules`. `peerDependencies` in `package.json` lists what the
 package expects to find there.
 
-Both Dockerfiles copy this directory to `/packages/ui`, the path the aliases
-resolve to in the image; `frontend/src/__tests__/architecture.test.ts` checks
+The frontend Dockerfile copies this directory to `/app/packages/ui` and the
+add-in Dockerfile to `/packages/ui`, the paths the aliases resolve to in each
+image; `frontend/src/__tests__/architecture.test.ts` checks
 that the alias and the copy agree.
 
 ## Tests and stories

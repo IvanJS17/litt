@@ -15,9 +15,9 @@ over any summary, including the one in
 
 Where the marks are used in the code:
 
-- `frontend/src/shared/ui/LittBrandUI.tsx` draws the wordmark (paths copied
+- `packages/ui/src/LittBrandUI.tsx` draws the wordmark (paths copied
   from `svg/litt-wordmark-color-*.svg`) and the pixel «L.» monogram at 16, 32
-  and 48 px. The Word add-in imports it as `@mike/litt-brand-ui`.
+  and 48 px. The web app and the Word add-in import it from `@mike/ui`.
 - `frontend/src/app/favicon.ico` (16, 32 and 48 px) and `icon.svg` are the
   pixel monogram; `frontend/public/apple-touch-icon.png` (180 px) and
   `word-addin/assets/icon-80.png` are the serif monogram rendered from

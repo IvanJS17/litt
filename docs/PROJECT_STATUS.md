@@ -14,14 +14,19 @@
 - **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
   22:30 CST. It carries training layer 1 (1a and 1b with its UI and
   follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycles 1 to 7 of 10 are in
-  `main` `f95d3e5e` (PRs #61–#67); production does not run them yet.
-  Cycle 8 of 10 (`sync/upstream-c8-05d9aebc`) is in review.
-- **Upstream pin:** `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` (2026-11-04,
-  merge of #702) on `main`; cycle 8 moves it to
-  `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04, merge of #703) when
+- **Integrated, not deployed:** upstream sync cycles 1 to 8 of 10 are in
+  `main` `8ba0dd8a` (PRs #61–#68); production does not run them yet.
+  Cycle 9 of 10 (`sync/upstream-c9-b91d1bdf`) is in review.
+- **Upstream pin:** `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04,
+  merge of #703) on `main`; cycle 9 moves it to
+  `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05, merge of #798) when
   it is merged. Policy: [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
-  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§27.
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§28.
+- **Before the next deploy (cycle 9):** the backend refuses to start when
+  `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
+  `backend/.env.example` placeholder or is shorter than 32 characters; the
+  production `.env` must be checked for both before deploying (ledger §28.2).
+
 - **Open product question (ledger §24.3):** a matter whose project is private
   is reached by nobody once its creator leaves the firm. The rule is
   unchanged until the owner decides.
