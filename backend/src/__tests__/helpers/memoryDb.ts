@@ -3,8 +3,9 @@ import type { Db } from "../../lib/supabase";
 
 /**
  * A tiny in-memory PostgREST stand-in: rows per table, with the filters and
- * writes the training module uses (eq, is, in, limit, insert, update,
- * delete, select-after-write, maybeSingle). Enough to assert what a service
+ * writes the training module uses (eq, is, in, gt, order, limit, insert,
+ * update, delete, select-after-write, maybeSingle). `gt` and `order` let
+ * keyset-paged reads (lib/batchedQuery.ts) run against it. Enough to assert what a service
  * leaves in its tables; it fills a missing `id` but enforces no constraints, so a suite
  * that needs a database error scripts it through `failNext`.
  */
@@ -18,6 +19,7 @@ export function memoryDb(tables: Record<string, Row[]>) {
         let op: "select" | "insert" | "update" | "delete" = "select";
         let payload: Row | Row[] | undefined;
         let limit = Infinity;
+        const orders: [string, boolean][] = [];
         let columns: string[] | null = null;
         // Copies, projected to the selected columns, as PostgREST returns them.
         const project = (row: Row): Row =>
@@ -45,7 +47,16 @@ export function memoryDb(tables: Record<string, Row[]>) {
                 for (const row of matches) rows.splice(rows.indexOf(row), 1);
                 return { data: matches.map(project), error: null };
             }
-            return { data: matches.slice(0, limit).map(project), error: null };
+            const sorted = orders.length
+                ? [...matches].sort((a, b) => {
+                      for (const [column, ascending] of orders) {
+                          const x = String(a[column] ?? ""), y = String(b[column] ?? "");
+                          if (x !== y) return (x < y ? -1 : 1) * (ascending ? 1 : -1);
+                      }
+                      return 0;
+                  })
+                : matches;
+            return { data: sorted.slice(0, limit).map(project), error: null };
         };
         const builder: Record<string, unknown> = {
             select: (list?: string) => {
@@ -65,6 +76,14 @@ export function memoryDb(tables: Record<string, Row[]>) {
             },
             in: (column: string, values: unknown[]) => {
                 filters.push((row) => values.includes(row[column]));
+                return builder;
+            },
+            gt: (column: string, value: unknown) => {
+                filters.push((row) => String(row[column] ?? "") > String(value));
+                return builder;
+            },
+            order: (column: string, options?: { ascending?: boolean }) => {
+                orders.push([column, options?.ascending !== false]);
                 return builder;
             },
             limit: (n: number) => {

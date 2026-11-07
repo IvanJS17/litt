@@ -1190,3 +1190,122 @@ faster on large matters. Nothing a lawyer can see or reach changes.
 ### 22.6 Dependabot
 
 Upstream's `word-addin/package-lock.json` change in this range is taken as merged; the open Dependabot pull requests stay for the dependency cycle (9 of 10).
+
+## 23. Cycle 2026-11-07, 4 of 10
+
+Pin `31539729f4609cdf642a61bb963995668b97cac4` (2026-11-01), a commit on the
+branch of upstream #749 and an ancestor of its merge `d0a7ca75`. The cycle
+merges `27683564..31539729`: 63 commits, none of them merges, 172 files.
+Nothing after the pin is integrated.
+
+### 23.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| SQL S1–S11, L11b (`20261101_01`…`_14`) | `ac1bee81` `5f326a58` `3997118b` `69556057` `d41b5c13` `c18c1ccd` `36509072` `c928c264` `9e6c5532` `aebf48fe` `102c84cc` `20c5a305` | adopt, except `project_access_role` in `3997118b` (S2) and `org_members_departure_items` in `d41b5c13`/`c18c1ccd` (S11, S4b): adapt (23.2) |
+| Paged and batched backend reads (projects, chats, tabular rows/cells, playbooks, org resources, folders, exports) | `8badaf64` `afa219bd` `64735dd1` `2009f35b` `79f48103` `ae299826` `a8556f06` `6cc02c01` `1f0cd75b` `a8efd01e` `6471b592` | adopt, except: `6cc02c01` keeps LiTT's private-matter filter in `listOrgResources`; `a8efd01e` keeps the pasante release check and `OMITIDOS.txt` in the documents ZIP export; `afa219bd`'s paged `loadReviewRows` lives in `lib/tabularReadAccess.ts`, where LiTT keeps it |
+| Web lists, selection, bulk actions, uploads, history (one Set, one pass, one frame) | `f3e6ba7e` `077be035` `13ad69b1` `272e2376` `c8eaeadf` `15aff5ca` `705cec82` `6f14b184` `d8aba7cc` `1b6e028d` `4b376f12` `68d72570` `164bbc96` `87927d91` `9c358da6` | adopt; `DocTable` keeps LiTT's download wrapper for pasante drafts |
+| Chat engine: incremental citation parsing, find/search reuse, folder paths, doc labels | `68cd9f9e` `fc940a67` `58f70465` `b0c53bc8` `51d29f43` `ebe6f907` | adopt without the CourtListener case-citation and `find_in_case` halves, which LiTT removed |
+| CourtListener case verification pass | `e2b7e9c4` | reject (LiTT removed CourtListener); no net change |
+| DOCX tracked changes, spreadsheet rendering | `b992573d` `6341617c` `f9c57abf` | adopt |
+| Job queue | `ff2e4357` `e7ac2ed5` | adopt |
+| Sentry throttle map | `84637f74` | reject (no third-party telemetry); no net change |
+| Word add-in: device-only chat storage, redline projector, picker, tracked-edit batching | `8a3742c7` `def3ab1f` `b8d9547c` `5f7f474b` `220ebe66` `a5e2b216` `d45eb378` `d31d6b14` `5204c465` `c10b4c75` `31539729` | adopt; no visible text, colours or provider names change (identity v1.0) |
+| Word add-in node-forge / follow-redirects | `26975fa6` | adopt; no net change (LiTT already resolved both packages) |
+
+### 23.2 Functions created or redefined, and LiTT C2
+
+Every function the tranche (re)defines was compared with LiTT's last
+definition and upstream's previous one
+(`artifacts/upstream-sync-c4-20261107/function-comparison.txt` outside the
+repository). Two had a LiTT change:
+
+- `project_access_role` (`20261101_03`, S2): upstream compares the member's
+  uuid instead of casting the column, and rewrites the function without
+  LiTT's first branch, `project_private_matter_denied` (C2, `20261023_10`).
+  `20261101_50_litt_project_access_private_matter.sql` re-creates upstream's
+  new text with that branch first.
+- `org_members_departure_items` (`20261101_06`, S11; `20261101_08`, S4b):
+  upstream rewrites it twice without the matter exclusion that
+  `20261030_51` restored (C2 point 3, `20261023_13`).
+  `20261101_51_litt_departure_private_matter.sql` re-creates upstream's
+  final text with `and not exists (select 1 from public.matters mt where
+  mt.project_id=item.id)` on the project roots.
+
+`schema.sql` defines each guarded version once, in its LiTT section. Upstream
+edits its last copy in place: the in-place `project_access_role` keeps the
+previous text behind a pointer, and the departure copy stays a pointer. The
+older bodies stay because SQL functions defined earlier call them and each
+LiTT section mirrors its shipped migration. The LiTT migrations sort after
+every upstream `20261101_*` file.
+
+The other functions route each verdict through a function that already carries
+the guard:
+
+- `project_list_access` and `workflow_list_access` (S3) only narrow the
+  candidates; each role still comes from `project_access_role` or
+  `workflow_access_role`. LiTT grants a matter's team nothing beyond those
+  candidates (organization visibility, overrides, grants).
+- `get_projects_overview` and `get_tabular_reviews_overview` (S7) count
+  columns over `project_list_access` and `review_list_access`.
+- `document_text_access` (S2) and `find_document_text` (S10) resolve projects
+  through `project_access_role`.
+- `org_private_document_access` (S5) and the private branch of
+  `organization_audit_events` (S6) require `can_access_org_private_content`,
+  which is false in LiTT; the rest of the audit page goes through the
+  `*_access_role` functions.
+- `workflow_access_role`, `standalone_org_access_role`,
+  `cleanup_removed_org_member_overrides` (S4a), `document_referencing_items`
+  and `claim_db_jobs` (L11b) never touch a matter's project.
+- In TypeScript, every reader that called `private_matter_denied_project_ids`
+  on `main` still does; `listOrgResources` applies it to upstream's paged reads.
+
+Proof, all in the schema-drift CI loop:
+
+- `performance.litt-private-matters.sql` checks the organization owner, an
+  admin and an overridden member against all of these functions, with the
+  team as a positive control and departure.
+- `performance.litt-private-matters-controls.sql` loads upstream's
+  `20261101_03` and `20261101_08` alone, and the switched-off guard. Each
+  must leak the matter, and the LiTT migrations must restore the guard.
+- Upstream's new suites (`performance.departure`, `.foreign-keys`, `.jobs`,
+  `.membership`, `.overview-counts`) pass as they are.
+- `performance.private.sql` runs upstream's S5 suite adapted to C2: the
+  openings are written directly, and every verdict is false.
+
+### 23.3 Reservations of the cycle-3 review
+
+- **W1:** `performance.litt-audit-pagination.sql` is LiTT's copy of
+  `orgs.auditPagination.sql` and runs in CI. LiTT stores no address on new
+  audit rows and sorts by person on the live profile (account erasure,
+  2026-10-24). So the page-vs-feed parity orders the feed by
+  `audit_actor_email`, and actors are found by their profile e-mail.
+  - The task proposed dropping the `user_email desc` parity. Instead it is
+    aligned with LiTT's ordering, which keeps the check for both directions:
+    the mismatch came from the recorded column being empty, and it could also
+    fail for `asc` depending on the random ids.
+  - An owner searching a member's private title finds nothing (total 0).
+- **W2 (open product question):** a matter whose project has
+  `visibility='private'` is reached only by the project's creator. A matter
+  teammate who is not the creator gets `project_access_role = null` and does
+  not list it, like the organization owner. This is LiTT's behaviour since
+  `20261023_10`: stricter than the organization-visible form, not a leak.
+  `performance.litt-private-matters.sql` pins it. Whether a matter's team
+  should reach a private-visibility project is for the owner to decide;
+  nothing changes until then.
+- **W3:** the negative controls run in CI
+  (`performance.litt-private-matters-controls.sql`).
+  `littPrivateMatterLists.postgres.test.ts` keeps the full-file swaps for
+  local runs, updated to this cycle's migrations.
+
+### 23.4 Owner-visible changes
+
+Large matters, reviews, document lists, bulk actions, exports and the Word
+add-in respond faster. Lists no longer stop at 1000 rows. Nothing a lawyer can
+see or reach changes.
+
+### 23.5 Dependabot
+
+No Dependabot pull request is covered by this range: upstream's only
+dependency change (`26975fa6`) was already in LiTT. The open ones stay for the
+dependency cycle (9 of 10).

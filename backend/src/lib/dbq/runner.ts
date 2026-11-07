@@ -75,6 +75,9 @@ export const STALE_SECONDS = 600;
 const DONE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const FAILED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const SWEEP_EVERY_MS = 60 * 60 * 1000;
+/** Expired export rows read per query, and the per-sweep ceiling (50,000 rows). */
+const EXPORT_EXPIRY_BATCH = 100;
+const EXPORT_EXPIRY_MAX_BATCHES = 500;
 const RETRY_UNTIL_SUCCESS_KINDS = new Set(["storage.cleanup", "document.cleanup"]);
 
 /**
@@ -330,15 +333,14 @@ async function runClaimedJob(
     }
 }
 
-/** One poll tick: claim a batch and run every claimed job to completion. */
-export async function runDbJobTick(
+/** Claim up to `limit` runnable jobs; a failed claim is gated and yields none. */
+async function claimDbJobs(
     db: Db,
-    handlers: DbJobHandlers,
-    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
-    claimGate: PollFailureGate = defaultClaimGate,
-): Promise<number> {
+    limit: number,
+    claimGate: PollFailureGate,
+): Promise<DbJob[]> {
     const { data, error } = await db.rpc("claim_db_jobs", {
-        p_limit: CLAIM_BATCH,
+        p_limit: limit,
         p_stale_seconds: STALE_SECONDS,
     });
     if (error) {
@@ -358,16 +360,102 @@ export async function runDbJobTick(
             });
             console.error("[dbq] claim failed", failure);
         }
-        return 0;
+        return [];
     }
     claimGate.success();
-    const jobs = (data ?? []) as DbJob[];
+    return (data ?? []) as DbJob[];
+}
+
+/** One poll tick: claim a batch and run every claimed job to completion. */
+export async function runDbJobTick(
+    db: Db,
+    handlers: DbJobHandlers,
+    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
+    claimGate: PollFailureGate = defaultClaimGate,
+): Promise<number> {
+    const jobs = await claimDbJobs(db, CLAIM_BATCH, claimGate);
     // allSettled defensively: processClaimedJob handles its own errors, but
     // one job's unexpected rejection must never abandon the rest of a batch.
     await Promise.allSettled(
         jobs.map((job) => processClaimedJob(db, handlers, job, failureHooks)),
     );
     return jobs.length;
+}
+
+type DbJobPool = {
+    /** Claim jobs for every free slot (no-op while a claim is in flight). */
+    fill(): Promise<void>;
+    /** Jobs currently executing. */
+    readonly running: number;
+    /** Stop refilling and wait for the claim and every running job. */
+    drain(): Promise<void>;
+};
+
+/**
+ * A fixed number of job slots. The old loop claimed a batch and awaited the
+ * whole batch before the next claim, so one three-minute extraction held
+ * four idle slots hostage and throughput collapsed to `CLAIM_BATCH` jobs per
+ * slowest job. Here each finished job frees its slot and immediately asks
+ * for more work, so a slow job only ever occupies its own slot. Concurrency
+ * is still capped at `capacity` per process, as before.
+ */
+function createDbJobPool(
+    db: Db,
+    handlers: DbJobHandlers,
+    failureHooks: Readonly<Record<string, DbJobFailureHook>> = {},
+    opts: { capacity?: number; claimGate?: PollFailureGate } = {},
+): DbJobPool {
+    const capacity = opts.capacity ?? CLAIM_BATCH;
+    const claimGate = opts.claimGate ?? defaultClaimGate;
+    const running = new Set<Promise<void>>();
+    let claiming: Promise<void> | null = null;
+    let stopped = false;
+
+    const fill = (): Promise<void> => {
+        if (claiming) return claiming;
+        const free = capacity - running.size;
+        if (stopped || free <= 0 || !claimGate.ready()) return Promise.resolve();
+        claiming = (async () => {
+            let jobs: DbJob[];
+            try {
+                jobs = await claimDbJobs(db, free, claimGate);
+            } catch (err) {
+                // fill() is also called fire-and-forget from a finishing
+                // job, so it must never reject.
+                reportError(err, { tags: { component: "dbq", stage: "tick" } });
+                console.error("[dbq] tick failed", err);
+                return;
+            }
+            for (const job of jobs) {
+                // processClaimedJob contains its own failures; the catch is
+                // defence so one unexpected rejection cannot leak a slot.
+                const run: Promise<void> = processClaimedJob(db, handlers, job, failureHooks)
+                    .catch((err) => {
+                        console.error("[dbq] job crashed outside its handler", err);
+                    })
+                    .finally(() => {
+                        running.delete(run);
+                        void fill();
+                    });
+                running.add(run);
+            }
+        })().finally(() => {
+            claiming = null;
+        });
+        return claiming;
+    };
+
+    return {
+        fill,
+        get running() {
+            return running.size;
+        },
+        async drain() {
+            stopped = true;
+            if (claiming) await claiming;
+            await Promise.allSettled([...running]);
+        },
+    };
 }
 
 /**
@@ -389,28 +477,41 @@ export async function runDbJobRetentionSweep(
     // 1. Expire export artifacts (their download links stop working here —
     //    documented as a 24h availability window).
     const exportCutoff = new Date(Date.now() - exportRetentionMs).toISOString();
-    const { data: expired } = await db
-        .from("db_jobs")
-        .select("id, result")
-        .eq("kind", "export.build")
-        .eq("status", "done")
-        .lt("finished_at", exportCutoff)
-        .limit(100);
-    for (const row of (expired ?? []) as Pick<DbJob, "id" | "result">[]) {
-        const path = row.result?.storage_path;
-        if (typeof path === "string" && path.length > 0) {
-            try {
-                await deleteStoredFile(path);
-            } catch (err) {
-                // Keep the row so the next sweep retries the file delete.
-                console.error("[dbq] export artifact delete failed", {
-                    id: row.id,
-                    err,
-                });
-                continue;
+    //    Drain the backlog in keyset batches: one capped batch per hourly
+    //    sweep fell behind for good once more than 2,400 exports finished
+    //    in a day. Rows kept after a failed file delete sort before the
+    //    cursor, so a retrying row can never pin the loop.
+    let after: string | null = null;
+    for (let batch = 0; batch < EXPORT_EXPIRY_MAX_BATCHES; batch++) {
+        let query = db
+            .from("db_jobs")
+            .select("id, result")
+            .eq("kind", "export.build")
+            .eq("status", "done")
+            .lt("finished_at", exportCutoff)
+            .order("id", { ascending: true })
+            .limit(EXPORT_EXPIRY_BATCH);
+        if (after) query = query.gt("id", after);
+        const { data: expired } = await query;
+        const rows = (expired ?? []) as Pick<DbJob, "id" | "result">[];
+        for (const row of rows) {
+            const path = row.result?.storage_path;
+            if (typeof path === "string" && path.length > 0) {
+                try {
+                    await deleteStoredFile(path);
+                } catch (err) {
+                    // Keep the row so the next sweep retries the file delete.
+                    console.error("[dbq] export artifact delete failed", {
+                        id: row.id,
+                        err,
+                    });
+                    continue;
+                }
             }
+            await db.from("db_jobs").delete().eq("id", row.id);
         }
-        await db.from("db_jobs").delete().eq("id", row.id);
+        if (rows.length < EXPORT_EXPIRY_BATCH) break;
+        after = rows[rows.length - 1].id;
     }
 
     // 2. Drop old finished rows — EXCEPT export.build. Step 1 is the only
@@ -450,15 +551,16 @@ export async function runDbJobRetentionSweep(
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let sweepTimer: ReturnType<typeof setInterval> | null = null;
-let inFlight: Promise<unknown> | null = null;
+let pool: DbJobPool | null = null;
 
 export function dbJobsEnabled(): boolean {
     return process.env.DB_JOBS_ENABLED !== "false";
 }
 
 /**
- * Start the poll loop (idempotent). Ticks never overlap: a tick that is
- * still running when the next interval fires simply skips that interval.
+ * Start the poll loop (idempotent). Each interval tops up the job pool's
+ * free slots; claims never overlap, and a finished job refills its own slot
+ * without waiting for the interval.
  */
 export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly<Record<string, DbJobFailureHook>> = {}): void {
     if (!dbJobsEnabled()) {
@@ -468,19 +570,11 @@ export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly
     if (pollTimer) return;
     const db = createServerSupabase();
 
-    const tick = () => {
-        // While claims keep failing, skip ticks until the backed-off retry
-        // time instead of hitting the broken dependency every interval.
-        if (inFlight || !defaultClaimGate.ready()) return;
-        inFlight = runDbJobTick(db, handlers, failureHooks)
-            .catch((err) => {
-                reportError(err, { tags: { component: "dbq", stage: "tick" } });
-                console.error("[dbq] tick failed", err);
-            })
-            .finally(() => {
-                inFlight = null;
-            });
-    };
+    const jobPool = createDbJobPool(db, handlers, failureHooks);
+    pool = jobPool;
+    // While claims keep failing, fill() skips until the backed-off retry
+    // time instead of hitting the broken dependency every interval.
+    const tick = () => void jobPool.fill();
     pollTimer = setInterval(tick, pollMs());
     pollTimer.unref();
     // First tick shortly after boot so work queued before a restart resumes
@@ -500,11 +594,13 @@ export function startDbJobRunner(handlers: DbJobHandlers, failureHooks: Readonly
     );
 }
 
-/** Stop polling and wait for the in-flight tick to finish (shutdown path). */
+/** Stop polling and wait for the in-flight jobs to finish (shutdown path). */
 export async function stopDbJobRunner(): Promise<void> {
     if (pollTimer) clearInterval(pollTimer);
     if (sweepTimer) clearInterval(sweepTimer);
     pollTimer = null;
     sweepTimer = null;
-    if (inFlight) await inFlight;
+    const draining = pool;
+    pool = null;
+    if (draining) await draining.drain();
 }

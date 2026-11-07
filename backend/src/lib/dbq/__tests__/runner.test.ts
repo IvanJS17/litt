@@ -3,11 +3,15 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("../../supabase", () => ({ createServerSupabase: vi.fn() }));
 vi.mock("../../storage", () => ({ deleteFile: vi.fn() }));
 
+import { createServerSupabase } from "../../supabase";
+
 import {
     NonRetryableJobError,
     processClaimedJob,
     retryDelayMs,
     runDbJobTick,
+    startDbJobRunner,
+    stopDbJobRunner,
     runDbJobRetentionSweep,
 } from "../runner";
 import { DbJobDeferredError, type DbJob } from "../types";
@@ -23,6 +27,8 @@ type Update = {
 function makeDb(opts?: {
     rpc?: () => Promise<{ data: unknown; error: { message: string } | null }>;
     selectData?: unknown[];
+    /** Rows served by id-keyset pages (`gt id`, `limit`), like PostgREST. */
+    keysetRows?: { id: string }[];
 }) {
     const updates: Update[] = [];
     const deletes: Record<string, unknown>[] = [];
@@ -64,7 +70,15 @@ function makeDb(opts?: {
                 state.filters[`lt:${col}`] = val;
                 return b;
             },
-            limit() {
+            order() {
+                return b;
+            },
+            gt(col: string, val: unknown) {
+                state.filters[`gt:${col}`] = val;
+                return b;
+            },
+            limit(n: number) {
+                state.filters.limit = n;
                 return b;
             },
             then(onF: (v: unknown) => unknown) {
@@ -77,9 +91,13 @@ function makeDb(opts?: {
                     });
                 if (state.op === "delete")
                     deletes.push({ table, ...state.filters });
+                const after = state.filters["gt:id"] as string | undefined;
+                const page = opts?.keysetRows
+                    ?.filter((row) => !after || row.id > after)
+                    .slice(0, state.filters.limit as number);
                 const value =
                     state.op === "select"
-                        ? { data: opts?.selectData ?? [], error: null }
+                        ? { data: page ?? opts?.selectData ?? [], error: null }
                         : { data: null, error: null };
                 return Promise.resolve(value).then(onF);
             },
@@ -353,6 +371,36 @@ describe("runDbJobTick", () => {
     });
 });
 
+describe("startDbJobRunner", () => {
+    it("starts new work while a slow job still holds its slot", async () => {
+        vi.useFakeTimers();
+        vi.stubEnv("DB_JOBS_POLL_MS", "600000");
+        let releaseSlow!: () => void;
+        const slow = new Promise<void>((resolve) => (releaseSlow = resolve));
+        const queue = [JOB({ id: "slow" }), JOB({ id: "fast-1" }), JOB({ id: "fast-2" })];
+        vi.mocked(createServerSupabase).mockReturnValue(
+            makeDb({ rpc: async () => ({ data: queue.splice(0, 2), error: null }) }) as never,
+        );
+        const started: string[] = [];
+        try {
+            startDbJobRunner({
+                "test.kind": async (_db, job) => {
+                    started.push(job.id);
+                    if (job.id === "slow") await slow;
+                },
+            });
+            await vi.advanceTimersByTimeAsync(1_000);
+            // fast-1 finishing frees its slot; fast-2 must not wait for "slow".
+            expect(started).toEqual(["slow", "fast-1", "fast-2"]);
+        } finally {
+            releaseSlow();
+            await stopDbJobRunner();
+            vi.unstubAllEnvs();
+            vi.useRealTimers();
+        }
+    });
+});
+
 describe("runDbJobRetentionSweep", () => {
     it("deletes an expired export's storage object BEFORE dropping its row", async () => {
         const order: string[] = [];
@@ -406,6 +454,22 @@ describe("runDbJobRetentionSweep", () => {
         );
         expect(donePurge).toBeDefined();
         expect(donePurge?.["neq:kind"]).toBe("export.build");
+    });
+
+    it("drains an export backlog larger than one batch in a single sweep", async () => {
+        const keysetRows = Array.from({ length: 250 }, (_, i) => ({
+            id: `e${String(i).padStart(3, "0")}`,
+            result: { storage_path: `exports/u/${i}.json` },
+        }));
+        const db = makeDb({ keysetRows });
+        const deleted: string[] = [];
+        await runDbJobRetentionSweep(db as never, {
+            deleteStoredFile: async (path) => {
+                deleted.push(path);
+            },
+        });
+        expect(deleted).toHaveLength(250);
+        expect(db.deletes.filter((d) => typeof d.id === "string")).toHaveLength(250);
     });
 
     it("never sweeps failed cleanup rows that own private object pointers", async () => {

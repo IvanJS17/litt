@@ -3,7 +3,7 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-11-06<br>
+**Last reconciled:** 2026-11-07<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
@@ -12,16 +12,16 @@
 ### Production and integration 2026-11-06
 
 - **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
-  22:30 CST; `main` is now `0823af54` (cycles 1 and 2 of 10, not deployed). It carries training layer 1 (1a and 1b with its UI and
+  22:30 CST. It carries training layer 1 (1a and 1b with its UI and
   follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycles 1 and 2 of 10 are in
-  `main` `0823af54` (PRs #61 and #62); production does not run them yet.
-  Cycle 3 of 10 (`sync/upstream-c3-27683564`) is in review.
-- **Upstream pin:** `14d695f176152367cf44e89e200a04778b353b6d` (2026-11-04)
-  on `main`; cycle 3 moves it to `27683564a5b72c20d5f2796bf826f3146a8c7bfe`
-  (2026-10-30, #749 branch) when it is merged. Policy:
-  [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
-  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§22.
+- **Integrated, not deployed:** upstream sync cycles 1 to 3 of 10 are in
+  `main` `a09fb625` (PRs #61–#63); production does not run them yet.
+  Cycle 4 of 10 (`sync/upstream-c4-31539729`) is in review.
+- **Upstream pin:** `27683564a5b72c20d5f2796bf826f3146a8c7bfe` (2026-10-30,
+  #749 branch) on `main`; cycle 4 moves it to
+  `31539729f4609cdf642a61bb963995668b97cac4` (2026-11-01, #749 branch) when it
+  is merged. Policy: [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§23.
 
 ### Training layer 1a (2026-11-06)
 

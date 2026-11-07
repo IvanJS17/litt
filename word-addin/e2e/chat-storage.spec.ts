@@ -443,3 +443,213 @@ test("a device-only save failure after a finished answer is reported as a save f
     page.getByText("LiTT couldn't finish that answer. Try again."),
   ).toHaveCount(0);
 });
+
+// ---- Device-only storage work ------------------------------------------
+// Rows the pane structured-clones out of IndexedDB, per object store
+// (get/getAll results and cursor steps). Opening a chat or saving a message
+// must cost the rows it needs, not every row the device has accumulated.
+async function countIndexedDbReads(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => {
+    const reads: Record<string, number> = {};
+    (window as unknown as { __IDB_READS__: Record<string, number> }).__IDB_READS__ = reads;
+    for (const proto of [IDBObjectStore.prototype, IDBIndex.prototype] as unknown as Array<Record<string, unknown>>) {
+      for (const method of ["get", "getAll", "openCursor"]) {
+        const original = proto[method] as (...args: unknown[]) => IDBRequest;
+        proto[method] = function (this: IDBObjectStore | IDBIndex, ...args: unknown[]) {
+          const request = original.apply(this, args);
+          const store = this instanceof IDBIndex ? this.objectStore.name : this.name;
+          request.addEventListener("success", () => {
+            const result = request.result as unknown;
+            reads[store] = (reads[store] ?? 0) + (Array.isArray(result) ? result.length : result == null ? 0 : 1);
+          });
+          return request;
+        };
+      }
+    }
+  });
+}
+
+const idbReads = (page: import("@playwright/test").Page, store: string) =>
+  page.evaluate((name) => (window as unknown as { __IDB_READS__: Record<string, number> }).__IDB_READS__[name] ?? 0, store);
+
+/** Put rows straight into the pane's database, as months of use would. */
+async function seedLocalRows(page: import("@playwright/test").Page, rows: Record<string, unknown[]>) {
+  await page.evaluate((stores) => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open("mike-word-addin");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const database = open.result;
+      const transaction = database.transaction(Object.keys(stores), "readwrite");
+      for (const [store, values] of Object.entries(stores)) for (const value of values) transaction.objectStore(store).put(value);
+      transaction.oncomplete = () => { database.close(); resolve(); };
+      transaction.onerror = () => reject(transaction.error);
+    };
+  }), rows);
+}
+
+async function firstLocalChat(page: import("@playwright/test").Page) {
+  return page.evaluate(() => new Promise<{ id: string; owner_id: string; document_id: string }>((resolve, reject) => {
+    const open = indexedDB.open("mike-word-addin");
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const request = open.result.transaction("word-chats").objectStore("word-chats").getAll();
+      request.onsuccess = () => { open.result.close(); resolve(request.result[0]); };
+    };
+  }));
+}
+
+async function sendLocally(addin: { gotoTaskpane(opts: object): Promise<void>; expectAuthedShell(): Promise<void> }, page: import("@playwright/test").Page, prompt: string, documentText: string) {
+  await addin.gotoTaskpane({ token: TOKEN, documentText });
+  await addin.expectAuthedShell();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("switch", { name: "Save chats in the cloud" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("menuitem", { name: "Assistant" }).click();
+  await page.getByPlaceholder("How can I help?").fill(prompt);
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+}
+
+test("opening a device-only chat reads only that chat's edits", async ({ addin, page }) => {
+  await countIndexedDbReads(page);
+  await addin.mockChatStream([wordEdits(replacementEdit("Suplier", "Supplier", "Correct the party name."))], {
+    chatId: LOCAL_CHAT_ID,
+    assistantMessageId: ASSISTANT_MESSAGE_ID,
+  });
+  await sendLocally(addin, page, "Correct the typo", "The Suplier shall deliver the goods.");
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
+  const chat = await firstLocalChat(page);
+  // Another chat about the same document with a long edit history.
+  const otherMessageId = "other-assistant-message";
+  await seedLocalRows(page, {
+    "word-chats": [{ ...chat, id: "other-chat", title: "Earlier review", updated_at: "2020-01-01T00:00:00.000Z" }],
+    "word-chat-messages": [{ id: otherMessageId, chat_id: "other-chat", role: "assistant", content: "", created_at: "2020-01-01T00:00:00.000Z", sequence: 0 }],
+    "word-document-edits": Array.from({ length: 300 }, (_, blockIndex) => ({
+      id: `${otherMessageId}:edit-${blockIndex}`, messageId: otherMessageId, blockIndex, originalText: `old ${blockIndex}`,
+      replacementText: `new ${blockIndex}`, formats: [], applyMode: "approval", applyStatus: "proposed",
+      document_id: chat.document_id, owner_id: chat.owner_id,
+    })),
+  });
+
+  await addin.reloadTaskpane();
+  await addin.expectAuthedShell();
+  await page.getByRole("button", { name: "Chat history" }).click();
+  const before = await idbReads(page, "word-document-edits");
+  await page.getByRole("menu").getByRole("menuitem", { name: /Correct the typo/ }).click();
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
+  expect(await idbReads(page, "word-document-edits") - before).toBe(1);
+
+  // Deleting device-only chats still removes every chat, message and edit.
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete chats" }).click();
+  await expect(page.getByRole("button", { name: "Delete chats" })).toHaveCount(0);
+  expect(await page.evaluate(() => new Promise<number[]>((resolve) => {
+    const open = indexedDB.open("mike-word-addin");
+    open.onsuccess = () => {
+      const stores = ["word-chats", "word-chat-messages", "word-document-edits"];
+      const transaction = open.result.transaction(stores);
+      Promise.all(stores.map((store) => new Promise<number>((done) => {
+        const request = transaction.objectStore(store).count();
+        request.onsuccess = () => done(request.result);
+      }))).then((counts) => { open.result.close(); resolve(counts); });
+    };
+  }))).toEqual([0, 0, 0]);
+});
+
+test("saving into a long device-only chat does not re-read its messages", async ({ addin, page }) => {
+  await countIndexedDbReads(page);
+  await addin.mockChatStream(["Noted."]);
+  await sendLocally(addin, page, "Start the thread", "The Supplier shall deliver the goods.");
+  await expect(page.getByText("Noted.")).toHaveCount(1);
+  // A chat written before the sequence counter existed, with 200 more turns.
+  const { next_sequence: _counter, ...chat } = (await firstLocalChat(page)) as { id: string; owner_id: string; document_id: string; next_sequence?: number };
+  await seedLocalRows(page, {
+    "word-chats": [chat],
+    "word-chat-messages": Array.from({ length: 200 }, (_, i) => ({
+      id: `earlier-${i}`, chat_id: chat.id, role: i % 2 ? "assistant" : "user", content: `Earlier turn ${i}`,
+      created_at: "2020-01-01T00:00:00.000Z", sequence: i + 2,
+    })),
+  });
+  const countMessages = () => page.evaluate(() => new Promise<number>((resolve) => {
+    const open = indexedDB.open("mike-word-addin");
+    open.onsuccess = () => {
+      const request = open.result.transaction("word-chat-messages").objectStore("word-chat-messages").count();
+      request.onsuccess = () => { open.result.close(); resolve(request.result); };
+    };
+  }));
+
+  await addin.reloadTaskpane();
+  await page.getByRole("button", { name: "Chat history" }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: /Start the thread/ }).click();
+  await expect(page.getByText("Earlier turn 198", { exact: true })).toBeVisible();
+  const before = await idbReads(page, "word-chat-messages");
+  await page.getByPlaceholder("How can I help?").fill("Latest question");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Noted.")).toHaveCount(2);
+  await expect.poll(countMessages).toBe(204);
+  // Two saves (question, answer); each probes its own id, which is new.
+  expect(await idbReads(page, "word-chat-messages") - before).toBe(0);
+
+  await addin.reloadTaskpane();
+  await page.getByRole("button", { name: "Chat history" }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: /Start the thread/ }).click();
+  await expect(page.getByTestId("user-message-content").last()).toHaveText("Latest question");
+});
+
+test("device-only history pages read one page from an upgraded database", async ({ addin, page }) => {
+  await countIndexedDbReads(page);
+  await addin.mockChatStream(["Noted."]);
+  await sendLocally(addin, page, "Newest question", "The Supplier shall deliver the goods.");
+  const chat = await firstLocalChat(page);
+  // Recreate the database exactly as schema version 4 left it, with 25 older
+  // chats, so the pane must upgrade it in place on the next load.
+  await page.evaluate(({ current, olderCount }) => new Promise<void>((resolve, reject) => {
+    const deletion = indexedDB.deleteDatabase("mike-word-addin");
+    deletion.onerror = () => reject(deletion.error);
+    deletion.onsuccess = () => {
+      const open = indexedDB.open("mike-word-addin", 4);
+      open.onupgradeneeded = () => {
+        const database = open.result;
+        const chats = database.createObjectStore("word-chats", { keyPath: "id" });
+        chats.createIndex("document_id", "document_id", { unique: false });
+        chats.createIndex("owner_document", ["owner_id", "document_id"], { unique: false });
+        database.createObjectStore("word-chat-messages", { keyPath: "id" }).createIndex("chat_id", "chat_id", { unique: false });
+        const edits = database.createObjectStore("word-document-edits", { keyPath: "id" });
+        edits.createIndex("message_id", "messageId", { unique: false });
+        edits.createIndex("owner_document", ["owner_id", "document_id"], { unique: false });
+      };
+      open.onerror = () => reject(open.error);
+      open.onsuccess = () => {
+        const transaction = open.result.transaction("word-chats", "readwrite");
+        const store = transaction.objectStore("word-chats");
+        store.put(current);
+        for (let i = 0; i < olderCount; i++) {
+          store.put({ ...current, id: `older-${i}`, title: `Older chat ${i}`, updated_at: `2020-01-01T00:00:${String(i).padStart(2, "0")}.000Z` });
+        }
+        transaction.oncomplete = () => { open.result.close(); resolve(); };
+      };
+    };
+  }), { current: chat, olderCount: 25 });
+
+  // The reload resets the read counters; the history list loads on mount.
+  await addin.reloadTaskpane();
+  await page.getByRole("button", { name: "Chat history" }).click();
+  const list = page.getByTestId("chat-history-list-10");
+  const expected = ["Newest question", ...Array.from({ length: 19 }, (_, i) => `Older chat ${24 - i}`)];
+  await expect(list.getByRole("menuitem")).toHaveCount(10);
+  // One page is pageSize + 1 rows (the extra one only answers "has more").
+  expect(await idbReads(page, "word-chats")).toBe(11);
+  await list.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event("scroll"));
+  });
+  await expect(list.getByRole("menuitem")).toHaveCount(20);
+  expect(await list.getByRole("menuitem").evaluateAll((items) => items.map((item) => item.textContent ?? ""))).toEqual(
+    expected.map((title) => expect.stringContaining(title)),
+  );
+  // Page two: the cursor's first step, then advance() past page one unread.
+  expect(await idbReads(page, "word-chats")).toBe(11 + 1 + 11);
+});

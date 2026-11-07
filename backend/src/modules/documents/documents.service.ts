@@ -67,6 +67,6 @@ export { approveTrainingVersion } from "./documents.trainingApproval";
 export { runConversionJob, setDocumentTerminalStatus } from "./documents.conversion";
 
 export { handleDocumentExtractText, markDocumentTextFailed, backfillDocumentText } from "./documents.indexing";
-export { findDocumentText, readStoredDocumentText } from "./documents.textSearch";
+export { findDocumentText, readStoredDocumentText, storedDocumentTextCurrent } from "./documents.textSearch";
 
 export { getDocumentStatuses } from "./documents.status";

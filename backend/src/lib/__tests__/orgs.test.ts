@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ownerlessRpcResult } from "../../__tests__/helpers/ownerlessRpc";
 import { handoverRpcResult } from "../../__tests__/helpers/handoverRpc";
+import { tableDb } from "../../__tests__/helpers/tableDb";
 import {
     acceptInvitation,
     cancelInvitation,
@@ -1781,5 +1782,30 @@ describe("owner and admin tiers", () => {
             }),
         ).resolves.toMatchObject({ ok: true, role: "admin" });
         expect(roleOf(db, "orgadmin1")).toBe("admin");
+    });
+});
+
+describe("listOrgResources at scale", () => {
+    it("lists every visible project of an organization past max_rows", async () => {
+        const fake = tableDb({
+            org_members: [{ org_id: "org", user_id: "me", role: "member" }],
+            projects: Array.from({ length: 1200 }, (_, i) => ({
+                id: `p-${String(i).padStart(4, "0")}`, user_id: "someone", org_id: "org",
+                visibility: "organization", archived_at: null, created_at: `2026-01-01T00:${String(i % 60).padStart(2, "0")}:00Z`,
+            })),
+            workflows: [], project_org_access_overrides: [], workflow_org_access_overrides: [],
+        });
+        // LiTT C2: the private-matter filter runs over the paged rows (none
+        // of these projects belongs to a matter).
+        const deniedLookups: number[] = [];
+        const db = Object.assign(fake.db, {
+            rpc: async (fn: string, args: { p_project_ids?: string[] }) =>
+                fn === "private_matter_denied_project_ids"
+                    ? (deniedLookups.push(args.p_project_ids?.length ?? 0), { data: [], error: null })
+                    : { data: null, error: { message: `unexpected rpc ${fn}` } },
+        });
+        const result = await listOrgResources(db, { userId: "me", orgId: "org" });
+        expect(result.ok && result.projects.length).toBe(1200);
+        expect(deniedLookups.reduce((a, b) => a + b, 0)).toBe(1200);
     });
 });

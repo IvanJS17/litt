@@ -25,6 +25,7 @@
 // chat, because there is no evidence of what it was derived from.
 
 import { filterAccessibleDocumentIds } from "./access";
+import { selectAllPages, selectInBatches } from "./batchedQuery";
 import type { Db } from "./supabase";
 
 export type ReviewRow = {
@@ -74,26 +75,47 @@ export async function filterReadableReviewRows(
     };
 }
 
+/**
+ * Every row of a review, sources resolved. Paged and batched: a review can
+ * hold more rows (and far more row sources) than PostgREST's max_rows, and a
+ * truncated read here would silently drop rows from the grid, the generation
+ * snapshot and the review chat.
+ */
 export async function loadReviewRows(
     db: Db,
     reviewId: string,
 ): Promise<ReviewRow[]> {
-    const { data, error } = await db
-        .from("tabular_review_rows")
-        .select("*")
-        .eq("review_id", reviewId)
-        .order("sort_index", { ascending: true });
-    if (error) throw new Error(error.message);
-    const rows = (data ?? []) as ReviewRow[];
+    const rows = await selectAllPages<ReviewRow>("review rows", (after, limit) => {
+        let query = db
+            .from("tabular_review_rows")
+            .select("*")
+            .eq("review_id", reviewId)
+            .order("id", { ascending: true })
+            .limit(limit);
+        if (after) query = query.gt("id", after.id);
+        return query;
+    });
     if (!rows.length) return rows;
-    const { data: sources, error: sourceError } = await db
-        .from("tabular_review_row_sources")
-        .select("row_id, document_id")
-        .in("row_id", rows.map((row) => row.id))
-        .order("sort_index", { ascending: true });
-    if (sourceError) throw new Error(sourceError.message);
+    rows.sort((a, b) => a.sort_index - b.sort_index || a.id.localeCompare(b.id));
+    type Source = { row_id: string; document_id: string; sort_index: number };
+    // (row_id, document_id) is the primary key: a unique order to page by.
+    const sources = await selectInBatches<Source>(
+        "review row sources",
+        rows.map((row) => row.id),
+        (batch) =>
+            selectAllPages<Source>("review row sources", (_after, limit, offset) =>
+                db
+                    .from("tabular_review_row_sources")
+                    .select("row_id, document_id, sort_index")
+                    .in("row_id", batch)
+                    .order("row_id", { ascending: true })
+                    .order("document_id", { ascending: true })
+                    .range(offset, offset + limit - 1),
+            ),
+    );
+    sources.sort((a, b) => a.sort_index - b.sort_index);
     const byRow = new Map<string, string[]>();
-    for (const source of sources ?? []) {
+    for (const source of sources) {
         const ids = byRow.get(source.row_id) ?? [];
         ids.push(source.document_id);
         byRow.set(source.row_id, ids);

@@ -95,17 +95,35 @@ const ensureDocAccess = vi.fn(async (..._a: unknown[]) => ({ ok: true }));
 vi.mock("../../lib/access", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/access")>()),
     ensureDocAccess: (...a: unknown[]) => ensureDocAccess(...a),
+    // The export shares verdicts through the checker; route it to the spy.
+    createDocumentAccessChecker:
+        (userId: string, email: string | null, db: unknown) => (doc: unknown) =>
+            ensureDocAccess(doc, userId, email, db),
 }));
 
-const loadActiveVersion = vi.fn(
-    async (..._a: unknown[]) => ACTIVE_VERSION as typeof ACTIVE_VERSION | null,
+// The export resolves active versions in one batched call over the readable
+// documents; the spy records which documents it was asked about.
+const attachActiveVersionPaths = vi.fn(
+    async (_db: unknown, docs: Array<Record<string, unknown>>) => {
+        for (const doc of docs)
+            Object.assign(doc, {
+                storage_path: ACTIVE_VERSION.storage_path,
+                filename: ACTIVE_VERSION.filename,
+                active_version_number: ACTIVE_VERSION.version_number,
+                source: ACTIVE_VERSION.source,
+                training_stage: null,
+                content_sha256: null,
+            });
+        return docs;
+    },
 );
 vi.mock("../../lib/documentVersions", async (importOriginal) => {
     const actual =
         await importOriginal<typeof import("../../lib/documentVersions")>();
     return {
         ...actual,
-        loadActiveVersion: (...a: unknown[]) => loadActiveVersion(...a),
+        attachActiveVersionPaths: (db: unknown, docs: Array<Record<string, unknown>>) =>
+            attachActiveVersionPaths(db, docs),
     };
 });
 
@@ -266,7 +284,7 @@ beforeEach(() => {
         .mockResolvedValue("created_at,user\n2026-01-01,a@b.test");
     buildMemoryArchive.mockReset().mockResolvedValue(Buffer.from("memory-zip"));
     ensureDocAccess.mockReset().mockResolvedValue({ ok: true });
-    loadActiveVersion.mockReset().mockResolvedValue(ACTIVE_VERSION);
+    attachActiveVersionPaths.mockClear();
 });
 
 describe("handleChatTurnAudit", () => {
@@ -678,8 +696,8 @@ describe("handleExportBuild", () => {
 
     it("re-verifies access at build time and skips docs the user lost", async () => {
         const db = makeDb([
-            { id: "d1", user_id: "u1", project_id: null },
-            { id: "d2", user_id: "someone-else", project_id: "p1" },
+            { id: "d1", user_id: "u1", project_id: null, current_version_id: "d1-v1" },
+            { id: "d2", user_id: "someone-else", project_id: "p1", current_version_id: "d2-v1" },
         ]);
         ensureDocAccess.mockImplementation(
             async (doc: unknown) =>
@@ -697,7 +715,9 @@ describe("handleExportBuild", () => {
         );
 
         expect(ensureDocAccess).toHaveBeenCalledTimes(2);
-        expect(loadActiveVersion.mock.calls.map((c) => c[0])).toEqual(["d1"]);
+        expect(
+            attachActiveVersionPaths.mock.calls.map(([, docs]) => docs.map((doc) => doc.id)),
+        ).toEqual([["d1"]]);
         const [path, , contentType] = uploadFile.mock.calls[0];
         expect(path).toBe("exports/u1/job-1-documents.zip");
         expect(contentType).toBe("application/zip");
@@ -718,6 +738,7 @@ describe("handleExportBuild", () => {
                 project_id: null,
                 org_id: "o1",
                 workflow_id: "w1",
+                current_version_id: "d1-v1",
             },
         ]);
 
