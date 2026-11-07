@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { scriptedDb } from "../__tests__/helpers/scriptedDb";
 import {
   assertReleasable,
+  assertVersionReleasable,
   heldVersionIds,
   heldVersionIdsOrSealed,
   isVersionHeld,
+  type ReleaseCandidate,
 } from "./trainingRelease";
 
 const HASH = "a".repeat(64);
@@ -103,9 +105,24 @@ describe("heldVersionIds", () => {
 
   it("asks nothing when no version is sealed", async () => {
     const fake = scriptedDb([]);
-    expect(await heldVersionIds(fake.db, [{ id: "plain", training_stage: null }])).toEqual({
+    expect(
+      await heldVersionIds(fake.db, [{ id: "plain", training_stage: null, content_sha256: null }]),
+    ).toEqual({
       ok: true,
       data: new Set(),
+    });
+    fake.done();
+  });
+
+  // W7: a caller that never read the seal (a row with only its id) is held,
+  // not released; the type also refuses it at compile time.
+  it("holds a row whose seal was never read", async () => {
+    const fake = scriptedDb([]);
+    const unread = { id: "unread" } as unknown as ReleaseCandidate;
+    expect(await heldVersionIds(fake.db, [unread])).toEqual({ ok: true, data: new Set(["unread"]) });
+    expect(await assertVersionReleasable(fake.db, unread)).toMatchObject({
+      ok: false,
+      code: "training_approval_required",
     });
     fake.done();
   });

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Db } from "./supabase";
-import { heldVersionIdsOrSealed } from "./trainingRelease";
+import { heldVersionIdsOrSealed, type SealStage } from "./trainingRelease";
 
 type Supa = Db;
 
@@ -38,7 +38,7 @@ interface VersionPathRow extends DocRow {
     /** Content hash of the active version, including in-place byte updates. */
     content_sha256?: string | null;
     /** The active version's pasante seal (docs/training.md), or null. */
-    training_stage?: string | null;
+    training_stage?: SealStage;
     /** Sealed and not approved for its current bytes: it may not leave LiTT. */
     training_held?: boolean;
     /** Set from document_versions.version_number of the active version. */
@@ -64,7 +64,7 @@ export interface ActiveVersion {
     textless_page_count: number | null;
     /** Current bytes' hash and pasante seal: what lib/trainingRelease reads. */
     content_sha256: string | null;
-    training_stage: string | null;
+    training_stage: SealStage;
 }
 
 /**
@@ -113,7 +113,7 @@ export async function loadActiveVersion(
         textless_page_count:
             (v.textless_page_count as number | null) ?? null,
         content_sha256: (v.content_sha256 as string | null) ?? null,
-        training_stage: (v.training_stage as string | null) ?? null,
+        training_stage: (v.training_stage as SealStage) ?? null,
     };
 }
 
@@ -187,7 +187,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
             page_count: number | null;
             textless_page_count: number | null;
             content_sha256: string | null;
-            training_stage: string | null;
+            training_stage: SealStage;
         }
     >();
     for (const r of (rows ?? []) as {
@@ -202,7 +202,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
         page_count: number | null;
         textless_page_count: number | null;
         content_sha256: string | null;
-        training_stage: string | null;
+        training_stage: SealStage;
     }[]) {
         byId.set(r.id, {
             storage_path: r.storage_path ?? null,
@@ -220,7 +220,7 @@ export async function attachActiveVersionPaths<T extends VersionPathRow>(
     }
     const held = await heldVersionIdsOrSealed(
         db,
-        ((rows ?? []) as { id: string; training_stage: string | null; content_sha256: string | null }[]),
+        ((rows ?? []) as { id: string; training_stage: SealStage; content_sha256: string | null }[]),
     );
     for (const d of docs) {
         const v = d.current_version_id ? byId.get(d.current_version_id) : null;

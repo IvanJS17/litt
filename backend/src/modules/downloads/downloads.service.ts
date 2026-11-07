@@ -11,6 +11,7 @@ import { verifyDownload } from "../../lib/downloadTokens";
 import { ensureDocAccess } from "../../lib/access";
 import {
     assertVersionReleasable,
+    type SealStage,
     type TrainingApprovalRequired,
 } from "../../lib/trainingRelease";
 import {
@@ -67,7 +68,7 @@ export async function resolveTokenDownload(
         db,
         version as {
             id: string;
-            training_stage: string | null;
+            training_stage: SealStage;
             content_sha256: string | null;
         },
     );

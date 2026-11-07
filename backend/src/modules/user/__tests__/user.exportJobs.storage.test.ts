@@ -9,7 +9,7 @@ vi.mock("../../../lib/access", async (importOriginal) => ({
 }));
 vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/documentVersions")>()),
-  loadActiveVersion: async (id: string) => ({ storage_path: `${id}.docx`, filename: `${id}.docx`, version_number: 1, source: "upload" }),
+  loadActiveVersion: async (id: string) => ({ id: `${id}-v1`, storage_path: `${id}.docx`, filename: `${id}.docx`, version_number: 1, source: "upload", training_stage: null, content_sha256: null }),
 }));
 import { handleExportBuild } from "../user.exportJobs";
 

@@ -18,12 +18,20 @@ import {
 } from "./serviceResult";
 import type { Db } from "./supabase";
 
-/** The columns of a document_versions row the release rule reads. */
+/**
+ * The columns of a document_versions row the release rule reads. Both are
+ * required: a caller that did not select them must not read as "unsealed".
+ */
+export type SealStage = "pasante" | null;
+
 export type ReleaseCandidate = {
   id: string;
-  training_stage?: string | null;
-  content_sha256?: string | null;
+  training_stage: SealStage;
+  content_sha256: string | null;
 };
+
+/** Sealed, or not known to be unsealed (a column the caller never read). */
+const isSealed = (version: ReleaseCandidate) => version.training_stage !== null;
 
 export type TrainingApprovalRequired = {
   ok: false;
@@ -51,7 +59,7 @@ export async function heldVersionIds(
   db: Db,
   versions: readonly ReleaseCandidate[],
 ): Promise<ServiceResult<Set<string>>> {
-  const sealed = versions.filter((version) => version.training_stage != null);
+  const sealed = versions.filter(isSealed);
   const held = new Set(sealed.map((version) => version.id));
   const hashed = sealed.filter((version) => !!version.content_sha256);
   if (hashed.length === 0) return ok(held);
@@ -83,7 +91,7 @@ export async function heldVersionIdsOrSealed(
   const held = await heldVersionIds(db, versions);
   if (held.ok) return held.data;
   return new Set(
-    versions.filter((version) => version.training_stage != null).map((version) => version.id),
+    versions.filter(isSealed).map((version) => version.id),
   );
 }
 
@@ -124,6 +132,6 @@ export async function assertReleasable(
     .maybeSingle();
   if (error) return internalFailure(error);
   if (!version) return failure("not_found", "Version not found");
-  const row = version as { training_stage: string | null; content_sha256: string | null };
+  const row = version as Omit<ReleaseCandidate, "id">;
   return assertVersionReleasable(db, { id: versionId, ...row });
 }

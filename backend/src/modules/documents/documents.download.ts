@@ -19,6 +19,7 @@ import {
     assertVersionReleasable,
     heldVersionIds,
     trainingApprovalRequired,
+    type SealStage,
     type TrainingApprovalRequired,
 } from "../../lib/trainingRelease";
 import type { ServiceFailure } from "../../lib/serviceResult";
@@ -135,7 +136,7 @@ type DownloadDocumentRow = {
     source?: string | null;
     active_version_number?: number | null;
     content_sha256?: string | null;
-    training_stage?: string | null;
+    training_stage?: SealStage;
 };
 
 /** One file to place in the archive, already named and sized. */
@@ -346,8 +347,9 @@ export async function resolveZipExportDocuments(
         db,
         activeDocs.map((doc) => ({
             id: doc.current_version_id as string,
-            training_stage: doc.training_stage,
-            content_sha256: doc.content_sha256,
+            // A seal never read (undefined) holds the archive, as a seal does.
+            training_stage: doc.training_stage === null ? null : "pasante",
+            content_sha256: doc.content_sha256 ?? null,
         })),
     );
     if (!held.ok)

@@ -30,7 +30,7 @@ import {
 import { deleteDocumentAndVersionFiles, type Db } from "./documents.shared";
 import { canManageDocument, ensureDocumentAccess } from "./documents.access";
 import { mayApproveTrainingVersion } from "./documents.trainingApproval";
-import { heldVersionIdsOrSealed } from "../../lib/trainingRelease";
+import { heldVersionIdsOrSealed, type SealStage } from "../../lib/trainingRelease";
 
 // ---------------------------------------------------------------------------
 // Versions list
@@ -80,7 +80,7 @@ export async function listVersions(
 type TrainingVersionRow = {
     id: string;
     content_sha256: string | null;
-    training_stage: string | null;
+    training_stage: SealStage;
     training_author_user_id: string | null;
     [column: string]: unknown;
 };

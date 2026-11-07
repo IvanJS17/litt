@@ -41,6 +41,7 @@ const activeVersion = {
   page_count: 2,
   textless_page_count: 1,
   content_sha256: "a".repeat(64),
+  training_stage: null,
 };
 const enrichedFields = {
   storage_path: activeVersion.storage_path,
