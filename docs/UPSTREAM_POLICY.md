@@ -6,9 +6,10 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `14d695f176152367cf44e89e200a04778b353b6d`
-(2026-11-04), reached by cycle 2 of the 2026-11-06 intake (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §21).
+**Current pin:** upstream `27683564a5b72c20d5f2796bf826f3146a8c7bfe`
+(2026-10-30, a commit on the #749 branch), reached by cycle 3 of the
+2026-11-06 intake (receipt in
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §22).
 The pin takes effect on `main` with that cycle's merge into `main`. The
 previous pin, `1f7ae19fd1643fd350d564bbdbbe5801611d0765` (2026-10-30), was
 reached by cycle 1 of the same intake (ledger §20);
@@ -214,6 +215,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-10-29 | `d4fd89996e638f66ca55331cb787ce38e11975e1` | `d601932abecb7f6f5f01a863b939765ef2f3075d` | 55 | parser isolation (#721 series), error identity and local failure reporting, Sentry warnings/source maps, dependency and audit-gate updates | parser isolation and dependencies adopt; error classification adapted to a local sanitized reporter; Sentry parts reject (no third-party telemetry) (ledger §19) | two merge commits (`4355fdf3`, then `d601932a`) on `sync/upstream-cycle-20261029`; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §19) | Dependabot #27–#30 covered or applied; TD-043 closed |
 | 2026-11-06 (cycle 1/10) | `d601932abecb7f6f5f01a863b939765ef2f3075d` | `1f7ae19fd1643fd350d564bbdbbe5801611d0765` | 16 (13 without merges) | set-based chat list (#736), named upload-worker failures and poll-gate repeat window (#744), export test wait (#746), onboarding Connect a model (#743), settings search (#745), release images with Sentry tunnel (#747) | chat list adapt (private-matter guard, migration `20261106_53`); #744 adapt to the local reporter; #743 and #745 adapt (personal BYOK copy; LiTT sections, no CourtListener); #746 adopt; #747 reject (no third-party telemetry; LiTT builds its images from the exact SHA) (ledger §20) | merge commit on `sync/upstream-c1-1f7ae19f`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §20) | first of ten cycles for the 334-commit intake of 2026-11-06; no new debt |
 | 2026-11-06 (cycle 2/10) | `1f7ae19fd1643fd350d564bbdbbe5801611d0765` | `14d695f176152367cf44e89e200a04778b353b6d` | 7 (4 without merges) | playbook ids checked before Postgres (#716), Word add-in node-forge/follow-redirects advisories (#752), Sentry Vercel AI tool-error filter (#774) | #716 adopt, with a LiTT commit extending the check to share and source ids and the source document id; #752 adopt (LiTT already resolved both packages, lockfile and allowlist kept); #774 reject (no third-party telemetry) (ledger §21) | merge commit on `sync/upstream-c2-14d695f1`, adaptation in a separate commit; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §21) | second of ten cycles; no new debt |
+| 2026-11-07 (cycle 3/10) | `14d695f176152367cf44e89e200a04778b353b6d` | `27683564a5b72c20d5f2796bf826f3146a8c7bfe` | 43 (no merges) | #749 30-Oct tranche: SQL list and permission performance C1–C7 and H2–H6, picker and directory paging in SQL, tabular/Word/PDF/chat rendering bounds, citation verifier reuse | adopt, except `org_members_departure_items` (adapt: LiTT C2 point 3 re-applied in `20261030_51_litt_departure_private_matter`), the picker (adapt: LiTT private-matter backstop kept), CourtListener paths, the Sentry stack-path change `fe8381fa` and the development-renderer e2e job (reject) (ledger §22) | merge commit on `sync/upstream-c3-27683564`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §22) | third of ten cycles; no new debt |
 
 ## Release metadata
 
