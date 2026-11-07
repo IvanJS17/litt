@@ -35,14 +35,13 @@ export function SiteLogo({
 
     if (asLink) {
         return (
+            // The brand, not an external call to action: it opens in the
+            // same tab, like a site's logo anywhere else.
             <a
                 href={LITT_HOME_URL}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
                 {logo}
-                <span className="sr-only"> (opens in a new tab)</span>
             </a>
         );
     }

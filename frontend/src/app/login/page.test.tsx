@@ -163,7 +163,36 @@ it("retries a failed session refresh without submitting the empty login form", a
     expect(login).not.toHaveBeenCalled();
 });
 
-it("shows the session warning as a popup that can be dismissed", async () => {
+it("shows a login failure inside the card, not as a floating notice over the wordmark", async () => {
+    login.mockRejectedValue(
+        new AuthApiError(401, "invalid_credentials", "Invalid credentials"),
+    );
+    const user = userEvent.setup();
+    const { container } = render(<LoginPage />);
+    await user.type(
+        screen.getByRole("textbox", { name: "Email" }),
+        "person@example.com",
+    );
+    await user.type(screen.getByLabelText("Password"), "wrong-password");
+    await user.click(screen.getByRole("button", { name: "Log in" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The email or password is incorrect.");
+    // Rendered in place, inside the form, before the button that failed.
+    expect(container).toContainElement(alert);
+    const form = screen.getByRole("button", { name: "Log in" }).closest("form");
+    expect(form).toContainElement(alert);
+    expect(
+        alert.compareDocumentPosition(
+            screen.getByRole("button", { name: "Log in" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Nothing portalled to the body and nothing positioned over the page.
+    expect(alert.closest(".fixed")).toBeNull();
+    expect(document.body.querySelectorAll(":scope > .fixed")).toHaveLength(0);
+});
+
+it("shows the session warning in the card and lets it be dismissed", async () => {
     authState.error = "We could not check your session. Please try again.";
     render(<LoginPage />);
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -178,7 +207,7 @@ it("shows the session warning as a popup that can be dismissed", async () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
-it("shows a sign-in failure in the popup ahead of the session warning", async () => {
+it("shows a sign-in failure ahead of the session warning", async () => {
     authState.error = "We could not check your session. Please try again.";
     login.mockRejectedValue(
         new AuthApiError(401, "invalid_credentials", "Invalid credentials"),

@@ -59,6 +59,30 @@ describe("AppToasts", () => {
         expect(screen.getByText("You're back online.")).toBeVisible();
     });
 
+    it("puts the notification column in the bottom-right corner, clear of the page header", () => {
+        vi.stubGlobal("navigator", { ...navigator, onLine: true });
+        render(<AppToasts />);
+        act(() => {
+            showToast({
+                tone: "info",
+                title: "Switched to Despacho",
+                message: undefined,
+            });
+        });
+        const region = screen.getByRole("region", { name: "Notifications" });
+        expect(region).toHaveClass("fixed", "sm:right-5", "sm:bottom-5", "top-auto");
+        // The shared default (top centre, for the Word add-in) is overridden.
+        expect(region).not.toHaveClass("top-5");
+        expect(region).not.toHaveClass("left-1/2");
+        expect(region).not.toHaveClass("-translate-x-1/2");
+        // Information still closes on its own.
+        expect(screen.getByRole("status")).toHaveTextContent("Switched to Despacho");
+        act(() => {
+            vi.advanceTimersByTime(10_000);
+        });
+        expect(screen.queryByRole("status")).toBeNull();
+    });
+
     it("draws an error as a WarningPopup in the notification column, with its actions", () => {
         vi.stubGlobal("navigator", { ...navigator, onLine: true });
         const onRetry = vi.fn();
