@@ -23,6 +23,6 @@ export * from "./secureUuid";
 // Response excerpts (quote-and-annotate wire format)
 export * from "./messageExcerpts";
 
-// Sentry event hygiene
-export * from "./sentryEvent";
-export * from "./sentryPrivacy";
+// AGPL-3.0 §13 source link: the commit a build embeds and the URL of its
+// tree. Plain ESM so the build configs can import the same file.
+export * from "./sourceCommit.mjs";

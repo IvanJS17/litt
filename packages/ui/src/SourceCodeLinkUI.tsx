@@ -1,4 +1,4 @@
-import { sourceCodeUrl } from "../lib/sourceCommit.mjs";
+import { sourceCodeUrl } from "@mike/client";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
 
 /**

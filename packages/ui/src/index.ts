@@ -54,3 +54,6 @@ export * from "./LittBrandUI";
 export * from "./MikeIconUI";
 export * from "./GoogleIconUI";
 export * from "./AuthDividerUI";
+
+// AGPL-3.0 §13: the "Código fuente" link to the running build's source
+export * from "./SourceCodeLinkUI";
