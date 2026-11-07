@@ -196,6 +196,9 @@ jobs:
       - name: Concurrent organization departure locking
         run: node backend/scripts/test-org-departure-locks.mjs
 
+      - name: Concurrent playbook accept, ready and proposals
+        run: node backend/scripts/test-playbook-change-concurrency.mjs
+
       - name: Compare fingerprints
         run: |
           if diff -u /tmp/upgraded.txt /tmp/fresh.txt; then
