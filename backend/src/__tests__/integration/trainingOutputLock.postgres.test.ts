@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-// LiTT training, layer 1b (20261106_51_litt_training_output_lock.sql): the
-// pasante seal on document_versions and the insert-only approvals. Opt in
+// LiTT training, layer 1b (20261106_51_litt_training_output_lock.sql and
+// 20261106_52_litt_training_seal_org.sql): the pasante seal on
+// document_versions, kept inside an organization, and the insert-only
+// approvals. Opt in
 // with MIKE_TEST_POSTGRES_CONTAINER=<a supabase/postgres container>; all
 // writes target a disposable database that is dropped afterwards.
 const container = process.env.MIKE_TEST_POSTGRES_CONTAINER;
@@ -28,6 +30,8 @@ const failure = (query: string): string => {
 const PUPIL = 1;
 const LAWYER = 2;
 const DOC = 10;
+const PERSONAL_DOC = 11;
+const ORG = 30;
 const SEALED = 20;
 const PLAIN = 21;
 const HASH_A = "a".repeat(64);
@@ -52,13 +56,15 @@ describe.skipIf(!container)("LiTT pasante seal and approvals in PostgreSQL", () 
             create function auth.uid() returns uuid language sql stable as
                 $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;`);
         psql(readFileSync(resolve(process.cwd(), "schema.sql"), "utf8"));
-        // Re-running the migration over the final shape must be a no-op.
-        const migration = readFileSync(
-            resolve(process.cwd(), "migrations/20261106_51_litt_training_output_lock.sql"),
-            "utf8",
-        );
-        psql(migration);
-        psql(migration);
+        // Re-running the migrations over the final shape must be a no-op.
+        for (const file of [
+            "20261106_51_litt_training_output_lock.sql",
+            "20261106_52_litt_training_seal_org.sql",
+        ]) {
+            const migration = readFileSync(resolve(process.cwd(), "migrations", file), "utf8");
+            psql(migration);
+            psql(migration);
+        }
     }, 120_000);
 
     afterAll(() => {
@@ -67,10 +73,14 @@ describe.skipIf(!container)("LiTT pasante seal and approvals in PostgreSQL", () 
     });
 
     beforeEach(() => {
-        psql(`truncate auth.users, public.documents, public.training_version_approvals cascade;
+        psql(`truncate auth.users, public.organizations, public.documents,
+                public.training_version_approvals cascade;
             insert into auth.users(id,email) values
                 (${q(PUPIL)},'pupil@example.test'), (${q(LAWYER)},'lawyer@example.test');
-            insert into public.documents(id,user_id,status) values (${q(DOC)},${q(PUPIL)},'ready');`);
+            insert into public.organizations(id,name) values (${q(ORG)},'Despacho');
+            insert into public.documents(id,user_id,status,org_id) values
+                (${q(DOC)},${q(PUPIL)},'ready',${q(ORG)}),
+                (${q(PERSONAL_DOC)},${q(PUPIL)},'ready',null);`);
         createVersion(SEALED, `, 'training_author_user_id', ${q(PUPIL)}, 'training_stage', 'pasante'`);
         createVersion(PLAIN, "");
     });
@@ -85,6 +95,31 @@ describe.skipIf(!container)("LiTT pasante seal and approvals in PostgreSQL", () 
         expect(failure(`select public.create_document_version(${q(DOC)},
             jsonb_build_object('storage_path','k/y','training_stage','pasante'), false);`))
             .toContain("document_versions_training_seal_check");
+    });
+
+    it("keeps a sealed version inside an organization, whoever writes it (R3)", () => {
+        // Into a document without an organization: neither inserted nor moved.
+        expect(failure(`select public.create_document_version(${q(PERSONAL_DOC)},
+            jsonb_build_object('storage_path','k/p','content_sha256','${HASH_A}',
+                'training_stage','pasante','training_author_user_id',${q(PUPIL)}), false);`))
+            .toContain("needs a document in an organization");
+        expect(failure(`update public.document_versions set document_id=${q(PERSONAL_DOC)}
+            where id=${q(SEALED)};`)).toContain("needs a document in an organization");
+        // Nor sealed in place there.
+        psql(`select public.create_document_version(${q(PERSONAL_DOC)},
+            jsonb_build_object('id',${q(22)},'storage_path','k/q','content_sha256','${HASH_A}'), false);`);
+        expect(failure(`update public.document_versions set training_stage='pasante',
+            training_author_user_id=${q(PUPIL)} where id=${q(22)};`))
+            .toContain("needs a document in an organization");
+        // The document holding it keeps its organization.
+        expect(failure(`update public.documents set org_id=null where id=${q(DOC)};`))
+            .toContain("must stay in an organization");
+        expect(psql(`select org_id from public.documents where id=${q(DOC)}`)).toBe(uid(ORG));
+        // Unsealed work is untouched: once only plain versions remain, the
+        // document may leave its organization.
+        psql(`delete from public.document_versions where id=${q(SEALED)};
+            update public.documents set org_id=null where id=${q(DOC)};`);
+        expect(psql(`select coalesce(org_id::text,'-') from public.documents where id=${q(DOC)}`)).toBe("-");
     });
 
     it("never removes or hands over a seal, and lets a pasante seal a plain version in place", () => {

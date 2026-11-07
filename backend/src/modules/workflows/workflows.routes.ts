@@ -15,7 +15,11 @@ import {
 } from "../../lib/workspace";
 import { parseWorkflowSort } from "../../lib/sort";
 import { parseWorkflowScope } from "./workflows.overview";
-import { sendInternalError } from "../../lib/httpError";
+import {
+  sendInternalError,
+  TRAINING_COPY_NEEDS_ORGANIZATION_CODE,
+  TRAINING_COPY_NEEDS_ORGANIZATION_MESSAGE,
+} from "../../lib/httpError";
 import {
   DOCUMENT_WORKSPACE_MISMATCH_CODE,
   DOCUMENT_WORKSPACE_MISMATCH_DETAIL,
@@ -93,6 +97,11 @@ function sendWorkflowAssetFailure(res: Response, failure: WorkflowAssetFailure) 
       return void res
         .status(409)
         .json({ detail: "One or more files are not ready" });
+    case "training_copy_needs_organization":
+      return void res.status(409).json({
+        code: TRAINING_COPY_NEEDS_ORGANIZATION_CODE,
+        detail: TRAINING_COPY_NEEDS_ORGANIZATION_MESSAGE,
+      });
     case "db_error":
       return void sendInternalError(res, failure.error);
   }

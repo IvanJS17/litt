@@ -30,6 +30,17 @@ implemented. Nothing here changes anything for a person without a stage.
   `resolveWordTrainingStage` in the same file; a stage for one practice area
   alone never applies in Word. The note of a Word turn belongs to the
   organization whose stage was applied.
+- **Workflows.** A workflow and its assets have an organization but no
+  project or matter, so no practice area: inside a workflow the effective
+  stage is the stage for every practice area (`practice null`) in the
+  workflow's organization, and a stage for one practice area alone never
+  applies there. The workflow's own `practice` label is a catalog tag, not a
+  practice area for this rule. This holds both for sealing a version written
+  into a workflow asset and for who may approve one: a junior whose only
+  stage is for one practice area may approve a workflow asset as a lawyer
+  would. Making any stage in the organization count inside workflows would
+  be a product decision; it would harden sealing too, since both use the
+  same effective stage.
 - **Mentor.** Designated by an owner or admin of the organization. Each pupil
   has exactly one current mentor per organization.
 
@@ -217,7 +228,14 @@ deciding a seal fails the write, and so does a copy whose source version is
 not found. A sealed copy is made only into a document with an organization,
 where it can be approved: a workflow asset takes its workflow's
 organization, and a copy that would have none (a chat or a workflow outside
-an organization) is refused. Versions written before 1b have no seal.
+an organization) is refused. Copying into a personal workflow answers `409`
+with code `training_copy_needs_organization`, and the client says why. The
+database holds the same rule for every writer
+(`20261106_52_litt_training_seal_org.sql`):
+`document_versions_training_seal_org` refuses a sealed version in a document
+without an organization, and `documents_training_seal_org` refuses taking
+the organization away from a document that holds one. Versions written
+before 1b have no seal.
 
 ### Approval
 

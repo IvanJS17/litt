@@ -10,6 +10,7 @@ import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocu
 // onto HTTP status codes and response bodies.
 import { randomUUID } from "node:crypto";
 import { type Db } from "../../lib/supabase";
+import { findAppError } from "../../lib/appError";
 import { ensureDocAccess } from "../../lib/access";
 import { findDocumentsOutsideWorkspace } from "../../lib/documentWorkspace";
 import { convertedPdfKey } from "../../lib/convert";
@@ -35,6 +36,7 @@ export type WorkflowAssetFailure =
   | { ok: false; kind: "documents_not_found" }
   | { ok: false; kind: "documents_workspace_mismatch" }
   | { ok: false; kind: "documents_not_ready" }
+  | { ok: false; kind: "training_copy_needs_organization" }
   | { ok: false; kind: "db_error"; error: unknown };
 
 type WorkflowAssetRow = {
@@ -287,6 +289,10 @@ export async function copyDocumentsToWorkflowAssets(
     const createdIds = plans.map((plan) => plan.documentId);
     await db.from("documents").delete().in("id", createdIds);
     await enqueueStorageCleanup(db, [...copiedPaths]);
+    // A pasante's draft in a workflow without an organization: nobody could
+    // approve it there (documents.lifecycle), which the caller can act on.
+    if (findAppError(error)?.kind === "training.copy_without_org")
+      return { ok: false, kind: "training_copy_needs_organization" };
     return { ok: false, kind: "db_error", error };
   }
 }

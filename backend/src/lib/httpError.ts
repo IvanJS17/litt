@@ -19,6 +19,13 @@ export function rateLimitedBody(detail: string): {
 export const TRAINING_APPROVAL_REQUIRED_CODE = "training_approval_required";
 export const TRAINING_APPROVAL_REQUIRED_MESSAGE =
   "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.";
+/**
+ * 409 for copying a pasante's draft somewhere without an organization (a
+ * personal workflow): nobody there could approve it, so the copy is refused.
+ */
+export const TRAINING_COPY_NEEDS_ORGANIZATION_CODE = "training_copy_needs_organization";
+export const TRAINING_COPY_NEEDS_ORGANIZATION_MESSAGE =
+  "Este archivo es un borrador de pasante y solo puede copiarse a un workflow de una organización, donde alguien pueda aprobarlo.";
 
 export const INTERNAL_ERROR_MESSAGE =
   "Something went wrong. Please try again.";
