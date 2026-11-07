@@ -11,9 +11,9 @@ const ORG = "00000000-0000-4000-8000-000000000010";
 const PUPIL = "00000000-0000-4000-8000-000000000001";
 const MENTOR = "00000000-0000-4000-8000-000000000002";
 
-const fakeDb = (answer: { data?: unknown; error?: unknown }) => {
+const fakeDb = (answer: { data?: unknown; error?: unknown }, tables: Record<string, Record<string, unknown>[]> = {}) => {
     const rpc = vi.fn(async () => ({ data: answer.data ?? null, error: answer.error ?? null }));
-    const { db } = memoryDb({ training_work_reviews: [] });
+    const { db } = memoryDb({ training_work_reviews: [], ...tables });
     return { db: { ...db, rpc } as unknown as Db, rpc };
 };
 const notFound = { ok: false, kind: "not_found", detail: LEARNING_NOT_FOUND };
@@ -51,6 +51,25 @@ describe("assertLearningAccess", () => {
 });
 
 describe("getMySupervision", () => {
+    it("shows the pupil their own passes, and only theirs", async () => {
+        const own = {
+            id: "pass-1", org_id: ORG, trainee_user_id: PUPIL, project_id: "project-1",
+            starts_at: "2026-11-07T10:00:00Z", expires_at: "2026-11-07T18:00:00Z",
+            reason_code: "plazo", reason_note: "Vence mañana", revoked_at: null,
+            granted_by: MENTOR, created_at: "2026-11-07T10:00:00Z",
+        };
+        const other = { ...own, id: "pass-2", trainee_user_id: MENTOR };
+        const { db } = fakeDb({ data: true }, { training_urgency_passes: [own, other] });
+        const result = await getMySupervision(db, { userId: PUPIL, orgId: ORG });
+        expect(result).toMatchObject({ ok: true });
+        const passes = (result as { data: { urgency_passes: unknown[] } }).data.urgency_passes;
+        expect(passes).toEqual([{
+            id: "pass-1", org_id: ORG, trainee_user_id: PUPIL, project_id: "project-1",
+            starts_at: "2026-11-07T10:00:00Z", expires_at: "2026-11-07T18:00:00Z",
+            reason_code: "plazo", reason_note: "Vence mañana", revoked_at: null,
+        }]);
+    });
+
     it("is the caller's own, through the same gate", async () => {
         const { db, rpc } = fakeDb({ data: true });
         await expect(getMySupervision(db, { userId: PUPIL, orgId: ORG })).resolves.toEqual({

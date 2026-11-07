@@ -9,7 +9,9 @@ vi.mock("@/app/lib/mikeApi", () => ({
     uploadProjectDocument: vi.fn(),
     uploadStandaloneDocument: vi.fn(),
 }));
-vi.mock("@/app/hooks/useTrainingStage", () => ({ useTrainingStage: vi.fn(() => null) }));
+vi.mock("@/app/hooks/useTrainingStage", () => ({
+    useTrainingStage: vi.fn(() => ({ attemptRequired: false, urgencyPassExpiresAt: null })),
+}));
 vi.mock("@/app/contexts/UserProfileContext", () => ({ useUserProfile: vi.fn() }));
 vi.mock("@/app/hooks/useConfiguredModels", () => ({ useConfiguredModels: () => [] }));
 vi.mock("@/app/lib/modelAvailability", () => ({
@@ -75,7 +77,7 @@ describe("ChatInput — «Tu turno primero»", () => {
     });
 
     it("asks a pasante for their approach and holds the send until it is long enough", () => {
-        vi.mocked(useTrainingStage).mockReturnValue("pasante");
+        vi.mocked(useTrainingStage).mockReturnValue({ attemptRequired: true, urgencyPassExpiresAt: null });
         const onSubmit = renderComposer();
         expect(vi.mocked(useTrainingStage)).toHaveBeenCalledWith(
             expect.objectContaining({ projectId: "p1", enabled: true }),
@@ -99,17 +101,29 @@ describe("ChatInput — «Tu turno primero»", () => {
         );
     });
 
-    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
-        "shows %s the composer of today",
-        (_label, stage) => {
-            vi.mocked(useTrainingStage).mockReturnValue(stage);
-            const onSubmit = renderComposer();
-            expect(screen.queryByLabelText("Tu planteamiento (2–3 líneas)")).toBeNull();
-            send("¿Procede la rescisión?");
-            expect(onSubmit).toHaveBeenCalledTimes(1);
-            expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("attempt");
-        },
-    );
+    it("shows a pasante with an urgency pass a line instead of the field, and sends without an attempt", () => {
+        const end = new Date(Date.now() + 3_600_000);
+        vi.mocked(useTrainingStage).mockReturnValue({
+            attemptRequired: false,
+            urgencyPassExpiresAt: end.toISOString(),
+        });
+        const onSubmit = renderComposer();
+        expect(screen.queryByLabelText("Tu planteamiento (2–3 líneas)")).toBeNull();
+        expect(screen.getByText(/^Pase de urgencia vigente hasta /)).toBeInTheDocument();
+        send("¿Procede la rescisión?");
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("attempt");
+    });
+
+    it("shows the composer of today when no attempt is required and there is no pass", () => {
+        vi.mocked(useTrainingStage).mockReturnValue({ attemptRequired: false, urgencyPassExpiresAt: null });
+        const onSubmit = renderComposer();
+        expect(screen.queryByLabelText("Tu planteamiento (2–3 líneas)")).toBeNull();
+        expect(screen.queryByText(/Pase de urgencia/)).toBeNull();
+        send("¿Procede la rescisión?");
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("attempt");
+    });
 
     it("does not ask for training where the composer does not start chat turns", () => {
         render(

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   TRAINING_ATTEMPT_MAX_CHARS,
   TrainingAttemptFieldUI,
+  TrainingUrgencyPassLineUI,
   isTrainingAttemptReady,
   trainingAttemptLength,
 } from "./TrainingAttemptFieldUI";
@@ -46,5 +47,24 @@ describe("TrainingAttemptFieldUI", () => {
     field("a".repeat(60), true);
     expect(screen.getByText(/^Listo\./)).toBeInTheDocument();
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+describe("TrainingUrgencyPassLineUI", () => {
+  const now = new Date(2026, 10, 7, 9, 0);
+
+  it("says until when the pass is in force today, as plain text", () => {
+    const end = new Date(2026, 10, 7, 17, 30);
+    const { container } = render(<TrainingUrgencyPassLineUI expiresAt={end.toISOString()} now={now} />);
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/^Pase de urgencia vigente hasta las 17:30\./);
+    expect(text).toContain("sigue necesitando aprobación");
+    expect(container.querySelector("button, [role=status]")).toBeNull();
+  });
+
+  it("adds the date when the pass ends another day", () => {
+    const end = new Date(2026, 10, 9, 8, 5);
+    render(<TrainingUrgencyPassLineUI expiresAt={end.toISOString()} now={now} />);
+    expect(screen.getByText(/hasta el 9 de noviembre, a las 08:05/)).toBeInTheDocument();
   });
 });

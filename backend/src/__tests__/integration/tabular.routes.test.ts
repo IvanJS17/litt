@@ -3530,5 +3530,52 @@ describe("tabular.routes", () => {
                 );
             },
         );
+
+        describe("urgency pass (layer 2) on the review's project", () => {
+            const pass = (extra: Record<string, unknown> = {}) => ({
+                org_id: "org-1",
+                trainee_user_id: "u1",
+                project_id: "p1",
+                starts_at: new Date(Date.now() - 60_000).toISOString(),
+                expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+                revoked_at: null,
+                ...extra,
+            });
+            const passes = (rows: Record<string, unknown>[]) => {
+                supabaseState.tables.training_urgency_passes = { data: rows, error: null };
+            };
+            beforeEach(() => {
+                trainingStage.value = "pasante";
+            });
+
+            it("asks a pasante without a pass for the attempt", async () => {
+                passes([]);
+                const res = await send();
+                expect(res.status).toBe(400);
+                expect(res.body.code).toBe("training_attempt_required");
+            });
+
+            it("lets a pasante with a pass in force write without an attempt, with no note or contrast", async () => {
+                const { completeText } = await import("../../lib/llm/index.js");
+                passes([pass()]);
+                const res = await send({ attempt: ATTEMPT });
+                expect(res.status).toBe(200);
+                expect(runLLMStream).toHaveBeenCalledTimes(1);
+                expect(insertOf("training_turn_notes")).toBeUndefined();
+                expect(completeText).not.toHaveBeenCalled();
+                expect(JSON.stringify(insertOf("tabular_review_chat_messages"))).not.toContain(ATTEMPT);
+            });
+
+            it.each([
+                ["expired", { expires_at: new Date(Date.now() - 1000).toISOString() }],
+                ["of another project", { project_id: "p2" }],
+            ])("asks for the attempt again with a pass %s", async (_label, extra) => {
+                passes([pass(extra)]);
+                const res = await send();
+                expect(res.status).toBe(400);
+                expect(res.body.code).toBe("training_attempt_required");
+                expect(runLLMStream).not.toHaveBeenCalled();
+            });
+        });
     });
 });

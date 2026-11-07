@@ -19,6 +19,8 @@ import {
   getPlaybookImport,
   listRunningPlaybookImports,
   queuePlaybookImport,
+  queuePlaybookDraft,
+  playbookQuestionnaire,
   MAX_PLAYBOOK_IMPORT_BYTES,
   listPlaybookSources,
   listPlaybookPeople,
@@ -443,6 +445,35 @@ playbooksRouter.post("/import", requireMfaIfEnrolled, async (req, res) => {
     // Only the staged object no job will read; a reported warning, never a
     // failed response.
     if (staged) await removePlaybookObjects([storageKey], { stage: "import.cleanup" });
+  }
+});
+
+// LiTT: the ten fixed questions a draft starts from. Registered before
+// "/:playbookId", which would otherwise match "questionnaire".
+playbooksRouter.get("/questionnaire", (_req, res) => {
+  res.json(playbookQuestionnaire());
+});
+
+// LiTT: a draft from the questionnaire. Checks the model and its key (no
+// fallback), the answers and the attachments, records the draft and queues
+// its compile; the job saves it as a draft playbook.
+playbooksRouter.post("/drafts", requireMfaIfEnrolled, async (req, res) => {
+  setOperation("playbooks.draft");
+  try {
+    const body = req.body ?? {};
+    const attempt = await queuePlaybookDraft({
+      userId: res.locals.userId as string,
+      userEmail: res.locals.userEmail,
+      model: typeof body.model === "string" ? body.model : "",
+      name: typeof body.name === "string" ? body.name : undefined,
+      workspace: body.workspace,
+      visibility: body.visibility,
+      answers: body.answers,
+      attachments: body.attachments,
+    });
+    res.status(202).json(attempt);
+  } catch (error) {
+    sendError(res, error);
   }
 });
 
