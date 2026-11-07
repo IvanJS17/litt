@@ -53,8 +53,18 @@ describe("SignupPage", () => {
     // The divider is aria-hidden, so it is found by its text.
     const divider = () => screen.queryByText("or", { selector: "span" });
 
+    it("draws neither Google nor its divider until the server answers", async () => {
+        render(<SignupPage />);
+
+        await act(async () => {});
+        expect(getAuthProviders).toHaveBeenCalled();
+        expect(
+            screen.queryByRole("button", { name: "Continue with Google" }),
+        ).not.toBeInTheDocument();
+        expect(divider()).not.toBeInTheDocument();
+    });
+
     it.each([
-        ["pending", () => new Promise<never>(() => {})],
         ["on", () => Promise.resolve({ sso: false, google: true })],
         ["unknown", () => Promise.resolve({ sso: false, google: null })],
         ["unreadable", () => Promise.reject(new TypeError("Failed to fetch"))],
@@ -235,11 +245,12 @@ describe("SignupPage", () => {
         expect(container.textContent).not.toMatch(/by signing up, you agree/i);
     });
 
-    it("places Google after the primary signup action without offering SSO", () => {
+    it("places Google after the primary signup action without offering SSO", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google: true });
         render(<SignupPage />);
 
         const signup = screen.getByRole("button", { name: "Sign up" });
-        const google = screen.getByRole("button", {
+        const google = await screen.findByRole("button", {
             name: "Continue with Google",
         });
         expect(

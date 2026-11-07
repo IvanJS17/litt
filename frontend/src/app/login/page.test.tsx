@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "./page";
@@ -140,11 +140,15 @@ describe("LoginPage", () => {
         expect(push).toHaveBeenCalledWith("/onboarding/profile");
     });
 
-    it("places Google and SSO after the primary login action", () => {
+    // The divider is aria-hidden, so it is found by its text.
+    const divider = () => screen.queryByText("or", { selector: "span" });
+
+    it("places Google and SSO after the primary login action", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google: true });
         render(<LoginPage />);
 
         const login = screen.getByRole("button", { name: "Log in" });
-        const google = screen.getByRole("button", {
+        const google = await screen.findByRole("button", {
             name: "Continue with Google",
         });
         const sso = screen.getByRole("button", { name: "Continue with SSO" });
@@ -158,7 +162,7 @@ describe("LoginPage", () => {
         ).toBeTruthy();
     });
 
-    it("keeps Continue with SSO while the server's answer is pending and when SSO is on", async () => {
+    it("draws no external route or divider until the server answers, then shows SSO when on", async () => {
         let answer!: (value: { sso: boolean; google: boolean | null }) => void;
         getAuthProviders.mockReturnValueOnce(
             new Promise((resolve) => {
@@ -167,8 +171,9 @@ describe("LoginPage", () => {
         );
         render(<LoginPage />);
         expect(
-            screen.getByRole("button", { name: "Continue with SSO" }),
-        ).toBeInTheDocument();
+            screen.queryByRole("button", { name: /Continue with/ }),
+        ).not.toBeInTheDocument();
+        expect(divider()).not.toBeInTheDocument();
 
         await act(async () => answer({ sso: true, google: true }));
         expect(
@@ -180,18 +185,13 @@ describe("LoginPage", () => {
         getAuthProviders.mockResolvedValueOnce({ sso: false, google: true });
         render(<LoginPage />);
 
-        await waitFor(() =>
-            expect(
-                screen.queryByRole("button", { name: "Continue with SSO" }),
-            ).not.toBeInTheDocument(),
-        );
         expect(
-            screen.getByRole("button", { name: "Continue with Google" }),
+            await screen.findByRole("button", { name: "Continue with Google" }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Continue with SSO" }),
+        ).not.toBeInTheDocument();
     });
-
-    // The divider is aria-hidden, so it is found by its text.
-    const divider = () => screen.queryByText("or", { selector: "span" });
 
     it.each([
         ["on", true],
@@ -211,14 +211,12 @@ describe("LoginPage", () => {
         getAuthProviders.mockResolvedValueOnce({ sso: true, google: false });
         render(<LoginPage />);
 
-        await waitFor(() =>
-            expect(
-                screen.queryByRole("button", { name: "Continue with Google" }),
-            ).not.toBeInTheDocument(),
-        );
         expect(
-            screen.getByRole("button", { name: "Continue with SSO" }),
+            await screen.findByRole("button", { name: "Continue with SSO" }),
         ).toBeInTheDocument();
+        expect(
+            screen.queryByRole("button", { name: "Continue with Google" }),
+        ).not.toBeInTheDocument();
         expect(divider()).toBeInTheDocument();
     });
 
@@ -226,7 +224,9 @@ describe("LoginPage", () => {
         getAuthProviders.mockResolvedValueOnce({ sso: false, google: false });
         render(<LoginPage />);
 
-        await waitFor(() => expect(divider()).not.toBeInTheDocument());
+        await act(async () => {});
+        expect(getAuthProviders).toHaveBeenCalled();
+        expect(divider()).not.toBeInTheDocument();
         expect(
             screen.queryByRole("button", { name: /Continue with/ }),
         ).not.toBeInTheDocument();
