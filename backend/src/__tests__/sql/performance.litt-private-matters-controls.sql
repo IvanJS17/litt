@@ -100,6 +100,60 @@ end;
 $$;
 rollback;
 
+-- Control 4: upstream's departure root candidates (20261101_18, M-S5)
+-- without the matter exclusion list the creator's matter project again.
+begin;
+select pg_temp.litt_matter_fixture();
+\ir ../../../migrations/20261101_18_departure_root_candidates.sql
+do $$
+begin
+  assert exists(select 1 from public.org_members_departure_items(current_setting('litt.org')::uuid,array[current_setting('litt.creator')::uuid])
+    where kind='project' and item_id=current_setting('litt.matter_project')::uuid),
+    'control 4: upstream 20261101_18 alone must list the matter project (the fixture no longer exercises the guard)';
+end;
+$$;
+\ir ../../../migrations/20261107_50_litt_departure_root_candidates_private_matter.sql
+do $$
+begin
+  assert not exists(select 1 from public.org_members_departure_items(current_setting('litt.org')::uuid,array[current_setting('litt.creator')::uuid])
+    where kind='project' and item_id=current_setting('litt.matter_project')::uuid),
+    'control 4: 20261107_50 after upstream restores the exclusion';
+end;
+$$;
+rollback;
+
+-- Control 5: upstream's set-based ownerless list (20261101_17) without the
+-- matter exclusion offers a former member's matter project to the owner.
+begin;
+select pg_temp.litt_matter_fixture();
+do $$
+declare org uuid := current_setting('litt.org')::uuid; gone uuid := gen_random_uuid(); pm uuid := gen_random_uuid(); ws uuid;
+begin
+  insert into auth.users(id,email) values(gone,gone||'@example.test');
+  select id into ws from public.workspaces where organization_id=org limit 1;
+  insert into public.projects(id,user_id,org_id,name,visibility) values(pm,gone,org,'Ownerless matter','private');
+  insert into public.matters(workspace_id,project_id,name,visibility) values(ws,pm,'Former member matter','private');
+  perform set_config('litt.ownerless_matter',pm::text,true);
+end;
+$$;
+\ir ../../../migrations/20261101_17_ownerless_items_set_based.sql
+do $$
+begin
+  assert exists(select 1 from public.ownerless_org_item_ids(array[current_setting('litt.org')::uuid])
+    where kind='project' and item_id=current_setting('litt.ownerless_matter')::uuid),
+    'control 5: upstream 20261101_17 alone must list the matter project (the fixture no longer exercises the guard)';
+end;
+$$;
+\ir ../../../migrations/20261107_51_litt_ownerless_items_private_matter.sql
+do $$
+begin
+  assert not exists(select 1 from public.ownerless_org_item_ids(array[current_setting('litt.org')::uuid])
+    where kind='project' and item_id=current_setting('litt.ownerless_matter')::uuid),
+    'control 5: 20261107_51 after upstream restores the exclusion';
+end;
+$$;
+rollback;
+
 -- Control 3: with project_private_matter_denied switched off, the lists
 -- leak the matter to the organization owner.
 begin;

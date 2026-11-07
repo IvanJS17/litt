@@ -1,6 +1,8 @@
 -- LiTT copy of upstream's src/modules/orgs/__tests__/orgs.auditPagination.sql
 -- (rollback-only checks of RPC pagination, visibility and bounded redaction
--- for organization_audit_events, which cycles 3 and 4 rewrite). Upstream's
+-- for organization_audit_events, which cycles 3 and 4 rewrite; cycle 5's
+-- 20261101_19 and LiTT's 20261107_52 rewrite the person filter, which the
+-- username_pattern checks below cover). Upstream's
 -- file is not run by LiTT: it asserts owner access to private content, which
 -- LiTT refuses (C2). Three changes, the rest is upstream's text:
 --   * LiTT keeps no address on new audit rows and sorts by person on the

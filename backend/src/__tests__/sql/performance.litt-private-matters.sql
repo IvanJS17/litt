@@ -15,7 +15,9 @@
 -- Cycle 4 (20261101_*) redefines project_access_role (S2), the list
 -- candidates (S3), private document access (S5), the audit page (S6), the
 -- overview counts (S7), document text search (S10) and the departure items
--- (S11, S4b); the same assertions cover them.
+-- (S11, S4b); the same assertions cover them. Cycle 5 redefines the
+-- departure items again (M-S5, 20261101_18) and ownerless_org_item_ids
+-- (20261101_17), covered below.
 --
 -- performance.litt-private-matters-controls.sql (in CI) and
 -- backend/src/__tests__/integration/littPrivateMatterLists.postgres.test.ts
@@ -163,6 +165,30 @@ begin
   assert exists(select 1 from public.org_members_departure_items(org,array[creator])
     where kind='project' and item_id=current_setting('litt.plain_project')::uuid),
     'org_members_departure_items: positive control';
+end;
+$$;
+-- Cycle 5: ownerless_org_item_ids (upstream 20261101_17, set-based) must
+-- agree with project_is_ownerless: a matter project whose creator is no
+-- longer a member is not "ownerless", so an organization owner does not
+-- take it over; a plain private project in the same state is.
+do $$
+declare
+  org uuid := current_setting('litt.org')::uuid;
+  gone uuid := gen_random_uuid(); ws uuid; matter uuid;
+  matter_pm uuid := gen_random_uuid(); plain_pm uuid := gen_random_uuid();
+begin
+  insert into auth.users(id,email) values(gone,gone||'@example.test');
+  select id into ws from public.workspaces where organization_id=org limit 1;
+  insert into public.projects(id,user_id,org_id,name,visibility) values
+    (matter_pm,gone,org,'Ownerless matter','private'),(plain_pm,gone,org,'Ownerless plain','private');
+  insert into public.matters(workspace_id,project_id,name,visibility)
+    values(ws,matter_pm,'Matter of a former member','private') returning id into matter;
+  assert not exists(select 1 from public.ownerless_org_item_ids(array[org]) where kind='project' and item_id=matter_pm),
+    'ownerless_org_item_ids: a matter project is never ownerless';
+  assert exists(select 1 from public.ownerless_org_item_ids(array[org]) where kind='project' and item_id=plain_pm),
+    'ownerless_org_item_ids: positive control';
+  assert not public.project_is_ownerless(matter_pm,gone,org) and public.project_is_ownerless(plain_pm,gone,org),
+    'project_is_ownerless agrees with the list';
 end;
 $$;
 -- Open product question (ledger, cycle 4, W2): a matter whose project has
