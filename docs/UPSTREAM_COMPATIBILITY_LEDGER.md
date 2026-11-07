@@ -1003,3 +1003,71 @@ ancestor; the branch is integrated with a merge commit, never a squash.
 | #30 | backend production | covered by the merge (google-auth-library 11 included) |
 
 Close #27–#30 once this branch is in `main`. TD-043 is closed by this cycle.
+
+## 20. Cycle 2026-11-06, 1 of 10
+
+Pin `d601932abecb7f6f5f01a863b939765ef2f3075d` →
+`1f7ae19fd1643fd350d564bbdbbe5801611d0765` (16 commits, 13 without merges,
+upstream's 2026-10-29 to 2026-11-01 work). Branch `sync/upstream-c1-1f7ae19f`
+from `main` `fe5c9070`. It is the first of ten cycles that bring in the
+2026-11-06 intake in upstream's order; the owner approved every topic as
+recommended on 2026-11-06 and rejected the Sentry, desktop and CourtListener
+topic. One `git merge --no-ff` of the pin; the LiTT copy and index
+adaptations follow in separate commits. The branch is integrated with a merge
+commit, never a squash.
+
+### 20.1 Classification
+
+| Upstream commits | Capability (§16.3 row) | Disposition | What LiTT keeps |
+| --- | --- | --- | --- |
+| `d1d0e2c8`, `fec980fb`, `09349b56`, `b702ec6a`, `4591ab29`, merge `193c06bb` (#736) set-based chat list | Organizations, workspaces and matters | adapt | `get_chats_overview` evaluates the ladder with set-based joins (migration `20261029_01`, timeout reproduction and parity test in schema drift). Upstream's version copies upstream's ladder, so LiTT migration `20261106_53_litt_chat_overview_private_matter` re-creates it with `project_private_matter_denied` before every project branch (C2) and with `can_access_org_private_content` instead of upstream's inlined owner/admin rule. `chat.overview.sql` adds private-matter cases (creator, organization owner, override, revoked membership, public matter, matter team) and documents that opened private content grants nothing in LiTT |
+| `3c907acb`, `6831f0c0`, `a89cffe5`, `186bba46`, merge `51f554c4` (#744) named upload-worker failures | Third-party telemetry (error identity) | adapt: classification adopted, reporter local | `upload.lease_lost`, `upload.job_missing`, `upload.session_missing`, `upload.file_missing`, the 15-minute repeat window of the poll failure gate and the new SQLSTATE/PostgREST codes. The codes go into `backend/src/lib/observability/diagnostics.ts`; `sentryPrivacy.ts` stays deleted. The reporting tests count local log lines |
+| `be641cec`, merge `aa503191` (#746) export test wait | Profile, organization settings and web shell (test only) | adopt | — |
+| `81a59c04` (#743) onboarding Connect a model | Provider catalog, credentials and model selection | adapt | The fourth step and the shared `PersonalProviderKeys` grid. The copy no longer says personal keys work only in the Personal workspace: a member's own key covers any provider the organization has not set up unless its owners turn that off (owner decision of 2026-08-12, personal BYOK; see #695 in §18). The step reads `allow_personal_api_keys` of the organization just joined. Desktop e2e files stay deleted |
+| `1f7ae19f` (#745) settings search | Profile, organization settings and web shell | adapt | The search box and its index. CourtListener is removed from the index; entries for Formación (Mi formación, Mis pupilos), Subagentes with model routes, the AGPL source offer (Acerca de), and LiTT's data download and account deletion wording are added, with Spanish words; LiTT replaces Mike in every description. The heading focus ring uses `ring-focus` instead of blue |
+| `3bcac35a` (#747) release images, source maps and Sentry tunnel | Third-party telemetry; CI workflows | reject (invariant: no third-party telemetry; LiTT builds each deploy's images from the exact SHA, AGPL §13) | `publish-images.yml` and its script, `VERSION`, `releaseName`, the `/monitoring` route and `sentryTunnel`, the image-based `db-init`, the GHCR image names in `docker-compose.yml`, the Sentry build and runtime variables and every Sentry file LiTT removed are not taken. LiTT's Dockerfiles, compose file, deployment docs, `adopt-ledger.sh` and `migrationLedger.test.ts` are unchanged |
+
+### 20.2 Conflicts and adaptations
+
+- The merge had 31 conflicting paths. The 14 modify/delete conflicts
+  (Sentry, `desktop/e2e`, `docker-images.yml`, `docs/observability.md`,
+  `docs/sentry-data-audit.md`) keep LiTT's deletion. The content conflicts
+  that come only from #747 (`.env.example`, `README.md`, the three
+  Dockerfiles, `docker-compose.yml`, `docs/deployment.md`,
+  `frontend/.env.local.example`, `frontend/next.config.ts`, the web and
+  add-in `errorReporting.ts`, `word-addin/src/env.d.ts`,
+  `word-addin/webpack.config.js`) keep LiTT's side, and so do its
+  non-conflicting hunks in `ci.yml`, `adopt-ledger.sh` and
+  `migrationLedger.test.ts`.
+- `schema.sql`: the `schema_migrations` list takes `20261029_01` in filename
+  order and `20261106_53`; the LiTT section with the guarded function is
+  appended after the training sections. On an existing database `20261029_01`
+  and then `20261106_53` apply in filename order, both unlisted.
+- `runner.reporting.test.ts` and `uploads.processing.test.ts` take upstream's
+  flap cases, asserting on the local `console.error` lines instead of Sentry
+  events.
+- A PostgreSQL opt-in suite, `chat.overview.postgres.test.ts`, loads
+  `schema.sql`, runs the parity and reproduction files, then applies
+  upstream's `20261029_01` alone and shows the parity file fails (the list
+  would show private matters' chats), and passes again after `20261106_53`.
+- The `chat.overview.sql` fixture inserts private-content access rows directly
+  and stamps the deleted organization directly, because LiTT refuses
+  `open_org_private_content` and `soft_delete_organization`.
+- Three comments that upstream wrote about Sentry now say "reported" or
+  "error log"; `rg -iw sentry` over runtime code and `package.json` files: 0.
+
+### 20.3 Owner-visible changes
+
+| What the lawyer sees | Recommendation |
+| --- | --- |
+| The chat list opens faster in a busy firm, and a private matter's chats still appear only to its team | Adopt |
+| Sign-up ends with a "Connect a model" step; it says a lawyer's own key also works in the firm unless the owners turned that off | Adopt |
+| Settings has a search box that also finds Formación, Subagentes, the source code link, data download and account deletion | Adopt |
+| Upstream would publish release images and send browser error reports to an outside service (Sentry) | Not applied: LiTT sends no data to third parties and builds its images from the exact source |
+
+### 20.4 Dependabot
+
+Upstream changes no dependency in this cycle. The open Dependabot pull
+requests (#50–#55) are left for the cycle that brings upstream's next
+dependency updates.
+

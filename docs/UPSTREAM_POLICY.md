@@ -6,14 +6,15 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `d601932abecb7f6f5f01a863b939765ef2f3075d`
-(2026-10-29), reached by the 2026-10-29 cycle (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §19).
+**Current pin:** upstream `1f7ae19fd1643fd350d564bbdbbe5801611d0765`
+(2026-11-01), reached by cycle 1 of the 2026-11-06 intake (receipt in
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20).
 The pin takes effect on `main` with that cycle's merge into `main`. The
-previous pin, `d4fd89996e638f66ca55331cb787ce38e11975e1`, was reached by the
-2026-10-24 cycle (ledger §18), the first ordinary merge after the 2026-10-23
-sync ([`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), receipt in the ledger
-§17), which made upstream an ancestor of LiTT `main`. The earlier
+previous pin, `d601932abecb7f6f5f01a863b939765ef2f3075d`, was reached by the
+2026-10-29 cycle (ledger §19); before it, `d4fd89996e638f66ca55331cb787ce38e11975e1`
+by the 2026-10-24 cycle (ledger §18), the first ordinary merge after the
+2026-10-23 sync ([`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md), receipt in
+the ledger §17), which made upstream an ancestor of LiTT `main`. The earlier
 [`UPSTREAM_RECOVERY_PLAN.md`](UPSTREAM_RECOVERY_PLAN.md) is history.
 
 ## Source model
@@ -209,6 +210,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-10-23 | `7e3607e765e199f824808e1598cc44b3f99cd690` | `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` | 442 (367 without merges) | full classification in [`UPSTREAM_SYNC_PLAN.md`](UPSTREAM_SYNC_PLAN.md) §4 and matrix in the ledger §16: kept with the base, combined, gated or reverted | strategy B: rebuild on upstream and restore shared history | S1–S7 landed on `sync/upstream-20261023`; merge commit into `main` pending (S8) | one PASS per slice (ledger §17) | supersedes the partial 2026-10-21 intake; new pin `e7ab6bd4…`; debt TD-025–TD-039 |
 | 2026-10-24 | `e7ab6bd46cb4b3c22f150e184080d29c941df5c0` | `d4fd89996e638f66ca55331cb787ce38e11975e1` | 4 | connectors per workspace (#693), organization keys central-only (#695), workspace-scoped Privacy & Data deletes (#694) and exports with the owners' member data policy (#696) | #693 adopt without its CourtListener half; #695 reject (contradicts the owner's recorded product decision of 2026-08-12: personal BYOK plus optional institutional credentials); #694 and #696 adopt with the matter gate and memory opt-in kept (ledger §18) | merge commit on `sync/upstream-cycle-20261024`, rejects reverted in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §18) | first ordinary cycle; Dependabot #17–#22 applied or noted; debt TD-040–TD-043 |
 | 2026-10-29 | `d4fd89996e638f66ca55331cb787ce38e11975e1` | `d601932abecb7f6f5f01a863b939765ef2f3075d` | 55 | parser isolation (#721 series), error identity and local failure reporting, Sentry warnings/source maps, dependency and audit-gate updates | parser isolation and dependencies adopt; error classification adapted to a local sanitized reporter; Sentry parts reject (no third-party telemetry) (ledger §19) | two merge commits (`4355fdf3`, then `d601932a`) on `sync/upstream-cycle-20261029`; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §19) | Dependabot #27–#30 covered or applied; TD-043 closed |
+| 2026-11-06 (cycle 1/10) | `d601932abecb7f6f5f01a863b939765ef2f3075d` | `1f7ae19fd1643fd350d564bbdbbe5801611d0765` | 16 (13 without merges) | set-based chat list (#736), named upload-worker failures and poll-gate repeat window (#744), export test wait (#746), onboarding Connect a model (#743), settings search (#745), release images with Sentry tunnel (#747) | chat list adapt (private-matter guard, migration `20261106_53`); #744 adapt to the local reporter; #743 and #745 adapt (personal BYOK copy; LiTT sections, no CourtListener); #746 adopt; #747 reject (no third-party telemetry; LiTT builds its images from the exact SHA) (ledger §20) | merge commit on `sync/upstream-c1-1f7ae19f`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §20) | first of ten cycles for the 334-commit intake of 2026-11-06; no new debt |
 
 ## Release metadata
 
