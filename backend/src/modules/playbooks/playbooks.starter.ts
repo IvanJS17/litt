@@ -25,6 +25,25 @@ export const PLAYBOOK_CHANGE_STALE_CODE = "playbook_change_stale";
 export const PLAYBOOK_CHANGE_STALE_MESSAGE =
   "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos.";
 
+/** 409: proposals are asked again while earlier ones still await decisions. */
+export const PLAYBOOK_CHANGES_PENDING_PROPOSAL_MESSAGE =
+  "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de pedir más.";
+
+/** 409: proposed changes are for a draft (a copy being prepared), not a ready playbook. */
+export const PLAYBOOK_NOT_DRAFT_CODE = "playbook_not_draft";
+export const PLAYBOOK_NOT_DRAFT_MESSAGE =
+  "Solo un borrador puede recibir cambios propuestos. Usa este playbook como punto de partida para obtener una copia.";
+
+/** 409: the copy is read-only while its proposed changes are computed. */
+export const PLAYBOOK_PROPOSALS_RUNNING_CODE = "playbook_proposals_running";
+export const PLAYBOOK_PROPOSALS_RUNNING_MESSAGE =
+  "Se están calculando los cambios propuestos para este playbook. Espera a que terminen.";
+
+/** 409: the change was already accepted or rejected (a second click, another editor). */
+export const PLAYBOOK_CHANGE_DECIDED_CODE = "playbook_change_decided";
+export const PLAYBOOK_CHANGE_DECIDED_MESSAGE =
+  "Este cambio ya se decidió. Recarga los cambios propuestos.";
+
 type Rule = PlaybookContent["rules"][number];
 
 /** Every rule of the playbook, loose and inside topics. */

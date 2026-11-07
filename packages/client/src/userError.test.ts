@@ -340,6 +340,9 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
         ["playbook_changes_pending", "validation", false, "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de marcarlo como listo."],
         ["playbook_model_empty", "validation", false, "Un playbook sin reglas no puede marcarse como modelo. Agrega al menos una regla."],
         ["playbook_change_stale", "conflict", true, "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos."],
+        ["playbook_not_draft", "validation", false, "Solo un borrador puede recibir cambios propuestos. Usa este playbook como punto de partida para obtener una copia."],
+        ["playbook_proposals_running", "conflict", true, "Se están calculando los cambios propuestos para este playbook. Espera a que terminen."],
+        ["playbook_change_decided", "conflict", true, "Este cambio ya se decidió. Recarga los cambios propuestos."],
     ])("shows the server's own 409 %s message", (code, kind, retryable, message) => {
         const described = describeError(
             new FakeApiError({ status: 409, code, message }),

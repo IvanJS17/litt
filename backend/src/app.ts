@@ -272,8 +272,14 @@ app.post("/orgs/:orgId/training/pupils/:userId/defenses/:defenseId/questions", c
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
-  // A draft from the questionnaire is one compile, like an import.
-  ["/playbooks/import", "/playbooks/import/upload-url", "/playbooks/drafts"],
+  // A draft from the questionnaire, or changes proposed for a copy, is one
+  // compile, like an import.
+  [
+    "/playbooks/import",
+    "/playbooks/import/upload-url",
+    "/playbooks/drafts",
+    "/playbooks/:playbookId/proposals",
+  ],
   playbookImportLimiter,
 );
 const legacyUploadRemoved = (_req: express.Request, res: express.Response) => {
