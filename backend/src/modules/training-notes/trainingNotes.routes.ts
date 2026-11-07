@@ -13,6 +13,7 @@ export const trainingNotesRouter = Router();
 trainingNotesRouter.get("/chats/:chatId", requireAuth, asyncRoute(async (req, res) => {
     const result = await getChatTurnNotes(createServerSupabase(), {
         actorId: res.locals.userId as string,
+        actorEmail: (res.locals.userEmail as string | undefined) ?? null,
         chatId: String(req.params.chatId),
         messageId: typeof req.query.message_id === "string" ? req.query.message_id : null,
     });
