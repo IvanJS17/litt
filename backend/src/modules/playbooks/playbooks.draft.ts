@@ -748,7 +748,6 @@ export async function compilePlaybookDraft(
   const { attemptId, userId, model } = work;
   const timeoutMs = playbookCompilationTimeoutMs();
   let stage: PlaybookImportStage = enterImportStage("checking_model");
-  let saved = false;
   const stopHeartbeat = keepPlaybookWorkAttended(
     db,
     "playbook_imports",
@@ -854,7 +853,6 @@ export async function compilePlaybookDraft(
     });
     // An earlier run of this same draft saved it: only record that.
     if (error && error.code !== UNIQUE_VIOLATION) throw error;
-    saved = true;
 
     stage = enterImportStage("storing_source");
     await updateImportAttempt(db, attemptId, { stage });
@@ -892,8 +890,9 @@ export async function compilePlaybookDraft(
   } catch (error) {
     const recorded = await recordDraftFailure(db, work, stage, error);
     // A failed draft leaves no playbook: its sources go with it (cascade),
-    // and their stored objects are removed.
-    if (recorded && saved) await discardDraftPlaybook(db, work);
+    // and their stored objects are removed. The discard is guarded by the
+    // draft status, so it also covers an insert whose response was lost.
+    if (recorded) await discardDraftPlaybook(db, work);
     throw error;
   } finally {
     stopHeartbeat();
@@ -908,12 +907,16 @@ export async function compilePlaybookDraft(
 export async function discardDraftPlaybook(db: Db, work: PlaybookDraftWork): Promise<void> {
   try {
     const rows = await listPlaybookSourceRows(db, work.newPlaybookId);
-    const { error } = await db
+    const { data: deleted, error } = await db
       .from("playbooks")
       .delete()
       .eq("id", work.newPlaybookId)
-      .eq("status", "draft");
+      .eq("status", "draft")
+      .select("id");
     if (error) throw error;
+    // Nothing deleted: the playbook is ready (or already gone), so its stored
+    // source files stay where they are.
+    if (!deleted?.length) return;
     await removePlaybookObjects(
       rows.map((row) => row.storageKey),
       { stage: "import.cleanup", ids: { import_id: work.attemptId, playbook_id: work.newPlaybookId } },

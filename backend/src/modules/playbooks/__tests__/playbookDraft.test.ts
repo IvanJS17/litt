@@ -525,6 +525,27 @@ describe("a draft from the questionnaire, end to end", () => {
     expect(tables.playbooks).toEqual([expect.objectContaining({ id: work.newPlaybookId, status: "ready" })]);
   });
 
+  it("keeps the stored source files of a playbook that became ready", async () => {
+    const { db, tables } = await queued();
+    storage.downloadFile.mockResolvedValue(await docx(`Cláusula quinta. ${CLAUSE}`));
+    completeText.mockResolvedValue(output([rule()]));
+    const work = tables.db_jobs[0].payload as PlaybookDraftWork;
+    await handlePlaybookDraft(db, job(work));
+    expect(tables.playbook_sources).toHaveLength(1);
+    const sourceKey = tables.playbook_sources[0].storage_key;
+
+    // The editor marked it ready; a stale row is then failed by the hook.
+    Object.assign(tables.playbooks[0], { status: "ready" });
+    Object.assign(tables.playbook_imports[0], { status: "running" });
+    storage.deleteFile.mockClear();
+    await markPlaybookDraftJobFailed(db, job(work));
+
+    expect(tables.playbooks).toEqual([expect.objectContaining({ id: work.newPlaybookId, status: "ready" })]);
+    expect(tables.playbook_sources).toHaveLength(1);
+    // Only the staged upload is cleared, never the playbook's own source file.
+    expect(storage.deleteFile).not.toHaveBeenCalledWith(sourceKey);
+  });
+
   it("refuses a model without a key with missing_api_key, records nothing and asks no model", async () => {
     getUserApiKeys.mockResolvedValue({});
     const { db, tables } = database([]);
