@@ -8,7 +8,11 @@ import {
     shareWorkflow,
     updateWorkflow,
 } from "@/app/lib/mikeApi";
-import { userFacingApiError } from "@/app/lib/userFacingError";
+import {
+    describeError,
+    errorCode,
+    userFacingApiError,
+} from "@/app/lib/userFacingError";
 import type {
     ContentVisibility,
     Document,
@@ -489,23 +493,35 @@ export function NewWorkflowModal({
                 // lands, so a retry sends only what is still missing.
                 if (type === "assistant" && pendingAssetIds.length > 0) {
                     let copyFailures = 0;
+                    // A pasante's draft is refused by a workflow without an
+                    // organization: retrying cannot help, so say why.
+                    let refusal = "";
                     for (const id of pendingAssetIds) {
                         try {
                             await copyDocumentsToWorkflowAssets(workflow.id, [
                                 id,
                             ]);
                             copiedAssetIdsRef.current.add(id);
-                        } catch {
+                        } catch (err: unknown) {
                             copyFailures += 1;
+                            if (
+                                errorCode(err) ===
+                                "training_copy_needs_organization"
+                            ) {
+                                refusal = describeError(err).message;
+                            }
                         }
                     }
                     if (copyFailures > 0) {
                         setError(
                             `Workflow created, but ${copyFailures} ${
                                 copyFailures === 1 ? "asset" : "assets"
-                            } could not be copied. Press Create again to retry the ${
-                                copyFailures === 1 ? "copy" : "copies"
-                            }.`,
+                            } could not be copied. ${
+                                refusal ||
+                                `Press Create again to retry the ${
+                                    copyFailures === 1 ? "copy" : "copies"
+                                }.`
+                            }`,
                         );
                         return;
                     }

@@ -371,6 +371,37 @@ describe("NewWorkflowModal editing", () => {
         expect(copyDocumentsToWorkflowAssets).toHaveBeenCalledTimes(2);
     });
 
+    it("says why a pasante's draft was not copied into a personal workflow", async () => {
+        // R1: the server refuses with 409 training_copy_needs_organization;
+        // retrying the same copy cannot help, so no retry is promised.
+        const user = userEvent.setup({ delay: null });
+        const detail =
+            "Este archivo es un borrador de pasante y solo puede copiarse a un workflow de una organización, donde alguien pueda aprobarlo.";
+        vi.mocked(copyDocumentsToWorkflowAssets).mockRejectedValueOnce(
+            new MikeApiError({
+                message: detail,
+                status: 409,
+                code: "training_copy_needs_organization",
+            }),
+        );
+        render(<NewWorkflowModal open onClose={vi.fn()} onCreated={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Title"), "New workflow");
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        await user.click(screen.getByRole("button", { name: "Select asset" }));
+        await user.click(
+            screen.getByRole("button", { name: "Create workflow" }),
+        );
+
+        expect(
+            await screen.findByText(
+                `Workflow created, but 1 asset could not be copied. ${detail}`,
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/Press Create again/)).not.toBeInTheDocument();
+    });
+
     it("copies assets only after the grants have been written", async () => {
         // Grants first: a refused grant stops the submit, and an asset copied
         // before it would have to be redone on the retry.

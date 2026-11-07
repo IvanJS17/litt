@@ -107,7 +107,9 @@ describe("a pasante's copy where nobody could approve it", () => {
     const result = await copyDocumentsToWorkflowAssets(fake.db, {
       workflowId: "workflow", userId: "actor", userEmail: undefined, documentIds: ["doc"],
     });
-    expect(result).toMatchObject({ ok: false, kind: "db_error" });
+    // R1: a refusal the caller can explain, not a generic database error.
+    expect(result).toEqual({ ok: false, kind: "training_copy_needs_organization" });
     expect(fake.calls.some((c) => c.op === "rpc")).toBe(false);
+    expect(fake.calls.some((c) => c.op === "delete")).toBe(true);
   });
 });

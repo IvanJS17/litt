@@ -222,6 +222,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // A pasante's version leaves LiTT only once approved for its current
     // bytes. Retrying cannot help, so the server's detail is shown as-is.
     training_approval_required: "validation",
+    // Nobody could approve a pasante's draft outside an organization, so it
+    // is not copied there; retrying the same copy cannot help.
+    training_copy_needs_organization: "validation",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

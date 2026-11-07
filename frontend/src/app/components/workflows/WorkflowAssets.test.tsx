@@ -125,6 +125,32 @@ describe("WorkflowAssets", () => {
         expect(await screen.findByText("Saved file.pdf")).toBeVisible();
     });
 
+    it("explains why a pasante's draft cannot be added to a personal workflow", async () => {
+        // R1: a 409 with its own code, not "Unable to add saved files.".
+        const { MikeApiError } = await import("@/app/lib/mikeApi");
+        const detail =
+            "Este archivo es un borrador de pasante y solo puede copiarse a un workflow de una organización, donde alguien pueda aprobarlo.";
+        copyDocumentsToWorkflowAssets.mockRejectedValueOnce(
+            new MikeApiError({
+                message: detail,
+                status: 409,
+                code: "training_copy_needs_organization",
+            }),
+        );
+        const ref = createRef<WorkflowAssetsHandle>();
+        render(
+            <WorkflowAssets ref={ref} workflowId="workflow-1" readOnly={false} />,
+        );
+        await screen.findByText("Precedent.docx");
+
+        act(() => {
+            ref.current?.addSavedDocuments([{ id: "draft-1" } as Document]);
+        });
+
+        expect(await screen.findByText(detail)).toBeVisible();
+        expect(screen.queryByText("Unable to add saved files.")).toBeNull();
+    });
+
     it("names the files an upload batch dropped and retries only those", async () => {
         const user = userEvent.setup();
         uploadWorkflowAssets.mockResolvedValue([
