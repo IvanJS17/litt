@@ -106,7 +106,8 @@ const UNVERIFIED_MAX = 20;
 const clip = (text: string, max: number) =>
     text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 
-async function selectIn<T>(
+/** Rows whose `column` is one of `ids`, read in chunks. */
+export async function selectIn<T>(
     db: Db,
     table: string,
     columns: string,
