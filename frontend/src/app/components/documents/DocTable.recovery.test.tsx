@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -156,9 +156,48 @@ describe("DocTable failure reporting", () => {
         ).toBeInTheDocument();
     });
 
-    it("reports a row delete again when its Retry fails too", async () => {
+    it("asks before deleting a single-version row and keeps the dialog as the retry", async () => {
         const user = userEvent.setup();
         vi.mocked(deleteDocument).mockRejectedValue(new Error("boom"));
+
+        render(
+            <Harness
+                documents={[makeDoc("doc-1", "Lease.pdf")]}
+                operations={makeOperations()}
+            />,
+        );
+
+        const rowActionCount = screen.getAllByRole("button", {
+            name: "Open row actions",
+        }).length;
+        await user.click(
+            screen.getAllByRole("button", { name: "Open row actions" })[0],
+        );
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete document?",
+        });
+        expect(dialog).toHaveTextContent(
+            "Lease.pdf will be permanently deleted. This can't be undone.",
+        );
+        expect(deleteDocument).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "Couldn't delete the document",
+        );
+
+        // The dialog stays open, so its own button is the retry.
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+        await waitFor(() => expect(deleteDocument).toHaveBeenCalledTimes(2));
+        // The row the user saw disappear is back.
+        expect(
+            screen.getAllByRole("button", { name: "Open row actions" }),
+        ).toHaveLength(rowActionCount);
+    });
+
+    it("does not delete a row when the confirmation is cancelled", async () => {
+        const user = userEvent.setup();
 
         render(
             <Harness
@@ -171,18 +210,12 @@ describe("DocTable failure reporting", () => {
             screen.getAllByRole("button", { name: "Open row actions" })[0],
         );
         await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
-        expect(await screen.findByRole("alert")).toHaveTextContent(
-            "Couldn't delete the document",
-        );
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete document?",
+        });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
-        await user.click(screen.getByRole("button", { name: "Retry" }));
-
-        await waitFor(() => expect(deleteDocument).toHaveBeenCalledTimes(2));
-        // The retry's own failure is reported, not swallowed.
-        expect(await screen.findByRole("alert")).toHaveTextContent(
-            "Couldn't delete the document",
-        );
-        expect(screen.getByText("Lease.pdf")).toBeInTheDocument();
+        expect(deleteDocument).not.toHaveBeenCalled();
     });
 
     it("puts a document back in its folder when moving it to the root fails", async () => {

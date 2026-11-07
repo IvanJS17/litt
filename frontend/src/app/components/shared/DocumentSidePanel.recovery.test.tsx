@@ -72,6 +72,57 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
     return { ...props, unmount: view.unmount };
 }
 
+async function confirmDelete(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+    const dialog = await screen.findByRole("dialog", {
+        name: "Delete document?",
+    });
+    await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+}
+
+describe("DocumentSidePanel delete confirmation", () => {
+    beforeEach(() => clearToasts());
+    afterEach(() => clearToasts());
+
+    it("asks before deleting a single-version document", async () => {
+        const user = userEvent.setup();
+        const onDelete = vi.fn().mockResolvedValue(undefined);
+        renderPanel({ onDelete });
+
+        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete document?",
+        });
+        expect(dialog).toHaveTextContent(
+            "Brief.docx will be permanently deleted. This can't be undone.",
+        );
+        expect(onDelete).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+        expect(onDelete).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ id: "doc-1" }),
+        );
+    });
+
+    it("does not delete when the confirmation is cancelled", async () => {
+        const user = userEvent.setup();
+        const onDelete = vi.fn();
+        renderPanel({ onDelete });
+
+        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete document?",
+        });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(
+            screen.queryByRole("dialog", { name: "Delete document?" }),
+        ).not.toBeInTheDocument();
+        expect(onDelete).not.toHaveBeenCalled();
+    });
+});
+
 describe("DocumentSidePanel failures", () => {
     beforeEach(() => clearToasts());
     afterEach(() => clearToasts());
@@ -83,7 +134,7 @@ describe("DocumentSidePanel failures", () => {
         );
         renderPanel({ onDelete });
 
-        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+        await confirmDelete(user);
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent("Couldn't delete this document");
@@ -98,17 +149,23 @@ describe("DocumentSidePanel failures", () => {
             .mockResolvedValueOnce(undefined);
         renderPanel({ onDelete });
 
-        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+        await confirmDelete(user);
         await user.click(await screen.findByRole("button", { name: "Retry" }));
+        // Retry asks again rather than deleting behind the user's back.
+        expect(onDelete).toHaveBeenCalledTimes(1);
+        const dialog = screen.getByRole("dialog", { name: "Delete document?" });
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
 
         expect(onDelete).toHaveBeenCalledTimes(2);
     });
 
     it("drops the post-delete close when the panel unmounts first", async () => {
         const user = userEvent.setup();
-        const { onClose, unmount } = renderPanel({ onDelete: vi.fn().mockResolvedValue(undefined) });
+        const onDelete = vi.fn().mockResolvedValue(undefined);
+        const { onClose, unmount } = renderPanel({ onDelete });
 
-        await user.click(screen.getByRole("button", { name: /^Delete$/ }));
+        await confirmDelete(user);
+        expect(onDelete).toHaveBeenCalledTimes(1);
         unmount();
         await new Promise((resolve) => setTimeout(resolve, 800));
 

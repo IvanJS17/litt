@@ -472,12 +472,10 @@ export function DocumentSidePanel({
             onOwnerOnlyAction?.("delete this document");
             return;
         }
-        if (versions.length > 1) {
-            setDeleteDocumentStatus("idle");
-            setConfirmDeleteDocumentOpen(true);
-            return;
-        }
-        void handleDeleteDocument();
+        // Always ask: a delete has no undo, whether it takes one version or
+        // several with it.
+        setDeleteDocumentStatus("idle");
+        setConfirmDeleteDocumentOpen(true);
     }
 
     function handleResizeMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -1122,7 +1120,11 @@ export function DocumentSidePanel({
             <ConfirmPopup
                 open={confirmDeleteDocumentOpen}
                 title="Delete document?"
-                message={`${selectedFilename} has ${versions.length} versions. Deleting this document will delete all of its versions.`}
+                message={
+                    versions.length > 1
+                        ? `${selectedFilename} has ${versions.length} versions. Deleting this document will delete all of its versions.`
+                        : `${selectedFilename} will be permanently deleted. This can't be undone.`
+                }
                 confirmLabel="Delete"
                 confirmVariant="danger"
                 confirmStatus={

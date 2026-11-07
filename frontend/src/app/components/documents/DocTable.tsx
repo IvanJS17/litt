@@ -1526,25 +1526,8 @@ export function DocTable({
             setOwnerOnlyAction("delete this document");
             return;
         }
-        const versionCount = versionsByDocId.get(doc.id)?.versions.length ?? currentVersionNumber(doc) ?? 1;
-        if (versionCount <= 1) {
-            // No confirmation dialog owns this failure, so surface it here
-            // instead of letting the rethrow become an unhandled rejection and
-            // the row reappear with no explanation.
-            void handleRemoveDoc(doc.id).catch((error) => {
-                notifyError(error, {
-                    action: "delete the document",
-                    fallback:
-                        "This file could not be deleted. Please try again.",
-                    supportNote: `Document ${doc.filename}`,
-                    // Through the same entry point, so a failed retry is
-                    // reported again and a document that has gained versions
-                    // since goes through its confirmation.
-                    onRetry: () => requestRemoveDoc(doc),
-                });
-            });
-            return;
-        }
+        // Always ask: a delete has no undo, whether it takes one version or
+        // several with it.
         setPendingDeleteStatus("idle");
         setPendingDeleteDoc(doc);
     }
@@ -4331,11 +4314,17 @@ export function DocTable({
         : 0;
     const pendingDeleteDocMessage = pendingDeleteDoc ? (
         <div className="space-y-2">
-            <p>
-                <span className="font-medium text-gray-950">{pendingDeleteDoc.filename}</span> has{" "}
-                {pendingDeleteDocVersionCount} {pendingDeleteDocVersionCount === 1 ? "version" : "versions"}. Deleting
-                this document will delete all of its versions.
-            </p>
+            {pendingDeleteDocVersionCount > 1 ? (
+                <p>
+                    <span className="font-medium text-gray-950">{pendingDeleteDoc.filename}</span> has{" "}
+                    {pendingDeleteDocVersionCount} versions. Deleting this document will delete all of its versions.
+                </p>
+            ) : (
+                <p>
+                    <span className="font-medium text-gray-950">{pendingDeleteDoc.filename}</span> will be permanently
+                    deleted. This can&apos;t be undone.
+                </p>
+            )}
         </div>
     ) : undefined;
     const pendingDeleteFolderMessage = pendingDeleteFolder ? (
