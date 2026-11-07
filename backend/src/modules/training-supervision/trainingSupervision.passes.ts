@@ -31,7 +31,7 @@ import {
     URGENCY_PASS_REASONS,
 } from "../../lib/trainingPass";
 import { isUuid } from "../../lib/uuid";
-import { assertLearningAccess, LEARNING_NOT_FOUND } from "./trainingSupervision.access";
+import { assertCurrentMentor, LEARNING_NOT_FOUND } from "./trainingSupervision.access";
 
 export const URGENCY_PASS_NOTE_MAX_CHARS = 500;
 
@@ -41,12 +41,6 @@ const PASS_LIST_LIMIT = 100;
 const PROJECT_NOT_FOUND = "No encontramos ese asunto.";
 
 type MentorArgs = { actorId: string; orgId: unknown; traineeId: unknown };
-
-/** The pupil's current mentor, and nobody else (not even the pupil). */
-async function assertCurrentMentor(db: Db, args: MentorArgs): Promise<ServiceResult<null>> {
-    if (args.actorId === args.traineeId) return failure("not_found", LEARNING_NOT_FOUND);
-    return assertLearningAccess(db, args);
-}
 
 function toPass(row: Record<string, unknown>): TrainingUrgencyPass {
     return {
