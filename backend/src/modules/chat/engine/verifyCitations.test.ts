@@ -315,7 +315,7 @@ describe("shared quote normalization", () => {
     const source = "A long source without the requested phrase. ".repeat(500);
     try {
       const annotations = Array.from({ length: 200 }, (_, ref) => ({ ...docAnnotation([{ page: 1, quote: `missing phrase ${ref}` }]), ref }));
-      const result = await verifyCitations(annotations, async () => source, async () => []);
+      const result = await verifyCitations(annotations, async () => source);
       expect(result).toHaveLength(200);
       expect(normalize.mock.calls.filter(([text]) => text === source)).toHaveLength(2);
     } finally { normalize.mockRestore(); }
@@ -323,8 +323,8 @@ describe("shared quote normalization", () => {
 
   it("does not reuse stale normalized text between verification batches", async () => {
     const annotation = docAnnotation([{ page: 1, quote: "new words" }]);
-    const old = await verifyCitations([annotation], async () => "OLD WORDS", async () => []);
-    const current = await verifyCitations([annotation], async () => "NEW WORDS", async () => []);
+    const old = await verifyCitations([annotation], async () => "OLD WORDS");
+    const current = await verifyCitations([annotation], async () => "NEW WORDS");
     expect(old[0]).toMatchObject({ verified: false });
     expect(current[0]).toMatchObject({ verified: true, quote: "NEW WORDS" });
   });

@@ -15,7 +15,7 @@ import { extractDocumentMarkdown } from "./tabular.extract";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
 import { type Db } from "./tabular.shared";
-import { loadReviewRows, type ReviewRow } from "../../lib/tabularReadAccess";
+import { type ReviewRow } from "../../lib/tabularReadAccess";
 
 // Row readability lives in lib so the account export applies the same rule
 // without importing this module (see lib/tabularReadAccess.ts).

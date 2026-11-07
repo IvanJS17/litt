@@ -33,7 +33,6 @@ import {
     resolveEdit,
     approveTrainingVersion,
 } from "./documents.service";
-import { sendServiceFailure } from "../../lib/serviceResult";
 
 export const documentsRouter = Router();
 
