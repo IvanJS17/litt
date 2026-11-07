@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "../../lib/concurrency";
 import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocumentVersion, copyDocumentVersionFiles } from "../documents/documents.service";
 
 // workflows assets — implementation behind the module facade.
@@ -11,7 +12,7 @@ import { captureInlineDocumentCleanup, completeInlineDocumentCleanup, createDocu
 import { randomUUID } from "node:crypto";
 import { type Db } from "../../lib/supabase";
 import { findAppError } from "../../lib/appError";
-import { ensureDocAccess } from "../../lib/access";
+import { createDocumentAccessChecker } from "../../lib/access";
 import { findDocumentsOutsideWorkspace } from "../../lib/documentWorkspace";
 import { convertedPdfKey } from "../../lib/convert";
 import { storageKey } from "../../lib/storage";
@@ -131,10 +132,9 @@ export async function copyDocumentsToWorkflowAssets(
 
   // Edit rights on the workflow never stand in for access to the files being
   // copied: each source document is checked on its own.
-  const accessResults = await Promise.all(
-    sourceDocuments.map((document) =>
-      ensureDocAccess(document, userId, userEmail, db),
-    ),
+  const check = createDocumentAccessChecker(userId, userEmail, db);
+  const accessResults = await mapWithConcurrency(
+    sourceDocuments, 5, document => check(document),
   );
   if (accessResults.some((result) => !result.ok)) {
     return { ok: false, kind: "documents_not_found" };

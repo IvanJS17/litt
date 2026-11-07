@@ -2213,3 +2213,24 @@ it("checks each project/workflow once across document batches and never shares s
     expect(from.mock.calls.filter(([table]) => table === "projects")).toHaveLength(1);
     expect(from.mock.calls.filter(([table]) => table === "workflows")).toHaveLength(1);
 });
+
+// Upstream bounds the per-document administrative grant lookups here. LiTT
+// has no administrative path to another member's standalone document (C2,
+// can_access_org_private_content is false), so none is readable and no grant
+// lookup is made at all.
+it("never admits another member's standalone documents and asks no administrative grant", async () => {
+    const docs = Array.from({ length: 30 }, (_, i) => ({ id: `d${i}`, user_id: "other", project_id: null, org_id: "org" }));
+    const db = makeDb({ documents: docs });
+    db.rpc = vi.fn(async () => ({ data: true, error: null }));
+    expect(await filterAccessibleDocumentIds(docs.map(d => d.id), "reader", null, db)).toEqual([]);
+    expect(db.rpc).not.toHaveBeenCalled();
+});
+
+it("shares only an uploader's organisation-membership verdict within one document lookup", async () => {
+    const docs = Array.from({ length: 120 }, (_, i) => ({ id: `d${i}`, user_id: "reader", project_id: null, org_id: "org" }));
+    const db = makeDb({ documents: docs, organizations: [{ id: "org", kind: "team" }], org_members: [{ org_id: "org", user_id: "reader", role: "member" }] });
+    const from = vi.spyOn(db, "from");
+    expect(await filterAccessibleDocumentIds(docs.map(d => d.id), "reader", null, db)).toEqual(docs.map(d => d.id));
+    expect(from.mock.calls.filter(([table]) => table === "organizations")).toHaveLength(1);
+    expect(from.mock.calls.filter(([table]) => table === "org_members")).toHaveLength(1);
+});

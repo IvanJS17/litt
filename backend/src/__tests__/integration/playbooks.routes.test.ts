@@ -681,6 +681,30 @@ describe("playbook supplementary documents over HTTP", () => {
     expect(deleteFile).toHaveBeenCalledWith(STAGED_SOURCE_KEY);
   });
 
+  // R3 of upstream cycle 2: a malformed :playbookId is refused before the
+  // handler runs, so its finally never cleared the caller's staged copy.
+  it("clears the caller's staged upload when the playbook id cannot exist", async () => {
+    deleteFile.mockResolvedValue(undefined);
+
+    const response = await request(app)
+      .post("/playbooks/not-a-uuid/sources")
+      .send({ storageKey: STAGED_SOURCE_KEY, filename: "a.pdf" });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ detail: "Playbook not found." });
+    expect(from).not.toHaveBeenCalled();
+    expect(deleteFile).toHaveBeenCalledWith(STAGED_SOURCE_KEY);
+  });
+
+  it("leaves another account's object alone when the playbook id cannot exist", async () => {
+    const response = await request(app)
+      .post("/playbooks/not-a-uuid/sources")
+      .send({ storageKey: "playbooks/u2/source-uploads/11111111-2222-4333-8444-555555555555.pdf", filename: "a.pdf" });
+
+    expect(response.status).toBe(404);
+    expect(deleteFile).not.toHaveBeenCalled();
+  });
+
   it("never deletes an object outside the caller's staging prefix", async () => {
     from.mockImplementation(() => queryReturning(playbookRow()));
 

@@ -1,3 +1,4 @@
+import { createTextExtractionCache } from "../../lib/textExtractionCache";
 // extraction body — implementation behind the module facade.
 import { assertAuthorizationStamp } from "../../lib/authorizationEpoch";
 import { ExtractionLimitError } from "../../lib/extraction/limits";
@@ -34,6 +35,9 @@ function reportLeaseLost(
     });
     return failure;
 }
+
+// Queue jobs may share a source; revision keys prevent stale in-place edits.
+const workerTextCache = createTextExtractionCache();
 
 export interface ExtractionDeps {
     db: Db;
@@ -205,6 +209,7 @@ export async function runExtractionJob(
         //    tailing /generate request sees them live. Every cell write is
         //    stamped with — and, once terminal, guarded by — this generation.
         const { processed, missing, error } = await extractRowColumns({
+            textCache: workerTextCache,
             reportFailure: false,
             db,
             reviewId,

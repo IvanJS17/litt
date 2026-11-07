@@ -1009,6 +1009,9 @@ export function AssistantChatColumn({
         [registerPane, paneId, canWrite, chatLoading],
     );
 
+    const isDocReloading = useCallback((id: string) => reloadingDocIds.has(id), [reloadingDocIds]);
+    const isEditReloading = useCallback((id: string) => reloadingEditIds.has(id), [reloadingEditIds]);
+
     return (
         <DocumentWorkspaceScope orgId={attachmentOrgId}>
             {/* Chat column */}
@@ -1198,12 +1201,8 @@ export function AssistantChatColumn({
                                                             handleEditResolved
                                                         }
                                                         onEditError={handleEditError}
-                                                        isDocReloading={(docId) =>
-                                                            reloadingDocIds.has(docId)
-                                                        }
-                                                        isEditReloading={(editId) =>
-                                                            reloadingEditIds.has(editId)
-                                                        }
+                                                        isDocReloading={isDocReloading}
+                                                        isEditReloading={isEditReloading}
                                                         resolvedEditStatuses={
                                                             resolvedEditStatuses
                                                         }

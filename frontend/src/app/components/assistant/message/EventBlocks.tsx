@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useMarkdownCheckpoint } from "./markdownCheckpoint";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { useReasoningDisclosure } from "@/shared/hooks/useReasoningDisclosure";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -83,10 +84,13 @@ export function EventBlock({
 export function ReasoningContent({
     text,
     label = "Thought process",
+    streaming = false,
 }: {
     text: string;
     label?: string;
+    streaming?: boolean;
 }) {
+    const {richText, plainTail} = useMarkdownCheckpoint(text, streaming);
     const viewportRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const [hasMoreBelow, setHasMoreBelow] = useState(false);
@@ -142,19 +146,8 @@ export function ReasoningContent({
                     ref={contentRef}
                     className="text-sm font-serif text-gray-400 prose prose-sm max-w-none [&>*]:text-gray-400 [&>*]:text-sm"
                 >
-                    <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                            code: (props) => (
-                                <code
-                                    className="font-serif text-gray-600"
-                                    {...withoutMarkdownNode(props)}
-                                />
-                            ),
-                        }}
-                    >
-                        {text}
-                    </ReactMarkdown>
+                    <ReasoningMarkdown text={richText} />
+                    {plainTail && <span className="whitespace-pre-wrap">{plainTail}</span>}
                 </div>
             </div>
             {hasMoreBelow && (
@@ -167,6 +160,22 @@ export function ReasoningContent({
         </div>
     );
 }
+
+const ReasoningMarkdown = memo(function ReasoningMarkdown({text}: {text: string}) {
+    return (<ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            code: (props) => (
+                                <code
+                                    className="font-serif text-gray-600"
+                                    {...withoutMarkdownNode(props)}
+                                />
+                            ),
+                        }}
+                    >
+                        {text}
+                    </ReactMarkdown>);
+});
 
 export function ReasoningBlock({
     text,
@@ -203,7 +212,7 @@ export function ReasoningBlock({
                         : "Thought process"
                 }
             />
-            {isContentOpen && <ReasoningContent text={text} />}
+            {isContentOpen && <ReasoningContent text={text} streaming={isStreaming} />}
         </EventBlock>
     );
 }

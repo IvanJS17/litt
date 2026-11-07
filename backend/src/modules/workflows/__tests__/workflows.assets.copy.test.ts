@@ -13,6 +13,8 @@ vi.mock("../workflows.access", async (original) => ({
 vi.mock("../../../lib/access", async (original) => ({
   ...(await original<typeof import("../../../lib/access")>()),
   ensureDocAccess: mocks.docAccess,
+  // Asset copies check each source through the batch checker (upstream #749).
+  createDocumentAccessChecker: () => mocks.docAccess,
 }));
 vi.mock("../../../lib/documentVersions", async (original) => ({
   ...(await original<typeof import("../../../lib/documentVersions")>()),

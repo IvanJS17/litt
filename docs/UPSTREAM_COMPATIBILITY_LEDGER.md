@@ -1114,3 +1114,79 @@ owner's approval of 2026-11-06 (§20) covers this cycle.
 Upstream changes no dependency beyond #752, which LiTT already has. The open
 Dependabot pull requests are left for the cycle that brings upstream's next
 dependency updates.
+
+## 22. Cycle 2026-11-07, 3 of 10
+
+Pin `27683564a5b72c20d5f2796bf826f3146a8c7bfe` (2026-10-30), a commit on the
+branch of upstream #749 and an ancestor of its merge `d0a7ca75`. The cycle
+merges `14d695f1..27683564`: 43 commits, none of them merges, 157 files.
+Nothing after the pin is integrated.
+
+### 22.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| SQL C1–C7, H2–H6 (`20261030_01`…`_11`) | `43eeb809` `4dd610d3` `6d52372f` `48cb8419` `c9f47a1f` `4a55dd26` `a9a146e9` `498d49ef` `1b4eb570` `02d075a4` `b5b39ab2` `f03918ad` `b97fbb5f` | adopt, except `org_members_departure_items` in `20261030_04` (adapt, 22.2) |
+| Picker and directory in SQL (`20261030_20`, `_21`) | `4de4c8d2` `3b981481` | adapt: LiTT private-matter backstop kept in `searchProjectDirectory` |
+| Bounded rendering and reuse: tabular, Word add-in, PDF, DOCX comments, documents, chat, citations | `31d19862` `2fb4f0f5` `c28c6a16` `98f01a2b` `e6d30d96` `8b8c09ed` `27ffe38c` `3ca4d321` `b017e5f9` `3038feb5` `01bb3ad4` `e74a9e77` `f3c5a8b0` `2fb278a3` `3c461af5` `62baac62` `3a3a69ae` `b87cdbe2` `277ed6de` `eb22582b` `d7084ed6` `f2ffe4a9` `3b061c62` | adopt; CourtListener case-citation paths in `c28c6a16`/`f2ffe4a9` stay removed |
+| Settings search focus | `d4451b1f` | adopt |
+| Sentry stack paths | `fe8381fa` | reject (no third-party telemetry); no net change |
+| E2E | `4ef9699d` | adopt without the Slack connector LiTT does not have |
+| E2E development renderer | `efc0cdcd` `27683564` | reject: LiTT runs only the production renderer (TD-024); no net change |
+
+### 22.2 Functions created or redefined, and LiTT C2
+
+Every function the tranche (re)defines was compared with LiTT's last
+definition and upstream's previous one. Only `org_members_departure_items`
+had a LiTT change (C2 point 3, `20261023_13`). The list helpers
+(`project_list_access`, `review_list_access`, `workflow_list_access`,
+`search_project_directory`) collect candidates and still take each verdict
+from `project_access_role`, `review_access_role` or `workflow_access_role`,
+which carry `project_private_matter_denied`. `org_private_access_role`,
+`org_private_document_access` and `list_org_private_content_access` still
+require `can_access_org_private_content`, which is false in LiTT.
+`find_document_text`, `document_text_access` and `organization_audit_events`
+resolve projects through `project_access_role`.
+
+- `20261030_51_litt_departure_private_matter.sql` re-creates
+  `org_members_departure_items` with upstream's new text plus the matter
+  exclusion. `schema.sql` defines that version once, in its LiTT section;
+  upstream's unguarded copy is replaced by a pointer. The older bodies in
+  upstream's part of the file and in the `20261023_13` section stay because
+  SQL functions defined earlier call it and each LiTT section mirrors its
+  shipped migration.
+- `searchProjectDirectory` (TS) asks `private_matter_denied_project_ids`
+  about the page before hydrating documents and fails closed.
+
+Proof: `backend/src/__tests__/sql/performance.litt-private-matters.sql` (run
+by the schema-drift loop with upstream's `performance.*.sql`) checks owner,
+admin and an overridden member against all of the functions above, the team
+as a positive control, and departure.
+`littPrivateMatterLists.postgres.test.ts` shows it fails with upstream's
+`20261030_04` alone and with the guard switched off.
+
+### 22.3 Upstream SQL tests under LiTT
+
+Upstream's `performance.*.sql` assume owner/admin openings of private content.
+In LiTT `open_org_private_content` refuses, so the openings are recorded
+directly and must grant nothing; parity with the per-item verdict is kept.
+`performance.actors.sql` expects a recorded actor address, which LiTT does not
+store (account erasure, 2026-10-24). `performance.private.sql` no longer
+includes `orgs.privateContent.sql`, `orgs.auditPrivateContent.sql` and
+`orgs.auditPagination.sql`, which already failed on LiTT main for that
+reason and never ran in LiTT CI; it asserts the refusal instead.
+
+### 22.4 Also in this cycle
+
+- Reservation R3 of the cycle-2 review: `POST /playbooks/:playbookId/sources`
+  with an id that cannot exist now clears the caller's staged upload.
+- `PROJECT_STATUS.md`: production and `main` named separately (R2).
+
+### 22.5 Owner-visible changes
+
+Lists, the document picker, tabular reviews, Word edits and PDF pages respond
+faster on large matters. Nothing a lawyer can see or reach changes.
+
+### 22.6 Dependabot
+
+Upstream's `word-addin/package-lock.json` change in this range is taken as merged; the open Dependabot pull requests stay for the dependency cycle (9 of 10).

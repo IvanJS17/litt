@@ -11,17 +11,17 @@
 
 ### Production and integration 2026-11-06
 
-- **Production:** `main` `fe5c9070` (PR #60) is deployed since 2026-11-06
-  22:30 CST. It carries training layer 1 (1a and 1b with its UI and
+- **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
+  22:30 CST; `main` is now `0823af54` (cycles 1 and 2 of 10, not deployed). It carries training layer 1 (1a and 1b with its UI and
   follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycle 1 of 10 is in `main`
-  `6f985097` (PR #61); production does not run it yet. Cycle 2 of 10
-  (`sync/upstream-c2-14d695f1`) is in review.
-- **Upstream pin:** `1f7ae19fd1643fd350d564bbdbbe5801611d0765` (2026-10-30)
-  on `main`; cycle 2 moves it to `14d695f176152367cf44e89e200a04778b353b6d`
-  (2026-11-04) when it is merged. Policy:
+- **Integrated, not deployed:** upstream sync cycles 1 and 2 of 10 are in
+  `main` `0823af54` (PRs #61 and #62); production does not run them yet.
+  Cycle 3 of 10 (`sync/upstream-c3-27683564`) is in review.
+- **Upstream pin:** `14d695f176152367cf44e89e200a04778b353b6d` (2026-11-04)
+  on `main`; cycle 3 moves it to `27683564a5b72c20d5f2796bf826f3146a8c7bfe`
+  (2026-10-30, #749 branch) when it is merged. Policy:
   [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
-  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§21.
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§22.
 
 ### Training layer 1a (2026-11-06)
 
