@@ -10,6 +10,9 @@ import {
 
 import { cn } from "../lib/utils";
 
+/** Lines the composer grows to before its text scrolls. */
+const COMPOSER_MAX_LINES = 6;
+
 interface ChatInputProps {
     value: string;
     onValueChange: (value: string) => void;
@@ -65,14 +68,21 @@ export function ChatInput({
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const inputAreaRef = React.useRef<HTMLDivElement>(null);
 
-    // 160px is the effective cap: a narrow-pane adaptation tighter than the
-    // web composer's max-h-48 (192px), which the textarea also carries so a
-    // growing value can never swallow the pane before this effect runs.
+    // The cap is a whole number of lines (6 × 24px = 144px), a narrow-pane
+    // adaptation tighter than the web composer's max-h-48 (192px), which the
+    // textarea also carries so a growing value can never swallow the pane
+    // before this effect runs. Past the cap the text scrolls inside the
+    // field; with whole lines, the scrolled-to-the-end view starts on a line
+    // boundary instead of cutting the top line in half.
     const resizeTextarea = React.useCallback((): void => {
         const el = textareaRef.current;
         if (!el) return;
+        const lineHeight =
+            Number.parseFloat(getComputedStyle(el).lineHeight) || 24;
+        const cap = lineHeight * COMPOSER_MAX_LINES;
         el.style.height = "0px";
-        el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+        el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
+        el.style.overflowY = el.scrollHeight > cap ? "auto" : "hidden";
     }, []);
 
     // Auto-grow when content changes.

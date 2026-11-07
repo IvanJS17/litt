@@ -7,6 +7,12 @@
 import { test, expect } from "./support/fixtures";
 import type { Page } from "@playwright/test";
 
+const LONG_PROMPT =
+  "Revisa la cláusula segunda del contrato de arrendamiento comercial y dime si el mantenimiento mayor a cargo del arrendatario es razonable; " +
+  "compara la pena convencional por terminación anticipada con la actualización de la renta conforme al INPC y señala cualquier contradicción " +
+  "con el convenio de confidencialidad, cláusula por cláusula, citando el texto exacto de cada una.";
+
+
 async function mockProfile(
   page: Page,
   profile: Record<string, unknown>,
@@ -62,4 +68,31 @@ test.describe("profile theme", () => {
 
     await expect(page.locator("html")).not.toHaveClass(/(^|\s)dark(\s|$)/);
   });
+});
+
+test("scrolls long composer text on whole lines instead of cutting the top one", async ({
+  addin,
+  page,
+}) => {
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const textarea = page.getByPlaceholder("How can I help?");
+  await textarea.fill(LONG_PROMPT);
+
+  await expect
+    .poll(() => textarea.evaluate((element) => getComputedStyle(element).overflowY))
+    .toBe("auto");
+  const metrics = await textarea.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    scrollTop: element.scrollTop,
+    lineHeight: Number.parseFloat(getComputedStyle(element).lineHeight),
+  }));
+  // Taller than the cap, so the text scrolls inside the field...
+  expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+  // ...and the field holds whole lines, so the end of the text starts on a
+  // line boundary.
+  expect(metrics.clientHeight % metrics.lineHeight).toBe(0);
+  expect(metrics.clientHeight / metrics.lineHeight).toBe(6);
 });
