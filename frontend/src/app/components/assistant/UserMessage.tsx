@@ -6,17 +6,12 @@ import { ClipboardCheck, Waypoints } from "lucide-react";
 import { playbookPath } from "../playbooks/PlaybookTable";
 import { FileTypeIcon } from "../shared/FileTypeIcon";
 import type { MessageFile } from "../shared/types";
-import { LIQUID_GLASS_FLAT_CLASS } from "@/shared/ui/LiquidGlassUI";
+import { LIQUID_GLASS_FLAT_CLASS, ExcerptModalUI, ExcerptPillUI } from "@mike/ui";
 import {
     parseExcerpts,
     type MessageExcerpt,
-} from "@/shared/lib/messageExcerpts";
-import { ExcerptModalUI } from "@/shared/ui/ExcerptModalUI";
-import { ExcerptPillUI } from "@/shared/ui/ExcerptPillUI";
-import {
-    TrainingNoteUI,
-    type TrainingNoteView,
-} from "@/shared/ui/TrainingNoteUI";
+} from "@mike/client";
+import { TrainingNoteUI, type TrainingNoteView } from "@mike/ui";
 
 interface Props {
     content: string;

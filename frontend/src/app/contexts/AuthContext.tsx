@@ -20,7 +20,7 @@ import {
 } from "@/app/lib/authApi";
 import { AUTH_SESSION_INVALIDATED_EVENT } from "@/app/lib/authEvents";
 import { isOnAuthRoute, notifyError } from "@/app/lib/userFacingError";
-import { clearToasts } from "@/shared/ui/ToastUI";
+import { clearToasts } from "@mike/ui";
 
 type User = AuthUser;
 

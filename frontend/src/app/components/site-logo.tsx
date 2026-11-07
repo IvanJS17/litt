@@ -1,4 +1,4 @@
-import { LittWordmark, type LittWordmarkX } from "@/shared/ui/LittBrandUI";
+import { LittWordmark, type LittWordmarkX } from "@mike/ui";
 
 /** LiTT's own public page. MikeOSS, the upstream, is credited in the README. */
 export const LITT_HOME_URL = "https://asteroitt.com/#producto-litt";

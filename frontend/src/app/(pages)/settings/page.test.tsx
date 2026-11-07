@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import SettingsPage from "./page";
 import { deleteAccount } from "@/app/lib/mikeApi";
-import { ToastViewportUI, clearToasts } from "@/shared/ui/ToastUI";
+import { ToastViewportUI, clearToasts } from "@mike/ui";
 import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
 import { needsMfaVerification } from "@/app/components/popups/MfaVerificationPopup";
 

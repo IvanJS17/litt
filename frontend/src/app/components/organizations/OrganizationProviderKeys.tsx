@@ -30,10 +30,8 @@ import {
   type OrgApiKeySettings,
 } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
-import type { RouterSlug } from "@/shared/lib/modelCatalog";
-import { GlassCardUI } from "@/shared/ui/GlassCardUI";
-import { PillButtonUI } from "@/shared/ui/PillButtonUI";
-import { ToggleSwitchUI } from "@/shared/ui/ToggleSwitchUI";
+import type { RouterSlug } from "@mike/client";
+import { GlassCardUI, PillButtonUI, ToggleSwitchUI } from "@mike/ui";
 
 // An organization's model providers: the keys its work runs on, the models
 // each may run, and whether a member's own key may stand in where it has

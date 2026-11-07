@@ -1,9 +1,13 @@
 # Build from the repository root: `docker build -f frontend/Dockerfile .`
-# (docker-compose.yml does the same). The image needs the frontend plus the
-# one sibling directory production code reaches through a tsconfig `paths`
-# alias: `@mike/contracts` -> /packages/contracts. Nothing else. `next build`
-# type-checks tsconfig.build.json, which leaves test files -- and their
-# imports of shared fixtures and add-in sources -- out of the image.
+# (docker-compose.yml does the same). The image mirrors the repository layout
+# under /app: the frontend at /app/frontend plus the sibling directories
+# production code reaches through tsconfig `paths` aliases, `@mike/contracts`
+# -> /app/packages/contracts, `@mike/ui` -> /app/packages/ui and
+# `@mike/client` -> /app/packages/client. Nothing else. The layout matters:
+# next.config.ts sets the Turbopack root to the frontend's parent directory,
+# which must contain the packages. `next build` type-checks
+# tsconfig.build.json, which leaves test files -- and their imports of shared
+# fixtures and add-in sources -- out of the image.
 #
 # A new outside dependency needs a COPY here and a tsconfig alias that
 # resolves to the same path; frontend/src/__tests__/architecture.test.ts
@@ -16,11 +20,13 @@
 # static assets and `public/`, so the image fits the shared production host.
 FROM node:22-slim AS build
 
-WORKDIR /app
+WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-COPY packages/contracts /packages/contracts
+COPY packages/contracts /app/packages/contracts
+COPY packages/ui /app/packages/ui
+COPY packages/client /app/packages/client
 
 # AGPL-3.0 §13: the full SHA of the published commit this image is built
 # from. next.config.ts inlines it into the "Código fuente" link and fails the

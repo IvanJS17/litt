@@ -1,6 +1,6 @@
 import { useMarkdownCheckpoint } from "./markdownCheckpoint";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
-import { useReasoningDisclosure } from "@/shared/hooks/useReasoningDisclosure";
+import { useReasoningDisclosure, DocEditBlockUI, DocFindBlockUI, DocReadBlockUI } from "@mike/ui";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Download, Loader2 } from "lucide-react";
@@ -16,11 +16,6 @@ import { notifyError } from "@/app/lib/userFacingError";
 import { TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
 import type { AssistantEvent } from "../../shared/types";
 import { FileTypeIcon } from "../../shared/FileTypeIcon";
-import {
-    DocEditBlockUI,
-    DocFindBlockUI,
-    DocReadBlockUI,
-} from "@/shared/ui/DocumentEventBlocksUI";
 import { RESPONSE_GLASS_SURFACE, withoutMarkdownNode } from "./messageStyles";
 
 const THINKING_PHRASES = [

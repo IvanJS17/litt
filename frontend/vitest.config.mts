@@ -43,54 +43,42 @@ export default defineConfig({
                 find: /^react\/(jsx-runtime|jsx-dev-runtime)$/,
                 replacement: resolvePath("./node_modules/react/$1.js"),
             },
+            // The shared packages, by the same names tsconfig.json maps.
             {
-                find: /^@mike\/upload-session-client$/,
-                replacement: resolvePath("./src/shared/api/uploadSessionClient.ts"),
+                find: /^@mike\/ui$/,
+                replacement: resolvePath("../packages/ui/src/index.ts"),
             },
-            // Word add-in sources under test import the shared model catalog
-            // through the add-in's alias.
             {
-                find: /^@mike\/model-catalog$/,
-                replacement: resolvePath("./src/shared/lib/modelCatalog.ts"),
+                find: /^@mike\/client$/,
+                replacement: resolvePath("../packages/client/src/index.ts"),
             },
             {
                 find: /^@\/(.*)$/,
                 replacement: resolvePath("./src/$1"),
             },
-            // The Word add-in consumes shared modules through per-file
-            // `@mike/*` aliases (see word-addin/webpack.config.js). Mirror them
-            // so add-in modules under test here resolve the same files.
-            {
-                find: "@mike/user-error",
-                replacement: resolvePath("./src/shared/lib/userError.ts"),
-            },
-            {
-                find: "@mike/toast-store",
-                replacement: resolvePath("./src/shared/lib/toastStore.ts"),
-            },
-            {
-                find: "@mike/error-notifier",
-                replacement: resolvePath("./src/shared/lib/errorNotifier.ts"),
-            },
-            {
-                find: "@mike/response-selection-menu-ui",
-                replacement: resolvePath("./src/shared/ui/ResponseSelectionMenuUI.tsx"),
-            },
-            {
-                find: "@mike/toast-ui",
-                replacement: resolvePath("./src/shared/ui/ToastUI.tsx"),
-            },
-            {
-                find: "@mike/secure-uuid",
-                replacement: resolvePath("./src/shared/lib/secureUuid.ts"),
-            },
-            {
-                find: "@mike/upload-session-client",
-                replacement: resolvePath(
-                    "./src/shared/api/uploadSessionClient.ts",
-                ),
-            },
         ],
+        // packages/ui and packages/client have no node_modules of their own.
+        // Vite resolves a bare import from the importer's directory, which
+        // for a file under packages/ never reaches frontend/node_modules;
+        // dedupe makes these resolve from this package instead. Mirror
+        // packages/*/package.json peerDependencies plus the test tooling the
+        // packages' colocated tests import.
+        dedupe: [
+            "react",
+            "react-dom",
+            "clsx",
+            "tailwind-merge",
+            "lucide-react",
+            "@radix-ui/react-dropdown-menu",
+            "vitest",
+            "@testing-library/react",
+            "@testing-library/user-event",
+            "postcss",
+        ],
+    },
+    server: {
+        // The shared packages' tests and sources sit outside this directory.
+        fs: { allow: [resolvePath("..")] },
     },
     test: {
         globals: true,
@@ -105,7 +93,14 @@ export default defineConfig({
         // and enabled by this (there harmless) flag on 22.0–22.11.
         execArgv: ["--experimental-require-module"],
         // Unit tests only. Keep any Playwright e2e specs (*.spec.ts) out.
-        include: ["src/**/*.test.{ts,tsx}"],
+        include: [
+            "src/**/*.test.{ts,tsx}",
+            // The shared packages' colocated tests run here: they need the
+            // same jsdom + Testing Library setup, and this is the one Vitest
+            // the web app and the add-in both already depend on.
+            "../packages/ui/src/**/*.test.{ts,tsx}",
+            "../packages/client/src/**/*.test.{ts,tsx}",
+        ],
         exclude: ["node_modules/**", "e2e/**", "**/*.spec.ts"],
         // Generous timeouts to absorb cold-start jsdom + transform latency on CI.
         testTimeout: 20000,
