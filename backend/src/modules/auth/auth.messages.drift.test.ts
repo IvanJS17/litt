@@ -45,11 +45,11 @@ const INTENTIONAL_CLIENT_FALLTHROUGH = new Set([
 
 function clientCodes(): Set<string> {
   const source = readFileSync(CLIENT_TABLE, "utf8");
-  const start = source.indexOf("export const AUTH_ERROR_MESSAGES");
+  const start = source.indexOf("export const AUTH_ERROR_SENTENCES");
   const end = source.indexOf("} as const satisfies", start);
-  expect(start, "AUTH_ERROR_MESSAGES not found in the web app table").
+  expect(start, "AUTH_ERROR_SENTENCES not found in the web app table").
     toBeGreaterThan(-1);
-  expect(end, "AUTH_ERROR_MESSAGES is not terminated as expected").
+  expect(end, "AUTH_ERROR_SENTENCES is not terminated as expected").
     toBeGreaterThan(start);
   const table = source.slice(start, end);
   return new Set(

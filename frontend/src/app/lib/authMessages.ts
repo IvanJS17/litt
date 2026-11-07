@@ -11,127 +11,131 @@
  * auth.messages.ts`, which also owns the sentence a non-browser client
  * (the Word add-in) receives as `detail`.
  *
+ * The sentences live in the catalog (`auth.errors` in packages/i18n/messages)
+ * and this file maps each code to one of them. The tables translate when a
+ * sentence is read, not when the table is built, so a table a screen builds
+ * at module scope still follows the locale the app configured.
+ *
  * A screen passes `authMessages({ ... })` when its wording genuinely has to
  * change with the context — "log in again before changing your email" is
  * not the same instruction as "before changing your password" — and the
  * override sits next to the call so the delta is visible.
  */
 
+import { clientTranslator, sourceTranslator, type ClientTranslator } from "@mike/client";
+import type { Messages } from "@litt/i18n";
 import {
     MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
 } from "@/app/components/auth/passwordPolicy";
 
-export const TOO_MANY_ATTEMPTS_MESSAGE =
-    "Too many attempts. Wait a moment and try again.";
+type AuthSentence = keyof Messages["auth"]["errors"];
 
-const SESSION_EXPIRED_MESSAGE = "Your session has expired. Log in again.";
+/** The sentence in `t`'s locale, with the password policy's numbers. */
+function say(t: ClientTranslator, sentence: AuthSentence): string {
+    // A sentence ignores the numbers it does not name.
+    return t(`auth.errors.${sentence}`, {
+        min: MIN_PASSWORD_LENGTH,
+        max: MAX_PASSWORD_LENGTH,
+    } as never);
+}
 
-export const WEAK_PASSWORD_MESSAGE = `Choose a stronger password: at least ${MIN_PASSWORD_LENGTH} characters, mixing letters, numbers, and symbols.`;
-
-export const PASSWORD_LENGTH_MESSAGE = `Password must have at least ${MIN_PASSWORD_LENGTH} characters and use at most ${MAX_PASSWORD_LENGTH} UTF-8 bytes.`;
-
-/** Wording for a link that has been used, tampered with, or has expired. */
-export const LINK_SPENT_MESSAGE =
-    "This confirmation link is invalid or has expired. Request a new one.";
-
-/** Wording for a six-digit authenticator code, shared by every MFA screen. */
-export const MFA_CODE_INCORRECT_MESSAGE =
-    "That code is incorrect. Enter the current six-digit code from your authenticator app.";
-const MFA_CODE_EXPIRED_MESSAGE =
-    "That code expired. Enter the current six-digit code from your authenticator app.";
-
-export const AUTH_ERROR_MESSAGES = {
+/** The catalog sentence each code shows. */
+export const AUTH_ERROR_SENTENCES = {
     // Credentials
-    invalid_credentials: "The email or password is incorrect.",
+    invalid_credentials: "invalidCredentials",
     // GoTrue reports a missing account as a dead session, not as "no such
     // user"; the login screen deliberately says something else (see there).
-    user_not_found: SESSION_EXPIRED_MESSAGE,
-    email_not_confirmed:
-        "Confirm your email address before logging in. Check your inbox for the confirmation link.",
-    user_banned: "This account is locked. Contact support to have it unlocked.",
+    user_not_found: "sessionExpired",
+    email_not_confirmed: "emailNotConfirmed",
+    user_banned: "userBanned",
 
     // Account creation
-    user_already_exists:
-        "An account with this email already exists. Log in instead.",
-    email_exists: "An account with this email already exists. Log in instead.",
-    signup_disabled: "New accounts aren't open right now.",
-    email_address_invalid: "Enter a valid email address.",
-    email_address_not_authorized:
-        "LiTT can't send email to this address. Use a different one.",
+    user_already_exists: "accountExists",
+    email_exists: "accountExists",
+    signup_disabled: "signupDisabled",
+    email_address_invalid: "emailInvalid",
+    email_address_not_authorized: "emailNotAuthorized",
 
     // Passwords
-    weak_password: WEAK_PASSWORD_MESSAGE,
-    same_password: "Choose a password you haven't used on LiTT before.",
-    password_too_short: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`,
-    password_too_long: `Password must be at most ${MAX_PASSWORD_LENGTH} UTF-8 bytes. Accented characters and emoji can use more than one byte.`,
+    weak_password: "weakPassword",
+    same_password: "samePassword",
+    password_too_short: "passwordTooShort",
+    password_too_long: "passwordTooLong",
 
     // Input this form can fix
-    validation_failed: "Some of the information provided isn't valid.",
-    invalid_request: "Some of the information provided isn't valid.",
+    validation_failed: "invalidInput",
+    invalid_request: "invalidInput",
 
     // Sessions and step-up
-    session_expired: SESSION_EXPIRED_MESSAGE,
-    session_not_found: SESSION_EXPIRED_MESSAGE,
-    cookie_session_required: SESSION_EXPIRED_MESSAGE,
-    bad_jwt: SESSION_EXPIRED_MESSAGE,
-    no_authorization: SESSION_EXPIRED_MESSAGE,
-    refresh_token_not_found: SESSION_EXPIRED_MESSAGE,
-    refresh_token_already_used: SESSION_EXPIRED_MESSAGE,
-    reauthentication_needed: "Log in again to make this change.",
-    reauthentication_not_valid: MFA_CODE_INCORRECT_MESSAGE,
-    insufficient_aal: "Finish two-factor verification to continue.",
+    session_expired: "sessionExpired",
+    session_not_found: "sessionExpired",
+    cookie_session_required: "sessionExpired",
+    bad_jwt: "sessionExpired",
+    no_authorization: "sessionExpired",
+    refresh_token_not_found: "sessionExpired",
+    refresh_token_already_used: "sessionExpired",
+    reauthentication_needed: "reauthenticationNeeded",
+    reauthentication_not_valid: "mfaCodeIncorrect",
+    insufficient_aal: "insufficientAal",
 
     // Authenticator apps
-    mfa_verification_failed: MFA_CODE_INCORRECT_MESSAGE,
-    mfa_verification_rejected:
-        "That code was rejected. Enter the current six-digit code from your authenticator app.",
-    mfa_challenge_expired: MFA_CODE_EXPIRED_MESSAGE,
-    mfa_factor_not_found: "This authenticator is no longer registered.",
-    mfa_ip_address_mismatch:
-        "Your network changed mid-verification. Start again from the login page.",
-    too_many_enrolled_mfa_factors:
-        "You already have the maximum number of authenticators. Remove one first.",
-    mfa_totp_enroll_not_enabled:
-        "Authenticator apps are turned off for this workspace.",
+    mfa_verification_failed: "mfaCodeIncorrect",
+    mfa_verification_rejected: "mfaCodeRejected",
+    mfa_challenge_expired: "mfaCodeExpired",
+    mfa_factor_not_found: "mfaFactorNotFound",
+    mfa_ip_address_mismatch: "mfaNetworkChanged",
+    too_many_enrolled_mfa_factors: "mfaTooManyFactors",
+    mfa_totp_enroll_not_enabled: "mfaTotpDisabled",
 
     // Links and one-time codes
-    otp_expired: "This link or code has expired. Request a new one.",
-    flow_state_expired: LINK_SPENT_MESSAGE,
-    flow_state_not_found: LINK_SPENT_MESSAGE,
-    bad_code_verifier:
-        "This link was opened in a different browser than the one that started sign-in. Start again from the login page.",
-    bad_oauth_state:
-        "Sign-in couldn't be completed. Start again from the login page.",
-    bad_oauth_callback:
-        "Sign-in couldn't be completed. Start again from the login page.",
+    otp_expired: "otpExpired",
+    flow_state_expired: "linkSpent",
+    flow_state_not_found: "linkSpent",
+    bad_code_verifier: "otherBrowser",
+    bad_oauth_state: "signInIncomplete",
+    bad_oauth_callback: "signInIncomplete",
 
     // Sign-in methods
-    email_provider_disabled:
-        "Password login is turned off. Continue with Google or SSO instead.",
-    provider_disabled:
-        "That sign-in method is turned off for this workspace. Use your email and password instead.",
-    oauth_provider_not_supported:
-        "That sign-in method is turned off for this workspace. Use your email and password instead.",
-    sso_disabled: "Single sign-on is not enabled.",
-    sso_domain_not_allowed:
-        "Single sign-on is not available for this email domain.",
-    sso_unavailable: "Unable to start single sign-on for this email domain.",
-    sso_provider_not_found:
-        "Single sign-on is not set up for this email domain.",
-    saml_provider_disabled:
-        "Single sign-on is not enabled for this email domain.",
+    email_provider_disabled: "passwordLoginDisabled",
+    provider_disabled: "providerDisabled",
+    oauth_provider_not_supported: "providerDisabled",
+    sso_disabled: "ssoDisabled",
+    sso_domain_not_allowed: "ssoDomainNotAllowed",
+    sso_unavailable: "ssoUnavailable",
+    sso_provider_not_found: "ssoNotSetUp",
+    saml_provider_disabled: "samlDisabled",
 
     // Throttling and checks
-    over_request_rate_limit: TOO_MANY_ATTEMPTS_MESSAGE,
-    over_email_send_rate_limit:
-        "Too many emails have been sent to this address. Wait a few minutes and try again.",
-    captcha_failed:
-        "The security check didn't pass. Reload the page and try again.",
-    request_timeout: "The request timed out. Try again.",
-} as const satisfies Record<string, string>;
+    over_request_rate_limit: "tooManyAttempts",
+    over_email_send_rate_limit: "emailRateLimit",
+    captcha_failed: "captchaFailed",
+    request_timeout: "requestTimeout",
+} as const satisfies Record<string, AuthSentence>;
 
-export type AuthErrorCode = keyof typeof AUTH_ERROR_MESSAGES;
+export type AuthErrorCode = keyof typeof AUTH_ERROR_SENTENCES;
+
+/**
+ * The shared table with `fixed` entries (a screen's own wording, returned
+ * as given) in place of the shared sentence for their codes. The shared
+ * sentences are read in the configured locale at the moment of use.
+ */
+function liveTable(
+    fixed: Readonly<Record<string, string>> = {},
+): Readonly<Record<string, string>> {
+    const table: Record<string, string> = {};
+    for (const [code, sentence] of Object.entries(AUTH_ERROR_SENTENCES)) {
+        if (Object.hasOwn(fixed, code)) continue;
+        Object.defineProperty(table, code, {
+            enumerable: true,
+            get: () => say(clientTranslator(), sentence),
+        });
+    }
+    return Object.freeze(Object.assign(table, fixed));
+}
+
+/** The shared table, in the configured locale. */
+export const AUTH_ERROR_MESSAGES = liveTable() as Readonly<Record<AuthErrorCode, string>>;
 
 /**
  * The shared table with this screen's deltas applied. Overrides are typed
@@ -140,5 +144,13 @@ export type AuthErrorCode = keyof typeof AUTH_ERROR_MESSAGES;
 export function authMessages(
     overrides: Readonly<Record<string, string>> = {},
 ): Readonly<Record<string, string>> {
-    return { ...AUTH_ERROR_MESSAGES, ...overrides };
+    return liveTable(overrides);
 }
+
+// Sentences screens reuse as their own overrides. They are the source
+// (en-US) wording, fixed when the module loads; a screen moved to the
+// catalog (cards 0D1 and 0D2) reads the tables above or its own t() instead.
+export const TOO_MANY_ATTEMPTS_MESSAGE = say(sourceTranslator, "tooManyAttempts");
+export const PASSWORD_LENGTH_MESSAGE = say(sourceTranslator, "passwordLength");
+/** Wording for a link that has been used, tampered with, or has expired. */
+export const LINK_SPENT_MESSAGE = say(sourceTranslator, "linkSpent");
