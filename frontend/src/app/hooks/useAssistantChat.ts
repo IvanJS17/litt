@@ -34,6 +34,7 @@ import { reportError } from "@/app/lib/errorReporting";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
+import { markTrainingStageStale } from "@/app/hooks/useTrainingStage";
 import {
   UserVisibleError,
   describeError,
@@ -713,6 +714,9 @@ export function useAssistantChat({
           action: "get a response",
           fallback: TURN_FAILED_MESSAGE,
         });
+        // LiTT training: the composer's view of «Tu turno primero» was out of
+        // date (an urgency pass ended mid-session); read it again.
+        if (described.code === "training_attempt_required") markTrainingStageStale();
         const uncertain = isUncertainDelivery(
           error,
           Boolean(retrySnapshot.recoveryChatId),

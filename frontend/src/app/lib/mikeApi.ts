@@ -2258,15 +2258,14 @@ export type {
 export async function getTrainingStage(scope: {
     orgId?: string | null;
     projectId?: string | null;
-}): Promise<import("@mike/contracts").TrainingStage | null> {
+}): Promise<import("@mike/contracts").TrainingEffectiveStage> {
     const query = new URLSearchParams();
     if (scope.orgId) query.set("org_id", scope.orgId);
     if (scope.projectId) query.set("project_id", scope.projectId);
-    const result = await apiRequest<import("@mike/contracts").TrainingEffectiveStage>(
+    return apiRequest<import("@mike/contracts").TrainingEffectiveStage>(
         "training.read",
         `/training/stage?${query}`,
     );
-    return result.stage;
 }
 
 /**

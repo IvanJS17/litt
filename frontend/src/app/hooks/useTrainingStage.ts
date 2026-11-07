@@ -1,14 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getTrainingStage, type TrainingStage } from "@/app/lib/mikeApi";
+import { useCallback, useEffect, useState } from "react";
+import { getTrainingStage } from "@/app/lib/mikeApi";
+
+/** What the composer needs to know about «Tu turno primero» where it is. */
+export type TrainingTurnState = {
+    /** The caller must write their own attempt before this turn. */
+    attemptRequired: boolean;
+    /** When the urgency pass that lifts it ends, if one is in force there. */
+    urgencyPassExpiresAt: string | null;
+};
+
+const NOTHING_REQUIRED: TrainingTurnState = { attemptRequired: false, urgencyPassExpiresAt: null };
+
+const STALE_EVENT = "litt:training-stage-stale";
 
 /**
- * LiTT training: the caller's effective stage where a chat turn would run
- * (an organization, and a project in it). Only tells the composer what to
- * show; the server applies the same rule to the turn itself. While it is
- * unknown, or if it cannot be read, the composer behaves as today and the
- * server's 400 asks for the approach if one is needed.
+ * Tell every mounted composer to read the stage again: the server refused a
+ * turn with training_attempt_required, so what it showed (for instance, an
+ * urgency pass that has just expired) is out of date.
+ */
+export function markTrainingStageStale(): void {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(STALE_EVENT));
+}
+
+// setTimeout's ceiling; a pass lasts at most 72 hours, well below it.
+const MAX_TIMER_MS = 2_147_483_647;
+
+/**
+ * LiTT training: whether a chat turn where the composer is (an organization,
+ * and a project in it) needs the caller's attempt, and the urgency pass that
+ * lifts it there, if any. Only tells the composer what to show; the server
+ * applies the same rule to the turn itself. While it is unknown, or if it
+ * cannot be read, the composer behaves as today and the server's 400 asks for
+ * the approach if one is needed. It reads again when the pass ends and when a
+ * turn was refused for a missing approach.
  */
 export function useTrainingStage({
     orgId,
@@ -18,26 +44,53 @@ export function useTrainingStage({
     orgId?: string | null;
     projectId?: string | null;
     enabled?: boolean;
-}): TrainingStage | null {
-    const [result, setResult] = useState<{ key: string; stage: TrainingStage | null } | null>(null);
+}): TrainingTurnState {
+    const [result, setResult] = useState<{ key: string; state: TrainingTurnState } | null>(null);
+    const [generation, setGeneration] = useState(0);
     const key = `${orgId ?? ""}:${projectId ?? ""}`;
     const active = enabled && !!(orgId || projectId);
+    const reload = useCallback(() => setGeneration((value) => value + 1), []);
 
     useEffect(() => {
         if (!active) return;
         let cancelled = false;
         getTrainingStage({ orgId, projectId }).then(
             (stage) => {
-                if (!cancelled) setResult({ key, stage });
+                if (!cancelled)
+                    setResult({
+                        key,
+                        state: {
+                            attemptRequired: stage.attempt_required,
+                            urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
+                        },
+                    });
             },
             () => {
-                if (!cancelled) setResult({ key, stage: null });
+                if (!cancelled) setResult({ key, state: NOTHING_REQUIRED });
             },
         );
         return () => {
             cancelled = true;
         };
-    }, [active, key, orgId, projectId]);
+    }, [active, key, orgId, projectId, generation]);
 
-    return active && result?.key === key ? result.stage : null;
+    useEffect(() => {
+        if (!active) return;
+        window.addEventListener(STALE_EVENT, reload);
+        return () => window.removeEventListener(STALE_EVENT, reload);
+    }, [active, reload]);
+
+    const state = active && result?.key === key ? result.state : NOTHING_REQUIRED;
+    const expiresAt = state.urgencyPassExpiresAt;
+
+    // When the pass ends the field comes back without a refused turn first.
+    useEffect(() => {
+        if (!expiresAt) return;
+        const wait = Date.parse(expiresAt) - Date.now();
+        if (!Number.isFinite(wait)) return;
+        const timer = setTimeout(reload, Math.min(Math.max(wait, 0) + 1000, MAX_TIMER_MS));
+        return () => clearTimeout(timer);
+    }, [expiresAt, reload]);
+
+    return state;
 }
