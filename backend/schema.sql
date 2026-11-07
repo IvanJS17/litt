@@ -4338,11 +4338,25 @@ create table if not exists public.playbooks (
   import_model text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  -- LiTT 20261107_53_litt_playbook_starter: a draft cannot be used in a
+  -- review until an editor marks it ready; only a ready playbook can be a
+  -- model (a starting point); a copy records the playbook it started from;
+  -- a draft's questionnaire answers stay out of content_json.
+  status text not null default 'ready',
+  is_model boolean not null default false,
+  derived_from_playbook_id uuid references public.playbooks(id) on delete set null,
+  intake_json jsonb,
   constraint playbooks_visibility_check check (visibility in ('private', 'organization') and
-    (org_id is not null or visibility = 'private'))
+    (org_id is not null or visibility = 'private')),
+  constraint playbooks_status_check check (status in ('draft', 'ready')),
+  constraint playbooks_model_ready_check check (not is_model or status = 'ready')
 );
 create index if not exists idx_playbooks_user_updated on public.playbooks(user_id, updated_at desc);
 create index if not exists idx_playbooks_org_updated on public.playbooks(org_id, updated_at desc);
+create index if not exists idx_playbooks_org_model
+  on public.playbooks(org_id, updated_at desc) where is_model;
+create index if not exists idx_playbooks_derived_from
+  on public.playbooks(derived_from_playbook_id) where derived_from_playbook_id is not null;
 alter table public.playbooks enable row level security;
 
 create table if not exists public.playbook_runs (
@@ -4392,7 +4406,13 @@ create table if not exists public.playbook_imports (
   org_id uuid references public.organizations(id) on delete cascade,
   -- A replacement's target version: the playbook's updated_at when the
   -- import began. The compiled content is saved only over that version.
-  target_updated_at timestamptz
+  target_updated_at timestamptz,
+  -- LiTT 20261107_53_litt_playbook_starter: a file import, a draft from the
+  -- questionnaire, or changes proposed for a copy; request_json holds what a
+  -- draft or proposal was asked with until its job ends.
+  kind text not null default 'import',
+  request_json jsonb,
+  constraint playbook_imports_kind_check check (kind in ('import', 'draft', 'proposal'))
 );
 create index if not exists idx_playbook_imports_user_started
   on public.playbook_imports(user_id, started_at desc);
@@ -4403,6 +4423,42 @@ create index if not exists idx_playbook_imports_running_playbook
   on public.playbook_imports(playbook_id)
   where status = 'running';
 alter table public.playbook_imports enable row level security;
+
+-- LiTT 20261107_53_litt_playbook_starter: the changes proposed for a copy
+-- made from a starting point, accepted or rejected one by one.
+create table if not exists public.playbook_changes (
+  id uuid primary key default gen_random_uuid(),
+  playbook_id uuid not null references public.playbooks(id) on delete cascade,
+  import_id uuid references public.playbook_imports(id) on delete set null,
+  source text not null default 'starting_point',
+  op text not null,
+  -- The rule's id in content_json; topic_id is where add_rule puts it (null:
+  -- no topic).
+  rule_id text not null,
+  topic_id text,
+  before_json jsonb,
+  after_json jsonb,
+  changed_fields text[] not null default '{}',
+  rationale text not null default '',
+  status text not null default 'pending',
+  decided_by uuid references auth.users(id) on delete set null,
+  decided_at timestamptz,
+  created_at timestamptz not null default now(),
+  constraint playbook_changes_source_check check (source in ('starting_point')),
+  constraint playbook_changes_op_check
+    check (op in ('add_rule', 'modify_rule', 'remove_rule')),
+  constraint playbook_changes_status_check
+    check (status in ('pending', 'accepted', 'rejected')),
+  constraint playbook_changes_decision_check
+    check ((status = 'pending') = (decided_at is null))
+);
+create index if not exists idx_playbook_changes_playbook_status
+  on public.playbook_changes(playbook_id, status, created_at);
+create index if not exists idx_playbook_changes_import
+  on public.playbook_changes(import_id) where import_id is not null;
+create index if not exists idx_playbook_changes_decided_by
+  on public.playbook_changes(decided_by) where decided_by is not null;
+alter table public.playbook_changes enable row level security;
 
 -- Supplementary documents a playbook's rules can refer to: copies the
 -- playbook owns. The imported Word file stays on public.playbooks.
@@ -6881,6 +6937,8 @@ revoke all on public.db_jobs from anon, authenticated;
 revoke all on public.playbooks from anon, authenticated;
 revoke all on public.playbook_runs from anon, authenticated;
 revoke all on public.playbook_imports from anon, authenticated;
+revoke all on public.playbook_changes from anon, authenticated;
+grant select, insert, update, delete on public.playbook_changes to service_role;
 revoke all on public.playbook_sources from anon, authenticated;
 revoke all on public.playbook_shares from anon, authenticated;
 revoke all on public.playbook_org_access_overrides from anon, authenticated;
@@ -18528,5 +18586,6 @@ insert into public.schema_migrations (filename) values
   ('20261106_53_litt_chat_overview_private_matter.sql'),
   ('20261107_50_litt_departure_root_candidates_private_matter.sql'),
   ('20261107_51_litt_ownerless_items_private_matter.sql'),
-  ('20261107_52_litt_audit_username_filter_order.sql')
+  ('20261107_52_litt_audit_username_filter_order.sql'),
+  ('20261107_53_litt_playbook_starter.sql')
 on conflict (filename) do nothing;
