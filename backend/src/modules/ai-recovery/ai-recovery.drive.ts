@@ -450,6 +450,10 @@ export async function reconcileDrivePublication(
     });
     if (!(await drivePublicationResourceMatches(resourceScopePort, readback)))
       return NOT_FOUND;
+    // A reconcile can finish an upload: the same release rule as publishing
+    // (docs/training.md), checked before any transport is touched.
+    const releasable = await assertReleasable(db, readback.artifact_document_version_id);
+    if (!releasable.ok) return releasable;
     const transport = input.transport;
     if (!isFakeDriveTransport(transport)) return PUBLICATION_UNAVAILABLE;
 

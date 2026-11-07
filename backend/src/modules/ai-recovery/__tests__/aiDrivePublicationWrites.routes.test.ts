@@ -553,6 +553,29 @@ describe("Drive publication write routes", () => {
     expect(response.text).not.toContain("artifact_storage_path");
   });
 
+  // W6: reconciling can complete an upload, so it obeys the release rule too.
+  it("holds the reconcile of a pasante's sealed report until its bytes are approved", async () => {
+    state.intent = makeIntent({ outcome: "unknown_outcome" });
+    state.artifactSeal = { training_stage: "pasante", content_sha256: artifactHash };
+    const drive = createFakeDrive();
+    const reconcile = () =>
+      request(makeApp(drive))
+        .post(`${publishPath}/${IDS.publication}/reconcile`)
+        .set("x-test-auth", "yes")
+        .send({});
+
+    const held = await reconcile();
+    expect(held.status).toBe(409);
+    expect(held.body).toMatchObject({ code: "training_approval_required" });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(drive.uploadCount).toBe(0);
+
+    state.approvals = [
+      { document_version_id: IDS.artifactVersion, content_sha256: artifactHash },
+    ];
+    expect((await reconcile()).status).toBe(200);
+  });
+
   it("keeps a wrong publication URI opaque before service reconciliation", async () => {
     state.intent = makeIntent({ outcome: "unknown_outcome" });
     const response = await request(makeApp())
