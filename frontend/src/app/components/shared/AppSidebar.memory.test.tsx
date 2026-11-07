@@ -310,10 +310,10 @@ describe("AppSidebar History", () => {
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
     const history = screen.getByRole("region", { name: "History" });
-    expect(history).toHaveClass("flex-1", "overflow-y-auto", "min-h-28");
-    expect(history).not.toHaveClass("min-h-0");
-    // Its section does not let the region shrink below that room either.
-    expect(history.parentElement).not.toHaveClass("min-h-0");
+    // The region scrolls inside its section; the section keeps room for
+    // the heading and three rows (min-h-36), so it never collapses.
+    expect(history).toHaveClass("flex-1", "overflow-y-auto", "min-h-0");
+    expect(history.parentElement).toHaveClass("flex-1", "min-h-36");
   });
 
   it("fades the end that hides more rows instead of cutting a row", () => {

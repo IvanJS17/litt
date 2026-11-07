@@ -641,11 +641,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     </div>
 
                     {isOpen && (
-                        <div className="mt-4 flex flex-1 flex-col gap-4">
-                            {/* No min-h-0 here or on History: their content
-                                minimum keeps History's rows from collapsing
-                                under the account button; when the window is
-                                shorter than that, the whole column scrolls. */}
+                        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
                             {/* Recent Projects */}
                             <div>
                                 <button
@@ -747,8 +743,12 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             {/* History */}
                             <div
                                 className={cn(
-                                    "flex flex-col",
-                                    !historyCollapsed && "flex-1",
+                                    "flex min-h-0 flex-col",
+                                    // Room for the heading and three rows:
+                                    // History never shrinks under the
+                                    // account button; a shorter window
+                                    // scrolls the whole column instead.
+                                    !historyCollapsed && "min-h-36 flex-1",
                                 )}
                             >
                                 <button
@@ -772,11 +772,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     id="sidebar-history"
                                     role="region"
                                     aria-label="History"
-                                    // Room for three rows before the column
-                                    // scrolls as a whole, so History never
-                                    // shrinks under the account button.
                                     className={cn(
-                                        "min-h-28 flex-1 overflow-y-auto pb-1",
+                                        "min-h-0 flex-1 overflow-y-auto pb-1",
                                         historyCollapsed && "hidden",
                                     )}
                                     style={scrollFadeMaskStyle(historyScroll.edges)}
