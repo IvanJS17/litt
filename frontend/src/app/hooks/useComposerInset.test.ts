@@ -8,12 +8,16 @@ import {
 } from "./useComposerInset";
 
 let resize: (() => void) | undefined;
+const observed: Element[] = [];
+const disconnect = vi.fn();
 class FakeResizeObserver {
     constructor(callback: () => void) {
         resize = callback;
     }
-    observe() {}
-    disconnect() {}
+    observe(element: Element) {
+        observed.push(element);
+    }
+    disconnect = disconnect;
 }
 
 function composer(height: number) {
@@ -31,6 +35,8 @@ function composer(height: number) {
 afterEach(() => {
     vi.unstubAllGlobals();
     resize = undefined;
+    observed.length = 0;
+    disconnect.mockReset();
 });
 
 describe("useComposerInset", () => {
@@ -63,5 +69,18 @@ describe("useComposerInset", () => {
         expect(result.current.fadeHeight).toBe(
             260 + COMPOSER_BOTTOM_OFFSET + COMPOSER_FADE,
         );
+    });
+
+    it("stops observing the composer when it unmounts", () => {
+        vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+        const { result, unmount } = renderHook(() => useComposerInset(116));
+        const box = composer(94);
+        act(() => result.current.composerRef(box.element));
+        expect(observed).toEqual([box.element]);
+        expect(disconnect).not.toHaveBeenCalled();
+
+        unmount();
+
+        expect(disconnect).toHaveBeenCalledTimes(1);
     });
 });
