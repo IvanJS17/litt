@@ -101,7 +101,7 @@ describe("GET /matters/without-owner", () => {
 describe("POST /matters/:id/owner", () => {
   it("names the owner through the database function", async () => {
     rpc.mockResolvedValue({
-      data: { matter_id: MATTER, owner_user_id: TARGET, changed: true },
+      data: { matter_id: MATTER, owner_user_id: TARGET },
       error: null,
     });
     const res = await request(app())
@@ -113,13 +113,15 @@ describe("POST /matters/:id/owner", () => {
       p_matter_id: MATTER,
       p_target_user_id: TARGET,
     });
-    expect(res.body).toEqual({ matter_id: MATTER, owner_user_id: TARGET, changed: true });
+    expect(res.body).toEqual({ matter_id: MATTER, owner_user_id: TARGET });
   });
 
   it.each([
     ["P0002", 404, "not_found"],
     ["42501", 403, undefined],
     ["22023", 400, "matter_owner_target_invalid"],
+    // The matter has an active owner: naming never displaces them.
+    ["55000", 409, "matter_has_owner"],
   ])("maps SQLSTATE %s to %i", async (sqlstate, status, code) => {
     rpc.mockResolvedValue({ data: null, error: { code: sqlstate, message: "raw sql" } });
     const res = await request(app())

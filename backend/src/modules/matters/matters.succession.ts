@@ -1,11 +1,13 @@
 /**
  * Matter owners named by the firm (owner decisions of 2026-11-07, TD-038).
  *
- * An organization owner or admin may name any current member of the firm,
- * themselves included, as the owner of one of its matters, and may list the
- * matters left without an active owner. Both are single database calls
+ * An organization owner or admin may list the matters left without an
+ * active owner and name any current member of the firm, themselves included,
+ * as the owner of one of them. Both are single database calls
  * (assign_matter_owner, list_matters_without_owner) that recheck the
- * caller's organization role under the organization lock. Naming someone
+ * caller's organization role under the organization lock. A matter with an
+ * active owner is refused (`matter_has_owner`): naming never displaces an
+ * owner, so it cannot take a private matter from its team. Naming someone
  * else grants the caller nothing, and the list never carries a matter's
  * title: administrators do not see the names of matters they are not on.
  */
@@ -28,6 +30,11 @@ const TARGET_INVALID = failure(
   "Choose a current member of the organization.",
   "matter_owner_target_invalid",
 );
+const HAS_OWNER = failure(
+  "conflict",
+  "This matter already has an owner.",
+  "matter_has_owner",
+);
 
 export type MatterWithoutOwner = {
   matter_id: string;
@@ -45,7 +52,6 @@ export type MatterWithoutOwner = {
 export type MatterOwnerAssignment = {
   matter_id: string;
   owner_user_id: string;
-  changed: boolean;
 };
 
 /** The SQLSTATEs both functions raise for the caller, mapped once. */
@@ -57,6 +63,8 @@ function sqlFailure(error: { code?: string | null }): ServiceResult<never> {
       return ADMIN_REQUIRED;
     case "22023":
       return TARGET_INVALID;
+    case "55000":
+      return HAS_OWNER;
     default:
       return internalFailure(error);
   }
@@ -115,7 +123,7 @@ export async function listMattersWithoutOwner(
   }
 }
 
-/** Name `targetUserId` the owner of a matter of the caller's firm. */
+/** Name `targetUserId` the owner of a matter of the caller's firm that has none. */
 export async function assignMatterOwner(
   db: Db,
   input: { actorId: string; matterId: string; targetUserId: string },
@@ -129,13 +137,11 @@ export async function assignMatterOwner(
   if (
     !isRecord(data) ||
     data.matter_id !== input.matterId ||
-    data.owner_user_id !== input.targetUserId ||
-    typeof data.changed !== "boolean"
+    data.owner_user_id !== input.targetUserId
   )
     return internalFailure(new Error("matter owner assignment is malformed"));
   return ok({
     matter_id: input.matterId,
     owner_user_id: input.targetUserId,
-    changed: data.changed,
   });
 }

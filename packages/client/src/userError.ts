@@ -240,6 +240,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // LiTT matters: a matter's new owner must be a current member of the
     // firm; choosing another member fixes it, retrying does not.
     matter_owner_target_invalid: "validation",
+    // A matter that still has an active owner cannot be given another one;
+    // retrying does not help (the list of matters without an owner does).
+    matter_has_owner: "conflict",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",
