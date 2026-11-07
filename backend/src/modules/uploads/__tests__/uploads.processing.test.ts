@@ -361,7 +361,9 @@ describe("upload processing", () => {
     "accepts a PDF preceded by %s",
     async (_label, bytes) => {
       mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
-      const db = fakeDb({ documents: [{ data: { id: baseFile.resource_id } }] });
+      // LiTT reads the document's organization first (pasante seal), then
+      // the update returns the row.
+      const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id } }] });
       await processUploadFile(db as never, baseSession, {
         ...baseFile, expected_size_bytes: bytes.length,
       });
