@@ -3,11 +3,25 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-10-31<br>
+**Last reconciled:** 2026-11-06<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
+
+### Production and integration 2026-11-06
+
+- **Production:** `main` `fe5c9070` (PR #60) is deployed since 2026-11-06
+  22:30 CST. It carries training layer 1 (1a and 1b with its UI and
+  follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
+- **Integrated, not deployed:** upstream sync cycle 1 of 10 is in `main`
+  `6f985097` (PR #61); production does not run it yet. Cycle 2 of 10
+  (`sync/upstream-c2-14d695f1`) is in review.
+- **Upstream pin:** `1f7ae19fd1643fd350d564bbdbbe5801611d0765` (2026-10-30)
+  on `main`; cycle 2 moves it to `14d695f176152367cf44e89e200a04778b353b6d`
+  (2026-11-04) when it is merged. Policy:
+  [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§21.
 
 ### Training layer 1a (2026-11-06)
 
@@ -17,7 +31,7 @@
   separately generated contrast.
   Behavior and rules: [`training.md`](training.md).
 - **State:** merged into `main` (PR #56) with migration
-  `20261106_50_litt_training.sql`; deployment is not recorded here. Nothing
+  `20261106_50_litt_training.sql`; deployed with `fe5c9070`. Nothing
   changes for a person without a stage.
 
 ### Training layer 1b: pasante seal and output lock (2026-11-06)
@@ -27,10 +41,10 @@
   approved AI review report and its Drive publication) only once a person who
   may approve it approves its current bytes. In-app views stay open. Rules:
   [`training.md`](training.md#the-pasante-seal-and-its-approval-layer-1b).
-- **State:** backend implemented on `feat/training-1b-output-lock` with
-  migration `20261106_51_litt_training_output_lock.sql`; pending independent
-  review, merge and deployment. The UI (draft mark, approve button, hidden
-  download links) is a separate slice.
+- **State:** merged into `main` with migration
+  `20261106_51_litt_training_output_lock.sql`, its UI (draft mark, approve
+  button, hidden download links) and follow-ups (PRs #58–#60); deployed with
+  `fe5c9070`.
 
 ### Production 2026-10-31
 
