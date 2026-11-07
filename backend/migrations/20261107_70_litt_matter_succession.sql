@@ -28,10 +28,12 @@
 --    audit event, matter.owner_succeeded.
 -- 3. assign_matter_owner(actor, matter, target): an organization owner or
 --    admin names a current member of the firm as the matter_owner of one of
---    its matters (themselves included). The other active owners stay on the
---    team as editors. Naming someone else grants the actor nothing. Audit
---    event matter.owner_assigned; the membership change advances the
---    authorization epoch through matter_memberships_epoch_bump.
+--    its matters left without an active owner (themselves included). A
+--    matter with an active owner is refused (55000): naming never displaces
+--    or demotes an owner, so it cannot take a matter from its team. Naming
+--    someone else grants the actor nothing. Audit event matter.owner_assigned
+--    with the last owner; the membership change advances the authorization
+--    epoch through matter_memberships_epoch_bump.
 -- 4. list_matters_without_owner(actor, org): an organization owner or admin
 --    lists the firm's matters without an active owner, with no title: the
 --    CM number, creation date, last owner and team size.
@@ -287,7 +289,8 @@ create trigger org_members_matter_succession
 
 -- Errors: P0002 the matter (or organization) is unknown to the actor;
 -- 42501 the actor is a member but neither owner nor admin; 22023 the target
--- is not a current member of the firm (or is deleting their account).
+-- is not a current member of the firm (or is deleting their account);
+-- 55000 the matter already has an active owner.
 create or replace function public.assign_matter_owner(
   p_actor_id uuid,
   p_matter_id uuid,
@@ -299,7 +302,7 @@ security definer
 set search_path = public
 as $$
 declare
-  matter_org uuid; actor_role text; previous uuid[];
+  matter_org uuid; actor_role text; last_owner uuid;
 begin
   select w.organization_id into matter_org
   from public.matters mt join public.workspaces w on w.id = mt.workspace_id
@@ -330,22 +333,17 @@ begin
   end if;
   perform 1 from public.matters where id = p_matter_id for update;
 
-  with demoted as (
-    update public.matter_memberships set role = 'editor'
-    where matter_id = p_matter_id and role = 'matter_owner' and status = 'active'
-      and user_id <> p_target_user_id
-    returning user_id
-  )
-  select coalesce(array_agg(user_id order by user_id), '{}') into previous from demoted;
-
-  if cardinality(previous) = 0 and exists (
-    select 1 from public.matter_memberships
-    where matter_id = p_matter_id and user_id = p_target_user_id
-      and role = 'matter_owner' and status = 'active'
-  ) then
-    return jsonb_build_object('matter_id', p_matter_id, 'owner_user_id', p_target_user_id,
-      'changed', false);
+  -- Only a matter left without an owner can be given one: naming never
+  -- displaces an active owner, so it cannot take a matter from its team.
+  if public.matter_has_active_owner(p_matter_id) then
+    raise exception 'The matter already has an active owner'
+      using errcode = '55000';
   end if;
+
+  select mm.user_id into last_owner from public.matter_memberships mm
+  where mm.matter_id = p_matter_id and mm.role = 'matter_owner'
+  order by mm.created_at desc, mm.user_id
+  limit 1;
 
   insert into public.matter_memberships(matter_id, user_id, role, status)
   values (p_matter_id, p_target_user_id, 'matter_owner', 'active')
@@ -356,10 +354,9 @@ begin
     jsonb_build_object('org_id', matter_org, 'matter_id', p_matter_id,
       'target_user_id', p_target_user_id,
       'reason', case when p_target_user_id = p_actor_id then 'self_appointed' else 'appointed' end,
-      'previous_owner_ids', to_jsonb(previous)));
+      'last_owner_user_id', last_owner));
 
-  return jsonb_build_object('matter_id', p_matter_id, 'owner_user_id', p_target_user_id,
-    'changed', true);
+  return jsonb_build_object('matter_id', p_matter_id, 'owner_user_id', p_target_user_id);
 end;
 $$;
 
