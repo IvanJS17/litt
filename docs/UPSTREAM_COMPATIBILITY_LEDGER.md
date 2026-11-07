@@ -1008,7 +1008,7 @@ Close #27–#30 once this branch is in `main`. TD-043 is closed by this cycle.
 
 Pin `d601932abecb7f6f5f01a863b939765ef2f3075d` →
 `1f7ae19fd1643fd350d564bbdbbe5801611d0765` (16 commits, 13 without merges,
-upstream's 2026-10-29 to 2026-11-01 work). Branch `sync/upstream-c1-1f7ae19f`
+upstream's 2026-10-29 to 2026-10-30 work). Branch `sync/upstream-c1-1f7ae19f`
 from `main` `fe5c9070`. It is the first of ten cycles that bring in the
 2026-11-06 intake in upstream's order; the owner approved every topic as
 recommended on 2026-11-06 and rejected the Sentry, desktop and CourtListener
@@ -1069,4 +1069,48 @@ commit, never a squash.
 
 Upstream changes no dependency in this cycle. The open Dependabot pull
 requests (#50–#55) are left for the cycle that brings upstream's next
+dependency updates.
+
+## 21. Cycle 2026-11-06, 2 of 10
+
+Pin `1f7ae19fd1643fd350d564bbdbbe5801611d0765` (2026-10-30) →
+`14d695f176152367cf44e89e200a04778b353b6d` (2026-11-04): 7 commits, 4 without
+merges, upstream's 2026-10-27 to 2026-11-04 work. Branch
+`sync/upstream-c2-14d695f1` from `main` `6f985097` (cycle 1 integrated). One
+`git merge --no-ff` of the pin; the LiTT adaptation follows in a separate
+commit. The branch is integrated with a merge commit, never a squash. The
+owner's approval of 2026-11-06 (§20) covers this cycle.
+
+### 21.1 Classification
+
+| Upstream commits | Capability (§16.3 row) | Disposition | What LiTT keeps |
+| --- | --- | --- | --- |
+| `783e0ef8`, `b5eafa12`, merge `e3f2c8c1` (#716) playbook ids before Postgres | Workflow catalog, add-ons and playbooks | adopt, extended | A malformed `:playbookId` answers 404 and malformed or wrong-type `playbookId`/`documentId` in import and review bodies answer 400, before any query. The LiTT commit applies the same check to the other ids under a playbook: `:shareId` and `:sourceId` answer 404 with their services' not-found messages, and the `documentId` of `POST /:playbookId/sources` answers 400 while the staged upload is still cleared. No other route takes a playbook id |
+| `6a52e85e`, merge `14d695f1` (#752) Word add-in node-forge and follow-redirects advisories | Dependencies and supply chain | adopt (already in LiTT) | LiTT's `word-addin/package-lock.json` already resolves node-forge 1.4.2 and follow-redirects 1.16.2 (`c1e839cf`), and `scripts/audit-allowlist.json` had already dropped the node-forge entry; both keep LiTT's side, which also keeps LiTT's braces and msal-node entries |
+| `cfb8a2e4`, merge `93303e72` (#774) Sentry Vercel AI tool-error filter | Third-party telemetry | reject (invariant: no third-party telemetry) | The change only filters what `@sentry/node`'s Vercel AI integration sends. LiTT ships no Sentry, so there is nothing to adapt in `backend/src/lib/observability/diagnostics.ts`; `sentry.ts` and `sentry.test.ts` stay deleted |
+
+### 21.2 Conflicts and adaptations
+
+- The merge had 4 conflicting paths: `sentry.ts` and `sentry.test.ts`
+  (modify/delete, LiTT's deletion kept), and `scripts/audit-allowlist.json`
+  and `word-addin/package-lock.json` (content, LiTT's side kept; it already
+  contains #752's result).
+- `playbooks.routes.ts` and its integration test merged without conflict.
+  The LiTT commit adds `router.param` checks for `shareId` and `sourceId`,
+  the body check in `POST /:playbookId/sources`, nine route tests that fail
+  without it, and a UUID id for the supplementary-document fixture.
+- `rg -iw sentry` over runtime code and `package.json` files: 0.
+
+### 21.3 Owner-visible changes
+
+| What the lawyer sees | Recommendation |
+| --- | --- |
+| A broken playbook link shows "not found" instead of a server error | Adopt |
+| Nothing: the Word add-in's development tools get security fixes LiTT already had | Adopt |
+| Upstream would change what it sends to an outside service (Sentry) | Not applied: LiTT sends no data to third parties |
+
+### 21.4 Dependabot
+
+Upstream changes no dependency beyond #752, which LiTT already has. The open
+Dependabot pull requests are left for the cycle that brings upstream's next
 dependency updates.
