@@ -172,6 +172,38 @@ describe("proposePromotions", () => {
         expect(practice).toMatchObject({ practice: "laboral", to: "abogado", proposed: false, blocked_by: "general_stage_remains" });
     });
 
+    // The mentor learns what stands in the way before collecting more evidence;
+    // the counts next to it say what is still missing.
+    it.each([
+        {
+            name: "a general stage remains, with no evidence yet",
+            stages: [
+                { practice: null, stage: "junior" as const, updated_at: SINCE },
+                { practice: "laboral", stage: "junior" as const, updated_at: SINCE },
+            ],
+            defenses: [],
+            reviews: [],
+            blocked: "general_stage_remains",
+        },
+        {
+            name: "a not_approved defense after the only approved one, with 1 work",
+            stages: [{ practice: "laboral", stage: "pasante" as const, updated_at: SINCE }],
+            defenses: [
+                { id: "d1", practice: "laboral", outcome: "approved" as const, held_at: day(5) },
+                { id: "d2", practice: "laboral", outcome: "not_approved" as const, held_at: day(6) },
+            ],
+            reviews: reviewedWorks("laboral").slice(0, 1),
+            blocked: "not_approved_after",
+        },
+    ])("reports blocked_by whatever the counts: $name", ({ stages, defenses, reviews, blocked }) => {
+        const proposal = proposePromotions({ stages, defenses, reviews, approvals: [] }).find(
+            (row) => row.practice === "laboral",
+        );
+        expect(proposal).toMatchObject({ proposed: false, blocked_by: blocked });
+        expect(proposal!.approved_defenses.length < PROMOTION_MIN_APPROVED_DEFENSES).toBe(true);
+        expect(proposal!.reviewed_works.length < PROMOTION_MIN_REVIEWED_WORKS).toBe(true);
+    });
+
     it("proposes a practice junior → abogado when no general stage remains", () => {
         const [practice] = proposePromotions({
             stages: [{ practice: "laboral", stage: "junior", updated_at: SINCE }],

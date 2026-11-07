@@ -68,14 +68,14 @@ function tables(): Record<string, Row[]> {
                 id: "d1", org_id: "org-a", trainee_user_id: userId, practice: "laboral", work_review_id: "r1",
                 questions_status: "ready", questions: [{ kind: "base", text: "¿por qué?", listen_for: "x" }],
                 model_provider: "openai", model: "gpt", credential_ref: "user:mentor:v1", generated_by: other,
-                outcome: "approved", outcome_note: "bien", held_at: "2026-01-04T00:00:00Z", recorded_by: other,
+                outcome: "approved", outcome_reason: "razonamiento_solido", outcome_note: "bien", held_at: "2026-01-04T00:00:00Z", recorded_by: other,
                 created_at: "2026-01-03T00:00:00Z",
             },
             // Scheduled, not held yet: its questions stay out, as in the app.
             {
                 id: "d2", org_id: "org-b", trainee_user_id: userId, practice: null, work_review_id: null,
                 questions_status: "ready", questions: [{ kind: "cambio_de_hechos", text: "¿y si?", listen_for: "y" }],
-                outcome: null, outcome_note: null, held_at: null, created_at: "2026-01-05T00:00:00Z",
+                outcome: null, outcome_reason: null, outcome_note: null, held_at: null, created_at: "2026-01-05T00:00:00Z",
             },
             { id: "d3", org_id: "org-a", trainee_user_id: other, questions_status: "none", created_at: "2026-01-06T00:00:00Z" },
         ],
@@ -128,6 +128,11 @@ describe("account export: the holder's training", () => {
         expect(out.training.defenses.map((r: Row) => [r.id, r.outcome, r.questions])).toEqual([
             ["d1", "approved", [{ kind: "base", text: "¿por qué?", listen_for: "x" }]],
             ["d2", null, null],
+        ]);
+        // The whole outcome the holder sees in the app: result, reason and note.
+        expect(out.training.defenses.map((r: Row) => [r.outcome, r.outcome_reason, r.outcome_note])).toEqual([
+            ["approved", "razonamiento_solido", "bien"],
+            [null, null, null],
         ]);
         expect(out.training.urgency_passes).toEqual([
             expect.objectContaining({ id: "p1", project_id: "proj-1", reason_code: "plazo", reason_note: "vence hoy" }),

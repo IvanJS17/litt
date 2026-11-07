@@ -444,9 +444,16 @@ pupil with one still sees the field there.
 **When the mentor changes.** A pass is the mentor's who granted it. When the
 pupil gets another mentor, every pass still in force for them ends at once:
 a trigger on `training_pupils` (`20261107_90_litt_training_defense_outcome.sql`)
-revokes them in the same statement that changes the mentor, with `revoked_by`
-set to whoever moved the pupil. The new mentor grants their own if they want
-one. Releasing the pupil deletes their passes (cascade).
+revokes them in the same statement that changes the mentor. `revoked_by` is
+whoever moved the pupil (`20261107_91_litt_training_pass_revoked_by.sql`): the
+session's user (`auth.uid()`) when the statement runs in one; otherwise, as
+for the service role the app writes with, the `assigned_by` that same
+statement writes. `assignPupil` sets `assigned_by` to the actor in the update
+that moves the pupil, and any other service-role path that changes a mentor
+must do the same: a change with neither a session user nor `assigned_by`
+fails (`LT003`) rather than record a revocation nobody made. The new mentor
+grants their own if they want one. Releasing the pupil deletes their passes
+(cascade).
 
 ### Oral defense
 
@@ -471,8 +478,12 @@ The current mentor prepares and records an oral defense (specification §6.2):
   work, or of the pupil's works in the defense's practice area the mentor can
   open (the newest notes), fenced with a per-call nonce. The answer must be
   strict JSON with exactly that shape, and it fails if it names an article, a
-  thesis or a registry number that the pupil's text and the contrasts do not
-  (`lib/trainingSupervisionAi.ts`). No work to rest on: `400`.
+  fraction of an article, a thesis or a registry number that the pupil's text
+  and the contrasts do not (`legalReferences` in
+  `lib/trainingSupervisionAi.ts`). Each number of an enumeration counts on its
+  own («artículos 1949, 2000 y 2001», «registros 2021234 y 2021235»), and a
+  range («1949 a 1951») names every number in it (one wider than 100 names
+  only its ends and itself). No work to rest on: `400`.
 - **Model.** The mentor's route, exactly as for a review (stored on the
   defense, no fallback, never the pupil's key; `llm.egress` first with the
   defense's id), and the same states: one generation at a time
@@ -515,7 +526,10 @@ proposals are computed on every read and never stored
 - Not proposed, with `blocked_by`: `not_approved_after`, or
   `general_stage_remains` for `junior → abogado` in a practice area while a
   general stage exists (removing the practice stage would leave the general
-  one, not a lawyer).
+  one, not a lawyer). `blocked_by` says what would stop a proposal even with
+  the counts met, so it is set whether or not they are met yet: the mentor
+  learns about it before collecting more evidence, and the counts next to it
+  say what is still missing.
 - Accepting recomputes the proposal and requires it to still hold
   (otherwise `409 training_promotion_not_proposed`), then changes the stage
   only through `setStage` (to `junior`) or `removeStage` (to `abogado`) of
