@@ -144,6 +144,20 @@ describe("a draft in reviews", () => {
     expect(snapshot.rules[0]).toMatchObject({ origin: ORIGIN, legalRefs: LEGAL_REFS });
   });
 
+  it("measures the 100,000-character limit on the rules the review sends, without provenance (R5)", async () => {
+    // Provenance alone is far over the limit; the rules sent are small.
+    const legalRefs = Array.from({ length: 30 }, (_, index) => ({
+      text: `Referencia ${index}`,
+      verified: false,
+      quote: "x".repeat(5_000),
+    }));
+    const { db } = database([
+      book({ status: "ready", content_json: content([rule({ origin: ORIGIN, legalRefs })]) }),
+    ]);
+    await expect(review(db)).resolves.toMatchObject({ status: "completed" });
+    expect(JSON.stringify(completeText.mock.calls[0])).not.toContain("Referencia 0");
+  });
+
   it("reads a playbook saved before the column as ready", async () => {
     const legacy = book();
     delete legacy.status;
@@ -257,6 +271,33 @@ describe("marking ready and as a model", () => {
       status: 409,
     });
     expect(tables.playbooks[0].status).toBe("draft");
+  });
+
+  it("refuses to make a ready playbook without rules a model (R2)", async () => {
+    const { db, writes } = database([book({ status: "ready", content_json: content([]) })]);
+    await expect(setPlaybookState("owner", "book", { isModel: true }, db)).rejects.toMatchObject({
+      status: 409,
+      code: "playbook_model_empty",
+    });
+    expect(writes.filter((write) => write.op === "update")).toEqual([]);
+    // Unmarking an empty model stays possible.
+    const { db: marked } = database([book({ status: "ready", is_model: true, content_json: content([]) })]);
+    expect(await setPlaybookState("owner", "book", { isModel: false }, marked)).toMatchObject({ isModel: false });
+  });
+
+  it("refuses the model mark alone while a replacement compiles over the playbook (R3)", async () => {
+    const now = new Date().toISOString();
+    const { db, tables, writes } = database([book({ status: "ready" })]);
+    withPlaybookTables(db, tables, {
+      playbook_imports: [
+        { id: "imp-1", playbook_id: "book", status: "running", started_at: now, updated_at: now, target_updated_at: now },
+      ],
+    });
+    await expect(setPlaybookState("owner", "book", { isModel: true }, db)).rejects.toMatchObject({
+      status: 409,
+      message: "This playbook is being replaced. Wait for the import to finish.",
+    });
+    expect(writes.filter((write) => write.op === "update")).toEqual([]);
   });
 
   it("refuses a body that is not a state change", async () => {

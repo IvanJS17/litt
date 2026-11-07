@@ -85,6 +85,10 @@ export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, Rpc
                 filters.push((row) => String(row[column] ?? "") > String(value));
                 return builder;
             },
+            lte: (column: string, value: unknown) => {
+                filters.push((row) => String(row[column] ?? "") <= String(value));
+                return builder;
+            },
             order: (column: string, options?: { ascending?: boolean }) => {
                 orders.push([column, options?.ascending !== false]);
                 return builder;

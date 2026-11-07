@@ -10,6 +10,7 @@ const {
   downloadFile,
   getSignedUploadUrl,
   headFile,
+  queuePlaybookDraft,
   queuePlaybookImport,
   recordAudit,
 } = vi.hoisted(() => ({
@@ -21,6 +22,7 @@ const {
   getSignedUploadUrl: vi.fn(),
   headFile: vi.fn(),
   queuePlaybookImport: vi.fn(),
+  queuePlaybookDraft: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -71,7 +73,7 @@ vi.mock("../../modules/playbooks/playbooks.service", async (importOriginal) => {
     await importOriginal<
       typeof import("../../modules/playbooks/playbooks.service")
     >();
-  return { ...actual, queuePlaybookImport };
+  return { ...actual, queuePlaybookImport, queuePlaybookDraft };
 });
 
 import { playbooksRouter } from "../../modules/playbooks/playbooks.routes";
@@ -386,6 +388,51 @@ describe("draft playbooks over HTTP (LiTT)", () => {
 
     expect(response.status).toBe(404);
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("drafts from the questionnaire over HTTP (LiTT)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("serves the ten questions, not mistaken for a playbook id", async () => {
+    const response = await request(app).get("/playbooks/questionnaire");
+    expect(response.status).toBe(200);
+    expect(response.body.questions).toHaveLength(10);
+    expect(response.body.maxAttachments).toBe(5);
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("queues a draft and answers 202 with the attempt", async () => {
+    queuePlaybookDraft.mockResolvedValue(started({ kind: "draft", filename: "" }));
+    const body = {
+      model: "claude-opus-5",
+      name: "Arrendamientos",
+      workspace: "personal",
+      answers: { q6: "Nunca renunciar al saneamiento." },
+      attachments: [{ storageKey: STAGED_IMPORT_KEY, filename: "a.docx" }],
+    };
+    const response = await request(app).post("/playbooks/drafts").send(body);
+    expect(response.status).toBe(202);
+    expect(response.body).toMatchObject({ kind: "draft", status: "running" });
+    expect(queuePlaybookDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "u1", userEmail: "u1@example.com", ...body }),
+    );
+  });
+
+  it("answers a model without a key with 400 and missing_api_key", async () => {
+    queuePlaybookDraft.mockRejectedValue(
+      new PlaybookRequestError("Anthropic (Claude) API key is not configured.", 400, {
+        code: "missing_api_key",
+      }),
+    );
+    const response = await request(app)
+      .post("/playbooks/drafts")
+      .send({ model: "claude-opus-5" });
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      detail: "Anthropic (Claude) API key is not configured.",
+      code: "missing_api_key",
+    });
   });
 });
 
