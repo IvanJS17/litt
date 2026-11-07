@@ -296,7 +296,11 @@ the changes stand without the answers. A proposal that fails leaves no change
 and no reference document behind, and the copy, its rules and its answers,
 stays as it was. Its reference documents are removed only while the copy is
 still a draft, and only the ones it stored: a copy marked ready meanwhile
-keeps them.
+keeps them. An interrupted proposal (ended when the next one is requested, see
+above) loses its pending changes but not the reference documents it had
+already stored: their ids lived only in the job that was lost. They stay on
+the copy as ordinary reference documents, counted against its 20, listed with
+the others and removable one by one; nothing reaches another playbook.
 
 - **`GET /playbooks/:id/changes`** lists the playbook's changes, pending and
   decided, in the order proposed (Viewer or more). Each has `id`, `op`,
@@ -314,6 +318,11 @@ keeps them.
   rule moved to another topic with its content unchanged is not stale: the
   change applies where the rule now is. A change already decided answers
   `409` `playbook_change_decided`, so a second click never applies it twice.
+  Two accepts of one change sent at the same instant both read the same
+  version; the slower one then finds that version moved by the first and
+  answers `playbook_change_stale` instead of `playbook_change_decided`. The change is
+  still applied once; either code means the same thing to the interface:
+  reload the changes, which then show it accepted.
 - The change is marked accepted and the rules saved in one database
   transaction, under the playbook's row lock and only over the version the
   server read, so no other write lands between them.
