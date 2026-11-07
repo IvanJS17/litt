@@ -1,0 +1,10 @@
+{
+  "name": "@litt/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "description": "LiTT's interface catalog (en-US, es-MX) shared by the web app and the Word add-in.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "sideEffects": false
+}

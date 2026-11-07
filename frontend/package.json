@@ -55,6 +55,7 @@
         "tiptap-markdown": "^0.9.0"
     },
     "devDependencies": {
+        "@formatjs/icu-messageformat-parser": "^3.5.22",
         "@ladle/react": "^5.1.1",
         "@tailwindcss/postcss": "^4",
         "@testing-library/jest-dom": "^7.0.1",
