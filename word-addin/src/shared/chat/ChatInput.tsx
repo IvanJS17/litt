@@ -3,7 +3,10 @@
 import * as React from "react";
 import { ArrowRight, Square } from "lucide-react";
 
-import { COMPOSER_SEND_BUTTON_CLASS } from "@mike/ui";
+import {
+    COMPOSER_SEND_BUTTON_CLASS,
+    LIQUID_GLASS_TRANSLUCENT_CLASS,
+} from "@mike/ui";
 
 import { cn } from "../lib/utils";
 
@@ -125,7 +128,9 @@ export function ChatInput({
         <div
             data-testid="chat-input"
             className={cn(
-                "rounded-[21px] border border-white/65 bg-white/60 shadow-[0_4px_10px_rgba(21,26,38,0.12),inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-6px_14px_rgba(255,255,255,0.18)] backdrop-blur-2xl",
+                // The web composer's glass, so the pane follows the dark theme.
+                "rounded-[21px]",
+                LIQUID_GLASS_TRANSLUCENT_CLASS,
                 className,
             )}
         >
