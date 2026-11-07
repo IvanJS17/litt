@@ -28,6 +28,14 @@ const PLAYBOOKS = [
     description: "",
     content: { documentTypes: [] },
   },
+  // LiTT: a draft is not offered; a review would refuse it.
+  {
+    id: "3b2a1c0d-9e8f-4a7b-8c6d-5e4f3a2b1c10",
+    name: "Borrador de arrendamiento",
+    description: "",
+    content: { documentTypes: [] },
+    status: "draft",
+  },
 ];
 
 test("attaches a playbook from the plus menu, sends it, and shows it on the message", async ({
@@ -60,6 +68,9 @@ test("attaches a playbook from the plus menu, sends it, and shows it on the mess
   await expect(
     modal.getByRole("button", { name: "Untitled playbook" }),
   ).toBeVisible();
+  await expect(
+    modal.getByRole("button", { name: /Borrador de arrendamiento/ }),
+  ).toHaveCount(0);
   const nda = modal.getByRole("button", { name: /NDA review/ });
   await expect(nda).toContainText("NDA");
   await expect(modal.getByRole("button", { name: "Use" })).toBeDisabled();

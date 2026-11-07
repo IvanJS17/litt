@@ -55,6 +55,7 @@ import {
 } from "../../lib/modelSelection";
 import { replaysReasoning } from "../../lib/llm/registry";
 import {
+  assertPlaybookReady,
   getPlaybook,
   PlaybookRequestError,
 } from "../playbooks/playbooks.service";
@@ -104,17 +105,22 @@ async function attachedPlaybookError(
   userId: string,
   userEmail: string | undefined,
   playbook: ChatMessage["playbook"],
-): Promise<{ status: number; detail: string } | null> {
+): Promise<{ status: number; detail: string; code?: string } | null> {
   if (!playbook) return null;
   const notFound = { status: 404, detail: "Playbook not found." };
   // Playbook ids are uuids; anything else names no playbook and is never queried.
   if (!isUuid(playbook.id)) return notFound;
   try {
-    await getPlaybook(userId, playbook.id, db, userEmail);
+    // LiTT: a draft is refused here too, with the review's code and message.
+    assertPlaybookReady(await getPlaybook(userId, playbook.id, db, userEmail));
     return null;
   } catch (error) {
     if (error instanceof PlaybookRequestError)
-      return { status: error.status, detail: error.message };
+      return {
+        status: error.status,
+        detail: error.message,
+        ...(error.code ? { code: error.code } : {}),
+      };
     throw error;
   }
 }

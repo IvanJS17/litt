@@ -11,6 +11,23 @@ export const positionSchema = z.object({
     criteria: z.string().trim().min(1).max(20000),
     sampleClauses: z.array(clauseSchema).max(30).default([]),
 });
+// LiTT: where a rule drafted by the model comes from, and the legal references
+// it mentions. Both are owned by the server (keepServerOwnedRuleFields): a
+// rule without them was written by a person or imported from a file.
+export const ruleOriginSchema = z.object({
+    kind: z.enum(["answer", "clause", "ai_general"]),
+    questionIds: z.array(z.string().trim().min(1).max(10)).max(10).optional(),
+    sourceId: z.string().trim().min(1).max(100).optional(),
+    quote: z.string().trim().max(5000).optional(),
+    note: z.string().trim().max(500).optional(),
+    unbacked: z.boolean(),
+});
+export const legalRefSchema = z.object({
+    text: z.string().trim().min(1).max(500),
+    verified: z.boolean(),
+    sourceId: z.string().trim().min(1).max(100).optional(),
+    quote: z.string().trim().max(5000).optional(),
+});
 export const ruleSchema = z.object({
     id: z.string().trim().min(1).max(100).optional(),
     name: z.string().trim().min(1).max(300),
@@ -30,6 +47,8 @@ export const ruleSchema = z.object({
         .max(20)
         .default([]),
     sourceRefs: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+    origin: ruleOriginSchema.optional(),
+    legalRefs: z.array(legalRefSchema).max(30).optional(),
 });
 export const topicSchema = z.object({
     id: z.string().trim().min(1).max(100).optional(),

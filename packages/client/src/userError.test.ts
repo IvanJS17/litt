@@ -332,6 +332,21 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
         expect(described).toMatchObject({ kind, message, code, retryable: false, supportable: false });
     });
 
+    // LiTT playbooks: a draft, and a copy with undecided changes, cannot be
+    // fixed by retrying; a change proposed before its rule was edited can,
+    // once the list is reloaded.
+    it.each<[string, string, boolean, string]>([
+        ["playbook_draft", "validation", false, "Este playbook es un borrador. Un editor debe marcarlo como listo antes de usarlo en revisiones."],
+        ["playbook_changes_pending", "validation", false, "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de marcarlo como listo."],
+        ["playbook_change_stale", "conflict", true, "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos."],
+    ])("shows the server's own 409 %s message", (code, kind, retryable, message) => {
+        const described = describeError(
+            new FakeApiError({ status: 409, code, message }),
+            { action: "run the review" },
+        );
+        expect(described).toMatchObject({ kind, message, code, retryable, supportable: false });
+    });
+
     it("shows a rejected custom endpoint URL as a validation message", () => {
         const message =
             "A public https base URL (for example https://llm.example.com/v1) is required with an OpenAI-compatible endpoint key.";

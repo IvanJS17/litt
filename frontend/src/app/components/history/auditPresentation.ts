@@ -75,6 +75,10 @@ export const ACTION_LABELS: Record<string, string> = {
   "playbook.deleted": "Playbook deleted",
   "playbook.run": "Playbook review run",
   "playbook.run.deleted": "Playbook run deleted",
+  // LiTT playbooks with a starting point (new text in Spanish, open question 3).
+  "playbook.marked_ready": "Playbook marcado como listo",
+  "playbook.model_marked": "Playbook marcado como modelo",
+  "playbook.model_unmarked": "Marca de modelo retirada",
   "export.chats": "Chats exported",
   "export.account": "Account data exported",
   "export.tabular": "Review exported",
