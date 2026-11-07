@@ -56,12 +56,26 @@ export default function MikeLayout({
         return !isProjectWorkspace;
     });
 
+    // Client navigation keeps this layout mounted, so the initializer above
+    // does not run again. Collapse in the same render that enters the
+    // workspace (React's "adjust state while rendering" pattern) so the
+    // sidebar is never painted open there.
+    const [wasProjectWorkspace, setWasProjectWorkspace] =
+        useState(isProjectWorkspace);
+    if (wasProjectWorkspace !== isProjectWorkspace) {
+        setWasProjectWorkspace(isProjectWorkspace);
+        if (isProjectWorkspace) setIsSidebarOpen(false);
+    }
+
     // Persist what is actually on screen. The mount initializer above reads
-    // this key back but `isSidebarOpen` starts open on desktop regardless, so
-    // storing anything else leaves the restored preference disagreeing with
-    // the rendered sidebar and the first toggle click is spent re-syncing
-    // them. Remembering a collapsed sidebar across reloads needs the mount
-    // path to apply the stored value too — a separate change.
+    // this key back, but `isSidebarOpen` ignores it: it starts open on
+    // desktop everywhere except the project workspace, which starts (and on
+    // client navigation, becomes) collapsed and then collapses the
+    // preference too through `setSidebarOpen`. Storing anything but the
+    // rendered state leaves the restored preference disagreeing with the
+    // sidebar on screen and the first toggle click is spent re-syncing them.
+    // Remembering a collapsed sidebar across reloads needs the mount path to
+    // apply the stored value too — a separate change.
     useEffect(() => {
         if (typeof window !== "undefined" && window.innerWidth >= 768) {
             localStorage.setItem("sidebarOpen", isSidebarOpen.toString());

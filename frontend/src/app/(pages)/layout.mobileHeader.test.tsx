@@ -157,6 +157,35 @@ describe("desktop sidebar persistence", () => {
         },
     );
 
+    // Client navigation keeps the layout mounted, so its initializer does not
+    // run again: the sidebar must collapse in the render that shows the
+    // workspace, never painting it open first.
+    it.each([
+        "/projects/project-1/assistant/chat/chat-1",
+        "/projects/project-1/assistant/chat",
+    ])("collapses without painting it open when navigating to %s", (pathname) => {
+        navigation.pathname = "/projects/project-1";
+        const view = render(
+            <MikeLayout>
+                <div>Project</div>
+            </MikeLayout>,
+        );
+        expect(sidebarState.isOpen).toBe(true);
+        sidebarState.rendered = [];
+
+        navigation.pathname = pathname;
+        view.rerender(
+            <MikeLayout>
+                <div>Workspace</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.rendered.length).toBeGreaterThan(0);
+        expect(sidebarState.rendered.every((open) => open === false)).toBe(
+            true,
+        );
+    });
+
     it("stores the state the sidebar is rendered with", () => {
         localStorage.setItem("sidebarOpen", "false");
 
