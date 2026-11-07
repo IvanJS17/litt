@@ -912,6 +912,13 @@ export interface TrainingDefenseQuestion {
     listen_for: string;
 }
 export type TrainingDefenseOutcome = "approved" | "not_approved";
+/** Why a defense had its outcome: a closed list (learning data, never audited). */
+export type TrainingDefenseReason =
+    | "razonamiento_solido"
+    | "razonamiento_incompleto"
+    | "cambio_de_hechos_no_resuelto"
+    | "sin_sustento"
+    | "otro";
 /** An oral defense: five questions (one a change of facts) and its outcome, recorded once. */
 export interface TrainingDefense {
     id: string;
@@ -925,11 +932,78 @@ export interface TrainingDefense {
      * see only that a defense is scheduled.
      */
     questions: TrainingDefenseQuestion[] | null;
+    /** The mentor's route that generated the questions (never the credential). */
+    model_provider: string | null;
+    model: string | null;
     outcome: TrainingDefenseOutcome | null;
+    outcome_reason: TrainingDefenseReason | null;
     /** For the pupil, null until the outcome is recorded, like `questions`. */
     outcome_note: string | null;
     held_at: string | null;
     created_at: string;
+}
+/** GET /orgs/:orgId/training/pupils/:userId/defenses (the pupil's current mentor). */
+export interface TrainingDefenses {
+    defenses: TrainingDefense[];
+    /** Whether the mentor can generate questions, and on which of their keys. */
+    generation: TrainingReviewGeneration;
+}
+/**
+ * POST /orgs/:orgId/training/pupils/:userId/defenses. `practice` omitted:
+ * the practice area of the work's matter when `work_review_id` names one,
+ * otherwise every practice area (null).
+ */
+export interface TrainingCreateDefenseBody {
+    practice?: string | null;
+    work_review_id?: string | null;
+}
+/** POST …/defenses/:id/questions */
+export interface TrainingDefenseQuestionsBody {
+    credential_ref?: string | null;
+}
+/** PUT …/defenses/:id/outcome: once (409 training_defense_already_recorded). */
+export interface TrainingDefenseOutcomeBody {
+    outcome: TrainingDefenseOutcome;
+    reason: TrainingDefenseReason;
+    /** Up to 500 characters. */
+    note?: string | null;
+}
+/** A stage a promotion moves from and to; `abogado` means no stage. */
+export type TrainingPromotionTarget = "junior" | "abogado";
+/** One piece of evidence: what it is and when it happened, never a score. */
+export interface TrainingPromotionEvidence {
+    id: string;
+    at: string;
+}
+/**
+ * One of the pupil's stages and whether LiTT proposes the next one. The
+ * evidence counts only since that stage last changed; for the stage that
+ * covers every practice area, evidence of any practice area counts.
+ */
+export interface TrainingPromotionProposal {
+    practice: string | null;
+    from: TrainingStage;
+    to: TrainingPromotionTarget;
+    proposed: boolean;
+    /**
+     * What stops a proposal even once the counts are met, set whether or not
+     * they are met yet; `proposed` also needs the counts (`required`).
+     */
+    blocked_by: "not_approved_after" | "general_stage_remains" | null;
+    approved_defenses: TrainingPromotionEvidence[];
+    reviewed_works: TrainingPromotionEvidence[];
+    /** The pupil's drafts approved by a mentor or a lawyer: shown, not required. */
+    approved_versions: TrainingPromotionEvidence[];
+    required: { approved_defenses: number; reviewed_works: number };
+}
+/** GET /orgs/:orgId/training/pupils/:userId/promotion (the pupil's current mentor). */
+export interface TrainingPromotion {
+    proposals: TrainingPromotionProposal[];
+}
+/** POST …/promotion: accept a proposal still in force; the mentor always decides. */
+export interface TrainingAcceptPromotionBody {
+    practice: string | null;
+    to: TrainingPromotionTarget;
 }
 export type TrainingUrgencyReason = "plazo" | "audiencia" | "cliente_urgente" | "otro";
 /** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */

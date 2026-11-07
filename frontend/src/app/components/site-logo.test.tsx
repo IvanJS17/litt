@@ -27,13 +27,12 @@ describe("SiteLogo", () => {
         expect(screen.getByRole("heading")).toHaveClass("flex", "mb-4");
     });
 
-    it("links to LiTT's own page in a new tab, not to the upstream site", () => {
+    it("links to LiTT's own page in the same tab, not to the upstream site", () => {
         render(<SiteLogo size="lg" asLink />);
         const link = screen.getByRole("link", { name: /LiTT/ });
         expect(link).toHaveAttribute("href", LITT_HOME_URL);
         expect(LITT_HOME_URL).not.toContain("mikeoss");
-        expect(link).toHaveAttribute("target", "_blank");
-        expect(link).toHaveAttribute("rel", "noopener noreferrer");
-        expect(link).toHaveAccessibleName("LiTT (opens in a new tab)");
+        expect(link).not.toHaveAttribute("target");
+        expect(link).toHaveAccessibleName("LiTT");
     });
 });

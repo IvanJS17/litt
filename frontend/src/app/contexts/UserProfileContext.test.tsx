@@ -28,10 +28,12 @@ const {
     updateLastSelectedChatSettings: vi.fn(),
 }));
 
+const auth = vi.hoisted(() => ({ signedIn: true }));
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({
-        user: { id: "u1" },
-        isAuthenticated: true,
+        user: auth.signedIn ? { id: "u1" } : null,
+        isAuthenticated: auth.signedIn,
+        authLoading: false,
     }),
 }));
 
@@ -179,6 +181,8 @@ afterEach(() => {
     clearToasts();
     document.documentElement.classList.remove("dark");
     document.documentElement.style.colorScheme = "";
+    localStorage.clear();
+    auth.signedIn = true;
     vi.clearAllMocks();
 });
 
@@ -302,6 +306,56 @@ describe("UserProfileProvider dark mode", () => {
         expect(updateUserProfile).toHaveBeenNthCalledWith(2, {
             darkMode: true,
         });
+    });
+
+    it("keeps the theme painted at boot until the profile answers, then follows it", async () => {
+        // The <head> boot script painted dark from the last visit.
+        document.documentElement.classList.add("dark");
+        let answer!: (profile: ReturnType<typeof apiProfile>) => void;
+        getUserProfile.mockReturnValue(
+            new Promise((resolve) => {
+                answer = resolve;
+            }),
+        );
+        render(
+            <UserProfileProvider>
+                <ThemeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+        expect(document.documentElement).toHaveClass("dark");
+
+        answer(apiProfile(false));
+        await waitFor(() =>
+            expect(document.documentElement).not.toHaveClass("dark"),
+        );
+        expect(localStorage.getItem("litt:theme")).toBe("light");
+    });
+
+    it("remembers a theme chosen in Settings for the next first paint", async () => {
+        render(
+            <UserProfileProvider>
+                <ThemeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(localStorage.getItem("litt:theme")).toBe("dark"));
+        fireEvent.click(screen.getByRole("button", { name: "Light" }));
+        await waitFor(() => expect(localStorage.getItem("litt:theme")).toBe("light"));
+    });
+
+    it("goes back to light when signed out", async () => {
+        auth.signedIn = false;
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("litt:theme", "dark");
+        render(
+            <UserProfileProvider>
+                <ThemeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() =>
+            expect(document.documentElement).not.toHaveClass("dark"),
+        );
+        expect(localStorage.getItem("litt:theme")).toBe("light");
     });
 
     it("rolls the document theme back when persistence fails", async () => {

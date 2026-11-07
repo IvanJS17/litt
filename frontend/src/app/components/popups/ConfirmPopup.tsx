@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { PillButtonUI, CloseButton, LIQUID_GLASS_FLOAT_CLASS } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
@@ -67,6 +67,58 @@ export function ConfirmPopup({
     return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, [open, onCancel]);
 
+  /**
+   * Focus follows the question, as in `ModalUI`: it moves to Cancel (the safe
+   * answer, so a stray Enter declines) when the popup opens, Tab cycles
+   * inside it, and it returns to whatever asked when the popup closes.
+   * Keyed on `open` alone, so a new `onCancel` identity on every render of
+   * the caller does not bounce focus back to the trigger and in again.
+   */
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    const focusable = (): HTMLElement[] =>
+      dialog
+        ? Array.from(
+            dialog.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+            ),
+          )
+        : [];
+    (dialog?.querySelector<HTMLElement>("[data-confirm-cancel]") ?? dialog)?.focus();
+
+    const handleTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialog) return;
+      // The topmost layer owns Tab, so a `ModalUI` underneath does not also
+      // move focus on the same press.
+      event.stopPropagation();
+      const items = focusable();
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (!first || !last) {
+        event.preventDefault();
+        dialog.focus();
+      } else if (!dialog.contains(active)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleTab, true);
+    return () => {
+      document.removeEventListener("keydown", handleTab, true);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [open]);
+
   if (!open) return null;
   const confirmBusy = confirmStatus === "loading";
   const resolvedConfirmDisabled = confirmDisabled || confirmStatus !== "idle";
@@ -85,7 +137,9 @@ export function ConfirmPopup({
   return createPortal(
     <div className="pointer-events-none fixed inset-x-0 bottom-5 z-[230] flex justify-center px-4">
       <div
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
         aria-label={title ? undefined : "Confirm action"}
         className={cn(
@@ -110,7 +164,12 @@ export function ConfirmPopup({
           </div>
         )}
         <div className="mt-3 flex items-center justify-end gap-2">
-          <PillButtonUI tone="white" size="sm" onClick={onCancel}>
+          <PillButtonUI
+            tone="white"
+            size="sm"
+            onClick={onCancel}
+            data-confirm-cancel=""
+          >
             {cancelLabel}
           </PillButtonUI>
           <PillButtonUI

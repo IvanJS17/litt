@@ -10,6 +10,14 @@
 --      in force (revoked and expired ones do not count).
 --   4. A pupil who left the firm gets no pass; a non-positive duration is
 --      refused; the browser roles cannot call the function.
+--   5. A pass ends when the pupil's mentor changes
+--      (20261107_90_litt_training_defense_outcome.sql): every pass in force
+--      is revoked by whoever moved the pupil; ended ones and other pupils'
+--      are untouched; the new mentor can grant again.
+--   6. Who revoked them (20261107_91_litt_training_pass_revoked_by.sql) when
+--      the statement does not write assigned_by: the session's user when
+--      there is one, never the previous assigner; with neither a session
+--      user nor assigned_by, the change fails (LT003) and nothing moves.
 --
 -- Runs in CI with the performance.*.sql loop (.github/workflows/schema-drift.yml)
 -- on a fresh schema.sql; trainingUrgencyPass.postgres.test.ts runs it locally
@@ -154,6 +162,93 @@ begin
   delete from public.org_members where user_id = current_setting('litt.pupil')::uuid
     and org_id = current_setting('litt.org')::uuid;
   assert pg_temp.grant_by('mentor') = 'not_found', 'a pupil who left the firm';
+end;
+$$;
+rollback;
+
+-- 5. A pass ends when the pupil's mentor changes.
+begin;
+select pg_temp.fixture();
+do $$
+declare pupil uuid := current_setting('litt.pupil')::uuid;
+  admin uuid := current_setting('litt.admin')::uuid;
+begin
+  assert pg_temp.grant_by('mentor', 60) = 'granted', 'a pass in force';
+  assert pg_temp.grant_by('mentor', 120) = 'granted', 'a second pass in force';
+  assert pg_temp.grant_by('other_mentor', 60, 'project', 'other_pupil') = 'granted', 'another pupil''s pass';
+  -- An ended pass keeps its own end.
+  insert into public.training_urgency_passes(org_id, trainee_user_id, project_id, granted_by,
+      starts_at, expires_at, reason_code)
+    values (current_setting('litt.org')::uuid, pupil, current_setting('litt.project')::uuid,
+      current_setting('litt.mentor')::uuid, now() - interval '2 days', now() - interval '1 day', 'otro');
+  -- Changing anything but the mentor ends nothing.
+  update public.training_pupils set updated_at = now() where trainee_user_id = pupil;
+  assert (select count(*) from public.training_urgency_passes where revoked_at is not null) = 0,
+    'no mentor change, no revocation';
+  update public.training_pupils
+     set mentor_user_id = current_setting('litt.old_mentor')::uuid, assigned_by = admin, updated_at = now()
+   where trainee_user_id = pupil;
+  assert (select count(*) from public.training_urgency_passes
+    where trainee_user_id = pupil and expires_at > now() and revoked_at is null) = 0,
+    'the new mentor finds no pass of the old one in force';
+  assert (select count(*) from public.training_urgency_passes
+    where trainee_user_id = pupil and revoked_at is not null and revoked_by = admin) = 2,
+    'the passes in force end, revoked by whoever moved the pupil';
+  assert (select revoked_at is null from public.training_urgency_passes
+    where trainee_user_id = pupil and expires_at < now()), 'an ended pass is left as it was';
+  assert (select revoked_at is null from public.training_urgency_passes
+    where trainee_user_id = current_setting('litt.other_pupil')::uuid), 'another pupil''s pass stays';
+  assert pg_temp.grant_by('mentor', 60) = 'not_found', 'the former mentor grants no more';
+  assert pg_temp.grant_by('old_mentor', 60) = 'granted', 'the new mentor grants';
+end;
+$$;
+rollback;
+
+-- 6. A mentor change that does not write assigned_by.
+begin;
+select pg_temp.fixture();
+do $$
+declare pupil uuid := current_setting('litt.pupil')::uuid;
+  admin uuid := current_setting('litt.admin')::uuid;
+  owner uuid := current_setting('litt.owner')::uuid;
+  state text;
+begin
+  -- The last assignment was the admin's.
+  update public.training_pupils set assigned_by = admin where trainee_user_id = pupil;
+  assert pg_temp.grant_by('mentor', 60) = 'granted', 'a pass in force';
+  -- The owner, in a session, moves the pupil without writing assigned_by.
+  perform set_config('request.jwt.claim.sub', owner::text, true);
+  perform set_config('request.jwt.claims', json_build_object('sub', owner, 'role', 'authenticated')::text, true);
+  update public.training_pupils set mentor_user_id = current_setting('litt.old_mentor')::uuid
+   where trainee_user_id = pupil;
+  assert (select revoked_by from public.training_urgency_passes where trainee_user_id = pupil) = owner,
+    'the session''s user revoked the pass, not the previous assigner';
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+
+  -- No session and no assigned_by: the change is refused, nothing moves.
+  assert pg_temp.grant_by('old_mentor', 60) = 'granted', 'the new mentor''s pass';
+  update public.training_pupils set assigned_by = null where trainee_user_id = pupil;
+  begin
+    update public.training_pupils set mentor_user_id = current_setting('litt.mentor')::uuid
+     where trainee_user_id = pupil;
+    state := 'updated';
+  exception when sqlstate 'LT003' then
+    state := 'refused';
+  end;
+  assert state = 'refused', 'a mentor change without anybody to attribute it to fails (LT003)';
+  assert (select mentor_user_id from public.training_pupils where trainee_user_id = pupil)
+    = current_setting('litt.old_mentor')::uuid, 'the mentor stays';
+  assert (select count(*) from public.training_urgency_passes
+    where trainee_user_id = pupil and revoked_at is null) = 1, 'the pass in force stays';
+
+  -- The service role's path: assigned_by in the same statement.
+  update public.training_pupils
+     set mentor_user_id = current_setting('litt.mentor')::uuid, assigned_by = admin, updated_at = now()
+   where trainee_user_id = pupil;
+  assert (select count(*) from public.training_urgency_passes
+    where trainee_user_id = pupil and revoked_at is not null and revoked_by = admin) = 1,
+    'without a session, revoked by the assigned_by the statement writes';
 end;
 $$;
 rollback;

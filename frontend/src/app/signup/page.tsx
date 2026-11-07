@@ -4,11 +4,11 @@ import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";
+import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
     PillButtonUI,
     pillButtonUIClassName,
-    noticeActionClassName,
     authGlassCardUIClassName,
     authInputUIClassName,
     AuthDividerUI,
@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { cn } from "@/app/lib/utils";
-import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { AuthFormError } from "@/app/components/auth/AuthFormError";
 import {
     reportFault,
     UserVisibleError,
@@ -79,6 +79,7 @@ function SignupContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<UserFacingError | null>(null);
     const [success, setSuccess] = useState(false);
+    const { showGoogle } = useAuthProviders();
     const isAccountCreatedPreview =
         process.env.NODE_ENV !== "production" &&
         searchParams.get("preview") === "account-created";
@@ -234,6 +235,24 @@ function SignupContent() {
                             />
                         </div>
 
+                        {/* In the card, next to the action that failed: a
+                            floating notice would cover the wordmark. */}
+                        {error && (
+                            <AuthFormError
+                                title={error.title}
+                                message={error.message}
+                                supportHref={
+                                    error.supportable
+                                        ? supportMailtoFor(
+                                              error,
+                                              "Failed to create an account.",
+                                          )
+                                        : undefined
+                                }
+                                onDismiss={() => setError(null)}
+                            />
+                        )}
+
                         <div className="space-y-3 pt-2">
                             {/* LiTT: no terms or privacy notice until LiTT's own texts
                                 are approved (being drafted in Kanban t_014f1869); a later
@@ -248,12 +267,16 @@ function SignupContent() {
                             >
                                 {loading ? "Creating account..." : "Sign up"}
                             </PillButtonUI>
-                            <AuthDividerUI />
-                            <GoogleAuthButton
-                                onError={setError}
-                                disabled={loading}
-                                onLoadingChange={setLoading}
-                            />
+                            {showGoogle && (
+                                <>
+                                    <AuthDividerUI />
+                                    <GoogleAuthButton
+                                        onError={setError}
+                                        disabled={loading}
+                                        onLoadingChange={setLoading}
+                                    />
+                                </>
+                            )}
                         </div>
                     </form>
                 </div>
@@ -267,25 +290,6 @@ function SignupContent() {
                     </Link>
                 </div>
             </div>
-            <WarningPopup
-                open={!!error}
-                onClose={() => setError(null)}
-                title={error?.title}
-                message={error?.message}
-                actions={
-                    error?.supportable ? (
-                        <a
-                            href={supportMailtoFor(
-                                error,
-                                "Failed to create an account.",
-                            )}
-                            className={noticeActionClassName()}
-                        >
-                            Contact support
-                        </a>
-                    ) : undefined
-                }
-            />
         </AuthPageShell>
     );
 }

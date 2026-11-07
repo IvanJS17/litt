@@ -8,7 +8,7 @@ const DISMISS_KEY = "apiKeyBannerDismissed";
 // The web app hosts the API-keys settings page; the task pane only links to it.
 const API_KEYS_PAGE_URL = `${WEB_APP_URL}/settings/byok`;
 
-function openApiKeysPage(): void {
+export function openApiKeysPage(): void {
   openExternalUrl(API_KEYS_PAGE_URL);
 }
 

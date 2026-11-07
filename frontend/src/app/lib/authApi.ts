@@ -137,6 +137,17 @@ export async function getAuthSession(
     }
 }
 
+/**
+ * Which optional sign-in routes the server has switched on; `google` is
+ * `null` when the server couldn't ask GoTrue.
+ */
+export function getAuthProviders() {
+    return authRequest<{ sso: boolean; google: boolean | null }>(
+        "auth.signin",
+        "/providers",
+    );
+}
+
 export async function login(email: string, password: string) {
     return authRequest<{ user: AuthUser }>("auth.signin", "/login", {
         method: "POST",

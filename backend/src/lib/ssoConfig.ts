@@ -10,8 +10,16 @@ export const ssoDomainSchema = z
     /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?$/,
   );
 
+/**
+ * Whether SSO sign-in is switched on. This is the only SSO fact the public
+ * `GET /api/auth/providers` read reveals; the allowed domains stay private.
+ */
+export function ssoEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.SSO_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export function ssoConfiguration(env: NodeJS.ProcessEnv = process.env) {
-  const enabled = env.SSO_ENABLED?.trim().toLowerCase() === "true";
+  const enabled = ssoEnabled(env);
   if (!enabled) {
     return {
       enabled: false,

@@ -22,6 +22,7 @@ import {
 } from "./lib/wordChatSettings";
 import { useWordDocumentIdentity } from "./lib/wordDocumentIdentity";
 import { clearLocalWordChats } from "./lib/localWordChats";
+import { useProfileTheme } from "./hooks/useProfileTheme";
 import type {
   ReasoningLevel,
   WordChatOpenHandler,
@@ -30,6 +31,7 @@ import type {
 export default function App(): React.ReactElement {
   const { user, loading, error, logout } = useAuth();
   const pendingOwnerId = user?.id ?? null;
+  useProfileTheme(pendingOwnerId);
   const wordChatStorage = useWordChatStoragePreference(pendingOwnerId);
   const editApply = useWordEditApplyMode();
   const wordDocument = useWordDocumentIdentity();

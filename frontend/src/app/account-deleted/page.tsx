@@ -4,13 +4,16 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import type { AccountDeletionReceipt } from "@mike/contracts";
 import { useAuth } from "@/app/contexts/AuthContext";
-import { GlassCardUI } from "@mike/ui";
-import { PillButtonUI } from "@mike/ui";
+import { PillButtonUI, authGlassCardUIClassName } from "@mike/ui";
+import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { getAccountDeletionReceipt } from "@/app/lib/mikeApi";
 import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
 import { notifyError } from "@/app/lib/userFacingError";
 
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;
+
+/** The card title every signed-out screen uses; the wordmark is the h1. */
+const TITLE_CLASS = "font-serif text-2xl font-medium text-gray-950";
 
 function formatDate(value: string) {
   // A date-only value is a UTC calendar date; show it as that date.
@@ -83,11 +86,14 @@ export default function AccountDeletedPage() {
     router.replace("/");
   };
 
+  // The same frame as every other signed-out screen: the wordmark above,
+  // the receipt in an auth card under it. `top` keeps the card still while
+  // the receipt grows from "Deleting…" to the full list.
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl items-center px-4 py-10">
-      <div className="w-full">
-        <GlassCardUI>
-          <div className="space-y-5 p-6">
+    <AuthPageShell align="top">
+      <main className="w-full max-w-xl">
+        <div className={authGlassCardUIClassName}>
+          <div className="space-y-5">
             {token === null ? (
               <p className="text-sm text-gray-600">
                 There is no account deletion to show in this tab.
@@ -96,9 +102,7 @@ export default function AccountDeletedPage() {
               receipt.status === "pending" ||
               receipt.status === "running" ? (
               <div role="status" className="space-y-2">
-                <h1 className="text-lg font-medium text-gray-900">
-                  Deleting your account&hellip;
-                </h1>
+                <h2 className={TITLE_CLASS}>Deleting your account&hellip;</h2>
                 <p className="text-sm text-gray-600">
                   This can take a few minutes. Keep this page open to see your
                   receipt.
@@ -106,9 +110,9 @@ export default function AccountDeletedPage() {
               </div>
             ) : receipt.status === "failed" ? (
               <div role="alert" className="space-y-2">
-                <h1 className="text-lg font-medium text-gray-900">
+                <h2 className={TITLE_CLASS}>
                   Your account could not be fully deleted
-                </h1>
+                </h2>
                 <p className="text-sm text-gray-600">
                   Your account stays locked and nobody can sign in to it.
                   Contact support to finish the deletion.
@@ -116,12 +120,10 @@ export default function AccountDeletedPage() {
               </div>
             ) : (
               <div className="space-y-4 text-sm text-gray-600">
-                <h1 className="text-lg font-medium text-gray-900">
-                  Your account has been deleted
-                </h1>
+                <h2 className={TITLE_CLASS}>Your account has been deleted</h2>
                 <p>Finished on {formatDate(receipt.completed_at)}.</p>
                 <section className="space-y-1">
-                  <h2 className="font-medium text-gray-900">Deleted</h2>
+                  <h3 className="font-medium text-gray-900">Deleted</h3>
                   <ul className="list-disc space-y-1 pl-5">
                     {receipt.deleted.map((item) => (
                       <li key={item}>{item}</li>
@@ -129,7 +131,7 @@ export default function AccountDeletedPage() {
                   </ul>
                 </section>
                 <section className="space-y-1">
-                  <h2 className="font-medium text-gray-900">Kept, and why</h2>
+                  <h3 className="font-medium text-gray-900">Kept, and why</h3>
                   <ul className="list-disc space-y-1 pl-5">
                     {receipt.retained.map((entry) => (
                       <li key={entry.item}>
@@ -152,15 +154,15 @@ export default function AccountDeletedPage() {
               receipt?.status === "failed") && (
               <PillButtonUI
                 tone="black"
-                size="sm"
+                size="normal"
                 onClick={() => void finish()}
               >
                 {token === null ? "Go to LiTT" : "Finish and sign out"}
               </PillButtonUI>
             )}
           </div>
-        </GlassCardUI>
-      </div>
-    </main>
+        </div>
+      </main>
+    </AuthPageShell>
   );
 }

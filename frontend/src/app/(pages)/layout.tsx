@@ -14,25 +14,27 @@ import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { HeaderButtonUI, HeaderButtonsUI } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 
+/**
+ * The project workspace (explorer, documents and chat). "New chat" renders
+ * the same page without a chat id.
+ */
+const PROJECT_WORKSPACE_PATH =
+    /^\/projects\/[^/]+\/assistant\/chat(?:\/[^/]+)?\/?$/;
+
 export default function MikeLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     preloadSidebarIcons();
+    // While this boundary hydrates, useAuth answers the server's loading
+    // state even if the session already settled (see useOptionalAuth).
     const { isAuthenticated, authLoading } = useAuth();
-    const [hasMounted, setHasMounted] = useState(false);
-    useEffect(() => {
-        // An outer auth provider may settle before this streamed boundary
-        // hydrates. Its first client render must still match the SSR loader.
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- one hydration transition, independent of auth or streamed content
-        setHasMounted(true);
-    }, []);
     const router = useRouter();
     const pathname = usePathname();
+    const isProjectWorkspace = PROJECT_WORKSPACE_PATH.test(pathname);
     const isChatPage =
-        /^\/assistant\/chat\/[^/]+\/?$/.test(pathname) ||
-        /^\/projects\/[^/]+\/assistant\/chat\/[^/]+\/?$/.test(pathname);
+        /^\/assistant\/chat\/[^/]+\/?$/.test(pathname) || isProjectWorkspace;
     const [mobileActionsContainer, setMobileActionsContainer] =
         useState<HTMLDivElement | null>(null);
 
@@ -48,15 +50,32 @@ export default function MikeLayout({
         if (typeof window !== "undefined" && window.innerWidth < 768) {
             return false;
         }
-        return true;
+        // The project workspace collapses the sidebar to make room. Start
+        // collapsed there: opening it and collapsing it once the page mounts
+        // slides the whole workspace sideways as it loads.
+        return !isProjectWorkspace;
     });
 
+    // Client navigation keeps this layout mounted, so the initializer above
+    // does not run again. Collapse in the same render that enters the
+    // workspace (React's "adjust state while rendering" pattern) so the
+    // sidebar is never painted open there.
+    const [wasProjectWorkspace, setWasProjectWorkspace] =
+        useState(isProjectWorkspace);
+    if (wasProjectWorkspace !== isProjectWorkspace) {
+        setWasProjectWorkspace(isProjectWorkspace);
+        if (isProjectWorkspace) setIsSidebarOpen(false);
+    }
+
     // Persist what is actually on screen. The mount initializer above reads
-    // this key back but `isSidebarOpen` starts open on desktop regardless, so
-    // storing anything else leaves the restored preference disagreeing with
-    // the rendered sidebar and the first toggle click is spent re-syncing
-    // them. Remembering a collapsed sidebar across reloads needs the mount
-    // path to apply the stored value too — a separate change.
+    // this key back, but `isSidebarOpen` ignores it: it starts open on
+    // desktop everywhere except the project workspace, which starts (and on
+    // client navigation, becomes) collapsed and then collapses the
+    // preference too through `setSidebarOpen`. Storing anything but the
+    // rendered state leaves the restored preference disagreeing with the
+    // sidebar on screen and the first toggle click is spent re-syncing them.
+    // Remembering a collapsed sidebar across reloads needs the mount path to
+    // apply the stored value too — a separate change.
     useEffect(() => {
         if (typeof window !== "undefined" && window.innerWidth >= 768) {
             localStorage.setItem("sidebarOpen", isSidebarOpen.toString());
@@ -115,7 +134,7 @@ export default function MikeLayout({
         }
     }, [authLoading, isAuthenticated, router]);
 
-    if (!hasMounted || authLoading) {
+    if (authLoading) {
         return <FullScreenLoader />;
     }
 

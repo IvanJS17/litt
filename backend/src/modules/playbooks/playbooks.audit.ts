@@ -49,7 +49,7 @@ export function recordPlaybookAudit(
  * the request that loaded the playbook. A playbook deleted meanwhile, or a
  * failed lookup, gives nulls: the row is still worth recording.
  */
-async function playbookAuditContext(
+export async function playbookAuditContext(
   db: Db,
   playbookId: string,
 ): Promise<{ orgId: string | null; name: string | null }> {

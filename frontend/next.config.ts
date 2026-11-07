@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import createNextIntlPlugin from "next-intl/plugin";
 import { resolveSourceCommit } from "@mike/client";
 
 // The repository root: the parent of this directory, here and in the Docker
@@ -9,6 +10,10 @@ import { resolveSourceCommit } from "@mike/client";
 // /app/packages). The shared packages the app imports, @mike/ui and
 // @mike/client (packages/ui, packages/client), live there.
 const REPO_ROOT = path.resolve(__dirname, "..");
+
+// next-intl reads the request's locale and catalog from this file
+// (cookie, then Accept-Language, then es-MX). See src/i18n/request.ts.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
     /* config options here */
@@ -92,5 +97,5 @@ export default function config(phase: string): NextConfig {
                 stdio: ["ignore", "pipe", "ignore"],
             }),
     });
-    return { ...nextConfig, env: { LITT_SOURCE_COMMIT: sourceCommit } };
+    return withNextIntl({ ...nextConfig, env: { LITT_SOURCE_COMMIT: sourceCommit } });
 }

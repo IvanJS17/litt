@@ -3,9 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SignupPage from "./page";
 
-const { signup, startGoogleOAuth, refreshSession, replace, push, authState } = vi.hoisted(() => ({
+const { signup, startGoogleOAuth, getAuthProviders, refreshSession, replace, push, authState } = vi.hoisted(() => ({
     signup: vi.fn(),
     startGoogleOAuth: vi.fn(),
+    // Unanswered by default: the page as it looks while the read is in flight.
+    getAuthProviders: vi.fn(
+        (): Promise<{ sso: boolean; google: boolean | null }> =>
+            new Promise(() => {}),
+    ),
     refreshSession: vi.fn(),
     replace: vi.fn(),
     push: vi.fn(),
@@ -20,6 +25,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/app/lib/authApi", () => ({
     signup,
     startGoogleOAuth,
+    getAuthProviders,
 }));
 
 vi.mock("@/app/contexts/AuthContext", () => ({
@@ -42,6 +48,48 @@ describe("SignupPage", () => {
         replace.mockReset();
         push.mockReset();
         authState.isAuthenticated = false;
+    });
+
+    // The divider is aria-hidden, so it is found by its text.
+    const divider = () => screen.queryByText("or", { selector: "span" });
+
+    it("draws neither Google nor its divider until the server answers", async () => {
+        render(<SignupPage />);
+
+        await act(async () => {});
+        expect(getAuthProviders).toHaveBeenCalled();
+        expect(
+            screen.queryByRole("button", { name: "Continue with Google" }),
+        ).not.toBeInTheDocument();
+        expect(divider()).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ["on", () => Promise.resolve({ sso: false, google: true })],
+        ["unknown", () => Promise.resolve({ sso: false, google: null })],
+        ["unreadable", () => Promise.reject(new TypeError("Failed to fetch"))],
+    ])("offers Continue with Google when GoTrue's Google is %s", async (_label, answer) => {
+        getAuthProviders.mockImplementationOnce(answer);
+        render(<SignupPage />);
+
+        await act(async () => {});
+        expect(
+            screen.getByRole("button", { name: "Continue with Google" }),
+        ).toBeInTheDocument();
+        expect(divider()).toBeInTheDocument();
+    });
+
+    it("hides Continue with Google and its divider once the server says Google is off", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google: false });
+        render(<SignupPage />);
+
+        await act(async () => {});
+        expect(getAuthProviders).toHaveBeenCalled();
+        expect(
+            screen.queryByRole("button", { name: "Continue with Google" }),
+        ).not.toBeInTheDocument();
+        expect(divider()).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Sign up" })).toBeInTheDocument();
     });
 
     afterEach(() => {
@@ -169,7 +217,7 @@ describe("SignupPage", () => {
         expect(await screen.findByRole("alert")).toHaveTextContent(shown);
     });
 
-    it("shows a failure as a popup that can be dismissed", async () => {
+    it("shows a failure inside the card and lets it be dismissed", async () => {
         await fillAndSubmit("x".repeat(73));
 
         expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -197,11 +245,12 @@ describe("SignupPage", () => {
         expect(container.textContent).not.toMatch(/by signing up, you agree/i);
     });
 
-    it("places Google after the primary signup action without offering SSO", () => {
+    it("places Google after the primary signup action without offering SSO", async () => {
+        getAuthProviders.mockResolvedValueOnce({ sso: true, google: true });
         render(<SignupPage />);
 
         const signup = screen.getByRole("button", { name: "Sign up" });
-        const google = screen.getByRole("button", {
+        const google = await screen.findByRole("button", {
             name: "Continue with Google",
         });
         expect(

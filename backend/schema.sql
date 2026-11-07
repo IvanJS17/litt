@@ -17733,6 +17733,8 @@ create table if not exists public.training_defenses (
   credential_ref text,
   generated_by uuid references auth.users(id) on delete set null,
   outcome text,
+  -- Why, from a closed list; with the note, learning data (never audited).
+  outcome_reason text,
   outcome_note text,
   held_at timestamptz,
   recorded_by uuid references auth.users(id) on delete set null,
@@ -17769,7 +17771,12 @@ create table if not exists public.training_defenses (
   constraint training_defenses_outcome_check check (
     (outcome is null or outcome in ('approved', 'not_approved'))
     and (outcome is null) = (held_at is null)
-    and (outcome_note is null or (outcome is not null and char_length(outcome_note) <= 4000))
+    and (outcome is null) = (outcome_reason is null)
+    and (outcome_reason is null or outcome_reason in (
+      'razonamiento_solido', 'razonamiento_incompleto', 'cambio_de_hechos_no_resuelto',
+      'sin_sustento', 'otro'
+    ))
+    and (outcome_note is null or (outcome is not null and char_length(outcome_note) <= 500))
     -- recorded_by is set with the outcome and goes to null with that account.
     and (recorded_by is null or outcome is not null)
   )
@@ -17789,6 +17796,7 @@ as $$
 begin
   if old.outcome is not null and (
     new.outcome is distinct from old.outcome
+    or new.outcome_reason is distinct from old.outcome_reason
     or new.outcome_note is distinct from old.outcome_note
     or new.held_at is distinct from old.held_at
     or (new.recorded_by is not null and new.recorded_by is distinct from old.recorded_by)
@@ -17956,6 +17964,45 @@ revoke all on function public.training_grant_urgency_pass(uuid, uuid, uuid, uuid
   from public, anon, authenticated;
 grant execute on function public.training_grant_urgency_pass(uuid, uuid, uuid, uuid, integer, text, text, integer)
   to service_role;
+
+-- LiTT training layer 2: a pass ends when the pupil's mentor changes
+-- (20261107_90_litt_training_defense_outcome.sql). A pass is the mentor's:
+-- when the pupil gets another mentor, every pass still in force for them ends
+-- in the same statement, whatever path changes the mentor. revoked_by is
+-- whoever made the change (20261107_91_litt_training_pass_revoked_by.sql):
+-- the session's user when there is one, otherwise the assigned_by the same
+-- statement writes (the service role's path, assignPupil); with neither the
+-- change fails (LT003).
+create or replace function public.training_pupils_mentor_change_ends_passes()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  actor uuid;
+begin
+  if new.mentor_user_id is distinct from old.mentor_user_id then
+    actor := coalesce(auth.uid(), new.assigned_by);
+    if actor is null then
+      raise exception 'A mentor change must say who made it (assigned_by)'
+        using errcode = 'LT003';
+    end if;
+    update public.training_urgency_passes
+       set revoked_at = now(), revoked_by = actor
+     where org_id = new.org_id
+       and trainee_user_id = new.trainee_user_id
+       and revoked_at is null
+       and expires_at > now();
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.training_pupils_mentor_change_ends_passes() from public, anon, authenticated;
+
+drop trigger if exists training_pupils_mentor_change_ends_passes on public.training_pupils;
+create trigger training_pupils_mentor_change_ends_passes
+  after update of mentor_user_id on public.training_pupils
+  for each row execute function public.training_pupils_mentor_change_ends_passes();
 
 -- ---------------------------------------------------------------------------
 -- 20261030_51_litt_departure_private_matter.sql
@@ -19124,6 +19171,77 @@ $$;
 revoke all on function public.list_matters_without_owner(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.list_matters_without_owner(uuid, uuid) to service_role;
 
+-- LiTT 20261107_54_litt_playbook_change_guards: one running proposal per
+-- copy; a change accepted in one transaction under the playbook's row lock;
+-- a failed proposal's documents removed only from a copy still in draft.
+create unique index if not exists idx_playbook_imports_one_running_proposal
+  on public.playbook_imports(playbook_id)
+  where status = 'running' and kind = 'proposal';
+
+create or replace function public.accept_playbook_change(
+  p_playbook_id uuid,
+  p_change_id uuid,
+  p_user_id uuid,
+  p_read_updated_at timestamptz,
+  p_content jsonb
+)
+returns text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  current_version timestamptz;
+begin
+  select updated_at into current_version
+  from public.playbooks
+  where id = p_playbook_id
+  for update;
+  if not found then return 'missing'; end if;
+  -- Another write landed since the backend read the rules.
+  if current_version is distinct from p_read_updated_at then return 'stale'; end if;
+  update public.playbook_changes
+  set status = 'accepted', decided_by = p_user_id, decided_at = now()
+  where id = p_change_id and playbook_id = p_playbook_id and status = 'pending';
+  if not found then return 'decided'; end if;
+  update public.playbooks
+  set content_json = p_content, updated_at = clock_timestamp()
+  where id = p_playbook_id;
+  return 'accepted';
+end;
+$$;
+
+create or replace function public.discard_playbook_proposal_sources(
+  p_playbook_id uuid,
+  p_source_ids uuid[]
+)
+returns setof text
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform 1 from public.playbooks
+  where id = p_playbook_id and status = 'draft'
+  for update;
+  -- A ready playbook (or one already gone) keeps its documents.
+  if not found then return; end if;
+  return query
+    delete from public.playbook_sources
+    where playbook_id = p_playbook_id and id = any(p_source_ids)
+    returning storage_key;
+end;
+$$;
+
+revoke all on function public.accept_playbook_change(uuid, uuid, uuid, timestamptz, jsonb)
+  from public, anon, authenticated;
+grant execute on function public.accept_playbook_change(uuid, uuid, uuid, timestamptz, jsonb)
+  to service_role;
+revoke all on function public.discard_playbook_proposal_sources(uuid, uuid[])
+  from public, anon, authenticated;
+grant execute on function public.discard_playbook_proposal_sources(uuid, uuid[])
+  to service_role;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -19362,8 +19480,11 @@ insert into public.schema_migrations (filename) values
   ('20261107_51_litt_ownerless_items_private_matter.sql'),
   ('20261107_52_litt_audit_username_filter_order.sql'),
   ('20261107_53_litt_playbook_starter.sql'),
+  ('20261107_54_litt_playbook_change_guards.sql'),
   ('20261107_60_litt_training_supervision.sql'),
   ('20261107_61_litt_training_urgency_pass_grant.sql'),
   ('20261107_70_litt_matter_succession.sql'),
-  ('20261107_80_litt_user_ui_locale.sql')
+  ('20261107_80_litt_user_ui_locale.sql'),
+  ('20261107_90_litt_training_defense_outcome.sql'),
+  ('20261107_91_litt_training_pass_revoked_by.sql')
 on conflict (filename) do nothing;

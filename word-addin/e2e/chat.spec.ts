@@ -61,7 +61,7 @@ test("shows frontend-style quick actions before any message is sent", async ({
   await addin.expectAuthedShell();
 
   await expect(
-    page.getByRole("heading", { name: "Hi, Test User" }),
+    page.getByRole("heading", { name: "Hi, Test", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Quick actions", { exact: true })).toBeVisible();
   await expect(

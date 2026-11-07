@@ -307,7 +307,7 @@ keeps while supervising a pupil. It is learning data, like the turn notes.
 | Table | Key | Notes |
 |---|---|---|
 | `training_work_reviews` | `id` | the two-minute review of one piece of work: exactly one of `chat_id` / `word_chat_id` / `tabular_chat_id` (cascade with its chat, unique per chat); `status in ('pending','ready','failed')`; `proposed`, `ai_corrected`, `doubts`, `unverified` (JSON lists of `{ source, text, ref? }`, required when `ready`); the mentor's route (`model_provider`, `model`, `credential_ref`: identifiers only); `reviewed_at` / `reviewed_by` |
-| `training_defenses` | `id` | an oral defense: `practice` (normalized or null), optional `work_review_id` of the same pupil (set to null if that review goes); `questions` ready = five, exactly one `cambio_de_hechos`; `outcome in ('approved','not_approved')` with `held_at`, recorded once (`LT002` on a change) |
+| `training_defenses` | `id` | an oral defense: `practice` (normalized or null), optional `work_review_id` of the same pupil (set to null if that review goes); `questions` ready = five, exactly one `cambio_de_hechos`; `outcome in ('approved','not_approved')` with `held_at` and `outcome_reason` (closed list), `outcome_note` up to 500 characters, recorded once (`LT002` on a change; `20261107_90`) |
 | `training_urgency_passes` | `id` | a mentor's pass for one `project_id`: `starts_at < expires_at`, `reason_code in ('plazo','audiencia','cliente_urgente','otro')`, `reason_note` up to 500 characters, `revoked_at` / `revoked_by`; FK to `training_pupils` (cascade) |
 
 **Who reads it.** One rule, in the database:
@@ -326,9 +326,9 @@ urgency passes. When a mentor's account goes, the ids of what they did
 become null and the pupil's rows stay. Audit events stay (insert-only).
 
 `GET /training/me/supervision?org_id=` returns what the caller's mentor keeps
-about them there (their work reviews; defenses and passes as those features
-land). A defense's
-questions reach the pupil once its outcome is recorded, here and in the
+about them there: their work reviews, defenses and urgency passes. A
+defense's questions, reason and note reach the pupil once its outcome is
+recorded (before that they see that a defense exists), here and in the
 account export (`training.work_reviews`, `training.defenses`,
 `training.urgency_passes`).
 
@@ -440,3 +440,103 @@ the seal and the approvals read `resolveTrainingStage`.
 chat, in the chat's project. A chat without a project has no matter, so no
 pass. The Word chat has no project either: Word never honors a pass, and a
 pupil with one still sees the field there.
+
+**When the mentor changes.** A pass is the mentor's who granted it. When the
+pupil gets another mentor, every pass still in force for them ends at once:
+a trigger on `training_pupils` (`20261107_90_litt_training_defense_outcome.sql`)
+revokes them in the same statement that changes the mentor. `revoked_by` is
+whoever moved the pupil (`20261107_91_litt_training_pass_revoked_by.sql`): the
+session's user (`auth.uid()`) when the statement runs in one; otherwise, as
+for the service role the app writes with, the `assigned_by` that same
+statement writes. `assignPupil` sets `assigned_by` to the actor in the update
+that moves the pupil, and any other service-role path that changes a mentor
+must do the same: a change with neither a session user nor `assigned_by`
+fails (`LT003`) rather than record a revocation nobody made. The new mentor
+grants their own if they want one. Releasing the pupil deletes their passes
+(cascade).
+
+### Oral defense
+
+The current mentor prepares and records an oral defense (specification §6.2):
+
+| Route | Who | Purpose |
+|---|---|---|
+| `GET /orgs/:orgId/training/pupils/:userId/defenses` | the current mentor | the pupil's defenses, newest first, and `generation` (as for reviews) |
+| `POST …/defenses` | the current mentor | create one: `{ practice?, work_review_id? }` |
+| `POST …/defenses/:defenseId/questions` | the current mentor | generate (or regenerate) the questions: `{ credential_ref? }` |
+| `PUT …/defenses/:defenseId/outcome` | the current mentor | record `{ outcome, reason, note? }`, once |
+
+- Anybody else, the pupil included, gets the uniform `404`; the pupil reads
+  their defenses through `GET /training/me/supervision`.
+- `practice` omitted: the practice area of the linked work's matter, or every
+  practice area (`null`) without one. A linked work in a matter the mentor
+  cannot open is a `404`.
+- **Questions.** Five: four that ask the pupil to justify their own
+  reasoning and one change of facts («¿y si X hubiera sido distinto?»,
+  `kind: "cambio_de_hechos"`), each with `listen_for`, what the mentor should
+  hear. The model sees only the attempts and the contrasts of the linked
+  work, or of the pupil's works in the defense's practice area the mentor can
+  open (the newest notes), fenced with a per-call nonce. The answer must be
+  strict JSON with exactly that shape, and it fails if it names an article, a
+  fraction of an article, a thesis or a registry number that the pupil's text
+  and the contrasts do not (`legalReferences` in
+  `lib/trainingSupervisionAi.ts`). Each number of an enumeration counts on its
+  own («artículos 1949, 2000 y 2001», «registros 2021234 y 2021235»), and a
+  range («1949 a 1951») names every number in it (one wider than 100 names
+  only its ends and itself). No work to rest on: `400`.
+- **Model.** The mentor's route, exactly as for a review (stored on the
+  defense, no fallback, never the pupil's key; `llm.egress` first with the
+  defense's id), and the same states: one generation at a time
+  (`409 training_review_in_progress`), `pending` → `ready` | `failed`.
+- **Outcome.** `outcome` is `approved` or `not_approved`; `reason` is one of
+  `razonamiento_solido`, `razonamiento_incompleto`,
+  `cambio_de_hechos_no_resuelto`, `sin_sustento`, `otro`; `note` up to 500
+  characters. It can be recorded without questions (the AI may be
+  unavailable; a defense really held is not lost). It is recorded once: a
+  second request, or asking for questions afterwards, is
+  `409 training_defense_already_recorded`. A correction is a new defense.
+- **Audit.** `training.defense_created` and `training.defense_recorded` with
+  `{ org_id, target_user_id, defense_id }` only: never the outcome, the
+  reason, the note or the questions.
+
+### Promotion by evidence
+
+LiTT proposes, the mentor decides (specification §6.4 and §10). The
+proposals are computed on every read and never stored
+(`proposePromotions` in `lib/trainingPromotion.ts`, a pure function).
+
+| Route | Who | Purpose |
+|---|---|---|
+| `GET /orgs/:orgId/training/pupils/:userId/promotion` | the current mentor | one entry per stage the pupil holds, with its evidence |
+| `POST …/promotion` | the current mentor | accept a proposal: `{ practice, to: "junior" \| "abogado" }` |
+
+- For each stage (the general one first, then each practice area), the next
+  step is proposed (`pasante → junior`, `junior → abogado`) when, **since that
+  stage last changed** (`training_stages.updated_at`), there are at least
+  `PROMOTION_MIN_APPROVED_DEFENSES` (2) approved defenses, no defense not
+  approved after the last approved one, and at least
+  `PROMOTION_MIN_REVIEWED_WORKS` (3) works the mentor marked reviewed
+  (layer-2 plan, open question 3). A practice area counts only its own
+  evidence; the general stage counts any.
+- The answer lists the evidence (ids and dates of the defenses, the reviewed
+  works and the pupil's drafts a mentor or a lawyer approved, which are shown
+  but not required) and the two required counts: never a score, and nothing
+  about other pupils. Works and drafts in matters the mentor cannot open do
+  not count.
+- Not proposed, with `blocked_by`: `not_approved_after`, or
+  `general_stage_remains` for `junior → abogado` in a practice area while a
+  general stage exists (removing the practice stage would leave the general
+  one, not a lawyer). `blocked_by` says what would stop a proposal even with
+  the counts met, so it is set whether or not they are met yet: the mentor
+  learns about it before collecting more evidence, and the counts next to it
+  say what is still missing.
+- Accepting recomputes the proposal and requires it to still hold
+  (otherwise `409 training_promotion_not_proposed`), then changes the stage
+  only through `setStage` (to `junior`) or `removeStage` (to `abogado`) of
+  the training module, so "only the current mentor" applies and
+  `training.stage_set` / `training.stage_removed` is written as for any stage
+  change, followed by `training.promotion_accepted` with
+  `{ org_id, target_user_id }` only. The new stage starts its evidence
+  again.
+- Layers 3 and 4 add the gym and the confidence meter as further inputs of
+  the same function.

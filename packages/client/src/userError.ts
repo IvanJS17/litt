@@ -238,6 +238,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // where to add it); a second request while one runs waits for it.
     training_review_key_required: "validation",
     training_review_in_progress: "conflict",
+    // An oral defense's outcome is recorded once; a correction is a new
+    // defense. A promotion is accepted only while LiTT still proposes it:
+    // the evidence changed, so the panel reloads it.
+    training_defense_already_recorded: "conflict",
+    training_promotion_not_proposed: "conflict",
     // LiTT playbooks: a draft is used in reviews only once an editor marks
     // it ready, and a copy is marked ready only after every proposed change
     // is decided. Retrying cannot help, so the server's detail is shown.

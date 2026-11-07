@@ -521,6 +521,15 @@ HttpOnly cookie. No Supabase access or refresh token enters add-in JavaScript or
 OfficeRuntime storage. The add-in also does not retain Google's provider access
 token or request Google Drive or Gmail access.
 
+The login and signup pages show "Continue with Google" unless the auth service
+has Google off. The backend asks GoTrue's own `GET {SUPABASE_URL}/auth/v1/settings`
+(`external.google`, 2-second timeout, a real answer cached for one minute), so
+the setting is `GOTRUE_EXTERNAL_GOOGLE_ENABLED` (or the Supabase provider
+switch) and nothing else needs to match it. The public `GET /api/auth/providers`
+passes on only that boolean, or `null` when GoTrue can't be asked; the button is
+hidden only on `false`, and while the answer is pending, `null` or unreadable it
+stays. With both Google and SSO off, the "or" divider goes too.
+
 ## Enterprise SSO (SAML)
 
 Self-hosted Mike can use SAML providers registered in Supabase Auth (GoTrue),
@@ -617,8 +626,11 @@ SSO_ALLOWED_DOMAINS=example.com
 ```
 
 `SSO_ENABLED` defaults to false and enables only with `true` (case-insensitive).
-The SSO screen asks for a company email and uses its normalized domain to find
-the matching provider; the email itself is not sent to GoTrue during provider
+The login page asks the public `GET /api/auth/providers` (`{ "sso": boolean,
+"google": boolean | null }`, nothing else) and hides "Continue with SSO" only when it answers `false`; while
+the answer is pending, or if the read fails, the button stays. The SSO screen
+asks for a company email and uses its normalized domain to find the matching
+provider; the email itself is not sent to GoTrue during provider
 discovery. `SSO_ALLOWED_DOMAINS` is an optional comma-separated list of exact
 domains. Use DNS names, or punycode for international domains, without URLs or
 wildcards. Invalid domain settings fail closed. Omitting the allowlist permits

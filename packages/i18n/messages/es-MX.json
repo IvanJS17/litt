@@ -9,6 +9,10 @@
     "back": "Atrás",
     "continue": "Continuar",
     "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
-    "greeting": "Hola, {name}"
+    "greeting": "Hola, {name}",
+    "meta": {
+      "title": "LiTT - Plataforma legal con IA",
+      "description": "Análisis de documentos legales y revisión de contratos con IA."
+    }
   }
 }

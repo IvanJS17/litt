@@ -15,6 +15,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const container = process.env.MIKE_TEST_POSTGRES_CONTAINER;
 const database = `mike_test_training_urgency_pass_${process.pid}_${Date.now()}`;
 const MIGRATION = "migrations/20261107_61_litt_training_urgency_pass_grant.sql";
+// Ends a pupil's passes when their mentor changes.
+const MENTOR_CHANGE_MIGRATION = "migrations/20261107_90_litt_training_defense_outcome.sql";
+// Who revoked them: the session's user, else assigned_by; neither fails.
+const REVOKED_BY_MIGRATION = "migrations/20261107_91_litt_training_pass_revoked_by.sql";
 const ASSERTIONS = "src/__tests__/sql/performance.litt-training-urgency-pass.sql";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 function sql(query: string) {
@@ -42,9 +46,14 @@ describe.skipIf(!container)("LiTT training urgency pass grant in PostgreSQL", ()
             create function auth.uid() returns uuid language sql stable as
                 $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;`);
         sql(read("schema.sql"));
-        // Re-running the migration over the final shape must be a no-op.
+        // Re-running the migrations over the final shape must be a no-op.
         sql(read(MIGRATION));
         sql(read(MIGRATION));
+        sql(read(MENTOR_CHANGE_MIGRATION));
+        sql(read(MENTOR_CHANGE_MIGRATION));
+        // 90 alone would put back the old attribution; 91 restores it.
+        sql(read(REVOKED_BY_MIGRATION));
+        sql(read(REVOKED_BY_MIGRATION));
     }, 120_000);
     afterAll(() => {
         if (created) execFileSync("docker", ["exec", container!, "dropdb", "-U", "postgres", "--force", database]);
@@ -64,6 +73,13 @@ describe.skipIf(!container)("LiTT training urgency pass grant in PostgreSQL", ()
         sql(leaky);
         expect(sqlError(read(ASSERTIONS))).toMatch(/grant matrix: owner got granted/);
         sql(read(MIGRATION));
+        expect(sqlError(read(ASSERTIONS))).toBe("");
+    }, 120_000);
+
+    it("fails without the attribution: revoked_by = assigned_by whatever the statement wrote", () => {
+        sql(read(MENTOR_CHANGE_MIGRATION));
+        expect(sqlError(read(ASSERTIONS))).toMatch(/the session's user revoked the pass, not the previous assigner/);
+        sql(read(REVOKED_BY_MIGRATION));
         expect(sqlError(read(ASSERTIONS))).toBe("");
     }, 120_000);
 });

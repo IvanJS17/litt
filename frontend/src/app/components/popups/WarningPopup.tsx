@@ -9,7 +9,7 @@ import { PillButtonUI, NoticeCardUI, useNoticeStackSlot } from "@mike/ui";
  *
  * Its card is `NoticeCardUI`, the same card the toast stack draws, so a
  * popup and a toast always look alike. This wrapper adds only what a popup
- * needs on top: the `open` prop, a portal to the top centre of the page, and
+ * needs on top: the `open` prop, a portal to the bottom-right corner, and
  * closing on Escape.
  *
  * Every warning in the web app is a WarningPopup. A component renders one
@@ -21,6 +21,18 @@ import { PillButtonUI, NoticeCardUI, useNoticeStackSlot } from "@mike/ui";
  * While the toast viewport is mounted the card joins its column, so a popup
  * and a toast stack instead of overlapping.
  */
+
+/**
+ * Where the web app's notices sit: the bottom-right corner, clear of the
+ * page header and of the first lines of content at the top. On a phone the
+ * column spans the width, above the home indicator. On a page with a chat
+ * composer, `.notice-stack` in globals.css lifts the column above it, so a
+ * warning never covers Send. `AppToasts` passes this to `ToastViewportUI`
+ * (whose own default, top centre, is the Word add-in's) and a popup with no
+ * viewport mounted uses it too.
+ */
+export const NOTICE_STACK_POSITION_CLASS =
+    "notice-stack left-3 right-3 top-auto bottom-[max(0.75rem,env(safe-area-inset-bottom))] w-auto translate-x-0 px-0 sm:left-auto sm:right-5 sm:bottom-5 sm:w-[min(calc(100vw-2.5rem),400px)]";
 
 interface WarningPopupAction {
     label: ReactNode;
@@ -106,7 +118,9 @@ export function WarningPopup({
     if (stackSlot) return createPortal(card, stackSlot);
 
     return createPortal(
-        <div className="pointer-events-none fixed left-1/2 top-5 z-[220] w-[min(92vw,520px)] -translate-x-1/2 px-4">
+        <div
+            className={`pointer-events-none fixed z-[220] ${NOTICE_STACK_POSITION_CLASS}`}
+        >
             {card}
         </div>,
         document.body,

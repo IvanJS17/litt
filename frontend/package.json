@@ -44,6 +44,7 @@
         "luckyexcel": "^1.0.1",
         "marked": "^18.1.2",
         "next": "^16.4.3",
+        "next-intl": "4.14.9",
         "pdfjs-dist": "6.4.299",
         "react": "19.3.1",
         "react-dom": "19.3.1",

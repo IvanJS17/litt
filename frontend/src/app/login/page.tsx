@@ -4,13 +4,13 @@ import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
+import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
     PillButtonUI,
     authGlassCardUIClassName,
     authInputUIClassName,
     AuthDividerUI,
-    noticeActionClassName,
 } from "@mike/ui";
 import Link from "next/link";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -18,7 +18,7 @@ import { cn } from "@/app/lib/utils";
 import { SsoAuthButton } from "@/app/components/auth/SsoAuthButton";
 import { GoogleAuthButton } from "@/app/components/auth/GoogleAuthButton";
 import { FieldLabel } from "@/app/components/ui/form-field";
-import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { AuthFormError } from "@/app/components/auth/AuthFormError";
 import {
     reportFault,
     supportMailtoFor,
@@ -91,6 +91,8 @@ export default function LoginPage() {
         setSessionError(null);
         setSessionWarningDismissed(false);
     }
+
+    const { showSso, showGoogle } = useAuthProviders();
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -201,6 +203,34 @@ export default function LoginPage() {
                             />
                         </div>
 
+                        {/* In the card, next to the action that failed: a
+                            floating notice would cover the wordmark. */}
+                        {(error || sessionWarningOpen) && (
+                            <AuthFormError
+                                title={
+                                    shownError
+                                        ? shownError.title
+                                        : SESSION_WARNING_TITLE
+                                }
+                                message={
+                                    shownError ? shownError.message : authError
+                                }
+                                retry={retryAction}
+                                supportHref={
+                                    shownError?.supportable
+                                        ? supportMailtoFor(
+                                              shownError,
+                                              "Failed to log in.",
+                                          )
+                                        : undefined
+                                }
+                                onDismiss={() => {
+                                    if (error) setError(null);
+                                    else setSessionWarningDismissed(true);
+                                }}
+                            />
+                        )}
+
                         <div className="pt-2">
                             <PillButtonUI
                                 type="submit"
@@ -212,13 +242,15 @@ export default function LoginPage() {
                                 {loading ? "Logging in..." : "Log in"}
                             </PillButtonUI>
                         </div>
-                        <AuthDividerUI />
-                        <GoogleAuthButton
-                            onError={(nextError) => setError(nextError)}
-                            disabled={loading}
-                            onLoadingChange={setLoading}
-                        />
-                        <SsoAuthButton disabled={loading} />
+                        {(showGoogle || showSso) && <AuthDividerUI />}
+                        {showGoogle && (
+                            <GoogleAuthButton
+                                onError={(nextError) => setError(nextError)}
+                                disabled={loading}
+                                onLoadingChange={setLoading}
+                            />
+                        )}
+                        {showSso && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">
@@ -234,31 +266,6 @@ export default function LoginPage() {
                     <SourceCodeLink />
                 </footer>
             </div>
-            <WarningPopup
-                open={!!error || sessionWarningOpen}
-                onClose={() => {
-                    if (error) setError(null);
-                    else setSessionWarningDismissed(true);
-                }}
-                title={shownError ? shownError.title : SESSION_WARNING_TITLE}
-                message={shownError ? shownError.message : authError}
-                actions={
-                    shownError?.supportable ? (
-                        <a
-                            href={supportMailtoFor(
-                                shownError,
-                                "Failed to log in.",
-                            )}
-                            className={noticeActionClassName(
-                                retryAction ? "secondary" : "primary",
-                            )}
-                        >
-                            Contact support
-                        </a>
-                    ) : undefined
-                }
-                primaryAction={retryAction}
-            />
         </AuthPageShell>
     );
 }

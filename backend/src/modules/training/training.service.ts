@@ -474,7 +474,7 @@ export async function releasePupil(
  * The practice area of a request. Absent or null means every practice area;
  * anything else must be a real label: blank is a 400, never "all".
  */
-function readPractice(value: unknown): ServiceResult<string | null> {
+export function readPractice(value: unknown): ServiceResult<string | null> {
     if (value === undefined || value === null) return ok(null);
     if (typeof value !== "string") return failure("validation", "Choose a practice area.");
     const practice = normalizePractice(value);
