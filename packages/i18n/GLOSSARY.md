@@ -1,7 +1,7 @@
 # Glosario de la interfaz (es-MX)
 
-> **Estado: propuesta, pendiente de aprobación de Iván.** Hasta que la apruebe,
-> las traducciones que usen estos términos pueden cambiar.
+> **Estado: aprobado por Iván el 2026-11-07.** Lo puede ajustar cuando lo vea en
+> pantalla; un cambio de término se aplica en los dos catálogos y en esta tabla.
 
 Términos fijos para traducir la interfaz de LiTT del inglés (`messages/en-US.json`,
 la fuente) al español de México (`messages/es-MX.json`). Un término se traduce
