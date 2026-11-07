@@ -41,6 +41,8 @@
 
 - [Design system](design-system.md) — color/typography/spacing tokens, the shared
   `components/ui` primitives, and the accessibility baseline
+- [Interface languages](i18n.md) — Spanish and English catalogs, key
+  conventions, what is not translated, and the extraction codemod
 
 ## Testing and CI
 
