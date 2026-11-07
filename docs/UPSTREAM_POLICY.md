@@ -6,13 +6,15 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `d0a7ca7550bdaa3f21284b730c3139951ac89576`
-(2026-11-03, the merge of #749), reached by cycle 5 of the
+**Current pin:** upstream `74aad3019efa903a8fb89ec9c07617b2ab61126a`
+(2026-11-04, the merge of #786), reached by cycle 6 of the
 2026-11-06 intake (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §24).
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §25).
 The pin takes effect on `main` with that cycle's merge into `main`. The
-previous pins were `31539729f4609cdf642a61bb963995668b97cac4` (2026-11-01),
-reached by cycle 4 of the same intake (ledger §23);
+previous pins were `d0a7ca7550bdaa3f21284b730c3139951ac89576` (2026-11-03),
+reached by cycle 5 of the same intake (ledger §24);
+`31539729f4609cdf642a61bb963995668b97cac4` (2026-11-01),
+by cycle 4 (ledger §23);
 `27683564a5b72c20d5f2796bf826f3146a8c7bfe` (2026-10-30),
 by cycle 3 (ledger §22);
 `14d695f176152367cf44e89e200a04778b353b6d` (2026-11-04), by cycle 2 (ledger §21);
@@ -222,6 +224,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-11-07 (cycle 3/10) | `14d695f176152367cf44e89e200a04778b353b6d` | `27683564a5b72c20d5f2796bf826f3146a8c7bfe` | 43 (no merges) | #749 30-Oct tranche: SQL list and permission performance C1–C7 and H2–H6, picker and directory paging in SQL, tabular/Word/PDF/chat rendering bounds, citation verifier reuse | adopt, except `org_members_departure_items` (adapt: LiTT C2 point 3 re-applied in `20261030_51_litt_departure_private_matter`), the picker (adapt: LiTT private-matter backstop kept), CourtListener paths, the Sentry stack-path change `fe8381fa` and the development-renderer e2e job (reject) (ledger §22) | merge commit on `sync/upstream-c3-27683564`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §22) | third of ten cycles; no new debt |
 | 2026-11-07 (cycle 4/10) | `27683564a5b72c20d5f2796bf826f3146a8c7bfe` | `31539729f4609cdf642a61bb963995668b97cac4` | 63 (no merges) | #749 1-Nov tranche: SQL S1–S11 and L11b (membership by uuid, list candidates, departure by reverse references, anchored private-document access, audit page by key, counts after the page, per-version text search, job claim order), paged and batched reads, web list Sets, Word add-in device-only storage and edit batching | adopt, except `project_access_role` and `org_members_departure_items` (adapt: LiTT C2 re-applied in `20261101_50_litt_project_access_private_matter` and `20261101_51_litt_departure_private_matter`), org resources and the documents ZIP export (adapt: private-matter filter and pasante release check kept), CourtListener paths (`e2b7e9c4` reject) and the Sentry throttle `84637f74` (reject) (ledger §23) | merge commit on `sync/upstream-c4-31539729`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §23) | fourth of ten cycles; cycle-3 reservations W1–W3 closed; W2 recorded as an open product question; no new debt |
 | 2026-11-07 (cycle 5/10) | `31539729f4609cdf642a61bb963995668b97cac4` | `d0a7ca7550bdaa3f21284b730c3139951ac89576` | 65 new (72 in `31539729..d0a7ca75`, 7 already in `main` through cycle 2; 1 merge) | #749 3-Nov tranche and merge: SQL M-S2…M-S9 and M-B6 (job payload and folder name indexes, set-based ownerless items, departure root candidates, audit person filter among actors, paged private catalogue, text backfill from unfinished rows, batched memory wipe), tabular row sync, batched and keyset reads, exports by container, Word add-in bulk decisions and device chats, PDF viewer | adopt, except `ownerless_org_item_ids`, `org_members_departure_items` and `organization_audit_events_page` (adapt: `20261107_50_litt_departure_root_candidates_private_matter`, `20261107_51_litt_ownerless_items_private_matter`, `20261107_52_litt_audit_username_filter_order`), the CourtListener half of `85838120` (reject, no net change) and the Sentry e2e of `851f57a9` (reject) (ledger §24) | merge commit on `sync/upstream-c5-d0a7ca75`, adaptations in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §24) | fifth of ten cycles, last of #749; cycle-4 departure reservation investigated and recorded as an open product question with W2; no new debt |
+| 2026-11-07 (cycle 6/10) | `d0a7ca7550bdaa3f21284b730c3139951ac89576` | `74aad3019efa903a8fb89ec9c07617b2ab61126a` | 8 (7 without the merge, all from #786) | #786 PDF upload validation: the worker refuses a PDF upload without `%PDF-` in its first 1 KiB that pdf.js cannot open either, with the terminal file code `invalid_pdf_file`; the web app names the file, classifies the refusal as the user's to fix and leaves it out of Retry | adopt; the one test conflict keeps LiTT's comment without upstream's Sentry issue id (ledger §25) | merge commit on `sync/upstream-c6-74aad301`; one test adaptation in a separate commit, no product code adaptation; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §25) | sixth of ten cycles; no new debt |
 
 ## Release metadata
 
