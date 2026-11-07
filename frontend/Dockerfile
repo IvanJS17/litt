@@ -38,11 +38,15 @@ RUN npm run build
 FROM node:22-slim
 ARG GIT_SHA=
 LABEL org.opencontainers.image.revision=$GIT_SHA
+# The Turbopack root (and so the trace root) is /app, so the standalone tree
+# mirrors the repository: the server sits at frontend/server.js beside the
+# traced node_modules, and the static assets and public/ go next to it.
 WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
-COPY --from=build --chown=node:node /app/.next/standalone ./
-COPY --from=build --chown=node:node /app/.next/static ./.next/static
-COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/frontend/.next/standalone ./
+COPY --from=build --chown=node:node /app/frontend/.next/static ./frontend/.next/static
+COPY --from=build --chown=node:node /app/frontend/public ./frontend/public
+WORKDIR /app/frontend
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
