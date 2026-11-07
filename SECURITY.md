@@ -9,10 +9,11 @@ update to the latest commit before reporting; the issue may already be fixed.
 
 ## Reporting a vulnerability
 
-Please report vulnerabilities privately through GitHub:
+Please report vulnerabilities privately through GitHub's private vulnerability
+reporting for `IvanJS17/litt`:
+https://github.com/IvanJS17/litt/security/advisories/new
 
-**Security tab → Report a vulnerability** on this repository
-(GitHub's private vulnerability reporting).
+If GitHub is unavailable, email `soporte@asteroitt.com` instead.
 
 Please do not open a public issue for anything security-sensitive.
 
@@ -23,9 +24,10 @@ severity after that.
 
 - Reports about the code, default configuration, and deployment guidance in
   this repo are all in scope.
-- The **hosted service at `app.mikeoss.com`** (the cloud version offered from
-  the official Mike website) is in scope — report issues affecting it through
-  the same private channel above, and please keep testing non-destructive:
+- The **hosted service at `https://litt.asteroitt.com`** (LiTT's hosted
+  service, operated by the LiTT maintainers) is in scope — report issues
+  affecting it through the same private channel above, and please keep
+  testing non-destructive:
   only accounts and data you own, no denial of service, no access to other
   users' data beyond the minimum proof needed.
 - **Independent self-hosted installations** run by third parties are the one
@@ -62,8 +64,8 @@ Security fixes do not wait for the weekly version-update schedule. The
 configuration takes effect once merged into the default branch.
 
 Verify setup in the repository's Security → Dependabot view and updater logs.
-An admin can also check `GET /repos/open-legal-products/mike/vulnerability-alerts`
-and `GET /repos/open-legal-products/mike/automated-security-fixes` (HTTP 204 means
+An admin can also check `GET /repos/IvanJS17/litt/vulnerability-alerts`
+and `GET /repos/IvanJS17/litt/automated-security-fixes` (HTTP 204 means
 that setting is enabled). A 404 from a non-admin credential is inconclusive;
 check the settings as an admin. If the updater cannot produce a fix, inspect
 its error and open a focused manual dependency PR. Do not suppress a newly

@@ -130,7 +130,7 @@ type CreateSurface = "modal" | "page";
 const AUTOSAVE_DELAY_MS = 1200;
 
 const CONNECTOR_SETUP_GUIDE_URL =
-  "https://github.com/open-legal-products/mike/blob/main/docs/connectors.md";
+  "https://github.com/IvanJS17/litt/blob/main/docs/connectors.md";
 
 const emptyAddDraft: AddDraft = {
   name: "",
@@ -299,7 +299,7 @@ function ConnectorBrandIcon({ name }: { name: string }) {
 }
 
 function googleSetupGuideUrl(provider: GoogleConnectorProvider) {
-  return `https://github.com/open-legal-products/mike/blob/main/docs/google-workspace.md#${
+  return `https://github.com/IvanJS17/litt/blob/main/docs/google-workspace.md#${
     provider === "google-drive" ? "google-drive" : "gmail-and-google-calendar"
   }`;
 }

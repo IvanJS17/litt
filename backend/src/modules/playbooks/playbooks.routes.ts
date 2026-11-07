@@ -53,6 +53,10 @@ import {
   queuePlaybookReview,
   setPlaybookState,
   updatePlaybookContent,
+  copyPlaybook,
+  queuePlaybookProposals,
+  listPlaybookChanges,
+  decidePlaybookChange,
 } from "./playbooks.service";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -809,6 +813,93 @@ playbooksRouter.put("/:playbookId", requireMfaIfEnrolled, async (req, res) => {
     sendError(res, error);
   }
 });
+
+// LiTT: "use as a starting point". A copy of a playbook the caller can open
+// (viewer or more), as the caller's draft; then the new case's questionnaire
+// over the copy, compiled by a job into changes proposed one by one.
+playbooksRouter.post(
+  "/:playbookId/copy",
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    setOperation("playbooks.copy");
+    try {
+      const body = req.body ?? {};
+      res.status(201).json(
+        await copyPlaybook(
+          res.locals.userId as string,
+          req.params.playbookId,
+          { name: body.name, workspace: body.workspace, visibility: body.visibility },
+          undefined,
+          res.locals.userEmail,
+        ),
+      );
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+playbooksRouter.post(
+  "/:playbookId/proposals",
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    setOperation("playbooks.proposals");
+    try {
+      const body = req.body ?? {};
+      res.status(202).json(
+        await queuePlaybookProposals({
+          userId: res.locals.userId as string,
+          userEmail: res.locals.userEmail,
+          playbookId: req.params.playbookId,
+          model: typeof body.model === "string" ? body.model : "",
+          answers: body.answers,
+          attachments: body.attachments,
+        }),
+      );
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+playbooksRouter.get("/:playbookId/changes", async (req, res) => {
+  try {
+    res.json(
+      await listPlaybookChanges(
+        res.locals.userId as string,
+        req.params.playbookId,
+        undefined,
+        res.locals.userEmail,
+      ),
+    );
+  } catch (error) {
+    sendError(res, error);
+  }
+});
+
+playbooksRouter.patch(
+  "/:playbookId/changes/:changeId",
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    setOperation("playbooks.save");
+    if (!UUID.test(req.params.changeId))
+      return void res.status(404).json({ detail: "Cambio no encontrado." });
+    try {
+      res.json(
+        await decidePlaybookChange(
+          res.locals.userId as string,
+          req.params.playbookId,
+          req.params.changeId,
+          req.body ?? {},
+          undefined,
+          res.locals.userEmail,
+        ),
+      );
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
 
 // LiTT: mark a draft ready, or set or clear the model mark. Editor or owner.
 playbooksRouter.patch(

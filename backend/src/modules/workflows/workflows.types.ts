@@ -88,6 +88,9 @@ export const DEFAULT_WORKFLOW_JURISDICTIONS = ["General"];
 export const WORKFLOW_CONTRIBUTIONS_ENABLED =
   process.env.WORKFLOW_CONTRIBUTIONS_ENABLED === "true";
 
+/** LiTT: the open-source submission route is closed whatever the env says. */
+export const LITT_WORKFLOW_OPEN_SOURCE_REJECTED: boolean = true;
+
 export type WorkflowAccess =
   | {
       workflow: WorkflowRecord;

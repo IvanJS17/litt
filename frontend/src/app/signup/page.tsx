@@ -235,26 +235,10 @@ function SignupContent() {
                         </div>
 
                         <div className="space-y-3 pt-2">
-                            <div className="text-center text-xs text-gray-500">
-                                By signing up, you agree to our{" "}
-                                <Link
-                                    href="https://mikeoss.com/terms"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-interactive hover:underline"
-                                >
-                                    Terms of Use
-                                </Link>{" "}
-                                and{" "}
-                                <Link
-                                    href="https://mikeoss.com/privacy"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-interactive hover:underline"
-                                >
-                                    Privacy Policy
-                                </Link>
-                            </div>
+                            {/* LiTT: no terms or privacy notice until LiTT's own texts
+                                are approved (being drafted in Kanban t_014f1869); a later
+                                card publishes /terminos and /privacidad and links them here.
+                                Upstream linked mikeoss.com, another company's documents. */}
                             <PillButtonUI
                                 type="submit"
                                 tone="black"

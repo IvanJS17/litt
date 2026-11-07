@@ -381,6 +381,42 @@ describe("draft playbooks over HTTP (LiTT)", () => {
     expect(response.body.code).toBe("playbook_changes_pending");
   });
 
+  it("answers 404 to a copy of a playbook the caller cannot open, creating nothing", async () => {
+    from.mockImplementation((table: string) =>
+      queryReturning(table === "playbooks" ? null : []),
+    );
+
+    const response = await request(app).post(`/playbooks/${PLAYBOOK_ID}/copy`).send({});
+
+    expect(response.status).toBe(404);
+    expect(from.mock.results.some((result) =>
+      (result.value as { insert: { mock: { calls: unknown[] } } }).insert.mock.calls.length,
+    )).toBe(false);
+  });
+
+  it("refuses proposals for a ready playbook with the playbook_not_draft code", async () => {
+    from.mockImplementation((table: string) =>
+      queryReturning(table === "playbooks" ? playbookRow() : []),
+    );
+
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/proposals`)
+      .send({ model: "claude-opus-5", answers: {} });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("playbook_not_draft");
+    expect(from).not.toHaveBeenCalledWith("playbook_imports");
+  });
+
+  it("answers 404 for a decision on a change id that cannot exist", async () => {
+    const response = await request(app)
+      .patch(`/playbooks/${PLAYBOOK_ID}/changes/not-a-uuid`)
+      .send({ decision: "accept" });
+
+    expect(response.status).toBe(404);
+    expect(from).not.toHaveBeenCalled();
+  });
+
   it("answers 404 for a state change on an id that cannot exist", async () => {
     const response = await request(app)
       .patch("/playbooks/not-a-uuid/state")

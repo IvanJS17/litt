@@ -25,6 +25,13 @@ class FakeApiError extends Error {
     }
 }
 
+describe("SUPPORT_EMAIL", () => {
+    it("is LiTT's support address, never upstream's", () => {
+        expect(SUPPORT_EMAIL).toBe("soporte@asteroitt.com");
+        expect(SUPPORT_EMAIL).not.toMatch(/mikeoss/i);
+    });
+});
+
 describe("describeError", () => {
     beforeEach(() => {
         vi.stubGlobal("navigator", { onLine: true, userAgent: "vitest" });
@@ -263,7 +270,7 @@ describe("buildSupportMailto", () => {
                 requestId: "req-42",
             },
             {
-                page: "https://app.mikeoss.com/projects/1",
+                page: "https://litt.asteroitt.com/projects/1",
                 product: "web",
                 when: new Date("2026-09-17T10:00:00Z"),
             },
@@ -278,7 +285,7 @@ describe("buildSupportMailto", () => {
         expect(body).toContain("Request ID: req-42");
         expect(body).toContain("Error code: internal_error");
         expect(body).toContain("HTTP status: 500");
-        expect(body).toContain("Page: https://app.mikeoss.com/projects/1");
+        expect(body).toContain("Page: https://litt.asteroitt.com/projects/1");
         expect(body).toContain("Client: web");
         expect(body).toContain("Time: 2026-09-17T10:00:00.000Z");
         expect(body).toContain("Browser: TestBrowser/1");
@@ -340,6 +347,9 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
         ["playbook_changes_pending", "validation", false, "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno antes de marcarlo como listo."],
         ["playbook_model_empty", "validation", false, "Un playbook sin reglas no puede marcarse como modelo. Agrega al menos una regla."],
         ["playbook_change_stale", "conflict", true, "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos."],
+        ["playbook_not_draft", "validation", false, "Solo un borrador puede recibir cambios propuestos. Usa este playbook como punto de partida para obtener una copia."],
+        ["playbook_proposals_running", "conflict", true, "Se están calculando los cambios propuestos para este playbook. Espera a que terminen."],
+        ["playbook_change_decided", "conflict", true, "Este cambio ya se decidió. Recarga los cambios propuestos."],
     ])("shows the server's own 409 %s message", (code, kind, retryable, message) => {
         const described = describeError(
             new FakeApiError({ status: 409, code, message }),
