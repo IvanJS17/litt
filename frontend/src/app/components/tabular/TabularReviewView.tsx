@@ -6,6 +6,8 @@ import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMe
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewCells } from "./reviewCellStore";
 import { indexReviewCells } from "./reviewCellIndex";
+import { reviewRowRemoval } from "./reviewRowRemoval";
+import { reviewColumnRemoval } from "./reviewColumnRemoval";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     Plus,
@@ -27,6 +29,7 @@ import {
     deleteTabularReview,
     getTabularReviewAccess,
     getTabularReview,
+    getTabularReviewHistoryStatuses,
     getProject,
     getTabularReviewPeople,
     listProjects,
@@ -81,6 +84,7 @@ import {
     type ModelProvider,
 } from "@/app/lib/modelAvailability";
 import { restoreOptimisticallyDeletedRows } from "@/app/lib/optimisticRows";
+import { missingById } from "@/app/lib/idCollections";
 import { TRSidePanel } from "./TRSidePanel";
 import { TRTable } from "./TRTable";
 import type { TRTableHandle } from "./TRTable";
@@ -552,9 +556,7 @@ export function TRView({ reviewId, projectId }: Props) {
         // Changing the review's document set is a structure edit server-side
         // (PATCH document_ids 403s below member) — same gate as columns.
         if (!requireStructure("edit the document set")) return;
-        const toAdd = newDocs.filter(
-            (d) => !documents.some((existing) => existing.id === d.id),
-        );
+        const toAdd = missingById(documents, newDocs);
         if (!toAdd.length) return;
         const allIds = [
             ...documents.map((d) => d.id),
@@ -668,13 +670,12 @@ export function TRView({ reviewId, projectId }: Props) {
             return;
         }
 
-        setCells((prev) =>
-            prev.map((c) =>
-                c.row_id === rowId && c.column_index === colIndex
-                    ? { ...c, status: "generating" as const, content: null }
-                    : c,
-            ),
-        );
+        // One cell changes, so only that cell's subscribers hear about it:
+        // a structural setCells would rewrite and re-index the whole grid.
+        cellStore.patch(rowId, colIndex, {
+            status: "generating",
+            content: null,
+        });
         setExpandedCell((prev) =>
             prev
                 ? { ...prev, status: "generating" as const, content: null }
@@ -700,13 +701,10 @@ export function TRView({ reviewId, projectId }: Props) {
                 );
                 return;
             }
-            setCells((prev) =>
-                prev.map((c) =>
-                    c.row_id === rowId && c.column_index === colIndex
-                        ? { ...c, status: "done" as const, content: result }
-                        : c,
-                ),
-            );
+            cellStore.patch(rowId, colIndex, {
+                status: "done",
+                content: result,
+            });
             setExpandedCell((prev) =>
                 prev
                     ? { ...prev, status: "done" as const, content: result }
@@ -729,13 +727,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     void handleRegenerateCell(rowId, colIndex);
                 },
             });
-            setCells((prev) =>
-                prev.map((c) =>
-                    c.row_id === rowId && c.column_index === colIndex
-                        ? { ...c, status: "error" as const }
-                        : c,
-                ),
-            );
+            cellStore.patch(rowId, colIndex, { status: "error" });
             setExpandedCell((prev) =>
                 prev ? { ...prev, status: "error" as const } : null,
             );
@@ -743,18 +735,22 @@ export function TRView({ reviewId, projectId }: Props) {
     }
 
     async function refreshAfterGeneration() {
-        for (let attempt = 0; attempt < 40; attempt += 1) {
-            const detail = await getTabularReview(reviewId);
-            if (!detail.review.is_running) {
-                setReview(detail.review);
-                setCells(detail.cells);
-                setRows(detail.rows);
-                setDocuments(detail.documents);
-                setColumns(detail.review.columns_config || []);
-                return;
-            }
+        // The full review carries every cell, so it is read once up front
+        // (usually the run has already ended) and once more when it has.
+        // While the run is still going, only its status snapshot is polled.
+        let detail = await getTabularReview(reviewId);
+        for (let attempt = 1; detail.review.is_running; attempt += 1) {
+            if (attempt >= 40) return;
             await new Promise((resolve) => setTimeout(resolve, 250));
+            const [status] = await getTabularReviewHistoryStatuses([reviewId]);
+            if (status?.is_running) continue;
+            detail = await getTabularReview(reviewId);
         }
+        setReview(detail.review);
+        setCells(detail.cells);
+        setRows(detail.rows);
+        setDocuments(detail.documents);
+        setColumns(detail.review.columns_config || []);
     }
 
     // Reads an SSE response and applies cell_update frames until [DONE].
@@ -1205,22 +1201,11 @@ export function TRView({ reviewId, projectId }: Props) {
         } catch (err) {
             // Take back only the columns this call added; an edit to a
             // different column may have landed while the save was in flight.
-            applyColumns((current) =>
-                current.filter(
-                    (column) =>
-                        !normalizedColumns.some(
-                            (added) => added.index === column.index,
-                        ),
-                ),
+            const removal = reviewColumnRemoval(
+                normalizedColumns.map((column) => column.index),
             );
-            setCells((prev) =>
-                prev.filter(
-                    (cell) =>
-                        !normalizedColumns.some(
-                            (column) => column.index === cell.column_index,
-                        ),
-                ),
-            );
+            applyColumns((current) => current.filter(removal.keepsColumn));
+            setCells((prev) => prev.filter(removal.keepsCell));
             notifyError(err, {
                 action: "add the column",
                 fallback: "This column could not be saved. Try again.",
@@ -1324,11 +1309,8 @@ export function TRView({ reviewId, projectId }: Props) {
         if (!requireStructure("remove documents from this review")) return;
         const rowIdsToDelete = [...targetIds];
         if (rowIdsToDelete.length === 0) return;
-        const documentIdsToDelete = new Set(
-            rows
-                .filter((row) => rowIdsToDelete.includes(row.id))
-                .flatMap((row) => row.source_document_ids),
-        );
+        const removal = reviewRowRemoval(rowIdsToDelete);
+        const documentIdsToDelete = removal.documentIds(rows);
         const previousDocuments = documents;
         const previousRows = rows;
         const previousCells = cellStore.values();
@@ -1336,12 +1318,8 @@ export function TRView({ reviewId, projectId }: Props) {
             (document) => !documentIdsToDelete.has(document.id),
         );
         setDocuments(remaining);
-        setRows((current) =>
-            current.filter((row) => !rowIdsToDelete.includes(row.id)),
-        );
-        setCells((current) =>
-            current.filter((cell) => !rowIdsToDelete.includes(cell.row_id)),
-        );
+        setRows((current) => current.filter(removal.keepsRow));
+        setCells((current) => current.filter(removal.keepsCell));
         setSelectedRowIds([]);
         setActionsOpen(false);
         try {
@@ -1359,9 +1337,7 @@ export function TRView({ reviewId, projectId }: Props) {
             // on screen now. A run may be filling cells in as this fails
             // (`cellMutationsBlocked`), and another removal may have
             // succeeded: restoring the whole snapshot wiped both.
-            const failedCellIds = previousCells
-                .filter((cell) => rowIdsToDelete.includes(cell.row_id))
-                .map((cell) => cell.id);
+            const failedCellIds = removal.cellIds(previousCells);
             setDocuments((current) =>
                 restoreOptimisticallyDeletedRows(current, previousDocuments, [
                     ...documentIdsToDelete,

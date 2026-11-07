@@ -5,11 +5,14 @@ import type { DbJob } from "../../../lib/dbq/types";
 
 vi.mock("../../../lib/access", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/access")>()),
-  ensureDocAccess: async () => ({ ok: true }),
+  createDocumentAccessChecker: () => async () => ({ ok: true }),
 }));
 vi.mock("../../../lib/documentVersions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/documentVersions")>()),
-  loadActiveVersion: async (id: string) => ({ id: `${id}-v1`, storage_path: `${id}.docx`, filename: `${id}.docx`, version_number: 1, source: "upload", training_stage: null, content_sha256: null }),
+  attachActiveVersionPaths: async (_db: unknown, docs: Array<Record<string, unknown>>) => {
+    for (const doc of docs) Object.assign(doc, { storage_path: `${doc.id}.docx`, filename: `${doc.id}.docx`, active_version_number: 1, source: "upload", training_stage: null, content_sha256: null });
+    return docs;
+  },
 }));
 import { handleExportBuild } from "../user.exportJobs";
 
@@ -22,7 +25,7 @@ const job: DbJob = {
   finished_at: null, last_error: null, dedupe_key: null, result: null, created_at: "",
 };
 const db = {
-  from: () => ({ select: () => ({ in: async () => ({ data: ["d1", "d2"].map(id => ({ id, user_id: "u1", project_id: null })), error: null }) }) }),
+  from: () => ({ select: () => ({ in: async () => ({ data: ["d1", "d2"].map(id => ({ id, user_id: "u1", project_id: null, current_version_id: `${id}-v1` })), error: null }) }) }),
 };
 
 beforeEach(() => {

@@ -10,7 +10,7 @@ import {
   PlaybookRequestError,
   reviewWithPlaybook,
 } from "../../../playbooks/playbooks.service";
-import { catalogKeyFromWorkflowId } from "../../../../lib/workflowCatalog";
+import { catalogKeyFromWorkflowId, findCatalogWorkflow } from "../../../../lib/workflowCatalog";
 import { teamOrgIdOf } from "../../../../lib/personalOrgs";
 import type { ConnectorOwner } from "../../../../lib/connectorOwner";
 import {
@@ -43,6 +43,7 @@ import {
   type AskInputsEvent,
   devLog,
   resolveDocLabel,
+  createDocLabelResolver,
 } from "../types";
 import { downloadFile, downloadFileIfAvailable, storageKey, uploadFile } from "../../../../lib/storage";
 import { convertedPdfKey, docxToPdf } from "../../../../lib/convert";
@@ -78,6 +79,7 @@ import {
   spotlightWorkflow,
 } from "../contextBuilders";
 import type { Db } from "../../../../lib/supabase";
+import { renderTableCells } from "./tableCells";
 
 /**
  * Report a server-side tool's failure and return what to log for it. The
@@ -732,9 +734,8 @@ export async function runToolCalls(
       });
     } else if (tc.function.name === "fetch_documents") {
       const rawDocIds = (args.doc_ids as string[]) ?? [];
-      const docIds = rawDocIds.map(
-        (id) => resolveDocLabel(id, docStore, docIndex) ?? id,
-      );
+      const labelFor = createDocLabelResolver(docStore, docIndex);
+      const docIds = rawDocIds.map((id) => labelFor(id) ?? id);
       const parts: string[] = [];
       for (const docId of docIds) {
         const readIdentity = await getTurnReadIdentity({
@@ -960,6 +961,14 @@ export async function runToolCalls(
       });
     } else if (tc.function.name === "read_workflow") {
       const wfId = args.workflow_id as string;
+      // Turn setup loads only active catalog versions; a historical chat
+      // can still name a retired one, which is looked up on demand.
+      if (workflowStore && !workflowStore.has(wfId) && catalogKeyFromWorkflowId(wfId)) {
+        const retired = await findCatalogWorkflow(wfId, db).catch(() => null);
+        if (retired?.type === "assistant" && retired.prompt_md) {
+          workflowStore.set(wfId, { title: retired.title, skill_md: retired.prompt_md, listed: false });
+        }
+      }
       const candidate = workflowStore?.get(wfId);
       const allowed = candidate && (
         catalogKeyFromWorkflowId(wfId) !== null ||
@@ -1014,45 +1023,14 @@ export async function runToolCalls(
         content: `${instructions}${assetNotice}`,
       });
     } else if (tc.function.name === "read_table_cells" && tabularStore) {
-      const colIndices = args.col_indices as number[] | undefined;
-      const rowIndices = args.row_indices as number[] | undefined;
-
-      const filteredCols = colIndices?.length
-        ? tabularStore.columns.filter((_, i) => colIndices.includes(i))
-        : tabularStore.columns;
-      const filteredDocs = rowIndices?.length
-        ? tabularStore.documents.filter((_, i) => rowIndices.includes(i))
-        : tabularStore.documents;
-
-      const label = `${filteredCols.length} ${filteredCols.length === 1 ? "column" : "columns"} × ${filteredDocs.length} ${filteredDocs.length === 1 ? "row" : "rows"}`;
+      const { label, content } = renderTableCells(
+        tabularStore,
+        args.col_indices as number[] | undefined,
+        args.row_indices as number[] | undefined,
+      );
       write(
         `data: ${JSON.stringify({ type: "doc_read_start", filename: label })}\n\n`,
       );
-
-      const lines: string[] = [];
-      for (const col of filteredCols) {
-        const colPos = tabularStore.columns.findIndex(
-          (c) => c.index === col.index,
-        );
-        for (const doc of filteredDocs) {
-          const rowPos = tabularStore.documents.findIndex(
-            (d) => d.id === doc.id,
-          );
-          const cell = tabularStore.cells.get(`${col.index}:${doc.id}`);
-          lines.push(
-            `[COL:${colPos} "${col.name}" | ROW:${rowPos} "${doc.filename}"]`,
-          );
-          if (cell?.summary) {
-            lines.push(`Summary: ${cell.summary}`);
-            if (cell.flag) lines.push(`Flag: ${cell.flag}`);
-            if (cell.reasoning) lines.push(`Reasoning: ${cell.reasoning}`);
-          } else {
-            lines.push(`(not yet generated)`);
-          }
-          lines.push("");
-        }
-      }
-
       write(
         `data: ${JSON.stringify({ type: "doc_read", filename: label })}\n\n`,
       );
@@ -1060,7 +1038,7 @@ export async function runToolCalls(
       toolResults.push({
         role: "tool",
         tool_call_id: tc.id,
-        content: lines.join("\n") || "No cells found.",
+        content,
       });
     } else if (tc.function.name === "edit_document" && docIndex) {
       const rawDocId = args.doc_id as string;

@@ -33,6 +33,12 @@ export interface OfficeSeed {
   /** Let this many tracked-edit syncs succeed before that failure fires. */
   trackedMutationSyncFailureAfter?: number;
   /**
+   * Make Word refuse this many insertBookmark commands when their batch
+   * syncs (the failure surfaces at sync, as on a real host, and fails the
+   * whole batch); no bookmark is created by a refused command.
+   */
+  bookmarkSyncFailures?: number;
+  /**
    * Structured description of the document body for the markdown document
    * context: when present, body.paragraphs/body.tables exist and describe
    * these blocks; when absent (every pre-existing spec), those collections
@@ -65,8 +71,19 @@ export interface WordCalls {
   changeTrackingMode: string;
   searches: number;
   bodyRevisionReads: number;
+  /** Word.run batches started; each is at least one host round trip. */
+  runs: number;
+  /** context.sync() round trips, across every batch. */
+  syncs: number;
+  /**
+   * Request contexts that switched change tracking to TrackAll: one per
+   * apply batch. Proxies an apply batch tracks share that context.
+   */
+  trackAllContexts: number;
   replacementPositions: string[];
   settingsSaves: number;
+  /** Reads of the edit-anchor registry setting (each one re-validates it). */
+  anchorRegistryReads: number;
   acceptedChanges: WordCall[];
   rejectedChanges: WordCall[];
   revealedChanges: WordCall[];
@@ -229,8 +246,12 @@ export function installOfficeMock(seed: OfficeSeed): void {
     changeTrackingMode: "Off",
     searches: 0,
     bodyRevisionReads: 0,
+    runs: 0,
+    syncs: 0,
+    trackAllContexts: 0,
     replacementPositions: [],
     settingsSaves: 0,
+    anchorRegistryReads: 0,
     acceptedChanges: [],
     rejectedChanges: [],
     revealedChanges: [],
@@ -332,7 +353,10 @@ export function installOfficeMock(seed: OfficeSeed): void {
   // that writes it into the mock Word document.
   let settingsWorkingCopy = clone(documentState.settings);
   const settings = {
-    get: (key: string) => clone(settingsWorkingCopy[key]),
+    get: (key: string) => {
+      if (key === "mike.wordEditAnchors.v1") wordCalls.anchorRegistryReads++;
+      return clone(settingsWorkingCopy[key]);
+    },
     set: (key: string, value: unknown) => {
       settingsWorkingCopy[key] = clone(value);
     },
@@ -521,13 +545,21 @@ export function installOfficeMock(seed: OfficeSeed): void {
     },
   };
 
+  let bookmarkSyncFailures = seed.bookmarkSyncFailures ?? 0;
+
   function makeContext(): any {
     let mutationSyncPending = false;
+    let refusedBookmarkPending = false;
     let documentStateBeforeMutation: StoredDocumentState | null = null;
     let trackedCallsBeforeMutation = 0;
     const context: any = {
       document: null,
       sync: async () => {
+        wordCalls.syncs++;
+        if (refusedBookmarkPending) {
+          refusedBookmarkPending = false;
+          throw new Error("GeneralException: bookmark could not be inserted");
+        }
         if (!mutationSyncPending || !trackedMutationSyncFailure) return;
         if (trackedMutationSyncsBeforeFailure > 0) {
           trackedMutationSyncsBeforeFailure -= 1;
@@ -545,8 +577,19 @@ export function installOfficeMock(seed: OfficeSeed): void {
         throw new Error("GeneralException: tracked mutation sync failed");
       },
     };
+    let trackingMode = ChangeTrackingMode.off;
+    let countedTrackAll = false;
     const doc: any = {
-      changeTrackingMode: ChangeTrackingMode.off,
+      get changeTrackingMode() {
+        return trackingMode;
+      },
+      set changeTrackingMode(mode: string) {
+        trackingMode = mode;
+        if (mode === ChangeTrackingMode.trackAll && !countedTrackAll) {
+          countedTrackAll = true;
+          wordCalls.trackAllContexts++;
+        }
+      },
       load: (_properties?: any) => undefined,
     };
 
@@ -693,6 +736,11 @@ export function installOfficeMock(seed: OfficeSeed): void {
         __locationIds: locationIds,
         insertBookmark: (name: string) => {
           if (args.isNullObject) throw new Error("ItemNotFound");
+          if (bookmarkSyncFailures > 0) {
+            bookmarkSyncFailures--;
+            refusedBookmarkPending = true;
+            return;
+          }
           const entry = args.entry();
           documentState.bookmarks[name] = {
             name,
@@ -1173,6 +1221,7 @@ export function installOfficeMock(seed: OfficeSeed): void {
       heading3: "Heading3",
     },
     run: (objectOrCallback: any, maybeCallback?: any) => {
+      wordCalls.runs++;
       const callback = maybeCallback ?? objectOrCallback;
       const target = Array.isArray(objectOrCallback)
         ? objectOrCallback[0]

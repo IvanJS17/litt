@@ -1002,6 +1002,77 @@ async function removePersistentAnchorForEntry(
   return failures;
 }
 
+/**
+ * Untrack (and optionally delete the bookmark of) many entries with one
+ * Word.run + sync per request context, instead of one or two per entry.
+ *
+ * Tracked proxies can only be batched with objects of their own request
+ * context, so entries are grouped by it: everything one apply batch or one
+ * restore pass produced shares a context and is released together. If a
+ * group's batch fails (one stale proxy fails the whole sync), each of its
+ * entries falls back to the original per-entry cleanup, so the failure is
+ * attributed to the entry that left something behind.
+ *
+ * Returns the fixed cleanup sentences per entry (never host text).
+ */
+async function releaseEntryProxies(
+  entries: readonly PendingTrackedEdit[],
+  options: {
+    deleteBookmarks: boolean;
+    onUntrackFailure: (error: unknown) => void;
+  },
+): Promise<Map<PendingTrackedEdit, string[]>> {
+  const failures = new Map<PendingTrackedEdit, string[]>(
+    entries.map((entry) => [entry, []]),
+  );
+  const groups = new Map<unknown, PendingTrackedEdit[]>();
+  const singles: PendingTrackedEdit[] = [];
+  for (const entry of entries) {
+    const objects = trackedObjectsFor(entry);
+    const context = objects[0]?.context;
+    if (!context || objects.some((object) => object.context !== context)) {
+      singles.push(entry);
+      continue;
+    }
+    const group = groups.get(context);
+    if (group) group.push(entry);
+    else groups.set(context, [entry]);
+  }
+  const perEntry = async (entry: PendingTrackedEdit): Promise<void> => {
+    const left = failures.get(entry)!;
+    if (options.deleteBookmarks) {
+      left.push(...(await removePersistentAnchorForEntry(entry, false)));
+    }
+    try {
+      await Word.run(trackedObjectsFor(entry), async (context) => {
+        untrackEntry(entry);
+        await context.sync();
+      });
+    } catch (error) {
+      options.onUntrackFailure(error);
+      left.push(PROXY_CLEANUP_FAILURE);
+    }
+  };
+  for (const group of groups.values()) {
+    try {
+      await Word.run(group.flatMap(trackedObjectsFor), async (context) => {
+        if (options.deleteBookmarks) {
+          for (const entry of group) {
+            if (entry.bookmarkName) context.document.deleteBookmark(entry.bookmarkName);
+          }
+        }
+        for (const entry of group) untrackEntry(entry);
+        await context.sync();
+      });
+    } catch (error) {
+      console.debug("[tracked-edit/cleanup] batched cleanup failed; retrying per edit", error);
+      for (const entry of group) await perEntry(entry);
+    }
+  }
+  for (const entry of singles) await perEntry(entry);
+  return failures;
+}
+
 /** Signals that Word reports no revisions left inside the edited passage. */
 class NoRemainingRevisionsError extends Error {}
 class ChangedRevisionSetError extends Error {}
@@ -1522,10 +1593,21 @@ async function resolveEditThroughDocumentRevisionsOnce(
   return anchor ? Word.run([anchor], batch) : Word.run(batch);
 }
 
-/** Resolve one retained logical edit without touching any other revisions. */
+/** A resolved edit whose bookmark, proxies and registry entry still need cleanup. */
+interface DeferredResolveCleanup {
+  entry: PendingTrackedEdit;
+  result: TrackedEditResolutionResult;
+}
+
+/**
+ * Resolve one retained logical edit without touching any other revisions.
+ * With `deferred`, a successful resolution's best-effort cleanup is queued
+ * for the caller to run once for the whole bulk decision.
+ */
 async function resolveTrackedEditNow(
   handle: TrackedEditHandle,
   decision: TrackedEditDecision,
+  deferred?: DeferredResolveCleanup[],
 ): Promise<TrackedEditResolutionResult> {
   const entry = pendingTrackedEdits.get(handle);
   if (!entry) {
@@ -1718,6 +1800,16 @@ async function resolveTrackedEditNow(
     }
     pendingTrackedEdits.delete(handle);
     rememberTerminalState(handle, decision);
+
+    if (deferred) {
+      const result: TrackedEditResolutionResult = {
+        handle,
+        status: decision === "accept" ? "accepted" : "rejected",
+        resolvedAs: decision,
+      };
+      deferred.push({ entry, result });
+      return result;
+    }
 
     // Resolution is already durable at this point. Bookmark/settings and
     // proxy cleanup are best effort and must never turn a successful document
@@ -2392,91 +2484,197 @@ export interface TrackedEditValidationResult {
 export function validateTrackedEdit(
   edit: RedlineEdit,
 ): Promise<TrackedEditValidationResult> {
-  return serializeWordMutation(async () => {
-    const original = edit.original;
-    if (!isSearchableOriginal(original)) {
-      return {
-        status: "skipped",
-        matches: 0,
-        reason: "unsearchable",
-      };
-    }
+  return requestTrackedEditValidation(edit);
+}
 
+/**
+ * Review mode validates every proposal of a turn (and every "proposed" row
+ * of a reopened chat) as it arrives. Validation is read-only, so proposals
+ * ready in the same tick share one Word.run: all searches in one sync, all
+ * stripped-marker retries in one, all revision checks in one, instead of
+ * 2-3 syncs and a Word.run each. (Apply keeps one search per edit: that
+ * ordering constraint is about mutations, office-js#2800.)
+ */
+const requestTrackedEditValidation = createSerialBatcher(
+  (edits: RedlineEdit[]) =>
+    serializeWordMutation(() => validateTrackedEditsNow(edits)),
+);
+
+const unsearchableValidation = (): TrackedEditValidationResult => ({
+  status: "skipped",
+  matches: 0,
+  reason: "unsearchable",
+});
+
+function validationSearchOptions(edit: RedlineEdit) {
+  const replaceAll = edit.occurrence === "all";
+  const wholeWordSafe =
+    replaceAll &&
+    /^[A-Za-z0-9_]/.test(edit.original) &&
+    /[A-Za-z0-9_]$/.test(edit.original);
+  return {
+    matchCase: true,
+    ...(wholeWordSafe ? { matchWholeWord: true } : {}),
+  };
+}
+
+/** Classify an edit's located matches and their pending-revision counts. */
+function classifyValidation(
+  edit: RedlineEdit,
+  revisionCounts: readonly number[],
+): TrackedEditValidationResult {
+  const replaceAll = edit.occurrence === "all";
+  const revisionFree = revisionCounts.filter((count) => count === 0).length;
+  if (
+    replaceAll
+      ? revisionFree === 0
+      : revisionFree !== revisionCounts.length
+  ) {
+    return {
+      status: "skipped",
+      matches: revisionCounts.length,
+      reason: "pre-existing-revisions",
+    };
+  }
+  return { status: "ready", matches: revisionCounts.length };
+}
+
+/** Early verdicts that need no revision read, or null to keep checking. */
+function classifyMatchCount(
+  edit: RedlineEdit,
+  count: number,
+): TrackedEditValidationResult | null {
+  if (count === 0) return { status: "not-found", matches: 0 };
+  if (count > 1 && edit.occurrence !== "all") {
+    return { status: "skipped", matches: count, reason: "ambiguous" };
+  }
+  return null;
+}
+
+async function validateTrackedEditsNow(
+  edits: readonly RedlineEdit[],
+): Promise<TrackedEditValidationResult[]> {
+  const results: (TrackedEditValidationResult | undefined)[] = edits.map(
+    (edit) => (isSearchableOriginal(edit.original) ? undefined : unsearchableValidation()),
+  );
+  const searchable = edits.flatMap((_edit, index) => (results[index] ? [] : [index]));
+  if (searchable.length === 1) {
+    results[searchable[0]!] = await validateTrackedEditNow(edits[searchable[0]!]!);
+  } else if (searchable.length > 1) {
     try {
-      return await Word.run(async (context) => {
-        const replaceAll = edit.occurrence === "all";
-        const wholeWordSafe =
-          replaceAll &&
-          /^[A-Za-z0-9_]/.test(original) &&
-          /[A-Za-z0-9_]$/.test(original);
-        const searchOptions = {
-          matchCase: true,
-          ...(wholeWordSafe ? { matchWholeWord: true } : {}),
-        };
-        let matches = context.document.body.search(original, searchOptions);
-        matches.load("items");
+      await Word.run(async (context) => {
+        const body = context.document.body;
+        const plans = searchable.map((index) => {
+          const edit = edits[index]!;
+          const options = validationSearchOptions(edit);
+          const matches = body.search(edit.original, options);
+          matches.load("items");
+          return { index, edit, options, matches };
+        });
         await context.sync();
 
-        if (matches.items.length === 0) {
-          const stripped = stripStructuralMarkers(original);
-          if (stripped) {
-            const retry = context.document.body.search(stripped, searchOptions);
-            retry.load("items");
-            await context.sync();
-            if (retry.items.length > 0) matches = retry;
+        const retries = plans.flatMap((plan) => {
+          if (plan.matches.items.length > 0) return [];
+          const stripped = stripStructuralMarkers(plan.edit.original);
+          if (!stripped) return [];
+          const retry = body.search(stripped, plan.options);
+          retry.load("items");
+          return [{ plan, retry }];
+        });
+        if (retries.length > 0) {
+          await context.sync();
+          for (const { plan, retry } of retries) {
+            if (retry.items.length > 0) plan.matches = retry;
           }
         }
 
-        if (matches.items.length === 0) {
-          return { status: "not-found", matches: 0 } as const;
+        const checks: { index: number; edit: RedlineEdit; collections: Word.TrackedChangeCollection[] }[] = [];
+        for (const plan of plans) {
+          const early = classifyMatchCount(plan.edit, plan.matches.items.length);
+          if (early) {
+            results[plan.index] = early;
+            continue;
+          }
+          checks.push({
+            index: plan.index,
+            edit: plan.edit,
+            collections: plan.matches.items.map((match) => {
+              const collection = match.getTrackedChanges();
+              collection.load("items");
+              return collection;
+            }),
+          });
         }
-        if (matches.items.length > 1 && !replaceAll) {
-          return {
-            status: "skipped",
-            matches: matches.items.length,
-            reason: "ambiguous",
-          } as const;
+        if (checks.length > 0) await context.sync();
+        for (const check of checks) {
+          results[check.index] = classifyValidation(
+            check.edit,
+            check.collections.map((collection) => collection.items.length),
+          );
         }
-
-        const existingCollections = matches.items.map((match) => {
-          const collection = match.getTrackedChanges();
-          collection.load("items");
-          return collection;
-        });
-        await context.sync();
-        const revisionFreeMatches = matches.items.filter(
-          (_match, index) => existingCollections[index]?.items.length === 0,
-        );
-        if (
-          replaceAll
-            ? revisionFreeMatches.length === 0
-            : revisionFreeMatches.length !== matches.items.length
-        ) {
-          return {
-            status: "skipped",
-            matches: matches.items.length,
-            reason: "pre-existing-revisions",
-          } as const;
-        }
-
-        return {
-          status: "ready",
-          matches: matches.items.length,
-        } as const;
       });
     } catch (error) {
-      reportWordFailure(error, { stage: "locate", operation: "word.edit_apply" });
-      return {
-        status: "error",
-        matches: 0,
-        reason: "word-error",
-        error: describeWordFailure(
-          error,
-          "Word couldn’t check whether this change can be applied.",
-        ),
-      };
+      // One failing command fails the whole shared sync. Re-validate each
+      // edit on its own, so a failure stays attributed to its own card.
+      console.debug("[tracked-edit/validate] batched validation failed; retrying per edit", error);
+      for (const index of searchable) {
+        results[index] = await validateTrackedEditNow(edits[index]!);
+      }
     }
-  });
+  }
+  return results.map((result) => result!);
+}
+
+/** One edit, in its own Word.run: the original path and the batch fallback. */
+async function validateTrackedEditNow(
+  edit: RedlineEdit,
+): Promise<TrackedEditValidationResult> {
+  const original = edit.original;
+  if (!isSearchableOriginal(original)) return unsearchableValidation();
+
+  try {
+    return await Word.run(async (context) => {
+      const searchOptions = validationSearchOptions(edit);
+      let matches = context.document.body.search(original, searchOptions);
+      matches.load("items");
+      await context.sync();
+
+      if (matches.items.length === 0) {
+        const stripped = stripStructuralMarkers(original);
+        if (stripped) {
+          const retry = context.document.body.search(stripped, searchOptions);
+          retry.load("items");
+          await context.sync();
+          if (retry.items.length > 0) matches = retry;
+        }
+      }
+
+      const early = classifyMatchCount(edit, matches.items.length);
+      if (early) return early;
+
+      const existingCollections = matches.items.map((match) => {
+        const collection = match.getTrackedChanges();
+        collection.load("items");
+        return collection;
+      });
+      await context.sync();
+      return classifyValidation(
+        edit,
+        existingCollections.map((collection) => collection.items.length),
+      );
+    });
+  } catch (error) {
+    reportWordFailure(error, { stage: "locate", operation: "word.edit_apply" });
+    return {
+      status: "error",
+      matches: 0,
+      reason: "word-error",
+      error: describeWordFailure(
+        error,
+        "Word couldn’t check whether this change can be applied.",
+      ),
+    };
+  }
 }
 
 export type ProposedEditRevealStatus =
@@ -2620,6 +2818,7 @@ export function resolveTrackedEdit(
 async function resolveUniqueEditBatch(
   handles: readonly TrackedEditHandle[],
   decision: TrackedEditDecision,
+  deferred: DeferredResolveCleanup[],
 ): Promise<Map<TrackedEditHandle, TrackedEditResolutionResult>> {
   const entries = new Map<TrackedEditHandle, PendingTrackedEdit>();
   for (const handle of handles) {
@@ -2665,26 +2864,58 @@ async function resolveUniqueEditBatch(
     // live revisions and owns the existing honest partial-failure semantics.
     return results;
   }
-  const removedIds: string[] = [];
   for (const handle of resolved) {
     const entry = entries.get(handle)!;
     pendingTrackedEdits.delete(handle);
     rememberTerminalState(handle, decision);
-    if (entry.stableEditId) removedIds.push(entry.stableEditId);
-    const failures = await removePersistentAnchorForEntry(entry, false);
-    try {
-      await Word.run(trackedObjectsFor(entry), async context => {
-        untrackEntry(entry);
-        await context.sync();
-      });
-    } catch { failures.push(PROXY_CLEANUP_FAILURE); }
-    const error = cleanupSentence(failures);
-    results.set(handle, { handle, status: decision === "accept" ? "accepted" : "rejected", resolvedAs: decision, ...(error ? { error } : {}) });
-  }
-  try { await removeWordEditAnchors(removedIds); } catch {
-    for (const result of results.values()) result.error = result.error ?? cleanupSentence([ANCHOR_CLEANUP_FAILURE]);
+    const result: TrackedEditResolutionResult = { handle, status: decision === "accept" ? "accepted" : "rejected", resolvedAs: decision };
+    deferred.push({ entry, result });
+    results.set(handle, result);
   }
   return results;
+}
+
+/**
+ * Best-effort cleanup after a bulk decision: bookmarks and proxies in one
+ * Word.run per request context, then one settings save for every registry
+ * entry. Failures are reported on the affected results, never as errors.
+ */
+async function finishResolvedCleanup(
+  deferred: readonly DeferredResolveCleanup[],
+): Promise<void> {
+  if (!deferred.length) return;
+  const failures = await releaseEntryProxies(
+    deferred.map(({ entry }) => entry),
+    {
+      deleteBookmarks: true,
+      onUntrackFailure: (error) => {
+        reportWordFailure(error, {
+          stage: "resolve-cleanup",
+          operation: "word.edit_resolve",
+          level: "warning",
+        });
+        console.warn("[tracked-edit/resolve] anchor cleanup failed", error);
+      },
+    },
+  );
+  const removedIds = deferred.flatMap(({ entry }) => entry.stableEditId ? [entry.stableEditId] : []);
+  try {
+    await removeWordEditAnchors(removedIds);
+  } catch (error) {
+    reportWordFailure(error, {
+      stage: "anchor-cleanup",
+      operation: "word.edit_resolve",
+      level: "warning",
+    });
+    console.warn("[tracked-edit/cleanup] anchor removal failed", error);
+    for (const { entry } of deferred) {
+      if (entry.stableEditId) failures.get(entry)!.push(ANCHOR_CLEANUP_FAILURE);
+    }
+  }
+  for (const { entry, result } of deferred) {
+    const error = cleanupSentence(failures.get(entry) ?? []);
+    if (error) result.error = error;
+  }
 }
 
 export function resolveTrackedEdits(
@@ -2692,11 +2923,13 @@ export function resolveTrackedEdits(
   decision: TrackedEditDecision,
 ): Promise<TrackedEditResolutionResult[]> {
   return serializeWordMutation(async () => {
-    const batched = await resolveUniqueEditBatch(handles, decision);
+    const deferred: DeferredResolveCleanup[] = [];
+    const batched = await resolveUniqueEditBatch(handles, decision, deferred);
     const results: TrackedEditResolutionResult[] = [];
     for (const handle of handles) {
-      results.push(batched.get(handle) ?? await resolveTrackedEditNow(handle, decision));
+      results.push(batched.get(handle) ?? await resolveTrackedEditNow(handle, decision, deferred));
     }
+    await finishResolvedCleanup(deferred);
     return results;
   });
 }
@@ -2710,6 +2943,23 @@ export function releaseTrackedEdits(
 ): Promise<TrackedEditReleaseResult[]> {
   return serializeWordMutation(async () => {
     const results: TrackedEditReleaseResult[] = [];
+    // Release every live entry first: one Word.run per request context
+    // rather than one per handle, which chat switches used to wait on.
+    const live = [...new Set(handles)].flatMap((handle) => {
+      const entry = pendingTrackedEdits.get(handle);
+      return entry ? [entry] : [];
+    });
+    const failures = await releaseEntryProxies(live, {
+      deleteBookmarks: false,
+      onUntrackFailure: (error) => {
+        reportWordFailure(error, {
+          stage: "release",
+          operation: "word.edit_resolve",
+          level: "warning",
+        });
+        console.warn("[tracked-edit/release] untrack failed", error);
+      },
+    });
 
     for (const handle of handles) {
       const entry = pendingTrackedEdits.get(handle);
@@ -2729,33 +2979,17 @@ export function releaseTrackedEdits(
         continue;
       }
 
-      try {
-        await Word.run(trackedObjectsFor(entry), async (context) => {
-          untrackEntry(entry);
-          await context.sync();
-        });
-        pendingTrackedEdits.delete(handle);
-        rememberTerminalState(handle, "released");
-        results.push({ handle, status: "released" });
-      } catch (error) {
-        reportWordFailure(error, {
-          stage: "release",
-          operation: "word.edit_resolve",
-          level: "warning",
-        });
-        // A proxy that failed to untrack is not safe to hand back to a later
-        // tracked-edit controller. Evict it so a reload reconstructs fresh
-        // proxies from the document bookmark instead of shadowing that valid
-        // anchor.
-        console.warn("[tracked-edit/release] untrack failed", error);
-        pendingTrackedEdits.delete(handle);
-        rememberTerminalState(handle, "released");
-        results.push({
-          handle,
-          status: "error",
-          error: PROXY_CLEANUP_FAILURE,
-        });
-      }
+      // A proxy that failed to untrack is not safe to hand back to a later
+      // tracked-edit controller. Evict it either way so a reload reconstructs
+      // fresh proxies from the document bookmark instead of shadowing that
+      // valid anchor.
+      pendingTrackedEdits.delete(handle);
+      rememberTerminalState(handle, "released");
+      results.push(
+        failures.get(entry)?.length
+          ? { handle, status: "error", error: PROXY_CLEANUP_FAILURE }
+          : { handle, status: "released" },
+      );
     }
 
     return results;
@@ -3052,6 +3286,28 @@ export function useWordDoc() {
                   collection.load("items");
                   return collection;
                 });
+                // The target's paragraph is loaded for every edit: the
+                // whole-paragraph deletion escalation below needs its text
+                // and table nesting, and every applied card carries a
+                // paragraph snippet so a wrong-location match is catchable
+                // before Accept. A single-occurrence edit's target is its only
+                // match, known already, so its paragraph read rides this
+                // round trip; a replace-all target depends on the revision
+                // check and is loaded after it.
+                // Assigned inside loadTargetParagraph; the assertion keeps
+                // TypeScript from narrowing it to null.
+                let targetParagraph = null as Word.Paragraph | null;
+                const loadTargetParagraph = (range: Word.Range): void => {
+                  try {
+                    targetParagraph = range.paragraphs.getFirst() ?? null;
+                    targetParagraph?.load("text,tableNestingLevel");
+                  } catch {
+                    targetParagraph = null;
+                  }
+                };
+                if (!replaceAll && matches.items[0]) {
+                  loadTargetParagraph(matches.items[0]);
+                }
                 await context.sync();
 
                 const revisionFreeItems = matches.items.filter(
@@ -3088,24 +3344,16 @@ export function useWordDoc() {
                   result.remainingTargets = revisionFreeItems.length - 1;
                 }
 
-                // The target's paragraph is loaded for every edit: the
-                // whole-paragraph deletion escalation below needs its text
-                // and table nesting, and every applied card carries a
-                // paragraph snippet so a wrong-location match is catchable
-                // before Accept. `original` is already the adopted
-                // marker-free text here, so the stripped-marker retry above
-                // cannot desynchronize the comparison.
+                // `original` is already the adopted marker-free text here, so
+                // the stripped-marker retry above cannot desynchronize the
+                // paragraph comparison below.
                 const pureDeletion =
                   !isFormatEdit(edit) &&
                   toWordText(edit.replacement).length === 0;
-                let targetParagraph: Word.Paragraph | null = null;
-                try {
-                  targetParagraph = target.paragraphs.getFirst() ?? null;
-                  targetParagraph?.load("text,tableNestingLevel");
-                } catch {
-                  targetParagraph = null;
+                if (replaceAll) {
+                  loadTargetParagraph(target);
+                  await context.sync();
                 }
-                await context.sync();
 
                 if (targetParagraph) {
                   const hint = buildLocationHint(
@@ -3349,12 +3597,14 @@ export function useWordDoc() {
                 // Word.run completes: the exact children when they were
                 // verified, and always the edited passage itself.
                 trackingQueued = true;
-                if (exactRevisions) {
+                const queueRevisionTracking = (): void => {
+                  if (!exactRevisions) return;
                   for (const collection of managedCollections) {
                     collection.track();
                   }
                   for (const change of managedChanges) change.track();
-                }
+                };
+                queueRevisionTracking();
                 const revisionRanges = exactRevisions
                   ? managedChanges
                       .map((change) => ({
@@ -3385,10 +3635,27 @@ export function useWordDoc() {
                       ...(paragraphRange ? [paragraphRange] : []),
                     ];
                 for (const range of candidateRanges) range.track();
-                await context.sync();
 
+                // The hidden bookmark is queued in the same round trip as the
+                // tracking above. Its failure must stay a warning, never an
+                // apply failure, and a failed sync does not say which command
+                // failed -- so on failure both are re-run apart, exactly as
+                // they ran before they shared a sync: tracking first (fatal),
+                // then the bookmark (a warning).
                 let bookmarkName: string | undefined;
-                if (edit.stableEditId && candidateRanges.length > 0) {
+                const persistentEditId = edit.stableEditId;
+                const reportBookmarkFailure = (error: unknown): void => {
+                  reportWordFailure(error, {
+                    operation: "word.edit_apply",
+                    level: "warning",
+                  });
+                  result.error = describeWordFailure(
+                    error,
+                    "The change is reviewable now, but its View link may not survive reopening the add-in.",
+                  );
+                };
+                const queueBookmark = (): string | null => {
+                  if (!persistentEditId || candidateRanges.length === 0) return null;
                   // Without per-revision ranges, fall back to the paragraph:
                   // the tight ranges span only the inserted text, and a
                   // bookmark that misses the Deleted half restores view-only.
@@ -3400,33 +3667,52 @@ export function useWordDoc() {
                         : [...insertedRanges, ...targetItems];
                   const [firstPersistentRange, ...remainingPersistentRanges] =
                     persistentRanges;
-                  if (firstPersistentRange) {
-                    const candidateBookmarkName = bookmarkNameForEdit(
-                      edit.stableEditId,
+                  if (!firstPersistentRange) return null;
+                  const candidateBookmarkName = bookmarkNameForEdit(persistentEditId);
+                  try {
+                    let bookmarkRange = firstPersistentRange;
+                    for (const range of remainingPersistentRanges) {
+                      bookmarkRange = bookmarkRange.expandTo(range);
+                    }
+                    bookmarkRange.insertBookmark(candidateBookmarkName);
+                    return candidateBookmarkName;
+                  } catch (error) {
+                    reportBookmarkFailure(error);
+                    return null;
+                  }
+                };
+                const commitBookmark = (name: string): void => {
+                  bookmarkName = name;
+                  result.persistentAnchor = true;
+                  stagedAnchors.push({
+                    stableEditId: persistentEditId!,
+                    bookmarkName: name,
+                    result,
+                  });
+                };
+                const queuedBookmark = queueBookmark();
+                if (!queuedBookmark) {
+                  await context.sync();
+                } else {
+                  try {
+                    await context.sync();
+                    commitBookmark(queuedBookmark);
+                  } catch (error) {
+                    console.debug(
+                      "[tracked-edit/apply] tracking + bookmark batch failed; retrying apart",
+                      logErrorMessage(error),
                     );
-                    try {
-                      let bookmarkRange = firstPersistentRange;
-                      for (const range of remainingPersistentRanges) {
-                        bookmarkRange = bookmarkRange.expandTo(range);
+                    queueRevisionTracking();
+                    for (const range of candidateRanges) range.track();
+                    await context.sync();
+                    const retriedBookmark = queueBookmark();
+                    if (retriedBookmark) {
+                      try {
+                        await context.sync();
+                        commitBookmark(retriedBookmark);
+                      } catch (bookmarkError) {
+                        reportBookmarkFailure(bookmarkError);
                       }
-                      bookmarkRange.insertBookmark(candidateBookmarkName);
-                      await context.sync();
-                      bookmarkName = candidateBookmarkName;
-                      result.persistentAnchor = true;
-                      stagedAnchors.push({
-                        stableEditId: edit.stableEditId,
-                        bookmarkName,
-                        result,
-                      });
-                    } catch (error) {
-                      reportWordFailure(error, {
-                        operation: "word.edit_apply",
-                        level: "warning",
-                      });
-                      result.error = describeWordFailure(
-                        error,
-                        "The change is reviewable now, but its View link may not survive reopening the add-in.",
-                      );
                     }
                   }
                 }

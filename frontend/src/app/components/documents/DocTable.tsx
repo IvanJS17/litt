@@ -90,6 +90,7 @@ import {
     documentUploadEntriesFromFiles,
     documentUploadFolderSegments,
     folderUploadProgressLabel,
+    groupUploadFilesByTopFolder,
     resolvedDocumentUploadProgressEntries,
     MAX_DOCUMENTS_PER_DIRECTORY_UPLOAD,
     resolveDocumentUploadRootFolder,
@@ -98,8 +99,12 @@ import {
     type DocumentUploadProgressEntry,
 } from "@/app/lib/documentDirectoryUpload";
 import { settleWithConcurrency } from "@/shared/lib/settleWithConcurrency";
+import { appendMissingById, indexById } from "@/app/lib/idCollections";
+import { createFrameBatcher } from "@/app/lib/frameBatcher";
 import {
+    collectionRowKeysInVisualOrder,
     collectionSelectAllState,
+    folderAncestorIds,
     folderSelectionRootIds,
     folderTreeIds as collectFolderTreeIds,
     MULTI_DOCUMENT_DRAG_TYPE,
@@ -142,6 +147,10 @@ import {
     type TableFilterOption,
     type TableSortDirection,
 } from "@/app/components/shared/TablePrimitive";
+import {
+    BULK_REQUEST_CONCURRENCY,
+    settleBulkRequests,
+} from "@/app/lib/bulkRequests";
 
 // Above this many documents the zip is built by a background export job
 // instead of inside the request: a small selection zips in well under a second
@@ -950,6 +959,8 @@ export function DocTable({
 
     const foldersRef = useRef(folders);
     foldersRef.current = folders;
+    const folderById = useMemo(() => indexById(folders), [folders]);
+    const documentById = useMemo(() => indexById(documents), [documents]);
     const viewedFolderIdRef = useRef(viewedFolderId);
     viewedFolderIdRef.current = viewedFolderId;
     const onFolderViewIdChangeRef = useRef(onFolderViewIdChange);
@@ -1003,22 +1014,23 @@ export function DocTable({
     const folderPathRef = useRef<DocTableFolder[]>([]);
     const folderPathKey = useMemo(() => {
         const path: DocTableFolder[] = [];
+        const visited = new Set<string>();
         let current = viewedFolderId
-            ? folders.find((folder) => folder.id === viewedFolderId)
+            ? folderById.get(viewedFolderId)
             : undefined;
-        while (current) {
-            path.unshift(current);
+        while (current && !visited.has(current.id)) {
+            visited.add(current.id);
+            path.push(current);
             current = current.parent_folder_id
-                ? folders.find(
-                      (folder) => folder.id === current?.parent_folder_id,
-                )
+                ? folderById.get(current.parent_folder_id)
                 : undefined;
         }
+        path.reverse();
         folderPathRef.current = path;
         return JSON.stringify(
             path.map((folder) => [folder.id, folder.name]),
         );
-    }, [folders, viewedFolderId]);
+    }, [folderById, viewedFolderId]);
 
     useEffect(() => {
         onFolderViewChange?.(
@@ -1304,7 +1316,7 @@ export function DocTable({
     // ── Doc/chat/review handlers ──────────────────────────────────────────────
 
     function handleDocsSelected(newDocs: Document[]) {
-        setDocuments((prev) => [...prev, ...newDocs.filter((d) => !prev.some((e) => e.id === d.id))]);
+        setDocuments((prev) => appendMissingById(prev, newDocs));
     }
 
     function removeDocumentFromLocalState(docId: string) {
@@ -1563,13 +1575,7 @@ export function DocTable({
 
     function wouldCreateCycle(movingId: string, targetId: string): boolean {
         // Returns true if targetId is movingId or a descendant of it
-        let cur: DocTableFolder | undefined = folders.find((f) => f.id === targetId);
-        while (cur) {
-            if (cur.id === movingId) return true;
-            if (!cur.parent_folder_id) break;
-            cur = folders.find((f) => f.id === cur!.parent_folder_id);
-        }
-        return false;
+        return folderAncestorIds([targetId], folderById).has(movingId);
     }
 
     // A catalog accepts no drops and starts no drags, so every payload check
@@ -1705,6 +1711,37 @@ export function DocTable({
                 .map((progress) => progress.entry);
         };
         const uploadId = crypto.randomUUID();
+        // Each file reports from its own transfer, so React would apply
+        // every event as a separate render of the whole table. Buffer them
+        // and apply each frame's events as one status update and one merge.
+        const progressEvents = createFrameBatcher<UploadProgress<Document>>(
+            (batch) => {
+                const statusByClientId = new Map(
+                    batch.map((progress) => [progress.clientId, progress.status]),
+                );
+                setCollectionUploadProgress((current) =>
+                    current.map((upload) =>
+                        upload.uploadId === uploadId
+                            ? {
+                                  ...upload,
+                                  files: upload.files.map((file) => {
+                                      const status = statusByClientId.get(
+                                          file.clientId,
+                                      );
+                                      return status ? { ...file, status } : file;
+                                  }),
+                              }
+                            : upload,
+                    ),
+                );
+                const completed = batch.flatMap((progress) =>
+                    progress.status === "completed" && progress.result
+                        ? [progress.result]
+                        : [],
+                );
+                if (completed.length > 0) handleDocsSelected(completed);
+            },
+        );
         const clientIdByFile = new Map(
             progressFiles.map((progress) => [
                 progress.entry.file,
@@ -1845,35 +1882,9 @@ export function DocTable({
                         folderId,
                         clientId: clientIdByFile.get(entry.file)!,
                     })),
-                    {
-                        onProgress: (progress) => {
-                            setCollectionUploadProgress((current) =>
-                                current.map((upload) =>
-                                    upload.uploadId === uploadId
-                                        ? {
-                                              ...upload,
-                                              files: upload.files.map((file) =>
-                                                  file.clientId ===
-                                                  progress.clientId
-                                                      ? {
-                                                            ...file,
-                                                            status: progress.status,
-                                                        }
-                                                      : file,
-                                              ),
-                                          }
-                                        : upload,
-                                ),
-                            );
-                            if (
-                                progress.status === "completed" &&
-                                progress.result
-                            ) {
-                                handleDocsSelected([progress.result]);
-                            }
-                        },
-                    },
+                    { onProgress: progressEvents.push },
                 );
+                progressEvents.flush();
                 uploaded = batchOutcomes.flatMap((outcome) =>
                     outcome.status === "completed" && outcome.result
                         ? [outcome.result]
@@ -1954,6 +1965,8 @@ export function DocTable({
                 },
             );
         } finally {
+            // A batch that failed part-way still lands what it completed.
+            progressEvents.flush();
             setCollectionUploadProgress((current) =>
                 current.filter((upload) => upload.uploadId !== uploadId),
             );
@@ -2183,7 +2196,7 @@ export function DocTable({
         const subFolderId = dt.getData("application/mike-folder");
         if (docIds.length > 0) {
             const movingIds = docIds.filter((id) => {
-                const doc = documents.find((candidate) => candidate.id === id);
+                const doc = documentById.get(id);
                 return doc && (doc.folder_id ?? null) !== targetFolderId;
             });
             if (movingIds.length === 0) return;
@@ -2198,7 +2211,7 @@ export function DocTable({
             )
                 return;
             if (targetFolderId !== null && wouldCreateCycle(subFolderId, targetFolderId)) return;
-            const folder = folders.find((f) => f.id === subFolderId);
+            const folder = folderById.get(subFolderId);
             if (!folder || (folder.parent_folder_id ?? null) === targetFolderId) return;
             const updatedAt = new Date().toISOString();
             setFolders((prev) =>
@@ -2344,6 +2357,19 @@ export function DocTable({
         );
     }
 
+    // Rebuilt when progress changes (once per frame while uploading), not
+    // per tree level and folder row on every render.
+    const uploadFilesByUploadId = useMemo(
+        () =>
+            new Map(
+                collectionUploadProgress.map((upload) => [
+                    upload.uploadId,
+                    groupUploadFilesByTopFolder(upload.files),
+                ]),
+            ),
+        [collectionUploadProgress],
+    );
+
     function renderUploadingDocumentRows(
         depth: number,
         parentFolderId: string | null,
@@ -2352,10 +2378,10 @@ export function DocTable({
             (upload) => upload.parentFolderId === parentFolderId,
         );
         const directRows = visibleUploads.flatMap((upload) =>
-            upload.files
-                .filter(
+            uploadFilesByUploadId
+                .get(upload.uploadId)!
+                .direct.filter(
                     (file) =>
-                        documentUploadFolderSegments(file.entry).length === 0 &&
                         file.status !== "completed" &&
                         file.status !== "error",
                 )
@@ -2374,11 +2400,9 @@ export function DocTable({
             upload.entries
                 .filter((entry) => entry.kind === "folder")
                 .map((entry, index) => {
-                    const folderFiles = upload.files.filter(
-                        (file) =>
-                            documentUploadFolderSegments(file.entry)[0] ===
-                            entry.sourceName,
-                    );
+                    const folderFiles = uploadFilesByUploadId
+                        .get(upload.uploadId)!
+                        .inFolder(entry.sourceName);
                     return renderDocumentActivityRow({
                         key: `uploading-folder-${upload.uploadId}-${entry.name}-${index}`,
                         filename: entry.name,
@@ -2478,18 +2502,10 @@ export function DocTable({
      * user actually deselected lose their checkmark.
      */
     function clearSelectedFolderAncestors(documentIds: readonly string[]) {
-        const ancestorIds = new Set<string>();
-        for (const documentId of documentIds) {
-            let currentId: string | null =
-                docs.find((candidate) => candidate.id === documentId)
-                    ?.folder_id ?? null;
-            while (currentId && !ancestorIds.has(currentId)) {
-                ancestorIds.add(currentId);
-                currentId =
-                    folders.find((folder) => folder.id === currentId)
-                        ?.parent_folder_id ?? null;
-            }
-        }
+        const ancestorIds = folderAncestorIds(
+            documentIds.map((documentId) => docById.get(documentId)?.folder_id),
+            folderById,
+        );
         if (ancestorIds.size === 0) return;
 
         const nextFolderIds = new Set(selectedFolderIds);
@@ -2522,24 +2538,13 @@ export function DocTable({
     }
 
     function visibleCollectionRowKeys(): string[] {
-        const rows = Array.from(
-            tableRootRef.current?.querySelectorAll<HTMLElement>(
-                "[data-collection-row-key]",
-            ) ?? [],
+        return collectionRowKeysInVisualOrder(
+            Array.from(
+                tableRootRef.current?.querySelectorAll<HTMLElement>(
+                    "[data-collection-row-key]",
+                ) ?? [],
+            ),
         );
-        rows.sort((left, right) => {
-            const topDifference =
-                left.getBoundingClientRect().top -
-                right.getBoundingClientRect().top;
-            if (topDifference !== 0) return topDifference;
-            return left.compareDocumentPosition(right) &
-                Node.DOCUMENT_POSITION_PRECEDING
-                ? 1
-                : -1;
-        });
-        return rows
-            .map((row) => row.dataset.collectionRowKey)
-            .filter((key): key is string => !!key);
     }
 
     function updateCollectionRowSelection(
@@ -3272,6 +3277,10 @@ export function DocTable({
     // ── Loading skeleton ──────────────────────────────────────────────────────
 
     const docs = serverDocuments ?? documents;
+    const docById = useMemo(
+        () => (docs === documents ? documentById : indexById(docs)),
+        [docs, documents, documentById],
+    );
     const startDocDownload = useCallback(async (docId: string) => {
         const { url, filename } = catalog
             ? catalog.resolveDocumentUrl(docId)
@@ -3414,7 +3423,7 @@ export function DocTable({
             ),
         );
         const results = await settleWithConcurrency(
-            ids, 5, id => operations.moveDocument(id, targetFolderId),
+            ids, BULK_REQUEST_CONCURRENCY, id => operations.moveDocument(id, targetFolderId),
         );
         // Rows the server did move carry its version of the record. A move
         // that resolves without one (a 204, say) still counts as moved, so
@@ -3451,7 +3460,7 @@ export function DocTable({
         if (failedIds.length === 0) return;
         await operations.refreshCollection().catch(() => undefined);
         const failedNames = snapshot
-            .filter((doc) => failedIds.includes(doc.id))
+            .filter((doc) => failedIdSet.has(doc.id))
             .map((doc) => doc.filename);
         const one = failedIds.length === 1;
         const where =
@@ -3486,14 +3495,14 @@ export function DocTable({
             return;
         await removeDocsFromFolder(
             selectedStandaloneDocIds.filter(
-                (id) => docs.find((d) => d.id === id)?.folder_id != null,
+                (id) => docById.get(id)?.folder_id != null,
             ),
         );
-    }, [docs, removeDocsFromFolder, requireCapability, selectedStandaloneDocIds]);
+    }, [docById, removeDocsFromFolder, requireCapability, selectedStandaloneDocIds]);
 
     const deleteDocumentIds = useCallback(async (ids: string[]) => {
         const owned = ids.filter((id) => {
-            const doc = documents.find((candidate) => candidate.id === id);
+            const doc = documentById.get(id);
             // A row we can see is judged on its uploader, both halves known.
             // A row we cannot see is left to the server, and deliberately so:
             // unlike project delete — where an admin's sweep really could
@@ -3507,8 +3516,9 @@ export function DocTable({
         });
         const blocked = ids.length - owned.length;
         const snapshot = docs;
+        const ownedIds = new Set(owned);
         setDocuments((current) =>
-            current.filter((doc) => !owned.includes(doc.id)),
+            current.filter((doc) => !ownedIds.has(doc.id)),
         );
         let deletedIds: string[] = [];
         if (operations.bulkDeleteDocuments) {
@@ -3522,25 +3532,13 @@ export function DocTable({
             }
         } else {
             // Keep destructive requests bounded for project tables, which do
-            // not yet expose a collection-specific bulk endpoint.
-            const pending = [...owned];
-            const workers = Array.from({ length: Math.min(8, pending.length) }, async () => {
-                const workerDeleted: string[] = [];
-                while (pending.length > 0) {
-                    const id = pending.shift();
-                    if (!id) break;
-                    try {
-                        await deleteDocument(id);
-                        workerDeleted.push(id);
-                    } catch {
-                        // Report the aggregate failure below.
-                    }
-                }
-                return workerDeleted;
-            });
-            deletedIds = (await Promise.all(workers)).flat();
+            // not yet expose a collection-specific bulk endpoint. Failures
+            // are reported in aggregate below.
+            deletedIds = (await settleBulkRequests(owned, deleteDocument))
+                .succeeded;
         }
-        const failedIds = owned.filter((id) => !deletedIds.includes(id));
+        const deletedIdSet = new Set(deletedIds);
+        const failedIds = owned.filter((id) => !deletedIdSet.has(id));
         const failedCount = failedIds.length;
         if (failedIds.length > 0) {
             setDocuments((current) =>
@@ -3561,8 +3559,9 @@ export function DocTable({
             });
         }
         if (failedCount > 0) {
+            const failedIdSet = new Set(failedIds);
             const failedNames = snapshot
-                .filter((doc) => failedIds.includes(doc.id))
+                .filter((doc) => failedIdSet.has(doc.id))
                 .map((doc) => doc.filename);
             notifyPartialFailure(
                 `${failedCount} ${failedCount === 1 ? "document" : "documents"} could not be deleted${
@@ -3592,7 +3591,7 @@ export function DocTable({
     }, [
         canDeleteDocument,
         docs,
-        documents,
+        documentById,
         operations,
         setDocuments,
         setOwnerOnlyAction,
@@ -4188,7 +4187,7 @@ export function DocTable({
                     }
                     onRemoveFromFolder={
                         selectedStandaloneDocIds.some(
-                            (id) => docs.find((doc) => doc.id === id)?.folder_id,
+                            (id) => docById.get(id)?.folder_id,
                         )
                             ? () => void handleRemoveSelectedFromFolder()
                             : undefined
