@@ -140,7 +140,7 @@ it("keeps a GoTrue 500 a reported 500, not an outage the user should wait out", 
       .post("/auth/login")
       .set("Origin", origin)
       .send({ email: "lawyer@example.test", password: "correct horse battery" });
-  
+
     expect(res.status).toBe(500);
     expect(res.body).toMatchObject({ code: "internal_error", request_id: "req-auth-outage" });
     const reported = reports();
@@ -170,7 +170,7 @@ describe("requireAuth with GoTrue unreachable", () => {
     ["a bearer token", (req: request.Test) => req.set("Authorization", `Bearer ${jwt(exp)}`)],
   ])("answers %s 503 upstream_unavailable, not a 401 that signs the user out", async (_label, authenticate) => {
     const res = await authenticate(request(app()).get("/projects"));
-  
+
     expect(res.status).toBe(503);
     expect(res.body).toEqual({
       code: "upstream_unavailable",
@@ -206,7 +206,7 @@ describe("requireAuth with GoTrue unreachable", () => {
     const session = await bearer(request(app()).get("/auth/session"));
     expect(session.status).toBe(503);
     expect(session.body.code).toBe("upstream_unavailable");
-  
+
     expect(outageEvents()).toHaveLength(1);
     expect(outageEvents()[0]).toMatchObject({
       operation: "auth.session",
