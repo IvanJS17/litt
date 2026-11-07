@@ -12,9 +12,10 @@ Client behavior shared by the Mike web app (`frontend/`) and the Word add-in
 - `uploadSessionClient.ts` (with `settleWithConcurrency.ts`, `secureUuid.ts`):
   the upload-session protocol.
 - `messageExcerpts.ts`: the wire format for quoting a passage of a response.
-- `sentryEvent.ts`, `sentryPrivacy.ts`: Sentry event hygiene. `sentryPrivacy.ts`
-  is byte-identical to `backend/src/lib/observability/sentryPrivacy.ts`; the
-  sync test guards it.
+- `sourceCommit.mjs` (types in `sourceCommit.d.mts`): the commit a build
+  embeds and the URL of its source tree, for LiTT's AGPL-3.0 §13 "Código
+  fuente" link. Plain ESM because `frontend/next.config.ts` and
+  `word-addin/webpack.config.js` load it at build time too.
 
 ## Public surface
 
@@ -24,10 +25,9 @@ Application code imports the package's `src/index.ts` entry point:
 import { describeError, MODELS, serializeExcerpts } from "@mike/client";
 ```
 
-The Word webpack config also loads `src/releaseName.cjs`, the CommonJS twin
-of the exported release identity helper, by its source path: TypeScript and
-webpack aliases are not active while loading that config. Other files under
-`src/` that `index.ts` does not re-export are internal.
+The Word webpack config also loads `src/sourceCommit.mjs` by its source
+path: webpack aliases are not active while loading that config. Other files
+under `src/` that `index.ts` does not re-export are internal.
 
 ## Rules
 

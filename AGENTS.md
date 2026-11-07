@@ -99,7 +99,7 @@ Preserve the accessibility baseline:
 - Reusable client behavior belongs in `frontend/src/app/hooks/` or
   `frontend/src/app/lib/`, with a colocated `*.test.ts` or `*.test.tsx` file.
   Behavior the Word add-in also needs (error classification and toasts, the
-  model catalog, upload sessions, response excerpts, Sentry event hygiene)
+  model catalog, upload sessions, response excerpts, the AGPL source link)
   lives in `packages/client/`, imported as `@mike/client`, and must stay
   framework-free. Its public surface is `packages/client/src/index.ts`; its
   tests are colocated and run with the frontend's Vitest.

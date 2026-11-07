@@ -66,8 +66,8 @@ source faces in [`docs/brand/licencias/`](brand/licencias/).
 **The marks.** The wordmark is a Newsreader **L** followed by Departure Mono
 **ıTT**; the dot of the i is a square amber cursor. The reduced mark is the
 «L.» monogram: the L with that square, never the L alone. Both are drawn by
-`frontend/src/shared/ui/LittBrandUI.tsx` (the add-in imports it as
-`@mike/litt-brand-ui`):
+`packages/ui/src/LittBrandUI.tsx`, which the web app and the add-in both
+import from `@mike/ui`:
 
 | Component | Use | Sizes |
 | --- | --- | --- |

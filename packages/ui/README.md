@@ -2,7 +2,10 @@
 
 React primitives rendered by both the Mike web app (`frontend/`) and the Word
 add-in (`word-addin/`): liquid-glass surfaces, pills and buttons, the dropdown,
-the model picker, toasts, modals, and the assistant message blocks.
+the model picker, toasts, modals, and the assistant message blocks, plus
+LiTT's brand (`LittBrandUI`), the AGPL "Código fuente" link
+(`SourceCodeLinkUI`) and the training UI (`Training*UI`,
+`useTrainingTurnNotes`).
 
 ## Public surface
 
@@ -21,7 +24,8 @@ class scanning with one `@source` entry each.
 ## Rules
 
 - Framework-light: React, `lucide-react`, `clsx`, `tailwind-merge`, the Radix
-  dropdown, and `@mike/client`. Nothing from `frontend/src/app/` or
+  dropdown, `@mike/client`, and `@mike/contracts` for wire types
+  (`import type` only). Nothing from `frontend/src/app/` or
   `word-addin/src/`.
 - Cross-target primitives use the `XxxUI.tsx` convention; `dropdown.tsx` is the
   one exception. See `docs/design-system.md` for tokens, surfaces and the
