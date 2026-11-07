@@ -235,6 +235,7 @@ describe("DocumentSidePanel failures", () => {
     renderPanel({ versions: [version(), version({id: "version-2", version_number: 2})], onDelete });
     await user.click(screen.getByRole("button", {name: /^Delete$/}));
     const dialog = await screen.findByRole("dialog", {name: "Delete document?"});
+    expect(dialog).toHaveTextContent("Deleting this document will delete all of its versions. This can't be undone.");
     await user.click(within(dialog).getByRole("button", {name: /^Delete$/}));
     await screen.findByRole("alert");
     await user.click(within(dialog).getByRole("button", {name: "Cancel"}));

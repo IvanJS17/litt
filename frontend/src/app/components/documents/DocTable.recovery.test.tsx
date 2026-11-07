@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -187,9 +187,15 @@ describe("DocTable failure reporting", () => {
             "Couldn't delete the document",
         );
 
-        // The dialog stays open, so its own button is the retry.
+        // The dialog stays open, so its own button is the retry, and the
+        // retry's own failure is reported again, not swallowed.
+        act(() => clearToasts());
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
         await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
         await waitFor(() => expect(deleteDocument).toHaveBeenCalledTimes(2));
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "Couldn't delete the document",
+        );
         // The row the user saw disappear is back.
         expect(
             screen.getAllByRole("button", { name: "Open row actions" }),

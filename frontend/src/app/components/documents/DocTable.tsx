@@ -4317,7 +4317,8 @@ export function DocTable({
             {pendingDeleteDocVersionCount > 1 ? (
                 <p>
                     <span className="font-medium text-gray-950">{pendingDeleteDoc.filename}</span> has{" "}
-                    {pendingDeleteDocVersionCount} versions. Deleting this document will delete all of its versions.
+                    {pendingDeleteDocVersionCount} versions. Deleting this document will delete all of its versions. This
+                    can&apos;t be undone.
                 </p>
             ) : (
                 <p>

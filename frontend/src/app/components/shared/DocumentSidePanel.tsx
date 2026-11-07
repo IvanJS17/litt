@@ -1122,7 +1122,7 @@ export function DocumentSidePanel({
                 title="Delete document?"
                 message={
                     versions.length > 1
-                        ? `${selectedFilename} has ${versions.length} versions. Deleting this document will delete all of its versions.`
+                        ? `${selectedFilename} has ${versions.length} versions. Deleting this document will delete all of its versions. This can't be undone.`
                         : `${selectedFilename} will be permanently deleted. This can't be undone.`
                 }
                 confirmLabel="Delete"
