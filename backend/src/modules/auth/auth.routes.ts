@@ -52,6 +52,7 @@ import {
   signInWithPassword,
   signOut,
   signUpWithPassword,
+  googleSignInEnabled,
   startGoogleOAuth,
   ssoRequestSchema,
   startSsoSignIn,
@@ -226,13 +227,14 @@ async function startSso(req: Request, res: Response) {
   }
 }
 
-// Public and sessionless: the login page reads it to decide whether to offer
-// "Continue with SSO". Only a boolean leaves the server — never the allowed
-// domains or anything about the identity provider.
-authRouter.get("/providers", (_req, res) => {
+// Public and sessionless: the login and signup pages read it to decide
+// whether to offer "Continue with SSO" and "Continue with Google". Only
+// booleans leave the server (`google` is null when GoTrue can't be asked) —
+// never the allowed domains or anything else about the providers.
+authRouter.get("/providers", asyncRoute(async (_req, res) => {
   setOperation("auth.signin");
-  res.json({ sso: ssoEnabled() });
-});
+  res.json({ sso: ssoEnabled(), google: await googleSignInEnabled() });
+}));
 
 authRouter.post("/oauth", asyncRoute(async (req, res) => {
   setOperation("auth.signin");

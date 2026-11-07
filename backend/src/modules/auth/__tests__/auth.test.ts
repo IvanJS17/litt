@@ -1,6 +1,6 @@
 import express from "express";
 import request from "supertest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../../lib/appError";
 
 const {
@@ -72,7 +72,7 @@ vi.mock("../../../middleware/auth", () => ({
 }));
 
 import { authRouter } from "../auth.routes";
-import { signupSchema } from "../auth.service";
+import { resetGoogleSettingCache, signupSchema } from "../auth.service";
 
 const app = express();
 app.use(express.json());
@@ -173,20 +173,77 @@ describe("auth routes", () => {
     expect(createRequestSupabase).not.toHaveBeenCalled();
   });
 
-  it("tells a signed-out page whether SSO is on, and nothing else", async () => {
-    const off = await request(app).get("/auth/providers");
-    expect(off.status).toBe(200);
-    expect(off.headers["cache-control"]).toBe("private, no-store");
-    expect(off.body).toEqual({ sso: false });
+  describe("GET /auth/providers", () => {
+    // GoTrue's own GET /settings, as the auth service answers it.
+    const gotrue = vi.fn();
+    const settings = (google: unknown) =>
+      new Response(
+        JSON.stringify({
+          external: { google, email: true, saml: false },
+          disable_signup: false,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
 
-    process.env.SSO_ENABLED = " TRUE ";
-    process.env.SSO_ALLOWED_DOMAINS = "example.com, other.example";
-    const on = await request(app).get("/auth/providers");
-    expect(on.status).toBe(200);
-    // The allowed domains say which firms use the instance: never public.
-    expect(on.body).toEqual({ sso: true });
-    expect(on.text).not.toContain("example.com");
-    expect(createRequestSupabase).not.toHaveBeenCalled();
+    beforeEach(() => {
+      resetGoogleSettingCache();
+      process.env.SUPABASE_URL = "http://gateway.test:8000/";
+      process.env.SUPABASE_PUBLISHABLE_KEY = "publishable-key";
+      gotrue.mockReset();
+      vi.stubGlobal("fetch", gotrue);
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("tells a signed-out page whether SSO is on, and nothing else", async () => {
+      gotrue.mockResolvedValue(settings(true));
+      const off = await request(app).get("/auth/providers");
+      expect(off.status).toBe(200);
+      expect(off.headers["cache-control"]).toBe("private, no-store");
+      expect(off.body).toEqual({ sso: false, google: true });
+
+      process.env.SSO_ENABLED = " TRUE ";
+      process.env.SSO_ALLOWED_DOMAINS = "example.com, other.example";
+      const on = await request(app).get("/auth/providers");
+      expect(on.status).toBe(200);
+      // The allowed domains say which firms use the instance: never public.
+      expect(on.body).toEqual({ sso: true, google: true });
+      expect(on.text).not.toContain("example.com");
+      expect(createRequestSupabase).not.toHaveBeenCalled();
+    });
+
+    it("reads Google from GoTrue's own settings", async () => {
+      gotrue.mockResolvedValue(settings(false));
+      const response = await request(app).get("/auth/providers");
+      expect(response.body).toEqual({ sso: false, google: false });
+      // Only GoTrue's verdict leaves the server, not its other settings.
+      expect(response.text).not.toContain("disable_signup");
+      expect(gotrue).toHaveBeenCalledWith(
+        "http://gateway.test:8000/auth/v1/settings",
+        expect.objectContaining({
+          headers: { apikey: "publishable-key" },
+          signal: expect.any(AbortSignal),
+        }),
+      );
+
+      // A real answer is cached briefly: the next page load doesn't ask again.
+      await request(app).get("/auth/providers");
+      expect(gotrue).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["is down", () => Promise.reject(new TypeError("fetch failed"))],
+      ["fails", () => Promise.resolve(new Response("oops", { status: 502 }))],
+      ["answers oddly", () => Promise.resolve(settings("yes"))],
+    ])("says google is unknown when GoTrue %s, and asks again next time", async (_label, answer) => {
+      gotrue.mockImplementation(answer);
+      const response = await request(app).get("/auth/providers");
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ sso: false, google: null });
+
+      gotrue.mockResolvedValue(settings(false));
+      const recovered = await request(app).get("/auth/providers");
+      expect(recovered.body).toEqual({ sso: false, google: false });
+    });
   });
 
   it("extracts a normalized email domain and uses the shared callback", async () => {
