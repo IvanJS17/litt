@@ -5,7 +5,9 @@ import { createServerSupabase } from "../../lib/supabase";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import type { AuthenticatedIdentity } from "../../lib/recovery/identity/authStateMatrix";
 import {
+  assignMatterOwner,
   DRIVE_FOLDER_ID_PATTERN,
+  listMattersWithoutOwner,
   readMatterDriveFolder,
   updateMatterDriveFolder,
 } from "./matters.service";
@@ -91,6 +93,52 @@ matterSettingsRouter.patch(
       matter_id: ids.matterId,
       identity,
       drive_folder_id: folder.value,
+    });
+    if (!result.ok) return sendServiceFailure(res, result);
+    return res.json(result.data);
+  },
+);
+
+/**
+ * Matters of a firm, for its owners and admins: those without an active
+ * owner (no titles), and naming a matter's owner.
+ */
+export const mattersRouter = Router();
+
+const INVALID_REQUEST = {
+  code: "invalid_request",
+  detail: "Invalid request.",
+};
+
+mattersRouter.get("/without-owner", requireAuth, async (req, res) => {
+  const orgId = typeof req.query.org === "string" ? req.query.org : "";
+  if (!UUID_RE.test(orgId)) return res.status(400).json(INVALID_REQUEST);
+  const result = await listMattersWithoutOwner(createServerSupabase(), {
+    actorId: res.locals.userId as string,
+    orgId,
+  });
+  if (!result.ok) return sendServiceFailure(res, result);
+  return res.json({ matters: result.data });
+});
+
+mattersRouter.post(
+  "/:matterId/owner",
+  requireAuth,
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    const matterId = String(req.params.matterId);
+    if (!UUID_RE.test(matterId)) return opaqueNotFound(res);
+    const body: unknown = req.body;
+    const userId =
+      typeof body === "object" && body !== null && !Array.isArray(body)
+        ? (body as { user_id?: unknown }).user_id
+        : undefined;
+    if (typeof userId !== "string" || !UUID_RE.test(userId))
+      return res.status(400).json(INVALID_REQUEST);
+    const result = await assignMatterOwner(createServerSupabase(), {
+      actorId: res.locals.userId as string,
+      matterId,
+      targetUserId: userId,
     });
     if (!result.ok) return sendServiceFailure(res, result);
     return res.json(result.data);
