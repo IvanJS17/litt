@@ -1070,4 +1070,3 @@ commit, never a squash.
 Upstream changes no dependency in this cycle. The open Dependabot pull
 requests (#50–#55) are left for the cycle that brings upstream's next
 dependency updates.
-
