@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ModelOption } from "@/shared/lib/modelCatalog";
+import type { ModelOption } from "@mike/client";
 import { getSubagentRoutes, updateSubagentRoutes } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { SubagentRoutesSection } from "./SubagentRoutesSection";

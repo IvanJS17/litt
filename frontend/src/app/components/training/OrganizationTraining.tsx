@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GlassCardUI } from "@/shared/ui/GlassCardUI";
-import { ToggleSwitchUI } from "@/shared/ui/ToggleSwitchUI";
+import { GlassCardUI } from "@mike/ui";
+import { ToggleSwitchUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";

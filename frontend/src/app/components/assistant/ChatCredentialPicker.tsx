@@ -9,8 +9,8 @@ import {
     DropdownRadioGroup,
     DropdownRadioItem,
     DropdownTrigger,
-} from "@/shared/ui/dropdown";
-import { textButtonUIClassName } from "@/shared/ui/TextButtonUI.styles";
+} from "@mike/ui";
+import { textButtonUIClassName } from "@mike/ui";
 import {
     getChatCredentialOptions,
     type ChatCredentialOptions,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { PillButtonUI as PillButton } from "@/shared/ui/PillButtonUI";
+import { PillButtonUI as PillButton } from "@mike/ui";
 import { LIQUID_SUBTLE_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-surface";
 import { errorCode } from "@/app/lib/userFacingError";
 import { createApprovedReviewReport, getDrivePublicationStatus, getHumanReviewState, isMfaRequiredError, publishDrivePublication, reconcileDrivePublication, type DrivePublicationStatus } from "@/app/lib/mikeApi";

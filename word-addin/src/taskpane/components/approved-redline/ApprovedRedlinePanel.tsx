@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { GlassCardUI } from "@mike/glass-card-ui";
-import { PillButtonUI } from "@mike/pill-button-ui";
+import { GlassCardUI } from "@mike/ui";
+import { PillButtonUI } from "@mike/ui";
 import { PageTitle } from "../primitives/PageTitle";
 import { Spinner } from "../../../shared/ui/spinner";
 import {
