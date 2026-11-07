@@ -1309,7 +1309,9 @@ describe("training API", () => {
 
     it("reads the stage for an org and a project", async () => {
         ok();
-        await expect(getTrainingStage({ orgId: "o1", projectId: "p1" })).resolves.toBe("pasante");
+        await expect(getTrainingStage({ orgId: "o1", projectId: "p1" })).resolves.toMatchObject({
+            stage: "pasante",
+        });
         expect(lastFetchCall().url).toBe("/api/training/stage?org_id=o1&project_id=p1");
         await getTrainingStage({});
         expect(lastFetchCall().url).toBe("/api/training/stage?");

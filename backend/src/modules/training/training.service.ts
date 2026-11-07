@@ -22,6 +22,7 @@
 // area or the mentor: those are learning data (docs/training.md).
 
 import type {
+    TrainingEffectiveStage,
     TrainingMembership,
     TrainingMyPupils,
     TrainingOrgOverview,
@@ -42,11 +43,11 @@ import {
     isStorablePractice,
     isTrainingStage,
     normalizePractice,
-    resolveTrainingStage,
     resolveWordTrainingStage,
     TRAINING_PRACTICE_MAX_CHARS,
     type TrainingScope,
 } from "../../lib/training";
+import { resolveTurnTraining } from "../../lib/trainingPass";
 import { isUuid } from "../../lib/uuid";
 
 type Actor = { actorId: string; actorEmail?: string | null; orgId: string };
@@ -153,8 +154,10 @@ export async function getMyTraining(
 
 /**
  * The caller's effective stage where a chat turn would happen: in an
- * organization (and project), or in the Word add-in. The server applies the
- * same answer to the turn itself; this only tells the client what to show.
+ * organization (and project), or in the Word add-in, and whether a turn there
+ * needs their attempt (an urgency pass on the project lifts it; Word has no
+ * project, so no pass). The server applies the same answer to the turn
+ * itself; this only tells the client what to show.
  */
 export async function getEffectiveTrainingStage(
     db: Db,
@@ -165,12 +168,13 @@ export async function getEffectiveTrainingStage(
         projectId?: unknown;
         surface?: unknown;
     },
-): Promise<ServiceResult<{ stage: TrainingStage | null }>> {
+): Promise<ServiceResult<TrainingEffectiveStage>> {
     let scope: TrainingScope;
     if (args.surface === "word") {
         // No organization or project in Word: the one Word rule decides.
         try {
-            return ok({ stage: (await resolveWordTrainingStage(db, args.userId)).stage });
+            const { stage } = await resolveWordTrainingStage(db, args.userId);
+            return ok({ stage, attempt_required: stage === "pasante", urgency_pass: null });
         } catch (error) {
             return internalFailure(error);
         }
@@ -192,7 +196,15 @@ export async function getEffectiveTrainingStage(
         } else scope = { orgId };
     }
     try {
-        return ok({ stage: await resolveTrainingStage(db, args.userId, scope) });
+        const turn = await resolveTurnTraining(db, args.userId, scope);
+        return ok({
+            stage: turn.stage,
+            attempt_required: turn.attemptRequired,
+            urgency_pass:
+                turn.passExpiresAt && scope.projectId
+                    ? { project_id: scope.projectId, expires_at: turn.passExpiresAt }
+                    : null,
+        });
     } catch (error) {
         return internalFailure(error);
     }

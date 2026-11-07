@@ -83,3 +83,38 @@ export function TrainingAttemptFieldUI({
     </div>
   );
 }
+
+/**
+ * The plain-text line a pasante sees instead of the field while their
+ * mentor's urgency pass is in force on the matter (training layer 2). The
+ * end shows the date as well when it is not today.
+ */
+export function TrainingUrgencyPassLineUI({
+  expiresAt,
+  now = new Date(),
+  className,
+}: {
+  expiresAt: string;
+  now?: Date;
+  className?: string;
+}) {
+  return (
+    <p className={twMerge(clsx("min-w-0 text-xs text-gray-600", className))}>
+      {`Pase de urgencia vigente hasta ${formatPassEnd(expiresAt, now)}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.`}
+    </p>
+  );
+}
+
+function formatPassEnd(expiresAt: string, now: Date): string {
+  const end = new Date(expiresAt);
+  if (Number.isNaN(end.getTime())) return "nuevo aviso";
+  const time = new Intl.DateTimeFormat("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(end);
+  const sameDay = end.toDateString() === now.toDateString();
+  if (sameDay) return `las ${time}`;
+  const day = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "long" }).format(end);
+  return `el ${day}, a las ${time}`;
+}

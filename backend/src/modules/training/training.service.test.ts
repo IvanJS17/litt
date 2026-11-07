@@ -349,15 +349,15 @@ describe("reads", () => {
     it("tells the client the caller's effective stage in a project", async () => {
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: "pasante" },
+            data: { stage: "pasante", attempt_required: true, urgency_pass: null },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
             ok: true,
-            data: { stage: null },
+            data: { stage: null, attempt_required: false, urgency_pass: null },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: MEMBER, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null },
+            data: { stage: null, attempt_required: false, urgency_pass: null },
         });
     });
 });
@@ -492,18 +492,64 @@ describe("practice validation", () => {
             state.tables.projects[0].practice = spelling;
             expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
                 ok: true,
-                data: { stage: "pasante" },
+                data: { stage: "pasante", attempt_required: true, urgency_pass: null },
             });
         }
         state.tables.projects[0].practice = "Derecho Civil Y Mercantil";
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null },
+            data: { stage: null, attempt_required: false, urgency_pass: null },
         });
         // Removing uses the same normalization.
         expect(
             await removeStage(state.db, { ...as(MENTOR), userId: PUPIL, practice: " DERECHO\u00a0civil " }),
         ).toMatchObject({ ok: true });
+    });
+});
+
+describe("GET /training/stage with an urgency pass (layer 2)", () => {
+    const pass = (extra: Row = {}): Row => ({
+        org_id: ORG,
+        trainee_user_id: PUPIL,
+        project_id: PROJECT,
+        starts_at: new Date(Date.now() - 60_000).toISOString(),
+        expires_at: "2999-01-01T00:00:00.000Z",
+        revoked_at: null,
+        ...extra,
+    });
+    beforeEach(() => {
+        withPupil();
+        rows("training_stages").push({ org_id: ORG, trainee_user_id: PUPIL, practice: null, stage: "pasante" });
+    });
+
+    it("keeps the stage and lifts the attempt on the project while the pass is in force", async () => {
+        state.tables.training_urgency_passes = [pass()];
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
+            ok: true,
+            data: {
+                stage: "pasante",
+                attempt_required: false,
+                urgency_pass: { project_id: PROJECT, expires_at: "2999-01-01T00:00:00.000Z" },
+            },
+        });
+    });
+
+    it("asks for the attempt outside the project, with an expired pass, and in Word", async () => {
+        state.tables.training_urgency_passes = [pass()];
+        const required = { stage: "pasante", attempt_required: true, urgency_pass: null };
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
+            ok: true,
+            data: required,
+        });
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word" })).toEqual({
+            ok: true,
+            data: required,
+        });
+        state.tables.training_urgency_passes = [pass({ expires_at: new Date(Date.now() - 1000).toISOString() })];
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
+            ok: true,
+            data: required,
+        });
     });
 });
 

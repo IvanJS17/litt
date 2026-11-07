@@ -11,7 +11,11 @@ import { projectsRouter } from "./modules/projects/projects.routes";
 import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
-import { pupilWorksRouter, trainingSupervisionRouter } from "./modules/training-supervision/trainingSupervision.routes";
+import {
+    pupilPassesRouter,
+    pupilWorksRouter,
+    trainingSupervisionRouter,
+} from "./modules/training-supervision/trainingSupervision.routes";
 import { projectChatRouter } from "./modules/project-chat/projectChat.routes";
 import { documentsRouter } from "./modules/documents/documents.routes";
 import { libraryRouter } from "./modules/library/library.routes";
@@ -314,6 +318,7 @@ app.use("/projects/:projectId/matters", matterSettingsRouter);
 app.use("/projects/:projectId/memory", projectMemoryRouter);
 app.use("/projects", projectsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training", trainingRouter);
