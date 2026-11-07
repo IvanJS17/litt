@@ -442,8 +442,10 @@ export function normalizeForQuote(value: string): string {
     .trim();
 }
 
+// "art." ends in a dot, so it takes no closing word boundary: "art. 1840"
+// has none after the dot, while "arte" never reaches one.
 const LEGAL_MENTION =
-  /\b(art[íi]culos?|arts?\.|ley(es)?|c[óo]digos?|reglamentos?|tesis|jurisprudencias?|scjn)\b|\bNOM-/i;
+  /\b(?:art[íi]culos?|ley(?:es)?|c[óo]digos?|reglamentos?|tesis|jurisprudencias?|scjn)\b|\barts?\.|\bNOM-/i;
 
 function ruleText(rule: Rule): string {
   const positions = [rule.standard, ...rule.fallbacks, ...rule.unacceptable].filter(
@@ -522,7 +524,7 @@ export function verifyDraftProvenance(
         ? { text: ref.text, sourceId: ref.sourceId, quote: ref.quote, verified: true }
         : { text: ref.text, verified: false },
     );
-    if (!legalRefs.length && LEGAL_MENTION.test(ruleText(rule)))
+    if (!legalRefs.length && LEGAL_MENTION.test(`${ruleText(rule)}\n${declared.note ?? ""}`))
       legalRefs.push({ text: "(mencionada en el texto de la regla)", verified: false });
     const { legalRefs: _refs, ...rest } = rule;
     return { ...rest, origin, ...(legalRefs.length ? { legalRefs } : {}) };

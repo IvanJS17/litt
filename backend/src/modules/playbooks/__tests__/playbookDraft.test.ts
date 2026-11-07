@@ -192,6 +192,33 @@ describe("where each drafted rule comes from (server-side)", () => {
     expect(rules[1]).not.toHaveProperty("legalRefs");
   });
 
+  it("catches every common way of citing an article, and not words that merely start alike", () => {
+    const mentions = ["Conforme al art. 1840 CCF.", "Ver arts. 14 y 16.", "Art. 1840", "artículo 1840", "art.1840"];
+    const { rules } = verify([
+      ...mentions.map((guidance, index) => rule({ name: `Regla ${index}`, guidance })),
+      rule({ name: "Arte", guidance: "Obras de arte y producción artesanal; un artículo de lujo no." }),
+      rule({ name: "Nota", origin: { kind: "ai_general", note: "Según el art. 2448 del CCF." } }),
+      rule({ name: "Sin mención", guidance: "Arte, artesanal, artes plásticas." }),
+    ]);
+    for (const drafted of rules.slice(0, mentions.length))
+      expect(drafted.legalRefs).toEqual([{ text: "(mencionada en el texto de la regla)", verified: false }]);
+    // "artículo" still counts; only "arte" and "artesanal" alone do not.
+    expect(rules[mentions.length].legalRefs).toHaveLength(1);
+    expect(rules[mentions.length + 1].legalRefs).toHaveLength(1);
+    expect(rules[mentions.length + 2]).not.toHaveProperty("legalRefs");
+  });
+
+  it("marks an answer-backed rule that cites art. 1840 as unverified", () => {
+    const { rules } = verify([
+      rule({
+        origin: { kind: "answer", questionIds: ["q6"] },
+        guidance: "Conforme al art. 1840 del CCF, la pena no excede la obligación principal.",
+      }),
+    ]);
+    expect(rules[0].origin).toEqual({ kind: "answer", questionIds: ["q6"], unbacked: false });
+    expect(rules[0].legalRefs).toEqual([{ text: "(mencionada en el texto de la regla)", verified: false }]);
+  });
+
   it("drops file markers the model invents in sourceRefs", () => {
     const { rules } = verify([
       rule({
