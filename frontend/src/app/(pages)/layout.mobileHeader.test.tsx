@@ -24,10 +24,14 @@ vi.mock("@/app/contexts/ChatHistoryContext", () => ({
 }));
 // Records what the layout actually renders the sidebar with, so the
 // persistence tests can compare it against the stored preference.
-const sidebarState = vi.hoisted(() => ({ isOpen: false }));
+const sidebarState = vi.hoisted(() => ({
+    isOpen: false,
+    rendered: [] as boolean[],
+}));
 vi.mock("@/app/components/shared/AppSidebar", () => ({
     AppSidebar: ({ isOpen }: { isOpen: boolean }) => {
         sidebarState.isOpen = isOpen;
+        sidebarState.rendered.push(isOpen);
         return null;
     },
 }));
@@ -40,6 +44,7 @@ beforeEach(() => {
     navigation.push.mockReset();
     localStorage.clear();
     sidebarState.isOpen = false;
+    sidebarState.rendered = [];
 });
 
 describe("mobile page header", () => {
@@ -115,6 +120,20 @@ describe("mobile page header", () => {
  * Live A/B: .claude/pr295-evidence/fr-03-sidebar-toggle-pr.log.
  */
 describe("desktop sidebar persistence", () => {
+    // The workspace collapses the sidebar; opening it first and collapsing it
+    // after the page mounts slid the whole workspace sideways (CLS 0.11-0.17).
+    it("renders the sidebar collapsed from the start in the project workspace", () => {
+        navigation.pathname = "/projects/project-1/assistant/chat/chat-1";
+
+        render(
+            <MikeLayout>
+                <div>Workspace</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.rendered).not.toContain(true);
+    });
+
     it("stores the state the sidebar is rendered with", () => {
         localStorage.setItem("sidebarOpen", "false");
 

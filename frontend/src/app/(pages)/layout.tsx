@@ -14,6 +14,9 @@ import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { HeaderButtonUI, HeaderButtonsUI } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 
+/** The project workspace (explorer, documents and chat). */
+const PROJECT_WORKSPACE_PATH = /^\/projects\/[^/]+\/assistant\/chat\/[^/]+\/?$/;
+
 export default function MikeLayout({
     children,
 }: {
@@ -25,9 +28,9 @@ export default function MikeLayout({
     const { isAuthenticated, authLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const isProjectWorkspace = PROJECT_WORKSPACE_PATH.test(pathname);
     const isChatPage =
-        /^\/assistant\/chat\/[^/]+\/?$/.test(pathname) ||
-        /^\/projects\/[^/]+\/assistant\/chat\/[^/]+\/?$/.test(pathname);
+        /^\/assistant\/chat\/[^/]+\/?$/.test(pathname) || isProjectWorkspace;
     const [mobileActionsContainer, setMobileActionsContainer] =
         useState<HTMLDivElement | null>(null);
 
@@ -43,7 +46,10 @@ export default function MikeLayout({
         if (typeof window !== "undefined" && window.innerWidth < 768) {
             return false;
         }
-        return true;
+        // The project workspace collapses the sidebar to make room. Start
+        // collapsed there: opening it and collapsing it once the page mounts
+        // slides the whole workspace sideways as it loads.
+        return !isProjectWorkspace;
     });
 
     // Persist what is actually on screen. The mount initializer above reads
