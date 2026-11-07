@@ -50,6 +50,28 @@ describe("ProjectExplorer uploads", () => {
     });
 });
 
+describe("ProjectExplorer names", () => {
+    it("shows long names on up to two lines with the full name in a title", () => {
+        const projectName = "Arrendamiento Bajío 2026 — revisión integral de anexos";
+        const folderName = "Anexos y correspondencia con la contraparte inmobiliaria";
+        const filename = "Contrato de arrendamiento comercial Bajío 2026 — revisión integral.docx";
+        render(
+            <ProjectExplorer
+                projectName={projectName}
+                folders={[{ id: "folder-1", name: folderName, parent_folder_id: null } as ProjectFolder]}
+                documents={[{ id: "doc-1", filename, file_type: "docx", folder_id: null } as Document]}
+                onDocClick={vi.fn()}
+            />,
+        );
+        for (const name of [projectName, folderName, filename]) {
+            const label = screen.getByText(name);
+            expect(label).toHaveAttribute("title", name);
+            expect(label).toHaveClass("line-clamp-2");
+            expect(label).not.toHaveClass("truncate");
+        }
+    });
+});
+
 describe("ProjectExplorer actions", () => {
     it("downloads a document from its context menu without opening it", () => {
         const document = { id: "doc-1", filename: "Draft.docx", file_type: "docx", folder_id: null } as Document;

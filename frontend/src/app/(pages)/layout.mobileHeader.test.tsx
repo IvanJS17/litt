@@ -24,10 +24,14 @@ vi.mock("@/app/contexts/ChatHistoryContext", () => ({
 }));
 // Records what the layout actually renders the sidebar with, so the
 // persistence tests can compare it against the stored preference.
-const sidebarState = vi.hoisted(() => ({ isOpen: false }));
+const sidebarState = vi.hoisted(() => ({
+    isOpen: false,
+    rendered: [] as boolean[],
+}));
 vi.mock("@/app/components/shared/AppSidebar", () => ({
     AppSidebar: ({ isOpen }: { isOpen: boolean }) => {
         sidebarState.isOpen = isOpen;
+        sidebarState.rendered.push(isOpen);
         return null;
     },
 }));
@@ -40,6 +44,7 @@ beforeEach(() => {
     navigation.push.mockReset();
     localStorage.clear();
     sidebarState.isOpen = false;
+    sidebarState.rendered = [];
 });
 
 describe("mobile page header", () => {
@@ -115,6 +120,72 @@ describe("mobile page header", () => {
  * Live A/B: .claude/pr295-evidence/fr-03-sidebar-toggle-pr.log.
  */
 describe("desktop sidebar persistence", () => {
+    // The workspace collapses the sidebar; opening it first and collapsing it
+    // after the page mounts slid the whole workspace sideways (CLS 0.11-0.17).
+    // "New chat" (no chat id) renders the same workspace page.
+    it.each([
+        "/projects/project-1/assistant/chat/chat-1",
+        "/projects/project-1/assistant/chat",
+        "/projects/project-1/assistant/chat/",
+    ])("renders the sidebar collapsed from the start on %s", (pathname) => {
+        navigation.pathname = pathname;
+
+        render(
+            <MikeLayout>
+                <div>Workspace</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.rendered.length).toBeGreaterThan(0);
+        expect(sidebarState.rendered.every((open) => open === false)).toBe(
+            true,
+        );
+    });
+
+    it.each(["/projects/project-1", "/projects/project-1/assistant/chats"])(
+        "keeps the sidebar open on %s",
+        (pathname) => {
+            navigation.pathname = pathname;
+
+            render(
+                <MikeLayout>
+                    <div>Page</div>
+                </MikeLayout>,
+            );
+
+            expect(sidebarState.isOpen).toBe(true);
+        },
+    );
+
+    // Client navigation keeps the layout mounted, so its initializer does not
+    // run again: the sidebar must collapse in the render that shows the
+    // workspace, never painting it open first.
+    it.each([
+        "/projects/project-1/assistant/chat/chat-1",
+        "/projects/project-1/assistant/chat",
+    ])("collapses without painting it open when navigating to %s", (pathname) => {
+        navigation.pathname = "/projects/project-1";
+        const view = render(
+            <MikeLayout>
+                <div>Project</div>
+            </MikeLayout>,
+        );
+        expect(sidebarState.isOpen).toBe(true);
+        sidebarState.rendered = [];
+
+        navigation.pathname = pathname;
+        view.rerender(
+            <MikeLayout>
+                <div>Workspace</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.rendered.length).toBeGreaterThan(0);
+        expect(sidebarState.rendered.every((open) => open === false)).toBe(
+            true,
+        );
+    });
+
     it("stores the state the sidebar is rendered with", () => {
         localStorage.setItem("sidebarOpen", "false");
 

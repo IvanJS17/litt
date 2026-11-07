@@ -260,14 +260,6 @@
     background: linear-gradient(to bottom, transparent, var(--content-fade-color));
 }
 
-.assistant-chat-input-fade {
-    background: linear-gradient(
-        to bottom,
-        transparent,
-        color-mix(in srgb, var(--app-background) 85%, transparent)
-    );
-}
-
 .tr-chat-message-fades {
     mask-image: linear-gradient(
         to bottom,

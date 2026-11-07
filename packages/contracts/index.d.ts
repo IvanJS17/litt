@@ -985,7 +985,10 @@ export interface TrainingPromotionProposal {
     from: TrainingStage;
     to: TrainingPromotionTarget;
     proposed: boolean;
-    /** Why there is no proposal although the counts are met. */
+    /**
+     * What stops a proposal even once the counts are met, set whether or not
+     * they are met yet; `proposed` also needs the counts (`required`).
+     */
     blocked_by: "not_approved_after" | "general_stage_remains" | null;
     approved_defenses: TrainingPromotionEvidence[];
     reviewed_works: TrainingPromotionEvidence[];

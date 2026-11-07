@@ -4,6 +4,7 @@ import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
+import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
     PillButtonUI,
@@ -90,6 +91,8 @@ export default function LoginPage() {
         setSessionError(null);
         setSessionWarningDismissed(false);
     }
+
+    const { showSso, showGoogle } = useAuthProviders();
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -239,13 +242,15 @@ export default function LoginPage() {
                                 {loading ? "Logging in..." : "Log in"}
                             </PillButtonUI>
                         </div>
-                        <AuthDividerUI />
-                        <GoogleAuthButton
-                            onError={(nextError) => setError(nextError)}
-                            disabled={loading}
-                            onLoadingChange={setLoading}
-                        />
-                        <SsoAuthButton disabled={loading} />
+                        {(showGoogle || showSso) && <AuthDividerUI />}
+                        {showGoogle && (
+                            <GoogleAuthButton
+                                onError={(nextError) => setError(nextError)}
+                                disabled={loading}
+                                onLoadingChange={setLoading}
+                            />
+                        )}
+                        {showSso && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">

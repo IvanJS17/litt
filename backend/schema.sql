@@ -17969,16 +17969,26 @@ grant execute on function public.training_grant_urgency_pass(uuid, uuid, uuid, u
 -- (20261107_90_litt_training_defense_outcome.sql). A pass is the mentor's:
 -- when the pupil gets another mentor, every pass still in force for them ends
 -- in the same statement, whatever path changes the mentor. revoked_by is
--- whoever made the change.
+-- whoever made the change (20261107_91_litt_training_pass_revoked_by.sql):
+-- the session's user when there is one, otherwise the assigned_by the same
+-- statement writes (the service role's path, assignPupil); with neither the
+-- change fails (LT003).
 create or replace function public.training_pupils_mentor_change_ends_passes()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
+declare
+  actor uuid;
 begin
   if new.mentor_user_id is distinct from old.mentor_user_id then
+    actor := coalesce(auth.uid(), new.assigned_by);
+    if actor is null then
+      raise exception 'A mentor change must say who made it (assigned_by)'
+        using errcode = 'LT003';
+    end if;
     update public.training_urgency_passes
-       set revoked_at = now(), revoked_by = new.assigned_by
+       set revoked_at = now(), revoked_by = actor
      where org_id = new.org_id
        and trainee_user_id = new.trainee_user_id
        and revoked_at is null
@@ -19475,5 +19485,6 @@ insert into public.schema_migrations (filename) values
   ('20261107_61_litt_training_urgency_pass_grant.sql'),
   ('20261107_70_litt_matter_succession.sql'),
   ('20261107_80_litt_user_ui_locale.sql'),
-  ('20261107_90_litt_training_defense_outcome.sql')
+  ('20261107_90_litt_training_defense_outcome.sql'),
+  ('20261107_91_litt_training_pass_revoked_by.sql')
 on conflict (filename) do nothing;

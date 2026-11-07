@@ -681,7 +681,7 @@ export async function buildUserAccountExport(
         selectAll(db, "training_defenses", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
-                "id, org_id, practice, work_review_id, questions_status, questions, model_provider, model, outcome, outcome_note, held_at, created_at, updated_at",
+                "id, org_id, practice, work_review_id, questions_status, questions, model_provider, model, outcome, outcome_reason, outcome_note, held_at, created_at, updated_at",
             order: ["created_at"],
         }).then((rows) =>
             rows.map((row) => (row.outcome == null ? { ...row, questions: null } : row)),

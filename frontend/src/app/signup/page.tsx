@@ -4,6 +4,7 @@ import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";
+import { useAuthProviders } from "@/app/hooks/useAuthProviders";
 import {
     InputUI,
     PillButtonUI,
@@ -78,6 +79,7 @@ function SignupContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<UserFacingError | null>(null);
     const [success, setSuccess] = useState(false);
+    const { showGoogle } = useAuthProviders();
     const isAccountCreatedPreview =
         process.env.NODE_ENV !== "production" &&
         searchParams.get("preview") === "account-created";
@@ -265,12 +267,16 @@ function SignupContent() {
                             >
                                 {loading ? "Creating account..." : "Sign up"}
                             </PillButtonUI>
-                            <AuthDividerUI />
-                            <GoogleAuthButton
-                                onError={setError}
-                                disabled={loading}
-                                onLoadingChange={setLoading}
-                            />
+                            {showGoogle && (
+                                <>
+                                    <AuthDividerUI />
+                                    <GoogleAuthButton
+                                        onError={setError}
+                                        disabled={loading}
+                                        onLoadingChange={setLoading}
+                                    />
+                                </>
+                            )}
                         </div>
                     </form>
                 </div>
