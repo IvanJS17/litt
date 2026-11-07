@@ -73,7 +73,7 @@ export function TrainingSettings() {
     return (
         <div className="space-y-8">
             <section className="space-y-3">
-                <SettingsHeading>Mi formación</SettingsHeading>
+                <SettingsHeading id="mi-formacion">Mi formación</SettingsHeading>
                 {asPupil.length === 0 ? (
                     <SettingsDescription>
                         No tienes mentor en ninguna organización. Sin etapa, LiTT funciona para ti
@@ -91,7 +91,7 @@ export function TrainingSettings() {
             </section>
             {asMentor.length > 0 && (
                 <section className="space-y-3">
-                    <SettingsHeading>Mis pupilos</SettingsHeading>
+                    <SettingsHeading id="mis-pupilos">Mis pupilos</SettingsHeading>
                     {asMentor.map((membership) => (
                         <MyPupils
                             key={membership.org_id}

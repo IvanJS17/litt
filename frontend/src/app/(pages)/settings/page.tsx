@@ -232,7 +232,7 @@ export default function SettingsPage() {
     <div className="space-y-8">
       {/* Profile Settings */}
       <section className="space-y-3">
-        <SettingsHeading>Profile</SettingsHeading>
+        <SettingsHeading id="profile">Profile</SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <div>
@@ -268,7 +268,7 @@ export default function SettingsPage() {
 
       {/* Email */}
       <section className="space-y-3">
-        <SettingsHeading>Email</SettingsHeading>
+        <SettingsHeading id="email">Email</SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <div className="space-y-2">
@@ -327,7 +327,7 @@ export default function SettingsPage() {
 
       {/* Plan */}
       <section className="space-y-3">
-        <SettingsHeading>Usage Plan</SettingsHeading>
+        <SettingsHeading id="usage-plan">Usage Plan</SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <p className="text-base font-medium text-gray-500 capitalize">
@@ -339,7 +339,7 @@ export default function SettingsPage() {
 
       {/* About: AGPL-3.0 §13 source offer for the running version */}
       <section className="space-y-3">
-        <SettingsHeading>Acerca de</SettingsHeading>
+        <SettingsHeading id="acerca-de">Acerca de</SettingsHeading>
         <GlassCardUI>
           <SettingsRow>
             <div className="min-w-0">
@@ -356,7 +356,7 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <section className="space-y-3">
-        <SettingsHeading tone="danger">Danger Zone</SettingsHeading>
+        <SettingsHeading id="danger-zone" tone="danger">Danger Zone</SettingsHeading>
         <GlassCardUI>
           <SettingsRow>
             <div className="min-w-0 space-y-1">
