@@ -35,6 +35,10 @@ on:
       - "packages/**"
       - ".github/workflows/word-addin.yml"
 
+permissions:
+  contents: read
+
+
 # Don't pile up runs on rapid pushes to the same PR; pushes to main each get
 # their own group (keyed by sha) and are never cancelled.
 concurrency:
