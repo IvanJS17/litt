@@ -113,7 +113,7 @@ describe("runDbJobTick claim failure logging", () => {
         expect(lines.length).toBeLessThanOrEqual(10);
     });
 
-    it("logs again when the failure class changes, and after a recovery", async () => {
+    it("logs again when the failure class changes, but not when a logged class flaps back", async () => {
         const gate = createDbJobClaimGate();
         let error: unknown = MISSING_RPC;
         const db = makeDb(async () => ({ data: error ? null : [], error }));
@@ -132,7 +132,19 @@ describe("runDbJobTick claim failure logging", () => {
             expect.stringContaining("[dbq] claim recovered after 3 consecutive failure(s)"),
         );
 
+        // The same class minutes after it was reported is a flap, not news
+        // (MIKE-BACKEND-M): one warn line, no second error line.
         error = { code: "ECONNREFUSED", message: "connect ECONNREFUSED" };
+        await runDbJobTick(db as never, {}, {}, gate);
+        expect(claimLogs()).toHaveLength(2);
+        expect(consoleWarn).toHaveBeenCalledWith(
+            expect.stringMatching(/^\[dbq\] claim failing again \(Error:ECONNREFUSED\)/),
+        );
+
+        // A class not reported within the window is still news.
+        error = null;
+        await runDbJobTick(db as never, {}, {}, gate);
+        error = { code: "ETIMEDOUT", message: "connect ETIMEDOUT" };
         await runDbJobTick(db as never, {}, {}, gate);
         expect(claimLogs()).toHaveLength(3);
     });

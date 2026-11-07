@@ -900,6 +900,50 @@ describe("upload processing", () => {
     );
   });
 
+  it("names a job, session or file row that is no longer there (MIKE-BACKEND-M)", async () => {
+    const job = {
+      id: "job-1",
+      session_id: baseSession.id,
+      file_id: baseFile.id,
+      attempts: 1,
+      locked_by: "worker-1",
+    };
+    const cases: Array<{ results: QueryResult[]; kind: string; message: string }> = [
+      { results: [{ data: null, error: null }], kind: "upload.job_missing", message: "upload_job_not_found" },
+      {
+        results: [{ data: job, error: null }, { data: null, error: null }],
+        kind: "upload.session_missing",
+        message: "upload_session_not_found",
+      },
+      {
+        results: [{ data: job, error: null }, { data: baseSession, error: null }, { data: null, error: null }],
+        kind: "upload.file_missing",
+        message: "upload_session_file_not_found",
+      },
+    ];
+    for (const { results, kind, message } of cases) {
+      const db = scriptedDb(results);
+      const thrown = await processUploadJob(db as never, "job-1", "worker-1").then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe(message);
+      expect(diagnosticErrorTags(thrown).error_kind).toBe(kind);
+    }
+    expect(mocks.createFileReadStream).not.toHaveBeenCalled();
+  });
+
+  it("keeps a database failure on the lookup as the failure, with its code", async () => {
+    const db = scriptedDb([{ data: null, error: { code: "57014", message: "canceling statement" } }]);
+    const thrown = await processUploadJob(db as never, "job-1", "worker-1").then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(diagnosticErrorTags(thrown).failure_code).toBe("57014");
+    expect(diagnosticErrorTags(thrown).error_kind).toBeUndefined();
+  });
+
   it("stops before processing when the database lease has been lost", async () => {
     const db = scriptedDb([
       {
@@ -1020,9 +1064,11 @@ describe("upload processing", () => {
     try {
       await vi.advanceTimersByTimeAsync(5 * 60_000);
       // One log line for the process, not one per tick per loop (~600).
-      const logged = consoleError.mock.calls.filter(
-        ([label]) => label === "[upload-worker] iteration failed",
-      );
+      const failedLogs = () =>
+        consoleError.mock.calls.filter(
+          ([label]) => label === "[upload-worker] iteration failed",
+        );
+      const logged = failedLogs();
       expect(logged).toHaveLength(1);
       const reported = (logged[0][1] as { error: unknown }).error;
       expect(reported).toBeInstanceOf(Error);
@@ -1039,13 +1085,25 @@ describe("upload processing", () => {
         expect.stringMatching(/^\[upload-worker\] iteration recovered after \d+ consecutive failure/),
       );
 
+      // The same failure returning minutes after it was reported is a flap,
+      // not news: one event per class per window, however often it recurs.
       claimError = missingRpc;
       await vi.advanceTimersByTimeAsync(2_000);
+      expect(failedLogs()).toHaveLength(1);
+      expect(consoleWarn).toHaveBeenCalledWith(
+        expect.stringMatching(/^\[upload-worker\] iteration failing again \(Error:PGRST202\)/),
+      );
+
+      // A different failure class is reported at once.
+      claimError = null;
+      await vi.advanceTimersByTimeAsync(31_000);
+      claimError = { ...missingRpc, code: "40P01", message: "deadlock detected" };
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(failedLogs()).toHaveLength(2);
       expect(
-        consoleError.mock.calls.filter(
-          ([label]) => label === "[upload-worker] iteration failed",
-        ),
-      ).toHaveLength(2);
+        diagnosticErrorTags((failedLogs()[1][1] as { error: unknown }).error)
+          .failure_code,
+      ).toBe("40P01");
     } finally {
       stop();
       vi.useRealTimers();
