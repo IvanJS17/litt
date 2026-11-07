@@ -76,6 +76,7 @@ describe.skipIf(!container)("LiTT training supervision data in PostgreSQL", () =
             $$;`);
         expect(sqlError(assertions())).toMatch(/matrix: admin reads pupil; .*owner reads pupil/);
         sql(read(MIGRATION));
+        sql(read(LATER_MIGRATION));
         expect(sqlError(assertions())).toBe("");
     }, 120_000);
 
