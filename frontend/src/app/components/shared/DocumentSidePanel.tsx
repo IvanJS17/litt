@@ -705,7 +705,7 @@ export function DocumentSidePanel({
                             </div>
                         ) : (
                             <div className="flex min-h-6 items-center gap-2">
-                                <div className="min-w-0 flex-1 truncate text-xs leading-6 text-gray-800">
+                                <div className="min-w-0 flex-1 py-0.5 text-xs leading-5 text-gray-800 [overflow-wrap:anywhere]">
                                     {selectedFilename}
                                 </div>
                                 {selectedVersionId && !readOnly && (
@@ -1151,7 +1151,9 @@ function DataRow({ label, value }: { label: string; value: string }) {
     return (
         <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-2 text-xs">
             <span className="text-gray-600">{label}</span>
-            <span className="truncate text-gray-800">{value}</span>
+            <span className="min-w-0 text-gray-800 [overflow-wrap:anywhere]">
+                {value}
+            </span>
         </div>
     );
 }

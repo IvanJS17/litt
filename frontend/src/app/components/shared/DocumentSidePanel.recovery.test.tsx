@@ -244,3 +244,29 @@ describe("DocumentSidePanel failures", () => {
  });
 
 });
+
+describe("DocumentSidePanel long names", () => {
+    it("wraps a long uploader name and filename instead of truncating them", () => {
+        const longName =
+            "Alejandra Montserrat Villaseñor de la Fuente y Covarrubias Santibáñez";
+        const longFile =
+            "Convenio_de_confidencialidad_y_no_competencia_entre_las_partes_firmantes.docx";
+        renderPanel({
+            doc: { ...doc(), owner_display_name: longName },
+            versions: [version({ filename: longFile })],
+        });
+
+        const uploader = screen.getByText(longName);
+        expect(uploader.className).not.toMatch(/\btruncate\b/);
+        expect(uploader.className).toContain("[overflow-wrap:anywhere]");
+        // The viewer heading and the name field above Document Data; the
+        // compact version list keeps its one-line rows.
+        const heading = screen.getByRole("heading", { name: longFile });
+        expect(heading.className).not.toMatch(/\btruncate\b/);
+        expect(heading.className).toContain("[overflow-wrap:anywhere]");
+        const wrapped = screen
+            .getAllByText(longFile)
+            .filter((el) => el.className.includes("[overflow-wrap:anywhere]"));
+        expect(wrapped).toHaveLength(2);
+    });
+});
