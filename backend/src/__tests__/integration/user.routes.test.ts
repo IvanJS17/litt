@@ -43,6 +43,7 @@ const {
     supabaseRpc,
     adminSignOut,
     adminDeleteUser,
+    adminUpdateUserById,
     dbJobsEnabled,
 } = vi.hoisted(() => ({
     requireMfaIfEnrolled: vi.fn(),
@@ -63,6 +64,7 @@ const {
     supabaseRpc: vi.fn(),
     adminSignOut: vi.fn(),
     adminDeleteUser: vi.fn(),
+    adminUpdateUserById: vi.fn(),
     dbJobsEnabled: vi.fn(() => true),
 }));
 
@@ -203,6 +205,7 @@ function mockSupabase() {
                     Promise.resolve(supabaseState.adminGetUserById),
                 ),
                 deleteUser: (...a: unknown[]) => adminDeleteUser(...a),
+                updateUserById: (...a: unknown[]) => adminUpdateUserById(...a),
                 signOut: (...a: unknown[]) => adminSignOut(...a),
             },
         },
@@ -377,6 +380,7 @@ describe("user.routes", () => {
             Promise.resolve(supabaseState.adminDeleteUser),
         );
         adminSignOut.mockResolvedValue({ data: null, error: null });
+        adminUpdateUserById.mockResolvedValue({ data: null, error: null });
         dbJobsEnabled.mockReturnValue(true);
         getUserApiKeyStatus.mockResolvedValue(STATUS);
         saveUserApiKey.mockResolvedValue(undefined);
@@ -721,6 +725,137 @@ describe("user.routes", () => {
             expect(res.status).toBe(500);
             expect(res.body.detail).toBe(
                 "Something went wrong. Please try again.",
+            );
+        });
+    });
+
+    // ── PATCH /user/profile (interface language) ─────────────────────────
+    describe("PATCH /user/profile uiLocale", () => {
+        it("reads null as automatic when nothing was chosen", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow(),
+                error: null,
+            };
+
+            const res = await request(app).get("/user/profile").set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.uiLocale).toBeNull();
+            expect(supabaseState.selects.user_profiles[0]).toContain(
+                "ui_locale",
+            );
+        });
+
+        it("saves the language, returns it and copies it to the auth metadata", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow({ ui_locale: "es-MX" }),
+                error: null,
+            };
+
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ uiLocale: "es-MX" });
+
+            expect(res.status).toBe(200);
+            expect(res.body.uiLocale).toBe("es-MX");
+            expect(supabaseState.updates.user_profiles).toContainEqual(
+                expect.objectContaining({ ui_locale: "es-MX" }),
+            );
+            expect(adminUpdateUserById).toHaveBeenCalledWith("u1", {
+                user_metadata: { locale: "es-MX" },
+            });
+        });
+
+        it("clears the choice back to automatic", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow({ ui_locale: null }),
+                error: null,
+            };
+
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ uiLocale: null });
+
+            expect(res.status).toBe(200);
+            expect(res.body.uiLocale).toBeNull();
+            expect(supabaseState.updates.user_profiles).toContainEqual(
+                expect.objectContaining({ ui_locale: null }),
+            );
+            expect(adminUpdateUserById).toHaveBeenCalledWith("u1", {
+                user_metadata: { locale: null },
+            });
+        });
+
+        it("rejects a language LiTT does not ship, without writing", async () => {
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ uiLocale: "fr-FR" });
+
+            expect(res.status).toBe(400);
+            expect(res.body.detail).toMatch(/uiLocale must be/);
+            expect(supabaseState.updates.user_profiles).toBeUndefined();
+            expect(adminUpdateUserById).not.toHaveBeenCalled();
+        });
+
+        it("keeps the saved preference when the auth metadata copy fails", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow({ ui_locale: "en-US" }),
+                error: null,
+            };
+            adminUpdateUserById.mockResolvedValue({
+                data: null,
+                error: new Error("gotrue down"),
+            });
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+            const res = await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ uiLocale: "en-US" });
+
+            expect(res.status).toBe(200);
+            expect(res.body.uiLocale).toBe("en-US");
+            expect(supabaseState.updates.user_profiles).toContainEqual(
+                expect.objectContaining({ ui_locale: "en-US" }),
+            );
+            expect(warn).toHaveBeenCalledWith(
+                "[user/profile] locale copy to auth metadata failed",
+                { error: { category: "operation_failed" } },
+            );
+            warn.mockRestore();
+        });
+
+        it("does not touch the auth metadata when the language is not in the update", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow({ dark_mode: true }),
+                error: null,
+            };
+
+            await request(app)
+                .patch("/user/profile")
+                .set(...AUTH)
+                .send({ darkMode: true });
+
+            expect(adminUpdateUserById).not.toHaveBeenCalled();
+        });
+
+        it("reads automatic on a database that has not applied the migration", async () => {
+            supabaseState.tables.user_profiles = {
+                data: profileRow(),
+                error: null,
+            };
+            supabaseState.missingColumns = ["ui_locale"];
+
+            const res = await request(app).get("/user/profile").set(...AUTH);
+
+            expect(res.status).toBe(200);
+            expect(res.body.uiLocale).toBeNull();
+            expect(res.body.darkMode).toBe(false);
+            expect(supabaseState.selects.user_profiles[1]).not.toContain(
+                "ui_locale",
             );
         });
     });
