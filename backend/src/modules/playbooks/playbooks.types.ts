@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { EditAnnotation } from "@mike/contracts";
 import type { Db } from "../../lib/supabase";
+import type { AuthorizationStamp } from "../../lib/authorizationEpoch";
+import type { ChatRoute } from "../user/user.service";
 import type { PlaybookRole } from "./playbooks.access";
 import type { playbookContentSchema, findingSchema } from "./playbooks.schemas";
 export type PlaybookContent = z.infer<typeof playbookContentSchema>;
@@ -97,6 +99,10 @@ export type PlaybookImportWork = {
   targetUpdatedAt?: string | null;
   newPlaybookId: string;
   startedAt: string;
+  /** The provider + model + credential fixed when the import was requested. */
+  route?: ChatRoute | null;
+  /** LiTT C4: the organization epoch the import was requested under. */
+  authorization?: AuthorizationStamp | null;
 };
 export type PlaybookReviewRequest = {
   userId: string;
@@ -129,9 +135,17 @@ export type PlaybookReviewInput = {
   instructions: string | null;
   userEmail: string | null;
   expectedVersion: { id: string; storagePath: string } | null;
+  /**
+   * LiTT C4: the organization epoch of the reviewed content (the stored
+   * document's organization, else the playbook's) when the review was
+   * requested. Null for personal content.
+   */
+  authorization?: AuthorizationStamp | null;
 };
 /** A review as runPlaybookReview performs it: its row plus its input. */
 export type PlaybookReviewWork = PlaybookReviewInput & {
+  /** The provider + model + credential fixed on the run row. */
+  route: ChatRoute | null;
   playbookId: string;
   content: PlaybookContent;
   model: string;
