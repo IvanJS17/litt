@@ -13,7 +13,8 @@ const MENTOR = "00000000-0000-4000-8000-000000000002";
 
 const fakeDb = (answer: { data?: unknown; error?: unknown }, tables: Record<string, Record<string, unknown>[]> = {}) => {
     const rpc = vi.fn(async () => ({ data: answer.data ?? null, error: answer.error ?? null }));
-    return { db: { rpc, from: memoryDb(tables).db.from } as unknown as Db, rpc };
+    const { db } = memoryDb({ training_work_reviews: [], ...tables });
+    return { db: { ...db, rpc } as unknown as Db, rpc };
 };
 const notFound = { ok: false, kind: "not_found", detail: LEARNING_NOT_FOUND };
 

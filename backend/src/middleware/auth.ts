@@ -2,8 +2,11 @@ import { Request, Response, NextFunction } from "express";
 import type { ParamsFlatDictionary } from "express-serve-static-core";
 import { createServerSupabase, type Db } from "../lib/supabase";
 import { syncProfileEmail } from "../lib/userLookup";
-import { sendInternalError } from "../lib/httpError";
-import { createRequestSupabase } from "../lib/authSession";
+import { sendInternalError, sendUpstreamUnavailable } from "../lib/httpError";
+import { isAuthUpstreamFailure } from "../lib/authUpstream";
+import { noteUpstreamReachable } from "../lib/upstreamOutage";
+import { clearRequestAuthCookies, createRequestSupabase } from "../lib/authSession";
+import { reportSchemaOutOfDateOnce } from "../lib/schemaOutOfDate";
 import { requestOriginIsTrusted } from "../lib/origins";
 import { devLog, isDev } from "../lib/log";
 import { AppError } from "../lib/appError";
@@ -61,21 +64,19 @@ function isLoginMfaBootstrapRoute(req: Request) {
 
 // user_profiles.mfa_on_login missing (42703) means a deployment that has not
 // run the migration yet. LiTT fails closed (the request gets the generic 500,
-// as for any unreadable preference); this names the cause once per process so
-// operators see that the migration is what is missing.
-let loginMfaColumnMissingReported = false;
-
+// as for any unreadable preference). 42703 is a schema-out-of-date code, so
+// naming the cause goes through the same once-per-process gate as every other
+// missing migration (lib/schemaOutOfDate.ts): one error-level
+// schema_out_of_date report, then an hourly log reminder.
 function reportLoginMfaColumnMissing(error: { code?: string }) {
-  if (loginMfaColumnMissingReported) return;
-  loginMfaColumnMissingReported = true;
-  reportError(
-    new AppError(
-      "auth.login_mfa_column_missing",
-      "user_profiles.mfa_on_login is missing; authenticated requests are refused until the migration runs",
-      { cause: error },
-    ),
-    { level: "warning", tags: { component: "http" } },
-  );
+  reportSchemaOutOfDateOnce(error, {
+    key: "auth.login_mfa_preference",
+    // requireAuth runs before any handler names the flow, so name it here:
+    // without it the report reads as any other missing column, not as login
+    // MFA refusing every authenticated request.
+    tags: { component: "http", operation: "auth.login_mfa" },
+    consequence: "authenticated requests are refused until the migration runs",
+  });
 }
 
 async function enforceLoginMfaIfEnabled(
@@ -102,13 +103,18 @@ async function enforceLoginMfaIfEnabled(
     });
     // LiTT: fail closed. An unreadable preference (a missing column
     // included) is not "MFA is off". The error kind names the query that
-    // failed; the client still gets the generic 500.
-    if (error.code === "42703") reportLoginMfaColumnMissing(error);
+    // failed. A missing column answers 503 schema_out_of_date and is reported
+    // once, under auth.login_mfa, by reportLoginMfaColumnMissing; any other
+    // failure is the generic 500.
+    const columnMissing = error.code === "42703";
+    if (columnMissing) reportLoginMfaColumnMissing(error);
     sendInternalError(
       res,
       new AppError("db.query_failed", "login MFA preference lookup failed", {
         cause: error,
       }),
+      500,
+      columnMissing ? { report: false } : {},
     );
     return false;
   }
@@ -169,6 +175,17 @@ function getAdminClient(res: Response) {
   }
 }
 
+/**
+ * The name and status of an auth-js error, or null for anything else.
+ * Duck-typed like lib/authUpstream.ts, on auth-js's `__isAuthError` marker,
+ * so it holds for any auth-js copy and for tests that stub supabase-js.
+ */
+function authErrorShape(error: unknown): { name: unknown; status: number } | null {
+  if (!error || typeof error !== "object" || !("__isAuthError" in error)) return null;
+  const { name, status } = error as { name?: unknown; status?: unknown };
+  return { name, status: typeof status === "number" ? status : 0 };
+}
+
 export async function requireAuth(
   req: Request<ParamsFlatDictionary>,
   res: Response,
@@ -181,6 +198,8 @@ export async function requireAuth(
   let token = "";
   let user: Awaited<ReturnType<typeof admin.auth.getUser>>["data"]["user"] =
     null;
+  // auth-js returns, rather than throws, the error behind a missing user.
+  let lookupError: unknown = null;
 
   if (auth.startsWith("Bearer ")) {
     // Temporary compatibility path for older Word add-ins, load tests, and
@@ -188,6 +207,7 @@ export async function requireAuth(
     token = auth.slice(7).trim();
     const result = await admin.auth.getUser(token);
     user = result.data.user;
+    lookupError = result.error;
   } else {
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
@@ -204,6 +224,7 @@ export async function requireAuth(
       const authClient = createRequestSupabase(req, res);
       const result = await authClient.auth.getUser();
       user = result.data.user;
+      lookupError = result.error;
       if (user) {
         const sessionResult = await authClient.auth.getSession();
         token = sessionResult.data.session?.access_token ?? "";
@@ -222,6 +243,48 @@ export async function requireAuth(
       return;
     }
   }
+
+  const failure = user ? null : authErrorShape(lookupError);
+  if (failure) {
+    if (isAuthUpstreamFailure(lookupError)) {
+      // GoTrue could not be reached, so nobody could say whether the session
+      // is valid. A 401 would sign the user out of a session that may be
+      // fine; a 503 tells the client to wait and retry.
+      // The handler that would name this request's flow never runs, so the
+      // event is named after what failed: the session lookup.
+      sendUpstreamUnavailable(
+        res,
+        new AppError("auth.supabase_unavailable", "session lookup could not reach GoTrue", {
+          cause: lookupError,
+        }),
+        { operation: "auth.session" },
+      );
+      return;
+    }
+    const { name, status } = failure;
+    if (name === "AuthApiError" && status >= 400 && status < 500) {
+      // GoTrue refused the session (a refresh token revoked or already used,
+      // a JWT for a session that no longer exists): the visitor must sign in
+      // again, which is a 401 the client already handles. Clear the dead
+      // cookies so the next request does not present them again.
+      if (!auth.startsWith("Bearer ")) clearRequestAuthCookies(req, res);
+      res.status(401).json({ code: "session_expired", detail: "Invalid or expired session" });
+      return;
+    }
+    if (status >= 500) {
+      // GoTrue answered, with a failure of its own (a 500 from its database,
+      // a malformed token response): our bug to fix, not a sign-out.
+      sendInternalError(
+        res,
+        new AppError("auth.supabase_unavailable", "session lookup failed in GoTrue", {
+          cause: lookupError,
+        }),
+      );
+      return;
+    }
+  }
+  // GoTrue answered: an outage reported earlier is over.
+  if (user) noteUpstreamReachable();
 
   if (!user || !token) {
     res.status(401).json({ detail: "Invalid or expired session" });

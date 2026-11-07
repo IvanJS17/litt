@@ -1,12 +1,14 @@
 // GET /training/me/supervision: what the caller's mentor sees of them in one
-// organization (transparency, docs/training.md). Layer 2 fills the lists as
-// its reviews, defenses and passes land; the gate is already the shared one.
+// organization (transparency, docs/training.md): their work reviews today;
+// defenses and urgency passes join as their cards land. Same gate as the
+// mentor's routes.
 
 import type { TrainingSupervision } from "@mike/contracts";
 import { ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { assertLearningAccess } from "./trainingSupervision.access";
 import { readUrgencyPasses } from "./trainingSupervision.passes";
+import { listOwnReviews } from "./trainingSupervision.reviews";
 
 export async function getMySupervision(
     db: Db,
@@ -18,11 +20,14 @@ export async function getMySupervision(
         traineeId: args.userId,
     });
     if (!access.ok) return access;
-    const passes = await readUrgencyPasses(db, args.orgId as string, args.userId);
+    const orgId = args.orgId as string;
+    const reviews = await listOwnReviews(db, { orgId, traineeId: args.userId });
+    if (!reviews.ok) return reviews;
+    const passes = await readUrgencyPasses(db, orgId, args.userId);
     if (!passes.ok) return passes;
     return ok({
-        org_id: args.orgId as string,
-        work_reviews: [],
+        org_id: orgId,
+        work_reviews: reviews.data,
         defenses: [],
         urgency_passes: passes.data,
     });

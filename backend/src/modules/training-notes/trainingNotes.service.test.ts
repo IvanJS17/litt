@@ -1,6 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { memoryDb } from "../../__tests__/helpers/memoryDb";
 import { getChatTurnNotes } from "./trainingNotes.service";
+
+// Who may open which matter's project: lib/access is the matter rule's owner.
+const { openable } = vi.hoisted(() => ({ openable: new Set<string>() }));
+vi.mock("../../lib/access", () => ({
+    checkProjectAccess: vi.fn(async (projectId: string, userId: string) => ({
+        ok: openable.has(`${projectId}:${userId}`),
+    })),
+}));
 
 const ORG = "00000000-0000-4000-8000-000000000010";
 const AUTHOR = "00000000-0000-4000-8000-000000000001";
@@ -39,9 +47,14 @@ const setup = (createdAt = new Date().toISOString()) =>
             },
         ],
         training_pupils: [{ org_id: ORG, trainee_user_id: AUTHOR, mentor_user_id: MENTOR }],
+        chats: [{ id: CHAT, project_id: null, title: null }],
+        word_chats: [{ id: WORD_CHAT, title: null }],
     });
+const PROJECT = "00000000-0000-4000-8000-0000000000b1";
 
 describe("getChatTurnNotes", () => {
+    beforeEach(() => openable.clear());
+
     it("lets the author read their notes", async () => {
         const { db } = setup();
         const result = await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT });
@@ -108,6 +121,22 @@ describe("getChatTurnNotes", () => {
             ok: false,
             kind: "not_found",
         });
+    });
+
+    it("serves a mentor a chat inside a matter only while they can open the matter", async () => {
+        const { db, tables } = setup();
+        tables.chats[0].project_id = PROJECT;
+        const unknown = await getChatTurnNotes(db, {
+            actorId: MENTOR,
+            chatId: "00000000-0000-4000-8000-0000000000ff",
+        });
+        const denied = await getChatTurnNotes(db, { actorId: MENTOR, actorEmail: null, chatId: CHAT });
+        expect(denied).toEqual(unknown);
+        // The author keeps their own notes; the mentor reads them once let in.
+        expect((await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT })).ok).toBe(true);
+        openable.add(`${PROJECT}:${MENTOR}`);
+        const allowed = await getChatTurnNotes(db, { actorId: MENTOR, chatId: CHAT });
+        expect(allowed.ok && allowed.data.notes.map((n) => n.id)).toEqual(["n1"]);
     });
 
     it("narrows to one message and rejects malformed ids with the same 404", async () => {

@@ -7,11 +7,14 @@ import type { Db } from "../../lib/supabase";
  * update, delete, select-after-write, maybeSingle). `gt` and `order` let
  * keyset-paged reads (lib/batchedQuery.ts) run against it. Enough to assert what a service
  * leaves in its tables; it fills a missing `id` but enforces no constraints, so a suite
- * that needs a database error scripts it through `failNext`.
+ * that needs a database error scripts it through `failNext`. `rpc` answers
+ * the functions a suite stands in for, from the same tables.
  */
 export type Row = Record<string, unknown>;
 
-export function memoryDb(tables: Record<string, Row[]>) {
+export type RpcHandler = (args: Record<string, unknown>, tables: Record<string, Row[]>) => unknown;
+
+export function memoryDb(tables: Record<string, Row[]>, rpcs: Record<string, RpcHandler> = {}) {
     const failures: { table: string; op: string; error: unknown }[] = [];
     const from = (table: string) => {
         const rows = (tables[table] ??= []);
@@ -129,8 +132,15 @@ export function memoryDb(tables: Record<string, Row[]>) {
         };
         return builder;
     };
+    const rpc = async (fn: string, args: Record<string, unknown>) => {
+        const failure = failures.findIndex((f) => f.table === fn && f.op === "rpc");
+        if (failure >= 0) return { data: null, error: failures.splice(failure, 1)[0].error };
+        const handler = rpcs[fn];
+        if (!handler) return { data: null, error: { message: `no rpc ${fn}` } };
+        return { data: handler(args, tables), error: null };
+    };
     return {
-        db: { from } as unknown as Db,
+        db: { from, rpc } as unknown as Db,
         tables,
         failNext(table: string, op: string, error: unknown) {
             failures.push({ table, op, error });

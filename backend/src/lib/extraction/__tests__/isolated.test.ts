@@ -80,6 +80,15 @@ describe("runIsolatedExtraction", () => {
     ).resolves.toMatchObject({ text: expect.stringContaining("24CV-1234"), textlessPageCount: 0 });
   });
 
+  // Upstream #799 also forced Node mode for a packaged Electron backend; LiTT
+  // has no desktop app, so only this half applies: the parser's environment
+  // is an allowlist, and an ambient Electron flag is not on it.
+  it("does not forward an ambient Electron flag from ordinary Node", async () => {
+    vi.stubEnv("ELECTRON_RUN_AS_NODE", "1");
+    await expect(runIsolatedExtraction("pdfForModel", async () => onePagePdf())).resolves.toContain("24CV-1234");
+    expect(vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env).not.toHaveProperty("ELECTRON_RUN_AS_NODE");
+  });
+
   it.skipIf(!existsSync("/usr/bin/soffice"))("converts Office content using real LibreOffice inside the bounded process", async () => {
     const doc = new Document({ sections: [{ children: [new Paragraph("Synthetic lease clause 721")] }] });
     const buffer = await Packer.toBuffer(doc);

@@ -232,6 +232,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // Nobody could approve a pasante's draft outside an organization, so it
     // is not copied there; retrying the same copy cannot help.
     training_copy_needs_organization: "validation",
+    // A mentor's work reviews run on the mentor's own key, never on another:
+    // without one the review cannot be generated (the server's detail says
+    // where to add it); a second request while one runs waits for it.
+    training_review_key_required: "validation",
+    training_review_in_progress: "conflict",
     // LiTT playbooks: a draft is used in reviews only once an editor marks
     // it ready, and a copy is marked ready only after every proposed change
     // is decided. Retrying cannot help, so the server's detail is shown.
