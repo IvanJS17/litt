@@ -41,7 +41,7 @@ regexes = [
 ]
 
 [[allowlists]]
-description = "Sentry scrubber unit-test fixture: a fake AWS access key id (the letters A–P) used to prove redactText strips it from event text (backend/src/lib/observability/sentry.test.ts, packages/client/src/sentryEvent.test.ts)"
+description = "Upstream Sentry scrubber unit-test fixture: a fake AWS access key id (the letters A–P) that upstream's backend/src/lib/observability/sentry.test.ts and packages/client/src/sentryEvent.test.ts use to prove redactText strips it. LiTT deleted those files with Sentry, but their blobs stay in the shared history that gitleaks scans"
 regexes = ['''^AKIAABCDEFGHIJKLMNOP$''']
 
 [[allowlists]]
