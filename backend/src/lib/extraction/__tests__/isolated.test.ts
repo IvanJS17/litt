@@ -80,24 +80,9 @@ describe("runIsolatedExtraction", () => {
     ).resolves.toMatchObject({ text: expect.stringContaining("24CV-1234"), textlessPageCount: 0 });
   });
 
-  it("keeps packaged Electron parser children in Node mode without inheriting credentials", async () => {
-    const original = Object.getOwnPropertyDescriptor(process.versions, "electron");
-    Object.defineProperty(process.versions, "electron", { value: "38.8.6", configurable: true });
-    vi.stubEnv("ELECTRON_RUN_AS_NODE", "0");
-    vi.stubEnv("NODE_OPTIONS", "--invalid-parser-option");
-    vi.stubEnv("ANTHROPIC_API_KEY", "synthetic-key-must-not-reach-parser");
-    try {
-      await expect(runIsolatedExtraction("pdfForModel", async () => onePagePdf())).resolves.toContain("24CV-1234");
-      const env = vi.mocked(spawn).mock.calls.at(-1)?.[2]?.env;
-      expect(env?.ELECTRON_RUN_AS_NODE).toBe("1");
-      expect(env).not.toHaveProperty("NODE_OPTIONS");
-      expect(env).not.toHaveProperty("ANTHROPIC_API_KEY");
-    } finally {
-      if (original) Object.defineProperty(process.versions, "electron", original);
-      else delete process.versions.electron;
-    }
-  });
-
+  // Upstream #799 also forced Node mode for a packaged Electron backend; LiTT
+  // has no desktop app, so only this half applies: the parser's environment
+  // is an allowlist, and an ambient Electron flag is not on it.
   it("does not forward an ambient Electron flag from ordinary Node", async () => {
     vi.stubEnv("ELECTRON_RUN_AS_NODE", "1");
     await expect(runIsolatedExtraction("pdfForModel", async () => onePagePdf())).resolves.toContain("24CV-1234");

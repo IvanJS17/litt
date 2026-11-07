@@ -73,7 +73,8 @@ describe("requireAuth sign-in MFA preference", () => {
         mocks.profileError = { code: "42703", message: "column does not exist" };
         const { res, next } = await run();
         expect(next).not.toHaveBeenCalled();
-        expect(res.status).toHaveBeenCalledWith(500);
+        // A missing column is schema drift: 503 schema_out_of_date, still a refusal.
+        expect(res.status).toHaveBeenCalledWith(503);
     });
 
     it("requires the enrolled factor when the preference is on", async () => {
