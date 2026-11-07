@@ -86,6 +86,7 @@ const DOCUMENT_ID = "44444444-4444-4444-8444-444444444444";
 // Keys shaped exactly as the upload-URL routes mint them.
 const STAGED_IMPORT_KEY = "playbooks/u1/imports/11111111-2222-4333-8444-555555555555.docx";
 const STAGED_SOURCE_KEY = "playbooks/u1/source-uploads/11111111-2222-4333-8444-555555555555.pdf";
+const SOURCE_ID = "5f0c2a4e-1b3d-4c6e-8a9b-0d1e2f3a4b5c";
 
 const app = express();
 app.use(express.json());
@@ -176,7 +177,7 @@ function playbookRow(overrides: Record<string, unknown> = {}) {
 
 function sourceRow(overrides: Record<string, unknown> = {}) {
   return {
-    id: "s1",
+    id: SOURCE_ID,
     filename: "Data policy.pdf",
     file_type: "pdf",
     size_bytes: 1200,
@@ -713,7 +714,7 @@ describe("playbook supplementary documents over HTTP", () => {
     headFile.mockResolvedValue({ size: 4, etag: null, contentType: null });
     createFileReadStream.mockReturnValue(Readable.from([Buffer.from("%PDF")]));
 
-    const response = await request(app).get(`/playbooks/${PLAYBOOK_ID}/sources/s1/file`);
+    const response = await request(app).get(`/playbooks/${PLAYBOOK_ID}/sources/${SOURCE_ID}/file`);
 
     expect(response.status).toBe(200);
     expect(response.headers["content-type"]).toBe("application/pdf");
@@ -1159,6 +1160,38 @@ describe("malformed playbook ids", () => {
       expect(response.status).toBe(400);
       expect(response.body).toEqual({ detail: "documentId must be a UUID" });
       expect(from).not.toHaveBeenCalled();
+    },
+  );
+
+  // LiTT: the share and source ids under a playbook get the same check.
+  it.each([
+    ["delete", `/playbooks/${PLAYBOOK_ID}/shares/not-a-uuid`, "That person's access was not found."],
+    ["get", `/playbooks/${PLAYBOOK_ID}/sources/not-a-uuid/file`, "Source document not found."],
+    ["delete", `/playbooks/${PLAYBOOK_ID}/sources/not-a-uuid`, "Source document not found."],
+  ] as const)(
+    "answers 404 for %s %s before querying",
+    async (method, path, detail) => {
+      const response = await request(app)[method](path).send({});
+
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ detail });
+      expect(from).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([["not a uuid", "not-a-uuid"] as const, ...WRONG_TYPE_IDS])(
+    "answers 400 when a supplementary document names a document id that is %s",
+    async (_label, documentId) => {
+      deleteFile.mockResolvedValue(undefined);
+      const response = await request(app)
+        .post(`/playbooks/${PLAYBOOK_ID}/sources`)
+        .send({ documentId, storageKey: STAGED_SOURCE_KEY, filename: "a.pdf" });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ detail: "documentId must be a UUID" });
+      expect(from).not.toHaveBeenCalled();
+      // The staged upload is still cleared.
+      expect(deleteFile).toHaveBeenCalledWith(STAGED_SOURCE_KEY);
     },
   );
 });

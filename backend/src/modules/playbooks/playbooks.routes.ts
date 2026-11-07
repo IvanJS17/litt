@@ -65,6 +65,22 @@ playbooksRouter.param("playbookId", (_req, res, next, value: string) => {
   next();
 });
 
+// The same holds for the ids under a playbook. Each answers with the message
+// its service gives for a missing row.
+playbooksRouter.param("shareId", (_req, res, next, value: string) => {
+  if (!UUID.test(value))
+    return void res
+      .status(404)
+      .json({ detail: "That person's access was not found." });
+  next();
+});
+
+playbooksRouter.param("sourceId", (_req, res, next, value: string) => {
+  if (!UUID.test(value))
+    return void res.status(404).json({ detail: "Source document not found." });
+  next();
+});
+
 const UPLOAD_URL_TTL_SECONDS = 900;
 
 // An optional body id that is present must be a string. Coercing null, a
@@ -628,6 +644,15 @@ playbooksRouter.post(
     const documentId =
       typeof req.body?.documentId === "string" ? req.body.documentId.trim() : "";
     try {
+      // Validated inside the try so the staged upload is still cleared below.
+      if (
+        isWrongTypeBodyId(req.body?.documentId) ||
+        (documentId && !UUID.test(documentId))
+      ) {
+        return void res
+          .status(400)
+          .json({ detail: "documentId must be a UUID" });
+      }
       if (documentId) {
         return void res
           .status(201)
