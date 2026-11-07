@@ -59,6 +59,25 @@ function isLoginMfaBootstrapRoute(req: Request) {
   );
 }
 
+// user_profiles.mfa_on_login missing (42703) means a deployment that has not
+// run the migration yet. LiTT fails closed (the request gets the generic 500,
+// as for any unreadable preference); this names the cause once per process so
+// operators see that the migration is what is missing.
+let loginMfaColumnMissingReported = false;
+
+function reportLoginMfaColumnMissing(error: { code?: string }) {
+  if (loginMfaColumnMissingReported) return;
+  loginMfaColumnMissingReported = true;
+  reportError(
+    new AppError(
+      "auth.login_mfa_column_missing",
+      "user_profiles.mfa_on_login is missing; authenticated requests are refused until the migration runs",
+      { cause: error },
+    ),
+    { level: "warning", tags: { component: "http" } },
+  );
+}
+
 async function enforceLoginMfaIfEnabled(
   req: Request,
   res: Response,
@@ -84,6 +103,7 @@ async function enforceLoginMfaIfEnabled(
     // LiTT: fail closed. An unreadable preference (a missing column
     // included) is not "MFA is off". The error kind names the query that
     // failed; the client still gets the generic 500.
+    if (error.code === "42703") reportLoginMfaColumnMissing(error);
     sendInternalError(
       res,
       new AppError("db.query_failed", "login MFA preference lookup failed", {
