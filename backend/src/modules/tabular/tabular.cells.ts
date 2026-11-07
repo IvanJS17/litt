@@ -25,7 +25,7 @@ import {
 import { queryTabularCell } from "./tabular.extract";
 import { finalizeCell } from "./tabular.extractRow";
 import { awaitCellTerminal } from "./tabular.generateStream";
-import { loadReviewRows, loadRowDocumentText } from "./tabular.rows";
+import { loadReviewRow, loadRowDocumentText } from "./tabular.rows";
 import {
     isReviewGenerationRunning,
     modelFailure,
@@ -211,8 +211,7 @@ export async function regenerateTabularCell(
     ).find((c) => c.index === columnIndex);
     if (!column) return failure("validation", "Column not found");
 
-    const rows = await loadReviewRows(db, reviewId);
-    const row = rows.find((candidate) => candidate.id === rowId);
+    const row = await loadReviewRow(db, reviewId, rowId);
     if (!row) return failure("not_found", "Review row not found");
     const sourceIds = row.source_document_ids ?? [];
     let allowedSourceIds: string[];

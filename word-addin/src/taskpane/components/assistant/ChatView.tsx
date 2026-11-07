@@ -1,7 +1,9 @@
+import { createMessageEditStateSelector, EMPTY_MESSAGE_EDIT_STATE } from "../../lib/messageEditState";
 import React, {
     useCallback,
     useEffect,
     useLayoutEffect,
+    useMemo,
     useRef,
     useState,
 } from "react";
@@ -231,6 +233,8 @@ export function ChatView({
         id: latestUserMessageId,
         content: latestUserMessageContent,
     };
+    const selectMessageEditState = useMemo(createMessageEditStateSelector, []);
+    const messageEditState = useMemo(() => selectMessageEditState(editStateByKey), [editStateByKey, selectMessageEditState]);
     const latestAssistantMessageId =
         latestAssistantIndex > latestUserIndex
             ? (messages[latestAssistantIndex]?.id ?? null)
@@ -780,7 +784,7 @@ export function ChatView({
                                         ? assistantMinHeight
                                         : undefined
                                 }
-                                editStateByKey={editStateByKey}
+                                editStateByKey={messageEditState.get(message.id) ?? EMPTY_MESSAGE_EDIT_STATE}
                                 onApplyEdit={handleApplyEdit}
                                 onViewEdit={handleViewEdit}
                                 onResolveEdit={handleResolveEdit}

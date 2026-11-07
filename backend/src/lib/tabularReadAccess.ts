@@ -94,10 +94,9 @@ export async function loadReviewRows(
     if (sourceError) throw new Error(sourceError.message);
     const byRow = new Map<string, string[]>();
     for (const source of sources ?? []) {
-        byRow.set(source.row_id, [
-            ...(byRow.get(source.row_id) ?? []),
-            source.document_id,
-        ]);
+        const ids = byRow.get(source.row_id) ?? [];
+        ids.push(source.document_id);
+        byRow.set(source.row_id, ids);
     }
     return rows.map((row) => ({
         ...row,

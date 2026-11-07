@@ -11,6 +11,7 @@ import type { Readable } from "node:stream";
 import { requireAuth } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import { sendServiceFailure } from "../../lib/serviceResult";
 import { sendInternalError } from "../../lib/httpError";
 import { setOperation } from "../../lib/observability/report";
 import { buildContentDisposition, createFileReadStream } from "../../lib/storage";
@@ -19,6 +20,7 @@ import { contentTypeForDocumentType } from "../../lib/documentTypes";
 import { uniqueArchiveFilename } from "../../lib/zipExport";
 import {
     getDocument,
+    getDocumentStatuses,
     deleteDocument,
     getDisplayableVersion,
     resolveZipExportDocuments,
@@ -34,6 +36,17 @@ import {
 import { sendServiceFailure } from "../../lib/serviceResult";
 
 export const documentsRouter = Router();
+
+// One bounded poll replaces a request per converting document.
+documentsRouter.post("/status", requireAuth, asyncRoute(async (req, res) => {
+    const result = await getDocumentStatuses(createServerSupabase(), {
+        documentIds: req.body?.document_ids,
+        userId: res.locals.userId as string,
+        userEmail: res.locals.userEmail as string | undefined,
+    });
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.json(result.data);
+}));
 
 // GET /single-documents/:documentId
 // One document, same shape as a list entry — the client polls this while a
