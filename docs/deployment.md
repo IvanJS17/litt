@@ -103,7 +103,9 @@ the number of `[report]` lines does not measure how often it happens; while
 the failures go on,
 the log repeats a `[schema-out-of-date] <key>: still failing` line at most
 once an hour with the number of failures since the last line, and each
-failed request also logs an `[http/schema-out-of-date]` line. Run
+repeated failed request (after the first, which the
+`[schema-out-of-date] <key>` line already describes) logs an
+`[http/schema-out-of-date]` warning. Run
 `backend/scripts/migrate.sh status` to list what is pending, apply it with
 `backend/scripts/migrate.sh up`, reload the PostgREST schema cache (`notify
 pgrst, 'reload schema';`), and restart the backend. If `migrate.sh status`
