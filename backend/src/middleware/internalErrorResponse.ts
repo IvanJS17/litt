@@ -7,6 +7,7 @@ import type {
 import {
   INTERNAL_ERROR_CODE,
   INTERNAL_ERROR_MESSAGE,
+  failureAlreadyReported,
   sendInternalError,
 } from "../lib/httpError";
 import { safeRequestPath } from "../lib/safeRequestPath";
@@ -43,6 +44,20 @@ export function protectInternalErrorResponses(
       Object.keys(errorBody).some(
         (key) => !["code", "detail", "request_id"].includes(key),
       );
+    // sendInternalError already reported this failure and wrote a fixed
+    // public body (internal_error, or an intentional 503 such as
+    // schema_out_of_date / upstream_unavailable that the client acts on).
+    // Pass it through untouched: replacing the code would hide the one thing
+    // the client can use, and a second report is a duplicate line.
+    if (
+      failureAlreadyReported(res) &&
+      errorBody &&
+      !hasUnexpectedFields &&
+      typeof errorBody.code === "string" &&
+      typeof errorBody.detail === "string"
+    ) {
+      return originalJson(body);
+    }
     if (
       errorBody?.code === INTERNAL_ERROR_CODE &&
       errorBody.detail === INTERNAL_ERROR_MESSAGE &&

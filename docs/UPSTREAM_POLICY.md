@@ -6,12 +6,22 @@ Keep LiTT close enough to MikeOSS to adopt security, architecture and product
 improvements without sacrificing Mexican legal, tenancy, evidence or provider
 governance invariants.
 
-**Current pin:** upstream `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49`
-(2026-11-05, the merge of #798), reached by cycle 9 of the
+**Current pin:** upstream `366fa4e92e5734c31910df848d293899d98ebc50`
+(2026-11-06, the merge of #777), reached by cycle 10, the last of the
 2026-11-06 intake (receipt in
-[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §28).
-The pin takes effect on `main` with that cycle's merge into `main`. The
-previous pins were `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04),
+[`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §29).
+It was `upstream/main` when the cycle was cut, so with that cycle's merge
+into `main` LiTT is up to date with upstream. The pin takes effect on `main`
+with that merge.
+
+**Next intake:** the weekly read-only intake runs every Monday at 9:00
+(America/Mexico_City); the first after this sync is 2026-11-09. It lists
+`origin/main..upstream/main`, classifies what is new and asks the owner which
+topics to adapt; it merges nothing.
+
+The previous pins were `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05),
+reached by cycle 9 of the same intake (ledger §28);
+`05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04),
 reached by cycle 8 of the same intake (ledger §27);
 `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` (2026-11-04),
 by cycle 7 (ledger §26);
@@ -234,6 +244,7 @@ Kanban comments may link evidence but cannot supersede these documents.
 | 2026-11-07 (cycle 7/10) | `74aad3019efa903a8fb89ec9c07617b2ab61126a` | `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` | 9 (8 without the merge, all from #702) | #702 service boundaries: cross-domain account, purge and export workflows in `backend/src/application/`, provider credentials in `lib/providerCredentials/`, playbook types and schemas in their own files, paged and batched export reads, tests beside their owners, and a dependency-cycle gate over every application | adapt: LiTT's account erasure, exports (training data, C4 stamp, pasante release check), governed BYOK, pinned playbook routes and the org deletion refusal carried to the new files; `user.courtlistener.ts` and its test stay deleted; the cycle gate runs without the removed desktop app (ledger §26) | merge commit on `sync/upstream-c7-fa37b86d`, ports in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §26) | seventh of ten cycles; no new debt |
 | 2026-11-07 (cycle 8/10) | `fa37b86d4add8e24286f54ef6a83b0a715a6ed96` | `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` | 7 (6 without the merge, all from #703) | #703 shared packages: `frontend/src/shared` moves to `packages/ui` (`@mike/ui`) and `packages/client` (`@mike/client`) behind one barrel each, with the aliases, tsconfigs, webpack, Next, Vitest and Dockerfiles that consume them and an executable import boundary | adapt: LiTT's brand, AGPL source link, training UI, `CODE_KINDS` and add-in wiring carried into the packages and exported from their barrels; the Sentry modules, `releaseName`, `desktop/` and the Sentry docs stay deleted; the frontend image's standalone runtime follows the nested layout (ledger §27) | merge commit on `sync/upstream-c8-05d9aebc`, ports in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §27) | eighth of ten cycles; no new debt |
 | 2026-11-07 (cycle 9/10) | `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` | `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` | 50 (10 first-parent merges) | #788 Dependabot groups; #797 startup hardening (template, whitespace-only and short secrets refused at boot, missing `mfa_on_login` named, 15 s model-catalog timeouts, least-privilege workflow permissions, local e2e secrets); #715 README anchor; #699 #755 #757 #704 #725 #798 chat, playbook, spreadsheet, audit-canary and abort-import fixes; #750 release follow-up | adopt, except the `mfa_on_login` report (adapt: LiTT stays fail-closed), the `@sentry/*` packages, `stack-script.yml` and #750 (reject, no net change) (ledger §28) | merge commit on `sync/upstream-c9-b91d1bdf`, one test adaptation in a separate commit; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §28) | ninth of ten cycles; Dependabot #50–#55 covered; no new debt |
+| 2026-11-07 (cycle 10/10) | `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` | `366fa4e92e5734c31910df848d293899d98ebc50` | 66 (7 first-parent merges) | #793 one failure, one report (GoTrue outage → 503 `upstream_unavailable`, schema drift reported once per route or operation, 42703/PGRST203 as drift); #779 session refresh without fan-out and `retry-after: 5`; #777 typed `find_documents` failure; #800 search in a new chat (e2e); #782 Sentry in development builds; #799 Electron parser mode; #801 packaged desktop smoke | #793/#779 adapt to the local report seam (login MFA stays fail-closed, now 503 `schema_out_of_date` for a missing column); #777 and #800 adopt; #782, #801 and the desktop half of #799 reject (no net change) (ledger §29) | merge commit on `sync/upstream-c10-366fa4e9`, adaptations and docs in separate commits; merge into `main` with `--merge` after review | Reviewer card on the exact head (ledger §29) | last of ten cycles: LiTT up to date with upstream at `366fa4e9`; open product questions listed in ledger §29.6; no new debt |
 
 ## Release metadata
 

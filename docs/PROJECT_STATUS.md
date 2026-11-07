@@ -14,22 +14,31 @@
 - **Production:** `fe5c9070` (PR #60) is deployed since 2026-11-06
   22:30 CST. It carries training layer 1 (1a and 1b with its UI and
   follow-ups, PRs #56, #58–#60) and the visual identity v1.0 (PR #57).
-- **Integrated, not deployed:** upstream sync cycles 1 to 8 of 10 are in
-  `main` `8ba0dd8a` (PRs #61–#68); production does not run them yet.
-  Cycle 9 of 10 (`sync/upstream-c9-b91d1bdf`) is in review.
-- **Upstream pin:** `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04,
-  merge of #703) on `main`; cycle 9 moves it to
-  `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05, merge of #798) when
-  it is merged. Policy: [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
-  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§28.
-- **Before the next deploy (cycle 9):** the backend refuses to start when
+- **Integrated, not deployed:** upstream sync cycles 1 to 9 of 10 (PRs
+  #61–#68 and #70) and training layer 2, card 1 (supervision data, contracts
+  and access, PR #69) are in `main` `c6012115`; production does not run them
+  yet. Cycle 10 of 10 (`sync/upstream-c10-366fa4e9`) is in review; once it is
+  merged, `main` holds all ten cycles, still not deployed.
+- **Upstream pin:** `b91d1bdf4b7cdcbbe28def2aef4630bde1729a49` (2026-11-05,
+  merge of #798) on `main`; cycle 10 moves it to
+  `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06, merge of #777),
+  which was `upstream/main` when the cycle was cut: with that merge LiTT is up
+  to date with upstream. The weekly read-only intake (Mondays 9:00 CDMX, next
+  2026-11-09) reports anything newer. Policy:
+  [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
+  [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§29.
+- **In progress:** training layer 2, cards 2 and 3; playbooks layer 1, T1
+  (PR #71) in review.
+- **Before the next deploy:** the backend refuses to start when
   `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
   `backend/.env.example` placeholder or is shorter than 32 characters; the
-  production `.env` must be checked for both before deploying (ledger §28.2).
-
-- **Open product question (ledger §24.3):** a matter whose project is private
-  is reached by nobody once its creator leaves the firm. The rule is
-  unchanged until the owner decides.
+  production `.env` must be checked for both before deploying (cycle 9,
+  ledger §28.2). Cycle 10 adds no startup requirement.
+- **Open product questions (ledger §29.6):** a private project inside a matter
+  is reached only by its creator (W2); a matter whose project is private is
+  reached by nobody once its creator leaves the firm (§24.3); the private
+  catalogue must exclude matter content before it is ever opened (§24.2).
+  Each rule is unchanged until the owner decides.
 
 ### Training layer 1a (2026-11-06)
 

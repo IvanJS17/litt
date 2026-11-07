@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   INTERNAL_ERROR_CODE,
   INTERNAL_ERROR_MESSAGE,
+  SCHEMA_OUT_OF_DATE_MESSAGE,
+  sendInternalError,
 } from "../lib/httpError";
 import {
   handleUnhandledError,
@@ -95,6 +97,32 @@ describe("protectInternalErrorResponses", () => {
       expect(consoleError).toHaveBeenCalledOnce();
     },
   );
+
+  it("passes a sendInternalError 503 through with its code and does not log it again", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const app = express();
+    app.use((_req, res, next) => {
+      res.locals.requestId = "req-schema-123";
+      next();
+    });
+    app.use(protectInternalErrorResponses);
+    app.get("/test", (_req, res) => {
+      sendInternalError(res, { code: "PGRST205", message: "relation private_table" });
+    });
+
+    const res = await request(app).get("/test");
+
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({
+      code: "schema_out_of_date",
+      detail: SCHEMA_OUT_OF_DATE_MESSAGE,
+      request_id: "req-schema-123",
+    });
+    expect(
+      consoleError.mock.calls.filter(([label]) => label === "[http/sanitized-internal-error]"),
+    ).toHaveLength(0);
+  });
 
   it("does not rewrite intentional client errors", async () => {
     const body = { code: "invalid_filename", detail: "Filename is required" };

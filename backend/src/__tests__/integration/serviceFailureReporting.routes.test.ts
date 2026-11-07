@@ -35,6 +35,7 @@ import { quickActionsRouter } from "../../modules/quick-actions/quickActions.rou
 import { workflowAddonsRouter } from "../../modules/workflows/workflowAddons.routes";
 import { diagnosticErrorTags } from "../../lib/observability/diagnostics";
 import { SCHEMA_OUT_OF_DATE_MESSAGE } from "../../lib/httpError";
+import { resetSchemaOutOfDateReportsForTests } from "../../lib/schemaOutOfDate";
 
 // What PostgREST answers for a table that the database does not have (a
 // self-hosted install whose schema is behind the code).
@@ -81,6 +82,7 @@ function loggedError(): Error {
 describe("a PostgREST error returned by a list service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSchemaOutOfDateReportsForTests();
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     rpc.mockResolvedValue({ data: 0, error: null });
@@ -132,6 +134,7 @@ describe("a PostgREST error returned by a list service", () => {
 describe("GET /chat when the list RPC is missing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetSchemaOutOfDateReportsForTests();
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
@@ -158,6 +161,6 @@ describe("GET /chat when the list RPC is missing", () => {
     expect(JSON.stringify(res.body)).not.toMatch(/get_chats_overview|private/);
     expect(diagnosticErrorTags(loggedError())).toMatchObject({ failure_code: "PGRST202" });
     expect(warn).toHaveBeenCalledOnce();
-    expect(String(warn.mock.calls[0]![0])).toContain("backend/migrations");
+    expect(String(warn.mock.calls[0]![0])).toContain("backend/scripts/migrate.sh status");
   });
 });
