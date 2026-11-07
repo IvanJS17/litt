@@ -83,6 +83,14 @@ function project(id: string, name: string): Project {
     } as Project;
 }
 
+async function confirmIn(
+    user: ReturnType<typeof userEvent.setup>,
+    title: string,
+) {
+    const dialog = await screen.findByRole("dialog", { name: title });
+    await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+}
+
 function renderOverview() {
     return render(
         <>
@@ -125,15 +133,90 @@ describe("ProjectsOverview failures", () => {
 
         await user.click(screen.getByRole("button", { name: "Open row actions" }));
         await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await confirmIn(user, "Delete project?");
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent(/Couldn't delete/);
         expect(alert).toHaveTextContent(/Matter A/);
         // Reverted: the row the user saw disappear is back.
         expect(screen.getByText("Matter A")).toBeInTheDocument();
+
+        // Retry asks again before deleting, as the document panel does.
+        await user.click(within(alert).getByRole("button", { name: "Retry" }));
+        expect(deleteProject).toHaveBeenCalledTimes(1);
+        await confirmIn(user, "Delete project?");
+        await waitFor(() => expect(deleteProject).toHaveBeenCalledTimes(2));
+    });
+
+    it("shows one delete confirmation at a time", async () => {
+        const user = userEvent.setup();
+        rows.current = [
+            project("p1", "Matter A"),
+            project("p2", "Matter B"),
+            project("p3", "Matter C"),
+        ];
+        selection.current = ["p1", "p2"];
+
+        renderOverview();
+
+        await user.click(
+            screen.getAllByRole("button", { name: "Open row actions" })[2],
+        );
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await screen.findByRole("dialog", { name: "Delete project?" });
+
+        await user.click(screen.getByRole("button", { name: "Actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete selected projects?",
+        });
+        expect(screen.getAllByRole("dialog")).toHaveLength(1);
+        expect(dialog).toHaveTextContent("the 2 selected projects");
+        expect(deleteProject).not.toHaveBeenCalled();
+    });
+
+    it("asks before deleting a project from its row menu", async () => {
+        const user = userEvent.setup();
+        rows.current = [project("p1", "Matter A")];
+
+        renderOverview();
+
+        await user.click(screen.getByRole("button", { name: "Open row actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete project?",
+        });
+        expect(dialog).toHaveTextContent(
+            "“Matter A” will be permanently deleted, with every document and chat in it. This can't be undone.",
+        );
+        expect(deleteProject).not.toHaveBeenCalled();
+
+        await user.click(within(dialog).getByRole("button", { name: /^Delete$/ }));
+        await waitFor(() =>
+            expect(deleteProject).toHaveBeenCalledExactlyOnceWith("p1"),
+        );
+    });
+
+    it("keeps the project when its delete confirmation is cancelled", async () => {
+        const user = userEvent.setup();
+        rows.current = [project("p1", "Matter A")];
+
+        renderOverview();
+
+        await user.click(screen.getByRole("button", { name: "Open row actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete project?",
+        });
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+        expect(deleteProject).not.toHaveBeenCalled();
+        expect(screen.getByText("Matter A")).toBeInTheDocument();
         expect(
-            within(alert).getByRole("button", { name: "Retry" }),
-        ).toBeInTheDocument();
+            screen.queryByRole("dialog", { name: "Delete project?" }),
+        ).not.toBeInTheDocument();
     });
 
     it("reports how many rows a bulk delete could not remove", async () => {
@@ -148,6 +231,7 @@ describe("ProjectsOverview failures", () => {
 
         await user.click(screen.getByRole("button", { name: "Actions" }));
         await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await confirmIn(user, "Delete selected projects?");
 
         const alert = await screen.findByRole("alert");
         expect(alert).toHaveTextContent(
