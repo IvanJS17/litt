@@ -444,9 +444,16 @@ pupil with one still sees the field there.
 **When the mentor changes.** A pass is the mentor's who granted it. When the
 pupil gets another mentor, every pass still in force for them ends at once:
 a trigger on `training_pupils` (`20261107_90_litt_training_defense_outcome.sql`)
-revokes them in the same statement that changes the mentor, with `revoked_by`
-set to whoever moved the pupil. The new mentor grants their own if they want
-one. Releasing the pupil deletes their passes (cascade).
+revokes them in the same statement that changes the mentor. `revoked_by` is
+whoever moved the pupil (`20261107_91_litt_training_pass_revoked_by.sql`): the
+session's user (`auth.uid()`) when the statement runs in one; otherwise, as
+for the service role the app writes with, the `assigned_by` that same
+statement writes. `assignPupil` sets `assigned_by` to the actor in the update
+that moves the pupil, and any other service-role path that changes a mentor
+must do the same: a change with neither a session user nor `assigned_by`
+fails (`LT003`) rather than record a revocation nobody made. The new mentor
+grants their own if they want one. Releasing the pupil deletes their passes
+(cascade).
 
 ### Oral defense
 
