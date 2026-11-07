@@ -238,6 +238,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     playbook_changes_pending: "validation",
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
+    // LiTT does not publish a firm's workflow to upstream's public catalog;
+    // the route answers this code whatever the deployment's env says.
+    workflow_open_source_disabled: "not_found",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

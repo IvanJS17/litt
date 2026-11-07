@@ -6,6 +6,12 @@ import {
     mockSupabase,
 } from "../helpers/supabaseMock";
 
+// The deployment flag that would enable upstream's open-source submissions.
+// LiTT's gate must still reject them; read when the module loads, so hoisted.
+vi.hoisted(() => {
+    process.env.WORKFLOW_CONTRIBUTIONS_ENABLED = "true";
+});
+
 // ---------------------------------------------------------------------------
 // Hoisted mock fns we want to reconfigure per-test.
 // ---------------------------------------------------------------------------
@@ -71,6 +77,7 @@ vi.mock("../../lib/documentVersions", () => ({
 }));
 
 import { app } from "../../app";
+import { TEST_USER_ID } from "../helpers/authMock";
 import { ensureDocAccess } from "../../lib/access";
 import { createServerSupabase, type Db } from "../../lib/supabase";
 import { resetEnsuredDefaultUsersForTests } from "../../lib/workflowCatalog";
@@ -130,6 +137,22 @@ describe("workflows.routes", () => {
                 };
             },
         );
+    });
+
+    // ── POST /workflows/:id/open-source (LiTT: rejected) ──────────────────
+    it("rejects open-source submission even when the env enables it, writing nothing", async () => {
+        // An owned, valid workflow: upstream's handler would insert a row.
+        supabaseState.tables.workflows = {
+            data: { id: "wf-1", user_id: TEST_USER_ID, org_id: null },
+            error: null,
+        };
+        const res = await request(app)
+            .post("/workflows/wf-1/open-source")
+            .set(...AUTH)
+            .send({ contributor_mode: "anonymous" });
+        expect(res.status).toBe(404);
+        expect(res.body.code).toBe("workflow_open_source_disabled");
+        expect(supabaseState.inserts).toEqual([]);
     });
 
     // ── GET /workflows (overview) ─────────────────────────────────────────

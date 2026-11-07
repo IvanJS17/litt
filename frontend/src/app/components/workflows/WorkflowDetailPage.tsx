@@ -123,6 +123,10 @@ const PROMPT_COL_W = "min-w-[240px] max-w-[360px] flex-1";
 const PROMPT_HEADER_WITH_ACTIONS_W = "min-w-[272px] max-w-[392px] flex-1 pr-8";
 const WORKFLOW_CONTRIBUTIONS_ENABLED =
   process.env.NEXT_PUBLIC_WORKFLOW_CONTRIBUTIONS_ENABLED === "true";
+// LiTT: "Open source this" would send a firm's workflow to upstream's public
+// catalog. It stays hidden whatever the env says; the backend route answers
+// `workflow_open_source_disabled` (see docs/UPSTREAM_COMPATIBILITY_LEDGER.md).
+const LITT_WORKFLOW_OPEN_SOURCE_REJECTED: boolean = true;
 const ASSISTANT_TABS: readonly AssistantTab[] = ["prompt", "assets"];
 
 // ---------------------------------------------------------------------------
@@ -162,6 +166,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
     (workflow?.is_system ?? false) || !can(workflowRole, "content.edit");
   const canShare = can(workflowRole, "access.manage");
   const canOpenSource =
+    !LITT_WORKFLOW_OPEN_SOURCE_REJECTED &&
     WORKFLOW_CONTRIBUTIONS_ENABLED && canShare && workflow?.is_system !== true;
 
   // Editor state
@@ -831,7 +836,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
         }}
       />
       <OpenSourceWorkflowModal
-        open={openSourceOpen}
+        open={canOpenSource && openSourceOpen}
         onClose={() => setOpenSourceOpen(false)}
         workflowId={id}
         defaultContributorName={defaultContributorName}
