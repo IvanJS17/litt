@@ -1565,3 +1565,70 @@ capped database response.
 ### 26.5 Dependabot
 
 No Dependabot pull request is covered by this range.
+
+## 27. Cycle 2026-11-07, 8 of 10
+
+Pin `05d9aebcd30e6d9aef4d7190dfa0833475dd2500` (2026-11-04), the merge of
+upstream #703. The range `fa37b86d..05d9aebc` has 7 commits, one of them the
+merge, and 448 files (+1309/−1054). Nothing after the pin is integrated:
+`e0e76ff2` (#798, shared abort-error imports) belongs to cycle 9. The local
+build does not need it: the three files it touches do not import
+`isAbortError` in LiTT.
+
+### 27.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| `frontend/src/shared` moves to `packages/ui` (`@mike/ui`, React primitives) and `packages/client` (`@mike/client`, framework-free client behavior), each behind one barrel; consumers import by name; aliases, tsconfigs, webpack, Next, Vitest and both Dockerfiles follow | `a1c87117` `d03c4713` | adapt |
+| React aliasing, linear-time regexes, build and diagnostic wiring after the rebase | `f9a79d69` `ac841cad` `6b8f4e85` | adapt |
+| Executable import boundary (architecture rule 5) | `821c0131` | adapt |
+| Merge of #703 | `05d9aebc` | adapt |
+
+The merge stops on 32 content conflicts, 14 modify/delete and 8 rename/delete
+conflicts and 15 file-location conflicts. Every modify/delete and
+rename/delete is a file LiTT had retired (the Sentry SDK and its event
+hygiene, `releaseName`, `desktop/`, `docs/sentry-data-audit.md`,
+`docs/observability.md`, the `sentryTunnel`, `operationReporting`,
+`releaseVersion` and `diagnosticVocabulary` tests): the deletion is kept. The
+file-location conflicts are LiTT's own files under `frontend/src/shared`; they
+follow the directory rename into the packages. The content conflicts are
+import lists and build configuration.
+
+### 27.2 Where LiTT's code now lives
+
+The full table, one row per LiTT file, is in the cycle's evidence
+(`mapa-traslado.md`). By area:
+
+| LiTT code | Before | Now |
+|---|---|---|
+| Identity v1.0: wordmark and pixel monogram, brand and theme tokens | `frontend/src/shared/ui/LittBrandUI.tsx`, `ThemeTokensUI.css`, `DesignTokensUI.css` | `packages/ui/src/LittBrandUI.tsx`, exported from `@mike/ui`; `packages/ui/styles/` |
+| AGPL-3.0 §13 source link (TD-016) | `frontend/src/shared/lib/sourceCommit.mjs` and `.d.mts`, `ui/SourceCodeLinkUI.tsx` | `packages/client/src/sourceCommit.mjs`, exported from `@mike/client`; `packages/ui/src/SourceCodeLinkUI.tsx`, exported from `@mike/ui`. `next.config.ts` imports `resolveSourceCommit` from `@mike/client`; `word-addin/webpack.config.js` loads the file by path |
+| Training 1a/1b: attempt field, coach notes, the "pending approval" hold that hides downloads, per-turn notes | `frontend/src/shared/ui/Training*UI.tsx`, `hooks/useTrainingTurnNotes.ts` | `packages/ui/src/`, exported from `@mike/ui`; `@mike/ui` declares `@mike/contracts` as a type-only peer for `TrainingTurnNote` |
+| `CODE_KINDS` with LiTT's `training_*` codes and its drift test | `frontend/src/shared/lib/userError.ts` | `packages/client/src/userError.ts`; `codeTable.drift.test.ts` reads it from `@mike/client` |
+| LiTT model catalog, toggle and excerpt changes | `frontend/src/shared/lib/modelCatalog.ts`, `ui/ModelToggleUI.tsx`, … | the same file names under `packages/client/src` and `packages/ui/src`, with LiTT's lines intact |
+| Word add-in: `@source` entries for LiTT's shared files; provider «LiTT» in the manifest | 40 per-file `@source` entries and per-file `@mike/*` aliases | one `@source "../../../packages/ui/src"` and the `@mike/ui` / `@mike/client` aliases; the manifest is unchanged |
+| Frontend image: two-stage standalone build | runtime copied `/app/.next/standalone` | the build runs in `/app/frontend` with the trace root at `/app`; the runtime copies the nested standalone tree and starts `frontend/server.js` |
+
+No LiTT test is deleted: the tests of moved files move with them and run in
+the frontend's Vitest, which now includes `packages/*/src`.
+
+### 27.3 LiTT checks
+
+- **Telemetry.** The `@mike/client` barrel exports no Sentry module; no
+  runtime file, `package.json`, Dockerfile or build config names Sentry.
+- **Identity.** No blue is added and no visible text says «Mike»; the internal
+  names (`@mike/ui`, `@mike/client`, `MikeIcon`) stay, as AGENTS.md requires.
+- **Images.** The frontend and add-in images build locally from the repository
+  root; the frontend image answers `/login` and embeds the build's `GIT_SHA`,
+  and the add-in bundle embeds it too.
+- **Architecture.** Upstream's rule 5 passes with LiTT's files in the
+  packages.
+- **SQL.** The range changes no migration or `schema.sql`.
+
+### 27.4 Owner-visible changes
+
+None. The move changes where shared code lives, not what a lawyer sees.
+
+### 27.5 Dependabot
+
+No Dependabot pull request is covered by this range.
