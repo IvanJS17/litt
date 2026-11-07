@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { authGlassCardUIClassName, authInputUIClassName, InputUI, PillButtonUI } from "@mike/ui";
 import { FieldLabel } from "@/app/components/ui/form-field";
+import { AuthFormError } from "@/app/components/auth/AuthFormError";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { startSso } from "@/app/lib/authApi";
 import { reportFault,
@@ -104,33 +105,27 @@ export default function SsoLoginPage() {
                         </div>
 
                         {error && (
-                            <div
-                                role="alert"
-                                className="rounded bg-red-50 p-3 text-sm text-red-600"
-                            >
-                                {error.message}
-                                {error.retryable && (
-                                    <button
-                                        type="button"
-                                        onClick={() => void startSsoFlow()}
-                                        disabled={loading}
-                                        className="ml-2 underline underline-offset-2 disabled:no-underline disabled:opacity-60"
-                                    >
-                                        Retry
-                                    </button>
-                                )}
-                                {error.supportable && (
-                                    <a
-                                        href={supportMailtoFor(
-                                            error,
-                                            "Failed to start single sign-on.",
-                                        )}
-                                        className="ml-2 underline underline-offset-2"
-                                    >
-                                        Contact support
-                                    </a>
-                                )}
-                            </div>
+                            <AuthFormError
+                                message={error.message}
+                                retry={
+                                    error.retryable
+                                        ? {
+                                              label: "Retry",
+                                              onClick: () =>
+                                                  void startSsoFlow(),
+                                              disabled: loading,
+                                          }
+                                        : undefined
+                                }
+                                supportHref={
+                                    error.supportable
+                                        ? supportMailtoFor(
+                                              error,
+                                              "Failed to start single sign-on.",
+                                          )
+                                        : undefined
+                                }
+                            />
                         )}
 
                         <div className="pt-2">
