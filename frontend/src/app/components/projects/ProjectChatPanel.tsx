@@ -23,7 +23,7 @@ import {
     touchChatActivity,
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
-import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
     isChatAttachmentDrag,

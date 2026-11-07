@@ -67,7 +67,7 @@ import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { usePageChrome } from "@/app/contexts/PageChromeContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
-import { matchTrainingNotes, useTrainingTurnNotes } from "@/shared/hooks/useTrainingTurnNotes";
+import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
 import { resolvePanelDocumentVersionResult } from "./panelDocumentVersion";
 import { LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS } from "@/app/components/ui/liquid-surface";
 import {

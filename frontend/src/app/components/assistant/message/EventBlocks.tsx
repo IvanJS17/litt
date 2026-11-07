@@ -13,7 +13,7 @@ import { VersionChip } from "@/app/components/shared/VersionChip";
 import { getTokenDownload } from "@/app/lib/mikeApi";
 import { downloadBlob } from "@/app/lib/downloadDocument";
 import { notifyError } from "@/app/lib/userFacingError";
-import { TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { TrainingHeldNoteUI } from "@mike/ui";
 import type { AssistantEvent } from "../../shared/types";
 import { FileTypeIcon } from "../../shared/FileTypeIcon";
 import { RESPONSE_GLASS_SURFACE, withoutMarkdownNode } from "./messageStyles";

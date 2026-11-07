@@ -49,6 +49,13 @@ export * from "./ResponseSelectionMenuUI";
 export * from "./PlaybookPillUI";
 export * from "./useReasoningDisclosure";
 
+// LiTT training (formación): attempt field, coach notes, the "pending
+// approval" hold on outputs, and the per-turn notes hook
+export * from "./TrainingAttemptFieldUI";
+export * from "./TrainingNoteUI";
+export * from "./TrainingHeldNoteUI";
+export * from "./useTrainingTurnNotes";
+
 // Brand and auth (LittBrandUI is LiTT's wordmark and pixel monogram)
 export * from "./LittBrandUI";
 export * from "./MikeIconUI";

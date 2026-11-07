@@ -1,6 +1,6 @@
 "use client";
 
-import { isTrainingHeld, TrainingHeldNoteUI } from "@/shared/ui/TrainingHeldNoteUI";
+import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { useDocumentConversionPolling } from "@/app/hooks/useDocumentConversionPolling";
 import { indexFolderDirectory } from "../shared/folderDirectoryIndex";
 import {

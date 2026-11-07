@@ -50,7 +50,7 @@ import { useTrainingStage } from "@/app/hooks/useTrainingStage";
 import {
     isTrainingAttemptReady,
     TrainingAttemptFieldUI,
-} from "@/shared/ui/TrainingAttemptFieldUI";
+} from "@mike/ui";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { useModelRouterSelections } from "@/app/hooks/useModelRouterSelections";
 import {

@@ -10,7 +10,7 @@ vi.mock("@/app/lib/userFacingError", () => ({
     notifyError: (...args: unknown[]) => notifyError(...args),
 }));
 
-import { TRAINING_HELD_LABEL } from "@/shared/ui/TrainingHeldNoteUI";
+import { TRAINING_HELD_LABEL } from "@mike/ui";
 import { APPROVE_TRAINING_VERSION_LABEL, TrainingVersionStatus } from "./TrainingVersionStatus";
 
 beforeEach(() => {

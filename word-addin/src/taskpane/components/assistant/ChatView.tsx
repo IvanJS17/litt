@@ -24,7 +24,7 @@ import type {
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
 import { selectDocumentText } from "../../hooks/useWordDoc";
 import { UserVisibleError, notifyError } from "../../lib/notify";
-import type { TrainingNoteView } from "@mike/training-note-ui";
+import type { TrainingNoteView } from "@mike/ui";
 
 const CHAT_MESSAGE_TOP_GAP = 12;
 const CHAT_MESSAGES_BOTTOM_GAP = 16;

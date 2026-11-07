@@ -27,7 +27,7 @@ import { ChatInput as ChatInputShell } from "../../../shared/chat/ChatInput";
 import {
   isTrainingAttemptReady,
   TrainingAttemptFieldUI,
-} from "@mike/training-attempt-field-ui";
+} from "@mike/ui";
 import { getWordTrainingStage } from "../../api/client";
 import {
   getApiKeyStatus,
