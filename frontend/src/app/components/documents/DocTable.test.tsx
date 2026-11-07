@@ -15,6 +15,16 @@ vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({ user: { id: "user-1" } }),
 }));
 
+const api = vi.hoisted(() => ({
+    getDocumentUrl: vi.fn(),
+    getDocument: vi.fn(),
+    listDocumentVersions: vi.fn(),
+}));
+vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
+    ...api,
+}));
+
 const ORIGINAL_DATE = "2026-01-01T00:00:00.000Z";
 const SERVER_DATE = "2026-02-01T00:00:00.000Z";
 const allowAll = () => true;
@@ -395,5 +405,40 @@ describe("DocTable and the training lock (docs/training.md)", () => {
         await user.click(screen.getByLabelText("Select Final.pdf"));
         await user.click(screen.getByRole("button", { name: "Actions" }));
         expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
+    });
+
+    // W2: the row looked released, but the server holds a newer pasante draft.
+    it("shows the 409 of a held download and refreshes the row's status", async () => {
+        const { MikeApiError } = await import("@/app/lib/mikeApi");
+        api.getDocumentUrl.mockRejectedValue(new MikeApiError({
+            message: "Este documento es un borrador de pasante pendiente de aprobación.",
+            status: 409,
+            code: "training_approval_required",
+        }));
+        api.getDocument.mockResolvedValue({ ...document("doc-2", "Final.pdf"), training_held: true });
+        api.listDocumentVersions.mockResolvedValue({ current_version_id: "v1", versions: [] });
+        render(<Harness
+            initialDocuments={[document("doc-2", "Final.pdf")]}
+            tableOperations={operations(vi.fn())}
+        />);
+
+        fireEvent.contextMenu(screen.getByText("Final.pdf"), { clientX: 40, clientY: 40 });
+        fireEvent.click(screen.getByRole("menuitem", { name: "Download" }));
+
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+        await waitFor(() => expect(api.getDocument).toHaveBeenCalledWith("doc-2"));
+        expect(await screen.findByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+    });
+
+    it("shows any other download failure without refreshing", async () => {
+        api.getDocumentUrl.mockRejectedValue(new Error("network down"));
+        render(<Harness
+            initialDocuments={[document("doc-2", "Final.pdf")]}
+            tableOperations={operations(vi.fn())}
+        />);
+        fireEvent.contextMenu(screen.getByText("Final.pdf"), { clientX: 40, clientY: 40 });
+        fireEvent.click(screen.getByRole("menuitem", { name: "Download" }));
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+        expect(api.getDocument).not.toHaveBeenCalled();
     });
 });

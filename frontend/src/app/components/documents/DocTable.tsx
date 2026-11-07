@@ -612,9 +612,9 @@ export function DocTable({
         await loadDocumentVersions(docId, { expand: true });
     };
 
-    // LiTT training: after an approval, reload the versions and the row so
-    // the mark goes away and the downloads come back.
-    function handleTrainingApproved(docId: string) {
+    // LiTT training: after an approval, or a download the server held, reload
+    // the versions and the row so the mark and the downloads match the server.
+    function refreshTrainingStatus(docId: string) {
         void loadDocumentVersions(docId, { force: true });
         getDocument(docId).then(
             (latest) =>
@@ -3330,7 +3330,7 @@ export function DocTable({
     // ── Loading skeleton ──────────────────────────────────────────────────────
 
     const docs = serverDocuments ?? documents;
-    const downloadDoc = useCallback(async (docId: string) => {
+    const startDocDownload = useCallback(async (docId: string) => {
         const { url, filename } = catalog
             ? catalog.resolveDocumentUrl(docId)
             : await getDocumentUrl(docId);
@@ -3339,6 +3339,22 @@ export function DocTable({
         a.download = filename;
         a.click();
     }, [catalog]);
+    async function downloadDoc(docId: string) {
+        try {
+            await startDocDownload(docId);
+        } catch (e) {
+            notifyError(e, {
+                action: "download this document",
+                onRetry: () => {
+                    void downloadDoc(docId);
+                },
+            });
+            // LiTT training: the row said released but the server holds a
+            // pasante's draft (a new version since the list loaded).
+            if (e instanceof MikeApiError && e.code === "training_approval_required")
+                refreshTrainingStatus(docId);
+        }
+    }
 
     const selectedFolderRootIds = useMemo(
         () => folderSelectionRootIds(folders, selectedFolderIds),
@@ -3389,7 +3405,7 @@ export function DocTable({
                 selectedStandaloneDocIds.length === 1 &&
                 selectedFolderRootIds.length === 0
             ) {
-                await downloadDoc(selectedStandaloneDocIds[0]);
+                await startDocDownload(selectedStandaloneDocIds[0]);
                 return;
             }
             // Doc-only selections above the threshold go through the async
@@ -3424,7 +3440,7 @@ export function DocTable({
                 },
             });
         }
-    }, [downloadDoc, selectedFolderRootIds, selectedStandaloneDocIds]);
+    }, [startDocDownload, selectedFolderRootIds, selectedStandaloneDocIds]);
 
     // Takes the ids explicitly so a "Retry" can re-run exactly the rows that
     // failed. Reading the selection again would resend the whole original
@@ -5111,7 +5127,7 @@ export function DocTable({
                 onDownloadDocument={downloadDoc}
                 onDownloadVersion={downloadDocVersion}
                 onRenameVersion={handleRenameVersion}
-                onTrainingApproved={handleTrainingApproved}
+                onTrainingApproved={refreshTrainingStatus}
                 onDeleteVersion={handleDeleteVersion}
                 onUploadNewVersion={submitNewVersion}
                 onReplaceVersion={replaceVersionFile}
