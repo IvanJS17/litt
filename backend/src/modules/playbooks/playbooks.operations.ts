@@ -1123,6 +1123,7 @@ export function keepPlaybookWorkAttended(
   db: Db,
   table: "playbook_runs" | "playbook_imports",
   id: string,
+  importKind: "playbook.import" | "playbook.draft" = "playbook.import",
 ): () => void {
   // One report per piece of work: a database that is down fails every beat.
   let reported = false;
@@ -1140,7 +1141,7 @@ export function keepPlaybookWorkAttended(
           reportPlaybookFailure(error, {
             stage: "heartbeat",
             level: "warning",
-            jobKind: review ? "playbook.review" : "playbook.import",
+            jobKind: review ? "playbook.review" : importKind,
             ids: review ? { run_id: id } : { import_id: id },
           });
         }

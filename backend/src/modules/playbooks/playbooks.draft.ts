@@ -281,7 +281,9 @@ export const DRAFT_SYSTEM_PROMPT =
   "Redactas borradores de reglas de revisión de contratos para un despacho mexicano. No inventes posiciones jurídicas. Cada regla debe indicar de dónde sale. Devuelve solo JSON.";
 
 function draftShape(name: string): string {
-  return `{"name":"${name.replace(/["\\]/g, "")}","description":"","representedParty":"","documentTypes":[],"jurisdictions":[],"topics":[{"id":"topic-1","name":"","rules":[{"id":"topic-1-rule-1","name":"","concept":"","scope":"clause|agreement","required":false,"guidance":"","standard":{"name":"Estándar","criteria":"","sampleClauses":[{"text":"","usage":"illustrative|preferred|verbatim|accepted|unacceptable"}]}|null,"fallbacks":[],"unacceptable":[],"conditions":[],"actions":[{"scenario":"","instruction":""}],"origin":{"kind":"answer|clause|ai_general","questionIds":["q6"],"sourceId":"A1","quote":"","note":""},"legalRefs":[{"text":"","sourceId":"A1","quote":""}]}]}]}`;
+  // The name is the client's text outside the fences: one plain line only.
+  const plain = name.replace(/[\p{Cc}"\\<>]+/gu, " ").replace(/\s+/g, " ").trim();
+  return `{"name":"${plain}","description":"","representedParty":"","documentTypes":[],"jurisdictions":[],"topics":[{"id":"topic-1","name":"","rules":[{"id":"topic-1-rule-1","name":"","concept":"","scope":"clause|agreement","required":false,"guidance":"","standard":{"name":"Estándar","criteria":"","sampleClauses":[{"text":"","usage":"illustrative|preferred|verbatim|accepted|unacceptable"}]}|null,"fallbacks":[],"unacceptable":[],"conditions":[],"actions":[{"scenario":"","instruction":""}],"origin":{"kind":"answer|clause|ai_general","questionIds":["q6"],"sourceId":"A1","quote":"","note":""},"legalRefs":[{"text":"","sourceId":"A1","quote":""}]}]}]}`;
 }
 
 /** The draft request: task, origin rules, then the client's data, fenced. */
@@ -747,7 +749,12 @@ export async function compilePlaybookDraft(
   const timeoutMs = playbookCompilationTimeoutMs();
   let stage: PlaybookImportStage = enterImportStage("checking_model");
   let saved = false;
-  const stopHeartbeat = keepPlaybookWorkAttended(db, "playbook_imports", attemptId);
+  const stopHeartbeat = keepPlaybookWorkAttended(
+    db,
+    "playbook_imports",
+    attemptId,
+    "playbook.draft",
+  );
   try {
     const request = storedRequest(requestJson);
     await assertAuthorizationStamp(db, work.orgId, work.authorization);
