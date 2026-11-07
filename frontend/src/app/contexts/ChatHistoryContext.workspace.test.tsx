@@ -5,7 +5,7 @@
  */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 
 const listChats = vi.fn();
 const createChat = vi.fn();
@@ -57,7 +57,10 @@ let latest: ReturnType<typeof useChatHistoryContext>;
 let loadMoreChats: ReturnType<typeof useChatHistoryContext>["loadMoreChats"];
 function Probe() {
     const context = useChatHistoryContext();
-    useEffect(() => {
+    // A layout effect runs inside the commit that changes the text, so a
+    // findByText that sees the new list never reaches stale callbacks. A
+    // passive effect can still be pending then on a loaded machine.
+    useLayoutEffect(() => {
         saveChat = context.saveChat;
         latest = context;
         loadMoreChats = context.loadMoreChats;
@@ -79,7 +82,9 @@ const tree = () => (
 );
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    // Reset, not clear: a one-off answer a failed test never consumed must
+    // not become the next test's first page.
+    vi.resetAllMocks();
     workspace.current = "personal";
     auth.user = STABLE_USER;
 });
