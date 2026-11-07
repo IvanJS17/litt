@@ -339,4 +339,31 @@ describe("AppSidebar History", () => {
     expect(history).not.toHaveAttribute("data-scroll-end");
     expect(history).toHaveAttribute("data-scroll-start", "true");
   });
+
+  it("fades the column and marks the account edge when a short window hides rows", () => {
+    const { container } = render(<AppSidebar isOpen onToggle={vi.fn()} />);
+    const column = container.querySelector<HTMLElement>("[data-sidebar-column]")!;
+    const account = container.querySelector<HTMLElement>("[data-sidebar-account]")!;
+    expect(column).not.toHaveAttribute("data-scroll-end");
+    // The border is always there, so showing it never moves the button.
+    expect(account).toHaveClass("border-t", "border-transparent");
+
+    // A 640 px window: the column holds more than it shows.
+    Object.defineProperty(column, "scrollHeight", { configurable: true, value: 700 });
+    Object.defineProperty(column, "clientHeight", { configurable: true, value: 520 });
+    act(() => {
+      column.dispatchEvent(new Event("scroll"));
+    });
+    expect(column).toHaveAttribute("data-scroll-end", "true");
+    expect(account).toHaveClass("border-t", "border-gray-200");
+    expect(account).not.toHaveClass("border-transparent");
+
+    // Scrolled to the bottom, nothing is hidden and the hairline goes.
+    act(() => {
+      column.scrollTop = 180;
+      column.dispatchEvent(new Event("scroll"));
+    });
+    expect(column).not.toHaveAttribute("data-scroll-end");
+    expect(account).toHaveClass("border-transparent");
+  });
 });

@@ -440,6 +440,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
     // History scrolls on its own; its ends fade where more rows are hidden.
     const historyScroll = useScrollEdges<HTMLDivElement>("y");
+    // A short window scrolls the whole column above the account button.
+    const columnScroll = useScrollEdges<HTMLDivElement>("y");
     const handleHistoryScroll = (event: UIEvent<HTMLDivElement>) => {
         historyScroll.onScroll();
         if (isNearScrollEnd(event.currentTarget)) void history.loadMore();
@@ -591,8 +593,17 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
                 {/* Everything between the header and the account button
                     scrolls as one when the window is short, so the sidebar
-                    never grows past the screen or slides under the footer. */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                    never grows past the screen or slides under the footer.
+                    Its bottom fades while rows are hidden below, so the
+                    last one never looks cut off by the account button. */}
+                <div
+                    ref={columnScroll.ref}
+                    data-sidebar-column
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+                    style={scrollFadeMaskStyle(columnScroll.edges)}
+                    data-scroll-end={columnScroll.edges.end || undefined}
+                    onScroll={columnScroll.onScroll}
+                >
                     {/* Nav items */}
                     <div className="pt-1.5">
                         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -941,8 +952,18 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     )}
                 </div>
 
-                {/* User Profile */}
-                <div className="shrink-0 p-1">
+                {/* User Profile. A hairline marks where the column stops
+                    while rows are hidden below it; the border is always
+                    there, so showing it never moves the button. */}
+                <div
+                    data-sidebar-account
+                    className={cn(
+                        "shrink-0 border-t p-1 transition-colors",
+                        columnScroll.edges.end
+                            ? "border-gray-200"
+                            : "border-transparent",
+                    )}
+                >
                     {user && (
                         <Dropdown
                             open={isDropdownOpen}
