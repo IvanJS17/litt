@@ -26,7 +26,14 @@ export type PlaybookAuditAction =
   // of its rules, unbacked rules and unverified references; never answers.
   | "playbook.draft_created"
   | "playbook.model_marked"
-  | "playbook.model_unmarked";
+  | "playbook.model_unmarked"
+  // LiTT: "use as a starting point": a copy made, the changes proposed for it
+  // (completed or failed, with counts), and each change accepted or rejected.
+  // Ids, operations and counts only; never answers or rule text.
+  | "playbook.copied"
+  | "playbook.proposals_ready"
+  | "playbook.change_accepted"
+  | "playbook.change_rejected";
 
 export function recordPlaybookAudit(
   db: Db,
