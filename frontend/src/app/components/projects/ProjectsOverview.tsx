@@ -270,6 +270,9 @@ export function ProjectsOverview() {
 
     function toggleOne(id: string) {
         rowSelectionAnchorIdRef.current = id;
+        // A hand-edited selection is no longer "everything matching", as
+        // with the range and modifier clicks below.
+        setSelectionCameFromSelectAll(false);
         setSelectedIds((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
         );
@@ -478,9 +481,17 @@ export function ProjectsOverview() {
         );
     }
 
+    // One question at a time: opening either delete confirmation closes the
+    // other, so two dialogs never stack.
     function requestDeleteSelected() {
         setActionsOpen(false);
+        setProjectPendingDelete(null);
         setConfirmDeleteAllOpen(true);
+    }
+
+    function requestDeleteProject(project: Project) {
+        setConfirmDeleteAllOpen(false);
+        setProjectPendingDelete(project);
     }
 
     async function handleDeleteProjectRow(project: Project) {
@@ -498,12 +509,12 @@ export function ProjectsOverview() {
             );
             // The row action calls this without awaiting, so rethrowing would
             // only produce an unhandled rejection and a row that reappears
-            // with no explanation. The row is back, so deleting again is
-            // exactly the action that just failed.
+            // with no explanation. The row is back; Retry asks again, as the
+            // document panel does, because the delete still has no undo.
             notifyError(error, {
                 action: `delete “${project.name}”`,
                 dedupeKey: `project-delete:${project.id}`,
-                onRetry: () => void handleDeleteProjectRow(project),
+                onRetry: () => requestDeleteProject(project),
                 supportNote: `Project: ${project.name} (${project.id})`,
             });
         }
@@ -588,7 +599,7 @@ export function ProjectsOverview() {
                     appliesToSelection || !project
                         ? requestDeleteSelected
                         : canManage
-                          ? () => setProjectPendingDelete(project!)
+                          ? () => requestDeleteProject(project!)
                           : undefined
                 }
                 deleteLabel={
@@ -955,7 +966,7 @@ export function ProjectsOverview() {
                                             onDelete={
                                                 canManage
                                                     ? () =>
-                                                          setProjectPendingDelete(
+                                                          requestDeleteProject(
                                                               project,
                                                           )
                                                     : undefined
@@ -1019,7 +1030,7 @@ export function ProjectsOverview() {
                 message={
                     selectionCameFromSelectAll
                         ? `This will permanently delete every selected project you administer, including selected projects not currently shown. Every file within those projects will also be deleted. Projects you cannot delete will be skipped. ${selectedIds.length} projects are selected.`
-                        : `This will permanently delete ${selectedIds.length === 1 ? "the selected project" : `the ${selectedIds.length} selected projects`} you administer, with every document and chat within them. Projects you cannot delete will be skipped. This can't be undone.`
+                        : `This will permanently delete ${selectedIds.length === 1 ? "the selected project" : `the ${selectedIds.length} selected projects`} you administer, with every document and chat within ${selectedIds.length === 1 ? "it" : "them"}. Projects you cannot delete will be skipped. This can't be undone.`
                 }
                 confirmLabel="Delete"
                 confirmVariant="danger"

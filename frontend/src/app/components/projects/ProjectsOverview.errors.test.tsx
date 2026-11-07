@@ -140,9 +140,40 @@ describe("ProjectsOverview failures", () => {
         expect(alert).toHaveTextContent(/Matter A/);
         // Reverted: the row the user saw disappear is back.
         expect(screen.getByText("Matter A")).toBeInTheDocument();
-        expect(
-            within(alert).getByRole("button", { name: "Retry" }),
-        ).toBeInTheDocument();
+
+        // Retry asks again before deleting, as the document panel does.
+        await user.click(within(alert).getByRole("button", { name: "Retry" }));
+        expect(deleteProject).toHaveBeenCalledTimes(1);
+        await confirmIn(user, "Delete project?");
+        await waitFor(() => expect(deleteProject).toHaveBeenCalledTimes(2));
+    });
+
+    it("shows one delete confirmation at a time", async () => {
+        const user = userEvent.setup();
+        rows.current = [
+            project("p1", "Matter A"),
+            project("p2", "Matter B"),
+            project("p3", "Matter C"),
+        ];
+        selection.current = ["p1", "p2"];
+
+        renderOverview();
+
+        await user.click(
+            screen.getAllByRole("button", { name: "Open row actions" })[2],
+        );
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+        await screen.findByRole("dialog", { name: "Delete project?" });
+
+        await user.click(screen.getByRole("button", { name: "Actions" }));
+        await user.click(screen.getByRole("menuitem", { name: /^Delete/ }));
+
+        const dialog = await screen.findByRole("dialog", {
+            name: "Delete selected projects?",
+        });
+        expect(screen.getAllByRole("dialog")).toHaveLength(1);
+        expect(dialog).toHaveTextContent("the 2 selected projects");
+        expect(deleteProject).not.toHaveBeenCalled();
     });
 
     it("asks before deleting a project from its row menu", async () => {
