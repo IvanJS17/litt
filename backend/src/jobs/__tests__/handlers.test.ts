@@ -111,6 +111,8 @@ const attachActiveVersionPaths = vi.fn(
                 filename: ACTIVE_VERSION.filename,
                 active_version_number: ACTIVE_VERSION.version_number,
                 source: ACTIVE_VERSION.source,
+                training_stage: null,
+                content_sha256: null,
             });
         return docs;
     },
@@ -694,8 +696,8 @@ describe("handleExportBuild", () => {
 
     it("re-verifies access at build time and skips docs the user lost", async () => {
         const db = makeDb([
-            { id: "d1", user_id: "u1", project_id: null },
-            { id: "d2", user_id: "someone-else", project_id: "p1" },
+            { id: "d1", user_id: "u1", project_id: null, current_version_id: "d1-v1" },
+            { id: "d2", user_id: "someone-else", project_id: "p1", current_version_id: "d2-v1" },
         ]);
         ensureDocAccess.mockImplementation(
             async (doc: unknown) =>
@@ -736,6 +738,7 @@ describe("handleExportBuild", () => {
                 project_id: null,
                 org_id: "o1",
                 workflow_id: "w1",
+                current_version_id: "d1-v1",
             },
         ]);
 

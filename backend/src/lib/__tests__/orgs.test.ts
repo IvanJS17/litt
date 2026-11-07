@@ -1795,7 +1795,17 @@ describe("listOrgResources at scale", () => {
             })),
             workflows: [], project_org_access_overrides: [], workflow_org_access_overrides: [],
         });
-        const result = await listOrgResources(fake.db, { userId: "me", orgId: "org" });
+        // LiTT C2: the private-matter filter runs over the paged rows (none
+        // of these projects belongs to a matter).
+        const deniedLookups: number[] = [];
+        const db = Object.assign(fake.db, {
+            rpc: async (fn: string, args: { p_project_ids?: string[] }) =>
+                fn === "private_matter_denied_project_ids"
+                    ? (deniedLookups.push(args.p_project_ids?.length ?? 0), { data: [], error: null })
+                    : { data: null, error: { message: `unexpected rpc ${fn}` } },
+        });
+        const result = await listOrgResources(db, { userId: "me", orgId: "org" });
         expect(result.ok && result.projects.length).toBe(1200);
+        expect(deniedLookups.reduce((a, b) => a + b, 0)).toBe(1200);
     });
 });
