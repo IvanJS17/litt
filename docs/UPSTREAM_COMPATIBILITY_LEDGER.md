@@ -1309,3 +1309,136 @@ see or reach changes.
 No Dependabot pull request is covered by this range: upstream's only
 dependency change (`26975fa6`) was already in LiTT. The open ones stay for the
 dependency cycle (9 of 10).
+
+## 24. Cycle 2026-11-07, 5 of 10
+
+Pin `d0a7ca7550bdaa3f21284b730c3139951ac89576` (2026-11-03), the merge of
+upstream #749 and the last tranche of that pull request. The range
+`31539729..d0a7ca75` has 72 commits, 4 of them merges, and 127 files. Seven of
+them (`6a52e85e` `783e0ef8` `93303e72` `b5eafa12` `cfb8a2e4` `e3f2c8c1`
+`14d695f1`) were already in `main` through cycle 2 (§21), so the merge brings
+65 commits, one of them the #749 merge. Nothing after the pin is integrated.
+
+### 24.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| SQL M-S2…M-S9, M-B6 (`20261101_15`…`_24`) and their suites | `bc0edec1` `d305d060` `18132c24` `fcaf75ab` `02de2ca5` `9754a2d2` `fa310552` `b7f8eb0d` `2e3ea04d` `e22e4f43` `493ac400` `e5d1298a` | adopt, except `ownerless_org_item_ids` in `18132c24` (M-S4), `org_members_departure_items` in `02de2ca5` (M-S5) and `organization_audit_events_page` in `9754a2d2` (M-S6): adapt (24.2). The projects, workflows and private-catalogue suites are adapted to LiTT's closed catalogue (24.2) |
+| Word add-in: tracked edits, bulk decisions, device chats, picker cache | `5009f893` `25bab771` `ce27d2aa` `78f918a9` `b37acc2a` `c279b875` `851f57a9` `313c4aaa` `812bb656` `be445f62` `15025a79` `7eb72a57` `ad5c89e8` | adopt; the newer-database message of `c279b875` names LiTT (identity v1.0); the Sentry e2e half of `851f57a9` stays deleted |
+| Tabular reviews: row sync, generation, reconcile, folder rows, row sources | `215516d0` `31b14465` `eccc9cce` `a3945be4` `e9e0c1a7` `af754e2b` `b34c4e4e` | adopt; the `loadReviewRows` halves of `af754e2b` and `5e84e1c1` are ported into `lib/tabularReadAccess.ts`, where LiTT keeps it |
+| Batched and keyset reads: db helper, exports, memory, organizations, sharing, Word chat, library, playbooks, storage, documents | `0efe45e9` `02dfc357` `6509fab4` `a06261d0` `6df74ffa` `a26c443a` `75a6a435` `172ec4e2` `a8ed1c34` `5e84e1c1` `cb2f8038` `23e343b4` `c24da0e8` `fb1670f5` `b4c8069a` `ad392d43` `410484b5` `2bf0880a` `e0e8d73d` `893c0967` `c1b856c8` `cffa3b51` `542a7bdb` `bfb47bfc` `e4a188f2` | adopt; the export keeps the pasante release check and `OMITIDOS.txt`; the per-container export check (`6509fab4`) still takes every project verdict from `checkProjectAccess`, which applies C2 |
+| Chat engine: one `read_workflow` verdict per turn | `ee6472f9` | adopt |
+| Job pool tests, citation cache argument | `85838120` | adapt: LiTT's job-pool logging tests run through `createDbJobPool`, without upstream's Sentry assertions; the CourtListener half is rejected, no net change |
+| Web: PDF viewer, document status polling | `62958411` `1eabc48a` `45e5f98a` `42b57273` | adopt; `mikeApi.ts` keeps LiTT's `errorReporting` type |
+| Deployment notes (upgrade order, rollback) | `dbc3c927` | adopt |
+| Merge of #749 | `d0a7ca75` | adopt |
+
+Files with no net change against `main`: `verifyCitations.ts` and its test,
+`playbooks.routes.ts` and its integration test (already in `main` through
+cycle 2). Absent from both trees: `observability/sentry.ts`, its test and
+`word-addin/e2e/error-reporting.spec.ts`.
+
+### 24.2 Functions created or redefined, and LiTT C2
+
+Comparing the last definition of every function in `schema.sql`, `main` to the
+head, gives 210 signatures. 204 are identical, 5 changed and 1 is new
+(`artifacts/upstream-sync-c5-20261107/function-comparison.txt`, outside the
+repository). Three needed a LiTT migration:
+
+- `org_members_departure_items` (`20261101_18`, M-S5): upstream finds the
+  possible roots by departing user first. Its text lacks the matter exclusion
+  (C2 point 3, `20261023_13`). It also sorts before
+  `20261101_51_litt_departure_private_matter`, so a database that had run
+  `_51` would lose the guard. `20261107_50_litt_departure_root_candidates_private_matter.sql`
+  sorts after both. It re-creates upstream's new text with
+  `and not exists (select 1 from public.matters mt where mt.project_id=item.id)`
+  on the project roots, and that line is the whole difference.
+- `ownerless_org_item_ids` (`20261101_17`, M-S4): upstream inlines
+  `project_is_ownerless` as anti-joins with upstream's conditions. LiTT's
+  `project_is_ownerless` also excludes matter projects, so upstream's list
+  would let an organization owner take over a former member's matter project.
+  `20261107_51_litt_ownerless_items_private_matter.sql` adds that condition.
+- `organization_audit_events_page` (`20261101_19`, M-S6): upstream resolves
+  the person filter among the organization's actors. Its text starts from
+  upstream's page, which sorts by the address copied into each row. LiTT
+  stopped copying addresses (`20261024_51_litt_account_erasure`) and sorts by
+  the live profile. `20261107_52_litt_audit_username_filter_order.sql` keeps
+  LiTT's order and takes upstream's filter. This is not C2, but without it
+  upgraded databases would lose LiTT's order.
+
+Each migration's body is byte-identical to the last definition in
+`schema.sql`, in its LiTT section. The in-place upstream copies point to it.
+On a database at `main`, the schema-drift replica applies upstream's
+`20261101_15`…`_24` and then LiTT's three files, with no drift against a
+fresh install.
+
+The other three need no migration:
+
+- `list_org_private_content` (M-S9) refuses unless
+  `can_access_org_private_content`, which is false in LiTT.
+- `backfill_document_text` (M-S2) and the new `wipe_memory_files` (M-B6) grant
+  nobody access.
+
+None of the range redefines `project_access_role`, `review_list_access`,
+`document_text_access` or `can_access_org_private_content`.
+
+Proof, in the schema-drift CI loop:
+
+- `performance.litt-private-matters.sql` gains the ownerless case: a former
+  member's matter project is not listed, and a plain private project in the
+  same state is. The departure assertions now run on M-S5.
+- `performance.litt-private-matters-controls.sql`, controls 4 and 5: upstream's
+  `20261101_18` and `20261101_17` alone must leak the matter, and
+  `20261107_50` / `20261107_51` must restore the guard.
+- `performance.litt-audit-pagination.sql` covers the person filter and the
+  live-profile order.
+- Upstream's `performance.projects.sql` and `performance.workflows.sql` record
+  the admin's opening directly, because `open_org_private_content` refuses in
+  LiTT.
+- `performance.private-catalogue.sql` first asserts that the owner is refused.
+  It then checks upstream's per-kind paging with the permission switched on,
+  inside its rolled-back transaction only.
+- `littPrivateMatterLists.postgres.test.ts` (opt-in) runs the same swaps over
+  the full assertion file.
+
+In TypeScript, every reader that called `private_matter_denied_project_ids`
+on `main` still does, and the release check and `OMITIDOS.txt` remain in the
+documents ZIP export. Every tabular read that returns rows to a person (grid,
+review chat, generation, export) still goes through `filterReadableReviewRows`.
+
+### 24.3 Departure of a matter project's creator (cycle-4 review reservation)
+
+The departure trigger (`cleanup_removed_org_member_overrides`, branch
+`if org_is_team`) clears `user_id` on every project the leaver created,
+matter projects included. This is unchanged behaviour. The matter exclusion
+keeps those projects out of the departure items: they are not archived, not
+handed to the successor and not "ownerless".
+`performance.litt-matter-departure.sql` (CI) fixes who reaches them
+afterwards:
+
+| Who | Matter with an organization-visible project | Matter with a private project (W2) |
+|---|---|---|
+| Matter teammate (editor) | reaches and lists it, as before | nobody reached it but the creator before; still nobody |
+| Organization owner | no | no |
+| Organization admin | no | no |
+| Successor chosen in the departure | no | no |
+| Former creator | no | no |
+
+**Open product question, with W2 (§23.3):** after its creator leaves, a matter
+whose project is private stays in the database but no one can open it in
+LiTT. That contradicts the owner's retention decision of 2026-10-24, under
+which work inside a firm's matters stays with the firm. The rule is unchanged
+until the owner decides.
+The test pins today's behaviour so that any change is deliberate.
+
+### 24.4 Owner-visible changes
+
+Lists, reviews, exports, the audit search and the Word add-in respond faster
+in large firms, with no change to what anyone can see. The Word add-in now
+explains when a newer version updated the device's chats. The audit page
+still sorts people by their current profile.
+
+### 24.5 Dependabot
+
+No Dependabot pull request is covered by this range. The open ones stay for
+the dependency cycle (9 of 10).
