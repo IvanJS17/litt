@@ -710,7 +710,8 @@ export async function prepareWordChatStream(
   // LiTT training ("Tu turno primero"): a Word chat belongs to no
   // organization or project, so the most junior stage that covers every
   // practice area, across the user's active organizations, applies; a note
-  // about the turn belongs to that organization. Checked before anything is
+  // about the turn belongs to that organization. An urgency pass is for one
+  // matter's project, so it never applies here. Checked before anything is
   // written.
   let trainingAttempt: string | null = null;
   let trainingNote: CreatedTurnNote | null = null;

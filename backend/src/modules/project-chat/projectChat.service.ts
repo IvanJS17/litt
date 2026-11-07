@@ -51,7 +51,8 @@ import {
     resolveContentOrgId,
 } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
-import { checkTrainingTurn, resolveTrainingStage } from "../../lib/training";
+import { checkTrainingTurn } from "../../lib/training";
+import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
 import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     DOCUMENT_WORKSPACE_MISMATCH_CODE,
@@ -354,16 +355,18 @@ export async function prepareProjectChatStream(
     let trainingAttempt: string | null = null;
     let trainingNote: CreatedTurnNote | null = null;
     if (lastUser && !args.askInputsResponse) {
-        let stage;
+        // An urgency pass on this matter lifts the requirement, not the
+        // stage: the output lock still seals the turn's documents.
+        let turn;
         try {
-            stage = await resolveTrainingStage(db, userId, {
+            turn = await resolveTurnTraining(db, userId, {
                 orgId: projectAccess.project.org_id ?? null,
                 projectId,
             });
         } catch (error) {
             return { ok: false, internal: true, error };
         }
-        const training = checkTrainingTurn(stage, args.attempt);
+        const training = checkTrainingTurn(turnStage(turn), args.attempt);
         if (!training.ok) return training;
         trainingAttempt = training.attempt;
     }

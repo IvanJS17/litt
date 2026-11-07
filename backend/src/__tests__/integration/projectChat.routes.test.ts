@@ -39,7 +39,10 @@ const {
 
 function makeQuery(table: string) {
     const result = {
-        data: { id: "chat-1", title: null, project_id: "p1" },
+        data:
+            table === "training_urgency_passes"
+                ? urgencyPasses.value
+                : { id: "chat-1", title: null, project_id: "p1" },
         error: null,
     };
     const q: Record<string, unknown> = {};
@@ -104,8 +107,10 @@ function mockSupabase() {
 // the test to its 20 s timeout. Same stub as chat.routes.test.ts.
 // LiTT training: the effective stage is driven per test; null (a lawyer)
 // keeps every other test in this suite on today's behavior.
-const { trainingStage } = vi.hoisted(() => ({
+const { trainingStage, urgencyPasses } = vi.hoisted(() => ({
     trainingStage: { value: null as "pasante" | "junior" | null },
+    // What a read of training_urgency_passes answers (layer 2).
+    urgencyPasses: { value: [] as Record<string, unknown>[] },
 }));
 vi.mock("../../lib/training", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/training")>()),
@@ -1122,4 +1127,57 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
             expect(String(buildMessages.mock.calls[0]?.[2] ?? "")).not.toContain(ATTEMPT);
         },
     );
+
+    describe("urgency pass (layer 2)", () => {
+        const ATTEMPT_TEXT = "Considero que la demanda debe fundarse en el incumplimiento del contrato de arrendamiento.";
+        const pass = (extra: Record<string, unknown> = {}) => ({
+            org_id: "org-1",
+            trainee_user_id: "u1",
+            project_id: "p1",
+            starts_at: new Date(Date.now() - 60_000).toISOString(),
+            expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+            revoked_at: null,
+            ...extra,
+        });
+        beforeEach(() => {
+            trainingStage.value = "pasante";
+            urgencyPasses.value = [];
+        });
+        afterEach(() => {
+            urgencyPasses.value = [];
+        });
+
+        it("asks a pasante without a pass for the attempt", async () => {
+            const res = await send();
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+        });
+
+        it("lets a pasante with a pass in force write without an attempt, with no note", async () => {
+            urgencyPasses.value = [pass()];
+            const res = await send({ attempt: ATTEMPT_TEXT });
+            expect(res.status).toBe(200);
+            expect(runLLMStream).toHaveBeenCalledTimes(1);
+            expect(noteInsert()).toBeUndefined();
+            expect(JSON.stringify(userInsert())).not.toContain(ATTEMPT_TEXT);
+        });
+
+        it.each([
+            ["expired", { expires_at: new Date(Date.now() - 1000).toISOString() }],
+            ["revoked", { revoked_at: new Date(Date.now() - 1000).toISOString() }],
+        ])("asks for the attempt again with a pass %s", async (_label, extra) => {
+            urgencyPasses.value = [pass(extra)];
+            const res = await send();
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_attempt_required");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("leaves a junior unchanged", async () => {
+            trainingStage.value = "junior";
+            const res = await send();
+            expect(res.status).toBe(200);
+            expect(noteInsert()).toBeUndefined();
+        });
+    });
 });

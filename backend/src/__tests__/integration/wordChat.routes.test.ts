@@ -51,6 +51,19 @@ const {
 }));
 
 function resultForAwaitedQuery(table: string): QueryResult {
+  // Layer 2: a pass in force, which Word must never consult.
+  if (table === "training_urgency_passes")
+    return {
+      data: [{
+        org_id: "org-1",
+        trainee_user_id: "u1",
+        project_id: "p1",
+        starts_at: new Date(Date.now() - 60_000).toISOString(),
+        expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+        revoked_at: null,
+      }],
+      error: null,
+    };
   if (table === "word_chats") return dbState.chatList;
   if (table === "word_chat_messages") return dbState.messages;
   if (table === "word_document_edits") return dbState.edits;
@@ -1261,6 +1274,14 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
     expect(res.body.code).toBe("training_attempt_required");
     expect(recordedQueries.some(({ op }) => op === "insert")).toBe(false);
     expect(runLLMStream).not.toHaveBeenCalled();
+  });
+
+  it("asks a pasante for the attempt even with an urgency pass: Word has no matter", async () => {
+    trainingStage.value = "pasante";
+    const res = await send();
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("training_attempt_required");
+    expect(recordedQueries.some(({ table }) => table === "training_urgency_passes")).toBe(false);
   });
 
   it("answers an attempt over 4000 characters with its own message", async () => {
