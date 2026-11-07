@@ -2262,7 +2262,8 @@ export async function beginPlaybookReview(args: PlaybookReviewRequest) {
     db,
     stored ? stored.orgId : playbook.orgId,
   );
-  if (JSON.stringify(content).length > 100_000)
+  // Measured on what the review prompt sends: the rules without provenance.
+  if (JSON.stringify(stripProvenance(content)).length > 100_000)
     throw new PlaybookRequestError(
       "The playbook is too large for a complete review. Split it into smaller playbooks.",
     );

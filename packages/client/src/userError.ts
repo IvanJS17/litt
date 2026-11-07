@@ -230,6 +230,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // is decided. Retrying cannot help, so the server's detail is shown.
     playbook_draft: "validation",
     playbook_changes_pending: "validation",
+    // A model is a starting point; one without rules cannot be marked.
+    playbook_model_empty: "validation",
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
     // Ours, not theirs
