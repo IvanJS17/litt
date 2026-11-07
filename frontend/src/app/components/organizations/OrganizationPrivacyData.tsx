@@ -191,9 +191,78 @@ function MemberDataPolicySection() {
   );
 }
 
+/** Text-shaped placeholder: the real words, invisible, over a pulse. */
+function SkeletonText({ children }: { children: string }) {
+  return (
+    <span className="animate-pulse rounded bg-gray-200/70 text-transparent [box-decoration-break:clone] motion-reduce:animate-none">
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Stands in for the two owner-only sections while the organization loads,
+ * with their real headings, rows and wording, so nothing below moves when
+ * they arrive.
+ */
+function OwnerSectionsSkeleton({ orgName }: { orgName: string }) {
+  return (
+    <div aria-hidden="true" data-slot="org-privacy-skeleton" className="space-y-8">
+      <div className="space-y-3">
+        <SettingsHeading>
+          <SkeletonText>Members&apos; data</SkeletonText>
+        </SettingsHeading>
+        <GlassCardUI>
+          {POLICY_ROWS.map((row) => (
+            <SettingsRow key={row.key}>
+              <div className="space-y-1">
+                <SettingsLabel>
+                  <SkeletonText>{row.label}</SkeletonText>
+                </SettingsLabel>
+                <SettingsDescription>
+                  <SkeletonText>{row.description(orgName)}</SkeletonText>
+                </SettingsDescription>
+              </div>
+              <span className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none" />
+            </SettingsRow>
+          ))}
+        </GlassCardUI>
+      </div>
+      <div className="space-y-3">
+        <SettingsHeading>
+          <SkeletonText>Departed members</SkeletonText>
+        </SettingsHeading>
+        <GlassCardUI>
+          <SettingsRow>
+            <div className="space-y-1">
+              <SettingsLabel>
+                <SkeletonText>Work left by departed members</SkeletonText>
+              </SettingsLabel>
+              <SettingsDescription>
+                <SkeletonText>
+                  {DEPARTED_DESCRIPTION}
+                </SkeletonText>
+              </SettingsDescription>
+            </div>
+            <span className="h-7 w-full shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none sm:w-[4.25rem]" />
+          </SettingsRow>
+        </GlassCardUI>
+      </div>
+    </div>
+  );
+}
+
+const DEPARTED_DESCRIPTION =
+  "Private, unshared work a member leaves behind is kept for 30 days, then permanently deleted. Reassign or delete it from the Members page.";
+
 export function OrganizationPrivacyData() {
   const router = useRouter();
   const { orgId, org } = useOrganizationSettings();
+  // The name is already in the workspace's organization list; the skeleton
+  // uses it so its descriptions wrap like the loaded ones.
+  const listedOrgName = useWorkspace().organizations?.find(
+    (candidate) => candidate.id === orgId,
+  )?.name;
   const { loadChats, setCurrentChatId } = useChatHistoryContext();
   const [pendingKind, setPendingKind] = useState<OrgDataKind | null>(null);
   const [deletingKind, setDeletingKind] = useState<OrgDataKind | null>(null);
@@ -249,6 +318,9 @@ export function OrganizationPrivacyData() {
 
   return (
     <div className="space-y-8">
+      {org ? null : (
+        <OwnerSectionsSkeleton orgName={listedOrgName ?? "this organization"} />
+      )}
       {org && isOrgOwner(org.role) ? <MemberDataPolicySection /> : null}
       {/* The archive itself is a table of people and their work, so it
           lives with the roster; this is the way to it from here. */}
@@ -261,11 +333,7 @@ export function OrganizationPrivacyData() {
             <SettingsRow>
               <div className="space-y-1">
                 <SettingsLabel>Work left by departed members</SettingsLabel>
-                <SettingsDescription>
-                  Private, unshared work a member leaves behind is kept for 30
-                  days, then permanently deleted. Reassign or delete it from
-                  the Members page.
-                </SettingsDescription>
+                <SettingsDescription>{DEPARTED_DESCRIPTION}</SettingsDescription>
               </div>
               <PillButtonUI
                 tone="black"
