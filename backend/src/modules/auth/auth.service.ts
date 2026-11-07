@@ -20,6 +20,7 @@ import {
 import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import { consumeAuthHandoff, issueAuthHandoff } from "../../lib/authHandoff";
 import { UI_LOCALES } from "../../lib/uiLocale";
+import { supabaseSessionConfiguration } from "../../lib/runtimeConfig";
 
 // ---------------------------------------------------------------------------
 // Request payload schemas
@@ -173,6 +174,51 @@ export function startGoogleOAuth(client: SupabaseClient, redirectTo: string) {
     provider: "google",
     options: { redirectTo, skipBrowserRedirect: true },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Which external sign-in providers GoTrue has switched on
+// ---------------------------------------------------------------------------
+
+const GOTRUE_SETTINGS_TIMEOUT_MS = 2_000;
+const GOTRUE_SETTINGS_CACHE_MS = 60_000;
+let googleSetting: { value: boolean; expires: number } | null = null;
+
+/** Test seam: forget the cached GoTrue answer. */
+export function resetGoogleSettingCache() {
+  googleSetting = null;
+}
+
+/**
+ * Whether GoTrue has Google sign-in on, read from GoTrue's own public
+ * `GET /settings` (`external.google`) so it can never drift from the
+ * `GOTRUE_EXTERNAL_GOOGLE_ENABLED` the auth service actually runs with.
+ * `null` means "can't tell" (GoTrue down, slow or answering oddly): the
+ * login page then keeps the button. Only a real answer is cached.
+ */
+export async function googleSignInEnabled(
+  now: number = Date.now(),
+): Promise<boolean | null> {
+  if (googleSetting && googleSetting.expires > now) return googleSetting.value;
+  try {
+    const { url, key } = supabaseSessionConfiguration();
+    if (!url) return null;
+    const response = await fetch(
+      `${url.replace(/\/+$/, "")}/auth/v1/settings`,
+      {
+        headers: key ? { apikey: key } : {},
+        signal: AbortSignal.timeout(GOTRUE_SETTINGS_TIMEOUT_MS),
+      },
+    );
+    if (!response.ok) return null;
+    const body = (await response.json()) as { external?: { google?: unknown } };
+    const value = body?.external?.google;
+    if (typeof value !== "boolean") return null;
+    googleSetting = { value, expires: now + GOTRUE_SETTINGS_CACHE_MS };
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 export const ssoRequestSchema = z.object({
