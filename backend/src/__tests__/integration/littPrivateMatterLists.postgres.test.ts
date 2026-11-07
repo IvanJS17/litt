@@ -3,11 +3,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// LiTT C2 against upstream's cycle-3 list and permission rewrites (#749,
-// 20261030_*): performance.litt-private-matters.sql checks every function the
-// tranche created or redefined. This suite also proves the file depends on
-// LiTT's guards: with upstream's departure rewrite alone, or with the
-// private-matter guard switched off, it fails. Opt in with
+// LiTT C2 against upstream's list and permission rewrites (#749, cycles 3
+// and 4: 20261030_*, 20261101_*): performance.litt-private-matters.sql checks
+// every function those tranches created or redefined. This suite also proves
+// the whole file depends on LiTT's guards: with upstream's project_access_role
+// or departure rewrite alone, or with the private-matter guard switched off,
+// it fails. performance.litt-private-matters-controls.sql runs the same swaps
+// in CI against a smaller fixture. Opt in with
 // MIKE_TEST_POSTGRES_CONTAINER=<postgres container>; the suite owns a
 // disposable database and never touches the application's.
 const container = process.env.MIKE_TEST_POSTGRES_CONTAINER;
@@ -27,7 +29,7 @@ function sqlError(query: string): string {
     return "";
 }
 
-describe.skipIf(!container)("private matters in upstream's cycle-3 lists (PostgreSQL)", () => {
+describe.skipIf(!container)("private matters in upstream's cycle-3 and cycle-4 lists (PostgreSQL)", () => {
     let created = false;
     beforeAll(() => {
         execFileSync("docker", ["exec", container!, "createdb", "-U", "postgres", database]);
@@ -49,12 +51,20 @@ describe.skipIf(!container)("private matters in upstream's cycle-3 lists (Postgr
         sql(assertions());
     }, 120_000);
 
+    it("needs the LiTT access migration: upstream's uuid-lookup project_access_role alone leaks the matter", () => {
+        sql(read("migrations/20261101_03_member_lookup_by_uuid.sql"));
+        expect(sqlError(assertions())).toMatch(/owner: project_access_role/);
+        // Filename order on an existing database: upstream's file, then LiTT's.
+        sql(read("migrations/20261101_50_litt_project_access_private_matter.sql"));
+        sql(assertions());
+    }, 120_000);
+
     it("needs the LiTT departure migration: upstream's rewrite alone hands a matter project to departure", () => {
-        sql(read("migrations/20261030_04_forward_document_references.sql"));
+        sql(read("migrations/20261101_08_departure_reverse_references.sql"));
         expect(sqlError(assertions())).toMatch(/org_members_departure_items: matter project stays with the matter team/);
         // Filename order on an existing database: upstream's file, then LiTT's.
-        sql(read("migrations/20261030_51_litt_departure_private_matter.sql"));
-        sql(read("migrations/20261030_51_litt_departure_private_matter.sql"));
+        sql(read("migrations/20261101_51_litt_departure_private_matter.sql"));
+        sql(read("migrations/20261101_51_litt_departure_private_matter.sql"));
         sql(assertions());
     }, 120_000);
 

@@ -12,10 +12,16 @@
 --   org_private_access_role, org_private_document_access,
 --   organization_audit_events and org_members_departure_items (C2 point 3).
 --
+-- Cycle 4 (20261101_*) redefines project_access_role (S2), the list
+-- candidates (S3), private document access (S5), the audit page (S6), the
+-- overview counts (S7), document text search (S10) and the departure items
+-- (S11, S4b); the same assertions cover them.
+--
+-- performance.litt-private-matters-controls.sql (in CI) and
 -- backend/src/__tests__/integration/littPrivateMatterLists.postgres.test.ts
--- also runs this file with the guard switched off and with upstream's
--- 20261030_04 alone, and expects it to fail: the assertions depend on LiTT's
--- guard, not on fixture luck.
+-- (local, opt-in) swap each guard for upstream's text or switch it off and
+-- expect the matter to leak: the assertions depend on LiTT's guards, not on
+-- fixture luck.
 begin;
 create temporary table litt_matter_actors(label text primary key, uid uuid, email text, on_team boolean);
 do $$
@@ -157,6 +163,33 @@ begin
   assert exists(select 1 from public.org_members_departure_items(org,array[creator])
     where kind='project' and item_id=current_setting('litt.plain_project')::uuid),
     'org_members_departure_items: positive control';
+end;
+$$;
+-- Open product question (ledger, cycle 4, W2): a matter whose project has
+-- visibility='private'. Only the project's creator reaches it; a matter
+-- teammate who is not the creator gets project_access_role = null and does
+-- not list it, like the organization owner. That is the behaviour LiTT has
+-- had since 20261023_10 (stricter than the organization-visible form above,
+-- not a leak). It is pinned here so a change is deliberate.
+do $$
+declare
+  org uuid := current_setting('litt.org')::uuid;
+  creator uuid := current_setting('litt.creator')::uuid;
+  pm uuid := gen_random_uuid(); ws uuid; matter uuid; a record;
+begin
+  select id into ws from public.workspaces where organization_id=org limit 1;
+  insert into public.projects(id,user_id,org_id,name,visibility) values(pm,creator,org,'Private-visibility matter','private');
+  insert into public.matters(workspace_id,project_id,name,visibility)
+    values(ws,pm,'Private matter, private project','private') returning id into matter;
+  insert into public.matter_memberships(matter_id,user_id,role)
+    select matter,uid,case when label='creator' then 'matter_owner' else 'editor' end
+    from litt_matter_actors where on_team;
+  for a in select * from litt_matter_actors loop
+    assert (public.project_access_role(pm,creator,org,a.uid::text,a.email) is not null) = (a.label='creator'),
+      format('%s: private-visibility matter project_access_role', a.label);
+    assert exists(select 1 from public.project_list_access(a.uid::text,a.email,null) where project_id=pm) = (a.label='creator'),
+      format('%s: private-visibility matter project_list_access', a.label);
+  end loop;
 end;
 $$;
 rollback;
