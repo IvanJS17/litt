@@ -71,6 +71,8 @@ vi.mock("../../lib/access", async (importOriginal) => ({
     listAccessibleProjectIds: vi.fn(async () => []),
     getOrgRole: vi.fn(async () => null),
     resolveContentOrgId: vi.fn(async () => null),
+    // LiTT C2 backstop: nothing denied unless a test says so.
+    loadPrivateMatterDeniedProjectIds: vi.fn(async () => new Set<string>()),
 }));
 
 vi.mock("../../lib/documentVersions", () => ({
@@ -82,6 +84,7 @@ vi.mock("../../lib/documentVersions", () => ({
 
 import { app } from "../../app";
 import { createServerSupabase } from "../../lib/supabase";
+import { loadPrivateMatterDeniedProjectIds } from "../../lib/access";
 
 const AUTH = ["Authorization", "Bearer test"] as const;
 
@@ -201,6 +204,24 @@ describe("GET /projects?view=directory-search", () => {
         }));
         expect(handle.from).not.toHaveBeenCalledWith("project_org_access_overrides");
         expect(handle.from).not.toHaveBeenCalledWith("projects");
+    });
+
+    // LiTT C2: a private matter outside the caller's team never reaches the
+    // picker, even if the RPC page carried it; an unanswered guard is a 500.
+    it("drops a private matter the caller is not on", async () => {
+        vi.mocked(loadPrivateMatterDeniedProjectIds).mockResolvedValueOnce(new Set(["p-firm"]));
+        useDb(directorySearchDb({ pages: { all: [CREATED_ORG_PROJECT] } }));
+        const res = await search();
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual([]);
+    });
+
+    it("fails closed when the private-matter guard cannot answer", async () => {
+        vi.mocked(loadPrivateMatterDeniedProjectIds).mockRejectedValueOnce(new Error("unavailable"));
+        useDb(directorySearchDb({ pages: { all: [CREATED_ORG_PROJECT] } }));
+        const res = await search();
+        expect(res.status).toBe(500);
+        expect(JSON.stringify(res.body)).not.toContain("Matter Firm");
     });
 
     describe("narrowed to a workspace", () => {
