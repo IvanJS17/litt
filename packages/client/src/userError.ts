@@ -12,7 +12,8 @@
  * framework-free and must not import from an application (`frontend/src/app/` or `word-addin/src/`).
  */
 
-export const SUPPORT_EMAIL = "will@mikeoss.com";
+// LiTT support. Upstream wrote to its own maintainer; userError.test.ts guards it.
+export const SUPPORT_EMAIL = "soporte@asteroitt.com";
 
 export type UserErrorKind =
     | "offline"
