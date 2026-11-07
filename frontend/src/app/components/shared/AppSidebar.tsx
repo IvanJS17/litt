@@ -62,6 +62,10 @@ import type { Project } from "@/app/components/shared/types";
 import { cn } from "@/app/lib/utils";
 import { useAssistantHistoryStatuses } from "@/app/hooks/useAssistantHistoryStatuses";
 import { useSidebarHistory } from "@/app/hooks/useSidebarHistory";
+import {
+    scrollFadeMaskStyle,
+    useScrollEdges,
+} from "@/app/hooks/useScrollEdges";
 import { useTabularHistoryStatuses } from "@/app/hooks/useTabularHistoryStatuses";
 import { usePlaybookRunHistoryStatuses } from "@/app/hooks/usePlaybookRunHistoryStatuses";
 import { useViewedPlaybookRun } from "@/app/lib/playbookRunActivity";
@@ -91,9 +95,10 @@ const NAV_ITEMS = [
 ];
 
 const RECENT_PROJECT_PAGE_SIZE = 10;
-const RECENT_PROJECT_LIST_HEIGHT_CLASS = "h-44";
+// A cap, not a height: a short list gives the rest of the column to History.
+const RECENT_PROJECT_LIST_HEIGHT_CLASS = "max-h-44";
 // Room for an expanded project's recent chats and reviews.
-const RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS = "h-64";
+const RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS = "max-h-64";
 const recentProjectsCache = new Map<
     string,
     { projects: Project[]; hasMore: boolean }
@@ -433,7 +438,10 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         [loadMoreRecentProjects],
     );
 
+    // History scrolls on its own; its ends fade where more rows are hidden.
+    const historyScroll = useScrollEdges<HTMLDivElement>("y");
     const handleHistoryScroll = (event: UIEvent<HTMLDivElement>) => {
+        historyScroll.onScroll();
         if (isNearScrollEnd(event.currentTarget)) void history.loadMore();
     };
 
@@ -633,7 +641,11 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     </div>
 
                     {isOpen && (
-                        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+                        <div className="mt-4 flex flex-1 flex-col gap-4">
+                            {/* No min-h-0 here or on History: their content
+                                minimum keeps History's rows from collapsing
+                                under the account button; when the window is
+                                shorter than that, the whole column scrolls. */}
                             {/* Recent Projects */}
                             <div>
                                 <button
@@ -655,7 +667,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                             anyRecentProjectExpanded
                                                 ? RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS
                                                 : RECENT_PROJECT_LIST_HEIGHT_CLASS,
-                                            "overflow-y-auto transition-[height] duration-200 motion-reduce:transition-none",
+                                            "overflow-y-auto transition-[max-height] duration-200 motion-reduce:transition-none",
                                         )}
                                         onScroll={handleRecentProjectsScroll}
                                     >
@@ -735,7 +747,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             {/* History */}
                             <div
                                 className={cn(
-                                    "flex min-h-0 flex-col",
+                                    "flex flex-col",
                                     !historyCollapsed && "flex-1",
                                 )}
                             >
@@ -756,13 +768,20 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     />
                                 </button>
                                 <div
+                                    ref={historyScroll.ref}
                                     id="sidebar-history"
                                     role="region"
                                     aria-label="History"
+                                    // Room for three rows before the column
+                                    // scrolls as a whole, so History never
+                                    // shrinks under the account button.
                                     className={cn(
-                                        "min-h-0 flex-1 overflow-y-auto",
+                                        "min-h-28 flex-1 overflow-y-auto pb-1",
                                         historyCollapsed && "hidden",
                                     )}
+                                    style={scrollFadeMaskStyle(historyScroll.edges)}
+                                    data-scroll-start={historyScroll.edges.start || undefined}
+                                    data-scroll-end={historyScroll.edges.end || undefined}
                                     onScroll={handleHistoryScroll}
                                 >
                                     {history.loading ? (
