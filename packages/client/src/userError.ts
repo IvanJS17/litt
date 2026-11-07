@@ -246,6 +246,12 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     playbook_model_empty: "validation",
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
+    // Proposed changes are for a draft copy, never for a ready playbook.
+    playbook_not_draft: "validation",
+    // The copy is read-only while its proposed changes are computed, and a
+    // change decided by another click or editor is decided: reloading helps.
+    playbook_proposals_running: "conflict",
+    playbook_change_decided: "conflict",
     // Ours, not theirs
     internal_error: "server",
     upstream_unavailable: "unavailable",

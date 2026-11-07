@@ -200,3 +200,46 @@ export type PlaybookDraftWork = {
   route: ChatRoute;
   authorization: AuthorizationStamp | null;
 };
+/**
+ * LiTT: changes proposed for a copy (POST /playbooks/:id/proposals), run by
+ * the same playbook.draft job as a draft and told apart by `kind`. It names
+ * the copy as `playbookId` and never carries `newPlaybookId`: a failed
+ * proposal leaves the copy where it was.
+ */
+export type PlaybookProposalWork = {
+  kind: "proposal";
+  attemptId: string;
+  userId: string;
+  userEmail: string | null;
+  model: string;
+  orgId: string | null;
+  playbookId: string;
+  /** The copy's updated_at when the proposals were asked for. */
+  targetUpdatedAt: string;
+  /** One per attachment, in order, so a re-run stores each source once. */
+  sourceIds: string[];
+  stagedKeys: string[];
+  startedAt: string;
+  route: ChatRoute;
+  authorization: AuthorizationStamp | null;
+};
+/** LiTT: one change proposed for a copy, as GET /playbooks/:id/changes returns it. */
+export type PlaybookChange = {
+  id: string;
+  playbookId: string;
+  importId: string | null;
+  op: "add_rule" | "modify_rule" | "remove_rule";
+  ruleId: string;
+  /** Where add_rule puts the rule; null for the rules outside topics. */
+  topicId: string | null;
+  /** The rule when the change was proposed; null for add_rule. */
+  before: PlaybookContent["rules"][number] | null;
+  /** The rule the change leaves; null for remove_rule. */
+  after: PlaybookContent["rules"][number] | null;
+  changedFields: string[];
+  rationale: string;
+  status: "pending" | "accepted" | "rejected";
+  decidedBy: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+};
