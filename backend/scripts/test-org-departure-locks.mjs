@@ -100,5 +100,5 @@ try {
   console.log("Departure locks: unrelated roots stay unlocked; affected roots, grants and concurrent JSON references retain lifecycle protection.");
 } finally {
   if (held) { held.end("rollback;"); await held.done.catch(() => {}); }
-  await query(`delete from documents where org_id='${org}'; delete from tabular_reviews where org_id='${org}'; delete from chats where org_id='${org}'; delete from projects where org_id='${org}'; delete from organizations where id='${org}'; delete from auth.users where id in (${[owner,departing,second,remaining,third,fourth,fifth].map(id => `'${id}'`).join(",")});`);
+  await query(`delete from documents where org_id='${org}'; delete from tabular_reviews where org_id='${org}'; delete from chats where org_id='${org}'; delete from projects where org_id='${org}'; alter table organizations disable trigger organizations_no_team_delete; delete from organizations where id='${org}'; alter table organizations enable trigger organizations_no_team_delete; delete from auth.users where id in (${[owner,departing,second,remaining,third,fourth,fifth].map(id => `'${id}'`).join(",")});`);
 }
