@@ -1442,3 +1442,60 @@ still sorts people by their current profile.
 
 No Dependabot pull request is covered by this range. The open ones stay for
 the dependency cycle (9 of 10).
+
+## 25. Cycle 2026-11-07, 6 of 10
+
+Pin `74aad3019efa903a8fb89ec9c07617b2ab61126a` (2026-11-04), the merge of
+upstream #786. The range `d0a7ca75..74aad301` has 8 commits, one of them the
+merge, and 10 files (+390/−23). Nothing after the pin is integrated.
+
+### 25.1 Classification
+
+| Group | Commits | Disposition |
+|---|---|---|
+| Worker: PDF header check before anything is written (`%PDF-` anywhere in the first 1 KiB, as ISO 32000 Annex H and pdf.js allow; when the search misses, `countPdfPages` decides), terminal file code `invalid_pdf_file`, not reported as a fault | `ceedace6` `52d2f41e` `d7f9afae` | adopt |
+| Web: a refused file is named with the reason, classified as the user's to fix, left out of Retry (`uploadOutcomeNeedsRetry`) in the documents table and workflow assets; a single refused file shown verbatim as a validation failure | `51c821d8` `cd546b8f` `8e4e9772` `35929c0e` | adopt |
+| Merge of #786 | `74aad301` | adopt |
+
+The only merge conflict is the comment of the missing-LibreOffice test in
+`uploads.processing.test.ts`: LiTT keeps its comment without upstream's Sentry
+issue id, and takes upstream's new byte stream for that test.
+
+One LiTT commit adapts upstream's seven "accepts a PDF preceded by …" cases:
+LiTT's `processCreatedDocument` reads the document's organization before the
+update (pasante seal), so their fake database queues that empty read first,
+as the other create tests in the file do. No product code changes.
+
+### 25.2 LiTT checks
+
+- **Error classification.** `invalid_pdf_file` is a per-file outcome code read
+  from the upload file row, like `document_deleted` and `document_changed`; it
+  is not a response `code`, so it does not belong in `CODE_KINDS` and the
+  drift test is unchanged. The refusal reaches the user through
+  `describeError`/`notifyError`: a single file through `UploadBatchError`
+  with `userVisible`, `kind: "validation"` and `retryable: false`, which
+  LiTT's classifier honours; a batch through `notifyPartialFailure` with no
+  fault to report (`USER_SIDE_UPLOAD_CODES`). The copy names the file and
+  says it is not a valid PDF; it does not name the product.
+- **Telemetry.** The worker skips `reportError` for the refusal; in LiTT that
+  is the local redacting logger. No Sentry, desktop or CourtListener path is
+  added.
+- **Training and copies.** The check runs in `processUploadFile` before every
+  purpose, so it only adds a refusal. It does not touch the pasante seal of
+  new documents and versions (the `pasante seal` tests in the same file still
+  pass), the training lock of layer 1b or the `org_id` rule for copies.
+  `processUploadFile` is the only ingress that writes uploaded bytes.
+- **Word add-in.** It shares `uploadSessionClient.ts`; its typecheck passes
+  with the new optional fields of `UploadBatchError`.
+
+### 25.3 Owner-visible changes
+
+A file named `.pdf` that is not a PDF (a renamed text file, a ZIP, an empty or
+truncated file) is refused when it is uploaded. LiTT names the file, says it
+is not a valid PDF and does not offer Retry for it. A real PDF with a few
+bytes before its header is still accepted.
+
+### 25.4 Dependabot
+
+No Dependabot pull request is covered by this range. The open ones stay for
+the dependency cycle (9 of 10).
