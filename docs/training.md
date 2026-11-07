@@ -165,7 +165,9 @@ server-side transcript: the attempt is still required but no note is kept.
 `GET /training-notes/chats/:chatId` (optionally `?message_id=`) returns
 `{ notes }` for a chat of any surface. Only the author and the author's
 **current** mentor (`training_pupils`) can read a note; owners, admins, other
-participants of the chat and a previous mentor cannot. Any other case, and any
+participants of the chat and a previous mentor cannot. The mentor reads the
+notes of a chat inside a matter only while they can open that matter's project
+(`checkProjectAccess`), as with the layer-2 reviews. Any other case, and any
 chat without readable notes, is the same `404`. Notes are deleted with the
 membership, with the chat, and with the account.
 
@@ -323,7 +325,8 @@ urgency passes. When a mentor's account goes, the ids of what they did
 become null and the pupil's rows stay. Audit events stay (insert-only).
 
 `GET /training/me/supervision?org_id=` returns what the caller's mentor keeps
-about them there (empty lists until the layer-2 features land). A defense's
+about them there (their work reviews; defenses and passes as those features
+land). A defense's
 questions reach the pupil once its outcome is recorded, here and in the
 account export (`training.work_reviews`, `training.defenses`,
 `training.urgency_passes`).
@@ -333,3 +336,47 @@ The rule's role matrix, deletion and a generic check of every
 `backend/src/__tests__/sql/performance.litt-training-supervision.sql` (CI,
 schema-drift workflow) and `trainingSupervision.postgres.test.ts` (local, with
 `MIKE_TEST_POSTGRES_CONTAINER`).
+
+### The two-minute review
+
+A **work** is one chat of the pupil with turn notes, on any surface. Its
+review has four lists, each line with its `source`:
+
+| List | Source | Model? |
+|---|---|---|
+| `proposed` | the pupil's attempts, as written (`attempt`) | no |
+| `ai_corrected` | the contrasts' «No coincide» and «Faltó», put in order (`contrast`) | yes |
+| `doubts` | inferred from the counted signals and doubt in the attempts (`inferred`) | yes |
+| `unverified` | citations the server did not verify (`citation`), the pupil's sealed drafts from that chat still without an approval for their bytes (`version`), and the contrasts' «Faltó» (`contrast`) | no |
+
+The model sees only the attempts, the contrasts and the counts
+(`signals`), never the transcript or a document's text, each in a block fenced
+with a per-call nonce (`lib/promptFence.ts`); it must answer strict JSON
+(`lib/trainingSupervisionAi.ts`), or the review is `failed`.
+
+| Route | Who |
+|---|---|
+| `GET /orgs/:orgId/training/pupils/:userId/works` | the current mentor: the pupil's works, newest activity first, with their review and `has_new_work`; `works_without_access` counts the works in matters the mentor cannot open, which are not listed; `generation` says whether the mentor can generate and on which keys |
+| `POST …/works/:surface/:chatId/review` | the current mentor: generate or regenerate (`{ credential_ref? }`); `surface` is `chat`, `word` or `tabular` |
+| `PUT …/works/:surface/:chatId/review/reviewed` | the current mentor, on a `ready` review |
+
+The pupil gets the same `404` on these; they read their reviews through
+`/training/me/supervision`.
+
+**Model.** A review runs on the **mentor's** route, never the pupil's
+conversation route: the mentor's selected model on the key they choose (or
+their default key), pinned with `pinChatRoute` and stored on the row. A
+regeneration reuses that route; when it no longer serves the caller (another
+mentor, a rotated key) the answer is `409 chat_route_credential_unavailable`
+and no other model or key is tried. A mentor with no usable key is not offered
+generation (`generation.available: false`) and a request answers
+`400 training_review_key_required`. `llm.egress` (`surface:
+"training_supervision"`) is recorded before the text is sent.
+
+**States.** `pending` while the call runs (a second request gets
+`409 training_review_in_progress`; a row pending for over ten minutes reads as
+`failed` and can be generated again), then `ready` or `failed`. The lists are
+filled, and returned, only when `ready`. Regenerating clears «reviewed»: the
+mentor marks the new review again. The audit gets
+`training.work_review_generated` and `training.work_review_marked` with the
+chat id and `{ org_id, target_user_id }` only.
