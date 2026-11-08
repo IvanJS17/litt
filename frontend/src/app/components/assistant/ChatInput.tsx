@@ -87,6 +87,15 @@ import {
     useChatCredentialChoice,
 } from "./ChatCredentialPicker";
 
+/** What a composer holds before it is sent. */
+export interface ComposerDraft {
+    value: string;
+    attachedDocs: Document[];
+}
+
+/** Drafts by chat, owned by a parent that outlives the composer. */
+export type ComposerDraftStore = Map<string, ComposerDraft>;
+
 export interface ChatInputHandle {
     addDoc: (doc: Document) => void;
     addFiles: (files: File[]) => void;
@@ -144,6 +153,12 @@ interface Props {
     chatReasoningLevel?: ReasoningLevel | null;
     chatKey?: string | null;
     /**
+     * Keeps the unsent text and attachments when the composer unmounts and
+     * restores them when the same chat's composer mounts again (a side chat
+     * closed because it no longer fits).
+     */
+    draftStore?: ComposerDraftStore;
+    /**
      * LiTT: whether a new conversation offers the key picker. Review chats
      * run on the server's default key for their review and do not.
      */
@@ -199,6 +214,7 @@ function ChatInputForChatImpl(
         chatModel,
         chatReasoningLevel,
         chatKey,
+        draftStore,
         offerCredentialChoice = true,
         trainingTurns = false,
     }: Props,
@@ -210,8 +226,24 @@ function ChatInputForChatImpl(
     // Sending needs both a grant and a loaded thread; the placeholder below
     // names whichever one is missing.
     const composerOpen = canSend === true && !chatLoading;
-    const [value, setValue] = useState("");
-    const [attachedDocs, setAttachedDocs] = useState<Document[]>([]);
+    const draftKey = chatKey ?? "new-chat";
+    const [restoredDraft] = useState(() => draftStore?.get(draftKey));
+    const [value, setValue] = useState(restoredDraft?.value ?? "");
+    const [attachedDocs, setAttachedDocs] = useState<Document[]>(
+        restoredDraft?.attachedDocs ?? [],
+    );
+    const latestDraft = useRef<ComposerDraft>({ value, attachedDocs });
+    latestDraft.current = { value, attachedDocs };
+    useEffect(
+        () => () => {
+            const draft = latestDraft.current;
+            if (!draftStore) return;
+            if (draft.value.trim() === "" && draft.attachedDocs.length === 0)
+                draftStore.delete(draftKey);
+            else draftStore.set(draftKey, draft);
+        },
+        [draftStore, draftKey],
+    );
     const [excerpts, setExcerpts] = useState<MessageExcerpt[]>([]);
     const [openExcerpt, setOpenExcerpt] = useState<MessageExcerpt | null>(
         null,

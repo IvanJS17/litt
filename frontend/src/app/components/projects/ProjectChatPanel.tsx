@@ -43,6 +43,7 @@ import { createProjectMutationSignature } from "./projectMutationSignature";
 import {
     ChatInput,
     type ChatInputHandle,
+    type ComposerDraftStore,
 } from "@/app/components/assistant/ChatInput";
 import { ChatInputPrompt } from "@/app/components/assistant/ChatInputPrompt";
 import { ResponseSelectionMenuUI } from "@mike/ui";
@@ -124,6 +125,8 @@ interface Props {
      * place rather than leaving the workspace.
      */
     isSideChat?: boolean;
+    /** Unsent composer text by chat, kept while this panel is closed. */
+    draftStore?: ComposerDraftStore;
     /** Width beside the other panels; a phone shows the panel full width. */
     width: number;
     /** Corner rounding, which depends on where the panel sits in the row. */
@@ -189,6 +192,7 @@ export function ProjectChatPanel({
     adoptChat,
     claimCreated,
     isSideChat = false,
+    draftStore,
     width,
     roundedClassName,
     className,
@@ -954,6 +958,7 @@ export function ProjectChatPanel({
                                     onCancel={cancel}
                                     isLoading={isResponseLoading}
                                     chatKey={activeChatId}
+                                    draftStore={draftStore}
                                     chatModel={chatModel}
                                     chatReasoningLevel={chatReasoningLevel}
                                     canSend={canSendChat}

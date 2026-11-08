@@ -62,6 +62,7 @@ import {
     ProjectChatPanel,
     type ProjectChatPanelHandle,
 } from "@/app/components/projects/ProjectChatPanel";
+import type { ComposerDraftStore } from "@/app/components/assistant/ChatInput";
 import { useProjectPicker } from "@/app/hooks/useProjectPicker";
 import {
     isExternalFileDrag,
@@ -270,6 +271,9 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     // reader last used.
     const primaryChatPanelRef = useRef<ProjectChatPanelHandle>(null);
     const sideChatPanelRef = useRef<ProjectChatPanelHandle>(null);
+    // The side chat unmounts when it is closed, including when it stops
+    // fitting; this keeps what was typed in it.
+    const sideChatDrafts = useRef<ComposerDraftStore>(new Map());
     // A ref, not state: it is set as a press begins, and a render between the
     // press and its click would replace the control being clicked (a citation
     // pill) and lose the click.
@@ -1855,7 +1859,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
             {sideChatId !== null && (
                 <>
                     {/* A second chat needs the room; with one panel at a time
-                        it stays open off screen until the room returns. */}
+                        it is closed (`sideChatOutgrown`), and its unsent
+                        text is kept in `sideChatDrafts` for when it reopens. */}
                     <Divider
                         onDrag={onChatSplitDividerDrag}
                         className={cn("max-md:hidden", singleView && "hidden")}
@@ -1864,6 +1869,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         {...chatPanelProps}
                         ref={sideChatPanelRef}
                         isSideChat
+                        draftStore={sideChatDrafts.current}
                         incomingExcerpt={sideChatExcerpt}
                         onIncomingExcerptAdded={clearSideChatExcerpt}
                         chatId={sideChatId}
