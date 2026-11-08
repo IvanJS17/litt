@@ -97,9 +97,11 @@ export type TrainingTurnOutcome = {
      * Writes the llm.egress of a call the hook is about to make with this
      * route: same provider, model, credential and host as the turn's own,
      * recorded before any text is sent. A hook that calls a model awaits it
-     * first and makes no call if it fails.
+     * first and makes no call if it fails. The label (llm.egress surface) is
+     * the hook's own: `training_contrast` for the criteria comparison; without
+     * one, `training_backing`.
      */
-    recordEgress: () => Promise<void>;
+    recordEgress: (surface?: "training_backing" | "training_contrast") => Promise<void>;
 };
 
 /**

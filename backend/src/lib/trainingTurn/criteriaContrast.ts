@@ -364,7 +364,7 @@ export const criteriaExplainHook: AfterTurnHook = async ({ plan, completed, outc
     try {
         if (!outcome.answer.trim()) throw new Error("no explanation to compare with");
         // The llm.egress comes first: if it cannot be written, no text is sent.
-        await outcome.recordEgress();
+        await outcome.recordEgress("training_contrast");
         const text = await completeText({
             model: outcome.model,
             systemPrompt: COMPARISON_SYSTEM_PROMPT,

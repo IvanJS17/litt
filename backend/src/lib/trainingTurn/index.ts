@@ -35,6 +35,7 @@ import type {
     TrainingEnginePlan,
     TrainingSurface,
     TrainingTurnFailure,
+    TrainingTurnOutcome,
     TrainingTurnPlan,
 } from "./types";
 
@@ -227,7 +228,7 @@ export function finishTrainingTurn(
             chatId: string;
             messageId: string | null | undefined;
             /** See TrainingTurnOutcome.recordEgress; the route of the turn. */
-            recordEgress: () => Promise<void>;
+            recordEgress: TrainingTurnOutcome["recordEgress"];
         };
     },
 ): void {

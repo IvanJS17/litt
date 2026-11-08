@@ -1300,6 +1300,12 @@ accountability call (Accountability mode) is not made for these two turns.
   subagents, or with the assignment not decided, the turn fails closed before
   any model call.
 
+**Egress of the comparison.** The comparison of the two explanations is a second
+model call on the conversation's own route. It writes its own `llm.egress` with
+`surface: training_contrast` (not `training_backing`) before the call, and makes
+no call if that record cannot be written. The label is free text in
+`audit_events.surface`: no enum, list or database check, so it needs no migration.
+
 **Data.** `training_criteria_contrasts` (migration
 `20261108_82_litt_training_criterion_contrasts.sql`), one row per contrast:
 `routes` (name, approach, provider, model and status of each analysis:

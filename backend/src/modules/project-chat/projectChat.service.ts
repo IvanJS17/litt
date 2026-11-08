@@ -169,7 +169,7 @@ export type PreparedProjectChatStream = {
     /** The turn's training plan; null when the turn has no new user message. */
     trainingPlan: TrainingTurnPlan | null;
     /** The llm.egress of the second call a training hook makes with the turn's own route. */
-    trainingEgress: () => Promise<void>;
+    trainingEgress: (surface?: "training_backing" | "training_contrast") => Promise<void>;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -474,13 +474,13 @@ export async function prepareProjectChatStream(
         surface: "project",
         resolved: governed,
     });
-    const trainingEgress = () =>
+    const trainingEgress = (surface: "training_backing" | "training_contrast" = "training_backing") =>
         recordChatEgressOrThrow(db, {
             userId,
             orgId: projectAccess.project.org_id ?? null,
             chatId,
             projectId,
-            surface: "training_backing",
+            surface,
             resolved: governed,
         });
 

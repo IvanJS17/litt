@@ -417,6 +417,8 @@ describe("the comparison after the explanation", () => {
         vi.mocked(completeText).mockImplementation(async () => (order.push("call"), SECTIONS));
         await criteriaExplainHook(t);
         expect(order).toEqual(["egress", "call"]);
+        // Its own label, not the backing check's.
+        expect(t.outcome.recordEgress).toHaveBeenCalledWith("training_contrast");
         expect(vi.mocked(completeText).mock.calls[0][0]).toMatchObject({ model: "conversation-model", apiKeys: { openai: "k" } });
         expect(tables.training_criteria_contrasts[0]).toMatchObject({ status: "explained", person_explanation: EXPLANATION, comparison: SECTIONS });
     });
