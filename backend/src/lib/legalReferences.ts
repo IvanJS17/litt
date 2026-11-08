@@ -181,6 +181,7 @@ const LAW_ALIASES: Record<string, string> = {
     lgtoc: "ley general de titulos y operaciones de credito",
     lss: "ley del seguro social",
     lfpc: "ley federal de proteccion al consumidor",
+    lfppi: "ley federal de proteccion a la propiedad industrial",
     lam: "ley de amparo",
 };
 
@@ -220,7 +221,10 @@ export function lawOfTitle(title: string | null | undefined): string | null {
 
 const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
 // Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
-const NAME_CONNECTORS = new Set(["de", "del", "la", "las", "los", "y", "e", "para", "sobre", "en", "el"]);
+const NAME_CONNECTORS = new Set([
+    "de", "del", "la", "las", "los", "el", "lo", "y", "e", "o", "u", "a", "al", "en", "para", "por", "con", "sin",
+    "sobre", "contra", "entre", "ante", "bajo", "hacia", "hasta", "desde", "mediante", "segun", "tras",
+]);
 const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alias.split(" ").length));
 
 type Token = { bare: string; ends: boolean; opens: boolean };
@@ -248,7 +252,7 @@ const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
  *    capitalized or numbers, or connectors followed by one; it stops at the
  *    first other lower-case word or at punctuation.
  *  - A lower-case name that is not a known alias has no boundary: null (the
- *    law is unverified). 
+ *    law is unverified). A name cut by the word limit while it goes on is null too.
  */
 function lawNamedAt(plain: string, cased: string): string | null {
     const lower = tokens(plain);
@@ -271,11 +275,25 @@ function lawNamedAt(plain: string, cased: string): string | null {
     const words: string[] = [];
     let index = 0;
     while (index < upper.length) {
-        if (words.length >= LAW_PHRASE_MAX_WORDS) break;
+        if (words.length >= LAW_PHRASE_MAX_WORDS) {
+            // Cut short by the limit while the name goes on: its end is unknown.
+            const previous = upper[index - 1];
+            const next = upper[index];
+            if (!previous.ends && !next.opens && (NAME_CONNECTORS.has(lower[index].bare) || isCapitalized(next.bare))) return null;
+            break;
+        }
         const token = upper[index];
         const connector = NAME_CONNECTORS.has(lower[index].bare);
         // A connector written with a capital («El») starts a sentence, not a name.
-        if ((index > 0 && token.opens) || (connector && token.bare !== lower[index].bare)) break;
+        // Except the letter «A» right after the head, which names («Ley A»).
+        const letterName = index === 1 && token.bare === "A";
+        if ((index > 0 && token.opens) || (connector && !letterName && token.bare !== lower[index].bare)) break;
+        if (letterName) {
+            words.push("a");
+            if (token.ends) break;
+            index++;
+            continue;
+        }
         if (!connector && isCapitalized(token.bare)) {
             words.push(lower[index].bare);
             if (token.ends) break;

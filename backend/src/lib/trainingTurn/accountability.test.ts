@@ -158,6 +158,17 @@ describe("references", () => {
             expect(unverifiedReferences(text, passage, "Contrato.pdf")).toEqual(["art. 5 (ley no identificada)"]);
             expect(unverifiedReferences(text, passage, "Ley A.pdf")).toEqual(["art. 5 (ley no identificada)"]);
         });
+        it("keeps «Protección al Consumidor» and «Protección a la Propiedad Industrial» apart, each backed by itself", () => {
+            const consumer = "Artículo 5 de la Ley Federal de Protección al Consumidor. Texto.";
+            const industrial = "Artículo 5 de la Ley Federal de Protección a la Propiedad Industrial. Texto.";
+            const cite = (law: string) => `Aplica el artículo 5 de la ${law}.`;
+            const lfpc = "Ley Federal de Protección al Consumidor";
+            const lfppi = "Ley Federal de Protección a la Propiedad Industrial";
+            expect(unverifiedReferences(cite(lfpc), industrial, null)).toEqual(["art. 5 (ley federal proteccion consumidor)"]);
+            expect(unverifiedReferences(cite(lfppi), consumer, null)).toEqual(["art. 5 (ley federal proteccion a propiedad industrial)"]);
+            expect(unverifiedReferences(cite(lfpc), consumer, null)).toEqual([]);
+            expect(unverifiedReferences(cite(lfppi), industrial, null)).toEqual([]);
+        });
         it("leaves an article with no identifiable law unverified, on either side", () => {
             expect(unverifiedReferences("Aplica el artículo 5.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley no identificada)"]);
             expect(unverifiedReferences("Aplica el artículo 5 de la Ley B.", passage, "contrato.docx")).toEqual(["art. 5 (ley b)"]);

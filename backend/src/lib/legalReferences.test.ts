@@ -101,7 +101,7 @@ describe("lawReferences", () => {
         });
     });
 
-    describe("a lower-case name that is no alias is unverified (B1)", () => {
+    describe("a lower-case name that is no alias is unverified; connectors complete the name (B1)", () => {
         const keys = (text: string, law: string | null = null) => [...lawReferences(text, law)];
         it("invents no identity for a lower-case name", () => {
             expect(keys("El artículo 5 de la ley exige que el patrón entregue equipo.")).toEqual(["art:5@?"]);
@@ -112,6 +112,32 @@ describe("lawReferences", () => {
         it("still recognizes a lower-case alias", () => {
             expect(keys("artículo 5 de la lft exige algo")).toEqual(["art:5@ley federal trabajo"]);
             expect(keys("artículo 123 de la constitución exige algo")).toEqual([`art:123@${normalizeLaw("CPEUM")}`]);
+            expect(keys("artículo 5 de la lfpc exige algo")).toEqual(["art:5@ley federal proteccion consumidor"]);
+        });
+        it("keeps «al», «a», «con», «por», «sin», «contra»… inside a name", () => {
+            expect(keys("artículo 5 de la Ley Federal de Protección al Consumidor")).toEqual(["art:5@ley federal proteccion consumidor"]);
+            expect(keys("artículo 5 de la Ley Federal de Protección a la Propiedad Industrial exige")).toEqual([
+                "art:5@ley federal proteccion a propiedad industrial",
+            ]);
+            expect(keys("artículo 5 de la Ley Federal contra la Delincuencia Organizada exige")).toEqual([
+                "art:5@ley federal contra delincuencia organizada",
+            ]);
+            expect(keys("artículo 5 de la Ley General de Salud Mental por Decreto exige")).toEqual(["art:5@ley general salud mental por decreto"]);
+            expect(keys("artículo 5 de la Ley de Amparo, Reglamentaria de los artículos 103 y 107")[0]).toBe("art:5@ley amparo");
+        });
+        it("gives two protection laws two identities, and the aliases match their names", () => {
+            const consumer = keys("artículo 5 de la Ley Federal de Protección al Consumidor");
+            const industrial = keys("artículo 5 de la Ley Federal de Protección a la Propiedad Industrial");
+            expect(consumer).not.toEqual(industrial);
+            expect(keys("artículo 5 de la LFPPI")).toEqual(industrial);
+            expect(keys("artículo 5 de la LFPC")).toEqual(consumer);
+        });
+        it("leaves a name cut by the word limit unverified, and a ten-word name that fits", () => {
+            expect(keys("artículo 5 de la Ley Uno Dos Tres Cuatro Cinco Seis Siete Ocho Nueve Diez Once exige")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 de la Ley Uno Dos Tres Cuatro Cinco Seis Siete Ocho Nueve exige")).toEqual([
+                "art:5@ley uno dos tres cuatro cinco seis siete ocho nueve",
+            ]);
+            expect(keys("artículo 5 de la Ley Uno Dos Tres Cuatro Cinco Seis Siete Ocho Nueve Diez exige")).toEqual(["art:5@?"]);
         });
     });
 
