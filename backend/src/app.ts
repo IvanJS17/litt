@@ -12,7 +12,11 @@ import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-full-reading/trainingFullReading.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
-import { pupilNotesRouter } from "./modules/training-criterion/trainingCriterion.routes";
+import {
+    pupilCriterionRouter,
+    pupilNotesRouter,
+    trainingCriterionRouter,
+} from "./modules/training-criterion/trainingCriterion.routes";
 import {
     pupilReviewAuditsRouter,
     reviewAuditRouter,
@@ -279,6 +283,9 @@ app.post("/orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review", c
 app.post("/orgs/:orgId/training/pupils/:userId/defenses/:defenseId/questions", chatLimiter);
 // The machine's reading of a training reading is two model calls on the person's key.
 app.post("/training/me/readings/:readingId/compare", chatLimiter);
+// A retake is one model call to make the question and one to judge the answer, on the person's key.
+app.post("/training/me/retakes", chatLimiter);
+app.put("/training/me/retakes/:retakeId/answer", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
@@ -343,6 +350,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/notes", pupilNotesRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/criterion", pupilCriterionRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
@@ -350,6 +358,7 @@ app.use("/orgs", orgsRouter);
 app.use("/training", trainingRouter);
 app.use("/training", trainingSupervisionRouter);
 app.use("/training", trainingReadingsRouter);
+app.use("/training", trainingCriterionRouter);
 app.use("/training-notes", trainingNotesRouter);
 app.use("/projects/:projectId/chat", projectChatRouter);
 app.use("/single-documents", documentsRouter);

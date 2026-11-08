@@ -881,6 +881,8 @@ export interface TrainingRetakeStartBody {
 /** PUT /training/me/retakes/:id/answer */
 export interface TrainingRetakeAnswerBody {
   answer: string;
+  /** Only to judge the answer on another of the person's keys than the one the retake was made on. */
+  credential_ref?: string;
 }
 // --- Training layer 3, card 4 (end) ---
 

@@ -42,7 +42,7 @@ describe("namesUnlistedReference", () => {
                 throw new Error("unreadable");
             },
         }));
-        const { namesUnlistedReference: failing } = await import("./trainingRetake");
+        const { namesUnlistedReference: failing } = await import("./trainingRetake.js");
         expect(failing("¿Qué dice el artículo 165?", ["artículo 165"])).toBe(true);
         vi.doUnmock("./legalReferences");
         vi.resetModules();
