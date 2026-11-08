@@ -1,5 +1,7 @@
 "use client";
 
+import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { nextRevealLength } from "./tabularReveal";
 
 import { useMarkdownCheckpoint } from "../assistant/message/markdownCheckpoint";
@@ -699,6 +701,12 @@ export function TRChatPanel({
         messages,
         useTrainingTurnNotes(currentChatId, isLoading, getTrainingTurnNotes),
     );
+    // LiTT training: a junior's conclusions and their sources, under each answer.
+    const trainingBacking = useWebTrainingBacking({
+        chatId: currentChatId,
+        projectId,
+        isResponseLoading: isLoading,
+    });
     const hasMessages = messages.length > 0;
     const userMessageCount = messages.filter(
         (message) => message.role === "user",
@@ -2057,6 +2065,13 @@ export function TRChatPanel({
                                     trainingNote={trainingNotes.get(i)}
                                     onCitationClick={onCitationClick}
                                 />
+                                {msg.role === "assistant" && (
+                                    <BackingSlot
+                                        backing={trainingBacking}
+                                        messageId={msg.id}
+                                        className="mt-2 w-full max-w-[90%]"
+                                    />
+                                )}
                             </div>
                         ))}
                     </div>

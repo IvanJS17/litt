@@ -13,6 +13,8 @@ import { ChatInput } from "./ChatInput";
 import type { ChatInputHandle } from "./ChatInput";
 import { InitialView } from "./InitialView";
 import { UserMessage } from "./UserMessage";
+import { BackingSlot } from "./BackingPanel";
+import type { WordTrainingBacking } from "../../hooks/useWordTrainingBacking";
 import { ResponseSelectionMenuUI } from "@mike/ui";
 import type {
     EditDecision,
@@ -47,6 +49,8 @@ interface ChatViewProps
     sessionKey: number;
     /** LiTT training: private notes by message index. */
     trainingNotes?: ReadonlyMap<number, TrainingNoteView>;
+    /** LiTT training: a junior's accountability checks, by assistant message id. */
+    trainingBacking?: WordTrainingBacking;
     chatModel?: string | null;
     lastSelectedModel?: string | null;
     chatReasoningLevel?: ReasoningLevel | null;
@@ -147,6 +151,7 @@ function animateScrollTo(
 export function ChatView({
     sessionKey,
     trainingNotes,
+    trainingBacking,
     chatModel,
     lastSelectedModel,
     chatReasoningLevel,
@@ -772,8 +777,8 @@ export function ChatView({
                             );
                         }
                         return (
+                            <React.Fragment key={`assistant-${messages[index - 1]?.id ?? index}`}>
                             <AssistantMessage
-                                key={`assistant-${messages[index - 1]?.id ?? index}`}
                                 message={message}
                                 isStreaming={
                                     index === messages.length - 1 &&
@@ -792,6 +797,8 @@ export function ChatView({
                                 onAcceptAndApplyEdit={handleAcceptAndApplyEdit}
                                 onLocateCitation={handleLocateCitation}
                             />
+                                <BackingSlot backing={trainingBacking} messageId={message.id} />
+                            </React.Fragment>
                         );
                     })}
                     {/* WebKit excludes flex end padding from scrollHeight, so
