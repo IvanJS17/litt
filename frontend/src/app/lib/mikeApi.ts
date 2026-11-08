@@ -2228,10 +2228,13 @@ export type {
 export async function getTrainingStage(scope: {
     orgId?: string | null;
     projectId?: string | null;
+    /** The chat the turn would continue: the server counts the hint ladder from its notes. */
+    chatId?: string | null;
 }): Promise<import("@mike/contracts").TrainingEffectiveStage> {
     const query = new URLSearchParams();
     if (scope.orgId) query.set("org_id", scope.orgId);
     if (scope.projectId) query.set("project_id", scope.projectId);
+    if (scope.chatId) query.set("chat_id", scope.chatId);
     return apiRequest<import("@mike/contracts").TrainingEffectiveStage>(
         "training.read",
         `/training/stage?${query}`,
@@ -3900,6 +3903,8 @@ export async function streamChat(payload: {
     attempt?: string;
     /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
     confidence?: import("@mike/contracts").TrainingConfidenceLevel;
+    /** LiTT training: ask for a hint or a round with the counterparty's lawyer; the server picks the rung. */
+    training_mode?: import("@mike/contracts").TrainingTurnMode;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { signal, ...body } = payload;
@@ -3936,6 +3941,8 @@ export async function streamProjectChat(payload: {
     attempt?: string;
     /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
     confidence?: import("@mike/contracts").TrainingConfidenceLevel;
+    /** LiTT training: ask for a hint or a round with the counterparty's lawyer; the server picks the rung. */
+    training_mode?: import("@mike/contracts").TrainingTurnMode;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { projectId, signal, ...body } = payload;
@@ -4230,6 +4237,8 @@ export async function streamTabularChat(
     attempt?: string,
     /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
     confidence?: import("@mike/contracts").TrainingConfidenceLevel,
+    /** LiTT training: a hint or a counterparty round; the server picks the rung. */
+    trainingMode?: import("@mike/contracts").TrainingTurnMode,
 ): Promise<Response> {
     return apiFetch(`${API_BASE}/tabular-review/${reviewId}/chat`, {
         method: "POST",
@@ -4243,6 +4252,7 @@ export async function streamTabularChat(
             reasoning,
             attempt,
             confidence,
+            training_mode: trainingMode,
             time_zone: browserTimeZone(),
         }),
         signal: signal ?? undefined,

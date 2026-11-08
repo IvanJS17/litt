@@ -61,6 +61,33 @@ describe("matchTrainingNotes", () => {
         expect(matched.has(3)).toBe(false);
     });
 
+    it("tells a hint from the full answer asked with the same approach, by mode", () => {
+        const withMode = (n: TrainingTurnNote, mode: TrainingTurnNote["mode"]) => ({ ...n, mode });
+        const matched = matchTrainingNotes(
+            [
+                { role: "user", attempt: "x", training_mode: "hint" },
+                { role: "user", attempt: "x", training_mode: "counterpart" },
+                { role: "user", attempt: "x" },
+            ],
+            [
+                withMode(note("n3", "m3", "ready", undefined, "x"), null),
+                withMode(note("n1", "m1", "skipped", undefined, "x"), "hint"),
+                withMode(note("n2", "m2", "skipped", undefined, "x"), "counterpart"),
+            ],
+        );
+        expect(matched.get(0)?.id).toBe("n1");
+        expect(matched.get(1)?.id).toBe("n2");
+        expect(matched.get(2)?.id).toBe("n3");
+    });
+
+    it("does not give a hint the note of a full answer that has the same approach", () => {
+        const matched = matchTrainingNotes(
+            [{ role: "user", attempt: "x", training_mode: "hint" }],
+            [note("n1", "m1", "ready", undefined, "x")],
+        );
+        expect(matched.size).toBe(0);
+    });
+
     it("treats a just-sent message with a client id (Word) as just sent", () => {
         const matched = matchTrainingNotes(
             [

@@ -1,6 +1,7 @@
 import type {
   AssistantEvent as WireAssistantEvent,
   TrainingConfidenceLevel,
+  TrainingTurnMode,
 } from "@mike/contracts";
 // Shared TypeScript types for Mike AI legal assistant
 
@@ -350,6 +351,8 @@ export interface Message {
   attempt?: string;
   /** LiTT training: the thermometer mark (1 to 4) that goes with `attempt`. */
   confidence?: TrainingConfidenceLevel;
+  /** LiTT training: this turn is a hint or a round with the counterparty's lawyer; the server picks the rung. */
+  training_mode?: TrainingTurnMode;
   citations?: Citation[];
   citationStatus?: "started" | "partial" | "final";
   events?: AssistantEvent[];

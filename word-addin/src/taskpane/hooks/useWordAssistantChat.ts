@@ -345,6 +345,9 @@ export function useWordAssistantChat({
               workflow: submission.workflow,
               playbook: submission.playbook,
               ...(submission.attempt ? { attempt: submission.attempt } : {}),
+              ...(submission.training_mode
+                ? { training_mode: submission.training_mode }
+                : {}),
             }
           : null;
         // A resume appends to the transcript as loaded: the user turn is
@@ -854,6 +857,7 @@ export function useWordAssistantChat({
                     editApplyMode,
                     attempt: submission.attempt,
                     confidence: submission.confidence,
+                    trainingMode: submission.training_mode,
                   },
                   onStreamText,
                 );

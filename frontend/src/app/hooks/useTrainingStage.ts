@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { markTrainingStageStale, useTrainingStageStale } from "@mike/ui";
-import type { TrainingStage } from "@mike/contracts";
+import type { TrainingStage, TrainingTurnMode } from "@mike/contracts";
 import { getTrainingStage } from "@/app/lib/mikeApi";
 
 export { markTrainingStageStale };
@@ -20,6 +20,16 @@ export type TrainingTurnState = {
     urgencyPassExpiresAt: string | null;
     /** The caller's effective stage there; null for a lawyer, or while it is unknown. */
     stage?: TrainingStage | null;
+    /**
+     * Layer 3: the hints and counterparty round open now, counted by the
+     * server from the chat's notes. Empty from a server that predates them,
+     * and when no approach is owed.
+     */
+    modes: readonly TrainingTurnMode[];
+    /** The rung the next hint would be, or null when the ladder is used up. */
+    nextHintLevel: 1 | 2 | 3 | null;
+    /** The turn of the round the next counterpart turn would be, or null when it is full. */
+    counterpartNextStep: 1 | 2 | 3 | null;
 };
 
 const NOTHING_REQUIRED: TrainingTurnState = {
@@ -27,6 +37,9 @@ const NOTHING_REQUIRED: TrainingTurnState = {
     confidenceRequired: false,
     urgencyPassExpiresAt: null,
     stage: null,
+    modes: [],
+    nextHintLevel: null,
+    counterpartNextStep: null,
 };
 
 // setTimeout's ceiling; a pass lasts at most 72 hours, well below it.
@@ -35,55 +48,89 @@ const MAX_TIMER_MS = 2_147_483_647;
 /**
  * LiTT training: whether a chat turn where the composer is (an organization,
  * and a project in it) needs the caller's attempt and thermometer mark, and the urgency pass that
- * lifts it there, if any. Only tells the composer what to show; the server
- * applies the same rule to the turn itself. While it is unknown, or if it
+ * lifts it there, if any, and, with the chat the turn continues, the hints and
+ * the counterparty round open now. Only tells the composer what to show; the
+ * server applies the same rule to the turn itself. While it is unknown, or if it
  * cannot be read, the composer behaves as today and the server's 400 asks for
- * the approach if one is needed. It reads again when the pass ends and when a
- * turn was refused for a missing approach.
+ * the approach if one is needed. It reads again when the pass ends, when a
+ * turn was refused for a missing approach or a mode, and when a turn ends
+ * (`turnActive` goes from true to false): a hint moves the ladder one rung.
  */
 export function useTrainingStage({
     orgId,
     projectId,
+    chatId,
+    turnActive = false,
     enabled = true,
 }: {
     orgId?: string | null;
     projectId?: string | null;
+    /** The chat the turn would continue; the ladder is counted from its notes. */
+    chatId?: string | null;
+    /** A turn of this composer's chat is running; the stage is read again when it ends. */
+    turnActive?: boolean;
     enabled?: boolean;
 }): TrainingTurnState {
-    const [result, setResult] = useState<{ key: string; state: TrainingTurnState } | null>(null);
+    const [result, setResult] = useState<{
+        scope: string;
+        chatId: string | null;
+        state: TrainingTurnState;
+    } | null>(null);
     const [generation, setGeneration] = useState(0);
-    const key = `${orgId ?? ""}:${projectId ?? ""}`;
+    const scope = `${orgId ?? ""}:${projectId ?? ""}`;
+    const thisChat = chatId ?? null;
     const active = enabled && !!(orgId || projectId);
     const reload = useCallback(() => setGeneration((value) => value + 1), []);
 
     useEffect(() => {
         if (!active) return;
         let cancelled = false;
-        getTrainingStage({ orgId, projectId }).then(
+        getTrainingStage({ orgId, projectId, chatId }).then(
             (stage) => {
                 if (!cancelled)
                     setResult({
-                        key,
+                        scope,
+                        chatId: thisChat,
                         state: {
                             attemptRequired: stage.attempt_required,
                             confidenceRequired: stage.confidence_required === true,
                             urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
                             stage: stage.stage,
+                            modes: stage.modes ?? [],
+                            nextHintLevel: stage.next_hint_level ?? null,
+                            counterpartNextStep: stage.counterpart_next_step ?? null,
                         },
                     });
             },
             () => {
-                if (!cancelled) setResult({ key, state: NOTHING_REQUIRED });
+                if (!cancelled)
+                    setResult({ scope, chatId: thisChat, state: NOTHING_REQUIRED });
             },
         );
         return () => {
             cancelled = true;
         };
-    }, [active, key, orgId, projectId, generation]);
+    }, [active, scope, thisChat, orgId, projectId, generation]);
 
     useTrainingStageStale(reload, active);
 
-    const state = active && result?.key === key ? result.state : NOTHING_REQUIRED;
+    // A turn that just ended may have been a hint or a round turn: the server
+    // counts again from the notes it wrote.
+    const wasActive = useRef(turnActive);
+    useEffect(() => {
+        if (wasActive.current && !turnActive && active) reload();
+        wasActive.current = turnActive;
+    }, [turnActive, active, reload]);
+
+    // What «Tu turno primero» asks does not depend on the chat, so it stays on
+    // screen while the chat changes (a new chat is given its id by its first
+    // turn); the modes are counted per chat and wait for their own reading.
+    const state =
+        active && result?.scope === scope
+            ? result.chatId === thisChat
+                ? result.state
+                : { ...result.state, modes: [], nextHintLevel: null, counterpartNextStep: null }
+            : NOTHING_REQUIRED;
     const expiresAt = state.urgencyPassExpiresAt;
 
     // When the pass ends the field comes back without a refused turn first.

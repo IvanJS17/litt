@@ -17,6 +17,7 @@ import type {
   TrainingBackingMark,
   TrainingChatBacking,
   TrainingConfidenceLevel,
+  TrainingTurnMode,
   TrainingTurnNote,
   TrainingTurnNotes,
   UiLocale,
@@ -518,20 +519,33 @@ export async function getWordTrainingStage(): Promise<"pasante" | "junior" | nul
  * LiTT training: what a Word turn owes the caller's mentor (a stage for every
  * practice area, in any organization). Only tells the composer what to show:
  * the approach for a pasante, and the thermometer mark when the server asks
- * for it (`confidence_required`, absent from servers older than layer 3).
+ * for it (`confidence_required`, absent from servers older than layer 3), and
+ * the hints and counterparty round open in `chatId` (`modes`).
  */
-export async function getWordTrainingTurn(): Promise<{
+export async function getWordTrainingTurn(chatId?: string | null): Promise<{
   attemptRequired: boolean;
   confidenceRequired: boolean;
+  /** Layer 3: the hints and counterparty round open now, counted from the chat's notes. */
+  modes: TrainingTurnMode[];
+  nextHintLevel: 1 | 2 | 3 | null;
+  counterpartNextStep: 1 | 2 | 3 | null;
 }> {
+  const query = new URLSearchParams({ surface: "word" });
+  if (chatId) query.set("chat_id", chatId);
   const result = await apiRequest<{
     stage: "pasante" | "junior" | null;
     confidence_required?: boolean;
-  }>("word_chat.turn", "/training/stage?surface=word");
+    modes?: TrainingTurnMode[];
+    next_hint_level?: 1 | 2 | 3 | null;
+    counterpart_next_step?: 1 | 2 | 3 | null;
+  }>("word_chat.turn", `/training/stage?${query}`);
   const attemptRequired = result.stage === "pasante";
   return {
     attemptRequired,
     confidenceRequired: attemptRequired && result.confidence_required === true,
+    modes: attemptRequired ? (result.modes ?? []) : [],
+    nextHintLevel: result.next_hint_level ?? null,
+    counterpartNextStep: result.counterpart_next_step ?? null,
   };
 }
 
@@ -615,6 +629,8 @@ export async function streamWordChat(payload: {
   attempt?: string;
   /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
   confidence?: TrainingConfidenceLevel;
+  /** LiTT training: ask for a hint or a counterparty round; the server picks the rung. */
+  training_mode?: TrainingTurnMode;
   signal?: AbortSignal;
 }): Promise<Response> {
   const { signal, ...body } = payload;

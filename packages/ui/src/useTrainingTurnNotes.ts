@@ -11,6 +11,8 @@ interface NoteMessage {
     id?: string;
     role: string;
     attempt?: string;
+    /** A hint or a counterparty turn (card 6): its note is the one with that mode. */
+    training_mode?: string | null;
 }
 
 /**
@@ -69,7 +71,7 @@ export function useTrainingTurnNotes(
  * their id. A message just sent in this session has no saved id yet (the web
  * leaves the id out, the Word add-in gives it one of its own); it carries the
  * `attempt` it was sent with and takes an unclaimed note with exactly that
- * attempt, newest with newest. A just-sent message whose note was never
+ * attempt and mode, newest with newest. A just-sent message whose note was never
  * created stays bare instead of borrowing another turn's note. The one case
  * left ambiguous is two just-sent turns with the identical attempt, whose
  * notes then differ only in their contrast (see docs/training.md).
@@ -82,7 +84,7 @@ export function matchTrainingNotes(
     if (notes.length === 0) return matched;
     const byId = new Map(notes.map((n) => [n.message_id, n]));
     const claimed = new Set<string>();
-    const live: { index: number; attempt: string }[] = [];
+    const live: { index: number; attempt: string; mode: string | null }[] = [];
     messages.forEach((m, index) => {
         if (m.role !== "user") return;
         const note = m.id ? byId.get(m.id) : undefined;
@@ -90,14 +92,16 @@ export function matchTrainingNotes(
             matched.set(index, note);
             claimed.add(note.id);
         } else if (m.attempt) {
-            live.push({ index, attempt: m.attempt.trim() });
+            live.push({ index, attempt: m.attempt.trim(), mode: m.training_mode ?? null });
         }
     });
     const spare = notes
         .filter((n) => !claimed.has(n.id))
         .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    for (const { index, attempt } of live.reverse()) {
-        const at = spare.findIndex((n) => n.attempt === attempt);
+    for (const { index, attempt, mode } of live.reverse()) {
+        // A hint keeps the approach for the turn after it: the same words can
+        // head a hint, a round turn and a full answer, told apart by mode.
+        const at = spare.findIndex((n) => n.attempt === attempt && (n.mode ?? null) === mode);
         if (at < 0) continue;
         matched.set(index, spare[at] as TrainingTurnNote);
         spare.splice(at, 1);
