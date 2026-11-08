@@ -1308,6 +1308,45 @@ export interface TrainingAcceptPromotionBody {
 export type TrainingUrgencyReason = "plazo" | "audiencia" | "cliente_urgente" | "otro";
 
 // --- Training layer 3, card 15: authorship (begin) ---
+/**
+ * `GET /single-documents/:id/versions/:versionId/authorship`: an ESTIMATE of
+ * how much of a version's text came from the assistant, from what LiTT
+ * recorded (assistant edits, the generated or uploaded starting text). It is
+ * computed on request and never stored. What cannot be attributed is
+ * `undetermined`; it is not a detector of AI text.
+ */
+export type DocumentAuthorshipStatus =
+  | "ok"
+  /** The version's text is not extracted yet (or was never): nothing to attribute. */
+  | "text_pending"
+  | "text_failed"
+  | "too_large"
+  | "empty";
+/** Where the version's starting text came from: the assistant, a file somebody uploaded, or no record. */
+export type DocumentAuthorshipBaseline = "ai" | "file" | "unknown";
+export interface DocumentAuthorshipWords {
+  total: number;
+  /** Text that entered through a person's own edits in LiTT. */
+  person: number;
+  /** Text equal to what the assistant inserted and a person accepted, or generated. */
+  ai: number;
+  undetermined: number;
+}
+export interface DocumentAuthorship {
+  document_id: string;
+  version_id: string;
+  status: DocumentAuthorshipStatus;
+  /** Always `true`: the figures are estimates by the rule the screen states. */
+  estimate: true;
+  baseline: DocumentAuthorshipBaseline;
+  words: DocumentAuthorshipWords | null;
+  /** Percent of `words.total`, rounded to multiples of 5 that add up to 100; `null` without text. */
+  shares: { person: number; ai: number; undetermined: number } | null;
+  /** Assistant edits recorded for this version and the ones it came from. */
+  edits: { accepted: number; rejected: number; pending: number };
+  /** Pages without a text layer: their text cannot be attributed. */
+  textless_pages: number;
+}
 // --- Training layer 3, card 15 (end) ---
 
 /** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */

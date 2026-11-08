@@ -1,4 +1,10 @@
 import { render, screen } from "@testing-library/react";
+
+vi.mock("./DocumentAuthorshipPanel", () => ({
+    DocumentAuthorshipPanel: ({ documentId, versionId }: { documentId: string; versionId: string | null }) => (
+        <div data-testid="authorship">{`${documentId}:${versionId}`}</div>
+    ),
+}));
 import { beforeEach, expect, it, vi } from "vitest";
 import type { TrainingVersionStatus } from "@/app/hooks/useTrainingVersionStatus";
 
@@ -18,8 +24,8 @@ const doc = {
     quotes: [],
 } as unknown as PanelDocument;
 
-const set = (release: TrainingVersionStatus["release"], canApprove = false) => {
-    status.current = { versionId: "v2", release, canApprove, refresh: vi.fn() };
+const set = (release: TrainingVersionStatus["release"], canApprove = false, authorship = false) => {
+    status.current = { versionId: "v2", release, canApprove, authorship, refresh: vi.fn() };
 };
 
 beforeEach(() => useTrainingVersionStatus.mockClear());
@@ -68,4 +74,25 @@ it("reports the release to a host that offers its own download", () => {
         <DocumentTitleRow document={doc} isReloading={false} compactActions onTrainingReleaseChange={onTrainingReleaseChange} />,
     );
     expect(onTrainingReleaseChange).toHaveBeenLastCalledWith("released");
+});
+
+it("offers the estimated authorship only where the server did", () => {
+    set("held", true, true);
+    const { rerender } = render(<DocumentTitleRow document={doc} isReloading={false} compactActions />);
+    expect(screen.getByTestId("authorship")).toHaveTextContent("doc-1:v2");
+    set("held", true, false);
+    rerender(<DocumentTitleRow document={doc} isReloading={false} compactActions />);
+    expect(screen.queryByTestId("authorship")).toBeNull();
+});
+
+it("offers no authorship for a legal source", () => {
+    set("released", false, true);
+    render(
+        <DocumentTitleRow
+            document={{ ...doc, type: "case", version_id: null } as unknown as PanelDocument}
+            isReloading={false}
+            compactActions
+        />,
+    );
+    expect(screen.queryByTestId("authorship")).toBeNull();
 });

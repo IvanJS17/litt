@@ -11,6 +11,8 @@ export type TrainingVersionStatus = {
     versionId: string | null;
     release: TrainingRelease;
     canApprove: boolean;
+    /** The server offers this caller the estimated authorship of the version. */
+    authorship: boolean;
     refresh: () => void;
 };
 
@@ -32,6 +34,7 @@ export function useTrainingVersionStatus(
         versionId: string | null;
         release: TrainingRelease;
         canApprove: boolean;
+        authorship: boolean;
     } | null>(null);
     const [generation, setGeneration] = useState(0);
 
@@ -52,11 +55,18 @@ export function useTrainingVersionStatus(
                           ? "held"
                           : "released",
                     canApprove: version?.training_can_approve === true,
+                    authorship: version?.training_authorship === true,
                 });
             },
             () => {
                 if (!cancelled)
-                    setState({ key, versionId, release: "unknown", canApprove: false });
+                    setState({
+                        key,
+                        versionId,
+                        release: "unknown",
+                        canApprove: false,
+                        authorship: false,
+                    });
             },
         );
         return () => {
@@ -65,12 +75,19 @@ export function useTrainingVersionStatus(
     }, [active, documentId, versionId, key, generation]);
 
     const refresh = useCallback(() => setGeneration((value) => value + 1), []);
-    if (!active) return { versionId, release: "released", canApprove: false, refresh };
+    if (!active) return {
+        versionId,
+        release: "released",
+        canApprove: false,
+        authorship: false,
+        refresh,
+    };
     const known = state?.key === key ? state : null;
     return {
         versionId: known?.versionId ?? versionId,
         release: known?.release ?? "unknown",
         canApprove: known?.canApprove ?? false,
+        authorship: known?.authorship ?? false,
         refresh,
     };
 }

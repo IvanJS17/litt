@@ -34,6 +34,7 @@
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
     "frontend/src/app/components/playbooks/usePlaybookCorrectionPupils.ts",
     "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
+    "frontend/src/app/components/shared/DocumentAuthorshipPanel.tsx",
     "frontend/src/app/components/training/criterion",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",
     "packages/ui/src/BackingPanelUI.tsx",

@@ -149,6 +149,7 @@ import {
     updateOrg,
     listDocumentVersions,
     approveTrainingVersion,
+    getDocumentAuthorship,
     listLibraryDocumentIds,
     listMcpConnectors,
     listProjectChats,
@@ -3203,6 +3204,11 @@ describe("thin endpoint wrappers", () => {
             call: () => approveTrainingVersion("d 1", "v 1"),
             url: "/single-documents/d%201/versions/v%201/training-approval",
             method: "POST",
+        },
+        {
+            name: "getDocumentAuthorship",
+            call: () => getDocumentAuthorship("d 1", "v 1"),
+            url: "/single-documents/d%201/versions/v%201/authorship",
         },
         {
             name: "copyDocumentVersionFromDocument",

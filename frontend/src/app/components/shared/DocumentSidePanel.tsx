@@ -38,6 +38,7 @@ import {
 } from "@/app/components/ui/liquid-surface";
 import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { TrainingVersionStatus } from "./TrainingVersionStatus";
+import { DocumentAuthorshipPanel } from "./DocumentAuthorshipPanel";
 import { formatBytes } from "@/app/components/projects/ProjectPageParts";
 
 const MIN_DOC_COLUMN_WIDTH = 420;
@@ -778,6 +779,12 @@ export function DocumentSidePanel({
                                 canApprove={selectedVersion?.training_can_approve === true}
                                 onApproved={() => onTrainingApproved?.(doc.id)}
                             />
+                            {selectedVersion?.training_authorship === true && (
+                                <DocumentAuthorshipPanel
+                                    documentId={doc.id}
+                                    versionId={selectedVersionId}
+                                />
+                            )}
                             {selectedTextLayerWarning && (
                                 <p className="flex items-start gap-1.5 rounded-md bg-warning-surface px-2 py-1.5 text-xs text-warning">
                                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />

@@ -326,6 +326,64 @@ leaves LiTT as a deliverable, not DRM. Whatever can be seen in the app (a
 viewed PDF, an open editor, a screenshot) can be captured by the person who
 sees it.
 
+## Authorship of the work (layer 3)
+
+`GET /single-documents/:documentId/versions/:versionId/authorship`
+(`modules/documents/documents.authorship.ts`, the rule in
+`lib/documentAuthorship.ts`, payload `DocumentAuthorship` in
+`packages/contracts`) answers how much of a version's text came from the
+assistant. It is an **estimate computed when asked**: nothing is stored (no
+table, no migration, no audit event) and no model is called. It is not an AI
+detector and it never guesses.
+
+The rule, which the panel also states:
+
+1. The version's extracted text (`read_document_text`, the same text the agent
+   reads) is split into sentences (lines, and `. ! ? … ;` followed by a
+   capital, so «art. 5» stays whole). A sentence is compared lower-cased with
+   white space collapsed, and otherwise character for character.
+2. **From the AI:** the sentence appears in the text of an assistant edit that
+   a person *accepted* (`document_edits.inserted_text`, `status = 'accepted'`,
+   of this version or any earlier one), or in the starting text of the version
+   when that was generated (`source = 'generated'`) and its bytes are still the
+   generated ones (`storage_path` is still the `generated/…` key the assistant
+   wrote; every in-place replacement, editor save or resolved edit moves it to
+   `documents/…`). A generated start that was replaced in place is read as
+   «unknown»: its current text may be a person's.
+3. **Undetermined:** it appears in a *pending* assistant edit; it appears in a
+   starting text that came in as an uploaded file (`upload`, `user_upload`:
+   LiTT does not know who wrote a file); it has fewer than three words yet
+   equals assistant text (chance cannot be told from copying); or the starting
+   text cannot be read or was replaced after the assistant generated it, so only accepted assistant text is placed. Pages
+   without a text layer are reported, not attributed.
+4. **Written by a person:** everything else, i.e. text that entered through
+   edits made in LiTT and matches nothing the assistant produced. A sentence a
+   person rewrites stops matching and is theirs. The label says «a person», not
+   the pupil: others with edit rights can touch the same version.
+
+The starting text is the latest version at or before the one asked about that
+was generated or uploaded. Shares are percentages of the analyzed words,
+rounded to multiples of 5 that add up to 100; a part with any words never
+shows as 0 %. Text above 200,000 characters, not yet extracted, failed or empty
+answers `status` `too_large`, `text_pending`, `text_failed` or `empty` with no
+figures, and the screen says «undetermined».
+
+**Who may ask** (the stage is not a permission: the caller must already read
+the document, and everybody else gets the same `404` as a document they cannot
+read):
+
+| Version | Who |
+|---|---|
+| A pasante's sealed draft | its author, the author's current mentor, and whoever may approve it (`mayApproveTrainingVersion`) |
+| Any other version | the document's owner when they have a stage where the document lives, and that owner's current mentor |
+
+An organization owner or admin gets nothing by role. The version list
+(`GET …/versions`) carries `training_authorship` per version with the same
+answer, so the viewer's title row and the document panel offer a collapsed
+«Autoría estimada» panel only to those people
+(`DocumentAuthorshipPanel.tsx`; it asks again each time it is opened). It is
+not compared across people and has no ranking or average.
+
 ## Supervision data (layer 2)
 
 Migration `20261107_60_litt_training_supervision.sql` adds the data a mentor
