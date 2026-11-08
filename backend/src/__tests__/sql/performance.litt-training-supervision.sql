@@ -93,6 +93,11 @@ begin
       jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
   insert into public.training_readings(org_id, trainee_user_id, project_id, status)
     values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
+  -- Layer 3, card 13: a criteria contrast waiting for the pupil's explanation.
+  insert into public.training_criteria_contrasts(org_id, trainee_user_id, chat_id, message_id, routes, briefs)
+    values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(),
+      '[{"provider":"openai","model":"gpt","status":"ready"},{"provider":"openai","model":"gpt","status":"ready"}]',
+      '["brief a","brief b"]');
   -- Training audit events name the pupil only as target_user_id.
   insert into public.audit_events(user_id, action, surface, detail)
     values (current_setting('litt.owner')::uuid, 'training.urgency_pass_granted', 'organization',
