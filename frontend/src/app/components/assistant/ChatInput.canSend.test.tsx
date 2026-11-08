@@ -8,7 +8,7 @@ import {
     uploadStandaloneDocuments,
 } from "@/app/lib/mikeApi";
 import type { Document } from "@/app/components/shared/types";
-import { ChatInput, type ChatInputHandle } from "./ChatInput";
+import { ChatInput, type ChatInputHandle, type ComposerDraftStore } from "./ChatInput";
 import { AssistantWorkflowModal } from "./AssistantWorkflowModal";
 import { AddDocumentsModal } from "../modals/AddDocumentsModal";
 import { PlaybookPickerModal } from "../playbooks/PlaybookPickerModal";
@@ -126,6 +126,26 @@ describe("ChatInput canSend gating", () => {
         const inputs = vi.mocked(upload).mock.calls[0][dropUploadsToProject ? 1 : 0];
         expect(inputs).toEqual([expect.objectContaining({ file })]);
         expect(input).toHaveValue("");
+    });
+
+    it("restores an unsent draft per chat from the store after unmounting", async () => {
+        const user = userEvent.setup();
+        const drafts: ComposerDraftStore = new Map();
+        const ui = (chatKey: string) => (
+            <ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} chatKey={chatKey} draftStore={drafts} />
+        );
+        const first = render(ui("chat-1"));
+        await user.type(screen.getByPlaceholderText("How can I help?"), "Unsent question");
+        first.unmount();
+        expect(drafts.get("chat-1")?.value).toBe("Unsent question");
+
+        const other = render(ui("chat-2"));
+        expect(screen.getByPlaceholderText("How can I help?")).toHaveValue("");
+        other.unmount();
+        expect(drafts.has("chat-2")).toBe(false);
+
+        render(ui("chat-1"));
+        expect(screen.getByPlaceholderText("How can I help?")).toHaveValue("Unsent question");
     });
 
     it("omits workflows and playbooks when workflow selection is hidden", async () => {

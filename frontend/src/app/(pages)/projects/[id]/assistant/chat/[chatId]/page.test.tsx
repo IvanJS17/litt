@@ -1,4 +1,4 @@
-import { StrictMode, Suspense, useEffect, type ReactNode } from "react";
+import { StrictMode, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import {
     act,
     fireEvent,
@@ -138,7 +138,9 @@ vi.mock("@/app/components/assistant/ChatInput", () => ({
         chatModel,
         chatReasoningLevel,
         onDocumentClick,
+        draftStore,
     }: {
+        draftStore?: Map<string, { value: string; attachedDocs: Document[] }>;
         onSubmit: (message: Message) => void;
         canSend: boolean;
         chatLoading?: boolean;
@@ -147,8 +149,32 @@ vi.mock("@/app/components/assistant/ChatInput", () => ({
         chatModel?: string | null;
         chatReasoningLevel?: Message["reasoning"] | null;
         onDocumentClick: (document: Document) => void;
-    }) => (
+    }) => {
+        // Stands in for the real composer's draft: kept in the store the page
+        // hands over, and restored from it on mount.
+        const [text, setText] = useState(
+            () => draftStore?.get(chatKey ?? "new-chat")?.value ?? "",
+        );
+        const latest = useRef(text);
+        latest.current = text;
+        useEffect(
+            () => () => {
+                draftStore?.set(chatKey ?? "new-chat", {
+                    value: latest.current,
+                    attachedDocs: [],
+                });
+            },
+            [draftStore, chatKey],
+        );
+        return (
         <>
+            {draftStore && (
+                <textarea
+                    aria-label="Side chat draft"
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                />
+            )}
             <button
                 onClick={() =>
                     onDocumentClick({
@@ -179,7 +205,8 @@ vi.mock("@/app/components/assistant/ChatInput", () => ({
                 Send question
             </button>
         </>
-    ),
+        );
+    },
 }));
 vi.mock("@/app/components/assistant/ChatInputPrompt", () => ({
     ChatInputPrompt: ({ children }: { children: ReactNode }) => children,
@@ -1597,6 +1624,10 @@ describe("workspace where three panels do not fit", () => {
         await screen.findByRole("menuitem", { name: "Memory" });
         return screen.getAllByRole("menuitem").map((item) => item.textContent);
     }
+    async function chatMenuItemByName(name: string) {
+        await chatMenuItems();
+        return screen.getByRole("menuitem", { name });
+    }
     async function renderWithSideChat() {
         const params = Promise.resolve({ id: "p1" });
         await act(async () => {
@@ -1734,6 +1765,35 @@ describe("workspace where three panels do not fit", () => {
         await waitFor(() => expect(panes.sideChat()).toBeNull());
         expect(window.location.search).toBe("");
         expect(shown()).toEqual(["explorer", "document", "chat"]);
+    });
+
+    it("keeps what was typed in a side chat that closed for lack of room", async () => {
+        window.history.replaceState(
+            null,
+            "",
+            "/projects/p1/assistant/chat?side=new",
+        );
+        width.mockReturnValue(1200);
+        await renderWithSideChat();
+        fireEvent.change(screen.getByLabelText("Side chat draft"), {
+            target: { value: "Unsent question" },
+        });
+
+        width.mockReturnValue(1000);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+        await waitFor(() => expect(panes.sideChat()).toBeNull());
+        expect(screen.queryByLabelText("Side chat draft")).toBeNull();
+
+        width.mockReturnValue(1200);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+        fireEvent.click(await chatMenuItemByName("Open side chat"));
+        expect(await screen.findByLabelText("Side chat draft")).toHaveValue(
+            "Unsent question",
+        );
     });
 
     it("closes a side chat from the address that does not fit once it is measured", async () => {
