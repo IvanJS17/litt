@@ -502,7 +502,7 @@
       }
     },
     "promotion": {
-      "intro": "LiTT proposes; you decide. A proposal rests only on this pupil's approved defenses and reviewed works since their stage last changed.",
+      "intro": "LiTT proposes; you decide. A proposal rests on this pupil's approved defenses and reviewed works since their stage last changed. The rest of the evidence is shown to you, not required.",
       "empty": "This pupil has no stage to promote.",
       "move": "{practice}: {from} → {to}",
       "defenses": "Approved defenses: {count} of {required}",
@@ -511,8 +511,9 @@
       "proposed": "LiTT proposes this promotion.",
       "notYet": "Not proposed yet.",
       "blocked": {
+        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it.",
         "not_approved_after": "A defense was not approved after the last approved one.",
-        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it."
+        "overconfident": "When they marked “Sure”, fewer than 3 of every 4 times coincided with the AI's answer. This blocks only the proposal."
       },
       "accept": "Accept proposal",
       "confirmTitle": "Accept this promotion?",
@@ -523,7 +524,16 @@
       "actions": {
         "load": "load the promotion",
         "accept": "accept the promotion"
-      }
+      },
+      "decideWithout": "You can change the stage without LiTT's proposal, whenever you want, in Training. The proposal is a reading of the evidence, not a condition.",
+      "audits": "Evaluated review audits: {count} ({adequate} adequate, {needsWork} need work)",
+      "readings": "Full readings handed in: {count}",
+      "calibration": {
+        "few": "Confidence calibration: not enough data yet ({count} of {required} marked turns). It does not block the proposal.",
+        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure} times, among {count} marked turns. Coincidence is measured against the AI's answer, according to the AI's contrast.",
+        "needSure": "At least {required} “Sure” turns are needed to weigh them."
+      },
+      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}."
     },
     "mentorSeesMe": {
       "title": "What my mentor sees of me",

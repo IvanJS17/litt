@@ -20,7 +20,11 @@ import {
 
 // Panel del mentor → Promoción: LiTT proposes from this pupil's own evidence,
 // counted against what is required of them, never against anyone else; the
-// mentor accepts (confirmed) and the server recomputes before applying.
+// mentor accepts (confirmed) and the server recomputes before applying. Besides
+// the required counts it shows the evaluated audits, the readings and how the
+// pupil's «Seguro» turns went (a count of theirs, never a percentage), and
+// says that the mentor can decide without the proposal. Evidence in matters
+// the mentor cannot open is only counted.
 
 export function PromotionTab({ orgId, pupilId }: { orgId: string; pupilId: string }) {
     const t = useTranslations("training.promotion");
@@ -61,9 +65,15 @@ export function PromotionTab({ orgId, pupilId }: { orgId: string; pupilId: strin
         to: stageLabel(proposal.to),
     });
 
+    const hiddenTotal = data.without_access.turns + data.without_access.audits + data.without_access.readings;
+
     return (
         <div className="space-y-4">
-            <p className="text-sm text-gray-500">{t("intro")}</p>
+            <p className="break-words text-sm text-gray-500">{t("intro")}</p>
+            <p className="break-words text-sm text-gray-500">{t("decideWithout")}</p>
+            {hiddenTotal > 0 && (
+                <p className="break-words text-sm text-gray-500">{t("withoutAccess", data.without_access)}</p>
+            )}
             {data.proposals.length === 0 && <p className="text-sm text-gray-500">{t("empty")}</p>}
             {data.proposals.map((proposal) => (
                 <GlassCardUI key={proposal.practice ?? "__all__"}>
@@ -85,7 +95,37 @@ export function PromotionTab({ orgId, pupilId }: { orgId: string; pupilId: strin
                                 })}
                             </li>
                             <li>{t("versions", { count: proposal.approved_versions.length })}</li>
+                            <li>
+                                {t("audits", {
+                                    count: proposal.evaluated_audits.length,
+                                    adequate: proposal.evaluated_audits.filter((audit) => audit.outcome === "adequate")
+                                        .length,
+                                    needsWork: proposal.evaluated_audits.filter((audit) => audit.outcome === "needs_work")
+                                        .length,
+                                })}
+                            </li>
+                            <li>{t("readings", { count: proposal.readings.length })}</li>
                         </ul>
+                        <div className="space-y-0.5 text-sm text-gray-700">
+                            <p className="break-words">
+                                {proposal.calibration.enough
+                                    ? t("calibration.sure", {
+                                          coincided: proposal.calibration.sure_coincided,
+                                          sure: proposal.calibration.sure_marked,
+                                          count: proposal.calibration.marked_turns,
+                                      })
+                                    : t("calibration.few", {
+                                          count: proposal.calibration.marked_turns,
+                                          required: proposal.calibration.min_marked_turns,
+                                      })}
+                            </p>
+                            {proposal.calibration.enough &&
+                                proposal.calibration.sure_marked < proposal.calibration.min_sure_marked && (
+                                    <p className="break-words">
+                                        {t("calibration.needSure", { required: proposal.calibration.min_sure_marked })}
+                                    </p>
+                                )}
+                        </div>
                         {proposal.blocked_by && (
                             <p className="text-sm text-gray-700">{t(`blocked.${proposal.blocked_by}`)}</p>
                         )}
