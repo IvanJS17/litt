@@ -126,7 +126,7 @@ export async function mayApproveTrainingVersion(
   return lawyer || isCurrentMentor(db, orgId, authorId, userId);
 }
 
-async function isCurrentMentor(
+export async function isCurrentMentor(
   db: Db,
   orgId: string,
   traineeId: string,

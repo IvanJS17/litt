@@ -30,6 +30,7 @@ import {
 import { deleteDocumentAndVersionFiles, type Db } from "./documents.shared";
 import { canManageDocument, ensureDocumentAccess } from "./documents.access";
 import { mayApproveTrainingVersion } from "./documents.trainingApproval";
+import { mayViewAuthorship } from "./documents.authorship";
 import { heldVersionIdsOrSealed, type SealStage } from "../../lib/trainingRelease";
 
 // ---------------------------------------------------------------------------
@@ -104,7 +105,23 @@ async function withTrainingRelease(
                 isHeld && !!author && !row.deleted_at
                     ? await mayApproveTrainingVersion(db, access, userId, author).catch(() => false)
                     : false;
-            return { ...row, training_held: isHeld, training_can_approve: canApprove };
+            // Whether the panel of estimated authorship is offered
+            // (documents.authorship.ts decides who may read it).
+            const authorship = row.deleted_at
+                ? false
+                : await mayViewAuthorship(
+                      db,
+                      access,
+                      userId,
+                      author,
+                      isHeld && !!author ? canApprove : undefined,
+                  ).catch(() => false);
+            return {
+                ...row,
+                training_held: isHeld,
+                training_can_approve: canApprove,
+                training_authorship: authorship,
+            };
         }),
     );
 }
