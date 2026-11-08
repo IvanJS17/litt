@@ -1426,21 +1426,30 @@ in name order). It revokes the leaver's matter memberships and, on each
 private matter left without an active owner, promotes the teammate with the
 highest role. With no teammate left, it makes the departure's successor the
 owner. The team reaches the project through overrides kept in step with
-`matter_memberships`. `performance.litt-matter-departure.sql` (CI) fixes who
-reaches the matters afterwards:
+`matter_memberships`. The owner extended the rule on 2026-11-08 to the
+private project of a public matter: `20261108_10_litt_public_matter_project_succession.sql`
+adds a trigger that runs before upstream's (it must still see the creator)
+and gives that project, as an owner override, to the matter teammate with the
+highest role (same tie-break as above), or to the departure's successor when
+no teammate is left. The matter itself does not change, and organization
+owners and admins do not inherit by being one.
+`performance.litt-matter-departure.sql` (CI) fixes who reaches the matters
+afterwards:
 
-| Who | Private matter, team of four, private project (A) | Private matter, organization-visible project (B) | Private matter, only its creator (C) | Public matter (D) |
+| Who | Private matter, team of four, private project (A) | Private matter, organization-visible project (B) | Private matter, only its creator (C) | Public matter, private project of its creator (D) |
 |---|---|---|---|---|
-| Earliest editor | becomes owner | becomes owner | — | unchanged (editor of the matter; the private project is nobody's) |
+| Earliest editor (highest role) | becomes owner | becomes owner | — | stays editor of the matter; the private project passes to them as owner |
 | Other editor / viewer | keep editor / viewer | — | — | — |
-| Successor chosen in the departure | no | no | becomes owner | no |
+| Successor chosen in the departure | no | no | becomes owner | no, unless the matter has no teammate left: then the private project passes to them |
 | Organization owner | no | no | no | no |
 | Organization admin | no | no | no | no |
 | Former creator | no | no | no | no |
 
-Before this change, matter A was out of everyone's reach after the departure,
-which contradicted the owner's 2026-10-24 rule that work inside a firm's
-matters stays with the firm.
+Before these changes, matter A was out of everyone's reach after the
+departure, and the private project of a public matter (D) was nobody's. Both
+contradicted the owner's 2026-10-24 rule that work inside a firm's matters
+stays with the firm. Organization-visible projects of public matters, and
+private projects created by someone else, do not change.
 
 ### 24.4 Owner-visible changes
 

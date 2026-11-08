@@ -73,7 +73,13 @@ project; instead:
   appointment also records the matter's last owner (`last_owner_user_id`,
   null when it never had one).
 
-Public matters keep their rules. The screens for these actions are pending
+Public matters keep their rules, with one addition: when the creator of a
+private project inside a public matter leaves, that project passes to the
+matter teammate with the highest role (the earliest on a tie), or to the
+successor chosen in the departure when the matter has no teammate left
+(`20261108_10_litt_public_matter_project_succession.sql`). The matter itself
+is unchanged and owners and admins do not inherit the project by their role.
+The screens for these actions are pending
 (TD-029). Apply `20261107_70_litt_matter_succession.sql` before deploying the
 backend; it also gives the teams of existing private matters their project
 access.
