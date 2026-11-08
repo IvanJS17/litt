@@ -234,6 +234,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // is not copied there; retrying the same copy cannot help.
     training_copy_needs_organization: "validation",
     // --- Training layer 3, card 9 codes (begin) ---
+    // The review was regenerated after the audit began: start another.
+    training_review_audit_stale: "conflict",
     // --- Training layer 3, card 9 codes (end) ---
     // A mentor's work reviews run on the mentor's own key, never on another:
     // without one the review cannot be generated (the server's detail says

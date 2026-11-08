@@ -918,6 +918,106 @@ export interface TrainingReviewItem {
 export type TrainingWorkSurface = "chat" | "word" | "tabular";
 
 // --- Training layer 3, card 9: bulk review designer (begin) ---
+
+/** How a person (or, over theirs, the mentor) marked a sampled cell. */
+export type TrainingAuditMark = "correct" | "incomplete" | "incorrect";
+export type TrainingAuditOutcome = "adequate" | "needs_work";
+export type TrainingAuditStatus = "open" | "complete" | "stale";
+/** What the code-only review of a review's questions found. */
+export type TrainingLintCode =
+    | "empty_name"
+    | "duplicate_name"
+    | "empty_instruction"
+    | "short_instruction"
+    | "no_format";
+export interface TrainingLintWarning {
+    code: TrainingLintCode;
+    /** The column the warning is about (its `index` in columns_config). */
+    column_index: number;
+    /** The other column of a duplicated name. */
+    other_index?: number;
+}
+export interface TrainingAuditColumn {
+    index: number;
+    name: string;
+    /** The instruction of the column. */
+    prompt: string;
+}
+export interface TrainingAuditCell {
+    row_id: string;
+    column_index: number;
+    column_name: string;
+    row_label: string | null;
+    /** The cell as it is now, only when the reader may read its sources. */
+    summary: string | null;
+    /** The reasoning with its inline citations, as the review stores it. */
+    reasoning: string | null;
+    /** The reader may not read the sources of this cell. */
+    withheld: boolean;
+    mark: TrainingAuditMark | null;
+    note: string | null;
+    /** The mentor's correction of the person's mark. */
+    mentor_mark: TrainingAuditMark | null;
+}
+/** Counts of one person's own marks in one column: never a group figure. */
+export interface TrainingAuditColumnTally {
+    column_index: number;
+    column_name: string;
+    marked: number;
+    incorrect: number;
+    incomplete: number;
+}
+export interface TrainingReviewAudit {
+    id: string;
+    tabular_review_id: string;
+    status: TrainingAuditStatus;
+    columns: TrainingAuditColumn[];
+    lint: TrainingLintWarning[];
+    cells: TrainingAuditCell[];
+    /** Sampled cells the reader may not read. */
+    withheld: number;
+    created_at: string;
+    completed_at: string | null;
+    /** Only once the audit is complete. */
+    tally: TrainingAuditColumnTally[] | null;
+    evaluation: {
+        outcome: TrainingAuditOutcome;
+        note: string | null;
+        evaluated_at: string;
+    } | null;
+}
+/** GET /tabular-review/:reviewId/training-audit */
+export interface TrainingReviewAuditState {
+    /** The review is one the caller audits as a junior. */
+    applies: boolean;
+    /** Done cells enough to draw a sample. */
+    ready: boolean;
+    /** The review's questions now (names and instructions). */
+    columns: TrainingAuditColumn[];
+    /** The review of the current questions, by code. */
+    lint: TrainingLintWarning[];
+    audit: TrainingReviewAudit | null;
+}
+export interface TrainingAuditMarkBody {
+    mark: TrainingAuditMark;
+    note?: string | null;
+}
+/** GET /orgs/:orgId/training/pupils/:userId/review-audits */
+export interface TrainingPupilReviewAudits {
+    audits: (TrainingReviewAudit & { review_title: string | null })[];
+    /** Audits of reviews in matters the mentor cannot open: counted, not shown. */
+    without_access: number;
+}
+export interface TrainingAuditEvaluationBody {
+    outcome: TrainingAuditOutcome;
+    note?: string | null;
+    /**
+     * The mentor's own mark on sampled cells, over the person's. The current
+     * mentor may change it again, or take it back with `mark: null`.
+     */
+    corrections?: { row_id: string; column_index: number; mark: TrainingAuditMark | null }[];
+}
+
 // --- Training layer 3, card 9 (end) ---
 
 /** Counted, never generated: what the review's lines rest on. */
