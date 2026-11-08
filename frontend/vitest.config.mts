@@ -107,6 +107,9 @@ export default defineConfig({
             "../packages/ui/src/**/*.test.{ts,tsx}",
             "../packages/client/src/**/*.test.{ts,tsx}",
             "../packages/i18n/src/**/*.test.ts",
+            // The i18n codemod's test: it shares its literal detection with
+            // src/__tests__/i18nLiterals.test.ts (docs/i18n.md).
+            "../scripts/i18n/**/*.test.mjs",
         ],
         exclude: ["node_modules/**", "e2e/**", "**/*.spec.ts"],
         // Generous timeouts to absorb cold-start jsdom + transform latency on CI.

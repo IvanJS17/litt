@@ -23,7 +23,9 @@ the `@litt/` scope.
   same arguments and types (`isStructurallySame`), the same `select` options,
   `=N` cases, `offset` and number/date skeletons, and plural categories that
   exist in Spanish (`one`, `many`, `other`), keeping every one the source uses
-  that Spanish also has.
+  that Spanish also has. It also fails while a message in either catalog
+  starts with `⟦por traducir⟧`, the mark `scripts/i18n/extract.mjs` gives a
+  key it added and nobody has translated yet (see `docs/i18n.md`).
 - `GLOSSARY.md` fixes how recurring terms are translated.
 
 Applications import it by name, `@litt/i18n`, through the alias in
