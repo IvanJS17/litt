@@ -288,7 +288,10 @@ export async function runToolCalls(
     methodology?: boolean;
     /** What the person wrote in this turn: a figure they "gave" is checked against it. */
     personMessage?: string;
-    /** May this turn write documents? The annex is only created when it may. */
+    /**
+     * May this turn write documents? The annex is only created when this is
+     * exactly `true`; left out, the steps come back as text (fail-closed).
+     */
     allowDocumentMutation?: boolean;
   } = {},
 ): Promise<{
@@ -555,7 +558,7 @@ export async function runToolCalls(
         });
         continue;
       }
-      if (outcome.wantsAnnex && options.allowDocumentMutation !== false) {
+      if (outcome.wantsAnnex && options.allowDocumentMutation === true) {
         const title = outcome.annex.title;
         const previewFilename = safeGeneratedFilename(title, "docx");
         write(

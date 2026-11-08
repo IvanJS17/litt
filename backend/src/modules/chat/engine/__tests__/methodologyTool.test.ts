@@ -28,6 +28,8 @@ vi.mock("../../../../lib/downloadTokens", () => ({
 
 import { runLLMStream } from "../streaming";
 import { runToolCalls } from "../tools/toolDispatcher";
+import { createKeyedLock } from "../tools/documentLocks";
+import { createWebTurnState } from "../tools/webSearchTools";
 import { METHODOLOGY_TOOL_NAME } from "../tools/methodologyTool";
 
 type StreamChatCall = {
@@ -70,6 +72,22 @@ describe("what the model is shown", () => {
     expect(prompt).toContain("Do not present it as legal advice");
   });
 
+  it("never offers the tool to a subagent, even when the plan asks for it", async () => {
+    await runLLMStream({
+      ...params(),
+      trainingPlan: { methodology: true },
+      subagentRun: {
+        connectorTools: [],
+        webTurnState: createWebTurnState(""),
+        turnEditState: new Map(),
+        documentLocks: createKeyedLock(),
+        documentsScoped: false,
+      },
+    } as never);
+    expect(toolNames()).not.toContain(METHODOLOGY_TOOL_NAME);
+    expect(streamChatWithTools.mock.calls[0]![0].systemPrompt).not.toContain("METHODOLOGY CALCULATIONS");
+  });
+
   it("keeps the other limits of the same plan", async () => {
     await runLLMStream({
       ...params(),
@@ -104,6 +122,7 @@ async function call(
   input: Record<string, unknown>,
   options: { methodology?: boolean; allowDocumentMutation?: boolean; personMessage?: string } = {
     methodology: true,
+    allowDocumentMutation: true,
     personMessage: "Actualiza $1,000.00 con los índices del contrato",
   },
 ) {
@@ -167,7 +186,7 @@ describe("running the tool", () => {
     const asked = (message: string) =>
       call(
         { ...INDEX_CALL, annex: false },
-        { methodology: true, personMessage: message },
+        { methodology: true, allowDocumentMutation: true, personMessage: message },
       ).then(({ out }) => JSON.parse((out.toolResults[0] as { content: string }).content).inputs[0].source);
     expect(await asked("Actualiza $1,000.00 con los índices")).toBe("Dato dado por la persona");
     expect(await asked("Actualiza  1000   pesos")).toBe("Dato dado por la persona");
@@ -178,6 +197,15 @@ describe("running the tool", () => {
 
   it("returns the steps without a file when the conversation cannot write documents", async () => {
     const { out } = await call(INDEX_CALL, { methodology: true, allowDocumentMutation: false });
+    expect(out.docsCreated).toHaveLength(0);
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    const payload = JSON.parse((out.toolResults[0] as { content: string }).content);
+    expect(payload.result.value).toBe("1333.33");
+    expect(payload.annex).toContain("cannot write documents");
+  });
+
+  it("writes nothing unless the caller said explicitly that it may (fail-closed)", async () => {
+    const { out } = await call(INDEX_CALL, { methodology: true });
     expect(out.docsCreated).toHaveLength(0);
     expect(uploadFileMock).not.toHaveBeenCalled();
     const payload = JSON.parse((out.toolResults[0] as { content: string }).content);
