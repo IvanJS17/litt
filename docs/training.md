@@ -637,8 +637,17 @@ LiTT has no corpus of laws, so **a law cited from memory is `unbacked`**, and a
 legal reference a conclusion names that the shown passage does not
 (`legalReferences` in `lib/legalReferences.ts`: articles, fractions, theses,
 registry numbers) is listed on that conclusion as «Sin verificar: art. 27, fr.
-IV. Confírmalo en la fuente oficial.» The comparison is by reference number, not
-by which law it belongs to. A conclusion naming a reference the answer itself
+IV (ley federal trabajo). Confírmalo en la fuente oficial.» An article counts as
+shown only if the passage names the same article **of the same law**
+(`lawReferences`): the law is the one named right after the article («de la Ley
+Federal del Trabajo», «LFT», «constitucional»; names and common abbreviations
+such as CPEUM and «Constitución» normalize to one identity) or, when the
+passage names none, the law its document is (from its title, «Ley Federal del
+Trabajo.pdf»). An article whose law cannot be identified, in the conclusion or
+in the passage, is never shown («ley no identificada»); so are two names the
+normalizer does not equate («Código Civil» vs «Código Civil Federal»). A
+conclusion whose passage does not show every reference it names is `unbacked`
+(not `backed`), both when it is written and when it is displayed. A conclusion naming a reference the answer itself
 never named is dropped. The AI only proposes the link; the panel says so and
 the person checks the passage. The passage is not stored: it is read from the
 message's citations each time it is shown, and a `backed` conclusion whose
@@ -664,8 +673,9 @@ or the reason.
 the conversation's own provider, model and credential (governed BYOK; no
 fallback, never another model), and cannot fail the turn: on any failure the
 check is `failed` and the panel says so. A check still `pending` after ten
-minutes reads as `failed`. The turn's `llm.egress` already names that
-destination for the conversation; the check adds no new destination. The
+minutes reads as `failed`. The check writes its own `llm.egress`
+(`surface: training_backing`) before the call, with the turn's route, so the
+destination is the same, and makes no call if that record cannot be written. The
 answer and the citation list go in nonce-fenced blocks, the system prompt says
 they are content to evaluate, and the output is strict JSON.
 
@@ -684,7 +694,10 @@ and an icon, never by colour alone. The mentor's section
 (`frontend/src/app/components/training/criterion/BackingSection.tsx`) is
 delivered without its tab: the «Criterio» tab arrives with a later card, which
 mounts it. A message shows its panel once the client knows the saved message
-id (after the stream announces it, or on reload).
+id and the check exists: on reload, or live (the tabular review takes the run's
+id, which is the message id, from the stream's `chat_id` event) once the server
+has saved the answer and written the check. The mentor's view has its own
+privacy line («solo la persona y tú…»).
 
 The hook point is `lib/trainingTurn/accountability.ts`: a junior's plan carries
 its `afterTurn` hook, and the four surfaces pass the saved turn
