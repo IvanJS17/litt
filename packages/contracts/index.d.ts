@@ -830,9 +830,19 @@ export interface TrainingTurnNotes {
 }
 // Request bodies and queries of the training routes. `user_id` and
 // `mentor_user_id` are user uuids of members of the organization.
+  /** `hint` or `counterpart*` turns (card 6); `step` is the rung or the turn of the round. Absent on plain turns. */
+  mode?: TrainingTurnMode | null;
+  step?: 1 | 2 | 3 | null;
 /** POST /orgs/:orgId/training/mentors (owner or admin). */
 export interface TrainingDesignateMentorBody {
     user_id: string;
+/**
+ * What a turn can be besides a plain question, sent as `training_mode`:
+ * `hint` (a rung of the ladder, no answer), `counterpart` (a turn of a round
+ * with the counterparty's lawyer, up to three) and `counterpart_close`
+ * (ends the round with a contrast). The server picks the step.
+ */
+export type TrainingTurnMode = "hint" | "counterpart" | "counterpart_close";
 }
 /** POST /orgs/:orgId/training/pupils. Omitting `mentor_user_id` means the caller. */
 export interface TrainingAssignPupilBody {

@@ -12,7 +12,7 @@ export function readTrainingBody(body: unknown): TrainingBody {
     return {
         attempt: record.attempt,
         confidence: record.confidence,
-        mode: null,
+        mode: record.training_mode,
         divergence: null,
     };
 }

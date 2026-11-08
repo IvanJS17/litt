@@ -145,6 +145,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedTimeZone: req.body?.time_zone,
         attempt: readTrainingBody(body).attempt,
         confidence: readTrainingBody(body).confidence,
+        trainingMode: readTrainingBody(body).mode,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);

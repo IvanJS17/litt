@@ -1012,6 +1012,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         requestedTimeZone: req.body?.time_zone,
         attempt: readTrainingBody(req.body).attempt,
         confidence: readTrainingBody(req.body).confidence,
+        trainingMode: readTrainingBody(req.body).mode,
     });
     if (!preparation.ok) return void sendTabularFailure(res, preparation);
     const {

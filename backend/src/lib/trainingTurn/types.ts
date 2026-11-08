@@ -1,6 +1,7 @@
 // Shapes shared by the training-turn wiring (see ./index.ts).
 
 import type { TrainingStage } from "@mike/contracts";
+import type { Db } from "../supabase";
 
 /** The four places a person can take a turn. */
 export type TrainingSurface = "chat" | "project_chat" | "word" | "tabular";
@@ -11,8 +12,9 @@ export type TrainingBody = {
     attempt: unknown;
     /** The raw `confidence`; checked by the confidence behavior. */
     confidence: unknown;
+    /** The raw `training_mode`; checked against the stage by the modes behavior. */
+    mode: unknown;
     /** Reserved for later cards; always null today. */
-    mode: null;
     divergence: null;
 };
 
@@ -26,7 +28,16 @@ export type TrainingEnginePlan = {
     allowDocumentMutation?: false;
     includeAskInputs?: false;
     noSubagents?: true;
+    /**
+     * The answer may name laws the server cannot show: the engine appends this
+     * line when it names a legal reference no verified citation of the turn
+     * backs (lib/trainingHint.ts). The server decides, never the model.
+     */
+    unverifiedFooter?: string;
 };
+
+/** A turn mode a pasante asks for: a hint, or a round with the counterparty's lawyer. */
+export type TrainingMode = "hint" | "counterpart" | "counterpart_close";
 
 /** A hook that runs once the final answer is durable. */
 export type AfterTurnHook = (ctx: {
@@ -43,8 +54,12 @@ export type TrainingTurnPlan = {
     attempt: string | null;
     /** The thermometer mark, when the turn owes an attempt; otherwise null. */
     confidence: TrainingConfidence | null;
-    mode: null;
-    step: null;
+    /** The mode of this turn, decided by the server (modes.ts); null for an ordinary turn. */
+    mode: TrainingMode | null;
+    /** Rung of the hint ladder, or turn of the counterpart round (1 to 3); set with `mode`. */
+    step: 1 | 2 | 3 | null;
+    /** The attempts of the open counterpart round, oldest first, with this turn's last: the closing contrast compares them. */
+    roundAttempts?: string[];
     /** The organization a note about this turn belongs to. */
     orgId: string | null;
     systemAddendum?: string;
@@ -61,6 +76,13 @@ export type TrainingTurnFailure = {
 
 /** What a behavior reads about the turn once its stage is resolved. */
 export type ResolvedTurn = {
+    /** Behaviors that read what the turn's chat already holds query with these. */
+    db: Db;
+    userId: string;
+    /** The chat the turn continues, when it continues one the surface keeps; null for a new or unsaved chat. */
+    chatId: string | null;
+    /** False for a chat the server keeps no notes of (Word with local storage). */
+    persisted: boolean;
     surface: TrainingSurface;
     body: TrainingBody;
     stage: TrainingTurnPlan["stage"];
@@ -72,4 +94,4 @@ export type ResolvedTurn = {
 export type TrainingBehavior = (
     resolved: ResolvedTurn,
     plan: TrainingTurnPlan,
-) => TrainingTurnFailure | TrainingTurnPlan;
+) => TrainingTurnFailure | TrainingTurnPlan | Promise<TrainingTurnFailure | TrainingTurnPlan>;

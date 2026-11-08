@@ -20,9 +20,11 @@ import {
     type CreatedTurnNote,
 } from "../trainingNotes";
 import type { UserApiKeys } from "../llm";
+import { launchCounterpartClose } from "../trainingCounterpart";
 import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
+import { modesBehavior } from "./modes";
 import { hasUnverifiedCitation } from "./unverified";
 import type {
     ResolvedTurn,
@@ -35,11 +37,19 @@ import type {
 
 export { readTrainingBody } from "./body";
 export { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
+export {
+    availableModes,
+    noteChatOf,
+    TRAINING_COUNTERPART_DONE_CODE,
+    TRAINING_HINT_LIMIT_CODE,
+    TRAINING_MODE_NOT_ALLOWED_CODE,
+} from "./modes";
 export { hasUnverifiedCitation } from "./unverified";
 export type {
     TrainingBody,
     TrainingConfidence,
     TrainingEnginePlan,
+    TrainingMode,
     TrainingSurface,
     TrainingTurnFailure,
     TrainingTurnPlan,
@@ -55,7 +65,7 @@ const attemptBehavior: Behavior = (resolved, plan) => {
 };
 
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior, confidenceBehavior];
+const BEHAVIORS: readonly Behavior[] = [attemptBehavior, confidenceBehavior, modesBehavior];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
@@ -73,16 +83,27 @@ export async function beginTrainingTurn(
         scope: TrainingScope;
         /** The request body, or what readTrainingBody returned for it. */
         body: unknown;
+        /** The chat the turn continues, if the surface already keeps one (a hint's rung is counted from its notes). */
+        chatId?: string | null;
+        /** False when the server keeps no transcript or notes of this chat (Word with local storage). */
+        persisted?: boolean;
     },
 ): Promise<{ ok: true; plan: TrainingTurnPlan } | TrainingTurnFailure> {
     const body = readTrainingBody(args.body);
+    const common = {
+        db,
+        userId: args.userId,
+        chatId: args.chatId ?? null,
+        persisted: args.persisted !== false,
+    };
     let resolved: Resolved;
     if (args.surface === "word") {
         const { stage, orgId } = await resolveWordTrainingStage(db, args.userId);
-        resolved = { surface: args.surface, body, stage, passActive: false, orgId };
+        resolved = { ...common, surface: args.surface, body, stage, passActive: false, orgId };
     } else {
         const turn = await resolveTurnTraining(db, args.userId, args.scope);
         resolved = {
+            ...common,
             surface: args.surface,
             body,
             stage: turn.stage,
@@ -103,7 +124,7 @@ export async function beginTrainingTurn(
         afterTurn: [],
     };
     for (const behavior of BEHAVIORS) {
-        const next = behavior(resolved, plan);
+        const next = await behavior(resolved, plan);
         if ("ok" in next) return next;
         plan = next;
     }
@@ -144,6 +165,11 @@ export async function recordTrainingNote(
         messageId: args.messageId,
         attempt: plan.attempt,
         confidence: plan.confidence,
+        mode: plan.mode,
+        step: plan.step,
+        // A hint or a counterpart turn has no answer to contrast; the close of
+        // a round does, with its own sections.
+        contrastStatus: plan.mode === "hint" || plan.mode === "counterpart" ? "skipped" : "pending",
     });
     return created.ok ? { ok: true, note: created.note } : created;
 }
@@ -172,7 +198,17 @@ export function finishTrainingTurn(
     },
 ): void {
     if (!args.completed) return;
-    if (args.note) {
+    // A hint or a counterpart turn has no answer to compare with: its note is
+    // already skipped. The close of a round is contrasted with its own sections.
+    if (args.note && args.plan?.mode === "counterpart_close") {
+        launchCounterpartClose(db, {
+            noteId: args.note.id,
+            attempts: args.plan.roundAttempts ?? [args.note.attempt],
+            answer: args.answer,
+            model: args.model,
+            apiKeys: args.apiKeys,
+        });
+    } else if (args.note && !args.plan?.mode) {
         launchTurnContrast(db, {
             noteId: args.note.id,
             attempt: args.note.attempt,

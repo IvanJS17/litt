@@ -25,9 +25,10 @@ const REQUIRED: TrainingTurnFailure = {
 
 export const confidenceBehavior: TrainingBehavior = (resolved, plan) => {
     // No approach owed (no stage, a junior, an urgency pass): no mark either.
-    // Turns that carry no approach to rate, such as a hint, will be exempt
-    // here too once they exist.
     if (!plan.attempt) return plan;
+    // A hint is not rated: there is no answer yet to compare the mark with
+    // (modes.ts drops any mark sent with one).
+    if (resolved.body.mode === "hint") return plan;
     const confidence = readConfidence(resolved.body.confidence);
     return confidence ? { ...plan, confidence } : REQUIRED;
 };

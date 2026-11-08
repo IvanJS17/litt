@@ -166,9 +166,10 @@ describe("readTrainingBody", () => {
         expect(readTrainingBody({ attempt: "x", confidence: 2, other: 1 })).toEqual({
             attempt: "x",
             confidence: 2,
-            mode: null,
+            mode: undefined,
             divergence: null,
         });
+        expect(readTrainingBody({ training_mode: "hint", mode: "counterpart" }).mode).toBe("hint");
     });
     it("tolerates a body that is not an object", () => {
         for (const body of [undefined, null, "text", 3, ["attempt"]])

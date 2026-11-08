@@ -4057,6 +4057,41 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed", answer_unverified: false });
     });
 
+    it("takes a hint as a turn with the engine's limits, a skipped note and no contrast, and asks no mark", async () => {
+        await answerContrastWith(async () => CONTRAST);
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT, training_mode: "hint" });
+        expect(res.status).toBe(200);
+        expect(noteInsert()).toMatchObject({
+            attempt: ATTEMPT,
+            confidence: null,
+            mode: "hint",
+            step: 1,
+            contrast_status: "skipped",
+        });
+        const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
+        expect(stream.trainingPlan).toMatchObject({
+            allowDocumentMutation: false,
+            includeAskInputs: false,
+            noSubagents: true,
+            systemAddendum: expect.stringContaining("PISTA"),
+        });
+        expect(await contrastCalls()).toHaveLength(0);
+        expect(noteUpdate()).toBeUndefined();
+    });
+
+    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+        "refuses a hint from %s with training_mode_not_allowed, before writing or calling a model",
+        async (_label, stage) => {
+            trainingStage.value = stage;
+            const res = await send({ attempt: ATTEMPT, confidence: 3, training_mode: "hint" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        },
+    );
+
     it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
         "ignores the attempt of %s and changes nothing",
         async (_label, stage) => {

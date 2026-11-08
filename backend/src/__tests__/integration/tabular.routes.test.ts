@@ -3505,6 +3505,38 @@ describe("tabular.routes", () => {
             });
         });
 
+        it("takes a hint as a turn with the engine's limits, a skipped note and no contrast, and asks no mark", async () => {
+            const { completeText } = await import("../../lib/llm/index.js");
+            vi.mocked(completeText).mockClear();
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: ATTEMPT, training_mode: "hint" });
+            expect(res.status).toBe(200);
+            expect(insertOf("training_turn_notes")).toMatchObject({
+                attempt: ATTEMPT,
+                confidence: null,
+                mode: "hint",
+                step: 1,
+                contrast_status: "skipped",
+            });
+            const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
+            expect(stream.trainingPlan).toMatchObject({
+                allowDocumentMutation: false,
+                includeAskInputs: false,
+                noSubagents: true,
+                systemAddendum: expect.stringContaining("PISTA"),
+            });
+            expect(vi.mocked(completeText)).not.toHaveBeenCalled();
+        });
+
+        it("refuses a hint from a junior with training_mode_not_allowed, before writing or calling a model", async () => {
+            trainingStage.value = "junior";
+            const res = await send({ attempt: ATTEMPT, confidence: 3, training_mode: "hint" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(insertOf("tabular_review_chat_messages") !== undefined).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
         it("contrasts with the conversation's own model and credential, then stores it", async () => {
             const { completeText } = await import("../../lib/llm/index.js");
             vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);

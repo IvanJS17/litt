@@ -91,6 +91,7 @@ import { buildMemoryTurn } from "../../../lib/memory/prompt";
 export type { AssistantEvent } from "@mike/contracts";
 import type { AssistantEvent, AssistantErrorCode } from "@mike/contracts";
 import type { TrainingEnginePlan } from "../../../lib/trainingTurn";
+import { unverifiedLegalFooter } from "../../../lib/trainingHint";
 
 /**
  * Tools the model can call that execute outside this process — in the Word
@@ -1195,6 +1196,23 @@ export async function runLLMStream(params: {
     emittedCitationCount: citations.length,
     usedCustomCitationBuilder: !!buildCitations,
   });
+  // LiTT training (hints and counterpart turns): a law, article or thesis the
+  // answer names that no verified citation of this turn backs is marked by
+  // the server, not left for the model to flag.
+  if (trainingPlan?.unverifiedFooter && !isSubagent) {
+    const open = fullText.indexOf(CITATIONS_OPEN_TAG);
+    const footer = unverifiedLegalFooter(
+      open >= 0 ? fullText.slice(0, open) : fullText,
+      citations,
+      trainingPlan.unverifiedFooter,
+    );
+    if (footer) {
+      const text = `\n\n${footer}`;
+      fullText += text;
+      events.push({ type: "content", text });
+      write(`data: ${JSON.stringify({ type: "content_delta", text })}\n\n`);
+    }
+  }
   citationSnapshotSeq += 1;
   write(
     `data: ${JSON.stringify({ type: "citations", status: "final", citations })}\n\n`,
