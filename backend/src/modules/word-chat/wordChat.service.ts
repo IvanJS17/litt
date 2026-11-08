@@ -1,7 +1,11 @@
 import { isUuid } from "../../lib/uuid";
 import { wordChatHasWorkspaceAttachments } from "../../lib/wordWorkspace";
-import { checkTrainingTurn, resolveWordTrainingStage } from "../../lib/training";
-import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
+import {
+  beginTrainingTurn,
+  recordTrainingNote,
+  type TrainingTurnPlan,
+} from "../../lib/trainingTurn";
+import type { CreatedTurnNote } from "../../lib/trainingNotes";
 // Business logic + data-access for the word-chat module.
 //
 // Service layer behind wordChat.routes.ts. Every function takes an explicit
@@ -625,6 +629,8 @@ export type PreparedWordChatStream = {
   nonce: ReturnType<typeof generateSpotlightNonce>;
   /** LiTT training: a pasante's private note for this turn, pending its contrast. */
   trainingNote: CreatedTurnNote | null;
+  /** The turn's training plan; null when the turn has no user message. */
+  trainingPlan: TrainingTurnPlan | null;
 };
 
 export async function prepareWordChatStream(
@@ -719,13 +725,17 @@ export async function prepareWordChatStream(
   // about the turn belongs to that organization. An urgency pass is for one
   // matter's project, so it never applies here. Checked before anything is
   // written.
-  let trainingAttempt: string | null = null;
+  let trainingPlan: TrainingTurnPlan | null = null;
   let trainingNote: CreatedTurnNote | null = null;
-  let trainingOrgId: string | null = null;
   if (lastUser) {
-    let stage;
+    let begun;
     try {
-      ({ stage, orgId: trainingOrgId } = await resolveWordTrainingStage(db, userId));
+      begun = await beginTrainingTurn(db, {
+        surface: "word",
+        userId,
+        scope: { orgId: null },
+        body: { attempt: args.attempt },
+      });
     } catch (error) {
       return {
         ok: false,
@@ -734,9 +744,8 @@ export async function prepareWordChatStream(
         error: withKind(error, "db.query_failed", "Word chat training stage check failed"),
       };
     }
-    const training = checkTrainingTurn(stage, args.attempt);
-    if (!training.ok) return training;
-    trainingAttempt = training.attempt;
+    if (!begun.ok) return begun;
+    trainingPlan = begun.plan;
   }
 
   if (persistChat) {
@@ -905,24 +914,22 @@ export async function prepareWordChatStream(
     }
     // A local-only chat (storage "local") is never kept server-side, so it
     // has no note: the attempt was required but is not stored.
-    if (trainingAttempt && trainingOrgId && inputMessageId) {
-      const created = await createPendingTurnNote(db, {
-        surface: "word",
-        orgId: trainingOrgId,
-        traineeUserId: userId,
+    if (trainingPlan) {
+      const recorded = await recordTrainingNote(db, {
+        plan: trainingPlan,
+        userId,
         chatId,
         messageId: inputMessageId,
-        attempt: trainingAttempt,
       });
-      if (!created.ok) {
+      if (!recorded.ok) {
         return {
           ok: false,
           status: 500,
           detail: "Failed to save Word message",
-          error: withKind(created.error, "word.session_failed", "Word training note save failed"),
+          error: withKind(recorded.error, "word.session_failed", "Word training note save failed"),
         };
       }
-      trainingNote = created.note;
+      trainingNote = recorded.note;
     }
   }
 
@@ -1048,6 +1055,7 @@ export async function prepareWordChatStream(
         selectedReasoningLevel,
         nonce,
         trainingNote,
+        trainingPlan,
       },
     };
   } catch (error) {

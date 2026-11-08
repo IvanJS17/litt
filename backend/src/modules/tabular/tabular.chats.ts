@@ -4,9 +4,12 @@
 // and building the system + history messages the agentic review chat streams
 // over. The streaming loop itself stays in tabular.routes.ts.
 
-import { checkTrainingTurn } from "../../lib/training";
-import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
-import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
+import {
+    beginTrainingTurn,
+    recordTrainingNote,
+    type TrainingTurnPlan,
+} from "../../lib/trainingTurn";
+import type { CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     loadUserMessageSentTimes,
     parseOptionalModel,
@@ -587,6 +590,7 @@ export type PreparedTabularChat = {
     memoryTurn: MemoryConversationTurn | null;
     /** LiTT training: a pasante's private note for this turn, pending its contrast. */
     trainingNote: CreatedTurnNote | null;
+    trainingPlan: TrainingTurnPlan;
 };
 
 /**
@@ -759,19 +763,20 @@ export async function prepareTabularChat(
     // approach first, in the review's organization and project, unless an
     // urgency pass on that project lifts it. Checked before anything is
     // written.
-    let trainingAttempt: string | null = null;
+    let trainingPlan: TrainingTurnPlan;
     try {
-        const turn = await resolveTurnTraining(db, userId, {
-            orgId: review.org_id ?? null,
-            projectId: review.project_id ?? null,
+        const begun = await beginTrainingTurn(db, {
+            surface: "tabular",
+            userId,
+            scope: { orgId: review.org_id ?? null, projectId: review.project_id ?? null },
+            body: { attempt: args.attempt },
         });
-        const training = checkTrainingTurn(turnStage(turn), args.attempt);
-        if (!training.ok)
-            return statusFailure(training.status, {
-                code: training.code,
-                detail: training.detail,
+        if (!begun.ok)
+            return statusFailure(begun.status, {
+                code: begun.code,
+                detail: begun.detail,
             });
-        trainingAttempt = training.attempt;
+        trainingPlan = begun.plan;
     } catch (error) {
         return internalFailure(error);
     }
@@ -897,17 +902,15 @@ export async function prepareTabularChat(
     }
 
     let trainingNote: CreatedTurnNote | null = null;
-    if (chatId && trainingAttempt && review.org_id) {
-        const created = await createPendingTurnNote(db, {
-            surface: "tabular",
-            orgId: review.org_id as string,
-            traineeUserId: userId,
+    if (chatId) {
+        const recorded = await recordTrainingNote(db, {
+            plan: trainingPlan,
+            userId,
             chatId,
             messageId: inputMessageId,
-            attempt: trainingAttempt,
         });
-        if (!created.ok) return internalFailure(created.error);
-        trainingNote = created.note;
+        if (!recorded.ok) return internalFailure(recorded.error);
+        trainingNote = recorded.note;
     }
 
     if (chatId) {
@@ -961,6 +964,7 @@ export async function prepareTabularChat(
             memorySharedAudience,
             memoryTurn,
             trainingNote,
+            trainingPlan,
         },
     };
 }

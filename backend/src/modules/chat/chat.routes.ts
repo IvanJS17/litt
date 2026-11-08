@@ -47,7 +47,11 @@ import { setOperation } from "../../lib/observability/report";
 import { normalizeEmail } from "../../lib/access";
 import { teamOrgIdOf } from "../../lib/personalOrgs";
 import { can } from "../../lib/permissions";
-import { launchTurnContrast } from "../../lib/trainingNotes";
+import {
+    finishTrainingTurn,
+    readTrainingBody,
+    trainingEnginePlan,
+} from "../../lib/trainingTurn";
 import { generateAssistantChatTitle, logChatTitleFailure } from "./chat.title";
 import { sendInternalError } from "../../lib/httpError";
 import { sendServiceFailure } from "../../lib/serviceResult";
@@ -587,7 +591,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
         requestedOrgId: req.body?.org_id,
-        attempt: body.attempt,
+        attempt: readTrainingBody(body).attempt,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);
@@ -620,6 +624,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         nonce,
         approvalEvents,
         trainingNote,
+        trainingPlan,
     } = prep.prepared;
     let chatTitle = prep.prepared.chatTitle;
     let completedTurnPersisted = prep.prepared.completedTurnPersisted;
@@ -769,6 +774,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 db,
                 write,
                 allowDocumentMutation,
+                trainingPlan: trainingEnginePlan(trainingPlan),
                 workflowStore,
                 webSearch,
                 subagentRuns,
@@ -923,15 +929,14 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
             // LiTT training: the final answer is durable, so the pasante's
             // private contrast is produced now, aside from the turn, with the
             // conversation's own model and credential. It cannot fail the turn.
-            if (trainingNote && !persistedEvents.some((event) => event.type === "error")) {
-                launchTurnContrast(db, {
-                    noteId: trainingNote.id,
-                    attempt: trainingNote.attempt,
-                    answer: fullText ?? "",
-                    model: selectedModel,
-                    apiKeys,
-                });
-            }
+            finishTrainingTurn(db, {
+                plan: trainingPlan,
+                note: trainingNote,
+                completed: !persistedEvents.some((event) => event.type === "error"),
+                answer: fullText ?? "",
+                model: selectedModel,
+                apiKeys,
+            });
 
             void enqueueChatTurnAudit(
                 db,

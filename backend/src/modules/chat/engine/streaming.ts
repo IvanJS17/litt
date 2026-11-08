@@ -90,6 +90,7 @@ import { buildMemoryTurn } from "../../../lib/memory/prompt";
 
 export type { AssistantEvent } from "@mike/contracts";
 import type { AssistantEvent, AssistantErrorCode } from "@mike/contracts";
+import type { TrainingEnginePlan } from "../../../lib/trainingTurn";
 
 /**
  * Tools the model can call that execute outside this process — in the Word
@@ -284,6 +285,11 @@ export async function runLLMStream(params: {
    * thread would hand them edit_document over every document in the project.
    */
   allowDocumentMutation?: boolean;
+  /**
+   * What a training turn asks of this engine (lib/trainingTurn): extra system
+   * text and tool limits. It can only narrow the turn, never widen it.
+   */
+  trainingPlan?: TrainingEnginePlan;
   workflowStore?: WorkflowStore;
   tabularStore?: TabularCellStore;
   /** Tools executed by the connected client (Word add-in) instead of here. */
@@ -358,9 +364,10 @@ export async function runLLMStream(params: {
     write: unsafeWrite,
     extraTools,
     webSearch: requestedWebSearch = null,
-    includeAskInputs = true,
+    includeAskInputs: requestedAskInputs = true,
     connectorApprovals = false,
-    allowDocumentMutation = true,
+    allowDocumentMutation: requestedDocumentMutation = true,
+    trainingPlan,
     workflowStore,
     tabularStore,
     clientTools,
@@ -382,7 +389,11 @@ export async function runLLMStream(params: {
   // LiTT gates (lib/chatFeatureGates.ts): off unless the operator turns them
   // on, whatever the user's own settings say.
   const webSearch = chatWebSearchEnabled() ? requestedWebSearch : null;
-  const subagentRuns = chatSubagentsEnabled() ? requestedSubagentRuns : null;
+  const subagentRuns =
+    chatSubagentsEnabled() && !trainingPlan?.noSubagents ? requestedSubagentRuns : null;
+  const includeAskInputs = requestedAskInputs && trainingPlan?.includeAskInputs !== false;
+  const allowDocumentMutation =
+    requestedDocumentMutation && trainingPlan?.allowDocumentMutation !== false;
   // Only frames that carry replay options pass a second argument.
   const write = (chunk: string, opts?: StreamRunWriteOptions) =>
     opts
@@ -463,6 +474,7 @@ export async function runLLMStream(params: {
   });
   const systemPrompt = [
     memory.systemPrompt,
+    ...(trainingPlan?.systemAddendum ? [trainingPlan.systemAddendum] : []),
     ...(webSearch
       ? [
           WEB_SEARCH_SYSTEM_PROMPT,

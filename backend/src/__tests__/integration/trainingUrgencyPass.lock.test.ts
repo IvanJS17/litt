@@ -140,20 +140,33 @@ describe("D4: which rule each place reads", () => {
         expect(source("lib/training.ts")).not.toMatch(/trainingPass|urgency/);
     });
 
+    // The turn is wired once, in lib/trainingTurn (card 1 of layer 3): the
+    // surfaces call beginTrainingTurn with their own name and read no stage.
     it.each([
-        "modules/chat/chat.prepare.ts",
-        "modules/project-chat/projectChat.service.ts",
-        "modules/tabular/tabular.chats.ts",
-    ])("%s decides the turn with resolveTurnTraining", (path) => {
+        ["modules/chat/chat.prepare.ts", "chat"],
+        ["modules/project-chat/projectChat.service.ts", "project_chat"],
+        ["modules/tabular/tabular.chats.ts", "tabular"],
+    ])("%s decides the turn through beginTrainingTurn (%s)", (path, surface) => {
         const text = source(path);
+        expect(text).toContain("beginTrainingTurn(");
+        expect(text).toContain(`surface: "${surface}"`);
+        expect(text).not.toContain("resolveTrainingStage(");
+        expect(text).not.toMatch(/resolveTurnTraining|checkTrainingTurn/);
+    });
+
+    it("decides the turn of those surfaces with resolveTurnTraining, in one place", () => {
+        const text = source("lib/trainingTurn/index.ts");
         expect(text).toContain("resolveTurnTraining(");
-        expect(text).toContain("checkTrainingTurn(turnStage(turn)");
+        expect(text).toContain("resolved.passActive ? null : resolved.stage");
         expect(text).not.toContain("resolveTrainingStage(");
     });
 
     it("leaves Word on its own stage rule, without passes", () => {
-        const text = source("modules/word-chat/wordChat.service.ts");
-        expect(text).toContain("resolveWordTrainingStage(");
-        expect(text).not.toMatch(/trainingPass|resolveTurnTraining/);
+        const word = source("modules/word-chat/wordChat.service.ts");
+        expect(word).toContain('surface: "word"');
+        expect(word).not.toMatch(/trainingPass|resolveTurnTraining/);
+        const wired = source("lib/trainingTurn/index.ts");
+        expect(wired).toContain("resolveWordTrainingStage(");
+        expect(wired).toMatch(/passActive: false/);
     });
 });
