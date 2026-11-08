@@ -155,6 +155,16 @@
       "thanks": "Thanks,"
     }
   },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Document",
+        "explorer": "Explorer",
+        "label": "Workspace view"
+      }
+    }
+  },
   "training": {
     "stage": {
       "pasante": "Intern",
