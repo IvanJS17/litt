@@ -626,15 +626,17 @@ data is here.
 - **What is kept.** The corrections (the pupil's text, the mentor's text and
   comment) and the pupil's id live on the playbook import row until the job
   ends, then they are erased; the failure and interruption paths erase them
-  too. No table of this feature has a column for the pupil, so nothing
-  survives the pupil's membership. What stays is the rule, which belongs to
-  the firm, and the mentor's name as its attribution; if the mentor's account
+  too. No table of this feature keeps the pupil's text or a column for the
+  pupil. The one place that keeps the pupil's id is the insert-only audit
+  (below), which stores ids and counts only and no text. What stays is the
+  rule, which belongs to the firm, and the mentor's name as its attribution; if the mentor's account
   is erased the attribution on the change goes to null.
 - **Copies.** A copy of the playbook carries no attribution and no note from
   a correction: the rule is "suggestion without backing, review".
 - **Audit** (insert-only, ids and counts, never text): `training.correction_proposed`
-  (organization surface; `org_id`, `target_user_id`, `playbook_id`, `import_id`,
-  `corrections`) when a batch is sent, and `playbook.corrections_ready` when it
+  (organization surface, like the other training audit rows: it keeps
+  `org_id`, `target_user_id`, `playbook_id`, `import_id` and the `corrections`
+  count, so the pupil is identified by id only) when a batch is sent, and `playbook.corrections_ready` when it
   ends.
 - **Interface.** The playbook page has a **Corrections** panel for Editors who
   supervise someone: the pupil, up to ten corrections, the model, and the
