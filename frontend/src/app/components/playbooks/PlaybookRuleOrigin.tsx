@@ -24,6 +24,7 @@ export function PlaybookRuleOrigin({
   provenance: PlaybookProvenance;
 }) {
   const t = useTranslations("playbooks.origin");
+  const tCorrections = useTranslations("training.criterion.corrections");
   const { origin } = rule;
   const legalRefs = rule.legalRefs ?? [];
   if (!origin && legalRefs.length === 0) return null;
@@ -44,7 +45,11 @@ export function PlaybookRuleOrigin({
                 ? sourceName
                   ? t("clause", { name: sourceName })
                   : t("clauseUnnamed")
-                : t("aiGeneral")}
+                : origin.kind === "correction"
+                  ? origin.attributedTo
+                    ? tCorrections("origin", { name: origin.attributedTo })
+                    : tCorrections("originUnnamed")
+                  : t("aiGeneral")}
             {origin.unbacked && (
               <>
                 {" · "}

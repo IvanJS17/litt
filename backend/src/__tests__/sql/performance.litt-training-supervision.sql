@@ -32,7 +32,7 @@ create function pg_temp.fixture() returns void language plpgsql as $$
 declare
   org uuid := gen_random_uuid(); other_org uuid := gen_random_uuid();
   project uuid := gen_random_uuid(); chat uuid := gen_random_uuid();
-  review uuid := gen_random_uuid();
+  review uuid := gen_random_uuid(); tabular_review uuid := gen_random_uuid();
   a record;
 begin
   delete from litt_training_actors;
@@ -65,6 +65,9 @@ begin
     values (chat, current_setting('litt.pupil')::uuid, org, project);
   insert into public.training_turn_notes(org_id, trainee_user_id, chat_id, message_id, attempt)
     values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(), repeat('x', 60));
+  insert into public.training_backing_checks(org_id, trainee_user_id, chat_id, message_id, status, conclusions)
+    values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(), 'ready',
+      '[{"id":"c1","text":"t","citation_ref":null,"status":"unbacked"}]');
   insert into public.training_work_reviews(id, org_id, trainee_user_id, chat_id, status,
       proposed, ai_corrected, doubts, unverified, model_provider, model, credential_ref,
       generated_by, generated_at, reviewed_at, reviewed_by)
@@ -81,6 +84,15 @@ begin
       expires_at, reason_code, reason_note)
     values (org, current_setting('litt.pupil')::uuid, project, current_setting('litt.mentor_a')::uuid,
       now() + interval '8 hours', 'plazo', 'nota libre');
+  -- Layer 3, bulk review designer: a tabular review and the pupil's audit of it.
+  insert into public.tabular_reviews(id, user_id, project_id, org_id, title)
+    values (tabular_review, current_setting('litt.owner')::uuid, project, org, 'Synthetic review');
+  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id,
+      columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, current_setting('litt.pupil')::uuid, tabular_review, '[]', '[]', 'seed', repeat('s', 64),
+      jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
+  insert into public.training_readings(org_id, trainee_user_id, project_id, status)
+    values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
   -- Training audit events name the pupil only as target_user_id.
   insert into public.audit_events(user_id, action, surface, detail)
     values (current_setting('litt.owner')::uuid, 'training.urgency_pass_granted', 'organization',

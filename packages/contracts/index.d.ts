@@ -815,6 +815,78 @@ export interface TrainingRemoveStageQuery {
 }
 
 // --- Training layer 3, card 8: accountability mode (begin) ---
+/**
+ * How well one conclusion of a junior's answer rests on a source LiTT can show.
+ * Computed by the server from the citations it verified, never by the model:
+ * `backed` has a verified passage of a document in LiTT; `citation_unverified`
+ * names a citation whose quote the server could not find; `unbacked` has none.
+ * A law named from memory is `unbacked` (LiTT has no corpus of laws).
+ */
+export type TrainingBackingStatus = "backed" | "citation_unverified" | "unbacked";
+
+/** The exact passage a `backed` conclusion rests on, as the server found it in the document. */
+export interface TrainingBackingPassage {
+  ref: number;
+  /** The cited document's name. */
+  title: string | null;
+  page: number | string | null;
+  excerpt: string;
+}
+
+export interface TrainingBackingConclusion {
+  id: string;
+  text: string;
+  /** The citation the AI proposed for it (a proposal; the person checks the passage). */
+  citation_ref: number | null;
+  status: TrainingBackingStatus;
+  passage: TrainingBackingPassage | null;
+  /** Legal references the conclusion names that the shown passage does not, e.g. `art. 27, fr. IV`. */
+  unverified_references: string[];
+  person_verified: boolean;
+  /** Why the person keeps the conclusion; learning data. */
+  person_note: string | null;
+}
+
+export interface TrainingBackingCheck {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  chat_id: string;
+  message_id: string;
+  status: "pending" | "ready" | "failed";
+  conclusions: TrainingBackingConclusion[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** GET /training/me/chats/:chatId/backing[?message_id=]. Only the caller's own checks. */
+export interface TrainingChatBacking {
+  checks: TrainingBackingCheck[];
+}
+
+/** PUT /training/me/chats/:chatId/backing/:checkId/conclusions/:conclusionId. */
+export interface TrainingBackingMark {
+  person_verified?: boolean;
+  /** At most 500 characters; null or empty clears it. */
+  person_note?: string | null;
+}
+
+export interface TrainingPupilBackingWork {
+  surface: "chat" | "word" | "tabular";
+  chat_id: string;
+  project_id: string | null;
+  title: string | null;
+  checks: TrainingBackingCheck[];
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/backing. The current mentor's only. */
+export interface TrainingPupilBacking {
+  org_id: string;
+  trainee_user_id: string;
+  works: TrainingPupilBackingWork[];
+  /** Works in matters the mentor cannot open: counted, never listed. */
+  works_without_access: number;
+}
 // --- Training layer 3, card 8 (end) ---
 
 /** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
@@ -846,6 +918,106 @@ export interface TrainingReviewItem {
 export type TrainingWorkSurface = "chat" | "word" | "tabular";
 
 // --- Training layer 3, card 9: bulk review designer (begin) ---
+
+/** How a person (or, over theirs, the mentor) marked a sampled cell. */
+export type TrainingAuditMark = "correct" | "incomplete" | "incorrect";
+export type TrainingAuditOutcome = "adequate" | "needs_work";
+export type TrainingAuditStatus = "open" | "complete" | "stale";
+/** What the code-only review of a review's questions found. */
+export type TrainingLintCode =
+    | "empty_name"
+    | "duplicate_name"
+    | "empty_instruction"
+    | "short_instruction"
+    | "no_format";
+export interface TrainingLintWarning {
+    code: TrainingLintCode;
+    /** The column the warning is about (its `index` in columns_config). */
+    column_index: number;
+    /** The other column of a duplicated name. */
+    other_index?: number;
+}
+export interface TrainingAuditColumn {
+    index: number;
+    name: string;
+    /** The instruction of the column. */
+    prompt: string;
+}
+export interface TrainingAuditCell {
+    row_id: string;
+    column_index: number;
+    column_name: string;
+    row_label: string | null;
+    /** The cell as it is now, only when the reader may read its sources. */
+    summary: string | null;
+    /** The reasoning with its inline citations, as the review stores it. */
+    reasoning: string | null;
+    /** The reader may not read the sources of this cell. */
+    withheld: boolean;
+    mark: TrainingAuditMark | null;
+    note: string | null;
+    /** The mentor's correction of the person's mark. */
+    mentor_mark: TrainingAuditMark | null;
+}
+/** Counts of one person's own marks in one column: never a group figure. */
+export interface TrainingAuditColumnTally {
+    column_index: number;
+    column_name: string;
+    marked: number;
+    incorrect: number;
+    incomplete: number;
+}
+export interface TrainingReviewAudit {
+    id: string;
+    tabular_review_id: string;
+    status: TrainingAuditStatus;
+    columns: TrainingAuditColumn[];
+    lint: TrainingLintWarning[];
+    cells: TrainingAuditCell[];
+    /** Sampled cells the reader may not read. */
+    withheld: number;
+    created_at: string;
+    completed_at: string | null;
+    /** Only once the audit is complete. */
+    tally: TrainingAuditColumnTally[] | null;
+    evaluation: {
+        outcome: TrainingAuditOutcome;
+        note: string | null;
+        evaluated_at: string;
+    } | null;
+}
+/** GET /tabular-review/:reviewId/training-audit */
+export interface TrainingReviewAuditState {
+    /** The review is one the caller audits as a junior. */
+    applies: boolean;
+    /** Done cells enough to draw a sample. */
+    ready: boolean;
+    /** The review's questions now (names and instructions). */
+    columns: TrainingAuditColumn[];
+    /** The review of the current questions, by code. */
+    lint: TrainingLintWarning[];
+    audit: TrainingReviewAudit | null;
+}
+export interface TrainingAuditMarkBody {
+    mark: TrainingAuditMark;
+    note?: string | null;
+}
+/** GET /orgs/:orgId/training/pupils/:userId/review-audits */
+export interface TrainingPupilReviewAudits {
+    audits: (TrainingReviewAudit & { review_title: string | null })[];
+    /** Audits of reviews in matters the mentor cannot open: counted, not shown. */
+    without_access: number;
+}
+export interface TrainingAuditEvaluationBody {
+    outcome: TrainingAuditOutcome;
+    note?: string | null;
+    /**
+     * The mentor's own mark on sampled cells, over the person's. The current
+     * mentor may change it again, or take it back with `mark: null`.
+     */
+    corrections?: { row_id: string; column_index: number; mark: TrainingAuditMark | null }[];
+}
+
 // --- Training layer 3, card 9 (end) ---
 
 /** Counted, never generated: what the review's lines rest on. */
@@ -927,6 +1099,92 @@ export interface TrainingPupilWorks {
 }
 
 // --- Training layer 3, card 10: periodic full reading (begin) ---
+
+/** Where a periodic full reading stands. `comparing` is the machine reading. */
+export type TrainingReadingStatus = "assigned" | "submitted" | "comparing" | "compared" | "failed";
+
+/** A finding of the machine and the passage of the document it rests on (located in its text). */
+export interface TrainingReadingMachineFinding {
+  text: string;
+  excerpt: string;
+}
+
+/**
+ * How the person's lines and the machine's findings compare. Every index
+ * points into `person_items` or into the reading's `machine_findings`; the
+ * pairing is proposed by the AI (inferred), the lists are not. `discarded`
+ * counts machine findings dropped because their quote is not in the document.
+ */
+export interface TrainingReadingComparison {
+  person_items: string[];
+  both: { person: number; machine: number }[];
+  only_person: number[];
+  only_machine: number[];
+  discarded: number;
+}
+
+export interface TrainingReading {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  /** The matter the document belongs to; null once it is gone. */
+  project_id: string | null;
+  status: TrainingReadingStatus;
+  /** The proposed document was already changed once. */
+  swapped: boolean;
+  findings: string | null;
+  submitted_at: string | null;
+  machine_findings: TrainingReadingMachineFinding[] | null;
+  comparison: TrainingReadingComparison | null;
+  model_provider: string | null;
+  model: string | null;
+  created_at: string;
+}
+
+export interface TrainingReadingEligibility {
+  /** Reading applies to people at the junior stage only. */
+  is_junior: boolean;
+  /** A reading can be started now (junior, none open, the interval passed). */
+  due: boolean;
+  open_reading_id: string | null;
+  last_submitted_at: string | null;
+  next_due_at: string | null;
+}
+
+/** GET /training/me/readings?org_id= */
+export interface TrainingReadings {
+  org_id: string;
+  eligibility: TrainingReadingEligibility;
+  /** The machine's reading runs on the caller's own key; null when it cannot. */
+  generation: TrainingReviewGeneration;
+  readings: TrainingReading[];
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/readings */
+export interface TrainingPupilReadings {
+  org_id: string;
+  trainee_user_id: string;
+  readings: TrainingReading[];
+  /** Readings of documents in matters the mentor cannot open: counted, never shown. */
+  readings_without_access: number;
+}
+
+/** GET /training/me/readings/:id/document: shown to read, never stored on the reading. */
+export interface TrainingReadingDocument {
+  reading_id: string;
+  filename: string | null;
+  text: string;
+}
+
+/** PUT /training/me/readings/:id/findings */
+export interface TrainingReadingFindingsBody {
+  findings: string;
+}
+
+/** POST /training/me/readings/:id/compare */
+export interface TrainingReadingCompareBody {
+  credential_ref?: string | null;
+}
 // --- Training layer 3, card 10 (end) ---
 
 /** POST /orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review */
@@ -1050,6 +1308,45 @@ export interface TrainingAcceptPromotionBody {
 export type TrainingUrgencyReason = "plazo" | "audiencia" | "cliente_urgente" | "otro";
 
 // --- Training layer 3, card 15: authorship (begin) ---
+/**
+ * `GET /single-documents/:id/versions/:versionId/authorship`: an ESTIMATE of
+ * how much of a version's text came from the assistant, from what LiTT
+ * recorded (assistant edits, the generated or uploaded starting text). It is
+ * computed on request and never stored. What cannot be attributed is
+ * `undetermined`; it is not a detector of AI text.
+ */
+export type DocumentAuthorshipStatus =
+  | "ok"
+  /** The version's text is not extracted yet (or was never): nothing to attribute. */
+  | "text_pending"
+  | "text_failed"
+  | "too_large"
+  | "empty";
+/** Where the version's starting text came from: the assistant, a file somebody uploaded, or no record. */
+export type DocumentAuthorshipBaseline = "ai" | "file" | "unknown";
+export interface DocumentAuthorshipWords {
+  total: number;
+  /** Text that entered through a person's own edits in LiTT. */
+  person: number;
+  /** Text equal to what the assistant inserted and a person accepted, or generated. */
+  ai: number;
+  undetermined: number;
+}
+export interface DocumentAuthorship {
+  document_id: string;
+  version_id: string;
+  status: DocumentAuthorshipStatus;
+  /** Always `true`: the figures are estimates by the rule the screen states. */
+  estimate: true;
+  baseline: DocumentAuthorshipBaseline;
+  words: DocumentAuthorshipWords | null;
+  /** Percent of `words.total`, rounded to multiples of 5 that add up to 100; `null` without text. */
+  shares: { person: number; ai: number; undetermined: number } | null;
+  /** Assistant edits recorded for this version and the ones it came from. */
+  edits: { accepted: number; rejected: number; pending: number };
+  /** Pages without a text layer: their text cannot be attributed. */
+  textless_pages: number;
+}
 // --- Training layer 3, card 15 (end) ---
 
 /** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */

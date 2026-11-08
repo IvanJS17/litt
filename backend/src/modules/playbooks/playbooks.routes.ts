@@ -54,6 +54,7 @@ import {
   setPlaybookState,
   updatePlaybookContent,
   copyPlaybook,
+  queuePlaybookCorrections,
   queuePlaybookProposals,
   listPlaybookChanges,
   decidePlaybookChange,
@@ -854,6 +855,32 @@ playbooksRouter.post(
           model: typeof body.model === "string" ? body.model : "",
           answers: body.answers,
           attachments: body.attachments,
+        }),
+      );
+    } catch (error) {
+      sendError(res, error);
+    }
+  },
+);
+
+// LiTT training: a mentor's corrections of a pupil's work, as changes proposed
+// for the playbook. Editor or owner of the playbook and current mentor of the
+// pupil; an editor decides each change at PATCH …/changes/:changeId.
+playbooksRouter.post(
+  "/:playbookId/corrections",
+  requireMfaIfEnrolled,
+  async (req, res) => {
+    setOperation("playbooks.corrections");
+    try {
+      const body = req.body ?? {};
+      res.status(202).json(
+        await queuePlaybookCorrections({
+          userId: res.locals.userId as string,
+          userEmail: res.locals.userEmail,
+          playbookId: req.params.playbookId,
+          model: typeof body.model === "string" ? body.model : "",
+          traineeUserId: body.traineeUserId,
+          corrections: body.corrections,
         }),
       );
     } catch (error) {

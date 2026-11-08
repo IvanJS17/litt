@@ -29,6 +29,7 @@ import {
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { MemberIdentity, membersById, practiceLabel, STAGE_LABEL } from "./trainingShared";
 import { MentorSeesMe } from "./supervision/MentorSeesMe";
+import { ReadingNotice } from "./reading/ReadingNotice";
 
 // Ajustes → Formación (docs/training.md):
 //   Mi formación   the caller's mentor and stages, per organization; they see
@@ -189,6 +190,11 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
                     <StageList stages={membership.stages} />
                 </div>
             </SettingsRow>
+            {membership.stages.some((entry) => entry.stage === "junior") && (
+                <SettingsRow layout="stacked">
+                    <ReadingNotice orgId={membership.org_id} />
+                </SettingsRow>
+            )}
             <SettingsRow layout="stacked">
                 <MentorSeesMe orgId={membership.org_id} />
             </SettingsRow>

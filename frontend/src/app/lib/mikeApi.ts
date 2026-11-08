@@ -2262,6 +2262,56 @@ export async function getTrainingTurnNotes(
     }
 }
 
+// ---------------------------------------------------------------------------
+// LiTT training layer 3, card 8: accountability mode («rendir cuentas»)
+// ---------------------------------------------------------------------------
+
+/**
+ * A junior's accountability checks of one chat's answers (any surface). The
+ * caller's own, so a chat with none of theirs answers a uniform 404, which is
+ * "none" here.
+ */
+export async function getChatBacking(
+    chatId: string,
+): Promise<import("@mike/contracts").TrainingBackingCheck[]> {
+    try {
+        const result = await apiRequest<import("@mike/contracts").TrainingChatBacking>(
+            "training.read",
+            `/training/me/chats/${encodeURIComponent(chatId)}/backing`,
+        );
+        return result.checks;
+    } catch (error) {
+        if (error instanceof MikeApiError && error.status === 404) return [];
+        throw error;
+    }
+}
+
+/** «Lo verifiqué» on a conclusion, or the reason the person keeps it. */
+export async function markBackingConclusion(
+    chatId: string,
+    checkId: string,
+    conclusionId: string,
+    mark: import("@mike/contracts").TrainingBackingMark,
+): Promise<import("@mike/contracts").TrainingBackingCheck> {
+    return apiRequest<import("@mike/contracts").TrainingBackingCheck>(
+        "training.read",
+        `/training/me/chats/${encodeURIComponent(chatId)}/backing/${encodeURIComponent(checkId)}/conclusions/${encodeURIComponent(conclusionId)}`,
+        {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mark),
+        },
+    );
+}
+
+/** What a pupil's current mentor sees of the pupil's accountability checks. */
+export async function getPupilBacking(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilBacking>(
+        "training.manage",
+        `/orgs/${encodeURIComponent(orgId)}/training/pupils/${encodeURIComponent(userId)}/backing`,
+    );
+}
+
 export async function getMyTraining(): Promise<import("@mike/contracts").TrainingMembership[]> {
     const result = await apiRequest<{ memberships: import("@mike/contracts").TrainingMembership[] }>(
         "training.read",
@@ -2516,6 +2566,142 @@ export async function getMySupervision(orgId: string) {
         `/training/me/supervision?${new URLSearchParams({ org_id: orgId })}`,
     );
 }
+
+// LiTT training layer 3, bulk review designer (docs/training.md): the
+// junior's design review and sampled audit of a tabular review, and the
+// current mentor's evaluation of them.
+
+export type {
+    TrainingAuditCell,
+    TrainingAuditColumn,
+    TrainingAuditColumnTally,
+    TrainingAuditEvaluationBody,
+    TrainingAuditMark,
+    TrainingAuditMarkBody,
+    TrainingAuditOutcome,
+    TrainingAuditStatus,
+    TrainingLintCode,
+    TrainingLintWarning,
+    TrainingPupilReviewAudits,
+    TrainingReviewAudit,
+    TrainingReviewAuditState,
+} from "@mike/contracts";
+
+const reviewAuditPath = (reviewId: string) => `/tabular-review/${encodeURIComponent(reviewId)}/training-audit`;
+
+export async function getReviewAudit(reviewId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReviewAuditState>("training.read", reviewAuditPath(reviewId));
+}
+
+export async function startReviewAudit(reviewId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(reviewAuditPath(reviewId), "POST");
+}
+
+export async function markReviewAuditCell(
+    reviewId: string,
+    cell: { row_id: string; column_index: number },
+    body: import("@mike/contracts").TrainingAuditMarkBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(
+        `${reviewAuditPath(reviewId)}/cells/${encodeURIComponent(`${cell.row_id}:${cell.column_index}`)}`,
+        "PUT",
+        body,
+    );
+}
+
+export async function completeReviewAudit(reviewId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(`${reviewAuditPath(reviewId)}/complete`, "POST");
+}
+
+export async function getPupilReviewAudits(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilReviewAudits>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/review-audits`,
+    );
+}
+
+export async function evaluateReviewAudit(
+    orgId: string,
+    userId: string,
+    auditId: string,
+    body: import("@mike/contracts").TrainingAuditEvaluationBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(
+        `${pupilPath(orgId, userId)}/review-audits/${encodeURIComponent(auditId)}/evaluation`,
+        "PUT",
+        body,
+    );
+}
+// --- Training layer 3, card 10: periodic full reading (begin) ---
+// A junior reads one whole document without the assistant, writes what they
+// found, and then compares it with what the machine found. The person's
+// routes answer only the person; the mentor's, only the current mentor.
+
+export type {
+    TrainingPupilReadings,
+    TrainingReading,
+    TrainingReadingComparison,
+    TrainingReadingDocument,
+    TrainingReadingEligibility,
+    TrainingReadingMachineFinding,
+    TrainingReadingStatus,
+    TrainingReadings,
+} from "@mike/contracts";
+
+const readingPath = (readingId: string) => `/training/me/readings/${encodeURIComponent(readingId)}`;
+
+export async function getMyReadings(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReadings>(
+        "training.read",
+        `/training/me/readings?${new URLSearchParams({ org_id: orgId })}`,
+    );
+}
+
+export async function getMyReading(readingId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReading>("training.read", readingPath(readingId));
+}
+
+/** Starts the reading that is due, or returns the one already open. */
+export async function startReading(orgId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>("/training/me/readings", "POST", {
+        org_id: orgId,
+    });
+}
+
+export async function getReadingDocument(readingId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReadingDocument>(
+        "training.read",
+        `${readingPath(readingId)}/document`,
+    );
+}
+
+/** Once, and before the document is changed no more: 409 training_reading_swap_used. */
+export async function swapReading(readingId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(`${readingPath(readingId)}/swap`, "POST", {});
+}
+
+/** Written once: a second time answers 409 training_reading_findings_recorded. */
+export async function submitReadingFindings(readingId: string, findings: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(`${readingPath(readingId)}/findings`, "PUT", {
+        findings,
+    });
+}
+
+export async function compareReading(readingId: string, credentialRef?: string | null) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(
+        `${readingPath(readingId)}/compare`,
+        "POST",
+        credentialBody(credentialRef),
+    );
+}
+
+export async function getPupilReadings(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilReadings>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/readings`,
+    );
+}
+// --- Training layer 3, card 10 (end) ---
 
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
@@ -3132,6 +3318,22 @@ export interface DocumentVersion {
     training_held?: boolean;
     /** Whether the caller may approve it (the server's own rule). */
     training_can_approve?: boolean;
+    /** Whether the caller may read its estimated authorship (the server's own rule). */
+    training_authorship?: boolean;
+}
+
+/**
+ * Estimated authorship of a version (docs/training.md): computed by the
+ * server on request, 404 for anybody who may not see it.
+ */
+export async function getDocumentAuthorship(
+    documentId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").DocumentAuthorship> {
+    return apiRequest(
+        "training.read",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/authorship`,
+    );
 }
 
 /** Approve a pasante's version as it is now (docs/training.md). */
@@ -4158,6 +4360,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
                 .map((e) => (e as { type: "content"; text: string }).text)
                 .join("") ?? "";
         return {
+            id: m.id,
             role: "assistant" as const,
             content,
             events,
@@ -4725,12 +4928,14 @@ export interface PlaybookRule {
 }
 /** LiTT: an answer (questionIds), an attached clause (sourceId) or general practice. */
 export interface PlaybookRuleOrigin {
-    kind: "answer" | "clause" | "ai_general";
+    kind: "answer" | "clause" | "ai_general" | "correction";
     questionIds?: string[];
     /** A reference document of the playbook. */
     sourceId?: string;
     quote?: string;
     note?: string;
+    /** A correction's origin: the name of the person who made it. */
+    attributedTo?: string;
     /** "Suggestion without backing, review". */
     unbacked: boolean;
 }
@@ -4977,7 +5182,7 @@ export async function createPlaybook(
 export interface PlaybookImport {
     id: string;
     /** LiTT: a file import, a draft from the questionnaire, or proposals for a copy. */
-    kind?: "import" | "draft" | "proposal";
+    kind?: "import" | "draft" | "proposal" | "correction";
     status: "running" | "completed" | "failed";
     stage: string;
     error: string | null;
@@ -5092,6 +5297,69 @@ export async function startPlaybookDraft(
             answers: request.answers,
             attachments,
         }),
+    });
+}
+
+/** LiTT: one change proposed for a playbook, pending until an editor decides it. */
+export interface PlaybookChange {
+    id: string;
+    playbookId: string;
+    op: "add_rule" | "modify_rule" | "remove_rule";
+    ruleId: string;
+    topicId: string | null;
+    /** The rule when the change was proposed; null for an added rule. */
+    before: PlaybookRule | null;
+    /** The rule the change leaves; null for a removed rule. */
+    after: PlaybookRule | null;
+    changedFields: string[];
+    rationale: string;
+    /** A questionnaire for a copy, or a mentor's corrections. */
+    source: "starting_point" | "correction";
+    status: "pending" | "accepted" | "rejected";
+    createdAt: string;
+}
+
+export async function listPlaybookChanges(playbookId: string): Promise<PlaybookChange[]> {
+    return apiRequest("playbooks.save", `/playbooks/${encodeURIComponent(playbookId)}/changes`);
+}
+
+/** Accepting applies the change over the rule it was proposed for (409 otherwise). */
+export async function decidePlaybookChange(
+    playbookId: string,
+    changeId: string,
+    decision: "accept" | "reject",
+): Promise<{ playbook: Playbook; change: PlaybookChange }> {
+    return apiRequest(
+        "playbooks.save",
+        `/playbooks/${encodeURIComponent(playbookId)}/changes/${encodeURIComponent(changeId)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decision }),
+        },
+    );
+}
+
+/** One correction of a pupil's work: the text as it was, as it should be, and why. */
+export interface PlaybookCorrectionInput {
+    before: string;
+    after: string;
+    comment: string;
+}
+
+/**
+ * LiTT training: the mentor's corrections, proposed as rules. Editor of the
+ * playbook and current mentor of the pupil; the changes are computed on the
+ * server and followed like an import.
+ */
+export async function startPlaybookCorrections(
+    playbookId: string,
+    request: { model: string; traineeUserId: string; corrections: PlaybookCorrectionInput[] },
+): Promise<PlaybookImport> {
+    return apiRequest("playbooks.import", `/playbooks/${encodeURIComponent(playbookId)}/corrections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
     });
 }
 

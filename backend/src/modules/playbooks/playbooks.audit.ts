@@ -32,6 +32,9 @@ export type PlaybookAuditAction =
   // Ids, operations and counts only; never answers or rule text.
   | "playbook.copied"
   | "playbook.proposals_ready"
+  // LiTT training: changes proposed from a mentor's corrections, completed or
+  // failed, with counts; never the corrections, the pupil or rule text.
+  | "playbook.corrections_ready"
   | "playbook.change_accepted"
   | "playbook.change_rejected";
 

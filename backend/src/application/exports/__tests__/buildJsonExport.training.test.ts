@@ -79,6 +79,15 @@ function tables(): Record<string, Row[]> {
             },
             { id: "d3", org_id: "org-a", trainee_user_id: other, questions_status: "none", created_at: "2026-01-06T00:00:00Z" },
         ],
+        training_review_audits: [
+            {
+                id: "a1", org_id: "org-a", trainee_user_id: userId, tabular_review_id: "tr1", columns_snapshot: [],
+                lint: [], seed: "secret-seed", digest_salt: "secret-salt", sample: [{ row_id: "w", column_index: 0, digest: "d", mark: "correct" }],
+                status: "complete", completed_at: "2026-01-08T00:00:00Z", mentor_outcome: "adequate",
+                mentor_note: "bien", evaluated_at: "2026-01-09T00:00:00Z", evaluated_by: other, created_at: "2026-01-08T00:00:00Z",
+            },
+            { id: "a2", org_id: "org-a", trainee_user_id: other, tabular_review_id: "tr1", created_at: "2026-01-08T00:00:00Z" },
+        ],
         training_urgency_passes: [
             {
                 id: "p1", org_id: "org-b", trainee_user_id: userId, project_id: "proj-1", granted_by: other,
@@ -87,10 +96,32 @@ function tables(): Record<string, Row[]> {
             },
             { id: "p2", org_id: "org-a", trainee_user_id: other, project_id: "proj-2", created_at: "2026-01-07T00:00:00Z" },
         ],
+        training_readings: [
+            {
+                id: "g1", org_id: "org-b", trainee_user_id: userId, project_id: "proj-1", document_id: "doc-1",
+                version_id: "ver-1", swapped: false, status: "compared", findings: "Falta la fecha del pagaré.",
+                submitted_at: "2026-01-08T00:00:00Z",
+                machine_findings: [{ text: "No hay fecha", excerpt: "sin fecha de vencimiento" }],
+                comparison: { person_items: ["Falta la fecha del pagaré."], both: [{ person: 0, machine: 0 }], only_person: [], only_machine: [], discarded: 0 },
+                model_provider: "openai", model: "gpt", credential_ref: "user:holder:v1",
+                created_at: "2026-01-08T00:00:00Z", updated_at: "2026-01-08T01:00:00Z",
+            },
+            // Somebody else's reading: not the holder's data.
+            { id: "g2", org_id: "org-a", trainee_user_id: other, status: "assigned", created_at: "2026-01-09T00:00:00Z" },
+        ],
     };
 }
 
 describe("account export: the holder's training", () => {
+    it("carries the holder's review audits without the seed or the evaluator", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        expect(out.training.review_audits).toEqual([
+            expect.objectContaining({ id: "a1", mentor_outcome: "adequate", mentor_note: "bien" }),
+        ]);
+        expect(JSON.stringify(out.training.review_audits)).not.toMatch(/secret-seed|secret-salt|digest_salt|colleague/);
+    });
+
     it("Personal's export carries it for every organization, only the holder's own", async () => {
         const { db } = makeExportDb(tables());
         const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
@@ -154,5 +185,20 @@ describe("account export: the holder's training", () => {
         expect(out.training.work_reviews).toEqual([]);
         expect(out.training.defenses.map((r: Row) => r.id)).toEqual(["d2"]);
         expect(out.training.urgency_passes.map((r: Row) => r.id)).toEqual(["p1"]);
+    });
+
+    it("carries the holder's full readings, with no title, key or other person", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        expect(out.training.readings).toEqual([
+            expect.objectContaining({
+                id: "g1", org_id: "org-b", status: "compared", findings: "Falta la fecha del pagaré.",
+                machine_findings: [{ text: "No hay fecha", excerpt: "sin fecha de vencimiento" }],
+            }),
+        ]);
+        for (const key of ["trainee_user_id", "credential_ref", "filename", "title"])
+            expect(out.training.readings[0], key).not.toHaveProperty(key);
+        const scoped = (await buildUserAccountExport(db, userId, "h@example.test", "org-a")) as any;
+        expect(scoped.training.readings).toEqual([]);
     });
 });

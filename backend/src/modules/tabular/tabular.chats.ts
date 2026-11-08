@@ -45,6 +45,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     titleModelForRoute,
     persistLastSelectedChatModel,
@@ -591,6 +592,8 @@ export type PreparedTabularChat = {
     /** LiTT training: a pasante's private note for this turn, pending its contrast. */
     trainingNote: CreatedTurnNote | null;
     trainingPlan: TrainingTurnPlan;
+    /** The llm.egress of the second call a training hook makes with the turn's own route. */
+    trainingEgress: () => Promise<void>;
 };
 
 /**
@@ -861,6 +864,15 @@ export async function prepareTabularChat(
         surface: "tabular",
         resolved: governed,
     });
+    const trainingEgress = () =>
+        recordChatEgressOrThrow(db, {
+            userId,
+            orgId: review.org_id ?? null,
+            chatId,
+            projectId: review.project_id ?? null,
+            surface: "training_backing",
+            resolved: governed,
+        });
 
     // Both messages of this turn carry the documents their text may derive
     // from: the rows the caller just read, plus everything an earlier turn
@@ -965,6 +977,7 @@ export async function prepareTabularChat(
             memoryTurn,
             trainingNote,
             trainingPlan,
+            trainingEgress,
         },
     };
 }

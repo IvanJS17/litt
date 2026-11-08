@@ -20,6 +20,7 @@ import {
     type CreatedTurnNote,
 } from "../trainingNotes";
 import type { UserApiKeys } from "../llm";
+import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
 import { methodologyBehavior } from "./methodology";
@@ -60,8 +61,14 @@ const attemptBehavior: Behavior = (resolved, plan) => {
     return check.ok ? { ...plan, attempt: check.attempt } : check;
 };
 
+// A junior's answer is held to account after the turn (./accountability.ts).
+const accountabilityBehavior: Behavior = (resolved, plan) =>
+    isAccountable(resolved.stage, resolved.orgId)
+        ? { ...plan, afterTurn: [...plan.afterTurn, accountabilityHook] }
+        : plan;
+
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior, methodologyBehavior];
+const BEHAVIORS: readonly Behavior[] = [attemptBehavior, accountabilityBehavior, methodologyBehavior];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
@@ -168,6 +175,14 @@ export function finishTrainingTurn(
         answer: string;
         model: string;
         apiKeys?: UserApiKeys;
+        /** The saved turn, for the hooks; omit when nothing was saved. */
+        turn?: {
+            userId: string;
+            chatId: string;
+            messageId: string | null | undefined;
+            /** See TrainingTurnOutcome.recordEgress; the route of the turn. */
+            recordEgress: () => Promise<void>;
+        };
     },
 ): void {
     if (!args.completed) return;
@@ -181,10 +196,23 @@ export function finishTrainingTurn(
         });
     }
     if (args.plan) {
+        const outcome =
+            args.turn?.messageId
+                ? {
+                      db,
+                      userId: args.turn.userId,
+                      chatId: args.turn.chatId,
+                      messageId: args.turn.messageId,
+                      answer: args.answer,
+                      model: args.model,
+                      apiKeys: args.apiKeys,
+                      recordEgress: args.turn.recordEgress,
+                  }
+                : null;
         for (const hook of args.plan.afterTurn) {
             // A hook never fails the turn.
             try {
-                void Promise.resolve(hook({ plan: args.plan, completed: args.completed })).catch(() => {});
+                void Promise.resolve(hook({ plan: args.plan, completed: args.completed, outcome })).catch(() => {});
             } catch {
                 // Ignored: see above.
             }

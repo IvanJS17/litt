@@ -230,6 +230,12 @@
       "training_pass_pupil_no_access": "Your pupil can't open this matter. Give them access before granting the pass.",
       "training_promotion_not_proposed": "LiTT no longer proposes this promotion. Reload to see the current evidence.",
       "training_pupil_has_mentor": "This member already has a mentor. An owner or admin can move them.",
+      "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
+      "training_reading_document_unavailable": "This document is no longer available to read.",
+      "training_reading_findings_recorded": "You already sent what you found; it cannot change.",
+      "training_reading_no_document": "There is no document to propose yet. Work on a matter and come back.",
+      "training_reading_not_due": "No full reading is due for you right now.",
+      "training_reading_swap_used": "You already changed the document once.",
       "training_review_in_progress": "This is already being generated.",
       "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews and questions.",
       "untrusted_origin": "The request origin is not allowed.",
@@ -525,12 +531,328 @@
       "turn": {},
       "map": {},
       "modes": {},
-      "backing": {},
-      "audit": {},
-      "reading": {},
-      "corrections": {},
+      "backing": {
+        "actions": {
+          "save": "save your mark on this conclusion",
+          "load": "load the accountability checks"
+        },
+        "citationRef": "Citation {ref}",
+        "failed": "The conclusions of this answer couldn't be checked.",
+        "intro": "The assistant proposed which citation each conclusion rests on. Open the passage and check it before you rely on it.",
+        "listLabel": "Conclusions of this answer",
+        "mentor": {
+          "answerFrom": "Answer of {date, date, medium} {date, time, short}",
+          "empty": "There are no accountability checks yet.",
+          "intro": "What this junior kept from the answers they received: each conclusion, the source LiTT could show for it and what they did with it. LiTT computes the status; the link to a citation is proposed by the AI.",
+          "summary": "{total, plural, one {# conclusion} other {# conclusions}} · {backed} backed · {unbacked} without backing · {unverified} with citation not verified",
+          "surface": {
+            "chat": "Chat",
+            "tabular": "Tabular review",
+            "word": "Word"
+          },
+          "title": "Accountability",
+          "untitled": "Untitled chat",
+          "withoutAccess": "{count, plural, one {# work is in a matter you can't open, so it isn't shown.} other {# works are in matters you can't open, so they aren't shown.}}"
+        },
+        "passageLabel": "Exact passage",
+        "passageSource": "{title}, page {page}",
+        "passageSourceNoPage": "{title}",
+        "passageUntitled": "Cited document",
+        "pending": "Checking the conclusions of this answer…",
+        "personNotVerified": "The person hasn't marked it as verified",
+        "personReason": "Reason to keep it",
+        "personVerified": "The person verified it",
+        "privacy": "Private: only you and your mentor see this",
+        "privacyMentor": "Private: only the person and you, who mentor them, see this",
+        "reasonHint": "Optional, up to {max} characters. Your mentor reads it.",
+        "reasonLabel": "Why you keep it",
+        "reasonSave": "Save reason",
+        "saved": "Reason saved",
+        "saving": "Saving…",
+        "status": {
+          "backed": "Backed",
+          "citationUnverified": "Citation not verified",
+          "unbacked": "Without backing"
+        },
+        "statusHelp": {
+          "backed": "LiTT found this passage in a document.",
+          "citationUnverified": "LiTT couldn't find the quoted text in the document.",
+          "unbacked": "No citation from a document in LiTT supports it."
+        },
+        "title": "Your conclusions and their sources",
+        "unverifiedReferences": "Not verified: {references}. Confirm it in the official source.",
+        "verified": "I verified it"
+      },
+      "audit": {
+        "pageTitle": "Audit your review",
+        "intro": "Check this review's questions, then audit a sample of its answers by hand. It is for your learning: nothing is blocked and no model is used here.",
+        "backToReview": "Back to the review",
+        "notApplies": "This audit is for people at the junior stage who work in a matter. You have no audit to do on this review.",
+        "menu": "Audit questions",
+        "design": {
+          "title": "Your questions",
+          "intro": "LiTT checks them with fixed rules, not with a model. These are notes, never blocks.",
+          "clean": "No notes: every question has a name, a clear instruction and an answer format.",
+          "column": "Column {number}",
+          "instruction": "Instruction: {text}",
+          "noInstruction": "No instruction"
+        },
+        "lint": {
+          "empty_name": "{column} has no name.",
+          "duplicate_name": "{column} has the same name as {other}.",
+          "empty_instruction": "{column} has no instruction.",
+          "short_instruction": "The instruction of {column} is very short. Say what to look for and where.",
+          "no_format": "{column} has no answer format. Pick one so the answers can be compared."
+        },
+        "sample": {
+          "title": "Audit by hand",
+          "intro": "{count, plural, one {LiTT drew # answer} other {LiTT drew # answers}}, spread across the columns. You do not choose them. Read the cited passage and mark each one.",
+          "notReady": "Generate the review first: there are no finished answers to audit yet.",
+          "start": "Start the audit",
+          "stale": "The review was regenerated after you began this audit, so it expired. Draw a new sample to audit again.",
+          "startAnother": "Draw a new sample",
+          "progress": "You marked {done} of {total}.",
+          "finish": "Finish the audit"
+        },
+        "cell": {
+          "title": "{row} · {column}",
+          "answer": "Answer",
+          "reasoning": "Reasoning",
+          "passages": "Cited passages",
+          "page": "page {page}",
+          "noPassage": "This answer cites no passage.",
+          "withheld": "You cannot read the documents behind this answer, so it is not shown.",
+          "markLegend": "How is this answer?",
+          "note": "Your note (optional)",
+          "mentorMark": "Your mentor marked this answer as {mark}."
+        },
+        "marks": {
+          "correct": "Correct",
+          "incomplete": "Incomplete",
+          "incorrect": "Incorrect"
+        },
+        "markWord": {
+          "correct": "correct",
+          "incomplete": "incomplete",
+          "incorrect": "incorrect"
+        },
+        "result": {
+          "title": "Your result",
+          "column": "{column}: {marked} marked, {incorrect} incorrect, {incomplete} incomplete.",
+          "done": "You finished this audit on {date, date, medium}."
+        },
+        "evaluation": {
+          "title": "What your mentor said",
+          "adequate": "Adequate",
+          "needs_work": "To improve"
+        },
+        "mentor": {
+          "title": "Bulk reviews",
+          "intro": "The questions each pupil designed and the sample they audited by hand. You see a review only if you can open its matter. Your evaluation blocks nothing: it is evidence.",
+          "empty": "This pupil has no audits yet.",
+          "withoutAccess": "{count, plural, one {# audit is on a review in a matter you cannot open.} other {# audits are on reviews in matters you cannot open.}} The owner of the matter can give you access.",
+          "untitled": "Untitled review",
+          "status": {
+            "open": "In progress",
+            "complete": "Finished",
+            "stale": "Expired: the review was regenerated"
+          },
+          "started": "Started on {date, date, medium}",
+          "personMark": "Their mark: {mark}",
+          "unmarked": "Not marked yet",
+          "yourMark": "Your mark",
+          "keepMark": "Keep their mark",
+          "clearMark": "Remove my mark",
+          "withheld": "You cannot read the documents behind this answer, so it is not shown.",
+          "evaluate": "Your evaluation",
+          "noteLabel": "Note for the pupil (optional)",
+          "save": "Save evaluation",
+          "waiting": "You can evaluate it once the pupil finishes the audit.",
+          "evaluatedOn": "Evaluated on {date, date, medium}",
+          "codes": {
+            "stale": "The review was regenerated after this audit, so it can no longer be evaluated."
+          },
+          "actions": {
+            "load": "load the bulk reviews",
+            "evaluate": "save the evaluation"
+          }
+        },
+        "actions": {
+          "load": "load the audit",
+          "start": "start the audit",
+          "mark": "save your mark",
+          "finish": "finish the audit"
+        },
+        "codes": {
+          "stale": "The review was regenerated after you began this audit. Draw a new sample."
+        }
+      },
+      "reading": {
+        "title": "Full reading",
+        "intro": "Once a month you read one whole document without the assistant and write what you found. Then LiTT compares it with what the machine found in the same text.",
+        "status": {
+          "assigned": "Reading",
+          "submitted": "Sent, not compared",
+          "comparing": "Comparing",
+          "compared": "Compared",
+          "failed": "Comparison failed"
+        },
+        "notice": {
+          "due": "A full reading is due.",
+          "open": "You have a full reading in progress.",
+          "next": "Your next full reading is from {date, date, medium}.",
+          "start": "Start the reading",
+          "continue": "Continue the reading",
+          "history": "Your full readings",
+          "item": "{date, date, medium}: {status}",
+          "view": "View",
+          "viewName": "View the reading of {date, date, medium}"
+        },
+        "page": {
+          "back": "Back to Training",
+          "title": "Full reading",
+          "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
+          "documentHeading": "Document",
+          "documentUnavailable": "This document is no longer available to read.",
+          "changeDocument": "Change the document",
+          "changeUsed": "You already changed the document once.",
+          "changeHint": "You can change it only once.",
+          "findingsLabel": "What you found",
+          "findingsHelp": "Write one finding per line: risks, missing data, deadlines, amounts or parties that do not add up.",
+          "findingsCount": "{count} of {max} characters",
+          "findingsMin": "Write at least {min} characters.",
+          "send": "Send what I found",
+          "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
+          "sentOn": "Sent on {date, date, medium}",
+          "compare": "Compare with the machine",
+          "comparing": "The machine is reading the document and comparing. This can take a minute.",
+          "failed": "The comparison failed. Nothing you wrote changed; you can try again.",
+          "retry": "Try again",
+          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
+          "check": "Check again"
+        },
+        "result": {
+          "both": "Matched",
+          "onlyYou": "Only you saw",
+          "onlyMachine": "Only the machine saw",
+          "none": "Nothing here.",
+          "you": "You wrote",
+          "machine": "The machine found",
+          "passage": "Passage in the document",
+          "inferred": "inferred",
+          "howItWorks": "The machine's findings count only if their quote is in the document. The AI proposes which of yours and of the machine's say the same thing; check it.",
+          "discarded": "{count, plural, one {# machine finding was left out because its quote is not in the document.} other {# machine findings were left out because their quote is not in the document.}}",
+          "noMachine": "The machine found nothing it could quote from the document."
+        },
+        "mentor": {
+          "title": "Full readings",
+          "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
+          "empty": "No full readings yet.",
+          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in a matter you cannot open.}}",
+          "notSent": "Not sent yet",
+          "sentOn": "Sent on {date, date, medium}",
+          "started": "Started on {date, date, medium}",
+          "model": "Compared with {model}"
+        },
+        "codes": {
+          "notDue": "No full reading is due for you right now.",
+          "noDocument": "There is no document to propose yet. Work on a matter and come back.",
+          "swapUsed": "You already changed the document once.",
+          "findingsRecorded": "You already sent what you found; it cannot change.",
+          "documentUnavailable": "This document is no longer available to read."
+        },
+        "actions": {
+          "load": "load the full reading",
+          "start": "start the full reading",
+          "swap": "change the document",
+          "send": "send what you found",
+          "compare": "compare your reading"
+        }
+      },
+      "corrections": {
+        "tab": "Corrections",
+        "title": "Turn corrections into rules",
+        "intro": "Add what you corrected in your pupil's work. LiTT proposes general rules for this playbook; nothing changes until you accept each one.",
+        "privacy": "Rules are written without names, amounts or dates. Your name is shown as their source; your pupil's is not.",
+        "pupil": "Pupil",
+        "pupilPlaceholder": "Choose a pupil",
+        "model": "Model",
+        "correction": "Correction {number}",
+        "before": "Text as it was (optional)",
+        "after": "Corrected text",
+        "comment": "Your comment (optional)",
+        "remove": "Remove correction {number}",
+        "add": "Add correction",
+        "limit": "Up to {max} corrections at a time.",
+        "send": "Propose rules",
+        "sending": "Sending…",
+        "sendAction": "send the corrections",
+        "running": "Preparing the proposed rules…",
+        "failed": "The proposed rules could not be prepared.",
+        "noChanges": "These corrections didn't produce any change.",
+        "pendingTitle": "Proposed changes",
+        "pendingEmpty": "No changes are waiting for a decision.",
+        "pendingBlocked": "Decide every proposed change before sending more corrections.",
+        "loading": "Loading the proposed changes…",
+        "loadAction": "load the proposed changes",
+        "op": {
+          "add_rule": "New rule",
+          "modify_rule": "Change to a rule",
+          "remove_rule": "Remove a rule"
+        },
+        "source": "Correction by {name}",
+        "sourceUnnamed": "From a correction",
+        "origin": "Origin: correction by {name}",
+        "originUnnamed": "Origin: correction",
+        "why": "Why",
+        "beforeRule": "Before",
+        "afterRule": "After",
+        "none": "None",
+        "accept": "Accept",
+        "reject": "Reject",
+        "accepted": "Change accepted.",
+        "rejected": "Change rejected.",
+        "acceptAction": "accept the change",
+        "rejectAction": "reject the change",
+        "fields": {
+          "name": "Name",
+          "concept": "Concept",
+          "guidance": "Guidance",
+          "standard": "Standard position",
+          "fallbacks": "Fallback positions",
+          "unacceptable": "Unacceptable positions",
+          "conditions": "Conditions",
+          "actions": "Actions"
+        }
+      },
       "contrast": {},
-      "authorship": {},
+      "authorship": {
+        "ai": "From the assistant",
+        "baseline": {
+          "file": "This version started from an uploaded file. LiTT doesn't know who wrote a file, so that text is undetermined.",
+          "unknown": "LiTT has no record of the text this version started from (or the file the assistant generated has been replaced), so it only places text from accepted assistant edits. The rest is undetermined."
+        },
+        "edits": "Assistant edits: {accepted, plural, one {# accepted} other {# accepted}}, {rejected, plural, one {# rejected} other {# rejected}}, {pending, plural, one {# pending} other {# pending}}.",
+        "estimateNote": "Estimate, rounded to the nearest 5%.",
+        "hide": "Hide estimated authorship",
+        "loadFailed": "Couldn't load the estimated authorship.",
+        "loadFailedAction": "load the estimated authorship",
+        "pending": "{count, plural, one {# assistant edit is still pending, so its text is} other {# assistant edits are still pending, so their text is}} undetermined until someone accepts or rejects {count, plural, one {it} other {them}}.",
+        "person": "Written by a person",
+        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated and nobody has replaced. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
+        "share": "{percent}%",
+        "show": "Show estimated authorship",
+        "status": {
+          "empty": "Undetermined: this version has no text to analyze.",
+          "textFailed": "Undetermined: LiTT couldn't read the text of this version.",
+          "textPending": "Undetermined: LiTT hasn't finished reading the text of this version. Try again in a moment.",
+          "tooLarge": "Undetermined: this version is too long to estimate."
+        },
+        "textless": "{count, plural, one {# page has} other {# pages have}} no text LiTT can read (probably scanned), so {count, plural, one {it isn't} other {they aren't}} counted.",
+        "title": "Estimated authorship",
+        "undetermined": "Undetermined",
+        "words": "{count, plural, one {# word} other {# words}} analyzed."
+      },
       "promotion": {},
       "methodology": {
         "annex": {

@@ -19453,6 +19453,352 @@ $$;
 revoke all on function public.public_matter_project_succession_on_departure()
   from public, anon, authenticated;
 
+-- LiTT training layer 3 card 8 (20261108_64_litt_training_criterion_backing.sql).
+-- LiTT training, layer 3 card 8 «Modo de rendir cuentas» (docs/training.md):
+-- after a junior's answer, the conclusions it makes and the source each one
+-- rests on.
+--
+--   training_backing_checks  one row per assistant message of a junior: the
+--                            conclusions the AI found in it, the citation it
+--                            proposes for each, the status the SERVER computed
+--                            from the verified citations (backed /
+--                            citation_unverified / unbacked), and what the
+--                            person did with it ("lo verifiqué", or why they
+--                            keep an unbacked conclusion).
+--
+-- It is learning data. training_can_read_learning(actor, org, trainee) decides
+-- who reads it (the person and their CURRENT mentor; never an owner or an
+-- admin); the backend asks it, and RLS is on with no policies or browser
+-- grants, like the other training_* tables. The row hangs off the junior's
+-- org_members row, so it goes when they leave the organization or their
+-- account is erased (owner decision 2026-10-24); prepare_account_org_departures
+-- is not changed. Releasing the junior keeps it, like the turn notes. It
+-- stores no passage: the exact passage is read from the persisted citations of
+-- the message each time it is shown. The row goes with its chat.
+--
+-- Safe to re-run: if not exists, drop-before-create.
+
+create table if not exists public.training_backing_checks (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null,
+  trainee_user_id uuid not null,
+  -- The work: one chat, in the table of its surface (as training_turn_notes).
+  chat_id uuid references public.chats(id) on delete cascade,
+  word_chat_id uuid references public.word_chats(id) on delete cascade,
+  tabular_chat_id uuid references public.tabular_review_chats(id) on delete cascade,
+  -- The assistant message the check is about.
+  message_id uuid not null,
+  status text not null default 'pending',
+  -- A list of { id, text, citation_ref, status, unverified_references,
+  -- person_verified, person_note }.
+  conclusions jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint training_backing_checks_member_fkey foreign key (org_id, trainee_user_id)
+    references public.org_members(org_id, user_id) on delete cascade,
+  constraint training_backing_checks_one_chat check (
+    num_nonnulls(chat_id, word_chat_id, tabular_chat_id) = 1
+  ),
+  constraint training_backing_checks_status_check check (
+    status in ('pending', 'ready', 'failed')
+  ),
+  constraint training_backing_checks_conclusions_check check (
+    (status = 'ready') = (conclusions is not null)
+    and (
+      conclusions is null
+      or (
+        jsonb_typeof(conclusions) = 'array'
+        and jsonb_array_length(conclusions) <= 12
+        and octet_length(conclusions::text) <= 24000
+      )
+    )
+  )
+);
+create unique index if not exists training_backing_checks_message_key
+  on public.training_backing_checks(message_id);
+create index if not exists training_backing_checks_chat_idx
+  on public.training_backing_checks(chat_id) where chat_id is not null;
+create index if not exists training_backing_checks_word_chat_idx
+  on public.training_backing_checks(word_chat_id) where word_chat_id is not null;
+create index if not exists training_backing_checks_tabular_chat_idx
+  on public.training_backing_checks(tabular_chat_id) where tabular_chat_id is not null;
+create index if not exists training_backing_checks_trainee_idx
+  on public.training_backing_checks(org_id, trainee_user_id, created_at);
+alter table public.training_backing_checks enable row level security;
+revoke all on public.training_backing_checks from anon, authenticated;
+grant select, insert, update, delete on public.training_backing_checks to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261108_66_litt_training_criterion_review_audits.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-08
+--
+-- LiTT training layer 3, bulk review designer (docs/training.md): the junior
+-- designs a tabular review's questions and audits by hand a sample of its
+-- cells; the current mentor evaluates both.
+--
+-- training_review_audits is learning data, like every training_* table: it
+-- hangs off the person's org_members row (cascade), RLS is on and only
+-- service_role has privileges. Rules the table keeps by itself:
+--
+--   * The sample holds identifiers and marks only. The content of a cell
+--     never reaches the row: each item may carry just row_id, column_index,
+--     digest (a short hash that tells whether the cell changed afterwards),
+--     mark, note, mentor_mark. training_review_audit_sample_ok() enforces
+--     the keys, the marks and the size.
+--   * A review has at most one audit that is not stale per person; a
+--     regenerated review leaves the old one stale and a new one is drawn.
+--   * The mentor's evaluation (outcome, note up to 500 characters) is set
+--     together and only on a complete audit.
+--
+-- Safe to re-run: if not exists, create or replace, drop-before-create.
+
+create or replace function public.training_review_audit_sample_ok(p_sample jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select pg_catalog.jsonb_typeof(p_sample) = 'array'
+    and pg_catalog.jsonb_array_length(p_sample) between 1 and 20
+    and not exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(p_sample) as e(item)
+      where pg_catalog.jsonb_typeof(e.item) <> 'object'
+        or exists (
+          select 1
+          from pg_catalog.jsonb_object_keys(e.item) as k(key)
+          where k.key not in ('row_id', 'column_index', 'digest', 'mark', 'note', 'mentor_mark')
+        )
+        or pg_catalog.jsonb_typeof(e.item -> 'row_id') is distinct from 'string'
+        or pg_catalog.jsonb_typeof(e.item -> 'column_index') is distinct from 'number'
+        or pg_catalog.jsonb_typeof(e.item -> 'digest') is distinct from 'string'
+        or (e.item ? 'mark' and (e.item ->> 'mark') not in ('correct', 'incomplete', 'incorrect'))
+        or (e.item ? 'mentor_mark' and (e.item ->> 'mentor_mark') not in ('correct', 'incomplete', 'incorrect'))
+        or (e.item ? 'note' and (
+          pg_catalog.jsonb_typeof(e.item -> 'note') <> 'string'
+          or pg_catalog.char_length(e.item ->> 'note') > 500
+        ))
+    );
+$$;
+revoke all on function public.training_review_audit_sample_ok(jsonb) from public, anon, authenticated;
+grant execute on function public.training_review_audit_sample_ok(jsonb) to service_role;
+
+create table if not exists public.training_review_audits (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null,
+  trainee_user_id uuid not null,
+  tabular_review_id uuid not null references public.tabular_reviews(id) on delete cascade,
+  -- Names and instructions of the columns when the audit started.
+  columns_snapshot jsonb not null,
+  -- The code-only review of the questions (lintColumns): warnings, no model.
+  lint jsonb not null default '[]'::jsonb,
+  -- The seed the server drew the sample with; the same seed gives the same sample.
+  seed text not null,
+  -- Random per audit, kept in the row and never exported or sent to the client:
+  -- the key of the HMAC that makes the digests of the sample (a bare hash of a
+  -- short cell would be an oracle for guessing its content).
+  digest_salt text not null,
+  sample jsonb not null,
+  status text not null default 'open',
+  completed_at timestamptz,
+  mentor_outcome text,
+  mentor_note text,
+  evaluated_at timestamptz,
+  evaluated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint training_review_audits_member_fkey foreign key (org_id, trainee_user_id)
+    references public.org_members(org_id, user_id) on delete cascade,
+  constraint training_review_audits_status_check check (
+    status in ('open', 'complete', 'stale')
+    and (status <> 'open' or completed_at is null)
+    and (status <> 'complete' or completed_at is not null)
+  ),
+  constraint training_review_audits_snapshot_check check (
+    jsonb_typeof(columns_snapshot) = 'array'
+    and jsonb_typeof(lint) = 'array'
+    and char_length(seed) between 1 and 100
+    and char_length(digest_salt) between 32 and 128
+  ),
+  constraint training_review_audits_sample_check check (
+    public.training_review_audit_sample_ok(sample)
+  ),
+  constraint training_review_audits_evaluation_check check (
+    (mentor_outcome is null or mentor_outcome in ('adequate', 'needs_work'))
+    and (mentor_outcome is null) = (evaluated_at is null)
+    and (mentor_note is null or (mentor_outcome is not null and char_length(mentor_note) <= 500))
+    -- evaluated_by goes to null with that account, never set without an outcome.
+    and (evaluated_by is null or mentor_outcome is not null)
+  )
+);
+
+-- One live audit per person and review; stale ones pile up as history.
+create unique index if not exists training_review_audits_live_idx
+  on public.training_review_audits(org_id, trainee_user_id, tabular_review_id)
+  where status <> 'stale';
+create index if not exists training_review_audits_review_idx
+  on public.training_review_audits(tabular_review_id);
+create index if not exists training_review_audits_evaluated_by_idx
+  on public.training_review_audits(evaluated_by);
+
+alter table public.training_review_audits enable row level security;
+revoke all on public.training_review_audits from anon, authenticated;
+grant select, insert, update, delete on public.training_review_audits to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261108_68_litt_training_criterion_readings.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-08
+-- LiTT training layer 3, periodic full reading: a junior reads a whole document
+-- without the assistant and the machine's findings are compared after
+-- (20261108_68_litt_training_criterion_readings.sql, docs/training.md).
+
+create table if not exists public.training_readings (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null,
+  trainee_user_id uuid not null,
+  project_id uuid references public.projects(id) on delete set null,
+  document_id uuid references public.documents(id) on delete set null,
+  version_id uuid references public.document_versions(id) on delete set null,
+  -- The person may change the proposed document once.
+  swapped boolean not null default false,
+  status text not null default 'assigned',
+  findings text,
+  submitted_at timestamptz,
+  -- [{ text, excerpt }]: a finding and the passage of the document it rests on.
+  machine_findings jsonb,
+  -- { person_items, both: [{ person, machine }], only_person, only_machine, discarded }
+  comparison jsonb,
+  model_provider text,
+  model text,
+  credential_ref text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.training_readings drop constraint if exists training_readings_member_fkey;
+alter table public.training_readings add constraint training_readings_member_fkey
+  foreign key (org_id, trainee_user_id)
+  references public.org_members(org_id, user_id) on delete cascade;
+
+alter table public.training_readings drop constraint if exists training_readings_status_check;
+alter table public.training_readings add constraint training_readings_status_check
+  check (status in ('assigned', 'submitted', 'comparing', 'compared', 'failed'));
+
+alter table public.training_readings drop constraint if exists training_readings_findings_check;
+alter table public.training_readings add constraint training_readings_findings_check
+  check (
+    (status = 'assigned') = (findings is null)
+    and (findings is null) = (submitted_at is null)
+    and (findings is null or char_length(findings) between 1 and 4000)
+  );
+
+alter table public.training_readings drop constraint if exists training_readings_route_check;
+alter table public.training_readings add constraint training_readings_route_check
+  check (
+    num_nonnulls(model_provider, model, credential_ref) in (0, 3)
+    and (status not in ('comparing', 'compared') or model_provider is not null)
+  );
+
+alter table public.training_readings drop constraint if exists training_readings_result_check;
+alter table public.training_readings add constraint training_readings_result_check
+  check (
+    (status = 'compared') = (machine_findings is not null)
+    and (machine_findings is null) = (comparison is null)
+    and (machine_findings is null or (
+      jsonb_typeof(machine_findings) = 'array' and jsonb_array_length(machine_findings) <= 8
+      and octet_length(machine_findings::text) <= 40000))
+    and (comparison is null or (
+      jsonb_typeof(comparison) = 'object' and octet_length(comparison::text) <= 40000))
+  );
+
+create index if not exists training_readings_trainee_idx
+  on public.training_readings(org_id, trainee_user_id, created_at);
+create index if not exists training_readings_document_idx
+  on public.training_readings(document_id) where document_id is not null;
+-- A person has one reading open at a time in each organization.
+create unique index if not exists training_readings_open_key
+  on public.training_readings(org_id, trainee_user_id) where status <> 'compared';
+
+-- What the person wrote is written once: the machine's list and the
+-- comparison come after it and cannot be matched to a rewritten version.
+create or replace function public.training_readings_findings_once()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.findings is not null and new.findings is distinct from old.findings then
+    raise exception 'A training reading''s findings are recorded once'
+      using errcode = 'LT002';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function public.training_readings_findings_once() from public, anon, authenticated;
+
+drop trigger if exists training_readings_findings_once on public.training_readings;
+create trigger training_readings_findings_once
+  before update on public.training_readings
+  for each row execute function public.training_readings_findings_once();
+
+alter table public.training_readings enable row level security;
+revoke all on public.training_readings from anon, authenticated;
+grant select, insert, update, delete on public.training_readings to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261108_70_litt_playbook_corrections.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-08
+--
+-- LiTT training, layer 3 (docs/training.md, "From correction to rule"): a
+-- mentor's corrections of a pupil's work, proposed as rules for a playbook.
+--
+-- public.playbook_imports.kind     also 'correction': a batch of corrections
+--                                  compiled by the same playbook.draft job as
+--                                  a proposal. request_json holds the
+--                                  corrections and the pupil's id until the
+--                                  job ends, then it is null; nothing about
+--                                  the pupil stays on the row.
+-- public.playbook_changes.source   also 'correction'.
+-- public.playbook_changes.attributed_to
+--                                  the person whose correction it is (the
+--                                  mentor who sent it), for the rule's
+--                                  "Correction by …" note. Never the pupil.
+--                                  Set to null when that account is erased.
+--
+-- One batch of corrections runs per playbook (a unique partial index, like
+-- the one for proposals), so two requests that both passed the backend's
+-- checks cannot both start one.
+--
+-- No learning data is stored here: the rules, which belong to the firm, are
+-- written without the pupil's text and without naming the pupil. No rows are
+-- inserted.
+--
+-- Safe to re-run: add column if not exists, drop-before-create for
+-- constraints, create ... if not exists.
+
+alter table public.playbook_imports drop constraint if exists playbook_imports_kind_check;
+alter table public.playbook_imports add constraint playbook_imports_kind_check
+  check (kind in ('import', 'draft', 'proposal', 'correction'));
+
+alter table public.playbook_changes drop constraint if exists playbook_changes_source_check;
+alter table public.playbook_changes add constraint playbook_changes_source_check
+  check (source in ('starting_point', 'correction'));
+
+alter table public.playbook_changes add column if not exists attributed_to uuid
+  references auth.users(id) on delete set null;
+alter table public.playbook_changes drop constraint if exists playbook_changes_attribution_check;
+alter table public.playbook_changes add constraint playbook_changes_attribution_check
+  check (attributed_to is null or source = 'correction');
+create index if not exists idx_playbook_changes_attributed_to
+  on public.playbook_changes(attributed_to) where attributed_to is not null;
+
+create unique index if not exists idx_playbook_imports_one_running_correction
+  on public.playbook_imports(playbook_id)
+  where status = 'running' and kind = 'correction';
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -19699,5 +20045,9 @@ insert into public.schema_migrations (filename) values
   ('20261107_90_litt_training_defense_outcome.sql'),
   ('20261107_91_litt_training_pass_revoked_by.sql'),
   ('20261108_10_litt_public_matter_project_succession.sql'),
-  ('20261108_20_litt_public_matter_project_succession_audit.sql')
+  ('20261108_20_litt_public_matter_project_succession_audit.sql'),
+  ('20261108_64_litt_training_criterion_backing.sql'),
+  ('20261108_66_litt_training_criterion_review_audits.sql'),
+  ('20261108_68_litt_training_criterion_readings.sql'),
+  ('20261108_70_litt_playbook_corrections.sql')
 on conflict (filename) do nothing;
