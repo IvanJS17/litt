@@ -7,6 +7,7 @@ import {
 } from "../training";
 import { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
 import type { Db } from "../supabase";
+import { FIRM_CRITERIA_ADDENDUM } from "./criteria";
 import { launchTurnContrast } from "../trainingNotes";
 import {
     beginTrainingTurn,
@@ -129,6 +130,23 @@ describe("beginTrainingTurn: surface × stage × pass × body", () => {
                             confidence: owesAttempt && bodyName === "valid" ? 3 : null,
                             orgId: surface === "word" ? (stage ? ORG : null) : ORG,
                         });
+                        // The firm's criteria: any stage, never without one; the tool only
+                        // reads, so a plan with it limits nothing else.
+                        if (stage) {
+                            expect(begun.plan.systemAddendum).toBe(FIRM_CRITERIA_ADDENDUM);
+                            // A junior without a pass is also offered the methodology calculator.
+                            const calculator = begun.plan.passActive || stage !== "junior" ? {} : { methodology: true as const };
+                            expect(begun.plan.toolPolicy).toEqual({ ...calculator, firmCriteriaOrgId: ORG });
+                            expect(trainingEnginePlan(begun.plan)).toEqual({
+                                systemAddendum: FIRM_CRITERIA_ADDENDUM,
+                                ...calculator,
+                                firmCriteriaOrgId: ORG,
+                            });
+                        } else {
+                            expect(begun.plan.systemAddendum).toBeUndefined();
+                            expect(begun.plan.toolPolicy).toEqual({});
+                            expect(trainingEnginePlan(begun.plan)).toBeUndefined();
+                        }
                     });
                 }
             }

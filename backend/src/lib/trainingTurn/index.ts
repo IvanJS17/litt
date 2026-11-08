@@ -22,6 +22,7 @@ import {
 import type { UserApiKeys } from "../llm";
 import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
+import { withFirmCriteria } from "./criteria";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
 import { hasUnverifiedCitation } from "./unverified";
@@ -56,6 +57,8 @@ const attemptBehavior: Behavior = (resolved, plan) => {
     return check.ok ? { ...plan, attempt: check.attempt } : check;
 };
 
+const firmCriteriaBehavior: Behavior = (resolved, plan) => withFirmCriteria(plan, resolved.stage, resolved.orgId);
+
 // A junior's answer is held to account after the turn (./accountability.ts).
 const accountabilityBehavior: Behavior = (resolved, plan) =>
     isAccountable(resolved.stage, resolved.orgId)
@@ -68,6 +71,7 @@ const BEHAVIORS: readonly Behavior[] = [
     confidenceBehavior,
     accountabilityBehavior,
     methodologyBehavior,
+    firmCriteriaBehavior,
 ];
 
 /**

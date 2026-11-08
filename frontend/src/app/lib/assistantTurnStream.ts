@@ -688,6 +688,25 @@ export async function consumeAssistantTurnStream(
           continue;
         }
 
+        if (data.type === "firm_criteria") {
+          const criteria = Array.isArray(data.criteria)
+            ? (data.criteria as Extract<AssistantEvent, { type: "firm_criteria" }>["criteria"])
+            : [];
+          if (typeof data.call_id === "string") {
+            pushEvent({
+              type: "firm_criteria",
+              call_id: data.call_id,
+              practice: typeof data.practice === "string" ? data.practice : null,
+              topic: typeof data.topic === "string" ? data.topic : null,
+              criteria,
+              truncated: data.truncated === true,
+              ...(typeof data.error === "string" && data.error ? { error: data.error } : {}),
+            });
+            pushThinkingPlaceholder();
+          }
+          continue;
+        }
+
         if (data.type === "ask_inputs") {
           const eventId =
             typeof data.event_id === "string" ? data.event_id.trim() : "";
