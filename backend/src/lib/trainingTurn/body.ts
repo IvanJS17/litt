@@ -13,6 +13,8 @@ export function readTrainingBody(body: unknown): TrainingBody {
         attempt: record.attempt,
         confidence: record.confidence,
         mode: record.training_mode,
+        criteriaRoutes: record.criteria_routes,
+        criteriaExplanation: record.criteria_explanation,
         divergence: null,
     };
 }

@@ -958,7 +958,12 @@ export interface TrainingTurnNote {
  * with the counterparty's lawyer, up to three) and `counterpart_close`
  * (ends the round with a contrast). The server picks the step.
  */
-export type TrainingTurnMode = "hint" | "counterpart" | "counterpart_close";
+export type TrainingTurnMode =
+  | "hint"
+  | "counterpart"
+  | "counterpart_close"
+  | "criteria_contrast"
+  | "criteria_explain";
 // --- Training layer 3, card 6 (end) ---
 
 /** GET /training-notes/chats/:chatId (404 when the caller may read none). */
@@ -1060,6 +1065,65 @@ export interface TrainingPupilBacking {
   works_without_access: number;
 }
 // --- Training layer 3, card 8 (end) ---
+
+// --- Training layer 3, card 13: criteria contrast (begin) ---
+export type TrainingCriteriaContrastStatus = "awaiting_person" | "explained" | "failed";
+
+/** What one of the two subagents ran on: identifiers only, never a credential. */
+export interface TrainingCriteriaContrastRoute {
+  /** The person's named route; absent when a neutral approach ran on the conversation's model. */
+  name?: string;
+  approach?: "literal" | "systematic";
+  provider?: string;
+  model?: string;
+  /** The subagent's status, or "not_run" when it was never started. A failed one is never replaced. */
+  status: string;
+}
+
+/** One contrast of the person's own, as GET /training/me/criteria-contrasts lists it. */
+export interface TrainingCriteriaContrast {
+  id: string;
+  org_id: string;
+  chat_id: string;
+  /** The project the conversation lives in; null for a chat outside any project. */
+  project_id: string | null;
+  status: TrainingCriteriaContrastStatus;
+  routes: TrainingCriteriaContrastRoute[];
+  /** The two analyses, in the order of `routes`; "" for one that did not run. */
+  briefs: string[] | null;
+  person_explanation: string | null;
+  /** The AI's explanation compared with the person's, in the three sections of every contrast. */
+  comparison: string | null;
+  created_at: string;
+}
+
+export interface TrainingMyCriteriaContrasts {
+  contrasts: TrainingCriteriaContrast[];
+}
+
+/** What the pupil's current mentor sees of a contrast: not the analyses, which stay in the pupil's chat. */
+export interface TrainingPupilCriteriaContrast {
+  id: string;
+  chat_id: string;
+  project_id: string | null;
+  title: string | null;
+  status: TrainingCriteriaContrastStatus;
+  routes: TrainingCriteriaContrastRoute[];
+  person_explanation: string | null;
+  comparison: string | null;
+  created_at: string;
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts. The current mentor's only. */
+export interface TrainingPupilCriteriaContrasts {
+  org_id: string;
+  trainee_user_id: string;
+  contrasts: TrainingPupilCriteriaContrast[];
+  /** Contrasts in matters the mentor cannot open: counted, never listed. */
+  contrasts_without_access: number;
+}
+// --- Training layer 3, card 13 (end) ---
+
 
 /** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
 export interface TrainingStageQuery {

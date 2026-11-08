@@ -253,7 +253,7 @@ counted as the turn counts them. The server decides again on every turn.
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it; `criteria_contrast` and `criteria_explain` are announced only for the chat and the project chat, never for `surface=tabular` or Word); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET /training/me/criterion?org_id=` | the caller's own map, calibration, hint counts and retakes (layer 3) |
 | `POST /training/me/retakes`, `PUT /training/me/retakes/:id/answer` | the caller asks for the retake of a weak topic and answers it (layer 3) |
@@ -1431,3 +1431,92 @@ question 5): anyone in the firm with no training stage writes and edits their
 own criteria, with their name; everyone in the firm reads them; the author or an
 owner or admin removes one; only the author edits. Removal asks for a second
 confirmation instead of opening a modal.
+
+## Criteria contrast (layer 3, junior)
+
+The same assignment goes to **two subagents**, the junior reads the two
+analyses side by side, writes **why they think the analyses diverge before
+seeing the AI's explanation**, and the AI's explanation is compared with theirs.
+It trains judgment between two readings; nothing is scored and nobody is
+compared with anybody.
+
+**Two modes of the turn** (`lib/trainingTurn/criteriaContrast.ts`, registered with the
+other modes in `modes.ts`), both ordinary chat turns on the chat and the project
+chat, with the conversation's pinned route and its `llm.egress`:
+
+| `training_mode` | What it does |
+|---|---|
+| `criteria_contrast` | The system text obliges the answer to start **exactly two** subagents with the same assignment and return both analyses as «Análisis 1» and «Análisis 2», **without comparing them**. The first call also carries `criteria_routes` (two route names) when the person has two or more routes. |
+| `criteria_explain` | Carries `criteria_explanation` (60 to 4000 characters, the person's own words) in the same conversation. The answer is the AI's explanation (the two analyses come from the row, fenced as content to evaluate; no subagents); afterwards a separate call compares the two explanations. |
+
+**Only a junior, only where subagents run.** The modes need stage `junior` in an
+organization, no urgency pass, a chat the server keeps, a surface with
+subagents (chat and project chat; not tabular review or Word) and
+`LITT_CHAT_SUBAGENTS=enabled`. Anything else is `400 training_mode_not_allowed`
+with its reason, and nothing replaces the missing subagents. Only one contrast
+waits for its explanation in a conversation. They only restrict, like every
+mode: no document writing, no `ask_inputs`, no methodology calculator, and the
+accountability call (Accountability mode) is not made for these two turns.
+
+**Which routes.** The server decides, never the model.
+
+- With **two or more usable routes** in Settings > Subagents, the person picks
+  two (`criteria_routes`, distinct). The `delegate` tool offers only those two,
+  each analysis runs on its own, and whatever route the model names is ignored.
+- With **exactly one** usable route, both analyses run on that same route, one
+  with a literal and one with a systematic **approach**. The conversation's model
+  is never used when the person has a route: the subagents of the chat only run
+  on the named routes the person configured, or on the conversation's model
+  when there are none.
+- With **none configured**, the same two approaches run on the conversation's
+  model (never a route's). Routes configured but none usable (for example the
+  only one left the catalog) fail closed with a message: nothing replaces them.
+  The approaches are the server's instructions (`delegateTools.ts`) and carry
+  no legal content. The page says which case applies before the person starts.
+- A route that **cannot run** (no key, a model the organization does not allow,
+  a model that left the catalog) fails visibly, as every subagent route does,
+  and is **not replaced**: the contrast is recorded as `failed` and the page says
+  which analysis did not run.
+- The engine enforces the rest (`runCriteriaDelegateCall`): a third subagent or a
+  continuation is refused, and what each one ran on is recorded. Without the
+  subagents, or with the assignment not decided, the turn fails closed before
+  any model call.
+
+**Egress of the comparison.** The comparison of the two explanations is a second
+model call on the conversation's own route. It writes its own `llm.egress` with
+`surface: training_contrast` (not `training_backing`) before the call, and makes
+no call if that record cannot be written. The label is free text in
+`audit_events.surface`: no enum, list or database check, so it needs no migration.
+
+**Data.** `training_criteria_contrasts` (migration
+`20261108_82_litt_training_criterion_contrasts.sql`), one row per contrast:
+`routes` (name, approach, provider, model and status of each analysis:
+identifiers only, never a credential), `briefs` (the two analyses),
+`status` (`awaiting_person` | `explained` | `failed`), `person_explanation` and
+`comparison` (the same three sections as every contrast: «Coincide», «No coincide»,
+«Faltó»). It is learning data: the person and their **current** mentor read it
+(`training_can_read_learning`); owners and admins do not; it goes with the
+membership (`org_members` cascade) and with its chat; the ARCO export carries
+the holder's rows (`training.criteria_contrasts`) with no mentor id. The mentor
+sees the routes, the person's explanation and the comparison, for works in
+matters they can open (the others are counted); the two analyses stay in the
+person's chat. `training.criteria_contrast_started` is audited with
+`{ org_id, target_user_id }` and the chat id: no text.
+
+| Endpoint | Who |
+|---|---|
+| `GET /training/me/criteria-contrasts[?chat_id=&org_id=]` | the person, with the analyses |
+| `GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts` | the current mentor |
+
+`GET /training/stage` offers `criteria_contrast` to a junior where it is open,
+and `criteria_explain` (instead) while a contrast waits for the explanation of
+that `chat_id`.
+
+**Screen.** Settings → Training → Criteria contrast
+(`/settings/training/contrast`): the assignment and the two routes (or the note
+about the two approaches), then each contrast with its two analyses in two
+columns (stacked on a phone), the explanation field first, then the comparison
+and a link to the AI's explanation in the conversation. Text and labels in
+en-US and es-MX (`training.criterion.contrast`); the analyses and the
+explanations are never translated. The mentor's section is
+`MentorCriteriaContrasts`.

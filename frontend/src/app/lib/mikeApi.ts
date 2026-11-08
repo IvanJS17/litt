@@ -2635,6 +2635,77 @@ export async function evaluateReviewAudit(
         body,
     );
 }
+// --- Training layer 3, card 13: criteria contrast (begin) ---
+export type {
+    TrainingCriteriaContrast,
+    TrainingCriteriaContrastRoute,
+    TrainingCriteriaContrastStatus,
+    TrainingMyCriteriaContrasts,
+    TrainingPupilCriteriaContrast,
+    TrainingPupilCriteriaContrasts,
+} from "@mike/contracts";
+
+/** The person's own contrasts, newest first, with the two analyses. */
+export async function getMyCriteriaContrasts(orgId?: string | null) {
+    const query = orgId ? `?${new URLSearchParams({ org_id: orgId })}` : "";
+    return apiRequest<import("@mike/contracts").TrainingMyCriteriaContrasts>(
+        "training.read",
+        `/training/me/criteria-contrasts${query}`,
+    );
+}
+
+/** The pupil's contrasts, for their current mentor: not the analyses. */
+export async function getPupilCriteriaContrasts(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilCriteriaContrasts>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/criteria-contrasts`,
+    );
+}
+
+/**
+ * One of the two chat turns of a criteria contrast. The first (`criteria_contrast`)
+ * hands `text` to two subagents; the second (`criteria_explain`, in the same
+ * conversation) carries the person's own explanation. The answer is read where
+ * the contrast is listed, so the stream is only followed to its end: what comes
+ * back is the failure the server gave, if any (a refusal is thrown).
+ */
+export async function runCriteriaContrastTurn(turn: {
+    text: string;
+    orgId?: string;
+    chatId?: string;
+    mode: "criteria_contrast" | "criteria_explain";
+    routes?: [string, string];
+    signal?: AbortSignal;
+}): Promise<{ failure: string | null }> {
+    const response = await apiFetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({
+            messages: [{ role: "user", content: turn.text }],
+            ...(turn.chatId ? { chat_id: turn.chatId } : { org_id: turn.orgId }),
+            training_mode: turn.mode,
+            ...(turn.mode === "criteria_contrast" && turn.routes ? { criteria_routes: turn.routes } : {}),
+            ...(turn.mode === "criteria_explain" ? { criteria_explanation: turn.text } : {}),
+            time_zone: browserTimeZone(),
+        }),
+        signal: turn.signal,
+    }, "chat.turn");
+    if (!response.ok) throw await toApiError(response, "/chat", "POST", "chat.turn");
+    const frames = (await response.text()).split("\n\n");
+    for (const frame of frames) {
+        const data = frame.replace(/^data: /, "").trim();
+        if (!data.startsWith("{")) continue;
+        try {
+            const event = JSON.parse(data) as { type?: string; message?: string; safe_to_display?: boolean };
+            if (event.type === "error") return { failure: event.safe_to_display && event.message ? event.message : "" };
+        } catch {
+            // A frame that is not JSON carries nothing to read here.
+        }
+    }
+    return { failure: null };
+}
+// --- Training layer 3, card 13 (end) ---
+
 // --- Training layer 3, card 10: periodic full reading (begin) ---
 // A junior reads one whole document without the assistant, writes what they
 // found, and then compares it with what the machine found. The person's

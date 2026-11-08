@@ -55,6 +55,7 @@ import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type Memory
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
 import {
     beginTrainingTurn,
+    resolveCriteriaDelegation,
     recordTrainingNote,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
@@ -119,7 +120,7 @@ export type PreparedChatStream = {
     /** The turn's training plan; null when the turn has no new user message. */
     trainingPlan: TrainingTurnPlan | null;
     /** The llm.egress of the second call a training hook makes with the turn's own route. */
-    trainingEgress: () => Promise<void>;
+    trainingEgress: (surface?: "training_backing" | "training_contrast") => Promise<void>;
 };
 
 /** Authorize and prepare a chat turn, refusing active turns before saving input. */
@@ -160,6 +161,8 @@ export async function prepareChatStream(
         confidence?: unknown;
         /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
         trainingMode?: unknown;
+        /** LiTT training: the routes and the explanation of a criteria contrast. */
+        trainingCriteria?: { routes?: unknown; explanation?: unknown };
     },
 ): Promise<
     | { ok: true; prepared: PreparedChatStream }
@@ -360,7 +363,7 @@ export async function prepareChatStream(
                 surface: "chat",
                 userId,
                 scope: { orgId: contentOrgId, projectId: resolvedProjectId },
-                body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode },
+                body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode, criteria_routes: args.trainingCriteria?.routes, criteria_explanation: args.trainingCriteria?.explanation },
                 chatId,
             });
         } catch (error) {
@@ -385,6 +388,12 @@ export async function prepareChatStream(
     });
     if (!selection.ok) return selection;
     const { modelSettings, selectedReasoningLevel } = selection;
+    // A criteria contrast runs on the routes the person configured: decided now, before anything is written.
+    if (trainingPlan?.toolPolicy.delegation) {
+        const criteria = resolveCriteriaDelegation(trainingPlan, modelSettings.subagent_routes);
+        if (!criteria.ok) return criteria;
+        trainingPlan = criteria.plan;
+    }
 
     // Governed BYOK: the conversation's provider + model + credential are
     // fixed when it is created; later turns use exactly that route.
@@ -481,13 +490,13 @@ export async function prepareChatStream(
         surface: resolvedProjectId ? "project" : "assistant",
         resolved: governed,
     });
-    const trainingEgress = () =>
+    const trainingEgress = (surface: "training_backing" | "training_contrast" = "training_backing") =>
         recordChatEgressOrThrow(db, {
             userId,
             orgId: contentOrgId,
             chatId,
             projectId: resolvedProjectId,
-            surface: "training_backing",
+            surface,
             resolved: governed,
         });
 

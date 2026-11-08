@@ -54,6 +54,7 @@ import {
 import { hasDirectContentGrants } from "../../lib/contentAccess";
 import {
     beginTrainingTurn,
+    resolveCriteriaDelegation,
     recordTrainingNote,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
@@ -168,7 +169,7 @@ export type PreparedProjectChatStream = {
     /** The turn's training plan; null when the turn has no new user message. */
     trainingPlan: TrainingTurnPlan | null;
     /** The llm.egress of the second call a training hook makes with the turn's own route. */
-    trainingEgress: () => Promise<void>;
+    trainingEgress: (surface?: "training_backing" | "training_contrast") => Promise<void>;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -204,6 +205,8 @@ export async function prepareProjectChatStream(
         confidence?: unknown;
         /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
         trainingMode?: unknown;
+        /** LiTT training: the routes and the explanation of a criteria contrast. */
+        trainingCriteria?: { routes?: unknown; explanation?: unknown };
     },
 ): Promise<
     | { ok: true; prepared: PreparedProjectChatStream }
@@ -375,7 +378,7 @@ export async function prepareProjectChatStream(
                 surface: "project_chat",
                 userId,
                 scope: { orgId: projectAccess.project.org_id ?? null, projectId },
-                body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode },
+                body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode, criteria_routes: args.trainingCriteria?.routes, criteria_explanation: args.trainingCriteria?.explanation },
                 chatId,
             });
         } catch (error) {
@@ -401,6 +404,12 @@ export async function prepareProjectChatStream(
     });
     if (!selection.ok) return selection;
     const { modelSettings, selectedReasoningLevel } = selection;
+    // A criteria contrast runs on the routes the person configured: decided now, before anything is written.
+    if (trainingPlan?.toolPolicy.delegation) {
+        const criteria = resolveCriteriaDelegation(trainingPlan, modelSettings.subagent_routes);
+        if (!criteria.ok) return criteria;
+        trainingPlan = criteria.plan;
+    }
 
     // Governed BYOK: the conversation's provider + model + credential are
     // fixed when it is created; later turns use exactly that route.
@@ -465,13 +474,13 @@ export async function prepareProjectChatStream(
         surface: "project",
         resolved: governed,
     });
-    const trainingEgress = () =>
+    const trainingEgress = (surface: "training_backing" | "training_contrast" = "training_backing") =>
         recordChatEgressOrThrow(db, {
             userId,
             orgId: projectAccess.project.org_id ?? null,
             chatId,
             projectId,
-            surface: "training_backing",
+            surface,
             resolved: governed,
         });
 
