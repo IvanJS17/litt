@@ -4,7 +4,7 @@
 // sample is drawn here, from a seed, so the same seed gives the same sample;
 // no model is involved and no cell content leaves the cells.
 
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { TrainingAuditMark, TrainingLintWarning } from "@mike/contracts";
 
 export type { TrainingAuditMark, TrainingLintWarning };
@@ -111,12 +111,22 @@ export function drawSample<T extends SampleCandidate>(cells: readonly T[], size:
     return picked;
 }
 
-/** A short hash of a cell as it is: tells later whether it changed, holds no content. */
-export function cellDigest(content: unknown, citations: unknown): string {
-    return createHash("sha256")
+/** The random key of one audit's digests: 256 bits, hex. Never leaves the server. */
+export function newDigestSalt(): string {
+    return randomBytes(32).toString("hex");
+}
+
+/**
+ * A keyed digest of a cell as it is (HMAC-SHA256 with the audit's own salt,
+ * truncated to 128 bits): tells later whether it changed, holds no content and,
+ * unlike a bare hash, cannot be used to guess a short cell by trying values.
+ */
+export function cellDigest(salt: string, content: unknown, citations: unknown): string {
+    if (!salt) throw new Error("cellDigest needs the audit's salt");
+    return createHmac("sha256", salt)
         .update(`${typeof content === "string" ? content : JSON.stringify(content ?? null)}\u0000${JSON.stringify(citations ?? null)}`)
         .digest("hex")
-        .slice(0, 16);
+        .slice(0, 32);
 }
 
 export type AuditItem = {

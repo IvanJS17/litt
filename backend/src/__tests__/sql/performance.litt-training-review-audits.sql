@@ -61,12 +61,12 @@ begin
   perform set_config('litt.review', review::text, true);
 
   base := format($f$insert into public.training_review_audits
-      (org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample%%s)
-      values (%L, %L, %L, '[]', '[]', 'seed', %%s%%s)$f$, org, u, review);
+      (org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample%%s)
+      values (%L, %L, %L, '[]', '[]', 'seed', repeat('s', 64), %%s%%s)$f$, org, u, review);
 
   -- 1. The sample.
-  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample)
-    values (org, u, review, '[]', '[]', 'seed', pg_temp.sample(pg_temp.item('{"mark":"incorrect","note":"ok","mentor_mark":"correct"}')))
+  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, u, review, '[]', '[]', 'seed', repeat('s', 64), pg_temp.sample(pg_temp.item('{"mark":"incorrect","note":"ok","mentor_mark":"correct"}')))
     returning id into id1;
   delete from public.training_review_audits where id = id1;
   perform pg_temp.rejects(format(base, '', quote_literal(pg_temp.sample(pg_temp.item('{"summary":"El contenido"}'))::text) || '::jsonb', ''), 'training_review_audits_sample_check');
@@ -83,8 +83,8 @@ begin
   assert (select pg_catalog.count(*) from public.training_review_audits) = 0, 'nothing was kept';
 
   -- 2. Status and evaluation.
-  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample)
-    values (org, u, review, '[]', '[]', 'seed', pg_temp.sample(pg_temp.item())) returning id into id1;
+  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, u, review, '[]', '[]', 'seed', repeat('s', 64), pg_temp.sample(pg_temp.item())) returning id into id1;
   perform pg_temp.rejects(format('update public.training_review_audits set status = %L where id = %L', 'complete', id1), 'training_review_audits_status_check');
   perform pg_temp.rejects(format('update public.training_review_audits set status = %L, completed_at = now() where id = %L', 'open', id1), 'training_review_audits_status_check');
   perform pg_temp.rejects(format('update public.training_review_audits set status = %L where id = %L', 'done', id1), 'training_review_audits_status_check');
@@ -97,13 +97,14 @@ begin
       mentor_outcome = 'needs_work', evaluated_at = now(), mentor_note = repeat('x', 500), evaluated_by = mentor_id
     where id = id1;
   perform pg_temp.rejects(format('update public.training_review_audits set seed = %L where id = %L', '', id1), 'training_review_audits_snapshot_check');
+  perform pg_temp.rejects(format('update public.training_review_audits set digest_salt = %L where id = %L', 'short', id1), 'training_review_audits_snapshot_check');
   perform pg_temp.rejects(format('update public.training_review_audits set columns_snapshot = %L where id = %L', '{}', id1), 'training_review_audits_snapshot_check');
 
   -- 3. One live audit per person and review.
   perform pg_temp.rejects(format(base, '', quote_literal(pg_temp.sample(pg_temp.item())::text) || '::jsonb', ''), 'training_review_audits_live_idx');
   update public.training_review_audits set status = 'stale' where id = id1;
-  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample)
-    values (org, u, review, '[]', '[]', 'seed', pg_temp.sample(pg_temp.item())) returning id into id2;
+  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, u, review, '[]', '[]', 'seed', repeat('s', 64), pg_temp.sample(pg_temp.item())) returning id into id2;
   assert (select pg_catalog.count(*) from public.training_review_audits where trainee_user_id = u) = 2,
     'a stale audit stays as history next to the live one';
   -- Deleting the evaluator's account keeps the audit and clears who evaluated.
@@ -114,13 +115,13 @@ begin
     'the evaluation outlives the evaluator''s account';
 
   -- 4. Membership and review.
-  perform pg_temp.rejects(format('insert into public.training_review_audits (org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample) values (%L, %L, %L, %L, %L, %L, %L::jsonb)',
-    stranger_org, u, review, '[]', '[]', 'seed', pg_temp.sample(pg_temp.item())::text), 'training_review_audits_member_fkey');
+  perform pg_temp.rejects(format('insert into public.training_review_audits (org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample) values (%L, %L, %L, %L, %L, %L, %L, %L::jsonb)',
+    stranger_org, u, review, '[]', '[]', 'seed', repeat('s', 64), pg_temp.sample(pg_temp.item())::text), 'training_review_audits_member_fkey');
   delete from public.tabular_reviews where id = review;
   assert (select pg_catalog.count(*) from public.training_review_audits) = 0, 'the audits go with their review';
   insert into public.tabular_reviews(id, user_id, org_id, title) values (review, null, org, 'Synthetic review');
-  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, sample)
-    values (org, u, review, '[]', '[]', 'seed', pg_temp.sample(pg_temp.item()));
+  insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id, columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, u, review, '[]', '[]', 'seed', repeat('s', 64), pg_temp.sample(pg_temp.item()));
   delete from public.org_members where org_id = org and user_id = u;
   assert (select pg_catalog.count(*) from public.training_review_audits) = 0, 'the audits go with the membership';
 

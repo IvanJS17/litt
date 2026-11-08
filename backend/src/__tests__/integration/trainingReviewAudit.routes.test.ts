@@ -219,6 +219,43 @@ describe("the junior's design review and sample", () => {
             expect(Object.keys(item).sort()).toEqual(["column_index", "digest", "mark", "row_id"]);
     });
 
+    it("keys every digest with a salt of the audit itself, which never leaves the server", async () => {
+        const { cellDigest } = await import("../../lib/trainingReviewAudit.js");
+        const first = await as(PUPIL).post(audit).send({});
+        const cellOf = (item: { row_id: string; column_index: number }) =>
+            h.state!.tables.tabular_cells.find((c) => c.row_id === item.row_id && c.column_index === item.column_index)!;
+        const firstRow = rows()[0];
+        expect(firstRow.digest_salt).toMatch(/^[0-9a-f]{64}$/);
+        for (const item of firstRow.sample as { row_id: string; column_index: number; digest: string }[]) {
+            const cell = cellOf(item);
+            expect(item.digest).toBe(cellDigest(firstRow.digest_salt as string, cell.content, cell.citations));
+            expect(item.digest).toMatch(/^[0-9a-f]{32}$/);
+        }
+        // The same cell content under a second audit gives another digest; a changed cell still marks stale.
+        const target = first.body.cells[0];
+        const original = cellOf(target).content;
+        cellOf(target).content = content(999);
+        expect((await as(PUPIL).get(audit)).body.audit.status).toBe("stale");
+        cellOf(target).content = original;
+        const second = await as(PUPIL).post(audit).send({});
+        expect(second.status).toBe(201);
+        const secondRow = rows().find((row) => row.status === "open")!;
+        expect(secondRow.digest_salt).not.toBe(firstRow.digest_salt);
+        const shared = (secondRow.sample as { row_id: string; column_index: number; digest: string }[]).find(
+            (item) => (firstRow.sample as { row_id: string; column_index: number }[]).some((o) => key(o) === key(item)),
+        );
+        if (shared) {
+            const old = (firstRow.sample as { row_id: string; column_index: number; digest: string }[]).find((o) => key(o) === key(shared))!;
+            expect(shared.digest).not.toBe(old.digest);
+        }
+        const cell = cellOf((secondRow.sample as { row_id: string; column_index: number }[])[0]);
+        const sameBoth = [firstRow.digest_salt, secondRow.digest_salt].map((salt) => cellDigest(salt as string, cell.content, cell.citations));
+        expect(sameBoth[0]).not.toBe(sameBoth[1]);
+        // Neither the client nor the response carries the salt.
+        for (const body of [first.body, second.body, (await as(PUPIL).get(audit)).body])
+            expect(JSON.stringify(body)).not.toMatch(new RegExp(`${firstRow.digest_salt}|${secondRow.digest_salt}|digest_salt`));
+    });
+
     it("is reproducible: the stored seed draws the same sample again", async () => {
         const started = await as(PUPIL).post(audit).send({});
         const { drawSample } = await import("../../lib/trainingReviewAudit.js");

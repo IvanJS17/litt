@@ -85,8 +85,8 @@ begin
   insert into public.tabular_reviews(id, user_id, project_id, org_id, title)
     values (tabular_review, current_setting('litt.owner')::uuid, project, org, 'Synthetic review');
   insert into public.training_review_audits(org_id, trainee_user_id, tabular_review_id,
-      columns_snapshot, lint, seed, sample)
-    values (org, current_setting('litt.pupil')::uuid, tabular_review, '[]', '[]', 'seed',
+      columns_snapshot, lint, seed, digest_salt, sample)
+    values (org, current_setting('litt.pupil')::uuid, tabular_review, '[]', '[]', 'seed', repeat('s', 64),
       jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
   insert into public.training_readings(org_id, trainee_user_id, project_id, status)
     values (org, current_setting('litt.pupil')::uuid, project, 'assigned');

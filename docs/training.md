@@ -638,8 +638,10 @@ answer 404. No model is involved: the design review and the sample are code
   audit and see their own counts per column, never a figure of a group.
 - **Expiry.** If a sampled cell changes or disappears (the review was
   regenerated, edited or cleared) the audit becomes `stale` the next time
-  anyone reads it, and the person draws another. The row keeps a short hash of
-  each sampled cell (`digest`) to tell, not the cell: a `generation_id` does
+  anyone reads it, and the person draws another. The row keeps a keyed digest of
+  each sampled cell (`digest`, an HMAC-SHA256 of 128 bits keyed with the
+  audit's own `digest_salt`, which is never exported or sent to the client, so
+  a short cell cannot be guessed from it) to tell, not the cell: a `generation_id` does
   not survive the end of a run (cells are stamped with it only while the run
   lasts), so it cannot say that a review was regenerated afterwards.
 - **No cell content in the row.** `training_review_audits.sample` holds

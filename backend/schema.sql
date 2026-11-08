@@ -19520,6 +19520,10 @@ create table if not exists public.training_review_audits (
   lint jsonb not null default '[]'::jsonb,
   -- The seed the server drew the sample with; the same seed gives the same sample.
   seed text not null,
+  -- Random per audit, kept in the row and never exported or sent to the client:
+  -- the key of the HMAC that makes the digests of the sample (a bare hash of a
+  -- short cell would be an oracle for guessing its content).
+  digest_salt text not null,
   sample jsonb not null,
   status text not null default 'open',
   completed_at timestamptz,
@@ -19540,6 +19544,7 @@ create table if not exists public.training_review_audits (
     jsonb_typeof(columns_snapshot) = 'array'
     and jsonb_typeof(lint) = 'array'
     and char_length(seed) between 1 and 100
+    and char_length(digest_salt) between 32 and 128
   ),
   constraint training_review_audits_sample_check check (
     public.training_review_audit_sample_ok(sample)

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
     allMarked,
     cellDigest,
+    newDigestSalt,
     drawSample,
     isAuditMark,
     lintColumns,
@@ -148,14 +149,23 @@ describe("seededRandom", () => {
 });
 
 describe("cellDigest", () => {
+    const salt = "a".repeat(64);
+
     it("tells a changed cell apart and holds no content", () => {
-        const a = cellDigest('{"summary":"Yes"}', null);
-        expect(a).toMatch(/^[0-9a-f]{16}$/);
-        expect(cellDigest('{"summary":"Yes"}', null)).toBe(a);
-        expect(cellDigest('{"summary":"No"}', null)).not.toBe(a);
-        expect(cellDigest('{"summary":"Yes"}', [{ page: 1 }])).not.toBe(a);
-        expect(cellDigest({ summary: "Yes" }, undefined)).toBe(cellDigest({ summary: "Yes" }, null));
-        expect(cellDigest(null, null)).toMatch(/^[0-9a-f]{16}$/);
+        const a = cellDigest(salt, '{"summary":"Yes"}', null);
+        expect(a).toMatch(/^[0-9a-f]{32}$/);
+        expect(cellDigest(salt, '{"summary":"Yes"}', null)).toBe(a);
+        expect(cellDigest(salt, '{"summary":"No"}', null)).not.toBe(a);
+        expect(cellDigest(salt, '{"summary":"Yes"}', [{ page: 1 }])).not.toBe(a);
+        expect(cellDigest(salt, { summary: "Yes" }, undefined)).toBe(cellDigest(salt, { summary: "Yes" }, null));
+        expect(cellDigest(salt, null, null)).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it("is keyed: the same content under another salt gives another digest, and no salt is refused", () => {
+        expect(cellDigest("b".repeat(64), "Yes", null)).not.toBe(cellDigest(salt, "Yes", null));
+        expect(() => cellDigest("", "Yes", null)).toThrow();
+        expect(newDigestSalt()).toMatch(/^[0-9a-f]{64}$/);
+        expect(newDigestSalt()).not.toBe(newDigestSalt());
     });
 });
 

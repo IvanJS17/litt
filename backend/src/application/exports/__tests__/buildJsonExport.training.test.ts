@@ -82,7 +82,7 @@ function tables(): Record<string, Row[]> {
         training_review_audits: [
             {
                 id: "a1", org_id: "org-a", trainee_user_id: userId, tabular_review_id: "tr1", columns_snapshot: [],
-                lint: [], seed: "secret-seed", sample: [{ row_id: "w", column_index: 0, digest: "d", mark: "correct" }],
+                lint: [], seed: "secret-seed", digest_salt: "secret-salt", sample: [{ row_id: "w", column_index: 0, digest: "d", mark: "correct" }],
                 status: "complete", completed_at: "2026-01-08T00:00:00Z", mentor_outcome: "adequate",
                 mentor_note: "bien", evaluated_at: "2026-01-09T00:00:00Z", evaluated_by: other, created_at: "2026-01-08T00:00:00Z",
             },
@@ -119,7 +119,7 @@ describe("account export: the holder's training", () => {
         expect(out.training.review_audits).toEqual([
             expect.objectContaining({ id: "a1", mentor_outcome: "adequate", mentor_note: "bien" }),
         ]);
-        expect(JSON.stringify(out.training.review_audits)).not.toMatch(/secret-seed|colleague/);
+        expect(JSON.stringify(out.training.review_audits)).not.toMatch(/secret-seed|secret-salt|digest_salt|colleague/);
     });
 
     it("Personal's export carries it for every organization, only the holder's own", async () => {

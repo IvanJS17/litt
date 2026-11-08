@@ -25,6 +25,7 @@ import {
     allMarked,
     AUDIT_NOTE_MAX_CHARS,
     cellDigest,
+    newDigestSalt,
     drawSample,
     isAuditMark,
     lintColumns,
@@ -216,11 +217,12 @@ export async function startReviewAudit(
     if (size === 0) return failure("conflict", NOT_READY);
 
     const seed = randomUUID();
+    const digestSalt = newDigestSalt();
     const columns = auditColumns(ctx.data.review.columns_config);
     const sample: AuditItem[] = drawSample(candidates, size, seed).map((cell) => ({
         row_id: cell.row_id,
         column_index: cell.column_index,
-        digest: cellDigest(cell.content, cell.citations),
+        digest: cellDigest(digestSalt, cell.content, cell.citations),
     }));
     const now = new Date().toISOString();
     const { data, error } = await db
@@ -235,6 +237,7 @@ export async function startReviewAudit(
             columns_snapshot: columns.map(({ index, name, prompt }) => ({ index, name, prompt })),
             lint: lintColumns(columns),
             seed,
+            digest_salt: digestSalt,
             sample,
         })
         .select("*");

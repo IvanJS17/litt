@@ -31,6 +31,8 @@ export type AuditRow = {
     columns_snapshot: TrainingAuditColumn[];
     lint: TrainingLintWarning[];
     seed: string;
+    /** The key of the sample's digests; never serialized. */
+    digest_salt: string;
     sample: AuditItem[];
     status: TrainingAuditStatus;
     completed_at: string | null;
@@ -101,17 +103,17 @@ export async function loadReviewCells(db: Db, reviewId: string): Promise<Service
  * Whether the review changed under a sample: a sampled cell that is gone, is
  * not done any more, or whose digest differs was regenerated or edited.
  */
-export function sampleIsStale(items: readonly AuditItem[], cells: readonly CellRow[]): boolean {
+export function sampleIsStale(items: readonly AuditItem[], cells: readonly CellRow[], salt: string): boolean {
     const byKey = new Map(cells.map((cell) => [itemKey(cell), cell]));
     return items.some((item) => {
         const cell = byKey.get(itemKey(item));
-        return !cell || cell.status !== "done" || cellDigest(cell.content, cell.citations) !== item.digest;
+        return !cell || cell.status !== "done" || cellDigest(salt, cell.content, cell.citations) !== item.digest;
     });
 }
 
 /** A live audit that no longer matches its review becomes stale (once, for good). */
 export async function settleStale(db: Db, row: AuditRow, cells: readonly CellRow[]): Promise<ServiceResult<AuditRow>> {
-    if (row.status === "stale" || !sampleIsStale(row.sample, cells)) return ok(row);
+    if (row.status === "stale" || !sampleIsStale(row.sample, cells, row.digest_salt)) return ok(row);
     const { error } = await db
         .from("training_review_audits")
         .update({ status: "stale", updated_at: new Date().toISOString() })
