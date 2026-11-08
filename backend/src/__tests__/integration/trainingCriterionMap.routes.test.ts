@@ -1060,6 +1060,39 @@ describe("answering", () => {
         expect(completeText).not.toHaveBeenCalled();
     });
 
+    describe("closing a retake whose sources are gone, under a race (R6)", () => {
+        const raced = async (mutate: (row: Row) => void) => {
+            seed({ notes: [], retakes: [openRetake({ source_note_ids: [id(9999)] })] });
+            // Another request moves the row between this one's read and its close.
+            vi.mocked(loadPinnedChatRoute).mockImplementationOnce((async () => {
+                mutate(retakeRows()[0]);
+                return { ok: true, route: PUPIL_ROUTE, apiKeys: PUPIL_KEYS };
+            }) as never);
+            return as(PUPIL).put(`${retakesUrl}/${id(700)}/answer`).send({ answer: ANSWER });
+        };
+
+        it("answers in progress when the row is now being judged, and does not claim to have closed it", async () => {
+            const res = await raced((row) => {
+                row.status = "pending";
+                row.updated_at = iso(Date.now() + 1000);
+            });
+            expect(res.status).toBe(409);
+            expect(res.body.code).toBe("training_retake_in_progress");
+            expect(retakeRows()[0].status).toBe("pending");
+            expect(completeText).not.toHaveBeenCalled();
+        });
+
+        it("answers not-open when the row is now settled", async () => {
+            const res = await raced((row) => {
+                row.status = "answered";
+                row.updated_at = iso(Date.now() + 1000);
+            });
+            expect(res.status).toBe(409);
+            expect(res.body.code).toBe("training_retake_not_open");
+            expect(retakeRows()[0].status).toBe("answered");
+        });
+    });
+
     it("judges again an answer whose earlier judgment was lost", async () => {
         seed({ retakes: [openRetake({ status: "pending", updated_at: iso(Date.now() - SUPERVISION_STALE_MS - 1000) })] });
         const res = await as(PUPIL).put(`${retakesUrl}/${id(700)}/answer`).send({ answer: ANSWER });
