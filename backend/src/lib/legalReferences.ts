@@ -166,6 +166,8 @@ export const UNKNOWN_LAW = "?";
 const LAW_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "en", "para", "al"]);
 const LAW_HEADS = new Set(["ley", "leyes", "codigo", "constitucion", "reglamento", "decreto", "estatuto", "convenio", "tratado"]);
 const LAW_PHRASE_MAX_WORDS = 10;
+// Characters of text tokenized after an article to read the law's name (widened when the name goes on).
+const LAW_WINDOW_CHARS = 400;
 // Common abbreviations and aliases, to the law they name (as written in full).
 const LAW_ALIASES: Record<string, string> = {
     cpeum: "constitucion politica de los estados unidos mexicanos",
@@ -341,8 +343,29 @@ const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
  *    law is unverified). A name cut by the word limit while it goes on is null too.
  */
 function lawNamedAt(plain: string, cased: string): string | null {
-    const lower = tokens(plain);
-    const upper = tokens(cased);
+    // A name takes at most LAW_PHRASE_MAX_WORDS words (plus a few of look-ahead), so only a window of
+    // the text is tokenized, not its whole tail (that made a text with many articles quadratic). The
+    // window ends in a sentinel token that flags being read: if the answer needed it, the window is
+    // widened, so the result is the one the whole tail would give.
+    for (let size = LAW_WINDOW_CHARS; size < plain.length; size *= 4) {
+        let reached = false;
+        const sentinel = (): Token => ({
+            get bare() { reached = true; return "\u0000"; },
+            get ends() { reached = true; return true; },
+            get opens() { reached = true; return false; },
+        });
+        const lower = tokens(plain.slice(0, size)).slice(0, -1); // the last word may be cut by the window
+        const upper = tokens(cased.slice(0, size)).slice(0, -1);
+        if (lower.length === 0) continue;
+        lower.push(sentinel());
+        upper.push(sentinel());
+        const law = lawNamedAtTokens(lower, upper);
+        if (!reached) return law;
+    }
+    return lawNamedAtTokens(tokens(plain), tokens(cased));
+}
+
+function lawNamedAtTokens(lower: Token[], upper: Token[]): string | null {
     if (lower.length === 0 || lower.length !== upper.length) return null;
     const alias = (): string | null => {
         for (let count = Math.min(ALIAS_MAX_WORDS, lower.length); count >= 1; count--) {
