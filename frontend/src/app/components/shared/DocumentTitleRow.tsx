@@ -21,6 +21,7 @@ import {
     type TrainingRelease,
 } from "@/app/hooks/useTrainingVersionStatus";
 import { TrainingVersionStatus } from "./TrainingVersionStatus";
+import { DocumentAuthorshipPanel } from "./DocumentAuthorshipPanel";
 
 type ExternalSourceLink = {
     href: string;
@@ -180,6 +181,13 @@ export function DocumentTitleRow({
                     held={training.release === "held"}
                     canApprove={training.canApprove}
                     onApproved={training.refresh}
+                />
+            )}
+            {isFile && training.authorship && (
+                <DocumentAuthorshipPanel
+                    className="mt-1"
+                    documentId={document.document_id}
+                    versionId={training.versionId}
                 />
             )}
             {document.metadata.length > 0 && (

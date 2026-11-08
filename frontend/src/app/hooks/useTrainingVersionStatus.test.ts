@@ -8,11 +8,11 @@ vi.mock("@/app/lib/mikeApi", () => ({
 
 import { useTrainingVersionStatus } from "./useTrainingVersionStatus";
 
-const versions = (held: boolean, canApprove = false) => ({
+const versions = (held: boolean, canApprove = false, authorship = false) => ({
     current_version_id: "v2",
     versions: [
         { id: "v1", training_held: false },
-        { id: "v2", training_held: held, training_can_approve: canApprove },
+        { id: "v2", training_held: held, training_can_approve: canApprove, training_authorship: authorship },
     ],
 });
 
@@ -24,8 +24,17 @@ describe("useTrainingVersionStatus", () => {
         const { result } = renderHook(() => useTrainingVersionStatus("doc", null));
         expect(result.current.release).toBe("unknown");
         await waitFor(() => expect(result.current.release).toBe("held"));
-        expect(result.current).toMatchObject({ versionId: "v2", canApprove: true });
+        expect(result.current).toMatchObject({ versionId: "v2", canApprove: true, authorship: false });
         expect(listDocumentVersions).toHaveBeenCalledWith("doc");
+    });
+
+    it("passes on whether the server offers the estimated authorship", async () => {
+        listDocumentVersions.mockResolvedValue(versions(true, false, true));
+        const { result } = renderHook(() => useTrainingVersionStatus("doc", null));
+        expect(result.current.authorship).toBe(false);
+        await waitFor(() => expect(result.current.authorship).toBe(true));
+        const off = renderHook(() => useTrainingVersionStatus("doc", null, false));
+        expect(off.result.current.authorship).toBe(false);
     });
 
     it("reads the version asked for and reloads on refresh", async () => {
