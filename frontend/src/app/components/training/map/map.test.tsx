@@ -260,6 +260,32 @@ describe("Mi criterio", () => {
         await waitFor(() => expect(api.answerRetake).toHaveBeenLastCalledWith("rt-1", text, "org:k2"));
     });
 
+    it("reports a retake closed for lack of its notes with the catalog sentence and lets the person ask again", async () => {
+        const open = retake({ status: "open", answer: null, contrast: null, verdict: null });
+        const closed = criterion({
+            open_retake_id: null,
+            retakes: [retake({ status: "failed", question: null, answer: null, contrast: null, verdict: null })],
+        });
+        vi.mocked(api.getMyCriterion)
+            .mockResolvedValueOnce(criterion({ open_retake_id: "rt-1", retakes: [open] }))
+            .mockResolvedValue(closed);
+        const gone = new api.MikeApiError({ message: "gone", status: 409, code: "training_retake_source_gone" });
+        vi.mocked(api.answerRetake).mockRejectedValueOnce(gone);
+        renderEs(<MyCriterion orgId="org-1" />);
+        const text = "La acción cambiaria directa prescribe en tres años contados desde el día del vencimiento.";
+        fireEvent.change(await screen.findByRole("textbox", { name: "Tu respuesta" }), { target: { value: text } });
+        fireEvent.click(screen.getByRole("button", { name: "Enviar respuesta" }));
+        await waitFor(() => expect(api.getMyCriterion).toHaveBeenCalledTimes(2));
+        const [error, options] = vi.mocked(notifyError).mock.calls[0];
+        expect(error).toBe(gone);
+        // No override: the catalog sentence for the code is what the person reads.
+        expect(options.codeMessages).not.toHaveProperty("training_retake_source_gone");
+        expect(screen.queryByRole("combobox", { name: "Llave" })).not.toBeInTheDocument();
+
+        // The closed retake no longer holds the slot: a new one can be asked for.
+        expect(await screen.findByRole("button", { name: /^Retomar «/ })).toBeEnabled();
+    });
+
     it("shows an answered retake with its question, answer, contrast and verdict", async () => {
         vi.mocked(api.getMyCriterion).mockResolvedValue(
             criterion({ retakes: [retake(), retake({ id: "rt-0", status: "failed", question: null, answer: null, contrast: null, verdict: null })] }),
@@ -278,12 +304,12 @@ describe("Mapa y calibración del mentor", () => {
     const pupil = (overrides: Partial<api.TrainingPupilCriterion> = {}): api.TrainingPupilCriterion => {
         const { generation: _generation, ...mine } = criterion();
         void _generation;
-        return { ...mine, notes_without_access: 0, ...overrides };
+        return { ...mine, notes_without_access: 0, retakes_without_access: 0, ...overrides };
     };
 
     it("reads the pupil's map without a way to start a retake", async () => {
         vi.mocked(api.getPupilCriterion).mockResolvedValue(
-            pupil({ retakes: [retake(), retake({ id: "rt-2", text_hidden: true, question: null, answer: null, contrast: null })], notes_without_access: 2 }),
+            pupil({ retakes: [retake(), retake({ id: "rt-2", question: null, answer: null, contrast: null })], notes_without_access: 2, retakes_without_access: 3 }),
         );
         renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
         expect(screen.getByLabelText("Cargando…")).toHaveAttribute("aria-busy", "true");
@@ -292,7 +318,7 @@ describe("Mapa y calibración del mentor", () => {
         expect(screen.getByText("Pidió 2 pistas; la más alta fue el escalón 3.")).toBeInTheDocument();
         expect(screen.getByText("Cuando lo marcas, coincidió 5 de 8 veces · 1 en parte")).toBeInTheDocument();
         expect(screen.getByText("¿En cuánto prescribe la acción cambiaria directa?")).toBeInTheDocument();
-        expect(screen.getByText(/No se muestra el texto de esta retoma/)).toBeInTheDocument();
+        expect(screen.getByText(/3 retomas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
         expect(screen.getByText(/2 notas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
         expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });

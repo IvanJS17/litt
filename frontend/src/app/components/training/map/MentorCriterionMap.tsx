@@ -9,8 +9,8 @@ import { Block, CalibrationList, HintsLine, MapSkeleton, RetakeEntry, TopicList 
 // The mentor's section «Mapa y calibración» of the «Criterio» tab: what the
 // pupil's own map, calibration, hints and retakes say, read from the same
 // route family as the pupil's (docs/training.md). Only the pupil's CURRENT
-// mentor reads it, and only the notes of works in matters they can open (the
-// rest are counted). It is evidence to weigh: counts of one person, no score,
+// mentor reads it, and only the notes and retakes of works in matters they can
+// open (the rest are counted, never listed). It is evidence to weigh: counts of one person, no score,
 // no comparison between pupils, and nothing ordered by how they did.
 
 export function MentorCriterionMap({ orgId, pupilId }: { orgId: string; pupilId: string }) {
@@ -55,6 +55,11 @@ export function MentorCriterionMap({ orgId, pupilId }: { orgId: string; pupilId:
                             </ul>
                         )}
                     </Block>
+                    {data.retakes_without_access > 0 && (
+                        <p className="text-sm text-gray-500">
+                            {t("mentor.retakesWithoutAccess", { count: data.retakes_without_access })}
+                        </p>
+                    )}
                     {data.notes_without_access > 0 && (
                         <p className="text-sm text-gray-500">
                             {t("mentor.withoutAccess", { count: data.notes_without_access })}

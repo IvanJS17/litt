@@ -131,7 +131,6 @@ export function RetakeEntry({ retake, children }: { retake: TrainingRetake; chil
                     {t(`status.${retake.status}`)} · {t("started", { date: new Date(retake.created_at) })}
                 </p>
             </div>
-            {retake.text_hidden && <p className="text-sm text-gray-500">{t("hidden")}</p>}
             {retake.question && (
                 <div className="min-w-0 space-y-0.5">
                     <p className="text-xs text-gray-500">{t("question")}</p>

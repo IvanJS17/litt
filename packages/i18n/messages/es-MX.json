@@ -644,7 +644,6 @@
             "failed": "No se pudo generar la pregunta"
           },
           "started": "empezó el {date, date, medium}",
-          "hidden": "No se muestra el texto de esta retoma: su tema viene de trabajo en asuntos que no puedes abrir.",
           "question": "Pregunta",
           "answer": "Respuesta",
           "contrast": "Contraste con lo que escribiste antes (inferido por la IA)",
@@ -666,6 +665,7 @@
           "title": "Mapa y calibración",
           "intro": "Con qué frecuencia el planteamiento de este pupilo coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este pupilo: sin puntajes, rankings ni comparaciones.",
           "withoutAccess": "{count, plural, one {# nota es de un trabajo en un asunto que no puedes abrir, por eso no se cuenta aquí.} other {# notas son de trabajos en asuntos que no puedes abrir, por eso no se cuentan aquí.}}",
+          "retakesWithoutAccess": "{count, plural, one {# retoma es de un trabajo en un asunto que no puedes abrir, por eso no se lista aquí.} other {# retomas son de trabajos en asuntos que no puedes abrir, por eso no se listan aquí.}}",
           "actions": {
             "load": "cargar el mapa del pupilo"
           }

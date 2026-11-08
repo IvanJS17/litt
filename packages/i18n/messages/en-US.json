@@ -644,7 +644,6 @@
             "failed": "The question couldn't be generated"
           },
           "started": "started on {date, date, medium}",
-          "hidden": "The text of this retake isn't shown: its topic comes from work in matters you can't open.",
           "question": "Question",
           "answer": "Answer",
           "contrast": "Contrast with what you wrote before (inferred by the AI)",
@@ -666,6 +665,7 @@
           "title": "Map and calibration",
           "intro": "How often this pupil's approach matched the AI's answer, by topic, how their confidence matched, the hints they asked for and their retakes. Counts of this pupil only: no score, ranking or comparison.",
           "withoutAccess": "{count, plural, one {# note is from work in a matter you can't open, so it isn't counted here.} other {# notes are from work in matters you can't open, so they aren't counted here.}}",
+          "retakesWithoutAccess": "{count, plural, one {# retake is about work in a matter you can't open, so it isn't listed here.} other {# retakes are about work in matters you can't open, so they aren't listed here.}}",
           "actions": {
             "load": "load the pupil's map"
           }
