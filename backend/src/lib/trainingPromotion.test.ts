@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
     PROMOTION_MIN_APPROVED_DEFENSES,
+    PROMOTION_MIN_MARKED_TURNS,
     PROMOTION_MIN_REVIEWED_WORKS,
+    PROMOTION_MIN_SURE_TURNS,
     type PromotionInput,
+    type PromotionTurn,
     proposePromotions,
 } from "./trainingPromotion";
 
@@ -78,6 +81,16 @@ describe("proposePromotions", () => {
             ],
             approved_versions: [],
             required: { approved_defenses: 2, reviewed_works: 3 },
+            evaluated_audits: [],
+            readings: [],
+            calibration: {
+                marked_turns: 0,
+                min_marked_turns: 10,
+                sure_marked: 0,
+                sure_coincided: 0,
+                min_sure_marked: 4,
+                enough: false,
+            },
         });
     });
 
@@ -263,5 +276,154 @@ describe("proposePromotions", () => {
             proposePromotions(input({ defenses: approvedDefenses(), reviews: reviewedWorks() })),
         );
         expect(json).not.toMatch(/score|average|promedio|rank|grade/i);
+    });
+});
+
+const met = { defenses: approvedDefenses(), reviews: reviewedWorks() };
+
+/** `sure` turns marked «Seguro`, `coincided` of them coinciding, plus `others` at level 2. */
+function turns(sure: number, coincided: number, others: number, practice: string | null = null, at = day(10)): PromotionTurn[] {
+    const make = (n: number, confidence: number, hit: (i: number) => boolean, tag: string): PromotionTurn[] =>
+        Array.from({ length: n }, (_, i) => ({
+            id: `${tag}${i}`,
+            practice,
+            at,
+            confidence,
+            verdict: hit(i) ? ("coincide" as const) : ("no_coincide" as const),
+        }));
+    return [...make(sure, 4, (i) => i < coincided, "s"), ...make(others, 2, () => true, "o")];
+}
+
+describe("calibration in the promotion (layer 3)", () => {
+    it("names its constants", () => {
+        expect(PROMOTION_MIN_MARKED_TURNS).toBe(10);
+        expect(PROMOTION_MIN_SURE_TURNS).toBe(4);
+    });
+
+    it.each([
+        { name: "no turns at all (a layer-2 caller)", t: undefined, blocked: null, enough: false },
+        { name: "9 marked turns, none of the «Seguro» coincided (too few data)", t: turns(9, 0, 0), blocked: null, enough: false },
+        { name: "10 marked, 3 «Seguro» none coinciding (too few «Seguro»)", t: turns(3, 0, 7), blocked: null, enough: true },
+        { name: "10 marked, 4 «Seguro», 2 coinciding", t: turns(4, 2, 6), blocked: "overconfident", enough: true },
+        { name: "10 marked, 4 «Seguro», 3 coinciding (3 of 4 passes)", t: turns(4, 3, 6), blocked: null, enough: true },
+        { name: "10 marked, 8 «Seguro», 5 coinciding", t: turns(8, 5, 2), blocked: "overconfident", enough: true },
+        { name: "10 marked, 8 «Seguro», 6 coinciding (exactly 3 of 4)", t: turns(8, 6, 2), blocked: null, enough: true },
+    ])("with $name", ({ t, blocked, enough }) => {
+        const [proposal] = proposePromotions(input({ ...met, turns: t }));
+        expect(proposal.blocked_by).toBe(blocked);
+        expect(proposal.proposed).toBe(blocked === null);
+        expect(proposal.calibration.enough).toBe(enough);
+    });
+
+    it("does not count turns without a mark, dated before the stage, or of another practice", () => {
+        const base = turns(4, 0, 6);
+        const [proposal] = proposePromotions({
+            stages: [{ practice: "laboral", stage: "pasante", updated_at: SINCE }],
+            defenses: approvedDefenses("laboral"),
+            reviews: reviewedWorks("laboral"),
+            approvals: [],
+            turns: [
+                ...base.map((row) => ({ ...row, practice: "civil" })),
+                ...turns(4, 0, 6, "laboral", "2025-12-01T00:00:00.000Z").map((row) => ({ ...row, id: `old${row.id}` })),
+                ...turns(4, 0, 0, "laboral").map((row) => ({ ...row, id: `nm${row.id}`, confidence: null })),
+            ],
+        });
+        expect(proposal.calibration).toMatchObject({ marked_turns: 0, sure_marked: 0, enough: false });
+        expect(proposal.blocked_by).toBeNull();
+    });
+
+    it("lets the general stage count any practice and reports the counts of the person", () => {
+        const [proposal] = proposePromotions(
+            input({ ...met, turns: [...turns(3, 1, 3, "laboral"), ...turns(1, 0, 3, null)].map((row, i) => ({ ...row, id: `t${i}` })) }),
+        );
+        expect(proposal.calibration).toEqual({
+            marked_turns: 10,
+            min_marked_turns: 10,
+            sure_marked: 4,
+            sure_coincided: 1,
+            min_sure_marked: 4,
+            enough: true,
+        });
+        expect(proposal.blocked_by).toBe("overconfident");
+    });
+
+    it("keeps the older blocks first and reports overconfident even before the counts are met", () => {
+        const notApproved = [...approvedDefenses(), { id: "d3", practice: null, outcome: "not_approved" as const, held_at: day(8) }];
+        const [both] = proposePromotions(input({ defenses: notApproved, reviews: reviewedWorks(), turns: turns(4, 0, 6) }));
+        expect(both.blocked_by).toBe("not_approved_after");
+        const [early] = proposePromotions(input({ turns: turns(4, 0, 6) }));
+        expect(early.blocked_by).toBe("overconfident");
+        expect(early.proposed).toBe(false);
+        const [lawyer] = proposePromotions({
+            stages: [
+                { practice: null, stage: "junior", updated_at: SINCE },
+                { practice: "laboral", stage: "junior", updated_at: SINCE },
+            ],
+            defenses: [],
+            reviews: [],
+            approvals: [],
+            turns: turns(4, 0, 6, "laboral"),
+        });
+        expect(lawyer.practice).toBeNull();
+        const laboral = proposePromotions({
+            stages: [
+                { practice: null, stage: "junior", updated_at: SINCE },
+                { practice: "laboral", stage: "junior", updated_at: SINCE },
+            ],
+            defenses: [],
+            reviews: [],
+            approvals: [],
+            turns: turns(4, 0, 6, "laboral"),
+        })[1];
+        expect(laboral.blocked_by).toBe("general_stage_remains");
+    });
+});
+
+describe("audits and readings as evidence (layer 3)", () => {
+    it("lists them by date from the stage's change, in scope, without requiring them", () => {
+        const [proposal] = proposePromotions(
+            input({
+                ...met,
+                audits: [
+                    { id: "a2", practice: null, at: day(9), outcome: "needs_work" },
+                    { id: "a1", practice: "civil", at: day(3), outcome: "adequate" },
+                    { id: "old", practice: null, at: "2025-12-01T00:00:00.000Z", outcome: "adequate" },
+                ],
+                readings: [
+                    { id: "r2", practice: null, at: day(11) },
+                    { id: "r1", practice: null, at: day(4) },
+                    { id: "old", practice: null, at: "2025-12-01T00:00:00.000Z" },
+                ],
+            }),
+        );
+        expect(proposal.evaluated_audits).toEqual([
+            { id: "a1", at: day(3), outcome: "adequate" },
+            { id: "a2", at: day(9), outcome: "needs_work" },
+        ]);
+        expect(proposal.readings).toEqual([
+            { id: "r1", at: day(4) },
+            { id: "r2", at: day(11) },
+        ]);
+        expect(proposal.proposed).toBe(true);
+    });
+
+    it("counts only a practice stage's own", () => {
+        const [proposal] = proposePromotions({
+            stages: [{ practice: "laboral", stage: "pasante", updated_at: SINCE }],
+            defenses: [],
+            reviews: [],
+            approvals: [],
+            audits: [
+                { id: "a1", practice: "laboral", at: day(3), outcome: "adequate" },
+                { id: "a2", practice: "civil", at: day(3), outcome: "adequate" },
+                { id: "a3", practice: null, at: day(3), outcome: "adequate" },
+            ],
+            readings: [
+                { id: "r1", practice: "laboral", at: day(3) },
+                { id: "r2", practice: "civil", at: day(3) },
+            ],
+        });
+        expect(proposal.evaluated_audits.map((row) => row.id)).toEqual(["a1"]);
+        expect(proposal.readings.map((row) => row.id)).toEqual(["r1"]);
     });
 });

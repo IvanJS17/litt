@@ -852,6 +852,28 @@ proposals are computed on every read and never stored
   the counts met, so it is set whether or not they are met yet: the mentor
   learns about it before collecting more evidence, and the counts next to it
   say what is still missing.
+- **Layer 3 (promotion v2).** The same function also weighs the confidence
+  calibration and lists new evidence, all of it of that one person and since
+  the stage last changed, in the stage's scope:
+  - `calibration`: counts of the pupil's marked turns (`marked_turns`) and, of
+    those marked «Seguro» (level 4), how many coincided with the AI's answer
+    (`sure_coincided` of `sure_marked`). Never a percentage.
+  - `blocked_by: "overconfident"` when there are at least
+    `PROMOTION_MIN_MARKED_TURNS` (10) marked turns, at least
+    `PROMOTION_MIN_SURE_TURNS` (4) of them «Seguro», and fewer than 3 of every
+    4 «Seguro» coincided. With fewer than 10 the proposal is not blocked and
+    the tab says there are few data, so what layer 2 proposed is still
+    proposed. It ranks after the other two blocks and, like them, is reported
+    before the counts are met.
+  - `evaluated_audits` (bulk-review audits the mentor evaluated, with their
+    outcome) and `readings` (full readings handed in): shown, not required.
+  - `without_access`: turns, audits and readings in matters the mentor cannot
+    open are only counted, never dated, assigned to a practice area or
+    described, the rule of the criterion map. A review outside any matter is
+    the pupil's own, so its audit is counted there too.
+  - **The mentor decides with or without the proposal.** `blocked_by` blocks
+    only the proposal (`POST …/promotion` answers 409); the stage changes
+    through the usual route and the tab says so, in both languages.
 - Accepting recomputes the proposal and requires it to still hold
   (otherwise `409 training_promotion_not_proposed`), then changes the stage
   only through `setStage` (to `junior`) or `removeStage` (to `abogado`) of

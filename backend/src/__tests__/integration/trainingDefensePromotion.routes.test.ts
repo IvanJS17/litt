@@ -543,3 +543,126 @@ describe("promotion by evidence", () => {
         expect(h.state!.tables.training_stages[0].stage).toBe("pasante");
     });
 });
+
+describe("promotion by evidence, layer 3 (calibration, audits, readings)", () => {
+    const at = (n: number) => `2026-03-${String(n).padStart(2, "0")}T10:00:00.000Z`;
+
+    function markedTurn(n: number, chat: Row, confidence: number, verdict: string): Row {
+        return {
+            ...note(`m${n}`, chat, at(1 + (n % 20))),
+            confidence,
+            verdict,
+            verdict_source: "contrast",
+            foundation: "solido",
+            topics: ["Rescisión"],
+            answer_unverified: false,
+            mode: null,
+        };
+    }
+    /** `sure` turns marked «Seguro» (the first `hit` coinciding) and `others` at level 2, all coinciding. */
+    function calibrate(chat: Row, sure: number, hit: number, others: number) {
+        const rows: Row[] = [];
+        for (let i = 0; i < sure; i++) rows.push(markedTurn(rows.length, chat, 4, i < hit ? "coincide" : "no_coincide"));
+        for (let i = 0; i < others; i++) rows.push(markedTurn(rows.length, chat, 2, "coincide"));
+        h.state!.tables.training_turn_notes.push(...rows);
+    }
+    async function earn() {
+        const t = h.state!.tables;
+        for (const [i, chatId] of [id(210), id(211), id(212)].entries()) {
+            t.chats.push({ id: chatId, project_id: null, title: `Trabajo ${i}` });
+            t.training_work_reviews.push(review(id(610 + i), chatId, new Date().toISOString()));
+        }
+        for (let i = 0; i < 2; i++) {
+            const defense = await newDefense();
+            await as(MENTOR).put(`${defenses}/${defense.id}/outcome`).send({ outcome: "approved", reason: "razonamiento_solido" });
+        }
+    }
+
+    it("with fewer than 10 marked turns shows «pocos datos» and still proposes", async () => {
+        await earn();
+        calibrate({ chat_id: CHAT }, 4, 0, 5);
+        const proposal = (await as(MENTOR).get(promotion)).body.proposals[0];
+        expect(proposal).toMatchObject({ proposed: true, blocked_by: null });
+        expect(proposal.calibration).toEqual({
+            marked_turns: 9,
+            min_marked_turns: 10,
+            sure_marked: 4,
+            sure_coincided: 0,
+            min_sure_marked: 4,
+            enough: false,
+        });
+    });
+
+    it("blocks as overconfident from 10 marked turns, with the counts, and the mentor still decides", async () => {
+        await earn();
+        calibrate({ chat_id: CHAT }, 4, 2, 6);
+        const proposal = (await as(MENTOR).get(promotion)).body.proposals[0];
+        expect(proposal).toMatchObject({ proposed: false, blocked_by: "overconfident" });
+        expect(proposal.calibration).toMatchObject({ marked_turns: 10, sure_marked: 4, sure_coincided: 2, enough: true });
+        const refused = await as(MENTOR).post(promotion).send({ practice: null, to: "junior" });
+        expect(refused.status).toBe(409);
+        const decided = await as(MENTOR).put(`${pupilBase}/stages`).send({ practice: null, stage: "junior" });
+        expect(decided.status).toBe(200);
+        expect(h.state!.tables.training_stages[0].stage).toBe("junior");
+    });
+
+    it("does not block when 3 of 4 «Seguro» coincided", async () => {
+        await earn();
+        calibrate({ chat_id: CHAT }, 4, 3, 6);
+        expect((await as(MENTOR).get(promotion)).body.proposals[0]).toMatchObject({ proposed: true, blocked_by: null });
+    });
+
+    it("only counts turns of matters the mentor cannot open", async () => {
+        await earn();
+        calibrate({ chat_id: MATTER_CHAT }, 4, 0, 6);
+        const res = await as(MENTOR).get(promotion);
+        expect(res.body.proposals[0]).toMatchObject({ proposed: true, blocked_by: null });
+        expect(res.body.proposals[0].calibration.marked_turns).toBe(0);
+        expect(res.body.without_access).toEqual({ turns: 10, audits: 0, readings: 0 });
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        const open = await as(MENTOR).get(promotion);
+        expect(open.body.proposals[0]).toMatchObject({ proposed: false, blocked_by: "overconfident" });
+        expect(open.body.without_access).toEqual({ turns: 0, audits: 0, readings: 0 });
+    });
+
+    it("lists the evaluated audits and the readings, and leaves out those in closed matters without describing them", async () => {
+        const t = h.state!.tables;
+        // A review outside a matter is the pupil's own: the mentor cannot open it.
+        const OPEN_PROJECT = id(301);
+        t.projects.push({ id: OPEN_PROJECT, practice: null });
+        h.openable.add(`${OPEN_PROJECT}:${MENTOR}`);
+        t.tabular_reviews = [
+            { id: REVIEW, project_id: OPEN_PROJECT, user_id: PUPIL, org_id: ORG, title: "Abierta" },
+            { id: MATTER_REVIEW, project_id: PROJECT, user_id: PUPIL, org_id: ORG, title: "Secreto del cliente" },
+        ];
+        const audit = (auditId: string, reviewId: string, outcome: string | null) => ({
+            id: auditId,
+            org_id: ORG,
+            trainee_user_id: PUPIL,
+            tabular_review_id: reviewId,
+            mentor_outcome: outcome,
+            evaluated_at: outcome ? at(5) : null,
+        });
+        t.training_review_audits = [
+            audit(id(800), REVIEW, "needs_work"),
+            audit(id(801), MATTER_REVIEW, "adequate"),
+            audit(id(802), REVIEW, null),
+        ];
+        const reading = (readingId: string, projectId: string | null, submitted: string | null) => ({
+            id: readingId,
+            org_id: ORG,
+            trainee_user_id: PUPIL,
+            project_id: projectId,
+            submitted_at: submitted,
+        });
+        t.training_readings = [reading(id(810), OPEN_PROJECT, at(6)), reading(id(811), PROJECT, at(7)), reading(id(812), null, null)];
+        const res = await as(MENTOR).get(promotion);
+        const proposal = res.body.proposals[0];
+        expect(proposal.evaluated_audits).toEqual([{ id: id(800), at: at(5), outcome: "needs_work" }]);
+        expect(proposal.readings).toEqual([{ id: id(810), at: at(6) }]);
+        expect(proposal.proposed).toBe(false);
+        expect(res.body.without_access).toEqual({ turns: 0, audits: 1, readings: 1 });
+        const text = JSON.stringify(res.body);
+        for (const hidden of [id(801), id(811), "Secreto del cliente", PROJECT]) expect(text).not.toContain(hidden);
+    });
+});

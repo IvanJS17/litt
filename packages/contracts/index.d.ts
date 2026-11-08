@@ -1604,16 +1604,41 @@ export interface TrainingPromotionProposal {
      * What stops a proposal even once the counts are met, set whether or not
      * they are met yet; `proposed` also needs the counts (`required`).
      */
-    blocked_by: "not_approved_after" | "general_stage_remains" | null;
+    blocked_by: "not_approved_after" | "general_stage_remains" | "overconfident" | null;
     approved_defenses: TrainingPromotionEvidence[];
     reviewed_works: TrainingPromotionEvidence[];
     /** The pupil's drafts approved by a mentor or a lawyer: shown, not required. */
     approved_versions: TrainingPromotionEvidence[];
     required: { approved_defenses: number; reviewed_works: number };
+    /** Bulk-review audits the mentor evaluated since the stage changed: shown, not required. */
+    evaluated_audits: TrainingPromotionAuditEvidence[];
+    /** Full readings the pupil handed in since the stage changed: shown, not required. */
+    readings: TrainingPromotionEvidence[];
+    /** Counts of the pupil's own marked turns: never a percentage or a comparison. */
+    calibration: TrainingPromotionCalibration;
+}
+export interface TrainingPromotionAuditEvidence extends TrainingPromotionEvidence {
+    outcome: "adequate" | "needs_work";
+}
+/** The pupil's marked turns since the stage changed, and how their «Seguro» turns went. */
+export interface TrainingPromotionCalibration {
+    marked_turns: number;
+    /** Below this many marked turns the calibration does not block (it shows «pocos datos»). */
+    min_marked_turns: number;
+    /** Turns marked «Seguro», and of them how many coincided with the AI's answer. */
+    sure_marked: number;
+    sure_coincided: number;
+    min_sure_marked: number;
+    enough: boolean;
 }
 /** GET /orgs/:orgId/training/pupils/:userId/promotion (the pupil's current mentor). */
 export interface TrainingPromotion {
     proposals: TrainingPromotionProposal[];
+    /**
+     * Evidence in matters the mentor cannot open: counted, never used or
+     * described (no practice area, no date, no id).
+     */
+    without_access: { turns: number; audits: number; readings: number };
 }
 /** POST …/promotion: accept a proposal still in force; the mentor always decides. */
 export interface TrainingAcceptPromotionBody {
