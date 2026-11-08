@@ -231,6 +231,11 @@
       "training_promotion_not_proposed": "LiTT no longer proposes this promotion. Reload to see the current evidence.",
       "training_pupil_has_mentor": "This member already has a mentor. An owner or admin can move them.",
       "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
+      "training_reading_document_unavailable": "This document is no longer available to read.",
+      "training_reading_findings_recorded": "You already sent what you found; it cannot change.",
+      "training_reading_no_document": "There is no document to propose yet. Work on a matter and come back.",
+      "training_reading_not_due": "No full reading is due for you right now.",
+      "training_reading_swap_used": "You already changed the document once.",
       "training_review_in_progress": "This is already being generated.",
       "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews and questions.",
       "untrusted_origin": "The request origin is not allowed.",
@@ -630,7 +635,88 @@
           "stale": "The review was regenerated after you began this audit. Draw a new sample."
         }
       },
-      "reading": {},
+      "reading": {
+        "title": "Full reading",
+        "intro": "Once a month you read one whole document without the assistant and write what you found. Then LiTT compares it with what the machine found in the same text.",
+        "status": {
+          "assigned": "Reading",
+          "submitted": "Sent, not compared",
+          "comparing": "Comparing",
+          "compared": "Compared",
+          "failed": "Comparison failed"
+        },
+        "notice": {
+          "due": "A full reading is due.",
+          "open": "You have a full reading in progress.",
+          "next": "Your next full reading is from {date, date, medium}.",
+          "start": "Start the reading",
+          "continue": "Continue the reading",
+          "history": "Your full readings",
+          "item": "{date, date, medium}: {status}",
+          "view": "View",
+          "viewName": "View the reading of {date, date, medium}"
+        },
+        "page": {
+          "back": "Back to Training",
+          "title": "Full reading",
+          "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
+          "documentHeading": "Document",
+          "documentUnavailable": "This document is no longer available to read.",
+          "changeDocument": "Change the document",
+          "changeUsed": "You already changed the document once.",
+          "changeHint": "You can change it only once.",
+          "findingsLabel": "What you found",
+          "findingsHelp": "Write one finding per line: risks, missing data, deadlines, amounts or parties that do not add up.",
+          "findingsCount": "{count} of {max} characters",
+          "findingsMin": "Write at least {min} characters.",
+          "send": "Send what I found",
+          "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
+          "sentOn": "Sent on {date, date, medium}",
+          "compare": "Compare with the machine",
+          "comparing": "The machine is reading the document and comparing. This can take a minute.",
+          "failed": "The comparison failed. Nothing you wrote changed; you can try again.",
+          "retry": "Try again",
+          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
+          "check": "Check again"
+        },
+        "result": {
+          "both": "Matched",
+          "onlyYou": "Only you saw",
+          "onlyMachine": "Only the machine saw",
+          "none": "Nothing here.",
+          "you": "You wrote",
+          "machine": "The machine found",
+          "passage": "Passage in the document",
+          "inferred": "inferred",
+          "howItWorks": "The machine's findings count only if their quote is in the document. The AI proposes which of yours and of the machine's say the same thing; check it.",
+          "discarded": "{count, plural, one {# machine finding was left out because its quote is not in the document.} other {# machine findings were left out because their quote is not in the document.}}",
+          "noMachine": "The machine found nothing it could quote from the document."
+        },
+        "mentor": {
+          "title": "Full readings",
+          "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
+          "empty": "No full readings yet.",
+          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in a matter you cannot open.}}",
+          "notSent": "Not sent yet",
+          "sentOn": "Sent on {date, date, medium}",
+          "started": "Started on {date, date, medium}",
+          "model": "Compared with {model}"
+        },
+        "codes": {
+          "notDue": "No full reading is due for you right now.",
+          "noDocument": "There is no document to propose yet. Work on a matter and come back.",
+          "swapUsed": "You already changed the document once.",
+          "findingsRecorded": "You already sent what you found; it cannot change.",
+          "documentUnavailable": "This document is no longer available to read."
+        },
+        "actions": {
+          "load": "load the full reading",
+          "start": "start the full reading",
+          "swap": "change the document",
+          "send": "send what you found",
+          "compare": "compare your reading"
+        }
+      },
       "corrections": {},
       "contrast": {},
       "authorship": {},

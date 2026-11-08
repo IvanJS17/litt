@@ -1,17 +1,12 @@
 {
   "migrated": [
     "frontend/src/app/(pages)/settings/training/mentor",
+    "frontend/src/app/(pages)/settings/training/reading",
     "frontend/src/app/(pages)/tabular-reviews/[id]/audit",
-    "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
-    "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
-    "frontend/src/app/components/playbooks/PlaybookIntakeModal.tsx",
-    "frontend/src/app/components/playbooks/PlaybookRuleOrigin.tsx",
-    "frontend/src/app/components/playbooks/PlaybookTable.tsx",
-    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
-    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
     "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
     "frontend/src/app/components/shared/LocaleSwitcher.tsx",
     "frontend/src/app/components/shared/SourceCodeLink.tsx",
+    "frontend/src/app/components/training/reading",
     "frontend/src/app/components/training/reviewAudit",
     "frontend/src/app/components/training/supervision",
     "frontend/src/app/layout.tsx",
@@ -29,7 +24,14 @@
     "packages/client/src/userError.ts",
     "packages/i18n/src",
     "packages/ui/src/AuthDividerUI.tsx",
-    "packages/ui/src/SourceCodeLinkUI.tsx"
+    "packages/ui/src/SourceCodeLinkUI.tsx",
+    "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
+    "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
+    "frontend/src/app/components/playbooks/PlaybookIntakeModal.tsx",
+    "frontend/src/app/components/playbooks/PlaybookRuleOrigin.tsx",
+    "frontend/src/app/components/playbooks/PlaybookTable.tsx",
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
+    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,

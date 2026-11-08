@@ -88,6 +88,8 @@ begin
       columns_snapshot, lint, seed, sample)
     values (org, current_setting('litt.pupil')::uuid, tabular_review, '[]', '[]', 'seed',
       jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
+  insert into public.training_readings(org_id, trainee_user_id, project_id, status)
+    values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
   -- Training audit events name the pupil only as target_user_id.
   insert into public.audit_events(user_id, action, surface, detail)
     values (current_setting('litt.owner')::uuid, 'training.urgency_pass_granted', 'organization',

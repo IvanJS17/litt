@@ -231,6 +231,11 @@
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
       "training_pupil_has_mentor": "Este miembro ya tiene mentor. Un propietario o administrador puede cambiarlo.",
       "training_review_audit_stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva.",
+      "training_reading_document_unavailable": "Este documento ya no está disponible para leerlo.",
+      "training_reading_findings_recorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
+      "training_reading_no_document": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
+      "training_reading_not_due": "No te toca una lectura completa por ahora.",
+      "training_reading_swap_used": "Ya cambiaste el documento una vez.",
       "training_review_in_progress": "Esto ya se está generando.",
       "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Llaves propias (BYOK) para generar revisiones y preguntas.",
       "untrusted_origin": "El origen de la solicitud no está permitido.",
@@ -630,7 +635,88 @@
           "stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva."
         }
       },
-      "reading": {},
+      "reading": {
+        "title": "Lectura completa",
+        "intro": "Una vez al mes lees un documento completo sin el asistente y escribes lo que encontraste. Después LiTT lo compara con lo que la máquina encontró en el mismo texto.",
+        "status": {
+          "assigned": "En lectura",
+          "submitted": "Enviada, sin comparar",
+          "comparing": "Comparando",
+          "compared": "Comparada",
+          "failed": "La comparación falló"
+        },
+        "notice": {
+          "due": "Te toca una lectura completa.",
+          "open": "Tienes una lectura completa en curso.",
+          "next": "Tu próxima lectura completa es a partir del {date, date, medium}.",
+          "start": "Empezar la lectura",
+          "continue": "Continuar la lectura",
+          "history": "Tus lecturas completas",
+          "item": "{date, date, medium}: {status}",
+          "view": "Ver",
+          "viewName": "Ver la lectura del {date, date, medium}"
+        },
+        "page": {
+          "back": "Volver a Formación",
+          "title": "Lectura completa",
+          "noAssistant": "Esta página no tiene asistente a propósito. Lee tú el documento y escribe lo que encontraste. LiTT no puede comprobar que leíste sin ayuda: es una declaración tuya.",
+          "documentHeading": "Documento",
+          "documentUnavailable": "Este documento ya no está disponible para leerlo.",
+          "changeDocument": "Cambiar el documento",
+          "changeUsed": "Ya cambiaste el documento una vez.",
+          "changeHint": "Puedes cambiarlo una sola vez.",
+          "findingsLabel": "Lo que encontraste",
+          "findingsHelp": "Escribe un hallazgo por línea: riesgos, datos que faltan, plazos, montos o partes que no cuadran.",
+          "findingsCount": "{count} de {max} caracteres",
+          "findingsMin": "Escribe al menos {min} caracteres.",
+          "send": "Enviar lo que encontré",
+          "sendHint": "Después de enviarlo no podrás cambiarlo. Luego podrás compararlo con lo que encontró la máquina.",
+          "sentOn": "Enviado el {date, date, medium}",
+          "compare": "Comparar con la máquina",
+          "comparing": "La máquina está leyendo el documento y comparando. Puede tardar un minuto.",
+          "failed": "La comparación falló. Nada de lo que escribiste cambió; puedes intentarlo de nuevo.",
+          "retry": "Intentar de nuevo",
+          "noKey": "Para comparar necesitas una llave para tu modelo. Agrégala en Ajustes, en Llaves propias (BYOK).",
+          "check": "Revisar de nuevo"
+        },
+        "result": {
+          "both": "Coincidieron",
+          "onlyYou": "Solo lo viste tú",
+          "onlyMachine": "Solo lo vio la máquina",
+          "none": "Nada aquí.",
+          "you": "Tú escribiste",
+          "machine": "La máquina encontró",
+          "passage": "Pasaje del documento",
+          "inferred": "inferido",
+          "howItWorks": "Los hallazgos de la máquina cuentan solo si su cita está en el documento. La IA propone cuáles de los tuyos y de la máquina dicen lo mismo; revísalo.",
+          "discarded": "{count, plural, one {Se dejó fuera # hallazgo de la máquina porque su cita no está en el documento.} other {Se dejaron fuera # hallazgos de la máquina porque su cita no está en el documento.}}",
+          "noMachine": "La máquina no encontró nada que pudiera citar del documento."
+        },
+        "mentor": {
+          "title": "Lecturas completas",
+          "intro": "Cada mes un junior lee un documento completo sin el asistente y escribe lo que encontró antes de ver lo que encontró la máquina. Es evidencia, no un requisito de promoción.",
+          "empty": "Todavía no hay lecturas completas.",
+          "hidden": "{count, plural, one {# lectura está en un asunto que no puedes abrir.} other {# lecturas están en un asunto que no puedes abrir.}}",
+          "notSent": "Aún sin enviar",
+          "sentOn": "Enviada el {date, date, medium}",
+          "started": "Iniciada el {date, date, medium}",
+          "model": "Comparada con {model}"
+        },
+        "codes": {
+          "notDue": "No te toca una lectura completa por ahora.",
+          "noDocument": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
+          "swapUsed": "Ya cambiaste el documento una vez.",
+          "findingsRecorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
+          "documentUnavailable": "Este documento ya no está disponible para leerlo."
+        },
+        "actions": {
+          "load": "cargar la lectura completa",
+          "start": "empezar la lectura completa",
+          "swap": "cambiar el documento",
+          "send": "enviar lo que encontraste",
+          "compare": "comparar tu lectura"
+        }
+      },
       "corrections": {},
       "contrast": {},
       "authorship": {},
