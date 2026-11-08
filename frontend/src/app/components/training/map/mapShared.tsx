@@ -25,7 +25,7 @@ export function MapSkeleton() {
     const t = useTranslations("common");
     return (
         <div className="min-w-0 space-y-5" aria-busy="true" aria-label={t("loading")}>
-            {[3, 2, 1].map((lines, block) => (
+            {[3, 2, 1, 2].map((lines, block) => (
                 <div key={block} className="min-w-0 space-y-2">
                     <SkeletonLine className="w-1/3" />
                     {Array.from({ length: lines }, (_, line) => (
@@ -128,7 +128,7 @@ export function RetakeEntry({ retake, children }: { retake: TrainingRetake; chil
             <div className="min-w-0 space-y-0.5">
                 <p className="break-words text-sm font-medium text-gray-900">{retake.topic_label}</p>
                 <p className="text-sm text-gray-500">
-                    {t(`status.${retake.status}`)} · {t("started", { date: new Date(retake.created_at) })}
+                    {t(retake.status === "failed" && retake.question ? "status.closed" : `status.${retake.status}`)} · {t("started", { date: new Date(retake.created_at) })}
                 </p>
             </div>
             {retake.question && (
