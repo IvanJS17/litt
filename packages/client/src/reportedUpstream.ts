@@ -11,6 +11,8 @@
  * table first: these codes are only marked handled, and show their own
  * sentence instead of the generic server-failure one.
  */
+import { SOURCE_MESSAGES } from "@litt/i18n";
+import { clientTranslator, sourceTranslator } from "./locale";
 
 /**
  * The backend's answer when its database is missing a migration (PGRST202/
@@ -18,29 +20,27 @@
  * (contact whoever runs the server).
  */
 export const SCHEMA_OUT_OF_DATE_CODE = "schema_out_of_date";
-export const SCHEMA_OUT_OF_DATE_MESSAGE =
-    "The server's database needs an update before this can load. Please contact your administrator.";
+/** The sentence in the source language; reportedUpstreamMessage translates it. */
+export const SCHEMA_OUT_OF_DATE_MESSAGE = sourceTranslator("errors.upstream.schema_out_of_date");
 /**
  * A dependency is unreachable: the gateway cannot reach the backend, or the
  * backend cannot reach GoTrue (503). Whoever saw it reports it once per
  * outage; the user can only wait and retry.
  */
 export const UPSTREAM_UNAVAILABLE_CODE = "upstream_unavailable";
-export const UPSTREAM_UNAVAILABLE_MESSAGE =
-    "The server is temporarily unreachable. Please try again shortly.";
+/** The sentence in the source language; reportedUpstreamMessage translates it. */
+export const UPSTREAM_UNAVAILABLE_MESSAGE = sourceTranslator("errors.upstream.upstream_unavailable");
 
-const REPORTED_UPSTREAM_MESSAGES: Readonly<Record<string, string>> = {
-    [SCHEMA_OUT_OF_DATE_CODE]: SCHEMA_OUT_OF_DATE_MESSAGE,
-    [UPSTREAM_UNAVAILABLE_CODE]: UPSTREAM_UNAVAILABLE_MESSAGE,
-};
+type ReportedUpstreamCode = keyof typeof SOURCE_MESSAGES.errors.upstream;
 
 /**
  * The fixed user-facing message for a code the server side already
- * reported, or null for any other code (report it as usual).
+ * reported, in the configured locale, or null for any other code (report it
+ * as usual). The codes are the keys of the catalog's `errors.upstream`.
  */
 export function reportedUpstreamMessage(
     code: string | null | undefined,
 ): string | null {
-    if (!code || !Object.hasOwn(REPORTED_UPSTREAM_MESSAGES, code)) return null;
-    return REPORTED_UPSTREAM_MESSAGES[code] ?? null;
+    if (!code || !Object.hasOwn(SOURCE_MESSAGES.errors.upstream, code)) return null;
+    return clientTranslator()(`errors.upstream.${code as ReportedUpstreamCode}`);
 }

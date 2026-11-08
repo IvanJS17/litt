@@ -10,7 +10,12 @@
  *
  * This module is shared by the web app and the Word add-in, so it must stay
  * framework-free and must not import from an application (`frontend/src/app/` or `word-addin/src/`).
+ *
+ * Its sentences live in the `errors` namespace of @litt/i18n and follow the
+ * locale the app configured (./locale.ts); without one they are en-US.
  */
+import { SOURCE_LOCALE, SOURCE_MESSAGES } from "@litt/i18n";
+import { clientLocale, clientTranslator, sourceTranslator } from "./locale";
 
 // LiTT support. Upstream wrote to its own maintainer; userError.test.ts guards it.
 export const SUPPORT_EMAIL = "soporte@asteroitt.com";
@@ -80,24 +85,28 @@ export class UserVisibleError extends Error {
     }
 }
 
-export const GENERIC_FAILURE_MESSAGE =
-    "Something went wrong. Try again, and contact support if it keeps happening.";
+/**
+ * What an unclassifiable failure says, in the source language (en-US).
+ * Screens show `describeError(...).message`, which is in the user's locale.
+ */
+export const GENERIC_FAILURE_MESSAGE = sourceTranslator("errors.message.unknown");
 
-const KIND_TITLES: Record<UserErrorKind, string> = {
-    offline: "You're offline",
-    network: "Connection problem",
-    timeout: "Request timed out",
-    aborted: "Cancelled",
-    unauthenticated: "Sign in required",
-    forbidden: "Permission denied",
-    not_found: "Not found",
-    conflict: "Conflict",
-    validation: "Check your input",
-    payload_too_large: "Too large",
-    rate_limited: "Slow down",
-    unavailable: "Service unavailable",
-    server: "Something went wrong",
-    unknown: "Something went wrong",
+// Every kind, so a `kind` read off an unknown object can be checked.
+const KINDS: Readonly<Record<UserErrorKind, true>> = {
+    offline: true,
+    network: true,
+    timeout: true,
+    aborted: true,
+    unauthenticated: true,
+    forbidden: true,
+    not_found: true,
+    conflict: true,
+    validation: true,
+    payload_too_large: true,
+    rate_limited: true,
+    unavailable: true,
+    server: true,
+    unknown: true,
 };
 
 /**
@@ -111,36 +120,18 @@ const KIND_TITLES: Record<UserErrorKind, string> = {
 export function networkMessage(origin?: string): string {
     // Naming the origin is for self-hosters, whose own server may be the
     // thing that is down, so that variant also says to check the server.
-    if (origin) {
-        return `LiTT couldn't reach the server at ${origin}. Check your connection and that the server is running, then try again.`;
-    }
-    return "LiTT couldn't reach the server. Check your connection and try again.";
+    const t = clientTranslator();
+    return origin
+        ? t("errors.networkAt", { origin })
+        : t("errors.message.network");
 }
 
 /**
- * What a server failure says. Exported so the add-in's API client, which
- * replaces every 5xx body with it, says the same sentence.
+ * What a server failure says, in the source language. The add-in's API
+ * client replaces every 5xx body with it; describeError never shows a 5xx
+ * body, so the user reads the translated sentence of the `server` kind.
  */
-export const SERVER_FAILURE_MESSAGE =
-    "Something went wrong on our side. Try again.";
-
-const KIND_MESSAGES: Record<UserErrorKind, string> = {
-    offline: "Your device is offline. Check your connection and try again.",
-    network: networkMessage(),
-    timeout: "The server took too long to respond. Try again.",
-    aborted: "The request was cancelled.",
-    unauthenticated: "Your session has expired. Sign in again to continue.",
-    forbidden: "You don't have permission to do this.",
-    not_found: "That item no longer exists or was moved.",
-    conflict: "This was changed somewhere else. Refresh and try again.",
-    validation: "Some of the information provided isn't valid.",
-    payload_too_large: "That's too large to upload.",
-    rate_limited: "Too many requests. Wait a moment and try again.",
-    unavailable:
-        "LiTT is temporarily unavailable. Try again in a moment.",
-    server: SERVER_FAILURE_MESSAGE,
-    unknown: GENERIC_FAILURE_MESSAGE,
-};
+export const SERVER_FAILURE_MESSAGE = sourceTranslator("errors.message.server");
 
 const RETRYABLE: ReadonlySet<UserErrorKind> = new Set([
     "offline",
@@ -362,11 +353,25 @@ function withoutTrailingPunctuation(text: string): string {
 }
 
 function titleFor(kind: UserErrorKind, action?: string): string {
+    const t = clientTranslator();
     if (action) {
         const trimmed = withoutTrailingPunctuation(action.trim());
-        if (trimmed) return `Couldn't ${trimmed}`;
+        if (trimmed) return t("errors.couldnt", { action: trimmed });
     }
-    return KIND_TITLES[kind];
+    return t(`errors.title.${kind}`);
+}
+
+type CodeWithText = keyof typeof SOURCE_MESSAGES.errors.code;
+
+/**
+ * The catalog's sentence for a backend `code`, or null. Only codes whose
+ * meaning is the same on every route have one (`errors.code`); a code whose
+ * server sentence carries a value (a limit, a model, a name) does not, and
+ * keeps the server's own words.
+ */
+function codeText(code: string | null): string | null {
+    if (!code || !Object.hasOwn(SOURCE_MESSAGES.errors.code, code)) return null;
+    return clientTranslator()(`errors.code.${code as CodeWithText}`);
 }
 
 /**
@@ -375,7 +380,9 @@ function titleFor(kind: UserErrorKind, action?: string): string {
  * Message precedence, highest first:
  * 1. `codeMessages[code]` supplied by the call site.
  * 2. A `UserVisibleError` (or `userVisible: true`) message, verbatim.
- * 3. The API's own 4xx `detail`, which the backend writes for users.
+ * 3. The API's own 4xx `detail`, which the backend writes for users, in
+ *    English. In another locale the catalog's sentence for a known `code`
+ *    (`errors.code`) comes first, and stands in for a missing detail in any.
  * 4. The generic message for the classified kind.
  * 5. `fallback`, for anything unclassifiable.
  */
@@ -392,6 +399,7 @@ export function describeError(
 
     let kind: UserErrorKind;
     let message: string | null = null;
+    let detail: string | null = null;
 
     if (isAbortError(error)) {
         kind = "aborted";
@@ -403,7 +411,7 @@ export function describeError(
         kind = "network";
     } else if (like?.userVisible === true && apiMessage) {
         kind =
-            typeof like.kind === "string" && like.kind in KIND_TITLES
+            typeof like.kind === "string" && Object.hasOwn(KINDS, like.kind)
                 ? (like.kind as UserErrorKind)
                 : "unknown";
         message = apiMessage;
@@ -412,7 +420,7 @@ export function describeError(
         // 4xx bodies are written for users by the backend; 5xx bodies never
         // are, and the API client already replaced them with a safe line.
         if (status < 500 && apiMessage && !/^API error: \d+$/.test(apiMessage)) {
-            message = apiMessage;
+            detail = apiMessage;
         }
     } else if (code && CODE_KINDS[code]) {
         kind = CODE_KINDS[code];
@@ -425,10 +433,12 @@ export function describeError(
     }
 
     if (!message) {
+        const known = codeText(code);
         message =
-            kind === "unknown" && options.fallback
+            (clientLocale() === SOURCE_LOCALE ? detail ?? known : known ?? detail) ??
+            (kind === "unknown" && options.fallback
                 ? options.fallback
-                : KIND_MESSAGES[kind];
+                : clientTranslator()(`errors.message.${kind}`));
     }
 
     let retryable = RETRYABLE.has(kind);
@@ -509,21 +519,24 @@ export function buildSupportMailto(
     context: SupportMailtoContext = {},
 ): string {
     const when = context.when ?? new Date();
+    const t = clientTranslator();
     const lines: string[] = [
-        "Hi LiTT team,",
+        t("errors.support.greeting"),
         "",
-        "I ran into a problem and need help.",
+        t("errors.support.intro"),
         "",
-        `What happened: ${error.title}`,
-        `Message shown: ${error.message}`,
+        t("errors.support.whatHappened", { title: error.title }),
+        t("errors.support.messageShown", { message: error.message }),
     ];
-    if (context.note) lines.push(`Details: ${context.note}`);
+    if (context.note) lines.push(t("errors.support.note", { note: context.note }));
     lines.push("");
-    lines.push("--- Details for support (please keep) ---");
+    lines.push(t("errors.support.diagnostics"));
+    // The diagnostic lines stay in English whatever the locale: support
+    // matches them against the logs.
     lines.push(...supportDetailLines(error, { ...context, when }));
-    lines.push("", "Thanks,");
+    lines.push("", t("errors.support.thanks"));
 
-    const subject = `LiTT support: ${error.title}`;
+    const subject = t("errors.support.subject", { title: error.title });
     const params = new URLSearchParams({
         subject,
         body: lines.join("\n"),

@@ -1,6 +1,6 @@
 # Build from the repository root: `docker build -f word-addin/Dockerfile .`
-# The add-in bundles the packages it shares with the web app (packages/ui and
-# packages/client, reached through webpack aliases, tsconfig paths, and a
+# The add-in bundles the packages it shares with the web app (packages/ui,
+# packages/client and packages/i18n, reached through webpack aliases, tsconfig paths, and a
 # Tailwind @source entry), the web app's icons (frontend/public/icons, the
 # @icons alias), and the @mike/contracts declarations. Nothing else outside
 # word-addin/ is read.
@@ -17,6 +17,7 @@ COPY frontend/public/icons /frontend/public/icons
 COPY packages/contracts /packages/contracts
 COPY packages/ui /packages/ui
 COPY packages/client /packages/client
+COPY packages/i18n /packages/i18n
 
 ARG REACT_APP_WEB_APP_URL
 ARG WORD_ADDIN_PUBLIC_URL
