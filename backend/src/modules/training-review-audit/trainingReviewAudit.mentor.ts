@@ -19,7 +19,7 @@ import { selectInBatches } from "../../lib/batchedQuery";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
 import { AUDIT_NOTE_MAX_CHARS, isAuditMark, type AuditItem } from "../../lib/trainingReviewAudit";
-import { mayOpenWorkMatter } from "../../lib/trainingWork";
+import { openableWorkMatters } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import {
     assertCurrentMentor,
@@ -55,14 +55,23 @@ async function openableReviews(db: Db, actor: Actor, rows: AuditRow[]): Promise<
     } catch (error) {
         return internalFailure(error);
     }
+    // A review in a matter is openable when its matter is: one set read for
+    // every matter (the rule of mayOpenWorkMatter applied to the batch), not one
+    // per review. A review outside any matter is the review's own access.
+    let matters: Set<string>;
+    try {
+        matters = await openableWorkMatters(db, {
+            projectIds: reviews.flatMap((review) => (review.project_id ? [review.project_id] : [])),
+            actorId: actor.actorId,
+            actorEmail: actor.actorEmail,
+        });
+    } catch (error) {
+        return internalFailure(error);
+    }
     const openable = new Map<string, ReviewRef>();
     for (const review of reviews) {
         const may = review.project_id
-            ? await mayOpenWorkMatter(db, {
-                  projectId: review.project_id,
-                  actorId: actor.actorId,
-                  actorEmail: actor.actorEmail,
-              })
+            ? matters.has(review.project_id)
             : (await ensureReviewAccess(review, actor.actorId, actor.actorEmail, db)).ok;
         if (may) openable.set(review.id, review);
     }

@@ -40,6 +40,10 @@ vi.mock("../../lib/access", async (importOriginal) => ({
     checkProjectAccess: vi.fn(async (projectId: string, userId: string) => ({
         ok: h.openable.has(`${projectId}:${userId}`),
     })),
+    // The batch rule of the same verdict: the matters of the list that the user may open.
+    loadOpenableProjects: vi.fn(async (_db: unknown, userId: string, _email: unknown, projectIds: string[]) =>
+        new Map(projectIds.filter((p) => h.openable.has(`${p}:${userId}`)).map((p) => [p, { orgId: null }])),
+    ),
 }));
 vi.mock("../../lib/tabularReadAccess", () => ({
     loadReviewRows: vi.fn(async () => h.state!.tables.tabular_review_rows),
@@ -54,6 +58,7 @@ vi.mock("../../lib/audit", async (importOriginal) => ({
 }));
 
 import { app } from "../../app";
+import { checkProjectAccess, loadOpenableProjects } from "../../lib/access";
 import { recordAudit } from "../../lib/audit";
 import { memoryDb } from "../helpers/memoryDb";
 
@@ -492,6 +497,38 @@ describe("the mentor's evaluation", () => {
             .put(`${mentorBase}/${started.id}/evaluation`)
             .send({ outcome: "adequate", corrections: [{ row_id: target.row_id, column_index: target.column_index, mark: "incorrect" }] });
         expect(response.status).toBe(400);
+    });
+
+    it("reads the access of every matter once for the whole list, with the same result as asking one by one", async () => {
+        const tables = h.state!.tables;
+        const MATTERS = [id(301), id(302), id(303)];
+        const extra = MATTERS.flatMap((matter, n) =>
+            [0, 1].map((k) => ({ matter, review: id(600 + n * 2 + k), created: `2026-11-0${1 + n * 2 + k}T10:00:00Z` })),
+        );
+        for (const { matter, review, created } of extra) {
+            tables.tabular_reviews.push({ id: review, user_id: PUPIL, project_id: matter, org_id: ORG, title: `R ${review}`, columns_config: [], active_generation_id: null, generation_lease_expires_at: null });
+            tables.training_review_audits.push({
+                id: id(700 + Number(review.slice(-3)) - 600), org_id: ORG, trainee_user_id: PUPIL, tabular_review_id: review,
+                columns_snapshot: [], lint: [], seed: "s", digest_salt: "s".repeat(64), status: "open", completed_at: null,
+                sample: [{ row_id: rowId(0), column_index: 0, digest: "d" }], created_at: created, updated_at: created,
+            });
+        }
+        h.openable = new Set([`${MATTERS[0]}:${MENTOR}`, `${MATTERS[2]}:${MENTOR}`]);
+        vi.mocked(checkProjectAccess).mockClear();
+        vi.mocked(loadOpenableProjects).mockClear();
+        const listed = await as(MENTOR).get(mentorBase);
+        expect(listed.status).toBe(200);
+        const expected = extra.filter((e) => h.openable.has(`${e.matter}:${MENTOR}`)).map((e) => e.review).sort();
+        expect(listed.body.audits.map((a: { tabular_review_id: string }) => a.tabular_review_id).sort()).toEqual(expected);
+        expect(listed.body.without_access).toBe(extra.length - expected.length);
+        // One batch read, no per-review verdict.
+        expect(vi.mocked(loadOpenableProjects)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(checkProjectAccess)).not.toHaveBeenCalled();
+        // Differential: the per-matter rule gives the same verdict for each.
+        for (const { matter } of extra) {
+            const one = await checkProjectAccess(matter, MENTOR, `${MENTOR}@test.local`, h.state!.db as never);
+            expect(one.ok).toBe(expected.some((r) => extra.find((e) => e.review === r)!.matter === matter));
+        }
     });
 
     it("lists a review outside any matter only when the mentor can open the review itself", async () => {
