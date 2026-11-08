@@ -40,6 +40,7 @@ vi.mock("../playbooks/playbooks.service", () => {
 });
 
 import { FIRM_CRITERIA_MAX_PER_ORG } from "../../lib/firmCriteria";
+import { getPlaybook } from "../playbooks/playbooks.service";
 import { createFirmCriterion, deleteFirmCriterion, listFirmCriteria, updateFirmCriterion } from "./firmCriteria.service";
 
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -140,7 +141,7 @@ describe("writing", () => {
     it("reports a playbook that cannot be read as an internal failure, not a refusal", async () => {
         const vote = { ...body, kind: "voto_particular", playbook_id: "00000000-0000-4000-8000-000000000bad", rule_id: "r1" };
         playbooks.set(vote.playbook_id, { orgId: ORG, rules: [], readableBy: [] });
-        vi.mocked((await import("../playbooks/playbooks.service")).getPlaybook).mockRejectedValueOnce(new Error("database down"));
+        vi.mocked(getPlaybook).mockRejectedValueOnce(new Error("database down"));
         expect(await createFirmCriterion(db(), { ...as(PARTNER), body: vote })).toMatchObject({ ok: false, kind: "error" });
     });
 
