@@ -521,5 +521,49 @@
         "load": "load what your mentor sees"
       }
     }
+  },
+  "word": {
+    "app": {
+      "openingChats": "Opening document chats…",
+      "unidentifiedDocument": "Could not identify this Word document."
+    },
+    "language": {
+      "label": "Interface language",
+      "description": "Choose the language LiTT uses in Word. It is saved in your profile, so it also applies in the web app.",
+      "saveFailed": "LiTT couldn't save the language. Try again.",
+      "title": "Language",
+      "names": {
+        "en-US": "English",
+        "es-MX": "Español (México)"
+      }
+    },
+    "login": {
+      "continueWithGoogle": "Continue with Google",
+      "continuing": "Continuing…",
+      "heading": "Log in"
+    },
+    "notify": {
+      "completeAction": "complete that action",
+      "contactSupport": "Contact support",
+      "emailAddress": "Email {email}",
+      "emailAddressClipboard": "Email {email} — the details are on your clipboard",
+      "sessionCheckFailed": "Couldn't check your session. Check your connection and try again.",
+      "supportDraft": "Email draft opened",
+      "supportDraftClipboard": "Email draft opened — the details are also on your clipboard"
+    },
+    "oauth": {
+      "completing": "Completing sign-in…",
+      "failed": "Google sign-in failed. Try again.",
+      "invalidHandoff": "Google sign-in did not produce a valid handoff.",
+      "invalidRequest": "This sign-in request is invalid. Close this window and try again.",
+      "notifyFailed": "Could not notify Word that sign-in completed. Close this window and try again.",
+      "signedIn": "Signed in. You can return to Word.",
+      "unableToOpen": "Unable to open Google sign-in.",
+      "unavailable": "Google sign-in is temporarily unavailable. Try again.",
+      "unexpected": "LiTT couldn't complete Google sign-in. Try again."
+    },
+    "settings": {
+      "title": "Settings"
+    }
   }
 }

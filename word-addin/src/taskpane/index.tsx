@@ -6,43 +6,56 @@ import { ToastViewportUI } from "@mike/ui";
 import "./styles.css";
 import { PaneErrorBoundary } from "./components/shell/PaneErrorBoundary";
 import { PaneErrorFallback } from "./components/shell/PaneErrorFallback";
+import { clientTranslator } from "@mike/client";
+import { initialLocale } from "./i18n/locale";
+import { LocaleProvider } from "./i18n/LocaleProvider";
+import { loadLocale } from "./i18n/loadLocale";
 
 // A rejected promise nobody awaited used to vanish into the WebView console,
 // which a user in Word cannot open. This is the user's side of it — one
 // deduped toast, because one broken poll can reject on every tick.
 window.addEventListener("unhandledrejection", (event) => {
   notifyError(event.reason, {
-    action: "complete that action",
+    action: clientTranslator()("word.notify.completeAction"),
     dedupeKey: "unhandled",
   });
 });
 
-Office.onReady(() => {
+Office.onReady(async () => {
   const container = document.getElementById("root");
   if (!container) {
     throw new Error("Root element #root not found in DOM");
   }
   const root = createRoot(container);
+  // The pane's first paint is already in its language: the catalog loads
+  // before React renders, from this device's choice or Word's own language.
+  // The profile's choice replaces it once the session is known (App).
+  const initial = await loadLocale(initialLocale()).catch(() =>
+    // A catalog that cannot load must not leave the pane blank.
+    loadLocale("en-US"),
+  );
   root.render(
     // `@container` makes the whole pane a query container so descendants can
     // adapt spacing/type to the (resizable, usually narrow) task-pane width
     // via `@sm:`/`@md:` variants — viewport breakpoints never fire in a pane.
-    <div className="@container h-full w-full bg-background text-foreground font-sans antialiased">
-      <PaneErrorBoundary
-        fallback={({ resetError }) => (
-          <PaneErrorFallback resetError={resetError} />
-        )}
-      >
-        <App />
-      </PaneErrorBoundary>
-      {/* Mounted beside App, not inside it: App returns early while the
-          session loads and on the login screen, and a failure there still
-          needs somewhere to appear. Outside the boundary so a render crash
-          does not take the notifications with it. The pane is ~320px wide,
-          so the shared viewport's 460px cap is tightened to fit. */}
-      <ToastViewportUI
-        className="w-full max-w-[min(96vw,380px)] px-2"
-      />
-    </div>,
+    <LocaleProvider initial={initial}>
+      <div className="@container h-full w-full bg-background text-foreground font-sans antialiased">
+        <PaneErrorBoundary
+          fallback={({ resetError }) => (
+            <PaneErrorFallback resetError={resetError} />
+          )}
+        >
+          <App />
+        </PaneErrorBoundary>
+        {/* Mounted beside App, not inside it: App returns early while the
+            session loads and on the login screen, and a failure there still
+            needs somewhere to appear. Outside the boundary so a render crash
+            does not take the notifications with it. The pane is ~320px wide,
+            so the shared viewport's 460px cap is tightened to fit. */}
+        <ToastViewportUI
+          className="w-full max-w-[min(96vw,380px)] px-2"
+        />
+      </div>
+    </LocaleProvider>,
   );
 });

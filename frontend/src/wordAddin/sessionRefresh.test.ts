@@ -14,8 +14,8 @@ import {
     createRefreshingFetch,
     forgetSessionRecoveryRetries,
     isSessionHandledError,
-    SESSION_CHECK_FAILED_MESSAGE,
-    SESSION_EXPIRED_MESSAGE,
+    sessionCheckFailedMessage,
+    sessionExpiredMessage,
 } from "../../../word-addin/src/taskpane/lib/sessionRefresh";
 import { responseError } from "../../../word-addin/src/taskpane/api/client";
 import { notifyError, userMessage } from "../../../word-addin/src/taskpane/lib/notify";
@@ -280,7 +280,7 @@ describe("a 401 the session layer handled", () => {
         );
         expect(onUnreachable).toHaveBeenCalledTimes(1);
 
-        expect(userMessage(error)).toBe(SESSION_CHECK_FAILED_MESSAGE);
+        expect(userMessage(error)).toBe(sessionCheckFailedMessage());
         notifyError(error, { action: "load your workflows", onRetry: vi.fn() });
         expect(getSnapshot()).toHaveLength(0);
     });
@@ -328,7 +328,7 @@ describe("a 401 the session layer handled", () => {
             Object.assign(new Error("HTTP 401"), { status: 401 }),
         );
         expect(onExpired).toHaveBeenCalledTimes(1);
-        expect(userMessage(error)).toBe(SESSION_EXPIRED_MESSAGE);
+        expect(userMessage(error)).toBe(sessionExpiredMessage());
         notifyError(error);
         expect(getSnapshot()).toHaveLength(0);
     });

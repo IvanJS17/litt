@@ -13,7 +13,12 @@
  * user is told what actually happened; when both fail the block is put on
  * screen to copy by hand.
  */
-import { SUPPORT_EMAIL, supportDetailLines, type UserFacingError } from "@mike/client";
+import {
+  SUPPORT_EMAIL,
+  clientTranslator,
+  supportDetailLines,
+  type UserFacingError,
+} from "@mike/client";
 
 export type SupportErrorFields = Pick<
   UserFacingError,
@@ -33,11 +38,14 @@ export interface SupportContext {
 }
 
 /** Both steps worked: the draft is open and the block is on the clipboard. */
-export const SUPPORT_DRAFT_AND_CLIPBOARD_MESSAGE =
-  "Email draft opened — the details are also on your clipboard";
+export function supportDraftAndClipboardMessage(): string {
+  return clientTranslator()("word.notify.supportDraftClipboard");
+}
 
 /** The draft opened, but the clipboard was refused. */
-export const SUPPORT_DRAFT_MESSAGE = "Email draft opened";
+export function supportDraftMessage(): string {
+  return clientTranslator()("word.notify.supportDraft");
+}
 
 /**
  * The block the user pastes into the support form. Pure and fully
@@ -83,18 +91,22 @@ export function supportHandoffResult(args: {
 }): SupportHandoffResult {
   if (args.opened) {
     return args.copied
-      ? { tone: "success", message: SUPPORT_DRAFT_AND_CLIPBOARD_MESSAGE }
-      : { tone: "success", message: SUPPORT_DRAFT_MESSAGE };
+      ? { tone: "success", message: supportDraftAndClipboardMessage() }
+      : { tone: "success", message: supportDraftMessage() };
   }
   if (args.copied) {
     return {
       tone: "info",
-      message: `Email ${SUPPORT_EMAIL} — the details are on your clipboard`,
+      message: clientTranslator()("word.notify.emailAddressClipboard", {
+        email: SUPPORT_EMAIL,
+      }),
     };
   }
   return {
     tone: "info",
-    message: `Email ${SUPPORT_EMAIL}`,
+    message: clientTranslator()("word.notify.emailAddress", {
+      email: SUPPORT_EMAIL,
+    }),
     details: args.details,
   };
 }

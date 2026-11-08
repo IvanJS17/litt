@@ -12,7 +12,7 @@ test("settings link the source of the build's exact commit", async ({
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("menuitem", { name: "Settings" }).click();
 
-  const link = page.getByRole("link", { name: /^Código fuente/ });
+  const link = page.getByRole("link", { name: /^Source code/ });
   await expect(link).toHaveAttribute(
     "href",
     /^https:\/\/github\.com\/IvanJS17\/litt\/tree\/[0-9a-f]{40}$/,

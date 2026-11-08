@@ -3,7 +3,18 @@ import {
   GOOGLE_OAUTH_MESSAGE_TYPE,
   type GoogleOAuthDialogMessage,
 } from "../taskpane/auth/oauthProtocol";
-import { describeError } from "@mike/client";
+import {
+  clientTranslator,
+  describeError,
+  type ClientTranslator,
+} from "@mike/client";
+import { initialLocale } from "../taskpane/i18n/locale";
+import { loadLocale } from "../taskpane/i18n/loadLocale";
+
+// This window has no React provider and no profile: it speaks the language
+// the pane saved on this device, else Word's (plan i18n §2.4, step 5).
+const say = (key: Parameters<ClientTranslator>[0]): string =>
+  clientTranslator()(key);
 
 const API_BASE = (process.env.REACT_APP_API_BASE_URL || "/api").replace(
   /\/+$/,
@@ -27,9 +38,7 @@ function send(message: GoogleOAuthDialogMessage): boolean {
     });
     return true;
   } catch {
-    setStatus(
-      "Could not notify Word that sign-in completed. Close this window and try again.",
-    );
+    setStatus(say("word.oauth.notifyFailed"));
     return false;
   }
 }
@@ -60,14 +69,14 @@ function clearTemporaryAuthStorage(): void {
  */
 async function responseError(response: Response): Promise<string> {
   if (response.status >= 500) {
-    return "Google sign-in is temporarily unavailable. Try again.";
+    return say("word.oauth.unavailable");
   }
   const body = (await response.json().catch(() => ({}))) as {
     detail?: unknown;
   };
   return typeof body.detail === "string" && body.detail
     ? body.detail
-    : "Google sign-in failed. Try again.";
+    : say("word.oauth.failed");
 }
 
 async function runGoogleOAuth(): Promise<void> {
@@ -79,9 +88,7 @@ async function runGoogleOAuth(): Promise<void> {
   const requestId =
     requestedId ?? window.sessionStorage.getItem(REQUEST_STORAGE_KEY) ?? "";
   if (!requestId) {
-    setStatus(
-      "This sign-in request is invalid. Close this window and try again.",
-    );
+    setStatus(say("word.oauth.invalidRequest"));
     return;
   }
 
@@ -96,7 +103,7 @@ async function runGoogleOAuth(): Promise<void> {
 
   const code = currentUrl.searchParams.get("code");
   if (code) {
-    setStatus("Completing sign-in…");
+    setStatus(say("word.oauth.completing"));
     const response = await fetch(`${API_BASE}/auth/exchange`, {
       method: "POST",
       credentials: "include",
@@ -116,7 +123,7 @@ async function runGoogleOAuth(): Promise<void> {
       !/^[A-Za-z0-9_-]{32,256}$/.test(data.handoffTicket)
     ) {
       clearTemporaryAuthStorage();
-      sendError(requestId, "Google sign-in did not produce a valid handoff.");
+      sendError(requestId, say("word.oauth.invalidHandoff"));
       return;
     }
 
@@ -128,7 +135,7 @@ async function runGoogleOAuth(): Promise<void> {
     };
     clearTemporaryAuthStorage();
     if (send(message)) {
-      setStatus("Signed in. You can return to Word.");
+      setStatus(say("word.oauth.signedIn"));
     }
     return;
   }
@@ -152,14 +159,16 @@ async function runGoogleOAuth(): Promise<void> {
   const data = (await response.json()) as { url?: string };
   if (!data.url) {
     clearTemporaryAuthStorage();
-    sendError(requestId, "Unable to open Google sign-in.");
+    sendError(requestId, say("word.oauth.unableToOpen"));
     return;
   }
 
   window.location.assign(data.url);
 }
 
-Office.onReady(() => {
+Office.onReady(async () => {
+  // A catalog that fails to load leaves the dialog in English, not blank.
+  await loadLocale(initialLocale()).catch(() => undefined);
   void runGoogleOAuth().catch((error: unknown) => {
     const requestId =
       new URL(window.location.href).searchParams.get("requestId") ??
@@ -167,7 +176,7 @@ Office.onReady(() => {
     // Whatever threw here — fetch, Office.js, a bad redirect — its text is
     // for the console. The pane shows this sentence.
     const message = describeError(error, {
-      fallback: "LiTT couldn't complete Google sign-in. Try again.",
+      fallback: say("word.oauth.unexpected"),
     }).message;
     if (requestId) {
       sendError(requestId, message);
