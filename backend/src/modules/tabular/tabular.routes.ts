@@ -1165,6 +1165,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                 answer: fullText ?? "",
                 model: selectedChatModel,
                 apiKeys: api_keys,
+                turn: { userId, chatId, messageId: assistantMessageId },
             });
         }
 

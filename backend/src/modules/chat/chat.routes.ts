@@ -936,6 +936,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 answer: fullText ?? "",
                 model: selectedModel,
                 apiKeys,
+                turn: { userId, chatId, messageId: turnMessageId || null },
             });
 
             void enqueueChatTurnAudit(

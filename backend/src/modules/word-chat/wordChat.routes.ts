@@ -938,6 +938,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       answer: fullText ?? "",
       model: selectedModel,
       apiKeys,
+      turn: { userId, chatId, messageId: persistChat ? assistantMessageId : null },
     });
     // Word turns used to be audited nowhere, unlike the chat and project-chat
     // modules. chatId/projectId stay null because a Word chat lives in

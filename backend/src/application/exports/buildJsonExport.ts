@@ -649,6 +649,7 @@ export async function buildUserAccountExport(
         trainingWorkReviews,
         trainingDefenses,
         trainingUrgencyPasses,
+        trainingBackingChecks,
     ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
@@ -690,6 +691,14 @@ export async function buildUserAccountExport(
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
                 "id, org_id, project_id, starts_at, expires_at, reason_code, reason_note, revoked_at, created_at",
+            order: ["created_at"],
+        }),
+        // Layer 3: the conclusions of the holder's answers as a junior, the
+        // status the server computed and their own marks and notes.
+        selectAll(db, "training_backing_checks", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, status, conclusions, created_at, updated_at",
             order: ["created_at"],
         }),
     ]);
@@ -773,6 +782,7 @@ export async function buildUserAccountExport(
             work_reviews: trainingWorkReviews,
             defenses: trainingDefenses,
             urgency_passes: trainingUrgencyPasses,
+            backing_checks: trainingBackingChecks,
         },
         audit_events: auditEvents,
     };

@@ -1,6 +1,8 @@
 // Shapes shared by the training-turn wiring (see ./index.ts).
 
 import type { TrainingStage } from "@mike/contracts";
+import type { UserApiKeys } from "../llm";
+import type { Db } from "../supabase";
 
 /** The four places a person can take a turn. */
 export type TrainingSurface = "chat" | "project_chat" | "word" | "tabular";
@@ -24,10 +26,28 @@ export type TrainingEnginePlan = {
     noSubagents?: true;
 };
 
+/**
+ * The saved turn a hook may act on: whose it is, where, the saved assistant
+ * message and what the conversation's own route needs to call a model again
+ * (governed BYOK: never another model or key).
+ */
+export type TrainingTurnOutcome = {
+    db: Db;
+    userId: string;
+    chatId: string;
+    /** The assistant message the answer was saved in. */
+    messageId: string;
+    answer: string;
+    model: string;
+    apiKeys?: UserApiKeys;
+};
+
 /** A hook that runs once the final answer is durable. */
 export type AfterTurnHook = (ctx: {
     plan: TrainingTurnPlan;
     completed: boolean;
+    /** Null when the turn was not saved (a local-only Word chat). */
+    outcome: TrainingTurnOutcome | null;
 }) => void | Promise<void>;
 
 export type TrainingTurnPlan = {
