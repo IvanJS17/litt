@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { useTranslations } from "use-intl";
 import { useAuth } from "./auth/useAuth";
 import { LoginPage } from "./auth/LoginPage";
 import { ApiKeyBanner } from "./components/shell/ApiKeyBanner";
@@ -23,6 +24,7 @@ import {
 import { useWordDocumentIdentity } from "./lib/wordDocumentIdentity";
 import { clearLocalWordChats } from "./lib/localWordChats";
 import { useProfileTheme } from "./hooks/useProfileTheme";
+import { useProfileLocale } from "./hooks/useProfileLocale";
 import type {
   ReasoningLevel,
   WordChatOpenHandler,
@@ -31,7 +33,9 @@ import type {
 export default function App(): React.ReactElement {
   const { user, loading, error, logout } = useAuth();
   const pendingOwnerId = user?.id ?? null;
+  const t = useTranslations();
   useProfileTheme(pendingOwnerId);
+  useProfileLocale(pendingOwnerId);
   const wordChatStorage = useWordChatStoragePreference(pendingOwnerId);
   const editApply = useWordEditApplyMode();
   const wordDocument = useWordDocumentIdentity();
@@ -74,7 +78,7 @@ export default function App(): React.ReactElement {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Spinner label="Loading…" />
+        <Spinner label={t("common.loading")} />
       </div>
     );
   }
@@ -86,7 +90,7 @@ export default function App(): React.ReactElement {
   if (wordChatStorage.loading || wordDocument.loading) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Spinner label="Opening document chats…" />
+        <Spinner label={t("word.app.openingChats")} />
       </div>
     );
   }
@@ -94,7 +98,7 @@ export default function App(): React.ReactElement {
   if (!wordDocument.documentId) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-center text-sm text-red-600">
-        {wordDocument.error ?? "Could not identify this Word document."}
+        {wordDocument.error ?? t("word.app.unidentifiedDocument")}
       </div>
     );
   }

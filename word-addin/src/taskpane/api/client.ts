@@ -12,7 +12,7 @@ import type {
 // parity tests) never pull this module, and its runtime imports, into
 // the web app's type-check graph.
 export type { ApiKeyStatus } from "../types";
-import type { TrainingTurnNote, TrainingTurnNotes } from "@mike/contracts";
+import type { TrainingTurnNote, TrainingTurnNotes, UiLocale } from "@mike/contracts";
 import type { RouterProfileLists } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
@@ -356,6 +356,8 @@ interface UserProfile extends Partial<RouterProfileLists> {
   mfaOnLogin: boolean;
   /** The profile's dark theme, which the web app also follows. */
   darkMode?: boolean;
+  /** The interface language the user chose; null until they choose one. */
+  uiLocale?: UiLocale | null;
   apiKeyStatus: ApiKeyStatus;
 }
 
@@ -371,6 +373,17 @@ export async function updateLastSelectedChatModel(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lastSelectedChatModel: model }),
     keepalive: true,
+  });
+}
+
+/** Save the interface language; null goes back to following Word's. */
+export async function updateUiLocale(
+  uiLocale: UiLocale | null,
+): Promise<UserProfile> {
+  return apiRequest<UserProfile>("settings.profile", "/user/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uiLocale }),
   });
 }
 

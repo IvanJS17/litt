@@ -116,6 +116,7 @@ export {
   stopWordChatTurn,
   updateLastSelectedChatModel,
   updateLastSelectedReasoningLevel,
+  updateUiLocale,
   updateWorkflow,
   updateQuickAction,
   UploadBatchError,
