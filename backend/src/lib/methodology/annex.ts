@@ -29,7 +29,7 @@ export type Annex = { title: string; sections: AnnexSection[] };
 export const NO_SOURCE_TEXT = "Sin fuente";
 export const UNVERIFIED_BASIS_TEXT = "sin verificar";
 export const ANNEX_DISCLAIMER =
-    "Este anexo documenta una operación aritmética con los datos indicados. No es una opinión jurídica ni sustituye la revisión de un abogado. LiTT no aporta tasas ni índices: cada uno proviene de la fuente que se indica.";
+    "Este anexo documenta una operación aritmética con los datos indicados. No es una opinión jurídica ni sustituye la revisión de un abogado. LiTT no aporta tasas ni índices: junto a cada dato se indica su fuente, o que no la tiene.";
 
 const EXCERPT_LIMIT = 300;
 

@@ -13,7 +13,7 @@ import {
     roundTo,
 } from "./decimal";
 import { MAX_COMPOUND_PERIODS, calculate, type MethodologyResult } from "./calculators";
-import { appearsInMessage, buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
+import { ANNEX_DISCLAIMER, appearsInMessage, buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
 
 const dec = (text: string) => parseDecimal(text, "x");
 const code = (run: () => unknown) => {
@@ -198,6 +198,11 @@ describe("annex", () => {
         expect(describeSource({ status: "document_verified", filename: "a", excerpt: "x".repeat(400) })).toContain("…");
         expect(describeSource(undefined)).toBe("Sin fuente");
         expect(describeSource({ status: "person_unverified" })).toContain("No encontrado en tu mensaje");
+    });
+
+    it("does not claim every figure has a source when one may have none", () => {
+        expect(ANNEX_DISCLAIMER).not.toContain("proviene de la fuente que se indica");
+        expect(ANNEX_DISCLAIMER).toContain("junto a cada dato se indica su fuente, o que no la tiene");
     });
 
     it("dates the annex in Mexico City, not in UTC", () => {
