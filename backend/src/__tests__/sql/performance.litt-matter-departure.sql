@@ -256,6 +256,36 @@ begin
       'succession audit names no matter';
   end loop;
 
+  -- One insert-only event per project passed on from a public matter (D to
+  -- the teammate, E to the successor): ids only, no title, no free text.
+  assert (select count(*) from public.audit_events where action='matter.private_project_succeeded' and org_id=org) = 2,
+    'after: two public-matter project successions are audited';
+  for e in select * from public.audit_events where action='matter.private_project_succeeded' and org_id=org loop
+    assert e.user_id = current_setting('litt.owner')::uuid, 'project succession actor is the departure actor';
+    assert e.title is null and e.project_id is null, 'project succession audit carries no title or project column';
+    assert (select array_agg(k order by k) from jsonb_object_keys(e.detail) k)
+      = array['from_user_id','matter_id','org_id','project_id','target_user_id'],
+      'project succession audit detail keys are ids only';
+    assert e.detail->>'from_user_id' = creator::text and e.detail->>'org_id' = org::text, 'project succession leaver and org';
+    assert (e.detail->>'project_id')::uuid in (pd,pe), 'project succession names only the public-matter projects';
+    assert (e.detail->>'matter_id')::uuid = case (e.detail->>'project_id')::uuid when pd then md else me end,
+      'project succession matter matches the project';
+    assert (e.detail->>'target_user_id')::uuid = (select uid from litt_departure_actors
+      where label = case (e.detail->>'project_id')::uuid when pd then 'teammate' else 'successor' end),
+      'project succession heir';
+    assert e.detail::text not like '%Matter %' and e.detail::text not like '%CM-%',
+      'project succession audit names no matter or project';
+  end loop;
+  -- The exit log reports them apart; member.departed keeps counting only the
+  -- items handed to the successor.
+  assert (select (detail->>'succeeded_projects')::int from public.org_departure_events
+    where org_id=org and action='member.projects_succeeded') = 2,
+    'after: the exit log reports two projects passed to matter teams';
+  assert (select count(*) from public.org_departure_events where org_id=org and action='member.projects_succeeded') = 1,
+    'after: one such exit-log row per departure';
+  assert exists(select 1 from public.org_departure_events where org_id=org and action='member.departed'),
+    'after: member.departed is still written';
+
   -- Only public matters are left without an owner; the list has no title.
   assert (select array_agg(w.matter_id order by w.matter_id) from public.list_matters_without_owner(
     current_setting('litt.owner')::uuid, org) w where w.matter_id in (ma,mb,mc,md,me))

@@ -80,9 +80,18 @@ successor chosen in the departure when the matter has no teammate left
 (`20261108_10_litt_public_matter_project_succession.sql`). The matter itself
 is unchanged and owners and admins do not inherit the project by their role.
 The screens for these actions are pending
-(TD-029). Apply `20261107_70_litt_matter_succession.sql` before deploying the
-backend; it also gives the teams of existing private matters their project
-access.
+(TD-029). Apply these migrations, in order, before deploying the backend:
+
+1. `20261107_70_litt_matter_succession.sql`: matter succession; it also gives
+   the teams of existing private matters their project access.
+2. `20261108_10_litt_public_matter_project_succession.sql`: the departure
+   trigger that passes the private project of a public matter on.
+3. `20261108_20_litt_public_matter_project_succession_audit.sql`: audits each
+   such succession (`matter.private_project_succeeded`, ids only) and adds the
+   `member.projects_succeeded` exit-log event. The exit log's
+   `member.departed` `transferred` counts only the items handed to the
+   departure's successor; projects passed to a matter team are reported in
+   `member.projects_succeeded`, not in that count.
 
 ## Joining during signup
 
