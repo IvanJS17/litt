@@ -137,6 +137,8 @@ export function checkProposalOutput(
     content: PlaybookContent;
     answers: PlaybookAnswers;
     sources: Pick<DraftSource, "label" | "text">[];
+    /** Set when the rules come from corrections, not from a questionnaire. */
+    corrections?: { ids: ReadonlySet<string>; attributedTo: string };
   },
 ): { changes: ProposedChange[]; counts: ProposalCounts } {
   const parsed = parseModelJson(raw);
@@ -244,7 +246,7 @@ export function checkProposalOutput(
       rules: proposedRules,
       topics: [],
     },
-    { answers: evidence.answers, sources: evidence.sources },
+    { answers: evidence.answers, sources: evidence.sources, corrections: evidence.corrections },
   );
   let index = 0;
   const changes = kept.map((change) =>
@@ -277,6 +279,8 @@ export function publicChange(row: Record<string, unknown>): PlaybookChange {
     after: (row.after_json as Rule | null) ?? null,
     changedFields: Array.isArray(row.changed_fields) ? row.changed_fields.map(String) : [],
     rationale: String(row.rationale ?? ""),
+    source: row.source === "correction" ? "correction" : "starting_point",
+    attributedTo: row.attributed_to ? String(row.attributed_to) : null,
     status: row.status === "accepted" || row.status === "rejected" ? row.status : "pending",
     decidedBy: row.decided_by ? String(row.decided_by) : null,
     decidedAt: row.decided_at ? String(row.decided_at) : null,

@@ -253,7 +253,7 @@ export async function beginPlaybookProposals(
 export const PROPOSAL_SYSTEM_PROMPT =
   "Propones cambios a las reglas de revisión de contratos de un despacho mexicano, para adaptarlas a un caso nuevo. No inventes posiciones jurídicas. Cada regla nueva o modificada debe indicar de dónde sale. Devuelve solo JSON.";
 
-const RULE_SHAPE = `{"name":"","concept":"","scope":"clause|agreement","required":false,"guidance":"","standard":{"name":"Estándar","criteria":"","sampleClauses":[{"text":"","usage":"illustrative|preferred|verbatim|accepted|unacceptable"}]}|null,"fallbacks":[],"unacceptable":[],"conditions":[],"actions":[{"scenario":"","instruction":""}]}`;
+export const RULE_SHAPE = `{"name":"","concept":"","scope":"clause|agreement","required":false,"guidance":"","standard":{"name":"Estándar","criteria":"","sampleClauses":[{"text":"","usage":"illustrative|preferred|verbatim|accepted|unacceptable"}]}|null,"fallbacks":[],"unacceptable":[],"conditions":[],"actions":[{"scenario":"","instruction":""}]}`;
 
 /** The proposal request: the copy's rules, the task, then the client's data, fenced. */
 export function proposalPrompt(args: {

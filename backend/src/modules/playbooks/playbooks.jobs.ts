@@ -27,6 +27,7 @@ import {
     compilePlaybookImport,
     INTERRUPTED_DRAFT_ERROR,
     INTERRUPTED_IMPORT_ERROR,
+    INTERRUPTED_CORRECTION_ERROR,
     INTERRUPTED_PROPOSAL_ERROR,
     INTERRUPTED_RUN_ERROR,
     MAX_PLAYBOOK_IMPORT_BYTES,
@@ -54,10 +55,18 @@ import {
   stagedDraftKeys,
 } from "./playbooks.draft";
 import type {
+  PlaybookCorrectionWork,
   PlaybookDraftRequest,
   PlaybookDraftWork,
   PlaybookProposalWork,
 } from "./playbooks.types";
+import {
+  beginPlaybookCorrections,
+  compilePlaybookCorrections,
+  discardCorrections,
+  recordCorrectionAudit,
+  type PlaybookCorrectionRequest,
+} from "./playbooks.corrections";
 import {
   beginPlaybookProposals,
   compilePlaybookProposals,
@@ -84,10 +93,22 @@ export const PLAYBOOK_IMPORT_JOB = "playbook.import";
  */
 export const PLAYBOOK_DRAFT_JOB = "playbook.draft";
 
-type PlaybookDraftJobPayload = PlaybookDraftWork | PlaybookProposalWork;
+type PlaybookDraftJobPayload =
+  | PlaybookDraftWork
+  | PlaybookProposalWork
+  | PlaybookCorrectionWork;
 
 function isProposal(payload: PlaybookDraftJobPayload): payload is PlaybookProposalWork {
   return (payload as { kind?: unknown }).kind === "proposal";
+}
+
+function isCorrection(payload: PlaybookDraftJobPayload): payload is PlaybookCorrectionWork {
+  return (payload as { kind?: unknown }).kind === "correction";
+}
+
+/** The row kind a payload must match, so a row and a payload that disagree run nothing. */
+function draftJobKind(payload: PlaybookDraftJobPayload): "draft" | "proposal" | "correction" {
+  return isProposal(payload) ? "proposal" : isCorrection(payload) ? "correction" : "draft";
 }
 
 /**
@@ -327,14 +348,21 @@ export async function handlePlaybookDraft(db: Db, job: DbJob): Promise<void> {
   const row = await claimRow(db, "playbook_imports", payload.attemptId, job);
   // The answers are read from the row, never from the job's payload. A row
   // and a payload that disagree on what they are run nothing.
-  if (row && (row.kind === "proposal") === isProposal(payload))
+  if (row && (row.kind ?? "draft") === draftJobKind(payload))
     await untilRecorded(db, "playbook_imports", payload.attemptId, () =>
-      isProposal(payload)
-        ? compilePlaybookProposals(db, payload, row.request_json)
-        : compilePlaybookDraft(db, payload, row.request_json),
+      isCorrection(payload)
+        ? compilePlaybookCorrections(db, payload, row.request_json)
+        : isProposal(payload)
+          ? compilePlaybookProposals(db, payload, row.request_json)
+          : compilePlaybookDraft(db, payload, row.request_json),
     );
   // Reached only once the draft has an outcome; a retry still needs the files.
-  await clearStagedKeys(payload.userId, payload.stagedKeys ?? [], payload.attemptId, "playbook.draft");
+  await clearStagedKeys(
+    payload.userId,
+    "stagedKeys" in payload ? (payload.stagedKeys ?? []) : [],
+    payload.attemptId,
+    "playbook.draft",
+  );
 }
 
 /**
@@ -348,6 +376,23 @@ export async function markPlaybookDraftJobFailed(
   job: DbJob,
 ): Promise<void> {
   const payload = job.payload as unknown as PlaybookDraftJobPayload;
+  if (isCorrection(payload)) {
+    // A playbook is not the batch's to discard: it only loses its changes.
+    const row = await markFailed(
+      db,
+      "playbook_imports",
+      payload.attemptId,
+      INTERRUPTED_CORRECTION_ERROR,
+      { request_json: null },
+    );
+    if (row) {
+      await discardCorrections(db, payload);
+      await recordCorrectionAudit(db, payload, {
+        failedStage: typeof row.stage === "string" ? row.stage : null,
+      });
+    }
+    return;
+  }
   if (isProposal(payload)) {
     // A copy is a draft too: a failed proposal never discards a playbook.
     const row = await markFailed(
@@ -567,6 +612,27 @@ export async function queuePlaybookDraft(
     });
     throw error;
   }
+  await dispatch(
+    db,
+    PLAYBOOK_DRAFT_JOB,
+    playbookImportJobKey(begun.work.attemptId),
+    begun.work,
+    handlePlaybookDraft,
+    markPlaybookDraftJobFailed,
+  );
+  return begun.attempt;
+}
+
+/**
+ * LiTT training: checks and records a mentor's corrections for a playbook,
+ * then queues their compile on the draft job. The corrections wait on the
+ * import row, not in the job.
+ */
+export async function queuePlaybookCorrections(
+  args: PlaybookCorrectionRequest,
+): Promise<PlaybookImport> {
+  const db = args.db ?? createServerSupabase();
+  const begun = await beginPlaybookCorrections({ ...args, db });
   await dispatch(
     db,
     PLAYBOOK_DRAFT_JOB,

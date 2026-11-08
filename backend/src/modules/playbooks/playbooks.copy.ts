@@ -28,6 +28,10 @@ type Rule = PlaybookContent["rules"][number];
  * `questionIds`, so no verbatim client text or attachment pointer travels
  * into the copy. The `note` and the rule's own text stay: the rule's author
  * wrote them.
+ *
+ * A correction origin goes the same way and also loses its note and the
+ * name of the person who made the correction: it rested on a mentor's
+ * review of someone's work, and the copy carries none of that.
  */
 function unbackedOrigin(origin: NonNullable<Rule["origin"]>): NonNullable<Rule["origin"]> {
   if (origin.kind === "ai_general") return origin;
@@ -35,9 +39,15 @@ function unbackedOrigin(origin: NonNullable<Rule["origin"]>): NonNullable<Rule["
     sourceId: _sourceId,
     quote: _quote,
     questionIds: _questionIds,
+    correctionIds: _correctionIds,
+    attributedTo: _attributedTo,
     kind: _kind,
     ...rest
   } = origin;
+  if (origin.kind === "correction") {
+    const { note: _note, ...bare } = rest;
+    return { ...bare, kind: "ai_general", unbacked: true };
+  }
   return { ...rest, kind: "ai_general", unbacked: true };
 }
 
