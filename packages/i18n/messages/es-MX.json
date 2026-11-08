@@ -154,5 +154,15 @@
       "diagnostics": "--- Datos para soporte (no los borres) ---",
       "thanks": "Gracias."
     }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Documento",
+        "explorer": "Explorador",
+        "label": "Vista del espacio de trabajo"
+      }
+    }
   }
 }

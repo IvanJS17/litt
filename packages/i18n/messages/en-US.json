@@ -154,5 +154,15 @@
       "diagnostics": "--- Details for support (please keep) ---",
       "thanks": "Thanks,"
     }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Document",
+        "explorer": "Explorer",
+        "label": "Workspace view"
+      }
+    }
   }
 }
