@@ -32,7 +32,7 @@ describe("useTrainingStage", () => {
         await waitFor(() =>
             expect(result.current).toEqual({ attemptRequired: false, confidenceRequired: false, urgencyPassExpiresAt: end, stage: "pasante", ...NO_MODES }),
         );
-        expect(getTrainingStage).toHaveBeenCalledWith({ orgId: "o1", projectId: "p1", chatId: undefined });
+        expect(getTrainingStage).toHaveBeenCalledWith({ orgId: "o1", projectId: "p1", chatId: null });
     });
 
     it("follows confidence_required for the thermometer, and a server older than layer 3 asks for no mark", async () => {
@@ -90,7 +90,7 @@ describe("useTrainingStage", () => {
     });
 
     describe("hints and the counterparty's lawyer", () => {
-        const withModes = (chat = "c1") => ({
+        const withModes = () => ({
             ...answer(true),
             modes: ["hint", "counterpart"] as ("hint" | "counterpart")[],
             next_hint_level: 2 as 1 | 2 | 3,

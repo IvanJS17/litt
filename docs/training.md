@@ -361,6 +361,44 @@ person still owes an approach of their own. The server decides either way. A com
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
 
+### Hints and the counterparty's lawyer on screen (layer 3)
+
+The composers (web chat, project and tabular chat, and Word) show the modes
+the server opened, under the approach field and the thermometer, when `GET
+/training/stage?chat_id=` says `modes` (`TrainingModesUI` in `packages/ui`; the
+words are `training.criterion.modes`). They never decide anything: the rung of
+a hint (`next_hint_level`) and the turn of a round (`counterpart_next_step`)
+are the server's, shown in words («Sigue: pista 2 de 3, Dónde buscar.»), with
+the three rungs listed (a used one carries a check mark and «usada», the next
+one is `aria-current="step"`), never by colour alone.
+
+- **«Pedir una pista»** sends the turn in mode `hint`: it needs the question and
+  the approach, not the thermometer mark (a hint is not rated, and the client
+  sends none). The approach and a mark already given stay in the composer for
+  the turn after the hint, which the person may write with the hint in view.
+- **«Probar con el abogado de la contraparte»** sends a `counterpart` turn: a
+  whole turn, so it owes the approach and the mark, and clears them like any
+  send. **«Cerrar la ronda»** sends `counterpart_close`; with nothing written it
+  sends its own line (`training.criterion.modes.closeMessage`).
+- A mode asked for with no question says so (`needsQuestion`) and sends nothing.
+- The composer reads the stage again for its chat when a turn of that chat ends
+  (a hint moves the ladder one rung) and when the server refuses a turn for
+  `training_mode_not_allowed`, `training_hint_limit_reached` or
+  `training_counterpart_rounds_done` (`isTrainingRefusalCode`), so a stale
+  button disappears instead of failing again. The modes are counted per chat
+  and wait for their own reading when the chat changes; the approach field does
+  not flicker while a new chat is given its id.
+- The chat id is the raw one (the side chat's draft key and «Responder» use the
+  same), and the side chat's draft store keeps only the question, never the
+  approach or the mark.
+- **Word.** A chat kept on the device (`storage: "local"`) has no notes the
+  server can count, which answers `training_mode_not_allowed`: no mode is
+  offered there, and no `chat_id` is sent to the stage.
+- The private note names a hint's rung («Pista 2 de 3») and a counterpart
+  turn; a closed round's contrast is headed «Cómo salió la ronda». A message
+  just sent is matched to its note by approach **and mode**, since a hint keeps
+  the approach for the turn after it.
+
 ### Methodology annex (junior)
 
 A junior's turn is offered one extra tool, `compute_methodology`

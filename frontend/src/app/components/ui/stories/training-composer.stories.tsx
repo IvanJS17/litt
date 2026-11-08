@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
     TrainingAttemptFieldUI,
     TrainingConfidenceUI,
+    TrainingModesUI,
     TrainingNoteUI,
     LIQUID_GLASS_FLAT_CLASS,
 } from "@mike/ui";
@@ -62,6 +63,62 @@ function Note() {
     );
 }
 
+function Modes({
+    nextHintLevel,
+    counterpartNextStep,
+    modes,
+    error,
+}: {
+    nextHintLevel: 1 | 2 | 3 | null;
+    counterpartNextStep: 1 | 2 | 3 | null;
+    modes: ("hint" | "counterpart" | "counterpart_close")[];
+    error?: boolean;
+}) {
+    const text = useTrainingText();
+    return (
+        <div className={`flex w-full max-w-[640px] flex-col gap-3 rounded-2xl p-4 ${LIQUID_GLASS_FLAT_CLASS}`}>
+            <TrainingModesUI
+                id="story-modes"
+                state={{ modes, nextHintLevel, counterpartNextStep }}
+                text={text.modes}
+                onPick={() => {}}
+                error={error ? text.needsQuestion : null}
+            />
+        </div>
+    );
+}
+
+function NoteModes() {
+    const text = useTrainingText();
+    return (
+        <div className="flex w-full max-w-[640px] flex-col gap-3">
+            <TrainingNoteUI
+                text={text.note}
+                note={{
+                    chat_id: "chat-1",
+                    attempt: APPROACH,
+                    contrast: null,
+                    contrast_status: "skipped",
+                    mode: "hint",
+                    step: 2,
+                }}
+            />
+            <TrainingNoteUI
+                text={text.note}
+                note={{
+                    chat_id: "chat-1",
+                    attempt: APPROACH,
+                    contrast:
+                        "Sostuviste: la objeción del pago.\nConcediste: el aviso previo.\nFaltó defender: el plazo de cura.",
+                    contrast_status: "ready",
+                    mode: "counterpart_close",
+                    step: 3,
+                }}
+            />
+        </div>
+    );
+}
+
 const InEsMx = ({ children }: { children: React.ReactNode }) => {
     const [messages, setMessages] = useState<Messages | null>(null);
     useEffect(() => {
@@ -93,5 +150,44 @@ export const ComposerMarkMissing = () => (
 export const NoteWithVerdictAndQuestion = () => (
     <InEsMx>
         <Note />
+    </InEsMx>
+);
+
+/** The second hint is next and the first round turn is open. */
+export const ModesSecondHint = () => (
+    <InEsMx>
+        <Modes modes={["hint", "counterpart"]} nextHintLevel={2} counterpartNextStep={1} />
+    </InEsMx>
+);
+
+/** The three hints used and a round with two turns, ready to close. */
+export const ModesHintsUsedRoundOpen = () => (
+    <InEsMx>
+        <Modes
+            modes={["counterpart", "counterpart_close"]}
+            nextHintLevel={null}
+            counterpartNextStep={3}
+        />
+    </InEsMx>
+);
+
+/** A full round: only closing it is left. */
+export const ModesRoundFull = () => (
+    <InEsMx>
+        <Modes modes={["counterpart_close"]} nextHintLevel={null} counterpartNextStep={null} />
+    </InEsMx>
+);
+
+/** A mode asked for with nothing written. */
+export const ModesQuestionMissing = () => (
+    <InEsMx>
+        <Modes modes={["hint", "counterpart"]} nextHintLevel={1} counterpartNextStep={1} error />
+    </InEsMx>
+);
+
+/** A hint's note and a closed round's note. */
+export const NotesOfAHintAndAClosedRound = () => (
+    <InEsMx>
+        <NoteModes />
     </InEsMx>
 );

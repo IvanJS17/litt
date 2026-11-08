@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { markTrainingStageStale, useTrainingStageStale } from "@mike/ui";
 import type { TrainingStage, TrainingTurnMode } from "@mike/contracts";
 import { getTrainingStage } from "@/app/lib/mikeApi";
@@ -83,9 +83,12 @@ export function useTrainingStage({
     const reload = useCallback(() => setGeneration((value) => value + 1), []);
 
     useEffect(() => {
-        if (!active) return;
+        // A turn that just ended may have been a hint or a round turn: the
+        // server counts again from the notes it wrote, so the stage is read
+        // when `turnActive` goes back to false, and not while a turn runs.
+        if (!active || turnActive) return;
         let cancelled = false;
-        getTrainingStage({ orgId, projectId, chatId }).then(
+        getTrainingStage({ orgId, projectId, chatId: thisChat }).then(
             (stage) => {
                 if (!cancelled)
                     setResult({
@@ -110,17 +113,9 @@ export function useTrainingStage({
         return () => {
             cancelled = true;
         };
-    }, [active, scope, thisChat, orgId, projectId, generation]);
+    }, [active, turnActive, scope, thisChat, orgId, projectId, generation]);
 
     useTrainingStageStale(reload, active);
-
-    // A turn that just ended may have been a hint or a round turn: the server
-    // counts again from the notes it wrote.
-    const wasActive = useRef(turnActive);
-    useEffect(() => {
-        if (wasActive.current && !turnActive && active) reload();
-        wasActive.current = turnActive;
-    }, [turnActive, active, reload]);
 
     // What «Tu turno primero» asks does not depend on the chat, so it stays on
     // screen while the chat changes (a new chat is given its id by its first
