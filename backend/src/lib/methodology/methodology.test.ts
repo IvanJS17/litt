@@ -288,12 +288,29 @@ describe("annex", () => {
     });
 
     it("never calls a legal basis verified unless a verified quote names it", () => {
-        const sources = { amount: { status: "document_verified", filename: "c", excerpt: "conforme al artículo 2395 del Código" } satisfies InputSource };
-        expect(verifyBasis("artículo 2395", sources)).toBe("backed");
-        expect(verifyBasis("artículo 2396", sources)).toBe("unverified");
-        expect(verifyBasis("artículos 2395 y 2396", sources)).toBe("unverified");
+        const sources = { amount: { status: "document_verified", filename: "c", excerpt: "conforme al artículo 2395 del Código Civil Federal" } satisfies InputSource };
+        expect(verifyBasis("artículo 2395 del Código Civil Federal", sources)).toBe("backed");
+        expect(verifyBasis("artículo 2396 del Código Civil Federal", sources)).toBe("unverified");
+        expect(verifyBasis("artículos 2395 y 2396 del Código Civil Federal", sources)).toBe("unverified");
         expect(verifyBasis("la ley aplicable", sources)).toBe("unverified");
-        expect(verifyBasis("artículo 2395", { amount: { status: "person" } })).toBe("unverified");
+        // No law named on either side: it cannot be established, so it never matches.
+        expect(verifyBasis("artículo 2395", { amount: { status: "document_verified", filename: "c", excerpt: "artículo 2395" } })).toBe("unverified");
+        expect(verifyBasis("artículo 2395 del Código Civil Federal", { amount: { status: "person" } })).toBe("unverified");
+    });
+
+    it("matches a legal basis by law and article, not by article number alone", () => {
+        const lft = { amount: { status: "document_verified", filename: "c", excerpt: "el artículo 5 de la Ley Federal del Trabajo" } satisfies InputSource };
+        expect(verifyBasis("artículo 5 de la Ley Federal del Trabajo", lft)).toBe("backed");
+        expect(verifyBasis("art. 5 LFT", lft)).toBe("backed");
+        expect(verifyBasis("artículo 5 de la Ley del Impuesto sobre la Renta", lft)).toBe("unverified");
+        expect(verifyBasis("artículo 5 de la ley que sea", lft)).toBe("unverified");
+        // A quote that names no law takes the law of its document.
+        const byTitle = { amount: { status: "document_verified", filename: "Ley Federal del Trabajo.pdf", excerpt: "el artículo 5" } satisfies InputSource };
+        expect(verifyBasis("artículo 5 de la Ley Federal del Trabajo", byTitle)).toBe("backed");
+        expect(verifyBasis("artículo 5 de la Ley del Impuesto sobre la Renta", byTitle)).toBe("unverified");
+    });
+
+    it("shows a basis with no verified source as unverified in the annex", () => {
         const annex = buildAnnex(result, {
             sources: {},
             basis: "artículo 2395",
