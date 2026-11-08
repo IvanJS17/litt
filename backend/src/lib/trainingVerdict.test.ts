@@ -5,6 +5,8 @@ import {
     parseContrastTrailer,
     rightForTheWrongReason,
     TRAINING_TOPICS_MAX,
+    type TrainingFoundation,
+    type TrainingVerdict,
 } from "./trainingVerdict";
 
 const SECTIONS = "Coincide\n- La rescisión.\nNo coincide\n- El plazo.\nFaltó\n- La prescripción.";
@@ -76,8 +78,8 @@ describe("effectiveVerdict", () => {
 describe("acceptFoundationQuestion: the legalReferences rule", () => {
     const ATTEMPT = "Creo que procede la rescisión por el artículo 1949, fracción II del Código Civil.";
     const ANSWER = "Procede la rescisión conforme a los artículos 1949 y 1950 del Código Civil.";
-    const base = { verdict: "coincide", foundation: "weak" } as const;
-    const accept = (question: string | null, over: Partial<typeof base> & { verdict?: "coincide" | "parcial" | null; foundation?: "solid" | "weak" | "wrong" | null } = {}) =>
+    const base: { verdict: TrainingVerdict | null; foundation: TrainingFoundation | null } = { verdict: "coincide", foundation: "weak" };
+    const accept = (question: string | null, over: Partial<typeof base> = {}) =>
         acceptFoundationQuestion({ ...base, ...over, question }, { attempt: ATTEMPT, answer: ANSWER });
 
     it.each([
