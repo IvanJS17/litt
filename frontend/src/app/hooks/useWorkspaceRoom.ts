@@ -8,17 +8,16 @@ import {
 
 /**
  * How many workspace panels fit side by side in `ref`'s element, kept up to
- * date as it resizes. `null` until the element has a width; below the `md`
- * breakpoint it starts as `"single"`, which the CSS already shows.
+ * date as it resizes. `null` until the element has a width, which is also
+ * what the server renders: starting from `window.innerWidth` instead would
+ * not match the server's markup on a phone. While it is `null` the CSS alone
+ * keeps a phone to one panel, and the layout effect below replaces it before
+ * the first paint.
  */
 export function useWorkspaceRoom(
     ref: RefObject<HTMLElement | null>,
 ): WorkspaceRoom | null {
-    const [room, setRoom] = useState<WorkspaceRoom | null>(() =>
-        typeof window !== "undefined" && window.innerWidth < 768
-            ? "single"
-            : null,
-    );
+    const [room, setRoom] = useState<WorkspaceRoom | null>(null);
 
     // Measured in a layout effect so the first paint already shows the
     // right layout (a tablet used to flash three panels, then one).
