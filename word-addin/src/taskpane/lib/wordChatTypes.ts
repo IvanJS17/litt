@@ -122,6 +122,12 @@ export interface WordChatSubmission {
 export interface WordChatSubmitOptions {
   /** Called only after the document snapshot succeeds and the turn exists. */
   onAccepted?: () => void;
+  /**
+   * The server refused the turn for a missing approach or thermometer mark
+   * (`training_attempt_required` / `training_confidence_required`). What
+   * `onAccepted` cleared can be put back; the stage is read again.
+   */
+  onTrainingRefused?: () => void;
   /** Places the new turn after React has rendered its empty assistant slot. */
   onTurnReady?: () => void;
 }

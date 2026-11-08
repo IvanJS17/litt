@@ -146,3 +146,72 @@ test("anybody without a pasante stage sees the composer of today", async ({
   expect(sent).not.toHaveProperty("attempt");
   expect(sent).not.toHaveProperty("confidence");
 });
+
+test("a refused turn brings the thermometer and keeps what the pasante wrote", async ({
+  addin,
+  page,
+}) => {
+  // The pane opened before the mentor switched the thermometer on: the stage
+  // it read asks for the approach only.
+  let confidenceRequired = false;
+  await page.route("**/training/stage**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stage: "pasante",
+        attempt_required: true,
+        confidence_required: confidenceRequired,
+      }),
+    }),
+  );
+  await addin.mockChatStream(["Procede la rescisión."], { chatId: "refused-chat" });
+  // Routes run newest first: this one sees the turn before the stream mock.
+  let refusals = 0;
+  const bodies: Array<Record<string, unknown>> = [];
+  await page.route("**/word-chat", (route, request) => {
+    if (request.method() !== "POST") return route.fallback();
+    const body = request.postDataJSON() as Record<string, unknown>;
+    bodies.push(body);
+    if (!("confidence" in body)) {
+      refusals += 1;
+      confidenceRequired = true;
+      return route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Mark how sure you are of your approach.",
+          code: "training_confidence_required",
+        }),
+      });
+    }
+    return route.fallback();
+  });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const field = page.getByLabel("Your approach (2–3 lines)");
+  const prompt = page.getByPlaceholder("How can I help?");
+  await expect(field).toBeVisible();
+  await expect(page.getByRole("radiogroup")).toHaveCount(0);
+  await prompt.fill("¿Procede la rescisión?");
+  await field.fill(ATTEMPT);
+  await page.getByRole("button", { name: "Send" }).click();
+
+  // The thermometer appears and nothing the person wrote is lost.
+  const group = page.getByRole("radiogroup", {
+    name: "How sure are you of your approach?",
+  });
+  await expect(group.getByRole("radio")).toHaveCount(4);
+  await expect(prompt).toHaveValue("¿Procede la rescisión?");
+  await expect(field).toHaveValue(ATTEMPT);
+  expect(refusals).toBe(1);
+
+  // And the next send, with the mark, goes through.
+  await group.getByRole("radio", { name: "Fairly sure" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1]?.attempt).toBe(ATTEMPT);
+  expect(bodies[1]?.confidence).toBe(3);
+  await expect(prompt).toHaveValue("");
+});

@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { markTrainingStageStale, useTrainingStageStale } from "@mike/ui";
 import { getTrainingStage } from "@/app/lib/mikeApi";
+
+export { markTrainingStageStale };
 
 /** What the composer needs to know about «Tu turno primero» where it is. */
 export type TrainingTurnState = {
@@ -21,17 +24,6 @@ const NOTHING_REQUIRED: TrainingTurnState = {
     confidenceRequired: false,
     urgencyPassExpiresAt: null,
 };
-
-const STALE_EVENT = "litt:training-stage-stale";
-
-/**
- * Tell every mounted composer to read the stage again: the server refused a
- * turn with training_attempt_required or training_confidence_required, so what it showed (for instance, an
- * urgency pass that has just expired) is out of date.
- */
-export function markTrainingStageStale(): void {
-    if (typeof window !== "undefined") window.dispatchEvent(new Event(STALE_EVENT));
-}
 
 // setTimeout's ceiling; a pass lasts at most 72 hours, well below it.
 const MAX_TIMER_MS = 2_147_483_647;
@@ -84,11 +76,7 @@ export function useTrainingStage({
         };
     }, [active, key, orgId, projectId, generation]);
 
-    useEffect(() => {
-        if (!active) return;
-        window.addEventListener(STALE_EVENT, reload);
-        return () => window.removeEventListener(STALE_EVENT, reload);
-    }, [active, reload]);
+    useTrainingStageStale(reload, active);
 
     const state = active && result?.key === key ? result.state : NOTHING_REQUIRED;
     const expiresAt = state.urgencyPassExpiresAt;

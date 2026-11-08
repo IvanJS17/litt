@@ -29,6 +29,7 @@ import type { TrainingConfidenceLevel } from "@mike/contracts";
 import {
   focusTrainingAttempt,
   isTrainingAttemptReady,
+  useTrainingStageStale,
   TrainingAttemptFieldUI,
   TrainingConfidenceUI,
   useTrainingReply,
@@ -218,6 +219,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     const trainingText = useTrainingText();
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
+    const sentDraftRef = useRef<{
+      input: string;
+      attempt: string;
+      attachedDocuments: Document[];
+      excerpts: MessageExcerpt[];
+      workflow: WorkflowAttachment | null;
+      playbook: PlaybookAttachment | null;
+    } | null>(null);
     const [confidence, setConfidence] = useState<TrainingConfidenceLevel | null>(
       null,
     );
@@ -231,6 +240,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         focusTrainingAttempt(TRAINING_ATTEMPT_ID);
       },
     });
+    // The stage is read when the pane opens and again whenever the server
+    // refuses a turn for a missing approach or mark (an urgency pass ended,
+    // the thermometer was switched on): what this composer showed is stale.
+    const [stageGeneration, setStageGeneration] = useState(0);
+    useTrainingStageStale(() => setStageGeneration((value) => value + 1));
     useEffect(() => {
       let cancelled = false;
       getWordTrainingTurn().then(
@@ -244,7 +258,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       return () => {
         cancelled = true;
       };
-    }, [sessionKey]);
+    }, [sessionKey, stageGeneration]);
     const [profileLastSelectedReasoningLevel, setProfileLastSelectedReasoningLevel] =
       useState<ReasoningLevel>(lastSelectedReasoningLevel);
     const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
@@ -588,6 +602,16 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         },
         {
           onAccepted: () => {
+            // Kept until the server accepts the turn: a refusal for a
+            // missing approach or mark (onTrainingRefused) puts it back.
+            sentDraftRef.current = {
+              input,
+              attempt,
+              attachedDocuments,
+              excerpts,
+              workflow: selectedWorkflow,
+              playbook: selectedPlaybook,
+            };
             setInput("");
             setAttempt("");
             setAttemptError(false);
@@ -597,6 +621,23 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             setExcerpts([]);
             onSelectedWorkflowChange(null);
             setSelectedPlaybook(null);
+          },
+          onTrainingRefused: () => {
+            const draft = sentDraftRef.current;
+            sentDraftRef.current = null;
+            if (!draft) return;
+            // Only what the person typed: the mark is theirs to give again
+            // once the thermometer is on screen.
+            setInput((current) => current || draft.input);
+            setAttempt((current) => current || draft.attempt);
+            setAttachedDocuments((current) =>
+              current.length > 0 ? current : draft.attachedDocuments,
+            );
+            setExcerpts((current) =>
+              current.length > 0 ? current : draft.excerpts,
+            );
+            if (draft.workflow) onSelectedWorkflowChange(draft.workflow);
+            setSelectedPlaybook((current) => current ?? draft.playbook);
           },
           onTurnReady,
         },
