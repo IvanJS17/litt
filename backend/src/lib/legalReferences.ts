@@ -253,17 +253,25 @@ function tokens(text: string): Token[] {
         }));
 }
 
-// What may follow the bare alias «Constitución» and make it another constitution
-// («local», «de Tlaxcala», «Política del Estado de Jalisco»): then it is no longer
-// the federal one and the law is unknown (fail closed).
-const CONSTITUTION_QUALIFIERS = new Set([
-    "local", "locales", "estatal", "estatales", "particular", "general", "politica", "de", "del", "estado", "ciudad",
+// What may follow a bare alias of the federal constitution («Constitución», «Carta
+// Magna», «artículo 5 constitucional») and make it another constitution («local»,
+// «de Tlaxcala», «Política del Estado de Jalisco»): then it is no longer the
+// federal one and the law is unknown (fail closed). One rule for every alias.
+const LOCAL_WORDS = new Set(["local", "locales", "estatal", "estatales"]);
+const PLACE_WORDS = new Set([
+    "estado", "ciudad",
     "aguascalientes", "baja", "campeche", "chiapas", "chihuahua", "coahuila", "colima", "durango", "guanajuato",
     "guerrero", "hidalgo", "jalisco", "mexico", "michoacan", "morelos", "nayarit", "nuevo", "oaxaca", "puebla",
     "queretaro", "quintana", "san", "sinaloa", "sonora", "tabasco", "tamaulipas", "tlaxcala", "veracruz", "yucatan",
     "zacatecas", "cdmx",
 ]);
+const CONSTITUTION_QUALIFIERS = new Set([...LOCAL_WORDS, ...PLACE_WORDS, "particular", "general", "politica", "de", "del"]);
 const FEDERAL_CONSTITUTION_TAIL = ["de los estados unidos mexicanos", "politica de los estados unidos mexicanos"];
+// Closed list of connectors after «Constitución» that qualify nothing («de acuerdo con la
+// Constitución», «la Constitución del país», «de 1917»); only when no qualifier follows them.
+const NEUTRAL_CONNECTORS = ["de acuerdo con", "de conformidad con", "del pais", "de la republica", "de 1917"];
+// Aliases of the federal constitution that a qualifier turns into another law.
+const QUALIFIABLE_ALIASES = new Set(["constitucion", "carta magna"]);
 
 /** Whether the token at `index` qualifies the bare alias before it into a law that is not the federal constitution. */
 function qualifiesConstitution(lower: Token[], index: number): boolean {
@@ -271,7 +279,28 @@ function qualifiesConstitution(lower: Token[], index: number): boolean {
     if (!next) return false;
     const rest = lower.slice(index, index + 6).map((token) => token.bare).join(" ");
     if (FEDERAL_CONSTITUTION_TAIL.some((tail) => rest.startsWith(tail))) return false;
-    return CONSTITUTION_QUALIFIERS.has(next.bare);
+    if (!CONSTITUTION_QUALIFIERS.has(next.bare)) return false;
+    for (const connector of NEUTRAL_CONNECTORS) {
+        const size = connector.split(" ").length;
+        const written = lower.slice(index, index + size);
+        if (written.map((token) => token.bare).join(" ") !== connector || written.slice(0, -1).some((token) => token.ends)) continue;
+        // «Constitución de 1917 de Tlaxcala»: a qualifier after the connector still qualifies.
+        const after = lower[index + size];
+        return !written[size - 1].ends && after !== undefined && CONSTITUTION_QUALIFIERS.has(after.bare);
+    }
+    return true;
+}
+
+/** «constitucional» followed by «local», «estatal» or «de/del <estado>»: a state constitution, not the federal one. */
+function qualifiesConstitutional(plain: string, at: number): boolean {
+    const gap = sticky(/\s+/y, plain, at);
+    if (!gap) return false;
+    const words = tokens(plain.slice(at + gap[0].length, at + gap[0].length + 120)).slice(0, 4);
+    if (words.length === 0) return false;
+    if (LOCAL_WORDS.has(words[0].bare)) return true;
+    if (words[0].ends || (words[0].bare !== "de" && words[0].bare !== "del")) return false;
+    const place = words[1] && (words[1].bare === "la" || words[1].bare === "el") ? words[2] : words[1];
+    return place !== undefined && PLACE_WORDS.has(place.bare);
 }
 
 const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
@@ -298,7 +327,7 @@ function lawNamedAt(plain: string, cased: string): string | null {
             if (span.slice(0, -1).some((token) => token.ends)) continue;
             const written = span.map((token) => token.bare).join(" ");
             if (LAW_ALIASES[written]) {
-                if (written === "constitucion" && !span[count - 1].ends && qualifiesConstitution(lower, count)) return null;
+                if (QUALIFIABLE_ALIASES.has(written) && !span[count - 1].ends && qualifiesConstitution(lower, count)) return null;
                 return normalizeLaw(written);
             }
         }
@@ -346,13 +375,15 @@ function lawNamedAt(plain: string, cased: string): string | null {
     }
     // «Constitución local»: the bare head stopped at a qualifier is another constitution.
     if (words.length === 1 && words[0] === "constitucion" && !upper[index - 1]?.ends && qualifiesConstitution(lower, index)) return null;
+    // «Constitución de 1917» written with capitals: the federal one, unless a qualifier follows.
+    if (words.join(" ") === "constitucion de 1917" && !upper[index - 1]?.ends && !qualifiesConstitution(lower, index)) return normalizeLaw("constitucion");
     return normalizeLaw(words.join(" "));
 }
 
 /** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
 function readLaw(plain: string, at: number, cased: string = plain): { law: string | null; named: boolean } {
     const adjective = sticky(/\s+constitucional(?:es)?\b/y, plain, at);
-    if (adjective) return { law: normalizeLaw("constitucion"), named: true };
+    if (adjective) return { law: qualifiesConstitutional(plain, at + adjective[0].length) ? null : normalizeLaw("constitucion"), named: true };
     const separator = sticky(LAW_SEPARATOR, plain, at);
     const direct = separator ? null : sticky(/\s+\(?([a-z]{2,8})\b/y, plain, at);
     if (direct) {
