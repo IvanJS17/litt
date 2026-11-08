@@ -41,6 +41,7 @@ vi.mock("../assistant/ChatInput", () => ({
             model: string;
             reasoning: "medium";
             attempt?: string;
+            confidence?: 1 | 2 | 3 | 4;
         }) => void;
         onCancel?: () => void;
         canSend?: boolean;

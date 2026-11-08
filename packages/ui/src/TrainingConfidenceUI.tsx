@@ -59,7 +59,7 @@ export function TrainingConfidenceUI({
       .join(" ") || undefined;
   return (
     <div className={twMerge(clsx("flex min-w-0 flex-col gap-1.5", className))}>
-      <span id={legendId} className="text-sm font-medium text-gray-700">
+      <span id={legendId} className="text-sm font-medium text-foreground">
         {text.legend}
       </span>
       <div
@@ -79,10 +79,10 @@ export function TrainingConfidenceUI({
                 "relative flex min-w-[7rem] flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 py-1.5 text-center text-sm transition-[color,background-color,box-shadow]",
                 checked
                   ? "border-interactive-border bg-interactive-soft-strong font-medium text-interactive"
-                  : "border-gray-200 bg-white/70 text-gray-700 hover:bg-interactive-soft",
-                missing && "border-red-500",
+                  : "border-border bg-background/70 text-foreground hover:bg-interactive-soft",
+                missing && "border-destructive",
                 "has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-focus/50",
-                disabled && "cursor-not-allowed opacity-50 hover:bg-white/70",
+                disabled && "cursor-not-allowed opacity-50 hover:bg-background/70",
               )}
             >
               <input
@@ -103,12 +103,12 @@ export function TrainingConfidenceUI({
         })}
       </div>
       {text.help ? (
-        <p id={helpId} className="text-xs text-gray-500">
+        <p id={helpId} className="text-xs text-muted-foreground">
           {text.help}
         </p>
       ) : null}
       {missing ? (
-        <p id={errorId} role="alert" className="text-xs text-red-600">
+        <p id={errorId} role="alert" className="text-xs text-destructive">
           {text.required}
         </p>
       ) : null}

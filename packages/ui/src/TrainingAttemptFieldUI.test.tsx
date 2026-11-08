@@ -54,7 +54,7 @@ describe("TrainingAttemptFieldUI", () => {
 
   it("reports the excess over the limit", () => {
     field("a".repeat(TRAINING_ATTEMPT_MAX_CHARS + 2));
-    expect(screen.getByText("4002/4000 caracteres: sobran 2.")).toHaveClass("text-red-600");
+    expect(screen.getByText("4002/4000 caracteres: sobran 2.")).toHaveClass("text-destructive");
   });
 
   it("is ready without an error", () => {

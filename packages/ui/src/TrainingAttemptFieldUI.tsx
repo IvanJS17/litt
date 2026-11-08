@@ -74,7 +74,7 @@ export function TrainingAttemptFieldUI({
   const hintId = `${id}-hint`;
   return (
     <div className={twMerge(clsx("flex min-w-0 flex-col gap-1", className))}>
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
         {text.label}
       </label>
       <textarea
@@ -88,9 +88,9 @@ export function TrainingAttemptFieldUI({
         placeholder={text.placeholder}
         onChange={(event) => onChange(event.target.value)}
         className={clsx(
-          "w-full min-w-0 resize-y rounded-md border border-gray-200 bg-white/70 px-3 py-2 text-sm text-gray-900 outline-none transition-[color,box-shadow] placeholder:text-gray-400",
+          "w-full min-w-0 resize-y rounded-md border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none transition-[color,box-shadow] placeholder:text-muted-foreground",
           "focus-visible:border-focus focus-visible:ring-[3px] focus-visible:ring-focus/30",
-          "aria-invalid:border-red-500 aria-invalid:ring-red-500/20",
+          "aria-invalid:border-destructive aria-invalid:ring-destructive/20",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       />
@@ -99,7 +99,7 @@ export function TrainingAttemptFieldUI({
         aria-live="polite"
         className={clsx(
           "text-xs",
-          (showError && invalid) || excess > 0 ? "text-red-600" : "text-gray-500",
+          (showError && invalid) || excess > 0 ? "text-destructive" : "text-muted-foreground",
         )}
       >
         {excess > 0
@@ -125,7 +125,7 @@ export function TrainingUrgencyPassLineUI({
   className?: string;
 }) {
   return (
-    <p className={twMerge(clsx("min-w-0 text-xs text-gray-600", className))}>
+    <p className={twMerge(clsx("min-w-0 text-xs text-muted-foreground", className))}>
       {text}
     </p>
   );

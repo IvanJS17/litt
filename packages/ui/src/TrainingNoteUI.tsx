@@ -87,54 +87,54 @@ export function TrainingNoteUI({
       aria-label={text.region}
       className={twMerge(
         clsx(
-          "flex min-w-0 flex-col gap-3 rounded-lg border border-gray-200 bg-white/70 px-4 py-3 text-left",
+          "flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-background/70 px-4 py-3 text-left",
           className,
         ),
       )}
     >
       <div className="min-w-0">
-        <h4 className="text-xs font-medium text-gray-600">{text.attemptHeading}</h4>
-        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">
+        <h4 className="text-xs font-medium text-muted-foreground">{text.attemptHeading}</h4>
+        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
           {note.attempt}
         </p>
         {note.confidence ? (
-          <p className="mt-1 break-words text-xs text-gray-600">
+          <p className="mt-1 break-words text-xs text-muted-foreground">
             {text.confidence(text.confidenceLevels[note.confidence])}
           </p>
         ) : null}
       </div>
       {note.contrast_status !== "skipped" ? (
-        <div className="min-w-0 border-t border-gray-200 pt-3">
-          <h4 className="text-xs font-medium text-gray-600">{text.contrastHeading}</h4>
+        <div className="min-w-0 border-t border-border pt-3">
+          <h4 className="text-xs font-medium text-muted-foreground">{text.contrastHeading}</h4>
           {ready ? (
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
               {note.contrast}
             </p>
           ) : note.contrast_status === "pending" ? (
-            <p role="status" className="mt-1 text-sm text-gray-600">
+            <p role="status" className="mt-1 text-sm text-muted-foreground">
               {text.contrastPending}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-gray-700">{text.contrastFailed}</p>
+            <p className="mt-1 text-sm text-foreground">{text.contrastFailed}</p>
           )}
           {ready && verdict ? (
-            <div className="mt-2 min-w-0 text-sm text-gray-800">
+            <div className="mt-2 min-w-0 text-sm text-foreground">
               <p className="break-words">
-                <span className="text-xs font-medium text-gray-600">
+                <span className="text-xs font-medium text-muted-foreground">
                   {text.verdictHeading}
                 </span>{" "}
                 <strong className="font-semibold">{text.verdicts[verdict]}</strong>
                 {note.verdict_source === "mentor" ? (
-                  <span className="text-xs text-gray-600"> · {text.verdictByMentor}</span>
+                  <span className="text-xs text-muted-foreground"> · {text.verdictByMentor}</span>
                 ) : null}
               </p>
               {foundation ? (
-                <p className="mt-0.5 break-words text-xs text-gray-600">
+                <p className="mt-0.5 break-words text-xs text-muted-foreground">
                   {text.foundation(text.foundations[foundation])}
                 </p>
               ) : null}
               {note.right_for_wrong_reason ? (
-                <p className="mt-1 break-words text-sm text-gray-800">
+                <p className="mt-1 break-words text-sm text-foreground">
                   {text.rightForWrongReason}
                 </p>
               ) : null}
@@ -142,8 +142,8 @@ export function TrainingNoteUI({
           ) : null}
           {ready && question ? (
             <div className="mt-3 min-w-0 rounded-md bg-interactive-soft px-3 py-2">
-              <h5 className="text-xs font-medium text-gray-600">{text.questionHeading}</h5>
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">
+              <h5 className="text-xs font-medium text-muted-foreground">{text.questionHeading}</h5>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
                 {question}
               </p>
               <button
@@ -162,7 +162,7 @@ export function TrainingNoteUI({
           ) : null}
         </div>
       ) : null}
-      <p className="text-xs text-gray-500">{text.privacy}</p>
+      <p className="text-xs text-muted-foreground">{text.privacy}</p>
     </section>
   );
 }
