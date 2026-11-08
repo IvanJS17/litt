@@ -719,6 +719,10 @@ export interface AccountDeletionStarted {
 // organization, for one practice area (`practice`, normalized as
 // lower(btrim(...))) or for all of them (`practice: null`).
 export type TrainingStage = "pasante" | "junior";
+
+// --- Training layer 3, card 2: verdict, thermometer and backing (begin) ---
+// --- Training layer 3, card 2 (end) ---
+
 export interface TrainingStageEntry {
     practice: string | null;
     stage: TrainingStage;
@@ -742,6 +746,10 @@ export interface TrainingEffectiveStage {
     /** The urgency pass in force on that project (never in Word), or null. */
     urgency_pass: TrainingUrgencyPassInForce | null;
 }
+
+// --- Training layer 3, card 4: own map, calibration and retake (begin) ---
+// --- Training layer 3, card 4 (end) ---
+
 /** The end of the urgency pass that lifts «Tu turno primero» on a project. */
 export interface TrainingUrgencyPassInForce {
     project_id: string;
@@ -777,6 +785,10 @@ export interface TrainingTurnNote {
   contrast_status: TrainingContrastStatus;
   created_at: string;
 }
+
+// --- Training layer 3, card 6: ladder hints and counterpart (begin) ---
+// --- Training layer 3, card 6 (end) ---
+
 /** GET /training-notes/chats/:chatId (404 when the caller may read none). */
 export interface TrainingTurnNotes {
   notes: TrainingTurnNote[];
@@ -801,6 +813,10 @@ export interface TrainingSetStageBody {
 export interface TrainingRemoveStageQuery {
     practice?: string;
 }
+
+// --- Training layer 3, card 8: accountability mode (begin) ---
+// --- Training layer 3, card 8 (end) ---
+
 /** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
 export interface TrainingStageQuery {
     org_id?: string;
@@ -828,6 +844,10 @@ export interface TrainingReviewItem {
 }
 /** Where a piece of work was done: the web or project chat, Word, a tabular review. */
 export type TrainingWorkSurface = "chat" | "word" | "tabular";
+
+// --- Training layer 3, card 9: bulk review designer (begin) ---
+// --- Training layer 3, card 9 (end) ---
+
 /** Counted, never generated: what the review's lines rest on. */
 export interface TrainingWorkSignals {
     notes: number;
@@ -905,6 +925,10 @@ export interface TrainingPupilWorks {
     works_without_access: number;
     generation: TrainingReviewGeneration;
 }
+
+// --- Training layer 3, card 10: periodic full reading (begin) ---
+// --- Training layer 3, card 10 (end) ---
+
 /** POST /orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review */
 export interface TrainingWorkReviewBody {
     /** One of the mentor's credential options; omitted, the stored route or the default. */
@@ -918,6 +942,10 @@ export interface TrainingDefenseQuestion {
     listen_for: string;
 }
 export type TrainingDefenseOutcome = "approved" | "not_approved";
+
+// --- Training layer 3, card 12: correction to rule (begin) ---
+// --- Training layer 3, card 12 (end) ---
+
 /** Why a defense had its outcome: a closed list (learning data, never audited). */
 export type TrainingDefenseReason =
     | "razonamiento_solido"
@@ -963,6 +991,10 @@ export interface TrainingCreateDefenseBody {
     practice?: string | null;
     work_review_id?: string | null;
 }
+
+// --- Training layer 3, card 13: criteria contrast (begin) ---
+// --- Training layer 3, card 13 (end) ---
+
 /** POST …/defenses/:id/questions */
 export interface TrainingDefenseQuestionsBody {
     credential_ref?: string | null;
@@ -981,6 +1013,10 @@ export interface TrainingPromotionEvidence {
     id: string;
     at: string;
 }
+
+// --- Training layer 3, card 14: firm criteria (begin) ---
+// --- Training layer 3, card 14 (end) ---
+
 /**
  * One of the pupil's stages and whether LiTT proposes the next one. The
  * evidence counts only since that stage last changed; for the stage that
@@ -1012,6 +1048,10 @@ export interface TrainingAcceptPromotionBody {
     to: TrainingPromotionTarget;
 }
 export type TrainingUrgencyReason = "plazo" | "audiencia" | "cliente_urgente" | "otro";
+
+// --- Training layer 3, card 15: authorship (begin) ---
+// --- Training layer 3, card 15 (end) ---
+
 /** A mentor's time-limited pass, for one matter's project, that lifts «Tu turno primero». */
 export interface TrainingUrgencyPass {
     id: string;
@@ -1054,6 +1094,10 @@ export interface TrainingSupervision {
     defenses: TrainingDefense[];
     urgency_passes: TrainingUrgencyPass[];
 }
+
+// --- Training layer 3, card 16: promotion by evidence v2 (begin) ---
+// --- Training layer 3, card 16 (end) ---
+
 export interface TrainingSupervisionQuery {
     org_id: string;
 }

@@ -211,6 +211,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_attempt_required: "validation",
     training_mentor_has_pupils: "conflict",
     training_pupil_has_mentor: "conflict",
+    // --- Training layer 3, card 2 codes (begin) ---
+    // --- Training layer 3, card 2 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or
     // would pass the limit. Retrying the same grant cannot help.
@@ -218,29 +220,43 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_pass_pupil_no_access: "validation",
     training_pass_duplicate: "conflict",
     training_pass_limit_reached: "conflict",
+    // --- Training layer 3, card 6 codes (begin) ---
+    // --- Training layer 3, card 6 codes (end) ---
     // A pasante's version leaves LiTT only once approved for its current
     // bytes. Retrying cannot help, so the server's detail is shown as-is.
     training_approval_required: "validation",
+    // --- Training layer 3, card 8 codes (begin) ---
+    // --- Training layer 3, card 8 codes (end) ---
     // Nobody could approve a pasante's draft outside an organization, so it
     // is not copied there; retrying the same copy cannot help.
     training_copy_needs_organization: "validation",
+    // --- Training layer 3, card 9 codes (begin) ---
+    // --- Training layer 3, card 9 codes (end) ---
     // A mentor's work reviews run on the mentor's own key, never on another:
     // without one the review cannot be generated (the server's detail says
     // where to add it); a second request while one runs waits for it.
     training_review_key_required: "validation",
     training_review_in_progress: "conflict",
+    // --- Training layer 3, card 10 codes (begin) ---
+    // --- Training layer 3, card 10 codes (end) ---
     // An oral defense's outcome is recorded once; a correction is a new
     // defense. A promotion is accepted only while LiTT still proposes it:
     // the evidence changed, so the panel reloads it.
     training_defense_already_recorded: "conflict",
     training_promotion_not_proposed: "conflict",
+    // --- Training layer 3, card 12 codes (begin) ---
+    // --- Training layer 3, card 12 codes (end) ---
     // LiTT playbooks: a draft is used in reviews only once an editor marks
     // it ready, and a copy is marked ready only after every proposed change
     // is decided. Retrying cannot help, so the server's detail is shown.
     playbook_draft: "validation",
     playbook_changes_pending: "validation",
+    // --- Training layer 3, card 13 codes (begin) ---
+    // --- Training layer 3, card 13 codes (end) ---
     // A model is a starting point; one without rules cannot be marked.
     playbook_model_empty: "validation",
+    // --- Training layer 3, card 14 codes (begin) ---
+    // --- Training layer 3, card 14 codes (end) ---
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
     // Proposed changes are for a draft copy, never for a ready playbook.
