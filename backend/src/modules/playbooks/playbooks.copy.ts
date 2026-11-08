@@ -42,7 +42,6 @@ function unbackedOrigin(origin: NonNullable<Rule["origin"]>): NonNullable<Rule["
 }
 
 function unverifiedRef(ref: NonNullable<Rule["legalRefs"]>[number]) {
-  if (!ref.verified && !ref.sourceId) return ref;
   const { sourceId: _sourceId, quote: _quote, ...rest } = ref;
   return { ...rest, verified: false };
 }

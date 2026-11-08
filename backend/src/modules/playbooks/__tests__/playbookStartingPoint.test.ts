@@ -63,6 +63,7 @@ const ORIGINAL_ANSWER = "Arrendadora con inmuebles en Monterrey.";
 // Text lifted from the client's attachment: it must not reach the copy.
 const ORIGIN_QUOTE = "Cláusula quinta: la Arrendataria renunciará a toda acción por vicios ocultos.";
 const REF_QUOTE = "La renta se pagará por mensualidades vencidas.";
+const LEGACY_QUOTE = "Texto heredado que ya no debe viajar.";
 const CLAUSE = "La Arrendataria pagará una pena convencional equivalente a un mes de renta.";
 
 function rule(overrides: Row = {}): Row {
@@ -115,6 +116,7 @@ const ORIGINAL_CONTENT = {
           name: "Garantía",
           concept: "Depósito de un mes.",
           origin: { kind: "answer", questionIds: ["q1", "q2"], note: "Según el cuestionario.", unbacked: false },
+          legalRefs: [{ text: "Art. 2448 CCF", verified: false, quote: LEGACY_QUOTE }],
         }),
       ],
     },
@@ -255,6 +257,8 @@ describe("the copy", () => {
     // general practice too, and a legacy reference keeps no quote either.
     const garantia = topicRules(row)[1];
     expect(garantia.origin).toEqual({ kind: "ai_general", note: "Según el cuestionario.", unbacked: true });
+    expect(garantia.legalRefs).toEqual([{ text: "Art. 2448 CCF", verified: false }]);
+    expect(JSON.stringify(row)).not.toContain(LEGACY_QUOTE);
     expect(JSON.stringify(row)).not.toContain("questionIds");
     // No attachment text anywhere in the copy, rule JSON included.
     expect(JSON.stringify(row)).not.toContain(ORIGIN_QUOTE);
