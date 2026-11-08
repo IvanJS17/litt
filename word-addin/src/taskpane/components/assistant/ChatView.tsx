@@ -496,6 +496,9 @@ export function ChatView({
         anchorActiveRef.current = false;
         desiredScrollTopRef.current = 0;
         userInputOwnedUntilRef.current = 0;
+        // The next chat starts at its bottom: what the last one's reader chose
+        // must not hold back its first reveal.
+        readingAboveRef.current = false;
         pointerHeldRef.current = false;
         spacerHandledIdRef.current = null;
         scrollHandledIdRef.current = null;
@@ -656,6 +659,13 @@ export function ChatView({
             if (!container || !element) return;
             if (element.dataset.messageId !== latestUserMessageId) return;
             if (readingAboveRef.current) return;
+            // A scroll the person made in this very frame is theirs.
+            if (
+                pointerHeldRef.current ||
+                performance.now() <= userInputOwnedUntilRef.current
+            ) {
+                return;
+            }
             const visibleBottom =
                 container.clientHeight - composerHeight - CHAT_MESSAGE_TOP_GAP;
             const targetTop = Math.min(
