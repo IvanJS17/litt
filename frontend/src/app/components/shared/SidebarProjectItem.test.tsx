@@ -424,6 +424,20 @@ describe("SidebarProjectItem", () => {
     ).toBeInTheDocument();
   });
 
+  it("rings the row when its open button has keyboard focus", () => {
+    renderItem(project(), { expanded: false });
+    const open = screen.getByRole("button", { name: "Atlas" });
+    // The button stays outline-none; the row draws the ring around both
+    // controls, the way it draws the hover fill.
+    expect(open).toHaveAttribute("data-focus-fill");
+    expect(open.parentElement?.className).toContain(
+      "has-[[data-focus-fill]:focus-visible]:ring-2",
+    );
+    expect(open.parentElement?.className).toContain(
+      "has-[[data-focus-fill]:focus-visible]:ring-focus",
+    );
+  });
+
   it("offers a retry when both requests fail", async () => {
     vi.mocked(listProjectChats).mockRejectedValueOnce(new Error("boom"));
     vi.mocked(listTabularReviews).mockRejectedValueOnce(new Error("boom"));

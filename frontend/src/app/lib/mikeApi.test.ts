@@ -214,6 +214,19 @@ import {
     releaseTrainingPupil,
     setTrainingStage,
     removeTrainingStage,
+    getPupilWorks,
+    generateWorkReview,
+    markWorkReviewed,
+    getPupilDefenses,
+    createDefense,
+    generateDefenseQuestions,
+    recordDefenseOutcome,
+    getPupilPasses,
+    grantUrgencyPass,
+    revokeUrgencyPass,
+    getPupilPromotion,
+    acceptPromotion,
+    getMySupervision,
     streamTabularChatTurn,
     stopTabularChatTurn,
     stopTabularGeneration,
@@ -1342,6 +1355,36 @@ describe("training API", () => {
         expect(calledUrl).toBe(url);
         expect(init.method).toBe(method);
         if (body) expect(JSON.parse(init.body as string)).toEqual(body);
+    });
+});
+
+describe("training supervision API", () => {
+    const base = "/api/orgs/o%201/training/pupils/u1";
+    const work = { surface: "chat" as const, chatId: "c 1" };
+
+    it.each([
+        ["works", () => getPupilWorks("o 1", "u1"), "GET", `${base}/works`, undefined],
+        ["review", () => generateWorkReview("o 1", "u1", work), "POST", `${base}/works/chat/c%201/review`, {}],
+        ["review on a key", () => generateWorkReview("o 1", "u1", work, "user:k"), "POST", `${base}/works/chat/c%201/review`, { credential_ref: "user:k" }],
+        ["reviewed", () => markWorkReviewed("o 1", "u1", work), "PUT", `${base}/works/chat/c%201/review/reviewed`, undefined],
+        ["defenses", () => getPupilDefenses("o 1", "u1"), "GET", `${base}/defenses`, undefined],
+        ["create defense", () => createDefense("o 1", "u1", { practice: null }), "POST", `${base}/defenses`, { practice: null }],
+        ["questions", () => generateDefenseQuestions("o 1", "u1", "d1", null), "POST", `${base}/defenses/d1/questions`, {}],
+        ["outcome", () => recordDefenseOutcome("o 1", "u1", "d1", { outcome: "approved", reason: "otro" }), "PUT", `${base}/defenses/d1/outcome`, { outcome: "approved", reason: "otro" }],
+        ["passes", () => getPupilPasses("o 1", "u1"), "GET", `${base}/passes`, undefined],
+        ["grant", () => grantUrgencyPass("o 1", "u1", { project_id: "p1", reason_code: "plazo" }), "POST", `${base}/passes`, { project_id: "p1", reason_code: "plazo" }],
+        ["revoke", () => revokeUrgencyPass("o 1", "u1", "x1"), "DELETE", `${base}/passes/x1`, undefined],
+        ["promotion", () => getPupilPromotion("o 1", "u1"), "GET", `${base}/promotion`, undefined],
+        ["accept", () => acceptPromotion("o 1", "u1", { practice: null, to: "junior" }), "POST", `${base}/promotion`, { practice: null, to: "junior" }],
+        ["mine", () => getMySupervision("o1"), "GET", "/api/training/me/supervision?org_id=o1", undefined],
+    ] as const)("%s", async (_name, call, method, url, body) => {
+        fetchMock.mockImplementation(async () => jsonResponse({ ok: true }));
+        await call();
+        const { url: calledUrl, init } = lastFetchCall();
+        expect(calledUrl).toBe(url);
+        expect(init.method ?? "GET").toBe(method);
+        if (body) expect(JSON.parse(init.body as string)).toEqual(body);
+        else expect(init.body).toBeUndefined();
     });
 });
 

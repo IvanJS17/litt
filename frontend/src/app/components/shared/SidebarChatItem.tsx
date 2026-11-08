@@ -27,6 +27,7 @@ import type { Chat } from "@/app/components/shared/types";
 import { ChatSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { ChatAccessModal } from "@/app/components/assistant/ChatAccessModal";
 import { cn } from "@/app/lib/utils";
+import { SIDEBAR_ROW_FOCUS_RING_CLASS } from "@/app/components/shared/sidebarRow";
 import {
     LIQUID_GLASS_SELECTED_CLASS,
     LIQUID_GLASS_HOVER_CLASS,
@@ -115,6 +116,8 @@ export function SidebarChatItem({
         <div
             className={cn(
                 "group relative flex h-8 w-full items-center rounded-md transition-colors",
+                // The ring for the row's own button (data-focus-fill).
+                SIDEBAR_ROW_FOCUS_RING_CLASS,
                 isActive
                     ? `${LIQUID_GLASS_SELECTED_CLASS} pr-1`
                     : menuOpen
@@ -135,8 +138,8 @@ export function SidebarChatItem({
                         <ChatSkeuoIcon
                             tone={
                                 responseStatus === "complete"
-                                    ? "green"
-                                    : "blue"
+                                    ? "complete"
+                                    : "default"
                             }
                             className="h-3.5 w-3.5"
                         />

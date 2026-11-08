@@ -15,6 +15,7 @@ import type {
 } from "@/app/components/shared/types";
 import { listProjectChats, listTabularReviews } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
+import { SIDEBAR_ROW_FOCUS_RING_CLASS } from "@/app/components/shared/sidebarRow";
 import {
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_SELECTED_CLASS,
@@ -261,6 +262,8 @@ export function SidebarProjectItem({
             <div
                 className={cn(
                     "group flex h-8 w-full items-center rounded-md pr-1 text-xs transition-colors",
+                    // The ring for the row's own button (data-focus-fill).
+                    SIDEBAR_ROW_FOCUS_RING_CLASS,
                     isActive
                         ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                         : `text-gray-700 ${LIQUID_GLASS_HOVER_CLASS}`,

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    useCallback,
     useEffect,
     useState,
     type CSSProperties,
@@ -12,6 +13,7 @@ import {
 } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/app/lib/utils";
+import { useScrollEdges } from "@/app/hooks/useScrollEdges";
 import {
     Dropdown,
     DropdownAtPoint,
@@ -281,6 +283,18 @@ export function TableScrollArea({
     preserveGridBorder?: boolean;
     scrollRef?: RefObject<HTMLDivElement | null>;
 }) {
+    const {
+        ref: horizontalRef,
+        edges: horizontal,
+        onScroll: onHorizontalScroll,
+    } = useScrollEdges<HTMLDivElement>("x");
+    const setScrollElement = useCallback(
+        (element: HTMLDivElement | null) => {
+            horizontalRef(element);
+            if (scrollRef) scrollRef.current = element;
+        },
+        [horizontalRef, scrollRef],
+    );
     return (
         <div
             className={cn(
@@ -297,10 +311,16 @@ export function TableScrollArea({
                 )}
             >
                 <div className="relative flex min-h-0 min-w-0 flex-1">
+                    {/* A size container, so a column can size itself from
+                        the table's width (cqw) rather than the window's. */}
                     <div
-                        ref={scrollRef}
-                        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-x-none"
-                        onScroll={onScroll}
+                        ref={setScrollElement}
+                        className="@container flex min-h-0 min-w-0 flex-1 flex-col overflow-auto overscroll-x-none"
+                        data-scrolled-x={horizontal.start || undefined}
+                        onScroll={(event) => {
+                            onHorizontalScroll();
+                            onScroll?.(event);
+                        }}
                     >
                         {header && (
                             <div className="table-sticky-header sticky top-0 z-[70] w-max min-w-full shrink-0">
@@ -309,6 +329,17 @@ export function TableScrollArea({
                         )}
                         {children}
                     </div>
+                    {/* More columns past the right edge: the rows fade out
+                        there instead of ending in a hard cut. */}
+                    <div
+                        aria-hidden="true"
+                        data-scroll-hint="end"
+                        className={cn(
+                            "pointer-events-none absolute inset-y-0 right-0 z-[85] w-12 bg-gradient-to-l from-[var(--table-cell-background)] to-transparent transition-opacity duration-200 motion-reduce:transition-none",
+                            preserveGridBorder && "rounded-r-2xl",
+                            horizontal.end ? "opacity-100" : "opacity-0",
+                        )}
+                    />
                     {viewportOverlay}
                 </div>
             </div>

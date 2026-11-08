@@ -62,6 +62,10 @@ import type { Project } from "@/app/components/shared/types";
 import { cn } from "@/app/lib/utils";
 import { useAssistantHistoryStatuses } from "@/app/hooks/useAssistantHistoryStatuses";
 import { useSidebarHistory } from "@/app/hooks/useSidebarHistory";
+import {
+    scrollFadeMaskStyle,
+    useScrollEdges,
+} from "@/app/hooks/useScrollEdges";
 import { useTabularHistoryStatuses } from "@/app/hooks/useTabularHistoryStatuses";
 import { usePlaybookRunHistoryStatuses } from "@/app/hooks/usePlaybookRunHistoryStatuses";
 import { useViewedPlaybookRun } from "@/app/lib/playbookRunActivity";
@@ -91,9 +95,10 @@ const NAV_ITEMS = [
 ];
 
 const RECENT_PROJECT_PAGE_SIZE = 10;
-const RECENT_PROJECT_LIST_HEIGHT_CLASS = "h-44";
+// A cap, not a height: a short list gives the rest of the column to History.
+const RECENT_PROJECT_LIST_HEIGHT_CLASS = "max-h-44";
 // Room for an expanded project's recent chats and reviews.
-const RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS = "h-64";
+const RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS = "max-h-64";
 const recentProjectsCache = new Map<
     string,
     { projects: Project[]; hasMore: boolean }
@@ -433,7 +438,12 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         [loadMoreRecentProjects],
     );
 
+    // History scrolls on its own; its ends fade where more rows are hidden.
+    const historyScroll = useScrollEdges<HTMLDivElement>("y");
+    // A short window scrolls the whole column above the account button.
+    const columnScroll = useScrollEdges<HTMLDivElement>("y");
     const handleHistoryScroll = (event: UIEvent<HTMLDivElement>) => {
+        historyScroll.onScroll();
         if (isNearScrollEnd(event.currentTarget)) void history.loadMore();
     };
 
@@ -583,8 +593,17 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
 
                 {/* Everything between the header and the account button
                     scrolls as one when the window is short, so the sidebar
-                    never grows past the screen or slides under the footer. */}
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+                    never grows past the screen or slides under the footer.
+                    Its bottom fades while rows are hidden below, so the
+                    last one never looks cut off by the account button. */}
+                <div
+                    ref={columnScroll.ref}
+                    data-sidebar-column
+                    className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
+                    style={scrollFadeMaskStyle(columnScroll.edges)}
+                    data-scroll-end={columnScroll.edges.end || undefined}
+                    onScroll={columnScroll.onScroll}
+                >
                     {/* Nav items */}
                     <div className="pt-1.5">
                         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
@@ -655,7 +674,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                             anyRecentProjectExpanded
                                                 ? RECENT_PROJECT_LIST_EXPANDED_HEIGHT_CLASS
                                                 : RECENT_PROJECT_LIST_HEIGHT_CLASS,
-                                            "overflow-y-auto transition-[height] duration-200 motion-reduce:transition-none",
+                                            "overflow-y-auto transition-[max-height] duration-200 motion-reduce:transition-none",
                                         )}
                                         onScroll={handleRecentProjectsScroll}
                                     >
@@ -736,7 +755,11 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             <div
                                 className={cn(
                                     "flex min-h-0 flex-col",
-                                    !historyCollapsed && "flex-1",
+                                    // Room for the heading and three rows:
+                                    // History never shrinks under the
+                                    // account button; a shorter window
+                                    // scrolls the whole column instead.
+                                    !historyCollapsed && "min-h-36 flex-1",
                                 )}
                             >
                                 <button
@@ -756,13 +779,17 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     />
                                 </button>
                                 <div
+                                    ref={historyScroll.ref}
                                     id="sidebar-history"
                                     role="region"
                                     aria-label="History"
                                     className={cn(
-                                        "min-h-0 flex-1 overflow-y-auto",
+                                        "min-h-0 flex-1 overflow-y-auto pb-1",
                                         historyCollapsed && "hidden",
                                     )}
+                                    style={scrollFadeMaskStyle(historyScroll.edges)}
+                                    data-scroll-start={historyScroll.edges.start || undefined}
+                                    data-scroll-end={historyScroll.edges.end || undefined}
                                     onScroll={handleHistoryScroll}
                                 >
                                     {history.loading ? (
@@ -925,8 +952,18 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     )}
                 </div>
 
-                {/* User Profile */}
-                <div className="shrink-0 p-1">
+                {/* User Profile. A hairline marks where the column stops
+                    while rows are hidden below it; the border is always
+                    there, so showing it never moves the button. */}
+                <div
+                    data-sidebar-account
+                    className={cn(
+                        "shrink-0 border-t p-1 transition-colors",
+                        columnScroll.edges.end
+                            ? "border-gray-200"
+                            : "border-transparent",
+                    )}
+                >
                     {user && (
                         <Dropdown
                             open={isDropdownOpen}

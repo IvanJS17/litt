@@ -631,6 +631,17 @@ function BreadcrumbItem({
     item: PageHeaderBreadcrumb;
     current: boolean;
 }) {
+    // A long name is cut with an ellipsis; then the tooltip shows the whole
+    // name in place of the crumb's action hint ("Back to …"). Measured when
+    // the pointer or focus arrives, since that is when a tooltip is read.
+    const fullLabel = typeof item.label === "string" ? item.label : undefined;
+    const [labelCut, setLabelCut] = useState(false);
+    const measureLabelCut = (event: { currentTarget: HTMLElement }) => {
+        const element = event.currentTarget;
+        setLabelCut(element.scrollWidth > element.clientWidth + 1);
+    };
+    const tooltip =
+        labelCut && fullLabel ? fullLabel : (item.title ?? fullLabel);
     const content = item.loading ? (
         <div
             className={cn(
@@ -677,12 +688,8 @@ function BreadcrumbItem({
             {current && !item.onClick ? (
                 <span
                     className={cn(className, "block w-full")}
-                    title={
-                        item.title ??
-                        (typeof item.label === "string"
-                            ? item.label
-                            : undefined)
-                    }
+                    title={tooltip}
+                    onPointerEnter={measureLabelCut}
                 >
                     {content}
                 </span>
@@ -694,17 +701,20 @@ function BreadcrumbItem({
                         className,
                         current && "block w-full truncate text-left",
                     )}
-                    title={
-                        item.title ??
-                        (typeof item.label === "string"
-                            ? item.label
-                            : undefined)
-                    }
+                    title={tooltip}
+                    onPointerEnter={measureLabelCut}
+                    onFocus={measureLabelCut}
                 >
                     {content}
                 </button>
             ) : (
-                <span className={className}>{content}</span>
+                <span
+                    className={className}
+                    title={labelCut ? fullLabel : undefined}
+                    onPointerEnter={measureLabelCut}
+                >
+                    {content}
+                </span>
             )}
             {!current && <span className="shrink-0 text-gray-300">›</span>}
         </span>

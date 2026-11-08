@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PageHeader } from "./PageHeader";
 import {
@@ -82,5 +82,53 @@ describe("PageHeader title size", () => {
             "text-xl",
             "font-serif",
         );
+    });
+});
+
+describe("PageHeader long names", () => {
+    const LONG =
+        "Arrendamiento Bajío 2026 — revisión integral del contrato marco, anexos A, B y C";
+
+    function renderProjectCrumb() {
+        render(
+            <PageHeader
+                breadcrumbs={[
+                    { label: "Projects", onClick: () => {}, title: "Back to Projects" },
+                    { label: LONG, onClick: () => {}, title: "Back to project documents" },
+                ]}
+            />,
+        );
+        // The visible crumb is the button; hidden copies measure widths.
+        return screen.getByRole("button", { name: LONG });
+    }
+
+    function cutAt(element: HTMLElement, scrollWidth: number, clientWidth: number) {
+        Object.defineProperty(element, "scrollWidth", { configurable: true, value: scrollWidth });
+        Object.defineProperty(element, "clientWidth", { configurable: true, value: clientWidth });
+    }
+
+    it("keeps the whole name in the crumb's accessible name", () => {
+        expect(renderProjectCrumb()).toHaveAccessibleName(LONG);
+    });
+
+    it("shows the whole name as the tooltip once the name is cut", () => {
+        const crumb = renderProjectCrumb();
+        cutAt(crumb, 900, 420);
+        fireEvent.pointerEnter(crumb);
+        expect(crumb).toHaveAttribute("title", LONG);
+    });
+
+    it("keeps the action hint as the tooltip while the name fits", () => {
+        const crumb = renderProjectCrumb();
+        cutAt(crumb, 300, 420);
+        fireEvent.pointerEnter(crumb);
+        expect(crumb).toHaveAttribute("title", "Back to project documents");
+    });
+
+    it("measures on keyboard focus too", () => {
+        const crumb = renderProjectCrumb();
+        cutAt(crumb, 900, 420);
+        fireEvent.focus(crumb);
+        expect(crumb).toHaveAttribute("title", LONG);
     });
 });
