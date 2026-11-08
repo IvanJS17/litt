@@ -83,6 +83,8 @@ describe("Ajustes → Formación", () => {
         // Layer 3: their own map, calibration and retakes.
         expect(await screen.findByRole("heading", { name: "My criterion" })).toBeInTheDocument();
         expect(api.getMyCriterion).toHaveBeenCalledWith("org-1");
+        // Layer 3, criteria contrast: a junior reaches its page from here.
+        expect(screen.getByRole("link", { name: "Criteria contrast" })).toHaveAttribute("href", "/settings/training/contrast");
     });
 
     it("tells a lawyer they have no training", async () => {

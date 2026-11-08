@@ -12,6 +12,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getPupilBacking: vi.fn(),
     getPupilReviewAudits: vi.fn(),
     getPupilReadings: vi.fn(),
+    getPupilCriteriaContrasts: vi.fn(),
 }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: vi.fn() }));
 
@@ -32,18 +33,26 @@ describe("Pestaña Criterio", () => {
             hints: { requested: 0, max_level: 0 },
             retakes: [],
             notes_without_access: 0,
+            retakes_without_access: 0,
         } as unknown as Awaited<ReturnType<typeof api.getPupilCriterion>>);
         vi.mocked(api.getPupilBacking).mockResolvedValue({ works: [], works_without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilBacking>>);
         vi.mocked(api.getPupilReviewAudits).mockResolvedValue({ audits: [], without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilReviewAudits>>);
         vi.mocked(api.getPupilReadings).mockResolvedValue({ readings: [], readings_without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilReadings>>);
+        vi.mocked(api.getPupilCriteriaContrasts).mockResolvedValue({
+            org_id: "org-1",
+            trainee_user_id: "pupil-1",
+            contrasts: [],
+            contrasts_without_access: 0,
+        } as Awaited<ReturnType<typeof api.getPupilCriteriaContrasts>>);
         renderEs(<CriterionTab orgId="org-1" pupilId="pupil-1" />);
         for (const name of ["Mapa y calibración", "Rendición de cuentas", "Revisiones masivas"]) {
             expect(await screen.findByRole("heading", { name })).toBeInTheDocument();
         }
         const headings = (await screen.findAllByRole("heading", { level: 3 })).map((h) => h.textContent);
-        expect(headings).toHaveLength(4);
+        expect(headings).toHaveLength(5);
         expect(screen.getByRole("heading", { name: /Lecturas completas/ })).toBeInTheDocument();
-        for (const call of [api.getPupilCriterion, api.getPupilBacking, api.getPupilReviewAudits, api.getPupilReadings]) {
+        expect(screen.getByRole("heading", { name: "Contrastes de criterios" })).toBeInTheDocument();
+        for (const call of [api.getPupilCriterion, api.getPupilBacking, api.getPupilReviewAudits, api.getPupilReadings, api.getPupilCriteriaContrasts]) {
             expect(call).toHaveBeenCalledWith("org-1", "pupil-1");
         }
     });

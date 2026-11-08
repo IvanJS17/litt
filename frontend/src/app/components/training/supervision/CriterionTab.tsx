@@ -1,6 +1,7 @@
 "use client";
 
 import { BackingSection } from "../criterion/BackingSection";
+import { MentorCriteriaContrasts } from "../contrast/MentorCriteriaContrasts";
 import { MentorCriterionMap } from "../map/MentorCriterionMap";
 import { MentorReadings } from "../reading/MentorReadings";
 import { MentorReviewAudits } from "../reviewAudit/MentorReviewAudits";
@@ -20,6 +21,7 @@ export function CriterionTab({ orgId, pupilId }: { orgId: string; pupilId: strin
             <BackingSection orgId={orgId} traineeId={pupilId} />
             <MentorReviewAudits orgId={orgId} pupilId={pupilId} />
             <MentorReadings orgId={orgId} pupilId={pupilId} />
+            <MentorCriteriaContrasts orgId={orgId} pupilId={pupilId} />
         </div>
     );
 }

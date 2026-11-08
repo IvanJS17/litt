@@ -176,6 +176,7 @@ function StageList({
 
 function MyTraining({ membership, orgName }: { membership: TrainingMembership; orgName: string }) {
     const members = useOrgMembers(membership.org_id);
+    const t = useTranslations("training.criterion.contrast");
     return (
         <GlassCardUI>
             <SettingsRow layout="stacked">
@@ -195,6 +196,16 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
             {membership.stages.some((entry) => entry.stage === "junior") && (
                 <SettingsRow layout="stacked">
                     <ReadingNotice orgId={membership.org_id} />
+                </SettingsRow>
+            )}
+            {membership.stages.some((entry) => entry.stage === "junior") && (
+                <SettingsRow layout="stacked">
+                    <Link
+                        href="/settings/training/contrast"
+                        className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                        {t("page.title")}
+                    </Link>
                 </SettingsRow>
             )}
             <SettingsRow layout="stacked">

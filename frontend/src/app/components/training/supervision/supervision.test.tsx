@@ -34,6 +34,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getPupilBacking: vi.fn(),
     getPupilReviewAudits: vi.fn(),
     getPupilReadings: vi.fn(),
+    getPupilCriteriaContrasts: vi.fn(async () => ({ org_id: "org-1", trainee_user_id: "pupil-1", contrasts: [], contrasts_without_access: 0 })),
 }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: vi.fn() }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
@@ -244,6 +245,7 @@ describe("Mentor panel", () => {
             hints: { requested: 0, max_level: 0 },
             retakes: [],
             notes_without_access: 0,
+            retakes_without_access: 0,
         } as unknown as Awaited<ReturnType<typeof api.getPupilCriterion>>);
         vi.mocked(api.getPupilBacking).mockResolvedValue({ works: [], works_without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilBacking>>);
         vi.mocked(api.getPupilReviewAudits).mockResolvedValue({ audits: [], without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilReviewAudits>>);
