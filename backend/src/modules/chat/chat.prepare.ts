@@ -52,9 +52,12 @@ import { resolveEffectiveReasoningLevel } from "../../lib/modelSelection";
 import { replaysReasoning } from "../../lib/llm/registry";
 import { beginMemoryConversationTurn, releaseMemoryConversationTurn, type MemoryConversationTurn } from "../../lib/memory/schedule";
 import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
-import { checkTrainingTurn } from "../../lib/training";
-import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
-import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
+import {
+    beginTrainingTurn,
+    recordTrainingNote,
+    type TrainingTurnPlan,
+} from "../../lib/trainingTurn";
+import type { CreatedTurnNote } from "../../lib/trainingNotes";
 
 // ---------------------------------------------------------------------------
 // Pre-stream preparation for POST /chat (streaming)
@@ -112,6 +115,8 @@ export type PreparedChatStream = {
     nonce: ReturnType<typeof generateSpotlightNonce>;
     /** LiTT training: a pasante's private note for this turn, pending its contrast. */
     trainingNote: CreatedTurnNote | null;
+    /** The turn's training plan; null when the turn has no new user message. */
+    trainingPlan: TrainingTurnPlan | null;
 };
 
 /** Authorize and prepare a chat turn, refusing active turns before saving input. */
@@ -337,23 +342,24 @@ export async function prepareChatStream(
     // LiTT training ("Tu turno primero"): a pasante's new message carries
     // their own approach. Checked before anything is written.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    let trainingAttempt: string | null = null;
+    let trainingPlan: TrainingTurnPlan | null = null;
     let trainingNote: CreatedTurnNote | null = null;
     if (lastUser && !args.askInputsResponse) {
         // An urgency pass on this matter lifts the requirement, not the
         // stage: the output lock still seals the turn's documents.
-        let turn;
+        let begun;
         try {
-            turn = await resolveTurnTraining(db, userId, {
-                orgId: contentOrgId,
-                projectId: resolvedProjectId,
+            begun = await beginTrainingTurn(db, {
+                surface: "chat",
+                userId,
+                scope: { orgId: contentOrgId, projectId: resolvedProjectId },
+                body: { attempt: args.attempt },
             });
         } catch (error) {
             return { ok: false, internal: true, error };
         }
-        const training = checkTrainingTurn(turnStage(turn), args.attempt);
-        if (!training.ok) return training;
-        trainingAttempt = training.attempt;
+        if (!begun.ok) return begun;
+        trainingPlan = begun.plan;
     }
 
     const selection = await resolveUserChatSelection(db, {
@@ -532,17 +538,15 @@ export async function prepareChatStream(
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
         }
-        if (trainingAttempt && contentOrgId && args.inputMessageId) {
-            const created = await createPendingTurnNote(db, {
-                surface: "chat",
-                orgId: contentOrgId,
-                traineeUserId: userId,
+        if (trainingPlan) {
+            const recorded = await recordTrainingNote(db, {
+                plan: trainingPlan,
+                userId,
                 chatId,
                 messageId: args.inputMessageId,
-                attempt: trainingAttempt,
             });
-            if (!created.ok) return { ok: false, internal: true, error: created.error };
-            trainingNote = created.note;
+            if (!recorded.ok) return { ok: false, internal: true, error: recorded.error };
+            trainingNote = recorded.note;
         }
     }
 
@@ -660,6 +664,7 @@ export async function prepareChatStream(
                 selectedReasoningLevel,
                 nonce,
                 trainingNote,
+                trainingPlan,
             },
         };
     } catch (error) {

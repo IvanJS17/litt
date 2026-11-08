@@ -1,5 +1,9 @@
 import { abortable } from "../../lib/abortable";
-import { launchTurnContrast } from "../../lib/trainingNotes";
+import {
+    finishTrainingTurn,
+    readTrainingBody,
+    trainingEnginePlan,
+} from "../../lib/trainingTurn";
 import {
     attachAssistantTurnSse,
     startAssistantTurnRun,
@@ -139,7 +143,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedCredentialRef: parsedCredentialRef.value,
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
-        attempt: body.attempt,
+        attempt: readTrainingBody(body).attempt,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);
@@ -169,6 +173,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         nonce,
         approvalEvents,
         trainingNote,
+        trainingPlan,
     } = prep.prepared;
     // Mutable: the title-generation flow below reassigns it once a title
     // has been persisted.
@@ -275,6 +280,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 // (read_document, find_in_document, list/fetch_documents and the
                 // workflow tools) and lose only the writers.
                 allowDocumentMutation,
+                trainingPlan: trainingEnginePlan(trainingPlan),
                 workflowStore,
                 webSearch,
                 subagentRuns,
@@ -387,15 +393,14 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
             // LiTT training: the final answer is durable, so the pasante's
             // private contrast is produced now, aside from the turn, with the
             // conversation's own model and credential. It cannot fail the turn.
-            if (trainingNote && !persistedEvents.some((event) => event.type === "error")) {
-                launchTurnContrast(db, {
-                    noteId: trainingNote.id,
-                    attempt: trainingNote.attempt,
-                    answer: fullText ?? "",
-                    model: selectedModel,
-                    apiKeys,
-                });
-            }
+            finishTrainingTurn(db, {
+                plan: trainingPlan,
+                note: trainingNote,
+                completed: !persistedEvents.some((event) => event.type === "error"),
+                answer: fullText ?? "",
+                model: selectedModel,
+                apiKeys,
+            });
 
             void enqueueChatTurnAudit(
                 db,

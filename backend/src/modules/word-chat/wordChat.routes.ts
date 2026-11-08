@@ -1,5 +1,9 @@
 import { sendInternalError } from "../../lib/httpError";
-import { launchTurnContrast } from "../../lib/trainingNotes";
+import {
+  finishTrainingTurn,
+  readTrainingBody,
+  trainingEnginePlan,
+} from "../../lib/trainingTurn";
 import {
   attachAssistantTurnSse,
   getActiveAssistantTurn,
@@ -701,7 +705,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     requestedCredentialRef: parsedCredentialRef.value,
     requestedReasoning: parsedReasoning.value,
     requestedTimeZone: req.body?.time_zone,
-    attempt: body.attempt,
+    attempt: readTrainingBody(body).attempt,
   });
   if (!prep.ok) {
     if (prep.status === 500 && "error" in prep)
@@ -726,6 +730,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     selectedReasoningLevel,
     nonce,
     trainingNote,
+    trainingPlan,
   } = prep.prepared;
   let chatTitle = prep.prepared.chatTitle;
   let memoryTurnScheduled = false;
@@ -847,6 +852,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       write,
       workflowStore,
       includeAskInputs: false,
+      trainingPlan: trainingEnginePlan(trainingPlan),
       ...(clientToolsEnabled
         ? {
             clientTools: createWordClientToolsAdapter({
@@ -923,20 +929,16 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     // LiTT training: the final answer is durable, so the pasante's private
     // contrast is produced now, aside from the turn, with the conversation's
     // own model and credential. It cannot fail the turn.
-    if (
-      trainingNote &&
-      !persistedEvents.some(
+    finishTrainingTurn(db, {
+      plan: trainingPlan,
+      note: trainingNote,
+      completed: !persistedEvents.some(
         (event) => typeof event === "object" && event !== null && "type" in event && event.type === "error",
-      )
-    ) {
-      launchTurnContrast(db, {
-        noteId: trainingNote.id,
-        attempt: trainingNote.attempt,
-        answer: fullText ?? "",
-        model: selectedModel,
-        apiKeys,
-      });
-    }
+      ),
+      answer: fullText ?? "",
+      model: selectedModel,
+      apiKeys,
+    });
     // Word turns used to be audited nowhere, unlike the chat and project-chat
     // modules. chatId/projectId stay null because a Word chat lives in
     // word_chats — neither chats.id nor projects.id is a legal value for those

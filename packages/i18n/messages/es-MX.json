@@ -520,7 +520,20 @@
       "actions": {
         "load": "cargar lo que ve tu mentor"
       }
-    }
+    },
+    "criterion": {
+      "turn": {},
+      "map": {},
+      "modes": {},
+      "backing": {},
+      "audit": {},
+      "reading": {},
+      "corrections": {},
+      "contrast": {},
+      "authorship": {},
+      "promotion": {}
+    },
+    "firmCriteria": {}
   },
   "word": {
     "app": {

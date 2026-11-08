@@ -161,6 +161,29 @@ continues a turn and is not a new one; a turn paused by ask-inputs gets its
 contrast from the answer so far. A Word chat with `storage: "local"` has no
 server-side transcript: the attempt is still required but no note is kept.
 
+### One wiring for the four surfaces
+
+The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
+(`backend/src/lib/trainingTurn/`), which is in `lib/` and imports nothing from
+`modules/`.
+
+- `beginTrainingTurn` resolves the stage (`resolveTurnTraining`, or the one
+  Word rule for Word), applies the behaviors listed in `index.ts` and returns
+  either the `400` above or a plan (`stage`, `passActive`, `attempt`, `orgId`,
+  `toolPolicy`, `afterTurn`). It throws if the stage cannot be read, and each
+  surface answers its own internal error.
+- `recordTrainingNote` writes the pending note once the user message is saved
+  (nothing without an attempt, an organization or a persisted message).
+- `finishTrainingTurn` launches the contrast once the answer is durable and the
+  turn did not end in an error.
+- `readTrainingBody` reads the training fields of a request body and ignores
+  the rest. `trainingEnginePlan` turns the plan into the engine's single
+  `trainingPlan` argument (extra system text and narrower tool limits); it
+  asks nothing of the engine today.
+
+A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
+it does not touch the surfaces again.
+
 ### Reading the notes
 
 `GET /training-notes/chats/:chatId` (optionally `?message_id=`) returns

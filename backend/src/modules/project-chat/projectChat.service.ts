@@ -51,9 +51,12 @@ import {
     resolveContentOrgId,
 } from "../../lib/access";
 import { hasDirectContentGrants } from "../../lib/contentAccess";
-import { checkTrainingTurn } from "../../lib/training";
-import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
-import { createPendingTurnNote, type CreatedTurnNote } from "../../lib/trainingNotes";
+import {
+    beginTrainingTurn,
+    recordTrainingNote,
+    type TrainingTurnPlan,
+} from "../../lib/trainingTurn";
+import type { CreatedTurnNote } from "../../lib/trainingNotes";
 import {
     DOCUMENT_WORKSPACE_MISMATCH_CODE,
     DOCUMENT_WORKSPACE_MISMATCH_DETAIL,
@@ -161,6 +164,8 @@ export type PreparedProjectChatStream = {
     nonce: ReturnType<typeof generateSpotlightNonce>;
     /** LiTT training: a pasante's private note for this turn, pending its contrast. */
     trainingNote: CreatedTurnNote | null;
+    /** The turn's training plan; null when the turn has no new user message. */
+    trainingPlan: TrainingTurnPlan | null;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -352,23 +357,24 @@ export async function prepareProjectChatStream(
     // LiTT training ("Tu turno primero"): a pasante's new message carries
     // their own approach. Checked before anything is written.
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    let trainingAttempt: string | null = null;
+    let trainingPlan: TrainingTurnPlan | null = null;
     let trainingNote: CreatedTurnNote | null = null;
     if (lastUser && !args.askInputsResponse) {
         // An urgency pass on this matter lifts the requirement, not the
         // stage: the output lock still seals the turn's documents.
-        let turn;
+        let begun;
         try {
-            turn = await resolveTurnTraining(db, userId, {
-                orgId: projectAccess.project.org_id ?? null,
-                projectId,
+            begun = await beginTrainingTurn(db, {
+                surface: "project_chat",
+                userId,
+                scope: { orgId: projectAccess.project.org_id ?? null, projectId },
+                body: { attempt: args.attempt },
             });
         } catch (error) {
             return { ok: false, internal: true, error };
         }
-        const training = checkTrainingTurn(turnStage(turn), args.attempt);
-        if (!training.ok) return training;
-        trainingAttempt = training.attempt;
+        if (!begun.ok) return begun;
+        trainingPlan = begun.plan;
     }
 
     const selection = await resolveUserChatSelection(db, {
@@ -515,18 +521,15 @@ export async function prepareProjectChatStream(
         if (userMessageError) {
             return { ok: false, internal: true, error: userMessageError };
         }
-        const noteOrgId = projectAccess.project.org_id ?? null;
-        if (trainingAttempt && noteOrgId && args.inputMessageId) {
-            const created = await createPendingTurnNote(db, {
-                surface: "chat",
-                orgId: noteOrgId,
-                traineeUserId: userId,
+        if (trainingPlan) {
+            const recorded = await recordTrainingNote(db, {
+                plan: trainingPlan,
+                userId,
                 chatId,
                 messageId: args.inputMessageId,
-                attempt: trainingAttempt,
             });
-            if (!created.ok) return { ok: false, internal: true, error: created.error };
-            trainingNote = created.note;
+            if (!recorded.ok) return { ok: false, internal: true, error: recorded.error };
+            trainingNote = recorded.note;
         }
     }
 
@@ -691,6 +694,7 @@ export async function prepareProjectChatStream(
                 selectedReasoningLevel,
                 nonce,
                 trainingNote,
+                trainingPlan,
             },
         };
     } catch (error) {
