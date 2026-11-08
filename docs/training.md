@@ -626,7 +626,8 @@ data is here.
 - **What is kept.** The corrections (the pupil's text, the mentor's text and
   comment) and the pupil's id live on the playbook import row until the job
   ends, then they are erased; the failure and interruption paths erase them
-  too. No table of this feature keeps the pupil's text or a column for the
+  too (an interrupted batch is cleared when its attempt is read, or at the
+  latest at the next batch). No table of this feature keeps the pupil's text or a column for the
   pupil. The one place that keeps the pupil's id is the insert-only audit
   (below), which stores ids and counts only and no text. What stays is the
   rule, which belongs to the firm, and the mentor's name as its attribution; if the mentor's account

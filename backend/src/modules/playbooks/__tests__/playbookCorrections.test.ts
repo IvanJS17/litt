@@ -48,7 +48,7 @@ import {
   markPlaybookDraftJobFailed,
   queuePlaybookCorrections,
 } from "../playbooks.jobs";
-import { updatePlaybookContent } from "../playbooks.operations";
+import { getPlaybookImport, updatePlaybookContent } from "../playbooks.operations";
 import { setPlaybookState } from "../playbooks.state";
 import type { PlaybookContent, PlaybookCorrectionWork } from "../playbooks.types";
 import { database, ORG, type Row } from "./playbookTestDb";
@@ -377,6 +377,31 @@ describe("sending corrections", () => {
     expect(auditEvents()).toContainEqual(
       expect.objectContaining({ action: "playbook.corrections_ready", status: "failed" }),
     );
+  });
+});
+
+describe("an interrupted batch that is only read", () => {
+  it("drops its stored request when the attempt is read, without waiting for the next batch", async () => {
+    const { db, tables } = await sent([]);
+    const row = tables.playbook_imports.at(-1)!;
+    Object.assign(row, {
+      updated_at: "2020-01-01T00:00:00.000Z",
+      started_at: "2020-01-01T00:00:00.000Z",
+    });
+    tables.db_jobs = [];
+    expect(row.request_json).not.toBeNull();
+    const attempt = await getPlaybookImport(MENTOR.id, String(row.id), db);
+    expect(attempt.status).toBe("failed");
+    expect(row.request_json).toBeNull();
+  });
+
+  it("leaves a batch alone while it is still attended", async () => {
+    const { db, tables } = await sent([]);
+    const row = tables.playbook_imports.at(-1)!;
+    Object.assign(row, { updated_at: new Date().toISOString(), started_at: new Date().toISOString() });
+    const attempt = await getPlaybookImport(MENTOR.id, String(row.id), db);
+    expect(attempt.status).toBe("running");
+    expect(row.request_json).not.toBeNull();
   });
 });
 

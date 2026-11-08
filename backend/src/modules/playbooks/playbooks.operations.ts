@@ -1276,10 +1276,18 @@ export async function getPlaybookImport(
   if (error) throw error;
   if (!data) throw new PlaybookRequestError("Import not found.", 404);
   const row = data as Record<string, unknown>;
-  return publicImport(
-    row,
-    await interruptedPlaybookWork(db, [row], playbookImportJobKey),
-  );
+  const interrupted = await interruptedPlaybookWork(db, [row], playbookImportJobKey);
+  // A batch of corrections that will never run keeps nothing the pupil wrote:
+  // its request goes when it is first seen as interrupted, not at the next batch.
+  if (row.kind === "correction" && interrupted.has(String(row.id))) {
+    const cleared = await db
+      .from("playbook_imports")
+      .update({ request_json: null })
+      .eq("id", importId)
+      .eq("status", "running");
+    if (cleared.error) throw cleared.error;
+  }
+  return publicImport(row, interrupted);
 }
 
 /**
