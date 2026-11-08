@@ -651,7 +651,9 @@ answer 404. No model is involved: the design review and the sample are code
 - **The mentor** (the pupil's current mentor, `assertCurrentMentor`) lists the
   pupil's audits and evaluates a finished one: «Adecuado» or «Por mejorar»
   with a note (500 characters, learning data), and may correct a mark; the
-  correction is stored as `mentor_mark` and the person's own mark stays. A
+  correction is stored as `mentor_mark` and the person's own mark stays. The
+  current mentor may change it again or take it back (`mark: null` removes the
+  key); every save leaves the same event, naming ids only. A
   review is shown only if the mentor can open its matter (`mayOpenWorkMatter`;
   a review outside any matter: if the mentor can open the review itself); the
   rest are counted. Cells whose sources the mentor cannot read are withheld.

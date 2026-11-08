@@ -31,6 +31,9 @@ import {
 // record «adequate» or «to improve» with a note. It is evidence: nothing is
 // blocked. Mounted by the mentor panel's «Criterio» tab.
 
+/** The select's value for taking the mentor's own mark back. */
+const CLEAR = "clear";
+
 type Audit = TrainingPupilReviewAudits["audits"][number];
 
 export function MentorReviewAudits({ orgId, pupilId }: { orgId: string; pupilId: string }) {
@@ -69,7 +72,7 @@ function AuditCard({
     const label = useColumnLabel(audit.columns);
     const [outcome, setOutcome] = useState<TrainingAuditOutcome | null>(audit.evaluation?.outcome ?? null);
     const [note, setNote] = useState(audit.evaluation?.note ?? "");
-    const [corrections, setCorrections] = useState<Record<string, TrainingAuditMark>>({});
+    const [corrections, setCorrections] = useState<Record<string, TrainingAuditMark | null>>({});
     const [busy, setBusy] = useState(false);
     const complete = audit.status === "complete";
 
@@ -111,7 +114,7 @@ function AuditCard({
                 <ColumnList columns={audit.columns} />
                 {audit.cells.map((cell) => {
                     const key = `${cell.row_id}:${cell.column_index}`;
-                    const chosen = corrections[key] ?? cell.mentor_mark ?? "";
+                    const chosen = corrections[key] === null ? CLEAR : (corrections[key] ?? cell.mentor_mark ?? "");
                     return (
                         <div key={key} className="min-w-0 space-y-2 border-t border-gray-100 pt-3">
                             <p className="break-words text-sm font-medium text-gray-900">
@@ -129,10 +132,11 @@ function AuditCard({
                                         value={chosen}
                                         disabled={busy}
                                         onChange={(event) => {
-                                            const mark = event.target.value as TrainingAuditMark | "";
+                                            const value = event.target.value as TrainingAuditMark | typeof CLEAR | "";
                                             setCorrections((current) => {
                                                 const next = { ...current };
-                                                if (mark) next[key] = mark;
+                                                if (value === CLEAR) next[key] = null;
+                                                else if (value) next[key] = value;
                                                 else delete next[key];
                                                 return next;
                                             });
@@ -140,6 +144,7 @@ function AuditCard({
                                         className="rounded-xl border border-gray-200 bg-white px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     >
                                         <option value="">{t("mentor.keepMark")}</option>
+                                        {cell.mentor_mark && <option value={CLEAR}>{t("mentor.clearMark")}</option>}
                                         {AUDIT_MARKS.map((mark) => (
                                             <option key={mark} value={mark}>
                                                 {t(`marks.${mark}`)}

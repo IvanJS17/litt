@@ -285,6 +285,34 @@ describe("the mentor's section", () => {
         await waitFor(() => expect(api.getPupilReviewAudits).toHaveBeenCalledTimes(2));
     });
 
+    it("takes the mentor's own mark back with null", async () => {
+        const done = {
+            ...audit({
+                status: "complete",
+                completed_at: "2026-11-08T11:00:00.000Z",
+                evaluation: { outcome: "adequate", note: null, evaluated_at: "2026-11-09T10:00:00.000Z" },
+                cells: [cell({ mark: "correct" }), cell({ row_id: "row-2", column_index: 1, mark: "incorrect", mentor_mark: "incomplete" })],
+            }),
+            review_title: "Contratos de arrendamiento",
+        };
+        vi.mocked(api.getPupilReviewAudits).mockResolvedValue(listed([done]));
+        vi.mocked(api.evaluateReviewAudit).mockResolvedValue(done);
+        renderEs(<MentorReviewAudits orgId="o1" pupilId="p1" />);
+        expect(await screen.findByText("Contratos de arrendamiento")).toBeInTheDocument();
+        const [first, second] = screen.getAllByLabelText("Tu marca");
+        // Only a cell with a mark of the mentor offers to take it back.
+        expect(within(first).queryByRole("option", { name: "Quitar mi marca" })).toBeNull();
+        fireEvent.change(second, { target: { value: "clear" } });
+        fireEvent.click(screen.getByRole("button", { name: "Guardar evaluación" }));
+        await waitFor(() =>
+            expect(api.evaluateReviewAudit).toHaveBeenCalledWith("o1", "p1", "a1", {
+                outcome: "adequate",
+                note: null,
+                corrections: [{ row_id: "row-2", column_index: 1, mark: null }],
+            }),
+        );
+    });
+
     it("shows a recorded evaluation and reports a stale audit by its own sentence", async () => {
         const done = {
             ...audit({

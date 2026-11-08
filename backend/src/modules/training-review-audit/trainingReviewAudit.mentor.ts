@@ -122,7 +122,8 @@ export async function listPupilReviewAudits(db: Db, actor: Actor): Promise<Servi
 type Evaluation = {
     outcome: TrainingAuditOutcome;
     note: string | null;
-    corrections: { row_id: string; column_index: number; mark: NonNullable<AuditItem["mark"]> }[];
+    /** `mark: null` takes the mentor's earlier mark back. */
+    corrections: { row_id: string; column_index: number; mark: NonNullable<AuditItem["mark"]> | null }[];
 };
 
 /** The evaluation request as stored, or what is wrong with it. */
@@ -149,7 +150,8 @@ export function readEvaluationBody(body: unknown): ServiceResult<Evaluation> {
                 !isUuid(entry.row_id) ||
                 typeof entry.column_index !== "number" ||
                 !Number.isInteger(entry.column_index) ||
-                !isAuditMark(entry.mark)
+                !("mark" in entry) ||
+                (entry.mark !== null && !isAuditMark(entry.mark))
             )
                 return failure("validation", "The corrections are not valid.");
             corrections.push({ row_id: entry.row_id, column_index: entry.column_index, mark: entry.mark });
@@ -197,9 +199,15 @@ export async function evaluateReviewAudit(
     const corrected = new Map(input.data.corrections.map((entry) => [itemKey(entry), entry.mark]));
     // The mentor corrects only what they saw.
     for (const key of corrected.keys()) if (!readable.has(key)) return failure("validation", "The corrections are not valid.");
-    const sample = settled.data.sample.map((item) =>
-        corrected.has(itemKey(item)) ? { ...item, mentor_mark: corrected.get(itemKey(item))! } : item,
-    );
+    // The current mentor may change their mark, or take it back (null): the
+    // item then goes back to what the person marked, as if never corrected.
+    const sample = settled.data.sample.map((item) => {
+        const key = itemKey(item);
+        if (!corrected.has(key)) return item;
+        const { mentor_mark: _earlier, ...rest } = item;
+        const mark = corrected.get(key);
+        return mark ? { ...rest, mentor_mark: mark } : rest;
+    });
     const now = new Date().toISOString();
     const { data: saved, error: saveError } = await db
         .from("training_review_audits")

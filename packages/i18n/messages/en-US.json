@@ -611,6 +611,7 @@
           "unmarked": "Not marked yet",
           "yourMark": "Your mark",
           "keepMark": "Keep their mark",
+          "clearMark": "Remove my mark",
           "withheld": "You cannot read the documents behind this answer, so it is not shown.",
           "evaluate": "Your evaluation",
           "noteLabel": "Note for the pupil (optional)",

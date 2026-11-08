@@ -454,6 +454,45 @@ describe("the mentor's evaluation", () => {
         expect(again.body.evaluation).toMatchObject({ outcome: "adequate", note: null });
     });
 
+    it("lets the current mentor change their mark, and take it back, without touching the person's", async () => {
+        const started = await startAndMarkAll();
+        await as(PUPIL).post(`${audit}/complete`).send({});
+        const [target, other] = started.cells;
+        const put = (body: object, who = MENTOR) => as(who).put(`${mentorBase}/${started.id}/evaluation`).send(body);
+        const markOf = (body: { cells: { row_id: string; column_index: number; mentor_mark: string | null; mark: string | null }[] }, cell = target) =>
+            body.cells.find((c) => key(c) === key(cell))!;
+        const at = (cell: { row_id: string; column_index: number }) => ({ row_id: cell.row_id, column_index: cell.column_index });
+
+        const first = await put({ outcome: "adequate", corrections: [{ ...at(target), mark: "incorrect" }, { ...at(other), mark: "incomplete" }] });
+        expect(markOf(first.body).mentor_mark).toBe("incorrect");
+        // Change it.
+        const changed = await put({ outcome: "adequate", corrections: [{ ...at(target), mark: "correct" }] });
+        expect(changed.status).toBe(200);
+        expect(markOf(changed.body).mentor_mark).toBe("correct");
+        expect(markOf(changed.body, other).mentor_mark).toBe("incomplete");
+        // Take it back: the key leaves the stored item altogether.
+        const removed = await put({ outcome: "adequate", corrections: [{ ...at(target), mark: null }] });
+        expect(removed.status).toBe(200);
+        expect(markOf(removed.body).mentor_mark).toBeNull();
+        expect(markOf(removed.body).mark).toBe("correct");
+        const stored = (rows()[0].sample as Row[]).find((item) => key(item as never) === key(target))!;
+        expect(Object.keys(stored).sort()).toEqual(["column_index", "digest", "mark", "row_id"]);
+        // Leaving a cell out keeps whatever the mentor had; a correction without `mark` is not valid.
+        expect(markOf((await put({ outcome: "adequate" })).body, other).mentor_mark).toBe("incomplete");
+        expect((await put({ outcome: "adequate", corrections: [at(target)] })).status).toBe(400);
+        expect((await put({ outcome: "adequate", corrections: [{ ...at(target), mark: "x" }] })).status).toBe(400);
+        // Only the current mentor can; the former one gets a 404 and nothing changes.
+        expect((await put({ outcome: "adequate", corrections: [{ ...at(other), mark: null }] }, FORMER_MENTOR)).status).toBe(404);
+        expect(markOf((await put({ outcome: "adequate" })).body, other).mentor_mark).toBe("incomplete");
+        // The trail only inserts events, naming ids and nothing of the marks.
+        const events = vi.mocked(recordAudit).mock.calls.map(([, event]) => event).filter((e) => e.action === "training.review_audit_evaluated");
+        expect(events.length).toBeGreaterThanOrEqual(5);
+        for (const event of events) {
+            expect(Object.keys(event.detail ?? {}).sort()).toEqual(["org_id", "target_user_id"]);
+            expect(JSON.stringify(event)).not.toMatch(/incorrect|incomplete|correct|mentor_mark/);
+        }
+    });
+
     it("waits for the person to finish, refuses stale audits and bad requests", async () => {
         const started = await as(PUPIL).post(audit).send({});
         const url = `${mentorBase}/${started.body.id}/evaluation`;

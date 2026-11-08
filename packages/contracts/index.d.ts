@@ -939,8 +939,11 @@ export interface TrainingPupilReviewAudits {
 export interface TrainingAuditEvaluationBody {
     outcome: TrainingAuditOutcome;
     note?: string | null;
-    /** The mentor's own mark on sampled cells, over the person's. */
-    corrections?: { row_id: string; column_index: number; mark: TrainingAuditMark }[];
+    /**
+     * The mentor's own mark on sampled cells, over the person's. The current
+     * mentor may change it again, or take it back with `mark: null`.
+     */
+    corrections?: { row_id: string; column_index: number; mark: TrainingAuditMark | null }[];
 }
 
 // --- Training layer 3, card 9 (end) ---
