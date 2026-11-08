@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { BASELINE, CATALOGS, extractSource, run } from "./extract.mjs";
-import { PENDING_TRANSLATION, visibleLiterals } from "./literals.mjs";
+import { BASELINE, CATALOGS, dynamicUses, extractSource, run } from "./extract.mjs";
+import { PENDING_TRANSLATION, parseSource, visibleLiterals } from "./literals.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => readFileSync(join(HERE, "__fixtures__", name), "utf8");
@@ -139,6 +139,110 @@ describe("extract: one file", () => {
     });
 });
 
+describe("extract: dynamic uses", () => {
+    it("lists t, t.rich, t.markup and useTranslations calls whose argument is not a literal, with what is known of the key", () => {
+        const uses = dynamicUses(parseSource(FILE, fixture("Dynamic.tsx")));
+        expect(uses.map(({ line, callee, arg, prefix }) => ({ line, callee, arg, prefix }))).toEqual([
+            { line: 5, callee: "useTranslations", arg: "ns", prefix: "" },
+            { line: 9, callee: "t", arg: "`status.${status}`", prefix: "status." },
+            { line: 10, callee: "t", arg: "KEY", prefix: "" },
+            { line: 11, callee: "t.rich", arg: '"rich." + status', prefix: "rich." },
+            { line: 12, callee: "t.markup", arg: "status", prefix: "" },
+        ]);
+    });
+
+    it("does not list literal arguments, no-argument calls or getTranslations options", () => {
+        const source = [
+            `export async function A() {`,
+            `    const t = await getTranslations();`,
+            `    const u = await getTranslations({ locale: "en-US", namespace: "a" });`,
+            `    const v = useTranslations("a.b");`,
+            "    return [t(\"a.b\"), t(`a.c`), v(\"c\")];",
+            `}`,
+        ].join("\n");
+        expect(dynamicUses(parseSource(FILE, source))).toEqual([]);
+    });
+});
+
+describe("extract: dynamic uses through any translator", () => {
+    const uses = (...lines) =>
+        dynamicUses(parseSource(FILE, lines.join("\n"))).map(({ line, callee, arg, prefix }) => ({ line, callee, arg, prefix }));
+
+    it("sees the shared factory: clientTranslator()(key)", () => {
+        expect(uses("const a = clientTranslator()(`p.${x}`);", "const b = clientTranslator().rich(k);")).toEqual([
+            { line: 1, callee: "clientTranslator()", arg: "`p.${x}`", prefix: "p." },
+            { line: 2, callee: "clientTranslator().rich", arg: "k", prefix: "" },
+        ]);
+    });
+
+    it("sees createTranslator(...)(key), a factory by the *Translator naming rule, and the namespace option", () => {
+        expect(
+            uses(
+                "const a = createTranslator({ locale, messages })(`q.${x}`);",
+                "const b = getFooTranslator(1)(k);",
+                "const c = createTranslator({ locale, messages, namespace: ns });",
+            ),
+        ).toEqual([
+            { line: 1, callee: "createTranslator({ locale, messages })", arg: "`q.${x}`", prefix: "q." },
+            { line: 2, callee: "getFooTranslator(1)", arg: "k", prefix: "" },
+            { line: 3, callee: "createTranslator", arg: "ns", prefix: "" },
+        ]);
+    });
+
+    it("sees an alias of useTranslations/getTranslations/clientTranslator under any name, also chained", () => {
+        expect(
+            uses(
+                "const tr = useTranslations('ns'); tr(`k.${x}`);",
+                "const g = await getTranslations(); g.markup(m);",
+                "const c = clientTranslator(); const d = c; d(`z.${y}`);",
+            ),
+        ).toEqual([
+            { line: 1, callee: "tr", arg: "`k.${x}`", prefix: "k." },
+            { line: 2, callee: "g.markup", arg: "m", prefix: "" },
+            { line: 3, callee: "d", arg: "`z.${y}`", prefix: "z." },
+        ]);
+    });
+
+    it("sees a hook imported under another name", () => {
+        expect(
+            uses(
+                "import { useTranslations as ut, getTranslations as gt, clientTranslator as ct } from 'x';",
+                "const a = ut(ns); const b = ut('ok'); const c = ct()(`m.${k}`); const d = i18n.useTranslations(ns2);",
+                "const e = ut('a'); e(k);",
+            ),
+        ).toEqual([
+            { line: 2, callee: "ut", arg: "ns", prefix: "" },
+            { line: 2, callee: "ct()", arg: "`m.${k}`", prefix: "m." },
+            { line: 2, callee: "i18n.useTranslations", arg: "ns2", prefix: "" },
+            { line: 3, callee: "e", arg: "k", prefix: "" },
+        ]);
+    });
+
+    it("covers the namespace option of getTranslations: dynamic and spread are listed, literal is not", () => {
+        expect(
+            uses(
+                "const a = await getTranslations({ locale, namespace: ns });",
+                "const b = await getTranslations({ locale, namespace });",
+                "const c = await getTranslations({ ...opts });",
+                "const d = await getTranslations({ locale, namespace: 'ok' });",
+                "const e = await getTranslations({ locale });",
+                "const f = await getTranslations({ namespace: `a.${x}` });",
+            ),
+        ).toEqual([
+            { line: 1, callee: "getTranslations", arg: "ns", prefix: "" },
+            { line: 2, callee: "getTranslations", arg: "namespace", prefix: "" },
+            { line: 3, callee: "getTranslations", arg: "...opts", prefix: "" },
+            { line: 6, callee: "getTranslations", arg: "`a.${x}`", prefix: "a." },
+        ]);
+    });
+
+    it("does not list literal keys or calls that are not translators", () => {
+        expect(
+            uses("clientTranslator()('a.b'); const tr = useTranslations('n'); tr('k'); tr(`k`); foo(`x.${y}`); other.t(k); notT(k);"),
+        ).toEqual([]);
+    });
+});
+
 describe("extract: run over the repository", () => {
     let repo;
     afterEach(() => rmSync(repo, { recursive: true, force: true }));
@@ -217,6 +321,111 @@ describe("extract: run over the repository", () => {
         expect(es.demo.files.sharedFiles).toBe(`${PENDING_TRANSLATION}Shared files`);
         // Only Other.tsx uses it now, as t("readyToGo") under useTranslations("demo.files").
         expect(en.demo.files.readyToGo).toBe("Ready to go");
+    });
+
+    describe("--prune and dynamic keys", () => {
+        const dynamicSetUp = () => {
+            setUp();
+            run({ repo, namespace: "demo.files", paths: [FILE], write: true, ...quiet });
+            // A key nobody names, and a component that builds keys at run time.
+            const en = JSON.parse(readFileSync(join(repo, CATALOGS.en), "utf8"));
+            en.demo.files.orphan = "Orphan";
+            en.demo.files.status = { open: "Open", closed: "Closed" };
+            en.demo.other = { x: "X" };
+            writeFileSync(join(repo, CATALOGS.en), JSON.stringify(en));
+            const es = JSON.parse(readFileSync(join(repo, CATALOGS.es), "utf8"));
+            es.demo.files.orphan = "Huérfano";
+            es.demo.files.status = { open: "Abierto", closed: "Cerrado" };
+            es.demo.other = { x: "X" };
+            writeFileSync(join(repo, CATALOGS.es), JSON.stringify(es));
+            writeFileSync(
+                join(repo, "frontend/src/i18n/Dyn.tsx"),
+                "export function D({ s }: { s: string }) { const t = useTranslations(); return <p>{t(`demo.files.status.${s}`)}</p>; }\n",
+            );
+        };
+        const keysOf = () => JSON.parse(readFileSync(join(repo, CATALOGS.en), "utf8")).demo;
+
+        it("warns with file:line for each dynamic call while extracting", () => {
+            setUp();
+            const dyn = join(repo, "frontend/src/i18n/Dyn.tsx");
+            writeFileSync(dyn, "export function D({ k }: { k: string }) {\n    const t = useTranslations();\n    return <p>{t(k)}</p>;\n}\n");
+            const warnings = [];
+            run({ repo, namespace: "demo", paths: ["frontend/src/i18n/Dyn.tsx"], ...quiet, warn: (w) => warnings.push(w) });
+            expect(warnings).toEqual([
+                "warning: frontend/src/i18n/Dyn.tsx:3 t(k) is not a literal: --prune cannot see which keys it uses\n",
+            ]);
+        });
+
+        it("refuses to prune, changes nothing and says why, even in a dry run", () => {
+            dynamicSetUp();
+            const before = snapshot();
+            const warnings = [];
+            const prune = (extra = {}) => run({ repo, namespace: "demo.files", prune: true, ...quiet, warn: (w) => warnings.push(w), ...extra });
+            expect(() => prune()).toThrow(/--prune refused: 1 call\(s\).*--allow-dynamic/);
+            expect(() => prune({ write: true })).toThrow(/--prune refused/);
+            expect(warnings.join("")).toContain("frontend/src/i18n/Dyn.tsx:1 t(`demo.files.status.${s}`) is not a literal");
+            expect(snapshot()).toEqual({ ...before });
+            expect(keysOf().files.orphan).toBe("Orphan");
+        });
+
+        it("--allow-dynamic prunes, but keeps every key a dynamic use may reach", () => {
+            dynamicSetUp();
+            const report = run({ repo, namespace: "demo.files", prune: true, allowDynamic: true, write: true, ...quiet, warn: () => {} });
+            expect(report).toContain("- demo.files.orphan (no source uses it)");
+            expect(keysOf().files.orphan).toBeUndefined();
+            expect(keysOf().files.status).toEqual({ open: "Open", closed: "Closed" }); // reachable: kept
+            expect(keysOf().other).toEqual({ x: "X" }); // another namespace: not pruned
+            const es = JSON.parse(readFileSync(join(repo, CATALOGS.es), "utf8"));
+            expect(es.demo.files.orphan).toBeUndefined();
+            expect(es.demo.files.status.open).toBe("Abierto");
+        });
+
+        it("keeps the whole namespace when a dynamic use gives no prefix", () => {
+            dynamicSetUp();
+            writeFileSync(
+                join(repo, "frontend/src/i18n/Dyn.tsx"),
+                "export function D({ k }: { k: string }) { const t = useTranslations(); return <p>{t(k)}</p>; }\n",
+            );
+            const report = run({ repo, namespace: "demo.files", prune: true, allowDynamic: true, write: true, ...quiet, warn: () => {} });
+            expect(report).not.toContain("- demo.files");
+            expect(keysOf().files.orphan).toBe("Orphan");
+        });
+
+        it("a namespaced translator with a variable namespace also blocks pruning", () => {
+            dynamicSetUp();
+            writeFileSync(
+                join(repo, "frontend/src/i18n/Dyn.tsx"),
+                "export function D({ ns }: { ns: string }) { const t = useTranslations(ns); return <p>{t(\"x\")}</p>; }\n",
+            );
+            expect(() => run({ repo, namespace: "demo.files", prune: true, ...quiet, warn: () => {} })).toThrow(/--prune refused/);
+        });
+
+        it("the Reviewer's scenario: clientTranslator()(`ns.${k}`) stops --prune, and --allow-dynamic keeps what it reaches", () => {
+            dynamicSetUp();
+            writeFileSync(
+                join(repo, "frontend/src/i18n/Dyn.tsx"),
+                "export const f = (k: string) => clientTranslator()(`demo.files.status.${k}`);\n",
+            );
+            const before = snapshot();
+            expect(() => run({ repo, namespace: "demo.files", prune: true, ...quiet, warn: () => {} })).toThrow(/--prune refused: 1 call/);
+            expect(() => run({ repo, namespace: "demo.files", prune: true, write: true, ...quiet, warn: () => {} })).toThrow(/--prune refused/);
+            expect(snapshot()).toEqual(before);
+            run({ repo, namespace: "demo.files", prune: true, allowDynamic: true, write: true, ...quiet, warn: () => {} });
+            expect(keysOf().files.status).toEqual({ open: "Open", closed: "Closed" });
+            expect(keysOf().files.orphan).toBeUndefined();
+        });
+
+        it("warns at the line of the original source, not of the rewritten one", () => {
+            setUp();
+            const file = "frontend/src/i18n/Dyn.tsx";
+            writeFileSync(
+                join(repo, file),
+                "export function D({ k }: { k: string }) {\n    const tr = useTranslations();\n    return <p>{tr(k)} <b>Hello there</b></p>;\n}\n",
+            );
+            const warnings = [];
+            run({ repo, namespace: "demo", paths: [file], ...quiet, warn: (w) => warnings.push(w) });
+            expect(warnings).toEqual([`warning: ${file}:3 tr(k) is not a literal: --prune cannot see which keys it uses\n`]);
+        });
     });
 
     it("rejects a missing or malformed namespace, and an unknown source locale", () => {

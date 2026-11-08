@@ -17,6 +17,7 @@
 //   node scripts/i18n/extract.mjs --ns <namespace> --write <path>...
 //   node scripts/i18n/extract.mjs --ns <namespace> --from es-MX --write <path>...  # Spanish source text
 //   node scripts/i18n/extract.mjs --ns <namespace> --prune [--write]  # drops unused keys of <namespace>
+//   ... --prune --allow-dynamic   # when t(`ns.${x}`)-style calls exist: keeps the keys they may reach
 //
 // Paths are relative to the repository root. See docs/i18n.md.
 
@@ -230,6 +231,158 @@ function call(key, args) {
     if (!args.length) return `t(${JSON.stringify(key)})`;
     const values = args.map((a) => (a.name === a.text ? a.name : `${a.name}: ${a.text}`)).join(", ");
     return `t(${JSON.stringify(key)}, { ${values} })`;
+}
+
+// ---------------------------------------------------------------- dynamic uses
+
+/**
+ * The one place that says what counts as a translator call. Add a new
+ * factory or hook here (and to docs/i18n.md) and --prune sees its calls.
+ */
+export const TRANSLATORS = {
+    /** Bare names of a translator function. */
+    names: ["t"],
+    /** `t.<member>(...)` variants. */
+    members: ["rich", "markup"],
+    /** Hooks / getters taking a namespace and returning a translator: `useTranslations(ns)`. */
+    hooks: ["useTranslations", "getTranslations"],
+    /** Factories whose call returns a translator: `clientTranslator()(key)`. */
+    factories: ["clientTranslator", "createTranslator"],
+    /** Any other callee named like this is a factory too (fail-safe: `getFooTranslator()(key)`). */
+    factoryPattern: /Translator$/,
+};
+const NAMESPACE_TAKERS = [...TRANSLATORS.hooks, "createTranslator"];
+const TRANSLATE_HINT = new RegExp(
+    `\\b(${[...TRANSLATORS.names, ...TRANSLATORS.hooks, ...TRANSLATORS.factories].join("|")})\\b|Translator\\b`,
+);
+
+const unwrap = (e) => {
+    while (ts.isParenthesizedExpression(e) || ts.isNonNullExpression(e) || ts.isAsExpression(e) || ts.isAwaitExpression(e)) e = e.expression;
+    return e;
+};
+
+/** Local names bound to a known hook or factory by an import (`import { useTranslations as ut }`) or an alias. */
+function translatorBindings(sf) {
+    const hooks = new Set(TRANSLATORS.hooks);
+    const factories = new Set(TRANSLATORS.factories);
+    const translators = new Set(TRANSLATORS.names);
+    const isFactoryName = (n) => factories.has(n) || TRANSLATORS.factoryPattern.test(n);
+    const nameOf = (e) => (ts.isIdentifier(e) ? e.text : ts.isPropertyAccessExpression(e) ? e.name.text : "");
+    const imports = [];
+    const decls = [];
+    const collect = (n) => {
+        if (ts.isImportSpecifier(n) && n.propertyName) imports.push([n.name.text, n.propertyName.text]);
+        if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) decls.push(n);
+        ts.forEachChild(n, collect);
+    };
+    collect(sf);
+    for (const [local, original] of imports) {
+        if (hooks.has(original)) hooks.add(local);
+        if (factories.has(original)) factories.add(local);
+        if (translators.has(original)) translators.add(local);
+    }
+    // const tr = useTranslations("ns"); const tr = await getTranslations(); const tr = clientTranslator();
+    // Repeated until stable so that an alias of an alias is found.
+    for (let grew = true; grew; ) {
+        grew = false;
+        for (const d of decls) {
+            const init = unwrap(d.initializer);
+            let kind = null;
+            if (ts.isCallExpression(init)) {
+                const name = nameOf(unwrap(init.expression));
+                if (hooks.has(name) || isFactoryName(name)) kind = translators;
+            } else if (ts.isIdentifier(init)) {
+                if (translators.has(init.text)) kind = translators;
+                else if (hooks.has(init.text)) kind = hooks;
+                else if (factories.has(init.text)) kind = factories;
+            }
+            if (kind && !kind.has(d.name.text)) {
+                kind.add(d.name.text);
+                grew = true;
+            }
+        }
+    }
+    return { hooks, factories, translators, nameOf, isFactoryName };
+}
+
+/**
+ * Calls to a translator (t, t.rich, t.markup, an alias of useTranslations()
+ * or clientTranslator(), `clientTranslator()(...)`, `createTranslator(...)(...)`)
+ * whose first argument is not a string literal, and to a hook
+ * (useTranslations, getTranslations, createTranslator) whose namespace
+ * (first argument, or the `namespace` option) is not a string literal: the
+ * key cannot be read from the source, so --prune cannot see it. Each one has
+ * its line and the literal `prefix` the key is known to start with (""
+ * when nothing is known: a variable, an imported constant, a call).
+ * A callee that looks like a translator but cannot be resolved counts as
+ * dynamic: failing towards keeping keys.
+ */
+export function dynamicUses(sf) {
+    const b = translatorBindings(sf);
+    const found = [];
+    const isTranslatorCallee = (raw) => {
+        const callee = unwrap(raw);
+        if (ts.isIdentifier(callee)) return b.translators.has(callee.text);
+        if (ts.isPropertyAccessExpression(callee)) {
+            const base = unwrap(callee.expression);
+            return TRANSLATORS.members.includes(callee.name.text) && isTranslatorCallee(base);
+        }
+        if (ts.isCallExpression(callee)) {
+            const name = b.nameOf(unwrap(callee.expression));
+            return b.factories.has(name) || b.isFactoryName(name);
+        }
+        return false;
+    };
+    const hookName = (raw) => {
+        const callee = unwrap(raw);
+        const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : "";
+        return b.hooks.has(name) || b.factories.has(name) ? name : "";
+    };
+    const prefixOf = (arg) =>
+        ts.isTemplateExpression(arg)
+            ? arg.head.text
+            : ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken && isStringLiteral(arg.left)
+              ? arg.left.text
+              : "";
+    const add = (n, callee, arg) =>
+        found.push({
+            line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+            callee,
+            arg: arg.getText(sf).replace(/\s+/g, " "),
+            prefix: prefixOf(arg),
+        });
+    const visit = (n) => {
+        if (ts.isCallExpression(n) && n.arguments.length) {
+            const arg = n.arguments[0];
+            const hook = hookName(n.expression);
+            if (hook) {
+                if (ts.isObjectLiteralExpression(arg)) {
+                    // Options form, getTranslations({ locale, namespace }): only the namespace matters.
+                    if (b.hooks.has(hook) || NAMESPACE_TAKERS.includes(hook)) {
+                        for (const prop of arg.properties) {
+                            if (ts.isSpreadAssignment(prop)) add(n, n.expression.getText(sf), prop);
+                            else if (prop.name && prop.name.getText(sf).replace(/["'`]/g, "") === "namespace") {
+                                const value = ts.isShorthandPropertyAssignment(prop) ? prop.name : ts.isPropertyAssignment(prop) ? prop.initializer : prop;
+                                if (!isStringLiteral(value)) add(n, n.expression.getText(sf), value);
+                            }
+                        }
+                    }
+                } else if (b.hooks.has(hook) && !isStringLiteral(arg)) add(n, n.expression.getText(sf), arg);
+            } else if (isTranslatorCallee(n.expression) && !isStringLiteral(arg)) add(n, n.expression.getText(sf), arg);
+        }
+        ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    return found;
+}
+
+const dynamicWarning = (file, use) =>
+    `warning: ${file}:${use.line} ${use.callee}(${use.arg}) is not a literal: --prune cannot see which keys it uses\n`;
+
+/** Whether a dynamic use may reach a key, as a full key or under a namespaced translator. */
+function mayReach(use, key) {
+    const parts = key.split(".");
+    return parts.some((_, i) => parts.slice(i).join(".").startsWith(use.prefix));
 }
 
 // ---------------------------------------------------------------- scopes
@@ -523,22 +676,31 @@ function unifiedDiff(label, before, after) {
     }
 }
 
-/** Keys of the namespace that no source file names any more. */
-function unusedKeys(repo, catalog, namespace, pending) {
+/** The source files --prune looks keys up in, with `pending` (not yet written) contents. */
+function keyUserFiles(repo, pending) {
+    return KEY_USERS.filter((p) => existsSync(join(repo, p)))
+        .flatMap((p) => sourceFiles(join(repo, p)))
+        .map((abs) => {
+            const original = readFileSync(abs, "utf8");
+            return { name: toRepo(repo, abs), text: pending.get(abs) ?? original, original };
+        });
+}
+
+/** Keys of the namespace that no source file names any more, less those a dynamic use may reach. */
+function unusedKeys(files, catalog, namespace, dynamic) {
     const root = subtree(catalog.en, namespace, false);
     if (!root) return [];
-    const sources = KEY_USERS.filter((p) => existsSync(join(repo, p)))
-        .flatMap((p) => sourceFiles(join(repo, p)))
-        .map((abs) => pending.get(abs) ?? readFileSync(abs, "utf8"));
+    const sources = files.map((f) => f.text);
     const quoted = (s) => new RegExp(`["'\`]${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`);
     return leaves(root, `${namespace}.`).filter((key) => {
         const parts = key.split(".");
         // Used in full, or through a namespaced translator: t = useTranslations("a.b"); t("c").
-        return !sources.some(
+        const named = sources.some(
             (src) =>
                 quoted(key).test(src) ||
                 parts.slice(1).some((_, i) => quoted(parts.slice(0, i + 1).join(".")).test(src) && quoted(parts.slice(i + 1).join(".")).test(src)),
         );
+        return !named && !dynamic.some((use) => mayReach(use, key));
     });
 }
 
@@ -553,7 +715,9 @@ export function run({
     from = "en-US",
     write = false,
     prune = false,
+    allowDynamic = false,
     out = (s) => process.stdout.write(s),
+    warn = (s) => process.stderr.write(s),
 }) {
     if (!namespace || !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)*$/.test(namespace))
         throw new Error("--ns <namespace> is required, as dotted camelCase: settings.appearance");
@@ -568,6 +732,19 @@ export function run({
     const changed = [];
     let catalogChanged = false;
     let baselineChanged = false;
+    const warned = new Set();
+    const warnDynamic = (file, source) => {
+        if (!TRANSLATE_HINT.test(source)) return [];
+        const uses = dynamicUses(parseSource(file, source));
+        for (const use of uses) {
+            const message = dynamicWarning(file, use);
+            if (!warned.has(message)) {
+                warned.add(message);
+                warn(message);
+            }
+        }
+        return uses;
+    };
 
     for (const path of paths) {
         const abs = resolve(repo, path);
@@ -588,6 +765,7 @@ export function run({
             }
             for (const { key, message } of result.added) say(`+ ${key}: ${JSON.stringify(message)}\n`);
             for (const s of result.skipped) say(`left ${name}:${s.line} ${JSON.stringify(s.text)}: ${s.reason}\n`);
+            warnDynamic(name, source);
             const left = visibleLiterals(name, result.source).length;
             const before = baseline.allowed[name] ?? 0;
             if (left !== before) {
@@ -600,7 +778,14 @@ export function run({
     }
     if (prune) {
         const pending = new Map(changed.map(({ file, source }) => [file, source]));
-        for (const key of unusedKeys(repo, catalog, namespace, pending)) {
+        const files = keyUserFiles(repo, pending);
+        const dynamic = files.flatMap(({ name, original }) => warnDynamic(name, original));
+        if (dynamic.length && !allowDynamic)
+            throw new Error(
+                `--prune refused: ${dynamic.length} call(s) of t(), t.rich(), t.markup(), a translator from useTranslations(), getTranslations() or a factory such as clientTranslator(), or those hooks themselves, take a key or namespace that is not a literal (listed above), so unused keys cannot be told apart. Nothing was changed. Make them literals, or add --allow-dynamic to prune without the keys they may reach.`,
+            );
+        if (dynamic.length) say(`(--allow-dynamic: keeping the keys ${dynamic.length} dynamic call(s) may reach)\n`);
+        for (const key of unusedKeys(files, catalog, namespace, dynamic)) {
             removeKey(catalog.en, key);
             removeKey(catalog.es, key);
             catalogChanged = true;
@@ -632,10 +817,18 @@ function main(argv) {
             from: { type: "string", default: "en-US" },
             write: { type: "boolean", default: false },
             prune: { type: "boolean", default: false },
+            "allow-dynamic": { type: "boolean", default: false },
         },
     });
     if (!positionals.length && !values.prune) throw new Error("give at least one path, or --prune");
-    run({ namespace: values.ns, paths: positionals, from: values.from, write: values.write, prune: values.prune });
+    run({
+        namespace: values.ns,
+        paths: positionals,
+        from: values.from,
+        write: values.write,
+        prune: values.prune,
+        allowDynamic: values["allow-dynamic"],
+    });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
