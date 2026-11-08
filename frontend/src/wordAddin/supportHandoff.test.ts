@@ -14,8 +14,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-    SUPPORT_DRAFT_AND_CLIPBOARD_MESSAGE,
-    SUPPORT_DRAFT_MESSAGE,
+    supportDraftAndClipboardMessage,
+    supportDraftMessage,
     SUPPORT_EMAIL,
     buildSupportDiagnostics,
     supportHandoffResult,
@@ -101,9 +101,9 @@ describe("supportHandoffResult", () => {
             supportHandoffResult({ copied: true, opened: true, details }),
         ).toEqual({
             tone: "success",
-            message: SUPPORT_DRAFT_AND_CLIPBOARD_MESSAGE,
+            message: supportDraftAndClipboardMessage(),
         });
-        expect(SUPPORT_DRAFT_AND_CLIPBOARD_MESSAGE).toBe(
+        expect(supportDraftAndClipboardMessage()).toBe(
             "Email draft opened — the details are also on your clipboard",
         );
     });
@@ -111,8 +111,8 @@ describe("supportHandoffResult", () => {
     it("still confirms the draft when the clipboard was refused", () => {
         expect(
             supportHandoffResult({ copied: false, opened: true, details }),
-        ).toEqual({ tone: "success", message: SUPPORT_DRAFT_MESSAGE });
-        expect(SUPPORT_DRAFT_MESSAGE).toBe("Email draft opened");
+        ).toEqual({ tone: "success", message: supportDraftMessage() });
+        expect(supportDraftMessage()).toBe("Email draft opened");
     });
 
     it("names the mailbox when the host would not open the draft", () => {

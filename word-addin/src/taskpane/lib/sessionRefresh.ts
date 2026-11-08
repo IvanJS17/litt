@@ -9,7 +9,12 @@
  *
  * Pure, so each rule can be asserted without a network.
  */
-import { isNetworkError, isOffline, isTimeoutError } from "@mike/client";
+import {
+  clientTranslator,
+  isNetworkError,
+  isOffline,
+  isTimeoutError,
+} from "@mike/client";
 
 export type SessionRefreshOutcome =
   /** The session came back. Re-run the request that got the 401. */
@@ -19,13 +24,18 @@ export type SessionRefreshOutcome =
   /** The refresh never got an answer. Nothing is known about the session. */
   | { kind: "unreachable" };
 
-/** Shown for `unreachable`. The session may well still be perfectly good. */
-export const SESSION_CHECK_FAILED_MESSAGE =
-  "Couldn't check your session. Check your connection and try again.";
+/**
+ * Shown for `unreachable`. The session may well still be perfectly good.
+ * A function, read when shown, so it follows the pane's current language.
+ */
+export function sessionCheckFailedMessage(): string {
+  return clientTranslator()("word.notify.sessionCheckFailed");
+}
 
 /** Shown for `expired`, by the toast and by any screen that failed on it. */
-export const SESSION_EXPIRED_MESSAGE =
-  "Your session has expired. Sign in again to continue.";
+export function sessionExpiredMessage(): string {
+  return clientTranslator()("errors.message.unauthenticated");
+}
 
 /**
  * Codes the API client gives the error for a 401 this layer has already
@@ -36,11 +46,6 @@ export const SESSION_EXPIRED_MESSAGE =
 export const SESSION_ERROR_CODES = {
   expired: "session_expired",
   unreachable: "session_unreachable",
-} as const;
-
-const SESSION_ERROR_MESSAGES = {
-  expired: SESSION_EXPIRED_MESSAGE,
-  unreachable: SESSION_CHECK_FAILED_MESSAGE,
 } as const;
 
 type HandledOutcome = keyof typeof SESSION_ERROR_CODES;
@@ -58,7 +63,10 @@ export function sessionHandledError(
   if (!outcome) return null;
   return {
     code: SESSION_ERROR_CODES[outcome],
-    message: SESSION_ERROR_MESSAGES[outcome],
+    message:
+      outcome === "expired"
+        ? sessionExpiredMessage()
+        : sessionCheckFailedMessage(),
   };
 }
 

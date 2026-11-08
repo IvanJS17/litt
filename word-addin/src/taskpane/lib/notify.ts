@@ -20,6 +20,7 @@ import {
   type UserFacingError,
   retryToastAction,
   showToast,
+  clientTranslator,
   createErrorNotifier,
   notifyInfo,
   notifySuccess,
@@ -28,9 +29,9 @@ import {
 import {
   isSessionHandledError,
   retryWhenSessionRecovers,
-  SESSION_CHECK_FAILED_MESSAGE,
   SESSION_ERROR_CODES,
-  SESSION_EXPIRED_MESSAGE,
+  sessionCheckFailedMessage,
+  sessionExpiredMessage,
 } from "./sessionRefresh";
 import { openExternalUrl } from "./openExternalUrl";
 import {
@@ -216,7 +217,7 @@ export const notifyError = createErrorNotifier<NotifyErrorOptions>({
     actions: wantsSupport
       ? [
           {
-            label: "Contact support",
+            label: clientTranslator()("word.notify.contactSupport"),
             keepOpen: true,
             onClick: () =>
               handOffToSupport(described, {
@@ -237,8 +238,8 @@ export const notifyError = createErrorNotifier<NotifyErrorOptions>({
 export function notifySessionExpired(): void {
   showToast({
     tone: "error",
-    title: "Sign in required",
-    message: SESSION_EXPIRED_MESSAGE,
+    title: clientTranslator()("errors.title.unauthenticated"),
+    message: sessionExpiredMessage(),
     dedupeKey: "session-expired",
   });
 }
@@ -254,8 +255,8 @@ export function notifySessionCheckFailed(
 ): void {
   showToast({
     tone: "error",
-    title: "Connection problem",
-    message: SESSION_CHECK_FAILED_MESSAGE,
+    title: clientTranslator()("errors.title.network"),
+    message: sessionCheckFailedMessage(),
     // A re-check that fails outright says so again instead of becoming an
     // unhandled rejection from the click.
     actions: onRetry
