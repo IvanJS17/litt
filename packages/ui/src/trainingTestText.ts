@@ -33,6 +33,7 @@ const WORDS: Record<string, string> = {
   noteRightForWrongReason: "Right for the wrong reason.",
   noteVerdictByMentor: "corrected by your mentor",
   noteVerdictHeading: "Match with the answer, per the AI contrast:",
+  noteVerdictHeadingByMentor: "Match with the answer, per your mentor:",
   "verdicts.coincide": "Matches",
   "verdicts.noCoincide": "Doesn't match",
   "verdicts.parcial": "Partly matches",

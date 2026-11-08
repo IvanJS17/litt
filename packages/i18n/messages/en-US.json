@@ -558,6 +558,7 @@
         "noteRightForWrongReason": "Your conclusion matches, but its basis doesn't: right for the wrong reason.",
         "noteVerdictByMentor": "corrected by your mentor",
         "noteVerdictHeading": "Match with the answer, per the AI contrast:",
+        "noteVerdictHeadingByMentor": "Match with the answer, per your mentor:",
         "passLater": "Urgency pass in force until {end, date, long}, {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
         "passToday": "Urgency pass in force until {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
         "verdicts": {

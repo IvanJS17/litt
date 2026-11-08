@@ -40,6 +40,7 @@ export type TrainingTurnKey =
   | `${Turn}.noteRightForWrongReason`
   | `${Turn}.noteVerdictByMentor`
   | `${Turn}.noteVerdictHeading`
+  | `${Turn}.noteVerdictHeadingByMentor`
   | `${Turn}.passLater`
   | `${Turn}.passToday`
   | `${Turn}.verdicts.coincide`
@@ -90,6 +91,7 @@ export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {
     confidence: (level) => t("training.criterion.turn.noteConfidence", { level }),
     confidenceLevels: levels,
     verdictHeading: t("training.criterion.turn.noteVerdictHeading"),
+    verdictHeadingByMentor: t("training.criterion.turn.noteVerdictHeadingByMentor"),
     verdicts: {
       coincide: t("training.criterion.turn.verdicts.coincide"),
       parcial: t("training.criterion.turn.verdicts.parcial"),

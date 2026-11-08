@@ -558,6 +558,7 @@
         "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
         "noteVerdictByMentor": "corregido por tu mentor",
         "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
+        "noteVerdictHeadingByMentor": "Coincidencia con la respuesta, según tu mentor:",
         "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
         "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
         "verdicts": {

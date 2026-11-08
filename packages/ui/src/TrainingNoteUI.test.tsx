@@ -90,6 +90,9 @@ describe("TrainingNoteUI", () => {
     });
     expect(screen.getByText("Partly matches")).toBeInTheDocument();
     expect(screen.getByText(/corrected by your mentor/)).toBeInTheDocument();
+    // The verdict is not the AI contrast's: its heading must not say so.
+    expect(screen.getByText("Match with the answer, per your mentor:")).toBeInTheDocument();
+    expect(screen.queryByText(/per the AI contrast/)).toBeNull();
     expect(screen.getByText("Basis: weak")).toBeInTheDocument();
   });
 

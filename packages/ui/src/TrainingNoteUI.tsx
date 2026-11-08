@@ -53,6 +53,8 @@ export interface TrainingNoteText {
   confidenceLevels: Record<TrainingConfidenceLevel, string>;
   /** "Match with the answer, according to the AI contrast" */
   verdictHeading: string;
+  /** The same heading when the verdict is the mentor's, not the AI contrast's. */
+  verdictHeadingByMentor: string;
   verdicts: Record<TrainingVerdictValue, string>;
   /** Said besides a verdict the mentor wrote. */
   verdictByMentor: string;
@@ -121,7 +123,9 @@ export function TrainingNoteUI({
             <div className="mt-2 min-w-0 text-sm text-foreground">
               <p className="break-words">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {text.verdictHeading}
+                  {note.verdict_source === "mentor"
+                    ? text.verdictHeadingByMentor
+                    : text.verdictHeading}
                 </span>{" "}
                 <strong className="font-semibold">{text.verdicts[verdict]}</strong>
                 {note.verdict_source === "mentor" ? (
