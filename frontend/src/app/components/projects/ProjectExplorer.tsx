@@ -6,6 +6,7 @@ import { isProjectItemDrag } from "@/app/lib/projectDragTypes";
 import { setRowDragPreview } from "@/app/lib/rowDragPreview";
 import {
     forwardRef,
+    type KeyboardEvent,
     useEffect,
     useImperativeHandle,
     useRef,
@@ -68,6 +69,20 @@ interface Props {
 /** A tree name: up to two lines, long unbroken names wrap; the full name is
  * in the row's `title`. */
 const EXPLORER_NAME_CLASS = "line-clamp-2 text-xs [overflow-wrap:anywhere]";
+
+/** Keyboard focus on a row, inset so the list's clipping does not cut it. */
+const ROW_FOCUS_CLASS =
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus";
+
+/** Enter or Space on the row itself (not on a field inside it) activates it. */
+function rowKeyDown(activate: () => void) {
+    return (event: KeyboardEvent<HTMLElement>) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        activate();
+    };
+}
 
 export interface ProjectExplorerHandle {
     createRootFolder: () => void;
@@ -311,6 +326,12 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                         <li key={`f-${folder.id}`}>
                             <div
                                 draggable
+                                role={isRenaming ? undefined : "button"}
+                                tabIndex={isRenaming ? undefined : 0}
+                                aria-expanded={isExpanded}
+                                onKeyDown={rowKeyDown(() =>
+                                    toggleFolder(folder.id),
+                                )}
                                 onDragStart={(e) => {
                                     e.dataTransfer.setData("application/mike-folder", folder.id);
                                     e.dataTransfer.effectAllowed = "move";
@@ -343,7 +364,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                         await handleDropOnTarget(folder.id, e);
                                     }
                                 }}
-                                className={`group flex cursor-pointer select-none items-center gap-1.5 rounded-lg py-1.5 pr-2 transition-colors ${
+                                className={`${ROW_FOCUS_CLASS} group flex cursor-pointer select-none items-center gap-1.5 rounded-lg py-1.5 pr-2 transition-colors ${
                                     isDragTarget
                                         ? "bg-interactive-soft ring-1 ring-inset ring-interactive-border"
                                         : "theme-dropdown-item"
@@ -396,9 +417,13 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                     const isSelected = doc.id === selectedDocId;
                     const isRenaming = renamingDocId === doc.id;
                     return (
-                        <li
-                            key={`d-${doc.id}`}
+                        <li key={`d-${doc.id}`}>
+                        <div
                             draggable
+                            role={isRenaming ? undefined : "button"}
+                            tabIndex={isRenaming ? undefined : 0}
+                            aria-current={isSelected ? "true" : undefined}
+                            onKeyDown={rowKeyDown(() => onDocClick(doc))}
                             onDragStart={(e) => {
                                 e.dataTransfer.setData("application/mike-doc", doc.id);
                                 e.dataTransfer.effectAllowed = "copyMove";
@@ -423,7 +448,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                     doc.id,
                                 )
                             }
-                            className={`flex cursor-pointer select-none items-center gap-2 rounded-lg py-1.5 pr-4 transition-colors ${
+                            className={`${ROW_FOCUS_CLASS} flex cursor-pointer select-none items-center gap-2 rounded-lg py-1.5 pr-4 transition-colors ${
                                 isSelected ? "theme-dropdown-selected text-gray-900" : "theme-dropdown-item text-gray-600 hover:text-gray-900"
                             }`}
                             style={{ paddingLeft: basePadding }}
@@ -465,6 +490,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                     doc.latest_version_number
                                 }
                             />
+                        </div>
                         </li>
                     );
                 })}
