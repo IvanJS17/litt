@@ -53,7 +53,8 @@
       "@testing-library/react": ["./node_modules/@testing-library/react"],
       "@testing-library/user-event": ["./node_modules/@testing-library/user-event"],
       "postcss": ["./node_modules/postcss"],
-      "@formatjs/icu-messageformat-parser": ["./node_modules/@formatjs/icu-messageformat-parser"]
+      "@formatjs/icu-messageformat-parser": ["./node_modules/@formatjs/icu-messageformat-parser"],
+      "use-intl": ["./node_modules/use-intl"]
     }
   },
   "include": [

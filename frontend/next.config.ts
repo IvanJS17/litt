@@ -3,7 +3,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
 import createNextIntlPlugin from "next-intl/plugin";
-import { resolveSourceCommit } from "@mike/client";
+import type { resolveSourceCommit as ResolveSourceCommit } from "@mike/client";
 
 // The repository root: the parent of this directory, here and in the Docker
 // image (frontend/Dockerfile mirrors the layout at /app/frontend and
@@ -83,10 +83,17 @@ const nextConfig: NextConfig = {
     skipTrailingSlashRedirect: true,
 };
 
-export default function config(phase: string): NextConfig {
+export default async function config(phase: string): Promise<NextConfig> {
     // AGPL-3.0 §13: the commit this build serves, inlined for the "Código
     // fuente" link. `next build` fails without GIT_SHA; `next dev` falls back
-    // to the checkout's HEAD.
+    // to the checkout's HEAD. The file is loaded by its source path, as
+    // word-addin/webpack.config.js does: Node loads this config outside the
+    // bundler, and the @mike/client barrel imports use-intl, which a file
+    // under packages/ cannot resolve from here.
+    const { resolveSourceCommit }: { resolveSourceCommit: typeof ResolveSourceCommit } = await import(
+        // A path, not a file: URL: the config is compiled to require().
+        path.join(REPO_ROOT, "packages", "client", "src", "sourceCommit.mjs")
+    );
     const sourceCommit = resolveSourceCommit({
         explicit: process.env.GIT_SHA,
         production: phase === PHASE_PRODUCTION_BUILD,

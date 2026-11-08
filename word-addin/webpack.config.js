@@ -180,6 +180,9 @@ module.exports = async (_env, options) => {
         // implementation for the web app and the add-in.
         "@mike/ui": sharedPackage("ui"),
         "@mike/client": sharedPackage("client"),
+        // LiTT's interface catalog, which @mike/client's failure messages
+        // read (en-US until the add-in configures its own locale).
+        "@litt/i18n": sharedPackage("i18n"),
       },
     },
     module: {

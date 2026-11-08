@@ -10,6 +10,8 @@ vi.mock("../messages/en-US.json", () => ({
 
 describe("loadMessages fallback", () => {
     it("fills a missing translation from en-US, key by key", async () => {
+        // The test setup loads the real catalogs first; load them again mocked.
+        vi.resetModules();
         const { loadMessages } = await import("./index");
         expect(await loadMessages("es-MX")).toEqual({
             common: { save: "Guardar", cancel: "Cancel" },

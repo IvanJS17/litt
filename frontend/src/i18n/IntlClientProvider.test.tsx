@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { useTranslations } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadMessages, type Messages } from "@litt/i18n";
+import { clientLocale, describeError } from "@mike/client";
 import { IntlClientProvider } from "./IntlClientProvider";
 
 function SaveButton() {
@@ -20,6 +21,20 @@ describe("IntlClientProvider", () => {
             </IntlClientProvider>,
         );
         expect(screen.getByRole("button", { name: "Guardar" })).toBeInTheDocument();
+    });
+
+    it("points @mike/client's failure messages at its locale before children render", async () => {
+        const messages = await loadMessages("es-MX");
+        function Failure() {
+            return <p>{describeError(new TypeError("Failed to fetch")).title}</p>;
+        }
+        render(
+            <IntlClientProvider locale="es-MX" messages={messages}>
+                <Failure />
+            </IntlClientProvider>,
+        );
+        expect(clientLocale()).toBe("es-MX");
+        expect(screen.getByText("Problema de conexión")).toBeInTheDocument();
     });
 
     it("renders a missing key as its path instead of breaking the page", async () => {

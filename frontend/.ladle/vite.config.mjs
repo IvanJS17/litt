@@ -28,6 +28,10 @@ const config = {
             // (@mike/ui -> @mike/client) unresolved; alias both outright.
             { find: /^@mike\/ui$/, replacement: here("../../packages/ui/src/index.ts") },
             { find: /^@mike\/client$/, replacement: here("../../packages/client/src/index.ts") },
+            { find: /^@litt\/i18n$/, replacement: here("../../packages/i18n/src/index.ts") },
+            // @mike/client's translator. Only the package entry: use-intl's own
+            // subpath imports (use-intl/format-message) go through its exports map.
+            { find: /^use-intl$/, replacement: here("../node_modules/use-intl") },
             ...SHARED_DEPENDENCIES.flatMap((name) => [
                 // The package entry, and any subpath (react/jsx-runtime,
                 // react-dom/client), from frontend/node_modules.

@@ -79,6 +79,7 @@ export default defineConfig({
             "@testing-library/user-event",
             "postcss",
             "@formatjs/icu-messageformat-parser",
+            "use-intl",
         ],
     },
     server: {

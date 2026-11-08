@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { Blob as NodeBlob } from "node:buffer";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
+import { SOURCE_LOCALE, SOURCE_MESSAGES } from "@litt/i18n";
+import { configureClientLocale } from "../packages/client/src/locale";
 
 // Vitest's jsdom environment always overrides `globalThis.Blob` with jsdom's
 // own Blob implementation, which never implemented `.text()`/`.arrayBuffer()`/
@@ -20,3 +22,7 @@ vi.mock("@testing-library/react", async (importOriginal) => {
     const { intlRenderers } = await import("./src/__tests__/support/intlRender");
     return { ...rtl, ...intlRenderers(rtl) };
 });
+
+// A test that renders in es-MX also points @mike/client's failure messages
+// there (IntlClientProvider); put them back so the next test starts in en-US.
+afterEach(() => configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES));
