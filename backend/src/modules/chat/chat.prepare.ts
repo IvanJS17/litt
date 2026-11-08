@@ -29,6 +29,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     subagentRoutePlan,
     titleModelForRoute,
@@ -476,7 +477,7 @@ export async function prepareChatStream(
         resolved: governed,
     });
     const trainingEgress = () =>
-        recordChatEgress(db, {
+        recordChatEgressOrThrow(db, {
             userId,
             orgId: contentOrgId,
             chatId,

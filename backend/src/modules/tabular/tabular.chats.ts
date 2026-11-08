@@ -45,6 +45,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     titleModelForRoute,
     persistLastSelectedChatModel,
@@ -864,7 +865,7 @@ export async function prepareTabularChat(
         resolved: governed,
     });
     const trainingEgress = () =>
-        recordChatEgress(db, {
+        recordChatEgressOrThrow(db, {
             userId,
             orgId: review.org_id ?? null,
             chatId,

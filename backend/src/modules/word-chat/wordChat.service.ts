@@ -49,6 +49,7 @@ import {
   getUserModelSettings,
   governChatRoute,
   recordChatEgress,
+  recordChatEgressOrThrow,
   resolveUserChatSelection,
   persistLastSelectedChatModel,
   persistLastSelectedReasoningLevel,
@@ -891,7 +892,7 @@ export async function prepareWordChatStream(
     resolved: governed,
   });
   const trainingEgress = () =>
-    recordChatEgress(db, {
+    recordChatEgressOrThrow(db, {
       userId,
       orgId: null,
       chatId: persistChat ? chatId : null,
