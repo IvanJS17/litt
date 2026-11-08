@@ -177,7 +177,7 @@ describe("in es-MX", () => {
         expect(screen.getByText("No determinado")).toBeInTheDocument();
         expect(screen.getAllByRole("definition").map((node) => node.textContent)).toEqual(["45 %", "40 %", "15 %"]);
         expect(screen.getByText(/200 palabras analizadas\. Estimación, redondeada a múltiplos de 5 %\./)).toBeInTheDocument();
-        expect(screen.getByText("Ediciones de la IA: 1 aceptadas, 0 rechazadas, 1 pendientes.")).toBeInTheDocument();
+        expect(screen.getByText("Ediciones de la IA: 1 aceptada, 0 rechazadas, 1 pendiente.")).toBeInTheDocument();
         expect(screen.getByText(/no un detector de IA/)).toBeInTheDocument();
         expect(screen.getByText(/partió de un archivo subido/)).toBeInTheDocument();
         expect(screen.getByText(/Hay 1 edición de la IA pendiente/)).toBeInTheDocument();

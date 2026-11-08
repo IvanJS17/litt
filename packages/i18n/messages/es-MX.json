@@ -622,7 +622,7 @@
           "file": "Esta versión partió de un archivo subido. LiTT no sabe quién escribió un archivo, así que ese texto queda no determinado.",
           "unknown": "LiTT no tiene registro del texto del que partió esta versión (o el archivo que generó la IA ya fue reemplazado), así que solo ubica el texto de las ediciones de la IA que se aceptaron. Lo demás queda no determinado."
         },
-        "edits": "Ediciones de la IA: {accepted} aceptadas, {rejected} rechazadas, {pending} pendientes.",
+        "edits": "Ediciones de la IA: {accepted, plural, one {# aceptada} other {# aceptadas}}, {rejected, plural, one {# rechazada} other {# rechazadas}}, {pending, plural, one {# pendiente} other {# pendientes}}.",
         "estimateNote": "Estimación, redondeada a múltiplos de 5 %.",
         "hide": "Ocultar autoría estimada",
         "loadFailed": "No se pudo cargar la autoría estimada.",
