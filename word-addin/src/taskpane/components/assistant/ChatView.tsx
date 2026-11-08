@@ -584,6 +584,49 @@ export function ChatView({
         );
     }, []);
 
+    // ── Training note: keep its actions above the composer ────────────────
+    // The pin scroll parks the latest turn at the top, but the note that comes
+    // back with the verdict is tall and the composer (approach field plus
+    // thermometer) is too: the note's «Reply» button can land under the
+    // floating composer, and the engine-scroll correction above snaps back any
+    // scroll the user did not make by wheel (a focus scroll included). So
+    // when a note first appears, scroll once until its bottom clears the
+    // composer, and hand the position to the user.
+    const latestTrainingNote =
+        latestUserIndex >= 0 ? trainingNotes?.get(latestUserIndex) : undefined;
+    const noteRevealedForIdRef = useRef<string | null>(null);
+    const hasLatestTrainingNote = Boolean(latestTrainingNote);
+    useEffect(() => {
+        if (!hasLatestTrainingNote || !latestUserMessageId) return;
+        if (noteRevealedForIdRef.current === latestUserMessageId) return;
+        const frame = requestAnimationFrame(() => {
+            const container = messagesContainerRef.current;
+            const element = latestUserMessageRef.current;
+            if (!container || !element) return;
+            if (element.dataset.messageId !== latestUserMessageId) return;
+            noteRevealedForIdRef.current = latestUserMessageId;
+            const visibleBottom =
+                container.clientHeight - composerHeight - CHAT_MESSAGE_TOP_GAP;
+            const targetTop = Math.min(
+                element.offsetTop + element.offsetHeight - visibleBottom,
+                container.scrollHeight - container.clientHeight,
+            );
+            if (targetTop <= container.scrollTop + 1) return;
+            anchorActiveRef.current = false;
+            cancelPinScrollRef.current?.();
+            cancelPinScrollRef.current = null;
+            desiredScrollTopRef.current = targetTop;
+            container.scrollTop = targetTop;
+            updateScrollButton();
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [
+        hasLatestTrainingNote,
+        latestUserMessageId,
+        composerHeight,
+        updateScrollButton,
+    ]);
+
     // Keep the reserved spacer in sync with the pane size (Word task panes
     // resize freely). Content growth never triggers this — the spacer stays
     // frozen while an answer streams, which keeps the pinned turn steady.

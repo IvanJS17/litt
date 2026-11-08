@@ -90,7 +90,21 @@ test("a pasante sends their approach and mark with the turn and sees the verdict
   await expect(group.getByRole("radio", { name: "Fairly sure" })).not.toBeChecked();
 
   // «Reply» quotes the question in the approach field and puts the cursor there.
-  await note.getByRole("button", { name: "Reply to the question about your basis" }).click();
+  const reply = note.getByRole("button", { name: "Reply to the question about your basis" });
+  // The floating composer must not cover the button the note offers.
+  await expect
+    .poll(() =>
+      reply.evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        const hit = document.elementFromPoint(
+          box.left + box.width / 2,
+          box.top + box.height / 2,
+        );
+        return button.contains(hit);
+      }),
+    )
+    .toBe(true);
+  await reply.click();
   await expect(field).toHaveValue(`> ${QUESTION}\n\n`);
   await expect(field).toBeFocused();
 });
