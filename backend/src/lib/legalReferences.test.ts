@@ -101,6 +101,20 @@ describe("lawReferences", () => {
         });
     });
 
+    describe("a lower-case name that is no alias is unverified (B1)", () => {
+        const keys = (text: string, law: string | null = null) => [...lawReferences(text, law)];
+        it("invents no identity for a lower-case name", () => {
+            expect(keys("El artículo 5 de la ley exige que el patrón entregue equipo.")).toEqual(["art:5@?"]);
+            expect(keys("El artículo 5 de la ley exige que el patrón entregue equipo.", "ley b")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 de la ley federal del trabajo exige algo")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 del código civil dice")).toEqual(["art:5@?"]);
+        });
+        it("still recognizes a lower-case alias", () => {
+            expect(keys("artículo 5 de la lft exige algo")).toEqual(["art:5@ley federal trabajo"]);
+            expect(keys("artículo 123 de la constitución exige algo")).toEqual([`art:123@${normalizeLaw("CPEUM")}`]);
+        });
+    });
+
     it("falls back to the law of the document, and to «unknown» without one", () => {
         expect([...lawReferences("Artículo 5. Texto", "ley b")]).toEqual(["art:5@ley b"]);
         expect([...lawReferences("Artículo 5. Texto")]).toEqual(["art:5@?"]);

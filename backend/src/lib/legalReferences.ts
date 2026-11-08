@@ -158,12 +158,6 @@ export function legalReferences(text: string): Set<string> {
 export const UNKNOWN_LAW = "?";
 
 const LAW_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "en", "para", "al"]);
-// Words that end a law's name when it is written in prose.
-const LAW_PHRASE_END = new Set([
-    "que", "se", "para", "con", "es", "son", "no", "establece", "establecen", "dispone", "disponen", "senala",
-    "senalan", "preve", "indica", "prohibe", "regula", "ordena", "obliga", "como", "cuando", "donde",
-    "porque", "pero", "segun", "ya", "lo", "por",
-]);
 const LAW_HEADS = new Set(["ley", "leyes", "codigo", "constitucion", "reglamento", "decreto", "estatuto", "convenio", "tratado"]);
 const LAW_PHRASE_MAX_WORDS = 10;
 // Common abbreviations and aliases, to the law they name (as written in full).
@@ -253,8 +247,8 @@ const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
  *  - A name that starts with «Ley», «Código», … takes words while they are
  *    capitalized or numbers, or connectors followed by one; it stops at the
  *    first other lower-case word or at punctuation.
- *  - A lower-case name has no such boundary: it ends at a verb or connective
- *    of `LAW_PHRASE_END`, as before.
+ *  - A lower-case name that is not a known alias has no boundary: null (the
+ *    law is unverified). 
  */
 function lawNamedAt(plain: string, cased: string): string | null {
     const lower = tokens(plain);
@@ -271,39 +265,30 @@ function lawNamedAt(plain: string, cased: string): string | null {
         return null;
     };
     if (!LAW_HEADS.has(lower[0].bare)) return alias();
-    // Written in lower case («la constitución exige»), only a known alias has a boundary.
-    if (!isCapitalized(upper[0].bare)) {
-        const known = alias();
-        if (known) return known;
-    }
+    // Written in lower case («la constitución exige»), only a known alias has a boundary;
+    // any other lower-case name: the name has no boundary, so none is invented.
+    if (!isCapitalized(upper[0].bare)) return alias();
     const words: string[] = [];
-    if (isCapitalized(upper[0].bare)) {
-        let index = 0;
-        while (index < upper.length && words.length < LAW_PHRASE_MAX_WORDS) {
-            const token = upper[index];
-            const connector = NAME_CONNECTORS.has(lower[index].bare);
-            // A connector written with a capital («El») starts a sentence, not a name.
-            if ((index > 0 && token.opens) || (connector && token.bare !== lower[index].bare)) break;
-            if (!connector && isCapitalized(token.bare)) {
-                words.push(lower[index].bare);
-                if (token.ends) break;
-                index++;
-                continue;
-            }
-            if (!connector || token.ends) break;
-            // A run of connectors belongs to the name only when a capitalized word follows it.
-            let last = index;
-            while (last < upper.length && NAME_CONNECTORS.has(lower[last].bare) && upper[last].bare === lower[last].bare && !upper[last].ends) last++;
-            if (last >= upper.length || NAME_CONNECTORS.has(lower[last].bare) || !isCapitalized(upper[last].bare) || upper[last].opens) break;
-            for (let take = index; take < last; take++) words.push(lower[take].bare);
-            index = last;
-        }
-    } else {
-        for (const token of lower) {
-            if (!token.bare || LAW_PHRASE_END.has(token.bare) || words.length >= LAW_PHRASE_MAX_WORDS) break;
-            words.push(token.bare);
+    let index = 0;
+    while (index < upper.length) {
+        if (words.length >= LAW_PHRASE_MAX_WORDS) break;
+        const token = upper[index];
+        const connector = NAME_CONNECTORS.has(lower[index].bare);
+        // A connector written with a capital («El») starts a sentence, not a name.
+        if ((index > 0 && token.opens) || (connector && token.bare !== lower[index].bare)) break;
+        if (!connector && isCapitalized(token.bare)) {
+            words.push(lower[index].bare);
             if (token.ends) break;
+            index++;
+            continue;
         }
+        if (!connector || token.ends) break;
+        // A run of connectors belongs to the name only when a capitalized word follows it.
+        let last = index;
+        while (last < upper.length && NAME_CONNECTORS.has(lower[last].bare) && upper[last].bare === lower[last].bare && !upper[last].ends) last++;
+        if (last >= upper.length || NAME_CONNECTORS.has(lower[last].bare) || !isCapitalized(upper[last].bare) || upper[last].opens) break;
+        for (let take = index; take < last; take++) words.push(lower[take].bare);
+        index = last;
     }
     return normalizeLaw(words.join(" "));
 }

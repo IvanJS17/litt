@@ -153,6 +153,11 @@ describe("references", () => {
         it("still does not back law B's predicate with law A's passage, and warns", () => {
             expect(unverifiedReferences("El artículo 5 de la Ley B exige una jornada máxima.", passage, "Ley A.pdf")).toEqual(["art. 5 (ley b)"]);
         });
+        it("does not back a lower-case, non-alias law name with another document's passage (B1)", () => {
+            const text = "El artículo 5 de la ley exige que el patrón entregue equipo.";
+            expect(unverifiedReferences(text, passage, "Contrato.pdf")).toEqual(["art. 5 (ley no identificada)"]);
+            expect(unverifiedReferences(text, passage, "Ley A.pdf")).toEqual(["art. 5 (ley no identificada)"]);
+        });
         it("leaves an article with no identifiable law unverified, on either side", () => {
             expect(unverifiedReferences("Aplica el artículo 5.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley no identificada)"]);
             expect(unverifiedReferences("Aplica el artículo 5 de la Ley B.", passage, "contrato.docx")).toEqual(["art. 5 (ley b)"]);
@@ -229,6 +234,26 @@ describe("parseBackingConclusions", () => {
         expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null, unverified_references: ["art. 5 (ley a)"] });
         expect(got?.[1]).toMatchObject({ status: "backed", citation_ref: 1, unverified_references: [] });
         expect(got?.every((c) => c.status !== "backed" || c.unverified_references.length === 0)).toBe(true);
+    });
+
+    it("B1: a lower-case law name is never «backed» by a passage of another document", () => {
+        const answer = `${LONG_ANSWER} El artículo 5 de la ley exige que el patrón entregue equipo.`;
+        for (const filename of ["Contrato.pdf", "Ley A.pdf"]) {
+            const other = readBackingCitations([
+                {
+                    ...VERIFIED,
+                    filename,
+                    quotes: [{ page: 1, quote: "x", verification: { verified: true, source_excerpt: "Artículo 5. El patrón entregará equipo." } }],
+                },
+            ]);
+            const got = parseBackingConclusions(
+                json([{ text: "El artículo 5 de la ley exige que el patrón entregue equipo", citation_ref: 1 }]),
+                answer,
+                other,
+            );
+            expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null });
+            expect(got?.[0].unverified_references).not.toEqual([]);
+        }
     });
 
     it("drops a conclusion that names a reference the answer never named", () => {
