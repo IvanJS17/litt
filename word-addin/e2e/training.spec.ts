@@ -607,7 +607,7 @@ test("a counterparty round owes the mark, takes its turns and is closed with a l
   await page.getByLabel("Your approach (2–3 lines)").fill(ATTEMPT);
   await page
     .getByRole("radiogroup", { name: "How sure are you of your approach?" })
-    .getByRole("radio", { name: "Sure" })
+    .getByRole("radio", { name: "Sure", exact: true })
     .click();
   request = page.waitForRequest("**/word-chat");
   await close.click();
