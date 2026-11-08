@@ -818,7 +818,33 @@
         }
       },
       "contrast": {},
-      "authorship": {},
+      "authorship": {
+        "ai": "From the assistant",
+        "baseline": {
+          "file": "This version started from an uploaded file. LiTT doesn't know who wrote a file, so that text is undetermined.",
+          "unknown": "LiTT has no record of the text this version started from (or the file the assistant generated has been replaced), so it only places text from accepted assistant edits. The rest is undetermined."
+        },
+        "edits": "Assistant edits: {accepted, plural, one {# accepted} other {# accepted}}, {rejected, plural, one {# rejected} other {# rejected}}, {pending, plural, one {# pending} other {# pending}}.",
+        "estimateNote": "Estimate, rounded to the nearest 5%.",
+        "hide": "Hide estimated authorship",
+        "loadFailed": "Couldn't load the estimated authorship.",
+        "loadFailedAction": "load the estimated authorship",
+        "pending": "{count, plural, one {# assistant edit is still pending, so its text is} other {# assistant edits are still pending, so their text is}} undetermined until someone accepts or rejects {count, plural, one {it} other {them}}.",
+        "person": "Written by a person",
+        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated and nobody has replaced. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
+        "share": "{percent}%",
+        "show": "Show estimated authorship",
+        "status": {
+          "empty": "Undetermined: this version has no text to analyze.",
+          "textFailed": "Undetermined: LiTT couldn't read the text of this version.",
+          "textPending": "Undetermined: LiTT hasn't finished reading the text of this version. Try again in a moment.",
+          "tooLarge": "Undetermined: this version is too long to estimate."
+        },
+        "textless": "{count, plural, one {# page has} other {# pages have}} no text LiTT can read (probably scanned), so {count, plural, one {it isn't} other {they aren't}} counted.",
+        "title": "Estimated authorship",
+        "undetermined": "Undetermined",
+        "words": "{count, plural, one {# word} other {# words}} analyzed."
+      },
       "promotion": {}
     },
     "firmCriteria": {}

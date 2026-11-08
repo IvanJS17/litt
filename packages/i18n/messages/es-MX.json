@@ -818,7 +818,33 @@
         }
       },
       "contrast": {},
-      "authorship": {},
+      "authorship": {
+        "ai": "De la IA",
+        "baseline": {
+          "file": "Esta versión partió de un archivo subido. LiTT no sabe quién escribió un archivo, así que ese texto queda no determinado.",
+          "unknown": "LiTT no tiene registro del texto del que partió esta versión (o el archivo que generó la IA ya fue reemplazado), así que solo ubica el texto de las ediciones de la IA que se aceptaron. Lo demás queda no determinado."
+        },
+        "edits": "Ediciones de la IA: {accepted, plural, one {# aceptada} other {# aceptadas}}, {rejected, plural, one {# rechazada} other {# rechazadas}}, {pending, plural, one {# pendiente} other {# pendientes}}.",
+        "estimateNote": "Estimación, redondeada a múltiplos de 5 %.",
+        "hide": "Ocultar autoría estimada",
+        "loadFailed": "No se pudo cargar la autoría estimada.",
+        "loadFailedAction": "cargar la autoría estimada",
+        "pending": "{count, plural, one {Hay # edición de la IA pendiente, así que su texto queda} other {Hay # ediciones de la IA pendientes, así que su texto queda}} no determinado hasta que alguien {count, plural, one {la acepte o la rechace} other {las acepte o las rechace}}.",
+        "person": "Escrito por una persona",
+        "rule": "Es una estimación con lo que LiTT registró, no un detector de IA. Una oración cuenta como de la IA solo si aparece palabra por palabra en una edición de la IA que alguien aceptó, o en texto que la IA generó y que nadie ha reemplazado. Una oración que alguien reescribe cuenta como escrita por una persona. Lo que LiTT no puede ubicar se muestra como no determinado.",
+        "share": "{percent} %",
+        "show": "Ver autoría estimada",
+        "status": {
+          "empty": "No determinado: esta versión no tiene texto que analizar.",
+          "textFailed": "No determinado: LiTT no pudo leer el texto de esta versión.",
+          "textPending": "No determinado: LiTT aún no termina de leer el texto de esta versión. Intenta de nuevo en un momento.",
+          "tooLarge": "No determinado: esta versión es demasiado larga para estimarla."
+        },
+        "textless": "{count, plural, one {# página no tiene} other {# páginas no tienen}} texto que LiTT pueda leer (probablemente {count, plural, one {está escaneada} other {están escaneadas}}), así que no {count, plural, one {se cuenta} other {se cuentan}}.",
+        "title": "Autoría estimada",
+        "undetermined": "No determinado",
+        "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
+      },
       "promotion": {}
     },
     "firmCriteria": {}

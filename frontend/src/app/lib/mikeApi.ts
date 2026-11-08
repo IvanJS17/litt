@@ -3268,6 +3268,22 @@ export interface DocumentVersion {
     training_held?: boolean;
     /** Whether the caller may approve it (the server's own rule). */
     training_can_approve?: boolean;
+    /** Whether the caller may read its estimated authorship (the server's own rule). */
+    training_authorship?: boolean;
+}
+
+/**
+ * Estimated authorship of a version (docs/training.md): computed by the
+ * server on request, 404 for anybody who may not see it.
+ */
+export async function getDocumentAuthorship(
+    documentId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").DocumentAuthorship> {
+    return apiRequest(
+        "training.read",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/authorship`,
+    );
 }
 
 /** Approve a pasante's version as it is now (docs/training.md). */
