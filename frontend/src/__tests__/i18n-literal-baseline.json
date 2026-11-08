@@ -2,7 +2,9 @@
   "migrated": [
     "frontend/src/app/layout.tsx",
     "frontend/src/i18n",
-    "packages/i18n/src"
+    "packages/i18n/src",
+    "frontend/src/app/components/training/supervision",
+    "frontend/src/app/(pages)/settings/training/mentor"
   ],
   "allowed": {}
 }

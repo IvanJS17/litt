@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { OrgMember, TrainingStage } from "@/app/lib/mikeApi";
 import { PRACTICE_OPTIONS } from "@/app/components/workflows/practices";
 
@@ -14,6 +15,11 @@ export const STAGE_LABEL: Record<TrainingStage, string> = {
 /** A stored (normalized) practice area, as the user picked it. */
 export function practiceLabel(practice: string | null): string {
     if (practice === null) return "Todas las materias";
+    return practiceOptionLabel(practice);
+}
+
+/** A stored (normalized) practice area as the option it came from, or as stored. */
+export function practiceOptionLabel(practice: string): string {
     const option = (PRACTICE_OPTIONS as readonly string[]).find(
         (candidate) => candidate.trim().toLowerCase() === practice,
     );
@@ -28,12 +34,13 @@ export function MemberIdentity({
     member: OrgMember | undefined;
     userId: string;
 }) {
+    const t = useTranslations("training");
     const name = member?.display_name?.trim();
     const email = member?.email ?? null;
     return (
         <div className="min-w-0">
             <p className="text-sm font-medium text-gray-900 break-words">
-                {name || email || "Miembro"}
+                {name || email || t("member")}
             </p>
             {name && email && (
                 <p className="text-sm text-gray-500 break-all">{email}</p>
