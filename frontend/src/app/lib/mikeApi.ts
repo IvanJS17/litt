@@ -4208,6 +4208,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
                 .map((e) => (e as { type: "content"; text: string }).text)
                 .join("") ?? "";
         return {
+            id: m.id,
             role: "assistant" as const,
             content,
             events,
