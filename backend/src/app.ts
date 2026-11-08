@@ -267,6 +267,8 @@ app.post("/tabular-review/:reviewId/generate", chatLimiter);
 // A playbook review is one large model call (or a tool loop when the playbook
 // has supplementary documents), so it shares the chat lane's budget.
 app.post("/playbooks/:playbookId/review", chatLimiter);
+// A mentor's corrections turned into proposed rules are one model call too.
+app.post("/playbooks/:playbookId/corrections", chatLimiter);
 // A training work review is one model call on the mentor's key.
 app.post("/orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review", chatLimiter);
 // So are a defense's questions.

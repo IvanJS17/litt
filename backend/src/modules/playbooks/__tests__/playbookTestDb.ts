@@ -53,15 +53,20 @@ export function database(
         if (op === "insert") {
           // One row or a list of rows, as the client takes either.
           const inserted = Array.isArray(payload) ? (payload as Row[]) : [payload];
-          // idx_playbook_imports_one_running_proposal.
-          const runningProposal = (row: Row) => row.kind === "proposal" && row.status === "running";
+          // idx_playbook_imports_one_running_proposal and
+          // idx_playbook_imports_one_running_correction.
+          const runningBatch = (row: Row) =>
+            (row.kind === "proposal" || row.kind === "correction") && row.status === "running";
           if (
             table === "playbook_imports" &&
             inserted.some(
               (row) =>
-                runningProposal(row) &&
+                runningBatch(row) &&
                 (tables[table] ?? []).some(
-                  (other) => runningProposal(other) && other.playbook_id === row.playbook_id,
+                  (other) =>
+                    runningBatch(other) &&
+                    other.kind === row.kind &&
+                    other.playbook_id === row.playbook_id,
                 ),
             )
           )
