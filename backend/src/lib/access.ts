@@ -1163,3 +1163,131 @@ export async function listAccessibleProjectIds(
     const denied = await loadPrivateMatterDeniedProjectIds(db, userId, [...ids]);
     return [...ids].filter((id) => !denied.has(id));
 }
+
+/** Candidate ids per query; keeps each `in (...)` filter inside URL limits. */
+const PROJECT_BATCH_SIZE = 100;
+
+/**
+ * Of `projectIds`, the projects the user can open, each with its `org_id`:
+ * the set form of `checkProjectAccess`, for a bounded list of candidates
+ * (a selector, the works of a review list) where asking per project is an N+1.
+ *
+ * It reaches checkProjectAccess's verdict from the same rules, applied to
+ * rows read once for the whole list: archived projects are out; an
+ * organization's project needs a CURRENT member (organization not deleted)
+ * and then goes through resolveOrgContentRole with the member's override and
+ * the ownerless set; a personal project is its creator's or holds a direct
+ * grant on the user's email; and a private matter's project leaves for
+ * everyone outside its team (loadPrivateMatterDeniedProjectIds), whatever
+ * admitted it. A read that fails throws, so an unanswered question admits
+ * nobody; callers map the throw to a failure.
+ */
+export async function loadOpenableProjects(
+    db: Db,
+    userId: string,
+    userEmail: string | null | undefined,
+    projectIds: readonly string[],
+): Promise<Map<string, { orgId: string | null }>> {
+    const opened = new Map<string, { orgId: string | null }>();
+    const unique = [...new Set(projectIds)];
+    if (unique.length === 0) return opened;
+    const email = normalizeEmail(userEmail);
+
+    type Candidate = {
+        id: string;
+        user_id: string | null;
+        org_id: string | null;
+        visibility: string | null;
+        archived_at: string | null;
+    };
+    const projects: Candidate[] = [];
+    for (const batch of chunkArray(unique, PROJECT_BATCH_SIZE)) {
+        const { data, error } = await db
+            .from("projects")
+            .select("id, user_id, org_id, visibility, archived_at")
+            .in("id", batch);
+        if (error) throw accessReadFailed("project read", error);
+        projects.push(...((data ?? []) as Candidate[]).filter((row) => !row.archived_at));
+    }
+    if (projects.length === 0) return opened;
+
+    const orgIds = [...new Set(projects.map((p) => p.org_id).filter((id): id is string => !!id))];
+    const personalIds = projects.filter((p) => !p.org_id).map((p) => p.id);
+    const orgProjectIds = projects.filter((p) => p.org_id).map((p) => p.id);
+
+    const orgRoleByOrgId = new Map<string, OrgRole>();
+    if (orgIds.length) {
+        const { data, error } = await db
+            .from("org_members")
+            .select("org_id, role, organizations!inner(id)")
+            .is("organizations.deleted_at", null)
+            .eq("user_id", userId)
+            .in("org_id", orgIds);
+        if (error) throw accessReadFailed("org membership read", error);
+        for (const row of (data ?? []) as { org_id?: string | null; role?: string | null }[]) {
+            if (row.org_id && isOrgRole(row.role)) orgRoleByOrgId.set(row.org_id, row.role);
+        }
+    }
+
+    const grantedIds = new Set<string>();
+    if (email && personalIds.length) {
+        for (const batch of chunkArray(personalIds, PROJECT_BATCH_SIZE)) {
+            const { data, error } = await db
+                .from("project_access_grants")
+                .select("project_id")
+                .eq("email", email)
+                .in("project_id", batch);
+            if (error) throw accessReadFailed("access grant read", error);
+            for (const row of (data ?? []) as { project_id?: string | null }[])
+                if (row.project_id) grantedIds.add(row.project_id);
+        }
+    }
+
+    const overrideByProjectId = new Map<string, string>();
+    const orgOf = new Map(projects.map((p) => [p.id, p.org_id]));
+    if (orgProjectIds.length) {
+        for (const batch of chunkArray(orgProjectIds, PROJECT_BATCH_SIZE)) {
+            const { data, error } = await db
+                .from("project_org_access_overrides")
+                .select("project_id, org_id, role")
+                .eq("user_id", userId)
+                .in("project_id", batch);
+            if (error) throw accessReadFailed("access override read", error);
+            // As getOrgAccessOverrideRole: the row must be this project's org's.
+            for (const row of (data ?? []) as { project_id: string; org_id: string; role: string }[])
+                if (row.org_id === orgOf.get(row.project_id)) overrideByProjectId.set(row.project_id, row.role);
+        }
+    }
+    const ownerless = await loadOwnerlessOrgItemIds(
+        db,
+        orgIds.filter((orgId) => orgRoleByOrgId.get(orgId) === "owner"),
+    );
+
+    const admitted: Candidate[] = [];
+    for (const project of projects) {
+        if (!project.org_id) {
+            if ((!!project.user_id && project.user_id === userId) || grantedIds.has(project.id))
+                admitted.push(project);
+            continue;
+        }
+        const orgRole = orgRoleByOrgId.get(project.org_id);
+        if (!orgRole) continue;
+        const override = overrideByProjectId.get(project.id);
+        const role = resolveOrgContentRole({
+            isCreator: !!project.user_id && project.user_id === userId,
+            orgRole,
+            override: isOrgAccessOverrideRole(override) ? override : null,
+            visibility: project.visibility,
+            ownerless: ownerless.projects.has(project.id),
+        });
+        if (role) admitted.push(project);
+    }
+    const denied = await loadPrivateMatterDeniedProjectIds(
+        db,
+        userId,
+        admitted.map((p) => p.id),
+    );
+    for (const project of admitted)
+        if (!denied.has(project.id)) opened.set(project.id, { orgId: project.org_id });
+    return opened;
+}

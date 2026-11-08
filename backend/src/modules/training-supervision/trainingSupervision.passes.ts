@@ -19,7 +19,7 @@ import type {
     TrainingUrgencyPasses,
     TrainingUrgencyReason,
 } from "@mike/contracts";
-import { checkProjectAccess } from "../../lib/access";
+import { checkProjectAccess, loadOpenableProjects } from "../../lib/access";
 import { recordAudit } from "../../lib/audit";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
@@ -75,7 +75,6 @@ export async function readUrgencyPasses(
 
 /** Most candidate matters one list answers for; the rest are not asked about. */
 export const PASS_CANDIDATES_MAX = 200;
-const ACCESS_CHECKS_AT_ONCE = 10;
 
 /**
  * Which of the candidate matters a pass could be granted on, by the grant's
@@ -88,24 +87,16 @@ async function grantableProjects(
     candidates: readonly string[],
 ): Promise<ServiceResult<string[]>> {
     const ids = [...new Set(candidates.filter(isUuid))].slice(0, PASS_CANDIDATES_MAX);
-    const open: string[] = [];
     try {
-        for (let i = 0; i < ids.length; i += ACCESS_CHECKS_AT_ONCE) {
-            const checked = await Promise.all(
-                ids.slice(i, i + ACCESS_CHECKS_AT_ONCE).map(async (projectId) => {
-                    const mentor = await checkProjectAccess(projectId, args.actorId, args.actorEmail, db);
-                    if (!mentor.ok || mentor.project.org_id !== args.orgId) return false;
-                    return (await checkProjectAccess(projectId, args.traineeId as string, null, db)).ok;
-                }),
-            );
-            ids.slice(i, i + ACCESS_CHECKS_AT_ONCE).forEach((projectId, index) => {
-                if (checked[index]) open.push(projectId);
-            });
-        }
+        // Two set reads instead of two per-matter checks: the mentor's, then
+        // (for the ones in the organization) the pupil's.
+        const mentor = await loadOpenableProjects(db, args.actorId, args.actorEmail, ids);
+        const inOrg = ids.filter((projectId) => mentor.get(projectId)?.orgId === args.orgId);
+        const pupil = await loadOpenableProjects(db, args.traineeId as string, null, inOrg);
+        return ok(inOrg.filter((projectId) => pupil.has(projectId)));
     } catch (error) {
         return internalFailure(error);
     }
-    return ok(open);
 }
 
 /**
