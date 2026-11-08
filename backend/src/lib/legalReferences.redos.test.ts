@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { lawReferences, legalReferences } from "./legalReferences";
+import { lawReferences, legalReferences, lawOfTitle, normalizeLaw, hasKnownLaw } from "./legalReferences";
+import * as before from "./__tests__/legalReferences.before";
 
 // Results recorded from the implementation before the ReDoS rewrite of its patterns:
 // the rewrite must not change them.
@@ -135,5 +136,96 @@ describe("registry head on tabs followed by a near miss", () => {
         legalReferences(text);
         lawReferences(text);
         expect(performance.now() - started).toBeLessThan(200);
+    });
+});
+
+// CodeQL alert 76: every pattern read through sticky() starts with `^` now, instead of
+// relying on the `y` flag (which the analysis does not model). The previous module is
+// frozen in __tests__/legalReferences.before.ts; nothing the exports return may change.
+describe("anchored sticky patterns give the results of the previous module", () => {
+    const PIECES = [
+        " ", " ", "\t", ",", ", ", " y ", " e ", " o ", " u ", "y", "a", " a ", " al ", " hasta el ", " hasta ",
+        "fracción ", "fracciones ", "fr. ", "fracc. ", ", fr. ", "del artículo ", "de los arts. ", "del art. ", "de los artículos ",
+        "artículo ", "artículos ", "arts. ", "art. ", "constitucional", " constitucional ", " local", " de Tlaxcala",
+        "de la Ley Federal del Trabajo", " de la ", " del ", " de ", " según la ", " en el ", "Ley ", "Código Civil", "LFT", "CPEUM",
+        "Constitución", " Carta Magna", " de 1917", " de acuerdo con ",
+        "artículo 5 de la LFT", "art. 7 CPEUM", "artículo 3 constitucional", "arts. 1, 2 y 3 del Código Civil Federal",
+        "1", "2", "5", "10", "123", "1949", "2o.", "3º", "14", " bis", " ter", "17a", "I", "II", "IV", "VII", "XIV", "iii", "x",
+        "tesis ", "jurisprudencia ", "aislada ", "1a./J. 12/2020", "I.3o.C.123 C", "P./J. 5/2019", " C", " (c) ",
+        "registro ", "registros digitales ", "no. ", "2012345", "20", ":", ".", "/", "-", "0", "00", "a", "b", "ñ", "Ñ", "É",
+    ];
+    const generate = (seed: number, count: number): string[] => {
+        let state = seed >>> 0;
+        const next = (n: number): number => {
+            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+            return (state >>> 8) % n;
+        };
+        return Array.from({ length: count }, () =>
+            Array.from({ length: 1 + next(14) }, () => PIECES[next(PIECES.length)]).join(""));
+    };
+
+    // Two later fixes change the result of some strings on purpose, always towards «@?» (fail closed):
+    // a neutral connector («de acuerdo con», «de conformidad con», «de 1917») followed by anything but
+    // the end, punctuation or a word that qualifies nothing, and «constitucional de la Constitución …»
+    // (a qualified constitution). Those strings are compared by that rule instead of by equality:
+    // each key either equals the previous one or is the previous CPEUM key turned into «@?».
+    const CPEUM_SUFFIX = "@constitucion politica estados unidos mexicanos";
+    const DIVERGENCE_CAUSE = /de acuerdo con|de conformidad con|de 1917|constitucional/i;
+    const onlyTowardsUnknown = (now: string[], previous: string[]): boolean => {
+        const old = new Set(previous);
+        const turned = new Set(previous.filter((key) => key.endsWith(CPEUM_SUFFIX)).map((key) => `${key.slice(0, -CPEUM_SUFFIX.length)}@?`));
+        return now.length === previous.length && now.every((key) => old.has(key) || turned.has(key));
+    };
+
+    it("legalReferences, lawReferences and the law helpers agree on 60 000 strings", { timeout: 120_000 }, () => {
+        let diverged = 0;
+        const strings = generate(20261108, 60_000);
+        expect(strings.length).toBeGreaterThanOrEqual(50_000);
+        let withReferences = 0;
+        let withLaw = 0;
+        for (const text of strings) {
+            const previous = [...before.legalReferences(text)];
+            expect([...legalReferences(text)], JSON.stringify(text)).toEqual(previous);
+            if (previous.length > 0) withReferences += 1;
+            for (const source of [null, "ley sede"]) {
+                const strict = [...before.lawReferences(text, source)];
+                const now = [...lawReferences(text, source)];
+                if (JSON.stringify(now) !== JSON.stringify(strict)) {
+                    expect(DIVERGENCE_CAUSE.test(text), JSON.stringify([text, source])).toBe(true);
+                    expect(onlyTowardsUnknown(now, strict), JSON.stringify([text, source, now, strict])).toBe(true);
+                    diverged += 1;
+                }
+                if (source === null && strict.some((key) => key.startsWith("art:") && before.hasKnownLaw(key))) withLaw += 1;
+            }
+            expect(lawOfTitle(text), JSON.stringify(text)).toBe(before.lawOfTitle(text));
+            expect(normalizeLaw(text), JSON.stringify(text)).toBe(before.normalizeLaw(text));
+            expect(hasKnownLaw(text)).toBe(before.hasKnownLaw(text));
+        }
+        expect(withReferences).toBeGreaterThan(8_000);
+        expect(withLaw).toBeGreaterThan(1_000);
+        // The intentional divergences stay a small minority (the other strings are equal).
+        expect(diverged).toBeLessThan(2_000);
+    });
+
+    const TABS = "\t".repeat(50_000);
+    it.each([
+        ["list separator", "artículo 5" + TABS + ", y 6"],
+        ["list separator, word form", "artículo 5" + TABS + " y 6"],
+        ["range separator", "artículo 5" + TABS + " a 7"],
+        ["fraction after the article", "artículo 5" + TABS + ", fracción II"],
+        ["fraction of the article", "fracción II" + TABS + ", del artículo 6"],
+        ["thesis subject", "tesis I.3o.C.123" + TABS + "C, y I.4o.C.5 C"],
+        ["law separator", "artículo 5" + TABS + "de la Ley Federal del Trabajo"],
+        ["constitutional adjective", "artículo 5" + TABS + "constitucional" + TABS + "local"],
+        ["law written bare", "artículo 5" + TABS + "(lft"],
+        ["near misses", "artículo 5" + TABS + "x"],
+        ["long digits", "tesis " + "0".repeat(50_000) + "/x"],
+        ["long digits, registry", "registro " + "0".repeat(50_000)],
+        ["long dotted run", "tesis " + "0.".repeat(25_000) + "x"],
+    ])("%s on 50 000 characters stays linear", (_name, text) => {
+        const started = performance.now();
+        legalReferences(text);
+        lawReferences(text);
+        expect(performance.now() - started).toBeLessThan(400);
     });
 });
