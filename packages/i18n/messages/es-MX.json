@@ -241,5 +241,228 @@
       "diagnostics": "--- Datos para soporte (no los borres) ---",
       "thanks": "Gracias."
     }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Documento",
+        "explorer": "Explorador",
+        "label": "Vista del espacio de trabajo"
+      }
+    }
+  },
+  "training": {
+    "stage": {
+      "pasante": "Pasante",
+      "junior": "Junior",
+      "abogado": "Abogado"
+    },
+    "allPractices": "Todas las materias",
+    "member": "Miembro",
+    "surface": {
+      "chat": "Chat",
+      "word": "Word",
+      "tabular": "Revisión tabular"
+    },
+    "credentialSource": {
+      "personal": "Tu llave",
+      "organization": "Llave de la organización",
+      "deployment": "Llave de la instalación",
+      "operator": "Endpoint del operador"
+    },
+    "loadFailed": "No se pudo cargar.",
+    "notes": {
+      "optional": "Nota (opcional)",
+      "max": "Hasta {max} caracteres."
+    },
+    "mentorPanel": {
+      "title": "Panel del mentor",
+      "intro": "Supervisa a un pupilo a la vez. Aquí nada compara ni ordena a tus pupilos, y solo tú y cada pupilo ven sus datos.",
+      "open": "Abrir el panel del mentor",
+      "back": "Volver a Formación",
+      "allPupils": "Todos los pupilos",
+      "notMentor": "No eres mentor en ninguna organización. El dueño o un administrador de la organización designa a los mentores.",
+      "noPupils": "Todavía no tienes pupilos aquí. Agrégalos en Formación, en Mis pupilos.",
+      "pendingReview": "{count, plural, =0 {Ningún trabajo pendiente de revisión} one {# trabajo pendiente de revisión} other {# trabajos pendientes de revisión}}",
+      "passInForce": "Pase de urgencia vigente hasta el {end, date, medium} {end, time, short}",
+      "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
+      "noWork": "Sin trabajos todavía",
+      "supervise": "Supervisar",
+      "superviseName": "Supervisar a {name}",
+      "tabsLabel": "Secciones de la supervisión",
+      "tabs": {
+        "works": "Trabajos",
+        "defenses": "Defensa oral",
+        "passes": "Pase de urgencia",
+        "promotion": "Promoción"
+      },
+      "actions": {
+        "load": "cargar tus pupilos"
+      }
+    },
+    "review": {
+      "proposed": "Qué propuso",
+      "aiCorrected": "Qué corrigió la IA",
+      "doubts": "Dónde dudó",
+      "unverified": "Qué quedó sin verificar",
+      "inferred": "inferido",
+      "none": "Nada.",
+      "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
+      "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
+      "notReviewed": "Sin revisar todavía",
+      "pending": "Generando el resumen…",
+      "failed": "No se pudo generar el resumen. Puedes intentarlo de nuevo."
+    },
+    "works": {
+      "intro": "Cada trabajo es una conversación con notas de turno. El resumen muestra cuatro datos; lo que quedó sin verificar se calcula, no se genera.",
+      "empty": "Este pupilo todavía no tiene trabajos con notas de turno.",
+      "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
+      "untitled": "Trabajo sin título",
+      "meta": "{surface} · {notes, plural, one {# nota} other {# notas}} · {date, date, medium} {date, time, short}",
+      "noReview": "Todavía no hay resumen.",
+      "newWork": "Hay trabajo nuevo desde este resumen.",
+      "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación; apruébalo desde su documento.} other {# borradores sellados siguen pendientes de aprobación; apruébalos desde cada documento.}}",
+      "generate": "Generar resumen",
+      "regenerate": "Regenerar",
+      "markReviewed": "Marcar como revisado",
+      "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
+      "key": "Llave",
+      "chooseKey": "Elige una llave",
+      "codes": {
+        "inProgress": "Ya se está generando un resumen de este trabajo. Espera un momento y vuelve a cargar.",
+        "credentialUnavailable": "La llave que usó este resumen ya no está disponible para ti. Elige otra llave y vuelve a intentarlo.",
+        "keyRequired": "Necesitas una llave de IA que puedas usar en esta organización."
+      },
+      "actions": {
+        "load": "cargar los trabajos",
+        "generate": "generar el resumen",
+        "markReviewed": "marcar el trabajo como revisado"
+      }
+    },
+    "defenses": {
+      "intro": "Cinco preguntas sobre el razonamiento del propio pupilo; una es un cambio de hechos. El resultado se registra una vez; para corregirlo, haz una defensa nueva.",
+      "newTitle": "Nueva defensa",
+      "work": "Trabajo",
+      "noWork": "Sin trabajo en particular",
+      "practice": "Materia",
+      "practiceFromWork": "La materia del asunto del trabajo",
+      "otherPractice": "Otra materia",
+      "practiceName": "Nombre de la materia",
+      "create": "Crear defensa",
+      "empty": "Todavía no hay defensas.",
+      "createdOn": "Creada el {date, date, medium} {date, time, short}",
+      "scheduled": "Programada; todavía sin resultado.",
+      "generateQuestions": "Generar preguntas",
+      "questionsPending": "Generando las preguntas…",
+      "questionsFailed": "No se pudieron generar las preguntas. Puedes intentarlo de nuevo o registrar el resultado sin ellas.",
+      "changeOfFacts": "Cambio de hechos",
+      "question": "Pregunta {number}",
+      "listenFor": "Qué escuchar: {text}",
+      "recordTitle": "Registrar el resultado",
+      "outcomeLabel": "Resultado",
+      "reasonLabel": "Motivo",
+      "chooseReason": "Elige un motivo",
+      "outcome": {
+        "approved": "Aprobada",
+        "not_approved": "No aprobada"
+      },
+      "reason": {
+        "razonamiento_solido": "Razonamiento sólido",
+        "razonamiento_incompleto": "Razonamiento incompleto",
+        "cambio_de_hechos_no_resuelto": "No resolvió el cambio de hechos",
+        "sin_sustento": "Sin sustento",
+        "otro": "Otro"
+      },
+      "record": "Registrar resultado",
+      "confirmTitle": "¿Registrar este resultado?",
+      "confirmMessage": "{outcome}: {reason}. Se registra una vez y no se puede cambiar; para corregirlo, haz una defensa nueva.",
+      "result": "{outcome} el {date, date, medium} {date, time, short} · {reason}",
+      "codes": {
+        "alreadyRecorded": "Esta defensa ya tiene resultado. Vuelve a cargar para verlo."
+      },
+      "actions": {
+        "load": "cargar las defensas",
+        "create": "crear la defensa",
+        "generate": "generar las preguntas",
+        "record": "registrar el resultado"
+      }
+    },
+    "passes": {
+      "intro": "Un pase quita «Tu turno primero» a este pupilo en un asunto, por tiempo limitado. Sus borradores siguen sellados hasta que se aprueben, y el pase no aplica en Word.",
+      "newTitle": "Nuevo pase",
+      "project": "Asunto",
+      "chooseProject": "Elige un asunto",
+      "noProjects": "No tienes asuntos en esta organización",
+      "duration": "Duración",
+      "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
+      "hours": "{hours, plural, one {# hora} other {# horas}}",
+      "reasonLabel": "Motivo",
+      "reason": {
+        "plazo": "Plazo",
+        "audiencia": "Audiencia",
+        "cliente_urgente": "Cliente urgente",
+        "otro": "Otro"
+      },
+      "grant": "Conceder pase",
+      "empty": "Todavía no hay pases.",
+      "inForce": "Vigente hasta el {end, date, medium} {end, time, short}",
+      "ended": "Terminó el {end, date, medium} {end, time, short}",
+      "revoked": "Revocado el {date, date, medium} {date, time, short}",
+      "unknownProject": "Un asunto que no ves",
+      "revoke": "Revocar",
+      "revokeName": "Revocar el pase en {project}",
+      "confirmTitle": "¿Revocar este pase?",
+      "confirmMessage": "Desde el siguiente turno, el pupilo vuelve a escribir su planteamiento en {project}.",
+      "codes": {
+        "duplicate": "Este pupilo ya tiene un pase vigente en ese asunto que termina a la misma hora.",
+        "limit": "Este pupilo ya tiene el máximo de pases vigentes. Revoca uno primero.",
+        "pupilNoAccess": "El pupilo no puede abrir ese asunto, así que el pase no aplicaría.",
+        "invalid": "Revisa el asunto, la duración y el motivo."
+      },
+      "actions": {
+        "load": "cargar los pases",
+        "grant": "conceder el pase",
+        "revoke": "revocar el pase"
+      }
+    },
+    "promotion": {
+      "intro": "LiTT propone; tú decides. Una propuesta se apoya solo en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa.",
+      "empty": "Este pupilo no tiene etapa que promover.",
+      "move": "{practice}: {from} → {to}",
+      "defenses": "Defensas aprobadas: {count} de {required}",
+      "works": "Trabajos revisados: {count} de {required}",
+      "versions": "Borradores aprobados: {count}",
+      "proposed": "LiTT propone esta promoción.",
+      "notYet": "Todavía no se propone.",
+      "blocked": {
+        "not_approved_after": "Hubo una defensa no aprobada después de la última aprobada.",
+        "general_stage_remains": "Seguiría aplicando su etapa para todas las materias, así que quitar esta no lo haría abogado en esta materia."
+      },
+      "accept": "Aceptar propuesta",
+      "confirmTitle": "¿Aceptar esta promoción?",
+      "confirmMessage": "{practice}: de {from} a {to}. Después puedes volver a cambiar la etapa en Formación.",
+      "codes": {
+        "notProposed": "Esta propuesta ya no está vigente. Vuelve a cargar para ver la evidencia actual."
+      },
+      "actions": {
+        "load": "cargar la promoción",
+        "accept": "aceptar la promoción"
+      }
+    },
+    "mentorSeesMe": {
+      "title": "Lo que mi mentor ve de mí",
+      "intro": "Los mismos resúmenes, defensas y pases que tu mentor ve aquí. Ni más ni menos.",
+      "reviews": "Resúmenes de tu trabajo",
+      "noReviews": "Todavía no hay resúmenes.",
+      "defenses": "Defensas orales",
+      "noDefenses": "Todavía no hay defensas.",
+      "scheduled": "Hay una defensa programada. Verás sus preguntas y la nota cuando se registre el resultado.",
+      "passes": "Pases de urgencia",
+      "noPasses": "Todavía no hay pases.",
+      "actions": {
+        "load": "cargar lo que ve tu mentor"
+      }
+    }
   }
 }

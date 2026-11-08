@@ -10,15 +10,15 @@
       <stop offset="0.5" stop-color="#838688" stop-opacity="0.95"/>
       <stop offset="1" stop-color="#595C62" stop-opacity="0.97"/>
     </linearGradient>
-    <linearGradient id="nYellow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FDE68A" stop-opacity="0.96"/>
-      <stop offset="0.5" stop-color="#F59E0B" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#B45309" stop-opacity="0.97"/>
+    <linearGradient id="nAmber" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD98F" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#FFB21E" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#965900" stop-opacity="0.97"/>
     </linearGradient>
-    <linearGradient id="nRed" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FCA5A5" stop-opacity="0.96"/>
-      <stop offset="0.5" stop-color="#EF4444" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#B91C1C" stop-opacity="0.97"/>
+    <linearGradient id="nTinta" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8D9093" stop-opacity="0.96"/>
+      <stop offset="0.5" stop-color="#393E48" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#151A26" stop-opacity="0.97"/>
     </linearGradient>
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
@@ -58,14 +58,14 @@
     <circle cx="11" cy="32" r="9.1" fill="url(#nBlue)" stroke="url(#rim)" stroke-width="1.4"/>
     <ellipse cx="9.4" cy="28.6" rx="4.7" ry="2.4" fill="url(#sheen)" opacity="0.7"/>
   </g>
-  <!-- right node: yellow -->
+  <!-- right node: ámbar -->
   <g>
-    <circle cx="53" cy="32" r="9.1" fill="url(#nYellow)" stroke="url(#rim)" stroke-width="1.4"/>
+    <circle cx="53" cy="32" r="9.1" fill="url(#nAmber)" stroke="url(#rim)" stroke-width="1.4"/>
     <ellipse cx="51.4" cy="28.6" rx="4.7" ry="2.4" fill="url(#sheen)" opacity="0.7"/>
   </g>
-  <!-- bottom node: red -->
+  <!-- bottom node: tinta -->
   <g>
-    <circle cx="32" cy="53" r="9.1" fill="url(#nRed)" stroke="url(#rim)" stroke-width="1.4"/>
+    <circle cx="32" cy="53" r="9.1" fill="url(#nTinta)" stroke="url(#rim)" stroke-width="1.4"/>
     <ellipse cx="30.4" cy="49.6" rx="4.7" ry="2.4" fill="url(#sheen)" opacity="0.7"/>
   </g>
 </svg>

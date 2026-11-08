@@ -11,6 +11,8 @@ vi.mock("@/app/lib/mikeApi", () => ({
     releaseTrainingPupil: vi.fn(async () => undefined),
     setTrainingStage: vi.fn(async () => undefined),
     removeTrainingStage: vi.fn(async () => undefined),
+    getMySupervision: vi.fn(async () => ({ org_id: "org-1", work_reviews: [], defenses: [], urgency_passes: [] })),
+    listProjects: vi.fn(async () => []),
 }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
     useWorkspace: () => ({ organizations: [{ id: "org-1", name: "Despacho Ruiz" }] }),
@@ -53,6 +55,9 @@ describe("Ajustes → Formación", () => {
         expect(screen.getByText("Todas las materias: Junior")).toBeInTheDocument();
         expect(screen.getByText("Employment: Pasante")).toBeInTheDocument();
         expect(screen.queryByText("Mis pupilos")).toBeNull();
+        // Layer 2: what their mentor sees of them, in that organization.
+        expect(await screen.findByText("What my mentor sees of me")).toBeInTheDocument();
+        expect(api.getMySupervision).toHaveBeenCalledWith("org-1");
     });
 
     it("tells a lawyer they have no training", async () => {
@@ -71,6 +76,10 @@ describe("Ajustes → Formación", () => {
         });
         render(<TrainingSettings />);
         expect(await screen.findByText("Mis pupilos")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Open the mentor panel" })).toHaveAttribute(
+            "href",
+            "/settings/training/mentor",
+        );
         expect(await screen.findByText("Luis Pasante")).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole("button", { name: "Guardar etapa" }));

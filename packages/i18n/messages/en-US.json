@@ -241,5 +241,228 @@
       "diagnostics": "--- Details for support (please keep) ---",
       "thanks": "Thanks,"
     }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Document",
+        "explorer": "Explorer",
+        "label": "Workspace view"
+      }
+    }
+  },
+  "training": {
+    "stage": {
+      "pasante": "Intern",
+      "junior": "Junior",
+      "abogado": "Lawyer"
+    },
+    "allPractices": "All practice areas",
+    "member": "Member",
+    "surface": {
+      "chat": "Chat",
+      "word": "Word",
+      "tabular": "Tabular review"
+    },
+    "credentialSource": {
+      "personal": "Your key",
+      "organization": "Organization key",
+      "deployment": "Deployment key",
+      "operator": "Operator endpoint"
+    },
+    "loadFailed": "This could not be loaded.",
+    "notes": {
+      "optional": "Note (optional)",
+      "max": "Up to {max} characters."
+    },
+    "mentorPanel": {
+      "title": "Mentor panel",
+      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils, and only you and each pupil see their data.",
+      "open": "Open the mentor panel",
+      "back": "Back to Training",
+      "allPupils": "All pupils",
+      "notMentor": "You are not a mentor in any organization. An owner or an admin of the organization designates mentors.",
+      "noPupils": "You have no pupils here yet. Add them in Training, under My pupils.",
+      "pendingReview": "{count, plural, =0 {No work waiting for review} one {# work waiting for review} other {# works waiting for review}}",
+      "passInForce": "Urgency pass in force until {end, date, medium} {end, time, short}",
+      "lastWork": "Last work: {date, date, medium} {date, time, short}",
+      "noWork": "No work yet",
+      "supervise": "Supervise",
+      "superviseName": "Supervise {name}",
+      "tabsLabel": "Supervision sections",
+      "tabs": {
+        "works": "Works",
+        "defenses": "Oral defense",
+        "passes": "Urgency pass",
+        "promotion": "Promotion"
+      },
+      "actions": {
+        "load": "load your pupils"
+      }
+    },
+    "review": {
+      "proposed": "What they proposed",
+      "aiCorrected": "What the AI corrected",
+      "doubts": "Where they hesitated",
+      "unverified": "What was left unverified",
+      "inferred": "inferred",
+      "none": "Nothing.",
+      "generatedWith": "Generated with {model} on {date, date, medium} {date, time, short}",
+      "reviewedOn": "Reviewed on {date, date, medium} {date, time, short}",
+      "notReviewed": "Not reviewed yet",
+      "pending": "Generating the review…",
+      "failed": "The review could not be generated. You can try again."
+    },
+    "works": {
+      "intro": "Each work is a conversation with turn notes. The review shows four things; what was left unverified is computed, not generated.",
+      "empty": "This pupil has no work with turn notes yet.",
+      "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access.",
+      "untitled": "Untitled work",
+      "meta": "{surface} · {notes, plural, one {# note} other {# notes}} · {date, date, medium} {date, time, short}",
+      "noReview": "No review yet.",
+      "newWork": "There is new work since this review.",
+      "heldDrafts": "{count, plural, one {# sealed draft still waits for approval; approve it from its document.} other {# sealed drafts still wait for approval; approve them from each document.}}",
+      "generate": "Generate review",
+      "regenerate": "Regenerate",
+      "markReviewed": "Mark as reviewed",
+      "keyRequired": "To generate reviews and defense questions you need an AI key you can use in this organization. There is no fallback to another key. You can still record a defense without AI.",
+      "key": "Key",
+      "chooseKey": "Choose a key",
+      "codes": {
+        "inProgress": "A review of this work is already being generated. Wait a moment and reload.",
+        "credentialUnavailable": "The key this review used is no longer available to you. Choose another key and try again.",
+        "keyRequired": "You need an AI key you can use in this organization."
+      },
+      "actions": {
+        "load": "load the works",
+        "generate": "generate the review",
+        "markReviewed": "mark the work as reviewed"
+      }
+    },
+    "defenses": {
+      "intro": "Five questions on the pupil's own reasoning, one of them a change of facts. The outcome is recorded once; to correct it, hold a new defense.",
+      "newTitle": "New defense",
+      "work": "Work",
+      "noWork": "No particular work",
+      "practice": "Practice area",
+      "practiceFromWork": "The practice area of the work's matter",
+      "otherPractice": "Other practice area",
+      "practiceName": "Practice area name",
+      "create": "Create defense",
+      "empty": "No defenses yet.",
+      "createdOn": "Created on {date, date, medium} {date, time, short}",
+      "scheduled": "Scheduled; no outcome yet.",
+      "generateQuestions": "Generate questions",
+      "questionsPending": "Generating the questions…",
+      "questionsFailed": "The questions could not be generated. You can try again, or record the outcome without them.",
+      "changeOfFacts": "Change of facts",
+      "question": "Question {number}",
+      "listenFor": "Listen for: {text}",
+      "recordTitle": "Record the outcome",
+      "outcomeLabel": "Outcome",
+      "reasonLabel": "Reason",
+      "chooseReason": "Choose a reason",
+      "outcome": {
+        "approved": "Approved",
+        "not_approved": "Not approved"
+      },
+      "reason": {
+        "razonamiento_solido": "Sound reasoning",
+        "razonamiento_incompleto": "Incomplete reasoning",
+        "cambio_de_hechos_no_resuelto": "Did not resolve the change of facts",
+        "sin_sustento": "No support",
+        "otro": "Other"
+      },
+      "record": "Record outcome",
+      "confirmTitle": "Record this outcome?",
+      "confirmMessage": "{outcome}: {reason}. It is recorded once and cannot be changed; to correct it, hold a new defense.",
+      "result": "{outcome} on {date, date, medium} {date, time, short} · {reason}",
+      "codes": {
+        "alreadyRecorded": "This defense already has an outcome. Reload to see it."
+      },
+      "actions": {
+        "load": "load the defenses",
+        "create": "create the defense",
+        "generate": "generate the questions",
+        "record": "record the outcome"
+      }
+    },
+    "passes": {
+      "intro": "A pass lifts “Your turn first” for this pupil in one matter, for a limited time. Their drafts stay sealed until approved, and the pass does not apply in Word.",
+      "newTitle": "New pass",
+      "project": "Matter",
+      "chooseProject": "Choose a matter",
+      "noProjects": "You have no matters in this organization",
+      "duration": "Duration",
+      "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
+      "hours": "{hours, plural, one {# hour} other {# hours}}",
+      "reasonLabel": "Reason",
+      "reason": {
+        "plazo": "Deadline",
+        "audiencia": "Hearing",
+        "cliente_urgente": "Urgent client",
+        "otro": "Other"
+      },
+      "grant": "Grant pass",
+      "empty": "No passes yet.",
+      "inForce": "In force until {end, date, medium} {end, time, short}",
+      "ended": "Ended on {end, date, medium} {end, time, short}",
+      "revoked": "Revoked on {date, date, medium} {date, time, short}",
+      "unknownProject": "A matter you cannot see",
+      "revoke": "Revoke",
+      "revokeName": "Revoke the pass in {project}",
+      "confirmTitle": "Revoke this pass?",
+      "confirmMessage": "From the next turn, the pupil writes their own approach again in {project}.",
+      "codes": {
+        "duplicate": "This pupil already has a pass in force in that matter ending at the same time.",
+        "limit": "This pupil already has the most passes in force allowed. Revoke one first.",
+        "pupilNoAccess": "The pupil cannot open that matter, so the pass would not apply.",
+        "invalid": "Check the matter, the duration and the reason."
+      },
+      "actions": {
+        "load": "load the passes",
+        "grant": "grant the pass",
+        "revoke": "revoke the pass"
+      }
+    },
+    "promotion": {
+      "intro": "LiTT proposes; you decide. A proposal rests only on this pupil's approved defenses and reviewed works since their stage last changed.",
+      "empty": "This pupil has no stage to promote.",
+      "move": "{practice}: {from} → {to}",
+      "defenses": "Approved defenses: {count} of {required}",
+      "works": "Reviewed works: {count} of {required}",
+      "versions": "Approved drafts: {count}",
+      "proposed": "LiTT proposes this promotion.",
+      "notYet": "Not proposed yet.",
+      "blocked": {
+        "not_approved_after": "A defense was not approved after the last approved one.",
+        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it."
+      },
+      "accept": "Accept proposal",
+      "confirmTitle": "Accept this promotion?",
+      "confirmMessage": "{practice}: from {from} to {to}. You can change the stage again later in Training.",
+      "codes": {
+        "notProposed": "This proposal no longer holds. Reload to see the current evidence."
+      },
+      "actions": {
+        "load": "load the promotion",
+        "accept": "accept the promotion"
+      }
+    },
+    "mentorSeesMe": {
+      "title": "What my mentor sees of me",
+      "intro": "The same reviews, defenses and passes your mentor sees here. Nothing more, nothing less.",
+      "reviews": "Reviews of your work",
+      "noReviews": "No reviews yet.",
+      "defenses": "Oral defenses",
+      "noDefenses": "No defenses yet.",
+      "scheduled": "A defense is scheduled. You will see its questions and note once the outcome is recorded.",
+      "passes": "Urgency passes",
+      "noPasses": "No passes yet.",
+      "actions": {
+        "load": "load what your mentor sees"
+      }
+    }
   }
 }

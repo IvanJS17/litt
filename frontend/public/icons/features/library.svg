@@ -1,32 +1,32 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="leatherBrown" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#653A22"/>
-      <stop offset="0.18" stop-color="#8F522E"/>
-      <stop offset="0.52" stop-color="#9A633D"/>
-      <stop offset="0.82" stop-color="#814628"/>
-      <stop offset="1" stop-color="#58311D"/>
+      <stop offset="0" stop-color="#5E3A00"/>
+      <stop offset="0.18" stop-color="#87530A"/>
+      <stop offset="0.52" stop-color="#965900"/>
+      <stop offset="0.82" stop-color="#7A4A05"/>
+      <stop offset="1" stop-color="#4F3100"/>
     </linearGradient>
-    <linearGradient id="leatherBlue" x1="0" y1="0" x2="1" y2="0">
+    <linearGradient id="leatherSlate" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#383C46"/>
       <stop offset="0.18" stop-color="#575A61"/>
       <stop offset="0.52" stop-color="#686C71"/>
       <stop offset="0.82" stop-color="#4D5058"/>
       <stop offset="1" stop-color="#333740"/>
     </linearGradient>
-    <linearGradient id="leatherRed" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#6E1F25"/>
-      <stop offset="0.18" stop-color="#A0232C"/>
-      <stop offset="0.52" stop-color="#A54549"/>
-      <stop offset="0.82" stop-color="#8D2029"/>
-      <stop offset="1" stop-color="#5E1921"/>
+    <linearGradient id="leatherAmber" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5C3700"/>
+      <stop offset="0.18" stop-color="#965900"/>
+      <stop offset="0.52" stop-color="#B0731A"/>
+      <stop offset="0.82" stop-color="#7E4A00"/>
+      <stop offset="1" stop-color="#4A2C00"/>
     </linearGradient>
-    <linearGradient id="leatherGreen" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#1D4D3B"/>
-      <stop offset="0.2" stop-color="#1E6D4F"/>
-      <stop offset="0.5" stop-color="#2A855E"/>
-      <stop offset="0.82" stop-color="#1D6547"/>
-      <stop offset="1" stop-color="#1B4536"/>
+    <linearGradient id="leatherInk" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#242933"/>
+      <stop offset="0.2" stop-color="#3A3F4C"/>
+      <stop offset="0.5" stop-color="#4A5060"/>
+      <stop offset="0.82" stop-color="#2D313B"/>
+      <stop offset="1" stop-color="#1E2330"/>
     </linearGradient>
     <linearGradient id="spineGloss" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.08"/>
@@ -35,9 +35,9 @@
       <stop offset="1" stop-color="#000000" stop-opacity="0.42"/>
     </linearGradient>
     <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#F5E0C8" stop-opacity="0.65"/>
+      <stop offset="0" stop-color="#F5E6CC" stop-opacity="0.65"/>
       <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.1"/>
-      <stop offset="1" stop-color="#2A1508" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2A1A04" stop-opacity="0.55"/>
     </linearGradient>
     <linearGradient id="gilt" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#F7DE9C"/>
@@ -50,16 +50,16 @@
   <g>
     <rect x="6" y="3.8" width="11" height="49.2" rx="3" fill="url(#leatherBrown)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="6.7" y="4.5" width="9.6" height="47.8" rx="2.4" fill="url(#spineGloss)"/>
-    <path d="M8.1 8V49" stroke="#F0C7A2" stroke-opacity="0.28" stroke-width="0.65"/>
-    <path d="M15.3 7.5V49.5" stroke="#241007" stroke-opacity="0.55" stroke-width="0.8"/>
+    <path d="M8.1 8V49" stroke="#F2D29A" stroke-opacity="0.28" stroke-width="0.65"/>
+    <path d="M15.3 7.5V49.5" stroke="#241603" stroke-opacity="0.55" stroke-width="0.8"/>
     <rect x="7.4" y="10.8" width="8.2" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
     <rect x="7.4" y="38" width="8.2" height="1.2" rx="0.6" fill="url(#gilt)" opacity="0.8"/>
     <rect x="7.4" y="46.5" width="8.2" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
   </g>
 
-  <!-- blue book -->
+  <!-- slate book -->
   <g>
-    <rect x="19" y="8" width="11.5" height="45" rx="3" fill="url(#leatherBlue)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="19" y="8" width="11.5" height="45" rx="3" fill="url(#leatherSlate)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="19.7" y="8.7" width="10.1" height="43.6" rx="2.4" fill="url(#spineGloss)"/>
     <path d="M21.2 12V49" stroke="#D8D8D4" stroke-opacity="0.3" stroke-width="0.65"/>
     <path d="M28.8 11.5V49.5" stroke="#151A26" stroke-opacity="0.62" stroke-width="0.8"/>
@@ -68,20 +68,20 @@
     <rect x="20.5" y="46.8" width="8.5" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
   </g>
 
-  <!-- red book -->
+  <!-- amber book -->
   <g>
-    <rect x="32.5" y="5" width="11" height="48" rx="3" fill="url(#leatherRed)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="32.5" y="5" width="11" height="48" rx="3" fill="url(#leatherAmber)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="33.2" y="5.7" width="9.6" height="46.6" rx="2.4" fill="url(#spineGloss)"/>
-    <path d="M34.6 9V49" stroke="#FFD0D2" stroke-opacity="0.3" stroke-width="0.65"/>
-    <path d="M41.8 8.5V49.5" stroke="#35070B" stroke-opacity="0.62" stroke-width="0.8"/>
+    <path d="M34.6 9V49" stroke="#FFE2A8" stroke-opacity="0.3" stroke-width="0.65"/>
+    <path d="M41.8 8.5V49.5" stroke="#2A1A00" stroke-opacity="0.62" stroke-width="0.8"/>
     <rect x="33.9" y="11.6" width="8.2" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
     <rect x="33.9" y="38.5" width="8.2" height="1.2" rx="0.6" fill="url(#gilt)" opacity="0.8"/>
     <rect x="33.9" y="46.5" width="8.2" height="1.5" rx="0.75" fill="url(#gilt)" opacity="0.95"/>
   </g>
 
-  <!-- green book, leaning against the red book -->
+  <!-- ink book, leaning against the amber book -->
   <g transform="rotate(-9 62.1 52)">
-    <rect x="51.6" y="5.2" width="10.5" height="46.8" rx="3" fill="url(#leatherGreen)" stroke="url(#rim)" stroke-width="1.4"/>
+    <rect x="51.6" y="5.2" width="10.5" height="46.8" rx="3" fill="url(#leatherInk)" stroke="url(#rim)" stroke-width="1.4"/>
     <rect x="52.3" y="5.9" width="9.1" height="45.4" rx="2.4" fill="url(#spineGloss)"/>
     <path d="M53.7 9.5V48.5" stroke="#FFFFFF" stroke-opacity="0.24" stroke-width="0.65"/>
     <path d="M60.4 9V49" stroke="#000000" stroke-opacity="0.72" stroke-width="0.8"/>
