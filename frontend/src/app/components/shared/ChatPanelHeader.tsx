@@ -71,7 +71,7 @@ export function buildChatHistoryItems({
                         <ChatSkeuoIcon
                             aria-hidden="true"
                             tone={
-                                responseStatus === "complete" ? "green" : "blue"
+                                responseStatus === "complete" ? "complete" : "default"
                             }
                             className="h-3.5 w-3.5 shrink-0"
                         />

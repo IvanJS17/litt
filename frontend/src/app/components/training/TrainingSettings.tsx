@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { GlassCardUI } from "@mike/ui";
 import { PillButtonUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
@@ -26,18 +28,22 @@ import {
 } from "@/app/lib/mikeApi";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { MemberIdentity, membersById, practiceLabel, STAGE_LABEL } from "./trainingShared";
+import { MentorSeesMe } from "./supervision/MentorSeesMe";
 
 // Ajustes → Formación (docs/training.md):
 //   Mi formación   the caller's mentor and stages, per organization; they see
 //                  exactly what their mentor sees about them
+//                  («Lo que mi mentor ve de mí», layer 2)
 //   Mis pupilos    for a mentor: take members as pupils, set their stage per
-//                  practice area, and release them
+//                  practice area, and release them; the mentor panel
+//                  (/settings/training/mentor) supervises each pupil
 // The server decides every change; this page only offers what it allows.
 
 const ALL_PRACTICES = "__all__";
 const OTHER_PRACTICE = "__other__";
 
 export function TrainingSettings() {
+    const t = useTranslations("training.mentorPanel");
     const { organizations } = useWorkspace();
     const [memberships, setMemberships] = useState<TrainingMembership[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -92,6 +98,12 @@ export function TrainingSettings() {
             {asMentor.length > 0 && (
                 <section className="space-y-3">
                     <SettingsHeading id="mis-pupilos">Mis pupilos</SettingsHeading>
+                    <Link
+                        href="/settings/training/mentor"
+                        className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                        {t("open")}
+                    </Link>
                     {asMentor.map((membership) => (
                         <MyPupils
                             key={membership.org_id}
@@ -176,6 +188,9 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
                     <p className="text-sm text-gray-500">Etapas por materia</p>
                     <StageList stages={membership.stages} />
                 </div>
+            </SettingsRow>
+            <SettingsRow layout="stacked">
+                <MentorSeesMe orgId={membership.org_id} />
             </SettingsRow>
         </GlassCardUI>
     );

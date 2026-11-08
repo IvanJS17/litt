@@ -49,6 +49,23 @@ beforeEach(() => {
     leaveChat.mockResolvedValue(undefined);
 });
 
+describe("SidebarChatItem focus", () => {
+    it("rings the row when its title button has keyboard focus", () => {
+        render(
+            <SidebarChatItem
+                chat={chat({ is_owner: true })}
+                isActive={false}
+                onSelect={vi.fn()}
+            />,
+        );
+        const title = screen.getByRole("button", { name: "Quarterly filing" });
+        expect(title).toHaveAttribute("data-focus-fill");
+        expect(title.parentElement?.className).toContain(
+            "has-[[data-focus-fill]:focus-visible]:ring-focus",
+        );
+    });
+});
+
 describe("SidebarChatItem role gates", () => {
     it("opens chat access from an owner's Share action", async () => {
         render(

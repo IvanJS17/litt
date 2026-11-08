@@ -26,9 +26,10 @@
   2026-11-09) reports anything newer. Policy:
   [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
   [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§29.
-- **In progress:** training layer 2, cards 2 (urgency pass) and 3 (two-minute
-  review, PR #73); playbooks layer 1, T2 (draft from the questionnaire,
-  PR #74).
+- **In progress:** training layer 2, card 5 (the mentor panel and «Lo que mi
+  mentor ve de mí», bilingual; in review, not merged). Its cards 2–4 and the
+  card 4 follow-ups are merged into `main` (PRs #77, #73, #85, #95) and
+  playbooks layer 1, T2 too (PR #74); none of them is deployed yet.
 - **Startup secrets:** the backend refuses to start when
   `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
   `backend/.env.example` placeholder or is shorter than 32 characters (cycle 9,
@@ -39,6 +40,20 @@
   reached by nobody once its creator leaves the firm (§24.3); the private
   catalogue must exclude matter content before it is ever opened (§24.2).
   Each rule is unchanged until the owner decides.
+
+### Training layer 2: supervision (2026-11-07)
+
+- **What:** a pupil's current mentor supervises them: the two-minute review of
+  each work, the oral defense with five questions (one a change of facts) and
+  its outcome recorded once, a time-limited urgency pass per matter that lifts
+  «Tu turno primero» without lifting the seal, and promotion proposals that
+  rest only on the pupil's own evidence; the pupil sees exactly the same
+  («Lo que mi mentor ve de mí»). Rules: [`training.md`](training.md#supervision-data-layer-2).
+- **State:** the backend is merged into `main` (card 1 PR #69, deployed with
+  `39ca4b38`; cards 2–4 PRs #77, #73, #85 and follow-ups #95, not deployed).
+  The web screens (card 5: the mentor panel at `/settings/training/mentor` in
+  four tabs, the pupil's view, `docs/training.md`) are in review, not merged.
+  Word is unchanged: it does not honor a pass.
 
 ### Training layer 1a (2026-11-06)
 

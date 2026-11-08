@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   setOrg: vi.fn(),
   refreshOrganizations: vi.fn(async () => {}),
   setOrgMemberDataPolicy: vi.fn(),
+  organizations: null as Org[] | null,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -42,7 +43,10 @@ vi.mock("./OrganizationSettingsShell", () => ({
   }),
 }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
-  useWorkspace: () => ({ refreshOrganizations: mocks.refreshOrganizations }),
+  useWorkspace: () => ({
+    refreshOrganizations: mocks.refreshOrganizations,
+    organizations: mocks.organizations,
+  }),
 }));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
@@ -77,6 +81,7 @@ const orgAs = (role: Org["role"]): Org =>
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.org = orgAs("owner");
+  mocks.organizations = null;
   mocks.deleteOrgData.mockResolvedValue(undefined);
 });
 
@@ -141,6 +146,45 @@ describe("who may use it", () => {
     expect(
       screen.getByRole("button", { name: "Delete all projects" }),
     ).toBeDisabled();
+  });
+});
+
+describe("while the organization loads", () => {
+  // The owner-only sections arrive with the organization, above the
+  // deletes. Until then a skeleton of the same rows holds their place, so
+  // the page does not jump (CLS 0.09–0.18 before).
+  it("holds the owner sections' place with a hidden skeleton", () => {
+    mocks.org = null;
+    mocks.organizations = [orgAs("owner")];
+    const { container } = render(<OrganizationPrivacyData />);
+
+    const skeleton = container.querySelector(
+      '[data-slot="org-privacy-skeleton"]',
+    ) as HTMLElement;
+    expect(skeleton).toHaveAttribute("aria-hidden", "true");
+    // Same rows as the loaded sections: two policies and departed work.
+    expect(skeleton.querySelectorAll('[data-slot="settings-row"]')).toHaveLength(3);
+    // Worded like the loaded rows, with the listed organization's name, so
+    // the descriptions wrap to the same lines.
+    expect(skeleton).toHaveTextContent(
+      "Members can export their own chats, tabular reviews, projects and memory in Elite Law LLP",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Members' data" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    // The section below is already in its final place.
+    expect(screen.getByRole("heading", { name: "Delete data" })).toBeInTheDocument();
+  });
+
+  it("drops the skeleton once the organization has loaded", () => {
+    const { container } = render(<OrganizationPrivacyData />);
+    expect(
+      container.querySelector('[data-slot="org-privacy-skeleton"]'),
+    ).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Members' data" }),
+    ).toBeInTheDocument();
   });
 });
 

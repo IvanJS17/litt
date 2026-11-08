@@ -258,7 +258,7 @@ describe("AppSidebar account dropdown", () => {
     expect(listProjectChats).not.toHaveBeenCalledWith("other-project");
   });
 
-  it("gives the recent projects list more height while a project is expanded", async () => {
+  it("lets the recent projects list grow taller while a project is expanded", async () => {
     const user = userEvent.setup();
     vi.mocked(listProjectsPage).mockResolvedValue([
       { id: "open-project", name: "Open matter" },
@@ -270,11 +270,15 @@ describe("AppSidebar account dropdown", () => {
       name: "Hide recent chats and reviews in Open matter",
     });
     const list = toggle.closest(".overflow-y-auto");
-    expect(list).toHaveClass("h-64");
+    // Caps, not heights: a short list leaves the rest of the column to
+    // History instead of reserving empty space above it.
+    expect(list).toHaveClass("max-h-64");
+    expect(list).not.toHaveClass("h-64");
 
     await user.click(toggle);
 
-    expect(list).toHaveClass("h-44");
+    expect(list).toHaveClass("max-h-44");
+    expect(list).not.toHaveClass("h-44");
   });
 
   it("fades contents in when a sidebar that loaded closed is opened", () => {
@@ -292,5 +296,74 @@ describe("AppSidebar account dropdown", () => {
     render(<AppSidebar isOpen onToggle={vi.fn()} />);
 
     expect(screen.getByText("Assistant")).not.toHaveClass("sidebar-fade-in-2");
+  });
+});
+
+describe("AppSidebar History", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(listProjectsPage).mockResolvedValue([]);
+    state.pathname = "/assistant";
+  });
+
+  it("takes the free space and scrolls on its own, keeping room for rows", () => {
+    render(<AppSidebar isOpen onToggle={vi.fn()} />);
+
+    const history = screen.getByRole("region", { name: "History" });
+    // The region scrolls inside its section; the section keeps room for
+    // the heading and three rows (min-h-36), so it never collapses.
+    expect(history).toHaveClass("flex-1", "overflow-y-auto", "min-h-0");
+    expect(history.parentElement).toHaveClass("flex-1", "min-h-36");
+  });
+
+  it("fades the end that hides more rows instead of cutting a row", () => {
+    render(<AppSidebar isOpen onToggle={vi.fn()} />);
+    const history = screen.getByRole("region", { name: "History" });
+    expect(history).not.toHaveAttribute("data-scroll-end");
+
+    // jsdom has no layout: ten rows in a three-row window. (jsdom drops
+    // mask-image from inline styles; scrollFadeMaskStyle has its own test.)
+    Object.defineProperty(history, "scrollHeight", { configurable: true, value: 400 });
+    Object.defineProperty(history, "clientHeight", { configurable: true, value: 112 });
+    act(() => {
+      history.dispatchEvent(new Event("scroll"));
+    });
+    expect(history).toHaveAttribute("data-scroll-end", "true");
+    expect(history).not.toHaveAttribute("data-scroll-start");
+
+    // At the bottom, only the top fades.
+    act(() => {
+      history.scrollTop = 288;
+      history.dispatchEvent(new Event("scroll"));
+    });
+    expect(history).not.toHaveAttribute("data-scroll-end");
+    expect(history).toHaveAttribute("data-scroll-start", "true");
+  });
+
+  it("fades the column and marks the account edge when a short window hides rows", () => {
+    const { container } = render(<AppSidebar isOpen onToggle={vi.fn()} />);
+    const column = container.querySelector<HTMLElement>("[data-sidebar-column]")!;
+    const account = container.querySelector<HTMLElement>("[data-sidebar-account]")!;
+    expect(column).not.toHaveAttribute("data-scroll-end");
+    // The border is always there, so showing it never moves the button.
+    expect(account).toHaveClass("border-t", "border-transparent");
+
+    // A 640 px window: the column holds more than it shows.
+    Object.defineProperty(column, "scrollHeight", { configurable: true, value: 700 });
+    Object.defineProperty(column, "clientHeight", { configurable: true, value: 520 });
+    act(() => {
+      column.dispatchEvent(new Event("scroll"));
+    });
+    expect(column).toHaveAttribute("data-scroll-end", "true");
+    expect(account).toHaveClass("border-t", "border-gray-200");
+    expect(account).not.toHaveClass("border-transparent");
+
+    // Scrolled to the bottom, nothing is hidden and the hairline goes.
+    act(() => {
+      column.scrollTop = 180;
+      column.dispatchEvent(new Event("scroll"));
+    });
+    expect(column).not.toHaveAttribute("data-scroll-end");
+    expect(account).toHaveClass("border-transparent");
   });
 });

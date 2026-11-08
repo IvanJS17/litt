@@ -2337,6 +2337,179 @@ export async function removeTrainingStage(
     });
 }
 
+// LiTT training, layer 2 «Supervisión» (docs/training.md): the /orgs routes
+// answer only the pupil's current mentor (a uniform 404 otherwise);
+// /training/me/supervision answers the pupil.
+
+export type {
+    TrainingAcceptPromotionBody,
+    TrainingCreateDefenseBody,
+    TrainingDefense,
+    TrainingDefenseOutcome,
+    TrainingDefenseOutcomeBody,
+    TrainingDefenseQuestion,
+    TrainingDefenseReason,
+    TrainingDefenses,
+    TrainingGrantUrgencyPassBody,
+    TrainingPromotion,
+    TrainingPromotionProposal,
+    TrainingPromotionTarget,
+    TrainingPupilWork,
+    TrainingPupilWorks,
+    TrainingReviewGeneration,
+    TrainingReviewItem,
+    TrainingSupervision,
+    TrainingUrgencyPass,
+    TrainingUrgencyPasses,
+    TrainingUrgencyReason,
+    TrainingWorkReview,
+    TrainingWorkSurface,
+} from "@mike/contracts";
+
+const pupilPath = (orgId: string, userId: string) =>
+    `/orgs/${encodeURIComponent(orgId)}/training/pupils/${encodeURIComponent(userId)}`;
+
+function supervisionWrite<T>(path: string, method: string, body?: unknown): Promise<T> {
+    return apiRequest<T>("training.manage", path, {
+        method,
+        ...(body === undefined
+            ? {}
+            : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
+}
+
+/** Optional key choice for a generation; omitted, the stored route or the default. */
+const credentialBody = (credentialRef?: string | null) =>
+    credentialRef ? { credential_ref: credentialRef } : {};
+
+export async function getPupilWorks(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilWorks>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/works`,
+    );
+}
+
+export async function generateWorkReview(
+    orgId: string,
+    userId: string,
+    work: { surface: import("@mike/contracts").TrainingWorkSurface; chatId: string },
+    credentialRef?: string | null,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingWorkReview>(
+        `${pupilPath(orgId, userId)}/works/${work.surface}/${encodeURIComponent(work.chatId)}/review`,
+        "POST",
+        credentialBody(credentialRef),
+    );
+}
+
+export async function markWorkReviewed(
+    orgId: string,
+    userId: string,
+    work: { surface: import("@mike/contracts").TrainingWorkSurface; chatId: string },
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingWorkReview>(
+        `${pupilPath(orgId, userId)}/works/${work.surface}/${encodeURIComponent(work.chatId)}/review/reviewed`,
+        "PUT",
+    );
+}
+
+export async function getPupilDefenses(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingDefenses>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/defenses`,
+    );
+}
+
+export async function createDefense(
+    orgId: string,
+    userId: string,
+    body: import("@mike/contracts").TrainingCreateDefenseBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingDefense>(
+        `${pupilPath(orgId, userId)}/defenses`,
+        "POST",
+        body,
+    );
+}
+
+export async function generateDefenseQuestions(
+    orgId: string,
+    userId: string,
+    defenseId: string,
+    credentialRef?: string | null,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingDefense>(
+        `${pupilPath(orgId, userId)}/defenses/${encodeURIComponent(defenseId)}/questions`,
+        "POST",
+        credentialBody(credentialRef),
+    );
+}
+
+/** Once: a second time answers 409 training_defense_already_recorded. */
+export async function recordDefenseOutcome(
+    orgId: string,
+    userId: string,
+    defenseId: string,
+    body: import("@mike/contracts").TrainingDefenseOutcomeBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingDefense>(
+        `${pupilPath(orgId, userId)}/defenses/${encodeURIComponent(defenseId)}/outcome`,
+        "PUT",
+        body,
+    );
+}
+
+export async function getPupilPasses(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingUrgencyPasses>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/passes`,
+    );
+}
+
+export async function grantUrgencyPass(
+    orgId: string,
+    userId: string,
+    body: import("@mike/contracts").TrainingGrantUrgencyPassBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingUrgencyPass>(
+        `${pupilPath(orgId, userId)}/passes`,
+        "POST",
+        body,
+    );
+}
+
+export async function revokeUrgencyPass(orgId: string, userId: string, passId: string): Promise<void> {
+    await supervisionWrite(`${pupilPath(orgId, userId)}/passes/${encodeURIComponent(passId)}`, "DELETE");
+}
+
+export async function getPupilPromotion(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPromotion>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/promotion`,
+    );
+}
+
+/** The server recomputes the proposal and applies it only if it still holds. */
+export async function acceptPromotion(
+    orgId: string,
+    userId: string,
+    body: import("@mike/contracts").TrainingAcceptPromotionBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingPromotion>(
+        `${pupilPath(orgId, userId)}/promotion`,
+        "POST",
+        body,
+    );
+}
+
+/** What the caller's mentor sees of them in one organization. */
+export async function getMySupervision(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingSupervision>(
+        "training.read",
+        `/training/me/supervision?${new URLSearchParams({ org_id: orgId })}`,
+    );
+}
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {

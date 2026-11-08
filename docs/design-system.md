@@ -187,8 +187,16 @@ for success, orange for warnings) are functional, not brand. Warnings used
 Tailwind `amber`, whose 700-800 steps sit next to ámbar tinta, so they moved
 to `orange` (`text-orange-700` on `bg-orange-50` is 4.88:1) and Tailwind
 `amber` is no longer used anywhere: the brand ambers belong to the square
-and the focus ring. Categorical palettes (tags, currencies, avatars, column
-formats, subagent marks) use non-blue, non-amber hues.
+and the focus ring. A warning surface reads the shared warning tokens
+(`text-warning`, `bg-warning-surface`, `border-warning-border`,
+`bg-warning-fill` with `text-warning-fill-foreground`, and
+`hover:bg-warning-fill-hover`) instead of raw `orange-*` classes, so the web
+app and the Word add-in show the same orange: orange-700 on orange-50 in the
+light theme, and a soft orange-300 on a tinta-tinted surface in the dark one.
+`frontend/src/__tests__/warningPalette.test.ts` checks AA contrast in both
+themes and rejects raw `orange-*` or `amber-*` classes in notices.
+Categorical palettes (tags, currencies, avatars, column formats, subagent
+marks) use non-blue, non-amber hues.
 
 ## Color tokens
 
