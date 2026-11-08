@@ -12,7 +12,14 @@ import type {
 // parity tests) never pull this module, and its runtime imports, into
 // the web app's type-check graph.
 export type { ApiKeyStatus } from "../types";
-import type { TrainingTurnNote, TrainingTurnNotes, UiLocale } from "@mike/contracts";
+import type {
+  TrainingBackingCheck,
+  TrainingBackingMark,
+  TrainingChatBacking,
+  TrainingTurnNote,
+  TrainingTurnNotes,
+  UiLocale,
+} from "@mike/contracts";
 import type { RouterProfileLists } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
@@ -524,6 +531,44 @@ export async function getTrainingTurnNotes(
     if (error instanceof MikeApiError && error.status === 404) return [];
     throw error;
   }
+}
+
+/**
+ * LiTT training, «Modo de rendir cuentas»: a junior's accountability checks of
+ * a Word chat's answers. The caller's own; a chat with none of theirs gets a
+ * uniform 404, which is "none" here.
+ */
+export async function getChatBacking(
+  chatId: string,
+): Promise<TrainingBackingCheck[]> {
+  try {
+    const result = await apiRequest<TrainingChatBacking>(
+      "training.read",
+      `/training/me/chats/${encodeURIComponent(chatId)}/backing`,
+    );
+    return result.checks;
+  } catch (error) {
+    if (error instanceof MikeApiError && error.status === 404) return [];
+    throw error;
+  }
+}
+
+/** «Lo verifiqué» on a conclusion, or the reason the person keeps it. */
+export async function markBackingConclusion(
+  chatId: string,
+  checkId: string,
+  conclusionId: string,
+  mark: TrainingBackingMark,
+): Promise<TrainingBackingCheck> {
+  return apiRequest<TrainingBackingCheck>(
+    "training.read",
+    `/training/me/chats/${encodeURIComponent(chatId)}/backing/${encodeURIComponent(checkId)}/conclusions/${encodeURIComponent(conclusionId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mark),
+    },
+  );
 }
 
 export async function streamWordChat(payload: {

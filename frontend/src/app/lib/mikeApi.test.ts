@@ -1067,6 +1067,7 @@ describe("mapTRMessages", () => {
         expect(mapped).toEqual([
             { id: "m1", role: "user", content: "question" },
             {
+                id: "m2",
                 role: "assistant",
                 content: "Answer",
                 events,
@@ -1096,6 +1097,7 @@ describe("mapTRMessages", () => {
             },
         ]);
         expect(mapped[0]).toEqual({
+            id: "m1",
             role: "assistant",
             content: "",
             events: undefined,

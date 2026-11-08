@@ -78,6 +78,7 @@ export {
     parseCredentialRef,
     pinChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     subagentRouteGovernor,
     subagentRoutePlan,
     titleModelForRoute,

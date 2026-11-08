@@ -25,6 +25,7 @@ import {
   useTrainingTurnNotes,
 } from "@mike/ui";
 import { getTrainingTurnNotes } from "../../api/client";
+import { useWordTrainingBacking } from "../../hooks/useWordTrainingBacking";
 import { ChatView } from "./ChatView";
 import type {
   ReasoningLevel,
@@ -182,6 +183,12 @@ export function ChatPanel({
       getTrainingTurnNotes,
     ),
   );
+  // LiTT training: a junior's conclusions and their sources, under each answer.
+  const trainingBacking = useWordTrainingBacking({
+    chatId,
+    storage: wordChatStorage,
+    isResponseLoading: chat.isResponseLoading,
+  });
   useEffect(() => {
     if (!chatId || !resumeTurnId) return;
     if (resumedSessionRef.current === sessionKey) return;
@@ -255,6 +262,7 @@ export function ChatPanel({
       {...chat}
       {...trackedEdits}
       trainingNotes={trainingNotes}
+      trainingBacking={trainingBacking}
       sessionKey={sessionKey}
       chatModel={chatModel}
       lastSelectedModel={lastSelectedModel}

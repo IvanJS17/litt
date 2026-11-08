@@ -29,6 +29,10 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
     stopTabularChatTurn: vi.fn(),
     getTrainingTurnNotes: vi.fn(async () => []),
 }));
+const backingChecks = vi.hoisted(() => ({ current: new Map<string, unknown>() }));
+vi.mock("@/app/hooks/useWebTrainingBacking", () => ({
+    useWebTrainingBacking: () => ({ checks: backingChecks.current, mark: vi.fn() }),
+}));
 vi.mock("../assistant/ChatInput", () => ({
     ChatInput: ({
         onSubmit,
@@ -382,6 +386,68 @@ describe("TRChatPanel header", () => {
         await user.click(screen.getByRole("button", { name: "Send with attempt" }));
         await waitFor(() => expect(streamTabularChat).toHaveBeenCalled());
         expect(vi.mocked(streamTabularChat).mock.calls[0][7]).toBe("Mi planteamiento");
+    });
+
+    describe("a junior's accountability panel under the answer", () => {
+        const check = (messageId: string) => ({
+            id: "check-1",
+            org_id: "o",
+            trainee_user_id: "u",
+            chat_id: "chat-1",
+            message_id: messageId,
+            status: "ready",
+            created_at: "2026-11-08T16:30:00Z",
+            updated_at: "2026-11-08T16:30:00Z",
+            conclusions: [
+                {
+                    id: "c1", text: "El plazo es de tres años", citation_ref: null, status: "unbacked",
+                    passage: null, unverified_references: [], person_verified: false, person_note: null,
+                },
+            ],
+        });
+        afterEach(() => {
+            backingChecks.current = new Map();
+        });
+
+        it("draws it under the reloaded answer it belongs to", async () => {
+            backingChecks.current = new Map([["a1", check("a1")]]);
+            vi.mocked(getTabularChatMessages).mockResolvedValue([
+                { id: "u1", chat_id: "chat-1", role: "user", content: "Pregunta", created_at: "2026-11-08" },
+                {
+                    id: "a1", chat_id: "chat-1", role: "assistant",
+                    content: [{ type: "content", text: "Respuesta" }], created_at: "2026-11-08",
+                },
+            ]);
+            render(<TRChatPanel reviewId="review-1" projectId="p1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
+            expect(await screen.findByText("El plazo es de tres años")).toBeInTheDocument();
+        });
+
+        it("draws it under the answer just streamed, once the server has named and checked it", async () => {
+            vi.mocked(streamTabularChat).mockResolvedValue(
+                new Response(
+                    'data: {"type":"chat_id","chatId":"chat-1","turnId":"a-live"}\n\ndata: {"type":"content","text":"Respuesta"}\n\ndata: [DONE]\n\n',
+                    { headers: { "Content-Type": "text/event-stream" } },
+                ),
+            );
+            backingChecks.current = new Map([["a-live", check("a-live")]]);
+            const user = userEvent.setup();
+            const { container } = render(<TRChatPanel reviewId="review-1" projectId="p1" onCitationClick={vi.fn()} />);
+            container.querySelector<HTMLDivElement>(".tr-chat-message-fades")!.scrollTo = vi.fn();
+            await user.click(screen.getByRole("button", { name: "Send test message" }));
+            expect(await screen.findByText("El plazo es de tres años")).toBeInTheDocument();
+        });
+
+        it("draws nothing for an answer with no check", async () => {
+            vi.mocked(getTabularChatMessages).mockResolvedValue([
+                {
+                    id: "a2", chat_id: "chat-1", role: "assistant",
+                    content: [{ type: "content", text: "Respuesta" }], created_at: "2026-11-08",
+                },
+            ]);
+            render(<TRChatPanel reviewId="review-1" projectId="p1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
+            expect(await screen.findByText("Respuesta")).toBeInTheDocument();
+            expect(screen.queryByText("El plazo es de tres años")).not.toBeInTheDocument();
+        });
     });
 
     it("opens the rejected-key popup for a tabular chat stream error", async () => {

@@ -12,6 +12,7 @@ import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-full-reading/trainingFullReading.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
+import { myBackingRouter, pupilBackingRouter } from "./modules/training-backing/trainingBacking.routes";
 import {
     pupilReviewAuditsRouter,
     reviewAuditRouter,
@@ -341,10 +342,12 @@ app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/backing", pupilBackingRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
+app.use("/training/me/chats", myBackingRouter);
 app.use("/training", trainingRouter);
 app.use("/training", trainingSupervisionRouter);
 app.use("/training", trainingReadingsRouter);

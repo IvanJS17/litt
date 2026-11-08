@@ -531,7 +531,58 @@
       "turn": {},
       "map": {},
       "modes": {},
-      "backing": {},
+      "backing": {
+        "actions": {
+          "save": "guardar tu marca en esta conclusión",
+          "load": "cargar las revisiones de rendición de cuentas"
+        },
+        "citationRef": "Cita {ref}",
+        "failed": "No se pudieron revisar las conclusiones de esta respuesta.",
+        "intro": "El asistente propuso en qué cita se apoya cada conclusión. Abre el pasaje y compruébalo antes de confiar en ella.",
+        "listLabel": "Conclusiones de esta respuesta",
+        "mentor": {
+          "answerFrom": "Respuesta del {date, date, medium} {date, time, short}",
+          "empty": "Todavía no hay revisiones de rendición de cuentas.",
+          "intro": "Lo que este junior conservó de las respuestas que recibió: cada conclusión, la fuente que LiTT pudo mostrar y lo que hizo con ella. LiTT calcula el estado; el vínculo con una cita lo propone la IA.",
+          "summary": "{total, plural, one {# conclusión} other {# conclusiones}} · {backed} respaldadas · {unbacked} sin respaldo · {unverified} con cita sin verificar",
+          "surface": {
+            "chat": "Chat",
+            "tabular": "Revisión tabular",
+            "word": "Word"
+          },
+          "title": "Rendición de cuentas",
+          "untitled": "Chat sin título",
+          "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir, por eso no se muestra.} other {# trabajos están en asuntos que no puedes abrir, por eso no se muestran.}}"
+        },
+        "passageLabel": "Pasaje exacto",
+        "passageSource": "{title}, página {page}",
+        "passageSourceNoPage": "{title}",
+        "passageUntitled": "Documento citado",
+        "pending": "Revisando las conclusiones de esta respuesta…",
+        "personNotVerified": "La persona no la ha marcado como verificada",
+        "personReason": "Por qué la conserva",
+        "personVerified": "La persona la verificó",
+        "privacy": "Privado: solo tú y tu mentor lo ven",
+        "privacyMentor": "Privado: solo la persona y tú, que la acompañas como mentor, lo ven",
+        "reasonHint": "Opcional, hasta {max} caracteres. Tu mentor lo lee.",
+        "reasonLabel": "Por qué la conservas",
+        "reasonSave": "Guardar motivo",
+        "saved": "Motivo guardado",
+        "saving": "Guardando…",
+        "status": {
+          "backed": "Respaldada",
+          "citationUnverified": "Cita sin verificar",
+          "unbacked": "Sin respaldo"
+        },
+        "statusHelp": {
+          "backed": "LiTT encontró este pasaje en un documento.",
+          "citationUnverified": "LiTT no encontró el texto citado en el documento.",
+          "unbacked": "Ninguna cita de un documento de LiTT la respalda."
+        },
+        "title": "Tus conclusiones y su fuente",
+        "unverifiedReferences": "Sin verificar: {references}. Confírmalo en la fuente oficial.",
+        "verified": "Lo verifiqué"
+      },
       "audit": {
         "pageTitle": "Audita tu revisión",
         "intro": "Revisa las preguntas de esta revisión y luego audita a mano una muestra de sus respuestas. Es para tu aprendizaje: no bloquea nada y aquí no se usa ningún modelo.",

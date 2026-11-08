@@ -1,5 +1,7 @@
 "use client";
 
+import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { nextRevealLength } from "./tabularReveal";
 
 import { useMarkdownCheckpoint } from "../assistant/message/markdownCheckpoint";
@@ -84,7 +86,10 @@ import {
 // ---------------------------------------------------------------------------
 
 interface TRMessage {
-    /** Server id of a saved user message; notes are matched on it. */
+    /**
+     * Server id of the message: a saved user message (notes are matched on
+     * it) or an assistant message (its accountability panel is found by it).
+     */
     id?: string;
     role: "user" | "assistant";
     /** LiTT training: the approach this just-sent message went out with. */
@@ -699,6 +704,12 @@ export function TRChatPanel({
         messages,
         useTrainingTurnNotes(currentChatId, isLoading, getTrainingTurnNotes),
     );
+    // LiTT training: a junior's conclusions and their sources, under each answer.
+    const trainingBacking = useWebTrainingBacking({
+        chatId: currentChatId,
+        projectId,
+        isResponseLoading: isLoading,
+    });
     const hasMessages = messages.length > 0;
     const userMessageCount = messages.filter(
         (message) => message.role === "user",
@@ -1198,6 +1209,7 @@ export function TRChatPanel({
         setMessages((prev) => [
             ...prev,
             {
+                id: turnId,
                 role: "assistant",
                 content: "",
                 events: [],
@@ -1382,6 +1394,17 @@ export function TRChatPanel({
                     if (streamGenerationRef.current !== gen) continue;
                     currentChatIdRef.current = newId;
                     setCurrentChatId(newId);
+                    // The run's id is the assistant message's id (as the
+                    // reload above matches on): the answer's accountability
+                    // panel looks for it, and shows once the server has
+                    // saved the answer and written the check.
+                    const answerId = cursor.turnId;
+                    if (answerId)
+                        setMessages((prev) => {
+                            const last = prev[prev.length - 1];
+                            if (last?.role !== "assistant" || last.id) return prev;
+                            return [...prev.slice(0, -1), { ...last, id: answerId }];
+                        });
                     continue;
                 }
                 if (data.type === "error") cursor.hadError = true;
@@ -2057,6 +2080,13 @@ export function TRChatPanel({
                                     trainingNote={trainingNotes.get(i)}
                                     onCitationClick={onCitationClick}
                                 />
+                                {msg.role === "assistant" && (
+                                    <BackingSlot
+                                        backing={trainingBacking}
+                                        messageId={msg.id}
+                                        className="mt-2 w-full max-w-[90%]"
+                                    />
+                                )}
                             </div>
                         ))}
                     </div>

@@ -65,6 +65,9 @@ begin
     values (chat, current_setting('litt.pupil')::uuid, org, project);
   insert into public.training_turn_notes(org_id, trainee_user_id, chat_id, message_id, attempt)
     values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(), repeat('x', 60));
+  insert into public.training_backing_checks(org_id, trainee_user_id, chat_id, message_id, status, conclusions)
+    values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(), 'ready',
+      '[{"id":"c1","text":"t","citation_ref":null,"status":"unbacked"}]');
   insert into public.training_work_reviews(id, org_id, trainee_user_id, chat_id, status,
       proposed, ai_corrected, doubts, unverified, model_provider, model, credential_ref,
       generated_by, generated_at, reviewed_at, reviewed_by)

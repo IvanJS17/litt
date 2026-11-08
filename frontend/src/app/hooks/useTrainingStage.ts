@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { TrainingStage } from "@mike/contracts";
 import { getTrainingStage } from "@/app/lib/mikeApi";
 
 /** What the composer needs to know about «Tu turno primero» where it is. */
@@ -9,9 +10,11 @@ export type TrainingTurnState = {
     attemptRequired: boolean;
     /** When the urgency pass that lifts it ends, if one is in force there. */
     urgencyPassExpiresAt: string | null;
+    /** The caller's effective stage there; null for a lawyer, or while it is unknown. */
+    stage?: TrainingStage | null;
 };
 
-const NOTHING_REQUIRED: TrainingTurnState = { attemptRequired: false, urgencyPassExpiresAt: null };
+const NOTHING_REQUIRED: TrainingTurnState = { attemptRequired: false, urgencyPassExpiresAt: null, stage: null };
 
 const STALE_EVENT = "litt:training-stage-stale";
 
@@ -62,6 +65,7 @@ export function useTrainingStage({
                         state: {
                             attemptRequired: stage.attempt_required,
                             urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
+                            stage: stage.stage,
                         },
                     });
             },

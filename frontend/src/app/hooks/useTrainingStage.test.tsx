@@ -22,14 +22,14 @@ describe("useTrainingStage", () => {
         vi.mocked(getTrainingStage).mockResolvedValue(answer(false, end));
         const { result } = renderHook(() => useTrainingStage({ orgId: "o1", projectId: "p1" }));
         await waitFor(() =>
-            expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: end }),
+            expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: end, stage: "pasante" }),
         );
         expect(getTrainingStage).toHaveBeenCalledWith({ orgId: "o1", projectId: "p1" });
     });
 
     it("asks nothing while disabled or outside an organization", () => {
         const { result } = renderHook(() => useTrainingStage({ orgId: "o1", projectId: "p1", enabled: false }));
-        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null });
+        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null, stage: null });
         renderHook(() => useTrainingStage({ orgId: null, projectId: null }));
         expect(getTrainingStage).not.toHaveBeenCalled();
     });
@@ -43,7 +43,7 @@ describe("useTrainingStage", () => {
             await new Promise((resolve) => setTimeout(resolve, 10));
         });
         expect(getTrainingStage).toHaveBeenCalledTimes(1);
-        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null });
+        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null, stage: null });
     });
 
     it("reads again when a turn was refused for a missing approach", async () => {
@@ -53,7 +53,7 @@ describe("useTrainingStage", () => {
         vi.mocked(getTrainingStage).mockResolvedValueOnce(answer(true));
         act(() => markTrainingStageStale());
         await waitFor(() =>
-            expect(result.current).toEqual({ attemptRequired: true, urgencyPassExpiresAt: null }),
+            expect(result.current).toEqual({ attemptRequired: true, urgencyPassExpiresAt: null, stage: "pasante" }),
         );
     });
 
