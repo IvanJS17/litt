@@ -56,6 +56,7 @@ import {
     resizeChatSplit,
     resizePanel,
     type WorkspacePanelWidths,
+    workspaceView,
 } from "@/app/lib/workspacePanelWidths";
 import {
     ProjectChatPanel,
@@ -212,7 +213,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     // the panels from md up. Elsewhere every panel shows and this is ignored.
     const [mobileView, setMobileView] = useState<ProjectWorkspaceView>("chat");
     const workspaceRef = useRef<HTMLDivElement>(null);
-    const room = useWorkspaceRoom(workspaceRef);
+    const [explorerCollapsed, setExplorerCollapsed] = useState(false);
+    const room = useWorkspaceRoom(workspaceRef, explorerCollapsed);
 
     const [project, setProject] = useState<Project | null>(null);
     const [projectLoaded, setProjectLoaded] = useState(false);
@@ -252,13 +254,13 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     });
     const explorerWidth = panelWidths.explorer;
     const sideChatOpen = sideChatId !== null;
-    // Unmeasured (`null`), the CSS alone keeps a phone to one panel.
-    const singleView =
-        room === "single" ||
-        (sideChatOpen && room !== null && room !== "splitWithSideChat");
-    // A side chat is offered only where it can be seen beside the others.
-    const sideChatShown =
-        !singleView && (room === null || room === "splitWithSideChat");
+    // One panel until the room is measured; a side chat that stops fitting is
+    // closed below, so it is never left open out of sight.
+    const {
+        singleView,
+        sideChatShown,
+        closeSideChat: sideChatOutgrown,
+    } = workspaceView(room, sideChatOpen);
     /** Layout classes for a panel: hidden unless it is the one on screen. */
     const viewClass = (view: ProjectWorkspaceView) =>
         mobileView === view
@@ -287,7 +289,6 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     const activateSideChat = useCallback(() => {
         activeChatPaneRef.current = "side";
     }, []);
-    const [explorerCollapsed, setExplorerCollapsed] = useState(false);
 
     // Upload state
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1360,6 +1361,12 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         activatePrimaryChat();
         closeSideChat();
     }
+
+    useEffect(() => {
+        if (!sideChatOutgrown) return;
+        activatePrimaryChat();
+        closeSideChat();
+    }, [sideChatOutgrown, activatePrimaryChat, closeSideChat]);
 
     // The document on screen rides along with a message as context.
     const displayedDoc = useMemo(

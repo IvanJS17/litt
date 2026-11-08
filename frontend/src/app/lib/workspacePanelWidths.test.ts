@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
     fitPanelWidths,
-    fitsWithExplorer,
+    fitsAtMinimum,
     resizeChatSplit,
     resizePanel,
     workspaceRoom,
+    workspaceView,
 } from "./workspacePanelWidths";
 
 const widths = { explorer: 280, chat: 420, sideChat: 420 };
@@ -120,11 +121,18 @@ describe("panels with nothing left to give or take", () => {
     });
 });
 
-describe("fitsWithExplorer", () => {
+describe("fitsAtMinimum", () => {
     it("says when a second chat needs the explorer's room", () => {
-        expect(fitsWithExplorer(1100, false)).toBe(true);
-        expect(fitsWithExplorer(1100, true)).toBe(false);
-        expect(fitsWithExplorer(1200, true)).toBe(true);
+        expect(fitsAtMinimum(1100, oneChat)).toBe(true);
+        expect(fitsAtMinimum(1100, twoChats)).toBe(false);
+        expect(fitsAtMinimum(1200, twoChats)).toBe(true);
+    });
+
+    it("needs less room when the explorer is folded", () => {
+        const folded = { explorerCollapsed: true, sideChatOpen: true };
+        // Document 320 + two chats 640 + folded explorer 42 + divider 6.
+        expect(fitsAtMinimum(1007, folded)).toBe(false);
+        expect(fitsAtMinimum(1008, folded)).toBe(true);
     });
 });
 
@@ -138,5 +146,52 @@ describe("workspaceRoom", () => {
         expect(workspaceRoom(812)).toBe("split");
         expect(workspaceRoom(1137)).toBe("split");
         expect(workspaceRoom(1138)).toBe("splitWithSideChat");
+    });
+});
+
+describe("workspaceRoom with a folded explorer", () => {
+    // Folded explorer 42 + document 320 + chat 320 = 682; a second chat adds
+    // 320 + 6 = 1008.
+    it("offers the side chat where the open explorer would not fit it", () => {
+        expect(workspaceRoom(1007, true)).toBe("split");
+        expect(workspaceRoom(1008, true)).toBe("splitWithSideChat");
+        expect(workspaceRoom(1008, false)).toBe("split");
+        expect(workspaceRoom(681, true)).toBe("single");
+        expect(workspaceRoom(682, true)).toBe("split");
+    });
+});
+
+describe("workspaceView", () => {
+    it("is one panel until the room is measured", () => {
+        expect(workspaceView(null, false)).toEqual({
+            singleView: true,
+            sideChatShown: false,
+            closeSideChat: false,
+        });
+        // A side chat in the address is kept until we know it cannot fit.
+        expect(workspaceView(null, true).closeSideChat).toBe(false);
+    });
+
+    it("shows the panels side by side where they fit", () => {
+        expect(workspaceView("split", false)).toEqual({
+            singleView: false,
+            sideChatShown: false,
+            closeSideChat: false,
+        });
+        expect(workspaceView("splitWithSideChat", true)).toEqual({
+            singleView: false,
+            sideChatShown: true,
+            closeSideChat: false,
+        });
+    });
+
+    it("closes an open side chat that stops fitting", () => {
+        expect(workspaceView("split", true)).toEqual({
+            singleView: true,
+            sideChatShown: false,
+            closeSideChat: true,
+        });
+        expect(workspaceView("single", true).closeSideChat).toBe(true);
+        expect(workspaceView("single", false).closeSideChat).toBe(false);
     });
 });

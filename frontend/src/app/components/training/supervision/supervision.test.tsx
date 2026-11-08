@@ -329,6 +329,38 @@ describe("Works tab", () => {
             expect(notifyError).not.toHaveBeenCalled();
         });
 
+        it("offers the button again when the review is regenerated, whatever the version id", async () => {
+            const held = (generatedAt: string) =>
+                works({
+                    works: [
+                        {
+                            ...works().works[0],
+                            review: { ...readyReview, generated_at: generatedAt, unverified: [heldLine] },
+                        },
+                    ],
+                });
+            // One date, taken once: `iso` reads the clock, and a second reading
+            // would be another generation.
+            const first = held(iso(-3 * HOUR));
+            vi.mocked(api.getPupilWorks)
+                .mockResolvedValueOnce(first)
+                // The reload after approving: the same review, still marked.
+                .mockResolvedValueOnce(first)
+                // A regeneration reads the server again: the same version id is held.
+                .mockResolvedValue(held(iso(-HOUR)));
+            render(<WorksTab orgId="org-1" pupilId="pupil-1" />);
+            fireEvent.click(await screen.findByRole("button", { name: /^Approve this version: / }));
+            fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve" }));
+            expect(await screen.findByText(/Approved$/)).toBeInTheDocument();
+            await waitFor(() => expect(api.getPupilWorks).toHaveBeenCalledTimes(2));
+            expect(await screen.findByText(/Approved$/)).toBeInTheDocument();
+
+            fireEvent.change(screen.getByRole("combobox", { name: "Key" }), { target: { value: "org:k2" } });
+            fireEvent.click(screen.getByRole("button", { name: "Regenerate" }));
+            expect(await screen.findByRole("button", { name: /^Approve this version: / })).toBeInTheDocument();
+            expect(screen.queryByText(/Approved$/)).toBeNull();
+        });
+
         it("hands a refusal to notifyError and keeps the button", async () => {
             const refused = new Error("403");
             vi.mocked(api.getPupilWorks).mockResolvedValue(withHeld());

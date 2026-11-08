@@ -258,6 +258,9 @@ export function ModelToggleUI({
             : twMerge(
                 "flex h-8 shrink-0 items-center rounded-lg px-2 text-sm text-gray-400 transition-colors enabled:cursor-pointer enabled:hover:text-gray-700 disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                 triggerClassName,
+                // The words are the control: a host's icon-square width
+                // (compact composer) would cut them down to "N…".
+                "w-auto",
               )
         }
       >

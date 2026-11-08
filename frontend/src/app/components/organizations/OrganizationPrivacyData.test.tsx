@@ -187,9 +187,18 @@ describe("while the organization loads", () => {
       '[data-slot="org-privacy-skeleton"]',
     ) as HTMLElement;
     expect(skeleton).toHaveAttribute("data-role", "unknown");
-    // Same rows, so the height is the owner's; no toggle or button shape.
+    // Same rows, so the height is the owner's; no toggle or button shape
+    // is drawn, but each control's place is kept (a stacked row, below sm,
+    // gives it a line of its own).
     expect(skeleton.querySelectorAll('[data-slot="settings-row"]')).toHaveLength(3);
-    expect(skeleton.querySelectorAll(".rounded-full")).toHaveLength(0);
+    expect(skeleton.querySelectorAll(".rounded-full.animate-pulse")).toHaveLength(0);
+    const places = skeleton.querySelectorAll(".rounded-full.invisible");
+    expect(places).toHaveLength(3);
+    expect([...places].map((place) => place.className)).toEqual([
+      expect.stringContaining("h-5 w-9"),
+      expect.stringContaining("h-5 w-9"),
+      expect.stringContaining("h-7 w-full"),
+    ]);
     expect(screen.getByRole("heading", { name: "Delete data" })).toBeInTheDocument();
   });
 

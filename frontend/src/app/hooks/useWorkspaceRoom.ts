@@ -8,17 +8,18 @@ import {
 
 /**
  * How many workspace panels fit side by side in `ref`'s element, kept up to
- * date as it resizes. `null` until the element has a width; below the `md`
- * breakpoint it starts as `"single"`, which the CSS already shows.
+ * date as it resizes. `null` until the element has a width, which is also
+ * what the server renders: starting from `window.innerWidth` instead would
+ * not match the server's markup on a phone. The workspace treats `null` as
+ * one panel (`workspaceView`) and the layout effect replaces it before the
+ * first paint, so a desktop never shows the one-panel layout.
+ * `explorerCollapsed` is measured in: a folded explorer leaves more room.
  */
 export function useWorkspaceRoom(
     ref: RefObject<HTMLElement | null>,
+    explorerCollapsed = false,
 ): WorkspaceRoom | null {
-    const [room, setRoom] = useState<WorkspaceRoom | null>(() =>
-        typeof window !== "undefined" && window.innerWidth < 768
-            ? "single"
-            : null,
-    );
+    const [room, setRoom] = useState<WorkspaceRoom | null>(null);
 
     // Measured in a layout effect so the first paint already shows the
     // right layout (a tablet used to flash three panels, then one).
@@ -27,7 +28,7 @@ export function useWorkspaceRoom(
         if (!element) return;
         const measure = () => {
             if (element.clientWidth > 0)
-                setRoom(workspaceRoom(element.clientWidth));
+                setRoom(workspaceRoom(element.clientWidth, explorerCollapsed));
         };
 
         measure();
@@ -38,7 +39,7 @@ export function useWorkspaceRoom(
         const observer = new ResizeObserver(measure);
         observer.observe(element);
         return () => observer.disconnect();
-    }, [ref]);
+    }, [ref, explorerCollapsed]);
 
     return room;
 }

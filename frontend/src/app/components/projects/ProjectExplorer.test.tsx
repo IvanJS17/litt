@@ -126,7 +126,7 @@ describe("ProjectExplorer actions", () => {
             setData: vi.fn(),
             setDragImage: vi.fn(),
         };
-        fireEvent.dragStart(screen.getByText("Draft.docx").closest("li")!, {
+        fireEvent.dragStart(screen.getByRole("button", { name: /Draft\.docx/ }), {
             dataTransfer,
         });
 
@@ -205,6 +205,42 @@ describe("ProjectExplorer actions", () => {
                 "Revisions",
             ),
         );
+    });
+
+    it("reaches file and folder rows with the keyboard", () => {
+        const document = {
+            id: "doc-1",
+            filename: "Draft.docx",
+            file_type: "docx",
+            folder_id: null,
+        } as Document;
+        const folder = {
+            id: "folder",
+            name: "Drafts",
+            parent_folder_id: null,
+        } as ProjectFolder;
+        const onDocClick = vi.fn();
+        render(
+            <ProjectExplorer
+                documents={[document]}
+                folders={[folder]}
+                onDocClick={onDocClick}
+            />,
+        );
+
+        const file = screen.getByRole("button", { name: /Draft\.docx/ });
+        file.focus();
+        expect(file).toHaveFocus();
+        expect(file).toHaveClass("focus-visible:ring-focus");
+        fireEvent.keyDown(file, { key: "Enter" });
+        fireEvent.keyDown(file, { key: " " });
+        fireEvent.keyDown(file, { key: "a" });
+        expect(onDocClick).toHaveBeenCalledTimes(2);
+
+        const row = screen.getByRole("button", { name: /Drafts/ });
+        expect(row).toHaveAttribute("aria-expanded", "false");
+        fireEvent.keyDown(row, { key: "Enter" });
+        expect(row).toHaveAttribute("aria-expanded", "true");
     });
 
     it("opens a file in the document view or adds it to chat from its context menu", () => {

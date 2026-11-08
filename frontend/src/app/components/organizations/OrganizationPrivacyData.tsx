@@ -29,6 +29,7 @@ import {
 import { isOrgOwner } from "@/app/lib/permissions";
 import { notifyError } from "@/app/lib/userFacingError";
 import { GlassCardUI, PillButtonUI, ToggleSwitchUI } from "@mike/ui";
+import { cn } from "@/app/lib/utils";
 import {
   organizationSettingsHref,
   useOrganizationSettings,
@@ -201,6 +202,32 @@ function SkeletonText({ children }: { children: string }) {
 }
 
 /**
+ * Where a row's toggle or button will be. Below `sm` the rows stack, so the
+ * control takes a line of its own: while the role is unknown the space is
+ * kept but left empty (no shape to promise a control), so the owner's
+ * controls arriving do not push the sections below them down.
+ */
+function SkeletonControl({
+  owner,
+  className,
+}: {
+  owner: boolean;
+  className: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "shrink-0",
+        className,
+        owner
+          ? "animate-pulse bg-gray-200 motion-reduce:animate-none"
+          : "invisible",
+      )}
+    />
+  );
+}
+
+/**
  * Stands in for the two owner-only sections while the organization loads,
  * with their real headings, rows and wording, so nothing below moves when
  * they arrive. `owner` is whether the workspace list already says the caller
@@ -237,9 +264,10 @@ function OwnerSectionsSkeleton({
                   <SkeletonText>{row.description(orgName)}</SkeletonText>
                 </SettingsDescription>
               </div>
-              {owner ? (
-                <span className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none" />
-              ) : null}
+              <SkeletonControl
+                owner={owner}
+                className="h-5 w-9 rounded-full"
+              />
             </SettingsRow>
           ))}
         </GlassCardUI>
@@ -260,9 +288,10 @@ function OwnerSectionsSkeleton({
                 </SkeletonText>
               </SettingsDescription>
             </div>
-            {owner ? (
-              <span className="h-7 w-full shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none sm:w-[4.25rem]" />
-            ) : null}
+            <SkeletonControl
+              owner={owner}
+              className="h-7 w-full rounded-full sm:w-[4.25rem]"
+            />
           </SettingsRow>
         </GlassCardUI>
       </div>

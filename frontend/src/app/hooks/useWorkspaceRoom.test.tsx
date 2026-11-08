@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import { flushSync } from "react-dom";
-import { createRoot, type Root } from "react-dom/client";
+import { hydrateRoot, createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceRoom } from "./useWorkspaceRoom";
 
-function Workspace() {
+function Workspace({ collapsed = false }: { collapsed?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
-    const room = useWorkspaceRoom(ref);
+    const room = useWorkspaceRoom(ref, collapsed);
     return <div ref={ref} data-room={room ?? "unknown"} />;
 }
 
@@ -47,11 +48,11 @@ describe("useWorkspaceRoom", () => {
     // Measured after paint, a tablet first painted three panels side by side
     // and then swapped them for one: a visible flash on every load.
     it("decides the room before the first paint", () => {
-        const previous = (
+        const previous = (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+            .IS_REACT_ACT_ENVIRONMENT;
+        (
             globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-        ).IS_REACT_ACT_ENVIRONMENT;
-        (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-            .IS_REACT_ACT_ENVIRONMENT = false;
+        ).IS_REACT_ACT_ENVIRONMENT = false;
         try {
             root = createRoot(container);
             // flushSync commits and runs layout effects, not passive ones:
@@ -60,6 +61,28 @@ describe("useWorkspaceRoom", () => {
             expect(container.firstElementChild).toHaveAttribute(
                 "data-room",
                 "single",
+            );
+        } finally {
+            (
+                globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+            ).IS_REACT_ACT_ENVIRONMENT = previous;
+        }
+    });
+
+    // The one-panel fallback of `null` must not reach a desktop's first paint.
+    it("paints a desktop with its panels, never the fallback", () => {
+        width.mockReturnValue(1400);
+        const previous = (
+            globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+        ).IS_REACT_ACT_ENVIRONMENT;
+        (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+            .IS_REACT_ACT_ENVIRONMENT = false;
+        try {
+            root = createRoot(container);
+            flushSync(() => root!.render(<Workspace />));
+            expect(container.firstElementChild).toHaveAttribute(
+                "data-room",
+                "splitWithSideChat",
             );
         } finally {
             (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -94,5 +117,44 @@ describe("useWorkspaceRoom", () => {
             "data-room",
             "unknown",
         );
+    });
+
+    // On a phone the first client render used to start as "single" while the
+    // server rendered "unknown": React 19 threw the tree away and rebuilt it.
+    it("starts as the server renders, even on a phone", () => {
+        const innerWidth = window.innerWidth;
+        window.innerWidth = 390;
+        const onRecoverableError = vi.fn();
+        try {
+            container.innerHTML = renderToString(<Workspace />);
+            expect(container.firstElementChild).toHaveAttribute(
+                "data-room",
+                "unknown",
+            );
+            act(() => {
+                root = hydrateRoot(container, <Workspace />, {
+                    onRecoverableError,
+                });
+            });
+            expect(onRecoverableError).not.toHaveBeenCalled();
+            expect(container.firstElementChild).toHaveAttribute(
+                "data-room",
+                "single",
+            );
+        } finally {
+            window.innerWidth = innerWidth;
+        }
+    });
+
+    it("gives a folded explorer's room to the side chat", () => {
+        width.mockReturnValue(1100);
+        act(() => {
+            root = createRoot(container);
+            root.render(<Workspace />);
+        });
+        const element = container.firstElementChild!;
+        expect(element).toHaveAttribute("data-room", "split");
+        act(() => root!.render(<Workspace collapsed />));
+        expect(element).toHaveAttribute("data-room", "splitWithSideChat");
     });
 });

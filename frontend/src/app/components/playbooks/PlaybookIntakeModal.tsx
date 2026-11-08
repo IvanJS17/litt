@@ -23,6 +23,7 @@ import {
   getPlaybookQuestionnaire,
   type PlaybookQuestionnaire,
 } from "@/app/lib/mikeApi";
+import { notifyError } from "@/app/lib/userFacingError";
 import {
   PlaybookReviewDocuments,
   type ReviewDocument,
@@ -98,13 +99,25 @@ export function PlaybookIntakeModal({
       (loaded) => {
         if (current) setQuestionnaire(loaded);
       },
-      () => {
-        if (current) setLoadFailed(true);
+      (error) => {
+        if (!current) return;
+        setLoadFailed(true);
+        // The notice classifies the failure, offers Retry only when it is
+        // honest and Contact support only when the lawyer cannot fix it.
+        notifyError(error, {
+          action: t("loadAction"),
+          onRetry: () => {
+            setLoadFailed(false);
+            setLoadAttempt((count) => count + 1);
+          },
+        });
       },
     );
     return () => {
       current = false;
     };
+    // `t` is stable for a locale; a new one only restarts a load that failed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, questionnaire, loadAttempt]);
 
   const answered = Object.fromEntries(
@@ -245,16 +258,6 @@ export function PlaybookIntakeModal({
             <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-600">
               <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" />
               <span>{t("loadFailed")}</span>
-              <button
-                type="button"
-                className="rounded-md text-gray-800 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                onClick={() => {
-                  setLoadFailed(false);
-                  setLoadAttempt((count) => count + 1);
-                }}
-              >
-                {tCommon("retry")}
-              </button>
             </div>
           ) : (
             <ol role="status" aria-busy="true" aria-label={t("loading")} className="space-y-5">

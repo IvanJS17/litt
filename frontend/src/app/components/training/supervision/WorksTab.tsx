@@ -10,6 +10,7 @@ import {
     getPupilWorks,
     markWorkReviewed,
     type TrainingPupilWork,
+    type TrainingWorkReview,
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { ReviewLines, type ApproveVersion } from "./SupervisionDetails";
@@ -23,6 +24,10 @@ import {
 
 // Panel del mentor → Trabajos: the two-minute review of each piece of work.
 
+/** Which generation of a review a mark was made on (ids and dates hold no `|`). */
+const reviewMark = (review: { id: string; generated_at: string | null }) =>
+    `${review.id}|${review.generated_at ?? ""}|`;
+
 export function WorksTab({ orgId, pupilId }: { orgId: string; pupilId: string }) {
     const t = useTranslations("training.works");
     const tc = useTranslations("common");
@@ -34,8 +39,11 @@ export function WorksTab({ orgId, pupilId }: { orgId: string; pupilId: string })
     const choice = useCredentialChoice(data?.generation);
     const [busy, setBusy] = useState<string | null>(null);
     // A held draft the mentor is about to approve, and those approved here.
-    const [approving, setApproving] = useState<{ documentId: string; versionId: string } | null>(null);
+    const [approving, setApproving] = useState<{ documentId: string; versionId: string; mark: string } | null>(null);
     const [approveBusy, setApproveBusy] = useState(false);
+    // Marks are `reviewMark(review) + version id`, never the version id
+    // alone: a regenerated review reads the server again, and a version whose
+    // bytes changed in place under the same id must be approvable again.
     const [approved, setApproved] = useState<ReadonlySet<string>>(new Set());
     const cancelApprove = useCallback(() => setApproving(null), []);
 
@@ -65,7 +73,7 @@ export function WorksTab({ orgId, pupilId }: { orgId: string; pupilId: string })
         setApproveBusy(true);
         try {
             await approveTrainingVersion(target.documentId, target.versionId);
-            setApproved((current) => new Set(current).add(target.versionId));
+            setApproved((current) => new Set(current).add(target.mark + target.versionId));
             reload();
         } catch (error) {
             notifyError(error, {
@@ -77,10 +85,16 @@ export function WorksTab({ orgId, pupilId }: { orgId: string; pupilId: string })
             setApproving(null);
         }
     };
-    const approve: ApproveVersion = {
-        onApprove: (item) => setApproving({ documentId: item.document_id, versionId: item.ref }),
-        approved,
-        disabled: busy !== null || approveBusy,
+    const approveFor = (review: TrainingWorkReview): ApproveVersion => {
+        const mark = reviewMark(review);
+        return {
+            onApprove: (item) =>
+                setApproving({ documentId: item.document_id, versionId: item.ref, mark }),
+            approved: new Set(
+                [...approved].filter((key) => key.startsWith(mark)).map((key) => key.slice(mark.length)),
+            ),
+            disabled: busy !== null || approveBusy,
+        };
     };
 
     if (failed && !data) return <LoadFailed onRetry={reload} />;
@@ -107,7 +121,7 @@ export function WorksTab({ orgId, pupilId }: { orgId: string; pupilId: string })
                                 </h3>
                                 <WorkMeta work={work} />
                             </header>
-                            {review ? <ReviewLines review={review} approve={approve} /> : (
+                            {review ? <ReviewLines review={review} approve={approveFor(review)} /> : (
                                 <p className="text-sm text-gray-500">{t("noReview")}</p>
                             )}
                             {work.has_new_work && review && (

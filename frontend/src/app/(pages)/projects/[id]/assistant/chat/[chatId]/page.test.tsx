@@ -245,6 +245,17 @@ vi.mock("@/app/components/projects/ProjectWorkspaceTips", () => ({
     ProjectWorkspaceTips: () => null,
 }));
 
+// jsdom lays nothing out. A real browser always gives the workspace a width,
+// and until it is measured the workspace shows one panel, so the tests give
+// it a desktop's unless they say otherwise.
+let workspaceWidth: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+    workspaceWidth = vi
+        .spyOn(HTMLElement.prototype, "clientWidth", "get")
+        .mockReturnValue(1400);
+});
+afterEach(() => workspaceWidth.mockRestore());
+
 beforeEach(() => {
     vi.clearAllMocks();
     state.getDocument.mockReset();
@@ -1416,6 +1427,9 @@ describe("workspace on a phone", () => {
     // 390 px screen and the chat ended up off it. Below md one panel shows,
     // picked from the mobile header; md and up ignore `max-md:` classes.
     let header: HTMLDivElement;
+    beforeEach(() => {
+        workspaceWidth.mockReturnValue(374);
+    });
     afterEach(() => header.remove());
 
     async function renderOnPhone() {
@@ -1515,21 +1529,27 @@ describe("workspace on a phone", () => {
         expect(shown()).toEqual(["chat"]);
     });
 
-    it("keeps a collapsed explorer reachable on a phone and collapsed on a desktop", async () => {
+    it("keeps a collapsed explorer reachable on a phone", async () => {
         const { switcher, shown } = await renderOnPhone();
         fireEvent.click(screen.getByTitle("Collapse explorer"));
-        expect(screen.queryByRole("button", { name: "Open draft" })).toBeNull();
+        // It stays mounted, so a focused row is not dropped, and the way to
+        // expand it is a desktop's only.
         expect(
             screen.getByTitle("Expand explorer").closest(".max-md\\:hidden"),
         ).not.toBeNull();
 
         fireEvent.click(within(switcher).getByRole("button", { name: "Explorer" }));
         expect(shown()).toEqual(["explorer"]);
-        expect(
-            screen
-                .getByRole("button", { name: "Open draft" })
-                .closest('[style*="--panel-width"]'),
-        ).toHaveClass("md:hidden");
+        expect(screen.getByRole("button", { name: "Open draft" })).toBeVisible();
+    });
+
+    it("folds the explorer away on a desktop", async () => {
+        workspaceWidth.mockReturnValue(1000);
+        await renderWorkspace();
+        expect(screen.getByRole("button", { name: "Open draft" })).toBeInTheDocument();
+        fireEvent.click(screen.getByTitle("Collapse explorer"));
+        expect(screen.queryByRole("button", { name: "Open draft" })).toBeNull();
+        expect(screen.getByTitle("Expand explorer")).toBeEnabled();
     });
 });
 
@@ -1541,11 +1561,8 @@ describe("workspace where three panels do not fit", () => {
     // a switcher above the panels.
     let width: ReturnType<typeof vi.spyOn>;
     beforeEach(() => {
-        width = vi
-            .spyOn(HTMLElement.prototype, "clientWidth", "get")
-            .mockReturnValue(690);
+        width = workspaceWidth.mockReturnValue(690);
     });
-    afterEach(() => width.mockRestore());
 
     const panes = {
         explorer: () =>
@@ -1699,19 +1716,44 @@ describe("workspace where three panels do not fit", () => {
 
     // An open side chat at 768-1020 px, or the sidebar open, pushed the last
     // chat past the screen's edge.
-    it("shows one panel at a time while an open side chat does not fit", async () => {
+    it("closes an open side chat that does not fit, so it is never left hidden", async () => {
+        window.history.replaceState(
+            null,
+            "",
+            "/projects/p1/assistant/chat?side=new",
+        );
+        width.mockReturnValue(1200);
+        await renderWithSideChat();
+        expect(shown()).toEqual(["explorer", "document", "chat", "sideChat"]);
+
+        // The window narrows: one chat is all that fits beside the others.
+        width.mockReturnValue(1000);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+        await waitFor(() => expect(panes.sideChat()).toBeNull());
+        expect(window.location.search).toBe("");
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
+    });
+
+    it("closes a side chat from the address that does not fit once it is measured", async () => {
         window.history.replaceState(
             null,
             "",
             "/projects/p1/assistant/chat?side=new",
         );
         width.mockReturnValue(1000);
-        await renderWithSideChat();
-
-        expect(panes.sideChat()).not.toBeNull();
-        expect(shown()).toEqual(["chat"]);
-        // The side chat stays open for when the window widens again.
-        expect(await chatMenuItems()).not.toContain("Close side chat");
+        const params = Promise.resolve({ id: "p1" });
+        await act(async () => {
+            render(
+                <Suspense fallback="Loading">
+                    <ProjectAssistantChatPage params={params} />
+                </Suspense>,
+            );
+        });
+        await waitFor(() => expect(window.location.search).toBe(""));
+        expect(panes.sideChat()).toBeNull();
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
     });
 
     it("shows the side chat beside the others where it fits", async () => {
