@@ -1,6 +1,7 @@
 "use client";
 
 import {
+    Fragment,
     useCallback,
     useEffect,
     useImperativeHandle,
@@ -25,6 +26,8 @@ import {
 } from "@/app/lib/chatActivity";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
 import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
+import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { useAssistantMessageLayout } from "@/app/hooks/useAssistantMessageLayout";
 import {
     composerFadeBackground,
@@ -305,6 +308,12 @@ export function ProjectChatPanel({
             getTrainingTurnNotes,
         ),
     );
+    // LiTT training: a junior's conclusions and their sources, under each answer.
+    const trainingBacking = useWebTrainingBacking({
+        chatId: activeChatId || undefined,
+        projectId,
+        isResponseLoading,
+    });
     // The model is what we asked for, so it identifies whose key was rejected.
     const rejectedKeyProvider = rejectedApiKey?.model
         ? getModelProvider(rejectedApiKey.model)
@@ -877,8 +886,8 @@ export function ProjectChatPanel({
                                         />
                                     </div>
                                 ) : (
+                                    <Fragment key={i}>
                                     <AssistantMessage
-                                        key={i}
                                         events={msg.events}
                                         isStreaming={
                                             i === messages.length - 1 &&
@@ -914,6 +923,11 @@ export function ProjectChatPanel({
                                         onEditError={onEditError}
                                         onEditResolved={onEditResolved}
                                     />
+                                        <BackingSlot
+                                            backing={trainingBacking}
+                                            messageId={msg.id}
+                                        />
+                                    </Fragment>
                                 ),
                             );
                         })()}
@@ -958,6 +972,7 @@ export function ProjectChatPanel({
                                     onCancel={cancel}
                                     isLoading={isResponseLoading}
                                     chatKey={activeChatId}
+                                    chatId={activeChatId}
                                     draftStore={draftStore}
                                     chatModel={chatModel}
                                     chatReasoningLevel={chatReasoningLevel}

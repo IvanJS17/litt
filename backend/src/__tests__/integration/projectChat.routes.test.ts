@@ -1063,10 +1063,25 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
         expect(runLLMStream).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ["no mark", undefined],
+        ["a mark of 0", 0],
+        ["a mark of 5", 5],
+        ["a fractional mark", 2.5],
+        ["a mark sent as text", "3"],
+        ["a null mark", null],
+    ])("asks a pasante with a valid attempt for the thermometer mark (%s)", async (_label, confidence) => {
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT, confidence });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_confidence_required");
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
     it("keeps the attempt in a private note of the project's organization, not in the prompt", async () => {
         const { resolveTrainingStage } = await import("../../lib/training.js");
         trainingStage.value = "pasante";
-        const res = await send({ attempt: `  ${ATTEMPT}  ` });
+        const res = await send({ attempt: `  ${ATTEMPT}  `, confidence: 3 });
         expect(res.status).toBe(200);
         expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
             expect.anything(),
@@ -1083,6 +1098,7 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
             trainee_user_id: "u1",
             message_id: userInsert()!.id,
             attempt: ATTEMPT,
+            confidence: 3,
             contrast_status: "pending",
         });
     });
@@ -1091,7 +1107,7 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
         const { completeText } = await import("../../lib/llm/index.js");
         vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);
         trainingStage.value = "pasante";
-        const res = await send({ attempt: ATTEMPT });
+        const res = await send({ attempt: ATTEMPT, confidence: 3 });
         expect(res.status).toBe(200);
         await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
         const params = vi.mocked(completeText).mock.calls[0][0];
@@ -1100,18 +1116,27 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
         expect(params.apiKeys).toBe(stream.apiKeys);
         expect(params.user).toContain(ATTEMPT);
         expect(params.user).toContain("La respuesta del abogado.");
-        expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+        expect(noteUpdate()).toEqual({
+            contrast: CONTRAST,
+            contrast_status: "ready",
+            answer_unverified: false,
+            verdict: null,
+            verdict_source: null,
+            foundation: null,
+            foundation_question: null,
+            topics: null,
+        });
     });
 
     it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
         const { completeText } = await import("../../lib/llm/index.js");
         vi.mocked(completeText).mockRejectedValueOnce(new Error("provider down"));
         trainingStage.value = "pasante";
-        const res = await send({ attempt: ATTEMPT });
+        const res = await send({ attempt: ATTEMPT, confidence: 3 });
         expect(res.status).toBe(200);
         expect(res.text).toContain("[DONE]");
         await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
-        expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
+        expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed", answer_unverified: false });
     });
 
     it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
@@ -1119,7 +1144,7 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
         async (_label, stage) => {
             const { completeText } = await import("../../lib/llm/index.js");
             trainingStage.value = stage;
-            const res = await send({ attempt: ATTEMPT });
+            const res = await send({ attempt: ATTEMPT, confidence: 3 });
             expect(res.status).toBe(200);
             expect(userInsert()).not.toHaveProperty("training_attempt");
             expect(noteInsert()).toBeUndefined();
@@ -1155,7 +1180,7 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
 
         it("lets a pasante with a pass in force write without an attempt, with no note", async () => {
             urgencyPasses.value = [pass()];
-            const res = await send({ attempt: ATTEMPT_TEXT });
+            const res = await send({ attempt: ATTEMPT_TEXT, confidence: 3 });
             expect(res.status).toBe(200);
             expect(runLLMStream).toHaveBeenCalledTimes(1);
             expect(noteInsert()).toBeUndefined();

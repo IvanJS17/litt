@@ -3467,10 +3467,25 @@ describe("tabular.routes", () => {
             expect(runLLMStream).not.toHaveBeenCalled();
         });
 
+        it.each([
+            ["no mark", undefined],
+            ["a mark of 0", 0],
+            ["a mark of 5", 5],
+            ["a fractional mark", 2.5],
+            ["a mark sent as text", "3"],
+            ["a null mark", null],
+        ])("asks a pasante with a valid attempt for the thermometer mark (%s)", async (_label, confidence) => {
+            trainingStage.value = "pasante";
+            const res = await send({ attempt: ATTEMPT, confidence });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_confidence_required");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
         it("keeps the attempt in a private note of the review's organization", async () => {
             const { resolveTrainingStage } = await import("../../lib/training.js");
             trainingStage.value = "pasante";
-            const res = await send({ attempt: `  ${ATTEMPT}  ` });
+            const res = await send({ attempt: `  ${ATTEMPT}  `, confidence: 3 });
             expect(res.status).toBe(200);
             expect(vi.mocked(resolveTrainingStage)).toHaveBeenCalledWith(
                 expect.anything(),
@@ -3485,6 +3500,7 @@ describe("tabular.routes", () => {
                 tabular_chat_id: "review-chat-1",
                 message_id: message.id,
                 attempt: ATTEMPT,
+                confidence: 3,
                 contrast_status: "pending",
             });
         });
@@ -3493,7 +3509,7 @@ describe("tabular.routes", () => {
             const { completeText } = await import("../../lib/llm/index.js");
             vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);
             trainingStage.value = "pasante";
-            const res = await send({ attempt: ATTEMPT });
+            const res = await send({ attempt: ATTEMPT, confidence: 3 });
             expect(res.status).toBe(200);
             await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
             const params = vi.mocked(completeText).mock.calls[0][0];
@@ -3502,18 +3518,27 @@ describe("tabular.routes", () => {
             expect(params.apiKeys).toBe(stream.apiKeys);
             expect(params.user).toContain(ATTEMPT);
             expect(params.user).toContain("Answer");
-            expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+            expect(noteUpdate()).toEqual({
+            contrast: CONTRAST,
+            contrast_status: "ready",
+            answer_unverified: false,
+            verdict: null,
+            verdict_source: null,
+            foundation: null,
+            foundation_question: null,
+            topics: null,
+        });
         });
 
         it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
             const { completeText } = await import("../../lib/llm/index.js");
             vi.mocked(completeText).mockRejectedValueOnce(new Error("provider down"));
             trainingStage.value = "pasante";
-            const res = await send({ attempt: ATTEMPT });
+            const res = await send({ attempt: ATTEMPT, confidence: 3 });
             expect(res.status).toBe(200);
             expect(res.text).toContain("[DONE]");
             await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
-            expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
+            expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed", answer_unverified: false });
         });
 
         it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
@@ -3521,7 +3546,7 @@ describe("tabular.routes", () => {
             async (_label, stage) => {
                 const { completeText } = await import("../../lib/llm/index.js");
                 trainingStage.value = stage;
-                const res = await send({ attempt: ATTEMPT });
+                const res = await send({ attempt: ATTEMPT, confidence: 3 });
                 expect(res.status).toBe(200);
                 expect(insertOf("training_turn_notes")).toBeUndefined();
                 expect(completeText).not.toHaveBeenCalled();
@@ -3558,7 +3583,7 @@ describe("tabular.routes", () => {
             it("lets a pasante with a pass in force write without an attempt, with no note or contrast", async () => {
                 const { completeText } = await import("../../lib/llm/index.js");
                 passes([pass()]);
-                const res = await send({ attempt: ATTEMPT });
+                const res = await send({ attempt: ATTEMPT, confidence: 3 });
                 expect(res.status).toBe(200);
                 expect(runLLMStream).toHaveBeenCalledTimes(1);
                 expect(insertOf("training_turn_notes")).toBeUndefined();

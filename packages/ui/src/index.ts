@@ -53,9 +53,15 @@ export * from "./useReasoningDisclosure";
 // approval" hold on outputs, and the per-turn notes hook
 export * from "./FirmCriteriaConsultedUI";
 export * from "./TrainingAttemptFieldUI";
+export * from "./TrainingConfidenceUI";
+export * from "./trainingReply";
+export * from "./trainingStageStale";
+export * from "./trainingText";
 export * from "./TrainingNoteUI";
 export * from "./TrainingHeldNoteUI";
 export * from "./useTrainingTurnNotes";
+export * from "./BackingPanelUI";
+export * from "./useTrainingBacking";
 
 // Brand and auth (LittBrandUI is LiTT's wordmark and pixel monogram)
 export * from "./LittBrandUI";

@@ -2262,6 +2262,56 @@ export async function getTrainingTurnNotes(
     }
 }
 
+// ---------------------------------------------------------------------------
+// LiTT training layer 3, card 8: accountability mode («rendir cuentas»)
+// ---------------------------------------------------------------------------
+
+/**
+ * A junior's accountability checks of one chat's answers (any surface). The
+ * caller's own, so a chat with none of theirs answers a uniform 404, which is
+ * "none" here.
+ */
+export async function getChatBacking(
+    chatId: string,
+): Promise<import("@mike/contracts").TrainingBackingCheck[]> {
+    try {
+        const result = await apiRequest<import("@mike/contracts").TrainingChatBacking>(
+            "training.read",
+            `/training/me/chats/${encodeURIComponent(chatId)}/backing`,
+        );
+        return result.checks;
+    } catch (error) {
+        if (error instanceof MikeApiError && error.status === 404) return [];
+        throw error;
+    }
+}
+
+/** «Lo verifiqué» on a conclusion, or the reason the person keeps it. */
+export async function markBackingConclusion(
+    chatId: string,
+    checkId: string,
+    conclusionId: string,
+    mark: import("@mike/contracts").TrainingBackingMark,
+): Promise<import("@mike/contracts").TrainingBackingCheck> {
+    return apiRequest<import("@mike/contracts").TrainingBackingCheck>(
+        "training.read",
+        `/training/me/chats/${encodeURIComponent(chatId)}/backing/${encodeURIComponent(checkId)}/conclusions/${encodeURIComponent(conclusionId)}`,
+        {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mark),
+        },
+    );
+}
+
+/** What a pupil's current mentor sees of the pupil's accountability checks. */
+export async function getPupilBacking(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilBacking>(
+        "training.manage",
+        `/orgs/${encodeURIComponent(orgId)}/training/pupils/${encodeURIComponent(userId)}/backing`,
+    );
+}
+
 export async function getMyTraining(): Promise<import("@mike/contracts").TrainingMembership[]> {
     const result = await apiRequest<{ memberships: import("@mike/contracts").TrainingMembership[] }>(
         "training.read",
@@ -3896,6 +3946,8 @@ export async function streamChat(payload: {
     ask_inputs_response?: AskInputsResponsePayload;
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string;
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { signal, ...body } = payload;
@@ -3930,6 +3982,8 @@ export async function streamProjectChat(payload: {
     ask_inputs_response?: AskInputsResponsePayload;
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string;
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { projectId, signal, ...body } = payload;
@@ -4222,6 +4276,8 @@ export async function streamTabularChat(
     reasoning?: Message["reasoning"],
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string,
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel,
 ): Promise<Response> {
     return apiFetch(`${API_BASE}/tabular-review/${reviewId}/chat`, {
         method: "POST",
@@ -4234,6 +4290,7 @@ export async function streamTabularChat(
             model,
             reasoning,
             attempt,
+            confidence,
             time_zone: browserTimeZone(),
         }),
         signal: signal ?? undefined,
@@ -4358,6 +4415,7 @@ export function mapTRMessages(raw: RawTRMessage[]): TRDisplayMessage[] {
                 .map((e) => (e as { type: "content"; text: string }).text)
                 .join("") ?? "";
         return {
+            id: m.id,
             role: "assistant" as const,
             content,
             events,

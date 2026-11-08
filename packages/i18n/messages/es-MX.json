@@ -225,9 +225,11 @@
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
       "training_approval_required": "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
+      "training_confidence_required": "Marca qué tan seguro estás de tu planteamiento antes de preguntar. Si no ves la escala, recarga la página.",
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
       "training_defense_already_recorded": "El resultado de esta defensa ya está registrado. Crea una defensa nueva para corregirlo.",
       "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",
+      "training_note_not_judgeable": "Este turno no tiene nada que juzgar: una pista no tiene respuesta con la cual comparar.",
       "training_pass_duplicate": "Ese pase ya está concedido.",
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
@@ -530,10 +532,102 @@
       }
     },
     "criterion": {
-      "turn": {},
+      "turn": {
+        "attemptLabel": "Tu planteamiento (2–3 líneas)",
+        "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
+        "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
+        "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
+        "attemptTooShort": "{length}/{min} caracteres. {missing, plural, one {Falta # carácter} other {Faltan # caracteres}}. Después de la respuesta verás un contraste con tu planteamiento.",
+        "confidenceHelp": "Una marca para todo el planteamiento. Solo tú y tu mentor la ven.",
+        "confidenceLegend": "¿Qué tan seguro estás de tu planteamiento?",
+        "confidenceLevels": {
+          "doubt": "Dudo",
+          "fairlySure": "Bastante seguro",
+          "guess": "Casi adivino",
+          "sure": "Seguro"
+        },
+        "confidenceRequired": "Marca qué tan seguro estás antes de enviar.",
+        "foundations": {
+          "solid": "sólido",
+          "weak": "débil",
+          "wrong": "equivocado"
+        },
+        "noteAttemptHeading": "Tu planteamiento",
+        "noteConfidence": "Tu marca: {level}",
+        "noteContrastFailed": "No se pudo generar el contraste",
+        "noteContrastHeading": "Contraste con tu planteamiento",
+        "noteContrastPending": "Generando contraste…",
+        "noteFoundation": "Fundamento: {basis}",
+        "notePrivacy": "Privado: solo tú y tu mentor lo ven",
+        "noteQuestionHeading": "Una pregunta sobre tu fundamento",
+        "noteRegion": "Notas privadas de formación",
+        "noteReply": "Responder",
+        "noteReplyLabel": "Responder a la pregunta sobre tu fundamento",
+        "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
+        "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
+        "noteVerdictHeadingByMentor": "Coincidencia con la respuesta, según tu mentor:",
+        "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "verdicts": {
+          "coincide": "Coincide",
+          "noCoincide": "No coincide",
+          "parcial": "Coincide en parte"
+        }
+      },
       "map": {},
       "modes": {},
-      "backing": {},
+      "backing": {
+        "actions": {
+          "save": "guardar tu marca en esta conclusión",
+          "load": "cargar las revisiones de rendición de cuentas"
+        },
+        "citationRef": "Cita {ref}",
+        "failed": "No se pudieron revisar las conclusiones de esta respuesta.",
+        "intro": "El asistente propuso en qué cita se apoya cada conclusión. Abre el pasaje y compruébalo antes de confiar en ella.",
+        "listLabel": "Conclusiones de esta respuesta",
+        "mentor": {
+          "answerFrom": "Respuesta del {date, date, medium} {date, time, short}",
+          "empty": "Todavía no hay revisiones de rendición de cuentas.",
+          "intro": "Lo que este junior conservó de las respuestas que recibió: cada conclusión, la fuente que LiTT pudo mostrar y lo que hizo con ella. LiTT calcula el estado; el vínculo con una cita lo propone la IA.",
+          "summary": "{total, plural, one {# conclusión} other {# conclusiones}} · {backed} respaldadas · {unbacked} sin respaldo · {unverified} con cita sin verificar",
+          "surface": {
+            "chat": "Chat",
+            "tabular": "Revisión tabular",
+            "word": "Word"
+          },
+          "title": "Rendición de cuentas",
+          "untitled": "Chat sin título",
+          "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir, por eso no se muestra.} other {# trabajos están en asuntos que no puedes abrir, por eso no se muestran.}}"
+        },
+        "passageLabel": "Pasaje exacto",
+        "passageSource": "{title}, página {page}",
+        "passageSourceNoPage": "{title}",
+        "passageUntitled": "Documento citado",
+        "pending": "Revisando las conclusiones de esta respuesta…",
+        "personNotVerified": "La persona no la ha marcado como verificada",
+        "personReason": "Por qué la conserva",
+        "personVerified": "La persona la verificó",
+        "privacy": "Privado: solo tú y tu mentor lo ven",
+        "privacyMentor": "Privado: solo la persona y tú, que la acompañas como mentor, lo ven",
+        "reasonHint": "Opcional, hasta {max} caracteres. Tu mentor lo lee.",
+        "reasonLabel": "Por qué la conservas",
+        "reasonSave": "Guardar motivo",
+        "saved": "Motivo guardado",
+        "saving": "Guardando…",
+        "status": {
+          "backed": "Respaldada",
+          "citationUnverified": "Cita sin verificar",
+          "unbacked": "Sin respaldo"
+        },
+        "statusHelp": {
+          "backed": "LiTT encontró este pasaje en un documento.",
+          "citationUnverified": "LiTT no encontró el texto citado en el documento.",
+          "unbacked": "Ninguna cita de un documento de LiTT la respalda."
+        },
+        "title": "Tus conclusiones y su fuente",
+        "unverifiedReferences": "Sin verificar: {references}. Confírmalo en la fuente oficial.",
+        "verified": "Lo verifiqué"
+      },
       "audit": {
         "pageTitle": "Audita tu revisión",
         "intro": "Revisa las preguntas de esta revisión y luego audita a mano una muestra de sus respuestas. Es para tu aprendizaje: no bloquea nada y aquí no se usa ningún modelo.",
@@ -804,7 +898,137 @@
         "undetermined": "No determinado",
         "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
       },
-      "promotion": {}
+      "promotion": {},
+      "methodology": {
+        "annex": {
+          "headers": {
+            "concept": "Concepto",
+            "input": "Dato",
+            "operation": "Operación",
+            "source": "Fuente",
+            "step": "Paso",
+            "value": "Valor"
+          },
+          "sections": {
+            "basis": "Fundamento indicado",
+            "formula": "Fórmula",
+            "generation": "Generación",
+            "inputs": "Datos de origen",
+            "result": "Resultado",
+            "rounding": "Regla de redondeo",
+            "steps": "Pasos"
+          },
+          "stepNumber": "{number}. {label}",
+          "title": "Anexo de metodología - {title}"
+        },
+        "basis": {
+          "backed": "respaldado por una cita verificada",
+          "state": "{basis}\n\nEstado: {status}.",
+          "unverified": "sin verificar"
+        },
+        "compoundInterest": {
+          "formula": {
+            "amount": "M = C × (1 + T ÷ 100)^n",
+            "interest": "I = M − C"
+          },
+          "result": "Monto final",
+          "rounding": "{base} El factor acumulado se calcula exacto y solo se muestra a 10 decimales.",
+          "steps": {
+            "factor": "Factor acumulado (mostrado a 10 decimales)",
+            "finalAmount": "Monto final redondeado a centavos",
+            "growth": "Factor de crecimiento por periodo"
+          },
+          "title": "Interés compuesto"
+        },
+        "generation": {
+          "anonymous": "la persona usuaria",
+          "disclaimer": "Este anexo documenta una operación aritmética con los datos indicados. No es una opinión jurídica ni sustituye la revisión de un abogado. LiTT no aporta tasas ni índices: junto a cada dato se indica su fuente, o que no la tiene.",
+          "line": "Generado en LiTT para {person} el {date} (hora de la Ciudad de México).\n\n{disclaimer}"
+        },
+        "indexUpdate": {
+          "factor": "Factor de actualización",
+          "formula": {
+            "factor": "Factor = índice final ÷ índice inicial",
+            "updated": "Monto actualizado = Monto × Factor"
+          },
+          "result": "Monto actualizado",
+          "rounding": "{base} El monto se calcula con el cociente exacto de los índices, sin redondear el factor; el factor mostrado es solo informativo.",
+          "steps": {
+            "factor": "Factor de actualización (mostrado a 10 decimales)",
+            "updated": "Monto actualizado redondeado a centavos"
+          },
+          "title": "Actualización por factor de índice"
+        },
+        "inputs": {
+          "amount": "Monto a actualizar",
+          "dayBasis": "Base de días del año",
+          "denominator": "Total (denominador)",
+          "endDate": "Fecha final",
+          "finalIndex": "Índice final",
+          "initialIndex": "Índice inicial",
+          "numerator": "Parte (numerador)",
+          "periods": "Número de periodos",
+          "principal": "Capital",
+          "ratePercent": "Tasa (%)",
+          "startDate": "Fecha inicial"
+        },
+        "proportion": {
+          "formula": {
+            "percentage": "Porcentaje = parte ÷ total × 100",
+            "proportion": "Proporción = parte ÷ total"
+          },
+          "proportion": "Proporción",
+          "result": "Porcentaje",
+          "rounding": "El porcentaje se calcula con el cociente exacto y se redondea a 2 decimales, mitad hacia arriba (en valor absoluto). La proporción se muestra a 6 decimales.",
+          "steps": {
+            "percentage": "Porcentaje redondeado a 2 decimales",
+            "proportion": "Proporción (a 6 decimales)"
+          },
+          "title": "Proporción o porcentaje"
+        },
+        "rounding": {
+          "money": "La cuenta es exacta; solo se redondean las cifras publicadas, a centavos (2 decimales), mitad hacia arriba (en valor absoluto)."
+        },
+        "shared": {
+          "difference": "Diferencia",
+          "interest": "Interés",
+          "ratePerPeriod": "Tasa por periodo como fracción",
+          "roundingOf": "redondeo de {value}",
+          "total": "Total",
+          "totalWithInterest": "Total (capital + interés)"
+        },
+        "simpleInterest": {
+          "formula": {
+            "interest": "I = C × (T ÷ 100) × n",
+            "total": "Total = C + I"
+          },
+          "steps": {
+            "exactInterest": "Interés exacto",
+            "roundedInterest": "Interés redondeado a centavos"
+          },
+          "title": "Interés simple"
+        },
+        "simpleInterestDays": {
+          "formula": {
+            "days": "Días = fecha final − fecha inicial",
+            "interest": "I = C × (T ÷ 100) × Días ÷ Base"
+          },
+          "steps": {
+            "annualRate": "Tasa anual como fracción",
+            "days": "Días naturales",
+            "numerator": "Numerador exacto"
+          },
+          "title": "Interés simple por días"
+        },
+        "source": {
+          "documentUnverified": "Cita no localizada (sin verificar)",
+          "documentUnverifiedIn": "Cita no localizada en «{filename}» (sin verificar)",
+          "documentVerified": "«{filename}»: «{excerpt}» (cita verificada)",
+          "none": "Sin fuente",
+          "person": "Dato dado por la persona",
+          "personUnverified": "No encontrado en tu mensaje (sin verificar)"
+        }
+      }
     },
     "firmCriteria": {
       "consulted": {

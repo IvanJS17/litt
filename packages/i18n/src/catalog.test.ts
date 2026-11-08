@@ -28,6 +28,18 @@ function flatten(tree: Tree, prefix = ""): Map<string, unknown> {
     return out;
 }
 
+// Every nested object of the catalog, empty ones included: flatten() walks
+// only to the leaves, so a namespace with no message yet (the
+// training.criterion.* skeleton) is invisible to it and could be dropped or
+// renamed in one catalog without a failing test.
+function namespaces(tree: Tree, prefix = ""): string[] {
+    return Object.entries(tree).flatMap(([key, value]) => {
+        if (value === null || typeof value !== "object") return [];
+        const path = prefix ? `${prefix}.${key}` : key;
+        return [path, ...namespaces(value, path)];
+    });
+}
+
 const source = flatten(enUS);
 const target = flatten(esMX);
 
@@ -119,6 +131,26 @@ describe("@litt/i18n catalog", () => {
         const missing = [...source.keys()].filter((k) => !target.has(k));
         const extra = [...target.keys()].filter((k) => !source.has(k));
         expect({ missing, extra }, "es-MX must match en-US key for key").toEqual({ missing: [], extra: [] });
+    });
+
+    it("es-MX has exactly the namespaces of en-US, empty ones included", () => {
+        const en = new Set(namespaces(enUS));
+        const es = new Set(namespaces(esMX));
+        const missing = [...en].filter((k) => !es.has(k));
+        const extra = [...es].filter((k) => !en.has(k));
+        expect({ missing, extra }, "es-MX must match en-US namespace for namespace").toEqual({
+            missing: [],
+            extra: [],
+        });
+        // The skeleton the layer-3 cards fill in is there to be checked.
+        expect(en.has("training.criterion.turn")).toBe(true);
+    });
+
+    it("the namespace check sees an empty namespace the key check cannot", () => {
+        const withEmpty: Tree = { training: { criterion: { turn: {}, map: {} } } };
+        const withoutEmpty: Tree = { training: { criterion: { turn: {} } } };
+        expect([...flatten(withEmpty).keys()]).toEqual([...flatten(withoutEmpty).keys()]);
+        expect(namespaces(withEmpty)).not.toEqual(namespaces(withoutEmpty));
     });
 
     it("no message is still waiting for its translation", () => {

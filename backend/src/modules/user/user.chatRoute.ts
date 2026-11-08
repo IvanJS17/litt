@@ -32,7 +32,7 @@ import type { Provider, UserApiKeys } from "../../lib/llm";
 import type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 import { providerForModel, resolveModel } from "../../lib/llm/models";
 import { getConfiguredModel } from "../../lib/llm/registry";
-import { recordAudit } from "../../lib/audit";
+import { insertAuditEvent, recordAudit, type AuditEventInput } from "../../lib/audit";
 import { resolveEffectiveChatModel } from "../../lib/modelSelection";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
@@ -610,27 +610,21 @@ export function chatRouteHost(route: ChatRoute, apiKeys: UserApiKeys): string {
     }
 }
 
-/**
- * Egress provenance for one turn: which provider, model, credential reference
- * and host the conversation's text is about to be sent to. Written to the
- * insert-only audit log before the provider is called; never the secret.
- */
-export async function recordChatEgress(
-    db: Db,
-    args: {
-        userId: string;
-        orgId: string | null;
-        /** Null for a conversation with no server record (local Word chat). */
-        chatId: string | null;
-        projectId?: string | null;
-        surface: string;
-        resolved: ResolvedChatRoute;
-        /** Identifiers of the work this egress belongs to (never content). */
-        extra?: Record<string, string>;
-    },
-): Promise<void> {
+type ChatEgressArgs = {
+    userId: string;
+    orgId: string | null;
+    /** Null for a conversation with no server record (local Word chat). */
+    chatId: string | null;
+    projectId?: string | null;
+    surface: string;
+    resolved: ResolvedChatRoute;
+    /** Identifiers of the work this egress belongs to (never content). */
+    extra?: Record<string, string>;
+};
+
+function chatEgressEvent(args: ChatEgressArgs): AuditEventInput {
     const { route, apiKeys } = args.resolved;
-    await recordAudit(db, {
+    return {
         userId: args.userId,
         orgId: args.orgId,
         action: "llm.egress",
@@ -644,7 +638,25 @@ export async function recordChatEgress(
             host: chatRouteHost(route, apiKeys),
             ...(args.extra ?? {}),
         },
-    });
+    };
+}
+
+/**
+ * Egress provenance for one turn: which provider, model, credential reference
+ * and host the conversation's text is about to be sent to. Written to the
+ * insert-only audit log before the provider is called; never the secret.
+ */
+export async function recordChatEgress(db: Db, args: ChatEgressArgs): Promise<void> {
+    await recordAudit(db, chatEgressEvent(args));
+}
+
+/**
+ * The egress of a call that must not happen unrecorded (the training backing
+ * check): the same row, but a failed write THROWS, so the caller sends nothing.
+ * `recordChatEgress` keeps its never-throw contract for every other caller.
+ */
+export async function recordChatEgressOrThrow(db: Db, args: ChatEgressArgs): Promise<void> {
+    await insertAuditEvent(db, chatEgressEvent(args));
 }
 
 /**

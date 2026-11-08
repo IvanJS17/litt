@@ -6,6 +6,7 @@ import {
     useEffect,
     useLayoutEffect,
     useRef,
+    useId,
     forwardRef,
     useImperativeHandle,
     useMemo,
@@ -46,10 +47,16 @@ import {
     useSelectedReasoning,
 } from "@/app/hooks/useSelectedModel";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import type { TrainingConfidenceLevel } from "@mike/contracts";
 import { useTrainingStage } from "@/app/hooks/useTrainingStage";
+import { useTrainingText } from "@/app/hooks/useTrainingText";
 import {
     isTrainingAttemptReady,
     TrainingAttemptFieldUI,
+    TrainingConfidenceUI,
+    focusTrainingAttempt,
+    useTrainingReply,
+    withTrainingReply,
     TrainingUrgencyPassLineUI,
 } from "@mike/ui";
 import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
@@ -153,6 +160,11 @@ interface Props {
     chatReasoningLevel?: ReasoningLevel | null;
     chatKey?: string | null;
     /**
+     * The chat's own id, as «Responder» names it. Apart from chatKey, which
+     * keys drafts and selections and may be namespaced (tabular reviews).
+     */
+    chatId?: string | null;
+    /**
      * Keeps the unsent text and attachments when the composer unmounts and
      * restores them when the same chat's composer mounts again (a side chat
      * closed because it no longer fits).
@@ -195,6 +207,13 @@ function placeholderFor({
     return isLoading ? "A response is still arriving…" : "Loading this chat…";
 }
 
+/**
+ * The approach field of the training composer; «Responder» focuses it. Two
+ * composers can be mounted at once (main and side chat), so each gets its own
+ * ids: {@link TRAINING_ATTEMPT_ID}-{useId()}.
+ */
+const TRAINING_ATTEMPT_ID = "chat-training-attempt";
+
 function ChatInputForChatImpl(
     {
         onSubmit,
@@ -214,6 +233,7 @@ function ChatInputForChatImpl(
         chatModel,
         chatReasoningLevel,
         chatKey,
+        chatId,
         draftStore,
         offerCredentialChoice = true,
         trainingTurns = false,
@@ -319,8 +339,30 @@ function ChatInputForChatImpl(
         enabled: trainingTurns && canSend === true,
     });
     const needsAttempt = trainingTurn.attemptRequired;
+    // The thermometer goes with the approach: one mark per approach.
+    const needsConfidence = needsAttempt && trainingTurn.confidenceRequired;
+    const trainingText = useTrainingText();
+    const trainingInstanceId = useId();
+    const trainingAttemptId = `${TRAINING_ATTEMPT_ID}-${trainingInstanceId}`;
+    const trainingConfidenceId = `chat-training-confidence-${trainingInstanceId}`;
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
+    const [confidence, setConfidence] = useState<TrainingConfidenceLevel | null>(
+        null,
+    );
+    const [confidenceError, setConfidenceError] = useState(false);
+    // «Responder» on a basis question brings it, quoted, to the approach.
+    useTrainingReply({
+        enabled: needsAttempt && trainingTurns,
+        // A note asks for its own chat's composer, not the one beside it.
+        chatId,
+        chatScoped: true,
+        onReply: (question) => {
+            setAttempt((current) => withTrainingReply(current, question));
+            setAttemptError(false);
+            focusTrainingAttempt(trainingAttemptId);
+        },
+    });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const controlsRef = useRef<HTMLDivElement>(null);
     const [compactControls, setCompactControls] = useState(false);
@@ -730,6 +772,10 @@ function ChatInputForChatImpl(
             setAttemptError(true);
             return;
         }
+        if (needsConfidence && confidence === null) {
+            setConfidenceError(true);
+            return;
+        }
         if (
             apiKeys &&
             !isModelAvailable(model, apiKeys, configuredModelIds)
@@ -759,6 +805,8 @@ function ChatInputForChatImpl(
         setExcerpts([]);
         setAttempt("");
         setAttemptError(false);
+        setConfidence(null);
+        setConfidenceError(false);
 
         onSubmit?.({
             role: "user",
@@ -772,6 +820,7 @@ function ChatInputForChatImpl(
                 : {}),
             reasoning: reasoningLevel,
             ...(needsAttempt ? { attempt: attempt.trim() } : {}),
+            ...(needsConfidence && confidence !== null ? { confidence } : {}),
         });
     };
 
@@ -951,18 +1000,37 @@ function ChatInputForChatImpl(
                     )}
 
                     {needsAttempt ? (
-                        <TrainingAttemptFieldUI
-                            id="chat-training-attempt"
-                            className="px-4 pt-4"
-                            value={attempt}
-                            onChange={setAttempt}
-                            disabled={!composerOpen}
-                            showError={attemptError}
-                        />
+                        <>
+                            <TrainingAttemptFieldUI
+                                id={trainingAttemptId}
+                                className="px-4 pt-4"
+                                value={attempt}
+                                onChange={setAttempt}
+                                text={trainingText.attempt}
+                                disabled={!composerOpen}
+                                showError={attemptError}
+                            />
+                            {needsConfidence ? (
+                                <TrainingConfidenceUI
+                                    id={trainingConfidenceId}
+                                    className="px-4 pt-3"
+                                    value={confidence}
+                                    onChange={(level) => {
+                                        setConfidence(level);
+                                        setConfidenceError(false);
+                                    }}
+                                    text={trainingText.confidence}
+                                    disabled={!composerOpen}
+                                    showError={confidenceError}
+                                />
+                            ) : null}
+                        </>
                     ) : trainingTurn.urgencyPassExpiresAt ? (
                         <TrainingUrgencyPassLineUI
                             className="px-4 pt-4"
-                            expiresAt={trainingTurn.urgencyPassExpiresAt}
+                            text={trainingText.urgencyPass(
+                                trainingTurn.urgencyPassExpiresAt,
+                            )}
                         />
                     ) : null}
 

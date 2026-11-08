@@ -465,6 +465,37 @@ describe("useAssistantChat retry", () => {
     });
 });
 
+describe("training mark", () => {
+    it("sends the thermometer mark with the approach", async () => {
+        fetchMock.mockResolvedValueOnce(new Response("data: [DONE]\n\n", { status: 200 }));
+        const { result } = renderHook(() => useAssistantChat());
+        await act(async () => {
+            await result.current.handleChat({ ...userMessage(), attempt: "Mi planteamiento", confidence: 2 });
+        });
+        expect(requestBody(0)).toMatchObject({ attempt: "Mi planteamiento", confidence: 2 });
+    });
+
+    it("has the composer read the stage again when the server asks for the mark", async () => {
+        const stale = vi.fn();
+        window.addEventListener("litt:training-stage-stale", stale);
+        fetchMock.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    code: "training_confidence_required",
+                    detail: "Marca qué tan seguro estás de tu planteamiento. Recarga la página si no ves la escala.",
+                }),
+                { status: 400, headers: { "Content-Type": "application/json" } },
+            ),
+        );
+        const { result } = renderHook(() => ({ chat: useAssistantChat(), toasts: useToasts() }));
+        await act(async () => {
+            await result.current.chat.handleChat(userMessage());
+        });
+        window.removeEventListener("litt:training-stage-stale", stale);
+        expect(stale).toHaveBeenCalledTimes(1);
+    });
+});
+
 it.each([undefined, "chat-existing"])("does not repost an uncertain delivery before metadata (%s)", async (chatId) => {
     fetchMock.mockReset();
     fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));

@@ -144,6 +144,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
         attempt: readTrainingBody(body).attempt,
+        confidence: readTrainingBody(body).confidence,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);
@@ -174,6 +175,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         approvalEvents,
         trainingNote,
         trainingPlan,
+        trainingEgress,
     } = prep.prepared;
     // Mutable: the title-generation flow below reassigns it once a title
     // has been persisted.
@@ -400,6 +402,8 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 answer: fullText ?? "",
                 model: selectedModel,
                 apiKeys,
+                citations,
+                turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
             });
 
             void enqueueChatTurnAudit(

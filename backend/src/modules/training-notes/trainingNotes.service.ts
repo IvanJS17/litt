@@ -14,6 +14,13 @@ import {
     TURN_NOTE_CHAT_COLUMN,
     type TurnNoteSurface,
 } from "../../lib/trainingNotes";
+import {
+    effectiveVerdict,
+    rightForTheWrongReason,
+    type TrainingFoundation,
+    type TrainingVerdict,
+    type TrainingVerdictSource,
+} from "../../lib/trainingVerdict";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
 import type { Db } from "../../lib/supabase";
@@ -30,6 +37,16 @@ type NoteRow = {
     contrast: string | null;
     contrast_status: string;
     created_at: string;
+    // Layer 3; absent or null on older notes.
+    confidence?: number | null;
+    verdict?: TrainingVerdict | null;
+    verdict_source?: TrainingVerdictSource | null;
+    foundation?: TrainingFoundation | null;
+    foundation_question?: string | null;
+    topics?: string[] | null;
+    answer_unverified?: boolean | null;
+    mode?: string | null;
+    step?: number | null;
 } & Partial<Record<(typeof TURN_NOTE_CHAT_COLUMN)[TurnNoteSurface], string | null>>;
 
 /** The notes of one chat the actor may read; 404 when there are none. */
@@ -101,7 +118,31 @@ export async function getChatTurnNotes(
             contrast: row.contrast_status === "ready" ? row.contrast : null,
             contrast_status: effectiveContrastStatus(row.contrast_status, row.created_at, now),
             created_at: row.created_at,
+            ...criterionFields(row),
         }));
     if (notes.length === 0) return failure("not_found", NOT_FOUND);
     return ok({ notes });
+}
+
+/**
+ * The layer-3 fields of a note. A note of layers 1 and 2 has all of them
+ * null and reads as before (they are simply absent from the response).
+ */
+function criterionFields(row: NoteRow): Partial<TrainingTurnNote> {
+    if (row.confidence == null && row.verdict == null && row.foundation == null && !row.answer_unverified && !row.topics)
+        return {};
+    const judged = {
+        verdict: row.verdict ?? null,
+        verdict_source: row.verdict_source ?? null,
+        foundation: row.foundation ?? null,
+    };
+    return {
+        confidence: (row.confidence as TrainingTurnNote["confidence"]) ?? null,
+        ...judged,
+        effective_verdict: effectiveVerdict(judged),
+        right_for_wrong_reason: rightForTheWrongReason(judged),
+        foundation_question: row.foundation_question ?? null,
+        topics: row.topics ?? null,
+        answer_unverified: row.answer_unverified === true,
+    };
 }

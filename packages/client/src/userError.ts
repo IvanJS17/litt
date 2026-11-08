@@ -212,6 +212,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_mentor_has_pupils: "conflict",
     training_pupil_has_mentor: "conflict",
     // --- Training layer 3, card 2 codes (begin) ---
+    // The thermometer mark is owed with the approach (reload for the scale);
+    // a hint has no contrast to correct.
+    training_confidence_required: "validation",
+    training_note_not_judgeable: "conflict",
     // --- Training layer 3, card 2 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or
@@ -226,6 +230,9 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // bytes. Retrying cannot help, so the server's detail is shown as-is.
     training_approval_required: "validation",
     // --- Training layer 3, card 8 codes (begin) ---
+    // A mark on a conclusion of the accountability check that the server
+    // cannot take (unknown field, a note over 500 characters).
+    training_backing_invalid: "validation",
     // --- Training layer 3, card 8 codes (end) ---
     // Nobody could approve a pasante's draft outside an organization, so it
     // is not copied there; retrying the same copy cannot help.

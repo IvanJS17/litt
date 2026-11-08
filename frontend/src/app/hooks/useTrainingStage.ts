@@ -1,35 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { markTrainingStageStale, useTrainingStageStale } from "@mike/ui";
+import type { TrainingStage } from "@mike/contracts";
 import { getTrainingStage } from "@/app/lib/mikeApi";
+
+export { markTrainingStageStale };
 
 /** What the composer needs to know about «Tu turno primero» where it is. */
 export type TrainingTurnState = {
     /** The caller must write their own attempt before this turn. */
     attemptRequired: boolean;
+    /**
+     * The caller must also mark how sure they are of it (the thermometer).
+     * False from a server that predates layer 3, which asks for no mark.
+     */
+    confidenceRequired: boolean;
     /** When the urgency pass that lifts it ends, if one is in force there. */
     urgencyPassExpiresAt: string | null;
+    /** The caller's effective stage there; null for a lawyer, or while it is unknown. */
+    stage?: TrainingStage | null;
 };
 
-const NOTHING_REQUIRED: TrainingTurnState = { attemptRequired: false, urgencyPassExpiresAt: null };
-
-const STALE_EVENT = "litt:training-stage-stale";
-
-/**
- * Tell every mounted composer to read the stage again: the server refused a
- * turn with training_attempt_required, so what it showed (for instance, an
- * urgency pass that has just expired) is out of date.
- */
-export function markTrainingStageStale(): void {
-    if (typeof window !== "undefined") window.dispatchEvent(new Event(STALE_EVENT));
-}
+const NOTHING_REQUIRED: TrainingTurnState = {
+    attemptRequired: false,
+    confidenceRequired: false,
+    urgencyPassExpiresAt: null,
+    stage: null,
+};
 
 // setTimeout's ceiling; a pass lasts at most 72 hours, well below it.
 const MAX_TIMER_MS = 2_147_483_647;
 
 /**
  * LiTT training: whether a chat turn where the composer is (an organization,
- * and a project in it) needs the caller's attempt, and the urgency pass that
+ * and a project in it) needs the caller's attempt and thermometer mark, and the urgency pass that
  * lifts it there, if any. Only tells the composer what to show; the server
  * applies the same rule to the turn itself. While it is unknown, or if it
  * cannot be read, the composer behaves as today and the server's 400 asks for
@@ -61,7 +66,9 @@ export function useTrainingStage({
                         key,
                         state: {
                             attemptRequired: stage.attempt_required,
+                            confidenceRequired: stage.confidence_required === true,
                             urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
+                            stage: stage.stage,
                         },
                     });
             },
@@ -74,11 +81,7 @@ export function useTrainingStage({
         };
     }, [active, key, orgId, projectId, generation]);
 
-    useEffect(() => {
-        if (!active) return;
-        window.addEventListener(STALE_EVENT, reload);
-        return () => window.removeEventListener(STALE_EVENT, reload);
-    }, [active, reload]);
+    useTrainingStageStale(reload, active);
 
     const state = active && result?.key === key ? result.state : NOTHING_REQUIRED;
     const expiresAt = state.urgencyPassExpiresAt;

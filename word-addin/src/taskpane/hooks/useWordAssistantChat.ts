@@ -46,6 +46,7 @@ import {
   setAssistantError,
   upsertDocumentReadEvent,
 } from "../lib/wordChatEvents";
+import { isTrainingRefusalCode, markTrainingStageStale } from "@mike/ui";
 import { readCurrentDocumentName } from "../lib/wordDocumentIdentity";
 import {
   UserVisibleError,
@@ -852,6 +853,7 @@ export function useWordAssistantChat({
                     wordChatStorage,
                     editApplyMode,
                     attempt: submission.attempt,
+                    confidence: submission.confidence,
                   },
                   onStreamText,
                 );
@@ -949,6 +951,17 @@ export function useWordAssistantChat({
           // state below always builds on the latest transcript.
           publishAssistantEventsNow();
           const sessionIsCurrent = sendIsCurrent();
+          // LiTT training: the composer's stage was out of date. Every
+          // composer reads it again, and this one gets its draft back.
+          if (
+            !controller.signal.aborted &&
+            isTrainingRefusalCode(
+              describeError(error, { action: "get a response" }).code,
+            )
+          ) {
+            markTrainingStageStale();
+            options.onTrainingRefused?.();
+          }
           if (!controller.signal.aborted && !(error instanceof WordChatTerminalError && error.reportingOwner === "backend")) {
             // The stream failed for a reason other than the user stopping
             // it. The 5xx/network layers already reported transport-level

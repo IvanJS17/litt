@@ -1,3 +1,4 @@
+import type { TrainingConfidenceLevel } from "@mike/contracts";
 import type { RedlineStreamProjection } from "./redline";
 import type { ReasoningLevel } from "./modelSelectionTypes";
 export type { ReasoningLevel } from "./modelSelectionTypes";
@@ -114,11 +115,19 @@ export interface WordChatSubmission {
   reasoning: ReasoningLevel;
   /** LiTT training: a pasante's own approach; the server requires it. */
   attempt?: string;
+  /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+  confidence?: TrainingConfidenceLevel;
 }
 
 export interface WordChatSubmitOptions {
   /** Called only after the document snapshot succeeds and the turn exists. */
   onAccepted?: () => void;
+  /**
+   * The server refused the turn for a missing approach or thermometer mark
+   * (`training_attempt_required` / `training_confidence_required`). What
+   * `onAccepted` cleared can be put back; the stage is read again.
+   */
+  onTrainingRefused?: () => void;
   /** Places the new turn after React has rendered its empty assistant slot. */
   onTurnReady?: () => void;
 }

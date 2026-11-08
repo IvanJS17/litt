@@ -592,6 +592,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         requestedTimeZone: req.body?.time_zone,
         requestedOrgId: req.body?.org_id,
         attempt: readTrainingBody(body).attempt,
+        confidence: readTrainingBody(body).confidence,
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);
@@ -625,6 +626,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         approvalEvents,
         trainingNote,
         trainingPlan,
+        trainingEgress,
     } = prep.prepared;
     let chatTitle = prep.prepared.chatTitle;
     let completedTurnPersisted = prep.prepared.completedTurnPersisted;
@@ -936,6 +938,8 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 answer: fullText ?? "",
                 model: selectedModel,
                 apiKeys,
+                citations,
+                turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
             });
 
             void enqueueChatTurnAudit(

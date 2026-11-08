@@ -113,12 +113,73 @@ ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
 `training.pupil_assigned`, `training.pupil_released`, `training.stage_set`,
 `training.stage_removed`.
 
+## Criterion: verdict, thermometer and basis (layer 3)
+
+All of this lives in the private note of the turn (`training_turn_notes`, new
+columns in `20261108_60_litt_training_criterion_turns.sql`); it is learning
+data with the same readers as the rest of the note (the pupil and their
+**current** mentor, never an owner or admin), goes with the membership, and the
+notes of layers 1 and 2 keep every new column null.
+
+**The thermometer.** A turn that owes an attempt also owes `confidence`, an
+integer from 1 to 4 («casi adivino», «dudo», «bastante seguro», «seguro»):
+`400 training_confidence_required` otherwise, checked after the attempt and
+before anything is written. One mark per approach, not per conclusion (an
+approach is two or three lines and usually one thesis). Where no attempt is
+owed (a junior, a lawyer, an urgency pass) the mark is ignored and not stored.
+`GET /training/stage` says `confidence_required` (the same as
+`attempt_required`). Web, Word and the server ship together: an older client
+that sends no mark gets that `400`, whose message tells the person to reload.
+
+**The verdict.** The contrast ends with up to four labelled lines that the
+server parses (`parseContrastTrailer`, `lib/trainingVerdict.ts`) and does not
+store in the contrast: `Veredicto: coincide | parcial | no coincide`,
+`Fundamento: sólido | débil | equivocado`, `Temas:` (up to three, 80
+characters each) and `Pregunta:`. Only the block at the end counts, a bulleted
+line never does, and a value outside the list is null. A contrast without them
+stays `ready` with a null verdict. What this measures is a **coincidence with
+the AI's answer, according to the AI contrast**, never a hit: the answer can be
+wrong. The verdict that counts (`effective_verdict`) is `parcial` when the
+contrast says `coincide` with a `wrong` basis («acertaste por la razón
+equivocada»); a mentor's verdict counts as written.
+
+**The basis question.** When the verdict is `coincide` and the basis `weak` or
+`wrong`, the contrast may add one question about what the conclusion rests on.
+The server drops it (and keeps the verdict) if it names a legal reference
+(`legalReferences`) that neither the pupil's attempt nor the answer names, or
+if it is over 500 characters.
+
+**`answer_unverified`.** Computed when the turn ends from the citations
+persisted with the answer (a citation with `verified: false`, or a quote whose
+verification failed): such a turn is not evidence for the map or for
+calibration. It is recorded even when the contrast fails.
+
+**The mentor corrects a verdict.** `PUT
+/orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` with
+`{ verdict }` (module `training-criterion`): only the pupil's current mentor,
+only for a work in a matter they can open, the same `404` for everybody else
+(the pupil, a previous mentor, an owner, an admin, another member, an outsider,
+an unknown note). It stores `verdict_source = 'mentor'` and `verdict_by`. A
+turn with nothing to compare (a hint, `contrast_status = 'skipped'`) answers
+`409 training_note_not_judgeable`. The audit event `training.verdict_overridden`
+carries the chat and the ids (`org_id`, `target_user_id`) and never the verdict.
+
+**Models.** The contrast is the same single call as before, on the
+conversation's own provider, model and credential, with no fallback; a failure
+leaves the note `failed` and never fails the turn. Nothing new calls a model.
+
+Product decisions applied while the open questions of layer 3 are unanswered
+(each is the plan's recommendation): one mark per approach, and a «hit» is the
+coincidence according to the AI contrast, excluding answers with unverified
+citations, with the mentor able to correct it.
+
 ## API
 
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
 | `PUT/DELETE /orgs/:orgId/training/pupils/:userId/stages` | the current mentor; `DELETE` takes `?practice=`, none for every practice area |
@@ -178,9 +239,9 @@ The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
   turn did not end in an error.
 - `readTrainingBody` reads the training fields of a request body and ignores
   the rest. `trainingEnginePlan` turns the plan into the engine's single
-  `trainingPlan` argument (extra system text, narrower tool limits and the
-  organization whose firm criteria the turn may read; see «One mold of
-  criterion»).
+  `trainingPlan` argument (extra system text, narrower tool limits, the
+  organization whose firm criteria the turn may read (see «One mold of
+  criterion») and the `methodology` flag below).
 
 A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
 it does not touch the surfaces again.
@@ -212,10 +273,67 @@ justify.
 
 The composers (web and Word) show the required field
 «Tu planteamiento (2–3 líneas)» with a counter when `GET /training/stage` says
-`attempt_required` (a pasante without an urgency pass there); the server
-decides either way. A composer in a project chat,
+`attempt_required` (a pasante without an urgency pass there), and under it the
+thermometer when it says `confidence_required` (layer 3): a radio group of four
+named levels («Casi adivino» to «Seguro», chosen level `aria-checked` plus a
+check mark), one mark per approach, cleared once the turn is sent. A send
+without the mark is held in the composer; if the server still answers
+`training_confidence_required` the composer reads the stage again. The mark
+travels as `confidence` in the body of the four surfaces. Neither the approach
+nor the mark survive in the composer draft of the side chat. The words come
+from the host (`training.criterion.turn` in the catalog, one set for web and
+Word; `useTrainingText` in each app builds them for the components in
+`packages/ui`). The private note beside the message adds the mark, the verdict
+(«según el contraste de la IA», «corregido por tu mentor» when the mentor wrote
+it), the basis and, when there is one, the basis question with «Responder»,
+which quotes the question (`> …`) at the start of the approach field of the
+composer; the quoted lines do not count towards the 60 characters, so the
+person still owes an approach of their own. The server decides either way. A composer in a project chat,
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
+
+### Methodology annex (junior)
+
+A junior's turn is offered one extra tool, `compute_methodology`
+(`modules/chat/engine/tools/methodologyTool.ts`), so the model does no
+legal-financial arithmetic in prose. `lib/trainingTurn/methodology.ts` sets
+`toolPolicy.methodology` only for the `junior` stage without a pass; a
+pasante, a turn with no stage and every other author get nothing, and the
+engine never offers it to a subagent. It is a tool policy, not a permission:
+it reads only documents the turn already holds and writes nothing but the
+annex, and only when the caller says explicitly that the turn may write
+documents (`allowDocumentMutation === true`; left out, the steps come back as
+text).
+
+- **Calculations (closed list):** simple interest (by periods, or by dates and
+  a 360/365/366 day basis), compound interest, index update (final index over
+  initial index) and proportion/percentage. They live in `lib/methodology/`
+  and use exact decimal arithmetic on `BigInt` scaled integers (no float, no
+  dependency). Inputs are plain decimals; money has at most 2 decimals. The
+  figures are exact and only the published ones are rounded, half away from
+  zero (money to 2 decimals), so the annex states the rule.
+- **No rates or indices ship with LiTT.** Each input carries a source: a
+  verbatim quote from a document (located with `locateQuote`; a quote that is
+  not found reads «sin verificar»), «Dato dado por la persona» (only when the
+  value is written in the person's message of that turn, ignoring spaces and
+  thousands commas; otherwise «No encontrado en tu mensaje (sin verificar)»),
+  or «Sin fuente». A figure reaches the tool as text: a JSON number that is
+  not a safe integer is rejected, never truncated.
+- **The annex** (a Word document) lists the inputs and their sources, the
+  formula, every step with its value, the rounding rule, the result and who
+  generated it and when (the day in `America/Mexico_City`), and says it is
+  arithmetic support, not a legal opinion. It is written in the person's
+  `ui_locale` (`es-MX` when none), with the dates in that language's format
+  and the figures without thousands separators in both. The words live in
+  `packages/i18n`, namespace `training.criterion.methodology` (en-US and
+  es-MX); the backend has no `use-intl`, so `lib/methodology/messages.ts` reads
+  the two JSON files (`/packages/i18n/messages` in the image, copied by
+  `backend/Dockerfile`) and fills the `{name}` arguments, which is all these
+  messages use. A legal basis is printed as written and marked «sin verificar»
+  unless a verified source quote names the same reference
+  (`legalReferences`).
+- **No model call:** the calculation runs in the process; the BYOK route of the
+  conversation is the only model involved (the one that invoked the tool).
 
 ## Settings
 
@@ -670,6 +788,97 @@ none while the pupil has no mentor.
 **Word.** The add-in is not changed by layer 2: Word does not honor a pass
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
+
+## Accountability mode (layer 3, junior)
+
+After every answer a **junior** receives, LiTT lists the conclusions the
+answer makes and the source it can show for each. It is the junior's
+counterpart of «Tu turno primero»: a pasante writes first, a junior answers
+for what they keep. It is always on for juniors and nothing blocks an output
+(a junior's work is not sealed); the server skips answers that have nothing to
+account for (under 400 characters and no citations). A pasante, a lawyer and a
+person without a stage get nothing, and an urgency pass (a pasante's) does
+not touch it.
+
+**Statuses are the server's.** One model call proposes the conclusions (up to
+12, as the answer words them) and the citation number each one rests on. The
+server then decides, from the citations persisted with the message:
+
+| Status | Meaning |
+|---|---|
+| `backed` («Respaldada») | the proposed citation was verified (`verifyCitations`): the exact passage the server found in a document in LiTT is shown beside the conclusion |
+| `citation_unverified` («Cita sin verificar») | the citation names a quote the server could not find in the document |
+| `unbacked` («Sin respaldo») | no citation: the conclusion rests on nothing LiTT can show |
+
+LiTT has no corpus of laws, so **a law cited from memory is `unbacked`**, and a
+legal reference a conclusion names that the shown passage does not
+(`legalReferences` in `lib/legalReferences.ts`: articles, fractions, theses,
+registry numbers) is listed on that conclusion as «Sin verificar: art. 27, fr.
+IV (ley federal trabajo). Confírmalo en la fuente oficial.» An article counts as
+shown only if the passage names the same article **of the same law**
+(`lawReferences`): the law is the one named right after the article («de la Ley
+Federal del Trabajo», «LFT», «constitucional»; names and common abbreviations
+such as CPEUM and «Constitución» normalize to one identity) or, when the
+passage names none, the law its document is (from its title, «Ley Federal del
+Trabajo.pdf»). An article whose law cannot be identified, in the conclusion or
+in the passage, is never shown («ley no identificada»); so are two names the
+normalizer does not equate («Código Civil» vs «Código Civil Federal»). A
+conclusion whose passage does not show every reference it names is `unbacked`
+(not `backed`), both when it is written and when it is displayed. A conclusion naming a reference the answer itself
+never named is dropped. The AI only proposes the link; the panel says so and
+the person checks the passage. The passage is not stored: it is read from the
+message's citations each time it is shown, and a `backed` conclusion whose
+passage can no longer be shown reads as `unbacked`. Tabular citations are never
+verified, so they are `citation_unverified`.
+
+**What the person does.** For each conclusion they mark «Lo verifiqué» and, for
+one that is not `backed`, write why they keep it (up to 500 characters). That
+is what the mentor reads («qué errores atrapó»).
+
+**Data.** Migration `20261108_64_litt_training_criterion_backing.sql` adds
+`training_backing_checks` (one row per assistant message, `pending` → `ready` |
+`failed`, `conclusions` as JSON). It is learning data like the turn notes: the
+person and their **current** mentor only (`training_can_read_learning`), never
+an owner or an admin, no totals or rankings, deleted with the membership,
+kept when the pupil is released, in the account export
+(`training.backing_checks`). The row goes with its chat. The audit gets
+`training.backing_verified` with `{ org_id, target_user_id }` and the chat id
+when the person marks a conclusion verified; never the conclusion, the status
+or the reason.
+
+**Model.** The check runs after the answer is durable, in the same process, on
+the conversation's own provider, model and credential (governed BYOK; no
+fallback, never another model), and cannot fail the turn: on any failure the
+check is `failed` and the panel says so. A check still `pending` after ten
+minutes reads as `failed`. The check writes its own `llm.egress`
+(`surface: training_backing`) before the call, with the turn's route, so the
+destination is the same, and makes no call if that record cannot be written. The
+answer and the citation list go in nonce-fenced blocks, the system prompt says
+they are content to evaluate, and the output is strict JSON.
+
+| Route | Who |
+|---|---|
+| `GET /training/me/chats/:chatId/backing[?message_id=]` | the person: their own checks of that chat (any surface); a chat with none of theirs is the same 404 as anybody else's |
+| `PUT /training/me/chats/:chatId/backing/:checkId/conclusions/:conclusionId` | the person: `{ person_verified?, person_note? }`; `400 training_backing_invalid` for anything else |
+| `GET /orgs/:orgId/training/pupils/:userId/backing` | the current mentor: the ready checks of the works in matters they can open (the others are only counted in `works_without_access`) |
+
+**Where it shows.** Under the junior's answer in the web chat, the project
+chat and the tabular review chat, and in the Word task pane for cloud chats
+(a device-only Word chat keeps no transcript, so it has no checks). The panel
+(`BackingPanelUI` in `packages/ui`) takes its texts from the host
+(`training.criterion.backing` in the catalog) and shows each status as a word
+and an icon, never by colour alone. The mentor's section
+(`frontend/src/app/components/training/criterion/BackingSection.tsx`) is
+delivered without its tab: the «Criterio» tab arrives with a later card, which
+mounts it. A message shows its panel once the client knows the saved message
+id and the check exists: on reload, or live (the tabular review takes the run's
+id, which is the message id, from the stream's `chat_id` event) once the server
+has saved the answer and written the check. The mentor's view has its own
+privacy line («solo la persona y tú…»).
+
+The hook point is `lib/trainingTurn/accountability.ts`: a junior's plan carries
+its `afterTurn` hook, and the four surfaces pass the saved turn
+(`finishTrainingTurn`'s `turn`).
 
 ## Bulk review designer (layer 3)
 

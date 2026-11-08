@@ -140,18 +140,41 @@ describe("D4: which rule each place reads", () => {
         expect(source("lib/training.ts")).not.toMatch(/trainingPass|urgency/);
     });
 
-    // The turn is wired once, in lib/trainingTurn (card 1 of layer 3): the
-    // surfaces call beginTrainingTurn with their own name and read no stage.
-    it.each([
+    // The turn is wired once, in lib/trainingTurn (card 1 of layer 3): each of
+    // the four surfaces makes exactly ONE call to beginTrainingTurn, and its
+    // `surface:` is an argument of that very call (not a string elsewhere in
+    // the file). None of them reads a stage itself: Word included, whose own
+    // stage rule is applied inside beginTrainingTurn.
+    const SURFACES = [
         ["modules/chat/chat.prepare.ts", "chat"],
         ["modules/project-chat/projectChat.service.ts", "project_chat"],
         ["modules/tabular/tabular.chats.ts", "tabular"],
-    ])("%s decides the turn through beginTrainingTurn (%s)", (path, surface) => {
+        ["modules/word-chat/wordChat.service.ts", "word"],
+    ] as const;
+    const STAGE_READERS =
+        /resolveTrainingStage\(|resolveWordTrainingStage\(|resolveTurnTraining|checkTrainingTurn|trainingPass/;
+    const begins = (text: string) => [...text.matchAll(/\bbeginTrainingTurn\(/g)];
+
+    it.each(SURFACES)("%s decides the turn through beginTrainingTurn (%s)", (path, surface) => {
         const text = source(path);
-        expect(text).toContain("beginTrainingTurn(");
-        expect(text).toContain(`surface: "${surface}"`);
-        expect(text).not.toContain("resolveTrainingStage(");
-        expect(text).not.toMatch(/resolveTurnTraining|checkTrainingTurn/);
+        const calls = begins(text);
+        expect(calls).toHaveLength(1);
+        // The object literal opening the call carries the surface, before its first closing brace.
+        const call = text.slice(calls[0].index!, text.indexOf("});", calls[0].index!) + 3);
+        expect(call).toMatch(new RegExp(`^beginTrainingTurn\\(\\s*db,\\s*\\{[^}]*\\bsurface:\\s*"${surface}"`));
+        expect(call).toMatch(/\bbody:\s*\{[^}]*\battempt:\s*args\.attempt/);
+        expect(call).toMatch(/\bbody:\s*\{[^}]*\bconfidence:\s*args\.confidence/);
+        expect(text).not.toMatch(STAGE_READERS);
+        // The note is recorded from the plan that call returned, and from nowhere else.
+        expect(text).toMatch(/recordTrainingNote\(db,\s*\{\s*plan:\s*trainingPlan/);
+        // No other surface name rides on this file's call.
+        for (const [, other] of SURFACES)
+            if (other !== surface) expect(call).not.toContain(`surface: "${other}"`);
+    });
+
+    it("gives each surface a different name: the four calls are four distinct surfaces", () => {
+        const names = SURFACES.map(([path]) => /surface:\s*"(\w+)"/.exec(source(path))?.[1]);
+        expect(new Set(names).size).toBe(SURFACES.length);
     });
 
     it("decides the turn of those surfaces with resolveTurnTraining, in one place", () => {
@@ -163,10 +186,12 @@ describe("D4: which rule each place reads", () => {
 
     it("leaves Word on its own stage rule, without passes", () => {
         const word = source("modules/word-chat/wordChat.service.ts");
-        expect(word).toContain('surface: "word"');
-        expect(word).not.toMatch(/trainingPass|resolveTurnTraining/);
+        expect(word).not.toMatch(STAGE_READERS);
         const wired = source("lib/trainingTurn/index.ts");
-        expect(wired).toContain("resolveWordTrainingStage(");
+        // beginTrainingTurn applies the Word rule for the "word" surface only,
+        // and gives it no pass.
+        expect(wired).toMatch(/args\.surface === "word"[\s\S]{0,200}resolveWordTrainingStage\(/);
         expect(wired).toMatch(/passActive: false/);
+        expect(wired.match(/resolveWordTrainingStage\(/g)).toHaveLength(1);
     });
 });

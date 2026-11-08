@@ -68,6 +68,8 @@ import { usePageChrome } from "@/app/contexts/PageChromeContext";
 import { DocumentWorkspaceScope } from "@/app/contexts/WorkspaceContext";
 import { useItemWorkspace } from "@/app/hooks/useItemWorkspace";
 import { matchTrainingNotes, useTrainingTurnNotes } from "@mike/ui";
+import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { resolvePanelDocumentVersionResult } from "./panelDocumentVersion";
 import { LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS } from "@/app/components/ui/liquid-surface";
 import {
@@ -309,6 +311,12 @@ export function AssistantChatColumn({
         useTrainingTurnNotes(chatId, isResponseLoading, getTrainingTurnNotes),
     );
     const permissionChat = chat?.id === chatId ? chat : activeChat;
+    // LiTT training: a junior's conclusions and their sources, under each answer.
+    const trainingBacking = useWebTrainingBacking({
+        chatId,
+        projectId: permissionChat?.project_id ?? null,
+        isResponseLoading,
+    });
     const activeChatRole = permissionChat ? roleFrom(permissionChat) : null;
     const canLeaveChat = permissionChat?.can_leave === true && permissionChat.project_id === null && activeChatRole !== "owner";
     // Where documents attached here come from and are uploaded to: the
@@ -1135,6 +1143,7 @@ export function AssistantChatColumn({
                                                         }}
                                                     />
                                                 ) : (
+                                                    <>
                                                     <AssistantMessage
                                                         events={msg.events}
                                                         isStreaming={
@@ -1201,6 +1210,11 @@ export function AssistantChatColumn({
                                                             resolvedEditStatuses
                                                         }
                                                     />
+                                                        <BackingSlot
+                                                            backing={trainingBacking}
+                                                            messageId={msg.id}
+                                                        />
+                                                    </>
                                                 )}
                                             </div>
                                         ));
@@ -1284,6 +1298,7 @@ export function AssistantChatColumn({
                                                 onCancel={cancel}
                                                 isLoading={isResponseLoading}
                                                 chatKey={chatId}
+                                                chatId={chatId}
                                                 chatModel={chatModel}
                                                 chatReasoningLevel={chatReasoningLevel}
                                                 onDocumentClick={

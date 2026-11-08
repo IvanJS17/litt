@@ -49,6 +49,7 @@ import {
   getUserModelSettings,
   governChatRoute,
   recordChatEgress,
+  recordChatEgressOrThrow,
   resolveUserChatSelection,
   persistLastSelectedChatModel,
   persistLastSelectedReasoningLevel,
@@ -631,6 +632,8 @@ export type PreparedWordChatStream = {
   trainingNote: CreatedTurnNote | null;
   /** The turn's training plan; null when the turn has no user message. */
   trainingPlan: TrainingTurnPlan | null;
+  /** The llm.egress of the second call a training hook makes with the turn's own route. */
+  trainingEgress: () => Promise<void>;
 };
 
 export async function prepareWordChatStream(
@@ -660,6 +663,8 @@ export async function prepareWordChatStream(
     requestedTimeZone?: unknown;
     /** LiTT training: the author's own approach; required of a pasante. */
     attempt?: unknown;
+    /** LiTT training: how sure the author is of their approach (1 to 4). */
+    confidence?: unknown;
   },
 ): Promise<
   | { ok: true; prepared: PreparedWordChatStream }
@@ -734,7 +739,7 @@ export async function prepareWordChatStream(
         surface: "word",
         userId,
         scope: { orgId: null },
-        body: { attempt: args.attempt },
+        body: { attempt: args.attempt, confidence: args.confidence },
       });
     } catch (error) {
       return {
@@ -888,6 +893,14 @@ export async function prepareWordChatStream(
     surface: "word",
     resolved: governed,
   });
+  const trainingEgress = () =>
+    recordChatEgressOrThrow(db, {
+      userId,
+      orgId: null,
+      chatId: persistChat ? chatId : null,
+      surface: "training_backing",
+      resolved: governed,
+    });
 
   const inputMessageId = persistChat ? randomUUID() : null;
   let memoryTurn: MemoryConversationTurn | null = null;
@@ -1056,6 +1069,7 @@ export async function prepareWordChatStream(
         nonce,
         trainingNote,
         trainingPlan,
+        trainingEgress,
       },
     };
   } catch (error) {

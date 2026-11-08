@@ -5,6 +5,7 @@ import {
     TRAINING_ATTEMPT_MIN_CHARS,
     TRAINING_ATTEMPT_REQUIRED_CODE,
 } from "../training";
+import { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
 import type { Db } from "../supabase";
 import { FIRM_CRITERIA_ADDENDUM } from "./criteria";
 import { launchTurnContrast } from "../trainingNotes";
@@ -67,7 +68,8 @@ function failingDb(): Db {
 
 const GOOD = "a".repeat(TRAINING_ATTEMPT_MIN_CHARS + 20);
 const BODIES = {
-    valid: { attempt: `  ${GOOD}  ` },
+    valid: { attempt: `  ${GOOD}  `, confidence: 3 },
+    noMark: { attempt: `  ${GOOD}  ` },
     missing: {},
     short: { attempt: "a".repeat(TRAINING_ATTEMPT_MIN_CHARS - 1) },
     long: { attempt: "a".repeat(TRAINING_ATTEMPT_MAX_CHARS + 1) },
@@ -90,6 +92,8 @@ describe("beginTrainingTurn: surface × stage × pass × body", () => {
                 for (const [bodyName, body] of Object.entries(BODIES)) {
                     const passApplies = pass && surface !== "word" && stage === "pasante";
                     const owesAttempt = stage === "pasante" && !passApplies;
+                    // A valid attempt without the thermometer mark is refused on its own code.
+                    const owesMark = owesAttempt && bodyName === "noMark";
                     const label = `${surface} · ${stage ?? "no stage"} · ${pass ? "pass" : "no pass"} · ${bodyName}`;
                     it(label, async () => {
                         const { db } = world(stage, pass);
@@ -99,6 +103,14 @@ describe("beginTrainingTurn: surface × stage × pass × body", () => {
                             scope: { orgId: ORG, projectId: PROJECT },
                             body,
                         });
+                        if (owesMark) {
+                            expect(begun).toMatchObject({
+                                ok: false,
+                                status: 400,
+                                code: TRAINING_CONFIDENCE_REQUIRED_CODE,
+                            });
+                            return;
+                        }
                         if (owesAttempt && bodyName !== "valid") {
                             expect(begun).toMatchObject({
                                 ok: false,
@@ -114,15 +126,20 @@ describe("beginTrainingTurn: surface × stage × pass × body", () => {
                             stage,
                             passActive: surface !== "word" && passApplies,
                             attempt: owesAttempt ? GOOD : null,
+                            // The mark is kept only when the turn owes an approach.
+                            confidence: owesAttempt && bodyName === "valid" ? 3 : null,
                             orgId: surface === "word" ? (stage ? ORG : null) : ORG,
                         });
                         // The firm's criteria: any stage, never without one; the tool only
                         // reads, so a plan with it limits nothing else.
                         if (stage) {
                             expect(begun.plan.systemAddendum).toBe(FIRM_CRITERIA_ADDENDUM);
-                            expect(begun.plan.toolPolicy).toEqual({ firmCriteriaOrgId: ORG });
+                            // A junior without a pass is also offered the methodology calculator.
+                            const calculator = begun.plan.passActive || stage !== "junior" ? {} : { methodology: true as const };
+                            expect(begun.plan.toolPolicy).toEqual({ ...calculator, firmCriteriaOrgId: ORG });
                             expect(trainingEnginePlan(begun.plan)).toEqual({
                                 systemAddendum: FIRM_CRITERIA_ADDENDUM,
+                                ...calculator,
                                 firmCriteriaOrgId: ORG,
                             });
                         } else {
@@ -164,9 +181,9 @@ describe("beginTrainingTurn failures", () => {
 
 describe("readTrainingBody", () => {
     it("reads the attempt and ignores everything else", () => {
-        expect(readTrainingBody({ attempt: "x", other: 1 })).toEqual({
+        expect(readTrainingBody({ attempt: "x", confidence: 2, other: 1 })).toEqual({
             attempt: "x",
-            confidence: null,
+            confidence: 2,
             mode: null,
             divergence: null,
         });
@@ -183,7 +200,7 @@ function plan(over: Partial<TrainingTurnPlan> = {}): TrainingTurnPlan {
         stage: "pasante",
         passActive: false,
         attempt: GOOD,
-        confidence: null,
+        confidence: 3,
         mode: null,
         step: null,
         orgId: ORG,
@@ -216,6 +233,7 @@ describe("recordTrainingNote", () => {
                 [column]: "chat-1",
                 message_id: "message-1",
                 attempt: GOOD,
+                confidence: 3,
                 contrast_status: "pending",
             });
         }
@@ -269,7 +287,30 @@ describe("finishTrainingTurn", () => {
             answer: "respuesta",
             model: "m",
             apiKeys: undefined,
+            answerUnverified: false,
         });
+    });
+
+    it("tells the contrast whether the answer carried a citation that could not be verified", () => {
+        const verified = { quote: "a", verified: true };
+        const quoteFailed = { quote: "b", verified: false };
+        const quotesFailed = { quotes: [{ quote: "c", verification: { verified: false } }] };
+        const cases: [unknown, boolean][] = [
+            [undefined, false],
+            [null, false],
+            [[], false],
+            [[verified], false],
+            [[verified, quoteFailed], true],
+            [[quotesFailed], true],
+            [[{ document: { quotes: [{ verification: { verified: false } }] } }], true],
+            [{ verified: false }, true],
+            ["no es una lista", false],
+        ];
+        for (const [citations, expected] of cases) {
+            vi.mocked(launchTurnContrast).mockClear();
+            finishTrainingTurn(db, { plan: plan(), note, completed: true, answer: "r", model: "m", citations });
+            expect(vi.mocked(launchTurnContrast).mock.calls[0][1].answerUnverified).toBe(expected);
+        }
     });
 
     it("launches nothing for a turn that errored or has no note", () => {

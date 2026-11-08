@@ -45,6 +45,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     titleModelForRoute,
     persistLastSelectedChatModel,
@@ -591,6 +592,8 @@ export type PreparedTabularChat = {
     /** LiTT training: a pasante's private note for this turn, pending its contrast. */
     trainingNote: CreatedTurnNote | null;
     trainingPlan: TrainingTurnPlan;
+    /** The llm.egress of the second call a training hook makes with the turn's own route. */
+    trainingEgress: () => Promise<void>;
 };
 
 /**
@@ -622,6 +625,8 @@ export async function prepareTabularChat(
         requestedTimeZone?: unknown;
         /** LiTT training: the author's own approach; required of a pasante. */
         attempt?: unknown;
+        /** LiTT training: how sure the author is of their approach (1 to 4). */
+        confidence?: unknown;
     },
 ): Promise<TabularResult<PreparedTabularChat>> {
     const {
@@ -769,7 +774,7 @@ export async function prepareTabularChat(
             surface: "tabular",
             userId,
             scope: { orgId: review.org_id ?? null, projectId: review.project_id ?? null },
-            body: { attempt: args.attempt },
+            body: { attempt: args.attempt, confidence: args.confidence },
         });
         if (!begun.ok)
             return statusFailure(begun.status, {
@@ -861,6 +866,15 @@ export async function prepareTabularChat(
         surface: "tabular",
         resolved: governed,
     });
+    const trainingEgress = () =>
+        recordChatEgressOrThrow(db, {
+            userId,
+            orgId: review.org_id ?? null,
+            chatId,
+            projectId: review.project_id ?? null,
+            surface: "training_backing",
+            resolved: governed,
+        });
 
     // Both messages of this turn carry the documents their text may derive
     // from: the rows the caller just read, plus everything an earlier turn
@@ -965,6 +979,7 @@ export async function prepareTabularChat(
             memoryTurn,
             trainingNote,
             trainingPlan,
+            trainingEgress,
         },
     };
 }
