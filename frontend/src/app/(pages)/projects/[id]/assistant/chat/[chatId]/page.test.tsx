@@ -245,6 +245,17 @@ vi.mock("@/app/components/projects/ProjectWorkspaceTips", () => ({
     ProjectWorkspaceTips: () => null,
 }));
 
+// jsdom lays nothing out. A real browser always gives the workspace a width,
+// and until it is measured the workspace shows one panel, so the tests give
+// it a desktop's unless they say otherwise.
+let workspaceWidth: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+    workspaceWidth = vi
+        .spyOn(HTMLElement.prototype, "clientWidth", "get")
+        .mockReturnValue(1400);
+});
+afterEach(() => workspaceWidth.mockRestore());
+
 beforeEach(() => {
     vi.clearAllMocks();
     state.getDocument.mockReset();
@@ -1416,6 +1427,9 @@ describe("workspace on a phone", () => {
     // 390 px screen and the chat ended up off it. Below md one panel shows,
     // picked from the mobile header; md and up ignore `max-md:` classes.
     let header: HTMLDivElement;
+    beforeEach(() => {
+        workspaceWidth.mockReturnValue(374);
+    });
     afterEach(() => header.remove());
 
     async function renderOnPhone() {
@@ -1515,21 +1529,27 @@ describe("workspace on a phone", () => {
         expect(shown()).toEqual(["chat"]);
     });
 
-    it("keeps a collapsed explorer reachable on a phone and collapsed on a desktop", async () => {
+    it("keeps a collapsed explorer reachable on a phone", async () => {
         const { switcher, shown } = await renderOnPhone();
         fireEvent.click(screen.getByTitle("Collapse explorer"));
-        expect(screen.queryByRole("button", { name: "Open draft" })).toBeNull();
+        // It stays mounted, so a focused row is not dropped, and the way to
+        // expand it is a desktop's only.
         expect(
             screen.getByTitle("Expand explorer").closest(".max-md\\:hidden"),
         ).not.toBeNull();
 
         fireEvent.click(within(switcher).getByRole("button", { name: "Explorer" }));
         expect(shown()).toEqual(["explorer"]);
-        expect(
-            screen
-                .getByRole("button", { name: "Open draft" })
-                .closest('[style*="--panel-width"]'),
-        ).toHaveClass("md:hidden");
+        expect(screen.getByRole("button", { name: "Open draft" })).toBeVisible();
+    });
+
+    it("folds the explorer away on a desktop", async () => {
+        workspaceWidth.mockReturnValue(1000);
+        await renderWorkspace();
+        expect(screen.getByRole("button", { name: "Open draft" })).toBeInTheDocument();
+        fireEvent.click(screen.getByTitle("Collapse explorer"));
+        expect(screen.queryByRole("button", { name: "Open draft" })).toBeNull();
+        expect(screen.getByTitle("Expand explorer")).toBeEnabled();
     });
 });
 
@@ -1541,11 +1561,8 @@ describe("workspace where three panels do not fit", () => {
     // a switcher above the panels.
     let width: ReturnType<typeof vi.spyOn>;
     beforeEach(() => {
-        width = vi
-            .spyOn(HTMLElement.prototype, "clientWidth", "get")
-            .mockReturnValue(690);
+        width = workspaceWidth.mockReturnValue(690);
     });
-    afterEach(() => width.mockRestore());
 
     const panes = {
         explorer: () =>

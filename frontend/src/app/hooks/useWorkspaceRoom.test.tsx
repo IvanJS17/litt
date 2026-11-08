@@ -69,6 +69,27 @@ describe("useWorkspaceRoom", () => {
         }
     });
 
+    // The one-panel fallback of `null` must not reach a desktop's first paint.
+    it("paints a desktop with its panels, never the fallback", () => {
+        width.mockReturnValue(1400);
+        const previous = (
+            globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+        ).IS_REACT_ACT_ENVIRONMENT;
+        (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+            .IS_REACT_ACT_ENVIRONMENT = false;
+        try {
+            root = createRoot(container);
+            flushSync(() => root!.render(<Workspace />));
+            expect(container.firstElementChild).toHaveAttribute(
+                "data-room",
+                "splitWithSideChat",
+            );
+        } finally {
+            (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+                .IS_REACT_ACT_ENVIRONMENT = previous;
+        }
+    });
+
     it("follows the workspace as it is resized", () => {
         act(() => {
             root = createRoot(container);

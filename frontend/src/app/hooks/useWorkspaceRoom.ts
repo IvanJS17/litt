@@ -10,10 +10,10 @@ import {
  * How many workspace panels fit side by side in `ref`'s element, kept up to
  * date as it resizes. `null` until the element has a width, which is also
  * what the server renders: starting from `window.innerWidth` instead would
- * not match the server's markup on a phone. While it is `null` the CSS alone
- * keeps a phone to one panel, and the layout effect below replaces it before
- * the first paint. `explorerCollapsed` is measured in: a folded explorer
- * leaves more room.
+ * not match the server's markup on a phone. The workspace treats `null` as
+ * one panel (`workspaceView`) and the layout effect replaces it before the
+ * first paint, so a desktop never shows the one-panel layout.
+ * `explorerCollapsed` is measured in: a folded explorer leaves more room.
  */
 export function useWorkspaceRoom(
     ref: RefObject<HTMLElement | null>,

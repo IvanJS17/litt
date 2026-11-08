@@ -162,10 +162,10 @@ describe("workspaceRoom with a folded explorer", () => {
 });
 
 describe("workspaceView", () => {
-    it("leaves the layout to the CSS until the room is measured", () => {
+    it("is one panel until the room is measured", () => {
         expect(workspaceView(null, false)).toEqual({
-            singleView: false,
-            sideChatShown: true,
+            singleView: true,
+            sideChatShown: false,
             closeSideChat: false,
         });
         // A side chat in the address is kept until we know it cannot fit.

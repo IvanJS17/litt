@@ -169,8 +169,8 @@ export type WorkspaceView = {
 };
 
 /**
- * What the workspace shows for a measured `room`. Unmeasured (`null`), the
- * CSS alone keeps a phone to one panel. A side chat is never left open where
+ * What the workspace shows for a measured `room`. Until it is measured
+ * (`null`) the safe layout is one panel; a side chat is never left open where
  * it cannot be seen or closed.
  */
 export function workspaceView(
@@ -179,10 +179,10 @@ export function workspaceView(
 ): WorkspaceView {
     const sideChatFits = room === "splitWithSideChat";
     const closeSideChat = sideChatOpen && room !== null && !sideChatFits;
-    const singleView = room === "single" || closeSideChat;
+    const singleView = room === null || room === "single" || closeSideChat;
     return {
         singleView,
-        sideChatShown: !singleView && (room === null || sideChatFits),
+        sideChatShown: !singleView && sideChatFits,
         closeSideChat,
     };
 }
