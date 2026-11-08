@@ -652,6 +652,7 @@ export async function buildUserAccountExport(
         trainingBackingChecks,
         trainingReviewAudits,
         trainingReadings,
+        trainingCriteriaContrasts,
     ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
@@ -717,6 +718,15 @@ export async function buildUserAccountExport(
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
                 "id, org_id, project_id, document_id, version_id, swapped, status, findings, submitted_at, machine_findings, comparison, model_provider, model, created_at, updated_at",
+            order: ["created_at"],
+        }),
+        // Criteria contrasts (layer 3): the routes the two subagents ran on
+        // (identifiers), the two analyses and the holder's explanation with
+        // the comparison. No mentor id is in the row.
+        selectAll(db, "training_criteria_contrasts", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, chat_id, message_id, routes, briefs, status, person_explanation, comparison, created_at, updated_at",
             order: ["created_at"],
         }),
     ]);
@@ -803,6 +813,7 @@ export async function buildUserAccountExport(
             backing_checks: trainingBackingChecks,
             review_audits: trainingReviewAudits,
             readings: trainingReadings,
+            criteria_contrasts: trainingCriteriaContrasts,
         },
         audit_events: auditEvents,
     };

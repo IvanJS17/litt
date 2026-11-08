@@ -903,7 +903,89 @@
           "actions": "Acciones"
         }
       },
-      "contrast": {},
+      "contrast": {
+        "actions": {
+          "load": "cargar tus contrastes de criterios",
+          "loadMentor": "cargar los contrastes de criterios",
+          "send": "enviar tu explicación",
+          "start": "iniciar el contraste de criterios"
+        },
+        "card": {
+          "analysis": "Análisis {number}",
+          "approach": {
+            "literal": "Enfoque literal",
+            "systematic": "Enfoque sistemático"
+          },
+          "coincide": "Coincide",
+          "comparison": "Tu explicación comparada con la de la IA",
+          "created": "Iniciado el {date, date, medium} {date, time, short}",
+          "didNotRun": "Este análisis no corrió ({status}). No se reemplazó por otra ruta.",
+          "explainCount": "{count} de {max} caracteres",
+          "explainHelp": "Escríbelo con tus palabras, antes de ver la explicación de la IA. Se compara con la de la IA, no se califica.",
+          "explainLabel": "¿Por qué crees que divergen los dos análisis?",
+          "explainMin": "Escribe al menos {min} caracteres.",
+          "failedAfter": "No se pudo hacer la comparación con la explicación de la IA. Tu explicación queda guardada aquí.",
+          "failedNote": "El contraste no pudo terminar. Si una ruta no pudo correr, revisa Ajustes > Subagentes. Nada la reemplazó y puedes iniciar un contraste nuevo.",
+          "falto": "Faltó en la tuya",
+          "model": "Modelo: {model}",
+          "noCoincide": "No coincide",
+          "noText": "Sin texto.",
+          "none": "Nada",
+          "route": "Ruta: {name}",
+          "runStatus": {
+            "cancelled": "se canceló",
+            "failed": "falló",
+            "incomplete": "se detuvo antes de terminar",
+            "needs_input": "quedó esperando una respuesta",
+            "not_run": "nunca se inició"
+          },
+          "seeAi": "Leer la explicación de la IA en la conversación",
+          "send": "Enviar mi explicación",
+          "sending": "Obteniendo la explicación de la IA y comparando. Puede tardar un minuto.",
+          "status": {
+            "awaiting_person": "Esperando tu explicación",
+            "explained": "Explicado y comparado",
+            "failed": "No terminó"
+          },
+          "yourExplanation": "Tu explicación"
+        },
+        "mentor": {
+          "awaiting": "Esperando la explicación de la persona.",
+          "empty": "Todavía no hay contrastes de criterios.",
+          "failed": "No terminó.",
+          "hidden": "{count, plural, one {# contraste está en un asunto que no puedes abrir.} other {# contrastes están en un asunto que no puedes abrir.}}",
+          "intro": "La persona tuvo dos análisis del mismo caso, escribió por qué cree que divergen antes de ver la explicación de la IA y se comparó con la de la IA. Es evidencia para que la valores, sin puntaje y sin comparar a unas personas con otras.",
+          "routes": "Corrió en",
+          "title": "Contrastes de criterios",
+          "yourExplanation": "La explicación de la persona"
+        },
+        "page": {
+          "approachesNote": "Todavía no tienes rutas en Ajustes > Subagentes, así que los dos análisis usan dos enfoques neutros, literal y sistemático, con el modelo de esta conversación.",
+          "back": "Volver a Mi formación",
+          "caseCount": "{count} de {max} caracteres",
+          "caseHelp": "Describe el caso y lo que necesitas que se analice. Los dos análisis reciben el mismo texto. Nombra tus documentos como lo haces en un chat.",
+          "caseLabel": "Encargo",
+          "caseMin": "Escribe al menos {min} caracteres.",
+          "empty": "Todavía no has hecho un contraste.",
+          "intro": "Entrega el mismo encargo a dos análisis, léelos lado a lado y escribe por qué crees que divergen antes de ver la explicación de la IA. No se lleva ningún puntaje.",
+          "listHeading": "Tus contrastes",
+          "noScore": "Nada de aquí se califica ni se compara con otras personas.",
+          "notJunior": "El contraste de criterios es para quienes están en etapa de junior.",
+          "routeFirst": "Primer análisis",
+          "routeSecond": "Segundo análisis",
+          "routesHeading": "Qué rutas",
+          "routesHelp": "Cada análisis corre en una de las rutas que configuraste en Ajustes > Subagentes. Una ruta que no puede correr no se reemplaza.",
+          "routesUnavailableNote": "Tus rutas de Ajustes > Subagentes ya no están disponibles, así que no se puede hacer el contraste. Revisa Ajustes > Subagentes.",
+          "singleRouteNote": "Tienes una sola ruta en Ajustes > Subagentes («{route}»), así que los dos análisis, uno literal y uno sistemático, corren en esa ruta.",
+          "start": "Comparar",
+          "startFailed": "El contraste no pudo empezar: {reason}",
+          "startFailedGeneric": "El contraste no pudo terminar. Revisa la lista de abajo antes de intentarlo otra vez.",
+          "startHeading": "Nuevo contraste",
+          "starting": "Corriendo los dos análisis. Puede tardar unos minutos.",
+          "title": "Contraste de criterios",
+          "unavailable": "El contraste de criterios no está disponible por ahora. Puede que los subagentes estén apagados en este servidor."
+        }
+      },
       "authorship": {
         "ai": "De la IA",
         "baseline": {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../lib/supabase";
 import { normalizePractice } from "../../lib/training";
 import { memoryDb, type Row } from "../../__tests__/helpers/memoryDb";
@@ -670,5 +670,55 @@ describe("GET /training/stage project access", () => {
         expect(
             await getEffectiveTrainingStage(state.db, { userId: OUTSIDER, projectId: PROJECT }),
         ).toMatchObject({ ok: false, kind: "not_found" });
+    });
+});
+
+describe("GET /training/stage: a junior's criteria contrast (layer 3, card 13)", () => {
+    const CHAT = id(300);
+    const saved = process.env.LITT_CHAT_SUBAGENTS;
+    beforeEach(() => {
+        withPupil();
+        rows("training_stages").push({ org_id: ORG, trainee_user_id: PUPIL, practice: null, stage: "junior" });
+        state.tables.training_criteria_contrasts = [];
+        process.env.LITT_CHAT_SUBAGENTS = "enabled";
+    });
+    afterEach(() => {
+        if (saved === undefined) delete process.env.LITT_CHAT_SUBAGENTS;
+        else process.env.LITT_CHAT_SUBAGENTS = saved;
+    });
+
+    it("offers the contrast to a junior where subagents run, and the explanation only while one waits", async () => {
+        const first = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: CHAT });
+        expect(first).toMatchObject({ ok: true, data: { stage: "junior", modes: ["criteria_contrast"], next_hint_level: null } });
+        state.tables.training_criteria_contrasts.push({ chat_id: CHAT, trainee_user_id: PUPIL, status: "awaiting_person" });
+        const waiting = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: CHAT });
+        expect(waiting).toMatchObject({ ok: true, data: { modes: ["criteria_explain"] } });
+        // Another conversation, and somebody else's contrast, wait for nothing.
+        const other = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: id(301) });
+        expect(other).toMatchObject({ ok: true, data: { modes: ["criteria_contrast"] } });
+    });
+
+    it("does not offer the contrast on a tabular review, where the turn would refuse it", async () => {
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, surface: "tabular" })).toMatchObject({
+            ok: true,
+            data: { stage: "junior", ...NO_MODES },
+        });
+    });
+
+    it("offers nothing without subagents on the server, in Word, or to anybody who is not a junior", async () => {
+        delete process.env.LITT_CHAT_SUBAGENTS;
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toMatchObject({
+            ok: true,
+            data: { stage: "junior", ...NO_MODES },
+        });
+        process.env.LITT_CHAT_SUBAGENTS = "enabled";
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word" })).toMatchObject({
+            ok: true,
+            data: { ...NO_MODES },
+        });
+        expect(await getEffectiveTrainingStage(state.db, { userId: MEMBER, projectId: PROJECT })).toMatchObject({
+            ok: true,
+            data: { stage: null, ...NO_MODES },
+        });
     });
 });

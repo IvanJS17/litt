@@ -35,6 +35,7 @@ import type {
     TrainingEnginePlan,
     TrainingSurface,
     TrainingTurnFailure,
+    TrainingTurnOutcome,
     TrainingTurnPlan,
 } from "./types";
 
@@ -48,7 +49,10 @@ export {
     TRAINING_MODE_NOT_ALLOWED_CODE,
 } from "./modes";
 export { hasUnverifiedCitation } from "./unverified";
+export { criteriaOpen, resolveCriteriaDelegation } from "./criteriaContrast";
 export type {
+    CriteriaDelegation,
+    CriteriaRun,
     TrainingBody,
     TrainingConfidence,
     TrainingEnginePlan,
@@ -224,7 +228,7 @@ export function finishTrainingTurn(
             chatId: string;
             messageId: string | null | undefined;
             /** See TrainingTurnOutcome.recordEgress; the route of the turn. */
-            recordEgress: () => Promise<void>;
+            recordEgress: TrainingTurnOutcome["recordEgress"];
         };
     },
 ): void {

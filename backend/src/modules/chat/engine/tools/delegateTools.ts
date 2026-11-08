@@ -7,6 +7,7 @@ import type {
     SubagentRoute,
     SubagentRoutes,
 } from "@mike/contracts";
+import type { CriteriaDelegation, CriteriaRun } from "../../../../lib/trainingTurn/types";
 import type {
     NormalizedToolCall,
     NormalizedToolResult,
@@ -48,6 +49,19 @@ export const SUBAGENT_EXCLUDED_TOOL_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 export const MAX_SUBAGENTS_PER_ANSWER = 8;
+
+/**
+ * The neutral approaches of a criteria contrast with fewer than two routes
+ * (on the one route, or on the conversation's model when there is none)
+ * (docs/training.md). Instructions of the server, with no legal content; they
+ * come from the server's table, never from the model's task.
+ */
+const CRITERIA_APPROACH_PREFIX = {
+    literal:
+        "APPROACH OF THIS ANALYSIS: literal. Read the rules and documents as written, by the ordinary meaning of their words, without widening or narrowing their reach by outside purposes or context.",
+    systematic:
+        "APPROACH OF THIS ANALYSIS: systematic. Read each provision in relation to the others of the same body of rules and the rest of the documents, aiming for a coherent whole.",
+} as const;
 
 type EffortPreset = {
     steps: number;
@@ -273,6 +287,12 @@ export type DelegateContext = {
     runStore: SubagentRunStore;
     /** The user's routes and how to run one; null runs every subagent on the chat's model. */
     subagentRoutes: SubagentRoutePlan | null;
+    /**
+     * A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): exactly two
+     * subagents, each on the route or approach the server assigned. The engine
+     * records what each one ran on; a route that cannot run is never replaced.
+     */
+    criteria?: CriteriaDelegation;
     nonce?: string;
     signal?: AbortSignal;
     write: (chunk: string) => void;
@@ -640,7 +660,71 @@ async function saveTranscript(
     await ctx.runStore.save(event.delegation_id, event.status, transcript);
 }
 
+/** The routes the contrast's tool offers: the two assigned ones, or none when approaches are used. */
+export function narrowedCriteriaRoutes(
+    criteria: CriteriaDelegation,
+    configured: SubagentRoutes | null,
+): SubagentRoutes | null {
+    const names = (criteria.assignments ?? []).flatMap((a) => (a.route ? [a.route] : []));
+    if (!names.length || !configured) return null;
+    return { routes: configured.routes.filter((r) => names.includes(r.name)), default: null };
+}
+
+const CRITERIA_NOT_NEEDED =
+    "This criteria contrast starts exactly two subagents, one for each analysis. Present the results you already have.";
+
+/**
+ * One of the two analyses of a criteria contrast: the server, not the model,
+ * decides which route or approach it runs on, and nothing is started past the
+ * second or continued. What each ran on is recorded for the row the turn leaves.
+ */
+async function runCriteriaDelegateCall(
+    call: NormalizedToolCall,
+    ctx: DelegateContext & { criteria: CriteriaDelegation },
+): Promise<DelegateResult> {
+    const { criteria } = ctx;
+    // Taken before any await, like the answer's own count, so parallel calls get distinct slots.
+    const index = criteria.runs.length;
+    const assignment = criteria.assignments?.[index];
+    if (!assignment || call.input.continue != null) return refusal(CRITERIA_NOT_NEEDED);
+    criteria.runs.push(null);
+    const task = textInput(call.input.task);
+    const approach = assignment.approach ? CRITERIA_APPROACH_PREFIX[assignment.approach] : "";
+    const forced: NormalizedToolCall = {
+        ...call,
+        input: {
+            ...call.input,
+            ...(task && approach ? { task: `${approach}\n\n${task}` } : {}),
+            route: assignment.route ?? undefined,
+        },
+    };
+    const result = await runDelegateCallInner(forced, ctx);
+    const { event } = result;
+    // A call refused before it started (a bad document, say) frees its slot, so
+    // the model's retry is the same analysis and not the other one's.
+    if (!event && criteria.runs.length === index + 1 && criteria.runs[index] === null) criteria.runs.length = index;
+    if (event) {
+        const run: CriteriaRun = {
+            ...(event.route ? { route: event.route } : {}),
+            ...(assignment.approach ? { approach: assignment.approach } : {}),
+            ...(event.provider ? { provider: event.provider } : {}),
+            model: event.model,
+            status: event.status,
+            brief: event.brief ?? "",
+        };
+        criteria.runs[index] = run;
+    }
+    return result;
+}
+
 export async function runDelegateCall(
+    call: NormalizedToolCall,
+    ctx: DelegateContext,
+): Promise<DelegateResult> {
+    return ctx.criteria ? runCriteriaDelegateCall(call, { ...ctx, criteria: ctx.criteria }) : runDelegateCallInner(call, ctx);
+}
+
+async function runDelegateCallInner(
     call: NormalizedToolCall,
     ctx: DelegateContext,
 ): Promise<DelegateResult> {

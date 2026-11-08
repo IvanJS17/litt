@@ -25,13 +25,14 @@ import {
     type Ladder,
 } from "../trainingHint";
 import type { TurnNoteSurface } from "../trainingNotes";
+import { CRITERIA_MODES, criteriaPlan, isCriteriaMode } from "./criteriaContrast";
 import type { TrainingBehavior, TrainingMode, TrainingTurnFailure, TrainingTurnPlan } from "./types";
 
 export const TRAINING_MODE_NOT_ALLOWED_CODE = "training_mode_not_allowed";
 export const TRAINING_HINT_LIMIT_CODE = "training_hint_limit_reached";
 export const TRAINING_COUNTERPART_DONE_CODE = "training_counterpart_rounds_done";
 
-export const TRAINING_MODES: readonly TrainingMode[] = ["hint", "counterpart", "counterpart_close"];
+export const TRAINING_MODES: readonly TrainingMode[] = ["hint", "counterpart", "counterpart_close", ...CRITERIA_MODES];
 
 /** The mode a request names: null when it names none, undefined when it names something else. */
 export function readMode(value: unknown): TrainingMode | null | undefined {
@@ -130,6 +131,8 @@ export const modesBehavior: TrainingBehavior = async (resolved, plan) => {
     if (mode === null) return plan;
     // A mode the server does not know (or a later card's) is not allowed here.
     if (mode === undefined) return NOT_ALLOWED();
+    // A junior's criteria contrast (./criteria.ts) has its own rules.
+    if (isCriteriaMode(mode)) return criteriaPlan(resolved, plan, mode);
     // Modes belong to a pasante who owes an approach: a pass, another stage or
     // no stage has none. A chat the server keeps no notes of (Word with local
     // storage) cannot count rungs, so it has no modes either.
