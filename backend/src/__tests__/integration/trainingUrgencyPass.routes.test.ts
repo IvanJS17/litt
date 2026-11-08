@@ -226,6 +226,19 @@ describe("POST /orgs/:orgId/training/pupils/:userId/passes", () => {
         expect(grantCalls()).toHaveLength(0);
     });
 
+    // R3's organization condition on its own: both people can open the
+    // matter, so only its organization is left to refuse it. The answer is the
+    // one a matter nobody can open gets, so it says nothing about the matter.
+    it("refuses a matter of another organization that the mentor and the pupil can both open", async () => {
+        expect(state.projectAccess.has(`${OTHER_ORG_PROJECT}:${MENTOR}`)).toBe(true);
+        expect(state.projectAccess.has(`${OTHER_ORG_PROJECT}:${PUPIL}`)).toBe(true);
+        const res = await grant({ project_id: OTHER_ORG_PROJECT });
+        expect(res.status).toBe(404);
+        expect(res.body).toEqual((await grant({ project_id: id(250) })).body);
+        expect(grantCalls()).toHaveLength(0);
+        expect(state.audits).toEqual([]);
+    });
+
     it("refuses a project the pupil cannot open with its own code", async () => {
         state.projectAccess.delete(`${PROJECT}:${PUPIL}`);
         const res = await grant();
@@ -307,6 +320,12 @@ describe("GET and DELETE …/passes", () => {
             expect(res.status).toBe(200);
             expect(res.body.grantable_project_ids).toEqual([PROJECT]);
             expect(res.body.passes).toEqual([]);
+        });
+
+        it("leaves out a matter of another organization that both can open", async () => {
+            const res = await ask([OTHER_ORG_PROJECT]);
+            expect(res.status).toBe(200);
+            expect(res.body.grantable_project_ids).toEqual([]);
         });
 
         it("agrees with the grant: what it lists is accepted, what it leaves out is refused", async () => {
