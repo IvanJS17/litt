@@ -525,7 +525,57 @@
       "turn": {},
       "map": {},
       "modes": {},
-      "backing": {},
+      "backing": {
+        "actions": {
+          "save": "save your mark on this conclusion",
+          "load": "load the accountability checks"
+        },
+        "citationRef": "Citation {ref}",
+        "failed": "The conclusions of this answer couldn't be checked.",
+        "intro": "The assistant proposed which citation each conclusion rests on. Open the passage and check it before you rely on it.",
+        "listLabel": "Conclusions of this answer",
+        "mentor": {
+          "answerFrom": "Answer of {date, date, medium} {date, time, short}",
+          "empty": "There are no accountability checks yet.",
+          "intro": "What this junior kept from the answers they received: each conclusion, the source LiTT could show for it and what they did with it. LiTT computes the status; the link to a citation is proposed by the AI.",
+          "summary": "{total, plural, one {# conclusion} other {# conclusions}} · {backed} backed · {unbacked} without backing · {unverified} with citation not verified",
+          "surface": {
+            "chat": "Chat",
+            "tabular": "Tabular review",
+            "word": "Word"
+          },
+          "title": "Accountability",
+          "untitled": "Untitled chat",
+          "withoutAccess": "{count, plural, one {# work is in a matter you can't open, so it isn't shown.} other {# works are in matters you can't open, so they aren't shown.}}"
+        },
+        "passageLabel": "Exact passage",
+        "passageSource": "{title}, page {page}",
+        "passageSourceNoPage": "{title}",
+        "passageUntitled": "Cited document",
+        "pending": "Checking the conclusions of this answer…",
+        "personNotVerified": "The person hasn't marked it as verified",
+        "personReason": "Reason to keep it",
+        "personVerified": "The person verified it",
+        "privacy": "Private: only you and your mentor see this",
+        "reasonHint": "Optional, up to {max} characters. Your mentor reads it.",
+        "reasonLabel": "Why you keep it",
+        "reasonSave": "Save reason",
+        "saved": "Reason saved",
+        "saving": "Saving…",
+        "status": {
+          "backed": "Backed",
+          "citationUnverified": "Citation not verified",
+          "unbacked": "Without backing"
+        },
+        "statusHelp": {
+          "backed": "LiTT found this passage in a document.",
+          "citationUnverified": "LiTT couldn't find the quoted text in the document.",
+          "unbacked": "No citation from a document in LiTT supports it."
+        },
+        "title": "Your conclusions and their sources",
+        "unverifiedReferences": "Not verified: {references}. Confirm it in the official source.",
+        "verified": "I verified it"
+      },
       "audit": {},
       "reading": {},
       "corrections": {},

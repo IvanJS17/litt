@@ -73,6 +73,7 @@ const KEEPS_SERVER_WORDS = new Set([
     "model_required", // where to choose it
     "org_successor_required", // the organization
     "training_attempt_required", // too short or too long, and by how much
+    "training_backing_invalid", // which field or how long the note was
     "training_pass_invalid", // which part of the pass
     "training_pass_limit_reached", // the limit
     "internal_error", // 5xx: the server kind's sentence
