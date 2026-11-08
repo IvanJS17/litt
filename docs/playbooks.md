@@ -252,11 +252,15 @@ It takes nothing of the original's case: no questionnaire answers, no
 reference documents, no source file. Rules' file markers (`sourceRefs`) are
 emptied because they point into the original's file. The attachments stay
 with the original, and so does their text, so the server lowers what rested
-on them: an origin that is an attached clause becomes general practice
-("suggestion without backing, review") and a legal reference marked verified
-becomes "not verified"; both lose their `sourceId` and their `quote`, so no
-text from the client's contract travels into the copy. A reference that was
-unverified and had no attachment is copied as it is. The original is only
+on them: an origin that is an attached clause, or an answer (the copy has no
+questionnaire answers), becomes general practice ("suggestion without
+backing, review") and loses its `questionIds`; a legal reference marked
+verified becomes "not verified". Origins and references lose their
+`sourceId` and `quote`, so neither the verbatim phrase nor the attachment
+pointers travel into the copy. What the rule's author wrote does stay: the
+rule's own text (including `sampleClauses`) and the origin's `note`. A
+reference that was unverified and had no attachment is copied as it is,
+minus any `quote` it carried. The original is only
 read, and copying does not call the model.
 
 `POST /playbooks/:id/proposals` with `{ model, answers?, attachments? }`

@@ -59,6 +59,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "org.departure.item.deleted": "Departed work deleted",
   "org.departure.item.expired": "Departed work expired",
   "org.departure.member.departed": "Member departed",
+  "org.departure.member.projects_succeeded": "Member's matter projects passed on",
   "org.member.removed": "Member removed",
   "org.member.left": "Member left",
   "org.data.deleted": "Organization data deleted",

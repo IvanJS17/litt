@@ -1433,6 +1433,15 @@ and gives that project, as an owner override, to the matter teammate with the
 highest role (same tie-break as above), or to the departure's successor when
 no teammate is left. The matter itself does not change, and organization
 owners and admins do not inherit by being one.
+Each such project is an insert-only audit event,
+`matter.private_project_succeeded`, with ids only (organization, matter,
+project, leaver, heir). `20261108_20_litt_public_matter_project_succession_audit.sql`
+adds it, and reports the count in the exit log apart
+(`org_departure_events` `member.projects_succeeded`), because `member.departed`
+counts only the items handed to the departure's successor and so read
+`transferred: 0`. `performance.litt-matter-departure-paths.sql` (CI) pins that
+the succession trigger fires before upstream's cleanup trigger, and the
+`remove_org_member`, account-deletion and tie-break paths.
 `performance.litt-matter-departure.sql` (CI) fixes who reaches the matters
 afterwards:
 
