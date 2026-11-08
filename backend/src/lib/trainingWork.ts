@@ -5,7 +5,7 @@
 // the matter does not read the work, its notes or its review (layer 2, open
 // question 6). Word has no matter; a chat outside a project has none either.
 
-import { checkProjectAccess } from "./access";
+import { checkProjectAccess, loadOpenableProjects } from "./access";
 import type { Db } from "./supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "./trainingNotes";
 
@@ -68,4 +68,16 @@ export async function mayOpenWorkMatter(
     if (!args.projectId) return true;
     const access = await checkProjectAccess(args.projectId, args.actorId, args.actorEmail, db);
     return access.ok;
+}
+
+/**
+ * Of `projectIds`, the matters the actor may open, asked once for the whole
+ * list (the set form of mayOpenWorkMatter). Throws when it cannot be answered.
+ */
+export async function openableWorkMatters(
+    db: Db,
+    args: { projectIds: readonly string[]; actorId: string; actorEmail: string | null },
+): Promise<Set<string>> {
+    const opened = await loadOpenableProjects(db, args.actorId, args.actorEmail, args.projectIds);
+    return new Set(opened.keys());
 }

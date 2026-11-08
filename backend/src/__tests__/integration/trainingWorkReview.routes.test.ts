@@ -16,6 +16,7 @@ const h = vi.hoisted(() => {
     state: null as null | { db: unknown; tables: Record<string, Row[]> },
     leaky: { owners: false },
     openable: new Set<string>(),
+    accessBatches: [] as number[],
     };
 });
 vi.mock("../../lib/supabase", () => ({
@@ -39,6 +40,13 @@ vi.mock("../../lib/access", async (importOriginal) => ({
     checkProjectAccess: vi.fn(async (projectId: string, userId: string) => ({
         ok: h.openable.has(`${projectId}:${userId}`),
     })),
+    // The set form answers by the same rule as the per-project stub above.
+    loadOpenableProjects: vi.fn(async (_db: unknown, userId: string, _email: unknown, ids: string[]) => {
+        h.accessBatches.push(ids.length);
+        return new Map(
+            ids.filter((projectId) => h.openable.has(`${projectId}:${userId}`)).map((projectId) => [projectId, { orgId: null }]),
+        );
+    }),
 }));
 vi.mock("../../lib/audit", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/audit")>()),
@@ -209,6 +217,7 @@ beforeEach(() => {
     seed();
     h.leaky.owners = false;
     h.openable.clear();
+    h.accessBatches = [];
     vi.mocked(recordAudit).mockClear();
     vi.mocked(recordChatEgress).mockClear();
     vi.mocked(completeText).mockReset().mockResolvedValue(MODEL_ANSWER);
@@ -352,6 +361,17 @@ describe("what the pupil reads is what the mentor sees", () => {
         // The mentor's own tab lists the same single work.
         const list = await as(MENTOR).get(works);
         expect(list.body.works.map((w: { chat_id: string }) => w.chat_id)).toEqual([CHAT]);
+    });
+
+    it("asks the mentor's access once for all the works, not once per work (no N+1)", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        const checks = vi.mocked((await import("../../lib/access")).checkProjectAccess);
+        checks.mockClear();
+        h.accessBatches = [];
+        expect(await mine()).toEqual([MATTER_CHAT]);
+        expect(checks).not.toHaveBeenCalled();
+        expect(h.accessBatches).toEqual([1]);
     });
 
     it("control: lists it once the mentor can open that matter", async () => {

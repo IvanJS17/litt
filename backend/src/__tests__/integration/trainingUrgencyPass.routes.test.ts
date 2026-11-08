@@ -27,6 +27,8 @@ const state = vi.hoisted(() => ({
     // Who can open which project: `${projectId}:${userId}`.
     projectAccess: new Set<string>(),
     audits: [] as Record<string, unknown>[],
+    // Candidate counts of each set-access call (one per actor, never per matter).
+    accessBatches: [] as number[],
     rpcCalls: [] as [string, Record<string, unknown>][],
 }));
 
@@ -49,6 +51,15 @@ vi.mock("../../lib/access", async (importOriginal) => ({
               }
             : { ok: false },
     ),
+    // The set form answers by the same rule as the per-project stub above.
+    loadOpenableProjects: vi.fn(async (_db: unknown, userId: string, _email: unknown, ids: string[]) => {
+        state.accessBatches.push(ids.length);
+        return new Map(
+            ids
+                .filter((projectId) => state.projectAccess.has(`${projectId}:${userId}`))
+                .map((projectId) => [projectId, { orgId: projectId === OTHER_ORG_PROJECT ? id(999) : ORG }]),
+        );
+    }),
 }));
 vi.mock("../../lib/audit", () => ({
     recordAudit: vi.fn(async (_db: unknown, event: Record<string, unknown>) => {
@@ -131,6 +142,7 @@ beforeEach(() => {
     ]);
     state.audits = [];
     state.rpcCalls = [];
+    state.accessBatches = [];
 });
 
 const base = `/orgs/${ORG}/training/pupils/${PUPIL}/passes`;
@@ -344,6 +356,24 @@ describe("GET and DELETE …/passes", () => {
                 body: { passes: [] },
             });
             expect((await request(app).get(base)).body).not.toHaveProperty("grantable_project_ids");
+        });
+
+        it("asks for access once per person, not once per matter (no N+1)", async () => {
+            const many = Array.from({ length: 150 }, (_, i) => id(5000 + i));
+            for (const projectId of many) {
+                state.projectAccess.add(`${projectId}:${MENTOR}`);
+                state.projectAccess.add(`${projectId}:${PUPIL}`);
+            }
+            const checks = vi.mocked((await import("../../lib/access")).checkProjectAccess);
+            checks.mockClear();
+            const res = await ask([...many, OTHER_ORG_PROJECT]);
+            expect(res.status).toBe(200);
+            expect(res.body.grantable_project_ids).toEqual(many);
+            // Before: up to two checkProjectAccess per candidate (302 here, each
+            // several queries). Now: no per-matter call, one set read for the
+            // mentor (all 151) and one for the pupil (the 150 in the organization).
+            expect(checks).not.toHaveBeenCalled();
+            expect(state.accessBatches).toEqual([151, 150]);
         });
 
         it("answers an empty list for an empty parameter", async () => {

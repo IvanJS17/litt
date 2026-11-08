@@ -47,7 +47,7 @@ import {
     WORK_REVIEW_SYSTEM_PROMPT,
 } from "../../lib/trainingSupervisionAi";
 import { promptNonce } from "../../lib/promptFence";
-import { isWorkSurface, mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { isWorkSurface, mayOpenWorkMatter, openableWorkMatters, workPlace } from "../../lib/trainingWork";
 import { isUuid } from "../../lib/uuid";
 import {
     chatRouteColumns,
@@ -181,21 +181,26 @@ export async function listOwnReviews(
     if (!mentor.ok) return mentor;
     const seen: ReviewRow[] = [];
     if (mentor.data) {
+        const placed: { row: ReviewRow; projectId: string | null }[] = [];
         for (const row of rows.data) {
             const at = surfaceOf(row);
             if (!at) continue;
             const place = await workPlace(db, at.surface, at.chatId);
             if (!place.ok) return internalFailure(place.error);
-            if (
-                place.place &&
-                (await mayOpenWorkMatter(db, {
-                    projectId: place.place.projectId,
-                    actorId: mentor.data.id,
-                    actorEmail: mentor.data.email,
-                }))
-            )
-                seen.push(row);
+            if (place.place) placed.push({ row, projectId: place.place.projectId });
         }
+        // One set read for every matter the works sit in, not one per work.
+        let openable: Set<string>;
+        try {
+            openable = await openableWorkMatters(db, {
+                projectIds: [...new Set(placed.flatMap((p) => (p.projectId ? [p.projectId] : [])))],
+                actorId: mentor.data.id,
+                actorEmail: mentor.data.email,
+            });
+        } catch (error) {
+            return internalFailure(error);
+        }
+        for (const { row, projectId } of placed) if (!projectId || openable.has(projectId)) seen.push(row);
     }
     const now = Date.now();
     return ok(
