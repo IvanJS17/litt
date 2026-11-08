@@ -940,6 +940,7 @@ export function ProjectChatPanel({
                             <ChatInputPrompt
                                 messages={messages}
                                 chatKey={activeChatId}
+                                    chatId={activeChatId}
                                 canSend={canSendChat}
                                 chatLoading={!chatLoaded}
                                 onSubmit={(response, content, files, onAccepted) =>

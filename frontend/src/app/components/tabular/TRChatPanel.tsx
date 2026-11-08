@@ -2089,6 +2089,8 @@ export function TRChatPanel({
                             ? tabularChatSelectionKey(reviewId, currentChatId)
                             : null
                     }
+                    // «Responder» names the chat's own id, not the draft key.
+                    chatId={currentChatId}
                 />
             </div>
             <WarningPopup

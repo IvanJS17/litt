@@ -160,6 +160,11 @@ interface Props {
     chatReasoningLevel?: ReasoningLevel | null;
     chatKey?: string | null;
     /**
+     * The chat's own id, as «Responder» names it. Apart from chatKey, which
+     * keys drafts and selections and may be namespaced (tabular reviews).
+     */
+    chatId?: string | null;
+    /**
      * Keeps the unsent text and attachments when the composer unmounts and
      * restores them when the same chat's composer mounts again (a side chat
      * closed because it no longer fits).
@@ -228,6 +233,7 @@ function ChatInputForChatImpl(
         chatModel,
         chatReasoningLevel,
         chatKey,
+        chatId,
         draftStore,
         offerCredentialChoice = true,
         trainingTurns = false,
@@ -349,7 +355,8 @@ function ChatInputForChatImpl(
     useTrainingReply({
         enabled: needsAttempt && trainingTurns,
         // A note asks for its own chat's composer, not the one beside it.
-        chatId: chatKey,
+        chatId,
+        chatScoped: true,
         onReply: (question) => {
             setAttempt((current) => withTrainingReply(current, question));
             setAttemptError(false);

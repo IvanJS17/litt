@@ -49,6 +49,7 @@ function renderComposer(onSubmit = vi.fn()) {
             trainingTurns
             projectId="p1"
             chatKey="chat-1"
+            chatId="chat-1"
             chatModel="gpt-6-luna"
             onSubmit={onSubmit}
             onCancel={vi.fn()}
@@ -251,6 +252,7 @@ describe("ChatInput — «Tu turno primero»", () => {
                             trainingTurns
                             projectId="p1"
                             chatKey={chatKey}
+                            chatId={chatKey}
                             chatModel="gpt-6-luna"
                             onSubmit={vi.fn()}
                             onCancel={vi.fn()}
@@ -273,5 +275,47 @@ describe("ChatInput — «Tu turno primero»", () => {
         expect(first).toHaveValue("");
         expect(second).toHaveValue("> ¿Qué precepto?\n\n");
         await waitFor(() => expect(second).toHaveFocus());
+    });
+
+    it("takes «Responder» in a tabular chat, whose draft key is namespaced but whose note carries the raw chat id", async () => {
+        vi.mocked(useTrainingStage).mockReturnValue(owed);
+        render(
+            <ChatInput
+                trainingTurns
+                projectId="p1"
+                chatKey="tabular-review-chat:review-1:chat-9"
+                chatId="chat-9"
+                chatModel="gpt-6-luna"
+                onSubmit={vi.fn()}
+                onCancel={vi.fn()}
+                isLoading={false}
+            />,
+        );
+        const field = screen.getByLabelText("Your approach (2–3 lines)");
+        act(() => requestTrainingReply("¿Qué precepto?", "chat-9"));
+        expect(field).toHaveValue("> ¿Qué precepto?\n\n");
+        await waitFor(() => expect(field).toHaveFocus());
+        // A request for another chat is still turned away.
+        act(() => requestTrainingReply("Otra", "chat-1"));
+        expect(field).toHaveValue("> ¿Qué precepto?\n\n");
+    });
+
+    it("leaves a new-chat composer (no chat yet) deaf to a request aimed at a chat", () => {
+        vi.mocked(useTrainingStage).mockReturnValue(owed);
+        render(
+            <ChatInput
+                trainingTurns
+                projectId="p1"
+                chatModel="gpt-6-luna"
+                onSubmit={vi.fn()}
+                onCancel={vi.fn()}
+                isLoading={false}
+            />,
+        );
+        const field = screen.getByLabelText("Your approach (2–3 lines)");
+        act(() => requestTrainingReply("De otro chat", "chat-2"));
+        expect(field).toHaveValue("");
+        act(() => requestTrainingReply("Sin chat"));
+        expect(field).toHaveValue("> Sin chat\n\n");
     });
 });

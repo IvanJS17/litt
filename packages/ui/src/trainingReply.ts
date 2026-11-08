@@ -52,16 +52,19 @@ export function focusTrainingAttempt(id: string): void {
 
 /**
  * Listen, in a composer that owes an approach, for «Responder». A request for
- * another chat is ignored; one without a chat, or a composer without one,
- * matches any.
+ * another chat is ignored; one without a chat matches any composer, except
+ * a chat-scoped composer that has no chat yet.
  */
 export function useTrainingReply({
   enabled,
   chatId,
+  chatScoped = false,
   onReply,
 }: {
   enabled: boolean;
   chatId?: string | null;
+  /** A composer that belongs to chats (the web app's): with no chat yet it ignores a request aimed at one. */
+  chatScoped?: boolean;
   onReply: (question: string) => void;
 }): void {
   const handler = useRef(onReply);
@@ -73,10 +76,12 @@ export function useTrainingReply({
     const listen = (event: Event) => {
       const detail = (event as CustomEvent<{ question?: unknown; chatId?: unknown }>).detail;
       if (typeof detail?.question !== "string" || !detail.question.trim()) return;
-      if (chatId && typeof detail.chatId === "string" && detail.chatId !== chatId) return;
+      if (typeof detail.chatId === "string") {
+        if (chatId ? detail.chatId !== chatId : chatScoped) return;
+      }
       handler.current(detail.question);
     };
     window.addEventListener(REPLY_EVENT, listen);
     return () => window.removeEventListener(REPLY_EVENT, listen);
-  }, [enabled, chatId]);
+  }, [enabled, chatId, chatScoped]);
 }

@@ -34,7 +34,11 @@ vi.mock("../assistant/ChatInput", () => ({
         onSubmit,
         onCancel,
         canSend = true,
+        chatKey,
+        chatId,
     }: {
+        chatKey?: string | null;
+        chatId?: string | null;
         onSubmit: (message: {
             role: "user";
             content: string;
@@ -394,6 +398,15 @@ describe("TRChatPanel header", () => {
         await waitFor(() => expect(streamTabularChat).toHaveBeenCalled());
         expect(vi.mocked(streamTabularChat).mock.calls[0][7]).toBe("Mi planteamiento");
         expect(vi.mocked(streamTabularChat).mock.calls[0][8]).toBe(3);
+    });
+
+    it("gives the composer the chat's raw id for «Responder», apart from the namespaced draft key", async () => {
+        vi.mocked(getTabularChatMessages).mockResolvedValue([]);
+        render(<TRChatPanel reviewId="review-1" projectId="p1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
+        const ids = await screen.findByTestId("composer-ids");
+        await waitFor(() => expect(ids).toHaveAttribute("data-chat-id", "chat-1"));
+        expect(ids.getAttribute("data-chat-key")).toContain("review-1");
+        expect(ids.getAttribute("data-chat-key")).not.toBe("chat-1");
     });
 
     it("opens the rejected-key popup for a tabular chat stream error", async () => {
