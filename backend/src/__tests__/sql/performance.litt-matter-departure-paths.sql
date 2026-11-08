@@ -112,15 +112,30 @@ end;
 $$;
 
 -- Asserts the project passed to exactly p_heir as owner (a current_setting
--- key). p_actor is the departure's actor (used once the audit event exists).
+-- key), with one id-only audit event whose actor is p_actor.
 create function pg_temp.expect(p_case text, p_heir text, p_actor text) returns void
 language plpgsql as $$
 declare
-  proj uuid := current_setting('litt.project')::uuid;
+  org uuid := current_setting('litt.org')::uuid; proj uuid := current_setting('litt.project')::uuid;
+  e record;
 begin
   assert (select array_agg(o.user_id||':'||o.role) from public.project_org_access_overrides o
     where o.project_id = proj) = array[current_setting(p_heir)||':owner'],
     p_case || ': the project has one override, the heir as owner (so not the leaver, and not an organization owner or admin unless chosen)';
+  assert (select count(*) from public.audit_events
+    where action = 'matter.private_project_succeeded' and org_id = org) = 1,
+    p_case || ': exactly one succession event (the private matter project is not passed on)';
+  select * into e from public.audit_events where action = 'matter.private_project_succeeded' and org_id = org;
+  assert e.user_id = current_setting(p_actor)::uuid, p_case || ': event actor';
+  assert e.detail = jsonb_build_object('org_id', org, 'matter_id', current_setting('litt.matter')::uuid,
+    'project_id', proj, 'from_user_id', current_setting('litt.creator')::uuid,
+    'target_user_id', current_setting(p_heir)::uuid),
+    p_case || ': event carries ids only: ' || e.detail::text;
+  assert (select (detail->>'succeeded_projects')::int from public.org_departure_events
+    where org_id = org and action = 'member.projects_succeeded') = 1,
+    p_case || ': the exit log reports the succession apart from member.departed';
+  assert exists(select 1 from public.org_departure_events where org_id = org and action = 'member.departed'),
+    p_case || ': member.departed is still written';
 end;
 $$;
 
