@@ -452,6 +452,7 @@ export type AssistantEvent =
     }
   | McpToolEvent
   | WebToolEvent
+  | FirmCriteriaEvent
   | DelegationEvent
   | ResponseDetailsEvent
   | {
@@ -1101,6 +1102,73 @@ export interface TrainingPromotionEvidence {
 }
 
 // --- Training layer 3, card 14: firm criteria (begin) ---
+
+/** `criterio`: a position of the firm. `voto_particular`: disagrees with a playbook rule. */
+export type FirmCriterionKind = "criterio" | "voto_particular";
+
+/**
+ * A position a person of the firm wrote (docs/training.md, "One mold of
+ * criterion"). It is the firm's content, not learning data, and LiTT gives it
+ * no legal authority: it says who wrote what, and when.
+ */
+export type FirmCriterionSnapshot = {
+  id: string;
+  kind: FirmCriterionKind;
+  /** Practice area, normalized; null for any. */
+  practice: string | null;
+  topic: string;
+  position: string;
+  /** Null when the author's account was erased. */
+  author_user_id: string | null;
+  /** The author's name as their profile gives it; null for a deleted user. */
+  author_name: string | null;
+  /** A dissenting opinion names the rule of a playbook it disagrees with. */
+  playbook_id: string | null;
+  rule_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FirmCriterion = FirmCriterionSnapshot & {
+  /** The caller wrote it. */
+  mine: boolean;
+};
+
+export type FirmCriteriaList = {
+  criteria: FirmCriterion[];
+  /** The caller may write criteria (no training stage). */
+  can_write: boolean;
+  /** The caller may remove any criterion (owner or admin). */
+  can_manage: boolean;
+  max_per_organization: number;
+};
+
+export type FirmCriterionInput = {
+  kind?: FirmCriterionKind;
+  practice?: string | null;
+  topic: string;
+  position: string;
+  /** Required with `voto_particular`: the playbook and the rule it disagrees with. */
+  playbook_id?: string | null;
+  rule_id?: string | null;
+};
+
+/**
+ * Emitted by the server when the assistant consults the firm's criteria in a
+ * trainee's turn: the criteria exactly as stored, with author and date, so the
+ * attribution never depends on what the model says.
+ */
+export type FirmCriteriaEvent = {
+  type: "firm_criteria";
+  call_id: string;
+  practice: string | null;
+  topic: string | null;
+  criteria: FirmCriterionSnapshot[];
+  /** There were more matching criteria than the turn carries. */
+  truncated: boolean;
+  /** Set when the consultation failed; no criteria then. */
+  error?: string;
+};
 // --- Training layer 3, card 14 (end) ---
 
 /**
