@@ -930,7 +930,7 @@
           "yourExplanation": "The person's explanation"
         },
         "page": {
-          "approachesNote": "You have fewer than two usable routes in Settings > Subagents, so the two analyses use two neutral approaches, literal and systematic, on this conversation's model.",
+          "approachesNote": "You have no routes in Settings > Subagents yet, so the two analyses use two neutral approaches, literal and systematic, on this conversation's model.",
           "back": "Back to My training",
           "caseCount": "{count} of {max} characters",
           "caseHelp": "Describe the case and what you need analyzed. Both analyses receive the same text. Name your documents as you do in a chat.",
@@ -945,6 +945,8 @@
           "routeSecond": "Second analysis",
           "routesHeading": "Which routes",
           "routesHelp": "Each analysis runs on one of the routes you set up in Settings > Subagents. A route that can't run is not replaced.",
+          "routesUnavailableNote": "Your routes in Settings > Subagents are no longer available, so the contrast cannot run. Check Settings > Subagents.",
+          "singleRouteNote": "You have a single route in Settings > Subagents (\"{route}\"), so both analyses, one literal and one systematic, run on that route.",
           "start": "Compare",
           "startFailed": "The contrast couldn't start: {reason}",
           "startFailedGeneric": "The contrast couldn't finish. Check the list below before you try again.",

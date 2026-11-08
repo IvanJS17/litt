@@ -117,8 +117,26 @@ describe("starting a contrast", () => {
         await waitFor(() => expect(api.getMyCriteriaContrasts).toHaveBeenCalledTimes(2));
     });
 
-    it("with fewer than two routes, says it uses two neutral approaches and asks for no route", async () => {
+    it("with exactly one route, says both analyses run on it and asks for no route", async () => {
         setup({ routes: ["sola"] });
+        vi.mocked(api.runCriteriaContrastTurn).mockResolvedValue({ failure: null });
+        render(intl(<ContrastPage />));
+        expect(await screen.findByText(/una sola ruta.*«sola».*corren en esa ruta/)).toBeInTheDocument();
+        expect(screen.queryByText(/modelo de esta conversación/)).toBeNull();
+        expect(screen.queryByLabelText("Primer análisis")).toBeNull();
+        fireEvent.change(screen.getByLabelText("Encargo"), { target: { value: "¿Desde cuándo corre el plazo de prescripción de este pagaré?" } });
+        fireEvent.click(screen.getByRole("button", { name: "Comparar" }));
+        await waitFor(() =>
+            expect(api.runCriteriaContrastTurn).toHaveBeenCalledWith({
+                text: "¿Desde cuándo corre el plazo de prescripción de este pagaré?",
+                orgId: ORG,
+                mode: "criteria_contrast",
+            }),
+        );
+    });
+
+    it("with no routes, says the two approaches use the conversation's model and asks for no route", async () => {
+        setup({ routes: [] });
         vi.mocked(api.runCriteriaContrastTurn).mockResolvedValue({ failure: null });
         render(intl(<ContrastPage />));
         expect(await screen.findByText(/dos enfoques neutros, literal y sistemático/)).toBeInTheDocument();

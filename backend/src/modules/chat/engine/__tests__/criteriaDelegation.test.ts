@@ -212,6 +212,61 @@ describe("runLLMStream criteria contrast", () => {
     expect(trainingPlan.delegation.runs.map((r) => r?.approach)).toEqual(["literal", "systematic"]);
   });
 
+  it("with one configured route, runs both analyses on that route, not on the conversation's model", async () => {
+    const models: string[] = [];
+    const tasks: string[] = [];
+    parentDelegates([delegate("d1", { route: "fast" }), delegate("d2")], async (params) => {
+      models.push(params.model);
+      tasks.push(params.messages.map((m) => m.content).join("\n"));
+      return { fullText: "Brief." };
+    });
+    const govern = vi.fn(async (route: { name: string; model: string }) => governed(route.model));
+    const trainingPlan = plan([
+      { route: "deep", approach: "literal" },
+      { route: "deep", approach: "systematic" },
+    ]);
+
+    const result = await runLLMStream({
+      ...baseParams(),
+      subagentRoutes: { routes: { routes: [ROUTES.routes[1]], default: "deep" }, govern },
+      trainingPlan,
+    });
+
+    const parent = streamChatWithTools.mock.calls[0][0];
+    expect(delegateSchemaOf(parent).properties.route.enum).toEqual(["deep"]);
+    expect(models).toEqual(["claude-opus-5-5", "claude-opus-5-5"]);
+    expect(govern.mock.calls.map(([route]) => route.name)).toEqual(["deep", "deep"]);
+    expect(tasks.some((t) => t.includes("literal"))).toBe(true);
+    expect(tasks.some((t) => t.includes("systematic"))).toBe(true);
+    expect(delegationsIn(result.events).map((e) => e.route)).toEqual(["deep", "deep"]);
+    expect(trainingPlan.delegation.runs).toEqual([
+      expect.objectContaining({ route: "deep", approach: "literal", model: "claude-opus-5-5", status: "completed" }),
+      expect.objectContaining({ route: "deep", approach: "systematic", model: "claude-opus-5-5", status: "completed" }),
+    ]);
+  });
+
+  it("with one configured route that cannot run, both analyses fail visibly and nothing replaces them", async () => {
+    const models: string[] = [];
+    parentDelegates([delegate("d1"), delegate("d2")], async (params) => {
+      models.push(params.model);
+      return { fullText: "Brief." };
+    });
+    const govern = vi.fn(async () => ({ ok: false as const, detail: "The key for this route was revoked." }));
+    const trainingPlan = plan([
+      { route: "deep", approach: "literal" },
+      { route: "deep", approach: "systematic" },
+    ]);
+
+    await runLLMStream({
+      ...baseParams(),
+      subagentRoutes: { routes: { routes: [ROUTES.routes[1]], default: "deep" }, govern },
+      trainingPlan,
+    });
+
+    expect(models).toEqual([]);
+    expect(trainingPlan.delegation.runs.map((r) => r?.status)).toEqual(["failed", "failed"]);
+  });
+
   it("a route that cannot run fails visibly and is not replaced by another", async () => {
     const models: string[] = [];
     parentDelegates([delegate("d1"), delegate("d2")], async (params) => {

@@ -211,15 +211,31 @@ describe("resolveCriteriaDelegation", () => {
         expect(resolveCriteriaDelegation(await planWith(["a", "old"]), retired)).toMatchObject({ ok: false });
     });
 
-    it("with fewer than two usable routes, uses the two neutral approaches on the conversation's model", async () => {
-        for (const routes of [configured([]), configured(["a"]), { routes: [...configured(["a"]).routes, { name: "old", description: "o", model: "x", unavailable: true as const }], default: null }]) {
+    it("with exactly one usable route, runs both analyses on that route and never on the conversation's model", async () => {
+        const unavailable = { name: "old", description: "o", model: "x", unavailable: true as const };
+        for (const routes of [configured(["a"]), { routes: [...configured(["a"]).routes, unavailable], default: null }]) {
+            const resolved = resolveCriteriaDelegation(await planWith(null), routes);
+            expect(resolved.ok && resolved.plan.toolPolicy.delegation?.assignments).toEqual([
+                { route: "a", approach: "literal" },
+                { route: "a", approach: "systematic" },
+            ]);
+        }
+    });
+
+    it("with no route configured, uses the two neutral approaches on the conversation's model", async () => {
+        for (const routes of [configured([]), null, undefined]) {
             const resolved = resolveCriteriaDelegation(await planWith(null), routes);
             expect(resolved.ok && resolved.plan.toolPolicy.delegation?.assignments).toEqual([
                 { route: null, approach: "literal" },
                 { route: null, approach: "systematic" },
             ]);
         }
-        expect(resolveCriteriaDelegation(await planWith(null), null)).toMatchObject({ ok: true });
+    });
+
+    it("fails closed when routes are configured but none can run, instead of using the conversation's model", async () => {
+        const unavailable = { name: "old", description: "o", model: "x", unavailable: true as const };
+        const resolved = resolveCriteriaDelegation(await planWith(null), { routes: [unavailable], default: null });
+        expect(resolved).toMatchObject({ ok: false, code: TRAINING_MODE_NOT_ALLOWED_CODE });
     });
 
     it("refuses routes sent when the person no longer has two", async () => {

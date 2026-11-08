@@ -1281,10 +1281,16 @@ accountability call (Accountability mode) is not made for these two turns.
 - With **two or more usable routes** in Settings > Subagents, the person picks
   two (`criteria_routes`, distinct). The `delegate` tool offers only those two,
   each analysis runs on its own, and whatever route the model names is ignored.
-- With **fewer than two**, the two analyses use two neutral **approaches**,
-  literal and systematic, on the conversation's model (never a route's, not even
-  a default one). They are the server's instructions (`delegateTools.ts`) and
-  carry no legal content. The page says so before the person starts.
+- With **exactly one** usable route, both analyses run on that same route, one
+  with a literal and one with a systematic **approach**. The conversation's model
+  is never used when the person has a route: the subagents of the chat only run
+  on the named routes the person configured, or on the conversation's model
+  when there are none.
+- With **none configured**, the same two approaches run on the conversation's
+  model (never a route's). Routes configured but none usable (for example the
+  only one left the catalog) fail closed with a message: nothing replaces them.
+  The approaches are the server's instructions (`delegateTools.ts`) and carry
+  no legal content. The page says which case applies before the person starts.
 - A route that **cannot run** (no key, a model the organization does not allow,
   a model that left the catalog) fails visibly, as every subagent route does,
   and is **not replaced**: the contrast is recorded as `failed` and the page says

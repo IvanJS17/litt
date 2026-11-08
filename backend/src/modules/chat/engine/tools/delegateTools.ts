@@ -52,6 +52,7 @@ export const MAX_SUBAGENTS_PER_ANSWER = 8;
 
 /**
  * The neutral approaches of a criteria contrast with fewer than two routes
+ * (on the one route, or on the conversation's model when there is none)
  * (docs/training.md). Instructions of the server, with no legal content; they
  * come from the server's table, never from the model's task.
  */

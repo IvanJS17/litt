@@ -39,6 +39,8 @@ type Loaded = {
     contrasts: TrainingCriteriaContrast[];
     canStart: boolean;
     routes: string[];
+    /** How many routes the person configured, usable or not. */
+    configured: number;
 };
 
 const RUN_STATUSES = ["failed", "incomplete", "needs_input", "cancelled", "not_run"] as const;
@@ -52,7 +54,7 @@ export function ContrastPage() {
     const load = useCallback(async (): Promise<Loaded> => {
         const memberships = await getMyTraining();
         const junior = memberships.find((entry) => entry.stages.some((stage) => stage.stage === "junior"));
-        if (!junior) return { orgId: null, contrasts: [], canStart: false, routes: [] };
+        if (!junior) return { orgId: null, contrasts: [], canStart: false, routes: [], configured: 0 };
         const [list, stage, routes] = await Promise.all([
             getMyCriteriaContrasts(junior.org_id),
             getTrainingStage({ orgId: junior.org_id }),
@@ -64,6 +66,7 @@ export function ContrastPage() {
             // The server decides again on every turn; this only offers it.
             canStart: stage.modes?.includes("criteria_contrast") === true,
             routes: routes.routes.filter((route) => !route.unavailable).map((route) => route.name),
+            configured: routes.routes.length,
         };
     }, []);
     const { data, failed, reload } = useSupervisionData(load, {
@@ -93,7 +96,7 @@ export function ContrastPage() {
             ) : (
                 <>
                     {data.canStart ? (
-                        <StartContrast orgId={data.orgId} routes={data.routes} onDone={reload} />
+                        <StartContrast orgId={data.orgId} routes={data.routes} configured={data.configured} onDone={reload} />
                     ) : (
                         <p className="text-sm text-gray-500">{t("page.unavailable")}</p>
                     )}
@@ -117,7 +120,17 @@ export function ContrastPage() {
     );
 }
 
-function StartContrast({ orgId, routes, onDone }: { orgId: string; routes: string[]; onDone: () => void }) {
+function StartContrast({
+    orgId,
+    routes,
+    configured,
+    onDone,
+}: {
+    orgId: string;
+    routes: string[];
+    configured: number;
+    onDone: () => void;
+}) {
     const t = useTranslations("training.criterion.contrast");
     const id = useId();
     const [text, setText] = useState("");
@@ -125,9 +138,11 @@ function StartContrast({ orgId, routes, onDone }: { orgId: string; routes: strin
     const [second, setSecond] = useState("");
     const [busy, setBusy] = useState(false);
     const [failure, setFailure] = useState<string | null>(null);
-    // With two or more routes the person picks two of them; with fewer, the server uses two neutral approaches.
+    // With two or more routes the person picks two of them; with one the server runs both analyses on it; with none, on the conversation's model.
     const picking = routes.length >= 2;
-    const ready = chars(text) >= CASE_MIN_CHARS && (!picking || (first !== "" && second !== "" && first !== second));
+    // Routes configured but none usable: the server fails closed, so the page does not offer to start.
+    const blocked = configured > 0 && routes.length === 0;
+    const ready = chars(text) >= CASE_MIN_CHARS && !blocked && (!picking || (first !== "" && second !== "" && first !== second));
     const options = (taken: string) =>
         routes.filter((name) => name !== taken).map((name) => ({ value: name, label: name }));
 
@@ -210,7 +225,13 @@ function StartContrast({ orgId, routes, onDone }: { orgId: string; routes: strin
                         </div>
                     </>
                 ) : (
-                    <p className="text-sm text-gray-500">{t("page.approachesNote")}</p>
+                    <p className="text-sm text-gray-500">
+                        {blocked
+                            ? t("page.routesUnavailableNote")
+                            : routes.length === 1
+                              ? t("page.singleRouteNote", { route: routes[0] })
+                              : t("page.approachesNote")}
+                    </p>
                 )}
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-3" aria-live="polite">

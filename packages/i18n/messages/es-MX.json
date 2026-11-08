@@ -930,7 +930,7 @@
           "yourExplanation": "La explicación de la persona"
         },
         "page": {
-          "approachesNote": "Tienes menos de dos rutas usables en Ajustes > Subagentes, así que los dos análisis usan dos enfoques neutros, literal y sistemático, con el modelo de esta conversación.",
+          "approachesNote": "Todavía no tienes rutas en Ajustes > Subagentes, así que los dos análisis usan dos enfoques neutros, literal y sistemático, con el modelo de esta conversación.",
           "back": "Volver a Mi formación",
           "caseCount": "{count} de {max} caracteres",
           "caseHelp": "Describe el caso y lo que necesitas que se analice. Los dos análisis reciben el mismo texto. Nombra tus documentos como lo haces en un chat.",
@@ -945,6 +945,8 @@
           "routeSecond": "Segundo análisis",
           "routesHeading": "Qué rutas",
           "routesHelp": "Cada análisis corre en una de las rutas que configuraste en Ajustes > Subagentes. Una ruta que no puede correr no se reemplaza.",
+          "routesUnavailableNote": "Tus rutas de Ajustes > Subagentes ya no están disponibles, así que no se puede hacer el contraste. Revisa Ajustes > Subagentes.",
+          "singleRouteNote": "Tienes una sola ruta en Ajustes > Subagentes («{route}»), así que los dos análisis, uno literal y uno sistemático, corren en esa ruta.",
           "start": "Comparar",
           "startFailed": "El contraste no pudo empezar: {reason}",
           "startFailedGeneric": "El contraste no pudo terminar. Revisa la lista de abajo antes de intentarlo otra vez.",

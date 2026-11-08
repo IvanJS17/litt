@@ -4124,7 +4124,7 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         };
         type Stream = { trainingPlan: Record<string, any>; subagentRuns: unknown };
 
-        it("with fewer than two routes, runs two neutral approaches, with the subagent tool still on", async () => {
+        it("with exactly one route, runs both analyses on that route, with the subagent tool still on", async () => {
             await withRoutes(["solo"]);
             const res = await send({ training_mode: "criteria_contrast" });
             expect(res.status).toBe(200);
@@ -4136,8 +4136,8 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
                 delegation: {
                     requestedRoutes: null,
                     assignments: [
-                        { route: null, approach: "literal" },
-                        { route: null, approach: "systematic" },
+                        { route: "solo", approach: "literal" },
+                        { route: "solo", approach: "systematic" },
                     ],
                 },
             });
@@ -4146,6 +4146,21 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
             // A junior's contrast is not a note: nothing to contrast with an attempt.
             expect(noteInsert()).toBeUndefined();
             expect(await contrastCalls()).toHaveLength(0);
+        });
+
+        it("with no route configured, runs two neutral approaches on the conversation's model", async () => {
+            await withRoutes([]);
+            const res = await send({ training_mode: "criteria_contrast" });
+            expect(res.status).toBe(200);
+            const stream = runLLMStream.mock.calls[0][0] as unknown as Stream;
+            expect(stream.trainingPlan.delegation).toMatchObject({
+                requestedRoutes: null,
+                assignments: [
+                    { route: null, approach: "literal" },
+                    { route: null, approach: "systematic" },
+                ],
+            });
+            expect(stream.subagentRuns).toBeTruthy();
         });
 
         it("with two or more routes, runs the two the person chose, and asks for the choice", async () => {

@@ -10,9 +10,10 @@
 //                      comparing them. WHICH routes they run on is decided by
 //                      the server (resolveCriteriaDelegation), never by the
 //                      model: the two routes the person chose among the ones
-//                      they configured in Settings > Subagents, or, with fewer
-//                      than two, two neutral approaches (literal and
-//                      systematic) on the conversation's model. The engine
+//                      they configured in Settings > Subagents; with exactly
+//                      one, both analyses (literal and systematic) on that
+//                      route; with none, the same two approaches on the
+//                      conversation's model. The engine
 //                      enforces the rest (delegateTools.ts): a route that
 //                      cannot run fails visibly and is never replaced.
 //   criteria_explain   the person's explanation comes with the request; the
@@ -27,7 +28,8 @@
 // Learning data: the row (training_criteria_contrasts) is the person's and
 // their current mentor's; it goes with the membership. The audit event carries
 // ids only. The comparison runs on the conversation's own provider, model and
-// credential, with its llm.egress written first, and cannot fail the turn.
+// credential, with its llm.egress (surface training_contrast) written first,
+// and cannot fail the turn.
 
 import type { SubagentRoutes } from "@mike/contracts";
 import { recordAudit } from "../audit";
@@ -118,9 +120,11 @@ function requestedRoutesOf(value: unknown): string[] | null | undefined {
 
 /**
  * Who runs the two analyses. With two or more usable routes the person picks
- * two of them; with fewer, two neutral approaches run on the conversation's
- * model (never a route's, not even a default one). A route whose model left
- * the catalog is not usable: choosing it is refused, it is never swapped.
+ * two of them; with exactly one, both analyses (a literal and a systematic
+ * approach) run on that same route; with none configured, they run on the
+ * conversation's model (never a route's, not even a default one). Routes that
+ * are configured but none of them usable fail closed: a route that left the
+ * catalog is never swapped for the conversation's model.
  */
 export function resolveCriteriaDelegation(
     plan: TrainingTurnPlan,
@@ -128,7 +132,8 @@ export function resolveCriteriaDelegation(
 ): { ok: true; plan: TrainingTurnPlan } | TrainingTurnFailure {
     const delegation = plan.toolPolicy.delegation;
     if (!delegation) return { ok: true, plan };
-    const usable = (configured?.routes ?? []).filter((route) => !route.unavailable).map((route) => route.name);
+    const all = configured?.routes ?? [];
+    const usable = all.filter((route) => !route.unavailable).map((route) => route.name);
     let assignments: CriteriaAssignment[];
     if (usable.length >= 2) {
         const chosen = delegation.requestedRoutes;
@@ -139,10 +144,19 @@ export function resolveCriteriaDelegation(
     } else {
         if (delegation.requestedRoutes)
             return refuse("Ya no tienes dos rutas de subagentes. Recarga la página para ver las opciones.");
-        assignments = [
-            { route: null, approach: "literal" },
-            { route: null, approach: "systematic" },
-        ];
+        if (usable.length === 1) {
+            assignments = [
+                { route: usable[0], approach: "literal" },
+                { route: usable[0], approach: "systematic" },
+            ];
+        } else if (all.length > 0) {
+            return refuse("Tu ruta de subagentes ya no está disponible. Revisa Ajustes > Subagentes.");
+        } else {
+            assignments = [
+                { route: null, approach: "literal" },
+                { route: null, approach: "systematic" },
+            ];
+        }
     }
     return {
         ok: true,
