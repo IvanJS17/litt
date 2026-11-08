@@ -920,6 +920,8 @@ export interface TrainingReviewAuditState {
     applies: boolean;
     /** Done cells enough to draw a sample. */
     ready: boolean;
+    /** The review's questions now (names and instructions). */
+    columns: TrainingAuditColumn[];
     /** The review of the current questions, by code. */
     lint: TrainingLintWarning[];
     audit: TrainingReviewAudit | null;

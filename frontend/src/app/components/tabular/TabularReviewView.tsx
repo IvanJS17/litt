@@ -9,6 +9,8 @@ import { indexReviewCells } from "./reviewCellIndex";
 import { reviewRowRemoval } from "./reviewRowRemoval";
 import { reviewColumnRemoval } from "./reviewColumnRemoval";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useReviewAuditEntry } from "../training/reviewAudit/useReviewAuditEntry";
 import {
     Plus,
     Loader2,
@@ -22,6 +24,7 @@ import {
     Pencil,
     Trash2,
     WandSparkles,
+    ClipboardCheck,
 } from "lucide-react";
 
 import {
@@ -285,6 +288,8 @@ export function TRView({ reviewId, projectId }: Props) {
         [],
     );
     const router = useRouter();
+    const tAudit = useTranslations("training.criterion.audit");
+    const canAuditQuestions = useReviewAuditEntry(reviewId, !loading);
     const { profile, loading: profileLoading } = useUserProfile();
     // Unknown key state fails open; the submit gates below already skip when
     // apiKeys is undefined.
@@ -1754,6 +1759,13 @@ export function TRView({ reviewId, projectId }: Props) {
                                                 onSelect: requestWorkflow,
                                                 disabled: !roleKnown,
                                             },
+                                            ...(canAuditQuestions
+                                                ? [{
+                                                      label: tAudit("menu"),
+                                                      icon: ClipboardCheck,
+                                                      onSelect: () => router.push(`/tabular-reviews/${reviewId}/audit`),
+                                                  }]
+                                                : []),
                                             {
                                                 label: "Export",
                                                 icon: Download,
