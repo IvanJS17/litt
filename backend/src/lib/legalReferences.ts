@@ -21,6 +21,9 @@ const RANGE_EXPANSION_LIMIT = 100;
 // Every pattern read through `sticky` starts with `^`: it is matched against the text from `at` on.
 const LIST_SEPARATOR = /^(?:\s*,\s*(?:(?:y|e|o|u)\s+)?|\s+(?:y|e|o|u)\s+)/;
 const RANGE_SEPARATOR = /^\s+(?:a|al|hasta(?:\s+el)?)\s+/;
+const GAP = /^\s+/;
+const CONSTITUTIONAL_ADJECTIVE = /^\s+constitucional(?:es)?\b/;
+const DIRECT_LAW = /^\s+\(?([a-z]{2,8})\b/;
 const ARTICLE_HEAD = /\bart(?:iculos?|s?\.?)\s*/g;
 // «1949», «1o.», «14 bis», «17a».
 const ARTICLE_ITEM = /^(\d+)(?:o\b|[º°])?\.?(?:\s*(bis|ter|quater)\b|([a-z])\b)?/;
@@ -45,7 +48,9 @@ const REGISTRY_ITEM = /^(\d{4,})/;
  * flag anchored would be tried from every position of a long run of blanks as far as a
  * static analysis can tell; `^` says it is not.
  */
-function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
+export function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
+    if (!pattern.source.startsWith("^") || pattern.global || pattern.sticky)
+        throw new Error(`sticky(): the pattern must start with ^ and carry no g or y flag: ${pattern}`);
     return pattern.exec(text.slice(at));
 }
 
@@ -228,6 +233,11 @@ export function lawOfTitle(title: string | null | undefined): string | null {
 }
 
 const LAW_SEPARATOR = /^\s*(?:,\s*)?(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/;
+/** Every pattern read through `sticky`, by name (a test checks each one, and that no call site uses another). */
+export const STICKY_PATTERNS: Readonly<Record<string, RegExp>> = {
+    LIST_SEPARATOR, RANGE_SEPARATOR, ARTICLE_ITEM, FRACTION_AFTER_ARTICLE, FRACTION_OF_ARTICLE, ROMAN_ITEM,
+    THESIS_ITEM, THESIS_SUBJECT, REGISTRY_ITEM, GAP, CONSTITUTIONAL_ADJECTIVE, DIRECT_LAW, LAW_SEPARATOR,
+};
 // Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
 const NAME_CONNECTORS = new Set([
     "de", "del", "la", "las", "los", "el", "lo", "y", "e", "o", "u", "a", "al", "en", "para", "por", "con", "sin",
@@ -312,7 +322,7 @@ function qualifiesConstitution(lower: Token[], index: number): boolean {
 
 /** «constitucional» followed by «local», «estatal», «de/del <estado>» or «de la Constitución <estado>»: a state constitution, not the federal one. */
 function qualifiesConstitutional(plain: string, at: number): boolean {
-    const gap = sticky(/^\s+/, plain, at);
+    const gap = sticky(GAP, plain, at);
     if (!gap) return false;
     const start = at + gap[0].length;
     const words = tokens(plain.slice(start, start + 200)).slice(0, 12);
@@ -429,10 +439,10 @@ function lawNamedAtTokens(lower: Token[], upper: Token[]): string | null {
 
 /** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
 function readLaw(plain: string, at: number, cased: string = plain): { law: string | null; named: boolean } {
-    const adjective = sticky(/^\s+constitucional(?:es)?\b/, plain, at);
+    const adjective = sticky(CONSTITUTIONAL_ADJECTIVE, plain, at);
     if (adjective) return { law: qualifiesConstitutional(plain, at + adjective[0].length) ? null : normalizeLaw("constitucion"), named: true };
     const separator = sticky(LAW_SEPARATOR, plain, at);
-    const direct = separator ? null : sticky(/^\s+\(?([a-z]{2,8})\b/, plain, at);
+    const direct = separator ? null : sticky(DIRECT_LAW, plain, at);
     if (direct) {
         const law = LAW_ALIASES[direct[1]] ? normalizeLaw(direct[1]) : null;
         return { law, named: law !== null };
