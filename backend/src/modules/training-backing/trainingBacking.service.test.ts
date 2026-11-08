@@ -90,3 +90,32 @@ describe("a database failure is an internal error, never a detail", () => {
         expect((tables.training_backing_checks[0].conclusions as { person_verified: boolean }[])[0].person_verified).toBe(false);
     });
 });
+
+describe("a stored «backed» conclusion is read again with its passage (B1)", () => {
+    const citation = (title: string) => ({
+        ref: 1, filename: title, page: 1, verified: true,
+        quotes: [{ page: 1, quote: "x", verification: { verified: true, source_excerpt: "Artículo 5. Texto." } }],
+    });
+    const present = async (text: string, title: string) => {
+        const { db, tables } = world();
+        tables.chat_messages[0].citations = [citation(title)];
+        tables.training_backing_checks[0].conclusions = [
+            { id: "c1", text, citation_ref: 1, status: "backed", unverified_references: [], person_verified: false, person_note: null },
+        ];
+        const result = await getMyChatBacking(db, { userId: PUPIL, chatId: CHAT });
+        if (!result.ok) throw new Error("expected ok");
+        return result.data.checks[0].conclusions![0];
+    };
+
+    it("keeps it backed when the passage shows the same article of the same law", async () => {
+        expect(await present("Aplica el artículo 5 de la Ley B", "Ley B.pdf")).toMatchObject({
+            status: "backed", citation_ref: 1, unverified_references: [], passage: { excerpt: "Artículo 5. Texto." },
+        });
+    });
+
+    it("shows it unbacked, with the reference unverified and no passage, when the law differs", async () => {
+        expect(await present("Aplica el artículo 5 de la Ley A", "Ley B.pdf")).toMatchObject({
+            status: "unbacked", citation_ref: null, passage: null, unverified_references: ["art. 5 (ley a)"],
+        });
+    });
+});

@@ -10,16 +10,18 @@
 // A conclusion counts as backed only when the passage can be shown: it is
 // read again from the persisted citations of the message whenever it is
 // displayed (modules/training-backing). LiTT has no corpus of laws, so a law
-// named from memory has no passage and is unbacked; a legal reference (rule of
-// ../legalReferences) that the shown passage does not name is listed as
-// unverified for that conclusion.
+// named from memory has no passage and is unbacked. A legal reference of the
+// conclusion (article, fraction, thesis) counts as backed only when the shown
+// passage names the same reference of the SAME law (lawReferences in
+// ../legalReferences; an unidentifiable law is unverified): otherwise it is
+// listed as unverified and the conclusion is not «backed».
 //
 // The call runs on the conversation's own provider, model and credential
 // (governed BYOK: no fallback), aside from the turn, and cannot fail it. It is
 // skipped for answers with nothing to account for.
 
 import type { TrainingStage } from "@mike/contracts";
-import { legalReferences } from "../legalReferences";
+import { hasKnownLaw, lawOfTitle, lawReferences, legalReferences, UNKNOWN_LAW } from "../legalReferences";
 import { completeText, type UserApiKeys } from "../llm";
 import { fenced, promptNonce } from "../promptFence";
 import type { Db } from "../supabase";
@@ -186,14 +188,21 @@ function toRoman(value: number): string {
     return out;
 }
 
-/** A reference key of ../legalReferences, written for a person («art:27:fr:4» → «art. 27, fr. IV»). */
+/**
+ * A reference key of ../legalReferences, written for a person («art:27:fr:4»
+ * → «art. 27, fr. IV»); a strict key also names its law («art:5@ley federal
+ * trabajo» → «art. 5 (ley federal trabajo)»).
+ */
 export function describeReference(key: string): string {
-    const [kind, ...rest] = key.split(":");
+    const [bare, law] = key.split("@");
+    const [kind, ...rest] = bare.split(":");
     if (kind === "art") {
         const [article, , fraction] = rest;
-        return fraction
+        const text = fraction
             ? `art. ${article}, fr. ${/^\d+$/.test(fraction) ? toRoman(Number(fraction)) : fraction}`
             : `art. ${article}`;
+        if (law === undefined) return text;
+        return law === UNKNOWN_LAW ? `${text} (ley no identificada)` : `${text} (${law})`;
     }
     if (kind === "tesis") return `tesis ${rest.join(":")}`;
     if (kind === "registro") return `registro ${rest.join(":")}`;
@@ -201,19 +210,32 @@ export function describeReference(key: string): string {
 }
 
 /**
- * The legal references a conclusion names that its passage does not. A
- * reference counts as shown only when the passage itself names it (the rule
- * of ../legalReferences compares numbers, not which law); with no passage,
- * every reference the conclusion names is unverified.
+ * The legal references a conclusion names that its passage does not show. A
+ * reference is shown only when the passage names it AND it is the same law:
+ * the article's law is the one the text names right after it or, failing
+ * that, the law the passage's own document is (`sourceTitle`, «Ley Federal
+ * del Trabajo.pdf»). Article 5 of one law is not article 5 of another, and an
+ * article whose law cannot be established, on either side, is never shown
+ * (fails closed). With no passage, every reference is unverified. The list is
+ * never trimmed: it is what the person is told.
  */
-export function unverifiedReferences(conclusionText: string, passage: string | null): string[] {
-    const named = legalReferences(conclusionText);
-    const shown = passage ? legalReferences(passage) : new Set<string>();
+export function unverifiedReferences(
+    conclusionText: string,
+    passage: string | null,
+    sourceTitle: string | null = null,
+): string[] {
+    const named = lawReferences(conclusionText);
+    const shown = passage ? lawReferences(passage, lawOfTitle(sourceTitle)) : new Set<string>();
     // An article with a fraction is also found as the bare article; list the most specific.
-    const missing = [...named].filter((key) => !shown.has(key));
-    return missing
-        .filter((key) => !missing.some((other) => other !== key && other.startsWith(`${key}:`)))
-        .map(describeReference);
+    const missing = [...named].filter((key) => !hasKnownLaw(key) || !shown.has(key));
+    const covered = (key: string) => {
+        const [bare, law] = key.split("@");
+        return missing.some((other) => {
+            const [otherBare, otherLaw] = other.split("@");
+            return other !== key && otherLaw === law && otherBare.startsWith(`${bare}:`);
+        });
+    };
+    return missing.filter((key) => !covered(key)).map(describeReference);
 }
 
 /** The conclusions of the model's JSON, or null when it does not follow the format. */
@@ -242,13 +264,21 @@ export function parseBackingConclusions(
         // A conclusion naming a reference the answer never named was not in the answer.
         if ([...legalReferences(conclusionText)].some((key) => !allowed.has(key))) continue;
         const proposed = typeof item.citation_ref === "number" ? byRef.get(item.citation_ref) : undefined;
-        const status: BackingStatus = !proposed ? "unbacked" : proposed.verified ? "backed" : "citation_unverified";
+        let status: BackingStatus = !proposed ? "unbacked" : proposed.verified ? "backed" : "citation_unverified";
+        const unverified = unverifiedReferences(
+            conclusionText,
+            status === "backed" ? proposed!.excerpt : null,
+            proposed?.title ?? null,
+        );
+        // A passage that does not show every reference the conclusion names (same law, same
+        // number) does not back it: the conclusion is not «backed» while a reference stays unverified.
+        if (status === "backed" && unverified.length > 0) status = "unbacked";
         conclusions.push({
             id: `c${conclusions.length + 1}`,
             text: conclusionText,
-            citation_ref: proposed?.ref ?? null,
+            citation_ref: status === "unbacked" ? null : (proposed?.ref ?? null),
             status,
-            unverified_references: unverifiedReferences(conclusionText, status === "backed" ? proposed!.excerpt : null),
+            unverified_references: unverified,
             person_verified: false,
             person_note: null,
         });

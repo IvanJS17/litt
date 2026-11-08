@@ -141,3 +141,153 @@ export function legalReferences(text: string): Set<string> {
     for (const registry of listsAfter(REGISTRY_HEAD, readRegistry)) found.add(`registro:${registry.key}`);
     return found;
 }
+
+// ---------------------------------------------------------------------------
+// Strict comparison: article references together with the law they belong to.
+//
+// `legalReferences` compares numbers only («art:5» is «art:5» in any law). That
+// is enough to keep a question from naming a number the input never named, but
+// not to say a passage SHOWS a reference: article 5 of one law is not article 5
+// of another. `lawReferences` therefore appends the normalized law to each
+// article key («art:5@ley federal trabajo»); an article whose law cannot be
+// established ends in «@?» and never matches anything, itself included. Theses
+// and registry numbers identify themselves and keep their plain key.
+// ---------------------------------------------------------------------------
+
+/** The law of an article whose law cannot be established. */
+export const UNKNOWN_LAW = "?";
+
+const LAW_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "en", "para", "al"]);
+// Words that end a law's name when it is written in prose.
+const LAW_PHRASE_END = new Set([
+    "que", "se", "para", "con", "es", "son", "no", "establece", "establecen", "dispone", "disponen", "senala",
+    "senalan", "preve", "indica", "prohibe", "regula", "ordena", "obliga", "como", "cuando", "donde",
+    "porque", "pero", "segun", "ya", "lo", "por",
+]);
+const LAW_HEADS = new Set(["ley", "leyes", "codigo", "constitucion", "reglamento", "decreto", "estatuto", "convenio", "tratado"]);
+const LAW_PHRASE_MAX_WORDS = 10;
+// Common abbreviations and aliases, to the law they name (as written in full).
+const LAW_ALIASES: Record<string, string> = {
+    cpeum: "constitucion politica de los estados unidos mexicanos",
+    cpem: "constitucion politica de los estados unidos mexicanos",
+    constitucion: "constitucion politica de los estados unidos mexicanos",
+    "constitucion federal": "constitucion politica de los estados unidos mexicanos",
+    "carta magna": "constitucion politica de los estados unidos mexicanos",
+    lft: "ley federal del trabajo",
+    ccf: "codigo civil federal",
+    cpf: "codigo penal federal",
+    cff: "codigo fiscal de la federacion",
+    cfpc: "codigo federal de procedimientos civiles",
+    cnpcf: "codigo nacional de procedimientos civiles y familiares",
+    cnpp: "codigo nacional de procedimientos penales",
+    ccom: "codigo de comercio",
+    lisr: "ley del impuesto sobre la renta",
+    liva: "ley del impuesto al valor agregado",
+    lgsm: "ley general de sociedades mercantiles",
+    lgtoc: "ley general de titulos y operaciones de credito",
+    lss: "ley del seguro social",
+    lfpc: "ley federal de proteccion al consumidor",
+    lam: "ley de amparo",
+};
+
+/** The words of a law's name, without accents, case or connecting words. */
+function lawWords(phrase: string): string[] {
+    return phrase
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((word) => word !== "" && !LAW_STOPWORDS.has(word));
+}
+
+/**
+ * The normalized identity of a law named in a text, or null when it cannot be
+ * established. Two spellings of one law (its name, its abbreviation, «la
+ * Constitución») give the same identity; two different laws never do.
+ */
+export function normalizeLaw(name: string): string | null {
+    const plain = lawWords(name).join(" ");
+    if (!plain) return null;
+    const alias = LAW_ALIASES[plain];
+    const full = alias ? lawWords(alias).join(" ") : plain;
+    // Not an alias: it must be written as a law («Ley …», «Código …»); a bare
+    // head («la ley», «el código») or any other text names none.
+    if (!alias && (!LAW_HEADS.has(full.split(" ")[0]) || !full.includes(" "))) return null;
+    return full;
+}
+
+/** The law a document is, from its title («Ley Federal del Trabajo.pdf», «LFT.docx»), or null. */
+export function lawOfTitle(title: string | null | undefined): string | null {
+    if (!title) return null;
+    const stem = title.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_]+/g, " ");
+    return normalizeLaw(stem);
+}
+
+const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
+
+/** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
+function readLaw(plain: string, at: number): { law: string | null; named: boolean } {
+    const adjective = sticky(/\s+constitucional(?:es)?\b/y, plain, at);
+    if (adjective) return { law: normalizeLaw("constitucion"), named: true };
+    const separator = sticky(LAW_SEPARATOR, plain, at);
+    const direct = separator ? null : sticky(/\s+([a-z]{2,8})\b/y, plain, at);
+    if (direct) {
+        const law = LAW_ALIASES[direct[1]] ? normalizeLaw(direct[1]) : null;
+        return { law, named: law !== null };
+    }
+    if (!separator) return { law: null, named: false };
+    const rest = plain.slice(at + separator[0].length);
+    const words: string[] = [];
+    for (const word of rest.split(/\s+/)) {
+        const bare = word.replace(/[.,;:()]+$/g, "");
+        if (!bare || LAW_PHRASE_END.has(bare) || words.length >= LAW_PHRASE_MAX_WORDS) break;
+        words.push(bare);
+        if (/[.,;:)]$/.test(word)) break;
+    }
+    // A «de …» that names no law (a contract, «esta ley») is another source, not this one's.
+    return { law: normalizeLaw(words.join(" ")), named: true };
+}
+
+/**
+ * The legal references a text names, each article with its law: «art:5@ley
+ * federal del trabajo». The law is the one the text names right after the
+ * article («artículo 5 de la Ley Federal del Trabajo», «art. 5 LFT», «artículo
+ * 5 constitucional»), or, when the text names none, `sourceLaw` (the law the
+ * document the text comes from is). With neither, the article ends in
+ * «@?»: the law cannot be established and the reference never matches.
+ * Theses and registry numbers are as in `legalReferences`.
+ */
+export function lawReferences(text: string, sourceLaw: string | null = null): Set<string> {
+    const plain = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const found = new Set<string>();
+    const lawAfter = (end: number): string => {
+        const read = readLaw(plain, end);
+        return read.law ?? (read.named ? UNKNOWN_LAW : (sourceLaw ?? UNKNOWN_LAW));
+    };
+    for (const head of plain.matchAll(ARTICLE_HEAD)) {
+        const listed = readEnumeration(plain, head.index + head[0].length, readArticle);
+        if (!listed) continue;
+        const law = lawAfter(listed.end);
+        for (const article of listed.items) {
+            found.add(`art:${article.key}@${law}`);
+            for (const fraction of article.fractions) found.add(`art:${article.key}:fr:${fraction}@${law}`);
+        }
+    }
+    for (const head of plain.matchAll(FRACTION_HEAD)) {
+        const fractions = readEnumeration(plain, head.index + head[0].length, readRoman);
+        const link = fractions && sticky(FRACTION_OF_ARTICLE, plain, fractions.end);
+        const article = fractions && link && readArticle(plain, fractions.end + link[0].length);
+        if (article) {
+            const law = lawAfter(article.end);
+            for (const fraction of fractions.items) found.add(`art:${article.key}:fr:${fraction.key}@${law}`);
+        }
+    }
+    for (const key of legalReferences(text)) if (!key.startsWith("art:")) found.add(key);
+    return found;
+}
+
+/** Whether a strict key (see `lawReferences`) is an article whose law is established. */
+export function hasKnownLaw(key: string): boolean {
+    return !key.startsWith("art:") || !key.endsWith(`@${UNKNOWN_LAW}`);
+}
