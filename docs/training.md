@@ -1059,7 +1059,11 @@ no decrypted credential is ever kept for a background job.
    and a verdict from the closed set); the server writes the contrast with the
    three usual headings. The answer, contrast and verdict are written **once**
    (a trigger refuses any later change, `LT002`), `status` becomes `answered`
-   and the map gains an event. If the contrast fails the retake stays `open`,
+   and the map gains an event. A PUT that loses the claim to another one
+   answers `409 training_retake_not_open`. The contrast reads the person's
+   newest notes on the topic **at answer time**; the row stores the question,
+   not the lines it came from, so notes written in between count too. If the
+   contrast fails the retake stays `open`,
    **the answer is not saved** (`503`) and the person may try again.
 
 **Model route.** The person's own, governed BYOK, the same rule as the full

@@ -275,7 +275,9 @@ export async function answerRetake(
         .eq("updated_at", row.updated_at)
         .select("id");
     if (claimError) return internalFailure(claimError);
-    if (((claimed ?? []) as unknown[]).length !== 1) return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
+    // Lost the claim: another request already took this retake. For the
+    // person it is a double send of the same answer, not a second retake.
+    if (((claimed ?? []) as unknown[]).length !== 1) return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
 
     const question = row.question as string;
     let result: ReturnType<typeof parseRetakeContrast> = null;
