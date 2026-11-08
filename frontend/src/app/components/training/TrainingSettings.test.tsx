@@ -13,7 +13,16 @@ vi.mock("@/app/lib/mikeApi", () => ({
     removeTrainingStage: vi.fn(async () => undefined),
     getMySupervision: vi.fn(async () => ({ org_id: "org-1", work_reviews: [], defenses: [], urgency_passes: [] })),
     listProjects: vi.fn(async () => []),
+    // Layer 3, full reading: a junior's notice in Mi formación.
+    getMyReadings: vi.fn(async () => ({
+        org_id: "org-1",
+        eligibility: { is_junior: true, due: false, open_reading_id: null, last_submitted_at: null, next_due_at: null },
+        generation: { available: false, code: "training_review_key_required" },
+        readings: [],
+    })),
+    startReading: vi.fn(),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
     useWorkspace: () => ({ organizations: [{ id: "org-1", name: "Despacho Ruiz" }] }),
 }));
