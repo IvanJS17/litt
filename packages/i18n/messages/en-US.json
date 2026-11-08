@@ -524,7 +524,48 @@
       }
     },
     "criterion": {
-      "turn": {},
+      "turn": {
+        "attemptLabel": "Your approach (2–3 lines)",
+        "attemptPlaceholder": "Before asking, write how you would solve it.",
+        "attemptReady": "Ready. After the answer you'll see a contrast with your approach.",
+        "attemptTooLong": "{length}/{max} characters. {excess, plural, one {# character over the limit} other {# characters over the limit}}.",
+        "attemptTooShort": "{length}/{min} characters. {missing, plural, one {# character to go} other {# characters to go}}. After the answer you'll see a contrast with your approach.",
+        "confidenceHelp": "One mark for the whole approach. Only you and your mentor see it.",
+        "confidenceLegend": "How sure are you of your approach?",
+        "confidenceLevels": {
+          "doubt": "I doubt it",
+          "fairlySure": "Fairly sure",
+          "guess": "Almost a guess",
+          "sure": "Sure"
+        },
+        "confidenceRequired": "Mark how sure you are before sending.",
+        "foundations": {
+          "solid": "solid",
+          "weak": "weak",
+          "wrong": "wrong"
+        },
+        "noteAttemptHeading": "Your approach",
+        "noteConfidence": "Your mark: {level}",
+        "noteContrastFailed": "The contrast couldn't be generated",
+        "noteContrastHeading": "Contrast with your approach",
+        "noteContrastPending": "Generating contrast…",
+        "noteFoundation": "Basis: {basis}",
+        "notePrivacy": "Private: only you and your mentor see this",
+        "noteQuestionHeading": "A question about your basis",
+        "noteRegion": "Private training notes",
+        "noteReply": "Reply",
+        "noteReplyLabel": "Reply to the question about your basis",
+        "noteRightForWrongReason": "Your conclusion matches, but its basis doesn't: right for the wrong reason.",
+        "noteVerdictByMentor": "corrected by your mentor",
+        "noteVerdictHeading": "Match with the answer, per the AI contrast:",
+        "passLater": "Urgency pass in force until {end, date, long}, {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "passToday": "Urgency pass in force until {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "verdicts": {
+          "coincide": "Matches",
+          "noCoincide": "Doesn't match",
+          "parcial": "Partly matches"
+        }
+      },
       "map": {},
       "modes": {},
       "backing": {},

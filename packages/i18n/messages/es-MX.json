@@ -524,7 +524,48 @@
       }
     },
     "criterion": {
-      "turn": {},
+      "turn": {
+        "attemptLabel": "Tu planteamiento (2–3 líneas)",
+        "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
+        "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
+        "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
+        "attemptTooShort": "{length}/{min} caracteres. {missing, plural, one {Falta # carácter} other {Faltan # caracteres}}. Después de la respuesta verás un contraste con tu planteamiento.",
+        "confidenceHelp": "Una marca para todo el planteamiento. Solo tú y tu mentor la ven.",
+        "confidenceLegend": "¿Qué tan seguro estás de tu planteamiento?",
+        "confidenceLevels": {
+          "doubt": "Dudo",
+          "fairlySure": "Bastante seguro",
+          "guess": "Casi adivino",
+          "sure": "Seguro"
+        },
+        "confidenceRequired": "Marca qué tan seguro estás antes de enviar.",
+        "foundations": {
+          "solid": "sólido",
+          "weak": "débil",
+          "wrong": "equivocado"
+        },
+        "noteAttemptHeading": "Tu planteamiento",
+        "noteConfidence": "Tu marca: {level}",
+        "noteContrastFailed": "No se pudo generar el contraste",
+        "noteContrastHeading": "Contraste con tu planteamiento",
+        "noteContrastPending": "Generando contraste…",
+        "noteFoundation": "Fundamento: {basis}",
+        "notePrivacy": "Privado: solo tú y tu mentor lo ven",
+        "noteQuestionHeading": "Una pregunta sobre tu fundamento",
+        "noteRegion": "Notas privadas de formación",
+        "noteReply": "Responder",
+        "noteReplyLabel": "Responder a la pregunta sobre tu fundamento",
+        "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
+        "noteVerdictByMentor": "corregido por tu mentor",
+        "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
+        "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "verdicts": {
+          "coincide": "Coincide",
+          "noCoincide": "No coincide",
+          "parcial": "Coincide en parte"
+        }
+      },
       "map": {},
       "modes": {},
       "backing": {},

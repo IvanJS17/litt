@@ -6,7 +6,9 @@ import {
   TrainingUrgencyPassLineUI,
   isTrainingAttemptReady,
   trainingAttemptLength,
+  trainingAttemptOwnLength,
 } from "./TrainingAttemptFieldUI";
+import { attemptText } from "./trainingTestText";
 
 const field = (value: string, showError = false, onChange = vi.fn()) =>
   render(
@@ -14,6 +16,7 @@ const field = (value: string, showError = false, onChange = vi.fn()) =>
       id="f"
       value={value}
       onChange={onChange}
+      text={attemptText}
       showError={showError}
     />,
   );
@@ -27,10 +30,22 @@ describe("TrainingAttemptFieldUI", () => {
     expect(isTrainingAttemptReady("a".repeat(TRAINING_ATTEMPT_MAX_CHARS + 1))).toBe(false);
   });
 
-  it("reports what is missing and flags it once an error is shown", () => {
+  it("does not count a quoted question towards the minimum", () => {
+    const quote = `> ${"¿En qué precepto se apoya la rescisión? ".repeat(3)}`;
+    expect(trainingAttemptLength(quote)).toBeGreaterThan(60);
+    expect(trainingAttemptOwnLength(`${quote}\n\nMuy corto`)).toBe(9);
+    expect(isTrainingAttemptReady(`${quote}\n\nMuy corto`)).toBe(false);
+    expect(isTrainingAttemptReady(`${quote}\n\n${"a".repeat(60)}`)).toBe(true);
+    // The server counts everything: the quote still counts towards the limit.
+    expect(isTrainingAttemptReady(`${quote}\n\n${"a".repeat(TRAINING_ATTEMPT_MAX_CHARS)}`)).toBe(false);
+  });
+
+  it("labels the field and reports what is missing, flagging it once an error is shown", () => {
     const onChange = vi.fn();
     field("😀".repeat(10), true, onChange);
-    expect(screen.getByText(/10\/60 caracteres: faltan 50/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Your approach (2–3 lines)")).toBeRequired();
+    expect(screen.getByPlaceholderText("Before asking, write how you would solve it.")).toBeInTheDocument();
+    expect(screen.getByText("10/60 caracteres: faltan 50.")).toBeInTheDocument();
     const input = screen.getByRole("textbox");
     expect(input).toHaveAttribute("aria-invalid", "true");
     fireEvent.change(input, { target: { value: "x" } });
@@ -39,32 +54,20 @@ describe("TrainingAttemptFieldUI", () => {
 
   it("reports the excess over the limit", () => {
     field("a".repeat(TRAINING_ATTEMPT_MAX_CHARS + 2));
-    expect(screen.getByText("4002/4000 caracteres: sobran 2.")).toBeInTheDocument();
-    expect(screen.getByText(/sobran/)).toHaveClass("text-red-600");
+    expect(screen.getByText("4002/4000 caracteres: sobran 2.")).toHaveClass("text-red-600");
   });
 
   it("is ready without an error", () => {
     field("a".repeat(60), true);
-    expect(screen.getByText(/^Listo\./)).toBeInTheDocument();
+    expect(screen.getByText("Ready.")).toBeInTheDocument();
     expect(screen.getByRole("textbox")).not.toHaveAttribute("aria-invalid");
   });
 });
 
 describe("TrainingUrgencyPassLineUI", () => {
-  const now = new Date(2026, 10, 7, 9, 0);
-
-  it("says until when the pass is in force today, as plain text", () => {
-    const end = new Date(2026, 10, 7, 17, 30);
-    const { container } = render(<TrainingUrgencyPassLineUI expiresAt={end.toISOString()} now={now} />);
-    const text = container.textContent ?? "";
-    expect(text).toMatch(/^Pase de urgencia vigente hasta las 17:30\./);
-    expect(text).toContain("sigue necesitando aprobación");
+  it("draws the sentence the host wrote, as plain text", () => {
+    const { container } = render(<TrainingUrgencyPassLineUI text="Pase vigente." className="x" />);
+    expect(container.textContent).toBe("Pase vigente.");
     expect(container.querySelector("button, [role=status]")).toBeNull();
-  });
-
-  it("adds the date when the pass ends another day", () => {
-    const end = new Date(2026, 10, 9, 8, 5);
-    render(<TrainingUrgencyPassLineUI expiresAt={end.toISOString()} now={now} />);
-    expect(screen.getByText(/hasta el 9 de noviembre, a las 08:05/)).toBeInTheDocument();
   });
 });
