@@ -17452,6 +17452,26 @@ create trigger org_members_training_departure
 -- created it: chats (web and project chat), word_chats or
 -- tabular_review_chats. A real foreign key per surface makes the note go with
 -- its chat. message_id is the user message the note is about.
+create or replace function public.training_topics_valid(p_topics text[])
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_topics is null
+    or (
+      cardinality(p_topics) between 1 and 3
+      and array_ndims(p_topics) = 1
+      and not exists (
+        select 1 from unnest(p_topics) t
+        where t is null or char_length(btrim(t)) not between 1 and 80
+      )
+    );
+$$;
+
+revoke all on function public.training_topics_valid(text[]) from public, anon, authenticated;
+grant execute on function public.training_topics_valid(text[]) to service_role;
+
 create table if not exists public.training_turn_notes (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null,
@@ -17464,6 +17484,18 @@ create table if not exists public.training_turn_notes (
   contrast text,
   contrast_status text not null default 'pending',
   created_at timestamptz not null default now(),
+  -- Layer 3 (20261108_60_litt_training_criterion_turns.sql): the thermometer
+  -- mark, the structured verdict of the contrast, its basis and topics.
+  confidence smallint,
+  verdict text,
+  verdict_source text,
+  verdict_by uuid references auth.users(id) on delete set null,
+  foundation text,
+  foundation_question text,
+  topics text[],
+  answer_unverified boolean not null default false,
+  mode text,
+  step smallint,
   constraint training_turn_notes_member_fkey foreign key (org_id, trainee_user_id)
     references public.org_members(org_id, user_id) on delete cascade,
   constraint training_turn_notes_one_chat check (
@@ -17473,11 +17505,38 @@ create table if not exists public.training_turn_notes (
     char_length(attempt) between 60 and 4000
   ),
   constraint training_turn_notes_status_check check (
-    contrast_status in ('pending', 'ready', 'failed')
+    contrast_status in ('pending', 'ready', 'failed', 'skipped')
   ),
   constraint training_turn_notes_contrast_check check (
     (contrast_status = 'ready') = (contrast is not null)
     and (contrast is null or char_length(contrast) <= 8000)
+  ),
+  constraint training_turn_notes_confidence_check check (
+    confidence is null or confidence between 1 and 4
+  ),
+  constraint training_turn_notes_verdict_check check (
+    (verdict is null or verdict in ('coincide', 'parcial', 'no_coincide'))
+    and (verdict is null) = (verdict_source is null)
+    and (verdict_source is null or verdict_source in ('contrast', 'mentor'))
+    and (verdict_by is null or verdict_source = 'mentor')
+  ),
+  constraint training_turn_notes_foundation_check check (
+    (foundation is null or foundation in ('solid', 'weak', 'wrong'))
+    and (
+      foundation_question is null
+      or (
+        coalesce(foundation in ('weak', 'wrong'), false)
+        and char_length(foundation_question) between 1 and 500
+      )
+    )
+  ),
+  constraint training_turn_notes_topics_check check (
+    public.training_topics_valid(topics)
+  ),
+  constraint training_turn_notes_mode_check check (
+    (mode is null or mode in ('hint', 'counterpart', 'counterpart_close'))
+    and (mode is null) = (step is null)
+    and (step is null or step between 1 and 3)
   )
 );
 create unique index if not exists training_turn_notes_message_key
@@ -19593,5 +19652,6 @@ insert into public.schema_migrations (filename) values
   ('20261107_80_litt_user_ui_locale.sql'),
   ('20261107_90_litt_training_defense_outcome.sql'),
   ('20261107_91_litt_training_pass_revoked_by.sql'),
-  ('20261108_10_litt_public_matter_project_succession.sql')
+  ('20261108_10_litt_public_matter_project_succession.sql'),
+  ('20261108_60_litt_training_criterion_turns.sql')
 on conflict (filename) do nothing;
