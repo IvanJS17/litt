@@ -7,6 +7,8 @@ const { requestPasswordReset } = vi.hoisted(() => ({
     requestPasswordReset: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+
 vi.mock("@/app/lib/authApi", () => ({
     requestPasswordReset,
 }));

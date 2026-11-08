@@ -31,7 +31,7 @@ test.describe("before sign-in", () => {
     page,
   }) => {
     await addin.gotoTaskpane({ displayLanguage: "en-GB" });
-    await expect(page.getByRole("heading", { name: "Log In" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
   });
 
   test("an unsupported Word language falls back to es-MX", async ({
@@ -56,7 +56,7 @@ test.describe("before sign-in", () => {
     await page
       .getByRole("combobox", { name: "Idioma de la interfaz" })
       .selectOption("en-US");
-    await expect(page.getByRole("heading", { name: "Log In" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
     expect(
       await page.evaluate(
         () => (window as unknown as { __noReload?: boolean }).__noReload,
@@ -68,7 +68,7 @@ test.describe("before sign-in", () => {
 
     // The next open starts where the user left it, whatever Word says.
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Log In" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
   });
 });
 

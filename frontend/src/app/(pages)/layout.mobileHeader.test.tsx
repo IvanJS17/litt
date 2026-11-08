@@ -64,8 +64,12 @@ describe("mobile page header", () => {
         );
     });
 
-    it("floats transparently over project chat workspaces", () => {
-        navigation.pathname = "/projects/project-1/assistant/chat/chat-1";
+    // Floating, the sidebar button covered the Explorer title on a phone.
+    it.each([
+        "/projects/project-1/assistant/chat/chat-1",
+        "/projects/project-1/assistant/chat",
+    ])("keeps the header in flow above the project workspace on %s", (pathname) => {
+        navigation.pathname = pathname;
         render(
             <MikeLayout>
                 <div>Project chat</div>
@@ -73,12 +77,8 @@ describe("mobile page header", () => {
         );
 
         const header = document.querySelector('[data-slot="mobile-header"]');
-        expect(header).toHaveClass(
-            "fixed",
-            "inset-x-0",
-            "top-0",
-            "bg-transparent",
-        );
+        expect(header).toHaveClass("relative", "shrink-0");
+        expect(header).not.toHaveClass("fixed");
     });
 
     it("uses the header-button styling for the sidebar toggle", () => {

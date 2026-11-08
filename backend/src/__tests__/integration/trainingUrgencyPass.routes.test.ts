@@ -293,6 +293,52 @@ describe("GET and DELETE …/passes", () => {
         expect(JSON.stringify(res.body)).not.toMatch(/score|rank|average|promedio/i);
     });
 
+    describe("?project_ids= (the selector's matters)", () => {
+        const PUPIL_BLOCKED = id(202);
+        const MENTOR_BLOCKED = id(203);
+        beforeEach(() => {
+            state.projectAccess.add(`${PUPIL_BLOCKED}:${MENTOR}`);
+            state.projectAccess.add(`${MENTOR_BLOCKED}:${PUPIL}`);
+        });
+        const ask = (ids: string[]) => request(app).get(`${base}?project_ids=${ids.join(",")}`);
+
+        it("keeps only the matters both the mentor and the pupil can open, in the organization", async () => {
+            const res = await ask([PROJECT, PUPIL_BLOCKED, MENTOR_BLOCKED, OTHER_ORG_PROJECT]);
+            expect(res.status).toBe(200);
+            expect(res.body.grantable_project_ids).toEqual([PROJECT]);
+            expect(res.body.passes).toEqual([]);
+        });
+
+        it("agrees with the grant: what it lists is accepted, what it leaves out is refused", async () => {
+            const listed = (await ask([PROJECT, PUPIL_BLOCKED])).body.grantable_project_ids;
+            expect(listed).toEqual([PROJECT]);
+            expect((await grant({ project_id: PROJECT })).status).toBe(201);
+            const refused = await grant({ project_id: PUPIL_BLOCKED });
+            expect(refused.status).toBe(409);
+            expect(refused.body.code).toBe("training_pass_pupil_no_access");
+        });
+
+        it("ignores malformed and repeated ids, and says nothing without the parameter", async () => {
+            const res = await ask(["nope", PROJECT, PROJECT, ""]);
+            expect(res.body.grantable_project_ids).toEqual([PROJECT]);
+            expect(await request(app).get(base)).toMatchObject({
+                body: { passes: [] },
+            });
+            expect((await request(app).get(base)).body).not.toHaveProperty("grantable_project_ids");
+        });
+
+        it("answers an empty list for an empty parameter", async () => {
+            expect((await request(app).get(`${base}?project_ids=`)).body.grantable_project_ids).toEqual([]);
+        });
+
+        it("is the current mentor's only: anyone else gets the uniform 404", async () => {
+            state.caller = OWNER;
+            const res = await ask([PROJECT]);
+            expect(res.status).toBe(404);
+            expect(res.body).not.toHaveProperty("grantable_project_ids");
+        });
+    });
+
     it("revokes once, audits once, and answers 204 again without a second event", async () => {
         state.tables.training_urgency_passes.push(pass());
         expect((await request(app).delete(`${base}/${id(300)}`)).status).toBe(204);

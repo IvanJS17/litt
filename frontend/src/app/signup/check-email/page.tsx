@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { authGlassCardUIClassName, pillButtonUIClassName } from "@mike/ui";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTranslations } from "next-intl";
 
 export default function SignupCheckEmailPage() {
+    const t = useTranslations();
     const router = useRouter();
     const { isAuthenticated, authLoading } = useAuth();
 
@@ -27,11 +29,10 @@ export default function SignupCheckEmailPage() {
                     ) : (
                         <>
                             <h1 className="font-serif text-2xl font-medium text-gray-950">
-                                Check your email
+                                {t("auth.checkEmail.checkYourEmail")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                We sent a confirmation link to your email
-                                address. Confirm your address before logging in.
+                                {t("auth.checkEmail.confirmationSent")}
                             </p>
                             <Link
                                 href="/login"
@@ -41,7 +42,7 @@ export default function SignupCheckEmailPage() {
                                     className: "mt-6",
                                 })}
                             >
-                                Return to login
+                                {t("auth.checkEmail.returnToLogin")}
                             </Link>
                         </>
                     )}

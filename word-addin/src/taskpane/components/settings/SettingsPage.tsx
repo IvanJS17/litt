@@ -167,7 +167,11 @@ export function SettingsPage({
                 código de la versión exacta que estás usando.
               </p>
             </div>
-            <SourceCodeLinkUI commit={process.env.REACT_APP_GIT_SHA} />
+            <SourceCodeLinkUI
+              commit={process.env.REACT_APP_GIT_SHA}
+              label={t("common.sourceCode.label")}
+              description={t("common.sourceCode.description")}
+            />
           </div>
         </GlassCardUI>
       </section>

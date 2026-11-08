@@ -68,8 +68,10 @@ import {
 import { TOO_MANY_ATTEMPTS_MESSAGE, authMessages } from "@/app/lib/authMessages";
 import { GoogleAuthButton } from "@/app/components/auth/GoogleAuthButton";
 import { FieldLabel } from "@/app/components/ui/form-field";
+import { useTranslations } from "next-intl";
 
 function SignupContent() {
+    const t = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { isAuthenticated, authLoading, refreshSession } = useAuth();
@@ -159,10 +161,10 @@ function SignupContent() {
                 <div className="w-full max-w-md">
                     <div className={authGlassCardUIClassName}>
                         <h1 className="font-serif text-2xl font-medium text-gray-950">
-                            Account created!
+                            {t("auth.signup.accountCreated")}
                         </h1>
                         <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                            Redirecting you to finish setting up your account...
+                            {t("auth.signup.redirecting")}
                         </p>
                         <Link
                             href="/onboarding/profile"
@@ -172,7 +174,7 @@ function SignupContent() {
                                 className: "mt-6",
                             })}
                         >
-                            Continue
+                            {t("auth.signup.continue")}
                         </Link>
                     </div>
                 </div>
@@ -186,13 +188,13 @@ function SignupContent() {
             <div className="w-full max-w-md">
                 <div className={cn(authGlassCardUIClassName, "mb-4")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
-                        Sign Up
+                        {t("auth.signup.signUp")}
                     </h2>
 
                     <form onSubmit={handleSignup} className="space-y-4">
                         <div>
                             <FieldLabel htmlFor="email">
-                                Email
+                                {t("auth.signup.email")}
                             </FieldLabel>
                             <InputUI
                                 id="email"
@@ -206,14 +208,14 @@ function SignupContent() {
 
                         <div>
                             <FieldLabel htmlFor="password">
-                                Password
+                                {t("auth.signup.password")}
                             </FieldLabel>
                             <InputUI
                                 id="password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder={`Min. ${MIN_PASSWORD_LENGTH} Characters`}
+                                placeholder={t("auth.signup.passwordPlaceholder", { min: MIN_PASSWORD_LENGTH })}
                                 required
                                 className={`w-full ${authInputUIClassName}`}
                             />
@@ -221,7 +223,7 @@ function SignupContent() {
 
                         <div>
                             <FieldLabel htmlFor="confirmPassword">
-                                Confirm Password
+                                {t("auth.signup.confirmPassword")}
                             </FieldLabel>
                             <InputUI
                                 id="confirmPassword"
@@ -265,11 +267,11 @@ function SignupContent() {
                                 disabled={loading}
                                 className="w-full"
                             >
-                                {loading ? "Creating account..." : "Sign up"}
+                                {loading ? t("auth.signup.creatingAccount") : t("auth.signup.signUp")}
                             </PillButtonUI>
                             {showGoogle && (
                                 <>
-                                    <AuthDividerUI />
+                                    <AuthDividerUI label={t("common.or")} />
                                     <GoogleAuthButton
                                         onError={setError}
                                         disabled={loading}
@@ -281,12 +283,12 @@ function SignupContent() {
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">
-                    Have an account?{" "}
+                    {t("auth.signup.haveAccount")}{" "}
                     <Link
                         href="/login"
                         className="font-medium transition-colors hover:text-gray-950"
                     >
-                        Log in
+                        {t("auth.signup.logIn")}
                     </Link>
                 </div>
             </div>

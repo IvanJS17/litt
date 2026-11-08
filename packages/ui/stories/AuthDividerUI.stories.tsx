@@ -5,6 +5,6 @@ export default meta;
 
 export const Default = () => (
     <div className="w-full max-w-80">
-        <AuthDividerUI />
+        <AuthDividerUI label="or" />
     </div>
 );

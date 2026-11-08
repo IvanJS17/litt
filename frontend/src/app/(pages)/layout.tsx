@@ -33,8 +33,10 @@ export default function MikeLayout({
     const router = useRouter();
     const pathname = usePathname();
     const isProjectWorkspace = PROJECT_WORKSPACE_PATH.test(pathname);
-    const isChatPage =
-        /^\/assistant\/chat\/[^/]+\/?$/.test(pathname) || isProjectWorkspace;
+    // Only the chat page lets its thread scroll under a floating header. The
+    // project workspace keeps the header in flow above its panels: floating,
+    // the sidebar button covered the Explorer title on a phone.
+    const isChatPage = /^\/assistant\/chat\/[^/]+\/?$/.test(pathname);
     const [mobileActionsContainer, setMobileActionsContainer] =
         useState<HTMLDivElement | null>(null);
 

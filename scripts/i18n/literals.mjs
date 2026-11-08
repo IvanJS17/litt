@@ -9,12 +9,39 @@
 
 import { readdirSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const FRONTEND = join(dirname(fileURLToPath(import.meta.url)), "../../frontend");
+const NEEDS_TYPESCRIPT = "scripts/i18n needs TypeScript 5 from frontend/node_modules: run `npm ci --prefix frontend`";
+
+/**
+ * The TypeScript 5 compiler API resolved from a frontend directory (a path,
+ * not a URL object: under jsdom the global URL is jsdom's). Throws an Error
+ * saying what to run when it is missing or of another major version.
+ */
+export function loadTypeScript(frontendDir = FRONTEND) {
+    const req = createRequire(join(frontendDir, "package.json"));
+    let version;
+    try {
+        ({ version } = req("typescript/package.json"));
+    } catch {
+        throw new Error(`TypeScript not found: ${NEEDS_TYPESCRIPT}`);
+    }
+    if (String(version).split(".")[0] !== "5")
+        throw new Error(`found TypeScript ${version} from ${frontendDir}: ${NEEDS_TYPESCRIPT}`);
+    return req("typescript");
+}
+
 /** @type {typeof import("typescript")} */
-// (A path, not a URL object: under jsdom the global URL is jsdom's.)
-export const ts = createRequire(join(fileURLToPath(import.meta.url), "../../../frontend/package.json"))("typescript");
+export let ts;
+try {
+    ts = loadTypeScript();
+} catch (error) {
+    // Imported by a CLI: a clear line, not a stack trace.
+    process.stderr.write(`extract: ${error.message}\n`);
+    process.exit(1);
+}
 
 /**
  * Prefix of a message the codemod copied from the other catalog and nobody

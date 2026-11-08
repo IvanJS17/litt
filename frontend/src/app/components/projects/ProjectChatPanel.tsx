@@ -9,6 +9,7 @@ import {
     useRef,
     useState,
     type ComponentProps,
+    type CSSProperties,
     type Dispatch,
     type Ref,
     type SetStateAction,
@@ -123,9 +124,12 @@ interface Props {
      * place rather than leaving the workspace.
      */
     isSideChat?: boolean;
+    /** Width beside the other panels; a phone shows the panel full width. */
     width: number;
     /** Corner rounding, which depends on where the panel sits in the row. */
     roundedClassName: string;
+    /** Layout classes from the workspace, such as hiding it on a phone. */
+    className?: string;
     /** The project's chats, most recently active first. */
     chats: Chat[];
     chatsLoading: boolean;
@@ -187,6 +191,7 @@ export function ProjectChatPanel({
     isSideChat = false,
     width,
     roundedClassName,
+    className,
     chats,
     chatsLoading,
     setProjectChats,
@@ -644,11 +649,12 @@ export function ProjectChatPanel({
             <div
                 ref={panelRef}
                 data-chat-pane={isSideChat ? "side" : "primary"}
-                style={{ width }}
+                style={{ "--panel-width": `${width}px` } as CSSProperties}
                 className={cn(
-                    "relative flex shrink-0 flex-col overflow-hidden",
+                    "relative flex w-full shrink-0 flex-col overflow-hidden md:w-(--panel-width)",
                     roundedClassName,
                     LIQUID_GLASS_FLAT_CLASS,
+                    className,
                 )}
                 onPointerDownCapture={onActivate}
                 onFocusCapture={onActivate}

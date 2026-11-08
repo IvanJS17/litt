@@ -77,7 +77,7 @@ describe("Word login", () => {
 
     it("keeps the source English in en-US", async () => {
         await inPane("en-US", <LoginPage />);
-        expect(screen.getByRole("heading", { name: "Log In" })).toBeVisible();
+        expect(screen.getByRole("heading", { name: "Log in" })).toBeVisible();
         expect(screen.getByRole("button", { name: "Continue with Google" })).toBeVisible();
     });
 
@@ -88,7 +88,7 @@ describe("Word login", () => {
         expect(screen.getByRole("option", { name: "Español (México)" })).toBeInTheDocument();
         expect(screen.getByRole("option", { name: "English" })).toBeInTheDocument();
         await userEvent.selectOptions(select, "en-US");
-        expect(await screen.findByRole("heading", { name: "Log In" })).toBeVisible();
+        expect(await screen.findByRole("heading", { name: "Log in" })).toBeVisible();
         expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en-US");
         expect(clientLocale()).toBe("en-US");
         expect(updateUiLocale).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe("the profile's language", () => {
     it("wins over the language the pane started in", async () => {
         getUserProfile.mockResolvedValue({ uiLocale: "en-US" });
         await inPane("es-MX", <Probe userId="u1" />);
-        expect(await screen.findByRole("heading", { name: "Log In" })).toBeVisible();
+        expect(await screen.findByRole("heading", { name: "Log in" })).toBeVisible();
     });
 
     it("leaves the language alone when the profile has none or cannot be read", async () => {

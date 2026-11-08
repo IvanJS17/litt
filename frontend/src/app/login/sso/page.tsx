@@ -15,6 +15,7 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: the address asked for
  *  here is a work address, so "valid email" is not specific enough. */
@@ -25,6 +26,7 @@ const SSO_ERROR_MESSAGES = authMessages({
 });
 
 export default function SsoLoginPage() {
+    const t = useTranslations();
     const router = useRouter();
     const { isAuthenticated, authLoading } = useAuth();
     const [email, setEmail] = useState("");
@@ -59,7 +61,7 @@ export default function SsoLoginPage() {
                     ? {
                           ...described,
                           message:
-                              "Too many attempts. Wait a moment and try again.",
+                              t("auth.sso.tooManyAttempts"),
                       }
                     : described,
             );
@@ -78,14 +80,14 @@ export default function SsoLoginPage() {
                 <div className={authGlassCardUIClassName}>
                     <div className="mb-6">
                         <h1 className="font-serif text-2xl font-medium text-gray-950">
-                            SSO Login
+                            {t("auth.sso.ssoLogin")}
                         </h1>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <FieldLabel htmlFor="sso-email">
-                                Email
+                                {t("auth.sso.email")}
                             </FieldLabel>
                             <InputUI
                                 id="sso-email"
@@ -110,7 +112,7 @@ export default function SsoLoginPage() {
                                 retry={
                                     error.retryable
                                         ? {
-                                              label: "Retry",
+                                              label: t("auth.sso.retry"),
                                               onClick: () =>
                                                   void startSsoFlow(),
                                               disabled: loading,
@@ -143,7 +145,7 @@ export default function SsoLoginPage() {
                                         className="h-4 w-4 animate-spin"
                                     />
                                 )}
-                                {loading ? "Continuing…" : "Continue"}
+                                {loading ? t("auth.sso.continuing") : t("auth.sso.continue")}
                             </PillButtonUI>
                         </div>
                     </form>
@@ -154,7 +156,7 @@ export default function SsoLoginPage() {
                         href="/login"
                         className="font-medium transition-colors hover:text-gray-950"
                     >
-                        Back to login
+                        {t("auth.sso.backToLogin")}
                     </Link>
                 </div>
             </div>

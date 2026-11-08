@@ -30,6 +30,7 @@ import {
     authMessages,
 } from "@/app/lib/authMessages";
 import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
+import { useTranslations } from "next-intl";
 
 /**
  * The shared auth table (`@/app/lib/authMessages`) with this screen's
@@ -67,6 +68,7 @@ function describeLoginError(error: unknown): UserFacingError {
 }
 
 export default function LoginPage() {
+    const t = useTranslations();
     const router = useRouter();
     const {
         isAuthenticated,
@@ -147,14 +149,14 @@ export default function LoginPage() {
     const retryAction = error
         ? error.retryable
             ? {
-                  label: "Retry",
+                  label: t("auth.login.retry"),
                   onClick: () => void submitLogin(),
                   disabled: loading,
               }
             : undefined
         : sessionWarningOpen
           ? {
-                label: retryingSession ? "Retrying..." : "Retry",
+                label: retryingSession ? t("auth.login.retrying") : t("auth.login.retry"),
                 onClick: () => void handleRetrySession(),
                 disabled: retryingSession,
             }
@@ -166,11 +168,11 @@ export default function LoginPage() {
                 {/* Login Form */}
                 <div className={cn(authGlassCardUIClassName, "mb-4")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
-                        Log In
+                        {t("auth.login.logIn")}
                     </h2>
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <FieldLabel htmlFor="email">Email</FieldLabel>
+                            <FieldLabel htmlFor="email">{t("auth.login.email")}</FieldLabel>
                             <InputUI
                                 id="email"
                                 type="email"
@@ -184,13 +186,13 @@ export default function LoginPage() {
                         <div>
                             <div className="flex items-start justify-between gap-3">
                                 <FieldLabel htmlFor="password">
-                                    Password
+                                    {t("auth.login.password")}
                                 </FieldLabel>
                                 <Link
                                     href="/forgot-password"
                                     className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
                                 >
-                                    Forgot password?
+                                    {t("auth.login.forgotPassword")}
                                 </Link>
                             </div>
                             <InputUI
@@ -239,10 +241,10 @@ export default function LoginPage() {
                                 disabled={loading}
                                 className="w-full"
                             >
-                                {loading ? "Logging in..." : "Log in"}
+                                {loading ? t("auth.login.loggingIn") : t("auth.login.logIn")}
                             </PillButtonUI>
                         </div>
-                        {(showGoogle || showSso) && <AuthDividerUI />}
+                        {(showGoogle || showSso) && <AuthDividerUI label={t("common.or")} />}
                         {showGoogle && (
                             <GoogleAuthButton
                                 onError={(nextError) => setError(nextError)}
@@ -254,12 +256,12 @@ export default function LoginPage() {
                     </form>
                 </div>
                 <div className="text-center text-sm text-gray-500">
-                    Don&apos;t have an account?{" "}
+                    {t("auth.login.noAccount")}{" "}
                     <Link
                         href="/signup"
                         className="font-medium transition-colors hover:text-gray-950"
                     >
-                        Sign up
+                        {t("auth.login.signUp")}
                     </Link>
                 </div>
                 <footer className="mt-6 flex justify-center">

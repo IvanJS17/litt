@@ -69,7 +69,7 @@ export function LoginPage(): React.ReactElement {
                   htmlFor="email"
                   className="mb-2 block text-sm font-medium text-gray-700"
                 >
-                  {t("word.login.email")}
+                  {t("auth.login.email")}
                 </Label>
                 <InputUI
                   id="email"
@@ -88,7 +88,7 @@ export function LoginPage(): React.ReactElement {
                     htmlFor="password"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    {t("word.login.password")}
+                    {t("auth.login.password")}
                   </Label>
                   <a
                     href={`${WEB_APP_URL}/forgot-password`}
@@ -99,7 +99,7 @@ export function LoginPage(): React.ReactElement {
                     }
                     className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
                   >
-                    {t("word.login.forgotPassword")}
+                    {t("auth.login.forgotPassword")}
                   </a>
                 </div>
                 <InputUI
@@ -130,10 +130,10 @@ export function LoginPage(): React.ReactElement {
                   disabled={loading}
                   className="w-full"
                 >
-                  {loading ? t("word.login.loggingIn") : t("word.login.logIn")}
+                  {loading ? t("auth.login.loggingIn") : t("auth.login.logIn")}
                 </PillButton>
               </div>
-              <AuthDivider label={t("word.login.or")} />
+              <AuthDivider label={t("common.or")} />
               <PillButton
                 type="button"
                 tone="white"
@@ -151,7 +151,7 @@ export function LoginPage(): React.ReactElement {
             </form>
           </div>
           <div className="text-center text-sm text-gray-500">
-            {t("word.login.noAccount")}{" "}
+            {t("auth.login.noAccount")}{" "}
             <a
               href={`${WEB_APP_URL}/signup`}
               target="_blank"
@@ -159,7 +159,7 @@ export function LoginPage(): React.ReactElement {
               onClick={(event) => openWebAuthPage(event, "/signup")}
               className="font-medium transition-colors hover:text-gray-950"
             >
-              {t("word.login.signUp")}
+              {t("auth.login.signUp")}
             </a>
           </div>
           <div className="mt-4">

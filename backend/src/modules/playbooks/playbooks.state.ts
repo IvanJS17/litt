@@ -31,6 +31,46 @@ const stateSchema = z
   .strict()
   .refine((state) => state.status !== undefined || state.isModel !== undefined);
 
+/** The questionnaire's answers, by question id, as the editor sees them. */
+export type PlaybookIntake = { answers: Record<string, string> };
+
+function publicIntake(raw: unknown): PlaybookIntake | null {
+  const answers =
+    raw && typeof raw === "object" ? (raw as { answers?: unknown }).answers : null;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return null;
+  return {
+    answers: Object.fromEntries(
+      Object.entries(answers).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    ),
+  };
+}
+
+/**
+ * GET /playbooks/:id. An editor or owner also gets the answers the playbook
+ * was drafted from, so a rule's origin ("answer to question 6") can show the
+ * answer. Only the answers: the model, dates and attachments stay stored, and
+ * a viewer or a list never gets any of it (answers 6, 7 and 9 are the
+ * client's own data).
+ */
+export async function getPlaybookWithIntake(
+  userId: string,
+  id: string,
+  db: Db = createServerSupabase(),
+  email?: string | null,
+): Promise<Playbook & { intake?: PlaybookIntake | null }> {
+  const playbook = await getPlaybook(userId, id, db, email);
+  if (!playbook.canEdit) return playbook;
+  const { data, error } = await db
+    .from("playbooks")
+    .select("intake_json")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return { ...playbook, intake: publicIntake(data?.intake_json) };
+}
+
 export const PLAYBOOK_STATE_CHANGED_MESSAGE =
   "El playbook cambió mientras se guardaba. Recarga la página e inténtalo de nuevo.";
 

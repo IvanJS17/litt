@@ -11,6 +11,7 @@ const { getAuthSession, updateAuthPassword, searchParams } = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
     useSearchParams: () => searchParams,
+    useRouter: () => ({ refresh: vi.fn() }),
 }));
 
 vi.mock("@/app/lib/authApi", () => ({ getAuthSession, updateAuthPassword }));

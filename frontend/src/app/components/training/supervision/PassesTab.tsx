@@ -36,15 +36,21 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
     const t = useTranslations("training");
     const tc = useTranslations("common");
     const load = useCallback(async () => {
-        const [passes, projects] = await Promise.all([
-            getPupilPasses(orgId, pupilId),
-            listProjects(),
-        ]);
+        const projects = (await listProjects())
+            .filter((project) => project.org_id === orgId)
+            .map((project) => ({ id: project.id, name: project.name }));
+        // The server says which of them the pupil can open too; the others
+        // would be refused (training_pass_pupil_no_access), so not offered.
+        const passes = await getPupilPasses(
+            orgId,
+            pupilId,
+            projects.map((project) => project.id),
+        );
+        const grantable = new Set(passes.grantable_project_ids ?? projects.map((project) => project.id));
         return {
             passes: passes.passes,
-            projects: projects
-                .filter((project) => project.org_id === orgId)
-                .map((project) => ({ id: project.id, name: project.name })),
+            projects,
+            grantable: projects.filter((project) => grantable.has(project.id)),
         };
     }, [orgId, pupilId]);
     const { data, failed, reload } = useSupervisionData(load, {
@@ -89,7 +95,8 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
             <p className="text-sm text-gray-500">{t("passes.intro")}</p>
             <GrantPass
                 id={`pass-new-${pupilId}`}
-                projects={data.projects}
+                projects={data.grantable}
+                anyProjects={data.projects.length > 0}
                 disabled={busy}
                 onGrant={(body) =>
                     run(t("passes.actions.grant"), () => grantUrgencyPass(orgId, pupilId, body))
@@ -157,11 +164,14 @@ export function PassesTab({ orgId, pupilId }: { orgId: string; pupilId: string }
 function GrantPass({
     id,
     projects,
+    anyProjects,
     disabled,
     onGrant,
 }: {
     id: string;
     projects: { id: string; name: string }[];
+    /** Whether the mentor has matters here at all, openable by the pupil or not. */
+    anyProjects: boolean;
     disabled: boolean;
     onGrant: (body: {
         project_id: string;
@@ -198,7 +208,13 @@ function GrantPass({
                         id={`${id}-project`}
                         aria-label={t("passes.project")}
                         value={project}
-                        placeholder={projects.length ? t("passes.chooseProject") : t("passes.noProjects")}
+                        placeholder={
+                            projects.length
+                                ? t("passes.chooseProject")
+                                : anyProjects
+                                  ? t("passes.noGrantableProjects")
+                                  : t("passes.noProjects")
+                        }
                         options={projects.map((option) => ({ value: option.id, label: option.name }))}
                         onChange={setProject}
                         disabled={disabled || projects.length === 0}

@@ -819,6 +819,12 @@ export interface TrainingReviewItem {
     text: string;
     /** Id of what the line points at (a note, a message, a version), when there is one. */
     ref?: string | null;
+    /**
+     * On a `version` line (a sealed draft still held): the document the
+     * version belongs to, which with `ref` is what the existing approval
+     * route takes. Absent on reviews generated before it existed.
+     */
+    document_id?: string | null;
 }
 /** Where a piece of work was done: the web or project chat, Word, a tabular review. */
 export type TrainingWorkSurface = "chat" | "word" | "tabular";
@@ -1034,6 +1040,12 @@ export interface TrainingGrantUrgencyPassBody {
 /** GET /orgs/:orgId/training/pupils/:userId/passes (the pupil's current mentor). */
 export interface TrainingUrgencyPasses {
     passes: TrainingUrgencyPass[];
+    /**
+     * Only when the request named `?project_ids=`: those of them that a pass
+     * can be granted on (the organization's, openable by the mentor and by
+     * the pupil). The grant still refuses the others.
+     */
+    grantable_project_ids?: string[];
 }
 /** GET /training/me/supervision?org_id= : what the caller's mentor sees of them there. */
 export interface TrainingSupervision {

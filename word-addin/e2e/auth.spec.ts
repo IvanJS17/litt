@@ -23,7 +23,7 @@ test.describe("auth flow", () => {
     // read from storage; once useAuth resolves with no token it must give way
     // to the LoginPage rather than getting stuck on the spinner.
     await expect(page.getByRole("button", { name: "Log in" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Log In" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Continue with Google" }),
     ).toBeVisible();
@@ -68,7 +68,7 @@ test.describe("auth flow", () => {
     await page.setViewportSize({ width: 320, height: 620 });
     await addin.gotoTaskpane();
 
-    await expect(page.getByRole("heading", { name: "Log In" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
     const email = page.getByRole("textbox", { name: "Email" });
     const password = page.getByRole("textbox", { name: "Password" });
     await expect(email).toBeVisible();
@@ -106,7 +106,7 @@ test.describe("auth flow", () => {
     expect(
       Math.abs((panel?.y ?? 0) + (panel?.height ?? 0) / 2 - 310),
     ).toBeLessThan(2);
-    await expect(page.getByRole("heading", { name: "Log In" })).toHaveCSS(
+    await expect(page.getByRole("heading", { name: "Log in" })).toHaveCSS(
       "text-align",
       "left",
     );

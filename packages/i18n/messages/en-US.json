@@ -1,5 +1,10 @@
 {
   "auth": {
+    "checkEmail": {
+      "checkYourEmail": "Check your email",
+      "confirmationSent": "We sent a confirmation link to your email address. Confirm your address before logging in.",
+      "returnToLogin": "Return to login"
+    },
     "errors": {
       "accountExists": "An account with this email already exists. Log in instead.",
       "captchaFailed": "The security check didn't pass. Reload the page and try again.",
@@ -39,63 +44,155 @@
       "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
+    },
+    "login": {
+      "email": "Email",
+      "forgotPassword": "Forgot password?",
+      "logIn": "Log in",
+      "loggingIn": "Logging in...",
+      "noAccount": "Don't have an account?",
+      "password": "Password",
+      "retry": "Retry",
+      "retrying": "Retrying...",
+      "signUp": "Sign up"
+    },
+    "signup": {
+      "accountCreated": "Account created!",
+      "confirmPassword": "Confirm password",
+      "continue": "Continue",
+      "creatingAccount": "Creating account...",
+      "email": "Email",
+      "haveAccount": "Have an account?",
+      "logIn": "Log in",
+      "password": "Password",
+      "passwordPlaceholder": "Min. {min} characters",
+      "redirecting": "Redirecting you to finish setting up your account...",
+      "signUp": "Sign up"
+    },
+    "sso": {
+      "backToLogin": "Back to login",
+      "continue": "Continue",
+      "continuing": "Continuing…",
+      "email": "Email",
+      "retry": "Retry",
+      "ssoLogin": "SSO login",
+      "tooManyAttempts": "Too many attempts. Wait a moment and try again."
     }
   },
   "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "close": "Close",
-    "retry": "Retry",
-    "loading": "Loading…",
     "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
     "continue": "Continue",
-    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "delete": "Delete",
     "greeting": "Hi, {name}",
+    "language": {
+      "english": "English",
+      "label": "Language",
+      "spanish": "Español"
+    },
+    "loading": "Loading…",
     "meta": {
-      "title": "LiTT - Legal AI Platform",
-      "description": "AI-powered legal document analysis and contract review platform."
+      "description": "AI-powered legal document analysis and contract review platform.",
+      "title": "LiTT - Legal AI Platform"
+    },
+    "or": "or",
+    "retry": "Retry",
+    "save": "Save",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "sourceCode": {
+      "description": "of this version (opens in a new tab)",
+      "label": "Source code"
+    }
+  },
+  "playbooks": {
+    "newMenu": {
+      "trigger": "New playbook",
+      "models": "Models",
+      "withQuestions": "With questions",
+      "import": "Import from file",
+      "blank": "Start from scratch"
+    },
+    "intake": {
+      "breadcrumb": "Playbooks",
+      "title": "New playbook with questions",
+      "intro": "Answer what you know about this client; every question is optional. The model writes a draft and shows where each rule comes from.",
+      "name": "Playbook name (optional)",
+      "model": "Drafting model",
+      "noModel": "No model is available. <link>Configure an API key</link> or enable a local model.",
+      "question": "Question {number}",
+      "attachments": "Preferred clauses (question 8)",
+      "attachPrompt": "Drag and drop .docx or .pdf files here, or click to choose saved files or upload them.",
+      "attachMorePrompt": "Drop more files here, or click to add more.",
+      "tooManyAttachments": "You can attach up to {max, plural, one {# document} other {# documents}}.",
+      "wrongType": "Attach .docx or .pdf files.",
+      "tooLong": "Your answers add up to more than {max, number} characters. Shorten them.",
+      "noAnswers": "You haven't answered any question. Every rule of the draft will be general practice suggested by the AI, marked as without backing.",
+      "submit": "Write draft",
+      "submitting": "Sending…",
+      "loading": "Loading the questions…",
+      "loadFailed": "The questions couldn't be loaded.",
+      "discardTitle": "Discard your answers?",
+      "discardMessage": "What you wrote and the files you attached will be lost.",
+      "discard": "Discard",
+      "startedTitle": "Writing your draft",
+      "startedMessage": "This can take a few minutes. We'll let you know when it's ready.",
+      "readyTitle": "Draft ready to review",
+      "readyMessage": "{name} is a draft: review its rules and mark it as ready before using it.",
+      "open": "Open",
+      "failedTitle": "The draft wasn't written",
+      "failedMessage": "The draft couldn't be written. Please try again.",
+      "backToQuestions": "Back to the questions",
+      "drafting": "Drafting…",
+      "draftingLabel": "Drafting",
+      "untitled": "Draft playbook",
+      "questions": {
+        "q1": "Who do you represent, and who is the usual counterparty?",
+        "q2": "The client's industry and size, and the regulation of its sector (financial, health, personal data, government…).",
+        "q3": "Type of document: lease, services, NDA, purchase, supply, employment…",
+        "q4": "Jurisdiction and governing law; whether it accepts arbitration, and where.",
+        "q5": "Risk appetite: conservative, balanced or flexible.",
+        "q6": "Red lines: what this client never accepts.",
+        "q7": "What it can give up in a negotiation.",
+        "q8": "The client's preferred clauses or wording; you can attach them.",
+        "q9": "Background: past disputes, the relationship with the counterparty, and what went wrong before.",
+        "q10": "Language, currency and signing format."
+      },
+      "q8Help": "You can attach up to {max, plural, one {# .docx or .pdf document} other {# .docx or .pdf documents}}.",
+      "submitAction": "write the draft",
+      "openAction": "open the draft"
+    },
+    "draft": {
+      "label": "Draft",
+      "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
+      "markReady": "Mark as ready",
+      "confirmTitle": "Mark as ready?",
+      "confirmMessage": "{unbacked, plural, one {# rule has} other {# rules have}} no backing and {unverified, plural, one {# legal reference is} other {# legal references are}} not verified. Once ready, it can be used in reviews and it can't go back to draft.",
+      "markReadyAction": "mark the playbook as ready"
+    },
+    "model": {
+      "label": "Model",
+      "mark": "Mark as model",
+      "unmark": "Remove model mark",
+      "markAction": "change the model mark",
+      "copyAction": "copy the model",
+      "copied": "Your copy of {name} is a draft. Review its rules and mark it as ready.",
+      "copiedTitle": "Copy created"
+    },
+    "origin": {
+      "answer": "Origin: answer to {count, plural, one {question} other {questions}} {questions}",
+      "clause": "Origin: attached clause {name}",
+      "clauseUnnamed": "Origin: attached clause",
+      "aiGeneral": "Origin: general practice suggested by the AI",
+      "unbacked": "Suggestion without backing, review",
+      "unverified": "Not verified",
+      "verified": "Verified in an attached document",
+      "answerLabel": "Answer to question {number}",
+      "quoteLabel": "Fragment of the attached document",
+      "legalRefs": "Legal references"
     }
   },
   "errors": {
-    "couldnt": "Couldn't {action}",
-    "title": {
-      "offline": "You're offline",
-      "network": "Connection problem",
-      "timeout": "Request timed out",
-      "aborted": "Cancelled",
-      "unauthenticated": "Sign in required",
-      "forbidden": "Permission denied",
-      "not_found": "Not found",
-      "conflict": "Conflict",
-      "validation": "Check your input",
-      "payload_too_large": "Too large",
-      "rate_limited": "Slow down",
-      "unavailable": "Service unavailable",
-      "server": "Something went wrong",
-      "unknown": "Something went wrong"
-    },
-    "message": {
-      "offline": "Your device is offline. Check your connection and try again.",
-      "network": "LiTT couldn't reach the server. Check your connection and try again.",
-      "timeout": "The server took too long to respond. Try again.",
-      "aborted": "The request was cancelled.",
-      "unauthenticated": "Your session has expired. Sign in again to continue.",
-      "forbidden": "You don't have permission to do this.",
-      "not_found": "That item no longer exists or was moved.",
-      "conflict": "This was changed somewhere else. Refresh and try again.",
-      "validation": "Some of the information provided isn't valid.",
-      "payload_too_large": "That's too large to upload.",
-      "rate_limited": "Too many requests. Wait a moment and try again.",
-      "unavailable": "LiTT is temporarily unavailable. Try again in a moment.",
-      "server": "Something went wrong on our side. Try again.",
-      "unknown": "Something went wrong. Try again, and contact support if it keeps happening."
-    },
-    "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
-    "upstream": {
-      "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
-      "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
-    },
     "code": {
       "access_inherited": "Access to this item comes from its project. Change it in the project.",
       "account_deletion_receipt_not_found": "This deletion receipt is no longer available.",
@@ -143,16 +240,64 @@
       "validation_failed": "Some of the information provided isn't valid.",
       "workflow_open_source_disabled": "Publishing workflows outside LiTT isn't available."
     },
+    "couldnt": "Couldn't {action}",
+    "message": {
+      "aborted": "The request was cancelled.",
+      "conflict": "This was changed somewhere else. Refresh and try again.",
+      "forbidden": "You don't have permission to do this.",
+      "network": "LiTT couldn't reach the server. Check your connection and try again.",
+      "not_found": "That item no longer exists or was moved.",
+      "offline": "Your device is offline. Check your connection and try again.",
+      "payload_too_large": "That's too large to upload.",
+      "rate_limited": "Too many requests. Wait a moment and try again.",
+      "server": "Something went wrong on our side. Try again.",
+      "timeout": "The server took too long to respond. Try again.",
+      "unauthenticated": "Your session has expired. Sign in again to continue.",
+      "unavailable": "LiTT is temporarily unavailable. Try again in a moment.",
+      "unknown": "Something went wrong. Try again, and contact support if it keeps happening.",
+      "validation": "Some of the information provided isn't valid."
+    },
+    "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
     "signIn": "Sign in",
     "support": {
-      "subject": "LiTT support: {title}",
+      "diagnostics": "--- Details for support (please keep) ---",
       "greeting": "Hi LiTT team,",
       "intro": "I ran into a problem and need help.",
-      "whatHappened": "What happened: {title}",
       "messageShown": "Message shown: {message}",
       "note": "Details: {note}",
-      "diagnostics": "--- Details for support (please keep) ---",
-      "thanks": "Thanks,"
+      "subject": "LiTT support: {title}",
+      "thanks": "Thanks,",
+      "whatHappened": "What happened: {title}"
+    },
+    "title": {
+      "aborted": "Cancelled",
+      "conflict": "Conflict",
+      "forbidden": "Permission denied",
+      "network": "Connection problem",
+      "not_found": "Not found",
+      "offline": "You're offline",
+      "payload_too_large": "Too large",
+      "rate_limited": "Slow down",
+      "server": "Something went wrong",
+      "timeout": "Request timed out",
+      "unauthenticated": "Sign in required",
+      "unavailable": "Service unavailable",
+      "unknown": "Something went wrong",
+      "validation": "Check your input"
+    },
+    "upstream": {
+      "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
+      "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
+    }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Document",
+        "explorer": "Explorer",
+        "label": "Workspace view"
+      }
     }
   },
   "training": {
@@ -210,6 +355,9 @@
       "doubts": "Where they hesitated",
       "unverified": "What was left unverified",
       "inferred": "inferred",
+      "approve": "Approve this version",
+      "approveName": "Approve this version: {text}",
+      "approved": "Approved",
       "none": "Nothing.",
       "generatedWith": "Generated with {model} on {date, date, medium} {date, time, short}",
       "reviewedOn": "Reviewed on {date, date, medium} {date, time, short}",
@@ -228,6 +376,9 @@
       "heldDrafts": "{count, plural, one {# sealed draft still waits for approval; approve it from its document.} other {# sealed drafts still wait for approval; approve them from each document.}}",
       "generate": "Generate review",
       "regenerate": "Regenerate",
+      "approveTitle": "Approve this version?",
+      "approveMessage": "You approve the pupil's draft as it is now. If its content changes, it needs a new approval.",
+      "approve": "Approve",
       "markReviewed": "Mark as reviewed",
       "keyRequired": "To generate reviews and defense questions you need an AI key you can use in this organization. There is no fallback to another key. You can still record a defense without AI.",
       "key": "Key",
@@ -240,7 +391,8 @@
       "actions": {
         "load": "load the works",
         "generate": "generate the review",
-        "markReviewed": "mark the work as reviewed"
+        "markReviewed": "mark the work as reviewed",
+        "approve": "approve the version"
       }
     },
     "defenses": {
@@ -297,6 +449,7 @@
       "project": "Matter",
       "chooseProject": "Choose a matter",
       "noProjects": "You have no matters in this organization",
+      "noGrantableProjects": "The pupil cannot open any of your matters in this organization",
       "duration": "Duration",
       "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
       "hours": "{hours, plural, one {# hour} other {# hours}}",
@@ -386,15 +539,7 @@
     "login": {
       "continueWithGoogle": "Continue with Google",
       "continuing": "Continuing…",
-      "email": "Email",
-      "forgotPassword": "Forgot password?",
-      "heading": "Log In",
-      "logIn": "Log in",
-      "loggingIn": "Logging in...",
-      "noAccount": "Don't have an account?",
-      "or": "or",
-      "password": "Password",
-      "signUp": "Sign up"
+      "heading": "Log in"
     },
     "notify": {
       "completeAction": "complete that action",

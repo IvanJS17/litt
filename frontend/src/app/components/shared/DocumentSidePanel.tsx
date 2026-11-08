@@ -779,7 +779,7 @@ export function DocumentSidePanel({
                                 onApproved={() => onTrainingApproved?.(doc.id)}
                             />
                             {selectedTextLayerWarning && (
-                                <p className="flex items-start gap-1.5 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-800">
+                                <p className="flex items-start gap-1.5 rounded-md bg-warning-surface px-2 py-1.5 text-xs text-warning">
                                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                                     {selectedTextLayerWarning}
                                 </p>

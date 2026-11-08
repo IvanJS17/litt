@@ -1,5 +1,10 @@
 {
   "auth": {
+    "checkEmail": {
+      "checkYourEmail": "Revisa tu correo",
+      "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
+      "returnToLogin": "Volver al inicio de sesión"
+    },
     "errors": {
       "accountExists": "Ya existe una cuenta con este correo. Mejor inicia sesión.",
       "captchaFailed": "La verificación de seguridad no se superó. Recarga la página e inténtalo de nuevo.",
@@ -39,63 +44,155 @@
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos."
+    },
+    "login": {
+      "email": "Correo electrónico",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "logIn": "Iniciar sesión",
+      "loggingIn": "Iniciando sesión...",
+      "noAccount": "¿No tienes una cuenta?",
+      "password": "Contraseña",
+      "retry": "Reintentar",
+      "retrying": "Reintentando...",
+      "signUp": "Regístrate"
+    },
+    "signup": {
+      "accountCreated": "¡Cuenta creada!",
+      "confirmPassword": "Confirma tu contraseña",
+      "continue": "Continuar",
+      "creatingAccount": "Creando cuenta...",
+      "email": "Correo electrónico",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "logIn": "Inicia sesión",
+      "password": "Contraseña",
+      "passwordPlaceholder": "Mínimo {min} caracteres",
+      "redirecting": "Te estamos redirigiendo para terminar de configurar tu cuenta...",
+      "signUp": "Crea tu cuenta"
+    },
+    "sso": {
+      "backToLogin": "Volver al inicio de sesión",
+      "continue": "Continuar",
+      "continuing": "Continuando…",
+      "email": "Correo electrónico",
+      "retry": "Reintentar",
+      "ssoLogin": "Inicio de sesión con SSO",
+      "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo."
     }
   },
   "common": {
-    "save": "Guardar",
-    "cancel": "Cancelar",
-    "delete": "Eliminar",
-    "close": "Cerrar",
-    "retry": "Reintentar",
-    "loading": "Cargando…",
     "back": "Atrás",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
     "continue": "Continuar",
-    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "delete": "Eliminar",
     "greeting": "Hola, {name}",
+    "language": {
+      "english": "English",
+      "label": "Idioma",
+      "spanish": "Español"
+    },
+    "loading": "Cargando…",
     "meta": {
-      "title": "LiTT - Plataforma legal con IA",
-      "description": "Análisis de documentos legales y revisión de contratos con IA."
+      "description": "Análisis de documentos legales y revisión de contratos con IA.",
+      "title": "LiTT - Plataforma legal con IA"
+    },
+    "or": "o",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "sourceCode": {
+      "description": "de esta versión (se abre en una pestaña nueva)",
+      "label": "Código fuente"
+    }
+  },
+  "playbooks": {
+    "newMenu": {
+      "trigger": "Nuevo playbook",
+      "models": "Modelos",
+      "withQuestions": "Con preguntas",
+      "import": "Importar archivo",
+      "blank": "Desde cero"
+    },
+    "intake": {
+      "breadcrumb": "Playbooks",
+      "title": "Nuevo playbook con preguntas",
+      "intro": "Responde lo que sepas de este cliente; todas las preguntas son opcionales. El modelo redacta un borrador y muestra de dónde sale cada regla.",
+      "name": "Nombre del playbook (opcional)",
+      "model": "Modelo de redacción",
+      "noModel": "No hay ningún modelo disponible. <link>Configura una llave de API</link> o activa un modelo local.",
+      "question": "Pregunta {number}",
+      "attachments": "Cláusulas preferidas (pregunta 8)",
+      "attachPrompt": "Arrastra aquí archivos .docx o .pdf, o haz clic para elegir archivos guardados o subirlos.",
+      "attachMorePrompt": "Suelta más archivos aquí, o haz clic para agregar más.",
+      "tooManyAttachments": "Puedes adjuntar hasta {max, plural, one {# documento} other {# documentos}}.",
+      "wrongType": "Adjunta archivos .docx o .pdf.",
+      "tooLong": "Tus respuestas suman más de {max, number} caracteres. Acórtalas.",
+      "noAnswers": "No respondiste ninguna pregunta. Todas las reglas del borrador serán práctica general sugerida por la IA, marcadas como sin respaldo.",
+      "submit": "Redactar borrador",
+      "submitting": "Enviando…",
+      "loading": "Cargando las preguntas…",
+      "loadFailed": "No se pudieron cargar las preguntas.",
+      "discardTitle": "¿Descartar tus respuestas?",
+      "discardMessage": "Se perderá lo que escribiste y los archivos que adjuntaste.",
+      "discard": "Descartar",
+      "startedTitle": "Redactando tu borrador",
+      "startedMessage": "Puede tardar unos minutos. Te avisamos cuando esté listo.",
+      "readyTitle": "Borrador listo para revisar",
+      "readyMessage": "{name} es un borrador: revisa sus reglas y márcalo como listo antes de usarlo.",
+      "open": "Abrir",
+      "failedTitle": "No se redactó el borrador",
+      "failedMessage": "No se pudo redactar el borrador. Inténtalo de nuevo.",
+      "backToQuestions": "Volver a las preguntas",
+      "drafting": "Redactando…",
+      "draftingLabel": "Redactando",
+      "untitled": "Playbook en borrador",
+      "questions": {
+        "q1": "¿A quién representas y quién es la contraparte típica?",
+        "q2": "Giro y tamaño del cliente, y regulación de su sector (financiero, salud, datos personales, gobierno…).",
+        "q3": "Tipo de documento: arrendamiento, servicios, NDA, compraventa, suministro, laboral…",
+        "q4": "Jurisdicción y ley aplicable; si acepta arbitraje y en qué sede.",
+        "q5": "Apetito de riesgo: conservador, equilibrado o flexible.",
+        "q6": "Líneas rojas: lo que este cliente nunca acepta.",
+        "q7": "Lo que sí puede ceder en una negociación.",
+        "q8": "Cláusulas o redacciones preferidas del cliente; se pueden adjuntar.",
+        "q9": "Antecedentes: conflictos pasados, relación con la contraparte y lo que salió mal antes.",
+        "q10": "Idioma, moneda y formato de firma."
+      },
+      "q8Help": "Puedes adjuntar hasta {max, plural, one {# documento .docx o .pdf} other {# documentos .docx o .pdf}}.",
+      "submitAction": "redactar el borrador",
+      "openAction": "abrir el borrador"
+    },
+    "draft": {
+      "label": "Borrador",
+      "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
+      "markReady": "Marcar como listo",
+      "confirmTitle": "¿Marcar como listo?",
+      "confirmMessage": "{unbacked, plural, one {# regla no tiene} other {# reglas no tienen}} respaldo y {unverified, plural, one {# referencia legal no está verificada} other {# referencias legales no están verificadas}}. Ya listo, se puede usar en revisiones y no vuelve a borrador.",
+      "markReadyAction": "marcar el playbook como listo"
+    },
+    "model": {
+      "label": "Modelo",
+      "mark": "Marcar como modelo",
+      "unmark": "Quitar marca de modelo",
+      "markAction": "cambiar la marca de modelo",
+      "copyAction": "copiar el modelo",
+      "copied": "Tu copia de {name} es un borrador. Revisa sus reglas y márcala como lista.",
+      "copiedTitle": "Copia creada"
+    },
+    "origin": {
+      "answer": "Origen: respuesta a la {count, plural, one {pregunta} other {preguntas}} {questions}",
+      "clause": "Origen: cláusula adjunta {name}",
+      "clauseUnnamed": "Origen: cláusula adjunta",
+      "aiGeneral": "Origen: práctica general sugerida por la IA",
+      "unbacked": "Sugerencia sin respaldo, revisar",
+      "unverified": "No verificado",
+      "verified": "Verificado en un documento adjunto",
+      "answerLabel": "Respuesta a la pregunta {number}",
+      "quoteLabel": "Fragmento del documento adjunto",
+      "legalRefs": "Referencias legales"
     }
   },
   "errors": {
-    "couldnt": "No se pudo {action}",
-    "title": {
-      "offline": "Sin conexión",
-      "network": "Problema de conexión",
-      "timeout": "Se agotó el tiempo de espera",
-      "aborted": "Cancelado",
-      "unauthenticated": "Inicia sesión",
-      "forbidden": "Sin permiso",
-      "not_found": "No encontrado",
-      "conflict": "Conflicto",
-      "validation": "Revisa los datos",
-      "payload_too_large": "Demasiado grande",
-      "rate_limited": "Demasiadas solicitudes",
-      "unavailable": "Servicio no disponible",
-      "server": "Algo salió mal",
-      "unknown": "Algo salió mal"
-    },
-    "message": {
-      "offline": "Tu dispositivo no tiene conexión. Revisa tu conexión e inténtalo de nuevo.",
-      "network": "LiTT no pudo comunicarse con el servidor. Revisa tu conexión e inténtalo de nuevo.",
-      "timeout": "El servidor tardó demasiado en responder. Inténtalo de nuevo.",
-      "aborted": "Se canceló la solicitud.",
-      "unauthenticated": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
-      "forbidden": "No tienes permiso para hacer esto.",
-      "not_found": "Ese elemento ya no existe o se movió.",
-      "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
-      "validation": "Parte de la información que diste no es válida.",
-      "payload_too_large": "Es demasiado grande para subirlo.",
-      "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
-      "unavailable": "LiTT no está disponible por el momento. Inténtalo de nuevo en un momento.",
-      "server": "Algo salió mal de nuestro lado. Inténtalo de nuevo.",
-      "unknown": "Algo salió mal. Inténtalo de nuevo y, si sigue pasando, contacta a soporte."
-    },
-    "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
-    "upstream": {
-      "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
-      "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
-    },
     "code": {
       "access_inherited": "El acceso a este elemento viene de su proyecto. Cámbialo en el proyecto.",
       "account_deletion_receipt_not_found": "Este comprobante de eliminación ya no está disponible.",
@@ -143,16 +240,64 @@
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible."
     },
+    "couldnt": "No se pudo {action}",
+    "message": {
+      "aborted": "Se canceló la solicitud.",
+      "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
+      "forbidden": "No tienes permiso para hacer esto.",
+      "network": "LiTT no pudo comunicarse con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+      "not_found": "Ese elemento ya no existe o se movió.",
+      "offline": "Tu dispositivo no tiene conexión. Revisa tu conexión e inténtalo de nuevo.",
+      "payload_too_large": "Es demasiado grande para subirlo.",
+      "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+      "server": "Algo salió mal de nuestro lado. Inténtalo de nuevo.",
+      "timeout": "El servidor tardó demasiado en responder. Inténtalo de nuevo.",
+      "unauthenticated": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
+      "unavailable": "LiTT no está disponible por el momento. Inténtalo de nuevo en un momento.",
+      "unknown": "Algo salió mal. Inténtalo de nuevo y, si sigue pasando, contacta a soporte.",
+      "validation": "Parte de la información que diste no es válida."
+    },
+    "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
     "signIn": "Iniciar sesión",
     "support": {
-      "subject": "Soporte de LiTT: {title}",
+      "diagnostics": "--- Datos para soporte (no los borres) ---",
       "greeting": "Hola, equipo de LiTT:",
       "intro": "Tuve un problema y necesito ayuda.",
-      "whatHappened": "Qué pasó: {title}",
       "messageShown": "Mensaje que apareció: {message}",
       "note": "Detalles: {note}",
-      "diagnostics": "--- Datos para soporte (no los borres) ---",
-      "thanks": "Gracias."
+      "subject": "Soporte de LiTT: {title}",
+      "thanks": "Gracias.",
+      "whatHappened": "Qué pasó: {title}"
+    },
+    "title": {
+      "aborted": "Cancelado",
+      "conflict": "Conflicto",
+      "forbidden": "Sin permiso",
+      "network": "Problema de conexión",
+      "not_found": "No encontrado",
+      "offline": "Sin conexión",
+      "payload_too_large": "Demasiado grande",
+      "rate_limited": "Demasiadas solicitudes",
+      "server": "Algo salió mal",
+      "timeout": "Se agotó el tiempo de espera",
+      "unauthenticated": "Inicia sesión",
+      "unavailable": "Servicio no disponible",
+      "unknown": "Algo salió mal",
+      "validation": "Revisa los datos"
+    },
+    "upstream": {
+      "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
+      "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
+    }
+  },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Documento",
+        "explorer": "Explorador",
+        "label": "Vista del espacio de trabajo"
+      }
     }
   },
   "training": {
@@ -210,6 +355,9 @@
       "doubts": "Dónde dudó",
       "unverified": "Qué quedó sin verificar",
       "inferred": "inferido",
+      "approve": "Aprobar esta versión",
+      "approveName": "Aprobar esta versión: {text}",
+      "approved": "Aprobada",
       "none": "Nada.",
       "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
       "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
@@ -228,6 +376,9 @@
       "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación; apruébalo desde su documento.} other {# borradores sellados siguen pendientes de aprobación; apruébalos desde cada documento.}}",
       "generate": "Generar resumen",
       "regenerate": "Regenerar",
+      "approveTitle": "¿Aprobar esta versión?",
+      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
+      "approve": "Aprobar",
       "markReviewed": "Marcar como revisado",
       "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
       "key": "Llave",
@@ -240,7 +391,8 @@
       "actions": {
         "load": "cargar los trabajos",
         "generate": "generar el resumen",
-        "markReviewed": "marcar el trabajo como revisado"
+        "markReviewed": "marcar el trabajo como revisado",
+        "approve": "aprobar la versión"
       }
     },
     "defenses": {
@@ -297,6 +449,7 @@
       "project": "Asunto",
       "chooseProject": "Elige un asunto",
       "noProjects": "No tienes asuntos en esta organización",
+      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en esta organización",
       "duration": "Duración",
       "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
       "hours": "{hours, plural, one {# hora} other {# horas}}",
@@ -386,15 +539,7 @@
     "login": {
       "continueWithGoogle": "Continuar con Google",
       "continuing": "Continuando…",
-      "email": "Correo electrónico",
-      "forgotPassword": "¿Olvidaste tu contraseña?",
-      "heading": "Iniciar sesión",
-      "logIn": "Iniciar sesión",
-      "loggingIn": "Iniciando sesión...",
-      "noAccount": "¿No tienes una cuenta?",
-      "or": "o",
-      "password": "Contraseña",
-      "signUp": "Regístrate"
+      "heading": "Iniciar sesión"
     },
     "notify": {
       "completeAction": "completar esa acción",
