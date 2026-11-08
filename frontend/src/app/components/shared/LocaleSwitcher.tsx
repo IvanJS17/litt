@@ -54,7 +54,7 @@ export function LocaleSwitcher({ className }: { className?: string }) {
                 aria-busy={pending}
                 value={value}
                 onChange={(event) => change(event.target.value)}
-                className="h-8 cursor-pointer appearance-none rounded-lg bg-transparent py-0 pl-8 pr-3 text-xs text-gray-700 outline-none transition-colors hover:bg-app-surface focus-visible:ring-2 focus-visible:ring-focus"
+                className="h-8 [@media(max-height:700px)]:h-6 cursor-pointer appearance-none rounded-lg bg-transparent py-0 pl-8 pr-3 text-xs text-gray-700 outline-none transition-colors hover:bg-app-surface focus-visible:ring-2 focus-visible:ring-focus"
             >
                 {LOCALES.map((locale) => (
                     <option key={locale} value={locale} lang={locale}>
