@@ -38,7 +38,6 @@ export type TrainingTurnKey =
   | `${Turn}.noteReply`
   | `${Turn}.noteReplyLabel`
   | `${Turn}.noteRightForWrongReason`
-  | `${Turn}.noteVerdictByMentor`
   | `${Turn}.noteVerdictHeading`
   | `${Turn}.noteVerdictHeadingByMentor`
   | `${Turn}.passLater`
@@ -97,7 +96,6 @@ export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {
       parcial: t("training.criterion.turn.verdicts.parcial"),
       no_coincide: t("training.criterion.turn.verdicts.noCoincide"),
     },
-    verdictByMentor: t("training.criterion.turn.noteVerdictByMentor"),
     rightForWrongReason: t("training.criterion.turn.noteRightForWrongReason"),
     foundation: (basis) => t("training.criterion.turn.noteFoundation", { basis }),
     foundations: {

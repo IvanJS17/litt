@@ -57,7 +57,6 @@ export interface TrainingNoteText {
   verdictHeadingByMentor: string;
   verdicts: Record<TrainingVerdictValue, string>;
   /** Said besides a verdict the mentor wrote. */
-  verdictByMentor: string;
   rightForWrongReason: string;
   /** "Basis: {basis}" */
   foundation: (basis: string) => string;
@@ -128,9 +127,6 @@ export function TrainingNoteUI({
                     : text.verdictHeading}
                 </span>{" "}
                 <strong className="font-semibold">{text.verdicts[verdict]}</strong>
-                {note.verdict_source === "mentor" ? (
-                  <span className="text-xs text-muted-foreground"> · {text.verdictByMentor}</span>
-                ) : null}
               </p>
               {foundation ? (
                 <p className="mt-0.5 break-words text-xs text-muted-foreground">

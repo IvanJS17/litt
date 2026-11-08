@@ -31,7 +31,6 @@ const WORDS: Record<string, string> = {
   noteReply: "Reply",
   noteReplyLabel: "Reply to the question about your basis",
   noteRightForWrongReason: "Right for the wrong reason.",
-  noteVerdictByMentor: "corrected by your mentor",
   noteVerdictHeading: "Match with the answer, per the AI contrast:",
   noteVerdictHeadingByMentor: "Match with the answer, per your mentor:",
   "verdicts.coincide": "Matches",
