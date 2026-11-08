@@ -134,3 +134,15 @@ export function fitsWithExplorer(
     );
     return availablePanelWidth(workspaceWidth, layout) >= minimumTotal;
 }
+
+/**
+ * How much of the workspace can sit side by side: every panel with a second
+ * chat, every panel with one chat, or just one panel at a time.
+ */
+export type WorkspaceRoom = "single" | "split" | "splitWithSideChat";
+
+export function workspaceRoom(workspaceWidth: number): WorkspaceRoom {
+    if (fitsWithExplorer(workspaceWidth, true)) return "splitWithSideChat";
+    if (fitsWithExplorer(workspaceWidth, false)) return "split";
+    return "single";
+}

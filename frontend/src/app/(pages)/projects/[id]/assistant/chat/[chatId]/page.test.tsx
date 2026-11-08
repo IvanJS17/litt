@@ -1515,39 +1515,6 @@ describe("workspace on a phone", () => {
         expect(shown()).toEqual(["chat"]);
     });
 
-    // At 768 px the explorer, the document and the chat at their minimum were
-    // wider than the workspace and the chat ended past the screen's edge.
-    it("folds the explorer away on a tablet where it does not fit", async () => {
-        const width = vi
-            .spyOn(HTMLElement.prototype, "clientWidth", "get")
-            .mockReturnValue(700);
-        try {
-            await renderWorkspace();
-            expect(
-                screen.queryByRole("button", { name: "Open draft" }),
-            ).toBeNull();
-            expect(screen.getByTitle("Expand explorer")).toBeDisabled();
-        } finally {
-            width.mockRestore();
-        }
-    });
-
-    it("leaves the explorer open where it fits", async () => {
-        const width = vi
-            .spyOn(HTMLElement.prototype, "clientWidth", "get")
-            .mockReturnValue(1300);
-        try {
-            await renderWorkspace();
-            expect(
-                screen.getByRole("button", { name: "Open draft" }),
-            ).toBeInTheDocument();
-            fireEvent.click(screen.getByTitle("Collapse explorer"));
-            expect(screen.getByTitle("Expand explorer")).toBeEnabled();
-        } finally {
-            width.mockRestore();
-        }
-    });
-
     it("keeps a collapsed explorer reachable on a phone and collapsed on a desktop", async () => {
         const { switcher, shown } = await renderOnPhone();
         fireEvent.click(screen.getByTitle("Collapse explorer"));
@@ -1563,5 +1530,200 @@ describe("workspace on a phone", () => {
                 .getByRole("button", { name: "Open draft" })
                 .closest('[style*="--panel-width"]'),
         ).toHaveClass("md:hidden");
+    });
+});
+
+describe("workspace where three panels do not fit", () => {
+    // From 768 to about 890 px (wider with the sidebar or a side chat open)
+    // the explorer, the document and the chat did not fit side by side: the
+    // explorer folded away behind a disabled button and could not be reached.
+    // There the workspace now shows one panel at a time, as on a phone, from
+    // a switcher above the panels.
+    let width: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+        width = vi
+            .spyOn(HTMLElement.prototype, "clientWidth", "get")
+            .mockReturnValue(690);
+    });
+    afterEach(() => width.mockRestore());
+
+    const panes = {
+        explorer: () =>
+            screen
+                .queryByRole("button", { name: "Open draft" })
+                ?.closest<HTMLElement>('[data-workspace-panel="explorer"]') ??
+            null,
+        document: () => screen.getByRole("region", { name: "Document viewer" }),
+        chat: () =>
+            document.querySelector<HTMLElement>('[data-chat-pane="primary"]'),
+        sideChat: () =>
+            document.querySelector<HTMLElement>('[data-chat-pane="side"]'),
+    };
+    const shown = () =>
+        Object.entries(panes)
+            .filter(([, pane]) => {
+                const element = pane();
+                return element !== null && !element.classList.contains("hidden");
+            })
+            .map(([name]) => name);
+    const switcher = () =>
+        screen.getByRole("group", { name: "Workspace view" });
+    async function chatMenuItems() {
+        const trigger = within(panes.chat()!).getByRole("button", {
+            name: "Actions",
+        });
+        fireEvent.pointerDown(
+            trigger,
+            new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+        );
+        fireEvent.click(trigger);
+        await screen.findByRole("menuitem", { name: "Memory" });
+        return screen.getAllByRole("menuitem").map((item) => item.textContent);
+    }
+    async function renderWithSideChat() {
+        const params = Promise.resolve({ id: "p1" });
+        await act(async () => {
+            render(
+                <Suspense fallback="Loading">
+                    <ProjectAssistantChatPage params={params} />
+                </Suspense>,
+            );
+        });
+        await waitFor(() =>
+            expect(
+                screen.getAllByRole("button", { name: "Send question" }),
+            ).toHaveLength(2),
+        );
+    }
+
+    it("reaches the explorer, the document and the chat from a switcher at 768 px", async () => {
+        await renderWorkspace();
+
+        expect(shown()).toEqual(["chat"]);
+        expect(screen.queryByTitle("Expand explorer")).toBeNull();
+        expect(panes.chat()).toHaveClass("md:w-full");
+        // In the workspace: the phone header is hidden from md up.
+        expect(
+            screen.getByRole("region", { name: "Document viewer" }).parentElement,
+        ).toContainElement(switcher());
+
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Explorer" }));
+        expect(shown()).toEqual(["explorer"]);
+        expect(panes.explorer()).toHaveClass("md:w-full");
+
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Document" }));
+        expect(shown()).toEqual(["document"]);
+
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Chat" }));
+        expect(shown()).toEqual(["chat"]);
+    });
+
+    it("puts every panel side by side again where they fit", async () => {
+        width.mockReturnValue(900);
+        await renderWorkspace();
+
+        expect(screen.queryByRole("group", { name: "Workspace view" })).toBeNull();
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
+        fireEvent.click(screen.getByTitle("Collapse explorer"));
+        expect(screen.getByTitle("Expand explorer")).toBeEnabled();
+        fireEvent.click(screen.getByTitle("Expand explorer"));
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
+    });
+
+    // The side chat would open where it cannot be seen.
+    it.each([
+        ["a phone", 374],
+        ["a tablet", 690],
+        ["a workspace without room for a second chat", 1000],
+    ])("does not offer a side chat on %s", async (_name, px) => {
+        width.mockReturnValue(px);
+        await renderWorkspace();
+        expect(await chatMenuItems()).not.toContain("Open side chat");
+    });
+
+    it("offers the side chat where a second chat fits beside the explorer", async () => {
+        width.mockReturnValue(1200);
+        await renderWorkspace();
+        expect(await chatMenuItems()).toContain("Open side chat");
+    });
+
+    it("moves focus to the switcher when the focused panel is hidden", async () => {
+        await renderWorkspace();
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Explorer" }));
+
+        const openDraft = screen.getByRole("button", { name: "Open draft" });
+        openDraft.focus();
+        fireEvent.click(openDraft);
+
+        expect(shown()).toEqual(["document"]);
+        expect(
+            within(switcher()).getByRole("button", { name: "Document" }),
+        ).toHaveFocus();
+    });
+
+    it("moves focus to the switcher once a document tab's menu closes on a hidden panel", async () => {
+        state.getDocument.mockResolvedValue({ id: "doc1", filename: "Draft.docx" });
+        await renderWorkspace();
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Explorer" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open draft" }));
+        await act(async () => {});
+        fireEvent.contextMenu(screen.getByRole("tab", { name: /Draft.docx/ }));
+
+        const addToChat = await screen.findByRole("menuitem", { name: "Add to chat" });
+        addToChat.focus();
+        fireEvent.click(addToChat);
+
+        expect(shown()).toEqual(["chat"]);
+        await waitFor(() =>
+            expect(
+                within(switcher()).getByRole("button", { name: "Chat" }),
+            ).toHaveFocus(),
+        );
+    });
+
+    it("moves focus to the switcher when the workspace narrows under it", async () => {
+        width.mockReturnValue(900);
+        await renderWorkspace();
+        screen.getByRole("button", { name: "Open draft" }).focus();
+
+        width.mockReturnValue(690);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+
+        expect(shown()).toEqual(["chat"]);
+        expect(
+            within(switcher()).getByRole("button", { name: "Chat" }),
+        ).toHaveFocus();
+    });
+
+    // An open side chat at 768-1020 px, or the sidebar open, pushed the last
+    // chat past the screen's edge.
+    it("shows one panel at a time while an open side chat does not fit", async () => {
+        window.history.replaceState(
+            null,
+            "",
+            "/projects/p1/assistant/chat?side=new",
+        );
+        width.mockReturnValue(1000);
+        await renderWithSideChat();
+
+        expect(panes.sideChat()).not.toBeNull();
+        expect(shown()).toEqual(["chat"]);
+        // The side chat stays open for when the window widens again.
+        expect(await chatMenuItems()).not.toContain("Close side chat");
+    });
+
+    it("shows the side chat beside the others where it fits", async () => {
+        window.history.replaceState(
+            null,
+            "",
+            "/projects/p1/assistant/chat?side=new",
+        );
+        width.mockReturnValue(1200);
+        await renderWithSideChat();
+
+        expect(screen.queryByRole("group", { name: "Workspace view" })).toBeNull();
+        expect(shown()).toEqual(["explorer", "document", "chat", "sideChat"]);
     });
 });

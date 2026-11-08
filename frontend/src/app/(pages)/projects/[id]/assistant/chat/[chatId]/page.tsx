@@ -8,6 +8,7 @@ import {
     use,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useReducer,
     useRef,
@@ -46,12 +47,12 @@ import {
 } from "@/app/lib/chatActivity";
 import { useAssistantHistoryStatuses } from "@/app/hooks/useAssistantHistoryStatuses";
 import { useChatRoute } from "@/app/hooks/useChatRoute";
+import { useWorkspaceRoom } from "@/app/hooks/useWorkspaceRoom";
 import {
     CHAT_DEFAULT,
     DOCUMENT_MIN,
     EXPLORER_DEFAULT,
     fitPanelWidths,
-    fitsWithExplorer,
     resizeChatSplit,
     resizePanel,
     type WorkspacePanelWidths,
@@ -205,11 +206,13 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     const { setSidebarOpen } = useSidebar();
     const { mobileActionsContainer } = usePageChrome();
     const explorerDownload = useExplorerDownload();
-    // A phone has room for one panel: the switcher in the mobile header picks
-    // it. From the md breakpoint up every panel shows and this is ignored.
+    // Where the panels do not fit side by side (a phone, a tablet, or a
+    // narrow window with the sidebar or a side chat open) one shows at a
+    // time, picked from a switcher: in the mobile header below md, above
+    // the panels from md up. Elsewhere every panel shows and this is ignored.
     const [mobileView, setMobileView] = useState<ProjectWorkspaceView>("chat");
-    const hideOnPhoneUnless = (view: ProjectWorkspaceView) =>
-        mobileView === view ? undefined : "max-md:hidden";
+    const workspaceRef = useRef<HTMLDivElement>(null);
+    const room = useWorkspaceRoom(workspaceRef);
 
     const [project, setProject] = useState<Project | null>(null);
     const [projectLoaded, setProjectLoaded] = useState(false);
@@ -249,6 +252,18 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     });
     const explorerWidth = panelWidths.explorer;
     const sideChatOpen = sideChatId !== null;
+    // Unmeasured (`null`), the CSS alone keeps a phone to one panel.
+    const singleView =
+        room === "single" ||
+        (sideChatOpen && room !== null && room !== "splitWithSideChat");
+    // A side chat is offered only where it can be seen beside the others.
+    const sideChatShown =
+        !singleView && (room === null || room === "splitWithSideChat");
+    /** Layout classes for a panel: hidden unless it is the one on screen. */
+    const viewClass = (view: ProjectWorkspaceView) =>
+        mobileView === view
+            ? cn(singleView && "min-h-0 flex-1 md:w-full md:rounded-2xl")
+            : cn("max-md:hidden", singleView && "hidden");
     // "Add to chat" from the explorer or a document tab goes to the chat the
     // reader last used.
     const primaryChatPanelRef = useRef<ProjectChatPanelHandle>(null);
@@ -273,9 +288,6 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         activeChatPaneRef.current = "side";
     }, []);
     const [explorerCollapsed, setExplorerCollapsed] = useState(false);
-    // Whether the expanded explorer fits beside the document and the chat.
-    const [explorerFits, setExplorerFits] = useState(true);
-    const workspaceRef = useRef<HTMLDivElement>(null);
 
     // Upload state
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1243,24 +1255,14 @@ export default function ProjectAssistantChatPage({ params }: Props) {
 
     // The document view gives up width as panels open or the window narrows,
     // but never its minimum: the explorer and chats shrink to make room.
-    useEffect(() => {
+    // Where they cannot, the workspace shows one panel at a time instead
+    // (`room`). A layout effect, so the first paint has the fitted widths.
+    useLayoutEffect(() => {
         const workspace = workspaceRef.current;
         if (!workspace) return;
 
         const fitPanels = () => {
             if (workspace.clientWidth <= 0) return;
-            // From md up the panels sit side by side. Where the explorer
-            // would leave the document and the chat less than their minimum
-            // (a tablet), it folds away instead of pushing the chat off the
-            // screen. A phone shows one panel at a time and skips this.
-            const fits =
-                window.innerWidth < 768 ||
-                fitsWithExplorer(
-                    workspace.clientWidth,
-                    panelLayout.sideChatOpen,
-                );
-            setExplorerFits(fits);
-            if (!fits) setExplorerCollapsed(true);
             setPanelWidths((current) =>
                 fitPanelWidths(current, workspace.clientWidth, panelLayout),
             );
@@ -1298,14 +1300,61 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     }
 
     function handleOpenSideChat() {
-        // Two chats, the explorer and a readable document do not fit a
-        // narrow workspace; the explorer is the one that folds away.
-        const workspaceWidth = workspaceRef.current?.clientWidth;
-        if (workspaceWidth && !fitsWithExplorer(workspaceWidth, true)) {
-            setExplorerCollapsed(true);
-        }
+        // Offered only where the second chat fits beside the explorer and a
+        // readable document (`sideChatShown`).
         openSideChat("");
     }
+
+    // Hiding the panel that holds focus would drop it on the page body. Move
+    // it to the switcher's current view instead, before the browser does.
+    const inlineSwitcherRef = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        if (!singleView) return;
+        const focusSwitcher = () =>
+            // Below md the switcher sits in the mobile header.
+            (window.innerWidth < 768
+                ? mobileActionsContainer
+                : inlineSwitcherRef.current
+            )
+                ?.querySelector<HTMLButtonElement>(
+                    'button[aria-pressed="true"]',
+                )
+                ?.focus();
+        const inHiddenPanel = (element: Element | null) => {
+            const panel = element?.closest<HTMLElement>(
+                "[data-workspace-panel], [data-chat-pane]",
+            );
+            if (!panel) return false;
+            const view =
+                panel.dataset.workspacePanel ??
+                (panel.dataset.chatPane === "primary" ? "chat" : "side-chat");
+            return view !== mobileView;
+        };
+
+        const active = document.activeElement;
+        if (inHiddenPanel(active)) {
+            focusSwitcher();
+            return;
+        }
+        // A menu opened from a panel ("Add to chat" on a document tab)
+        // hands focus back to that panel once it closes, after this runs.
+        // Watch for a few frames; stop as soon as focus moves elsewhere.
+        if (!active?.closest('[role="menu"]')) return;
+        let frames = 0;
+        let request = requestAnimationFrame(function settle() {
+            const current = document.activeElement;
+            if (current === document.body || inHiddenPanel(current)) {
+                focusSwitcher();
+            } else if (
+                !current?.closest('[role="menu"]') &&
+                !current?.closest('[data-slot="workspace-view-switcher"]')
+            ) {
+                return;
+            }
+            if (++frames < 30) request = requestAnimationFrame(settle);
+        });
+        return () => cancelAnimationFrame(request);
+    }, [singleView, mobileView, mobileActionsContainer]);
 
     function handleCloseSideChat() {
         activatePrimaryChat();
@@ -1359,7 +1408,10 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     return (
         <div
             ref={workspaceRef}
-            className="mx-2 mb-2 flex min-h-0 flex-1 md:my-3 md:ml-2 md:mr-3"
+            className={cn(
+                "mx-2 mb-2 flex min-h-0 flex-1 md:my-3 md:ml-2 md:mr-3",
+                singleView && "flex-col",
+            )}
             onDragOver={(event) => {
                 if (isExternalFileDrag(event.dataTransfer)) {
                     event.preventDefault();
@@ -1380,11 +1432,28 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                       mobileActionsContainer,
                   )
                 : null}
-            {/* LEFT: Project Explorer. A phone shows it full width when it is
-                the chosen view, collapsed on the desktop or not. */}
-            {(!explorerCollapsed || mobileView === "explorer") && (
+            {/* From md up the phone header is hidden; the switcher sits above
+                the one panel on screen. */}
+            {singleView && (
+                <div
+                    ref={inlineSwitcherRef}
+                    className="mb-2 flex shrink-0 justify-start max-md:hidden"
+                >
+                    <ProjectWorkspaceViewSwitcher
+                        view={mobileView}
+                        onChange={setMobileView}
+                    />
+                </div>
+            )}
+            {/* LEFT: Project Explorer. One panel at a time shows it full width
+                when it is the chosen view, collapsed side by side or not. It
+                stays mounted there so a focused row is not dropped. */}
+            {(!explorerCollapsed ||
+                singleView ||
+                mobileView === "explorer") && (
                 <>
                     <div
+                        data-workspace-panel="explorer"
                         style={
                             {
                                 "--panel-width": `${explorerWidth}px`,
@@ -1393,8 +1462,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         className={cn(
                             "flex w-full shrink-0 flex-col overflow-hidden rounded-2xl md:w-(--panel-width) md:rounded-l-2xl md:rounded-r-lg",
                             LIQUID_GLASS_FLAT_CLASS,
-                            hideOnPhoneUnless("explorer"),
-                            explorerCollapsed && "md:hidden",
+                            explorerCollapsed && !singleView && "md:hidden",
+                            viewClass("explorer"),
                         )}
                         onDragOver={(e) => {
                             e.preventDefault();
@@ -1496,7 +1565,10 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                 <button
                                     onClick={() => setExplorerCollapsed(true)}
                                     title="Collapse explorer"
-                                    className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 max-md:hidden"
+                                    className={cn(
+                                        "rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 max-md:hidden",
+                                        singleView && "hidden",
+                                    )}
                                 >
                                     <ChevronLeft className="h-3.5 w-3.5" />
                                 </button>
@@ -1575,26 +1647,28 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         onDrag={onExplorerDividerDrag}
                         className={cn(
                             "max-md:hidden",
-                            explorerCollapsed && "md:hidden",
+                            (explorerCollapsed || singleView) && "md:hidden",
                         )}
                     />
                 </>
             )}
 
-            {/* Collapsed explorer toggle */}
+            {/* Collapsed explorer toggle. Side by side the explorer always
+                fits, so it can always expand again. */}
             {explorerCollapsed && (
                 <div
+                    data-workspace-panel="explorer-rail"
                     className={cn(
                         "flex shrink-0 flex-col overflow-hidden rounded-l-2xl rounded-r-lg max-md:hidden",
                         LIQUID_GLASS_FLAT_CLASS,
+                        singleView && "hidden",
                     )}
                 >
                     <div className="flex h-12 shrink-0 items-center justify-center px-1">
                         <button
                             onClick={() => setExplorerCollapsed(false)}
                             title="Expand explorer"
-                            disabled={!explorerFits}
-                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
+                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
                         >
                             <ChevronRight className="h-3.5 w-3.5" />
                         </button>
@@ -1603,7 +1677,10 @@ export default function ProjectAssistantChatPage({ params }: Props) {
             )}
             {explorerCollapsed && (
                 <div
-                    className="w-1.5 shrink-0 max-md:hidden"
+                    className={cn(
+                        "w-1.5 shrink-0 max-md:hidden",
+                        singleView && "hidden",
+                    )}
                     aria-hidden="true"
                 />
             )}
@@ -1612,13 +1689,14 @@ export default function ProjectAssistantChatPage({ params }: Props) {
             <div
                 role="region"
                 aria-label="Document viewer"
+                data-workspace-panel="document"
                 style={
                     { "--document-min": `${DOCUMENT_MIN}px` } as CSSProperties
                 }
                 className={cn(
                     "relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl md:min-w-(--document-min) md:rounded-lg",
                     LIQUID_GLASS_FLAT_CLASS,
-                    hideOnPhoneUnless("document"),
+                    viewClass("document"),
                 )}
                 onDragOverCapture={(event) => {
                     if (!isDocumentViewerDrag(event.dataTransfer)) return;
@@ -1731,7 +1809,10 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                 onCancel={() => { if (!deletingDocument) setDeleteTarget(null); }}
                 onConfirm={() => { if (deleteTarget) void handleDeleteDoc(deleteTarget.id); }}
             />
-            <Divider onDrag={onChatDividerDrag} className="max-md:hidden" />
+            <Divider
+                onDrag={onChatDividerDrag}
+                className={cn("max-md:hidden", singleView && "hidden")}
+            />
 
             {/* RIGHT: Assistant panel, and a second chat beside it */}
             <ProjectChatPanel
@@ -1748,18 +1829,29 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         ? "md:rounded-lg"
                         : "md:rounded-l-lg md:rounded-r-2xl",
                 )}
-                className={hideOnPhoneUnless("chat")}
+                className={viewClass("chat")}
                 onActivate={activatePrimaryChat}
-                onOpenSideChat={sideChatOpen ? undefined : handleOpenSideChat}
-                onCloseSideChat={sideChatOpen ? handleCloseSideChat : undefined}
-                onAskInSideChat={askInSideChat}
+                // One panel at a time has no room for a second chat: it would
+                // open, or sit open, where it cannot be seen.
+                onOpenSideChat={
+                    sideChatOpen || !sideChatShown
+                        ? undefined
+                        : handleOpenSideChat
+                }
+                onCloseSideChat={
+                    sideChatOpen && sideChatShown
+                        ? handleCloseSideChat
+                        : undefined
+                }
+                onAskInSideChat={sideChatShown ? askInSideChat : undefined}
             />
             {sideChatId !== null && (
                 <>
-                    {/* A second chat needs the room; a phone keeps one. */}
+                    {/* A second chat needs the room; with one panel at a time
+                        it stays open off screen until the room returns. */}
                     <Divider
                         onDrag={onChatSplitDividerDrag}
-                        className="max-md:hidden"
+                        className={cn("max-md:hidden", singleView && "hidden")}
                     />
                     <ProjectChatPanel
                         {...chatPanelProps}
@@ -1773,7 +1865,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         hiddenChatId={activeChatId || null}
                         width={panelWidths.sideChat}
                         roundedClassName="rounded-l-lg rounded-r-2xl"
-                        className="max-md:hidden"
+                        className={cn("max-md:hidden", singleView && "hidden")}
                         onActivate={activateSideChat}
                         onClose={handleCloseSideChat}
                     />
