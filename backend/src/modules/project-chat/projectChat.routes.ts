@@ -146,6 +146,10 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         attempt: readTrainingBody(body).attempt,
         confidence: readTrainingBody(body).confidence,
         trainingMode: readTrainingBody(body).mode,
+        trainingCriteria: {
+            routes: readTrainingBody(body).criteriaRoutes,
+            explanation: readTrainingBody(body).criteriaExplanation,
+        },
     });
     if (!prep.ok) {
         if ("internal" in prep) return void sendInternalError(res, prep.error);

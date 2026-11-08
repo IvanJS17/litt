@@ -47,6 +47,7 @@ import {
   createDelegateTurnState,
   delegateSystemPrompt,
   delegateTool,
+  narrowedCriteriaRoutes,
   runDelegateCall,
   type DelegateContext,
   type DelegateResult,
@@ -393,6 +394,16 @@ export async function runLLMStream(params: {
   const webSearch = chatWebSearchEnabled() ? requestedWebSearch : null;
   const subagentRuns =
     chatSubagentsEnabled() && !trainingPlan?.noSubagents ? requestedSubagentRuns : null;
+  // A junior's criteria contrast (lib/trainingTurn/criteria.ts): exactly two
+  // subagents, on the routes or approaches the server assigned. The tool only
+  // offers those routes, or none (the conversation's model) for the approaches.
+  const criteria = trainingPlan?.delegation;
+  const effectiveRoutes: SubagentRoutePlan | null | undefined = criteria
+    ? (() => {
+        const narrowed = narrowedCriteriaRoutes(criteria, subagentRoutes?.routes ?? null);
+        return narrowed && subagentRoutes ? { ...subagentRoutes, routes: narrowed } : null;
+      })()
+    : subagentRoutes;
   const includeAskInputs = requestedAskInputs && trainingPlan?.includeAskInputs !== false;
   const allowDocumentMutation =
     requestedDocumentMutation && trainingPlan?.allowDocumentMutation !== false;
@@ -436,7 +447,7 @@ export async function runLLMStream(params: {
     ...webTools,
     ...(subagentRuns && chatModel
       ? // LiTT: a subagent runs on a route the user configured, or on this model.
-        [delegateTool(subagentRoutes?.routes ?? null)]
+        [delegateTool(effectiveRoutes?.routes ?? null)]
       : []),
   ];
   const advertisedTools = [
@@ -489,7 +500,7 @@ export async function runLLMStream(params: {
             : MIKE_WEB_SEARCH_SYSTEM_PROMPT,
         ]
       : []),
-    ...(subagentRuns ? [delegateSystemPrompt(subagentRoutes?.routes ?? null)] : []),
+    ...(subagentRuns ? [delegateSystemPrompt(effectiveRoutes?.routes ?? null)] : []),
   ].join("\n\n");
   // The person's words of this turn, for checking a figure they "gave".
   const lastPersonMessage =
@@ -674,7 +685,8 @@ export async function runLLMStream(params: {
     docStore,
     docIndex,
     runStore,
-    subagentRoutes: subagentRoutes ?? null,
+    subagentRoutes: effectiveRoutes ?? null,
+    criteria,
     nonce,
     signal: delegationSignal,
     write,
@@ -780,6 +792,13 @@ export async function runLLMStream(params: {
       orgId,
     );
     answerModel = selectedModel;
+    // Fail closed: a contrast without subagents is not a contrast, and
+    // nothing stands in for the two analyses.
+    if (criteria && (!subagentRuns || criteria.assignments?.length !== 2)) {
+      throw new UserFacingError(
+        "Subagents are not available for this conversation, so the criteria contrast cannot run.",
+      );
+    }
     const delegateContext = subagentRuns && delegateContextFor(subagentRuns, selectedModel);
     const providerSearches =
       webSearch === "provider" ? providerWebSearch.reserve() : 0;

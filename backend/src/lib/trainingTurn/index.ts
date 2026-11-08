@@ -47,7 +47,10 @@ export {
     TRAINING_MODE_NOT_ALLOWED_CODE,
 } from "./modes";
 export { hasUnverifiedCitation } from "./unverified";
+export { criteriaOpen, resolveCriteriaDelegation } from "./criteria";
 export type {
+    CriteriaDelegation,
+    CriteriaRun,
     TrainingBody,
     TrainingConfidence,
     TrainingEnginePlan,

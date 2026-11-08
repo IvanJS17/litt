@@ -114,7 +114,7 @@ describe("readMode", () => {
         expect(readMode("counterpart_close")).toBe("counterpart_close");
         for (const none of [undefined, null, ""]) expect(readMode(none)).toBeNull();
         // A later card's modes and plain garbage are not this card's to grant.
-        for (const unknown of ["criteria_contrast", "HINT", 1, true, {}, ["hint"]])
+        for (const unknown of ["criteria_other", "HINT", 1, true, {}, ["hint"]])
             expect(readMode(unknown)).toBeUndefined();
     });
 });

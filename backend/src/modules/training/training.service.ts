@@ -49,6 +49,7 @@ import {
 } from "../../lib/training";
 import { ladderOf, loadLadderNotesAnywhere } from "../../lib/trainingHint";
 import { resolveTurnTraining } from "../../lib/trainingPass";
+import { chatSubagentsEnabled } from "../../lib/chatFeatureGates";
 import { availableModes } from "../../lib/trainingTurn";
 import { isUuid } from "../../lib/uuid";
 
@@ -175,7 +176,7 @@ export async function getEffectiveTrainingStage(
 ): Promise<ServiceResult<TrainingEffectiveStage>> {
     const base = await effectiveStageOf(db, args);
     if (!base.ok) return base;
-    return withModes(db, args.userId, args.chatId, base.data);
+    return withModes(db, args.userId, args.chatId, base.data, args.surface !== "word");
 }
 
 /**
@@ -189,7 +190,32 @@ async function withModes(
     userId: string,
     chatId: unknown,
     base: TrainingEffectiveStage,
+    webSurface: boolean,
 ): Promise<ServiceResult<TrainingEffectiveStage>> {
+    // A junior's criteria contrast (lib/trainingTurn/criteria.ts): only where
+    // subagents exist and run, and the second step only while a contrast waits
+    // for the person's explanation. The turn decides again.
+    if (base.stage === "junior" && webSurface && chatSubagentsEnabled()) {
+        const id = readUserId(chatId);
+        let waiting = false;
+        if (id) {
+            const { data, error } = await db
+                .from("training_criteria_contrasts")
+                .select("id")
+                .eq("chat_id", id)
+                .eq("trainee_user_id", userId)
+                .eq("status", "awaiting_person")
+                .maybeSingle();
+            if (error) return internalFailure(error);
+            waiting = !!data;
+        }
+        return ok({
+            ...base,
+            modes: [waiting ? "criteria_explain" : "criteria_contrast"],
+            next_hint_level: null,
+            counterpart_next_step: null,
+        });
+    }
     const owes = base.attempt_required;
     const id = owes ? readUserId(chatId) : null;
     let notes: Parameters<typeof ladderOf>[0] = [];
