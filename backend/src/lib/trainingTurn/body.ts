@@ -9,5 +9,10 @@ export function readTrainingBody(body: unknown): TrainingBody {
         body && typeof body === "object" && !Array.isArray(body)
             ? (body as Record<string, unknown>)
             : {};
-    return { attempt: record.attempt, confidence: null, mode: null, divergence: null };
+    return {
+        attempt: record.attempt,
+        confidence: record.confidence,
+        mode: null,
+        divergence: null,
+    };
 }

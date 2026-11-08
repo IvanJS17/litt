@@ -1011,6 +1011,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         requestedReasoning: parsedReasoning.value,
         requestedTimeZone: req.body?.time_zone,
         attempt: readTrainingBody(req.body).attempt,
+        confidence: readTrainingBody(req.body).confidence,
     });
     if (!preparation.ok) return void sendTabularFailure(res, preparation);
     const {
@@ -1165,6 +1166,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                 answer: fullText ?? "",
                 model: selectedChatModel,
                 apiKeys: api_keys,
+                citations: annotations,
             });
         }
 

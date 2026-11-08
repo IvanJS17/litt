@@ -13,7 +13,8 @@ export interface TrainingNoteView {
   attempt: string;
   /** Coincide / No coincide / Faltó; null until ready. */
   contrast: string | null;
-  contrast_status: "pending" | "ready" | "failed";
+  /** `skipped`: a turn with nothing to contrast; the contrast block is not drawn. */
+  contrast_status: "pending" | "ready" | "failed" | "skipped";
 }
 
 export const TRAINING_NOTE_PRIVACY_LEGEND =
@@ -42,24 +43,26 @@ export function TrainingNoteUI({
           {note.attempt}
         </p>
       </div>
-      <div className="min-w-0 border-t border-gray-200 pt-3">
-        <h4 className="text-xs font-medium text-gray-600">
-          Contraste con tu planteamiento
-        </h4>
-        {note.contrast_status === "ready" && note.contrast ? (
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">
-            {note.contrast}
-          </p>
-        ) : note.contrast_status === "pending" ? (
-          <p role="status" className="mt-1 text-sm text-gray-600">
-            Generando contraste…
-          </p>
-        ) : (
-          <p className="mt-1 text-sm text-gray-700">
-            No se pudo generar el contraste
-          </p>
-        )}
-      </div>
+      {note.contrast_status !== "skipped" ? (
+        <div className="min-w-0 border-t border-gray-200 pt-3">
+          <h4 className="text-xs font-medium text-gray-600">
+            Contraste con tu planteamiento
+          </h4>
+          {note.contrast_status === "ready" && note.contrast ? (
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-800">
+              {note.contrast}
+            </p>
+          ) : note.contrast_status === "pending" ? (
+            <p role="status" className="mt-1 text-sm text-gray-600">
+              Generando contraste…
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-gray-700">
+              No se pudo generar el contraste
+            </p>
+          )}
+        </div>
+      ) : null}
       <p className="text-xs text-gray-500">{TRAINING_NOTE_PRIVACY_LEGEND}</p>
     </section>
   );

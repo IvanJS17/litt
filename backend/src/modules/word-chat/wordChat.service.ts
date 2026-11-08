@@ -660,6 +660,8 @@ export async function prepareWordChatStream(
     requestedTimeZone?: unknown;
     /** LiTT training: the author's own approach; required of a pasante. */
     attempt?: unknown;
+    /** LiTT training: how sure the author is of their approach (1 to 4). */
+    confidence?: unknown;
   },
 ): Promise<
   | { ok: true; prepared: PreparedWordChatStream }
@@ -734,7 +736,7 @@ export async function prepareWordChatStream(
         surface: "word",
         userId,
         scope: { orgId: null },
-        body: { attempt: args.attempt },
+        body: { attempt: args.attempt, confidence: args.confidence },
       });
     } catch (error) {
       return {

@@ -721,6 +721,19 @@ export interface AccountDeletionStarted {
 export type TrainingStage = "pasante" | "junior";
 
 // --- Training layer 3, card 2: verdict, thermometer and backing (begin) ---
+export type TrainingConfidenceLevel = 1 | 2 | 3 | 4;
+export type TrainingVerdictValue = "coincide" | "parcial" | "no_coincide";
+/** PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict (the pupil's current mentor). */
+export interface TrainingNoteVerdictBody {
+  verdict: TrainingVerdictValue;
+}
+/** The note after the mentor's correction. */
+export interface TrainingNoteVerdictResult {
+  id: string;
+  verdict: TrainingVerdictValue;
+  verdict_source: "mentor";
+  effective_verdict: TrainingVerdictValue;
+}
 // --- Training layer 3, card 2 (end) ---
 
 export interface TrainingStageEntry {
@@ -745,6 +758,12 @@ export interface TrainingEffectiveStage {
     attempt_required: boolean;
     /** The urgency pass in force on that project (never in Word), or null. */
     urgency_pass: TrainingUrgencyPassInForce | null;
+    /**
+     * Whether a turn there must carry the thermometer mark (`confidence`,
+     * 1 to 4) next to the attempt: exactly when `attempt_required`. Absent
+     * from servers older than layer 3, which ask for no mark.
+     */
+    confidence_required?: boolean;
 }
 
 // --- Training layer 3, card 4: own map, calibration and retake (begin) ---
@@ -768,7 +787,7 @@ export interface TrainingMyPupils {
 
 // training turn notes (docs/training.md): a pasante's private record of a
 // chat turn, readable only by its author and their current mentor.
-export type TrainingContrastStatus = "pending" | "ready" | "failed";
+export type TrainingContrastStatus = "pending" | "ready" | "failed" | "skipped";
 export interface TrainingTurnNote {
   id: string;
   org_id: string;
@@ -784,6 +803,22 @@ export interface TrainingTurnNote {
   /** `failed` also covers a contrast still pending long after the turn. */
   contrast_status: TrainingContrastStatus;
   created_at: string;
+  // --- Layer 3: absent on the notes of layers 1 and 2, which read as before ---
+  /** How sure the pasante said they were of their approach: 1 «casi adivino» to 4 «seguro». */
+  confidence?: TrainingConfidenceLevel | null;
+  /** How the approach matches the answer, according to the AI contrast or the mentor. */
+  verdict?: TrainingVerdictValue | null;
+  verdict_source?: "contrast" | "mentor" | null;
+  /** The verdict that counts: `coincide` with a wrong foundation counts as `parcial`. */
+  effective_verdict?: TrainingVerdictValue | null;
+  /** The conclusion matched but the reasoning did not («acertaste por la razón equivocada»). */
+  right_for_wrong_reason?: boolean;
+  foundation?: "solid" | "weak" | "wrong" | null;
+  /** One question about the basis of an approach whose conclusion matched. */
+  foundation_question?: string | null;
+  topics?: string[] | null;
+  /** The answer carried a citation that could not be verified: the turn does not count as evidence. */
+  answer_unverified?: boolean;
 }
 
 // --- Training layer 3, card 6: ladder hints and counterpart (begin) ---

@@ -9,11 +9,15 @@ export type TrainingSurface = "chat" | "project_chat" | "word" | "tabular";
 export type TrainingBody = {
     /** The raw `attempt`; checked against the stage by the attempt behavior. */
     attempt: unknown;
+    /** The raw `confidence`; checked by the confidence behavior. */
+    confidence: unknown;
     /** Reserved for later cards; always null today. */
-    confidence: null;
     mode: null;
     divergence: null;
 };
+
+/** The pasante's own mark on their approach: 1 «casi adivino» to 4 «seguro». */
+export type TrainingConfidence = 1 | 2 | 3 | 4;
 
 /** The one training parameter of the chat engine (`runLLMStream`). */
 export type TrainingEnginePlan = {
@@ -37,7 +41,8 @@ export type TrainingTurnPlan = {
     passActive: boolean;
     /** The pupil's own approach, trimmed; null when the turn needs none. */
     attempt: string | null;
-    confidence: null;
+    /** The thermometer mark, when the turn owes an attempt; otherwise null. */
+    confidence: TrainingConfidence | null;
     mode: null;
     step: null;
     /** The organization a note about this turn belongs to. */
@@ -53,3 +58,18 @@ export type TrainingTurnFailure = {
     code: string;
     detail: string;
 };
+
+/** What a behavior reads about the turn once its stage is resolved. */
+export type ResolvedTurn = {
+    surface: TrainingSurface;
+    body: TrainingBody;
+    stage: TrainingTurnPlan["stage"];
+    passActive: boolean;
+    orgId: string | null;
+};
+
+/** A behavior refines the plan or refuses the turn. */
+export type TrainingBehavior = (
+    resolved: ResolvedTurn,
+    plan: TrainingTurnPlan,
+) => TrainingTurnFailure | TrainingTurnPlan;

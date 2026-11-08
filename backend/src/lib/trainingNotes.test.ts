@@ -6,6 +6,7 @@ vi.mock("./llm", () => ({ completeText }));
 
 import {
     buildContrastPrompt,
+    CONTRAST_SYSTEM_PROMPT,
     createPendingTurnNote,
     effectiveContrastStatus,
     generateTurnContrast,
@@ -25,6 +26,7 @@ describe("createPendingTurnNote", () => {
             chatId: "chat-1",
             messageId: "m1",
             attempt: ATTEMPT,
+            confidence: 2,
         });
         expect(created.ok).toBe(true);
         expect(tables.training_turn_notes).toHaveLength(1);
@@ -34,6 +36,7 @@ describe("createPendingTurnNote", () => {
             word_chat_id: "chat-1",
             message_id: "m1",
             attempt: ATTEMPT,
+            confidence: 2,
             contrast_status: "pending",
         });
         expect(tables.training_turn_notes[0]).not.toHaveProperty("chat_id");
@@ -111,6 +114,84 @@ describe("generateTurnContrast", () => {
         });
     });
 
+    describe("the structured verdict", () => {
+        const TRAILER = "\nVeredicto: coincide\nFundamento: débil\nTemas: rescisión; prescripción\nPregunta: ¿En qué se apoya tu conclusión?";
+
+        it("stores the verdict, basis, topics and question, and keeps the trailer out of the contrast", async () => {
+            completeText.mockResolvedValue(CONTRAST + TRAILER);
+            const { db, tables } = setup();
+            expect(await generateTurnContrast(db, args)).toBe("ready");
+            expect(tables.training_turn_notes[0]).toMatchObject({
+                contrast: CONTRAST,
+                contrast_status: "ready",
+                verdict: "coincide",
+                verdict_source: "contrast",
+                foundation: "weak",
+                foundation_question: "¿En qué se apoya tu conclusión?",
+                topics: ["rescisión", "prescripción"],
+                answer_unverified: false,
+            });
+        });
+
+        it("stays ready, with a null verdict, when the model sent no trailer", async () => {
+            completeText.mockResolvedValue(CONTRAST);
+            const { db, tables } = setup();
+            expect(await generateTurnContrast(db, args)).toBe("ready");
+            expect(tables.training_turn_notes[0]).toMatchObject({
+                contrast_status: "ready",
+                verdict: null,
+                verdict_source: null,
+                foundation: null,
+                foundation_question: null,
+                topics: null,
+            });
+        });
+
+        it("drops a basis question that names a reference neither text names, and keeps the verdict", async () => {
+            completeText.mockResolvedValue(
+                CONTRAST + "\nVeredicto: coincide\nFundamento: equivocado\nPregunta: ¿Y el artículo 2000 del Código Civil?",
+            );
+            const { db, tables } = setup();
+            await generateTurnContrast(db, args);
+            expect(tables.training_turn_notes[0]).toMatchObject({
+                verdict: "coincide",
+                foundation: "wrong",
+                foundation_question: null,
+            });
+        });
+
+        it("asks the model for the trailer in the format the parser reads", () => {
+            for (const label of ["Veredicto:", "Fundamento:", "Temas:", "Pregunta:"])
+                expect(CONTRAST_SYSTEM_PROMPT).toContain(label);
+        });
+    });
+
+    it.each([true, false])("records whether the answer carried an unverified citation (%s)", async (unverified) => {
+        completeText.mockResolvedValue(CONTRAST);
+        const { db, tables } = setup();
+        await generateTurnContrast(db, { ...args, answerUnverified: unverified });
+        expect(tables.training_turn_notes[0].answer_unverified).toBe(unverified);
+    });
+
+    it("records an unverified citation even when the contrast fails", async () => {
+        completeText.mockRejectedValue(new Error("provider down"));
+        const { db, tables } = setup();
+        await generateTurnContrast(db, { ...args, answerUnverified: true });
+        expect(tables.training_turn_notes[0]).toMatchObject({ contrast_status: "failed", answer_unverified: true });
+    });
+
+    // Governed BYOK: the contrast is one call with the conversation's own
+    // model and credential; a failure is never retried on anything else.
+    it("makes one call and never falls back to another model or credential", async () => {
+        completeText.mockRejectedValue(new Error("credential unavailable"));
+        const { db } = setup();
+        expect(await generateTurnContrast(db, args)).toBe("failed");
+        expect(completeText).toHaveBeenCalledTimes(1);
+        const params = completeText.mock.calls[0][0];
+        expect(params.model).toBe("m-chat");
+        expect(params.apiKeys).toBe(apiKeys);
+    });
+
     it("marks the note failed when the provider fails, without throwing", async () => {
         completeText.mockRejectedValue(new Error("provider down"));
         const { db, tables } = setup();
@@ -155,5 +236,7 @@ describe("effectiveContrastStatus", () => {
         expect(effectiveContrastStatus("pending", "2026-11-06T11:58:00Z", now)).toBe("pending");
         expect(effectiveContrastStatus("pending", "2026-11-06T11:00:00Z", now)).toBe("failed");
         expect(effectiveContrastStatus("failed", "2026-11-06T11:59:00Z", now)).toBe("failed");
+        // A turn with nothing to contrast is skipped for good, however old.
+        expect(effectiveContrastStatus("skipped", "2026-11-01T00:00:00Z", now)).toBe("skipped");
     });
 });

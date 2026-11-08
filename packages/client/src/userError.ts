@@ -212,6 +212,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_mentor_has_pupils: "conflict",
     training_pupil_has_mentor: "conflict",
     // --- Training layer 3, card 2 codes (begin) ---
+    // The thermometer mark is owed with the approach (reload for the scale).
+    training_confidence_required: "validation",
     // --- Training layer 3, card 2 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or

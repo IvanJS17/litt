@@ -223,6 +223,7 @@
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
       "training_approval_required": "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
+      "training_confidence_required": "Marca qué tan seguro estás de tu planteamiento antes de preguntar. Si no ves la escala, recarga la página.",
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
       "training_defense_already_recorded": "El resultado de esta defensa ya está registrado. Crea una defensa nueva para corregirlo.",
       "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",

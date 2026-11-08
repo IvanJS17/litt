@@ -56,4 +56,14 @@ describe("TrainingNoteUI", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("status")).toBeNull();
   });
+
+  it("draws no contrast block for a turn with nothing to contrast", () => {
+    render(
+      <TrainingNoteUI note={{ ...base, contrast: null, contrast_status: "skipped" }} />,
+    );
+    expect(screen.getByText(base.attempt)).toBeInTheDocument();
+    expect(screen.queryByText("Contraste con tu planteamiento")).toBeNull();
+    expect(screen.queryByText("No se pudo generar el contraste")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
 });
