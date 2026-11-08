@@ -279,7 +279,7 @@ describe("Mi criterio", () => {
         const [error, options] = vi.mocked(notifyError).mock.calls[0];
         expect(error).toBe(gone);
         // No override: the catalog sentence for the code is what the person reads.
-        expect(options.codeMessages).not.toHaveProperty("training_retake_source_gone");
+        expect(options?.codeMessages).not.toHaveProperty("training_retake_source_gone");
         expect(screen.queryByRole("combobox", { name: "Llave" })).not.toBeInTheDocument();
 
         // The closed retake no longer holds the slot: a new one can be asked for.
