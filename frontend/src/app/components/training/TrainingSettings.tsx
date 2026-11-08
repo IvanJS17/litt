@@ -30,11 +30,13 @@ import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { MemberIdentity, membersById, practiceLabel, STAGE_LABEL } from "./trainingShared";
 import { MentorSeesMe } from "./supervision/MentorSeesMe";
 import { ReadingNotice } from "./reading/ReadingNotice";
+import { MyCriterion } from "./map/MyCriterion";
 
 // Ajustes → Formación (docs/training.md):
 //   Mi formación   the caller's mentor and stages, per organization; they see
 //                  exactly what their mentor sees about them
-//                  («Lo que mi mentor ve de mí», layer 2)
+//                  («Lo que mi mentor ve de mí», layer 2), and their own map,
+//                  calibration and retakes («Mi criterio», layer 3)
 //   Mis pupilos    for a mentor: take members as pupils, set their stage per
 //                  practice area, and release them; the mentor panel
 //                  (/settings/training/mentor) supervises each pupil
@@ -174,6 +176,7 @@ function StageList({
 
 function MyTraining({ membership, orgName }: { membership: TrainingMembership; orgName: string }) {
     const members = useOrgMembers(membership.org_id);
+    const t = useTranslations("training.criterion.contrast");
     return (
         <GlassCardUI>
             <SettingsRow layout="stacked">
@@ -195,6 +198,19 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
                     <ReadingNotice orgId={membership.org_id} />
                 </SettingsRow>
             )}
+            {membership.stages.some((entry) => entry.stage === "junior") && (
+                <SettingsRow layout="stacked">
+                    <Link
+                        href="/settings/training/contrast"
+                        className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                        {t("page.title")}
+                    </Link>
+                </SettingsRow>
+            )}
+            <SettingsRow layout="stacked">
+                <MyCriterion orgId={membership.org_id} />
+            </SettingsRow>
             <SettingsRow layout="stacked">
                 <MentorSeesMe orgId={membership.org_id} />
             </SettingsRow>

@@ -30,6 +30,11 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getPupilPromotion: vi.fn(),
     acceptPromotion: vi.fn(async () => ({})),
     getMySupervision: vi.fn(),
+    getPupilCriterion: vi.fn(),
+    getPupilBacking: vi.fn(),
+    getPupilReviewAudits: vi.fn(),
+    getPupilReadings: vi.fn(),
+    getPupilCriteriaContrasts: vi.fn(async () => ({ org_id: "org-1", trainee_user_id: "pupil-1", contrasts: [], contrasts_without_access: 0 })),
 }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: vi.fn() }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
@@ -233,6 +238,21 @@ describe("Mentor panel", () => {
         vi.mocked(api.getPupilPromotion).mockResolvedValue({ proposals: [] });
         fireEvent.click(within(tabs).getByRole("button", { name: "Promotion" }));
         expect(await screen.findByText("This pupil has no stage to promote.")).toBeInTheDocument();
+
+        vi.mocked(api.getPupilCriterion).mockResolvedValue({
+            map: { topics: [], min_events: 3, window: 4, retake_after_days: 14 },
+            calibration: { min_per_level: 3, marked_turns: 0, levels: [] },
+            hints: { requested: 0, max_level: 0 },
+            retakes: [],
+            notes_without_access: 0,
+            retakes_without_access: 0,
+        } as unknown as Awaited<ReturnType<typeof api.getPupilCriterion>>);
+        vi.mocked(api.getPupilBacking).mockResolvedValue({ works: [], works_without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilBacking>>);
+        vi.mocked(api.getPupilReviewAudits).mockResolvedValue({ audits: [], without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilReviewAudits>>);
+        vi.mocked(api.getPupilReadings).mockResolvedValue({ readings: [], readings_without_access: 0 } as unknown as Awaited<ReturnType<typeof api.getPupilReadings>>);
+        fireEvent.click(within(tabs).getByRole("button", { name: "Criterion" }));
+        expect(await screen.findByRole("heading", { name: "Map and calibration" })).toBeInTheDocument();
+        expect(api.getPupilCriterion).toHaveBeenCalledWith("org-1", "pupil-1");
 
         fireEvent.click(screen.getByRole("button", { name: "All pupils" }));
         expect(await screen.findAllByRole("button", { name: /^Supervise / })).toHaveLength(2);

@@ -361,7 +361,8 @@
         "works": "Works",
         "defenses": "Oral defense",
         "passes": "Urgency pass",
-        "promotion": "Promotion"
+        "promotion": "Promotion",
+        "criterion": "Criterion"
       },
       "actions": {
         "load": "load your pupils"
@@ -586,7 +587,90 @@
           "parcial": "Partly matches"
         }
       },
-      "map": {},
+      "map": {
+        "title": "My criterion",
+        "intro": "How often your approach matched the AI's answer, by topic, and how often your own confidence matched. It counts coincidences with the AI's answer, never whether you were right. Only you and your mentor see it.",
+        "actions": {
+          "load": "load your criterion",
+          "start": "generate the retake",
+          "answer": "send your answer"
+        },
+        "topics": {
+          "title": "By topic",
+          "empty": "You have no topics yet. They appear as you work with your approach first.",
+          "state": {
+            "strong": "Matching often",
+            "middle": "Mixed",
+            "weak": "Worth strengthening",
+            "few_data": "Not enough data yet"
+          },
+          "window": "Matched {hits} of the last {size, plural, one {# time} other {# times}}",
+          "events": "{count, plural, one {# time worked} other {# times worked}}",
+          "last": "last on {date, date, medium}",
+          "due": "Ready to retake"
+        },
+        "calibration": {
+          "title": "Your confidence",
+          "intro": "When you mark a level, how many times your approach matched the AI's answer.",
+          "empty": "You haven't marked your confidence on turns that count yet.",
+          "none": "No turns marked at this level",
+          "line": "When you mark it, it matched {coincided} of {marked, plural, one {# time} other {# times}}",
+          "partial": "{count, plural, one {# partly} other {# partly}}",
+          "fewData": "not enough data yet"
+        },
+        "hints": {
+          "title": "Hints",
+          "mine": {
+            "none": "You haven't asked for hints.",
+            "some": "{count, plural, one {You asked for # hint} other {You asked for # hints}}; the highest was step {level}."
+          },
+          "mentor": {
+            "none": "This pupil hasn't asked for hints.",
+            "some": "{count, plural, one {They asked for # hint} other {They asked for # hints}}; the highest was step {level}."
+          }
+        },
+        "retakes": {
+          "title": "Retakes",
+          "none": "When a weak topic has gone 14 days without work, you can retake it here with one new question.",
+          "noneMentor": "This pupil has no retakes.",
+          "start": "Retake this topic",
+          "startName": "Retake “{topic}”",
+          "generating": "Generating the question…",
+          "refresh": "Refresh",
+          "status": {
+            "pending": "Generating",
+            "open": "Waiting for your answer",
+            "answered": "Answered",
+            "failed": "The question couldn't be generated"
+          },
+          "started": "started on {date, date, medium}",
+          "question": "Question",
+          "answer": "Answer",
+          "contrast": "Contrast with what you wrote before (inferred by the AI)",
+          "verdict": "Match with what you wrote before, according to the AI contrast: {verdict}",
+          "answerLabel": "Your answer",
+          "tooShort": "{length}/{min} characters. Write at least {min} characters.",
+          "count": "{length}/{max} characters.",
+          "send": "Send answer",
+          "once": "You can send it once. The AI contrasts it with what you wrote before; it is not a grade."
+        },
+        "codes": {
+          "notDue": "This topic isn't ready to retake yet.",
+          "inProgress": "You already have a retake in progress. Finish it first.",
+          "notOpen": "This retake is no longer waiting for an answer.",
+          "keyRequired": "You need an AI key you can use in this organization to make a retake.",
+          "credentialUnavailable": "The key this retake used is no longer available to you. Choose another key and try again."
+        },
+        "mentor": {
+          "title": "Map and calibration",
+          "intro": "How often this pupil's approach matched the AI's answer, by topic, how their confidence matched, the hints they asked for and their retakes. Counts of this pupil only: no score, ranking or comparison.",
+          "withoutAccess": "{count, plural, one {# note is from work in a matter you can't open, so it isn't counted here.} other {# notes are from work in matters you can't open, so they aren't counted here.}}",
+          "retakesWithoutAccess": "{count, plural, one {# retake is about work in a matter you can't open, so it isn't listed here.} other {# retakes are about work in matters you can't open, so they aren't listed here.}}",
+          "actions": {
+            "load": "load the pupil's map"
+          }
+        }
+      },
       "modes": {
         "closeButton": "Close the round",
         "closeExplain": "See which objections you held, which you conceded and which you left undefended.",

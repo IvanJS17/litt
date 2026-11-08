@@ -11,7 +11,7 @@ import { BackingPanel } from "./BackingPanel";
 // every conclusion the pupil kept from their answers, the source LiTT could
 // show for it, and what the pupil did with it («lo verifiqué», why they keep
 // it). It is a section, not a tab: the «Criterio» tab that holds sections of
-// this layer mounts it (card 17). Learning data is shown as written and never
+// this layer mounts it (supervision/CriterionTab.tsx). Learning data is shown as written and never
 // translated; there are no totals across pupils and nothing ordered by how
 // they did.
 

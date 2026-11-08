@@ -21,6 +21,19 @@ vi.mock("@/app/lib/mikeApi", () => ({
         readings: [],
     })),
     startReading: vi.fn(),
+    // Layer 3, own map: «Mi criterio» in Mi formación.
+    getMyCriterion: vi.fn(async () => ({
+        org_id: "org-1",
+        trainee_user_id: "me",
+        map: { topics: [], min_events: 3, window: 4, retake_after_days: 14 },
+        calibration: { min_per_level: 3, marked_turns: 0, levels: [] },
+        hints: { requested: 0, max_level: 0 },
+        retakes: [],
+        open_retake_id: null,
+        generation: { available: false, code: "training_review_key_required" },
+    })),
+    startRetake: vi.fn(),
+    answerRetake: vi.fn(),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/contexts/WorkspaceContext", () => ({
@@ -67,6 +80,11 @@ describe("Ajustes → Formación", () => {
         // Layer 2: what their mentor sees of them, in that organization.
         expect(await screen.findByText("What my mentor sees of me")).toBeInTheDocument();
         expect(api.getMySupervision).toHaveBeenCalledWith("org-1");
+        // Layer 3: their own map, calibration and retakes.
+        expect(await screen.findByRole("heading", { name: "My criterion" })).toBeInTheDocument();
+        expect(api.getMyCriterion).toHaveBeenCalledWith("org-1");
+        // Layer 3, criteria contrast: a junior reaches its page from here.
+        expect(screen.getByRole("link", { name: "Criteria contrast" })).toHaveAttribute("href", "/settings/training/contrast");
     });
 
     it("tells a lawyer they have no training", async () => {

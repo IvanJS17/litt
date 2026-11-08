@@ -38,6 +38,7 @@
     "frontend/src/app/components/assistant/message/FirmCriteriaConsulted.tsx",
     "frontend/src/app/components/shared/DocumentAuthorshipPanel.tsx",
     "frontend/src/app/components/training/criterion",
+    "frontend/src/app/components/training/map",
     "frontend/src/app/components/training/firmCriteria",
     "frontend/src/app/hooks/useTrainingText.ts",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",

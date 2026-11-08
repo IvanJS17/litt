@@ -987,8 +987,8 @@ chat and the tabular review chat, and in the Word task pane for cloud chats
 (`training.criterion.backing` in the catalog) and shows each status as a word
 and an icon, never by colour alone. The mentor's section
 (`frontend/src/app/components/training/criterion/BackingSection.tsx`) is
-delivered without its tab: the «Criterio» tab arrives with a later card, which
-mounts it. A message shows its panel once the client knows the saved message
+mounted in the mentor panel's «Criterio» tab (see «Own map, calibration and
+retake»). A message shows its panel once the client knows the saved message
 id and the check exists: on reload, or live (the tabular review takes the run's
 id, which is the message id, from the stream's `chat_id` event) once the server
 has saved the answer and written the check. The mentor's view has its own
@@ -1064,8 +1064,7 @@ answer 404. No model is involved: the design review and the sample are code
 `training_review_audit_stale` (409) is the only code the client acts on. In the
 web app the page is `/tabular-reviews/:id/audit`, offered in the review's
 menu («Auditar preguntas») only when the read says `applies`. The mentor's
-section is `MentorReviewAudits`; until the «Criterio» tab exists it is
-delivered without a tab and is mounted by the card that builds the tab.
+section is `MentorReviewAudits`, mounted in the mentor panel's «Criterio» tab.
 ## From correction to rule (layer 3)
 
 A mentor can turn their corrections of a pupil's work into rules proposed for
@@ -1104,7 +1103,7 @@ Migration `backend/migrations/20261108_78_litt_training_retakes.sql` (also in
 `backend/schema.sql`), module `backend/src/modules/training-criterion/`
 (`trainingCriterion.view.ts`, `.retakes.ts`), pure logic in
 `backend/src/lib/trainingMap.ts`, `trainingCalibration.ts` and
-`trainingRetake.ts`. Server only: the screens are the next card. A pasante
+`trainingRetake.ts`. A pasante
 sees where they are strong and weak by topic, how often their own confidence
 matched the AI's answer, and can retake a weak topic. All of it is **learning
 data** of one person: it is shown only to them and to their **current** mentor,
@@ -1239,6 +1238,47 @@ being discarded; the states are `pending | open | answered | failed` (the plan's
 `training_retake_not_due`, `training_retake_not_open` and
 `training_retake_source_gone`.
 
+### On screen: «Mi criterio» and the «Criterio» tab
+
+Components in `frontend/src/app/components/training/map/`, bilingual under
+`training.criterion.map` (the learning data itself is never translated).
+
+**«Mi criterio»** (`MyCriterion`, in «Mi formación», one per organization,
+before «Lo que mi mentor ve de mí») reads `GET /training/me/criterion`:
+
+- *By topic*: the label, its state in words (never by color: «Coincide
+  seguido», «Intermedio», «Por reforzar», «Aún pocos datos»), «coincidió 1 de
+  las últimas 4 veces», how many times it was worked and when last, and
+  «Listo para retomar» when `retake_due`. Most recent first, never ordered by
+  how it went.
+- *Tu seguridad*: per thermometer level, «cuando lo marcas, coincidió 5 de 8
+  veces», the partial ones, and «aún pocos datos» when the level has not
+  reached the minimum. Counts only: no percentage or average.
+- *Pistas* and *Retomas*. «Retomar este tema» appears only on a weak topic that
+  is due, with no retake already open and a usable key (a «Llave» choice when
+  there is more than one, none when there is a single default). The retake
+  shows its question; the answer (60 to 4000 characters, sent once) is judged
+  by the AI and shown with the three-heading contrast and its verdict. If the
+  key the question was made on is gone
+  (`chat_route_credential_unavailable`) the answer form offers the person's
+  other keys; otherwise the stored route is reused and no key is sent.
+- No key: one line says so and nothing is offered.
+
+**The «Criterio» tab** of the mentor panel (`supervision/CriterionTab.tsx`) is
+a container of sections. Each section takes `orgId` and `pupilId`, draws its
+own heading, skeleton and failure message, and reads only what the pupil's
+current mentor may read. To add one, add an import and a render line:
+
+1. `MentorCriterionMap`: the pupil's map, calibration, hints and retakes
+   (`GET …/criterion`; read only, with the count of notes of matters the
+   mentor cannot open and `text_hidden` retakes).
+2. `BackingSection` (accountability, card 8).
+3. `MentorReviewAudits` (bulk review designer, card 9).
+4. `MentorReadings` (full reading, card 10).
+
+The panel now has five tabs: Trabajos, Defensa oral, Pase de urgencia,
+Promoción and Criterio.
+
 ## Periodic full reading (layer 3)
 
 Migration `backend/migrations/20261108_68_litt_training_criterion_readings.sql`
@@ -1328,8 +1368,7 @@ reading_id }` only): `training.reading_assigned` and `training.reading_submitted
 The findings, the machine's list and the comparison are never audited.
 
 **The mentor's section.** `MentorReadings` (`orgId`, `pupilId`) is a section of
-the panel's «Criterio» tab. That tab does not exist yet, so it ships mountable
-and unmounted; whoever creates the tab adds the section with one import.
+the panel's «Criterio» tab, where it is mounted.
 
 **Product decisions taken without the plan** (the simplest that comply): the
 person's findings take at least 20 characters; the compare step is a separate
