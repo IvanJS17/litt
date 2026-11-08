@@ -18,7 +18,7 @@
 // names that no verified citation of the turn backs is marked «sin verificar»
 // by the server (unverifiedLegalFooter), not by the model.
 
-import { legalReferences } from "./legalReferences";
+import { hasKnownLaw, lawOfTitle, lawReferences } from "./legalReferences";
 import type { Db } from "./supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "./trainingNotes";
 
@@ -29,10 +29,10 @@ export type HintLevel = 1 | 2 | 3;
 export type LadderMode = "hint" | "counterpart" | "counterpart_close";
 
 /** What the ladder needs of a note. */
-export type LadderNote = { mode: string | null; step: number | null; attempt?: string };
+export type LadderNote = { mode: string | null; step: number | null; attempt?: string; contrast_status?: string };
 
 /** The notes of a chat the ladder looks at: the run it needs is at most four long. */
-const LADDER_WINDOW = 8;
+const LADDER_WINDOW = 24;
 
 /** Consecutive notes of `mode` at the end of the chat. `newestFirst`. */
 function trailingRun(newestFirst: readonly LadderNote[], mode: LadderMode): LadderNote[] {
@@ -90,13 +90,24 @@ export async function loadLadderNotes(
     if (!args.chat) return { ok: true, notes: [] };
     const { data, error } = await db
         .from("training_turn_notes")
-        .select("mode, step, attempt, created_at")
+        .select("mode, step, attempt, contrast_status, created_at")
         .eq("trainee_user_id", args.userId)
         .eq(TURN_NOTE_CHAT_COLUMN[args.chat.surface], args.chat.chatId)
         .order("created_at", { ascending: false })
         .limit(LADDER_WINDOW);
     if (error) return { ok: false, error };
-    return { ok: true, notes: Array.isArray(data) ? (data as unknown as LadderNote[]) : [] };
+    const rows = Array.isArray(data) ? (data as unknown as LadderNote[]) : [];
+    return { ok: true, notes: rows.filter(delivered) };
+}
+
+/**
+ * A hint or a counterpart turn is recorded `pending` and only becomes
+ * `skipped` (finishTrainingTurn) once its answer was delivered. One still
+ * pending failed or was aborted before: it gave the person nothing, so it is
+ * not a rung. Every other note counts as it was written.
+ */
+function delivered(note: LadderNote): boolean {
+    return !((note.mode === "hint" || note.mode === "counterpart") && note.contrast_status === "pending");
 }
 
 /**
@@ -122,31 +133,45 @@ export async function loadLadderNotesAnywhere(
 export const UNVERIFIED_LEGAL_FOOTER =
     "Sin verificar: las leyes, artículos o tesis que se nombran arriba no vienen de un documento leído en este turno. Confírmalos en la fuente oficial.";
 
-/** Every string of the verified citations of a turn: the passages the answer can lean on. */
-function verifiedText(value: unknown, depth = 0): string[] {
+/** A passage a verified citation holds, with the title of the document it comes from. */
+type VerifiedPassage = { text: string; title: string | null };
+
+/**
+ * Every passage of the verified citations of a turn, each with its document's
+ * title (filename, doc_name or document.title, as lib/trainingTurn/accountability
+ * reads them; a quote inherits its citation's).
+ */
+function verifiedPassages(value: unknown, inherited: string | null = null, depth = 0): VerifiedPassage[] {
     if (depth > 6 || value === null || typeof value !== "object") return [];
-    if (Array.isArray(value)) return value.flatMap((item) => verifiedText(item, depth + 1));
+    if (Array.isArray(value)) return value.flatMap((item) => verifiedPassages(item, inherited, depth + 1));
     const record = value as Record<string, unknown>;
+    const document = record.document as Record<string, unknown> | null | undefined;
+    const title =
+        [record.filename, record.doc_name, document?.title].find(
+            (candidate): candidate is string => typeof candidate === "string" && candidate.trim() !== "",
+        ) ?? inherited;
     const verification = record.verification as Record<string, unknown> | undefined;
     const backed = record.verified === true || verification?.verified === true;
-    const own = backed
-        ? Object.values(record).flatMap((field) =>
-              typeof field === "string" ? [field] : [],
-          ).concat(
-              typeof verification?.source_excerpt === "string" ? [verification.source_excerpt] : [],
-          )
+    const own: VerifiedPassage[] = backed
+        ? Object.values(record)
+              .flatMap((field) => (typeof field === "string" ? [field] : []))
+              .concat(typeof verification?.source_excerpt === "string" ? [verification.source_excerpt] : [])
+              .map((text) => ({ text, title }))
         : [];
     return [
         ...own,
-        ...verifiedText(record.quotes, depth + 1),
-        ...verifiedText(record.document, depth + 1),
+        ...verifiedPassages(record.quotes, title, depth + 1),
+        ...verifiedPassages(record.document, title, depth + 1),
     ];
 }
 
 /**
  * The «sin verificar» line to append to an answer, or null. A reference counts
- * as backed only when a citation the server verified in this turn contains it;
- * everything else the model remembers is flagged. Never throws.
+ * as backed only when a citation the server verified in this turn holds the
+ * same article of the SAME law (article 1949 of the Código Civil is not
+ * article 1949 of the Ley Federal del Trabajo); everything else the model
+ * remembers is flagged, and so is an article whose law cannot be established
+ * on either side (fails closed). Never throws.
  */
 export function unverifiedLegalFooter(
     answer: string,
@@ -154,35 +179,14 @@ export function unverifiedLegalFooter(
     footer: string = UNVERIFIED_LEGAL_FOOTER,
 ): string | null {
     try {
-        const named = legalReferences(answer);
+        const named = lawReferences(answer);
         if (named.size === 0) return null;
-        const backed = legalReferences(verifiedText(citations).join("\n"));
-        for (const reference of named) if (!backed.has(reference)) return footer;
+        const backed = new Set<string>();
+        for (const { text, title } of verifiedPassages(citations))
+            for (const reference of lawReferences(text, lawOfTitle(title))) backed.add(reference);
+        for (const reference of named) if (!hasKnownLaw(reference) || !backed.has(reference)) return footer;
         return null;
     } catch {
         return null;
     }
-}
-
-// ---------------------------------------------------------------------------
-// Which turns count as evidence
-// ---------------------------------------------------------------------------
-
-/**
- * The ordinary turns that came after a hint, with no other turn between: the
- * pasante asked for help first, so these turns do not count in the
- * calibration and do not make a topic strong (docs/training.md). `notes`
- * oldest first, one chat's.
- */
-export function hintedNoteIndexes(notes: readonly LadderNote[]): Set<number> {
-    const hinted = new Set<number>();
-    let hintsBefore = false;
-    notes.forEach((note, index) => {
-        if (note.mode === "hint") hintsBefore = true;
-        else {
-            if (hintsBefore && note.mode === null) hinted.add(index);
-            if (note.mode !== "counterpart") hintsBefore = false;
-        }
-    });
-    return hinted;
 }

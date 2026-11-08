@@ -43,6 +43,7 @@ import { useSmoothedReveal } from "./message/useSmoothedReveal";
 import { MarkdownContent } from "./message/MarkdownContent";
 import { CitationsBlock, buildCitationAppendix } from "./message/CitationSources";
 import { EditCardsSection } from "./message/EditCardsSection";
+import { FirmCriteriaConsulted } from "./message/FirmCriteriaConsulted";
 import {
     AskInputsBlock,
     DocCreatedBlock,
@@ -896,6 +897,11 @@ function AssistantMessageImpl({
                     <p className="mt-2 text-base font-serif leading-7 text-red-700">
                         {effectiveErrorMessage}
                     </p>
+                )}
+
+                {/* The firm's criteria the assistant consulted (training). */}
+                {events && !isStreaming && (
+                    <FirmCriteriaConsulted events={eventsWithDelegated} />
                 )}
 
                 {/* Download card for each edited doc — only after streaming

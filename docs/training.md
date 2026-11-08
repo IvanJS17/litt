@@ -207,10 +207,11 @@ person's own notes of that chat only): 1 *enfoque* (what figure is at stake and
 what to ask), 2 *dónde buscar* (names of the statute and the chapter), 3 *qué
 revisar* (articles or passages of the matter's documents). None gives the
 conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
-full answer) starts the ladder over. A turn that errored after its note was
-written still counts as a rung. The turn after hints is flagged, for the map
-and the calibration of the criterion cards, with `hintedNoteIndexes`
-(`lib/trainingHint.ts`): it does not count as evidence.
+full answer) starts the ladder over. Only delivered turns count as a rung: a
+hint or counterpart note is written `pending` and settles as `skipped` when the
+turn completes, so one that failed or was aborted gave the person nothing and
+does not advance the ladder (two aborts leave the first rung next). The turn
+after hints is not flagged anywhere yet; no card reads it.
 
 **The counterparty's lawyer.** A round is up to three `counterpart` turns
 (`COUNTERPART_MAX_ROUNDS`): the AI plays the other side, with up to three
@@ -224,9 +225,14 @@ model and credential (no fallback, never fails the turn), produces the note's
 (`lib/trainingCounterpart.ts`). The next counterpart turn opens a new round.
 
 **«Sin verificar».** LiTT has no corpus of laws. In a mode turn, if the answer
-names a legal reference (`legalReferences`) that no citation the server verified
-in that turn contains, the engine appends a fixed line («Sin verificar: …
-Confírmalos en la fuente oficial.») to the stored answer. The model does not
+names a legal reference that no citation the server verified in that turn
+holds, the engine appends a fixed line («Sin verificar: … Confírmalos en la
+fuente oficial.») to the stored answer. The comparison is by article **and
+law** (`lawReferences`, as in the accountability and methodology annex): article
+1949 of the Código Civil is not backed by article 1949 of the Ley Federal del
+Trabajo. Each verified citation's law is read from its text or, failing that,
+from its document's title (`lawOfTitle`); an article whose law cannot be
+established, in the answer or in the citation, is marked. The model does not
 decide what is verified.
 
 **What the mentor sees.** The two-minute review gains computed lines in
@@ -247,7 +253,7 @@ counted as the turn counts them. The server decides again on every turn.
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
@@ -308,9 +314,11 @@ The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
   turn did not end in an error.
 - `readTrainingBody` reads the training fields of a request body and ignores
   the rest. `trainingEnginePlan` turns the plan into the engine's single
-  `trainingPlan` argument (extra system text and narrower tool limits, the
-  `methodology` flag below, and the limits of a mode for a hint or a counterpart
-  turn, see below); it asks nothing of the engine for an ordinary turn.
+  `trainingPlan` argument (extra system text, narrower tool limits, the
+  organization whose firm criteria the turn may read (see «One mold of
+  criterion»), the `methodology` flag below, and the limits of a mode for a hint
+  or a counterpart turn, see below); it asks nothing of the engine for an
+  ordinary turn.
 
 A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
 it does not touch the surfaces again.
@@ -1185,3 +1193,97 @@ action after sending (so the person never sees the machine's list in the same
 step); a reading that cannot be compared stays `failed` and can be retried
 instead of being discarded; `swapped`, `version_id`, `updated_at` and the
 `comparing` state were added to the row of the plan.
+
+## One mold of criterion: the firm's criteria (layer 3)
+
+Migration `backend/migrations/20261108_76_litt_firm_criteria.sql` (also in
+`backend/schema.sql`), module `backend/src/modules/firm-criteria/`, shared logic
+in `backend/src/lib/firmCriteria.ts`, the tool in
+`backend/src/modules/chat/engine/tools/firmCriteriaTool.ts`, the turn behavior
+in `backend/src/lib/trainingTurn/criteria.ts`, the screen in
+`frontend/src/app/components/training/firmCriteria/` (Settings → «Criterios del
+despacho», `/settings/firm-criteria`) and the panel in
+`packages/ui/src/FirmCriteriaConsultedUI.tsx`. Strings are in the
+`training.firmCriteria` namespace of the catalog.
+
+A person of the firm writes a **position** under their name: a `criterio`
+(practice area, topic, text) or a `voto_particular`, which also names the
+playbook rule it disagrees with. LiTT ships none: it has no corpus of laws,
+theses or dissenting opinions, only what the firm writes here or loads as
+documents. A criterion is **a position, not law**: nothing in the screen, the
+panel or the prompt gives it legal authority, and LiTT stores no legal source
+for it.
+
+**It is the firm's content, not learning data.** `firm_criteria` has no pupil
+column, does not hang from a membership and is not a `training_*` table, so the
+learning rule (`training_can_read_learning`) and the generic discovery never
+apply to it. It is closed to the browser roles (RLS on, no policy, no grant;
+the backend is `service_role`) and every query is scoped by `org_id`.
+
+| | Who |
+|---|---|
+| Read | every member of the (team) organization, trainees included |
+| Write, change | a member with **no training stage** in the organization, their own criteria only |
+| Remove | the author, or an owner or admin |
+
+A person who is not a member, a personal workspace, an id of another
+organization and an unknown id all get the same `404`. A trainee gets `403` on a
+write. `GET /orgs/:orgId/firm-criteria` also says what the caller may do
+(`can_write`, `can_manage`) so the screen offers only that. An organization
+holds at most 500 (`409 firm_criteria_limit_reached`). A dissenting opinion's
+playbook must be one the author can open, in the same organization, and the rule
+must be in it (`400 firm_criteria_rule_not_found`); a deleted playbook leaves the
+opinion with its rule id and no link.
+
+**Attribution reuses layer 3's correction attribution** (`docs/playbooks.md`,
+«Origin»): the author's profile name, shown with the date, with no new model
+for who said what. `author_user_id` is `on delete set null`: when an account is
+erased the criterion **stays with the firm** and reads «usuario eliminado»
+(the retention rule: work inside a firm stays with it). Leaving the firm does
+not remove it either. For the same reason it is not in the member handover
+(`ORG_CONTENT_TABLES` is the inventory of what blocks deleting an organization,
+and an organization is only ever soft-deleted), and the account export does not
+carry it.
+
+**The tool.** `list_firm_criteria` (`practice`, `topic`, both optional) is
+advertised **only** in a turn whose training plan names the organization, which
+is any turn of a person with a stage (`pasante` or `junior`), on the four
+surfaces; never in a subagent's. It reads with the caller's own membership,
+calls no model, and returns at most 8 criteria: those of another practice area
+are left out, a topic needs a shared word of four letters or more (heading
+before text, accents and case ignored), and without a topic the most recently
+changed come first. The text goes to the model fenced as untrusted content with
+the turn's nonce. When the table cannot be read the model is told only that the
+consultation failed.
+
+**The event and the panel.** For each call the **server** emits a
+`firm_criteria` event with the criteria exactly as stored, with author and date
+(`FirmCriteriaEvent`, persisted with the message). The web shows it under the
+answer as «Criterios consultados», a disclosure with each criterion's topic,
+kind, practice area, text, author and date, and an honest line when the firm had
+written nothing or the consultation failed. So «según Fulano» never depends on
+what the model writes. Word receives the same event, but its task pane does not
+show the panel yet (the shared component is ready; mounting it is a seam, like
+the mentor panel's pending sections).
+
+**The system instruction.** The training plan (`trainingPlan.systemAddendum`,
+added by the behavior in `lib/trainingTurn/criteria.ts`) tells the model, for
+everyone with a stage: present every reasonable position and never declare one
+the only one; separate what is documented (the matter's documents and the
+criteria the tool returned) from what it knows by memory, marking the latter
+«sin verificar»; attribute each criterion to its author as the tool returns it;
+and never invent a criterion, a dissenting opinion, an author or a date. It can
+only narrow the turn: the text asks for more care and the tool only reads. A
+person with no stage gets neither.
+
+**Audit** (insert-only, `surface: organization`, `{ org_id, criterion_id, kind }`
+only): `firm_criteria.created`, `firm_criteria.updated` and
+`firm_criteria.deleted`. The topic and the text are never audited. The
+consultation costs no model call, so it adds no `llm.egress`; BYOK governance is
+unchanged because the tool runs inside the conversation's own turn.
+
+**Product decisions taken without the plan** (the simplest that comply; open
+question 5): anyone in the firm with no training stage writes and edits their
+own criteria, with their name; everyone in the firm reads them; the author or an
+owner or admin removes one; only the author edits. Removal asks for a second
+confirmation instead of opening a modal.

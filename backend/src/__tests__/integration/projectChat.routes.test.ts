@@ -1114,7 +1114,7 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
             confidence: null,
             mode: "hint",
             step: 1,
-            contrast_status: "skipped",
+            contrast_status: "pending",
         });
         const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
         expect(stream.trainingPlan).toMatchObject({
@@ -1124,6 +1124,9 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
             systemAddendum: expect.stringContaining("PISTA"),
         });
         expect(vi.mocked(completeText)).not.toHaveBeenCalled();
+        // Pending at insert; skipped only once the turn was delivered.
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast_status: "skipped" });
     });
 
     it("refuses a hint from a junior with training_mode_not_allowed, before writing or calling a model", async () => {

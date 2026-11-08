@@ -23,6 +23,7 @@ import type { UserApiKeys } from "../llm";
 import { launchCounterpartClose } from "../trainingCounterpart";
 import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
+import { withFirmCriteria } from "./criteria";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
 import { modesBehavior } from "./modes";
@@ -66,6 +67,8 @@ const attemptBehavior: Behavior = (resolved, plan) => {
     return check.ok ? { ...plan, attempt: check.attempt } : check;
 };
 
+const firmCriteriaBehavior: Behavior = (resolved, plan) => withFirmCriteria(plan, resolved.stage, resolved.orgId);
+
 // A junior's answer is held to account after the turn (./accountability.ts).
 const accountabilityBehavior: Behavior = (resolved, plan) =>
     isAccountable(resolved.stage, resolved.orgId)
@@ -81,6 +84,7 @@ const BEHAVIORS: readonly Behavior[] = [
     confidenceBehavior,
     accountabilityBehavior,
     methodologyBehavior,
+    firmCriteriaBehavior,
     modesBehavior,
 ];
 
@@ -184,9 +188,11 @@ export async function recordTrainingNote(
         confidence: plan.confidence,
         mode: plan.mode,
         step: plan.step,
-        // A hint or a counterpart turn has no answer to contrast; the close of
-        // a round does, with its own sections.
-        contrastStatus: plan.mode === "hint" || plan.mode === "counterpart" ? "skipped" : "pending",
+        // Pending until the turn is delivered: a hint or a counterpart turn has
+        // no answer to contrast, so finishTrainingTurn settles it as skipped,
+        // and the ladder (lib/trainingHint.ts) counts only those. The close of
+        // a round is contrasted with its own sections.
+        contrastStatus: "pending",
     });
     return created.ok ? { ok: true, note: created.note } : created;
 }
@@ -223,6 +229,19 @@ export function finishTrainingTurn(
     },
 ): void {
     if (!args.completed) return;
+    // A delivered hint or counterpart turn has nothing to contrast: it counts
+    // on the ladder from here on, and not before.
+    if (args.note && (args.plan?.mode === "hint" || args.plan?.mode === "counterpart")) {
+        const noteId = args.note.id;
+        void Promise.resolve(
+            db.from("training_turn_notes").update({ contrast_status: "skipped" }).eq("id", noteId).eq("contrast_status", "pending"),
+        ).then(
+            (result) => {
+                if (result?.error) console.warn("[training] mode note not settled", { noteId, error: result.error });
+            },
+            (error) => console.warn("[training] mode note not settled", { noteId, error }),
+        );
+    }
     // A hint or a counterpart turn has no answer to compare with: its note is
     // already skipped. The close of a round is contrasted with its own sections.
     if (args.note && args.plan?.mode === "counterpart_close") {

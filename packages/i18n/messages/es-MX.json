@@ -204,6 +204,8 @@
       "chat_route_pinned": "Esta conversación usa el modelo con el que empezó. Inicia una conversación nueva para usar otro modelo.",
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",
+      "firm_criteria_limit_reached": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
+      "firm_criteria_rule_not_found": "Esa regla no está en un playbook de tu despacho que puedas abrir.",
       "invalid_json": "No se pudo leer la solicitud. Recarga la página e inténtalo de nuevo.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
       "matter_owner_target_invalid": "Elige a un miembro actual de la organización.",
@@ -1060,7 +1062,71 @@
         }
       }
     },
-    "firmCriteria": {}
+    "firmCriteria": {
+      "consulted": {
+        "summary": "{count, plural, one {# criterio consultado} other {# criterios consultados}}",
+        "note": "Son posturas que escribieron personas de tu despacho. No son derecho vigente y LiTT no las verifica.",
+        "empty": "Tu despacho no ha escrito un criterio sobre este tema.",
+        "failed": "No se pudieron consultar los criterios del despacho.",
+        "more": "Hay más criterios que coinciden de los que se muestran aquí.",
+        "kind": {
+          "criterio": "Criterio",
+          "voto_particular": "Voto particular"
+        },
+        "byline": "Según {author} · {date, date, medium}",
+        "bylineDeleted": "Según un usuario eliminado · {date, date, medium}",
+        "practice": "Materia: {practice}",
+        "rule": "Discrepa de una regla de un playbook"
+      },
+      "settings": {
+        "tab": "Criterios del despacho",
+        "title": "Criterios del despacho",
+        "intro": "Posturas que personas de tu despacho escribieron con su nombre. Cuando alguien en formación le hace una pregunta a LiTT, el asistente puede consultarlas y decir quién escribió cada una. No son derecho vigente y LiTT no las verifica.",
+        "noOrganizations": "Todavía no perteneces a ningún despacho.",
+        "loadFailed": "No se pudieron cargar los criterios del despacho.",
+        "empty": "Tu despacho todavía no ha escrito criterios.",
+        "readOnly": "Mientras estás en formación lees los criterios de tu despacho, pero no los escribes.",
+        "count": "{count, plural, one {# criterio} other {# criterios}}",
+        "write": "Escribir un criterio",
+        "edit": "Editar",
+        "editName": "Editar el criterio «{topic}»",
+        "remove": "Quitar",
+        "removeName": "Quitar el criterio «{topic}»",
+        "confirmRemove": "¿Quieres quitar este criterio? No se puede deshacer.",
+        "confirmRemoveYes": "Sí, quitarlo",
+        "cancel": "Cancelar",
+        "removed": "Se quitó el criterio.",
+        "saved": "Se guardó el criterio.",
+        "mine": "Tuyo",
+        "kindLabel": "Tipo",
+        "kind": {
+          "criterio": "Criterio",
+          "voto_particular": "Voto particular"
+        },
+        "topicLabel": "Tema",
+        "topicHelp": "Unas palabras, por ejemplo «Prescripción cambiaria».",
+        "practiceLabel": "Materia",
+        "practiceAny": "Cualquier materia",
+        "positionLabel": "Postura",
+        "positionHelp": "Escribe tu postura como la firmarías. Se mostrará con tu nombre y la fecha.",
+        "positionCount": "{count} de {max} caracteres",
+        "playbookLabel": "Playbook",
+        "playbookPlaceholder": "Elige un playbook",
+        "noPlaybooks": "Todavía no hay playbooks de los que discrepar.",
+        "ruleLabel": "Regla",
+        "rulePlaceholder": "Elige una regla",
+        "voteHelp": "Un voto particular nombra la regla del playbook de la que discrepas. No cambia la regla.",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "rule": "Discrepa de la regla «{rule}» de «{playbook}»",
+        "ruleUnknown": "Discrepa de una regla de un playbook que no puedes abrir",
+        "author": "De {author} · {date, date, medium}",
+        "authorDeleted": "De un usuario eliminado · {date, date, medium}",
+        "changed": "cambiado el {date, date, medium}",
+        "limit": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
+        "loadingLabel": "Cargando los criterios del despacho"
+      }
+    }
   },
   "word": {
     "app": {

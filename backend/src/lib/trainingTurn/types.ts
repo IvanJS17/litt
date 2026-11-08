@@ -35,6 +35,11 @@ export type TrainingEnginePlan = {
      * backs (lib/trainingHint.ts). The server decides, never the model.
      */
     unverifiedFooter?: string;
+    /**
+     * The organization whose written criteria the turn may consult
+     * (list_firm_criteria). Read-only, with the caller's own membership.
+     */
+    firmCriteriaOrgId?: string;
     /** Offer compute_methodology (a junior's turn); absent for every other turn. */
     methodology?: true;
 };
