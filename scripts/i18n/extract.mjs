@@ -40,7 +40,7 @@ const DEFAULT_REPO = resolve(fileURLToPath(import.meta.url), "../../..");
 export const CATALOGS = { en: "packages/i18n/messages/en-US.json", es: "packages/i18n/messages/es-MX.json" };
 export const BASELINE = "frontend/src/__tests__/i18n-literal-baseline.json";
 // Where catalog keys are looked up by --prune.
-const KEY_USERS = ["frontend/src", "word-addin/src", "packages"];
+const KEY_USERS = ["frontend/src", "word-addin/src", "packages", "backend/src"];
 
 class Skip extends Error {}
 

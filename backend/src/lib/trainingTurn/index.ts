@@ -23,6 +23,7 @@ import type { UserApiKeys } from "../llm";
 import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
+import { methodologyBehavior } from "./methodology";
 import type {
     TrainingBody,
     TrainingEnginePlan,
@@ -67,7 +68,7 @@ const accountabilityBehavior: Behavior = (resolved, plan) =>
         : plan;
 
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior, accountabilityBehavior];
+const BEHAVIORS: readonly Behavior[] = [attemptBehavior, accountabilityBehavior, methodologyBehavior];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
