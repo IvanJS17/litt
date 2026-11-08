@@ -46,6 +46,18 @@ describe("useTrainingReply", () => {
     expect(other).toHaveBeenCalledTimes(2);
   });
 
+  it("lets a chat-scoped composer without a chat ignore a request aimed at one, but not a request without a chat", () => {
+    const scoped = vi.fn();
+    const lenient = vi.fn();
+    renderHook(() => useTrainingReply({ enabled: true, chatScoped: true, onReply: scoped }));
+    renderHook(() => useTrainingReply({ enabled: true, onReply: lenient }));
+    act(() => requestTrainingReply("¿Por qué?", "chat-2"));
+    expect(scoped).not.toHaveBeenCalled();
+    expect(lenient).toHaveBeenCalledWith("¿Por qué?");
+    act(() => requestTrainingReply("¿Cómo?"));
+    expect(scoped).toHaveBeenCalledWith("¿Cómo?");
+  });
+
   it("uses the latest handler and stops listening on unmount", () => {
     const first = vi.fn();
     const second = vi.fn();

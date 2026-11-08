@@ -78,7 +78,7 @@ describe("TrainingNoteUI", () => {
     note({ ...ready, effective_verdict: verdict });
     expect(screen.getByText("Match with the answer, per the AI contrast:")).toBeInTheDocument();
     expect(screen.getByText(label)).toBeInTheDocument();
-    expect(screen.queryByText(/your mentor/)).toBeNull();
+    expect(screen.queryByText(/corrected by|per your mentor/)).toBeNull();
   });
 
   it("says when the mentor wrote the verdict and shows the basis", () => {
@@ -93,7 +93,7 @@ describe("TrainingNoteUI", () => {
     expect(screen.getByText("Match with the answer, per your mentor:")).toBeInTheDocument();
     expect(screen.queryByText(/per the AI contrast/)).toBeNull();
     // The mentor is named once, in the heading.
-    expect(screen.getAllByText(/your mentor/)).toHaveLength(1);
+    expect(screen.getAllByText(/per your mentor/)).toHaveLength(1);
     expect(screen.queryByText(/corrected by/)).toBeNull();
     expect(screen.getByText("Basis: weak")).toBeInTheDocument();
   });

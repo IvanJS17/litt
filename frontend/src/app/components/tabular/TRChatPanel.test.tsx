@@ -51,6 +51,7 @@ vi.mock("../assistant/ChatInput", () => ({
         canSend?: boolean;
     }) => (
         <>
+            <output data-testid="composer-ids" data-chat-key={chatKey ?? ""} data-chat-id={chatId ?? ""} />
             <button
                 type="button"
                 disabled={!canSend}

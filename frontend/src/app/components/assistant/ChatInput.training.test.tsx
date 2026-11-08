@@ -9,6 +9,7 @@ import { ChatInput } from "./ChatInput";
 
 vi.mock("@/app/lib/mikeApi", () => ({
     listWorkflows: vi.fn(async () => []),
+    getChatCredentialOptions: vi.fn(async () => ({ provider: "openai", options: [], default: null })),
     uploadProjectDocument: vi.fn(),
     uploadStandaloneDocument: vi.fn(),
 }));
