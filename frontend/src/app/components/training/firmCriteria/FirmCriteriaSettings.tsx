@@ -81,7 +81,7 @@ function SkeletonCard() {
 
 type Editing = { kind: "new" } | { kind: "edit"; id: string } | null;
 
-function OrgCriteria({ orgId, orgName, showName }: { orgId: string; orgName: string; showName: boolean }) {
+export function OrgCriteria({ orgId, orgName, showName }: { orgId: string; orgName: string; showName: boolean }) {
   const t = useTranslations("training.firmCriteria.settings");
   const [data, setData] = useState<FirmCriteriaList | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
