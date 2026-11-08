@@ -566,7 +566,7 @@ describe("what the mentor reads", () => {
             seed({ notes: [...open] });
             const res = await start();
             expect(res.status).toBe(201);
-            expect([...retakeRows()[0].source_note_ids].sort()).toEqual(open.map((n) => n.id).sort());
+            expect([...(retakeRows()[0].source_note_ids as string[])].sort()).toEqual(open.map((n) => n.id).sort());
             expect(res.body).not.toHaveProperty("source_note_ids");
         });
 
