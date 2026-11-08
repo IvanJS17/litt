@@ -345,12 +345,16 @@ The rule, which the panel also states:
 2. **From the AI:** the sentence appears in the text of an assistant edit that
    a person *accepted* (`document_edits.inserted_text`, `status = 'accepted'`,
    of this version or any earlier one), or in the starting text of the version
-   when that was generated (`source = 'generated'`).
+   when that was generated (`source = 'generated'`) and its bytes are still the
+   generated ones (`storage_path` is still the `generated/…` key the assistant
+   wrote; every in-place replacement, editor save or resolved edit moves it to
+   `documents/…`). A generated start that was replaced in place is read as
+   «unknown»: its current text may be a person's.
 3. **Undetermined:** it appears in a *pending* assistant edit; it appears in a
    starting text that came in as an uploaded file (`upload`, `user_upload`:
    LiTT does not know who wrote a file); it has fewer than three words yet
    equals assistant text (chance cannot be told from copying); or the starting
-   text cannot be read, so only accepted assistant text is placed. Pages
+   text cannot be read or was replaced after the assistant generated it, so only accepted assistant text is placed. Pages
    without a text layer are reported, not attributed.
 4. **Written by a person:** everything else, i.e. text that entered through
    edits made in LiTT and matches nothing the assistant produced. A sentence a

@@ -44,6 +44,7 @@ type VersionRow = {
   source: string;
   created_at: string;
   deleted_at: string | null;
+  storage_path: string | null;
   training_author_user_id: string | null;
 };
 
@@ -62,18 +63,17 @@ type DocLike = {
  * Whether `userId`, who can read the document, may see the estimate of a
  * version sealed to `authorId` (or unsealed when it is null).
  * `canApprove`, when the caller already knows it, saves a second lookup.
- */
  * `memo` is shared by the rows of one list: what depends only on the caller,
  * the document or the author is read once instead of once per row.
+ */
 export async function mayViewAuthorship(
   db: Db,
   access: AccessLike,
   userId: string,
   authorId: string | null,
   canApprove?: boolean,
-): Promise<boolean> {
   memo: Map<string, Promise<boolean>> = new Map(),
-  const doc = access.doc as DocLike;
+): Promise<boolean> {
   const once = (key: string, read: () => Promise<boolean>) => {
     const known = memo.get(key);
     if (known) return known;
@@ -81,6 +81,7 @@ export async function mayViewAuthorship(
     memo.set(key, pending);
     return pending;
   };
+  const doc = access.doc as DocLike;
   const orgId = doc.org_id ?? null;
   if (!orgId) return false;
   if (authorId) {
@@ -132,7 +133,9 @@ export async function getDocumentAuthorship(
 
     const { data, error } = await db
       .from("document_versions")
-      .select("id, version_number, source, created_at, deleted_at, training_author_user_id")
+      .select(
+        "id, version_number, source, created_at, deleted_at, storage_path, training_author_user_id",
+      )
       .eq("document_id", input.documentId);
     if (error) return internalFailure(error);
     const versions = (data ?? []) as VersionRow[];
@@ -208,10 +211,21 @@ async function loadEdits(
 }
 
 /**
+ * The storage key the assistant gives a generated document (`generatedDocKey`).
+ * Every rewrite of a version in place (replace this version, an editor save,
+ * a resolved edit) writes new bytes under `documents/…`, so a generated
+ * version that still points here has never been touched by anybody.
+ */
+const GENERATED_STORAGE_PREFIX = "generated/";
+
+/**
  * The text the version started from: the latest version at or before it that
- * the assistant generated or somebody uploaded. When it cannot be read the
- * baseline is "unknown" and everything not matched to an accepted assistant
- * edit stays undetermined.
+ * the assistant generated or somebody uploaded. A generated start only counts
+ * as the assistant's while its bytes are provably the generated ones; once
+ * they were replaced in place, whatever the person wrote there would read as
+ * the assistant's, so the baseline is "unknown". It is also "unknown" when it
+ * cannot be read: everything not matched to an accepted assistant edit then
+ * stays undetermined.
  */
 async function loadBaseline(
   db: Db,
@@ -230,6 +244,11 @@ async function loadBaseline(
   const start = starts[starts.length - 1];
   if (!start) return { kind: "unknown" };
   const kind = start.source === "generated" ? "ai" : "file";
+  if (
+    kind === "ai" &&
+    !(start.storage_path ?? "").startsWith(GENERATED_STORAGE_PREFIX)
+  )
+    return { kind: "unknown" };
   if (start.id === version.id) return { kind, text: ownText };
   const stored = await readStoredDocumentText(db, {
     userId: input.userId,

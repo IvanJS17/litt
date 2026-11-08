@@ -139,9 +139,61 @@ describe("the estimate", () => {
 
   it("reads a generated starting text as the assistant's", async () => {
     tables.document_versions[0].source = "generated";
+    tables.document_versions[0].storage_path = "generated/pupil/doc-1/generated.docx";
     const response = await ask("ver-3");
     expect(response.body.baseline).toBe("ai");
     expect(response.body.words).toMatchObject({ ai: 18, person: 11, undetermined: 10 });
+  });
+
+  describe("a generated or uploaded version whose bytes were replaced in place", () => {
+    const WRITTEN = "Agrego que el plazo de gracia es de quince días naturales.";
+
+    it("an untouched generated version is the assistant's", async () => {
+      Object.assign(tables.document_versions[0], {
+        source: "generated",
+        storage_path: "generated/pupil/doc-1/generated.docx",
+      });
+      texts["ver-1"] = { status: "ready", text: AI_ONE };
+      const response = await ask("ver-1");
+      expect(response.body.baseline).toBe("ai");
+      expect(response.body.shares).toEqual({ person: 0, ai: 100, undetermined: 0 });
+    });
+
+    it("what the person wrote there is not the assistant's", async () => {
+      Object.assign(tables.document_versions[0], {
+        source: "generated",
+        storage_path: "documents/pupil/doc-1/versions/replacement.docx",
+      });
+      texts["ver-1"] = { status: "ready", text: `${AI_ONE}\n${WRITTEN}` };
+      const response = await ask("ver-1");
+      expect(response.body.baseline).toBe("unknown");
+      expect(response.body.words.ai).toBe(0);
+      expect(response.body.shares.ai).toBe(0);
+    });
+
+    it("the same holds for the versions after it", async () => {
+      Object.assign(tables.document_versions[0], {
+        source: "generated",
+        storage_path: "documents/pupil/doc-1/versions/replacement.docx",
+      });
+      texts["ver-1"] = { status: "ready", text: `${AI_ONE}\n${WRITTEN}` };
+      texts["ver-3"] = { status: "ready", text: `${AI_ONE}\n${WRITTEN}\n${AI_TWO}` };
+      const response = await ask("ver-3");
+      expect(response.body.baseline).toBe("unknown");
+      // Only the accepted assistant edit of ver-2 is the assistant's.
+      expect(response.body.words.ai).toBe(9);
+    });
+
+    it("an uploaded version is never read as the assistant's", async () => {
+      Object.assign(tables.document_versions[0], {
+        source: "upload",
+        storage_path: "documents/pupil/doc-1/versions/replacement.docx",
+      });
+      texts["ver-1"] = { status: "ready", text: `${FILE}\n${WRITTEN}` };
+      const response = await ask("ver-1");
+      expect(response.body.baseline).toBe("file");
+      expect(response.body.shares).toEqual({ person: 0, ai: 0, undetermined: 100 });
+    });
   });
 
   it("says the starting text is unknown when it cannot be read", async () => {

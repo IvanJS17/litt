@@ -620,7 +620,7 @@
         "ai": "From the assistant",
         "baseline": {
           "file": "This version started from an uploaded file. LiTT doesn't know who wrote a file, so that text is undetermined.",
-          "unknown": "LiTT has no record of the text this version started from, so it only places text from accepted assistant edits. The rest is undetermined."
+          "unknown": "LiTT has no record of the text this version started from (or the file the assistant generated has been replaced), so it only places text from accepted assistant edits. The rest is undetermined."
         },
         "edits": "Assistant edits: {accepted} accepted, {rejected} rejected, {pending} pending.",
         "estimateNote": "Estimate, rounded to the nearest 5%.",
@@ -629,7 +629,7 @@
         "loadFailedAction": "load the estimated authorship",
         "pending": "{count, plural, one {# assistant edit is still pending, so its text is} other {# assistant edits are still pending, so their text is}} undetermined until someone accepts or rejects {count, plural, one {it} other {them}}.",
         "person": "Written by a person",
-        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
+        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated and nobody has replaced. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
         "share": "{percent}%",
         "show": "Show estimated authorship",
         "status": {
