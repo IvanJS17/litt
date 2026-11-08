@@ -207,10 +207,11 @@ person's own notes of that chat only): 1 *enfoque* (what figure is at stake and
 what to ask), 2 *dónde buscar* (names of the statute and the chapter), 3 *qué
 revisar* (articles or passages of the matter's documents). None gives the
 conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
-full answer) starts the ladder over. A turn that errored after its note was
-written still counts as a rung. The turn after hints is flagged, for the map
-and the calibration of the criterion cards, with `hintedNoteIndexes`
-(`lib/trainingHint.ts`): it does not count as evidence.
+full answer) starts the ladder over. Only delivered turns count as a rung: a
+hint or counterpart note is written `pending` and settles as `skipped` when the
+turn completes, so one that failed or was aborted gave the person nothing and
+does not advance the ladder (two aborts leave the first rung next). The turn
+after hints is not flagged anywhere yet; no card reads it.
 
 **The counterparty's lawyer.** A round is up to three `counterpart` turns
 (`COUNTERPART_MAX_ROUNDS`): the AI plays the other side, with up to three
@@ -224,9 +225,14 @@ model and credential (no fallback, never fails the turn), produces the note's
 (`lib/trainingCounterpart.ts`). The next counterpart turn opens a new round.
 
 **«Sin verificar».** LiTT has no corpus of laws. In a mode turn, if the answer
-names a legal reference (`legalReferences`) that no citation the server verified
-in that turn contains, the engine appends a fixed line («Sin verificar: …
-Confírmalos en la fuente oficial.») to the stored answer. The model does not
+names a legal reference that no citation the server verified in that turn
+holds, the engine appends a fixed line («Sin verificar: … Confírmalos en la
+fuente oficial.») to the stored answer. The comparison is by article **and
+law** (`lawReferences`, as in the accountability and methodology annex): article
+1949 of the Código Civil is not backed by article 1949 of the Ley Federal del
+Trabajo. Each verified citation's law is read from its text or, failing that,
+from its document's title (`lawOfTitle`); an article whose law cannot be
+established, in the answer or in the citation, is marked. The model does not
 decide what is verified.
 
 **What the mentor sees.** The two-minute review gains computed lines in
@@ -247,7 +253,7 @@ counted as the turn counts them. The server decides again on every turn.
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |

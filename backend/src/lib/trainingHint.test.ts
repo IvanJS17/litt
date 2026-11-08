@@ -3,7 +3,6 @@ import { memoryDb } from "../__tests__/helpers/memoryDb";
 import {
     UNVERIFIED_LEGAL_FOOTER,
     counterpartState,
-    hintedNoteIndexes,
     ladderOf,
     loadLadderNotes,
     loadLadderNotesAnywhere,
@@ -80,38 +79,32 @@ describe("loadLadderNotes", () => {
 });
 
 describe("unverifiedLegalFooter: what the server marks, not the model", () => {
-    const verified = (quote: string) => [{ quote, verified: true }];
+    const CC = "Código Civil.pdf";
+    const LFT = "Ley Federal del Trabajo.pdf";
+    const verified = (quote: string, filename: string = CC) => [{ quote, verified: true, filename }];
     it.each([
         ["no legal reference at all", "Piensa en la figura y en los plazos.", [], false],
         ["an article from memory", "Revisa el artículo 1949 del Código Civil.", [], true],
-        ["an article an unverified citation names", "Revisa el artículo 1949.", [{ quote: "artículo 1949", verified: false }], true],
-        ["an article a verified citation holds", "Revisa el artículo 1949.", verified("Artículo 1949.- La facultad"), false],
-        ["an article of the verified quotes list", "Revisa el artículo 1949.", [{ document: { quotes: [{ quote: "Artículo 1949", verification: { verified: true, source_excerpt: "Artículo 1949" } }] } }], false],
-        ["two articles, one backed", "Mira los artículos 1949 y 2000.", verified("Artículo 1949.- La facultad"), true],
-        ["a fraction the citation lacks", "Revisa el artículo 27, fracción II.", verified("Artículo 27 de la Constitución"), true],
+        ["an article an unverified citation names", "Revisa el artículo 1949 del Código Civil.", [{ quote: "artículo 1949", verified: false, filename: CC }], true],
+        ["an article a verified citation of the same law holds", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- La facultad"), false],
+        ["the same article of ANOTHER law", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- El patrón", LFT), true],
+        ["the same article, the law named in the answer's own words and the citation's text", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949 del Código Civil"), false],
+        ["a verified citation whose document has no identifiable law", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- La facultad", "Contrato.docx"), true],
+        ["an answer whose law cannot be established", "Revisa el artículo 1949.", verified("Artículo 1949.- La facultad"), true],
+        ["an article of the verified quotes list, law from the document title", "Revisa el artículo 1949 del Código Civil.", [{ document: { title: CC, quotes: [{ quote: "Artículo 1949", verification: { verified: true, source_excerpt: "Artículo 1949" } }] } }], false],
+        ["two articles, one backed", "Mira los artículos 1949 y 2000 del Código Civil.", verified("Artículo 1949.- La facultad"), true],
+        ["a fraction the citation lacks", "Revisa el artículo 27, fracción II, de la Constitución.", verified("Artículo 27 de la Constitución"), true],
         ["a thesis from memory", "Consulta la tesis 1a./J. 12/2020.", [], true],
         ["a thesis a verified citation holds", "Consulta la tesis 1a./J. 12/2020.", verified("Tesis 1a./J. 12/2020 (10a.)"), false],
-        ["garbage citations", "Revisa el artículo 5.", "no es una lista", true],
+        ["garbage citations", "Revisa el artículo 5 del Código Civil.", "no es una lista", true],
     ] as const)("%s", (_name, answer, citations, flagged) => {
         expect(unverifiedLegalFooter(answer, citations)).toBe(flagged ? UNVERIFIED_LEGAL_FOOTER : null);
     });
 
     it("uses the footer it is given, and never throws", () => {
-        expect(unverifiedLegalFooter("el artículo 9", [], "otro pie")).toBe("otro pie");
+        expect(unverifiedLegalFooter("el artículo 9 del Código Civil", [], "otro pie")).toBe("otro pie");
         const cyclic: Record<string, unknown> = { verified: true };
         cyclic.quotes = [cyclic];
         expect(() => unverifiedLegalFooter("el artículo 9", [cyclic])).not.toThrow();
-    });
-});
-
-describe("hintedNoteIndexes: ordinary turns that came after a hint", () => {
-    it("marks the turn that follows hints, and only that one", () => {
-        const notes = [n(), n("hint", 1), n("hint", 2), n(), n()];
-        expect([...hintedNoteIndexes(notes)]).toEqual([3]);
-    });
-    it("a counterpart round between the hint and the turn does not clear it; a close or a plain turn does", () => {
-        expect([...hintedNoteIndexes([n("hint", 1), n("counterpart", 1), n()])]).toEqual([2]);
-        expect([...hintedNoteIndexes([n("hint", 1), n("counterpart_close", 1), n()])]).toEqual([]);
-        expect([...hintedNoteIndexes([n(), n(), n("hint", 1)])]).toEqual([]);
     });
 });
