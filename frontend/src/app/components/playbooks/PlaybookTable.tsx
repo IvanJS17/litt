@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
   Eye,
@@ -171,7 +172,13 @@ export function PlaybookActionItems({
               icon: Info,
               run: () => onDetails(playbook.id),
             },
-            { label: "Run", icon: Play, run: () => onRun(playbook.id) },
+            {
+              label: "Run",
+              icon: Play,
+              run: () => onRun(playbook.id),
+              // LiTT: a draft cannot be run until an editor marks it ready.
+              disabled: playbook.status === "draft",
+            },
             { label: "People", icon: Users, run: () => onPeople(playbook) },
             {
               label: "Delete",
@@ -241,6 +248,7 @@ export function PlaybookTable({
   /** A new import becomes the caller's own private playbook. */
   showNewImports?: boolean;
 }) {
+  const t = useTranslations("playbooks");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
 
   const options = useMemo(() => {
@@ -590,10 +598,11 @@ export function PlaybookTable({
         ) : (
           <TableBody role="rowgroup" className={TABLE_MIN_WIDTH}>
             {newImports.map((attempt) => {
+              const draft = attempt.kind === "draft";
               const name =
                 attempt.name?.trim() ||
                 attempt.filename.replace(/\.(docx|pdf)$/i, "") ||
-                "Imported playbook";
+                (draft ? t("intake.untitled") : "Imported playbook");
               return (
                 <TableRow
                   key={`import:${attempt.id}`}
@@ -609,11 +618,13 @@ export function PlaybookTable({
                       className="mr-3 h-2.5 w-2.5 shrink-0 animate-spin text-gray-400 motion-reduce:animate-none"
                     />
                     <span className="min-w-0 truncate text-gray-500" title={name}>
-                      <span className="sr-only">Compiling </span>
+                      <span className="sr-only">
+                        {draft ? `${t("intake.draftingLabel")} ` : "Compiling "}
+                      </span>
                       {name}
                     </span>
                     <span className="ml-2 shrink-0 text-xs text-gray-400" aria-hidden="true">
-                      Compiling…
+                      {draft ? t("intake.drafting") : "Compiling…"}
                     </span>
                   </TableCell>
                   <TableCell role="cell" className={CREATOR_COLUMN}>
@@ -700,6 +711,16 @@ export function PlaybookTable({
                     >
                       <span className="truncate">{playbook.name}</span>
                     </Link>
+                  )}
+                  {playbook.status === "draft" && (
+                    <span className="ml-2 shrink-0 text-xs text-gray-500">
+                      {t("draft.label")}
+                    </span>
+                  )}
+                  {playbook.isModel && (
+                    <span className="ml-2 shrink-0 text-xs text-gray-500">
+                      {t("model.label")}
+                    </span>
                   )}
                   {replacing.has(playbook.id) && (
                     <span

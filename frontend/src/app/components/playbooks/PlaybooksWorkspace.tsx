@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
 import {
   AlertCircle,
@@ -10,13 +11,11 @@ import {
   Loader2,
   MessageSquare,
   MoreHorizontal,
-  PenLine,
   Pencil,
   Play,
-  Plus,
   RefreshCw,
+  Star,
   Trash2,
-  Upload,
   Users,
   WandSparkles,
 } from "lucide-react";
@@ -33,6 +32,16 @@ import {
   type PlaybookView,
 } from "@/app/components/playbooks/PlaybookToolbar";
 import { NewPlaybookModal } from "@/app/components/playbooks/NewPlaybookModal";
+import {
+  NewPlaybookMenu,
+  playbookModels,
+} from "@/app/components/playbooks/NewPlaybookMenu";
+import {
+  PlaybookIntakeModal,
+  type PlaybookIntakeRequest,
+} from "@/app/components/playbooks/PlaybookIntakeModal";
+import { PlaybookDraftBanner } from "@/app/components/playbooks/PlaybookDraftBanner";
+import { usePlaybookProvenance } from "@/app/components/playbooks/usePlaybookProvenance";
 import { PlaybookDetailsModal } from "@/app/components/playbooks/PlaybookDetailsModal";
 import type { PlaybookDetails } from "@/app/components/playbooks/PlaybookDetailsFields";
 import { PlaybookPageSkeleton } from "@/app/components/playbooks/PlaybookPageSkeleton";
@@ -76,6 +85,9 @@ import {
   getPlaybookImport,
   listRunningPlaybookImports,
   startPlaybookImport,
+  startPlaybookDraft,
+  setPlaybookState,
+  copyPlaybook,
   listPlaybooks,
   getPlaybookPeople,
   listPlaybookShares,
@@ -184,6 +196,7 @@ export function PlaybooksWorkspaceLayout() {
 }
 
 function PlaybooksWorkspace() {
+  const t = useTranslations("playbooks");
   const { workspaceId, activeOrganization } = useWorkspace();
   const router = useRouter();
   const params = useParams<{ playbookId?: string }>();
@@ -203,6 +216,10 @@ function PlaybooksWorkspace() {
   const [accessOpen, setAccessOpen] = useState(false);
   const [accessTargetId, setAccessTargetId] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  // "With questions". The dialog keeps its answers while closed, so a draft
+  // that fails can be retried; a new key clears them once one is ready.
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [intakeKey, setIntakeKey] = useState(0);
   const [detailsTargetId, setDetailsTargetId] = useState<string | null>(null);
   const [shares, setShares] = useState<PlaybookShare[]>([]);
   const [sharesError, setSharesError] = useState<string | null>(null);
@@ -360,6 +377,11 @@ function PlaybooksWorkspace() {
   );
   const canEdit =
     !!selected && selected.canEdit === true && !replacingIds.has(selected.id);
+  // LiTT: a draft cannot be used in a review until an editor marks it ready.
+  const isDraft = selected?.status === "draft";
+  const provenance = usePlaybookProvenance(
+    selected && content ? { ...selected, content } : null,
+  );
   const canManageAccess = !!selected && selected.canManageAccess === true;
   const checkedPlaybooks = visiblePlaybooks.filter((item) =>
     selectedIds.has(item.id),
@@ -433,7 +455,7 @@ function PlaybooksWorkspace() {
 
   /** Shows the new-run form on the Runs tab. */
   function startNewRun() {
-    if (busy) return;
+    if (busy || isDraft) return;
     setReviewError(null);
     setNewRunOpen(true);
     setPlaybookView("runs");
@@ -681,6 +703,93 @@ function PlaybooksWorkspace() {
     return autosave.flush();
   }
 
+  /** Puts the open playbook's new state in the list, keeping its open content. */
+  function replacePlaybook(saved: Playbook) {
+    setPlaybooks((items) =>
+      items.map((item) => (item.id === saved.id ? saved : item)),
+    );
+  }
+
+  async function startDraft(request: PlaybookIntakeRequest): Promise<boolean> {
+    try {
+      const started = await startPlaybookDraft({ ...request, model }, workspaceId);
+      setImports((current) => [started, ...current]);
+      setIntakeOpen(false);
+      showToast({
+        tone: "info",
+        title: t("intake.startedTitle"),
+        message: t("intake.startedMessage"),
+      });
+      return true;
+    } catch (err) {
+      notifyError(err, {
+        action: t("intake.submitAction"),
+        operation: "playbooks.import",
+      });
+      return false;
+    }
+  }
+
+  /** Marks the open draft ready, after saving what is still pending. */
+  async function markReady(): Promise<boolean> {
+    if (!selected || busy) return false;
+    setBusy("state");
+    try {
+      if (!(await autosave.flush())) return false;
+      replacePlaybook(await setPlaybookState(selected.id, { status: "ready" }));
+      return true;
+    } catch (err) {
+      notifyError(err, {
+        action: t("draft.markReadyAction"),
+        operation: "playbooks.save",
+      });
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function toggleModel() {
+    if (!selected || busy) return;
+    setBusy("state");
+    try {
+      if (!(await autosave.flush())) return;
+      replacePlaybook(
+        await setPlaybookState(selected.id, { isModel: !selected.isModel }),
+      );
+    } catch (err) {
+      notifyError(err, {
+        action: t("model.markAction"),
+        operation: "playbooks.save",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** A model from the New playbook menu: the caller's own draft copy, opened. */
+  async function copyModel(source: Playbook) {
+    if (busy) return;
+    setBusy("copy");
+    try {
+      const copy = await copyPlaybook(source.id, workspaceId);
+      setPlaybooks((current) => [copy, ...current]);
+      openPlaybook(copy.id);
+      showToast({
+        tone: "success",
+        title: t("model.copiedTitle"),
+        message: t("model.copied", { name: source.name }),
+      });
+    } catch (err) {
+      notifyError(err, {
+        action: t("model.copyAction"),
+        operation: "playbooks.save",
+      });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function doImport() {
     if (!importSource) return;
     setBusy("import");
@@ -746,6 +855,7 @@ function PlaybooksWorkspace() {
     async () => undefined,
   );
   importFinished.current = async (attempt) => {
+    if (attempt.kind === "draft") return draftFinished(attempt);
     const followed = attempt.id === followedImportId;
     if (attempt.status === "failed") {
       const message =
@@ -792,6 +902,48 @@ function PlaybooksWorkspace() {
       ],
     });
   };
+
+  /** A draft from the questionnaire ended: say so, and open it on request. */
+  async function draftFinished(attempt: PlaybookImport) {
+    if (attempt.status === "failed") {
+      showToast({
+        tone: "error",
+        title: t("intake.failedTitle"),
+        message: attempt.error ?? t("intake.failedMessage"),
+        durationMs: 10_000,
+        actions: [
+          {
+            label: t("intake.backToQuestions"),
+            tone: "blue",
+            onClick: () => setIntakeOpen(true),
+          },
+        ],
+      });
+      return;
+    }
+    if (!attempt.playbookId) return;
+    let saved: Playbook;
+    try {
+      saved = await getPlaybook(attempt.playbookId);
+    } catch (err) {
+      notifyError(err, {
+        action: t("intake.openAction"),
+        operation: "playbooks.import",
+      });
+      return;
+    }
+    showImported(saved);
+    setIntakeKey((key) => key + 1);
+    showToast({
+      tone: "success",
+      title: t("intake.readyTitle"),
+      message: t("intake.readyMessage", { name: saved.name }),
+      durationMs: 10_000,
+      actions: [
+        { label: t("intake.open"), tone: "blue", onClick: () => openPlaybook(saved.id) },
+      ],
+    });
+  }
 
   const compiling = busy === "import" || followedImportId !== null;
   // Each import is reported once, however many polls see it finish.
@@ -1115,6 +1267,15 @@ function PlaybooksWorkspace() {
                             </DropdownItem>
                             {canEdit && (
                               <DropdownItem
+                                disabled={isDraft}
+                                onSelect={() => void toggleModel()}
+                              >
+                                <Star aria-hidden="true" className="h-4 w-4" />
+                                {selected.isModel ? t("model.unmark") : t("model.mark")}
+                              </DropdownItem>
+                            )}
+                            {canEdit && (
+                              <DropdownItem
                                 onSelect={() => openImport(selected.id)}
                               >
                                 <RefreshCw
@@ -1156,7 +1317,7 @@ function PlaybooksWorkspace() {
                             </HeaderButtonUI>
                           </DropdownTrigger>
                           <DropdownContent align="end" className="w-52">
-                            <DropdownItem onSelect={startNewRun}>
+                            <DropdownItem disabled={isDraft} onSelect={startNewRun}>
                               <ClipboardCheck
                                 aria-hidden="true"
                                 className="h-4 w-4"
@@ -1164,6 +1325,7 @@ function PlaybooksWorkspace() {
                               Run playbook
                             </DropdownItem>
                             <DropdownItem
+                              disabled={isDraft}
                               onSelect={() => void openInAssistant()}
                             >
                               <MessageSquare
@@ -1192,6 +1354,9 @@ function PlaybooksWorkspace() {
                       render: (
                         <NewPlaybookMenu
                           disabled={loading || !!busy}
+                          models={playbookModels(playbooks)}
+                          onModel={(source) => void copyModel(source)}
+                          onQuestions={() => setIntakeOpen(true)}
                           onImport={() => openImport(null)}
                           onBlank={() => setNewOpen(true)}
                         />
@@ -1213,14 +1378,23 @@ function PlaybooksWorkspace() {
             onAddRule={addRule}
             onUpload={() => sourcesRef.current?.upload()}
             onNewRun={startNewRun}
+            runDisabled={isDraft}
           />
+          {isDraft && (
+            <PlaybookDraftBanner
+              content={content}
+              canEdit={canEdit}
+              disabled={!!busy}
+              onMarkReady={markReady}
+            />
+          )}
           {playbookView === "runs" ? (
             <PlaybookRuns
               key={selected.id}
               playbookId={selected.id}
               latestRun={run}
               initialRunId={focusRunId}
-              canRun={!busy}
+              canRun={!busy && !isDraft}
               composing={newRunOpen}
               onNewRun={startNewRun}
               onCloseNewRun={() => setNewRunOpen(false)}
@@ -1273,6 +1447,7 @@ function PlaybooksWorkspace() {
               selectedRuleId={selectedRuleId}
               onSelectRule={setSelectedRuleId}
               disabled={!!busy || !canEdit}
+              provenance={provenance}
             ></PlaybookEditor>
           )}
         </>
@@ -1381,6 +1556,18 @@ function PlaybooksWorkspace() {
           )}
         </>
       )}
+      <PlaybookIntakeModal
+        key={intakeKey}
+        open={intakeOpen}
+        organizationName={
+          isOrganization ? (activeOrganization?.name ?? "") : null
+        }
+        models={models}
+        model={model}
+        onModelChange={setModel}
+        onClose={() => setIntakeOpen(false)}
+        onSubmit={startDraft}
+      />
       <NewPlaybookModal
         open={newOpen}
         organizationName={
@@ -1647,40 +1834,5 @@ function PlaybooksWorkspace() {
         )}
       </Modal>
     </div>
-  );
-}
-
-function NewPlaybookMenu({
-  disabled,
-  onImport,
-  onBlank,
-}: {
-  disabled: boolean;
-  onImport: () => void;
-  onBlank: () => void;
-}) {
-  return (
-    <Dropdown>
-      <DropdownTrigger asChild>
-        <HeaderButtonUI
-          iconOnly
-          disabled={disabled}
-          title="New playbook"
-          aria-label="New playbook"
-        >
-          <Plus aria-hidden="true" className="h-4 w-4" />
-        </HeaderButtonUI>
-      </DropdownTrigger>
-      <DropdownContent align="end">
-        <DropdownItem onSelect={onImport}>
-          <Upload className="h-4 w-4" />
-          Import from file
-        </DropdownItem>
-        <DropdownItem onSelect={onBlank}>
-          <PenLine className="h-4 w-4" />
-          Start from scratch
-        </DropdownItem>
-      </DropdownContent>
-    </Dropdown>
   );
 }

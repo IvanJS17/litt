@@ -27,6 +27,10 @@ import {
   reviewDocumentWithPlaybook,
   updatePlaybook,
   deletePlaybook,
+  startPlaybookDraft,
+  setPlaybookState,
+  copyPlaybook,
+  getPlaybookQuestionnaire,
   MikeApiError,
   type Playbook,
   type PlaybookImport,
@@ -119,6 +123,10 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   listAllPlaybookRuns: vi.fn(),
   deletePlaybookRun: vi.fn(),
   uploadLibraryDocument: vi.fn(),
+  startPlaybookDraft: vi.fn(),
+  setPlaybookState: vi.fn(),
+  copyPlaybook: vi.fn(),
+  getPlaybookQuestionnaire: vi.fn(),
 }));
 
 vi.mock("@/app/components/ui/toast", async (importOriginal) => ({
@@ -289,6 +297,9 @@ function playbook(id: string, name: string): Playbook {
     },
     sourceFilename: null,
     importModel: null,
+    status: "ready",
+    isModel: false,
+    derivedFromPlaybookId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   } as Playbook;
@@ -2565,5 +2576,242 @@ describe("playbooks page", () => {
       ),
     );
     expect(screen.getByLabelText("Rule")).toHaveValue("New rule 1");
+  });
+
+  describe("starting a playbook with questions, drafts and models (LiTT)", () => {
+    const QUESTIONNAIRE = {
+      questions: Array.from({ length: 10 }, (_, index) => ({
+        id: `q${index + 1}`,
+        text: `q${index + 1}`,
+      })),
+      maxAnswerChars: 4000,
+      maxAnswersChars: 30000,
+      maxAttachments: 5,
+    };
+    const draftAttempt = (overrides: Partial<PlaybookImport> = {}) =>
+      importAttempt({ id: "draft-1", kind: "draft", filename: "", name: "Rentas", ...overrides });
+    const drafted = (overrides: Partial<Playbook> = {}): Playbook => {
+      const book = playbook("pb-d", "Rentas");
+      book.status = "draft";
+      book.content.topics[0].rules[0].origin = { kind: "ai_general", unbacked: true };
+      return { ...book, ...overrides };
+    };
+
+    beforeEach(() => {
+      vi.mocked(getPlaybookQuestionnaire).mockResolvedValue(QUESTIONNAIRE);
+      vi.mocked(startPlaybookDraft).mockResolvedValue(draftAttempt());
+    });
+
+    async function writeDraft() {
+      await userEvent.click(await screen.findByRole("button", { name: /New playbook/i }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "With questions" }));
+      await userEvent.type(await screen.findByLabelText(/Red lines/), "Nunca");
+      await userEvent.click(screen.getByRole("button", { name: "Write draft" }));
+    }
+
+    it("writes a draft from the questions, follows it, and says when it is ready", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(getPlaybookImport).mockResolvedValue(draftAttempt());
+      vi.mocked(getPlaybook).mockResolvedValue(drafted());
+      render(<PlaybooksPage />);
+
+      await writeDraft();
+      await waitFor(() =>
+        expect(startPlaybookDraft).toHaveBeenCalledWith(
+          {
+            name: "",
+            visibility: "private",
+            answers: { q6: "Nunca" },
+            attachments: [],
+            model: TEST_MODEL,
+          },
+          "personal",
+        ),
+      );
+      expect(showToast).toHaveBeenCalledWith(expect.objectContaining({ title: "Writing your draft" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      const row = within(screen.getByRole("table", { name: "Playbooks" })).getByRole("row", { busy: true });
+      expect(row).toHaveTextContent("Rentas");
+      expect(row).toHaveTextContent("Drafting…");
+
+      vi.mocked(getPlaybookImport).mockResolvedValue(
+        draftAttempt({ status: "completed", playbookId: "pb-d" }),
+      );
+      await pollImports();
+      await waitFor(() =>
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            title: "Draft ready to review",
+            message: "Rentas is a draft: review its rules and mark it as ready before using it.",
+          }),
+        ),
+      );
+      const link = await screen.findByRole("link", { name: "Rentas" });
+      expect(link.closest('[role="row"]')).toHaveTextContent("Draft");
+      const ready = vi.mocked(showToast).mock.calls.at(-1)![0];
+      act(() => ready.actions![0].onClick!());
+      expect(navigation.push).toHaveBeenCalledWith("/playbooks/pb-d");
+
+      // A new questionnaire starts blank once a draft is ready.
+      act(() => navigation.push("/playbooks"));
+      await userEvent.click(await screen.findByRole("button", { name: /New playbook/i }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "With questions" }));
+      expect(await screen.findByLabelText(/Red lines/)).toHaveValue("");
+    });
+
+    it("keeps the answers when a draft fails, for another try", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(getPlaybookImport).mockResolvedValue(
+        draftAttempt({ status: "failed", error: "El modelo no respondió." }),
+      );
+      render(<PlaybooksPage />);
+      await writeDraft();
+      await pollImports();
+      await waitFor(() =>
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            tone: "error",
+            title: "The draft wasn't written",
+            message: "El modelo no respondió.",
+          }),
+        ),
+      );
+      const failed = vi.mocked(showToast).mock.calls.at(-1)![0];
+      act(() => failed.actions![0].onClick!());
+      expect(await screen.findByLabelText(/Red lines/)).toHaveValue("Nunca");
+    });
+
+    it("says why a draft was not started, or not opened", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.mocked(startPlaybookDraft).mockRejectedValueOnce(
+        new MikeApiError({ message: "Modelo no disponible.", status: 400 }),
+      );
+      render(<PlaybooksPage />);
+      await writeDraft();
+      await waitFor(() =>
+        expect(getToastSnapshot()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ title: "Couldn't write the draft" })]),
+        ),
+      );
+      expect(screen.getByRole("dialog")).toBeVisible();
+
+      // The second try starts; its playbook then fails to load.
+      vi.mocked(getPlaybookImport).mockResolvedValue(
+        draftAttempt({ status: "completed", playbookId: "pb-d" }),
+      );
+      vi.mocked(getPlaybook).mockRejectedValue(new MikeApiError({ message: "Not found", status: 404 }));
+      await userEvent.click(screen.getByRole("button", { name: "Write draft" }));
+      await pollImports();
+      await waitFor(() =>
+        expect(getToastSnapshot()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ title: "Couldn't open the draft" })]),
+        ),
+      );
+    });
+
+    it("keeps a draft out of reviews until an editor marks it ready", async () => {
+      vi.mocked(listPlaybooks).mockResolvedValue([drafted()]);
+      vi.mocked(setPlaybookState).mockResolvedValue(drafted({ status: "ready" }));
+      navigation.params = { playbookId: "pb-d" };
+      render(<PlaybooksPage />);
+
+      const note = await screen.findByRole("note");
+      expect(note).toHaveTextContent("Draft: it can't be used in reviews");
+      expect(screen.getByText("Suggestion without backing, review")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Use" }));
+      expect(await screen.findByRole("menuitem", { name: "Run playbook" })).toHaveAttribute("data-disabled");
+      expect(screen.getByRole("menuitem", { name: "Use in assistant" })).toHaveAttribute("data-disabled");
+      await userEvent.keyboard("{Escape}");
+      await userEvent.click(screen.getByRole("button", { name: "Playbook actions" }));
+      expect(await screen.findByRole("menuitem", { name: "Mark as model" })).toHaveAttribute("data-disabled");
+      await userEvent.keyboard("{Escape}");
+
+      await userEvent.click(within(note).getByRole("button", { name: "Mark as ready" }));
+      const confirm = await screen.findByRole("dialog", { name: "Mark as ready?" });
+      expect(confirm).toHaveTextContent("1 rule has no backing and 0 legal references are not verified.");
+      await userEvent.click(within(confirm).getByRole("button", { name: "Mark as ready" }));
+      await waitFor(() => expect(setPlaybookState).toHaveBeenCalledWith("pb-d", { status: "ready" }));
+      await waitFor(() => expect(screen.queryByRole("note")).toBeNull());
+    });
+
+    it("keeps a draft as it was when marking it ready fails", async () => {
+      vi.mocked(listPlaybooks).mockResolvedValue([drafted()]);
+      vi.mocked(setPlaybookState).mockRejectedValue(
+        new MikeApiError({ message: "Este playbook tiene cambios propuestos sin decidir.", status: 409, code: "playbook_changes_pending" }),
+      );
+      navigation.params = { playbookId: "pb-d" };
+      render(<PlaybooksPage />);
+      await userEvent.click(within(await screen.findByRole("note")).getByRole("button", { name: "Mark as ready" }));
+      const confirm = await screen.findByRole("dialog", { name: "Mark as ready?" });
+      await userEvent.click(within(confirm).getByRole("button", { name: "Mark as ready" }));
+      await waitFor(() =>
+        expect(getToastSnapshot()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ title: "Couldn't mark the playbook as ready" })]),
+        ),
+      );
+      expect(screen.getByRole("note")).toBeVisible();
+    });
+
+    it("marks a ready playbook as a model and removes the mark", async () => {
+      vi.mocked(setPlaybookState)
+        .mockResolvedValueOnce({ ...playbook("pb-a", "Playbook A"), isModel: true })
+        .mockRejectedValueOnce(new MikeApiError({ message: "Sin permiso.", status: 403 }));
+      navigation.params = { playbookId: "pb-a" };
+      render(<PlaybooksPage />);
+      await screen.findByLabelText("Rule");
+      expect(screen.queryByRole("note")).toBeNull();
+
+      await userEvent.click(screen.getByRole("button", { name: "Playbook actions" }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Mark as model" }));
+      await waitFor(() => expect(setPlaybookState).toHaveBeenCalledWith("pb-a", { isModel: true }));
+      await userEvent.click(screen.getByRole("button", { name: "Playbook actions" }));
+      await userEvent.click(await screen.findByRole("menuitem", { name: "Remove model mark" }));
+      await waitFor(() => expect(setPlaybookState).toHaveBeenLastCalledWith("pb-a", { isModel: false }));
+      await waitFor(() =>
+        expect(getToastSnapshot()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ title: "Couldn't change the model mark" })]),
+        ),
+      );
+    });
+
+    it("offers the workspace's models first and starts from a copy of one", async () => {
+      const model = { ...playbook("pb-m", "Arrendamiento modelo"), isModel: true };
+      vi.mocked(listPlaybooks).mockResolvedValue([playbook("pb-a", "Playbook A"), model]);
+      vi.mocked(copyPlaybook)
+        .mockResolvedValueOnce(drafted({ id: "pb-copy", name: "Arrendamiento modelo" }))
+        .mockRejectedValueOnce(new MikeApiError({ message: "No encontrado.", status: 404 }));
+      render(<PlaybooksPage />);
+      const modelRow = (await screen.findByRole("link", { name: "Arrendamiento modelo" })).closest('[role="row"]');
+      expect(modelRow).toHaveTextContent("Model");
+
+      await userEvent.click(screen.getByRole("button", { name: /New playbook/i }));
+      const items = await screen.findAllByRole("menuitem");
+      expect(items[0]).toHaveTextContent("Arrendamiento modelo");
+      await userEvent.click(items[0]);
+      await waitFor(() => expect(copyPlaybook).toHaveBeenCalledWith("pb-m", "personal"));
+      expect(navigation.push).toHaveBeenCalledWith("/playbooks/pb-copy");
+      expect(showToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Copy created",
+          message: "Your copy of Arrendamiento modelo is a draft. Review its rules and mark it as ready.",
+        }),
+      );
+
+      act(() => navigation.push("/playbooks"));
+      await userEvent.click(await screen.findByRole("button", { name: /New playbook/i }));
+      await userEvent.click((await screen.findAllByRole("menuitem"))[0]);
+      await waitFor(() =>
+        expect(getToastSnapshot()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ title: "Couldn't copy the model" })]),
+        ),
+      );
+    });
+
+    it("cannot run a draft from the table", async () => {
+      vi.mocked(listPlaybooks).mockResolvedValue([drafted()]);
+      render(<PlaybooksPage />);
+      await userEvent.click(await screen.findByRole("button", { name: "Actions for Rentas" }));
+      expect(await screen.findByRole("menuitem", { name: "Run" })).toHaveAttribute("data-disabled");
+    });
   });
 });

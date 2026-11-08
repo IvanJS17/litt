@@ -1,8 +1,18 @@
 {
   "migrated": [
+    "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
+    "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
+    "frontend/src/app/components/playbooks/PlaybookIntakeModal.tsx",
+    "frontend/src/app/components/playbooks/PlaybookRuleOrigin.tsx",
+    "frontend/src/app/components/playbooks/PlaybookTable.tsx",
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
+    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
     "frontend/src/app/layout.tsx",
     "frontend/src/i18n",
     "packages/i18n/src"
   ],
-  "allowed": {}
+  "allowed": {
+    "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52
+  }
 }

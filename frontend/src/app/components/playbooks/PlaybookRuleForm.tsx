@@ -20,6 +20,8 @@ import type {
   PlaybookRule,
 } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
+import { PlaybookRuleOrigin } from "./PlaybookRuleOrigin";
+import { NO_PROVENANCE, type PlaybookProvenance } from "./usePlaybookProvenance";
 
 type PositionKind = "standard" | "fallbacks" | "unacceptable";
 type RuleAction = PlaybookRule["actions"][number];
@@ -147,11 +149,14 @@ export function PlaybookRuleForm({
   rule,
   onChange,
   onUndoableChange,
+  provenance = NO_PROVENANCE,
 }: {
   tab: RuleFormTab;
   rule: PlaybookRule;
   onChange: (rule: PlaybookRule) => void;
   onUndoableChange: UndoableRuleChange;
+  /** LiTT: document names and answers a drafted rule's origin shows. */
+  provenance?: PlaybookProvenance;
 }) {
   const scopeId = useId();
   const requiredId = useId();
@@ -183,6 +188,7 @@ export function PlaybookRuleForm({
           Source: {describeSourceRefs(rule.sourceRefs)}
         </p>
       )}
+      <PlaybookRuleOrigin rule={rule} provenance={provenance} />
       <div className="grid gap-4 @[32rem]:grid-cols-2">
         <div className="min-w-0">
           <label

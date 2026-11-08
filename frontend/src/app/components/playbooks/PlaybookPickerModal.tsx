@@ -57,6 +57,8 @@ function PlaybookPickerModalForWorkspace({
     listPlaybooks(workspace ?? "personal")
       .then((items) => {
         if (cancelled) return;
+        // LiTT: a draft cannot be run until an editor marks it ready.
+        items = items.filter((item) => item.status !== "draft");
         setPlaybooks(items);
         if (initialPlaybookId)
           setSelected(items.find((item) => item.id === initialPlaybookId) ?? null);

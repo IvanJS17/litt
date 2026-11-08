@@ -70,6 +70,16 @@ drafted from questions. A **Viewer** gets no `intake`, nor does any list, and
 the rest of what the questionnaire stored (model, date, attachments) is never
 returned.
 
+In the web app, a draft shows a "Draft" line above its rules with **Mark as
+ready**, which first confirms with the number of rules without backing and of
+unverified references. Its review actions are off until it is ready. Each
+drafted rule shows its origin, "Suggestion without backing, review" and one
+"Not verified" per unverified reference; the origin cannot be edited. The
+playbook menu marks a ready playbook as a model or removes the mark, and the
+**New playbook** menu lists the workspace's models first; choosing one makes
+the caller's own draft copy of it and opens it. The assistant's
+playbook picker and the Word add-in's leave drafts out.
+
 The changes proposed for a copy are stored in `playbook_changes`, one row per
 rule added, modified or removed, each pending, accepted or rejected. They are
 deleted with their playbook and included in the account export.
