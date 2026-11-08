@@ -38,6 +38,7 @@ import {
   webToolsFor,
   type WebTurnState,
 } from "./tools/webSearchTools";
+import { METHODOLOGY_SYSTEM_PROMPT, METHODOLOGY_TOOL } from "./tools/methodologyTool";
 import {
   ASK_PARENT_TOOL,
   ASK_PARENT_TOOL_NAME,
@@ -417,6 +418,8 @@ export async function runLLMStream(params: {
   const conversationTools = includeAskInputs
     ? TOOLS
     : TOOLS.filter((tool) => tool.function.name !== "ask_inputs");
+  // A junior's calculator: only a training plan that asks for it, never a subagent.
+  const offerMethodology = trainingPlan?.methodology === true && !isSubagent;
   const webTools = webToolsFor(webSearch);
   const webSearchAccount = webSearchAccountFor(webSearch, apiKeys);
   const webToolNames = new Set<string>(
@@ -428,6 +431,7 @@ export async function runLLMStream(params: {
     ...conversationTools,
     ...WORKFLOW_TOOLS,
     ...PLAYBOOK_TOOLS,
+    ...(offerMethodology ? [METHODOLOGY_TOOL] : []),
     ...webTools,
     ...(subagentRuns && chatModel
       ? // LiTT: a subagent runs on a route the user configured, or on this model.
@@ -475,6 +479,7 @@ export async function runLLMStream(params: {
   const systemPrompt = [
     memory.systemPrompt,
     ...(trainingPlan?.systemAddendum ? [trainingPlan.systemAddendum] : []),
+    ...(offerMethodology ? [METHODOLOGY_SYSTEM_PROMPT] : []),
     ...(webSearch
       ? [
           WEB_SEARCH_SYSTEM_PROMPT,
@@ -962,6 +967,8 @@ export async function runLLMStream(params: {
             model: selectedModel,
             documentLocks,
             documentsScoped: subagentRun?.documentsScoped,
+            methodology: offerMethodology,
+            allowDocumentMutation,
           },
         );
         // A failure after this point happened with tool results in hand; the

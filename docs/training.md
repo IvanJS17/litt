@@ -178,8 +178,8 @@ The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
   turn did not end in an error.
 - `readTrainingBody` reads the training fields of a request body and ignores
   the rest. `trainingEnginePlan` turns the plan into the engine's single
-  `trainingPlan` argument (extra system text and narrower tool limits); it
-  asks nothing of the engine today.
+  `trainingPlan` argument (extra system text and narrower tool limits, plus
+  the `methodology` flag below).
 
 A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
 it does not touch the surfaces again.
@@ -215,6 +215,36 @@ The composers (web and Word) show the required field
 decides either way. A composer in a project chat,
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
+
+### Methodology annex (junior)
+
+A junior's turn is offered one extra tool, `compute_methodology`
+(`modules/chat/engine/tools/methodologyTool.ts`), so the model does no
+legal-financial arithmetic in prose. `lib/trainingTurn/methodology.ts` sets
+`toolPolicy.methodology` only for the `junior` stage without a pass; a
+pasante, a turn with no stage and every other author get nothing, and the
+engine never offers it to a subagent. It is a tool policy, not a permission:
+it reads only documents the turn already holds and writes nothing but the
+annex, and only when the conversation may write documents.
+
+- **Calculations (closed list):** simple interest (by periods, or by dates and
+  a 360/365/366 day basis), compound interest, index update (final index over
+  initial index) and proportion/percentage. They live in `lib/methodology/`
+  and use exact decimal arithmetic on `BigInt` scaled integers (no float, no
+  dependency). Inputs are plain decimals; money has at most 2 decimals. The
+  figures are exact and only the published ones are rounded, half away from
+  zero (money to 2 decimals), so the annex states the rule.
+- **No rates or indices ship with LiTT.** Each input carries a source: a
+  verbatim quote from a document (located with `locateQuote`; a quote that is
+  not found reads «sin verificar»), «Dato dado por la persona», or «Sin fuente».
+- **The annex** (a Word document) lists the inputs and their sources, the
+  formula, every step with its value, the rounding rule, the result and who
+  generated it and when, and says it is arithmetic support, not a legal
+  opinion. A legal basis is printed as written and marked «sin verificar»
+  unless a verified source quote names the same reference
+  (`legalReferences`).
+- **No model call:** the calculation runs in the process; the BYOK route of the
+  conversation is the only model involved (the one that invoked the tool).
 
 ## Settings
 
