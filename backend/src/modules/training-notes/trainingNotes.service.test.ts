@@ -235,6 +235,21 @@ describe("getChatTurnNotes", () => {
             );
         });
 
+        it("tells a hint or a counterpart turn by its mode and step, to the author and the mentor alike", async () => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], { mode: "hint", step: 2, contrast_status: "skipped", contrast: null });
+            for (const actorId of [AUTHOR, MENTOR]) {
+                const result = await getChatTurnNotes(db, { actorId, chatId: CHAT });
+                expect(result.ok && result.data.notes[0]).toMatchObject({
+                    mode: "hint",
+                    step: 2,
+                    contrast_status: "skipped",
+                    confidence: null,
+                    effective_verdict: null,
+                });
+            }
+        });
+
         it("reads a skipped note as skipped, forever", async () => {
             const { db, tables } = setup("2020-01-01T00:00:00Z");
             Object.assign(tables.training_turn_notes[0], { contrast_status: "skipped", contrast: null });

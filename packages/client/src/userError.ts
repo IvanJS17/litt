@@ -225,6 +225,12 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_pass_duplicate: "conflict",
     training_pass_limit_reached: "conflict",
     // --- Training layer 3, card 6 codes (begin) ---
+    // A hint or a counterpart round the server will not give right now: the
+    // composer was stale (reload), the ladder is used up, or the round is
+    // full. Retrying the same request cannot help.
+    training_mode_not_allowed: "validation",
+    training_hint_limit_reached: "validation",
+    training_counterpart_rounds_done: "validation",
     // --- Training layer 3, card 6 codes (end) ---
     // A pasante's version leaves LiTT only once approved for its current
     // bytes. Retrying cannot help, so the server's detail is shown as-is.

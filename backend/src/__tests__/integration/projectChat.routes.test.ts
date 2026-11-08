@@ -1103,6 +1103,41 @@ describe("LiTT training: «Tu turno primero» on POST /projects/:projectId/chat"
         });
     });
 
+    it("takes a hint as a turn with the engine's limits, a skipped note and no contrast, and asks no mark", async () => {
+        const { completeText } = await import("../../lib/llm/index.js");
+        vi.mocked(completeText).mockClear();
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT, training_mode: "hint" });
+        expect(res.status).toBe(200);
+        expect(noteInsert()).toMatchObject({
+            attempt: ATTEMPT,
+            confidence: null,
+            mode: "hint",
+            step: 1,
+            contrast_status: "pending",
+        });
+        const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
+        expect(stream.trainingPlan).toMatchObject({
+            allowDocumentMutation: false,
+            includeAskInputs: false,
+            noSubagents: true,
+            systemAddendum: expect.stringContaining("PISTA"),
+        });
+        expect(vi.mocked(completeText)).not.toHaveBeenCalled();
+        // Pending at insert; skipped only once the turn was delivered.
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast_status: "skipped" });
+    });
+
+    it("refuses a hint from a junior with training_mode_not_allowed, before writing or calling a model", async () => {
+        trainingStage.value = "junior";
+        const res = await send({ attempt: ATTEMPT, confidence: 3, training_mode: "hint" });
+        expect(res.status).toBe(400);
+        expect(res.body.code).toBe("training_mode_not_allowed");
+        expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+        expect(runLLMStream).not.toHaveBeenCalled();
+    });
+
     it("contrasts with the conversation's own model and credential, then stores it", async () => {
         const { completeText } = await import("../../lib/llm/index.js");
         vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);

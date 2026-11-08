@@ -173,12 +173,87 @@ Product decisions applied while the open questions of layer 3 are unanswered
 coincidence according to the AI contrast, excluding answers with unverified
 citations, with the mentor able to correct it.
 
+## Hints and the counterparty's lawyer (layer 3)
+
+Two modes of the turn for a **pasante who owes an approach** (not under an
+urgency pass, not a junior, not a lawyer). A mode is an ordinary chat turn on
+the same surfaces, the same pinned route, `llm.egress` and citation check; the
+request names it with `training_mode` (`hint`, `counterpart`,
+`counterpart_close`) and the server does the rest. Nothing is audited: hints and
+rounds are learning data and go with the membership.
+
+**Rules common to the modes**
+
+- They only restrict. The plan (`lib/trainingTurn/modes.ts`) adds a system text
+  and withholds the tools that write documents, `ask_inputs` and subagents
+  (`allowDocumentMutation: false`, `includeAskInputs: false`,
+  `noSubagents: true`). The engine neither advertises nor runs a writer even if
+  the model names one. The stage grants nothing: the same chat is open to the
+  same people.
+- They read the turn's rule: an urgency pass lifts the approach and with it
+  the modes (`400 training_mode_not_allowed`). So does any other stage, no
+  stage, a mode the server does not know, and a chat the server keeps no notes
+  of (Word with `storage: "local"`).
+- A mode still owes the approach (a hint is asked from a *planteamiento*,
+  which may be rewritten with the hint in view). The thermometer mark is owed
+  except on a hint, which is not rated: any mark sent with one is dropped.
+- The note of the turn keeps `mode` and `step`. A hint and a counterpart turn
+  have nothing to compare, so their note is `contrast_status = 'skipped'` and
+  they are never contrasted.
+
+**The ladder is the server's.** `step` is never read from the request. A hint's
+rung is the next one after the run of `hint` notes at the end of the chat (the
+person's own notes of that chat only): 1 *enfoque* (what figure is at stake and
+what to ask), 2 *dónde buscar* (names of the statute and the chapter), 3 *qué
+revisar* (articles or passages of the matter's documents). None gives the
+conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
+full answer) starts the ladder over. Only delivered turns count as a rung: a
+hint or counterpart note is written `pending` and settles as `skipped` when the
+turn completes, so one that failed or was aborted gave the person nothing and
+does not advance the ladder (two aborts leave the first rung next). The turn
+after hints is not flagged anywhere yet; no card reads it.
+
+**The counterparty's lawyer.** A round is up to three `counterpart` turns
+(`COUNTERPART_MAX_ROUNDS`): the AI plays the other side, with up to three
+objections anchored to what the person wrote and the matter's passages, and
+resolves none. A fourth is `400 training_counterpart_rounds_done`.
+`counterpart_close` ends the round (it needs at least one turn, else
+`training_mode_not_allowed`): the AI states which objections were held, conceded
+and left undefended, and a second call, on the conversation's own provider,
+model and credential (no fallback, never fails the turn), produces the note's
+`contrast` with the sections «Sostuviste», «Concediste», «Faltó defender»
+(`lib/trainingCounterpart.ts`). The next counterpart turn opens a new round.
+
+**«Sin verificar».** LiTT has no corpus of laws. In a mode turn, if the answer
+names a legal reference that no citation the server verified in that turn
+holds, the engine appends a fixed line («Sin verificar: … Confírmalos en la
+fuente oficial.») to the stored answer. The comparison is by article **and
+law** (`lawReferences`, as in the accountability and methodology annex): article
+1949 of the Código Civil is not backed by article 1949 of the Ley Federal del
+Trabajo. Each verified citation's law is read from its text or, failing that,
+from its document's title (`lawOfTitle`); an article whose law cannot be
+established, in the answer or in the citation, is marked. The model does not
+decide what is verified.
+
+**What the mentor sees.** The two-minute review gains computed lines in
+`doubts`, ahead of the model's (`source` `hint`, `confidence`, `foundation`,
+`counterpart`, `ref` = the note; they carry no text of the hint or the
+objections) and counts in `signals` (`hints_used`, `max_hint_level`,
+`counterpart_rounds`, `counterpart_closed`). A mark that the AI contrast did not
+bear out (a «Seguro» that did not coincide, a «Casi adivino» that did) and a
+matching conclusion on a weak basis are also lines; they say «según el contraste
+de la IA» and rank nothing.
+
+**`GET /training/stage`** with `chat_id` adds `modes` (those open now, empty
+when no approach is owed), `next_hint_level` and `counterpart_next_step`,
+counted as the turn counts them. The server decides again on every turn.
+
 ## API
 
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
@@ -241,7 +316,9 @@ The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
   the rest. `trainingEnginePlan` turns the plan into the engine's single
   `trainingPlan` argument (extra system text, narrower tool limits, the
   organization whose firm criteria the turn may read (see «One mold of
-  criterion») and the `methodology` flag below).
+  criterion»), the `methodology` flag below, and the limits of a mode for a hint
+  or a counterpart turn, see below); it asks nothing of the engine for an
+  ordinary turn.
 
 A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
 it does not touch the surfaces again.

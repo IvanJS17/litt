@@ -627,6 +627,8 @@ export async function prepareTabularChat(
         attempt?: unknown;
         /** LiTT training: how sure the author is of their approach (1 to 4). */
         confidence?: unknown;
+        /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
+        trainingMode?: unknown;
     },
 ): Promise<TabularResult<PreparedTabularChat>> {
     const {
@@ -774,7 +776,8 @@ export async function prepareTabularChat(
             surface: "tabular",
             userId,
             scope: { orgId: review.org_id ?? null, projectId: review.project_id ?? null },
-            body: { attempt: args.attempt, confidence: args.confidence },
+            body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode },
+            chatId,
         });
         if (!begun.ok)
             return statusFailure(begun.status, {

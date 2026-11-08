@@ -20,11 +20,13 @@ import {
     type CreatedTurnNote,
 } from "../trainingNotes";
 import type { UserApiKeys } from "../llm";
+import { launchCounterpartClose } from "../trainingCounterpart";
 import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
 import { withFirmCriteria } from "./criteria";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
+import { modesBehavior } from "./modes";
 import { hasUnverifiedCitation } from "./unverified";
 import { methodologyBehavior } from "./methodology";
 import type {
@@ -38,11 +40,19 @@ import type {
 
 export { readTrainingBody } from "./body";
 export { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
+export {
+    availableModes,
+    noteChatOf,
+    TRAINING_COUNTERPART_DONE_CODE,
+    TRAINING_HINT_LIMIT_CODE,
+    TRAINING_MODE_NOT_ALLOWED_CODE,
+} from "./modes";
 export { hasUnverifiedCitation } from "./unverified";
 export type {
     TrainingBody,
     TrainingConfidence,
     TrainingEnginePlan,
+    TrainingMode,
     TrainingSurface,
     TrainingTurnFailure,
     TrainingTurnPlan,
@@ -66,12 +76,16 @@ const accountabilityBehavior: Behavior = (resolved, plan) =>
         : plan;
 
 /** One line per behavior; later cards add theirs here. */
+// Order matters: modesBehavior is last. A mode only restricts, so it sees the
+// plan the others built and takes back anything that would write or widen
+// (methodology included); no earlier behavior can undo a mode's limits.
 const BEHAVIORS: readonly Behavior[] = [
     attemptBehavior,
     confidenceBehavior,
     accountabilityBehavior,
     methodologyBehavior,
     firmCriteriaBehavior,
+    modesBehavior,
 ];
 
 /**
@@ -90,16 +104,27 @@ export async function beginTrainingTurn(
         scope: TrainingScope;
         /** The request body, or what readTrainingBody returned for it. */
         body: unknown;
+        /** The chat the turn continues, if the surface already keeps one (a hint's rung is counted from its notes). */
+        chatId?: string | null;
+        /** False when the server keeps no transcript or notes of this chat (Word with local storage). */
+        persisted?: boolean;
     },
 ): Promise<{ ok: true; plan: TrainingTurnPlan } | TrainingTurnFailure> {
     const body = readTrainingBody(args.body);
+    const common = {
+        db,
+        userId: args.userId,
+        chatId: args.chatId ?? null,
+        persisted: args.persisted !== false,
+    };
     let resolved: Resolved;
     if (args.surface === "word") {
         const { stage, orgId } = await resolveWordTrainingStage(db, args.userId);
-        resolved = { surface: args.surface, body, stage, passActive: false, orgId };
+        resolved = { ...common, surface: args.surface, body, stage, passActive: false, orgId };
     } else {
         const turn = await resolveTurnTraining(db, args.userId, args.scope);
         resolved = {
+            ...common,
             surface: args.surface,
             body,
             stage: turn.stage,
@@ -120,7 +145,7 @@ export async function beginTrainingTurn(
         afterTurn: [],
     };
     for (const behavior of BEHAVIORS) {
-        const next = behavior(resolved, plan);
+        const next = await behavior(resolved, plan);
         if ("ok" in next) return next;
         plan = next;
     }
@@ -161,6 +186,13 @@ export async function recordTrainingNote(
         messageId: args.messageId,
         attempt: plan.attempt,
         confidence: plan.confidence,
+        mode: plan.mode,
+        step: plan.step,
+        // Pending until the turn is delivered: a hint or a counterpart turn has
+        // no answer to contrast, so finishTrainingTurn settles it as skipped,
+        // and the ladder (lib/trainingHint.ts) counts only those. The close of
+        // a round is contrasted with its own sections.
+        contrastStatus: "pending",
     });
     return created.ok ? { ok: true, note: created.note } : created;
 }
@@ -197,7 +229,30 @@ export function finishTrainingTurn(
     },
 ): void {
     if (!args.completed) return;
-    if (args.note) {
+    // A delivered hint or counterpart turn has nothing to contrast: it counts
+    // on the ladder from here on, and not before.
+    if (args.note && (args.plan?.mode === "hint" || args.plan?.mode === "counterpart")) {
+        const noteId = args.note.id;
+        void Promise.resolve(
+            db.from("training_turn_notes").update({ contrast_status: "skipped" }).eq("id", noteId).eq("contrast_status", "pending"),
+        ).then(
+            (result) => {
+                if (result?.error) console.warn("[training] mode note not settled", { noteId, error: result.error });
+            },
+            (error) => console.warn("[training] mode note not settled", { noteId, error }),
+        );
+    }
+    // A hint or a counterpart turn has no answer to compare with: its note is
+    // already skipped. The close of a round is contrasted with its own sections.
+    if (args.note && args.plan?.mode === "counterpart_close") {
+        launchCounterpartClose(db, {
+            noteId: args.note.id,
+            attempts: args.plan.roundAttempts ?? [args.note.attempt],
+            answer: args.answer,
+            model: args.model,
+            apiKeys: args.apiKeys,
+        });
+    } else if (args.note && !args.plan?.mode) {
         launchTurnContrast(db, {
             noteId: args.note.id,
             attempt: args.note.attempt,

@@ -765,6 +765,17 @@ export interface TrainingEffectiveStage {
      * from servers older than layer 3, which ask for no mark.
      */
     confidence_required?: boolean;
+    /**
+     * Layer 3, hints and the counterparty's lawyer: the modes open to the
+     * caller now (`TrainingTurnMode`), counted by the server from the
+     * caller's own notes of `chat_id`. Empty when the turn owes no approach
+     * (another stage, an urgency pass). Absent from older servers.
+     */
+    modes?: TrainingTurnMode[];
+    /** The rung the next hint would be, or null when the ladder is used up or no hint is open. */
+    next_hint_level?: 1 | 2 | 3 | null;
+    /** The step the next counterpart turn would take, or null when the round is full or none is open. */
+    counterpart_next_step?: 1 | 2 | 3 | null;
 }
 
 // --- Training layer 3, card 4: own map, calibration and retake (begin) ---
@@ -820,9 +831,19 @@ export interface TrainingTurnNote {
   topics?: string[] | null;
   /** The answer carried a citation that could not be verified: the turn does not count as evidence. */
   answer_unverified?: boolean;
+  /** `hint` or `counterpart*` turns (card 6); `step` is the rung or the turn of the round. Absent on plain turns. */
+  mode?: TrainingTurnMode | null;
+  step?: 1 | 2 | 3 | null;
 }
 
 // --- Training layer 3, card 6: ladder hints and counterpart (begin) ---
+/**
+ * What a turn can be besides a plain question, sent as `training_mode`:
+ * `hint` (a rung of the ladder, no answer), `counterpart` (a turn of a round
+ * with the counterparty's lawyer, up to three) and `counterpart_close`
+ * (ends the round with a contrast). The server picks the step.
+ */
+export type TrainingTurnMode = "hint" | "counterpart" | "counterpart_close";
 // --- Training layer 3, card 6 (end) ---
 
 /** GET /training-notes/chats/:chatId (404 when the caller may read none). */
@@ -930,6 +951,8 @@ export interface TrainingStageQuery {
     org_id?: string;
     project_id?: string;
     surface?: "word";
+    /** The chat the turn would continue; the hint ladder is counted from its notes. */
+    chat_id?: string;
 }
 
 // LiTT training, layer 2 «Supervisión» (docs/training.md). Learning data:
@@ -1067,6 +1090,12 @@ export interface TrainingWorkSignals {
     edits_pending: number;
     /** The pupil's sealed drafts from this work still without an approval. */
     held_versions: number;
+    /** Layer 3: hints asked and the highest rung reached, counted from the notes. Absent on older reviews. */
+    hints_used?: number;
+    max_hint_level?: number;
+    /** Layer 3: counterparty rounds started, and how many were closed. */
+    counterpart_rounds?: number;
+    counterpart_closed?: number;
 }
 /**
  * The two-minute review of one piece of work: one chat with turn notes.
@@ -1089,7 +1118,11 @@ export interface TrainingWorkReview {
     proposed: TrainingReviewItem[] | null;
     /** From the contrasts, put in order by the model. */
     ai_corrected: TrainingReviewItem[] | null;
-    /** Inferred by the model from the signals: every line has source `inferred`. */
+    /**
+     * Inferred by the model from the signals (source `inferred`), after the
+     * lines the server computes from the notes (source `hint`, `confidence`,
+     * `foundation`, `counterpart`; `ref` is the note).
+     */
     doubts: TrainingReviewItem[] | null;
     /** Computed, never generated: unverified citations, held drafts, «Faltó». */
     unverified: TrainingReviewItem[] | null;

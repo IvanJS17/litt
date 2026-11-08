@@ -15,6 +15,7 @@ import {
 } from "../../lib/trainingNotes";
 import { heldVersionIds, type SealStage } from "../../lib/trainingRelease";
 import { REVIEW_MAX_NOTES } from "../../lib/trainingSupervisionAi";
+import { effectiveVerdict, type TrainingFoundation, type TrainingVerdict, type TrainingVerdictSource } from "../../lib/trainingVerdict";
 import { WORK_SURFACES } from "../../lib/trainingWork";
 
 export type NoteRow = {
@@ -29,6 +30,13 @@ export type NoteRow = {
     contrast: string | null;
     contrast_status: string;
     created_at: string;
+    // Layer 3; absent or null on older notes.
+    confidence?: number | null;
+    verdict?: TrainingVerdict | null;
+    verdict_source?: TrainingVerdictSource | null;
+    foundation?: TrainingFoundation | null;
+    mode?: string | null;
+    step?: number | null;
 };
 
 export type Work = {
@@ -39,7 +47,7 @@ export type Work = {
 };
 
 const NOTE_COLUMNS =
-    "id, org_id, trainee_user_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at";
+    "id, org_id, trainee_user_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at, confidence, verdict, verdict_source, foundation, mode, step";
 
 /** The pupil's turn notes in one organization; with `work`, only that chat's. */
 export async function loadTraineeNotes(
@@ -154,14 +162,113 @@ export type WorkSignals = {
     signals: TrainingWorkSignals;
     proposed: TrainingReviewItem[];
     unverified: TrainingReviewItem[];
+    /** Computed lines (hints, thermometer, basis, counterpart): the review puts them before the model's doubts. */
+    computed: TrainingReviewItem[];
 };
+
+const CONFIDENCE_LABEL: Record<number, string> = {
+    1: "Casi adivino",
+    2: "Dudo",
+    3: "Bastante seguro",
+    4: "Seguro",
+};
+const COMPUTED_HINT_LINES = 6;
+const COMPUTED_ROUND_LINES = 4;
+const COMPUTED_MARK_LINES = 4;
+
+/**
+ * What the mentor should see about how the pupil used hints, the thermometer
+ * and the counterparty's lawyer, counted from the notes alone, without a
+ * model (`notes` oldest first). A line says what happened; it ranks nothing.
+ * The lines about the thermometer and the basis repeat «según el contraste de
+ * la IA»: the verdict is the AI's, until the mentor corrects it.
+ */
+export function computeCriterionLines(notes: readonly NoteRow[]): {
+    lines: TrainingReviewItem[];
+    hints_used: number;
+    max_hint_level: number;
+    counterpart_rounds: number;
+    counterpart_closed: number;
+} {
+    const hintLines: TrainingReviewItem[] = [];
+    const markLines: TrainingReviewItem[] = [];
+    const roundLines: TrainingReviewItem[] = [];
+    let hints = 0;
+    let maxLevel = 0;
+    let rounds = 0;
+    let closed = 0;
+    let open: { turns: number; last: string } | null = null;
+    const endOpenRound = () => {
+        if (open) roundLines.push({ source: "counterpart", text: `Probó ${open.turns} turno${open.turns === 1 ? "" : "s"} con la contraparte y no cerró la ronda`, ref: open.last });
+        open = null;
+    };
+    notes.forEach((note, index) => {
+        if (note.mode === "hint") {
+            hints += 1;
+            maxLevel = Math.max(maxLevel, note.step ?? 0);
+            const sent = notes.slice(index + 1).some((later) => !later.mode);
+            hintLines.push({
+                source: "hint",
+                text: `Pidió pista de nivel ${note.step ?? "?"}${sent ? " antes de enviar" : ""}`,
+                ref: note.id,
+            });
+            return;
+        }
+        if (note.mode === "counterpart") {
+            if (!open) { open = { turns: 0, last: note.id }; rounds += 1; }
+            open.turns += 1;
+            open.last = note.id;
+            return;
+        }
+        if (note.mode === "counterpart_close") {
+            const turns = open?.turns ?? 0;
+            if (!open) rounds += 1;
+            open = null;
+            closed += 1;
+            roundLines.push({ source: "counterpart", text: `Cerró una ronda con la contraparte${turns ? ` (${turns} turno${turns === 1 ? "" : "s"})` : ""}`, ref: note.id });
+            return;
+        }
+        endOpenRound();
+        const verdict = effectiveVerdict({
+            verdict: note.verdict ?? null,
+            verdict_source: note.verdict_source ?? null,
+            foundation: note.foundation ?? null,
+        });
+        const label = note.confidence ? CONFIDENCE_LABEL[note.confidence] : null;
+        if (label && note.confidence === 4 && verdict === "no_coincide")
+            markLines.push({ source: "confidence", text: `Marcó «${label}» y, según el contraste de la IA, su planteamiento no coincidió`, ref: note.id });
+        else if (label && note.confidence === 1 && verdict === "coincide")
+            markLines.push({ source: "confidence", text: `Marcó «${label}» y, según el contraste de la IA, su planteamiento coincidió`, ref: note.id });
+        if (note.verdict === "coincide" && note.verdict_source !== "mentor" && (note.foundation === "weak" || note.foundation === "wrong"))
+            markLines.push({
+                source: "foundation",
+                text: `Su conclusión coincidió, pero su fundamento fue ${note.foundation === "wrong" ? "equivocado" : "débil"} según el contraste de la IA`,
+                ref: note.id,
+            });
+    });
+    endOpenRound();
+    return {
+        lines: [
+            ...hintLines.slice(-COMPUTED_HINT_LINES),
+            ...markLines.slice(-COMPUTED_MARK_LINES),
+            ...roundLines.slice(-COMPUTED_ROUND_LINES),
+        ],
+        hints_used: hints,
+        max_hint_level: maxLevel,
+        counterpart_rounds: rounds,
+        counterpart_closed: closed,
+    };
+}
 
 /** The pure part: the review's computed lines from what was read. */
 export function computeWorkLines(args: {
     notes: readonly NoteRow[];
     citations: { messageId: string; citation: Citation }[];
     heldVersions: { id: string; filename: string | null; document_id: string }[];
-}): Pick<WorkSignals, "proposed" | "unverified"> & { citationsUnverified: number } {
+}): Pick<WorkSignals, "proposed" | "unverified" | "computed"> & {
+    citationsUnverified: number;
+    criterion: ReturnType<typeof computeCriterionLines>;
+} {
     const proposed = args.notes.slice(-REVIEW_MAX_NOTES).map((note) => ({
         source: "attempt",
         text: clip(note.attempt.trim(), PROPOSED_MAX_CHARS),
@@ -207,7 +314,8 @@ export function computeWorkLines(args: {
         for (const line of contrastSections(note.contrast).falto)
             add({ source: "contrast", text: clip(`Faltó: ${line}`, LINE_MAX_CHARS), ref: note.id });
     }
-    return { proposed, unverified, citationsUnverified };
+    const criterion = computeCriterionLines(args.notes);
+    return { proposed, unverified, citationsUnverified, computed: criterion.lines, criterion };
 }
 
 /** Reads what one work's review needs and computes its signals and lines. */
@@ -274,6 +382,7 @@ export async function loadWorkSignals(
     return ok({
         proposed: lines.proposed,
         unverified: lines.unverified,
+        computed: lines.computed,
         signals: {
             notes: work.notes.length,
             contrasts_ready: work.notes.filter((note) => note.contrast_status === "ready").length,
@@ -283,6 +392,10 @@ export async function loadWorkSignals(
             edits_rejected: count("rejected"),
             edits_pending: count("pending"),
             held_versions: held.data.size,
+            hints_used: lines.criterion.hints_used,
+            max_hint_level: lines.criterion.max_hint_level,
+            counterpart_rounds: lines.criterion.counterpart_rounds,
+            counterpart_closed: lines.criterion.counterpart_closed,
         },
     });
 }
