@@ -19,6 +19,9 @@ export async function setLocale(locale: string): Promise<boolean> {
         sameSite: "lax",
         maxAge: LOCALE_COOKIE_MAX_AGE,
         httpOnly: false,
+        // The same rule as the auth cookies (backend/src/lib/authSession.ts):
+        // https-only in production, plain http in local development.
+        secure: process.env.NODE_ENV === "production",
     });
     return true;
 }

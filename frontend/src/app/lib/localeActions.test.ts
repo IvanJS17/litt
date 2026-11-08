@@ -15,7 +15,18 @@ describe("setLocale", () => {
             sameSite: "lax",
             maxAge: 31_536_000,
             httpOnly: false,
+            secure: false,
         });
+    });
+
+    it("marks the cookie Secure in production", async () => {
+        vi.stubEnv("NODE_ENV", "production");
+        try {
+            await setLocale("es-MX");
+            expect(jar.set.mock.calls[0][2]).toMatchObject({ secure: true });
+        } finally {
+            vi.unstubAllEnvs();
+        }
     });
 
     it.each(["fr-FR", "es", "en-us", "", " es-MX", "es-MX; Path=/x", "__proto__", "<script>"])(
