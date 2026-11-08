@@ -215,3 +215,154 @@ test("a refused turn brings the thermometer and keeps what the pasante wrote", a
   expect(bodies[1]?.confidence).toBe(3);
   await expect(prompt).toHaveValue("");
 });
+
+// ── The note and the floating composer ───────────────────────────────────
+// A short pane: the composer (approach + thermometer) covers most of it, so a
+// tall note's «Reply» only clears the composer if the thread is scrolled for it.
+
+const LONG_ANSWER = Array.from(
+  { length: 30 },
+  (_, index) =>
+    `Paragraph ${index + 1}: the clause supports the termination for breach and the analysis continues at length.`,
+).join("\n\n");
+
+function turnNote(status: "pending" | "ready") {
+  return {
+    id: "note-1",
+    org_id: "org-1",
+    trainee_user_id: "user-1",
+    chat_id: "scroll-chat",
+    message_id: "user-message-1",
+    attempt: ATTEMPT,
+    contrast: status === "ready" ? "Coincide: la cláusula quinta sostiene la rescisión. ".repeat(6) : null,
+    contrast_status: status,
+    created_at: "2026-11-06T12:00:00Z",
+    confidence: 3,
+    ...(status === "ready"
+      ? {
+          verdict: "coincide",
+          verdict_source: "contrast",
+          effective_verdict: "parcial",
+          right_for_wrong_reason: true,
+          foundation: "weak",
+          foundation_question: QUESTION.repeat(3),
+        }
+      : {}),
+  };
+}
+
+async function openNotedTurn(
+  addin: import("./support/fixtures").Addin,
+  page: import("@playwright/test").Page,
+  notes: () => Promise<unknown> | unknown,
+) {
+  await page.setViewportSize({ width: 420, height: 600 });
+  await addin.mockApiJson("GET", "**/training/stage**", {
+    stage: "pasante",
+    attempt_required: true,
+    confidence_required: true,
+  });
+  await addin.mockChatStream([LONG_ANSWER], { chatId: "scroll-chat" });
+  await page.route("**/training-notes/chats/scroll-chat", async (route) => {
+    const body = await notes();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ notes: [body] }),
+    });
+  });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+  await page.getByPlaceholder("How can I help?").fill("¿Procede la rescisión?");
+  await page.getByLabel("Your approach (2–3 lines)").fill(ATTEMPT);
+  await page
+    .getByRole("radiogroup", { name: "How sure are you of your approach?" })
+    .getByRole("radio", { name: "Fairly sure" })
+    .click();
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Paragraph 30:")).toBeAttached();
+}
+
+const scrollTopOf = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => {
+    const scroller = [...document.querySelectorAll<HTMLElement>("div")].find(
+      (element) =>
+        element.scrollHeight > element.clientHeight + 1 &&
+        /auto|scroll/.test(getComputedStyle(element).overflowY) &&
+        element.querySelector("[data-message-id]"),
+    );
+    return scroller ? Math.round(scroller.scrollTop) : -1;
+  });
+
+const isClear = (button: import("@playwright/test").Locator) =>
+  button.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      box.left + box.width / 2,
+      box.top + box.height / 2,
+    );
+    return element.contains(hit);
+  });
+
+test("a note that grows from pending to ready is shown again above the composer", async ({
+  addin,
+  page,
+}) => {
+  let ready = false;
+  await openNotedTurn(addin, page, () => turnNote(ready ? "ready" : "pending"));
+  const note = page.getByRole("region", { name: "Private training notes" });
+  await expect(note.getByText("Generating contrast…")).toBeVisible();
+  ready = true;
+  // The pending note polls every 5 s.
+  const reply = note.getByRole("button", { name: "Reply to the question about your basis" });
+  await expect(reply).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => isClear(reply)).toBe(true);
+});
+
+test("a person reading further down is not pulled back when the note arrives or grows", async ({
+  addin,
+  page,
+}) => {
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await openNotedTurn(addin, page, async () => {
+    await gate;
+    return turnNote("ready");
+  });
+  // The answer is long and the person is reading it a little below the top
+  // of the turn when the note arrives, taller than that: it must not move them.
+  await page.waitForTimeout(1500);
+  await page.mouse.move(200, 120);
+  await page.mouse.wheel(0, 60);
+  await expect.poll(() => scrollTopOf(page)).toBeGreaterThan(30);
+  await page.waitForTimeout(400);
+  const before = await scrollTopOf(page);
+  release();
+  await expect(
+    page.getByRole("region", { name: "Private training notes" }),
+  ).toBeAttached();
+  await page.waitForTimeout(800);
+  expect(await scrollTopOf(page)).toBe(before);
+});
+
+test("tabbing to a control under the composer scrolls it into view and stays there", async ({
+  addin,
+  page,
+}) => {
+  await openNotedTurn(addin, page, () => turnNote("ready"));
+  const note = page.getByRole("region", { name: "Private training notes" });
+  const reply = note.getByRole("button", { name: "Reply to the question about your basis" });
+  await expect(reply).toBeVisible();
+  // The person went down to read the answer, then tabs back to the note.
+  await page.mouse.move(200, 120);
+  await page.mouse.wheel(0, 1200);
+  await expect.poll(() => scrollTopOf(page)).toBeGreaterThan(300);
+  await reply.focus();
+  await expect(reply).toBeFocused();
+  await expect.poll(() => isClear(reply)).toBe(true);
+  const settled = await scrollTopOf(page);
+  await page.waitForTimeout(600);
+  expect(await scrollTopOf(page)).toBe(settled);
+});

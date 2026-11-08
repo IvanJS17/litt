@@ -28,6 +28,9 @@ import type { TrainingNoteView } from "@mike/ui";
 
 const CHAT_MESSAGE_TOP_GAP = 12;
 const CHAT_MESSAGES_BOTTOM_GAP = 16;
+// Within this many px of the end the transcript counts as stuck to the bottom
+// (the scroll-to-bottom button hides, and the training note is revealed).
+const STUCK_TO_BOTTOM_PX = 10;
 // The submitted user turn always settles on the transcript's existing pt-20
 // line. The spacer and scroll destination must share this exact value so a
 // short and long response cannot settle at different vertical positions.
@@ -202,6 +205,10 @@ export function ChatView({
     const userInputOwnedUntilRef = useRef(0);
     const pointerHeldRef = useRef(false);
     const showScrollButtonRef = useRef(false);
+    // True once the person has scrolled (or tabbed) away from the bottom to
+    // read: nothing the application does later may drag them back. Cleared
+    // when they return to the bottom or a new turn is pinned.
+    const readingAboveRef = useRef(false);
     // False until the first positioning pass after mount / session switch.
     const hasPositionedRef = useRef(false);
     const [composerHeight, setComposerHeight] = useState(144);
@@ -209,6 +216,10 @@ export function ChatView({
     const [messagesVisible, setMessagesVisible] = useState(false);
     const [showScrollButton, setShowScrollButton] = useState(false);
     const messagesBottomInset = composerHeight + CHAT_MESSAGES_BOTTOM_GAP;
+    const composerHeightRef = useRef(composerHeight);
+    useEffect(() => {
+        composerHeightRef.current = composerHeight;
+    });
 
     let latestUserIndex = -1;
     let latestAssistantIndex = -1;
@@ -304,7 +315,7 @@ export function ChatView({
             container.scrollTop -
             container.clientHeight;
         const isScrollable = container.scrollHeight > container.clientHeight;
-        const isScrolledUp = bottomDistance > 10;
+        const isScrolledUp = bottomDistance > STUCK_TO_BOTTOM_PX;
         const nextVisible = isScrolledUp && isScrollable;
         if (showScrollButtonRef.current === nextVisible) return;
         showScrollButtonRef.current = nextVisible;
@@ -377,6 +388,11 @@ export function ChatView({
                 performance.now() <= userInputOwnedUntilRef.current
             ) {
                 desiredScrollTopRef.current = container.scrollTop;
+                readingAboveRef.current =
+                    container.scrollHeight -
+                        container.scrollTop -
+                        container.clientHeight >
+                    STUCK_TO_BOTTOM_PX;
             } else {
                 const preserved = Math.max(
                     0,
@@ -392,6 +408,38 @@ export function ChatView({
             }
             updateScrollButton();
         };
+        // Tab (or a script) moving focus to a control in the thread makes the
+        // browser scroll it into view. That scroll is the person's, so it
+        // must not be undone as an engine scroll; and the composer floats
+        // over the bottom of the thread, so the control is brought above it
+        // when the browser left it underneath.
+        const onFocusIn = (event: FocusEvent): void => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            cancelForUser();
+            requestAnimationFrame(() => {
+                if (messagesContainerRef.current !== container) return;
+                if (!container.contains(target)) return;
+                const box = target.getBoundingClientRect();
+                const frame = container.getBoundingClientRect();
+                const visibleBottom =
+                    frame.bottom -
+                    composerHeightRef.current -
+                    CHAT_MESSAGE_TOP_GAP;
+                const overlap = box.bottom - visibleBottom;
+                if (overlap > 0) {
+                    container.scrollTop += overlap;
+                }
+                desiredScrollTopRef.current = container.scrollTop;
+                readingAboveRef.current =
+                    container.scrollHeight -
+                        container.scrollTop -
+                        container.clientHeight >
+                    STUCK_TO_BOTTOM_PX;
+                updateScrollButton();
+            });
+        };
+        container.addEventListener("focusin", onFocusIn);
         container.addEventListener("scroll", correctEngineScroll);
         container.addEventListener("wheel", cancelForUser, { passive: true });
         container.addEventListener("touchstart", holdPointer, {
@@ -412,6 +460,7 @@ export function ChatView({
         // eslint-disable-next-line react-hooks/set-state-in-effect -- initial scroll-button state must be measured from the live DOM
         updateScrollButton();
         return () => {
+            container.removeEventListener("focusin", onFocusIn);
             container.removeEventListener("scroll", correctEngineScroll);
             container.removeEventListener("wheel", cancelForUser);
             container.removeEventListener("touchstart", holdPointer);
@@ -436,6 +485,7 @@ export function ChatView({
         );
         desiredScrollTopRef.current = bottomTop;
         container.scrollTop = bottomTop;
+        readingAboveRef.current = false;
         updateScrollButton();
     };
 
@@ -566,6 +616,7 @@ export function ChatView({
         const { id } = latestUserMessageDetailsRef.current;
         if (!id || scrollHandledIdRef.current === id) return;
         scrollHandledIdRef.current = id;
+        readingAboveRef.current = false;
         const requestedVersion = scrollVersionRef.current;
         if (requestedVersion !== scrollVersionRef.current) return;
         const container = messagesContainerRef.current;
@@ -589,22 +640,22 @@ export function ChatView({
     // back with the verdict is tall and the composer (approach field plus
     // thermometer) is too: the note's «Reply» button can land under the
     // floating composer, and the engine-scroll correction above snaps back any
-    // scroll the user did not make by wheel (a focus scroll included). So
-    // when a note first appears, scroll once until its bottom clears the
-    // composer, and hand the position to the user.
+    // scroll the user did not make. So whenever the note appears, turns from
+    // `pending` to `ready`, or changes height, scroll until its bottom clears
+    // the composer — but only for a person who is still at the bottom: one who
+    // went up to read keeps the place they chose.
     const latestTrainingNote =
         latestUserIndex >= 0 ? trainingNotes?.get(latestUserIndex) : undefined;
-    const noteRevealedForIdRef = useRef<string | null>(null);
     const hasLatestTrainingNote = Boolean(latestTrainingNote);
+    const latestNoteStatus = latestTrainingNote?.contrast_status ?? null;
     useEffect(() => {
         if (!hasLatestTrainingNote || !latestUserMessageId) return;
-        if (noteRevealedForIdRef.current === latestUserMessageId) return;
-        const frame = requestAnimationFrame(() => {
+        const reveal = (): void => {
             const container = messagesContainerRef.current;
             const element = latestUserMessageRef.current;
             if (!container || !element) return;
             if (element.dataset.messageId !== latestUserMessageId) return;
-            noteRevealedForIdRef.current = latestUserMessageId;
+            if (readingAboveRef.current) return;
             const visibleBottom =
                 container.clientHeight - composerHeight - CHAT_MESSAGE_TOP_GAP;
             const targetTop = Math.min(
@@ -618,10 +669,24 @@ export function ChatView({
             desiredScrollTopRef.current = targetTop;
             container.scrollTop = targetTop;
             updateScrollButton();
-        });
-        return () => cancelAnimationFrame(frame);
+        };
+        let frame = requestAnimationFrame(reveal);
+        const element = latestUserMessageRef.current;
+        let observer: ResizeObserver | null = null;
+        if (element && typeof ResizeObserver !== "undefined") {
+            observer = new ResizeObserver(() => {
+                cancelAnimationFrame(frame);
+                frame = requestAnimationFrame(reveal);
+            });
+            observer.observe(element);
+        }
+        return () => {
+            cancelAnimationFrame(frame);
+            observer?.disconnect();
+        };
     }, [
         hasLatestTrainingNote,
+        latestNoteStatus,
         latestUserMessageId,
         composerHeight,
         updateScrollButton,
