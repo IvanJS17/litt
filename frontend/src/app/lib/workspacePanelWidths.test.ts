@@ -4,6 +4,7 @@ import {
     fitsWithExplorer,
     resizeChatSplit,
     resizePanel,
+    workspaceRoom,
 } from "./workspacePanelWidths";
 
 const widths = { explorer: 280, chat: 420, sideChat: 420 };
@@ -124,5 +125,18 @@ describe("fitsWithExplorer", () => {
         expect(fitsWithExplorer(1100, false)).toBe(true);
         expect(fitsWithExplorer(1100, true)).toBe(false);
         expect(fitsWithExplorer(1200, true)).toBe(true);
+    });
+});
+
+describe("workspaceRoom", () => {
+    // Explorer 160 + document 320 + chat 320 + two 6 px dividers = 812; a
+    // second chat adds 320 + 6 = 1138.
+    it("splits the workspace only where every panel fits at its minimum", () => {
+        // A 768 px tablet with the sidebar folded leaves about 690 px.
+        expect(workspaceRoom(690)).toBe("single");
+        expect(workspaceRoom(811)).toBe("single");
+        expect(workspaceRoom(812)).toBe("split");
+        expect(workspaceRoom(1137)).toBe("split");
+        expect(workspaceRoom(1138)).toBe("splitWithSideChat");
     });
 });
