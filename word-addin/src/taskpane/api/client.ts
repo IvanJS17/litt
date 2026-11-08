@@ -16,6 +16,7 @@ import type {
   TrainingBackingCheck,
   TrainingBackingMark,
   TrainingChatBacking,
+  TrainingConfidenceLevel,
   TrainingTurnNote,
   TrainingTurnNotes,
   UiLocale,
@@ -514,6 +515,27 @@ export async function getWordTrainingStage(): Promise<"pasante" | "junior" | nul
 }
 
 /**
+ * LiTT training: what a Word turn owes the caller's mentor (a stage for every
+ * practice area, in any organization). Only tells the composer what to show:
+ * the approach for a pasante, and the thermometer mark when the server asks
+ * for it (`confidence_required`, absent from servers older than layer 3).
+ */
+export async function getWordTrainingTurn(): Promise<{
+  attemptRequired: boolean;
+  confidenceRequired: boolean;
+}> {
+  const result = await apiRequest<{
+    stage: "pasante" | "junior" | null;
+    confidence_required?: boolean;
+  }>("word_chat.turn", "/training/stage?surface=word");
+  const attemptRequired = result.stage === "pasante";
+  return {
+    attemptRequired,
+    confidenceRequired: attemptRequired && result.confidence_required === true,
+  };
+}
+
+/**
  * LiTT training: a pasante's private notes on a Word chat's turns. Only the
  * author and their current mentor can read them; any other caller, and a chat
  * with nothing to read, gets a uniform 404, which is "no notes" here.
@@ -591,6 +613,8 @@ export async function streamWordChat(payload: {
   client_tools?: boolean;
   /** LiTT training: a pasante's own approach; the server requires it. */
   attempt?: string;
+  /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+  confidence?: TrainingConfidenceLevel;
   signal?: AbortSignal;
 }): Promise<Response> {
   const { signal, ...body } = payload;

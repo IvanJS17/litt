@@ -35,6 +35,9 @@ function tables(): Record<string, Row[]> {
                 id: "n1", org_id: "org-a", trainee_user_id: userId, chat_id: "c1", word_chat_id: null,
                 tabular_chat_id: null, message_id: "m1", attempt: "mi planteamiento", contrast: "Coincide",
                 contrast_status: "ready", created_at: "2026-01-01T00:00:00Z",
+                confidence: 3, verdict: "coincide", verdict_source: "mentor", verdict_by: other,
+                foundation: "weak", foundation_question: "¿En qué se apoya?", topics: ["rescisión"],
+                answer_unverified: true, mode: null, step: null,
             },
             {
                 id: "n2", org_id: "org-b", trainee_user_id: userId, chat_id: null, word_chat_id: "w1",
@@ -139,12 +142,21 @@ describe("account export: the holder's training", () => {
                 id: "n1", org_id: "org-a", chat_id: "c1", message_id: "m1",
                 attempt: "mi planteamiento", contrast: "Coincide", contrast_status: "ready",
                 created_at: "2026-01-01T00:00:00Z",
+                // Layer 3: the holder's own thermometer mark, the verdict and what came with it.
+                confidence: 3, verdict: "coincide", verdict_source: "mentor", foundation: "weak",
+                foundation_question: "¿En qué se apoya?", topics: ["rescisión"], answer_unverified: true,
             }),
             expect.objectContaining({
                 id: "n2", org_id: "org-b", word_chat_id: "w1", message_id: "m2",
                 attempt: "otro", contrast: null, contrast_status: "failed",
             }),
         ]);
+    });
+
+    it("leaves the mentor who corrected a verdict out of the notes", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        for (const note of out.training.turn_notes) expect(note).not.toHaveProperty("verdict_by");
     });
 
     it("carries the supervision kept about the holder, without other people's ids or keys", async () => {

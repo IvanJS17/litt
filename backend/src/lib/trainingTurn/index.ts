@@ -23,9 +23,12 @@ import type { UserApiKeys } from "../llm";
 import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
+import { confidenceBehavior } from "./confidence";
+import { hasUnverifiedCitation } from "./unverified";
 import { methodologyBehavior } from "./methodology";
 import type {
-    TrainingBody,
+    ResolvedTurn,
+    TrainingBehavior,
     TrainingEnginePlan,
     TrainingSurface,
     TrainingTurnFailure,
@@ -33,27 +36,19 @@ import type {
 } from "./types";
 
 export { readTrainingBody } from "./body";
+export { TRAINING_CONFIDENCE_REQUIRED_CODE } from "./confidence";
+export { hasUnverifiedCitation } from "./unverified";
 export type {
     TrainingBody,
+    TrainingConfidence,
     TrainingEnginePlan,
     TrainingSurface,
     TrainingTurnFailure,
     TrainingTurnPlan,
 } from "./types";
 
-type Resolved = {
-    surface: TrainingSurface;
-    body: TrainingBody;
-    stage: TrainingTurnPlan["stage"];
-    passActive: boolean;
-    orgId: string | null;
-};
-
-/** A behavior refines the plan or refuses the turn. */
-type Behavior = (
-    resolved: Resolved,
-    plan: TrainingTurnPlan,
-) => TrainingTurnFailure | TrainingTurnPlan;
+type Resolved = ResolvedTurn;
+type Behavior = TrainingBehavior;
 
 const attemptBehavior: Behavior = (resolved, plan) => {
     // An urgency pass lifts the requirement, not the stage.
@@ -68,7 +63,12 @@ const accountabilityBehavior: Behavior = (resolved, plan) =>
         : plan;
 
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior, accountabilityBehavior, methodologyBehavior];
+const BEHAVIORS: readonly Behavior[] = [
+    attemptBehavior,
+    confidenceBehavior,
+    accountabilityBehavior,
+    methodologyBehavior,
+];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
@@ -156,6 +156,7 @@ export async function recordTrainingNote(
         chatId: args.chatId,
         messageId: args.messageId,
         attempt: plan.attempt,
+        confidence: plan.confidence,
     });
     return created.ok ? { ok: true, note: created.note } : created;
 }
@@ -175,6 +176,12 @@ export function finishTrainingTurn(
         answer: string;
         model: string;
         apiKeys?: UserApiKeys;
+        /**
+         * The citations persisted with the answer, whichever shape the
+         * surface keeps them in. One the server could not verify makes the
+         * note answer_unverified: such a turn does not count as evidence.
+         */
+        citations?: unknown;
         /** The saved turn, for the hooks; omit when nothing was saved. */
         turn?: {
             userId: string;
@@ -193,6 +200,7 @@ export function finishTrainingTurn(
             answer: args.answer,
             model: args.model,
             apiKeys: args.apiKeys,
+            answerUnverified: hasUnverifiedCitation(args.citations),
         });
     }
     if (args.plan) {

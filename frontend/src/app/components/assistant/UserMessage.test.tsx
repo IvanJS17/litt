@@ -1,4 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
+import esMX from "../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { UserMessage } from "./UserMessage";
@@ -15,15 +17,44 @@ describe("UserMessage", () => {
                 }}
             />,
         );
-        expect(screen.getByText("Tu planteamiento")).toBeInTheDocument();
+        expect(screen.getByText("Your approach")).toBeInTheDocument();
         expect(
             screen.getByText("Coincide: la cláusula quinta aplica."),
         ).toBeInTheDocument();
     });
 
+    it("shows the verdict and the basis question in the user's language", () => {
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <UserMessage
+                    content="¿Procede la rescisión?"
+                    trainingNote={{
+                        chat_id: "chat-1",
+                        attempt: "Creo que sí, por incumplimiento de la cláusula quinta.",
+                        contrast: "Coincide: la cláusula quinta aplica.",
+                        contrast_status: "ready",
+                        confidence: 4,
+                        effective_verdict: "parcial",
+                        right_for_wrong_reason: true,
+                        foundation: "wrong",
+                        foundation_question: "¿En qué precepto se apoya la cláusula quinta?",
+                    }}
+                />
+            </IntlClientProvider>,
+        );
+        const note = screen.getByRole("region", { name: "Notas privadas de formación" });
+        expect(within(note).getByText("Tu marca: Seguro")).toBeInTheDocument();
+        expect(within(note).getByText("Coincide en parte")).toBeInTheDocument();
+        expect(within(note).getByText("Fundamento: equivocado")).toBeInTheDocument();
+        expect(within(note).getByText(/acertaste por la razón equivocada/)).toBeInTheDocument();
+        expect(
+            within(note).getByRole("button", { name: "Responder a la pregunta sobre tu fundamento" }),
+        ).toHaveTextContent("Responder");
+    });
+
     it("shows nothing extra without a note", () => {
         render(<UserMessage content="¿Procede la rescisión?" />);
-        expect(screen.queryByText("Tu planteamiento")).toBeNull();
+        expect(screen.queryByText("Your approach")).toBeNull();
     });
 
     it("opens a document-backed file pill", async () => {

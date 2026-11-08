@@ -670,7 +670,7 @@ export async function buildUserAccountExport(
         selectAll(db, "training_turn_notes", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
-                "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at",
+                "id, org_id, chat_id, word_chat_id, tabular_chat_id, message_id, attempt, contrast, contrast_status, created_at, confidence, verdict, verdict_source, foundation, foundation_question, topics, answer_unverified, mode, step",
             order: ["created_at"],
         }),
         selectAll(db, "training_work_reviews", {

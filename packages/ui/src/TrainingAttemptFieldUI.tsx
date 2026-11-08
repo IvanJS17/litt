@@ -16,17 +16,43 @@ export function trainingAttemptLength(value: string): number {
   return [...value.trim()].length;
 }
 
-export function isTrainingAttemptReady(value: string): boolean {
-  const length = trainingAttemptLength(value);
-  return (
-    length >= TRAINING_ATTEMPT_MIN_CHARS && length <= TRAINING_ATTEMPT_MAX_CHARS
+/**
+ * What the person wrote themselves: the lines quoted by «Responder» (a basis
+ * question) do not count towards the minimum, or quoting would be an approach.
+ */
+export function trainingAttemptOwnLength(value: string): number {
+  return trainingAttemptLength(
+    value
+      .split(/\r?\n/)
+      .filter((line) => !line.trimStart().startsWith(">"))
+      .join("\n"),
   );
+}
+
+export function isTrainingAttemptReady(value: string): boolean {
+  return (
+    trainingAttemptOwnLength(value) >= TRAINING_ATTEMPT_MIN_CHARS &&
+    trainingAttemptLength(value) <= TRAINING_ATTEMPT_MAX_CHARS
+  );
+}
+
+/** The words of the field, in the host's language. */
+export interface TrainingAttemptFieldText {
+  label: string;
+  placeholder: string;
+  /** Under the limit and long enough. */
+  ready: string;
+  /** Shorter than the minimum. */
+  tooShort: (counts: { length: number; min: number; missing: number }) => string;
+  /** Longer than the maximum. */
+  tooLong: (counts: { length: number; max: number; excess: number }) => string;
 }
 
 export function TrainingAttemptFieldUI({
   id,
   value,
   onChange,
+  text,
   disabled = false,
   showError = false,
   className,
@@ -34,20 +60,22 @@ export function TrainingAttemptFieldUI({
   id: string;
   value: string;
   onChange: (value: string) => void;
+  text: TrainingAttemptFieldText;
   disabled?: boolean;
   /** Set after a send was refused for a missing or short approach. */
   showError?: boolean;
   className?: string;
 }) {
-  const length = trainingAttemptLength(value);
+  const length = trainingAttemptOwnLength(value);
+  const total = trainingAttemptLength(value);
   const missing = Math.max(0, TRAINING_ATTEMPT_MIN_CHARS - length);
-  const excess = Math.max(0, length - TRAINING_ATTEMPT_MAX_CHARS);
+  const excess = Math.max(0, total - TRAINING_ATTEMPT_MAX_CHARS);
   const invalid = missing > 0 || excess > 0;
   const hintId = `${id}-hint`;
   return (
     <div className={twMerge(clsx("flex min-w-0 flex-col gap-1", className))}>
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
-        Tu planteamiento (2–3 líneas)
+      <label htmlFor={id} className="text-sm font-medium text-foreground">
+        {text.label}
       </label>
       <textarea
         id={id}
@@ -57,12 +85,12 @@ export function TrainingAttemptFieldUI({
         disabled={disabled}
         aria-invalid={showError && invalid ? true : undefined}
         aria-describedby={hintId}
-        placeholder="Antes de preguntar, escribe cómo lo resolverías tú."
+        placeholder={text.placeholder}
         onChange={(event) => onChange(event.target.value)}
         className={clsx(
-          "w-full min-w-0 resize-y rounded-md border border-gray-200 bg-white/70 px-3 py-2 text-sm text-gray-900 outline-none transition-[color,box-shadow] placeholder:text-gray-400",
+          "w-full min-w-0 resize-y rounded-md border border-border bg-background/70 px-3 py-2 text-sm text-foreground outline-none transition-[color,box-shadow] placeholder:text-muted-foreground",
           "focus-visible:border-focus focus-visible:ring-[3px] focus-visible:ring-focus/30",
-          "aria-invalid:border-red-500 aria-invalid:ring-red-500/20",
+          "aria-invalid:border-destructive aria-invalid:ring-destructive/20",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
       />
@@ -71,14 +99,14 @@ export function TrainingAttemptFieldUI({
         aria-live="polite"
         className={clsx(
           "text-xs",
-          (showError && invalid) || excess > 0 ? "text-red-600" : "text-gray-500",
+          (showError && invalid) || excess > 0 ? "text-destructive" : "text-muted-foreground",
         )}
       >
         {excess > 0
-          ? `${length}/${TRAINING_ATTEMPT_MAX_CHARS} caracteres: sobran ${excess}.`
+          ? text.tooLong({ length: total, max: TRAINING_ATTEMPT_MAX_CHARS, excess })
           : missing > 0
-            ? `${length}/${TRAINING_ATTEMPT_MIN_CHARS} caracteres: faltan ${missing}. Después de la respuesta verás un contraste con tu planteamiento.`
-            : "Listo. Después de la respuesta verás un contraste con tu planteamiento."}
+            ? text.tooShort({ length, min: TRAINING_ATTEMPT_MIN_CHARS, missing })
+            : text.ready}
       </p>
     </div>
   );
@@ -87,34 +115,18 @@ export function TrainingAttemptFieldUI({
 /**
  * The plain-text line a pasante sees instead of the field while their
  * mentor's urgency pass is in force on the matter (training layer 2). The
- * end shows the date as well when it is not today.
+ * host writes the sentence, with the end of the pass in its own language.
  */
 export function TrainingUrgencyPassLineUI({
-  expiresAt,
-  now = new Date(),
+  text,
   className,
 }: {
-  expiresAt: string;
-  now?: Date;
+  text: string;
   className?: string;
 }) {
   return (
-    <p className={twMerge(clsx("min-w-0 text-xs text-gray-600", className))}>
-      {`Pase de urgencia vigente hasta ${formatPassEnd(expiresAt, now)}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.`}
+    <p className={twMerge(clsx("min-w-0 text-xs text-muted-foreground", className))}>
+      {text}
     </p>
   );
-}
-
-function formatPassEnd(expiresAt: string, now: Date): string {
-  const end = new Date(expiresAt);
-  if (Number.isNaN(end.getTime())) return "nuevo aviso";
-  const time = new Intl.DateTimeFormat("es-MX", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(end);
-  const sameDay = end.toDateString() === now.toDateString();
-  if (sameDay) return `las ${time}`;
-  const day = new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "long" }).format(end);
-  return `el ${day}, a las ${time}`;
 }

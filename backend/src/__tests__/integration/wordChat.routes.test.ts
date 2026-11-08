@@ -1307,10 +1307,20 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
     expect(runLLMStream).not.toHaveBeenCalled();
   });
 
+  // One request: this route's limiter is nearly spent by the cases around it
+  // (lib/trainingTurn/trainingTurn.test.ts walks every bad mark).
+  it("asks a pasante with a valid attempt for the thermometer mark", async () => {
+      trainingStage.value = "pasante";
+      const res = await send({ attempt: ATTEMPT, confidence: 5 });
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("training_confidence_required");
+      expect(runLLMStream).not.toHaveBeenCalled();
+  });
+
   it("keeps the attempt in a private note of the organization whose stage applied", async () => {
     const chatLib = await import("../../modules/chat/engine/index.js");
     trainingStage.value = "pasante";
-    const res = await send({ attempt: `  ${ATTEMPT}  ` });
+    const res = await send({ attempt: `  ${ATTEMPT}  `, confidence: 3 });
     expect(res.status).toBe(200);
     expect(userInsert()).not.toHaveProperty("training_attempt");
     expect(JSON.stringify(userInsert())).not.toContain(ATTEMPT);
@@ -1322,6 +1332,7 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
       trainee_user_id: "u1",
       message_id: userInsert()!.id,
       attempt: ATTEMPT,
+      confidence: 3,
       contrast_status: "pending",
     });
   });
@@ -1330,7 +1341,7 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
     const { completeText } = await import("../../lib/llm/index.js");
     vi.mocked(completeText).mockResolvedValueOnce(CONTRAST);
     trainingStage.value = "pasante";
-    const res = await send({ attempt: ATTEMPT });
+    const res = await send({ attempt: ATTEMPT, confidence: 3 });
     expect(res.status).toBe(200);
     await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
     const params = vi.mocked(completeText).mock.calls[0][0];
@@ -1339,18 +1350,27 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
     expect(params.apiKeys).toBe(stream.apiKeys);
     expect(params.user).toContain(ATTEMPT);
     expect(params.user).toContain("La respuesta del abogado.");
-    expect(noteUpdate()).toEqual({ contrast: CONTRAST, contrast_status: "ready" });
+    expect(noteUpdate()).toEqual({
+            contrast: CONTRAST,
+            contrast_status: "ready",
+            answer_unverified: false,
+            verdict: null,
+            verdict_source: null,
+            foundation: null,
+            foundation_question: null,
+            topics: null,
+        });
   });
 
   it("marks the note failed, without failing the turn, when the contrast call fails", async () => {
     const { completeText } = await import("../../lib/llm/index.js");
     vi.mocked(completeText).mockRejectedValueOnce(new Error("provider down"));
     trainingStage.value = "pasante";
-    const res = await send({ attempt: ATTEMPT });
+    const res = await send({ attempt: ATTEMPT, confidence: 3 });
     expect(res.status).toBe(200);
     expect(res.text).toContain("[DONE]");
     await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
-    expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed" });
+    expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed", answer_unverified: false });
   });
 
   it("requires the attempt but keeps no note for a local-only chat", async () => {
@@ -1358,7 +1378,7 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
     trainingStage.value = "pasante";
     const refused = await send({ storage: "local" });
     expect(refused.status).toBe(400);
-    const res = await send({ storage: "local", attempt: ATTEMPT });
+    const res = await send({ storage: "local", attempt: ATTEMPT, confidence: 3 });
     expect(res.status).toBe(200);
     expect(noteInsert()).toBeUndefined();
     expect(completeText).not.toHaveBeenCalled();
@@ -1370,7 +1390,7 @@ describe("LiTT training: «Tu turno primero» on POST /word-chat", () => {
       const chatLib = await import("../../modules/chat/engine/index.js");
       const { completeText } = await import("../../lib/llm/index.js");
       trainingStage.value = stage;
-      const res = await send({ attempt: ATTEMPT });
+      const res = await send({ attempt: ATTEMPT, confidence: 3 });
       expect(res.status).toBe(200);
       expect(userInsert()).not.toHaveProperty("training_attempt");
       expect(noteInsert()).toBeUndefined();

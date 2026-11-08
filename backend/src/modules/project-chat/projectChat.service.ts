@@ -200,6 +200,8 @@ export async function prepareProjectChatStream(
         requestedTimeZone?: unknown;
         /** LiTT training: the author's own approach; required of a pasante. */
         attempt?: unknown;
+        /** LiTT training: how sure the author is of their approach (1 to 4). */
+        confidence?: unknown;
     },
 ): Promise<
     | { ok: true; prepared: PreparedProjectChatStream }
@@ -371,7 +373,7 @@ export async function prepareProjectChatStream(
                 surface: "project_chat",
                 userId,
                 scope: { orgId: projectAccess.project.org_id ?? null, projectId },
-                body: { attempt: args.attempt },
+                body: { attempt: args.attempt, confidence: args.confidence },
             });
         } catch (error) {
             return { ok: false, internal: true, error };

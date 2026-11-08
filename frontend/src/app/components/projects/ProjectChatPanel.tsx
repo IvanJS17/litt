@@ -972,6 +972,7 @@ export function ProjectChatPanel({
                                     onCancel={cancel}
                                     isLoading={isResponseLoading}
                                     chatKey={activeChatId}
+                                    chatId={activeChatId}
                                     draftStore={draftStore}
                                     chatModel={chatModel}
                                     chatReasoningLevel={chatReasoningLevel}

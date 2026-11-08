@@ -597,6 +597,7 @@ keep their own spacing and should not receive this attribute.
 | `TextSlabUI` | `shared/ui` | Inset slab holding quoted or proposed text inside a card — citation quotes, tracked-change diffs, and their loading/empty states. Owns shape, padding, and fill; the caller owns typography. |
 | `ToggleSwitchUI` | `shared/ui` | `role="switch"` toggle with an optional text label. |
 | `CitationPillUI` | `shared/ui` | Canonical numbered citation control for web, tabular review, and Word. Uses neutral gray by default, red for verification errors, and the neutral interactive tint for the selected state (`bg-interactive-soft-strong` with `text-interactive`). |
+| `TrainingConfidenceUI` | `shared/ui` | The training thermometer: a named radio group of four levels, the chosen one `aria-checked` with a check mark (state is never colour alone). Takes its words from the host; web and Word share it. |
 | `InputUI` | `shared/ui` | Canonical shadcn input for the web app and Word add-in. |
 | `form-field` | `components/ui` | `FormTextInput` (glass/minimal variants) and `FieldLabel` for app forms. |
 | `NoticeCardUI` | `shared/ui` | The one card every notice is drawn with: glass surface, tone icon (error/success/info), title, message, action row, close button. Do not use it directly in a screen; use one of the two wrappers below. |

@@ -25,7 +25,7 @@ function world(stage: string | null, pass: boolean) {
 }
 
 const SURFACES: TrainingSurface[] = ["chat", "project_chat", "tabular", "word"];
-const ATTEMPT = { attempt: "a".repeat(400) };
+const ATTEMPT = { attempt: "a".repeat(400), confidence: 3 };
 
 describe("the methodology tool is offered to a junior's turn and nobody else's", () => {
     for (const surface of SURFACES) {

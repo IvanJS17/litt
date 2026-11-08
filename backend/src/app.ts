@@ -12,6 +12,7 @@ import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-full-reading/trainingFullReading.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
+import { pupilNotesRouter } from "./modules/training-criterion/trainingCriterion.routes";
 import { myBackingRouter, pupilBackingRouter } from "./modules/training-backing/trainingBacking.routes";
 import {
     pupilReviewAuditsRouter,
@@ -342,6 +343,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/notes", pupilNotesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/backing", pupilBackingRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);

@@ -1298,6 +1298,7 @@ export function AssistantChatColumn({
                                                 onCancel={cancel}
                                                 isLoading={isResponseLoading}
                                                 chatKey={chatId}
+                                                chatId={chatId}
                                                 chatModel={chatModel}
                                                 chatReasoningLevel={chatReasoningLevel}
                                                 onDocumentClick={

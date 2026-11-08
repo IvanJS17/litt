@@ -349,15 +349,15 @@ describe("reads", () => {
     it("tells the client the caller's effective stage in a project", async () => {
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: "pasante", attempt_required: true, urgency_pass: null },
+            data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: MEMBER, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
         });
     });
 });
@@ -492,13 +492,13 @@ describe("practice validation", () => {
             state.tables.projects[0].practice = spelling;
             expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
                 ok: true,
-                data: { stage: "pasante", attempt_required: true, urgency_pass: null },
+                data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null },
             });
         }
         state.tables.projects[0].practice = "Derecho Civil Y Mercantil";
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
         });
         // Removing uses the same normalization.
         expect(
@@ -529,6 +529,7 @@ describe("GET /training/stage with an urgency pass (layer 2)", () => {
             data: {
                 stage: "pasante",
                 attempt_required: false,
+                confidence_required: false,
                 urgency_pass: { project_id: PROJECT, expires_at: "2999-01-01T00:00:00.000Z" },
             },
         });
@@ -536,7 +537,7 @@ describe("GET /training/stage with an urgency pass (layer 2)", () => {
 
     it("asks for the attempt outside the project, with an expired pass, and in Word", async () => {
         state.tables.training_urgency_passes = [pass()];
-        const required = { stage: "pasante", attempt_required: true, urgency_pass: null };
+        const required = { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null };
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
             ok: true,
             data: required,

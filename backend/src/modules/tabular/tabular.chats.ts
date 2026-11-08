@@ -625,6 +625,8 @@ export async function prepareTabularChat(
         requestedTimeZone?: unknown;
         /** LiTT training: the author's own approach; required of a pasante. */
         attempt?: unknown;
+        /** LiTT training: how sure the author is of their approach (1 to 4). */
+        confidence?: unknown;
     },
 ): Promise<TabularResult<PreparedTabularChat>> {
     const {
@@ -772,7 +774,7 @@ export async function prepareTabularChat(
             surface: "tabular",
             userId,
             scope: { orgId: review.org_id ?? null, projectId: review.project_id ?? null },
-            body: { attempt: args.attempt },
+            body: { attempt: args.attempt, confidence: args.confidence },
         });
         if (!begun.ok)
             return statusFailure(begun.status, {

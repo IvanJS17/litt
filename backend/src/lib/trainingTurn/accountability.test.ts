@@ -475,7 +475,7 @@ describe("the junior's after-turn wiring", () => {
             });
             const begun = await beginTrainingTurn(db, {
                 surface: "chat", userId: USER, scope: { orgId: ORG, projectId: null },
-                body: { attempt: "a".repeat(80) },
+                body: { attempt: "a".repeat(80), confidence: 3 },
             });
             expect(begun.ok && begun.plan.afterTurn.filter((hook) => hook === accountabilityHook)).toHaveLength(expected);
         }

@@ -174,7 +174,13 @@ export async function getEffectiveTrainingStage(
         // No organization or project in Word: the one Word rule decides.
         try {
             const { stage } = await resolveWordTrainingStage(db, args.userId);
-            return ok({ stage, attempt_required: stage === "pasante", urgency_pass: null });
+            const required = stage === "pasante";
+            return ok({
+                stage,
+                attempt_required: required,
+                confidence_required: required,
+                urgency_pass: null,
+            });
         } catch (error) {
             return internalFailure(error);
         }
@@ -200,6 +206,8 @@ export async function getEffectiveTrainingStage(
         return ok({
             stage: turn.stage,
             attempt_required: turn.attemptRequired,
+            // The thermometer mark is owed with the approach, no more and no less.
+            confidence_required: turn.attemptRequired,
             urgency_pass:
                 turn.passExpiresAt && scope.projectId
                     ? { project_id: scope.projectId, expires_at: turn.passExpiresAt }

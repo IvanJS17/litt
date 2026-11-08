@@ -34,7 +34,7 @@ import { reportError } from "@/app/lib/errorReporting";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
-import { markTrainingStageStale } from "@/app/hooks/useTrainingStage";
+import { isTrainingRefusalCode, markTrainingStageStale } from "@mike/ui";
 import {
   UserVisibleError,
   describeError,
@@ -583,6 +583,7 @@ export function useAssistantChat({
                 attachedDocs.length > 0 ? attachedDocs : undefined,
               ask_inputs_response: opts?.askInputsResponse,
               attempt: message.attempt,
+              confidence: message.confidence,
               signal: controller.signal,
             })
           : streamChat({
@@ -595,6 +596,7 @@ export function useAssistantChat({
               reasoning,
               ask_inputs_response: opts?.askInputsResponse,
               attempt: message.attempt,
+              confidence: message.confidence,
               signal: controller.signal,
             });
       // The frames go to the turn record (lib/assistantTurnStream), which
@@ -716,7 +718,7 @@ export function useAssistantChat({
         });
         // LiTT training: the composer's view of «Tu turno primero» was out of
         // date (an urgency pass ended mid-session); read it again.
-        if (described.code === "training_attempt_required") markTrainingStageStale();
+        if (isTrainingRefusalCode(described.code)) markTrainingStageStale();
         const uncertain = isUncertainDelivery(
           error,
           Boolean(retrySnapshot.recoveryChatId),

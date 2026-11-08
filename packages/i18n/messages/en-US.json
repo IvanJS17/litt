@@ -223,9 +223,11 @@
       "review_stale": "A newer version of this tabular review is available.",
       "session_expired": "Your session has expired. Sign in again to continue.",
       "training_approval_required": "This version is a trainee's draft: it needs approval before it leaves LiTT.",
+      "training_confidence_required": "Mark how sure you are of your approach before asking. If you don't see the scale, reload the page.",
       "training_copy_needs_organization": "This file is a trainee's draft and can only be copied to an organization's workflow, where someone can approve it.",
       "training_defense_already_recorded": "This defense's outcome is already recorded. Create a new defense to correct it.",
       "training_mentor_has_pupils": "This mentor still has pupils. Release them or move them to another mentor first.",
+      "training_note_not_judgeable": "This turn has nothing to judge: a hint has no answer to compare with.",
       "training_pass_duplicate": "That pass has already been granted.",
       "training_pass_pupil_no_access": "Your pupil can't open this matter. Give them access before granting the pass.",
       "training_promotion_not_proposed": "LiTT no longer proposes this promotion. Reload to see the current evidence.",
@@ -528,7 +530,48 @@
       }
     },
     "criterion": {
-      "turn": {},
+      "turn": {
+        "attemptLabel": "Your approach (2–3 lines)",
+        "attemptPlaceholder": "Before asking, write how you would solve it.",
+        "attemptReady": "Ready. After the answer you'll see a contrast with your approach.",
+        "attemptTooLong": "{length}/{max} characters. {excess, plural, one {# character over the limit} other {# characters over the limit}}.",
+        "attemptTooShort": "{length}/{min} characters. {missing, plural, one {# character to go} other {# characters to go}}. After the answer you'll see a contrast with your approach.",
+        "confidenceHelp": "One mark for the whole approach. Only you and your mentor see it.",
+        "confidenceLegend": "How sure are you of your approach?",
+        "confidenceLevels": {
+          "doubt": "I doubt it",
+          "fairlySure": "Fairly sure",
+          "guess": "Almost a guess",
+          "sure": "Sure"
+        },
+        "confidenceRequired": "Mark how sure you are before sending.",
+        "foundations": {
+          "solid": "solid",
+          "weak": "weak",
+          "wrong": "wrong"
+        },
+        "noteAttemptHeading": "Your approach",
+        "noteConfidence": "Your mark: {level}",
+        "noteContrastFailed": "The contrast couldn't be generated",
+        "noteContrastHeading": "Contrast with your approach",
+        "noteContrastPending": "Generating contrast…",
+        "noteFoundation": "Basis: {basis}",
+        "notePrivacy": "Private: only you and your mentor see this",
+        "noteQuestionHeading": "A question about your basis",
+        "noteRegion": "Private training notes",
+        "noteReply": "Reply",
+        "noteReplyLabel": "Reply to the question about your basis",
+        "noteRightForWrongReason": "Your conclusion matches, but its basis doesn't: right for the wrong reason.",
+        "noteVerdictHeading": "Match with the answer, per the AI contrast:",
+        "noteVerdictHeadingByMentor": "Match with the answer, per your mentor:",
+        "passLater": "Urgency pass in force until {end, date, long}, {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "passToday": "Urgency pass in force until {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "verdicts": {
+          "coincide": "Matches",
+          "noCoincide": "Doesn't match",
+          "parcial": "Partly matches"
+        }
+      },
       "map": {},
       "modes": {},
       "backing": {

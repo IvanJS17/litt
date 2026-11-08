@@ -36,11 +36,18 @@
     "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
     "frontend/src/app/components/shared/DocumentAuthorshipPanel.tsx",
     "frontend/src/app/components/training/criterion",
+    "frontend/src/app/hooks/useTrainingText.ts",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",
     "packages/ui/src/BackingPanelUI.tsx",
+    "packages/ui/src/TrainingAttemptFieldUI.tsx",
+    "packages/ui/src/TrainingConfidenceUI.tsx",
+    "packages/ui/src/TrainingNoteUI.tsx",
+    "packages/ui/src/trainingReply.ts",
+    "packages/ui/src/trainingText.ts",
     "packages/ui/src/useTrainingBacking.ts",
     "word-addin/src/taskpane/components/assistant/BackingPanel.tsx",
-    "word-addin/src/taskpane/hooks/useWordTrainingBacking.ts"
+    "word-addin/src/taskpane/hooks/useWordTrainingBacking.ts",
+    "word-addin/src/taskpane/i18n/useTrainingText.ts"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,

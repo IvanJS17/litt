@@ -1,6 +1,7 @@
 "use client";
 
 import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import { useTrainingText } from "@/app/hooks/useTrainingText";
 import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { nextRevealLength } from "./tabularReveal";
 
@@ -391,6 +392,7 @@ export const TRMessageBubble = memo(function MessageBubble({
     trainingNote?: TrainingNoteView;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
+    const trainingText = useTrainingText();
     if (msg.role === "user") {
         return (
             <div className="flex flex-col items-end gap-2">
@@ -400,6 +402,7 @@ export const TRMessageBubble = memo(function MessageBubble({
                 {trainingNote && (
                     <TrainingNoteUI
                         note={trainingNote}
+                        text={trainingText.note}
                         className="w-full max-w-[90%]"
                     />
                 )}
@@ -1322,6 +1325,7 @@ export function TRChatPanel({
                     message.model,
                     message.reasoning,
                     message.attempt,
+                    message.confidence,
                 ),
         });
     }
@@ -2115,6 +2119,8 @@ export function TRChatPanel({
                             ? tabularChatSelectionKey(reviewId, currentChatId)
                             : null
                     }
+                    // «Responder» names the chat's own id, not the draft key.
+                    chatId={currentChatId}
                 />
             </div>
             <WarningPopup

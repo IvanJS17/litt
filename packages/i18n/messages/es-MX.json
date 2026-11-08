@@ -223,9 +223,11 @@
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
       "training_approval_required": "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
+      "training_confidence_required": "Marca qué tan seguro estás de tu planteamiento antes de preguntar. Si no ves la escala, recarga la página.",
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
       "training_defense_already_recorded": "El resultado de esta defensa ya está registrado. Crea una defensa nueva para corregirlo.",
       "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",
+      "training_note_not_judgeable": "Este turno no tiene nada que juzgar: una pista no tiene respuesta con la cual comparar.",
       "training_pass_duplicate": "Ese pase ya está concedido.",
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
@@ -528,7 +530,48 @@
       }
     },
     "criterion": {
-      "turn": {},
+      "turn": {
+        "attemptLabel": "Tu planteamiento (2–3 líneas)",
+        "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
+        "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
+        "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
+        "attemptTooShort": "{length}/{min} caracteres. {missing, plural, one {Falta # carácter} other {Faltan # caracteres}}. Después de la respuesta verás un contraste con tu planteamiento.",
+        "confidenceHelp": "Una marca para todo el planteamiento. Solo tú y tu mentor la ven.",
+        "confidenceLegend": "¿Qué tan seguro estás de tu planteamiento?",
+        "confidenceLevels": {
+          "doubt": "Dudo",
+          "fairlySure": "Bastante seguro",
+          "guess": "Casi adivino",
+          "sure": "Seguro"
+        },
+        "confidenceRequired": "Marca qué tan seguro estás antes de enviar.",
+        "foundations": {
+          "solid": "sólido",
+          "weak": "débil",
+          "wrong": "equivocado"
+        },
+        "noteAttemptHeading": "Tu planteamiento",
+        "noteConfidence": "Tu marca: {level}",
+        "noteContrastFailed": "No se pudo generar el contraste",
+        "noteContrastHeading": "Contraste con tu planteamiento",
+        "noteContrastPending": "Generando contraste…",
+        "noteFoundation": "Fundamento: {basis}",
+        "notePrivacy": "Privado: solo tú y tu mentor lo ven",
+        "noteQuestionHeading": "Una pregunta sobre tu fundamento",
+        "noteRegion": "Notas privadas de formación",
+        "noteReply": "Responder",
+        "noteReplyLabel": "Responder a la pregunta sobre tu fundamento",
+        "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
+        "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
+        "noteVerdictHeadingByMentor": "Coincidencia con la respuesta, según tu mentor:",
+        "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "verdicts": {
+          "coincide": "Coincide",
+          "noCoincide": "No coincide",
+          "parcial": "Coincide en parte"
+        }
+      },
       "map": {},
       "modes": {},
       "backing": {

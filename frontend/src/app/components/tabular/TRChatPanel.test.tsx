@@ -38,18 +38,24 @@ vi.mock("../assistant/ChatInput", () => ({
         onSubmit,
         onCancel,
         canSend = true,
+        chatKey,
+        chatId,
     }: {
+        chatKey?: string | null;
+        chatId?: string | null;
         onSubmit: (message: {
             role: "user";
             content: string;
             model: string;
             reasoning: "medium";
             attempt?: string;
+            confidence?: 1 | 2 | 3 | 4;
         }) => void;
         onCancel?: () => void;
         canSend?: boolean;
     }) => (
         <>
+            <output data-testid="composer-ids" data-chat-key={chatKey ?? ""} data-chat-id={chatId ?? ""} />
             <button
                 type="button"
                 disabled={!canSend}
@@ -73,6 +79,7 @@ vi.mock("../assistant/ChatInput", () => ({
                         model: "claude-opus-4-7",
                         reasoning: "medium",
                         attempt: "Mi planteamiento",
+                        confidence: 3,
                     })
                 }
             >
@@ -373,6 +380,10 @@ describe("TRChatPanel header", () => {
                 attempt: "Mi planteamiento guardado",
                 contrast: "Coincide en lo esencial.",
                 contrast_status: "ready",
+                confidence: 2,
+                effective_verdict: "parcial",
+                foundation: "weak",
+                foundation_question: "¿En qué precepto se apoya?",
                 created_at: "2026-09-29",
             },
         ]);
@@ -382,10 +393,25 @@ describe("TRChatPanel header", () => {
         );
         expect(await screen.findByText("Mi planteamiento guardado")).toBeInTheDocument();
         expect(screen.getByText("Coincide en lo esencial.")).toBeInTheDocument();
+        // The verdict and the basis question come with the note, with «Reply».
+        expect(screen.getByText("Your mark: I doubt it")).toBeInTheDocument();
+        expect(screen.getByText("Partly matches")).toBeInTheDocument();
+        expect(screen.getByText("¿En qué precepto se apoya?")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Reply to the question about your basis" })).toBeInTheDocument();
         container.querySelector<HTMLDivElement>(".tr-chat-message-fades")!.scrollTo = vi.fn();
         await user.click(screen.getByRole("button", { name: "Send with attempt" }));
         await waitFor(() => expect(streamTabularChat).toHaveBeenCalled());
         expect(vi.mocked(streamTabularChat).mock.calls[0][7]).toBe("Mi planteamiento");
+        expect(vi.mocked(streamTabularChat).mock.calls[0][8]).toBe(3);
+    });
+
+    it("gives the composer the chat's raw id for «Responder», apart from the namespaced draft key", async () => {
+        vi.mocked(getTabularChatMessages).mockResolvedValue([]);
+        render(<TRChatPanel reviewId="review-1" projectId="p1" initialChatId="chat-1" onCitationClick={vi.fn()} />);
+        const ids = await screen.findByTestId("composer-ids");
+        await waitFor(() => expect(ids).toHaveAttribute("data-chat-id", "chat-1"));
+        expect(ids.getAttribute("data-chat-key")).toContain("review-1");
+        expect(ids.getAttribute("data-chat-key")).not.toBe("chat-1");
     });
 
     describe("a junior's accountability panel under the answer", () => {

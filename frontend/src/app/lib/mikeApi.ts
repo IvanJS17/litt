@@ -3898,6 +3898,8 @@ export async function streamChat(payload: {
     ask_inputs_response?: AskInputsResponsePayload;
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string;
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { signal, ...body } = payload;
@@ -3932,6 +3934,8 @@ export async function streamProjectChat(payload: {
     ask_inputs_response?: AskInputsResponsePayload;
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string;
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel;
     signal?: AbortSignal;
 }): Promise<Response> {
     const { projectId, signal, ...body } = payload;
@@ -4224,6 +4228,8 @@ export async function streamTabularChat(
     reasoning?: Message["reasoning"],
     /** LiTT training: a pasante's own approach; the server requires it. */
     attempt?: string,
+    /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+    confidence?: import("@mike/contracts").TrainingConfidenceLevel,
 ): Promise<Response> {
     return apiFetch(`${API_BASE}/tabular-review/${reviewId}/chat`, {
         method: "POST",
@@ -4236,6 +4242,7 @@ export async function streamTabularChat(
             model,
             reasoning,
             attempt,
+            confidence,
             time_zone: browserTimeZone(),
         }),
         signal: signal ?? undefined,
