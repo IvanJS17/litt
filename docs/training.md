@@ -180,6 +180,9 @@ citations, with the mentor able to correct it.
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
 | `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
+| `GET /training/me/criterion?org_id=` | the caller's own map, calibration, hint counts and retakes (layer 3) |
+| `POST /training/me/retakes`, `PUT /training/me/retakes/:id/answer` | the caller asks for the retake of a weak topic and answers it (layer 3) |
+| `GET /orgs/:orgId/training/pupils/:userId/criterion` | the pupil's current mentor reads the same, only from works in matters they can open (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
 | `PUT/DELETE /orgs/:orgId/training/pupils/:userId/stages` | the current mentor; `DELETE` takes `?practice=`, none for every practice area |
@@ -844,6 +847,126 @@ data is here.
   supervise someone: the pupil, up to ten corrections, the model, and the
   proposed changes with their accept and reject buttons. Strings are in the
   `training.criterion.corrections` namespace of the catalog.
+
+## Own map, calibration and retake (layer 3)
+
+Migration `backend/migrations/20261108_78_litt_training_retakes.sql` (also in
+`backend/schema.sql`), module `backend/src/modules/training-criterion/`
+(`trainingCriterion.view.ts`, `.retakes.ts`), pure logic in
+`backend/src/lib/trainingMap.ts`, `trainingCalibration.ts` and
+`trainingRetake.ts`. Server only: the screens are the next card. A pasante
+sees where they are strong and weak by topic, how often their own confidence
+matched the AI's answer, and can retake a weak topic. All of it is **learning
+data** of one person: it is shown only to them and to their **current** mentor,
+and goes with the membership.
+
+**Computed on read.** There is no table of topics and no stored score. A
+*topic* is a short label the contrast proposed for a turn (up to three per
+note, `training_turn_notes.topics`); the map groups them by a normalized key
+(no accents, lower case, single spaces). To keep them from scattering
+(«prescripción cambiaria» / «prescripción de letras») the contrast is shown,
+in a fenced block, the labels the person already uses (up to 30, most used
+first, from their own notes in the same organization) and asked to reuse them.
+
+**What counts as an event** (`countedTurns`): a turn whose contrast is `ready`
+and has a verdict that counts (`effectiveVerdict`: the mentor's as written; the
+contrast's `coincide` with a `wrong` basis counts as `parcial`), whose answer
+had **no unverified citation**, that has **no mode** (a hint or a counterpart
+round has nothing to compare) and that did **not** follow a hint in the same
+work (the next full turn after a hint, and only that one, does not count). An
+answered retake is one more event. A «hit» is a `coincide`; `parcial` is not.
+What it measures is a coincidence with the AI's own answer, according to the AI
+contrast, never that the person was right.
+
+**States** (constants named in `trainingMap.ts`): over the last 4 events of a
+topic, **few data** (fewer than 3 events in all), **strong** (≥ 75 % coincided
+and the last one did), **weak** (≤ 50 %) or **middle**. A weak topic whose last
+event is 14 days old or more (`RETAKE_AFTER_DAYS`) has `retake_due`. Topics come
+back most recently worked first, then by name: never ordered by how they went.
+
+**Calibration** (`computeCalibration`): per thermometer level, how many counted
+turns the person marked there, how many coincided and how many partly
+(«cuando marcas “Seguro”, coincidió 5 de 8 veces»). A level with fewer than 3
+marked turns says `enough: false` («aún pocos datos»). Counts of one person;
+no percentage, average, ranking or comparison anywhere.
+
+**Reading it.** `GET /training/me/criterion?org_id=` (the person) and
+`GET /orgs/:orgId/training/pupils/:userId/criterion` (`assertCurrentMentor`).
+Both answer the topics, `calibration`, `hints` (how many hints and the highest
+rung, from the notes of mode `hint`) and the retakes. A previous mentor, an
+owner, an admin, another member, an outsider and the pupil on the mentor's
+route get the same `404` as an unknown id. The mentor reads only the notes of
+works in **matters they can open**; the rest are counted
+(`notes_without_access`) and never used. A retake is about a topic, with no
+matter, so the mentor sees its question, answer and contrast only when its
+topic shows in the notes they can open; otherwise `text_hidden: true` and only
+the topic, status and verdict. Only the person's response carries `generation`
+(whether they can retake and on which of their keys).
+
+**The retake.** Nothing is scheduled; it is generated when the person asks, so
+no decrypted credential is ever kept for a background job.
+
+1. `POST /training/me/retakes` with `{ org_id, topic_key, credential_ref? }`
+   (under `chatLimiter`). The topic must be on the person's map, weak and due
+   (`409 training_retake_not_due`); only one retake is `pending` or `open` per
+   person and organization (a partial unique index; `409
+   training_retake_in_progress`; a `pending` row older than 10 minutes is
+   settled first: back to `open` if it had a question, `failed` if not). The
+   model makes **one question** from the person's own latest planteamientos on
+   the topic and the lines their contrasts marked «No coincide» and «Faltó»,
+   fenced with a per-call nonce, with an instruction to generalize (no names,
+   amounts, dates or matter data). The answer must be exactly `{"question":…}`.
+2. `PUT /training/me/retakes/:id/answer` with `{ answer, credential_ref? }`
+   (60 to 4000 characters; under `chatLimiter`). A second call contrasts the
+   answer with those same lines and the question, in strict JSON (three lists
+   and a verdict from the closed set); the server writes the contrast with the
+   three usual headings. The answer, contrast and verdict are written **once**
+   (a trigger refuses any later change, `LT002`), `status` becomes `answered`
+   and the map gains an event. If the contrast fails the retake stays `open`,
+   **the answer is not saved** (`503`) and the person may try again.
+
+**Model route.** The person's own, governed BYOK, the same rule as the full
+reading: `pinChatRoute` on their selected model and the key they pick (or the
+default) when the question is made, stored on the row (`model_provider`,
+`model`, `credential_ref`, three or none), reused to judge the answer unless
+they explicitly pick another of their keys. When the stored route no longer
+serves them the answer is `409 chat_route_credential_unavailable` with no other
+model tried; with no usable key the start answers `400
+training_review_key_required` and nothing is written. `llm.egress`
+(`surface: training_retake`, `retake_id`, `step`) is recorded before each call
+that sends text. Never the mentor's route.
+
+**Legal references.** LiTT has no body of statutes, so the server, not the
+model, decides what is verified. A question that names a legal reference (an
+article, thesis or registry number, read with `legalReferences`) that none of
+the person's texts name is **dropped** and the retake fails. A contrast that
+names one keeps its text and the server appends «Sin verificar: … confirma en la
+fuente oficial». If the references of a text cannot be read it is treated as
+unverified, never as verified. The comparison is in one function
+(`namesUnlistedReference`) so it can move to the safer comparison by law and
+number once that lands (PR #115).
+
+**Audit** (insert-only, `surface: organization`, `{ org_id, target_user_id,
+retake_id }` only): `training.retake_generated` and `training.retake_answered`.
+The topic, question, answer, verdict, calibration and hints are never audited.
+
+**Data.** `training_retakes` is a learning table like the rest: `training_*`
+with `trainee_user_id`, RLS with no browser grant, a cascade from `org_members`
+(it goes with the membership or the account), covered by the generic discovery
+in `performance.litt-training-supervision.sql` and by
+`performance.litt-training-retakes.sql`. The account export carries the
+holder's retakes (`training.retakes`) without the credential reference; the
+notes it already carries hold the rest of the map's evidence, with no mentor
+id.
+
+**Product decisions taken without the plan** (each the simplest that complies):
+a weak topic is retaken only once it is due (14 days), as the plan says; the
+retake row keeps no practice area (nothing reads it yet: the plan's column can
+be added when calibration by practice area needs it); the labels offered to the
+contrast are the person's across all their notes in the organization, not per
+practice area; a retake that cannot be judged goes back to `open` instead of
+being discarded; the codes added are `training_retake_in_progress`,
+`training_retake_not_due` and `training_retake_not_open`.
 
 ## Periodic full reading (layer 3)
 
