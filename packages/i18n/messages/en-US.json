@@ -557,6 +557,7 @@
         "personReason": "Reason to keep it",
         "personVerified": "The person verified it",
         "privacy": "Private: only you and your mentor see this",
+        "privacyMentor": "Private: only the person and you, who mentor them, see this",
         "reasonHint": "Optional, up to {max} characters. Your mentor reads it.",
         "reasonLabel": "Why you keep it",
         "reasonSave": "Save reason",

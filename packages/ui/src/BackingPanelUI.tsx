@@ -33,6 +33,8 @@ export interface BackingPanelLabels {
   pending: string;
   failed: string;
   privacy: string;
+  /** The mentor's own line (`readOnly`): the person's «solo tú y tu mentor» would be false for them. */
+  privacyMentor: string;
   status: Record<TrainingBackingStatus, string>;
   statusHelp: Record<TrainingBackingStatus, string>;
   /** «Cita 2». */
@@ -276,7 +278,7 @@ export function BackingPanelUI({
           />
         ))}
       </ol>
-      <p className="text-xs text-gray-500">{labels.privacy}</p>
+      <p className="text-xs text-gray-500">{readOnly ? labels.privacyMentor : labels.privacy}</p>
     </section>
   );
 }
@@ -289,6 +291,7 @@ export const BACKING_LABEL_KEYS = {
   pending: "training.criterion.backing.pending",
   failed: "training.criterion.backing.failed",
   privacy: "training.criterion.backing.privacy",
+  privacyMentor: "training.criterion.backing.privacyMentor",
   statusBacked: "training.criterion.backing.status.backed",
   statusUnbacked: "training.criterion.backing.status.unbacked",
   statusCitationUnverified: "training.criterion.backing.status.citationUnverified",
@@ -327,6 +330,7 @@ export function buildBackingLabels(t: BackingTranslate): BackingPanelLabels {
     pending: t(k.pending),
     failed: t(k.failed),
     privacy: t(k.privacy),
+    privacyMentor: t(k.privacyMentor),
     status: {
       backed: t(k.statusBacked),
       unbacked: t(k.statusUnbacked),

@@ -557,6 +557,7 @@
         "personReason": "Por qué la conserva",
         "personVerified": "La persona la verificó",
         "privacy": "Privado: solo tú y tu mentor lo ven",
+        "privacyMentor": "Privado: solo la persona y tú, que la acompañas como mentor, lo ven",
         "reasonHint": "Opcional, hasta {max} caracteres. Tu mentor lo lee.",
         "reasonLabel": "Por qué la conservas",
         "reasonSave": "Guardar motivo",

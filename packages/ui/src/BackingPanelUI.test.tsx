@@ -10,6 +10,7 @@ const labels: BackingPanelLabels = {
   pending: "Revisando las conclusiones…",
   failed: "No se pudieron revisar las conclusiones.",
   privacy: "Privado: solo tú y tu mentor lo ven",
+  privacyMentor: "Privado: solo la persona y tú, que la acompañas como mentor, lo ven",
   status: { backed: "Respaldada", unbacked: "Sin respaldo", citation_unverified: "Cita sin verificar" },
   statusHelp: {
     backed: "LiTT encontró este pasaje en un documento.",
@@ -158,6 +159,9 @@ describe("BackingPanelUI", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByText(labels.intro)).toBeNull();
+    // The mentor gets their own privacy line, never the person's «solo tú y tu mentor».
+    expect(screen.getByText(labels.privacyMentor)).toBeInTheDocument();
+    expect(screen.queryByText(labels.privacy)).toBeNull();
     expect(screen.getByText("La persona la verificó")).toBeInTheDocument();
     expect(screen.getByText("La persona no la ha marcado como verificada")).toBeInTheDocument();
     expect(screen.getByText(/porque lo dice el contrato/)).toBeInTheDocument();
