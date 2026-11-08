@@ -250,9 +250,13 @@ records the original in `derivedFromPlaybookId`. It takes the topics and
 rules, and each rule's origin and legal references (they belong to the rule).
 It takes nothing of the original's case: no questionnaire answers, no
 reference documents, no source file. Rules' file markers (`sourceRefs`) are
-emptied because they point into the original's file; a rule whose origin is
-an attached clause keeps its quote, but the document stays with the original.
-The original is only
+emptied because they point into the original's file. The attachments stay
+with the original, and so does their text, so the server lowers what rested
+on them: an origin that is an attached clause becomes general practice
+("suggestion without backing, review") and a legal reference marked verified
+becomes "not verified"; both lose their `sourceId` and their `quote`, so no
+text from the client's contract travels into the copy. A reference that was
+unverified and had no attachment is copied as it is. The original is only
 read, and copying does not call the model.
 
 `POST /playbooks/:id/proposals` with `{ model, answers?, attachments? }`

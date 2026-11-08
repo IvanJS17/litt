@@ -19,9 +19,29 @@ import type { Playbook, PlaybookContent } from "./playbooks.types";
 type Rule = PlaybookContent["rules"][number];
 
 /**
+ * What the copy keeps of a rule's backing. The original's attachments stay
+ * with the original, and so does their text: a legal reference verified
+ * against one becomes "not verified", and a clause origin becomes a
+ * suggestion without backing. Both lose their `sourceId` and the `quote`
+ * taken from the attachment, so no client text travels into the copy.
+ */
+function unbackedOrigin(origin: NonNullable<Rule["origin"]>): NonNullable<Rule["origin"]> {
+  if (origin.kind !== "clause") return origin;
+  const { sourceId: _sourceId, quote: _quote, kind: _kind, ...rest } = origin;
+  return { ...rest, kind: "ai_general", unbacked: true };
+}
+
+function unverifiedRef(ref: NonNullable<Rule["legalRefs"]>[number]) {
+  if (!ref.verified && !ref.sourceId) return ref;
+  const { sourceId: _sourceId, quote: _quote, ...rest } = ref;
+  return { ...rest, verified: false };
+}
+
+/**
  * A rule as the copy keeps it: its origin and legal references stay (they
- * belong to the rule), but its file markers go, because they point into the
- * original's source file, which the copy does not have.
+ * belong to the rule) minus what rested on the original's attachments, and
+ * its file markers go, because they point into the original's source file,
+ * which the copy does not have.
  */
 function copiedRule(rule: Rule): Rule {
   const position = <P extends { sampleClauses: { sourceRefs: string[] }[] }>(value: P): P => ({
@@ -31,6 +51,8 @@ function copiedRule(rule: Rule): Rule {
   return {
     ...rule,
     sourceRefs: [],
+    ...(rule.origin ? { origin: unbackedOrigin(rule.origin) } : {}),
+    ...(rule.legalRefs ? { legalRefs: rule.legalRefs.map(unverifiedRef) } : {}),
     standard: rule.standard ? position(rule.standard) : null,
     fallbacks: rule.fallbacks.map(position),
     unacceptable: rule.unacceptable.map(position),

@@ -60,6 +60,9 @@ const ORIGINAL = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const T0 = "2026-11-01T10:00:00.000Z";
 const RED_LINE = "Nunca aceptar renuncia a la garantía de saneamiento.";
 const ORIGINAL_ANSWER = "Arrendadora con inmuebles en Monterrey.";
+// Text lifted from the client's attachment: it must not reach the copy.
+const ORIGIN_QUOTE = "Cláusula quinta: la Arrendataria renunciará a toda acción por vicios ocultos.";
+const REF_QUOTE = "La renta se pagará por mensualidades vencidas.";
 const CLAUSE = "La Arrendataria pagará una pena convencional equivalente a un mes de renta.";
 
 function rule(overrides: Row = {}): Row {
@@ -101,8 +104,11 @@ const ORIGINAL_CONTENT = {
           id: "r-pena",
           sourceRefs: ["P1"],
           standard: PENA_STANDARD,
-          origin: { kind: "clause", sourceId: "src-1", quote: CLAUSE, unbacked: false },
-          legalRefs: [{ text: "Art. 1840 CCF", verified: false }],
+          origin: { kind: "clause", sourceId: "src-1", quote: ORIGIN_QUOTE, note: "De la cláusula quinta.", unbacked: false },
+          legalRefs: [
+            { text: "Art. 1840 CCF", verified: false },
+            { text: "Art. 2398 CCF", verified: true, sourceId: "src-1", quote: REF_QUOTE },
+          ],
         }),
         rule({ id: "r-garantia", name: "Garantía", concept: "Depósito de un mes." }),
       ],
@@ -234,7 +240,16 @@ describe("the copy", () => {
     // File markers point into the original's file: gone. Provenance stays.
     expect(pena.sourceRefs).toEqual([]);
     expect((pena.standard as { sampleClauses: Row[] }).sampleClauses[0].sourceRefs).toEqual([]);
-    expect(pena.origin).toMatchObject({ kind: "clause" });
+    // What rested on the original's attachments no longer claims to.
+    expect(pena.origin).toEqual({ kind: "ai_general", note: "De la cláusula quinta.", unbacked: true });
+    expect(pena.legalRefs).toEqual([
+      { text: "Art. 1840 CCF", verified: false },
+      { text: "Art. 2398 CCF", verified: false },
+    ]);
+    // No attachment text anywhere in the copy, rule JSON included.
+    expect(JSON.stringify(row)).not.toContain(ORIGIN_QUOTE);
+    expect(JSON.stringify(row)).not.toContain(REF_QUOTE);
+    expect(JSON.stringify(row)).not.toContain("src-1");
     expect(JSON.stringify(row)).not.toContain(ORIGINAL_ANSWER);
     // No reference documents, and the original byte for byte as it was.
     expect(tables.playbook_sources).toEqual([expect.objectContaining({ playbook_id: ORIGINAL })]);
