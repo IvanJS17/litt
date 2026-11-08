@@ -26,6 +26,8 @@ export interface TrainingNoteView {
   contrast_status: "pending" | "ready" | "failed" | "skipped";
   /** The chat of the note: where «Responder» takes the question. */
   chat_id?: string;
+  /** When the note was recorded; a round-closing note is judged lost from it. */
+  created_at?: string;
   /** The mark the pasante gave their approach, 1 to 4. */
   confidence?: TrainingConfidenceLevel | null;
   /** The verdict that counts (the mentor's, or the contrast's after the basis rule). */
@@ -82,9 +84,26 @@ export interface TrainingNoteText {
   replyLabel: string;
 }
 
-/** A hint or counterpart note still `pending`: its turn was aborted before delivering. */
-export function isUndeliveredModeNote(note: Pick<TrainingNoteView, "mode" | "contrast_status">): boolean {
-  return (note.mode === "hint" || note.mode === "counterpart") && note.contrast_status === "pending";
+/**
+ * How long a contrast may stay `pending` before it counts as lost: the same
+ * 10 minutes as CONTRAST_STALE_MS in backend/src/lib/trainingNotes.ts, where the
+ * server reports a stale pending note as failed.
+ */
+export const TRAINING_NOTE_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * A hint or counterpart note still `pending` once its turn is over (see
+ * useTrainingTurnNotes, which waits for the answer's note to settle first), or
+ * a round-closing note still `pending` after the server's stale time: its
+ * turn was aborted before delivering.
+ */
+export function isUndeliveredModeNote(
+  note: Pick<TrainingNoteView, "mode" | "contrast_status"> & { created_at?: string },
+  now: number = Date.now(),
+): boolean {
+  if (note.contrast_status !== "pending") return false;
+  if (note.mode === "hint" || note.mode === "counterpart") return true;
+  return note.mode === "counterpart_close" && now - Date.parse(note.created_at ?? "") >= TRAINING_NOTE_STALE_MS;
 }
 
 export function TrainingNoteUI({
@@ -106,7 +125,8 @@ export function TrainingNoteUI({
   const closed = note.mode === "counterpart_close";
   // A hint or counterpart turn is recorded pending and settles as skipped once
   // its answer is delivered; one still pending was aborted. It has no contrast
-  // to wait for or to fail.
+  // to wait for or to fail. A round's closing contrast that stays pending past
+  // the server's stale time was aborted too.
   const undelivered = isUndeliveredModeNote(note);
   const modeLabel =
     note.mode === "hint" || note.mode === "counterpart"

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import type { TrainingTurnNote } from "@mike/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TRAINING_NOTE_STALE_MS, isUndeliveredModeNote } from "./TrainingNoteUI";
 import {
     TRAINING_NOTES_DELIVERY_GRACE_MS,
     TRAINING_NOTES_POLL_MAX_MS,
@@ -270,6 +271,33 @@ describe("useTrainingTurnNotes", () => {
         });
     });
 
+    describe("a round-closing note", () => {
+        const closing = (created_at: string) => ({
+            ...note("n1", "m1", "pending", created_at),
+            mode: "counterpart_close" as const,
+        });
+
+        it("renders again as undelivered at the server's stale time, without another lookup", async () => {
+            vi.setSystemTime(Date.parse("2026-01-01T00:00:00Z"));
+            getTrainingTurnNotes.mockResolvedValue([closing("2026-01-01T00:00:00Z")]);
+            const { result } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
+            await act(async () => {});
+            const first = result.current;
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(TRAINING_NOTES_POLL_MAX_MS + TRAINING_NOTES_POLL_MS);
+            });
+            const lookups = getTrainingTurnNotes.mock.calls.length;
+            expect(lookups).toBe(TRAINING_NOTES_POLL_MAX_MS / TRAINING_NOTES_POLL_MS + 1);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(TRAINING_NOTE_STALE_MS);
+            });
+            expect(result.current).not.toBe(first);
+            expect(result.current[0]).toMatchObject({ mode: "counterpart_close", contrast_status: "pending" });
+            expect(isUndeliveredModeNote(result.current[0])).toBe(true);
+            expect(getTrainingTurnNotes).toHaveBeenCalledTimes(lookups);
+        });
+    });
+
     it("gives up after two minutes", async () => {
         getTrainingTurnNotes.mockResolvedValue([
             note("n1", "m1", "pending"),
@@ -315,5 +343,25 @@ describe("useTrainingTurnNotes", () => {
         const { result } = renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
         await act(async () => {});
         expect(result.current).toEqual([]);
+    });
+});
+
+describe("isUndeliveredModeNote", () => {
+    const at = Date.parse("2026-01-01T00:00:00Z");
+    const created_at = "2026-01-01T00:00:00Z";
+
+    it("reads a pending hint or counterpart note as undelivered", () => {
+        expect(isUndeliveredModeNote({ mode: "hint", contrast_status: "pending" })).toBe(true);
+        expect(isUndeliveredModeNote({ mode: "counterpart", contrast_status: "pending" })).toBe(true);
+        expect(isUndeliveredModeNote({ mode: "hint", contrast_status: "skipped" })).toBe(false);
+    });
+
+    it("reads a pending closing note as undelivered only from the server's stale time", () => {
+        const closing = { mode: "counterpart_close" as const, contrast_status: "pending" as const, created_at };
+        expect(isUndeliveredModeNote(closing, at + TRAINING_NOTE_STALE_MS - 1)).toBe(false);
+        expect(isUndeliveredModeNote(closing, at + TRAINING_NOTE_STALE_MS)).toBe(true);
+        expect(isUndeliveredModeNote({ ...closing, contrast_status: "ready" }, at + TRAINING_NOTE_STALE_MS)).toBe(false);
+        expect(isUndeliveredModeNote({ mode: null, contrast_status: "pending", created_at }, at + TRAINING_NOTE_STALE_MS)).toBe(false);
+        expect(isUndeliveredModeNote({ mode: "counterpart_close", contrast_status: "pending" }, at)).toBe(false);
     });
 });

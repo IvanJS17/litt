@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TrainingTurnNote } from "@mike/contracts";
+import { TRAINING_NOTE_STALE_MS } from "./TrainingNoteUI";
 
 /** How often a pending contrast is looked up again, and for how long. */
 export const TRAINING_NOTES_POLL_MS = 5_000;
@@ -30,6 +31,8 @@ interface NoteMessage {
  * component unmounts. A hint or counterpart note still pending right after
  * its turn ended is held back, and looked up again, for a few seconds (the
  * server settles it after delivering); past that it is shown as undelivered.
+ * A round's closing contrast still pending after the server's stale time is
+ * shown as undelivered without another lookup.
  */
 export function useTrainingTurnNotes(
     chatId: string | null | undefined,
@@ -63,6 +66,7 @@ export function useTrainingTurnNotes(
         const turnEndedAt = turn.turnEndedAt;
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let staleTimer: ReturnType<typeof setTimeout> | undefined;
         pollStartedAt.current = Date.now();
 
         const load = async () => {
@@ -95,11 +99,25 @@ export function useTrainingTurnNotes(
             } else if (waiting && elapsed < TRAINING_NOTES_POLL_MAX_MS) {
                 timer = setTimeout(load, TRAINING_NOTES_POLL_MS);
             }
+            // A round's closing contrast that is still pending at the server's
+            // stale time is shown as undelivered: render again then, without a lookup.
+            const closing = notes
+                .filter((n) => n.contrast_status === "pending" && n.mode === "counterpart_close")
+                .map((n) => Date.parse(n.created_at) + TRAINING_NOTE_STALE_MS - now)
+                .filter((left) => left > 0);
+            if (closing.length > 0) {
+                if (staleTimer) clearTimeout(staleTimer);
+                staleTimer = setTimeout(
+                    () => setState((current) => current && { ...current, notes: [...current.notes] }),
+                    Math.min(...closing),
+                );
+            }
         };
         void load();
         return () => {
             cancelled = true;
             if (timer) clearTimeout(timer);
+            if (staleTimer) clearTimeout(staleTimer);
         };
     }, [chatId, isResponseLoading, getTrainingTurnNotes]);
 
