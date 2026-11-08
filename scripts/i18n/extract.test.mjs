@@ -164,6 +164,85 @@ describe("extract: dynamic uses", () => {
     });
 });
 
+describe("extract: dynamic uses through any translator", () => {
+    const uses = (...lines) =>
+        dynamicUses(parseSource(FILE, lines.join("\n"))).map(({ line, callee, arg, prefix }) => ({ line, callee, arg, prefix }));
+
+    it("sees the shared factory: clientTranslator()(key)", () => {
+        expect(uses("const a = clientTranslator()(`p.${x}`);", "const b = clientTranslator().rich(k);")).toEqual([
+            { line: 1, callee: "clientTranslator()", arg: "`p.${x}`", prefix: "p." },
+            { line: 2, callee: "clientTranslator().rich", arg: "k", prefix: "" },
+        ]);
+    });
+
+    it("sees createTranslator(...)(key), a factory by the *Translator naming rule, and the namespace option", () => {
+        expect(
+            uses(
+                "const a = createTranslator({ locale, messages })(`q.${x}`);",
+                "const b = getFooTranslator(1)(k);",
+                "const c = createTranslator({ locale, messages, namespace: ns });",
+            ),
+        ).toEqual([
+            { line: 1, callee: "createTranslator({ locale, messages })", arg: "`q.${x}`", prefix: "q." },
+            { line: 2, callee: "getFooTranslator(1)", arg: "k", prefix: "" },
+            { line: 3, callee: "createTranslator", arg: "ns", prefix: "" },
+        ]);
+    });
+
+    it("sees an alias of useTranslations/getTranslations/clientTranslator under any name, also chained", () => {
+        expect(
+            uses(
+                "const tr = useTranslations('ns'); tr(`k.${x}`);",
+                "const g = await getTranslations(); g.markup(m);",
+                "const c = clientTranslator(); const d = c; d(`z.${y}`);",
+            ),
+        ).toEqual([
+            { line: 1, callee: "tr", arg: "`k.${x}`", prefix: "k." },
+            { line: 2, callee: "g.markup", arg: "m", prefix: "" },
+            { line: 3, callee: "d", arg: "`z.${y}`", prefix: "z." },
+        ]);
+    });
+
+    it("sees a hook imported under another name", () => {
+        expect(
+            uses(
+                "import { useTranslations as ut, getTranslations as gt, clientTranslator as ct } from 'x';",
+                "const a = ut(ns); const b = ut('ok'); const c = ct()(`m.${k}`); const d = i18n.useTranslations(ns2);",
+                "const e = ut('a'); e(k);",
+            ),
+        ).toEqual([
+            { line: 2, callee: "ut", arg: "ns", prefix: "" },
+            { line: 2, callee: "ct()", arg: "`m.${k}`", prefix: "m." },
+            { line: 2, callee: "i18n.useTranslations", arg: "ns2", prefix: "" },
+            { line: 3, callee: "e", arg: "k", prefix: "" },
+        ]);
+    });
+
+    it("covers the namespace option of getTranslations: dynamic and spread are listed, literal is not", () => {
+        expect(
+            uses(
+                "const a = await getTranslations({ locale, namespace: ns });",
+                "const b = await getTranslations({ locale, namespace });",
+                "const c = await getTranslations({ ...opts });",
+                "const d = await getTranslations({ locale, namespace: 'ok' });",
+                "const e = await getTranslations({ locale });",
+                "const f = await getTranslations({ namespace: `a.${x}` });",
+            ),
+        ).toEqual([
+            { line: 1, callee: "getTranslations", arg: "ns", prefix: "" },
+            { line: 2, callee: "getTranslations", arg: "namespace", prefix: "" },
+            { line: 3, callee: "getTranslations", arg: "...opts", prefix: "" },
+            { line: 6, callee: "getTranslations", arg: "`a.${x}`", prefix: "a." },
+        ]);
+    });
+
+    it("does not list literal keys or calls that are not translators", () => {
+        expect(
+            uses("clientTranslator()('a.b'); const tr = useTranslations('n'); tr('k'); tr(`k`); foo(`x.${y}`); other.t(k); notT(k);"),
+        ).toEqual([]);
+    });
+});
+
 describe("extract: run over the repository", () => {
     let repo;
     afterEach(() => rmSync(repo, { recursive: true, force: true }));
@@ -319,6 +398,33 @@ describe("extract: run over the repository", () => {
                 "export function D({ ns }: { ns: string }) { const t = useTranslations(ns); return <p>{t(\"x\")}</p>; }\n",
             );
             expect(() => run({ repo, namespace: "demo.files", prune: true, ...quiet, warn: () => {} })).toThrow(/--prune refused/);
+        });
+
+        it("the Reviewer's scenario: clientTranslator()(`ns.${k}`) stops --prune, and --allow-dynamic keeps what it reaches", () => {
+            dynamicSetUp();
+            writeFileSync(
+                join(repo, "frontend/src/i18n/Dyn.tsx"),
+                "export const f = (k: string) => clientTranslator()(`demo.files.status.${k}`);\n",
+            );
+            const before = snapshot();
+            expect(() => run({ repo, namespace: "demo.files", prune: true, ...quiet, warn: () => {} })).toThrow(/--prune refused: 1 call/);
+            expect(() => run({ repo, namespace: "demo.files", prune: true, write: true, ...quiet, warn: () => {} })).toThrow(/--prune refused/);
+            expect(snapshot()).toEqual(before);
+            run({ repo, namespace: "demo.files", prune: true, allowDynamic: true, write: true, ...quiet, warn: () => {} });
+            expect(keysOf().files.status).toEqual({ open: "Open", closed: "Closed" });
+            expect(keysOf().files.orphan).toBeUndefined();
+        });
+
+        it("warns at the line of the original source, not of the rewritten one", () => {
+            setUp();
+            const file = "frontend/src/i18n/Dyn.tsx";
+            writeFileSync(
+                join(repo, file),
+                "export function D({ k }: { k: string }) {\n    const tr = useTranslations();\n    return <p>{tr(k)} <b>Hello there</b></p>;\n}\n",
+            );
+            const warnings = [];
+            run({ repo, namespace: "demo", paths: [file], ...quiet, warn: (w) => warnings.push(w) });
+            expect(warnings).toEqual([`warning: ${file}:3 tr(k) is not a literal: --prune cannot see which keys it uses\n`]);
         });
     });
 
