@@ -13,6 +13,7 @@ export {
 export {
     ANNEX_DISCLAIMER,
     NO_SOURCE_TEXT,
+    appearsInMessage,
     buildAnnex,
     describeSource,
     verifyBasis,

@@ -102,7 +102,10 @@ const CONTRACT = "CLÁUSULA TERCERA. El índice inicial será de 100.000 puntos 
 
 async function call(
   input: Record<string, unknown>,
-  options: { methodology?: boolean; allowDocumentMutation?: boolean } = { methodology: true },
+  options: { methodology?: boolean; allowDocumentMutation?: boolean; personMessage?: string } = {
+    methodology: true,
+    personMessage: "Actualiza $1,000.00 con los índices del contrato",
+  },
 ) {
   const docStore = new Map([
     ["doc-0", { storage_path: "x", file_type: "docx", filename: "contrato.docx", inline_text: CONTRACT }],
@@ -158,6 +161,19 @@ describe("running the tool", () => {
       // Headings are set in capitals by the document generator.
       expect(xml.toUpperCase()).toContain(text.toUpperCase());
     }
+  });
+
+  it("does not call a figure the person's when their message does not contain it", async () => {
+    const asked = (message: string) =>
+      call(
+        { ...INDEX_CALL, annex: false },
+        { methodology: true, personMessage: message },
+      ).then(({ out }) => JSON.parse((out.toolResults[0] as { content: string }).content).inputs[0].source);
+    expect(await asked("Actualiza $1,000.00 con los índices")).toBe("Dato dado por la persona");
+    expect(await asked("Actualiza  1000   pesos")).toBe("Dato dado por la persona");
+    expect(await asked("Actualiza 5000 pesos")).toBe("No encontrado en tu mensaje (sin verificar)");
+    expect(await asked("Actualiza 21000.00 pesos")).toBe("No encontrado en tu mensaje (sin verificar)");
+    expect(await asked("")).toBe("No encontrado en tu mensaje (sin verificar)");
   });
 
   it("returns the steps without a file when the conversation cannot write documents", async () => {

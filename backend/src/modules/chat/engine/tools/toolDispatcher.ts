@@ -286,6 +286,8 @@ export async function runToolCalls(
     documentsScoped?: boolean;
     /** The turn was offered compute_methodology (a junior's training plan). */
     methodology?: boolean;
+    /** What the person wrote in this turn: a figure they "gave" is checked against it. */
+    personMessage?: string;
     /** May this turn write documents? The annex is only created when it may. */
     allowDocumentMutation?: boolean;
   } = {},
@@ -541,6 +543,7 @@ export async function runToolCalls(
           const text = await readDocumentContent(docId, docStore, write, docIndex, db, { emitEvents: false });
           return { filename: info.filename, text };
         },
+        personMessage: options.personMessage ?? "",
         now: () => new Date(),
         generatedFor: options.userEmail || "la persona usuaria",
       });

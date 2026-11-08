@@ -9,6 +9,7 @@
 import {
     METHODOLOGY_CALCULATIONS,
     MethodologyError,
+    appearsInMessage,
     buildAnnex,
     calculate,
     describeSource,
@@ -95,6 +96,8 @@ type RawInput = { name?: unknown; value?: unknown; source?: unknown };
 export type MethodologyDeps = {
     /** Text of a document of this turn, or null when the label is unknown. */
     readDocument: (docId: string) => Promise<{ filename: string; text: string } | null>;
+    /** What the person wrote in this turn; a figure they "gave" must be in it. */
+    personMessage: string;
     now: () => Date;
     /** Who the annex is generated for. */
     generatedFor: string;
@@ -113,9 +116,14 @@ export type MethodologyOutcome =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object" && !Array.isArray(value);
 
-async function resolveSource(raw: unknown, deps: MethodologyDeps): Promise<InputSource> {
+async function resolveSource(raw: unknown, value: unknown, shown: string, deps: MethodologyDeps): Promise<InputSource> {
     if (!isRecord(raw)) return { status: "none" };
-    if (raw.kind === "person") return { status: "person" };
+    if (raw.kind === "person") {
+        const written = [typeof value === "string" || typeof value === "number" ? String(value) : "", shown];
+        return written.some((text) => appearsInMessage(text, deps.personMessage))
+            ? { status: "person" }
+            : { status: "person_unverified" };
+    }
     if (raw.kind !== "document") return { status: "none" };
     const docId = typeof raw.doc_id === "string" ? raw.doc_id.trim() : "";
     const quote = typeof raw.quote === "string" ? raw.quote.trim() : "";
@@ -156,7 +164,7 @@ export async function runMethodology(args: Record<string, unknown>, deps: Method
         throw error;
     }
     const sources: Record<string, InputSource> = {};
-    for (const input of result.inputs) sources[input.name] = await resolveSource(rawSources[input.name], deps);
+    for (const input of result.inputs) sources[input.name] = await resolveSource(rawSources[input.name], values[input.name], input.value, deps);
     const basis = typeof args.basis === "string" ? args.basis.trim().slice(0, MAX_BASIS_CHARS) : null;
     const annex = buildAnnex(result, { sources, basis, generatedAt: deps.now(), generatedFor: deps.generatedFor });
     return {

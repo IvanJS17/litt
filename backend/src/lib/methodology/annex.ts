@@ -13,6 +13,8 @@ export type InputSource =
     | { status: "document_verified"; filename: string; excerpt: string }
     | { status: "document_unverified"; filename: string | null }
     | { status: "person" }
+    /** The person was named as the source, but the value is not in their message. */
+    | { status: "person_unverified" }
     | { status: "none" };
 
 export type AnnexSection = {
@@ -31,9 +33,28 @@ export const ANNEX_DISCLAIMER =
 
 const EXCERPT_LIMIT = 300;
 
+const normalizeMessage = (text: string): string =>
+    text
+        .replace(/(?<=\d)[,\u00a0\u202f](?=\d{3}(?!\d))/g, "")
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+
+/**
+ * Is `value` written in the person's message? Spaces are collapsed and the
+ * commas of thousands dropped on both sides; a number must not be a piece of a
+ * longer one (100 is not in 1000 or 0.100).
+ */
+export function appearsInMessage(value: string, message: string): boolean {
+    const wanted = normalizeMessage(value.trim());
+    if (!wanted) return false;
+    const escaped = wanted.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(?<![\\d.])${escaped}(?!\\d|\\.\\d)`).test(normalizeMessage(message));
+}
+
 export function describeSource(source: InputSource | undefined): string {
     if (!source || source.status === "none") return NO_SOURCE_TEXT;
     if (source.status === "person") return "Dato dado por la persona";
+    if (source.status === "person_unverified") return "No encontrado en tu mensaje (sin verificar)";
     if (source.status === "document_unverified") {
         return `Cita no localizada${source.filename ? ` en «${source.filename}»` : ""} (sin verificar)`;
     }

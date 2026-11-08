@@ -490,6 +490,9 @@ export async function runLLMStream(params: {
       : []),
     ...(subagentRuns ? [delegateSystemPrompt(subagentRoutes?.routes ?? null)] : []),
   ].join("\n\n");
+  // The person's words of this turn, for checking a figure they "gave".
+  const lastPersonMessage =
+    [...rawMsgs].reverse().find((m) => m.role === "user" && typeof m.content === "string")?.content ?? "";
   const chatMessages: LlmMessage[] = rawMsgs
     .filter((m) => m.role !== "system")
     .map(
@@ -968,6 +971,7 @@ export async function runLLMStream(params: {
             documentLocks,
             documentsScoped: subagentRun?.documentsScoped,
             methodology: offerMethodology,
+            personMessage: lastPersonMessage,
             allowDocumentMutation,
           },
         );

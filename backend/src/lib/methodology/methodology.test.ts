@@ -13,7 +13,7 @@ import {
     roundTo,
 } from "./decimal";
 import { MAX_COMPOUND_PERIODS, calculate, type MethodologyResult } from "./calculators";
-import { buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
+import { appearsInMessage, buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
 
 const dec = (text: string) => parseDecimal(text, "x");
 const code = (run: () => unknown) => {
@@ -197,6 +197,16 @@ describe("annex", () => {
         expect(describeSource({ status: "document_unverified", filename: "a.docx" })).toContain("sin verificar");
         expect(describeSource({ status: "document_verified", filename: "a", excerpt: "x".repeat(400) })).toContain("…");
         expect(describeSource(undefined)).toBe("Sin fuente");
+        expect(describeSource({ status: "person_unverified" })).toContain("No encontrado en tu mensaje");
+    });
+
+    it("looks for a figure in the person's message by its digits, not as a piece of another", () => {
+        expect(appearsInMessage("1000", "presté $1,000 al 12 %")).toBe(true);
+        expect(appearsInMessage("1000000", "son 1 000 000")).toBe(false);
+        expect(appearsInMessage("12.5", "tasa de 12.5 anual")).toBe(true);
+        expect(appearsInMessage("100", "son 1000 y 0.100")).toBe(false);
+        expect(appearsInMessage("2026-01-31", "hasta el 2026-01-31")).toBe(true);
+        expect(appearsInMessage("", "algo")).toBe(false);
     });
 
     it("never calls a legal basis verified unless a verified quote names it", () => {
