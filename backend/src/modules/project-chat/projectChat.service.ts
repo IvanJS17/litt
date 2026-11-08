@@ -39,6 +39,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     subagentRoutePlan,
     titleModelForRoute,
@@ -166,6 +167,8 @@ export type PreparedProjectChatStream = {
     trainingNote: CreatedTurnNote | null;
     /** The turn's training plan; null when the turn has no new user message. */
     trainingPlan: TrainingTurnPlan | null;
+    /** The llm.egress of the second call a training hook makes with the turn's own route. */
+    trainingEgress: () => Promise<void>;
 };
 
 /** Authorize a project chat turn and assemble its caller-scoped document context. */
@@ -462,6 +465,15 @@ export async function prepareProjectChatStream(
         surface: "project",
         resolved: governed,
     });
+    const trainingEgress = () =>
+        recordChatEgressOrThrow(db, {
+            userId,
+            orgId: projectAccess.project.org_id ?? null,
+            chatId,
+            projectId,
+            surface: "training_backing",
+            resolved: governed,
+        });
 
     let completedTurnPersisted = true;
     let memoryTurn: MemoryConversationTurn | null = null;
@@ -700,6 +712,7 @@ export async function prepareProjectChatStream(
                 nonce,
                 trainingNote,
                 trainingPlan,
+                trainingEgress,
             },
         };
     } catch (error) {

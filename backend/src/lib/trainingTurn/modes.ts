@@ -86,6 +86,11 @@ export const COUNTERPART_CLOSE_ADDENDUM = [
 /** The engine restrictions of every mode: no writers, no questions to the user, no subagents. */
 const MODE_TOOL_POLICY = { allowDocumentMutation: false, includeAskInputs: false, noSubagents: true } as const;
 
+function withoutMethodology(policy: TrainingTurnPlan["toolPolicy"]): TrainingTurnPlan["toolPolicy"] {
+    const { methodology: _methodology, ...rest } = policy;
+    return rest;
+}
+
 function modePlan(plan: TrainingTurnPlan, mode: TrainingMode, step: 1 | 2 | 3, addendum: string): TrainingTurnPlan {
     return {
         ...plan,
@@ -93,7 +98,8 @@ function modePlan(plan: TrainingTurnPlan, mode: TrainingMode, step: 1 | 2 | 3, a
         step,
         // A mode's text comes first: another behavior's text may only add care to it.
         systemAddendum: plan.systemAddendum ? `${addendum}\n\n${plan.systemAddendum}` : addendum,
-        toolPolicy: { ...plan.toolPolicy, ...MODE_TOOL_POLICY, unverifiedFooter: UNVERIFIED_LEGAL_FOOTER },
+        // A mode only restricts: the methodology calculator can write a DOCX, so it goes too.
+        toolPolicy: { ...withoutMethodology(plan.toolPolicy), ...MODE_TOOL_POLICY, unverifiedFooter: UNVERIFIED_LEGAL_FOOTER },
     };
 }
 

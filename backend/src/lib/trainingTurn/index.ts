@@ -21,11 +21,13 @@ import {
 } from "../trainingNotes";
 import type { UserApiKeys } from "../llm";
 import { launchCounterpartClose } from "../trainingCounterpart";
+import { accountabilityHook, isAccountable } from "./accountability";
 import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
 import { modesBehavior } from "./modes";
 import { hasUnverifiedCitation } from "./unverified";
+import { methodologyBehavior } from "./methodology";
 import type {
     ResolvedTurn,
     TrainingBehavior,
@@ -64,8 +66,23 @@ const attemptBehavior: Behavior = (resolved, plan) => {
     return check.ok ? { ...plan, attempt: check.attempt } : check;
 };
 
+// A junior's answer is held to account after the turn (./accountability.ts).
+const accountabilityBehavior: Behavior = (resolved, plan) =>
+    isAccountable(resolved.stage, resolved.orgId)
+        ? { ...plan, afterTurn: [...plan.afterTurn, accountabilityHook] }
+        : plan;
+
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior, confidenceBehavior, modesBehavior];
+// Order matters: modesBehavior is last. A mode only restricts, so it sees the
+// plan the others built and takes back anything that would write or widen
+// (methodology included); no earlier behavior can undo a mode's limits.
+const BEHAVIORS: readonly Behavior[] = [
+    attemptBehavior,
+    confidenceBehavior,
+    accountabilityBehavior,
+    methodologyBehavior,
+    modesBehavior,
+];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
@@ -195,6 +212,14 @@ export function finishTrainingTurn(
          * note answer_unverified: such a turn does not count as evidence.
          */
         citations?: unknown;
+        /** The saved turn, for the hooks; omit when nothing was saved. */
+        turn?: {
+            userId: string;
+            chatId: string;
+            messageId: string | null | undefined;
+            /** See TrainingTurnOutcome.recordEgress; the route of the turn. */
+            recordEgress: () => Promise<void>;
+        };
     },
 ): void {
     if (!args.completed) return;
@@ -219,10 +244,23 @@ export function finishTrainingTurn(
         });
     }
     if (args.plan) {
+        const outcome =
+            args.turn?.messageId
+                ? {
+                      db,
+                      userId: args.turn.userId,
+                      chatId: args.turn.chatId,
+                      messageId: args.turn.messageId,
+                      answer: args.answer,
+                      model: args.model,
+                      apiKeys: args.apiKeys,
+                      recordEgress: args.turn.recordEgress,
+                  }
+                : null;
         for (const hook of args.plan.afterTurn) {
             // A hook never fails the turn.
             try {
-                void Promise.resolve(hook({ plan: args.plan, completed: args.completed })).catch(() => {});
+                void Promise.resolve(hook({ plan: args.plan, completed: args.completed, outcome })).catch(() => {});
             } catch {
                 // Ignored: see above.
             }

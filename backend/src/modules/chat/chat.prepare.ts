@@ -29,6 +29,7 @@ import {
     getUserModelSettings,
     governChatRoute,
     recordChatEgress,
+    recordChatEgressOrThrow,
     resolveUserChatSelection,
     subagentRoutePlan,
     titleModelForRoute,
@@ -117,6 +118,8 @@ export type PreparedChatStream = {
     trainingNote: CreatedTurnNote | null;
     /** The turn's training plan; null when the turn has no new user message. */
     trainingPlan: TrainingTurnPlan | null;
+    /** The llm.egress of the second call a training hook makes with the turn's own route. */
+    trainingEgress: () => Promise<void>;
 };
 
 /** Authorize and prepare a chat turn, refusing active turns before saving input. */
@@ -478,6 +481,15 @@ export async function prepareChatStream(
         surface: resolvedProjectId ? "project" : "assistant",
         resolved: governed,
     });
+    const trainingEgress = () =>
+        recordChatEgressOrThrow(db, {
+            userId,
+            orgId: contentOrgId,
+            chatId,
+            projectId: resolvedProjectId,
+            surface: "training_backing",
+            resolved: governed,
+        });
 
     let completedTurnPersisted = true;
     let memoryTurn: MemoryConversationTurn | null = null;
@@ -670,6 +682,7 @@ export async function prepareChatStream(
                 nonce,
                 trainingNote,
                 trainingPlan,
+                trainingEgress,
             },
         };
     } catch (error) {

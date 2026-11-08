@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { markTrainingStageStale, useTrainingStageStale } from "@mike/ui";
+import type { TrainingStage } from "@mike/contracts";
 import { getTrainingStage } from "@/app/lib/mikeApi";
 
 export { markTrainingStageStale };
@@ -17,12 +18,15 @@ export type TrainingTurnState = {
     confidenceRequired: boolean;
     /** When the urgency pass that lifts it ends, if one is in force there. */
     urgencyPassExpiresAt: string | null;
+    /** The caller's effective stage there; null for a lawyer, or while it is unknown. */
+    stage?: TrainingStage | null;
 };
 
 const NOTHING_REQUIRED: TrainingTurnState = {
     attemptRequired: false,
     confidenceRequired: false,
     urgencyPassExpiresAt: null,
+    stage: null,
 };
 
 // setTimeout's ceiling; a pass lasts at most 72 hours, well below it.
@@ -64,6 +68,7 @@ export function useTrainingStage({
                             attemptRequired: stage.attempt_required,
                             confidenceRequired: stage.confidence_required === true,
                             urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
+                            stage: stage.stage,
                         },
                     });
             },

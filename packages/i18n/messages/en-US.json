@@ -577,7 +577,58 @@
       },
       "map": {},
       "modes": {},
-      "backing": {},
+      "backing": {
+        "actions": {
+          "save": "save your mark on this conclusion",
+          "load": "load the accountability checks"
+        },
+        "citationRef": "Citation {ref}",
+        "failed": "The conclusions of this answer couldn't be checked.",
+        "intro": "The assistant proposed which citation each conclusion rests on. Open the passage and check it before you rely on it.",
+        "listLabel": "Conclusions of this answer",
+        "mentor": {
+          "answerFrom": "Answer of {date, date, medium} {date, time, short}",
+          "empty": "There are no accountability checks yet.",
+          "intro": "What this junior kept from the answers they received: each conclusion, the source LiTT could show for it and what they did with it. LiTT computes the status; the link to a citation is proposed by the AI.",
+          "summary": "{total, plural, one {# conclusion} other {# conclusions}} · {backed} backed · {unbacked} without backing · {unverified} with citation not verified",
+          "surface": {
+            "chat": "Chat",
+            "tabular": "Tabular review",
+            "word": "Word"
+          },
+          "title": "Accountability",
+          "untitled": "Untitled chat",
+          "withoutAccess": "{count, plural, one {# work is in a matter you can't open, so it isn't shown.} other {# works are in matters you can't open, so they aren't shown.}}"
+        },
+        "passageLabel": "Exact passage",
+        "passageSource": "{title}, page {page}",
+        "passageSourceNoPage": "{title}",
+        "passageUntitled": "Cited document",
+        "pending": "Checking the conclusions of this answer…",
+        "personNotVerified": "The person hasn't marked it as verified",
+        "personReason": "Reason to keep it",
+        "personVerified": "The person verified it",
+        "privacy": "Private: only you and your mentor see this",
+        "privacyMentor": "Private: only the person and you, who mentor them, see this",
+        "reasonHint": "Optional, up to {max} characters. Your mentor reads it.",
+        "reasonLabel": "Why you keep it",
+        "reasonSave": "Save reason",
+        "saved": "Reason saved",
+        "saving": "Saving…",
+        "status": {
+          "backed": "Backed",
+          "citationUnverified": "Citation not verified",
+          "unbacked": "Without backing"
+        },
+        "statusHelp": {
+          "backed": "LiTT found this passage in a document.",
+          "citationUnverified": "LiTT couldn't find the quoted text in the document.",
+          "unbacked": "No citation from a document in LiTT supports it."
+        },
+        "title": "Your conclusions and their sources",
+        "unverifiedReferences": "Not verified: {references}. Confirm it in the official source.",
+        "verified": "I verified it"
+      },
       "audit": {
         "pageTitle": "Audit your review",
         "intro": "Check this review's questions, then audit a sample of its answers by hand. It is for your learning: nothing is blocked and no model is used here.",
@@ -848,7 +899,137 @@
         "undetermined": "Undetermined",
         "words": "{count, plural, one {# word} other {# words}} analyzed."
       },
-      "promotion": {}
+      "promotion": {},
+      "methodology": {
+        "annex": {
+          "headers": {
+            "concept": "Concept",
+            "input": "Item",
+            "operation": "Operation",
+            "source": "Source",
+            "step": "Step",
+            "value": "Value"
+          },
+          "sections": {
+            "basis": "Stated legal basis",
+            "formula": "Formula",
+            "generation": "Generation",
+            "inputs": "Source data",
+            "result": "Result",
+            "rounding": "Rounding rule",
+            "steps": "Steps"
+          },
+          "stepNumber": "{number}. {label}",
+          "title": "Methodology annex - {title}"
+        },
+        "basis": {
+          "backed": "backed by a verified quote",
+          "state": "{basis}\n\nStatus: {status}.",
+          "unverified": "unverified"
+        },
+        "compoundInterest": {
+          "formula": {
+            "amount": "M = P × (1 + R ÷ 100)^n",
+            "interest": "I = M − P"
+          },
+          "result": "Final amount",
+          "rounding": "{base} The accumulated factor is computed exactly and only shown to 10 decimals.",
+          "steps": {
+            "factor": "Accumulated factor (shown to 10 decimals)",
+            "finalAmount": "Final amount rounded to cents",
+            "growth": "Growth factor per period"
+          },
+          "title": "Compound interest"
+        },
+        "generation": {
+          "anonymous": "the user",
+          "disclaimer": "This annex documents an arithmetic operation with the data shown. It is not a legal opinion and does not replace a lawyer's review. LiTT does not supply rates or indices: next to each item its source is shown, or that it has none.",
+          "line": "Generated in LiTT for {person} on {date} (Mexico City time).\n\n{disclaimer}"
+        },
+        "indexUpdate": {
+          "factor": "Update factor",
+          "formula": {
+            "factor": "Factor = final index ÷ initial index",
+            "updated": "Updated amount = Amount × Factor"
+          },
+          "result": "Updated amount",
+          "rounding": "{base} The amount is computed with the exact quotient of the indices, without rounding the factor; the factor shown is for information only.",
+          "steps": {
+            "factor": "Update factor (shown to 10 decimals)",
+            "updated": "Updated amount rounded to cents"
+          },
+          "title": "Update by index factor"
+        },
+        "inputs": {
+          "amount": "Amount to update",
+          "dayBasis": "Day-count basis (days in the year)",
+          "denominator": "Total (denominator)",
+          "endDate": "End date",
+          "finalIndex": "Final index",
+          "initialIndex": "Initial index",
+          "numerator": "Part (numerator)",
+          "periods": "Number of periods",
+          "principal": "Principal",
+          "ratePercent": "Rate (%)",
+          "startDate": "Start date"
+        },
+        "proportion": {
+          "formula": {
+            "percentage": "Percentage = part ÷ total × 100",
+            "proportion": "Proportion = part ÷ total"
+          },
+          "proportion": "Proportion",
+          "result": "Percentage",
+          "rounding": "The percentage is computed with the exact quotient and rounded to 2 decimals, half away from zero. The proportion is shown to 6 decimals.",
+          "steps": {
+            "percentage": "Percentage rounded to 2 decimals",
+            "proportion": "Proportion (6 decimals)"
+          },
+          "title": "Proportion or percentage"
+        },
+        "rounding": {
+          "money": "The calculation is exact; only the published figures are rounded, to cents (2 decimals), half away from zero."
+        },
+        "shared": {
+          "difference": "Difference",
+          "interest": "Interest",
+          "ratePerPeriod": "Rate per period as a fraction",
+          "roundingOf": "rounding of {value}",
+          "total": "Total",
+          "totalWithInterest": "Total (principal + interest)"
+        },
+        "simpleInterest": {
+          "formula": {
+            "interest": "I = P × (R ÷ 100) × n",
+            "total": "Total = P + I"
+          },
+          "steps": {
+            "exactInterest": "Exact interest",
+            "roundedInterest": "Interest rounded to cents"
+          },
+          "title": "Simple interest"
+        },
+        "simpleInterestDays": {
+          "formula": {
+            "days": "Days = end date − start date",
+            "interest": "I = P × (R ÷ 100) × Days ÷ Basis"
+          },
+          "steps": {
+            "annualRate": "Annual rate as a fraction",
+            "days": "Calendar days",
+            "numerator": "Exact numerator"
+          },
+          "title": "Simple interest by days"
+        },
+        "source": {
+          "documentUnverified": "Quote not found (unverified)",
+          "documentUnverifiedIn": "Quote not found in «{filename}» (unverified)",
+          "documentVerified": "«{filename}»: «{excerpt}» (verified quote)",
+          "none": "No source",
+          "person": "Given by the person",
+          "personUnverified": "Not found in your message (unverified)"
+        }
+      }
     },
     "firmCriteria": {}
   },

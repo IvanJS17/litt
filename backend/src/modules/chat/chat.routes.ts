@@ -627,6 +627,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         approvalEvents,
         trainingNote,
         trainingPlan,
+        trainingEgress,
     } = prep.prepared;
     let chatTitle = prep.prepared.chatTitle;
     let completedTurnPersisted = prep.prepared.completedTurnPersisted;
@@ -939,6 +940,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 model: selectedModel,
                 apiKeys,
                 citations,
+                turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
             });
 
             void enqueueChatTurnAudit(

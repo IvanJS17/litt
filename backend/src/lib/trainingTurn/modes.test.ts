@@ -14,7 +14,7 @@ import {
     TRAINING_MODE_NOT_ALLOWED_CODE,
     type TrainingSurface,
 } from "./index";
-import { COUNTERPART_ADDENDUM, hintAddendum, readMode } from "./modes";
+import { COUNTERPART_ADDENDUM, hintAddendum, modesBehavior, readMode } from "./modes";
 
 vi.mock("../trainingNotes", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../trainingNotes")>()),
@@ -330,6 +330,33 @@ describe("what a mode asks of the engine", () => {
             });
         },
     );
+
+    it.each(["hint", "counterpart", "counterpart_close"] as const)(
+        "%s never offers the methodology calculator, even if an earlier behavior had set it",
+        async (mode) => {
+            const notes = mode === "counterpart_close" ? [counterpart(1)] : [];
+            const { db } = world("pasante", false, notes);
+            const resolved = {
+                db, userId: USER, chatId: CHAT, persisted: true, surface: "chat" as const,
+                body: { attempt: ATTEMPT, confidence: 3, mode, divergence: null },
+                stage: "pasante" as const, passActive: false, orgId: ORG,
+            };
+            const plan = {
+                surface: "chat" as const, stage: "pasante" as const, passActive: false, attempt: ATTEMPT,
+                confidence: null, mode: null, step: null, orgId: ORG,
+                toolPolicy: { methodology: true as const }, afterTurn: [],
+            };
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const next = await modesBehavior(resolved as any, plan as any);
+            if ("ok" in next) throw new Error(next.code);
+            expect(next.toolPolicy.methodology).toBeUndefined();
+            expect(next.toolPolicy.allowDocumentMutation).toBe(false);
+        },
+    );
+
+    it("a junior's mode is refused, so the methodology turn is never a mode turn", async () => {
+        expect(await begin("hint", { stage: "junior" })).toMatchObject({ ok: false, code: TRAINING_MODE_NOT_ALLOWED_CODE });
+    });
 
     it("says the rung in the hint's text and never asks for the conclusion", () => {
         for (const step of [1, 2, 3] as const) {
