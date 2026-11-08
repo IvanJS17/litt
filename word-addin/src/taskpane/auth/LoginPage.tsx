@@ -128,7 +128,7 @@ export function LoginPage(): React.ReactElement {
                   {loading ? "Logging in..." : "Log in"}
                 </PillButton>
               </div>
-              <AuthDivider />
+              <AuthDivider label="or" />
               <PillButton
                 type="button"
                 tone="white"

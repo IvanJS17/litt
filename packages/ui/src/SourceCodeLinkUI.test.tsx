@@ -6,7 +6,11 @@ const SHA = "0123456789abcdef0123456789abcdef01234567";
 
 describe("SourceCodeLinkUI", () => {
     it("links the source of the injected commit in a new tab", () => {
-        render(<SourceCodeLinkUI commit={SHA} />);
+        render(<SourceCodeLinkUI
+                commit={SHA}
+                label="Código fuente"
+                description="de esta versión (se abre en una pestaña nueva)"
+            />);
         const link = screen.getByRole("link", { name: /Código fuente/ });
         expect(link).toHaveAttribute(
             "href",
@@ -21,7 +25,7 @@ describe("SourceCodeLinkUI", () => {
     });
 
     it("renders nothing without a full commit SHA", () => {
-        const { container } = render(<SourceCodeLinkUI commit="" />);
+        const { container } = render(<SourceCodeLinkUI commit="" label="Source code" description="of this version" />);
         expect(container).toBeEmptyDOMElement();
     });
 });

@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthPageShell } from "./AuthPageShell";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 describe("AuthPageShell", () => {
     it("puts the wordmark in the flow before the card, never on top of it", () => {
@@ -55,5 +57,18 @@ describe("AuthPageShell", () => {
         const area = screen.getByText("form").parentElement;
         expect(area).toHaveAttribute("data-align", "top");
         expect(area?.className).not.toContain("justify-center");
+    });
+
+    it("offers the language selector under the card", () => {
+        render(
+            <AuthPageShell>
+                <p>card</p>
+            </AuthPageShell>,
+        );
+        const select = screen.getByRole("combobox", { name: "Language" });
+        expect(
+            screen.getByText("card").compareDocumentPosition(select) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     });
 });

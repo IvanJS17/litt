@@ -120,7 +120,7 @@ describe("SettingsPage Google email changes", () => {
                 screen.getByRole("heading", { name: "Acerca de" }),
             ).toBeInTheDocument();
             expect(
-                screen.getByRole("link", { name: /^Código fuente/ }),
+                screen.getByRole("link", { name: /^Source code/ }),
             ).toHaveAttribute(
                 "href",
                 `https://github.com/IvanJS17/litt/tree/${sha}`,
