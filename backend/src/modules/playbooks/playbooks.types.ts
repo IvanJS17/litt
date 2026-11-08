@@ -56,7 +56,7 @@ export type PlaybookImportStage =
 export type PlaybookImport = {
   id: string;
   /** LiTT: what the row compiles: a file, or a draft from the questionnaire. */
-  kind: "import" | "draft" | "proposal";
+  kind: "import" | "draft" | "proposal" | "correction";
   status: "running" | "completed" | "failed";
   stage: string;
   error: string | null;
@@ -223,6 +223,27 @@ export type PlaybookProposalWork = {
   route: ChatRoute;
   authorization: AuthorizationStamp | null;
 };
+/**
+ * LiTT: changes proposed from a mentor's corrections (POST
+ * /playbooks/:id/corrections), run by the same playbook.draft job. It never
+ * carries the corrections, the trainee or the attribution: those wait on the
+ * import row's request_json until the job ends.
+ */
+export type PlaybookCorrectionWork = {
+  kind: "correction";
+  attemptId: string;
+  userId: string;
+  userEmail: string | null;
+  model: string;
+  orgId: string;
+  playbookId: string;
+  /** The playbook's updated_at when the corrections were sent. */
+  targetUpdatedAt: string;
+  startedAt: string;
+  route: ChatRoute;
+  authorization: AuthorizationStamp | null;
+};
+
 /** LiTT: one change proposed for a copy, as GET /playbooks/:id/changes returns it. */
 export type PlaybookChange = {
   id: string;
@@ -238,6 +259,10 @@ export type PlaybookChange = {
   after: PlaybookContent["rules"][number] | null;
   changedFields: string[];
   rationale: string;
+  /** LiTT: asked for with a questionnaire, or proposed from a mentor's corrections. */
+  source: "starting_point" | "correction";
+  /** The person whose correction it is (corrections only); null once their account is gone. */
+  attributedTo: string | null;
   status: "pending" | "accepted" | "rejected";
   decidedBy: string | null;
   decidedAt: string | null;

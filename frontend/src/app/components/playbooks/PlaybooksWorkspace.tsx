@@ -41,6 +41,8 @@ import {
   type PlaybookIntakeRequest,
 } from "@/app/components/playbooks/PlaybookIntakeModal";
 import { PlaybookDraftBanner } from "@/app/components/playbooks/PlaybookDraftBanner";
+import { PlaybookCorrections } from "@/app/components/playbooks/PlaybookCorrections";
+import { usePlaybookCorrectionPupils } from "@/app/components/playbooks/usePlaybookCorrectionPupils";
 import { usePlaybookProvenance } from "@/app/components/playbooks/usePlaybookProvenance";
 import { PlaybookDetailsModal } from "@/app/components/playbooks/PlaybookDetailsModal";
 import type { PlaybookDetails } from "@/app/components/playbooks/PlaybookDetailsFields";
@@ -197,6 +199,7 @@ export function PlaybooksWorkspaceLayout() {
 
 function PlaybooksWorkspace() {
   const t = useTranslations("playbooks");
+  const tCorrections = useTranslations("training.criterion.corrections");
   const { workspaceId, activeOrganization } = useWorkspace();
   const router = useRouter();
   const params = useParams<{ playbookId?: string }>();
@@ -379,6 +382,13 @@ function PlaybooksWorkspace() {
     !!selected && selected.canEdit === true && !replacingIds.has(selected.id);
   // LiTT: a draft cannot be used in a review until an editor marks it ready.
   const isDraft = selected?.status === "draft";
+  // LiTT training: an editor who supervises someone can turn their
+  // corrections into proposed rules (the server checks both again).
+  const correctionPupils = usePlaybookCorrectionPupils(
+    selected?.orgId ?? null,
+    canEdit,
+  );
+  const correctionsOffered = canEdit && correctionPupils.length > 0;
   const provenance = usePlaybookProvenance(
     selected && content ? { ...selected, content } : null,
   );
@@ -1379,6 +1389,9 @@ function PlaybooksWorkspace() {
             onUpload={() => sourcesRef.current?.upload()}
             onNewRun={startNewRun}
             runDisabled={isDraft}
+            correctionsLabel={
+              correctionsOffered ? tCorrections("tab") : undefined
+            }
           />
           {isDraft && (
             <PlaybookDraftBanner
@@ -1388,7 +1401,18 @@ function PlaybooksWorkspace() {
               onMarkReady={markReady}
             />
           )}
-          {playbookView === "runs" ? (
+          {playbookView === "corrections" && correctionsOffered ? (
+            <PlaybookCorrections
+              key={selected.id}
+              playbookId={selected.id}
+              pupils={correctionPupils}
+              models={models}
+              model={model}
+              onModelChange={setModel}
+              disabled={!!busy}
+              onPlaybookChanged={showImported}
+            />
+          ) : playbookView === "runs" ? (
             <PlaybookRuns
               key={selected.id}
               playbookId={selected.id}

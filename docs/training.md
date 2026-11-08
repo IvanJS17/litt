@@ -686,3 +686,202 @@ none while the pupil has no mentor.
 **Word.** The add-in is not changed by layer 2: Word does not honor a pass
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
+
+## Bulk review designer (layer 3)
+
+A junior who designs a tabular review's questions gets a review of them and
+audits by hand a sample of its answers. It applies to a review the person can
+open and whose matter gives them the stage `junior`. The stage is not a
+permission: it adds no access, and the review keeps the permissions it
+already has. For anyone else the read answers `applies: false` and the writes
+answer 404. No model is involved: the design review and the sample are code
+(`backend/src/lib/trainingReviewAudit.ts`), so there is no key, no
+`llm.egress` and no `chatLimiter`.
+
+- **Design review (`lintColumns`).** Repeated or empty names, empty
+  instructions or ones under 20 characters, columns without an answer format.
+  They are notes, never blocks.
+- **Sample.** `n = clamp(ceil(10 % of the finished cells), 5, 20)` (never more
+  than exist), stratified by column: columns come in a seeded order and each
+  gives one cell per round, so every column has at least one while `n`
+  allows. The server draws it with a random seed stored on the row; the same
+  seed draws the same sample. The person does not choose. Cells whose source
+  documents the person cannot read are never drawn.
+- **Marks.** For each sampled cell the person sees the answer and its cited
+  passages and marks «Correcta», «Incompleta» or «Incorrecta», with an
+  optional note (500 characters). When every cell is marked they finish the
+  audit and see their own counts per column, never a figure of a group.
+- **Expiry.** If a sampled cell changes or disappears (the review was
+  regenerated, edited or cleared) the audit becomes `stale` the next time
+  anyone reads it, and the person draws another. The row keeps a keyed digest of
+  each sampled cell (`digest`, an HMAC-SHA256 of 128 bits keyed with the
+  audit's own `digest_salt`, which is never exported or sent to the client, so
+  a short cell cannot be guessed from it) to tell, not the cell: a `generation_id` does
+  not survive the end of a run (cells are stamped with it only while the run
+  lasts), so it cannot say that a review was regenerated afterwards.
+- **No cell content in the row.** `training_review_audits.sample` holds
+  `row_id`, `column_index`, `digest`, `mark`, `note` and `mentor_mark`, and
+  nothing else (`training_review_audit_sample_ok`, a column check). The
+  content is read from the review when it is shown.
+- **The mentor** (the pupil's current mentor, `assertCurrentMentor`) lists the
+  pupil's audits and evaluates a finished one: «Adecuado» or «Por mejorar»
+  with a note (500 characters, learning data), and may correct a mark; the
+  correction is stored as `mentor_mark` and the person's own mark stays. The
+  current mentor may change it again or take it back (`mark: null` removes the
+  key); every save leaves the same event, naming ids only. A
+  review is shown only if the mentor can open its matter (`mayOpenWorkMatter`;
+  a review outside any matter: if the mentor can open the review itself); the
+  rest are counted. Cells whose sources the mentor cannot read are withheld.
+  Nothing here blocks anything; it is evidence.
+- **Privacy.** `training_review_audits` is a `training_*` table with
+  `trainee_user_id`, a cascade from `org_members`, RLS and no browser
+  privilege, so the generic checks of `performance.litt-training-supervision.sql`
+  cover it. Owners and admins read none of it. The routes return counts of one
+  person, no score, rank or average.
+- **Audit trail.** `training.review_audit_started`, `_completed` and
+  `_evaluated` carry `org_id`, `target_user_id` and the review (`review_id`
+  column) only: never marks, notes, the outcome or any cell text.
+
+| Route | Who |
+|---|---|
+| `GET/POST /tabular-review/:reviewId/training-audit` | the junior: the design review and the audit; start (200 if one is live, 201 if drawn) |
+| `PUT …/training-audit/cells/:rowId:columnIndex` | the junior: `{ mark, note? }` while the audit is open |
+| `POST …/training-audit/complete` | the junior, once every cell is marked |
+| `GET /orgs/:orgId/training/pupils/:userId/review-audits` | the current mentor |
+| `PUT …/review-audits/:id/evaluation` | the current mentor: `{ outcome, note?, corrections? }` on a finished audit |
+
+`training_review_audit_stale` (409) is the only code the client acts on. In the
+web app the page is `/tabular-reviews/:id/audit`, offered in the review's
+menu («Auditar preguntas») only when the read says `applies`. The mentor's
+section is `MentorReviewAudits`; until the «Criterio» tab exists it is
+delivered without a tab and is mounted by the card that builds the tab.
+## From correction to rule (layer 3)
+
+A mentor can turn their corrections of a pupil's work into rules proposed for
+a playbook. The mechanics (route, limits, origin and attribution) are in
+`docs/playbooks.md`, "From a mentor's corrections"; what matters for learning
+data is here.
+
+- **Who.** An Editor or Owner of the playbook who is the pupil's *current*
+  mentor (`assertCurrentMentor`, the one gate in front of learning data). Not
+  an owner or admin by role, not a previous mentor, not a pupil: all get the
+  uniform `404`. The stage grants nothing.
+- **What is kept.** The corrections (the pupil's text, the mentor's text and
+  comment) and the pupil's id live on the playbook import row until the job
+  ends, then they are erased; the failure and interruption paths erase them
+  too (an interrupted batch is cleared when its attempt is read, or at the
+  latest at the next batch). No table of this feature keeps the pupil's text or a column for the
+  pupil. The one place that keeps the pupil's id is the insert-only audit
+  (below), which stores ids and counts only and no text. What stays is the
+  rule, which belongs to the firm, and the mentor's name as its attribution; if the mentor's account
+  is erased the attribution on the change goes to null.
+- **Copies.** A copy of the playbook carries no attribution and no note from
+  a correction: the rule is "suggestion without backing, review".
+- **Audit** (insert-only, ids and counts, never text): `training.correction_proposed`
+  (organization surface, like the other training audit rows: it keeps
+  `org_id`, `target_user_id`, `playbook_id`, `import_id` and the `corrections`
+  count, so the pupil is identified by id only) when a batch is sent, and `playbook.corrections_ready` when it
+  ends.
+- **Interface.** The playbook page has a **Corrections** panel for Editors who
+  supervise someone: the pupil, up to ten corrections, the model, and the
+  proposed changes with their accept and reject buttons. Strings are in the
+  `training.criterion.corrections` namespace of the catalog.
+
+## Periodic full reading (layer 3)
+
+Migration `backend/migrations/20261108_68_litt_training_criterion_readings.sql`
+(also in `backend/schema.sql`), module `backend/src/modules/training-full-reading/`,
+pure logic in `backend/src/lib/trainingReading.ts`, screens in
+`frontend/src/app/components/training/reading/`. Once a month a **junior** reads
+one whole document **without the assistant**, writes what they found, and only
+then sees what a model found in the same text and how the two lists compare. It
+is evidence for the mentor, never a promotion requirement, and it adds no
+score: the comparison is three lists.
+
+**When.** `GET /training/me/readings?org_id=` answers `eligibility`: the person
+holds the junior stage in the organization, has no reading open, and 30 days
+(`READING_INTERVAL_DAYS`) have passed since their last reading was *sent*. There
+are no reminders and no scheduled work: «Mi formación» shows the notice when it
+is opened (`ReadingNotice`, only for a person with a junior stage), and
+`POST /training/me/readings` starts the reading (409 `training_reading_not_due`
+otherwise). A second start returns the reading already open; one reading is
+open at a time per person and organization (a partial unique index).
+
+**Which document.** LiTT proposes one at random from the matters where the
+person worked in the last 60 days (their turn notes in a chat, a project chat or
+a tabular-review chat), that belong to the organization, that they can open
+(`openableWorkMatters`) and where their effective stage is junior
+(`resolveTrainingStage`), among the documents of the project with a stored text
+(`document_version_texts`, read with `read_document_text`) of between 200 and
+60 000 characters. That is all the stage does: *it chooses what is proposed, it
+grants nothing*. The text is read under the person's own access to the
+document, whatever their stage. With nothing to propose the start answers
+`400 training_reading_no_document`. `POST …/:id/swap` changes the document once
+(`409 training_reading_swap_used`), only before sending. The row keeps the
+project, document and version identifiers (null if they are deleted), **never
+the title**; the page shows the file name from the live version.
+
+**Reading without the assistant.** `/settings/training/reading/[readingId]` is a
+page with the document's text (`GET …/:id/document`, never stored on the row)
+and a form, and no assistant. It cannot be enforced technically: the page says
+that the reading is the person's own statement. `PUT …/:id/findings` records
+what they found (20 to 4000 characters) **once**: a trigger refuses any later
+change (`LT002`, `409 training_reading_findings_recorded`), so the comparison can
+never be matched to a rewritten answer.
+
+**The machine and the comparison.** `POST …/:id/compare` (under `chatLimiter`)
+runs only after the findings were sent, on **the person's own pinned route**
+(governed BYOK, `training_readings.model_provider/model/credential_ref`, three
+columns or none): fixed the first time, reused on a retry unless they pick
+another of their keys, and when it no longer serves them the answer is `409
+chat_route_credential_unavailable` with no other model tried; with no usable key
+the page offers no comparison (`training_review_key_required`). `llm.egress`
+(`surface: training_reading`, `reading_id`, `step`) is recorded before each of
+the two calls that send text:
+
+1. The model reads the stored text (fenced with a per-call nonce; the system
+   prompt says it is content, not instructions) and lists up to 8 findings, each
+   with a **literal quote**. Each quote is checked with `locateQuote` (the same
+   check citations use) against the text; a finding whose quote is not found is
+   **discarded and counted**, and what is stored is the document's own passage,
+   never the model's wording. A finding therefore only exists if its quote does.
+2. Unless nothing survived, a second call pairs the person's lines (their text
+   split by `personItems`) with the machine's findings. The pairing is the only
+   thing the model decides, validated (valid indexes, each side used once); the
+   three lists «Coincidieron / Solo lo viste tú / Solo lo vio la máquina» are
+   computed from it, and the screen marks the pairing «inferido».
+
+States: `assigned` → `submitted` → `comparing` → `compared`, or `failed` (the
+call failed or its answer was not the required JSON; nothing else is written
+and it can be tried again). One comparison at a time (the claim uses the row's
+previous state); a `comparing` row older than 10 minutes reads as `failed`. The
+log of a failure carries only the reading's id.
+
+**Who sees it.** The person (their rows only) and their **current** mentor
+(`GET /orgs/:orgId/training/pupils/:userId/readings`, `assertCurrentMentor`,
+uniform 404 for everybody else: a previous mentor, an owner, an admin, another
+member, the pupil on the mentor's route). The findings come from a client
+document, so the mentor sees a reading only if they can open its matter; the
+others are counted (`readings_without_access`), never shown. The table is a
+learning table like the rest: `training_*` with `trainee_user_id`, RLS with no
+browser grant, a cascade from `org_members` (it goes with the membership or the
+account), covered by the generic discovery in
+`performance.litt-training-supervision.sql` and by
+`performance.litt-training-readings.sql`. No score, average or ranking is
+returned anywhere. The account export carries the holder's readings
+(`training.readings`), without the credential reference.
+
+**Audit** (insert-only, `surface: organization`, `{ org_id, target_user_id,
+reading_id }` only): `training.reading_assigned` and `training.reading_submitted`.
+The findings, the machine's list and the comparison are never audited.
+
+**The mentor's section.** `MentorReadings` (`orgId`, `pupilId`) is a section of
+the panel's «Criterio» tab. That tab does not exist yet, so it ships mountable
+and unmounted; whoever creates the tab adds the section with one import.
+
+**Product decisions taken without the plan** (the simplest that comply): the
+person's findings take at least 20 characters; the compare step is a separate
+action after sending (so the person never sees the machine's list in the same
+step); a reading that cannot be compared stays `failed` and can be retried
+instead of being discarded; `swapped`, `version_id`, `updated_at` and the
+`comparing` state were added to the row of the plan.

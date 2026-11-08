@@ -75,6 +75,7 @@ const KEEPS_SERVER_WORDS = new Set([
     "training_attempt_required", // too short or too long, and by how much
     "training_pass_invalid", // which part of the pass
     "training_pass_limit_reached", // the limit
+    "training_correction_invalid", // which part of the batch
     "internal_error", // 5xx: the server kind's sentence
     "upstream_unavailable", // 5xx: errors.upstream
 ]);

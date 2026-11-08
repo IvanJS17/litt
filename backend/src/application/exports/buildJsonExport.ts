@@ -649,6 +649,8 @@ export async function buildUserAccountExport(
         trainingWorkReviews,
         trainingDefenses,
         trainingUrgencyPasses,
+        trainingReviewAudits,
+        trainingReadings,
     ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
@@ -690,6 +692,22 @@ export async function buildUserAccountExport(
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
                 "id, org_id, project_id, starts_at, expires_at, reason_code, reason_note, revoked_at, created_at",
+            order: ["created_at"],
+        }),
+        // Layer 3, bulk review designer: the holder's audits (marks and notes,
+        // never cell content, which the row does not keep).
+        selectAll(db, "training_review_audits", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, tabular_review_id, columns_snapshot, lint, sample, status, completed_at, mentor_outcome, mentor_note, evaluated_at, created_at",
+            order: ["created_at"],
+        }),
+        // Periodic full readings (layer 3): what the holder wrote and what the
+        // machine found, never the credential reference of the route.
+        selectAll(db, "training_readings", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, project_id, document_id, version_id, swapped, status, findings, submitted_at, machine_findings, comparison, model_provider, model, created_at, updated_at",
             order: ["created_at"],
         }),
     ]);
@@ -773,6 +791,8 @@ export async function buildUserAccountExport(
             work_reviews: trainingWorkReviews,
             defenses: trainingDefenses,
             urgency_passes: trainingUrgencyPasses,
+            review_audits: trainingReviewAudits,
+            readings: trainingReadings,
         },
         audit_events: auditEvents,
     };

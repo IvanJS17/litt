@@ -572,6 +572,51 @@ the review receives them, without provenance), and
 180,000 characters per reviewed contract. Oversized inputs fail explicitly
 instead of being silently truncated.
 
+## From a mentor's corrections (LiTT training)
+
+A mentor turns what they corrected in a pupil's work into proposed rules.
+This is the same machinery as "Using a playbook as a starting point": the
+proposals are `playbook_changes`, pending, decided one by one by an Editor or
+Owner, each over the rule it was proposed for (`409 playbook_change_stale`
+otherwise), and a playbook with changes pending is not marked ready.
+
+- **`POST /playbooks/:id/corrections`** with `{ model, traineeUserId,
+  corrections: [{ before?, after, comment? }] }` answers `202` with the
+  running import (`kind: "correction"`). One to ten corrections, each at most
+  4,000 characters of text and 1,500 of comment, 30,000 in all; anything else
+  answers `400` `training_correction_invalid`. Only **an Editor or Owner of the
+  playbook who is also the pupil's current mentor** can send them (the stage
+  is not a permission). Anyone else, a pupil who is not theirs, an id that
+  cannot exist and a playbook outside an organization all answer the same
+  `404` "Training data not found". A Viewer gets `403`, as for any edit.
+- It works on a draft **and on a ready playbook**; a ready one is not
+  changed until an Editor accepts a change. It is read-only for edits while
+  the changes are computed (`409 playbook_proposals_running`), one batch runs
+  per playbook (a unique index), and a new one waits until the earlier changes
+  are decided (`409 playbook_changes_pending`).
+- It runs as the `playbook.draft` job with the route fixed for the caller
+  (`pinPlaybookRoute`, no fallback), the heartbeat and the 40-change limit of
+  proposals. The corrections and the pupil's id wait on the import row's
+  `request_json` until the job ends, then the column is set to null; they are
+  never in `db_jobs.payload` and never in `playbook_changes`. The job asks the
+  mentorship again before it stores anything, and the organization's
+  authorization epoch fails it if a member left meanwhile.
+- **Origin.** The model may say a rule rests on corrections (`c1`…); the
+  server keeps `origin.kind = "correction"` only when every id it names was
+  sent. The model's note is dropped for every rule of a batch and the server
+  writes `origin.attributedTo`, the mentor's name when they sent it ("Corrección
+  de …" in the interface). A rule without that backing falls to general
+  practice, "suggestion without backing, review". `playbook_changes` records
+  `source = 'correction'` and `attributed_to` (the mentor; null when the
+  account is erased). The pupil is not named, linked or counted anywhere in the
+  playbook, and the prompt asks for rules without names, amounts or dates; the
+  Editor who accepts sees `before` and `after` in full.
+- **A copy** does not carry the attribution: a `correction` origin falls to
+  general practice like an answer or a clause and loses its note and
+  `attributedTo`.
+- **Limits.** The server cannot know that a rule is free of the pupil's
+  words: the Editor who accepts is the check.
+
 ## Audit log
 
 Playbook activity is recorded in the activity history (the **History** page,
@@ -592,6 +637,7 @@ surface, as chat, document, and tabular review activity is:
 | `playbook.model_unmarked` | An editor removes the model mark. |
 | `playbook.copied` | A playbook is copied as a starting point; `detail` holds the copy's and the original's ids and the number of rules. |
 | `playbook.proposals_ready` | Proposed changes for a copy end. The row holds the model; `detail` holds the attempt and copy ids and, when they completed, the number of changes (added, modified, removed), of operations dropped, of rules without backing, of unverified legal references, of origins the server lowered, of answered questions and of attachments. A failed or interrupted one carries its `stage` and, as its title, the copy's current name. Never the answers or rule text. |
+| `playbook.corrections_ready` | Changes proposed from a mentor's corrections end. The row holds the model; `detail` holds the attempt and playbook ids, the number of corrections and, when they completed, the same counts as `playbook.proposals_ready`; a failed one carries its `stage`. Never the corrections, the pupil or rule text. `training.correction_proposed` (organization surface) is recorded when they are sent; see `docs/training.md`. |
 | `playbook.change_accepted` | An editor accepts a proposed change; `detail` holds the playbook and change ids, the operation and the rule id. |
 | `playbook.change_rejected` | An editor rejects one; same `detail`. |
 
