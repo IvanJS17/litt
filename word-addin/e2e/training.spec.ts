@@ -622,7 +622,7 @@ test("a chat kept on this device only is offered no hint and no round", async ({
   addin,
   page,
 }) => {
-  await mockModesStage(page, () => ({
+  const urls = await mockModesStage(page, () => ({
     modes: ["hint", "counterpart"],
     next_hint_level: 1,
     counterpart_next_step: 1,
@@ -641,4 +641,6 @@ test("a chat kept on this device only is offered no hint and no round", async ({
   await expect(page.getByLabel("Your approach (2–3 lines)")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask for a hint" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Help for this turn" })).toHaveCount(0);
+  expect(urls.at(-1)).toContain("storage=local");
+  expect(urls.at(-1)).not.toContain("chat_id=");
 });

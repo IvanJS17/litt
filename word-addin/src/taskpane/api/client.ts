@@ -522,7 +522,10 @@ export async function getWordTrainingStage(): Promise<"pasante" | "junior" | nul
  * for it (`confidence_required`, absent from servers older than layer 3), and
  * the hints and counterparty round open in `chatId` (`modes`).
  */
-export async function getWordTrainingTurn(chatId?: string | null): Promise<{
+export async function getWordTrainingTurn(
+  chatId?: string | null,
+  storage: "cloud" | "local" = "cloud",
+): Promise<{
   attemptRequired: boolean;
   confidenceRequired: boolean;
   /** Layer 3: the hints and counterparty round open now, counted from the chat's notes. */
@@ -530,7 +533,8 @@ export async function getWordTrainingTurn(chatId?: string | null): Promise<{
   nextHintLevel: 1 | 2 | 3 | null;
   counterpartNextStep: 1 | 2 | 3 | null;
 }> {
-  const query = new URLSearchParams({ surface: "word" });
+  // The server offers no mode for a chat kept on the device (`storage=local`).
+  const query = new URLSearchParams({ surface: "word", storage });
   if (chatId) query.set("chat_id", chatId);
   const result = await apiRequest<{
     stage: "pasante" | "junior" | null;

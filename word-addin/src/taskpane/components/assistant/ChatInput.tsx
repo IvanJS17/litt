@@ -269,7 +269,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     useTrainingStageStale(() => setStageGeneration((value) => value + 1));
     useEffect(() => {
       let cancelled = false;
-      getWordTrainingTurn(trainingModesAllowed ? trainingChatId : null).then(
+      getWordTrainingTurn(
+        trainingModesAllowed ? trainingChatId : null,
+        trainingModesAllowed ? "cloud" : "local",
+      ).then(
         (turn) => {
           if (cancelled) return;
           setNeedsAttempt(turn.attemptRequired);
