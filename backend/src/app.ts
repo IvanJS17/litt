@@ -17,6 +17,7 @@ import {
     pupilNotesRouter,
     trainingCriterionRouter,
 } from "./modules/training-criterion/trainingCriterion.routes";
+import { myBackingRouter, pupilBackingRouter } from "./modules/training-backing/trainingBacking.routes";
 import {
     pupilReviewAuditsRouter,
     reviewAuditRouter,
@@ -351,10 +352,12 @@ app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/notes", pupilNotesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/criterion", pupilCriterionRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/backing", pupilBackingRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
+app.use("/training/me/chats", myBackingRouter);
 app.use("/training", trainingRouter);
 app.use("/training", trainingSupervisionRouter);
 app.use("/training", trainingReadingsRouter);

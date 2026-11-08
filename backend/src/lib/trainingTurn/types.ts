@@ -1,6 +1,8 @@
 // Shapes shared by the training-turn wiring (see ./index.ts).
 
 import type { TrainingStage } from "@mike/contracts";
+import type { UserApiKeys } from "../llm";
+import type { Db } from "../supabase";
 
 /** The four places a person can take a turn. */
 export type TrainingSurface = "chat" | "project_chat" | "word" | "tabular";
@@ -26,12 +28,39 @@ export type TrainingEnginePlan = {
     allowDocumentMutation?: false;
     includeAskInputs?: false;
     noSubagents?: true;
+    /** Offer compute_methodology (a junior's turn); absent for every other turn. */
+    methodology?: true;
+};
+
+/**
+ * The saved turn a hook may act on: whose it is, where, the saved assistant
+ * message and what the conversation's own route needs to call a model again
+ * (governed BYOK: never another model or key).
+ */
+export type TrainingTurnOutcome = {
+    db: Db;
+    userId: string;
+    chatId: string;
+    /** The assistant message the answer was saved in. */
+    messageId: string;
+    answer: string;
+    model: string;
+    apiKeys?: UserApiKeys;
+    /**
+     * Writes the llm.egress of a call the hook is about to make with this
+     * route: same provider, model, credential and host as the turn's own,
+     * recorded before any text is sent. A hook that calls a model awaits it
+     * first and makes no call if it fails.
+     */
+    recordEgress: () => Promise<void>;
 };
 
 /** A hook that runs once the final answer is durable. */
 export type AfterTurnHook = (ctx: {
     plan: TrainingTurnPlan;
     completed: boolean;
+    /** Null when the turn was not saved (a local-only Word chat). */
+    outcome: TrainingTurnOutcome | null;
 }) => void | Promise<void>;
 
 export type TrainingTurnPlan = {

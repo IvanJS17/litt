@@ -967,6 +967,78 @@ export interface TrainingRemoveStageQuery {
 }
 
 // --- Training layer 3, card 8: accountability mode (begin) ---
+/**
+ * How well one conclusion of a junior's answer rests on a source LiTT can show.
+ * Computed by the server from the citations it verified, never by the model:
+ * `backed` has a verified passage of a document in LiTT; `citation_unverified`
+ * names a citation whose quote the server could not find; `unbacked` has none.
+ * A law named from memory is `unbacked` (LiTT has no corpus of laws).
+ */
+export type TrainingBackingStatus = "backed" | "citation_unverified" | "unbacked";
+
+/** The exact passage a `backed` conclusion rests on, as the server found it in the document. */
+export interface TrainingBackingPassage {
+  ref: number;
+  /** The cited document's name. */
+  title: string | null;
+  page: number | string | null;
+  excerpt: string;
+}
+
+export interface TrainingBackingConclusion {
+  id: string;
+  text: string;
+  /** The citation the AI proposed for it (a proposal; the person checks the passage). */
+  citation_ref: number | null;
+  status: TrainingBackingStatus;
+  passage: TrainingBackingPassage | null;
+  /** Legal references the conclusion names that the shown passage does not, e.g. `art. 27, fr. IV`. */
+  unverified_references: string[];
+  person_verified: boolean;
+  /** Why the person keeps the conclusion; learning data. */
+  person_note: string | null;
+}
+
+export interface TrainingBackingCheck {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  chat_id: string;
+  message_id: string;
+  status: "pending" | "ready" | "failed";
+  conclusions: TrainingBackingConclusion[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** GET /training/me/chats/:chatId/backing[?message_id=]. Only the caller's own checks. */
+export interface TrainingChatBacking {
+  checks: TrainingBackingCheck[];
+}
+
+/** PUT /training/me/chats/:chatId/backing/:checkId/conclusions/:conclusionId. */
+export interface TrainingBackingMark {
+  person_verified?: boolean;
+  /** At most 500 characters; null or empty clears it. */
+  person_note?: string | null;
+}
+
+export interface TrainingPupilBackingWork {
+  surface: "chat" | "word" | "tabular";
+  chat_id: string;
+  project_id: string | null;
+  title: string | null;
+  checks: TrainingBackingCheck[];
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/backing. The current mentor's only. */
+export interface TrainingPupilBacking {
+  org_id: string;
+  trainee_user_id: string;
+  works: TrainingPupilBackingWork[];
+  /** Works in matters the mentor cannot open: counted, never listed. */
+  works_without_access: number;
+}
 // --- Training layer 3, card 8 (end) ---
 
 /** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */

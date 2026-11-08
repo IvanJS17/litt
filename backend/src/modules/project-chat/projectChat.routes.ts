@@ -175,6 +175,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
         approvalEvents,
         trainingNote,
         trainingPlan,
+        trainingEgress,
     } = prep.prepared;
     // Mutable: the title-generation flow below reassigns it once a title
     // has been persisted.
@@ -402,6 +403,7 @@ projectChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 model: selectedModel,
                 apiKeys,
                 citations,
+                turn: { userId, chatId, messageId: turnMessageId || null, recordEgress: trainingEgress },
             });
 
             void enqueueChatTurnAudit(
