@@ -93,6 +93,8 @@ begin
       jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
   insert into public.training_readings(org_id, trainee_user_id, project_id, status)
     values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
+  insert into public.training_retakes(org_id, trainee_user_id, topic_key, topic_label)
+    values (org, current_setting('litt.pupil')::uuid, 'prescripcion', 'Prescripción');
   -- Layer 3, card 13: a criteria contrast waiting for the pupil's explanation.
   insert into public.training_criteria_contrasts(org_id, trainee_user_id, chat_id, message_id, routes, briefs)
     values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(),

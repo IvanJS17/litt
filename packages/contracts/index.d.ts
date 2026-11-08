@@ -779,6 +779,121 @@ export interface TrainingEffectiveStage {
 }
 
 // --- Training layer 3, card 4: own map, calibration and retake (begin) ---
+
+/**
+ * The state of one topic of the person's map, from their last events on it:
+ * `few_data` (fewer than 3 events), `strong`, `weak` or `middle`. It describes
+ * a coincidence with the AI's answer, according to the AI contrast.
+ */
+export type TrainingMapState = "few_data" | "strong" | "weak" | "middle";
+
+/** One topic of the map. Counts of the person's own events, never a score. */
+export interface TrainingMapTopic {
+  /** The label normalized (no accents, lower case): what a retake is asked by. */
+  key: string;
+  label: string;
+  state: TrainingMapState;
+  /** Every event of the topic. */
+  events: number;
+  /** Of the last `window` events: how many coincided, out of how many. */
+  window_hits: number;
+  window_size: number;
+  last_at: string;
+  last_verdict: TrainingVerdictValue;
+  /** Weak, and the last event is `retake_after_days` old or more. */
+  retake_due: boolean;
+}
+
+export interface TrainingCalibrationLevel {
+  /** 1 «casi adivino» … 4 «seguro». */
+  level: 1 | 2 | 3 | 4;
+  /** Turns marked at this level that count as evidence. */
+  marked: number;
+  /** Of those, how many coincided / coincided partly. */
+  coincided: number;
+  partial: number;
+  /** `marked` reached `min_per_level`; otherwise the screen says «aún pocos datos». */
+  enough: boolean;
+}
+
+/** «Cuando marcas "Seguro", coincidió 5 de 8 veces»: one person's counts by level. */
+export interface TrainingCalibration {
+  min_per_level: number;
+  marked_turns: number;
+  levels: TrainingCalibrationLevel[];
+}
+
+/** The hints the person asked for before sending: counts of their own turns. */
+export interface TrainingHintsUsed {
+  requested: number;
+  /** The highest rung reached, 0 when none. */
+  max_level: number;
+}
+
+export type TrainingRetakeStatus = "pending" | "open" | "answered" | "failed";
+
+/** One retake: a question about a weak topic, the person's answer and its contrast. */
+export interface TrainingRetake {
+  id: string;
+  org_id: string;
+  topic_key: string;
+  topic_label: string;
+  /** A `pending` row the server lost track of reads as `open` if it has a question (the answer was never saved), else `failed`. */
+  status: TrainingRetakeStatus;
+  question: string | null;
+  answer: string | null;
+  /** The contrast of the answer with what the person wrote before; inferred by the AI. */
+  contrast: string | null;
+  verdict: TrainingVerdictValue | null;
+  created_at: string;
+  answered_at: string | null;
+  /** Always false: a retake the mentor cannot read is not sent at all (`retakes_without_access`). Kept for compatibility. */
+  text_hidden: boolean;
+}
+
+interface TrainingCriterionBase {
+  org_id: string;
+  trainee_user_id: string;
+  map: {
+    topics: TrainingMapTopic[];
+    min_events: number;
+    window: number;
+    retake_after_days: number;
+  };
+  calibration: TrainingCalibration;
+  hints: TrainingHintsUsed;
+  retakes: TrainingRetake[];
+  /** The retake in progress (pending or open), if any. */
+  open_retake_id: string | null;
+}
+
+/** GET /training/me/criterion?org_id= */
+export interface TrainingMyCriterion extends TrainingCriterionBase {
+  /** Whether the person can start a retake, and on which of their keys. */
+  generation: TrainingReviewGeneration;
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/criterion (the current mentor). */
+export interface TrainingPupilCriterion extends TrainingCriterionBase {
+  /** Turn notes of works in matters the mentor cannot open: counted, never used. */
+  notes_without_access: number;
+  /** Retakes whose topic shows only in notes the mentor cannot open: counted, not listed (no label, status or verdict). */
+  retakes_without_access: number;
+}
+
+/** POST /training/me/retakes */
+export interface TrainingRetakeStartBody {
+  org_id: string;
+  topic_key: string;
+  credential_ref?: string;
+}
+
+/** PUT /training/me/retakes/:id/answer */
+export interface TrainingRetakeAnswerBody {
+  answer: string;
+  /** Only to judge the answer on another of the person's keys than the one the retake was made on. */
+  credential_ref?: string;
+}
 // --- Training layer 3, card 4 (end) ---
 
 /** The end of the urgency pass that lifts «Tu turno primero» on a project. */

@@ -112,10 +112,41 @@ function tables(): Record<string, Row[]> {
             // Somebody else's reading: not the holder's data.
             { id: "g2", org_id: "org-a", trainee_user_id: other, status: "assigned", created_at: "2026-01-09T00:00:00Z" },
         ],
+        training_retakes: [
+            {
+                id: "k1", org_id: "org-a", trainee_user_id: userId, topic_key: "prescripcion", topic_label: "Prescripción",
+                status: "answered", question: "¿Desde cuándo corre el plazo?", answer: "Desde el vencimiento del título.",
+                contrast: "Coincide\n- Bien", verdict: "parcial", source_note_ids: ["n1", "n2"], model_provider: "openai", model: "gpt",
+                credential_ref: "user:holder:v1", created_at: "2026-01-10T00:00:00Z", updated_at: "2026-01-10T01:00:00Z",
+                answered_at: "2026-01-10T01:00:00Z",
+            },
+            // Somebody else's retake: not the holder's data.
+            { id: "k2", org_id: "org-a", trainee_user_id: other, topic_key: "mora", topic_label: "Mora", status: "open", created_at: "2026-01-11T00:00:00Z" },
+        ],
     };
 }
 
 describe("account export: the holder's training", () => {
+    it("carries the holder's retakes, without the route's credential and without anybody else's", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        expect(out.training.retakes).toEqual([
+            expect.objectContaining({
+                id: "k1", topic_label: "Prescripción", question: "¿Desde cuándo corre el plazo?",
+                answer: "Desde el vencimiento del título.", verdict: "parcial", model: "gpt", source_note_ids: ["n1", "n2"],
+            }),
+        ]);
+        expect(JSON.stringify(out.training.retakes)).not.toMatch(/credential|user:holder|colleague|mora/i);
+    });
+
+    it("carries no mentor id in the map's evidence: the notes name no mentor and the retakes have none", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        const evidence = JSON.stringify([out.training.turn_notes, out.training.retakes]);
+        expect(evidence).not.toContain(other);
+        expect(evidence).not.toMatch(/verdict_by|mentor_user_id/);
+    });
+
     it("carries the holder's review audits without the seed or the evaluator", async () => {
         const { db } = makeExportDb(tables());
         const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;

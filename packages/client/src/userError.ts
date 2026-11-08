@@ -217,6 +217,15 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_confidence_required: "validation",
     training_note_not_judgeable: "conflict",
     // --- Training layer 3, card 2 codes (end) ---
+    // --- Training layer 3, card 4 codes (begin) ---
+    // The retake of a weak topic: one at a time, only for a topic that is weak
+    // and untouched for a while, and only while it waits for its answer.
+    // Retrying the same request cannot help.
+    training_retake_in_progress: "conflict",
+    training_retake_not_due: "conflict",
+    training_retake_not_open: "conflict",
+    training_retake_source_gone: "conflict",
+    // --- Training layer 3, card 4 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or
     // would pass the limit. Retrying the same grant cannot help.
