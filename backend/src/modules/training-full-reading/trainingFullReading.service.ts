@@ -2,6 +2,7 @@
 export { compareReading } from "./trainingFullReading.compare";
 export { listPupilReadings } from "./trainingFullReading.mentor";
 export {
+    getMyReading,
     getMyReadings,
     getReadingDocument,
     READING_DOCUMENT_UNAVAILABLE_CODE,

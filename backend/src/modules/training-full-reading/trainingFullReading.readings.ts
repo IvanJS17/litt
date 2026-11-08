@@ -151,6 +151,16 @@ export async function ownReading(db: Db, args: { userId: string; readingId: unkn
     return ok(loaded.data);
 }
 
+/** GET /training/me/readings/:id: one of the caller's readings, for its page. */
+export async function getMyReading(
+    db: Db,
+    args: { userId: string; readingId: unknown },
+): Promise<ServiceResult<TrainingReading>> {
+    const found = await ownReading(db, args);
+    if (!found.ok) return found;
+    return ok(serializeReading(found.data));
+}
+
 /** POST /training/me/readings/:id/swap: another document, once, before sending the findings. */
 export async function swapReading(
     db: Db,

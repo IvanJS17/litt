@@ -247,6 +247,7 @@ describe("privacy by role", () => {
         vi.mocked(recordAudit).mockClear();
         const unknown = await as(user).get(`${mine}/${id(999)}/document`);
         for (const res of [
+            await as(user).get(`${mine}/${reading.id}`),
             await as(user).get(`${mine}/${reading.id}/document`),
             await as(user).post(`${mine}/${reading.id}/swap`).send({}),
             await as(user).put(`${mine}/${reading.id}/findings`).send({ findings: FINDINGS }),
@@ -402,6 +403,14 @@ describe("starting a reading", () => {
 });
 
 describe("reading without the assistant", () => {
+    it("serves one reading to its owner for its page", async () => {
+        const reading = await start();
+        const res = await as(PUPIL).get(`${mine}/${reading.id}`);
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({ id: reading.id, status: "assigned" });
+        expect((await as(PUPIL).get(`${mine}/not-a-uuid`)).status).toBe(404);
+    });
+
     it("serves the text under the pupil's own access and never stores it", async () => {
         const reading = await start();
         const res = await as(PUPIL).get(`${mine}/${reading.id}/document`);
