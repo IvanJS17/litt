@@ -3,33 +3,37 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-11-07<br>
+**Last reconciled:** 2026-11-08<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
 
-### Production and integration 2026-11-07
+### Production and integration 2026-11-08
 
-- **Production:** `39ca4b38` (PR #72) is deployed since 2026-11-07
-  09:32 CST. It carries everything up to that commit: training layer 1
-  (PRs #56, #58–#60), the visual identity v1.0 (PR #57), the ten upstream
-  sync cycles (PRs #61–#68, #70 and #72), training layer 2, card 1
-  (supervision data, contracts and access, PR #69) and playbooks layer 1, T1
-  (draft and ready, model mark, server-owned provenance, PR #71). The deploy
-  applied migrations up to `20261107_60`; services were healthy and the other
-  ingress domains answered as before. The previous release `fe5c9070` stays
-  loaded as the rollback image.
+- **Main:** `267609c2012fc50d0b61451ff77aa7173ac5cb57` integrates pull requests
+  #77–#106 of 2026-11-07 (the sections below list them by area).
+- **Production:** `267609c2` is deployed since 2026-11-07 23:41 CST. The
+  release before it was `558da046` (PR #91, 19:25 CST the same day); the one
+  before that, `39ca4b38` (PR #72), since 09:32 CST. The earlier deploys
+  carried the training layer 1 (PRs #56, #58–#60), the visual identity v1.0
+  (PR #57), the ten upstream sync cycles (PRs #61–#68, #70 and #72), training
+  layer 2 card 1 (PR #69) and playbooks layer 1, T1 (PR #71); the deploy of
+  `39ca4b38` applied migrations up to `20261107_60`. The deploy of `267609c2`
+  carries everything in `main` at that commit, including the Word add-in
+  service (`litt-word`).
+- **Word add-in:** the service is deployed, but its public name
+  `word.litt.asteroitt.com` does not resolve yet: the DNS record (`A word.litt`,
+  no Cloudflare proxy) is still pending, so the add-in is not reachable there
+  ([`../deploy/prod/README.md`](../deploy/prod/README.md) §9).
 - **Upstream pin:** `366fa4e92e5734c31910df848d293899d98ebc50` (2026-11-06,
   merge of #777), which was `upstream/main` when the cycle was cut: LiTT is up
   to date with upstream. The weekly read-only intake (Mondays 9:00 CDMX, next
   2026-11-09) reports anything newer. Policy:
   [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
   [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§29.
-- **In progress:** training layer 2, card 5 (the mentor panel and «Lo que mi
-  mentor ve de mí», bilingual; in review, not merged). Its cards 2–4 and the
-  card 4 follow-ups are merged into `main` (PRs #77, #73, #85, #95) and
-  playbooks layer 1, T2 too (PR #74); none of them is deployed yet.
+- **Pending:** training layers 3 and 4, the i18n cards that remain and the DNS
+  for Word (see the areas below).
 - **Startup secrets:** the backend refuses to start when
   `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
   `backend/.env.example` placeholder or is shorter than 32 characters (cycle 9,
@@ -49,11 +53,38 @@
   «Tu turno primero» without lifting the seal, and promotion proposals that
   rest only on the pupil's own evidence; the pupil sees exactly the same
   («Lo que mi mentor ve de mí»). Rules: [`training.md`](training.md#supervision-data-layer-2).
-- **State:** the backend is merged into `main` (card 1 PR #69, deployed with
-  `39ca4b38`; cards 2–4 PRs #77, #73, #85 and follow-ups #95, not deployed).
-  The web screens (card 5: the mentor panel at `/settings/training/mentor` in
-  four tabs, the pupil's view, `docs/training.md`) are in review, not merged.
-  Word is unchanged: it does not honor a pass.
+- **State:** complete and integrated into `main`: card 1 (supervision data,
+  contracts and access, PR #69), cards 2–4 (PRs #73, #77, #85) and the card 4
+  follow-ups (PR #95), card 5 (the mentor panel at `/settings/training/mentor`
+  in four tabs, the pupil's view and `docs/training.md`, bilingual; PR #99) and
+  its follow-ups (PR #104). Word is unchanged: it does not honor a pass.
+- **Layers 3 and 4:** not started. They add the gym and the confidence meter as
+  further inputs of the promotion function
+  ([`training.md`](training.md#supervision-data-layer-2)).
+
+### Playbooks layer 1 (2026-11-07)
+
+- **State:** complete and integrated into `main`: T1 (draft and ready, model
+  mark, server-owned provenance; PR #71), T2 (draft from the questionnaire;
+  PR #74), T3 (use a playbook as a starting point, PR #84, and its follow-ups,
+  PR #89) and T4 (the screens: start with questions, drafts, models and rule
+  origins, bilingual; PR #98). Behavior: [`playbooks.md`](playbooks.md).
+
+### Interface languages, phase 0 (2026-11-07)
+
+- **State:** the web app and the Word add-in speak es-MX and en-US from one
+  catalog ([`i18n.md`](i18n.md)). Integrated into `main`: the shared catalog
+  (0A1), the web app served through `next-intl` (0A2), the shared error and
+  auth sentences (0C), the language selector and entry screens (0D1), the Word
+  add-in's bilingual base, login and language selector (0G; PR #102) and the
+  extraction codemod, conventions and upstream text recipe (0H).
+- **Pending:** 0D2, 0E and 0F, and phase 1, which has not started.
+
+### Visual audit (2026-11-07)
+
+- **State:** the six batches are integrated into `main` (A PR #88, B PR #87,
+  C PR #91, D PR #94, E PR #90 and F PR #86), with the follow-ups PRs #101,
+  #104, #105 and #106.
 
 ### Training layer 1a (2026-11-06)
 
