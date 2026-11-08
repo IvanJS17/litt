@@ -184,7 +184,10 @@ export async function getEffectiveTrainingStage(
     const base = await effectiveStageOf(db, args);
     if (!base.ok) return base;
     const localWord = args.surface === "word" && args.storage === "local";
-    return withModes(db, args.userId, args.chatId, base.data, localWord, args.surface !== "word");
+    // Subagents exist on the chat and the project chat only, so the criteria contrast
+    // is not announced for Word or tabular review (their turns would refuse it).
+    const subagentSurface = args.surface !== "word" && args.surface !== "tabular";
+    return withModes(db, args.userId, args.chatId, base.data, localWord, subagentSurface);
 }
 
 /**
@@ -199,12 +202,12 @@ async function withModes(
     chatId: unknown,
     base: TrainingEffectiveStage,
     keepsNoNotes: boolean,
-    webSurface: boolean,
+    subagentSurface: boolean,
 ): Promise<ServiceResult<TrainingEffectiveStage>> {
     // A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): only where
     // subagents exist and run, and the second step only while a contrast waits
     // for the person's explanation. The turn decides again.
-    if (base.stage === "junior" && webSurface && chatSubagentsEnabled()) {
+    if (base.stage === "junior" && subagentSurface && chatSubagentsEnabled()) {
         const id = readUserId(chatId);
         let waiting = false;
         if (id) {

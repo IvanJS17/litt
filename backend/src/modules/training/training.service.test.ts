@@ -698,6 +698,13 @@ describe("GET /training/stage: a junior's criteria contrast (layer 3, card 13)",
         expect(other).toMatchObject({ ok: true, data: { modes: ["criteria_contrast"] } });
     });
 
+    it("does not offer the contrast on a tabular review, where the turn would refuse it", async () => {
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, surface: "tabular" })).toMatchObject({
+            ok: true,
+            data: { stage: "junior", ...NO_MODES },
+        });
+    });
+
     it("offers nothing without subagents on the server, in Word, or to anybody who is not a junior", async () => {
         delete process.env.LITT_CHAT_SUBAGENTS;
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toMatchObject({
