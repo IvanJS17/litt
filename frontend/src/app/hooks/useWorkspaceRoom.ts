@@ -12,10 +12,12 @@ import {
  * what the server renders: starting from `window.innerWidth` instead would
  * not match the server's markup on a phone. While it is `null` the CSS alone
  * keeps a phone to one panel, and the layout effect below replaces it before
- * the first paint.
+ * the first paint. `explorerCollapsed` is measured in: a folded explorer
+ * leaves more room.
  */
 export function useWorkspaceRoom(
     ref: RefObject<HTMLElement | null>,
+    explorerCollapsed = false,
 ): WorkspaceRoom | null {
     const [room, setRoom] = useState<WorkspaceRoom | null>(null);
 
@@ -26,7 +28,7 @@ export function useWorkspaceRoom(
         if (!element) return;
         const measure = () => {
             if (element.clientWidth > 0)
-                setRoom(workspaceRoom(element.clientWidth));
+                setRoom(workspaceRoom(element.clientWidth, explorerCollapsed));
         };
 
         measure();
@@ -37,7 +39,7 @@ export function useWorkspaceRoom(
         const observer = new ResizeObserver(measure);
         observer.observe(element);
         return () => observer.disconnect();
-    }, [ref]);
+    }, [ref, explorerCollapsed]);
 
     return room;
 }

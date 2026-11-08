@@ -212,7 +212,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     // the panels from md up. Elsewhere every panel shows and this is ignored.
     const [mobileView, setMobileView] = useState<ProjectWorkspaceView>("chat");
     const workspaceRef = useRef<HTMLDivElement>(null);
-    const room = useWorkspaceRoom(workspaceRef);
+    const [explorerCollapsed, setExplorerCollapsed] = useState(false);
+    const room = useWorkspaceRoom(workspaceRef, explorerCollapsed);
 
     const [project, setProject] = useState<Project | null>(null);
     const [projectLoaded, setProjectLoaded] = useState(false);
@@ -287,7 +288,6 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     const activateSideChat = useCallback(() => {
         activeChatPaneRef.current = "side";
     }, []);
-    const [explorerCollapsed, setExplorerCollapsed] = useState(false);
 
     // Upload state
     const fileInputRef = useRef<HTMLInputElement>(null);

@@ -6,9 +6,9 @@ import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspaceRoom } from "./useWorkspaceRoom";
 
-function Workspace() {
+function Workspace({ collapsed = false }: { collapsed?: boolean }) {
     const ref = useRef<HTMLDivElement>(null);
-    const room = useWorkspaceRoom(ref);
+    const room = useWorkspaceRoom(ref, collapsed);
     return <div ref={ref} data-room={room ?? "unknown"} />;
 }
 
@@ -123,5 +123,17 @@ describe("useWorkspaceRoom", () => {
         } finally {
             window.innerWidth = innerWidth;
         }
+    });
+
+    it("gives a folded explorer's room to the side chat", () => {
+        width.mockReturnValue(1100);
+        act(() => {
+            root = createRoot(container);
+            root.render(<Workspace />);
+        });
+        const element = container.firstElementChild!;
+        expect(element).toHaveAttribute("data-room", "split");
+        act(() => root!.render(<Workspace collapsed />));
+        expect(element).toHaveAttribute("data-room", "splitWithSideChat");
     });
 });

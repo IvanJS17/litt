@@ -122,12 +122,11 @@ export function resizeChatSplit(
     return { ...widths, chat, sideChat: total - chat };
 }
 
-/** Whether every panel fits at its minimum with the explorer expanded. */
-export function fitsWithExplorer(
+/** Whether every shown panel fits at its minimum beside the document. */
+export function fitsAtMinimum(
     workspaceWidth: number,
-    sideChatOpen: boolean,
+    layout: WorkspacePanelLayout,
 ): boolean {
-    const layout = { explorerCollapsed: false, sideChatOpen };
     const minimumTotal = shownPanels(layout).reduce(
         (sum, key) => sum + PANEL_MIN[key],
         0,
@@ -137,12 +136,25 @@ export function fitsWithExplorer(
 
 /**
  * How much of the workspace can sit side by side: every panel with a second
- * chat, every panel with one chat, or just one panel at a time.
+ * chat, every panel with one chat, or just one panel at a time. A folded
+ * explorer gives up its width, so it needs less room.
  */
 export type WorkspaceRoom = "single" | "split" | "splitWithSideChat";
 
-export function workspaceRoom(workspaceWidth: number): WorkspaceRoom {
-    if (fitsWithExplorer(workspaceWidth, true)) return "splitWithSideChat";
-    if (fitsWithExplorer(workspaceWidth, false)) return "split";
+export function workspaceRoom(
+    workspaceWidth: number,
+    explorerCollapsed = false,
+): WorkspaceRoom {
+    if (
+        fitsAtMinimum(workspaceWidth, { explorerCollapsed, sideChatOpen: true })
+    )
+        return "splitWithSideChat";
+    if (
+        fitsAtMinimum(workspaceWidth, {
+            explorerCollapsed,
+            sideChatOpen: false,
+        })
+    )
+        return "split";
     return "single";
 }
