@@ -10,6 +10,7 @@ import { wordChatRouter } from "./modules/word-chat/wordChat.routes";
 import { projectsRouter } from "./modules/projects/projects.routes";
 import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
+import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-full-reading/trainingFullReading.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
 import { myBackingRouter, pupilBackingRouter } from "./modules/training-backing/trainingBacking.routes";
 import {
@@ -270,6 +271,8 @@ app.post("/playbooks/:playbookId/review", chatLimiter);
 app.post("/orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review", chatLimiter);
 // So are a defense's questions.
 app.post("/orgs/:orgId/training/pupils/:userId/defenses/:defenseId/questions", chatLimiter);
+// The machine's reading of a training reading is two model calls on the person's key.
+app.post("/training/me/readings/:readingId/compare", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
@@ -334,11 +337,13 @@ app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/backing", pupilBackingRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training/me/chats", myBackingRouter);
 app.use("/training", trainingRouter);
 app.use("/training", trainingSupervisionRouter);
+app.use("/training", trainingReadingsRouter);
 app.use("/training-notes", trainingNotesRouter);
 app.use("/projects/:projectId/chat", projectChatRouter);
 app.use("/single-documents", documentsRouter);

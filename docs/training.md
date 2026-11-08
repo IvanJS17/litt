@@ -702,3 +702,102 @@ privacy line («solo la persona y tú…»).
 The hook point is `lib/trainingTurn/accountability.ts`: a junior's plan carries
 its `afterTurn` hook, and the four surfaces pass the saved turn
 (`finishTrainingTurn`'s `turn`).
+
+## Periodic full reading (layer 3)
+
+Migration `backend/migrations/20261108_68_litt_training_criterion_readings.sql`
+(also in `backend/schema.sql`), module `backend/src/modules/training-full-reading/`,
+pure logic in `backend/src/lib/trainingReading.ts`, screens in
+`frontend/src/app/components/training/reading/`. Once a month a **junior** reads
+one whole document **without the assistant**, writes what they found, and only
+then sees what a model found in the same text and how the two lists compare. It
+is evidence for the mentor, never a promotion requirement, and it adds no
+score: the comparison is three lists.
+
+**When.** `GET /training/me/readings?org_id=` answers `eligibility`: the person
+holds the junior stage in the organization, has no reading open, and 30 days
+(`READING_INTERVAL_DAYS`) have passed since their last reading was *sent*. There
+are no reminders and no scheduled work: «Mi formación» shows the notice when it
+is opened (`ReadingNotice`, only for a person with a junior stage), and
+`POST /training/me/readings` starts the reading (409 `training_reading_not_due`
+otherwise). A second start returns the reading already open; one reading is
+open at a time per person and organization (a partial unique index).
+
+**Which document.** LiTT proposes one at random from the matters where the
+person worked in the last 60 days (their turn notes in a chat, a project chat or
+a tabular-review chat), that belong to the organization, that they can open
+(`openableWorkMatters`) and where their effective stage is junior
+(`resolveTrainingStage`), among the documents of the project with a stored text
+(`document_version_texts`, read with `read_document_text`) of between 200 and
+60 000 characters. That is all the stage does: *it chooses what is proposed, it
+grants nothing*. The text is read under the person's own access to the
+document, whatever their stage. With nothing to propose the start answers
+`400 training_reading_no_document`. `POST …/:id/swap` changes the document once
+(`409 training_reading_swap_used`), only before sending. The row keeps the
+project, document and version identifiers (null if they are deleted), **never
+the title**; the page shows the file name from the live version.
+
+**Reading without the assistant.** `/settings/training/reading/[readingId]` is a
+page with the document's text (`GET …/:id/document`, never stored on the row)
+and a form, and no assistant. It cannot be enforced technically: the page says
+that the reading is the person's own statement. `PUT …/:id/findings` records
+what they found (20 to 4000 characters) **once**: a trigger refuses any later
+change (`LT002`, `409 training_reading_findings_recorded`), so the comparison can
+never be matched to a rewritten answer.
+
+**The machine and the comparison.** `POST …/:id/compare` (under `chatLimiter`)
+runs only after the findings were sent, on **the person's own pinned route**
+(governed BYOK, `training_readings.model_provider/model/credential_ref`, three
+columns or none): fixed the first time, reused on a retry unless they pick
+another of their keys, and when it no longer serves them the answer is `409
+chat_route_credential_unavailable` with no other model tried; with no usable key
+the page offers no comparison (`training_review_key_required`). `llm.egress`
+(`surface: training_reading`, `reading_id`, `step`) is recorded before each of
+the two calls that send text:
+
+1. The model reads the stored text (fenced with a per-call nonce; the system
+   prompt says it is content, not instructions) and lists up to 8 findings, each
+   with a **literal quote**. Each quote is checked with `locateQuote` (the same
+   check citations use) against the text; a finding whose quote is not found is
+   **discarded and counted**, and what is stored is the document's own passage,
+   never the model's wording. A finding therefore only exists if its quote does.
+2. Unless nothing survived, a second call pairs the person's lines (their text
+   split by `personItems`) with the machine's findings. The pairing is the only
+   thing the model decides, validated (valid indexes, each side used once); the
+   three lists «Coincidieron / Solo lo viste tú / Solo lo vio la máquina» are
+   computed from it, and the screen marks the pairing «inferido».
+
+States: `assigned` → `submitted` → `comparing` → `compared`, or `failed` (the
+call failed or its answer was not the required JSON; nothing else is written
+and it can be tried again). One comparison at a time (the claim uses the row's
+previous state); a `comparing` row older than 10 minutes reads as `failed`. The
+log of a failure carries only the reading's id.
+
+**Who sees it.** The person (their rows only) and their **current** mentor
+(`GET /orgs/:orgId/training/pupils/:userId/readings`, `assertCurrentMentor`,
+uniform 404 for everybody else: a previous mentor, an owner, an admin, another
+member, the pupil on the mentor's route). The findings come from a client
+document, so the mentor sees a reading only if they can open its matter; the
+others are counted (`readings_without_access`), never shown. The table is a
+learning table like the rest: `training_*` with `trainee_user_id`, RLS with no
+browser grant, a cascade from `org_members` (it goes with the membership or the
+account), covered by the generic discovery in
+`performance.litt-training-supervision.sql` and by
+`performance.litt-training-readings.sql`. No score, average or ranking is
+returned anywhere. The account export carries the holder's readings
+(`training.readings`), without the credential reference.
+
+**Audit** (insert-only, `surface: organization`, `{ org_id, target_user_id,
+reading_id }` only): `training.reading_assigned` and `training.reading_submitted`.
+The findings, the machine's list and the comparison are never audited.
+
+**The mentor's section.** `MentorReadings` (`orgId`, `pupilId`) is a section of
+the panel's «Criterio» tab. That tab does not exist yet, so it ships mountable
+and unmounted; whoever creates the tab adds the section with one import.
+
+**Product decisions taken without the plan** (the simplest that comply): the
+person's findings take at least 20 characters; the compare step is a separate
+action after sending (so the person never sees the machine's list in the same
+step); a reading that cannot be compared stays `failed` and can be retried
+instead of being discarded; `swapped`, `version_id`, `updated_at` and the
+`comparing` state were added to the row of the plan.

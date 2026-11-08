@@ -84,6 +84,8 @@ begin
       expires_at, reason_code, reason_note)
     values (org, current_setting('litt.pupil')::uuid, project, current_setting('litt.mentor_a')::uuid,
       now() + interval '8 hours', 'plazo', 'nota libre');
+  insert into public.training_readings(org_id, trainee_user_id, project_id, status)
+    values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
   -- Training audit events name the pupil only as target_user_id.
   insert into public.audit_events(user_id, action, surface, detail)
     values (current_setting('litt.owner')::uuid, 'training.urgency_pass_granted', 'organization',

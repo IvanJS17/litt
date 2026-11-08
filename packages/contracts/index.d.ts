@@ -999,6 +999,92 @@ export interface TrainingPupilWorks {
 }
 
 // --- Training layer 3, card 10: periodic full reading (begin) ---
+
+/** Where a periodic full reading stands. `comparing` is the machine reading. */
+export type TrainingReadingStatus = "assigned" | "submitted" | "comparing" | "compared" | "failed";
+
+/** A finding of the machine and the passage of the document it rests on (located in its text). */
+export interface TrainingReadingMachineFinding {
+  text: string;
+  excerpt: string;
+}
+
+/**
+ * How the person's lines and the machine's findings compare. Every index
+ * points into `person_items` or into the reading's `machine_findings`; the
+ * pairing is proposed by the AI (inferred), the lists are not. `discarded`
+ * counts machine findings dropped because their quote is not in the document.
+ */
+export interface TrainingReadingComparison {
+  person_items: string[];
+  both: { person: number; machine: number }[];
+  only_person: number[];
+  only_machine: number[];
+  discarded: number;
+}
+
+export interface TrainingReading {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  /** The matter the document belongs to; null once it is gone. */
+  project_id: string | null;
+  status: TrainingReadingStatus;
+  /** The proposed document was already changed once. */
+  swapped: boolean;
+  findings: string | null;
+  submitted_at: string | null;
+  machine_findings: TrainingReadingMachineFinding[] | null;
+  comparison: TrainingReadingComparison | null;
+  model_provider: string | null;
+  model: string | null;
+  created_at: string;
+}
+
+export interface TrainingReadingEligibility {
+  /** Reading applies to people at the junior stage only. */
+  is_junior: boolean;
+  /** A reading can be started now (junior, none open, the interval passed). */
+  due: boolean;
+  open_reading_id: string | null;
+  last_submitted_at: string | null;
+  next_due_at: string | null;
+}
+
+/** GET /training/me/readings?org_id= */
+export interface TrainingReadings {
+  org_id: string;
+  eligibility: TrainingReadingEligibility;
+  /** The machine's reading runs on the caller's own key; null when it cannot. */
+  generation: TrainingReviewGeneration;
+  readings: TrainingReading[];
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/readings */
+export interface TrainingPupilReadings {
+  org_id: string;
+  trainee_user_id: string;
+  readings: TrainingReading[];
+  /** Readings of documents in matters the mentor cannot open: counted, never shown. */
+  readings_without_access: number;
+}
+
+/** GET /training/me/readings/:id/document: shown to read, never stored on the reading. */
+export interface TrainingReadingDocument {
+  reading_id: string;
+  filename: string | null;
+  text: string;
+}
+
+/** PUT /training/me/readings/:id/findings */
+export interface TrainingReadingFindingsBody {
+  findings: string;
+}
+
+/** POST /training/me/readings/:id/compare */
+export interface TrainingReadingCompareBody {
+  credential_ref?: string | null;
+}
 // --- Training layer 3, card 10 (end) ---
 
 /** POST /orgs/:orgId/training/pupils/:userId/works/:surface/:chatId/review */

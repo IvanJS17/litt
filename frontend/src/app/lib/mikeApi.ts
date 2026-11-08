@@ -2567,6 +2567,77 @@ export async function getMySupervision(orgId: string) {
     );
 }
 
+// --- Training layer 3, card 10: periodic full reading (begin) ---
+// A junior reads one whole document without the assistant, writes what they
+// found, and then compares it with what the machine found. The person's
+// routes answer only the person; the mentor's, only the current mentor.
+
+export type {
+    TrainingPupilReadings,
+    TrainingReading,
+    TrainingReadingComparison,
+    TrainingReadingDocument,
+    TrainingReadingEligibility,
+    TrainingReadingMachineFinding,
+    TrainingReadingStatus,
+    TrainingReadings,
+} from "@mike/contracts";
+
+const readingPath = (readingId: string) => `/training/me/readings/${encodeURIComponent(readingId)}`;
+
+export async function getMyReadings(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReadings>(
+        "training.read",
+        `/training/me/readings?${new URLSearchParams({ org_id: orgId })}`,
+    );
+}
+
+export async function getMyReading(readingId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReading>("training.read", readingPath(readingId));
+}
+
+/** Starts the reading that is due, or returns the one already open. */
+export async function startReading(orgId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>("/training/me/readings", "POST", {
+        org_id: orgId,
+    });
+}
+
+export async function getReadingDocument(readingId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReadingDocument>(
+        "training.read",
+        `${readingPath(readingId)}/document`,
+    );
+}
+
+/** Once, and before the document is changed no more: 409 training_reading_swap_used. */
+export async function swapReading(readingId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(`${readingPath(readingId)}/swap`, "POST", {});
+}
+
+/** Written once: a second time answers 409 training_reading_findings_recorded. */
+export async function submitReadingFindings(readingId: string, findings: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(`${readingPath(readingId)}/findings`, "PUT", {
+        findings,
+    });
+}
+
+export async function compareReading(readingId: string, credentialRef?: string | null) {
+    return supervisionWrite<import("@mike/contracts").TrainingReading>(
+        `${readingPath(readingId)}/compare`,
+        "POST",
+        credentialBody(credentialRef),
+    );
+}
+
+export async function getPupilReadings(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilReadings>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/readings`,
+    );
+}
+// --- Training layer 3, card 10 (end) ---
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {
