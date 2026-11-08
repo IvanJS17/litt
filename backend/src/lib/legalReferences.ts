@@ -141,3 +141,234 @@ export function legalReferences(text: string): Set<string> {
     for (const registry of listsAfter(REGISTRY_HEAD, readRegistry)) found.add(`registro:${registry.key}`);
     return found;
 }
+
+// ---------------------------------------------------------------------------
+// Strict comparison: article references together with the law they belong to.
+//
+// `legalReferences` compares numbers only («art:5» is «art:5» in any law). That
+// is enough to keep a question from naming a number the input never named, but
+// not to say a passage SHOWS a reference: article 5 of one law is not article 5
+// of another. `lawReferences` therefore appends the normalized law to each
+// article key («art:5@ley federal trabajo»); an article whose law cannot be
+// established ends in «@?» and never matches anything, itself included. Theses
+// and registry numbers identify themselves and keep their plain key.
+// ---------------------------------------------------------------------------
+
+/** The law of an article whose law cannot be established. */
+export const UNKNOWN_LAW = "?";
+
+const LAW_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "en", "para", "al"]);
+const LAW_HEADS = new Set(["ley", "leyes", "codigo", "constitucion", "reglamento", "decreto", "estatuto", "convenio", "tratado"]);
+const LAW_PHRASE_MAX_WORDS = 10;
+// Common abbreviations and aliases, to the law they name (as written in full).
+const LAW_ALIASES: Record<string, string> = {
+    cpeum: "constitucion politica de los estados unidos mexicanos",
+    cpem: "constitucion politica de los estados unidos mexicanos",
+    constitucion: "constitucion politica de los estados unidos mexicanos",
+    "constitucion federal": "constitucion politica de los estados unidos mexicanos",
+    "carta magna": "constitucion politica de los estados unidos mexicanos",
+    lft: "ley federal del trabajo",
+    ccf: "codigo civil federal",
+    cpf: "codigo penal federal",
+    cff: "codigo fiscal de la federacion",
+    cfpc: "codigo federal de procedimientos civiles",
+    cnpcf: "codigo nacional de procedimientos civiles y familiares",
+    cnpp: "codigo nacional de procedimientos penales",
+    ccom: "codigo de comercio",
+    lisr: "ley del impuesto sobre la renta",
+    liva: "ley del impuesto al valor agregado",
+    lgsm: "ley general de sociedades mercantiles",
+    lgtoc: "ley general de titulos y operaciones de credito",
+    lss: "ley del seguro social",
+    lfpc: "ley federal de proteccion al consumidor",
+    lfppi: "ley federal de proteccion a la propiedad industrial",
+    lam: "ley de amparo",
+};
+
+/** The words of a law's name, without accents, case or connecting words. */
+function lawWords(phrase: string): string[] {
+    return phrase
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((word) => word !== "" && !LAW_STOPWORDS.has(word));
+}
+
+/**
+ * The normalized identity of a law named in a text, or null when it cannot be
+ * established. Two spellings of one law (its name, its abbreviation, «la
+ * Constitución») give the same identity; two different laws never do.
+ */
+export function normalizeLaw(name: string): string | null {
+    const plain = lawWords(name).join(" ");
+    if (!plain) return null;
+    const alias = LAW_ALIASES[plain];
+    const full = alias ? lawWords(alias).join(" ") : plain;
+    // Not an alias: it must be written as a law («Ley …», «Código …»); a bare
+    // head («la ley», «el código») or any other text names none.
+    if (!alias && (!LAW_HEADS.has(full.split(" ")[0]) || !full.includes(" "))) return null;
+    return full;
+}
+
+/** The law a document is, from its title («Ley Federal del Trabajo.pdf», «LFT.docx»), or null. */
+export function lawOfTitle(title: string | null | undefined): string | null {
+    if (!title) return null;
+    const stem = title.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[_]+/g, " ");
+    return normalizeLaw(stem);
+}
+
+const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
+// Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
+const NAME_CONNECTORS = new Set([
+    "de", "del", "la", "las", "los", "el", "lo", "y", "e", "o", "u", "a", "al", "en", "para", "por", "con", "sin",
+    "sobre", "contra", "entre", "ante", "bajo", "hacia", "hasta", "desde", "mediante", "segun", "tras",
+]);
+const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alias.split(" ").length));
+
+type Token = { bare: string; ends: boolean; opens: boolean };
+
+/** The whitespace-separated words of `text`, each without the punctuation around it. */
+function tokens(text: string): Token[] {
+    return text
+        .split(/\s+/)
+        .filter((word) => word !== "")
+        .map((word) => ({
+            bare: word.replace(/^[(\[«"']+/, "").replace(/[.,;:)\]»"']+$/, ""),
+            ends: /[.,;:)\]»"']$/.test(word),
+            opens: /^[(\[«"']/.test(word),
+        }));
+}
+
+const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
+
+/**
+ * The law a name written in prose starts with (`plain` is the same text folded
+ * to lower case, `cased` keeps its capitals); null when none can be delimited.
+ *  - A known abbreviation or alias is matched first, longest first («LFT»,
+ *    «Constitución Federal»), so what follows it («exige…») is never read.
+ *  - A name that starts with «Ley», «Código», … takes words while they are
+ *    capitalized or numbers, or connectors followed by one; it stops at the
+ *    first other lower-case word or at punctuation.
+ *  - A lower-case name that is not a known alias has no boundary: null (the
+ *    law is unverified). A name cut by the word limit while it goes on is null too.
+ */
+function lawNamedAt(plain: string, cased: string): string | null {
+    const lower = tokens(plain);
+    const upper = tokens(cased);
+    if (lower.length === 0 || lower.length !== upper.length) return null;
+    const alias = (): string | null => {
+        for (let count = Math.min(ALIAS_MAX_WORDS, lower.length); count >= 1; count--) {
+            const span = lower.slice(0, count);
+            // A phrase ends where punctuation does: «constitucion, federal» is not one name.
+            if (span.slice(0, -1).some((token) => token.ends)) continue;
+            const written = span.map((token) => token.bare).join(" ");
+            if (LAW_ALIASES[written]) return normalizeLaw(written);
+        }
+        return null;
+    };
+    if (!LAW_HEADS.has(lower[0].bare)) return alias();
+    // Written in lower case («la constitución exige»), only a known alias has a boundary;
+    // any other lower-case name: the name has no boundary, so none is invented.
+    if (!isCapitalized(upper[0].bare)) return alias();
+    const words: string[] = [];
+    let index = 0;
+    while (index < upper.length) {
+        if (words.length >= LAW_PHRASE_MAX_WORDS) {
+            // Cut short by the limit while the name goes on: its end is unknown.
+            const previous = upper[index - 1];
+            const next = upper[index];
+            if (!previous.ends && !next.opens && (NAME_CONNECTORS.has(lower[index].bare) || isCapitalized(next.bare))) return null;
+            break;
+        }
+        const token = upper[index];
+        const connector = NAME_CONNECTORS.has(lower[index].bare);
+        // A connector written with a capital («El») starts a sentence, not a name.
+        // Except the letter «A» right after the head, which names («Ley A»).
+        const letterName = index === 1 && token.bare === "A";
+        if ((index > 0 && token.opens) || (connector && !letterName && token.bare !== lower[index].bare)) break;
+        if (letterName) {
+            words.push("a");
+            if (token.ends) break;
+            index++;
+            continue;
+        }
+        if (!connector && isCapitalized(token.bare)) {
+            words.push(lower[index].bare);
+            if (token.ends) break;
+            index++;
+            continue;
+        }
+        if (!connector || token.ends) break;
+        // A run of connectors belongs to the name only when a capitalized word follows it.
+        let last = index;
+        while (last < upper.length && NAME_CONNECTORS.has(lower[last].bare) && upper[last].bare === lower[last].bare && !upper[last].ends) last++;
+        if (last >= upper.length || NAME_CONNECTORS.has(lower[last].bare) || !isCapitalized(upper[last].bare) || upper[last].opens) break;
+        for (let take = index; take < last; take++) words.push(lower[take].bare);
+        index = last;
+    }
+    return normalizeLaw(words.join(" "));
+}
+
+/** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
+function readLaw(plain: string, at: number, cased: string = plain): { law: string | null; named: boolean } {
+    const adjective = sticky(/\s+constitucional(?:es)?\b/y, plain, at);
+    if (adjective) return { law: normalizeLaw("constitucion"), named: true };
+    const separator = sticky(LAW_SEPARATOR, plain, at);
+    const direct = separator ? null : sticky(/\s+\(?([a-z]{2,8})\b/y, plain, at);
+    if (direct) {
+        const law = LAW_ALIASES[direct[1]] ? normalizeLaw(direct[1]) : null;
+        return { law, named: law !== null };
+    }
+    if (!separator) return { law: null, named: false };
+    const from = at + separator[0].length;
+    // A «de …» that names no law (a contract, «esta ley») is another source, not this one's.
+    return { law: lawNamedAt(plain.slice(from), cased.slice(from)), named: true };
+}
+
+/**
+ * The legal references a text names, each article with its law: «art:5@ley
+ * federal del trabajo». The law is the one the text names right after the
+ * article («artículo 5 de la Ley Federal del Trabajo», «art. 5 LFT», «artículo
+ * 5 constitucional»), or, when the text names none, `sourceLaw` (the law the
+ * document the text comes from is). With neither, the article ends in
+ * «@?»: the law cannot be established and the reference never matches.
+ * Theses and registry numbers are as in `legalReferences`.
+ */
+export function lawReferences(text: string, sourceLaw: string | null = null): Set<string> {
+    const plain = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const found = new Set<string>();
+    // The same text with its capitals: they bound a law's name in prose.
+    const folded = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cased = folded.toLowerCase() === plain ? folded : plain;
+    const lawAfter = (end: number): string => {
+        const read = readLaw(plain, end, cased);
+        return read.law ?? (read.named ? UNKNOWN_LAW : (sourceLaw ?? UNKNOWN_LAW));
+    };
+    for (const head of plain.matchAll(ARTICLE_HEAD)) {
+        const listed = readEnumeration(plain, head.index + head[0].length, readArticle);
+        if (!listed) continue;
+        const law = lawAfter(listed.end);
+        for (const article of listed.items) {
+            found.add(`art:${article.key}@${law}`);
+            for (const fraction of article.fractions) found.add(`art:${article.key}:fr:${fraction}@${law}`);
+        }
+    }
+    for (const head of plain.matchAll(FRACTION_HEAD)) {
+        const fractions = readEnumeration(plain, head.index + head[0].length, readRoman);
+        const link = fractions && sticky(FRACTION_OF_ARTICLE, plain, fractions.end);
+        const article = fractions && link && readArticle(plain, fractions.end + link[0].length);
+        if (article) {
+            const law = lawAfter(article.end);
+            for (const fraction of fractions.items) found.add(`art:${article.key}:fr:${fraction.key}@${law}`);
+        }
+    }
+    for (const key of legalReferences(text)) if (!key.startsWith("art:")) found.add(key);
+    return found;
+}
+
+/** Whether a strict key (see `lawReferences`) is an article whose law is established. */
+export function hasKnownLaw(key: string): boolean {
+    return !key.startsWith("art:") || !key.endsWith(`@${UNKNOWN_LAW}`);
+}

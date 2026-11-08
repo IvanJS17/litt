@@ -59,6 +59,8 @@ export * from "./trainingText";
 export * from "./TrainingNoteUI";
 export * from "./TrainingHeldNoteUI";
 export * from "./useTrainingTurnNotes";
+export * from "./BackingPanelUI";
+export * from "./useTrainingBacking";
 
 // Brand and auth (LittBrandUI is LiTT's wordmark and pixel monogram)
 export * from "./LittBrandUI";

@@ -13,6 +13,9 @@ import type {
 // the web app's type-check graph.
 export type { ApiKeyStatus } from "../types";
 import type {
+  TrainingBackingCheck,
+  TrainingBackingMark,
+  TrainingChatBacking,
   TrainingConfidenceLevel,
   TrainingTurnNote,
   TrainingTurnNotes,
@@ -500,6 +503,18 @@ function browserTimeZone(): string | undefined {
 }
 
 /**
+ * LiTT training: the caller's stage for Word turns (a stage for every
+ * practice area, in any organization). Only tells the composer what to show.
+ */
+export async function getWordTrainingStage(): Promise<"pasante" | "junior" | null> {
+  const result = await apiRequest<{ stage: "pasante" | "junior" | null }>(
+    "word_chat.turn",
+    "/training/stage?surface=word",
+  );
+  return result.stage;
+}
+
+/**
  * LiTT training: what a Word turn owes the caller's mentor (a stage for every
  * practice area, in any organization). Only tells the composer what to show:
  * the approach for a pasante, and the thermometer mark when the server asks
@@ -538,6 +553,44 @@ export async function getTrainingTurnNotes(
     if (error instanceof MikeApiError && error.status === 404) return [];
     throw error;
   }
+}
+
+/**
+ * LiTT training, «Modo de rendir cuentas»: a junior's accountability checks of
+ * a Word chat's answers. The caller's own; a chat with none of theirs gets a
+ * uniform 404, which is "none" here.
+ */
+export async function getChatBacking(
+  chatId: string,
+): Promise<TrainingBackingCheck[]> {
+  try {
+    const result = await apiRequest<TrainingChatBacking>(
+      "training.read",
+      `/training/me/chats/${encodeURIComponent(chatId)}/backing`,
+    );
+    return result.checks;
+  } catch (error) {
+    if (error instanceof MikeApiError && error.status === 404) return [];
+    throw error;
+  }
+}
+
+/** «Lo verifiqué» on a conclusion, or the reason the person keeps it. */
+export async function markBackingConclusion(
+  chatId: string,
+  checkId: string,
+  conclusionId: string,
+  mark: TrainingBackingMark,
+): Promise<TrainingBackingCheck> {
+  return apiRequest<TrainingBackingCheck>(
+    "training.read",
+    `/training/me/chats/${encodeURIComponent(chatId)}/backing/${encodeURIComponent(checkId)}/conclusions/${encodeURIComponent(conclusionId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mark),
+    },
+  );
 }
 
 export async function streamWordChat(payload: {
