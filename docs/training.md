@@ -670,6 +670,38 @@ none while the pupil has no mentor.
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
 
+## From correction to rule (layer 3)
+
+A mentor can turn their corrections of a pupil's work into rules proposed for
+a playbook. The mechanics (route, limits, origin and attribution) are in
+`docs/playbooks.md`, "From a mentor's corrections"; what matters for learning
+data is here.
+
+- **Who.** An Editor or Owner of the playbook who is the pupil's *current*
+  mentor (`assertCurrentMentor`, the one gate in front of learning data). Not
+  an owner or admin by role, not a previous mentor, not a pupil: all get the
+  uniform `404`. The stage grants nothing.
+- **What is kept.** The corrections (the pupil's text, the mentor's text and
+  comment) and the pupil's id live on the playbook import row until the job
+  ends, then they are erased; the failure and interruption paths erase them
+  too (an interrupted batch is cleared when its attempt is read, or at the
+  latest at the next batch). No table of this feature keeps the pupil's text or a column for the
+  pupil. The one place that keeps the pupil's id is the insert-only audit
+  (below), which stores ids and counts only and no text. What stays is the
+  rule, which belongs to the firm, and the mentor's name as its attribution; if the mentor's account
+  is erased the attribution on the change goes to null.
+- **Copies.** A copy of the playbook carries no attribution and no note from
+  a correction: the rule is "suggestion without backing, review".
+- **Audit** (insert-only, ids and counts, never text): `training.correction_proposed`
+  (organization surface, like the other training audit rows: it keeps
+  `org_id`, `target_user_id`, `playbook_id`, `import_id` and the `corrections`
+  count, so the pupil is identified by id only) when a batch is sent, and `playbook.corrections_ready` when it
+  ends.
+- **Interface.** The playbook page has a **Corrections** panel for Editors who
+  supervise someone: the pupil, up to ten corrections, the model, and the
+  proposed changes with their accept and reject buttons. Strings are in the
+  `training.criterion.corrections` namespace of the catalog.
+
 ## Periodic full reading (layer 3)
 
 Migration `backend/migrations/20261108_68_litt_training_criterion_readings.sql`

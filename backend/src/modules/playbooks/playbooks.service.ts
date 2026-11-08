@@ -55,6 +55,7 @@ export {
   queuePlaybookDraft,
   handlePlaybookDraft,
   markPlaybookDraftJobFailed,
+  queuePlaybookCorrections,
   queuePlaybookProposals,
 } from "./playbooks.jobs";
 export { playbookQuestionnaire } from "./playbooks.questionnaire";
