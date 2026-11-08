@@ -29,6 +29,9 @@ import {
   startPlaybookDraft,
   setPlaybookState,
   copyPlaybook,
+  listPlaybookChanges,
+  decidePlaybookChange,
+  startPlaybookCorrections,
   type PlaybookContent,
 } from "./mikeApi";
 
@@ -114,6 +117,36 @@ describe("Playbooks API requests", () => {
       url: `${path}/state`,
       method: "PATCH",
       body: { status: "ready" },
+    },
+    {
+      name: "proposed changes",
+      call: () => listPlaybookChanges(id),
+      url: `${path}/changes`,
+      method: "GET",
+      body: undefined,
+    },
+    {
+      name: "a decision on one change",
+      call: () => decidePlaybookChange(id, "change/1", "accept"),
+      url: `${path}/changes/change%2F1`,
+      method: "PATCH",
+      body: { decision: "accept" },
+    },
+    {
+      name: "corrections to propose as rules",
+      call: () =>
+        startPlaybookCorrections(id, {
+          model: "test-model",
+          traineeUserId: "pupil-1",
+          corrections: [{ before: "a", after: "b", comment: "c" }],
+        }),
+      url: `${path}/corrections`,
+      method: "POST",
+      body: {
+        model: "test-model",
+        traineeUserId: "pupil-1",
+        corrections: [{ before: "a", after: "b", comment: "c" }],
+      },
     },
     {
       name: "copy",

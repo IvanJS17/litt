@@ -256,6 +256,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_defense_already_recorded: "conflict",
     training_promotion_not_proposed: "conflict",
     // --- Training layer 3, card 12 codes (begin) ---
+    // Corrections a mentor sends to turn into rules: the batch itself has to
+    // change (none, too many, too long, no corrected text). Retrying the same
+    // batch cannot help.
+    training_correction_invalid: "validation",
     // --- Training layer 3, card 12 codes (end) ---
     // LiTT playbooks: a draft is used in reviews only once an editor marks
     // it ready, and a copy is marked ready only after every proposed change

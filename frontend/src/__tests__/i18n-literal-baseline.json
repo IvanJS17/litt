@@ -26,11 +26,13 @@
     "packages/ui/src/AuthDividerUI.tsx",
     "packages/ui/src/SourceCodeLinkUI.tsx",
     "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
+    "frontend/src/app/components/playbooks/PlaybookCorrections.tsx",
     "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
     "frontend/src/app/components/playbooks/PlaybookIntakeModal.tsx",
     "frontend/src/app/components/playbooks/PlaybookRuleOrigin.tsx",
     "frontend/src/app/components/playbooks/PlaybookTable.tsx",
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
+    "frontend/src/app/components/playbooks/usePlaybookCorrectionPupils.ts",
     "frontend/src/app/components/playbooks/usePlaybookProvenance.ts"
   ],
   "allowed": {

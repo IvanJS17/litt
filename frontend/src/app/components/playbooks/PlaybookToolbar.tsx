@@ -5,10 +5,10 @@ import { TableToolbar } from "@/app/components/shared/TableToolbar";
 import { TabPillButtonUI } from "@mike/ui";
 
 // A playbook's details are edited from a dialog, as in other features.
-export const PLAYBOOK_VIEWS = ["rules", "references", "runs"] as const;
+export const PLAYBOOK_VIEWS = ["rules", "references", "runs", "corrections"] as const;
 export type PlaybookView = (typeof PLAYBOOK_VIEWS)[number];
 
-const VIEWS: { id: PlaybookView; label: string }[] = [
+const VIEWS: { id: Exclude<PlaybookView, "corrections">; label: string }[] = [
   { id: "rules", label: "Rules" },
   { id: "references", label: "References" },
   { id: "runs", label: "Runs" },
@@ -23,6 +23,7 @@ export function PlaybookToolbar({
   onUpload,
   onNewRun,
   runDisabled = false,
+  correctionsLabel,
 }: {
   disabled: boolean;
   canEdit: boolean;
@@ -35,6 +36,11 @@ export function PlaybookToolbar({
   onNewRun: () => void;
   /** LiTT: a draft cannot be run until it is marked ready. */
   runDisabled?: boolean;
+  /**
+   * LiTT training: the label of the Corrections view, offered only to an
+   * editor who supervises someone; absent, there is no such view.
+   */
+  correctionsLabel?: string;
 }) {
   return (
     <nav aria-label="Playbook toolbar" className="shrink-0">
@@ -55,6 +61,14 @@ export function PlaybookToolbar({
                   {entry.label}
                 </TabPillButtonUI>
               ))}
+              {correctionsLabel && (
+                <TabPillButtonUI
+                  active={view === "corrections"}
+                  onClick={() => onViewChange("corrections")}
+                >
+                  {correctionsLabel}
+                </TabPillButtonUI>
+              )}
             </div>
             {view === "rules" && (
               <TabPillButtonUI

@@ -4861,12 +4861,14 @@ export interface PlaybookRule {
 }
 /** LiTT: an answer (questionIds), an attached clause (sourceId) or general practice. */
 export interface PlaybookRuleOrigin {
-    kind: "answer" | "clause" | "ai_general";
+    kind: "answer" | "clause" | "ai_general" | "correction";
     questionIds?: string[];
     /** A reference document of the playbook. */
     sourceId?: string;
     quote?: string;
     note?: string;
+    /** A correction's origin: the name of the person who made it. */
+    attributedTo?: string;
     /** "Suggestion without backing, review". */
     unbacked: boolean;
 }
@@ -5113,7 +5115,7 @@ export async function createPlaybook(
 export interface PlaybookImport {
     id: string;
     /** LiTT: a file import, a draft from the questionnaire, or proposals for a copy. */
-    kind?: "import" | "draft" | "proposal";
+    kind?: "import" | "draft" | "proposal" | "correction";
     status: "running" | "completed" | "failed";
     stage: string;
     error: string | null;
@@ -5228,6 +5230,69 @@ export async function startPlaybookDraft(
             answers: request.answers,
             attachments,
         }),
+    });
+}
+
+/** LiTT: one change proposed for a playbook, pending until an editor decides it. */
+export interface PlaybookChange {
+    id: string;
+    playbookId: string;
+    op: "add_rule" | "modify_rule" | "remove_rule";
+    ruleId: string;
+    topicId: string | null;
+    /** The rule when the change was proposed; null for an added rule. */
+    before: PlaybookRule | null;
+    /** The rule the change leaves; null for a removed rule. */
+    after: PlaybookRule | null;
+    changedFields: string[];
+    rationale: string;
+    /** A questionnaire for a copy, or a mentor's corrections. */
+    source: "starting_point" | "correction";
+    status: "pending" | "accepted" | "rejected";
+    createdAt: string;
+}
+
+export async function listPlaybookChanges(playbookId: string): Promise<PlaybookChange[]> {
+    return apiRequest("playbooks.save", `/playbooks/${encodeURIComponent(playbookId)}/changes`);
+}
+
+/** Accepting applies the change over the rule it was proposed for (409 otherwise). */
+export async function decidePlaybookChange(
+    playbookId: string,
+    changeId: string,
+    decision: "accept" | "reject",
+): Promise<{ playbook: Playbook; change: PlaybookChange }> {
+    return apiRequest(
+        "playbooks.save",
+        `/playbooks/${encodeURIComponent(playbookId)}/changes/${encodeURIComponent(changeId)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ decision }),
+        },
+    );
+}
+
+/** One correction of a pupil's work: the text as it was, as it should be, and why. */
+export interface PlaybookCorrectionInput {
+    before: string;
+    after: string;
+    comment: string;
+}
+
+/**
+ * LiTT training: the mentor's corrections, proposed as rules. Editor of the
+ * playbook and current mentor of the pupil; the changes are computed on the
+ * server and followed like an import.
+ */
+export async function startPlaybookCorrections(
+    playbookId: string,
+    request: { model: string; traineeUserId: string; corrections: PlaybookCorrectionInput[] },
+): Promise<PlaybookImport> {
+    return apiRequest("playbooks.import", `/playbooks/${encodeURIComponent(playbookId)}/corrections`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
     });
 }
 
