@@ -580,7 +580,10 @@ with a sentence of their own.
 renders `GET /training/me/supervision` with the same components the mentor
 sees: the reviews' four rows, the defenses (before the outcome only «Hay una
 defensa programada»; questions and note afterwards, as the server sends them)
-and the passes. It has the same data as the mentor's tabs, no more and no less.
+and the passes. It has the same data as the mentor's tabs, no more and no less: the server
+lists only the reviews of works whose matter the pupil's CURRENT mentor can
+open (the test behind the Trabajos tab's «works without access» count), and
+none while the pupil has no mentor.
 
 **Word.** The add-in is not changed by layer 2: Word does not honor a pass
 (above), so its composer keeps asking for the attempt, and the panel is used

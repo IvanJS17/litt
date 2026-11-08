@@ -142,6 +142,7 @@ function seed() {
             ],
             training_version_approvals: [{ document_version_id: VERSION_APPROVED, content_sha256: "h2" }],
             training_work_reviews: [],
+            user_profiles: [{ user_id: MENTOR, email: `${MENTOR}@test.local` }],
         },
         {
             // training_can_read_learning, as 20261107_60 states it.
@@ -315,6 +316,59 @@ describe("works in a matter the mentor cannot open", () => {
         expect(list.body.works).toHaveLength(2);
         expect((await as(MENTOR).post(review(MATTER_CHAT)).send({})).status).toBe(200);
         expect((await as(MENTOR).get(`/training-notes/chats/${MATTER_CHAT}`)).status).toBe(200);
+    });
+});
+
+describe("what the pupil reads is what the mentor sees", () => {
+    const readyRow = (chat: Row): Row => ({
+        id: id(700),
+        org_id: ORG,
+        trainee_user_id: PUPIL,
+        chat_id: null,
+        word_chat_id: null,
+        tabular_chat_id: null,
+        status: "ready",
+        covered_through: new Date().toISOString(),
+        proposed: [],
+        ai_corrected: [],
+        doubts: [],
+        unverified: [],
+        signals: {},
+        updated_at: new Date().toISOString(),
+        ...chat,
+    });
+    const mine = async () =>
+        (await as(PUPIL).get(`/training/me/supervision?org_id=${ORG}`)).body.work_reviews.map(
+            (r: { chat_id: string }) => r.chat_id,
+        );
+
+    it("leaves out the review of a matter the current mentor cannot open", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        await as(MENTOR).post(review()).send({});
+        expect(await mine()).toEqual([CHAT]);
+        // The mentor's own tab lists the same single work.
+        const list = await as(MENTOR).get(works);
+        expect(list.body.works.map((w: { chat_id: string }) => w.chat_id)).toEqual([CHAT]);
+    });
+
+    it("control: lists it once the mentor can open that matter", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        expect(await mine()).toEqual([MATTER_CHAT]);
+    });
+
+    it("follows the CURRENT mentor, not the one who generated it", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        expect(await mine()).toEqual([MATTER_CHAT]);
+        h.state!.tables.training_pupils[0].mentor_user_id = FORMER_MENTOR;
+        expect(await mine()).toEqual([]);
+    });
+
+    it("lists nothing when the pupil has no mentor, since nobody reads it", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: CHAT }));
+        h.state!.tables.training_pupils.length = 0;
+        expect(await mine()).toEqual([]);
     });
 });
 
