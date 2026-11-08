@@ -10,24 +10,14 @@ import { ensureReviewAccess } from "../../lib/access";
 import { selectInBatches } from "../../lib/batchedQuery";
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { countedTurns, type EvidenceNote } from "../../lib/trainingMap";
-import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
+import { loadEvidenceNotes } from "../../lib/trainingEvidenceNotes";
+import { countedTurns } from "../../lib/trainingMap";
+import type { TurnNoteSurface } from "../../lib/trainingNotes";
 import type { PromotionAudit, PromotionTurn, PromotionWork } from "../../lib/trainingPromotion";
-import { WORK_SURFACES, workPlace } from "../../lib/trainingWork";
+import { workPlace } from "../../lib/trainingWork";
 import type { projectLens, Viewer } from "./trainingSupervision.lens";
 
-/** The newest turn notes read; a person is nowhere near this many in practice. */
-export const PROMOTION_NOTES_LIMIT = 1000;
-const NOTE_COLUMNS =
-    "id, chat_id, word_chat_id, tabular_chat_id, created_at, contrast_status, confidence, verdict, verdict_source, foundation, topics, answer_unverified, mode";
-
 type Lens = ReturnType<typeof projectLens>;
-type StoredNote = Omit<EvidenceNote, "work"> & {
-    chat_id: string | null;
-    word_chat_id: string | null;
-    tabular_chat_id: string | null;
-};
-
 export type PromotionLayer3 = {
     turns: PromotionTurn[];
     audits: PromotionAudit[];
@@ -36,36 +26,10 @@ export type PromotionLayer3 = {
 };
 
 async function loadTurns(db: Db, viewer: Viewer, lens: Lens): Promise<ServiceResult<{ turns: PromotionTurn[]; without: number }>> {
-    const read = await db
-        .from("training_turn_notes")
-        .select(NOTE_COLUMNS)
-        .eq("org_id", viewer.orgId)
-        .eq("trainee_user_id", viewer.traineeId)
-        .order("created_at", { ascending: false })
-        .limit(PROMOTION_NOTES_LIMIT);
-    if (read.error) return internalFailure(read.error);
-    const notes: EvidenceNote[] = [];
-    const placeOf = new Map<string, { surface: TurnNoteSurface; chatId: string }>();
-    for (const note of (read.data ?? []) as unknown as StoredNote[]) {
-        const surface = WORK_SURFACES.find((candidate) => note[TURN_NOTE_CHAT_COLUMN[candidate] as "chat_id"] != null);
-        if (!surface) continue;
-        const chatId = note[TURN_NOTE_CHAT_COLUMN[surface] as "chat_id"] as string;
-        const work = `${surface}:${chatId}`;
-        placeOf.set(work, { surface, chatId });
-        notes.push({
-            id: note.id,
-            work,
-            created_at: note.created_at,
-            contrast_status: note.contrast_status,
-            confidence: note.confidence ?? null,
-            verdict: note.verdict ?? null,
-            verdict_source: note.verdict_source ?? null,
-            foundation: note.foundation ?? null,
-            topics: note.topics ?? null,
-            answer_unverified: note.answer_unverified === true,
-            mode: note.mode ?? null,
-        });
-    }
+    const loaded = await loadEvidenceNotes(db, { orgId: viewer.orgId, traineeId: viewer.traineeId });
+    if (!loaded.ok) return loaded;
+    const notes = loaded.data;
+    const placeOf = new Map(notes.map((note) => [note.work, { surface: note.surface, chatId: note.chat_id }]));
     const workOf = new Map(notes.map((note) => [note.id, note.work]));
     const projectOf = new Map<string, string | null | undefined>();
     const turns: PromotionTurn[] = [];
