@@ -681,8 +681,8 @@ describe("the question is checked by the server", () => {
     });
 
     it("accepts a reference the person's own text named", async () => {
-        seed({ notes: weakTopic({ attempt: "Creo que aplica el artículo 165 sobre el plazo de prescripción." }) });
-        vi.mocked(completeText).mockResolvedValue(JSON.stringify({ question: "¿Qué plazo fija el artículo 165 y desde cuándo corre?" }));
+        seed({ notes: weakTopic({ attempt: "Creo que aplica el artículo 165 del Código de Comercio sobre el plazo de prescripción." }) });
+        vi.mocked(completeText).mockResolvedValue(JSON.stringify({ question: "¿Qué plazo fija el artículo 165 del Código de Comercio y desde cuándo corre?" }));
         expect((await start()).status).toBe(201);
     });
 
@@ -896,9 +896,9 @@ describe("answering", () => {
 
     it("does not mark a reference the person's answer named", async () => {
         const retake = await startOpen();
-        const answer = `${ANSWER} Esto se funda en el artículo 165.`;
+        const answer = `${ANSWER} Esto se funda en el artículo 165 del Código de Comercio.`;
         vi.mocked(completeText).mockResolvedValue(
-            JSON.stringify({ coincide: ["Citó el artículo 165."], no_coincide: [], falto: [], veredicto: "coincide" }),
+            JSON.stringify({ coincide: ["Citó el artículo 165 del Código de Comercio."], no_coincide: [], falto: [], veredicto: "coincide" }),
         );
         const res = await as(PUPIL).put(`${retakesUrl}/${retake.id}/answer`).send({ answer });
         expect(res.body.contrast).not.toMatch(/Sin verificar/);

@@ -17,7 +17,7 @@
 // model never decides what is verified.
 
 import type { TrainingVerdictValue } from "@mike/contracts";
-import { legalReferences } from "./legalReferences";
+import { hasKnownLaw, lawReferences } from "./legalReferences";
 import { fenced } from "./promptFence";
 import { contrastSections } from "./trainingNotes";
 
@@ -53,21 +53,22 @@ export const UNVERIFIED_REFERENCE_FOOTER =
 // ---------------------------------------------------------------------------
 // The one place that asks which legal references a text names.
 //
-// It compares by the exact normalized key legalReferences produces. A safer
-// comparison by law and number (`lawReferences`, PR #115) replaces ONLY this
-// function once that PR is in main. Fail-closed meanwhile: if the references
-// of a text cannot be read, they are NOT treated as verified.
+// It compares by law AND number (`lawReferences`): article 5 of one law is not
+// article 5 of another. An article whose law cannot be established, in the
+// text, is never verified. Fail-closed: if the references of a text cannot be
+// read, they are NOT treated as verified.
 // ---------------------------------------------------------------------------
 
 /**
- * Whether `text` names a legal reference that none of `sources` names. True
- * (not verified) also when a reference cannot be read at all.
+ * Whether `text` names a legal reference that none of `sources` names (same
+ * law, same number). True (not verified) also when a reference has no
+ * established law, or cannot be read at all.
  */
 export function namesUnlistedReference(text: string, sources: readonly string[]): boolean {
     try {
         const allowed = new Set<string>();
-        for (const source of sources) for (const reference of legalReferences(source)) allowed.add(reference);
-        for (const reference of legalReferences(text)) if (!allowed.has(reference)) return true;
+        for (const source of sources) for (const reference of lawReferences(source)) allowed.add(reference);
+        for (const reference of lawReferences(text)) if (!hasKnownLaw(reference) || !allowed.has(reference)) return true;
         return false;
     } catch {
         return true;
