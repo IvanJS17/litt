@@ -24,18 +24,18 @@ const ARTICLE_HEAD = /\bart(?:iculos?|s?\.?)\s*/g;
 // «1949», «1o.», «14 bis», «17a».
 const ARTICLE_ITEM = /(\d+)(?:o\b|[º°])?\.?(?:\s*(bis|ter|quater)\b|([a-z])\b)?/y;
 const FRACTION_WORD = String.raw`(?:fraccion(?:es)?|fracc?\.|fr\.)`;
-const FRACTION_AFTER_ARTICLE = new RegExp(String.raw`\s*,?\s*${FRACTION_WORD}\s*`, "y");
+const FRACTION_AFTER_ARTICLE = new RegExp(String.raw`\s*(?:,\s*)?${FRACTION_WORD}\s*`, "y");
 const FRACTION_HEAD = new RegExp(String.raw`\b${FRACTION_WORD}\s*`, "g");
-const FRACTION_OF_ARTICLE = /\s*,?\s*(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/y;
+const FRACTION_OF_ARTICLE = /\s*(?:,\s*)?(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/y;
 const ROMAN_ITEM = /(m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))\b/y;
 // «Tesis 1a./J. 12/2020», «jurisprudencia P./J. 5/2019», «tesis I.3o.C.123».
-const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*:?\s*/g;
+const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*(?::\s*)?/g;
 const THESIS_ITEM = /([a-z0-9][a-z0-9./ -]{0,30}?\d+\/\d{4}|[a-z0-9]+(?:[./-][a-z0-9]+)+)/y;
 // The subject letters of an isolated thesis («I.3o.C.123 C»), skipped before a separator.
 const THESIS_SUBJECT = /\s+\(?[a-z]{1,2}\)?(?=\s*,|\s+(?:y|e|o|u)\s)/y;
 // A jurisprudence id on its own: «1a./J. 12/2020».
 const JURISPRUDENCE_ID = /(?<![a-z0-9])((?:\d+[a-z]{0,2}|[a-z]{1,2})\.\s*\/\s*j\.\s*\d+\/\d{4})/g;
-const REGISTRY_HEAD = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:no\.?|num\.?|nums\.?|numeros?)?\s*:?\s*/g;
+const REGISTRY_HEAD = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
 const REGISTRY_ITEM = /(\d{4,})/y;
 
 function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
@@ -219,7 +219,7 @@ export function lawOfTitle(title: string | null | undefined): string | null {
     return normalizeLaw(stem);
 }
 
-const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
+const LAW_SEPARATOR = /\s*(?:,\s*)?(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
 // Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
 const NAME_CONNECTORS = new Set([
     "de", "del", "la", "las", "los", "el", "lo", "y", "e", "o", "u", "a", "al", "en", "para", "por", "con", "sin",
@@ -229,13 +229,25 @@ const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alia
 
 type Token = { bare: string; ends: boolean; opens: boolean };
 
+const OPENING_PUNCTUATION = "([«\"'";
+const CLOSING_PUNCTUATION = ".,;:)]»\"'";
+
+/** `word` without the opening and closing punctuation around it (a linear scan, no regex backtracking). */
+function trimPunctuation(word: string): string {
+    let start = 0;
+    while (start < word.length && OPENING_PUNCTUATION.includes(word[start])) start++;
+    let end = word.length;
+    while (end > start && CLOSING_PUNCTUATION.includes(word[end - 1])) end--;
+    return word.slice(start, end);
+}
+
 /** The whitespace-separated words of `text`, each without the punctuation around it. */
 function tokens(text: string): Token[] {
     return text
         .split(/\s+/)
         .filter((word) => word !== "")
         .map((word) => ({
-            bare: word.replace(/^[(\[«"']+/, "").replace(/[.,;:)\]»"']+$/, ""),
+            bare: trimPunctuation(word),
             ends: /[.,;:)\]»"']$/.test(word),
             opens: /^[(\[«"']/.test(word),
         }));
