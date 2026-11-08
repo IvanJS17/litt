@@ -2,10 +2,12 @@
   "migrated": [
     "frontend/src/app/(pages)/settings/training/mentor",
     "frontend/src/app/(pages)/settings/training/reading",
+    "frontend/src/app/(pages)/tabular-reviews/[id]/audit",
     "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
     "frontend/src/app/components/shared/LocaleSwitcher.tsx",
     "frontend/src/app/components/shared/SourceCodeLink.tsx",
     "frontend/src/app/components/training/reading",
+    "frontend/src/app/components/training/reviewAudit",
     "frontend/src/app/components/training/supervision",
     "frontend/src/app/layout.tsx",
     "frontend/src/app/lib/authMessages.ts",
@@ -35,7 +37,8 @@
     "frontend/src/app/(pages)/settings/firm-criteria",
     "frontend/src/app/components/training/firmCriteria",
     "frontend/src/app/components/assistant/message/FirmCriteriaConsulted.tsx",
-    "packages/ui/src/FirmCriteriaConsultedUI.tsx"
+    "packages/ui/src/FirmCriteriaConsultedUI.tsx",
+    "frontend/src/app/components/shared/DocumentAuthorshipPanel.tsx"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,

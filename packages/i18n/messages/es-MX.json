@@ -232,6 +232,7 @@
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
       "training_pupil_has_mentor": "Este miembro ya tiene mentor. Un propietario o administrador puede cambiarlo.",
+      "training_review_audit_stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva.",
       "training_reading_document_unavailable": "Este documento ya no está disponible para leerlo.",
       "training_reading_findings_recorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
       "training_reading_no_document": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
@@ -533,7 +534,110 @@
       "map": {},
       "modes": {},
       "backing": {},
-      "audit": {},
+      "audit": {
+        "pageTitle": "Audita tu revisión",
+        "intro": "Revisa las preguntas de esta revisión y luego audita a mano una muestra de sus respuestas. Es para tu aprendizaje: no bloquea nada y aquí no se usa ningún modelo.",
+        "backToReview": "Volver a la revisión",
+        "notApplies": "Esta auditoría es para personas en etapa junior que trabajan en un asunto. No tienes una auditoría que hacer en esta revisión.",
+        "menu": "Auditar preguntas",
+        "design": {
+          "title": "Tus preguntas",
+          "intro": "LiTT las revisa con reglas fijas, no con un modelo. Son observaciones, nunca bloqueos.",
+          "clean": "Sin observaciones: cada pregunta tiene nombre, una instrucción clara y un formato de respuesta.",
+          "column": "Columna {number}",
+          "instruction": "Instrucción: {text}",
+          "noInstruction": "Sin instrucción"
+        },
+        "lint": {
+          "empty_name": "{column} no tiene nombre.",
+          "duplicate_name": "{column} tiene el mismo nombre que {other}.",
+          "empty_instruction": "{column} no tiene instrucción.",
+          "short_instruction": "La instrucción de {column} es muy corta. Di qué buscar y dónde.",
+          "no_format": "{column} no tiene formato de respuesta. Elige uno para que las respuestas se puedan comparar."
+        },
+        "sample": {
+          "title": "Auditoría a mano",
+          "intro": "{count, plural, one {LiTT eligió # respuesta} other {LiTT eligió # respuestas}}, repartidas entre las columnas. Tú no las escoges. Lee el pasaje citado y marca cada una.",
+          "notReady": "Primero genera la revisión: todavía no hay respuestas terminadas que auditar.",
+          "start": "Empezar la auditoría",
+          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría, así que venció. Elige una muestra nueva para auditar otra vez.",
+          "startAnother": "Elegir una muestra nueva",
+          "progress": "Marcaste {done} de {total}.",
+          "finish": "Terminar la auditoría"
+        },
+        "cell": {
+          "title": "{row} · {column}",
+          "answer": "Respuesta",
+          "reasoning": "Razonamiento",
+          "passages": "Pasajes citados",
+          "page": "página {page}",
+          "noPassage": "Esta respuesta no cita ningún pasaje.",
+          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
+          "markLegend": "¿Cómo está esta respuesta?",
+          "note": "Tu nota (opcional)",
+          "mentorMark": "Tu mentor marcó esta respuesta como {mark}."
+        },
+        "marks": {
+          "correct": "Correcta",
+          "incomplete": "Incompleta",
+          "incorrect": "Incorrecta"
+        },
+        "markWord": {
+          "correct": "correcta",
+          "incomplete": "incompleta",
+          "incorrect": "incorrecta"
+        },
+        "result": {
+          "title": "Tu resultado",
+          "column": "{column}: {marked} marcadas, {incorrect} incorrectas, {incomplete} incompletas.",
+          "done": "Terminaste esta auditoría el {date, date, medium}."
+        },
+        "evaluation": {
+          "title": "Lo que dijo tu mentor",
+          "adequate": "Adecuado",
+          "needs_work": "Por mejorar"
+        },
+        "mentor": {
+          "title": "Revisiones masivas",
+          "intro": "Las preguntas que diseñó cada pupilo y la muestra que auditó a mano. Solo ves una revisión si puedes abrir su asunto. Tu evaluación no bloquea nada: es evidencia.",
+          "empty": "Este pupilo todavía no tiene auditorías.",
+          "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
+          "untitled": "Revisión sin título",
+          "status": {
+            "open": "En curso",
+            "complete": "Terminada",
+            "stale": "Vencida: la revisión se volvió a generar"
+          },
+          "started": "Empezó el {date, date, medium}",
+          "personMark": "Su marca: {mark}",
+          "unmarked": "Sin marcar todavía",
+          "yourMark": "Tu marca",
+          "keepMark": "Dejar su marca",
+          "clearMark": "Quitar mi marca",
+          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
+          "evaluate": "Tu evaluación",
+          "noteLabel": "Nota para el pupilo (opcional)",
+          "save": "Guardar evaluación",
+          "waiting": "Podrás evaluarla cuando el pupilo termine la auditoría.",
+          "evaluatedOn": "Evaluada el {date, date, medium}",
+          "codes": {
+            "stale": "La revisión se volvió a generar después de esta auditoría, así que ya no se puede evaluar."
+          },
+          "actions": {
+            "load": "cargar las revisiones masivas",
+            "evaluate": "guardar la evaluación"
+          }
+        },
+        "actions": {
+          "load": "cargar la auditoría",
+          "start": "empezar la auditoría",
+          "mark": "guardar tu marca",
+          "finish": "terminar la auditoría"
+        },
+        "codes": {
+          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva."
+        }
+      },
       "reading": {
         "title": "Lectura completa",
         "intro": "Una vez al mes lees un documento completo sin el asistente y escribes lo que encontraste. Después LiTT lo compara con lo que la máquina encontró en el mismo texto.",
@@ -673,7 +777,33 @@
         }
       },
       "contrast": {},
-      "authorship": {},
+      "authorship": {
+        "ai": "De la IA",
+        "baseline": {
+          "file": "Esta versión partió de un archivo subido. LiTT no sabe quién escribió un archivo, así que ese texto queda no determinado.",
+          "unknown": "LiTT no tiene registro del texto del que partió esta versión (o el archivo que generó la IA ya fue reemplazado), así que solo ubica el texto de las ediciones de la IA que se aceptaron. Lo demás queda no determinado."
+        },
+        "edits": "Ediciones de la IA: {accepted, plural, one {# aceptada} other {# aceptadas}}, {rejected, plural, one {# rechazada} other {# rechazadas}}, {pending, plural, one {# pendiente} other {# pendientes}}.",
+        "estimateNote": "Estimación, redondeada a múltiplos de 5 %.",
+        "hide": "Ocultar autoría estimada",
+        "loadFailed": "No se pudo cargar la autoría estimada.",
+        "loadFailedAction": "cargar la autoría estimada",
+        "pending": "{count, plural, one {Hay # edición de la IA pendiente, así que su texto queda} other {Hay # ediciones de la IA pendientes, así que su texto queda}} no determinado hasta que alguien {count, plural, one {la acepte o la rechace} other {las acepte o las rechace}}.",
+        "person": "Escrito por una persona",
+        "rule": "Es una estimación con lo que LiTT registró, no un detector de IA. Una oración cuenta como de la IA solo si aparece palabra por palabra en una edición de la IA que alguien aceptó, o en texto que la IA generó y que nadie ha reemplazado. Una oración que alguien reescribe cuenta como escrita por una persona. Lo que LiTT no puede ubicar se muestra como no determinado.",
+        "share": "{percent} %",
+        "show": "Ver autoría estimada",
+        "status": {
+          "empty": "No determinado: esta versión no tiene texto que analizar.",
+          "textFailed": "No determinado: LiTT no pudo leer el texto de esta versión.",
+          "textPending": "No determinado: LiTT aún no termina de leer el texto de esta versión. Intenta de nuevo en un momento.",
+          "tooLarge": "No determinado: esta versión es demasiado larga para estimarla."
+        },
+        "textless": "{count, plural, one {# página no tiene} other {# páginas no tienen}} texto que LiTT pueda leer (probablemente {count, plural, one {está escaneada} other {están escaneadas}}), así que no {count, plural, one {se cuenta} other {se cuentan}}.",
+        "title": "Autoría estimada",
+        "undetermined": "No determinado",
+        "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
+      },
       "promotion": {}
     },
     "firmCriteria": {

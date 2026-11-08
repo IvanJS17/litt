@@ -2517,6 +2517,71 @@ export async function getMySupervision(orgId: string) {
     );
 }
 
+// LiTT training layer 3, bulk review designer (docs/training.md): the
+// junior's design review and sampled audit of a tabular review, and the
+// current mentor's evaluation of them.
+
+export type {
+    TrainingAuditCell,
+    TrainingAuditColumn,
+    TrainingAuditColumnTally,
+    TrainingAuditEvaluationBody,
+    TrainingAuditMark,
+    TrainingAuditMarkBody,
+    TrainingAuditOutcome,
+    TrainingAuditStatus,
+    TrainingLintCode,
+    TrainingLintWarning,
+    TrainingPupilReviewAudits,
+    TrainingReviewAudit,
+    TrainingReviewAuditState,
+} from "@mike/contracts";
+
+const reviewAuditPath = (reviewId: string) => `/tabular-review/${encodeURIComponent(reviewId)}/training-audit`;
+
+export async function getReviewAudit(reviewId: string) {
+    return apiRequest<import("@mike/contracts").TrainingReviewAuditState>("training.read", reviewAuditPath(reviewId));
+}
+
+export async function startReviewAudit(reviewId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(reviewAuditPath(reviewId), "POST");
+}
+
+export async function markReviewAuditCell(
+    reviewId: string,
+    cell: { row_id: string; column_index: number },
+    body: import("@mike/contracts").TrainingAuditMarkBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(
+        `${reviewAuditPath(reviewId)}/cells/${encodeURIComponent(`${cell.row_id}:${cell.column_index}`)}`,
+        "PUT",
+        body,
+    );
+}
+
+export async function completeReviewAudit(reviewId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(`${reviewAuditPath(reviewId)}/complete`, "POST");
+}
+
+export async function getPupilReviewAudits(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilReviewAudits>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/review-audits`,
+    );
+}
+
+export async function evaluateReviewAudit(
+    orgId: string,
+    userId: string,
+    auditId: string,
+    body: import("@mike/contracts").TrainingAuditEvaluationBody,
+) {
+    return supervisionWrite<import("@mike/contracts").TrainingReviewAudit>(
+        `${pupilPath(orgId, userId)}/review-audits/${encodeURIComponent(auditId)}/evaluation`,
+        "PUT",
+        body,
+    );
+}
 // --- Training layer 3, card 10: periodic full reading (begin) ---
 // A junior reads one whole document without the assistant, writes what they
 // found, and then compares it with what the machine found. The person's
@@ -3251,6 +3316,22 @@ export interface DocumentVersion {
     training_held?: boolean;
     /** Whether the caller may approve it (the server's own rule). */
     training_can_approve?: boolean;
+    /** Whether the caller may read its estimated authorship (the server's own rule). */
+    training_authorship?: boolean;
+}
+
+/**
+ * Estimated authorship of a version (docs/training.md): computed by the
+ * server on request, 404 for anybody who may not see it.
+ */
+export async function getDocumentAuthorship(
+    documentId: string,
+    versionId: string,
+): Promise<import("@mike/contracts").DocumentAuthorship> {
+    return apiRequest(
+        "training.read",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/${encodeURIComponent(versionId)}/authorship`,
+    );
 }
 
 /** Approve a pasante's version as it is now (docs/training.md). */

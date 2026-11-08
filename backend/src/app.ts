@@ -14,6 +14,10 @@ import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-
 import { firmCriteriaRouter } from "./modules/firm-criteria/firmCriteria.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
 import {
+    pupilReviewAuditsRouter,
+    reviewAuditRouter,
+} from "./modules/training-review-audit/trainingReviewAudit.routes";
+import {
     pupilDefensesRouter,
     pupilPassesRouter,
     pupilPromotionRouter,
@@ -338,6 +342,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
 app.use("/orgs/:orgId/firm-criteria", firmCriteriaRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
@@ -349,6 +354,9 @@ app.use("/training-notes", trainingNotesRouter);
 app.use("/projects/:projectId/chat", projectChatRouter);
 app.use("/single-documents", documentsRouter);
 app.use("/library", libraryRouter);
+// Mounted before the review router, so the audit hangs under a review
+// without that router knowing about it.
+app.use("/tabular-review/:reviewId/training-audit", reviewAuditRouter);
 app.use("/tabular-review", tabularRouter);
 app.use("/workflows", workflowsRouter);
 app.use("/quick-actions", quickActionsRouter);

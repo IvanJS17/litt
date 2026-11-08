@@ -149,6 +149,7 @@ import {
     updateOrg,
     listDocumentVersions,
     approveTrainingVersion,
+    getDocumentAuthorship,
     listLibraryDocumentIds,
     listMcpConnectors,
     listProjectChats,
@@ -227,6 +228,12 @@ import {
     getPupilPromotion,
     acceptPromotion,
     getMySupervision,
+    getReviewAudit,
+    startReviewAudit,
+    markReviewAuditCell,
+    completeReviewAudit,
+    getPupilReviewAudits,
+    evaluateReviewAudit,
     streamTabularChatTurn,
     stopTabularChatTurn,
     stopTabularGeneration,
@@ -1379,6 +1386,24 @@ describe("training supervision API", () => {
         ["promotion", () => getPupilPromotion("o 1", "u1"), "GET", `${base}/promotion`, undefined],
         ["accept", () => acceptPromotion("o 1", "u1", { practice: null, to: "junior" }), "POST", `${base}/promotion`, { practice: null, to: "junior" }],
         ["mine", () => getMySupervision("o1"), "GET", "/api/training/me/supervision?org_id=o1", undefined],
+        ["audit read", () => getReviewAudit("r 1"), "GET", "/api/tabular-review/r%201/training-audit", undefined],
+        ["audit start", () => startReviewAudit("r1"), "POST", "/api/tabular-review/r1/training-audit", undefined],
+        [
+            "audit mark",
+            () => markReviewAuditCell("r1", { row_id: "w1", column_index: 2 }, { mark: "incorrect", note: "x" }),
+            "PUT",
+            "/api/tabular-review/r1/training-audit/cells/w1%3A2",
+            { mark: "incorrect", note: "x" },
+        ],
+        ["audit complete", () => completeReviewAudit("r1"), "POST", "/api/tabular-review/r1/training-audit/complete", undefined],
+        ["pupil audits", () => getPupilReviewAudits("o 1", "u1"), "GET", `${base}/review-audits`, undefined],
+        [
+            "audit evaluate",
+            () => evaluateReviewAudit("o 1", "u1", "a1", { outcome: "adequate", note: null }),
+            "PUT",
+            `${base}/review-audits/a1/evaluation`,
+            { outcome: "adequate", note: null },
+        ],
     ] as const)("%s", async (_name, call, method, url, body) => {
         fetchMock.mockImplementation(async () => jsonResponse({ ok: true }));
         await call();
@@ -3177,6 +3202,11 @@ describe("thin endpoint wrappers", () => {
             call: () => approveTrainingVersion("d 1", "v 1"),
             url: "/single-documents/d%201/versions/v%201/training-approval",
             method: "POST",
+        },
+        {
+            name: "getDocumentAuthorship",
+            call: () => getDocumentAuthorship("d 1", "v 1"),
+            url: "/single-documents/d%201/versions/v%201/authorship",
         },
         {
             name: "copyDocumentVersionFromDocument",

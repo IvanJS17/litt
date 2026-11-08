@@ -16,6 +16,7 @@
 //   documents.edits.ts     — tracked-change ids + accept/reject edits
 //   documents.trackedEdits.ts — apply tracked-change edits as a new version
 //   documents.trainingApproval.ts — approve a pasante's sealed version
+//   documents.authorship.ts — estimated authorship of a version (training)
 //
 // Upload sessions own transport and destination authorization; version metadata
 // creation, activation, replacement, copying, and cleanup use this facade.
@@ -62,6 +63,7 @@ export { captureInlineDocumentCleanup, completeInlineDocumentCleanup } from "./d
 export { createDocumentVersions, activateDocumentVersion, updateDocumentVersion } from "./documents.lifecycle";
 export type { VersionAuthorship } from "./documents.lifecycle";
 export { approveTrainingVersion } from "./documents.trainingApproval";
+export { getDocumentAuthorship } from "./documents.authorship";
 
 export { runConversionJob, setDocumentTerminalStatus } from "./documents.conversion";
 

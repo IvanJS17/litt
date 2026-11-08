@@ -327,6 +327,64 @@ leaves LiTT as a deliverable, not DRM. Whatever can be seen in the app (a
 viewed PDF, an open editor, a screenshot) can be captured by the person who
 sees it.
 
+## Authorship of the work (layer 3)
+
+`GET /single-documents/:documentId/versions/:versionId/authorship`
+(`modules/documents/documents.authorship.ts`, the rule in
+`lib/documentAuthorship.ts`, payload `DocumentAuthorship` in
+`packages/contracts`) answers how much of a version's text came from the
+assistant. It is an **estimate computed when asked**: nothing is stored (no
+table, no migration, no audit event) and no model is called. It is not an AI
+detector and it never guesses.
+
+The rule, which the panel also states:
+
+1. The version's extracted text (`read_document_text`, the same text the agent
+   reads) is split into sentences (lines, and `. ! ? … ;` followed by a
+   capital, so «art. 5» stays whole). A sentence is compared lower-cased with
+   white space collapsed, and otherwise character for character.
+2. **From the AI:** the sentence appears in the text of an assistant edit that
+   a person *accepted* (`document_edits.inserted_text`, `status = 'accepted'`,
+   of this version or any earlier one), or in the starting text of the version
+   when that was generated (`source = 'generated'`) and its bytes are still the
+   generated ones (`storage_path` is still the `generated/…` key the assistant
+   wrote; every in-place replacement, editor save or resolved edit moves it to
+   `documents/…`). A generated start that was replaced in place is read as
+   «unknown»: its current text may be a person's.
+3. **Undetermined:** it appears in a *pending* assistant edit; it appears in a
+   starting text that came in as an uploaded file (`upload`, `user_upload`:
+   LiTT does not know who wrote a file); it has fewer than three words yet
+   equals assistant text (chance cannot be told from copying); or the starting
+   text cannot be read or was replaced after the assistant generated it, so only accepted assistant text is placed. Pages
+   without a text layer are reported, not attributed.
+4. **Written by a person:** everything else, i.e. text that entered through
+   edits made in LiTT and matches nothing the assistant produced. A sentence a
+   person rewrites stops matching and is theirs. The label says «a person», not
+   the pupil: others with edit rights can touch the same version.
+
+The starting text is the latest version at or before the one asked about that
+was generated or uploaded. Shares are percentages of the analyzed words,
+rounded to multiples of 5 that add up to 100; a part with any words never
+shows as 0 %. Text above 200,000 characters, not yet extracted, failed or empty
+answers `status` `too_large`, `text_pending`, `text_failed` or `empty` with no
+figures, and the screen says «undetermined».
+
+**Who may ask** (the stage is not a permission: the caller must already read
+the document, and everybody else gets the same `404` as a document they cannot
+read):
+
+| Version | Who |
+|---|---|
+| A pasante's sealed draft | its author, the author's current mentor, and whoever may approve it (`mayApproveTrainingVersion`) |
+| Any other version | the document's owner when they have a stage where the document lives, and that owner's current mentor |
+
+An organization owner or admin gets nothing by role. The version list
+(`GET …/versions`) carries `training_authorship` per version with the same
+answer, so the viewer's title row and the document panel offer a collapsed
+«Autoría estimada» panel only to those people
+(`DocumentAuthorshipPanel.tsx`; it asks again each time it is opened). It is
+not compared across people and has no ranking or average.
+
 ## Supervision data (layer 2)
 
 Migration `20261107_60_litt_training_supervision.sql` adds the data a mentor
@@ -613,6 +671,74 @@ none while the pupil has no mentor.
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
 
+## Bulk review designer (layer 3)
+
+A junior who designs a tabular review's questions gets a review of them and
+audits by hand a sample of its answers. It applies to a review the person can
+open and whose matter gives them the stage `junior`. The stage is not a
+permission: it adds no access, and the review keeps the permissions it
+already has. For anyone else the read answers `applies: false` and the writes
+answer 404. No model is involved: the design review and the sample are code
+(`backend/src/lib/trainingReviewAudit.ts`), so there is no key, no
+`llm.egress` and no `chatLimiter`.
+
+- **Design review (`lintColumns`).** Repeated or empty names, empty
+  instructions or ones under 20 characters, columns without an answer format.
+  They are notes, never blocks.
+- **Sample.** `n = clamp(ceil(10 % of the finished cells), 5, 20)` (never more
+  than exist), stratified by column: columns come in a seeded order and each
+  gives one cell per round, so every column has at least one while `n`
+  allows. The server draws it with a random seed stored on the row; the same
+  seed draws the same sample. The person does not choose. Cells whose source
+  documents the person cannot read are never drawn.
+- **Marks.** For each sampled cell the person sees the answer and its cited
+  passages and marks «Correcta», «Incompleta» or «Incorrecta», with an
+  optional note (500 characters). When every cell is marked they finish the
+  audit and see their own counts per column, never a figure of a group.
+- **Expiry.** If a sampled cell changes or disappears (the review was
+  regenerated, edited or cleared) the audit becomes `stale` the next time
+  anyone reads it, and the person draws another. The row keeps a keyed digest of
+  each sampled cell (`digest`, an HMAC-SHA256 of 128 bits keyed with the
+  audit's own `digest_salt`, which is never exported or sent to the client, so
+  a short cell cannot be guessed from it) to tell, not the cell: a `generation_id` does
+  not survive the end of a run (cells are stamped with it only while the run
+  lasts), so it cannot say that a review was regenerated afterwards.
+- **No cell content in the row.** `training_review_audits.sample` holds
+  `row_id`, `column_index`, `digest`, `mark`, `note` and `mentor_mark`, and
+  nothing else (`training_review_audit_sample_ok`, a column check). The
+  content is read from the review when it is shown.
+- **The mentor** (the pupil's current mentor, `assertCurrentMentor`) lists the
+  pupil's audits and evaluates a finished one: «Adecuado» or «Por mejorar»
+  with a note (500 characters, learning data), and may correct a mark; the
+  correction is stored as `mentor_mark` and the person's own mark stays. The
+  current mentor may change it again or take it back (`mark: null` removes the
+  key); every save leaves the same event, naming ids only. A
+  review is shown only if the mentor can open its matter (`mayOpenWorkMatter`;
+  a review outside any matter: if the mentor can open the review itself); the
+  rest are counted. Cells whose sources the mentor cannot read are withheld.
+  Nothing here blocks anything; it is evidence.
+- **Privacy.** `training_review_audits` is a `training_*` table with
+  `trainee_user_id`, a cascade from `org_members`, RLS and no browser
+  privilege, so the generic checks of `performance.litt-training-supervision.sql`
+  cover it. Owners and admins read none of it. The routes return counts of one
+  person, no score, rank or average.
+- **Audit trail.** `training.review_audit_started`, `_completed` and
+  `_evaluated` carry `org_id`, `target_user_id` and the review (`review_id`
+  column) only: never marks, notes, the outcome or any cell text.
+
+| Route | Who |
+|---|---|
+| `GET/POST /tabular-review/:reviewId/training-audit` | the junior: the design review and the audit; start (200 if one is live, 201 if drawn) |
+| `PUT …/training-audit/cells/:rowId:columnIndex` | the junior: `{ mark, note? }` while the audit is open |
+| `POST …/training-audit/complete` | the junior, once every cell is marked |
+| `GET /orgs/:orgId/training/pupils/:userId/review-audits` | the current mentor |
+| `PUT …/review-audits/:id/evaluation` | the current mentor: `{ outcome, note?, corrections? }` on a finished audit |
+
+`training_review_audit_stale` (409) is the only code the client acts on. In the
+web app the page is `/tabular-reviews/:id/audit`, offered in the review's
+menu («Auditar preguntas») only when the read says `applies`. The mentor's
+section is `MentorReviewAudits`; until the «Criterio» tab exists it is
+delivered without a tab and is mounted by the card that builds the tab.
 ## From correction to rule (layer 3)
 
 A mentor can turn their corrections of a pupil's work into rules proposed for

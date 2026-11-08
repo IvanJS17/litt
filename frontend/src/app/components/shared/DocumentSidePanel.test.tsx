@@ -158,3 +158,49 @@ it("speaks for the current version from the row before the versions load, and hi
     // Nobody said this caller may approve.
     expect(screen.queryByRole("button", { name: "Aprobar esta versión" })).toBeNull();
 });
+
+it("offers the estimated authorship of the selected version only where the server said so", async () => {
+    const authorship = vi.spyOn(await import("@/app/lib/mikeApi"), "getDocumentAuthorship");
+    authorship.mockResolvedValue({
+        document_id: "doc-1",
+        version_id: "v2",
+        status: "ok",
+        estimate: true,
+        baseline: "ai",
+        words: { total: 10, person: 5, ai: 5, undetermined: 0 },
+        shares: { person: 50, ai: 50, undetermined: 0 },
+        edits: { accepted: 1, rejected: 0, pending: 0 },
+        textless_pages: 0,
+    });
+    const version: DocumentVersion = {
+        id: "v2",
+        version_number: 2,
+        source: "assistant_edit",
+        created_at: "2026-09-02T00:00:00Z",
+        filename: "agreement-v2.docx",
+        training_authorship: true,
+    };
+    const props = {
+        doc,
+        versionsLoading: false,
+        currentVersionId: "v2",
+        onClose: vi.fn(),
+        onLoadVersions: vi.fn(),
+        onSelectVersion: vi.fn(),
+        onDownloadDocument: vi.fn(),
+        onDownloadVersion: vi.fn(),
+        onRenameVersion: vi.fn(),
+        onDeleteVersion: vi.fn(),
+        onUploadNewVersion: vi.fn(),
+        onReplaceVersion: vi.fn(),
+        onDelete: vi.fn(),
+    };
+    const { unmount } = render(<DocumentSidePanel {...props} versions={[version]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Show estimated authorship" }));
+    await vi.waitFor(() => expect(authorship).toHaveBeenCalledWith("doc-1", "v2"));
+    unmount();
+
+    render(<DocumentSidePanel {...props} versions={[{ ...version, training_authorship: false }]} />);
+    expect(screen.queryByRole("button", { name: "Show estimated authorship" })).toBeNull();
+    authorship.mockRestore();
+});
