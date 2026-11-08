@@ -17,8 +17,15 @@ const NOTICES = [
     "packages/ui/src/NoticeCardUI.tsx",
     "frontend/src/app/components/popups/WarningPopup.tsx",
     "frontend/src/app/components/popups/ApiKeyMissingPopup.tsx",
+    "frontend/src/app/components/memory/MemoryEditorState.tsx",
+    "frontend/src/app/components/playbooks/PlaybookRuleForm.tsx",
+    "frontend/src/app/components/playbooks/PlaybookRuns.tsx",
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
+    "frontend/src/app/components/shared/DocumentSidePanel.tsx",
 ];
 
+// Notice surfaces only: status dots and categorical palettes (tags, avatars,
+// column formats) keep their own hues and are not listed above.
 const RAW_WARM = /\b(?:bg|text|border|ring|fill|stroke|from|to|via)-(?:orange|amber)-\d{2,3}\b/g;
 
 function tokens(selector: string): Record<string, string> {

@@ -1629,7 +1629,7 @@ function PlaybooksWorkspace() {
                   menuClassName="max-h-64"
                 />
               ) : (
-                <p className="text-sm text-orange-700">
+                <p className="text-sm text-warning">
                   No compilation model is available.{" "}
                   <a href="/account/api-keys" className="underline">
                     Configure an API key

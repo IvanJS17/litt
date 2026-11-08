@@ -194,9 +194,11 @@ and the focus ring. A warning surface reads the shared warning tokens
 app and the Word add-in show the same orange: orange-700 on orange-50 in the
 light theme, and a soft orange-300 on a tinta-tinted surface in the dark one.
 `frontend/src/__tests__/warningPalette.test.ts` checks AA contrast in both
-themes and rejects raw `orange-*` or `amber-*` classes in notices.
-Categorical palettes (tags, currencies, avatars, column formats, subagent
-marks) use non-blue, non-amber hues.
+themes and rejects raw `orange-*` or `amber-*` classes in the notice
+surfaces it lists: the add-in banner, `NoticeCardUI`, the warning popups, the
+memory conflict notice, playbook warnings and the document panel's text-layer
+warning. Categorical palettes (tags, currencies, avatars, column formats,
+subagent marks) keep their own hues and use non-blue, non-amber ones.
 
 ## Color tokens
 
