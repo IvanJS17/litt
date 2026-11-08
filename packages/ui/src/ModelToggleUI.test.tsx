@@ -48,6 +48,27 @@ describe("ModelToggleUI as a form field", () => {
     });
 });
 
+describe("ModelToggleUI empty state in a compact host", () => {
+    // A host that squares the trigger for an icon (the narrow composer) must
+    // not squeeze "No Models" down to "N…".
+    it("keeps its words instead of the host's icon width", () => {
+        render(
+            <ModelToggleUI
+                value=""
+                onChange={vi.fn()}
+                models={[]}
+                compact
+                triggerClassName="h-7.5 w-7.5"
+                onEmptyClick={vi.fn()}
+            />,
+        );
+        const trigger = screen.getByRole("button", { name: "No models available" });
+        expect(trigger).toHaveClass("w-auto");
+        expect(trigger).not.toHaveClass("w-7.5");
+        expect(trigger).toHaveTextContent("No Models");
+    });
+});
+
 describe("ModelToggleUI opened by its host", () => {
     it("opens on the selected model's group and reports the trigger closing it", async () => {
         const onOpenChange = vi.fn();
