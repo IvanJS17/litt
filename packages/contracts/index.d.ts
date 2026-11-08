@@ -970,6 +970,8 @@ export interface TrainingCriteriaContrast {
   id: string;
   org_id: string;
   chat_id: string;
+  /** The project the conversation lives in; null for a chat outside any project. */
+  project_id: string | null;
   status: TrainingCriteriaContrastStatus;
   routes: TrainingCriteriaContrastRoute[];
   /** The two analyses, in the order of `routes`; "" for one that did not run. */

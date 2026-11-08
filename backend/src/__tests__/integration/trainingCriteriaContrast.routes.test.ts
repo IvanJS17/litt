@@ -156,7 +156,7 @@ describe("the person's routes", () => {
         expect(res.status).toBe(200);
         expect(res.body.contrasts.map((c: { id: string }) => c.id)).toEqual([OPEN_ROW, SECRET_ROW]);
         expect(res.body.contrasts[0]).toMatchObject({
-            org_id: ORG, chat_id: OPEN_CHAT, status: "explained", briefs: ["Uno", "Dos"],
+            org_id: ORG, chat_id: OPEN_CHAT, project_id: OPEN_PROJECT, status: "explained", briefs: ["Uno", "Dos"],
             person_explanation: "Mi explicación de la divergencia.",
         });
         // Identifiers only: whatever else a row carried is not passed on.

@@ -63,10 +63,11 @@ function briefsOf(value: unknown): string[] | null {
     return Array.isArray(value) ? value.filter((brief): brief is string => typeof brief === "string") : null;
 }
 
-const presentMine = (row: Row): TrainingCriteriaContrast => ({
+const presentMine = (row: Row, projectId: string | null): TrainingCriteriaContrast => ({
     id: row.id,
     org_id: row.org_id,
     chat_id: row.chat_id,
+    project_id: projectId,
     status: row.status,
     routes: routesOf(row.routes),
     briefs: briefsOf(row.briefs),
@@ -95,7 +96,14 @@ export async function getMyCriteriaContrasts(
         const access = await assertLearningAccess(db, { actorId: args.userId, orgId: org, traineeId: args.userId });
         if (!access.ok) return access;
     }
-    return ok({ contrasts: rows.map(presentMine) });
+    // The project of each conversation, to link to the right chat route (a project's chat lives under it).
+    const projects = new Map<string, string | null>();
+    for (const chatId of new Set(rows.map((row) => row.chat_id))) {
+        const place = await workPlace(db, "chat", chatId);
+        if (!place.ok) return internalFailure(place.error);
+        projects.set(chatId, place.place?.projectId ?? null);
+    }
+    return ok({ contrasts: rows.map((row) => presentMine(row, projects.get(row.chat_id) ?? null)) });
 }
 
 /**

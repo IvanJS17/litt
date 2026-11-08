@@ -59,6 +59,7 @@ const contrast = (over: Partial<api.TrainingCriteriaContrast> = {}): api.Trainin
     id: "k1",
     org_id: ORG,
     chat_id: "chat-1",
+    project_id: null,
     status: "awaiting_person",
     routes: [route("rapida"), route("profunda")],
     briefs: ["El plazo corre desde la notificación.", "El plazo corre desde el emplazamiento."],
@@ -235,6 +236,24 @@ describe("the two columns and the explanation", () => {
         expect(screen.getByRole("link", { name: "Leer la explicación de la IA en la conversación" })).toHaveAttribute("href", "/assistant/chat/chat-1");
         // No score, no rank.
         expect(document.body.textContent).not.toMatch(/puntaje:|calificaci[oó]n|ranking/i);
+    });
+
+    it("links the conversation of a project chat under its project", async () => {
+        setup({
+            contrasts: [
+                contrast({
+                    status: "explained",
+                    project_id: "p-1",
+                    person_explanation: EXPLANATION,
+                    comparison: "Coincide\n- Algo.\nNo coincide\n- Nada\nFaltó\n- Nada",
+                }),
+            ],
+        });
+        render(intl(<ContrastPage />));
+        expect(await screen.findByRole("link", { name: "Leer la explicación de la IA en la conversación" })).toHaveAttribute(
+            "href",
+            "/projects/p-1/assistant/chat/chat-1",
+        );
     });
 
     it("a route that could not run is shown as failed and not replaced", async () => {

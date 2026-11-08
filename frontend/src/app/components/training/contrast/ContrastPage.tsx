@@ -310,7 +310,11 @@ export function ContrastCard({ contrast, onDone }: { contrast: TrainingCriteriaC
                     <h5 className="text-sm font-medium text-gray-900">{t("comparison")}</h5>
                     <ComparisonSections comparison={contrast.comparison} idPrefix={`${id}-cmp`} />
                     <Link
-                        href={`/assistant/chat/${encodeURIComponent(contrast.chat_id)}`}
+                        href={
+                            contrast.project_id
+                                ? `/projects/${encodeURIComponent(contrast.project_id)}/assistant/chat/${encodeURIComponent(contrast.chat_id)}`
+                                : `/assistant/chat/${encodeURIComponent(contrast.chat_id)}`
+                        }
                         className="inline-block rounded text-sm text-gray-900 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                         {t("seeAi")}
