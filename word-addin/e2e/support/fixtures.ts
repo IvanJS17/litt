@@ -512,7 +512,11 @@ export const test = base.extend<{ addin: Addin }>({
         // Resolve once React has mounted past the loading spinner into either
         // the login gate or the authenticated floating shell.
         await expect(
-          page.getByRole("button", { name: /^(Log in|Open menu)$/ }).first(),
+          page
+            .getByRole("button", {
+              name: /^(Log in|Iniciar sesión|Open menu)$/,
+            })
+            .first(),
         ).toBeVisible({
           timeout: 15_000,
         });
@@ -545,7 +549,11 @@ export const test = base.extend<{ addin: Addin }>({
       async reloadTaskpane() {
         await page.reload();
         await expect(
-          page.getByRole("button", { name: /^(Log in|Open menu)$/ }).first(),
+          page
+            .getByRole("button", {
+              name: /^(Log in|Iniciar sesión|Open menu)$/,
+            })
+            .first(),
         ).toBeVisible({ timeout: 15_000 });
       },
 

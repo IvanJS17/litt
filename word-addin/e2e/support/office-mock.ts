@@ -11,6 +11,12 @@
  */
 
 export interface OfficeSeed {
+  /**
+   * Office.context.displayLanguage. Defaults to en-US, so the existing specs
+   * keep seeing the source English; pass "es-ES", "fr-FR", ... to test how
+   * Word's language picks the pane's.
+   */
+  displayLanguage?: string;
   token?: string | null;
   refreshToken?: string | null;
   documentText?: string;
@@ -444,6 +450,7 @@ export function installOfficeMock(seed: OfficeSeed): void {
       return Promise.resolve(info);
     },
     context: {
+      displayLanguage: seed.displayLanguage ?? "en-US",
       document: officeDocument,
       ui: officeUi,
       // WordApi (incl. 1.3's Range.compareLocationWith) is mocked below; the
