@@ -23,6 +23,11 @@ vi.mock("@/app/lib/mikeApi", () => ({
 vi.mock("@/app/contexts/UserProfileContext", () => ({
     useUserProfile: vi.fn(),
 }));
+const selected = vi.hoisted(() => ({ model: "" }));
+vi.mock("@/app/hooks/useSelectedModel", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/hooks/useSelectedModel")>()),
+    useSelectedModel: () => [selected.model, vi.fn()],
+}));
 vi.mock("@/app/hooks/useConfiguredModels", () => ({
     useConfiguredModels: () => [],
 }));
@@ -87,6 +92,7 @@ function renderInput(canSend: boolean | null, onSubmit = vi.fn()) {
 describe("ChatInput canSend gating", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        selected.model = "";
         window.localStorage.clear();
         vi.stubGlobal("ResizeObserver", ResizeObserverMock);
         mockProfile();
@@ -146,6 +152,55 @@ describe("ChatInput canSend gating", () => {
 
         render(ui("chat-1"));
         expect(screen.getByPlaceholderText("How can I help?")).toHaveValue("Unsent question");
+    });
+
+    it("never restores a draft that was already sent", async () => {
+        const user = userEvent.setup();
+        const drafts: ComposerDraftStore = new Map();
+        const onSubmit = vi.fn();
+        selected.model = "claude-sonnet-4-6";
+        const ui = (
+            <ChatInput onSubmit={onSubmit} onCancel={vi.fn()} isLoading={false} canSend offerCredentialChoice={false} chatKey="chat-1" draftStore={drafts} />
+        );
+        const first = render(ui);
+        const box = screen.getByPlaceholderText("How can I help?");
+        await user.type(box, "Sent question");
+        expect(drafts.get("chat-1")?.value).toBe("Sent question");
+        await user.keyboard("{Enter}");
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+        expect(drafts.has("chat-1")).toBe(false);
+        first.unmount();
+        render(ui);
+        expect(screen.getByPlaceholderText("How can I help?")).toHaveValue("");
+    });
+
+    it("restores the latest text after a remount with the same key", async () => {
+        const user = userEvent.setup();
+        const drafts: ComposerDraftStore = new Map([["chat-1", { value: "AB", attachedDocs: [] }]]);
+        const ui = (
+            <ChatInput onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} chatKey="chat-1" draftStore={drafts} />
+        );
+        const first = render(ui);
+        const box = screen.getByPlaceholderText("How can I help?");
+        await user.clear(box);
+        await user.type(box, "A");
+        expect(drafts.get("chat-1")?.value).toBe("A");
+        first.unmount();
+        render(ui);
+        expect(screen.getByPlaceholderText("How can I help?")).toHaveValue("A");
+    });
+
+    it("restores attachments that were already uploaded", async () => {
+        const drafts: ComposerDraftStore = new Map();
+        const ref = createRef<ChatInputHandle>();
+        const ui = (
+            <ChatInput ref={ref} onSubmit={vi.fn()} onCancel={vi.fn()} isLoading={false} canSend chatKey="chat-1" draftStore={drafts} />
+        );
+        const first = render(ui);
+        act(() => ref.current?.addDoc({ id: "saved", filename: "saved.pdf" } as unknown as Document));
+        first.unmount();
+        render(ui);
+        expect(await screen.findByTitle(/saved\.pdf/)).toBeInTheDocument();
     });
 
     it("omits workflows and playbooks when workflow selection is hidden", async () => {

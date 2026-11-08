@@ -232,18 +232,14 @@ function ChatInputForChatImpl(
     const [attachedDocs, setAttachedDocs] = useState<Document[]>(
         restoredDraft?.attachedDocs ?? [],
     );
-    const latestDraft = useRef<ComposerDraft>({ value, attachedDocs });
-    latestDraft.current = { value, attachedDocs };
-    useEffect(
-        () => () => {
-            const draft = latestDraft.current;
-            if (!draftStore) return;
-            if (draft.value.trim() === "" && draft.attachedDocs.length === 0)
-                draftStore.delete(draftKey);
-            else draftStore.set(draftKey, draft);
-        },
-        [draftStore, draftKey],
-    );
+    // The store mirrors the composer on every change (not only on unmount),
+    // so a remount with the same key never sees an older or already-sent text.
+    useEffect(() => {
+        if (!draftStore) return;
+        if (value.trim() === "" && attachedDocs.length === 0)
+            draftStore.delete(draftKey);
+        else draftStore.set(draftKey, { value, attachedDocs });
+    }, [draftStore, draftKey, value, attachedDocs]);
     const [excerpts, setExcerpts] = useState<MessageExcerpt[]>([]);
     const [openExcerpt, setOpenExcerpt] = useState<MessageExcerpt | null>(
         null,
@@ -711,6 +707,7 @@ function ChatInputForChatImpl(
             return;
         }
         setValue("");
+        draftStore?.delete(draftKey);
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
         }
