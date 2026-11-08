@@ -90,6 +90,8 @@ begin
       jsonb_build_array(jsonb_build_object('row_id', gen_random_uuid(), 'column_index', 0, 'digest', 'abc')));
   insert into public.training_readings(org_id, trainee_user_id, project_id, status)
     values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
+  insert into public.training_retakes(org_id, trainee_user_id, topic_key, topic_label)
+    values (org, current_setting('litt.pupil')::uuid, 'prescripcion', 'Prescripción');
   -- Training audit events name the pupil only as target_user_id.
   insert into public.audit_events(user_id, action, surface, detail)
     values (current_setting('litt.owner')::uuid, 'training.urgency_pass_granted', 'organization',
