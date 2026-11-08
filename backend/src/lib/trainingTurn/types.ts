@@ -28,6 +28,8 @@ export type TrainingEnginePlan = {
     allowDocumentMutation?: false;
     includeAskInputs?: false;
     noSubagents?: true;
+    /** Offer compute_methodology (a junior's turn); absent for every other turn. */
+    methodology?: true;
 };
 
 /**

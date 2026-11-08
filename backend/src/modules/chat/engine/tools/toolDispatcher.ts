@@ -1,5 +1,7 @@
 import type { ConnectorApprovalItem, DocumentSearchEvent, TextCardEvent } from "@mike/contracts";
 import { textCardEvent } from "./textCard";
+import { METHODOLOGY_TOOL_NAME, runMethodology } from "./methodologyTool";
+import { methodologyText, readAnnexLocale } from "../../../../lib/methodology";
 import { internalFailure } from "../../../../lib/serviceResult";
 import { canUseWorkflowInWorkspace } from "../../../../lib/workflowWorkspace";
 import { AppError } from "../../../../lib/appError";
@@ -283,6 +285,15 @@ export async function runToolCalls(
     documentLocks?: KeyedLock;
     /** A subagent scoped to its docStore's documents: searches stay inside them. */
     documentsScoped?: boolean;
+    /** The turn was offered compute_methodology (a junior's training plan). */
+    methodology?: boolean;
+    /** What the person wrote in this turn: a figure they "gave" is checked against it. */
+    personMessage?: string;
+    /**
+     * May this turn write documents? The annex is only created when this is
+     * exactly `true`; left out, the steps come back as text (fail-closed).
+     */
+    allowDocumentMutation?: boolean;
   } = {},
 ): Promise<{
   toolResults: unknown[];
@@ -524,6 +535,59 @@ export async function runToolCalls(
           error: event.error,
         })}\n\n`,
       );
+      continue;
+    }
+
+    if (tc.function.name === METHODOLOGY_TOOL_NAME && options.methodology) {
+      const outcome = await runMethodology(args, {
+        readDocument: async (rawDocId) => {
+          const docId = resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
+          const info = docStore.get(docId);
+          if (!info) return null;
+          const text = await readDocumentContent(docId, docStore, write, docIndex, db, { emitEvents: false });
+          return { filename: info.filename, text };
+        },
+        text: methodologyText(await readAnnexLocale(db, userId)),
+        personMessage: options.personMessage ?? "",
+        now: () => new Date(),
+        generatedFor: options.userEmail || "",
+      });
+      if (!outcome.ok) {
+        toolResults.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify({ error: outcome.error }),
+        });
+        continue;
+      }
+      if (outcome.wantsAnnex && options.allowDocumentMutation === true) {
+        const title = outcome.annex.title;
+        const previewFilename = safeGeneratedFilename(title, "docx");
+        write(
+          `data: ${JSON.stringify({ type: "doc_created_start", filename: previewFilename })}\n\n`,
+        );
+        const generated = await generateDocx(title, outcome.annex.sections, userId, db, {
+          projectId: projectId ?? null,
+          orgId: options.orgId ?? null,
+        });
+        registerGeneratedDocument(
+          tc,
+          { ...(generated as Record<string, unknown>), calculation: outcome.payload },
+          previewFilename,
+          "docx",
+        );
+      } else {
+        toolResults.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: JSON.stringify({
+            ...outcome.payload,
+            annex: outcome.wantsAnnex
+              ? "not created: this conversation cannot write documents"
+              : "not requested",
+          }),
+        });
+      }
       continue;
     }
 

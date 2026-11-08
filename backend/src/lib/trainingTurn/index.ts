@@ -25,6 +25,7 @@ import { applyAttempt } from "./attempt";
 import { readTrainingBody } from "./body";
 import { confidenceBehavior } from "./confidence";
 import { hasUnverifiedCitation } from "./unverified";
+import { methodologyBehavior } from "./methodology";
 import type {
     ResolvedTurn,
     TrainingBehavior,
@@ -66,6 +67,7 @@ const BEHAVIORS: readonly Behavior[] = [
     attemptBehavior,
     confidenceBehavior,
     accountabilityBehavior,
+    methodologyBehavior,
 ];
 
 /**

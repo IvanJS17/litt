@@ -896,7 +896,137 @@
         "undetermined": "No determinado",
         "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
       },
-      "promotion": {}
+      "promotion": {},
+      "methodology": {
+        "annex": {
+          "headers": {
+            "concept": "Concepto",
+            "input": "Dato",
+            "operation": "Operación",
+            "source": "Fuente",
+            "step": "Paso",
+            "value": "Valor"
+          },
+          "sections": {
+            "basis": "Fundamento indicado",
+            "formula": "Fórmula",
+            "generation": "Generación",
+            "inputs": "Datos de origen",
+            "result": "Resultado",
+            "rounding": "Regla de redondeo",
+            "steps": "Pasos"
+          },
+          "stepNumber": "{number}. {label}",
+          "title": "Anexo de metodología - {title}"
+        },
+        "basis": {
+          "backed": "respaldado por una cita verificada",
+          "state": "{basis}\n\nEstado: {status}.",
+          "unverified": "sin verificar"
+        },
+        "compoundInterest": {
+          "formula": {
+            "amount": "M = C × (1 + T ÷ 100)^n",
+            "interest": "I = M − C"
+          },
+          "result": "Monto final",
+          "rounding": "{base} El factor acumulado se calcula exacto y solo se muestra a 10 decimales.",
+          "steps": {
+            "factor": "Factor acumulado (mostrado a 10 decimales)",
+            "finalAmount": "Monto final redondeado a centavos",
+            "growth": "Factor de crecimiento por periodo"
+          },
+          "title": "Interés compuesto"
+        },
+        "generation": {
+          "anonymous": "la persona usuaria",
+          "disclaimer": "Este anexo documenta una operación aritmética con los datos indicados. No es una opinión jurídica ni sustituye la revisión de un abogado. LiTT no aporta tasas ni índices: junto a cada dato se indica su fuente, o que no la tiene.",
+          "line": "Generado en LiTT para {person} el {date} (hora de la Ciudad de México).\n\n{disclaimer}"
+        },
+        "indexUpdate": {
+          "factor": "Factor de actualización",
+          "formula": {
+            "factor": "Factor = índice final ÷ índice inicial",
+            "updated": "Monto actualizado = Monto × Factor"
+          },
+          "result": "Monto actualizado",
+          "rounding": "{base} El monto se calcula con el cociente exacto de los índices, sin redondear el factor; el factor mostrado es solo informativo.",
+          "steps": {
+            "factor": "Factor de actualización (mostrado a 10 decimales)",
+            "updated": "Monto actualizado redondeado a centavos"
+          },
+          "title": "Actualización por factor de índice"
+        },
+        "inputs": {
+          "amount": "Monto a actualizar",
+          "dayBasis": "Base de días del año",
+          "denominator": "Total (denominador)",
+          "endDate": "Fecha final",
+          "finalIndex": "Índice final",
+          "initialIndex": "Índice inicial",
+          "numerator": "Parte (numerador)",
+          "periods": "Número de periodos",
+          "principal": "Capital",
+          "ratePercent": "Tasa (%)",
+          "startDate": "Fecha inicial"
+        },
+        "proportion": {
+          "formula": {
+            "percentage": "Porcentaje = parte ÷ total × 100",
+            "proportion": "Proporción = parte ÷ total"
+          },
+          "proportion": "Proporción",
+          "result": "Porcentaje",
+          "rounding": "El porcentaje se calcula con el cociente exacto y se redondea a 2 decimales, mitad hacia arriba (en valor absoluto). La proporción se muestra a 6 decimales.",
+          "steps": {
+            "percentage": "Porcentaje redondeado a 2 decimales",
+            "proportion": "Proporción (a 6 decimales)"
+          },
+          "title": "Proporción o porcentaje"
+        },
+        "rounding": {
+          "money": "La cuenta es exacta; solo se redondean las cifras publicadas, a centavos (2 decimales), mitad hacia arriba (en valor absoluto)."
+        },
+        "shared": {
+          "difference": "Diferencia",
+          "interest": "Interés",
+          "ratePerPeriod": "Tasa por periodo como fracción",
+          "roundingOf": "redondeo de {value}",
+          "total": "Total",
+          "totalWithInterest": "Total (capital + interés)"
+        },
+        "simpleInterest": {
+          "formula": {
+            "interest": "I = C × (T ÷ 100) × n",
+            "total": "Total = C + I"
+          },
+          "steps": {
+            "exactInterest": "Interés exacto",
+            "roundedInterest": "Interés redondeado a centavos"
+          },
+          "title": "Interés simple"
+        },
+        "simpleInterestDays": {
+          "formula": {
+            "days": "Días = fecha final − fecha inicial",
+            "interest": "I = C × (T ÷ 100) × Días ÷ Base"
+          },
+          "steps": {
+            "annualRate": "Tasa anual como fracción",
+            "days": "Días naturales",
+            "numerator": "Numerador exacto"
+          },
+          "title": "Interés simple por días"
+        },
+        "source": {
+          "documentUnverified": "Cita no localizada (sin verificar)",
+          "documentUnverifiedIn": "Cita no localizada en «{filename}» (sin verificar)",
+          "documentVerified": "«{filename}»: «{excerpt}» (cita verificada)",
+          "none": "Sin fuente",
+          "person": "Dato dado por la persona",
+          "personUnverified": "No encontrado en tu mensaje (sin verificar)"
+        }
+      }
     },
     "firmCriteria": {}
   },
