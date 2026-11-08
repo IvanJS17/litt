@@ -58,7 +58,7 @@
     },
     "signup": {
       "accountCreated": "Account created!",
-      "confirmPassword": "Confirm Password",
+      "confirmPassword": "Confirm password",
       "continue": "Continue",
       "creatingAccount": "Creating account...",
       "email": "Email",
