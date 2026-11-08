@@ -58,6 +58,7 @@ trainingRouter.get("/stage", requireAuth, asyncRoute(async (req, res) => {
         orgId: req.query.org_id,
         projectId: req.query.project_id,
         surface: req.query.surface,
+        chatId: req.query.chat_id,
     }));
 }));
 

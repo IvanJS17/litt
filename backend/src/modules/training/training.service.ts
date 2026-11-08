@@ -47,7 +47,9 @@ import {
     TRAINING_PRACTICE_MAX_CHARS,
     type TrainingScope,
 } from "../../lib/training";
+import { ladderOf, loadLadderNotesAnywhere } from "../../lib/trainingHint";
 import { resolveTurnTraining } from "../../lib/trainingPass";
+import { availableModes } from "../../lib/trainingTurn";
 import { isUuid } from "../../lib/uuid";
 
 type Actor = { actorId: string; actorEmail?: string | null; orgId: string };
@@ -160,6 +162,46 @@ export async function getMyTraining(
  * itself; this only tells the client what to show.
  */
 export async function getEffectiveTrainingStage(
+    db: Db,
+    args: {
+        userId: string;
+        userEmail?: string | null;
+        orgId?: unknown;
+        projectId?: unknown;
+        surface?: unknown;
+        /** The chat the turn would continue: the hint ladder is counted from its notes. */
+        chatId?: unknown;
+    },
+): Promise<ServiceResult<TrainingEffectiveStage>> {
+    const base = await effectiveStageOf(db, args);
+    if (!base.ok) return base;
+    return withModes(db, args.userId, args.chatId, base.data);
+}
+
+/**
+ * The modes open to the caller now and the rung the next hint would be
+ * (hints and the counterparty's lawyer). Counted by the server from the
+ * caller's own notes of that chat, as the turn counts them; the client only
+ * shows what it is told.
+ */
+async function withModes(
+    db: Db,
+    userId: string,
+    chatId: unknown,
+    base: TrainingEffectiveStage,
+): Promise<ServiceResult<TrainingEffectiveStage>> {
+    const owes = base.attempt_required;
+    const id = owes ? readUserId(chatId) : null;
+    let notes: Parameters<typeof ladderOf>[0] = [];
+    if (id) {
+        const loaded = await loadLadderNotesAnywhere(db, { userId, chatId: id });
+        if (!loaded.ok) return internalFailure(loaded.error);
+        notes = loaded.notes;
+    }
+    return ok({ ...base, ...availableModes(owes, ladderOf(notes)) });
+}
+
+async function effectiveStageOf(
     db: Db,
     args: {
         userId: string;
