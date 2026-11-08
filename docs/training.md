@@ -1107,7 +1107,8 @@ retake row keeps no practice area (nothing reads it yet: the plan's column can
 be added when calibration by practice area needs it); the labels offered to the
 contrast are the person's across all their notes in the organization, not per
 practice area; a retake that cannot be judged goes back to `open` instead of
-being discarded; the codes added are `training_retake_in_progress`,
+being discarded; the states are `pending | open | answered | failed` (the plan's; there is no
+`settled`); the codes added are `training_retake_in_progress`,
 `training_retake_not_due` and `training_retake_not_open`.
 
 ## Periodic full reading (layer 3)

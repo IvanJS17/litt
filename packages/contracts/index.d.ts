@@ -827,7 +827,7 @@ export interface TrainingRetake {
   org_id: string;
   topic_key: string;
   topic_label: string;
-  /** A `pending` row the server lost track of reads as `failed`. */
+  /** A `pending` row the server lost track of reads as `open` if it has a question (the answer was never saved), else `failed`. */
   status: TrainingRetakeStatus;
   question: string | null;
   answer: string | null;
