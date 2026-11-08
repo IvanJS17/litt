@@ -204,6 +204,8 @@
       "chat_route_pinned": "Esta conversación usa el modelo con el que empezó. Inicia una conversación nueva para usar otro modelo.",
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",
+      "firm_criteria_limit_reached": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
+      "firm_criteria_rule_not_found": "Esa regla no está en un playbook de tu despacho que puedas abrir.",
       "invalid_json": "No se pudo leer la solicitud. Recarga la página e inténtalo de nuevo.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
       "matter_owner_target_invalid": "Elige a un miembro actual de la organización.",

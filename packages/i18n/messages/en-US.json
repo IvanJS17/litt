@@ -204,6 +204,8 @@
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
       "cookie_session_required": "Sign in again to continue.",
       "email_address_invalid": "Enter a valid email address.",
+      "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
+      "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
       "matter_has_owner": "This matter already has an owner.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
