@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { TextButtonUI } from "@mike/ui";
 import type {
     TrainingDefense,
     TrainingReviewItem,
@@ -10,7 +11,24 @@ import type {
 // What the mentor and the pupil both see of a review and of a defense: the
 // same component on both sides, so neither sees more than the other.
 
-function ReviewRow({ label, items }: { label: string; items: TrainingReviewItem[] | null }) {
+/** What the mentor's panel adds to a held-draft line: approving it in place. */
+export interface ApproveVersion {
+    /** Opens the confirmation for this line's document and version. */
+    onApprove: (item: TrainingReviewItem & { document_id: string; ref: string }) => void;
+    /** Versions approved from this panel since the review was generated. */
+    approved: ReadonlySet<string>;
+    disabled: boolean;
+}
+
+function ReviewRow({
+    label,
+    items,
+    approve,
+}: {
+    label: string;
+    items: TrainingReviewItem[] | null;
+    approve?: ApproveVersion;
+}) {
     const t = useTranslations("training.review");
     return (
         <div className="min-w-0 space-y-1">
@@ -24,6 +42,12 @@ function ReviewRow({ label, items }: { label: string; items: TrainingReviewItem[
                                 {item.source === "inferred" && (
                                     <span className="text-gray-500"> ({t("inferred")})</span>
                                 )}
+                                {approve && item.source === "version" && item.document_id && item.ref && (
+                                    <ApproveLine
+                                        item={{ ...item, document_id: item.document_id, ref: item.ref }}
+                                        approve={approve}
+                                    />
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -35,8 +59,43 @@ function ReviewRow({ label, items }: { label: string; items: TrainingReviewItem[
     );
 }
 
-/** A review's four rows, or its generation state. */
-export function ReviewLines({ review }: { review: TrainingWorkReview }) {
+function ApproveLine({
+    item,
+    approve,
+}: {
+    item: TrainingReviewItem & { document_id: string; ref: string };
+    approve: ApproveVersion;
+}) {
+    const t = useTranslations("training.review");
+    if (approve.approved.has(item.ref))
+        return <span className="text-gray-500"> · {t("approved")}</span>;
+    return (
+        <>
+            {" "}
+            <TextButtonUI
+                size="xs"
+                aria-label={t("approveName", { text: item.text })}
+                disabled={approve.disabled}
+                onClick={() => approve.onApprove(item)}
+                className="text-foreground"
+            >
+                {t("approve")}
+            </TextButtonUI>
+        </>
+    );
+}
+
+/**
+ * A review's four rows, or its generation state. With `approve` (the
+ * mentor's panel only) a held draft's line can be approved in place.
+ */
+export function ReviewLines({
+    review,
+    approve,
+}: {
+    review: TrainingWorkReview;
+    approve?: ApproveVersion;
+}) {
     const t = useTranslations("training.review");
     if (review.status === "pending") return <p className="text-sm text-gray-500">{t("pending")}</p>;
     if (review.status === "failed") return <p className="text-sm text-gray-500">{t("failed")}</p>;
@@ -46,7 +105,7 @@ export function ReviewLines({ review }: { review: TrainingWorkReview }) {
                 <ReviewRow label={t("proposed")} items={review.proposed} />
                 <ReviewRow label={t("aiCorrected")} items={review.ai_corrected} />
                 <ReviewRow label={t("doubts")} items={review.doubts} />
-                <ReviewRow label={t("unverified")} items={review.unverified} />
+                <ReviewRow label={t("unverified")} items={review.unverified} approve={approve} />
             </dl>
             <div className="space-y-0.5 text-sm text-gray-500">
                 {review.generated_at && (

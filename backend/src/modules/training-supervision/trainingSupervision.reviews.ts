@@ -3,7 +3,8 @@
 // Who: only the pupil's CURRENT mentor generates, lists and marks reviews
 // (assertLearningAccess, actor ≠ pupil); the pupil reads theirs through
 // GET /training/me/supervision. A work done in a matter the mentor cannot
-// open is only counted (works_without_access), never shown.
+// open is only counted (works_without_access), never shown; the pupil's own
+// list leaves those out too, so it is exactly what the mentor sees.
 //
 // With what: the MENTOR's route (governed BYOK), never the pupil's
 // conversation route. The route is fixed per review and stored on the row
@@ -144,16 +145,61 @@ async function loadReviews(
     return ok((data ?? []) as unknown as ReviewRow[]);
 }
 
-/** The pupil's own reviews in one organization (GET /training/me/supervision). */
+/** The pupil's current mentor and their email, or null when they have none. */
+async function currentMentor(
+    db: Db,
+    orgId: string,
+    traineeId: string,
+): Promise<ServiceResult<{ id: string; email: string | null } | null>> {
+    const pupil = await db
+        .from("training_pupils")
+        .select("mentor_user_id")
+        .eq("org_id", orgId)
+        .eq("trainee_user_id", traineeId)
+        .maybeSingle();
+    if (pupil.error) return internalFailure(pupil.error);
+    const id = (pupil.data as { mentor_user_id?: string } | null)?.mentor_user_id;
+    if (!id) return ok(null);
+    const profile = await db.from("user_profiles").select("email").eq("user_id", id).maybeSingle();
+    if (profile.error) return internalFailure(profile.error);
+    return ok({ id, email: (profile.data as { email?: string | null } | null)?.email ?? null });
+}
+
+/**
+ * The pupil's own reviews in one organization (GET /training/me/supervision),
+ * which is what their CURRENT mentor sees of them: the mentor's Trabajos tab
+ * leaves out the works of matters the mentor cannot open, so this does too,
+ * by the same test. With no mentor nobody reads them, so nothing is listed.
+ */
 export async function listOwnReviews(
     db: Db,
     args: { orgId: string; traineeId: string },
 ): Promise<ServiceResult<TrainingWorkReview[]>> {
     const rows = await loadReviews(db, args.orgId, args.traineeId);
     if (!rows.ok) return rows;
+    const mentor = await currentMentor(db, args.orgId, args.traineeId);
+    if (!mentor.ok) return mentor;
+    const seen: ReviewRow[] = [];
+    if (mentor.data) {
+        for (const row of rows.data) {
+            const at = surfaceOf(row);
+            if (!at) continue;
+            const place = await workPlace(db, at.surface, at.chatId);
+            if (!place.ok) return internalFailure(place.error);
+            if (
+                place.place &&
+                (await mayOpenWorkMatter(db, {
+                    projectId: place.place.projectId,
+                    actorId: mentor.data.id,
+                    actorEmail: mentor.data.email,
+                }))
+            )
+                seen.push(row);
+        }
+    }
     const now = Date.now();
     return ok(
-        rows.data
+        seen
             .map((row) => serializeReview(row, now))
             .sort((a, b) => (b.covered_through ?? "").localeCompare(a.covered_through ?? "")),
     );

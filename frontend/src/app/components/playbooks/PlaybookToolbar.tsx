@@ -22,6 +22,7 @@ export function PlaybookToolbar({
   onAddRule,
   onUpload,
   onNewRun,
+  runDisabled = false,
 }: {
   disabled: boolean;
   canEdit: boolean;
@@ -32,6 +33,8 @@ export function PlaybookToolbar({
   onUpload: () => void;
   /** Opens the new-run form; shown on Runs. */
   onNewRun: () => void;
+  /** LiTT: a draft cannot be run until it is marked ready. */
+  runDisabled?: boolean;
 }) {
   return (
     <nav aria-label="Playbook toolbar" className="shrink-0">
@@ -63,7 +66,7 @@ export function PlaybookToolbar({
               </TabPillButtonUI>
             )}
             {view === "runs" && (
-              <TabPillButtonUI disabled={disabled} onClick={onNewRun}>
+              <TabPillButtonUI disabled={disabled || runDisabled} onClick={onNewRun}>
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
                 New run
               </TabPillButtonUI>

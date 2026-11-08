@@ -160,7 +160,7 @@ export type WorkSignals = {
 export function computeWorkLines(args: {
     notes: readonly NoteRow[];
     citations: { messageId: string; citation: Citation }[];
-    heldVersions: { id: string; filename: string | null }[];
+    heldVersions: { id: string; filename: string | null; document_id: string }[];
 }): Pick<WorkSignals, "proposed" | "unverified"> & { citationsUnverified: number } {
     const proposed = args.notes.slice(-REVIEW_MAX_NOTES).map((note) => ({
         source: "attempt",
@@ -197,6 +197,9 @@ export function computeWorkLines(args: {
             source: "version",
             text: clip(`Borrador de pasante sin aprobar${version.filename ? `: ${version.filename}` : ""}`, LINE_MAX_CHARS),
             ref: version.id,
+            // So the mentor can approve it from the row (the existing
+            // approval route is keyed by document and version).
+            document_id: version.document_id,
         });
     }
     for (const note of args.notes) {
@@ -242,6 +245,7 @@ export async function loadWorkSignals(
 
     const versions = await selectIn<{
         id: string;
+        document_id: string;
         filename: string | null;
         training_stage: SealStage;
         training_author_user_id: string | null;
@@ -250,7 +254,7 @@ export async function loadWorkSignals(
     }>(
         db,
         "document_versions",
-        "id, filename, training_stage, training_author_user_id, content_sha256, deleted_at",
+        "id, document_id, filename, training_stage, training_author_user_id, content_sha256, deleted_at",
         "id",
         [...versionIds],
     );

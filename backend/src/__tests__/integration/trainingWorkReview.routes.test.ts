@@ -85,6 +85,8 @@ const PROJECT = id(300);
 const ASSISTANT_MSG = id(400);
 const VERSION_HELD = id(500);
 const VERSION_APPROVED = id(501);
+const DOC_HELD = id(600);
+const DOC_APPROVED = id(601);
 
 const ATTEMPT = "Considero que procede la rescisión por falta de pago, con base en lo pactado en el contrato.";
 const CONTRAST = "Coincide\n- La vía\nNo coincide\n- El plazo aplicable\nFaltó\n- Revisar la cláusula penal";
@@ -137,11 +139,12 @@ function seed() {
                 { chat_message_id: ASSISTANT_MSG, version_id: VERSION_APPROVED, status: "rejected" },
             ],
             document_versions: [
-                version(VERSION_HELD, "borrador.docx", "h1"),
-                version(VERSION_APPROVED, "aprobado.docx", "h2"),
+                version(VERSION_HELD, "borrador.docx", "h1", DOC_HELD),
+                version(VERSION_APPROVED, "aprobado.docx", "h2", DOC_APPROVED),
             ],
             training_version_approvals: [{ document_version_id: VERSION_APPROVED, content_sha256: "h2" }],
             training_work_reviews: [],
+            user_profiles: [{ user_id: MENTOR, email: `${MENTOR}@test.local` }],
         },
         {
             // training_can_read_learning, as 20261107_60 states it.
@@ -183,9 +186,10 @@ function note(noteId: string, chat: Row, createdAt: string): Row {
         created_at: createdAt,
     };
 }
-function version(versionId: string, filename: string, sha: string): Row {
+function version(versionId: string, filename: string, sha: string, documentId: string): Row {
     return {
         id: versionId,
+        document_id: documentId,
         filename,
         training_stage: "pasante",
         training_author_user_id: PUPIL,
@@ -318,6 +322,59 @@ describe("works in a matter the mentor cannot open", () => {
     });
 });
 
+describe("what the pupil reads is what the mentor sees", () => {
+    const readyRow = (chat: Row): Row => ({
+        id: id(700),
+        org_id: ORG,
+        trainee_user_id: PUPIL,
+        chat_id: null,
+        word_chat_id: null,
+        tabular_chat_id: null,
+        status: "ready",
+        covered_through: new Date().toISOString(),
+        proposed: [],
+        ai_corrected: [],
+        doubts: [],
+        unverified: [],
+        signals: {},
+        updated_at: new Date().toISOString(),
+        ...chat,
+    });
+    const mine = async () =>
+        (await as(PUPIL).get(`/training/me/supervision?org_id=${ORG}`)).body.work_reviews.map(
+            (r: { chat_id: string }) => r.chat_id,
+        );
+
+    it("leaves out the review of a matter the current mentor cannot open", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        await as(MENTOR).post(review()).send({});
+        expect(await mine()).toEqual([CHAT]);
+        // The mentor's own tab lists the same single work.
+        const list = await as(MENTOR).get(works);
+        expect(list.body.works.map((w: { chat_id: string }) => w.chat_id)).toEqual([CHAT]);
+    });
+
+    it("control: lists it once the mentor can open that matter", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        expect(await mine()).toEqual([MATTER_CHAT]);
+    });
+
+    it("follows the CURRENT mentor, not the one who generated it", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
+        h.openable.add(`${PROJECT}:${MENTOR}`);
+        expect(await mine()).toEqual([MATTER_CHAT]);
+        h.state!.tables.training_pupils[0].mentor_user_id = FORMER_MENTOR;
+        expect(await mine()).toEqual([]);
+    });
+
+    it("lists nothing when the pupil has no mentor, since nobody reads it", async () => {
+        h.state!.tables.training_work_reviews.push(readyRow({ chat_id: CHAT }));
+        h.state!.tables.training_pupils.length = 0;
+        expect(await mine()).toEqual([]);
+    });
+});
+
 describe("the review", () => {
     it("computes what it can and asks the model only to order the rest", async () => {
         const res = await as(MENTOR).post(review()).send({});
@@ -345,10 +402,33 @@ describe("the review", () => {
         // draft still held (not the approved one) and «Faltó».
         expect(res.body.unverified).toEqual([
             { source: "citation", text: "Cita sin verificar (contrato.pdf): «la pena convencional»", ref: ASSISTANT_MSG },
-            { source: "version", text: "Borrador de pasante sin aprobar: borrador.docx", ref: VERSION_HELD },
+            {
+                source: "version",
+                text: "Borrador de pasante sin aprobar: borrador.docx",
+                ref: VERSION_HELD,
+                // What the existing approval route is keyed by, with ref.
+                document_id: DOC_HELD,
+            },
             { source: "contrast", text: "Faltó: Revisar la cláusula penal", ref: "n1" },
         ]);
         expect(res.body.covered_through).toBe(h.state!.tables.training_turn_notes[0].created_at);
+    });
+
+    it("carries the held draft's document_id to the mentor and, read-only, to the pupil", async () => {
+        const generated = await as(MENTOR).post(review()).send({});
+        const line = (body: { unverified: { source: string; document_id?: string }[] }) =>
+            body.unverified.filter((item) => item.source === "version");
+        expect(line(generated.body)).toEqual([expect.objectContaining({ ref: VERSION_HELD, document_id: DOC_HELD })]);
+        // The line stays on the review the mentor lists, and only they can act on it:
+        // every other caller's route answers the uniform 404.
+        const listed = await as(MENTOR).get(works);
+        expect(line(listed.body.works[0].review)).toEqual([
+            expect.objectContaining({ ref: VERSION_HELD, document_id: DOC_HELD }),
+        ]);
+        expect((await as(FORMER_MENTOR).get(works)).status).toBe(404);
+        expect((await as(OWNER).get(works)).status).toBe(404);
+        // Never the approved version's document.
+        expect(JSON.stringify(generated.body)).not.toContain(DOC_APPROVED);
     });
 
     it("serves a Word work through its own column (chat_id is null there)", async () => {

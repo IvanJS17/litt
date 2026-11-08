@@ -2459,10 +2459,17 @@ export async function recordDefenseOutcome(
     );
 }
 
-export async function getPupilPasses(orgId: string, userId: string) {
+/**
+ * The pupil's passes. With `projectIds` the answer also carries
+ * `grantable_project_ids`: those matters a pass can be granted on.
+ */
+export async function getPupilPasses(orgId: string, userId: string, projectIds?: string[]) {
+    const query = projectIds
+        ? `?project_ids=${projectIds.map(encodeURIComponent).join(",")}`
+        : "";
     return apiRequest<import("@mike/contracts").TrainingUrgencyPasses>(
         "training.manage",
-        `${pupilPath(orgId, userId)}/passes`,
+        `${pupilPath(orgId, userId)}/passes${query}`,
     );
 }
 
@@ -4711,6 +4718,27 @@ export interface PlaybookRule {
     conditions: string[];
     actions: Array<{ scenario: string; instruction: string }>;
     sourceRefs: string[];
+    /** LiTT: where a drafted rule comes from; set by the server, never edited. */
+    origin?: PlaybookRuleOrigin;
+    /** LiTT: legal references a drafted rule mentions, each verified or not. */
+    legalRefs?: PlaybookLegalRef[];
+}
+/** LiTT: an answer (questionIds), an attached clause (sourceId) or general practice. */
+export interface PlaybookRuleOrigin {
+    kind: "answer" | "clause" | "ai_general";
+    questionIds?: string[];
+    /** A reference document of the playbook. */
+    sourceId?: string;
+    quote?: string;
+    note?: string;
+    /** "Suggestion without backing, review". */
+    unbacked: boolean;
+}
+export interface PlaybookLegalRef {
+    text: string;
+    verified: boolean;
+    sourceId?: string;
+    quote?: string;
 }
 export interface PlaybookTopic {
     id: string;
@@ -4749,6 +4777,17 @@ export interface Playbook {
     content: PlaybookContent;
     sourceFilename: string | null;
     importModel: string | null;
+    /** LiTT: a draft cannot be used in a review until an editor marks it ready. */
+    status: "draft" | "ready";
+    /** LiTT: offered first when starting a new playbook in its workspace. */
+    isModel: boolean;
+    /** LiTT: the playbook a copy started from, while it exists. */
+    derivedFromPlaybookId: string | null;
+    /**
+     * LiTT: the answers it was drafted from, by question id. Only on
+     * getPlaybook, and only for an editor or owner; null when not drafted.
+     */
+    intake?: { answers: Record<string, string> } | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -4937,6 +4976,8 @@ export async function createPlaybook(
 /** An import compiling on the server, which the page follows by polling. */
 export interface PlaybookImport {
     id: string;
+    /** LiTT: a file import, a draft from the questionnaire, or proposals for a copy. */
+    kind?: "import" | "draft" | "proposal";
     status: "running" | "completed" | "failed";
     stage: string;
     error: string | null;
@@ -4976,7 +5017,16 @@ export async function startPlaybookImport(
             body: JSON.stringify({ documentId: source.documentId, ...options }),
         });
     }
-    const file = source;
+    const storageKey = await stagePlaybookUpload(source);
+    return apiRequest<PlaybookImport>("playbooks.import", "/playbooks/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageKey, filename: source.name, ...options }),
+    });
+}
+
+/** Puts a file straight to storage under a signed URL; returns its staged key. */
+async function stagePlaybookUpload(file: File): Promise<string> {
     const staged = await apiRequest<{
         uploadUrl: string;
         storageKey: string;
@@ -4986,7 +5036,6 @@ export async function startPlaybookImport(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, sizeBytes: file.size }),
     });
-
     const upload = await fetch(staged.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": staged.contentType },
@@ -4995,15 +5044,78 @@ export async function startPlaybookImport(
     if (!upload.ok) {
         throw new Error("The playbook could not be uploaded. Please try again.");
     }
+    return staged.storageKey;
+}
 
-    return apiRequest<PlaybookImport>("playbooks.import", "/playbooks/import", {
+/** LiTT: the fixed questions a draft starts from, and their limits. */
+export interface PlaybookQuestionnaire {
+    questions: Array<{ id: string; text: string; help?: string }>;
+    maxAnswerChars: number;
+    maxAnswersChars: number;
+    maxAttachments: number;
+}
+
+export async function getPlaybookQuestionnaire(): Promise<PlaybookQuestionnaire> {
+    return apiRequest("playbooks.import", "/playbooks/questionnaire");
+}
+
+/**
+ * LiTT: asks the model for a draft from the questionnaire. Each attachment is
+ * uploaded first, as an import is, or named by a saved document's id; the
+ * draft then compiles on the server and is followed like an import.
+ */
+export async function startPlaybookDraft(
+    request: {
+        model: string;
+        name?: string;
+        visibility?: Playbook["visibility"];
+        answers: Record<string, string>;
+        attachments: Array<File | { documentId: string }>;
+    },
+    workspace?: string | null,
+): Promise<PlaybookImport> {
+    const attachments = [];
+    for (const attachment of request.attachments)
+        attachments.push(
+            attachment instanceof File
+                ? { storageKey: await stagePlaybookUpload(attachment), filename: attachment.name }
+                : { documentId: attachment.documentId },
+        );
+    return apiRequest<PlaybookImport>("playbooks.import", "/playbooks/drafts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-            storageKey: staged.storageKey,
-            filename: file.name,
-            ...options,
+            model: request.model,
+            ...(request.name?.trim() ? { name: request.name.trim() } : {}),
+            ...(request.visibility ? { visibility: request.visibility } : {}),
+            ...(workspace ? { workspace } : {}),
+            answers: request.answers,
+            attachments,
         }),
+    });
+}
+
+/** LiTT: marks a draft ready, or sets or clears the model mark. Editor or owner. */
+export async function setPlaybookState(
+    playbookId: string,
+    state: { status?: "ready"; isModel?: boolean },
+): Promise<Playbook> {
+    return apiRequest("playbooks.save", `/playbooks/${encodeURIComponent(playbookId)}/state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state),
+    });
+}
+
+/** LiTT: an independent copy of a playbook the caller can open, as the caller's draft. */
+export async function copyPlaybook(
+    playbookId: string,
+    workspace?: string | null,
+): Promise<Playbook> {
+    return apiRequest("playbooks.save", `/playbooks/${encodeURIComponent(playbookId)}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(workspace ? { workspace } : {}),
     });
 }
 

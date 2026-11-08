@@ -1372,6 +1372,8 @@ describe("training supervision API", () => {
         ["questions", () => generateDefenseQuestions("o 1", "u1", "d1", null), "POST", `${base}/defenses/d1/questions`, {}],
         ["outcome", () => recordDefenseOutcome("o 1", "u1", "d1", { outcome: "approved", reason: "otro" }), "PUT", `${base}/defenses/d1/outcome`, { outcome: "approved", reason: "otro" }],
         ["passes", () => getPupilPasses("o 1", "u1"), "GET", `${base}/passes`, undefined],
+        ["passes among matters", () => getPupilPasses("o 1", "u1", ["p1", "p 2"]), "GET", `${base}/passes?project_ids=p1,p%202`, undefined],
+        ["passes among no matters", () => getPupilPasses("o 1", "u1", []), "GET", `${base}/passes?project_ids=`, undefined],
         ["grant", () => grantUrgencyPass("o 1", "u1", { project_id: "p1", reason_code: "plazo" }), "POST", `${base}/passes`, { project_id: "p1", reason_code: "plazo" }],
         ["revoke", () => revokeUrgencyPass("o 1", "u1", "x1"), "DELETE", `${base}/passes/x1`, undefined],
         ["promotion", () => getPupilPromotion("o 1", "u1"), "GET", `${base}/promotion`, undefined],

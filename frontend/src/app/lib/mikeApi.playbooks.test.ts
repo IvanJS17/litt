@@ -25,6 +25,10 @@ import {
   listPlaybooks,
   reviewDocumentWithPlaybook,
   updatePlaybook,
+  getPlaybookQuestionnaire,
+  startPlaybookDraft,
+  setPlaybookState,
+  copyPlaybook,
   type PlaybookContent,
 } from "./mikeApi";
 
@@ -96,6 +100,34 @@ describe("Playbooks API requests", () => {
       url: path,
       method: "PUT",
       body: { content },
+    },
+    {
+      name: "questionnaire",
+      call: getPlaybookQuestionnaire,
+      url: "/api/playbooks/questionnaire",
+      method: "GET",
+      body: undefined,
+    },
+    {
+      name: "state",
+      call: () => setPlaybookState(id, { status: "ready" }),
+      url: `${path}/state`,
+      method: "PATCH",
+      body: { status: "ready" },
+    },
+    {
+      name: "copy",
+      call: () => copyPlaybook(id),
+      url: `${path}/copy`,
+      method: "POST",
+      body: {},
+    },
+    {
+      name: "copy into a workspace",
+      call: () => copyPlaybook(id, "org-1"),
+      url: `${path}/copy`,
+      method: "POST",
+      body: { workspace: "org-1" },
     },
     {
       name: "workspace list",
@@ -430,6 +462,74 @@ describe("Playbook direct upload", () => {
       startPlaybookImport(new File(["text"], "guide.txt"), "test-model"),
     ).rejects.toThrow("Playbook import requires a .docx or .pdf file.");
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("A draft from the questionnaire", () => {
+  const staged = {
+    uploadUrl: "https://storage.example/signed-upload",
+    storageKey: "playbooks/u1/imports/clauses.docx",
+    contentType: "application/pdf",
+  };
+
+  it("uploads each file, names saved documents by id, and posts the answers", async () => {
+    const file = new File(["clauses"], "clauses.pdf");
+    fetchMock
+      .mockResolvedValueOnce(json(staged))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
+      .mockResolvedValueOnce(json({ id: "draft-1", kind: "draft" }, 202));
+
+    await expect(
+      startPlaybookDraft(
+        {
+          model: "test-model",
+          name: "  Leases  ",
+          visibility: "organization",
+          answers: { q6: "Never waive warranty." },
+          attachments: [file, { documentId: "doc-1" }],
+        },
+        "org-1",
+      ),
+    ).resolves.toEqual({ id: "draft-1", kind: "draft" });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, staged.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": staged.contentType },
+      body: file,
+    });
+    const [url, init] = fetchMock.mock.calls[2] as [string, RequestInit];
+    expect(url).toBe("/api/playbooks/drafts");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(String(init.body))).toEqual({
+      model: "test-model",
+      name: "Leases",
+      visibility: "organization",
+      workspace: "org-1",
+      answers: { q6: "Never waive warranty." },
+      attachments: [
+        { storageKey: staged.storageKey, filename: "clauses.pdf" },
+        { documentId: "doc-1" },
+      ],
+    });
+  });
+
+  it("sends only the model, answers and attachments when nothing else is set", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "draft-2" }, 202));
+    await startPlaybookDraft({ model: "m", name: "  ", answers: {}, attachments: [] });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      model: "m",
+      answers: {},
+      attachments: [],
+    });
+  });
+
+  it("asks for no draft when an attachment fails to upload", async () => {
+    fetchMock
+      .mockResolvedValueOnce(json(staged))
+      .mockResolvedValueOnce(new Response("private", { status: 500 }));
+    await expect(
+      startPlaybookDraft({ model: "m", answers: {}, attachments: [new File(["x"], "a.docx")] }),
+    ).rejects.toThrow("The playbook could not be uploaded. Please try again.");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

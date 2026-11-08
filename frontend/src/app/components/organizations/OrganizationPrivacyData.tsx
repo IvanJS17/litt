@@ -203,11 +203,25 @@ function SkeletonText({ children }: { children: string }) {
 /**
  * Stands in for the two owner-only sections while the organization loads,
  * with their real headings, rows and wording, so nothing below moves when
- * they arrive.
+ * they arrive. `owner` is whether the workspace list already says the caller
+ * owns the organization; when it does not say (the list is still loading),
+ * the same layout is drawn without the toggles and the button, so it
+ * promises no control. Owners are the commonest visitors, hence their height.
  */
-function OwnerSectionsSkeleton({ orgName }: { orgName: string }) {
+function OwnerSectionsSkeleton({
+  orgName,
+  owner,
+}: {
+  orgName: string;
+  owner: boolean;
+}) {
   return (
-    <div aria-hidden="true" data-slot="org-privacy-skeleton" className="space-y-8">
+    <div
+      aria-hidden="true"
+      data-slot="org-privacy-skeleton"
+      data-role={owner ? "owner" : "unknown"}
+      className="space-y-8"
+    >
       <div className="space-y-3">
         <SettingsHeading>
           <SkeletonText>Members&apos; data</SkeletonText>
@@ -223,7 +237,9 @@ function OwnerSectionsSkeleton({ orgName }: { orgName: string }) {
                   <SkeletonText>{row.description(orgName)}</SkeletonText>
                 </SettingsDescription>
               </div>
-              <span className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none" />
+              {owner ? (
+                <span className="h-5 w-9 shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none" />
+              ) : null}
             </SettingsRow>
           ))}
         </GlassCardUI>
@@ -244,7 +260,9 @@ function OwnerSectionsSkeleton({ orgName }: { orgName: string }) {
                 </SkeletonText>
               </SettingsDescription>
             </div>
-            <span className="h-7 w-full shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none sm:w-[4.25rem]" />
+            {owner ? (
+              <span className="h-7 w-full shrink-0 animate-pulse rounded-full bg-gray-200 motion-reduce:animate-none sm:w-[4.25rem]" />
+            ) : null}
           </SettingsRow>
         </GlassCardUI>
       </div>
@@ -260,16 +278,20 @@ export function OrganizationPrivacyData() {
   const { orgId, org } = useOrganizationSettings();
   // The name is already in the workspace's organization list; the skeleton
   // uses it so its descriptions wrap like the loaded ones.
-  const listedOrgName = useWorkspace().organizations?.find(
+  const listedOrg = useWorkspace().organizations?.find(
     (candidate) => candidate.id === orgId,
-  )?.name;
+  );
+  const listedOrgName = listedOrg?.name;
+  // The organization itself decides; until it arrives, the role the
+  // workspace list already carries says what to hold a place for.
+  const knownRole = org?.role ?? listedOrg?.role;
   const { loadChats, setCurrentChatId } = useChatHistoryContext();
   const [pendingKind, setPendingKind] = useState<OrgDataKind | null>(null);
   const [deletingKind, setDeletingKind] = useState<OrgDataKind | null>(null);
   const [mfaKind, setMfaKind] = useState<OrgDataKind | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
-  if (org && !isOrgOwner(org.role))
+  if (knownRole && !isOrgOwner(knownRole))
     return (
       <EmptyState
         icon={<OrganizationSkeuoIcon />}
@@ -319,7 +341,10 @@ export function OrganizationPrivacyData() {
   return (
     <div className="space-y-8">
       {org ? null : (
-        <OwnerSectionsSkeleton orgName={listedOrgName ?? "this organization"} />
+        <OwnerSectionsSkeleton
+          orgName={listedOrgName ?? "this organization"}
+          owner={knownRole !== undefined && isOrgOwner(knownRole)}
+        />
       )}
       {org && isOrgOwner(org.role) ? <MemberDataPolicySection /> : null}
       {/* The archive itself is a table of people and their work, so it

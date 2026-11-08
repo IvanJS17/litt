@@ -6,7 +6,8 @@
 //       POST   /:surface/:chatId/review     generate or regenerate a review
 //       PUT    /:surface/:chatId/review/reviewed   mark it reviewed
 //   /orgs/:orgId/training/pupils/:userId/passes
-//       GET | POST                          urgency passes
+//       GET | POST                          urgency passes (GET ?project_ids= also
+//                                           says which of them can be granted)
 //       DELETE /:passId                     revoke one
 //   /orgs/:orgId/training/pupils/:userId/defenses
 //       GET | POST                          oral defenses
@@ -97,7 +98,12 @@ pupilWorksRouter.use(routerErrorHandler("[training-supervision]"));
 export const pupilPassesRouter = Router({ mergeParams: true });
 
 pupilPassesRouter.get("/", requireAuth, asyncRoute(async (req, res) => {
-    send(res, await listUrgencyPasses(createServerSupabase(), mentorOf(req, res)));
+    // ?project_ids=a,b,c: the matters the selector is choosing among.
+    const asked = typeof req.query.project_ids === "string" ? req.query.project_ids : null;
+    send(res, await listUrgencyPasses(createServerSupabase(), {
+        ...mentorOf(req, res),
+        projectIds: asked === null ? undefined : asked.split(",").filter(Boolean),
+    }));
 }));
 
 pupilPassesRouter.post("/", requireAuth, asyncRoute(async (req, res) => {

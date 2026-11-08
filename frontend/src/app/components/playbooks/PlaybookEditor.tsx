@@ -37,6 +37,7 @@ import {
   type RuleFormTab,
   type UndoableRuleChange,
 } from "./PlaybookRuleForm";
+import type { PlaybookProvenance } from "./usePlaybookProvenance";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { EDITOR_SURFACE_CLASS } from "@/app/components/ui/liquid-surface";
 import { dismissToast, showToast } from "@/app/components/ui/toast";
@@ -72,6 +73,7 @@ export function PlaybookEditor({
   selectedRuleId,
   onSelectRule,
   disabled,
+  provenance,
   children,
 }: {
   content: PlaybookContent;
@@ -79,6 +81,8 @@ export function PlaybookEditor({
   selectedRuleId: string | null;
   onSelectRule: (id: string | null) => void;
   disabled: boolean;
+  /** LiTT: what drafted rules' origins show; see usePlaybookProvenance. */
+  provenance?: PlaybookProvenance;
   children?: ReactNode;
 }) {
   const [expandedTopics, setExpandedTopics] = useState(
@@ -722,6 +726,7 @@ export function PlaybookEditor({
                 rule={selectedRule}
                 onChange={replaceRule}
                 onUndoableChange={replaceRuleWithUndo}
+                provenance={provenance}
               />
             ) : (
               <EmptyState

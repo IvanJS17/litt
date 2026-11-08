@@ -38,7 +38,7 @@ export {
     playbookConfiguration,
     assertPlaybookReady,
 } from "./playbooks.operations";
-export { setPlaybookState } from "./playbooks.state";
+export { getPlaybookWithIntake, setPlaybookState } from "./playbooks.state";
 export { copyPlaybook } from "./playbooks.copy";
 export { listPlaybookChanges, decidePlaybookChange } from "./playbooks.changes";
 export { type PlaybookImport } from "./playbooks.types";

@@ -105,6 +105,93 @@
       "label": "Código fuente"
     }
   },
+  "playbooks": {
+    "newMenu": {
+      "trigger": "Nuevo playbook",
+      "models": "Modelos",
+      "withQuestions": "Con preguntas",
+      "import": "Importar archivo",
+      "blank": "Desde cero"
+    },
+    "intake": {
+      "breadcrumb": "Playbooks",
+      "title": "Nuevo playbook con preguntas",
+      "intro": "Responde lo que sepas de este cliente; todas las preguntas son opcionales. El modelo redacta un borrador y muestra de dónde sale cada regla.",
+      "name": "Nombre del playbook (opcional)",
+      "model": "Modelo de redacción",
+      "noModel": "No hay ningún modelo disponible. <link>Configura una llave de API</link> o activa un modelo local.",
+      "question": "Pregunta {number}",
+      "attachments": "Cláusulas preferidas (pregunta 8)",
+      "attachPrompt": "Arrastra aquí archivos .docx o .pdf, o haz clic para elegir archivos guardados o subirlos.",
+      "attachMorePrompt": "Suelta más archivos aquí, o haz clic para agregar más.",
+      "tooManyAttachments": "Puedes adjuntar hasta {max, plural, one {# documento} other {# documentos}}.",
+      "wrongType": "Adjunta archivos .docx o .pdf.",
+      "tooLong": "Tus respuestas suman más de {max, number} caracteres. Acórtalas.",
+      "noAnswers": "No respondiste ninguna pregunta. Todas las reglas del borrador serán práctica general sugerida por la IA, marcadas como sin respaldo.",
+      "submit": "Redactar borrador",
+      "submitting": "Enviando…",
+      "loading": "Cargando las preguntas…",
+      "loadFailed": "No se pudieron cargar las preguntas.",
+      "discardTitle": "¿Descartar tus respuestas?",
+      "discardMessage": "Se perderá lo que escribiste y los archivos que adjuntaste.",
+      "discard": "Descartar",
+      "startedTitle": "Redactando tu borrador",
+      "startedMessage": "Puede tardar unos minutos. Te avisamos cuando esté listo.",
+      "readyTitle": "Borrador listo para revisar",
+      "readyMessage": "{name} es un borrador: revisa sus reglas y márcalo como listo antes de usarlo.",
+      "open": "Abrir",
+      "failedTitle": "No se redactó el borrador",
+      "failedMessage": "No se pudo redactar el borrador. Inténtalo de nuevo.",
+      "backToQuestions": "Volver a las preguntas",
+      "drafting": "Redactando…",
+      "draftingLabel": "Redactando",
+      "untitled": "Playbook en borrador",
+      "questions": {
+        "q1": "¿A quién representas y quién es la contraparte típica?",
+        "q2": "Giro y tamaño del cliente, y regulación de su sector (financiero, salud, datos personales, gobierno…).",
+        "q3": "Tipo de documento: arrendamiento, servicios, NDA, compraventa, suministro, laboral…",
+        "q4": "Jurisdicción y ley aplicable; si acepta arbitraje y en qué sede.",
+        "q5": "Apetito de riesgo: conservador, equilibrado o flexible.",
+        "q6": "Líneas rojas: lo que este cliente nunca acepta.",
+        "q7": "Lo que sí puede ceder en una negociación.",
+        "q8": "Cláusulas o redacciones preferidas del cliente; se pueden adjuntar.",
+        "q9": "Antecedentes: conflictos pasados, relación con la contraparte y lo que salió mal antes.",
+        "q10": "Idioma, moneda y formato de firma."
+      },
+      "q8Help": "Puedes adjuntar hasta {max, plural, one {# documento .docx o .pdf} other {# documentos .docx o .pdf}}.",
+      "submitAction": "redactar el borrador",
+      "openAction": "abrir el borrador"
+    },
+    "draft": {
+      "label": "Borrador",
+      "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
+      "markReady": "Marcar como listo",
+      "confirmTitle": "¿Marcar como listo?",
+      "confirmMessage": "{unbacked, plural, one {# regla no tiene} other {# reglas no tienen}} respaldo y {unverified, plural, one {# referencia legal no está verificada} other {# referencias legales no están verificadas}}. Ya listo, se puede usar en revisiones y no vuelve a borrador.",
+      "markReadyAction": "marcar el playbook como listo"
+    },
+    "model": {
+      "label": "Modelo",
+      "mark": "Marcar como modelo",
+      "unmark": "Quitar marca de modelo",
+      "markAction": "cambiar la marca de modelo",
+      "copyAction": "copiar el modelo",
+      "copied": "Tu copia de {name} es un borrador. Revisa sus reglas y márcala como lista.",
+      "copiedTitle": "Copia creada"
+    },
+    "origin": {
+      "answer": "Origen: respuesta a la {count, plural, one {pregunta} other {preguntas}} {questions}",
+      "clause": "Origen: cláusula adjunta {name}",
+      "clauseUnnamed": "Origen: cláusula adjunta",
+      "aiGeneral": "Origen: práctica general sugerida por la IA",
+      "unbacked": "Sugerencia sin respaldo, revisar",
+      "unverified": "No verificado",
+      "verified": "Verificado en un documento adjunto",
+      "answerLabel": "Respuesta a la pregunta {number}",
+      "quoteLabel": "Fragmento del documento adjunto",
+      "legalRefs": "Referencias legales"
+    }
+  },
   "errors": {
     "code": {
       "access_inherited": "El acceso a este elemento viene de su proyecto. Cámbialo en el proyecto.",
@@ -268,6 +355,9 @@
       "doubts": "Dónde dudó",
       "unverified": "Qué quedó sin verificar",
       "inferred": "inferido",
+      "approve": "Aprobar esta versión",
+      "approveName": "Aprobar esta versión: {text}",
+      "approved": "Aprobada",
       "none": "Nada.",
       "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
       "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
@@ -286,6 +376,9 @@
       "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación; apruébalo desde su documento.} other {# borradores sellados siguen pendientes de aprobación; apruébalos desde cada documento.}}",
       "generate": "Generar resumen",
       "regenerate": "Regenerar",
+      "approveTitle": "¿Aprobar esta versión?",
+      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
+      "approve": "Aprobar",
       "markReviewed": "Marcar como revisado",
       "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
       "key": "Llave",
@@ -298,7 +391,8 @@
       "actions": {
         "load": "cargar los trabajos",
         "generate": "generar el resumen",
-        "markReviewed": "marcar el trabajo como revisado"
+        "markReviewed": "marcar el trabajo como revisado",
+        "approve": "aprobar la versión"
       }
     },
     "defenses": {
@@ -355,6 +449,7 @@
       "project": "Asunto",
       "chooseProject": "Elige un asunto",
       "noProjects": "No tienes asuntos en esta organización",
+      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en esta organización",
       "duration": "Duración",
       "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
       "hours": "{hours, plural, one {# hora} other {# horas}}",

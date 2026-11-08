@@ -5,10 +5,11 @@
 // each change is accepted or rejected over the rule it was proposed for.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { completeText, getUserApiKeys, recordAudit, storage } = vi.hoisted(() => ({
+const { completeText, getUserApiKeys, recordAudit, reportError, storage } = vi.hoisted(() => ({
   completeText: vi.fn(),
   getUserApiKeys: vi.fn(),
   recordAudit: vi.fn(),
+  reportError: vi.fn(),
   storage: {
     deleteFile: vi.fn(),
     downloadFile: vi.fn(),
@@ -29,6 +30,10 @@ vi.mock("../../../lib/providerCredentials/index", async (importOriginal) => ({
   getEffectiveApiKeys: (userId: string) => getUserApiKeys(userId),
 }));
 vi.mock("../../../lib/audit", () => ({ recordAudit }));
+vi.mock("../../../lib/observability/report", async (original) => ({
+  ...(await original<typeof import("../../../lib/observability/report")>()),
+  reportError,
+}));
 vi.mock("../../../lib/storage", async (original) => ({
   ...(await original<typeof import("../../../lib/storage")>()),
   ...storage,
@@ -759,6 +764,52 @@ describe("a proposal's guards", () => {
         status: "failed",
         title: "Arrendamientos",
       }),
+    );
+  });
+
+  it("keeps the proposal when only the write of its answers is lost, and reports a warning", async () => {
+    const { db, tables, copy, work } = await proposed([modifyPena]);
+    const earlier = { answers: { q1: "Caso anterior." } };
+    copyRow(tables, copy.id).intake_json = earlier;
+    // Only the update that keeps the new case's answers is lost.
+    const losingIntake = {
+      from(table: string) {
+        const query = db.from(table as never) as unknown as Record<string, unknown>;
+        if (table !== "playbooks") return query;
+        const update = query.update as (value: Row) => unknown;
+        query.update = (value: Row) => {
+          if (!("intake_json" in value)) return update(value);
+          const lost = {
+            eq: () => lost,
+            select: async () => ({ data: null, error: new Error("connection lost") }),
+          };
+          return lost;
+        };
+        return query;
+      },
+      rpc: db.rpc,
+    } as unknown as Db;
+
+    await handlePlaybookDraft(losingIntake, job(work));
+
+    expect(tables.playbook_imports.at(-1)).toMatchObject({ status: "completed", request_json: null });
+    expect(tables.playbook_changes.map((change) => [change.rule_id, change.status])).toEqual([
+      ["r-pena", "pending"],
+    ]);
+    expect(copyRow(tables, copy.id).intake_json).toEqual(earlier);
+    expect(
+      reportError.mock.calls.filter(([, context]) => context?.tags?.stage === "import.record"),
+    ).toEqual([
+      [
+        expect.anything(),
+        expect.objectContaining({
+          level: "warning",
+          extra: { import_id: work.attemptId, playbook_id: copy.id },
+        }),
+      ],
+    ]);
+    expect(recordAudit.mock.calls.map(([, event]) => event)).toContainEqual(
+      expect.objectContaining({ action: "playbook.proposals_ready", status: "completed" }),
     );
   });
 });

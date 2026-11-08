@@ -26,7 +26,7 @@ import {
   reviewWithPlaybook,
   updatePlaybookContent,
 } from "../playbooks.operations";
-import { setPlaybookState } from "../playbooks.state";
+import { getPlaybookWithIntake, setPlaybookState } from "../playbooks.state";
 import { database, type Row } from "./playbookTestDb";
 
 const ORIGIN = {
@@ -304,5 +304,34 @@ describe("marking ready and as a model", () => {
     const { db } = database([book()]);
     for (const body of [{}, { status: "draft" }, { isModel: "yes" }, { status: "ready", name: "x" }])
       await expect(setPlaybookState("owner", "book", body, db)).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("the answers a draft was made from (GET /playbooks/:id)", () => {
+  const intake = {
+    answers: { q6: "Nunca aceptar penas mayores a un mes.", q7: 7 },
+    attachments: [{ sourceId: "src-1", filename: "Cláusulas.docx" }],
+    model: "claude-opus-5",
+    createdAt: "2026-11-07T10:00:00.000Z",
+  };
+
+  it("gives an editor the answers only, never the rest of the questionnaire", async () => {
+    const { db, tables } = database([book({ intake_json: intake })]);
+    tables.playbook_shares.push(...editor());
+    const playbook = await getPlaybookWithIntake("editor", "book", db, "editor@example.com");
+    expect(playbook.intake).toEqual({ answers: { q6: "Nunca aceptar penas mayores a un mes." } });
+    expect(JSON.stringify(playbook)).not.toContain("Cláusulas.docx");
+  });
+
+  it("gives a viewer no answers at all", async () => {
+    const { db } = database([book({ intake_json: intake, shared_with: ["reader@example.com"] })]);
+    const playbook = await getPlaybookWithIntake("reader", "book", db, "reader@example.com");
+    expect(playbook).not.toHaveProperty("intake");
+    expect(JSON.stringify(playbook)).not.toContain("Nunca aceptar");
+  });
+
+  it("is null for a playbook not drafted from questions", async () => {
+    const { db } = database([book({ intake_json: null })]);
+    expect((await getPlaybookWithIntake("owner", "book", db)).intake).toBeNull();
   });
 });

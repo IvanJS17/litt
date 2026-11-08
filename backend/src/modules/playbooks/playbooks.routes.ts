@@ -14,7 +14,6 @@ import {
 import {
   createPlaybook,
   deletePlaybook,
-  getPlaybook,
   getPlaybookSource,
   getPlaybookImport,
   listRunningPlaybookImports,
@@ -51,6 +50,7 @@ import {
   PlaybookRequestError,
   playbookConfiguration,
   queuePlaybookReview,
+  getPlaybookWithIntake,
   setPlaybookState,
   updatePlaybookContent,
   copyPlaybook,
@@ -484,7 +484,7 @@ playbooksRouter.post("/drafts", requireMfaIfEnrolled, async (req, res) => {
 playbooksRouter.get("/:playbookId", async (req, res) => {
   try {
     res.json(
-      await getPlaybook(
+      await getPlaybookWithIntake(
         res.locals.userId as string,
         req.params.playbookId,
         undefined,
