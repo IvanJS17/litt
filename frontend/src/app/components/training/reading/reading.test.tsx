@@ -446,7 +446,7 @@ describe("the mentor's section", () => {
         vi.mocked(api.getPupilReadings).mockResolvedValue(pupil({ readings: [], readings_without_access: 2 }));
         render(intl(<MentorReadings orgId="org-1" pupilId="pupil-1" />));
         expect(await screen.findByText("Todavía no hay lecturas completas.")).toBeInTheDocument();
-        expect(screen.getByText("2 lecturas están en un asunto que no puedes abrir.")).toBeInTheDocument();
+        expect(screen.getByText("2 lecturas están en asuntos que no puedes abrir.")).toBeInTheDocument();
     });
 
     it("says so in the singular, and offers a retry when it cannot load", async () => {
