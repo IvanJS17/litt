@@ -227,6 +227,7 @@
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
       "training_defense_already_recorded": "El resultado de esta defensa ya está registrado. Crea una defensa nueva para corregirlo.",
       "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",
+      "training_note_not_judgeable": "Este turno no tiene nada que juzgar: una pista no tiene respuesta con la cual comparar.",
       "training_pass_duplicate": "Ese pase ya está concedido.",
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",

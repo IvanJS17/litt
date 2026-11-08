@@ -113,12 +113,73 @@ ids and labels only: `training.mentor_designated`, `training.mentor_removed`,
 `training.pupil_assigned`, `training.pupil_released`, `training.stage_set`,
 `training.stage_removed`.
 
+## Criterion: verdict, thermometer and basis (layer 3)
+
+All of this lives in the private note of the turn (`training_turn_notes`, new
+columns in `20261108_60_litt_training_criterion_turns.sql`); it is learning
+data with the same readers as the rest of the note (the pupil and their
+**current** mentor, never an owner or admin), goes with the membership, and the
+notes of layers 1 and 2 keep every new column null.
+
+**The thermometer.** A turn that owes an attempt also owes `confidence`, an
+integer from 1 to 4 («casi adivino», «dudo», «bastante seguro», «seguro»):
+`400 training_confidence_required` otherwise, checked after the attempt and
+before anything is written. One mark per approach, not per conclusion (an
+approach is two or three lines and usually one thesis). Where no attempt is
+owed (a junior, a lawyer, an urgency pass) the mark is ignored and not stored.
+`GET /training/stage` says `confidence_required` (the same as
+`attempt_required`). Web, Word and the server ship together: an older client
+that sends no mark gets that `400`, whose message tells the person to reload.
+
+**The verdict.** The contrast ends with up to four labelled lines that the
+server parses (`parseContrastTrailer`, `lib/trainingVerdict.ts`) and does not
+store in the contrast: `Veredicto: coincide | parcial | no coincide`,
+`Fundamento: sólido | débil | equivocado`, `Temas:` (up to three, 80
+characters each) and `Pregunta:`. Only the block at the end counts, a bulleted
+line never does, and a value outside the list is null. A contrast without them
+stays `ready` with a null verdict. What this measures is a **coincidence with
+the AI's answer, according to the AI contrast**, never a hit: the answer can be
+wrong. The verdict that counts (`effective_verdict`) is `parcial` when the
+contrast says `coincide` with a `wrong` basis («acertaste por la razón
+equivocada»); a mentor's verdict counts as written.
+
+**The basis question.** When the verdict is `coincide` and the basis `weak` or
+`wrong`, the contrast may add one question about what the conclusion rests on.
+The server drops it (and keeps the verdict) if it names a legal reference
+(`legalReferences`) that neither the pupil's attempt nor the answer names, or
+if it is over 500 characters.
+
+**`answer_unverified`.** Computed when the turn ends from the citations
+persisted with the answer (a citation with `verified: false`, or a quote whose
+verification failed): such a turn is not evidence for the map or for
+calibration. It is recorded even when the contrast fails.
+
+**The mentor corrects a verdict.** `PUT
+/orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` with
+`{ verdict }` (module `training-criterion`): only the pupil's current mentor,
+only for a work in a matter they can open, the same `404` for everybody else
+(the pupil, a previous mentor, an owner, an admin, another member, an outsider,
+an unknown note). It stores `verdict_source = 'mentor'` and `verdict_by`. A
+turn with nothing to compare (a hint, `contrast_status = 'skipped'`) answers
+`409 training_note_not_judgeable`. The audit event `training.verdict_overridden`
+carries the chat and the ids (`org_id`, `target_user_id`) and never the verdict.
+
+**Models.** The contrast is the same single call as before, on the
+conversation's own provider, model and credential, with no fallback; a failure
+leaves the note `failed` and never fails the turn. Nothing new calls a model.
+
+Product decisions applied while the open questions of layer 3 are unanswered
+(each is the plan's recommendation): one mark per approach, and a «hit» is the
+coincidence according to the AI contrast, excluding answers with unverified
+citations, with the mentor able to correct it.
+
 ## API
 
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
 | `PUT/DELETE /orgs/:orgId/training/pupils/:userId/stages` | the current mentor; `DELETE` takes `?practice=`, none for every practice area |

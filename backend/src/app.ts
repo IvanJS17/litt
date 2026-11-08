@@ -11,6 +11,7 @@ import { projectsRouter } from "./modules/projects/projects.routes";
 import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
+import { pupilNotesRouter } from "./modules/training-criterion/trainingCriterion.routes";
 import {
     pupilDefensesRouter,
     pupilPassesRouter,
@@ -332,6 +333,7 @@ app.use("/orgs/:orgId/training/pupils/:userId/works", pupilWorksRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/passes", pupilPassesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/defenses", pupilDefensesRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/promotion", pupilPromotionRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/notes", pupilNotesRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training", trainingRouter);

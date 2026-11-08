@@ -173,4 +173,94 @@ describe("getChatTurnNotes", () => {
             kind: "error",
         });
     });
+
+    describe("layer 3: the thermometer mark, the verdict and the basis", () => {
+        const judged = {
+            confidence: 4,
+            verdict: "coincide",
+            verdict_source: "contrast",
+            foundation: "wrong",
+            foundation_question: "¿En qué se apoya tu conclusión?",
+            topics: ["rescisión"],
+            answer_unverified: false,
+        };
+
+        it("shows the author and the current mentor the fields, with the verdict that counts", async () => {
+            for (const actorId of [AUTHOR, MENTOR]) {
+                const { db, tables } = setup();
+                Object.assign(tables.training_turn_notes[0], judged);
+                const result = await getChatTurnNotes(db, { actorId, chatId: CHAT });
+                expect(result.ok && result.data.notes[0]).toMatchObject({
+                    confidence: 4,
+                    verdict: "coincide",
+                    verdict_source: "contrast",
+                    // The conclusion matched, the reasoning did not.
+                    effective_verdict: "parcial",
+                    right_for_wrong_reason: true,
+                    foundation: "wrong",
+                    foundation_question: "¿En qué se apoya tu conclusión?",
+                    topics: ["rescisión"],
+                    answer_unverified: false,
+                });
+            }
+        });
+
+        it("counts a mentor's correction as written", async () => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], judged, { verdict_source: "mentor" });
+            const result = await getChatTurnNotes(db, { actorId: MENTOR, chatId: CHAT });
+            expect(result.ok && result.data.notes[0]).toMatchObject({
+                verdict_source: "mentor",
+                effective_verdict: "coincide",
+                right_for_wrong_reason: false,
+            });
+        });
+
+        it("flags a turn whose answer carried an unverified citation", async () => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], judged, { answer_unverified: true });
+            const result = await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT });
+            expect(result.ok && result.data.notes[0].answer_unverified).toBe(true);
+        });
+
+        it("reads a note of layers 1 and 2 exactly as before: none of the new fields", async () => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], {
+                confidence: null, verdict: null, verdict_source: null, foundation: null,
+                foundation_question: null, topics: null, answer_unverified: false, mode: null, step: null,
+            });
+            const result = await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT });
+            expect(result.ok && Object.keys(result.data.notes[0]).sort()).toEqual(
+                ["attempt", "chat_id", "contrast", "contrast_status", "created_at", "id", "message_id", "org_id", "trainee_user_id"],
+            );
+        });
+
+        it("reads a skipped note as skipped, forever", async () => {
+            const { db, tables } = setup("2020-01-01T00:00:00Z");
+            Object.assign(tables.training_turn_notes[0], { contrast_status: "skipped", contrast: null });
+            const result = await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT });
+            expect(result.ok && result.data.notes[0].contrast_status).toBe("skipped");
+        });
+
+        // Learning data: the same readers as the rest of the note, no more.
+        it.each([
+            ["another member", OTHER_MEMBER],
+            ["an owner or admin who is not the mentor", ADMIN],
+            ["the former mentor", FORMER_MENTOR],
+        ])("keeps them from %s: the same 404", async (_label, actorId) => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], judged);
+            tables.training_pupils.push({ org_id: ORG, trainee_user_id: OTHER_MEMBER, mentor_user_id: FORMER_MENTOR });
+            const denied = await getChatTurnNotes(db, { actorId, chatId: CHAT });
+            expect(denied).toMatchObject({ ok: false, kind: "not_found" });
+            expect(JSON.stringify(denied)).not.toContain("rescisión");
+        });
+
+        it("carries no score, rank, average or percentile", async () => {
+            const { db, tables } = setup();
+            Object.assign(tables.training_turn_notes[0], judged);
+            const result = await getChatTurnNotes(db, { actorId: AUTHOR, chatId: CHAT });
+            expect(Object.keys(result.ok ? result.data.notes[0] : {}).join(" ")).not.toMatch(/score|rank|average|percentile|total/);
+        });
+    });
 });
