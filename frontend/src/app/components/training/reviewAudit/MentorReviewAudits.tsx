@@ -43,17 +43,27 @@ export function MentorReviewAudits({ orgId, pupilId }: { orgId: string; pupilId:
         action: t("actions.load"),
         operation: "training.manage",
     });
-    if (failed && !data) return <LoadFailed onRetry={reload} />;
-    if (!data) return <CardsSkeleton />;
+    const titleId = `mentor-audits-${pupilId}`;
     return (
-        <div className="space-y-4">
-            <p className="text-sm text-gray-500">{t("intro")}</p>
-            {data.without_access > 0 && <p className="text-sm text-gray-700">{t("withoutAccess", { count: data.without_access })}</p>}
-            {data.audits.length === 0 && data.without_access === 0 && <p className="text-sm text-gray-500">{t("empty")}</p>}
-            {data.audits.map((audit) => (
-                <AuditCard key={audit.id} orgId={orgId} pupilId={pupilId} audit={audit} onSaved={reload} />
-            ))}
-        </div>
+        <section className="min-w-0 space-y-4" aria-labelledby={titleId}>
+            <h3 id={titleId} className="text-sm font-medium text-gray-900">
+                {t("title")}
+            </h3>
+            {failed && !data ? (
+                <LoadFailed onRetry={reload} />
+            ) : !data ? (
+                <CardsSkeleton />
+            ) : (
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-500">{t("intro")}</p>
+                    {data.without_access > 0 && <p className="text-sm text-gray-700">{t("withoutAccess", { count: data.without_access })}</p>}
+                    {data.audits.length === 0 && data.without_access === 0 && <p className="text-sm text-gray-500">{t("empty")}</p>}
+                    {data.audits.map((audit) => (
+                        <AuditCard key={audit.id} orgId={orgId} pupilId={pupilId} audit={audit} onSaved={reload} />
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
