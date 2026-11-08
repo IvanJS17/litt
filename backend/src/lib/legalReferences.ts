@@ -308,16 +308,23 @@ function qualifiesConstitution(lower: Token[], index: number): boolean {
     return true;
 }
 
-/** «constitucional» followed by «local», «estatal» or «de/del <estado>»: a state constitution, not the federal one. */
+/** «constitucional» followed by «local», «estatal», «de/del <estado>» or «de la Constitución <estado>»: a state constitution, not the federal one. */
 function qualifiesConstitutional(plain: string, at: number): boolean {
     const gap = sticky(/^\s+/, plain, at);
     if (!gap) return false;
-    const words = tokens(plain.slice(at + gap[0].length, at + gap[0].length + 120)).slice(0, 4);
+    const start = at + gap[0].length;
+    const words = tokens(plain.slice(start, start + 200)).slice(0, 12);
     if (words.length === 0) return false;
     if (LOCAL_WORDS.has(words[0].bare)) return true;
     if (words[0].ends || (words[0].bare !== "de" && words[0].bare !== "del")) return false;
-    const place = words[1] && (words[1].bare === "la" || words[1].bare === "el") ? words[2] : words[1];
-    return place !== undefined && PLACE_WORDS.has(place.bare);
+    const article = words[1] && (words[1].bare === "la" || words[1].bare === "el");
+    const place = article ? words[2] : words[1];
+    if (place !== undefined && PLACE_WORDS.has(place.bare)) return true;
+    // «de la Constitución …», «de la Carta Magna …»: the same rule as for the alias written alone.
+    if (!article || words[1].ends || place === undefined || place.ends) return false;
+    if (place.bare === "constitucion") return qualifiesConstitution(words, 3);
+    if (place.bare === "carta" && words[3]?.bare === "magna" && !words[3].ends) return qualifiesConstitution(words, 4);
+    return false;
 }
 
 const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
