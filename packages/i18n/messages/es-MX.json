@@ -561,6 +561,7 @@
         "noteContrastFailed": "No se pudo generar el contraste",
         "noteContrastHeading": "Contraste con tu planteamiento",
         "noteContrastPending": "Generando contraste…",
+        "noteNotDelivered": "No entregada",
         "noteFoundation": "Fundamento: {basis}",
         "noteModeCounterpart": "Ronda con el abogado de la contraparte, turno {step} de 3",
         "noteModeCounterpartClose": "Cierre de la ronda con el abogado de la contraparte",

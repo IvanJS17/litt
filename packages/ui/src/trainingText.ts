@@ -54,6 +54,7 @@ export type TrainingTurnKey =
   | `${Turn}.noteContrastFailed`
   | `${Turn}.noteContrastHeading`
   | `${Turn}.noteContrastPending`
+  | `${Turn}.noteNotDelivered`
   | `${Turn}.noteFoundation`
   | `${Turn}.noteModeCounterpart`
   | `${Turn}.noteModeCounterpartClose`
@@ -112,6 +113,7 @@ export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {
     contrastHeading: t("training.criterion.turn.noteContrastHeading"),
     contrastPending: t("training.criterion.turn.noteContrastPending"),
     contrastFailed: t("training.criterion.turn.noteContrastFailed"),
+    notDelivered: t("training.criterion.turn.noteNotDelivered"),
     closeHeading: t("training.criterion.turn.noteCloseHeading"),
     mode: {
       hint: (step) => t("training.criterion.turn.noteModeHint", { step }),

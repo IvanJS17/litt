@@ -192,6 +192,17 @@ describe("useTrainingTurnNotes", () => {
         expect(getTrainingTurnNotes).toHaveBeenCalledTimes(2);
     });
 
+    it("does not poll for a hint or counterpart note left pending", async () => {
+        getTrainingTurnNotes.mockResolvedValue([
+            { ...note("n1", "m1", "pending"), mode: "hint", step: 1 },
+        ]);
+        renderHook(() => useTrainingTurnNotes("c1", false, getTrainingTurnNotes));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(TRAINING_NOTES_POLL_MS * 4);
+        });
+        expect(getTrainingTurnNotes).toHaveBeenCalledTimes(1);
+    });
+
     it("gives up after two minutes", async () => {
         getTrainingTurnNotes.mockResolvedValue([
             note("n1", "m1", "pending"),

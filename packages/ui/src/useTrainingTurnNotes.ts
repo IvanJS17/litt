@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TrainingTurnNote } from "@mike/contracts";
+import { isUndeliveredModeNote } from "./TrainingNoteUI";
 
 /** How often a pending contrast is looked up again, and for how long. */
 export const TRAINING_NOTES_POLL_MS = 5_000;
@@ -50,7 +51,7 @@ export function useTrainingTurnNotes(
             // The panel is secondary: a malformed answer must never take the chat down.
             if (cancelled || !Array.isArray(notes)) return;
             setState({ chatId, notes });
-            const waiting = notes.some((n) => n.contrast_status === "pending");
+            const waiting = notes.some((n) => n.contrast_status === "pending" && !isUndeliveredModeNote(n));
             const elapsed = Date.now() - (pollStartedAt.current ?? Date.now());
             if (waiting && elapsed < TRAINING_NOTES_POLL_MAX_MS) {
                 timer = setTimeout(load, TRAINING_NOTES_POLL_MS);

@@ -561,6 +561,7 @@
         "noteContrastFailed": "The contrast couldn't be generated",
         "noteContrastHeading": "Contrast with your approach",
         "noteContrastPending": "Generating contrast…",
+        "noteNotDelivered": "Not delivered",
         "noteFoundation": "Basis: {basis}",
         "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
         "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",

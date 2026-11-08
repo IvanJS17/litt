@@ -46,6 +46,7 @@ const WORDS: Record<string, string> = {
   noteContrastFailed: "The contrast couldn't be generated",
   noteContrastHeading: "Contrast with your approach",
   noteContrastPending: "Generating contrast…",
+  noteNotDelivered: "Not delivered",
   notePrivacy: "Private: only you and your mentor see this",
   noteQuestionHeading: "A question about your basis",
   noteRegion: "Private training notes",
