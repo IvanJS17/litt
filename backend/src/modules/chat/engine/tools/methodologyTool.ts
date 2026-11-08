@@ -43,12 +43,15 @@ export const METHODOLOGY_TOOL = {
                     type: "array",
                     maxItems: MAX_INPUTS,
                     description:
-                        "Every input of the calculation. Write numbers as plain decimals with a point, no thousands separators or symbols (a rate of 12.5 % is \"12.5\").",
+                        "Every input of the calculation. Write every value as a string holding a plain decimal with a point, no thousands separators or symbols (a rate of 12.5 % is \"12.5\"). A JSON number is rejected unless it is a safe integer.",
                     items: {
                         type: "object",
                         properties: {
                             name: { type: "string" },
-                            value: { type: "string" },
+                            value: {
+                                type: "string",
+                                description: 'The value as text: a plain decimal such as "1000.50". Never a JSON number.',
+                            },
                             source: {
                                 type: "object",
                                 description:

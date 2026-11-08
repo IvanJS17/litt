@@ -190,6 +190,23 @@ describe("running the tool", () => {
     expect(uploadFileMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a JSON number that would be truncated instead of rounding it", async () => {
+    for (const value of [9007199254740993, 0.1]) {
+      const { out } = await call({
+        calculation: "proportion",
+        inputs: [{ name: "numerator", value }, { name: "denominator", value: "2" }],
+      });
+      expect(out.docsCreated).toHaveLength(0);
+      expect(JSON.parse((out.toolResults[0] as { content: string }).content).error).toContain("Send it as text");
+    }
+    const exact = await call({
+      calculation: "proportion",
+      inputs: [{ name: "numerator", value: "9007199254740993" }, { name: "denominator", value: "9007199254740993" }],
+      annex: false,
+    });
+    expect(JSON.parse((exact.out.toolResults[0] as { content: string }).content).inputs[0].value).toBe("9007199254740993");
+  });
+
   it("does not run when the turn was not offered the tool", async () => {
     const { out } = await call(INDEX_CALL, {});
     expect(out.toolResults).toHaveLength(0);

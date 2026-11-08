@@ -61,8 +61,11 @@ describe("decimal arithmetic", () => {
             expect(code(() => parseDecimal(bad, "x"))).toBe("invalid_number");
         }
         expect(code(() => parseDecimal(null, "x"))).toBe("invalid_number");
-        expect(code(() => parseDecimal(1e21, "x"))).toBe("invalid_number");
-        expect(exactText(parseDecimal(0.1, "x"))).toBe("0.1");
+        expect(code(() => parseDecimal(1e21, "x"))).toBe("unsafe_number");
+        expect(code(() => parseDecimal(0.1, "x"))).toBe("unsafe_number");
+        expect(code(() => parseDecimal(9007199254740993, "x"))).toBe("unsafe_number");
+        expect(exactText(parseDecimal(12, "x"))).toBe("12");
+        expect(exactText(parseDecimal("9007199254740993", "x"))).toBe("9007199254740993");
         expect(exactText(dec(" 007.500 "))).toBe("7.5");
     });
 

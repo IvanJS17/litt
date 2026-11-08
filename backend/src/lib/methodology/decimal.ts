@@ -38,7 +38,13 @@ const normalize = (value: Decimal): Decimal => {
  * exponent notation (and so a float that needs it) cannot satisfy.
  */
 export function parseDecimal(raw: unknown, label: string): Decimal {
-    const text = typeof raw === "number" && Number.isFinite(raw) ? String(raw) : raw;
+    if (typeof raw === "number" && !Number.isSafeInteger(raw)) {
+        throw new MethodologyError(
+            "unsafe_number",
+            `${label}: a JSON number cannot carry this value exactly (it is a decimal or larger than 9007199254740991). Send it as text, for example "9007199254740993" or "12.5".`,
+        );
+    }
+    const text = typeof raw === "number" ? String(raw) : raw;
     if (typeof text !== "string") {
         throw new MethodologyError("invalid_number", `${label}: a number written as text is required.`);
     }
