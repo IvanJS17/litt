@@ -611,3 +611,81 @@ none while the pupil has no mentor.
 **Word.** The add-in is not changed by layer 2: Word does not honor a pass
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
+
+## Accountability mode (layer 3, junior)
+
+After every answer a **junior** receives, LiTT lists the conclusions the
+answer makes and the source it can show for each. It is the junior's
+counterpart of «Tu turno primero»: a pasante writes first, a junior answers
+for what they keep. It is always on for juniors and nothing blocks an output
+(a junior's work is not sealed); the server skips answers that have nothing to
+account for (under 400 characters and no citations). A pasante, a lawyer and a
+person without a stage get nothing, and an urgency pass (a pasante's) does
+not touch it.
+
+**Statuses are the server's.** One model call proposes the conclusions (up to
+12, as the answer words them) and the citation number each one rests on. The
+server then decides, from the citations persisted with the message:
+
+| Status | Meaning |
+|---|---|
+| `backed` («Respaldada») | the proposed citation was verified (`verifyCitations`): the exact passage the server found in a document in LiTT is shown beside the conclusion |
+| `citation_unverified` («Cita sin verificar») | the citation names a quote the server could not find in the document |
+| `unbacked` («Sin respaldo») | no citation: the conclusion rests on nothing LiTT can show |
+
+LiTT has no corpus of laws, so **a law cited from memory is `unbacked`**, and a
+legal reference a conclusion names that the shown passage does not
+(`legalReferences` in `lib/legalReferences.ts`: articles, fractions, theses,
+registry numbers) is listed on that conclusion as «Sin verificar: art. 27, fr.
+IV. Confírmalo en la fuente oficial.» The comparison is by reference number, not
+by which law it belongs to. A conclusion naming a reference the answer itself
+never named is dropped. The AI only proposes the link; the panel says so and
+the person checks the passage. The passage is not stored: it is read from the
+message's citations each time it is shown, and a `backed` conclusion whose
+passage can no longer be shown reads as `unbacked`. Tabular citations are never
+verified, so they are `citation_unverified`.
+
+**What the person does.** For each conclusion they mark «Lo verifiqué» and, for
+one that is not `backed`, write why they keep it (up to 500 characters). That
+is what the mentor reads («qué errores atrapó»).
+
+**Data.** Migration `20261108_64_litt_training_criterion_backing.sql` adds
+`training_backing_checks` (one row per assistant message, `pending` → `ready` |
+`failed`, `conclusions` as JSON). It is learning data like the turn notes: the
+person and their **current** mentor only (`training_can_read_learning`), never
+an owner or an admin, no totals or rankings, deleted with the membership,
+kept when the pupil is released, in the account export
+(`training.backing_checks`). The row goes with its chat. The audit gets
+`training.backing_verified` with `{ org_id, target_user_id }` and the chat id
+when the person marks a conclusion verified; never the conclusion, the status
+or the reason.
+
+**Model.** The check runs after the answer is durable, in the same process, on
+the conversation's own provider, model and credential (governed BYOK; no
+fallback, never another model), and cannot fail the turn: on any failure the
+check is `failed` and the panel says so. A check still `pending` after ten
+minutes reads as `failed`. The turn's `llm.egress` already names that
+destination for the conversation; the check adds no new destination. The
+answer and the citation list go in nonce-fenced blocks, the system prompt says
+they are content to evaluate, and the output is strict JSON.
+
+| Route | Who |
+|---|---|
+| `GET /training/me/chats/:chatId/backing[?message_id=]` | the person: their own checks of that chat (any surface); a chat with none of theirs is the same 404 as anybody else's |
+| `PUT /training/me/chats/:chatId/backing/:checkId/conclusions/:conclusionId` | the person: `{ person_verified?, person_note? }`; `400 training_backing_invalid` for anything else |
+| `GET /orgs/:orgId/training/pupils/:userId/backing` | the current mentor: the ready checks of the works in matters they can open (the others are only counted in `works_without_access`) |
+
+**Where it shows.** Under the junior's answer in the web chat, the project
+chat and the tabular review chat, and in the Word task pane for cloud chats
+(a device-only Word chat keeps no transcript, so it has no checks). The panel
+(`BackingPanelUI` in `packages/ui`) takes its texts from the host
+(`training.criterion.backing` in the catalog) and shows each status as a word
+and an icon, never by colour alone. The mentor's section
+(`frontend/src/app/components/training/criterion/BackingSection.tsx`) is
+delivered without its tab: the «Criterio» tab arrives with a later card, which
+mounts it. A message shows its panel once the client knows the saved message
+id (after the stream announces it, or on reload).
+
+The hook point is `lib/trainingTurn/accountability.ts`: a junior's plan carries
+its `afterTurn` hook, and the four surfaces pass the saved turn
+(`finishTrainingTurn`'s `turn`).
