@@ -53,7 +53,7 @@ const POSITION_GROUPS: Record<
     usage: "preferred",
   },
   fallbacks: {
-    dot: "bg-orange-500",
+    dot: "bg-warning-fill",
     title: "Fallback positions",
     label: "Fallback",
     empty: "None yet.",
@@ -754,7 +754,7 @@ function SampleClause({
         )}
       />
       {conflict && (
-        <p id={conflictId} className="px-3 pb-2 text-xs text-orange-800">
+        <p id={conflictId} className="px-3 pb-2 text-xs text-warning">
           {conflict}
         </p>
       )}

@@ -2459,10 +2459,17 @@ export async function recordDefenseOutcome(
     );
 }
 
-export async function getPupilPasses(orgId: string, userId: string) {
+/**
+ * The pupil's passes. With `projectIds` the answer also carries
+ * `grantable_project_ids`: those matters a pass can be granted on.
+ */
+export async function getPupilPasses(orgId: string, userId: string, projectIds?: string[]) {
+    const query = projectIds
+        ? `?project_ids=${projectIds.map(encodeURIComponent).join(",")}`
+        : "";
     return apiRequest<import("@mike/contracts").TrainingUrgencyPasses>(
         "training.manage",
-        `${pupilPath(orgId, userId)}/passes`,
+        `${pupilPath(orgId, userId)}/passes${query}`,
     );
 }
 

@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // green is kept for success, so only an icon that means "done"
 // (`*-complete.svg`) may carry it. Third-party marks keep their own
 // colors and are left out: AI provider logos, the Office and PDF file
-// types, the globe, and the integrations' raster logos.
+// types, and the integrations' raster logos.
 
 const ICONS = resolve(process.cwd(), "public/icons");
 
@@ -16,7 +16,6 @@ const THIRD_PARTY = [
     /^providers\//,
     /^integrations\//,
     /^file-types\/(word|excel|ppt|pdf)\.svg$/,
-    /^earth\.svg$/,
 ];
 
 function svgFiles(dir: string): string[] {
@@ -108,6 +107,14 @@ describe("LiTT icon palette", () => {
         expect(hexColors(svg).filter((hex) => isBlueOrCyan(hsl(hex)))).toEqual(
             [],
         );
+    });
+
+    it.each(own)("%s names no gradient after a forbidden hue", (name) => {
+        const svg = readFileSync(join(ICONS, name), "utf8");
+        const ids = [...svg.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+        expect(
+            ids.filter((id) => /blue|purple|indigo|violet|cyan|sky/i.test(id)),
+        ).toEqual([]);
     });
 
     it.each(own.filter((name) => !name.endsWith("-complete.svg")))(

@@ -162,6 +162,7 @@ describe("while the organization loads", () => {
       '[data-slot="org-privacy-skeleton"]',
     ) as HTMLElement;
     expect(skeleton).toHaveAttribute("aria-hidden", "true");
+    expect(skeleton).toHaveAttribute("data-role", "owner");
     // Same rows as the loaded sections: two policies and departed work.
     expect(skeleton.querySelectorAll('[data-slot="settings-row"]')).toHaveLength(3);
     // Worded like the loaded rows, with the listed organization's name, so
@@ -176,6 +177,37 @@ describe("while the organization loads", () => {
     // The section below is already in its final place.
     expect(screen.getByRole("heading", { name: "Delete data" })).toBeInTheDocument();
   });
+
+  it("promises no owner control while the role is still unknown", () => {
+    mocks.org = null;
+    mocks.organizations = null;
+    const { container } = render(<OrganizationPrivacyData />);
+
+    const skeleton = container.querySelector(
+      '[data-slot="org-privacy-skeleton"]',
+    ) as HTMLElement;
+    expect(skeleton).toHaveAttribute("data-role", "unknown");
+    // Same rows, so the height is the owner's; no toggle or button shape.
+    expect(skeleton.querySelectorAll('[data-slot="settings-row"]')).toHaveLength(3);
+    expect(skeleton.querySelectorAll(".rounded-full")).toHaveLength(0);
+    expect(screen.getByRole("heading", { name: "Delete data" })).toBeInTheDocument();
+  });
+
+  it.each(["admin", "member"] as const)(
+    "shows a %s the turn-away, not the owner skeleton, once the list gives the role",
+    (role) => {
+      mocks.org = null;
+      mocks.organizations = [orgAs(role)];
+      const { container } = render(<OrganizationPrivacyData />);
+
+      expect(
+        container.querySelector('[data-slot="org-privacy-skeleton"]'),
+      ).toBeNull();
+      expect(
+        screen.getByText("Only this organization's owners can manage its data."),
+      ).toBeInTheDocument();
+    },
+  );
 
   it("drops the skeleton once the organization has loaded", () => {
     const { container } = render(<OrganizationPrivacyData />);

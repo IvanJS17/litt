@@ -220,6 +220,9 @@
       "doubts": "Where they hesitated",
       "unverified": "What was left unverified",
       "inferred": "inferred",
+      "approve": "Approve this version",
+      "approveName": "Approve this version: {text}",
+      "approved": "Approved",
       "none": "Nothing.",
       "generatedWith": "Generated with {model} on {date, date, medium} {date, time, short}",
       "reviewedOn": "Reviewed on {date, date, medium} {date, time, short}",
@@ -238,6 +241,9 @@
       "heldDrafts": "{count, plural, one {# sealed draft still waits for approval; approve it from its document.} other {# sealed drafts still wait for approval; approve them from each document.}}",
       "generate": "Generate review",
       "regenerate": "Regenerate",
+      "approveTitle": "Approve this version?",
+      "approveMessage": "You approve the pupil's draft as it is now. If its content changes, it needs a new approval.",
+      "approve": "Approve",
       "markReviewed": "Mark as reviewed",
       "keyRequired": "To generate reviews and defense questions you need an AI key you can use in this organization. There is no fallback to another key. You can still record a defense without AI.",
       "key": "Key",
@@ -250,7 +256,8 @@
       "actions": {
         "load": "load the works",
         "generate": "generate the review",
-        "markReviewed": "mark the work as reviewed"
+        "markReviewed": "mark the work as reviewed",
+        "approve": "approve the version"
       }
     },
     "defenses": {
@@ -307,6 +314,7 @@
       "project": "Matter",
       "chooseProject": "Choose a matter",
       "noProjects": "You have no matters in this organization",
+      "noGrantableProjects": "The pupil cannot open any of your matters in this organization",
       "duration": "Duration",
       "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
       "hours": "{hours, plural, one {# hour} other {# hours}}",

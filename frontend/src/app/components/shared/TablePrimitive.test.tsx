@@ -289,6 +289,16 @@ describe("table horizontal overflow hint", () => {
         expect(viewport).toHaveAttribute("data-scrolled-x", "true");
     });
 
+    it("stops short of the vertical scrollbar instead of tinting it", () => {
+        const { viewport, hint } = renderTable();
+        expect(hint.style.right).toBe("0px");
+
+        Object.defineProperty(viewport, "offsetWidth", { configurable: true, value: 815 });
+        sizeViewport(viewport, { scrollWidth: 1200, clientWidth: 800 });
+        fireEvent.scroll(viewport);
+        expect(hint.style.right).toBe("15px");
+    });
+
     it("shows no hint when every column fits", () => {
         const { viewport, hint } = renderTable();
         sizeViewport(viewport, { scrollWidth: 800, clientWidth: 800 });

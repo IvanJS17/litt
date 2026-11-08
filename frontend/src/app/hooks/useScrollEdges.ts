@@ -26,6 +26,19 @@ export function scrollEdges(element: HTMLElement, axis: ScrollAxis): ScrollEdges
 }
 
 /**
+ * Thickness of the scrollbar the other axis draws inside the container, in
+ * pixels: the width of the vertical bar when `axis` is `"x"`. Zero for
+ * overlay scrollbars, which take no room.
+ */
+export function crossAxisGutter(element: HTMLElement, axis: ScrollAxis): number {
+    const gutter =
+        axis === "x"
+            ? element.offsetWidth - element.clientWidth
+            : element.offsetHeight - element.clientHeight;
+    return Math.max(0, gutter);
+}
+
+/**
  * A mask that fades a vertical scroll container's content out at each end
  * that hides more, so a cut-off row reads as "there is more" rather than as
  * a clipped one.
@@ -54,6 +67,7 @@ export function scrollFadeMaskStyle(
 export function useScrollEdges<T extends HTMLElement>(axis: ScrollAxis) {
     const [element, setElement] = useState<T | null>(null);
     const [edges, setEdges] = useState<ScrollEdges>(NONE);
+    const [gutter, setGutter] = useState(0);
 
     const update = useCallback(() => {
         const next = element ? scrollEdges(element, axis) : NONE;
@@ -62,6 +76,7 @@ export function useScrollEdges<T extends HTMLElement>(axis: ScrollAxis) {
                 ? current
                 : next,
         );
+        setGutter(element ? crossAxisGutter(element, axis) : 0);
     }, [element, axis]);
 
     useLayoutEffect(() => {
@@ -93,5 +108,5 @@ export function useScrollEdges<T extends HTMLElement>(axis: ScrollAxis) {
         };
     }, [element, update]);
 
-    return { ref: setElement, edges, onScroll: update };
+    return { ref: setElement, edges, gutter, onScroll: update };
 }
