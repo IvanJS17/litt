@@ -110,7 +110,12 @@ const ORIGINAL_CONTENT = {
             { text: "Art. 2398 CCF", verified: true, sourceId: "src-1", quote: REF_QUOTE },
           ],
         }),
-        rule({ id: "r-garantia", name: "Garantía", concept: "Depósito de un mes." }),
+        rule({
+          id: "r-garantia",
+          name: "Garantía",
+          concept: "Depósito de un mes.",
+          origin: { kind: "answer", questionIds: ["q1", "q2"], note: "Según el cuestionario.", unbacked: false },
+        }),
       ],
     },
   ],
@@ -246,6 +251,11 @@ describe("the copy", () => {
       { text: "Art. 1840 CCF", verified: false },
       { text: "Art. 2398 CCF", verified: false },
     ]);
+    // The copy carries no questionnaire answers, so an answer origin falls to
+    // general practice too, and a legacy reference keeps no quote either.
+    const garantia = topicRules(row)[1];
+    expect(garantia.origin).toEqual({ kind: "ai_general", note: "Según el cuestionario.", unbacked: true });
+    expect(JSON.stringify(row)).not.toContain("questionIds");
     // No attachment text anywhere in the copy, rule JSON included.
     expect(JSON.stringify(row)).not.toContain(ORIGIN_QUOTE);
     expect(JSON.stringify(row)).not.toContain(REF_QUOTE);
