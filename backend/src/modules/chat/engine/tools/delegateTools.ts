@@ -287,7 +287,7 @@ export type DelegateContext = {
     /** The user's routes and how to run one; null runs every subagent on the chat's model. */
     subagentRoutes: SubagentRoutePlan | null;
     /**
-     * A junior's criteria contrast (lib/trainingTurn/criteria.ts): exactly two
+     * A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): exactly two
      * subagents, each on the route or approach the server assigned. The engine
      * records what each one ran on; a route that cannot run is never replaced.
      */

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MAX_DOCUMENT_CONTEXT_CHARS } from "../contextBuilders";
+import { isDocumentMutatingTool, withoutDocumentMutatingTools } from "./toolSchemas";
 import {
   APPLY_WORD_EDITS_TOOL_NAME,
   CLIENT_TOOL_TIMEOUT_RESULT,
   applyTimeoutMsFor,
   READ_ACTIVE_DOCUMENT_TOOL_NAME,
+  WORD_CLIENT_TOOLS,
   TOOL_EDIT_BLOCK_INDEX_BASE,
   buildApplyResultPayload,
   createWordClientToolsAdapter,
@@ -728,5 +730,17 @@ describe("per-turn cost guards", () => {
       ],
     });
     expect(outcomes[0]?.status).toBe("error");
+  });
+});
+
+describe("WORD_CLIENT_TOOLS and the read-only gate", () => {
+  it("every client tool except the reader is a document writer the gate drops", () => {
+    for (const tool of WORD_CLIENT_TOOLS) {
+      const name = tool.function.name;
+      expect(isDocumentMutatingTool(name)).toBe(name !== READ_ACTIVE_DOCUMENT_TOOL_NAME);
+    }
+    expect(withoutDocumentMutatingTools(WORD_CLIENT_TOOLS).map((t) => t.function.name)).toEqual([
+      READ_ACTIVE_DOCUMENT_TOOL_NAME,
+    ]);
   });
 });

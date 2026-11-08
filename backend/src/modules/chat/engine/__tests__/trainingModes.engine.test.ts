@@ -39,6 +39,7 @@ import { beginTrainingTurn, trainingEnginePlan, type TrainingEnginePlan } from "
 import { UNVERIFIED_LEGAL_FOOTER } from "../../../../lib/trainingHint";
 import { runLLMStream } from "../streaming";
 import { DOCUMENT_MUTATING_TOOL_NAMES, PROJECT_EXTRA_TOOLS } from "../tools/toolSchemas";
+import { WORD_CLIENT_TOOLS, isWordClientToolName } from "../tools/wordClientTools";
 
 type StreamChatCall = {
   tools: { function: { name: string } }[];
@@ -127,6 +128,15 @@ describe("the tools of a hint or counterpart turn", () => {
     );
   });
 
+  // Decision (card 14 meets card 6): list_firm_criteria stays in a hint and a
+  // counterpart turn. It only reads the firm's written positions, with the
+  // caller's own membership, and a mode narrows writers, not reading.
+  it.each(MODES)("%s: the read-only list_firm_criteria stays offered", async (mode) => {
+    await runLLMStream(params(await planFor(mode)) as never);
+    expect(names()).toContain("list_firm_criteria");
+    expect(DOCUMENT_MUTATING_TOOL_NAMES.has("list_firm_criteria")).toBe(false);
+  });
+
   it.each(MODES)("%s: a writer the model asks for anyway is refused and never dispatched", async (mode) => {
     const plan = await planFor(mode);
     let results: { tool_use_id: string; content: string }[] | undefined;
@@ -141,6 +151,36 @@ describe("the tools of a hint or counterpart turn", () => {
     expect(runToolCalls.mock.calls[0]![0].map((call) => call.function.name)).toEqual(["read_document"]);
     for (const result of results!.slice(0, -1))
       expect(result.content).toMatch(/is not available/);
+  });
+});
+
+describe("Word with cloud storage: the add-in's client tools in a restricted turn", () => {
+  const execute = vi.fn(async () => ({ content: "{}", events: [] }));
+  const wordParams = (plan?: TrainingEnginePlan) => ({
+    ...params(plan),
+    clientTools: { schemas: WORD_CLIENT_TOOLS, owns: isWordClientToolName, execute },
+  });
+
+  it("an ordinary Word turn still has apply_word_edits (negative control)", async () => {
+    await runLLMStream(wordParams() as never);
+    expect(names()).toContain("apply_word_edits");
+  });
+
+  it.each(["hint", "counterpart"] as const)("%s: apply_word_edits is neither advertised nor executed", async (mode) => {
+    execute.mockClear();
+    const plan = await planFor(mode);
+    streamChatWithTools.mockImplementation(async (call: StreamChatCall) => {
+      expect(call.tools.map((tool) => tool.function.name)).not.toContain("apply_word_edits");
+      const results = await call.runTools?.([
+        { id: "w", name: "apply_word_edits", input: { edits: [{ original: "a", replacement: "b" }] } },
+      ]);
+      expect(results![0]!.content).toMatch(/is not available/);
+      return { fullText: "" };
+    });
+    await runLLMStream(wordParams(plan) as never);
+    expect(execute).not.toHaveBeenCalled();
+    expect(streamChatWithTools).toHaveBeenCalled();
+    expect(names()).toContain("read_active_document");
   });
 });
 
@@ -164,11 +204,20 @@ describe("the «sin verificar» footer", () => {
 
   it("is left out when a verified citation of the turn contains the reference", async () => {
     verified.citations = [
-      { ref: 1, doc_id: "doc-0", quote: "Artículo 1949.- La facultad de resolver las obligaciones", verified: true },
+      { ref: 1, doc_id: "doc-0", filename: "Código Civil.pdf", quote: "Artículo 1949.- La facultad de resolver las obligaciones", verified: true },
     ];
     const text = "Revisa el artículo 1949 del Código Civil.\n<CITATIONS>[]</CITATIONS>";
     const { result } = await answer(text, await planFor("hint"));
     expect(result.fullText).not.toContain("Sin verificar");
+  });
+
+  it("does not accept the same article of another law as backing", async () => {
+    verified.citations = [
+      { ref: 1, doc_id: "doc-0", filename: "Ley Federal del Trabajo.pdf", quote: "Artículo 1949.- El patrón", verified: true },
+    ];
+    const text = "Revisa el artículo 1949 del Código Civil.\n<CITATIONS>[]</CITATIONS>";
+    const { result } = await answer(text, await planFor("hint"));
+    expect(result.fullText).toContain("Sin verificar");
   });
 
   it("does not count an unverified citation as backing", async () => {

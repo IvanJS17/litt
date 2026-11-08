@@ -1,7 +1,7 @@
 // LiTT training layer 3 «Contraste de criterios» (docs/training.md): reading
 // the contrasts of a junior.
 //
-// The rows are written by lib/trainingTurn/criteria.ts after the two steps of
+// The rows are written by lib/trainingTurn/criteriaContrast.ts after the two steps of
 // the contrast. This module shows them: to the person (their own, with the two
 // analyses) and to their CURRENT mentor (the routes, the person's explanation
 // and the comparison, for works in matters the mentor can open; the others are

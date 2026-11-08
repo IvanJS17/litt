@@ -25,7 +25,7 @@ import {
     type Ladder,
 } from "../trainingHint";
 import type { TurnNoteSurface } from "../trainingNotes";
-import { CRITERIA_MODES, criteriaPlan, isCriteriaMode } from "./criteria";
+import { CRITERIA_MODES, criteriaPlan, isCriteriaMode } from "./criteriaContrast";
 import type { TrainingBehavior, TrainingMode, TrainingTurnFailure, TrainingTurnPlan } from "./types";
 
 export const TRAINING_MODE_NOT_ALLOWED_CODE = "training_mode_not_allowed";

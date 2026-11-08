@@ -172,11 +172,19 @@ export async function getEffectiveTrainingStage(
         surface?: unknown;
         /** The chat the turn would continue: the hint ladder is counted from its notes. */
         chatId?: unknown;
+        /**
+         * Word only: where the add-in keeps the chat. The server cannot know it
+         * here, and a local chat keeps no notes, so no ladder: `local` announces
+         * no modes (the turn would refuse them). Absent or anything else counts
+         * as cloud, as before.
+         */
+        storage?: unknown;
     },
 ): Promise<ServiceResult<TrainingEffectiveStage>> {
     const base = await effectiveStageOf(db, args);
     if (!base.ok) return base;
-    return withModes(db, args.userId, args.chatId, base.data, args.surface !== "word");
+    const localWord = args.surface === "word" && args.storage === "local";
+    return withModes(db, args.userId, args.chatId, base.data, localWord, args.surface !== "word");
 }
 
 /**
@@ -190,9 +198,10 @@ async function withModes(
     userId: string,
     chatId: unknown,
     base: TrainingEffectiveStage,
+    keepsNoNotes: boolean,
     webSurface: boolean,
 ): Promise<ServiceResult<TrainingEffectiveStage>> {
-    // A junior's criteria contrast (lib/trainingTurn/criteria.ts): only where
+    // A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): only where
     // subagents exist and run, and the second step only while a contrast waits
     // for the person's explanation. The turn decides again.
     if (base.stage === "junior" && webSurface && chatSubagentsEnabled()) {
@@ -216,7 +225,7 @@ async function withModes(
             counterpart_next_step: null,
         });
     }
-    const owes = base.attempt_required;
+    const owes = base.attempt_required && !keepsNoNotes;
     const id = owes ? readUserId(chatId) : null;
     let notes: Parameters<typeof ladderOf>[0] = [];
     if (id) {

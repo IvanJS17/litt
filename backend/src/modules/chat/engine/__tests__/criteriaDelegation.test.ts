@@ -113,7 +113,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// LiTT training, criteria contrast (lib/trainingTurn/criteria.ts): exactly two
+// LiTT training, criteria contrast (lib/trainingTurn/criteriaContrast.ts): exactly two
 // subagents, on what the server assigned.
 const ROUTES = {
   routes: [

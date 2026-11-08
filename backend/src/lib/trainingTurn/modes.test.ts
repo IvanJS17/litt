@@ -171,8 +171,12 @@ describe("modes: surface × stage × pass × mode", () => {
     it("a turn with no mode is the ordinary turn", async () => {
         const begun = await begin(undefined);
         expect(begun).toMatchObject({ ok: true, plan: { mode: null, step: null, confidence: 3 } });
-        expect(begun.ok && begun.plan.systemAddendum).toBeUndefined();
-        expect(begun.ok && trainingEnginePlan(begun.plan)).toBeUndefined();
+        // Only card 14's firm-criteria text and tool: nothing of a mode.
+        expect(begun.ok && begun.plan.systemAddendum).not.toMatch(/PISTA|CONTRAPARTE/);
+        expect(begun.ok && trainingEnginePlan(begun.plan)).toEqual({
+            systemAddendum: begun.ok && begun.plan.systemAddendum,
+            firmCriteriaOrgId: ORG,
+        });
     });
 
     it("a mode still owes the approach (a hint is asked from a planteamiento)", async () => {
@@ -327,7 +331,10 @@ describe("what a mode asks of the engine", () => {
                 includeAskInputs: false,
                 noSubagents: true,
                 unverifiedFooter: UNVERIFIED_LEGAL_FOOTER,
+                // Kept on purpose: list_firm_criteria only reads (card 14), so a mode does not take it back.
+                firmCriteriaOrgId: ORG,
             });
+            expect(begun.plan.systemAddendum).toMatch(/criterios del despacho/);
         },
     );
 
@@ -393,13 +400,13 @@ describe("the note of a mode", () => {
         return { plan: begun.plan, note: result.note!, row: tables.training_turn_notes.at(-1)! };
     }
 
-    it("a hint is skipped (nothing to contrast), with its rung and no mark", async () => {
+    it("a hint is recorded pending until it is delivered, with its rung and no mark", async () => {
         const { row } = await recorded("hint", [hint(1)]);
-        expect(row).toMatchObject({ mode: "hint", step: 2, contrast_status: "skipped", confidence: null, attempt: ATTEMPT });
+        expect(row).toMatchObject({ mode: "hint", step: 2, contrast_status: "pending", confidence: null, attempt: ATTEMPT });
     });
 
-    it("a counterpart turn is skipped too, and the close waits for its own contrast", async () => {
-        expect((await recorded("counterpart")).row).toMatchObject({ mode: "counterpart", step: 1, contrast_status: "skipped" });
+    it("a counterpart turn is provisional too, and the close waits for its own contrast", async () => {
+        expect((await recorded("counterpart")).row).toMatchObject({ mode: "counterpart", step: 1, contrast_status: "pending" });
         expect((await recorded("counterpart_close", [counterpart(1)])).row).toMatchObject({
             mode: "counterpart_close",
             step: 1,
@@ -440,6 +447,31 @@ describe("the note of a mode", () => {
             model: "m",
             apiKeys: undefined,
         });
+    });
+
+    it("a delivered hint or counterpart turn settles as skipped; one that was not stays provisional", async () => {
+        for (const mode of ["hint", "counterpart"]) {
+            const done = await recorded(mode);
+            const { db, tables } = world("pasante", false, [{ id: done.note.id, mode, contrast_status: "pending" }]);
+            finishTrainingTurn(db, { plan: done.plan, note: done.note, completed: true, answer: "x", model: "m" });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(tables.training_turn_notes[0].contrast_status).toBe("skipped");
+
+            const failed = world("pasante", false, [{ id: done.note.id, mode, contrast_status: "pending" }]);
+            finishTrainingTurn(failed.db, { plan: done.plan, note: done.note, completed: false, answer: "", model: "m" });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(failed.tables.training_turn_notes[0].contrast_status).toBe("pending");
+        }
+    });
+
+    it("an aborted turn does not climb the ladder: two aborts, then the first rung is still the next", async () => {
+        const pending = (mode: string, step: number) => ({ mode, step, contrast_status: "pending" });
+        for (const [mode, expected] of [["hint", 1], ["counterpart", 1]] as const) {
+            const aborted = await recorded(mode, [pending(mode, 1), pending(mode, 2)]);
+            expect(aborted.row).toMatchObject({ mode, step: expected });
+        }
+        const delivered = await recorded("hint", [hint(1), pending("hint", 2), pending("hint", 3)]);
+        expect(delivered.row.step).toBe(2);
     });
 
     it("finishes nothing for a close whose turn errored", async () => {

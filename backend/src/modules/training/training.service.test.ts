@@ -552,6 +552,15 @@ describe("GET /training/stage with an urgency pass (layer 2)", () => {
             ok: true,
             data: required,
         });
+        // Word with local storage keeps no notes: it announces no modes, but still owes the approach.
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word", storage: "local" })).toEqual({
+            ok: true,
+            data: { ...required, ...NO_MODES },
+        });
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word", storage: "cloud" })).toEqual({
+            ok: true,
+            data: required,
+        });
         state.tables.training_urgency_passes = [pass({ expires_at: new Date(Date.now() - 1000).toISOString() })];
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,

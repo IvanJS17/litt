@@ -6,6 +6,8 @@ export function isRenderableEvent(event: AssistantEvent): boolean {
         event.type !== "ask_inputs_response" &&
         event.type !== "case_opinions" &&
         event.type !== "web_sources" &&
+        // Shown under the answer, not in the timeline.
+        event.type !== "firm_criteria" &&
         event.type !== "response_details"
     );
 }
@@ -63,6 +65,7 @@ export function toolCallLabel(name: string): string {
     if (name === "list_documents") return "Loading documents...";
     if (name === "web_search") return "Searching the web...";
     if (name === "read_webpage") return "Reading web page...";
+    if (name === "list_firm_criteria") return "Consulting firm criteria...";
     if (name === "delegate") return "Starting a subagent...";
     if (name.startsWith("mcp_")) return "Using connector...";
     return name ? `Running ${name}...` : "Working...";

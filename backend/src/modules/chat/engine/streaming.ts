@@ -40,6 +40,11 @@ import {
 } from "./tools/webSearchTools";
 import { METHODOLOGY_SYSTEM_PROMPT, METHODOLOGY_TOOL } from "./tools/methodologyTool";
 import {
+  FIRM_CRITERIA_TOOL,
+  FIRM_CRITERIA_TOOL_NAME,
+  runFirmCriteriaCall,
+} from "./tools/firmCriteriaTool";
+import {
   ASK_PARENT_TOOL,
   ASK_PARENT_TOOL_NAME,
   DELEGATE_TOOL_NAME,
@@ -394,7 +399,7 @@ export async function runLLMStream(params: {
   const webSearch = chatWebSearchEnabled() ? requestedWebSearch : null;
   const subagentRuns =
     chatSubagentsEnabled() && !trainingPlan?.noSubagents ? requestedSubagentRuns : null;
-  // A junior's criteria contrast (lib/trainingTurn/criteria.ts): exactly two
+  // A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): exactly two
   // subagents, on the routes or approaches the server assigned. The tool only
   // offers those routes, or none (the conversation's model) for the approaches.
   const criteria = trainingPlan?.delegation;
@@ -430,6 +435,8 @@ export async function runLLMStream(params: {
   const conversationTools = includeAskInputs
     ? TOOLS
     : TOOLS.filter((tool) => tool.function.name !== "ask_inputs");
+  // A trainee's turn may consult the firm's criteria (never a subagent's).
+  const firmCriteriaOrgId = isSubagent ? undefined : trainingPlan?.firmCriteriaOrgId;
   // A junior's calculator: only a training plan that asks for it, never a subagent.
   const offerMethodology = trainingPlan?.methodology === true && !isSubagent;
   const webTools = webToolsFor(webSearch);
@@ -445,6 +452,7 @@ export async function runLLMStream(params: {
     ...PLAYBOOK_TOOLS,
     ...(offerMethodology ? [METHODOLOGY_TOOL] : []),
     ...webTools,
+    ...(firmCriteriaOrgId ? [FIRM_CRITERIA_TOOL] : []),
     ...(subagentRuns && chatModel
       ? // LiTT: a subagent runs on a route the user configured, or on this model.
         [delegateTool(effectiveRoutes?.routes ?? null)]
@@ -912,8 +920,12 @@ export async function runLLMStream(params: {
         const delegateCalls = permittedCalls.filter(
           (c) => c.name === DELEGATE_TOOL_NAME,
         );
+        const firmCalls = firmCriteriaOrgId
+          ? permittedCalls.filter((c) => c.name === FIRM_CRITERIA_TOOL_NAME)
+          : [];
         const handledElsewhere = (c: NormalizedToolCall) =>
           webToolNames.has(c.name) ||
+          (!!firmCriteriaOrgId && c.name === FIRM_CRITERIA_TOOL_NAME) ||
           c.name === DELEGATE_TOOL_NAME ||
           !!clientTools?.owns(c.name);
         const serverCalls = permittedCalls.filter((c) => !handledElsewhere(c));
@@ -940,6 +952,17 @@ export async function runLLMStream(params: {
           events.push(event);
           write(`data: ${JSON.stringify(event)}\n\n`);
         });
+        for (const call of firmCalls) {
+          const { content, event } = await runFirmCriteriaCall(call, {
+            db,
+            userId,
+            orgId: firmCriteriaOrgId!,
+            nonce,
+          });
+          clientResultByCallId.set(call.id, content);
+          events.push(event);
+          write(`data: ${JSON.stringify(event)}\n\n`);
+        }
         if (clientTools) {
           for (const call of permittedCalls) {
             if (!clientTools.owns(call.name)) continue;

@@ -6,7 +6,7 @@
 //       the pupil's current mentor's view
 //
 // The contrast itself is made by two chat turns (modes criteria_contrast and
-// criteria_explain, lib/trainingTurn/criteria.ts); these routes only read it.
+// criteria_explain, lib/trainingTurn/criteriaContrast.ts); these routes only read it.
 // Thin handlers: parse, call the service, map the ServiceResult.
 
 import { Router, type Response } from "express";
