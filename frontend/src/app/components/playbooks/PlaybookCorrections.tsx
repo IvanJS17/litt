@@ -111,7 +111,10 @@ function ChangeCard({
 }) {
   const t = useTranslations("training.criterion.corrections");
   const rule = change.after ?? change.before;
-  const attributed = change.after?.origin?.attributedTo;
+  const tOrigin = useTranslations("playbooks.origin");
+  // The label follows the rule's real origin, not the kind of change.
+  const origin = rule?.origin;
+  const attributed = origin?.attributedTo;
   return (
     <li className="space-y-3 rounded-lg border border-gray-200 p-4">
       <header className="space-y-0.5">
@@ -119,9 +122,16 @@ function ChangeCard({
         <h3 className="text-sm font-medium text-gray-900 [overflow-wrap:anywhere]">
           {rule?.name}
         </h3>
-        <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
-          {attributed ? t("source", { name: attributed }) : t("sourceUnnamed")}
-        </p>
+        {origin?.kind === "correction" && (
+          <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
+            {attributed ? t("source", { name: attributed }) : t("sourceUnnamed")}
+          </p>
+        )}
+        {origin?.kind === "ai_general" && (
+          <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
+            <strong className="font-medium text-gray-800">{tOrigin("unbacked")}</strong>
+          </p>
+        )}
       </header>
       {change.rationale && (
         <p className="text-xs text-gray-600 [overflow-wrap:anywhere]">

@@ -300,15 +300,33 @@ describe("the Corrections screen (es-MX)", () => {
     expect(within(after).getByText("Si no aceptan: Escalar al socio")).toBeVisible();
     expect(within(after).getByText("Avisar")).toBeVisible();
     expect(within(before).queryByText("Orientación")).toBeNull();
-    // A rule added without a correction says it comes from no correction.
+    // A rule added without a correction is not labelled as coming from one.
     expect(within(cards[1]).getByText("Regla nueva")).toBeVisible();
-    expect(within(cards[1]).getByText("De una corrección")).toBeVisible();
+    expect(within(cards[1]).queryByText("De una corrección")).toBeNull();
+    expect(within(cards[1]).queryByText("Sugerencia sin respaldo, revisar")).toBeNull();
     expect(within(cards[1]).getByRole("heading", { name: LONG })).toBeVisible();
     expect(within(cards[1]).queryByText("Por qué")).toBeNull();
     // A removed rule has nothing after it.
     expect(within(cards[2]).getByText("Quitar una regla")).toBeVisible();
     expect(within(within(cards[2]).getByRole("region", { name: "Después" })).getByText("Ninguno")).toBeVisible();
     expect(screen.getByRole("button", { name: "Proponer reglas" })).toBeDisabled();
+  });
+
+  it("labels each change by the real origin of its rule", async () => {
+    const withOrigin = (origin: api.PlaybookRuleOrigin) => rule({ name: "R", origin });
+    vi.mocked(api.listPlaybookChanges).mockResolvedValue([
+      change({ id: "c-1", after: withOrigin({ kind: "correction", unbacked: false }) }),
+      change({ id: "c-2", after: withOrigin({ kind: "ai_general", unbacked: true }) }),
+      change({ id: "c-3", after: withOrigin({ kind: "clause", unbacked: false }) }),
+    ]);
+    screenUnderTest();
+    await screen.findByText("Decide cada cambio propuesto antes de enviar más correcciones.");
+    const cards = screen.getAllByRole("listitem").filter((item) => item.tagName === "LI" && item.querySelector("h3"));
+    expect(within(cards[0]).getByText("De una corrección")).toBeVisible();
+    expect(within(cards[1]).getByText("Sugerencia sin respaldo, revisar")).toBeVisible();
+    expect(within(cards[1]).queryByText("De una corrección")).toBeNull();
+    expect(within(cards[2]).queryByText("De una corrección")).toBeNull();
+    expect(within(cards[2]).queryByText("Sugerencia sin respaldo, revisar")).toBeNull();
   });
 
   it("accepts a change, rewriting the page's playbook, and rejects another without touching it", async () => {
