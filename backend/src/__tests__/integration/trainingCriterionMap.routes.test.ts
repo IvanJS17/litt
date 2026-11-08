@@ -594,6 +594,24 @@ describe("what the mentor reads", () => {
             expect(retakeRows().find((r) => r.id === res.body.id)!.topic_label).toBe("Prescripción cambiaria");
         });
 
+        it("stops showing a retake to the mentor once they lose a source matter (R2)", async () => {
+            const open = weakTopic();
+            const secret = [3, 2, 1].map((days) => noteRow({ chat_id: SECRET_CHAT, created_at: daysAgo(days) }));
+            seed({
+                notes: [...open, ...secret],
+                retakes: [answeredRetake({ source_note_ids: [open[2].id, secret[0].id] })],
+            });
+            h.openable.add(`${SECRET_PROJECT}:${MENTOR}`);
+            const seen = (await as(MENTOR).get(mentorUrl)).body;
+            expect(seen.retakes).toHaveLength(1);
+            expect(seen.retakes_without_access).toBe(0);
+            h.openable.delete(`${SECRET_PROJECT}:${MENTOR}`);
+            const after = (await as(MENTOR).get(mentorUrl)).body;
+            expect(after.retakes).toEqual([]);
+            expect(after.retakes_without_access).toBe(1);
+            expect(JSON.stringify(after)).not.toContain(QUESTION);
+        });
+
         it("counts only, never shows, a retake whose source note is gone or that records none", async () => {
             const { open } = mixed();
             seed({

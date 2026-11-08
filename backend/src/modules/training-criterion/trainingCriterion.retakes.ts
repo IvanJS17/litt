@@ -275,13 +275,24 @@ export async function answerRetake(
     const material = await materialFor(db, { orgId: row.org_id, traineeId: args.userId, noteIds: sources });
     if (!material.ok) return material;
     if (material.data.material.length === 0) {
-        const { error: closeError } = await db
+        const { data: closed, error: closeError } = await db
             .from("training_retakes")
             .update({ status: "failed", updated_at: new Date().toISOString() })
             .eq("id", row.id)
             .eq("status", row.status)
-            .eq("updated_at", row.updated_at);
+            .eq("updated_at", row.updated_at)
+            .select("id");
         if (closeError) return internalFailure(closeError);
+        if (((closed ?? []) as unknown[]).length === 0) {
+            // Nothing matched: another request moved the row. Say what it is now.
+            const again = await loadOwnRetake(db, args);
+            if (!again.ok) return again;
+            if (!again.data) return retakeNotFound();
+            const now = effectiveRetakeStatus(again.data, Date.now());
+            if (now === "pending") return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
+            if (now !== "failed") return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
+            // Already closed by someone else: the same outcome as closing it.
+        }
         return failure("conflict", SOURCE_GONE, RETAKE_SOURCE_GONE_CODE);
     }
 
