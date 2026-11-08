@@ -50,14 +50,18 @@ function AppSidebarIcon({ name, ...props }: IconProps & { name: keyof typeof ico
   return <SvgAssetIcon src={icons[name]} {...props} />;
 }
 
+/**
+ * A chat. `complete` is the green of a finished response: green is kept for
+ * success, so only a state that means "done" uses it.
+ */
 export function ChatSkeuoIcon({
   className,
-  tone = "blue",
+  tone = "default",
   ...props
-}: IconProps & { tone?: "blue" | "green" }) {
+}: IconProps & { tone?: "default" | "complete" }) {
   return (
     <AppSidebarIcon
-      name={tone === "green" ? "features/chat-complete" : "features/chat"}
+      name={tone === "complete" ? "features/chat-complete" : "features/chat"}
       className={className}
       {...props}
     />

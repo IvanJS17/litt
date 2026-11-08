@@ -43,6 +43,16 @@
     border: 1px solid var(--table-grid-border);
 }
 
+/* Scrolled sideways: the pinned first column casts a soft edge, so rows
+   read as passing beneath it. TableScrollArea sets data-scrolled-x. */
+.table-surface [data-scrolled-x] .table-sticky-cell {
+    box-shadow: 8px 0 10px -8px rgb(21 26 38 / 0.18);
+}
+
+.dark .table-surface [data-scrolled-x] .table-sticky-cell {
+    box-shadow: 8px 0 10px -8px rgb(0 0 0 / 0.6);
+}
+
 /* Tailwind inlines this import in place, so these rules keep their position
    in the cascade (after the table-surface rules above). */
 @import "../../../packages/ui/styles/DarkPaletteUI.css";
