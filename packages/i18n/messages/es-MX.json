@@ -154,5 +154,57 @@
       "diagnostics": "--- Datos para soporte (no los borres) ---",
       "thanks": "Gracias."
     }
+  },
+  "word": {
+    "app": {
+      "openingChats": "Abriendo los chats del documento…",
+      "unidentifiedDocument": "No se pudo identificar este documento de Word."
+    },
+    "language": {
+      "label": "Idioma de la interfaz",
+      "description": "Elige el idioma que LiTT usa en Word. Se guarda en tu perfil, así que también se aplica en la aplicación web.",
+      "saveFailed": "LiTT no pudo guardar el idioma. Inténtalo de nuevo.",
+      "title": "Idioma",
+      "names": {
+        "en-US": "English",
+        "es-MX": "Español (México)"
+      }
+    },
+    "login": {
+      "continueWithGoogle": "Continuar con Google",
+      "continuing": "Continuando…",
+      "email": "Correo electrónico",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "heading": "Iniciar sesión",
+      "logIn": "Iniciar sesión",
+      "loggingIn": "Iniciando sesión...",
+      "noAccount": "¿No tienes una cuenta?",
+      "or": "o",
+      "password": "Contraseña",
+      "signUp": "Regístrate"
+    },
+    "notify": {
+      "completeAction": "completar esa acción",
+      "contactSupport": "Contactar a soporte",
+      "emailAddress": "Escribe a {email}",
+      "emailAddressClipboard": "Escribe a {email}: los detalles están en tu portapapeles",
+      "sessionCheckFailed": "No se pudo comprobar tu sesión. Revisa tu conexión e inténtalo de nuevo.",
+      "supportDraft": "Se abrió el borrador del correo",
+      "supportDraftClipboard": "Se abrió el borrador del correo; los detalles también están en tu portapapeles"
+    },
+    "oauth": {
+      "completing": "Completando el inicio de sesión…",
+      "failed": "No se pudo iniciar sesión con Google. Inténtalo de nuevo.",
+      "invalidHandoff": "El inicio de sesión con Google no generó una transferencia válida.",
+      "invalidRequest": "Esta solicitud de inicio de sesión no es válida. Cierra esta ventana e inténtalo de nuevo.",
+      "notifyFailed": "No se pudo avisar a Word que el inicio de sesión terminó. Cierra esta ventana e inténtalo de nuevo.",
+      "signedIn": "Sesión iniciada. Puedes volver a Word.",
+      "unableToOpen": "No se pudo abrir el inicio de sesión con Google.",
+      "unavailable": "El inicio de sesión con Google no está disponible por el momento. Inténtalo de nuevo.",
+      "unexpected": "LiTT no pudo completar el inicio de sesión con Google. Inténtalo de nuevo."
+    },
+    "settings": {
+      "title": "Ajustes"
+    }
   }
 }

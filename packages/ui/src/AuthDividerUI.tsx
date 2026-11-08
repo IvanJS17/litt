@@ -1,8 +1,9 @@
-export function AuthDividerUI() {
+/** `label` is the already-translated word between the rules ("or"). */
+export function AuthDividerUI({ label = "or" }: { label?: string }) {
     return (
         <div className="flex items-center gap-3 py-1" aria-hidden="true">
             <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs text-gray-500">or</span>
+            <span className="text-xs text-gray-500">{label}</span>
             <div className="h-px flex-1 bg-gray-200" />
         </div>
     );
