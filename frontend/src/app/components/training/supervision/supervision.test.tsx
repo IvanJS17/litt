@@ -19,6 +19,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     getPupilWorks: vi.fn(),
     generateWorkReview: vi.fn(async () => ({})),
     markWorkReviewed: vi.fn(async () => ({})),
+    approveTrainingVersion: vi.fn(async () => ({})),
     getPupilDefenses: vi.fn(),
     createDefense: vi.fn(async () => ({})),
     generateDefenseQuestions: vi.fn(async () => ({})),
@@ -261,6 +262,13 @@ describe("Mentor panel", () => {
     });
 });
 
+const heldLine = {
+    source: "version",
+    text: "Borrador de pasante sin aprobar: borrador.docx",
+    ref: "ver-1",
+    document_id: "doc-1",
+};
+
 describe("Works tab", () => {
     it("shows the four rows, marks inferred lines, and generates on the chosen key", async () => {
         vi.mocked(api.getPupilWorks).mockResolvedValue(works());
@@ -294,6 +302,70 @@ describe("Works tab", () => {
         await waitFor(() =>
             expect(api.markWorkReviewed).toHaveBeenCalledWith("org-1", "pupil-1", { surface: "chat", chatId: "chat-1" }),
         );
+    });
+
+    describe("approving a held draft in its row", () => {
+        const withHeld = () =>
+            works({ works: [{ ...works().works[0], review: { ...readyReview, unverified: [heldLine] } }] });
+
+        it("asks for confirmation, then uses the existing approval and marks the line approved", async () => {
+            vi.mocked(api.getPupilWorks).mockResolvedValue(withHeld());
+            render(<WorksTab orgId="org-1" pupilId="pupil-1" />);
+            const approve = await screen.findByRole("button", {
+                name: "Approve this version: Borrador de pasante sin aprobar: borrador.docx",
+            });
+            fireEvent.click(approve);
+            const dialog = await screen.findByRole("dialog", { name: "Approve this version?" });
+            expect(api.approveTrainingVersion).not.toHaveBeenCalled();
+
+            fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+            expect(api.approveTrainingVersion).not.toHaveBeenCalled();
+
+            fireEvent.click(approve);
+            fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve" }));
+            await waitFor(() => expect(api.approveTrainingVersion).toHaveBeenCalledExactlyOnceWith("doc-1", "ver-1"));
+            expect(await screen.findByText(/Approved$/)).toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: /^Approve this version/ })).toBeNull();
+            expect(notifyError).not.toHaveBeenCalled();
+        });
+
+        it("hands a refusal to notifyError and keeps the button", async () => {
+            const refused = new Error("403");
+            vi.mocked(api.getPupilWorks).mockResolvedValue(withHeld());
+            vi.mocked(api.approveTrainingVersion).mockRejectedValueOnce(refused);
+            render(<WorksTab orgId="org-1" pupilId="pupil-1" />);
+            fireEvent.click(await screen.findByRole("button", { name: /^Approve this version: / }));
+            fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve" }));
+            await waitFor(() =>
+                expect(notifyError).toHaveBeenCalledWith(
+                    refused,
+                    expect.objectContaining({ action: "approve the version" }),
+                ),
+            );
+            expect(screen.getByRole("button", { name: /^Approve this version: / })).toBeInTheDocument();
+        });
+
+        it("offers nothing on a line without a document (an older review) or on other sources", async () => {
+            vi.mocked(api.getPupilWorks).mockResolvedValue(
+                works({
+                    works: [
+                        {
+                            ...works().works[0],
+                            review: {
+                                ...readyReview,
+                                unverified: [
+                                    { source: "version", text: "Borrador antiguo", ref: "ver-0" },
+                                    { source: "citation", text: "Cita sin verificar", ref: "m1", document_id: "doc-9" },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+            );
+            render(<WorksTab orgId="org-1" pupilId="pupil-1" />);
+            expect(await screen.findByText("Borrador antiguo")).toBeInTheDocument();
+            expect(screen.queryByRole("button", { name: /^Approve this version/ })).toBeNull();
+        });
     });
 
     it("explains the missing key, generation states and the codes it can meet", async () => {
@@ -655,6 +727,16 @@ describe("What my mentor sees of me", () => {
         expect(screen.getAllByText(/^Question \d/)).toHaveLength(5);
         expect(screen.getByText("Arrendamiento Ruiz")).toBeInTheDocument();
         expect(screen.getByText("Hearing")).toBeInTheDocument();
+    });
+
+    it("shows the pupil a held draft's line, with nothing to approve", async () => {
+        vi.mocked(api.getMySupervision).mockResolvedValue({
+            ...supervision,
+            work_reviews: [{ ...readyReview, unverified: [heldLine] }],
+        });
+        render(<MentorSeesMe orgId="org-1" />);
+        expect(await screen.findByText(heldLine.text)).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: /^Approve this version/ })).toBeNull();
     });
 
     it("says when there is nothing yet, even if the matters cannot be listed", async () => {

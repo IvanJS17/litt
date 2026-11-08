@@ -210,6 +210,9 @@
       "doubts": "Dónde dudó",
       "unverified": "Qué quedó sin verificar",
       "inferred": "inferido",
+      "approve": "Aprobar esta versión",
+      "approveName": "Aprobar esta versión: {text}",
+      "approved": "Aprobada",
       "none": "Nada.",
       "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
       "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
@@ -228,6 +231,9 @@
       "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación; apruébalo desde su documento.} other {# borradores sellados siguen pendientes de aprobación; apruébalos desde cada documento.}}",
       "generate": "Generar resumen",
       "regenerate": "Regenerar",
+      "approveTitle": "¿Aprobar esta versión?",
+      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
+      "approve": "Aprobar",
       "markReviewed": "Marcar como revisado",
       "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
       "key": "Llave",
@@ -240,7 +246,8 @@
       "actions": {
         "load": "cargar los trabajos",
         "generate": "generar el resumen",
-        "markReviewed": "marcar el trabajo como revisado"
+        "markReviewed": "marcar el trabajo como revisado",
+        "approve": "aprobar la versión"
       }
     },
     "defenses": {

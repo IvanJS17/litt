@@ -819,6 +819,12 @@ export interface TrainingReviewItem {
     text: string;
     /** Id of what the line points at (a note, a message, a version), when there is one. */
     ref?: string | null;
+    /**
+     * On a `version` line (a sealed draft still held): the document the
+     * version belongs to, which with `ref` is what the existing approval
+     * route takes. Absent on reviews generated before it existed.
+     */
+    document_id?: string | null;
 }
 /** Where a piece of work was done: the web or project chat, Word, a tabular review. */
 export type TrainingWorkSurface = "chat" | "word" | "tabular";
