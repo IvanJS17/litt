@@ -924,6 +924,7 @@ const COMPLETES_TEXTLESS_TURN = {
   web_search: false,
   web_read: false,
   web_sources: false,
+  firm_criteria: false,
   delegation: false,
   response_details: false,
   case_opinions: false,

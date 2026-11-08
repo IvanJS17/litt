@@ -128,6 +128,15 @@ describe("the tools of a hint or counterpart turn", () => {
     );
   });
 
+  // Decision (card 14 meets card 6): list_firm_criteria stays in a hint and a
+  // counterpart turn. It only reads the firm's written positions, with the
+  // caller's own membership, and a mode narrows writers, not reading.
+  it.each(MODES)("%s: the read-only list_firm_criteria stays offered", async (mode) => {
+    await runLLMStream(params(await planFor(mode)) as never);
+    expect(names()).toContain("list_firm_criteria");
+    expect(DOCUMENT_MUTATING_TOOL_NAMES.has("list_firm_criteria")).toBe(false);
+  });
+
   it.each(MODES)("%s: a writer the model asks for anyway is refused and never dispatched", async (mode) => {
     const plan = await planFor(mode);
     let results: { tool_use_id: string; content: string }[] | undefined;

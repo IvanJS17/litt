@@ -204,6 +204,8 @@
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
       "cookie_session_required": "Sign in again to continue.",
       "email_address_invalid": "Enter a valid email address.",
+      "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
+      "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
       "matter_has_owner": "This matter already has an owner.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
@@ -1031,7 +1033,71 @@
         }
       }
     },
-    "firmCriteria": {}
+    "firmCriteria": {
+      "consulted": {
+        "summary": "{count, plural, one {# criterion consulted} other {# criteria consulted}}",
+        "note": "These are positions that people of your firm wrote. They are not law, and LiTT does not check them.",
+        "empty": "Your firm has not written a criterion on this subject.",
+        "failed": "The firm's criteria could not be consulted.",
+        "more": "More criteria match than are shown here.",
+        "kind": {
+          "criterio": "Criterion",
+          "voto_particular": "Dissenting opinion"
+        },
+        "byline": "According to {author} · {date, date, medium}",
+        "bylineDeleted": "According to a deleted user · {date, date, medium}",
+        "practice": "Practice area: {practice}",
+        "rule": "Disagrees with a playbook rule"
+      },
+      "settings": {
+        "tab": "Firm criteria",
+        "title": "Firm criteria",
+        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
+        "noOrganizations": "You do not belong to any firm yet.",
+        "loadFailed": "The firm's criteria could not be loaded.",
+        "empty": "Your firm has not written any criteria yet.",
+        "readOnly": "While you are in training you read your firm's criteria, but you do not write them.",
+        "count": "{count, plural, one {# criterion} other {# criteria}}",
+        "write": "Write a criterion",
+        "edit": "Edit",
+        "editName": "Edit the criterion “{topic}”",
+        "remove": "Remove",
+        "removeName": "Remove the criterion “{topic}”",
+        "confirmRemove": "Remove this criterion? This cannot be undone.",
+        "confirmRemoveYes": "Yes, remove it",
+        "cancel": "Cancel",
+        "removed": "The criterion was removed.",
+        "saved": "The criterion was saved.",
+        "mine": "Yours",
+        "kindLabel": "Type",
+        "kind": {
+          "criterio": "Criterion",
+          "voto_particular": "Dissenting opinion"
+        },
+        "topicLabel": "Topic",
+        "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
+        "practiceLabel": "Practice area",
+        "practiceAny": "Any practice area",
+        "positionLabel": "Position",
+        "positionHelp": "Write your position as you would sign it. It will be shown with your name and the date.",
+        "positionCount": "{count} of {max} characters",
+        "playbookLabel": "Playbook",
+        "playbookPlaceholder": "Choose a playbook",
+        "noPlaybooks": "There are no playbooks to disagree with yet.",
+        "ruleLabel": "Rule",
+        "rulePlaceholder": "Choose a rule",
+        "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
+        "save": "Save",
+        "saving": "Saving…",
+        "rule": "Disagrees with the rule “{rule}” of “{playbook}”",
+        "ruleUnknown": "Disagrees with a rule of a playbook you cannot open",
+        "author": "By {author} · {date, date, medium}",
+        "authorDeleted": "By a deleted user · {date, date, medium}",
+        "changed": "changed {date, date, medium}",
+        "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
+        "loadingLabel": "Loading the firm's criteria"
+      }
+    }
   },
   "word": {
     "app": {
