@@ -240,4 +240,38 @@ describe("ChatInput — «Tu turno primero»", () => {
             expect.objectContaining({ enabled: false }),
         );
     });
+
+    it("keeps two mounted composers apart: own ids, and «Reply» lands only in its chat's", async () => {
+        vi.mocked(useTrainingStage).mockReturnValue(owed);
+        render(
+            <>
+                {["chat-1", "chat-2"].map((chatKey) => (
+                    <div key={chatKey} data-testid={chatKey}>
+                        <ChatInput
+                            trainingTurns
+                            projectId="p1"
+                            chatKey={chatKey}
+                            chatModel="gpt-6-luna"
+                            onSubmit={vi.fn()}
+                            onCancel={vi.fn()}
+                            isLoading={false}
+                        />
+                    </div>
+                ))}
+            </>,
+        );
+        const fields = screen.getAllByLabelText("Your approach (2–3 lines)");
+        expect(fields).toHaveLength(2);
+        expect(new Set(fields.map((field) => field.id)).size).toBe(2);
+        // One radio group per composer: marking one must not unmark the other.
+        const names = screen.getAllByRole("radio").map((radio) => (radio as HTMLInputElement).name);
+        expect(new Set(names).size).toBe(2);
+
+        act(() => requestTrainingReply("¿Qué precepto?", "chat-2"));
+        const first = within(screen.getByTestId("chat-1")).getByLabelText("Your approach (2–3 lines)");
+        const second = within(screen.getByTestId("chat-2")).getByLabelText("Your approach (2–3 lines)");
+        expect(first).toHaveValue("");
+        expect(second).toHaveValue("> ¿Qué precepto?\n\n");
+        await waitFor(() => expect(second).toHaveFocus());
+    });
 });

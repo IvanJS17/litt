@@ -6,6 +6,7 @@ import {
     useEffect,
     useLayoutEffect,
     useRef,
+    useId,
     forwardRef,
     useImperativeHandle,
     useMemo,
@@ -201,7 +202,11 @@ function placeholderFor({
     return isLoading ? "A response is still arriving…" : "Loading this chat…";
 }
 
-/** The approach field of the training composer; «Responder» focuses it. */
+/**
+ * The approach field of the training composer; «Responder» focuses it. Two
+ * composers can be mounted at once (main and side chat), so each gets its own
+ * ids: {@link TRAINING_ATTEMPT_ID}-{useId()}.
+ */
 const TRAINING_ATTEMPT_ID = "chat-training-attempt";
 
 function ChatInputForChatImpl(
@@ -331,6 +336,9 @@ function ChatInputForChatImpl(
     // The thermometer goes with the approach: one mark per approach.
     const needsConfidence = needsAttempt && trainingTurn.confidenceRequired;
     const trainingText = useTrainingText();
+    const trainingInstanceId = useId();
+    const trainingAttemptId = `${TRAINING_ATTEMPT_ID}-${trainingInstanceId}`;
+    const trainingConfidenceId = `chat-training-confidence-${trainingInstanceId}`;
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
     const [confidence, setConfidence] = useState<TrainingConfidenceLevel | null>(
@@ -340,10 +348,12 @@ function ChatInputForChatImpl(
     // «Responder» on a basis question brings it, quoted, to the approach.
     useTrainingReply({
         enabled: needsAttempt && trainingTurns,
+        // A note asks for its own chat's composer, not the one beside it.
+        chatId: chatKey,
         onReply: (question) => {
             setAttempt((current) => withTrainingReply(current, question));
             setAttemptError(false);
-            focusTrainingAttempt(TRAINING_ATTEMPT_ID);
+            focusTrainingAttempt(trainingAttemptId);
         },
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -985,7 +995,7 @@ function ChatInputForChatImpl(
                     {needsAttempt ? (
                         <>
                             <TrainingAttemptFieldUI
-                                id={TRAINING_ATTEMPT_ID}
+                                id={trainingAttemptId}
                                 className="px-4 pt-4"
                                 value={attempt}
                                 onChange={setAttempt}
@@ -995,7 +1005,7 @@ function ChatInputForChatImpl(
                             />
                             {needsConfidence ? (
                                 <TrainingConfidenceUI
-                                    id="chat-training-confidence"
+                                    id={trainingConfidenceId}
                                     className="px-4 pt-3"
                                     value={confidence}
                                     onChange={(level) => {
