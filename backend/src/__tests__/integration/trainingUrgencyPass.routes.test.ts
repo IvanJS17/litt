@@ -364,7 +364,7 @@ describe("GET and DELETE …/passes", () => {
                 state.projectAccess.add(`${projectId}:${MENTOR}`);
                 state.projectAccess.add(`${projectId}:${PUPIL}`);
             }
-            const checks = vi.mocked((await import("../../lib/access")).checkProjectAccess);
+            const checks = vi.mocked((await import("../../lib/access.js")).checkProjectAccess);
             checks.mockClear();
             const res = await ask([...many, OTHER_ORG_PROJECT]);
             expect(res.status).toBe(200);

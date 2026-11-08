@@ -366,7 +366,7 @@ describe("what the pupil reads is what the mentor sees", () => {
     it("asks the mentor's access once for all the works, not once per work (no N+1)", async () => {
         h.state!.tables.training_work_reviews.push(readyRow({ chat_id: MATTER_CHAT }));
         h.openable.add(`${PROJECT}:${MENTOR}`);
-        const checks = vi.mocked((await import("../../lib/access")).checkProjectAccess);
+        const checks = vi.mocked((await import("../../lib/access.js")).checkProjectAccess);
         checks.mockClear();
         h.accessBatches = [];
         expect(await mine()).toEqual([MATTER_CHAT]);
