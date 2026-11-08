@@ -183,6 +183,11 @@ describe("the junior's design review and sample", () => {
         expect(response.body.applies).toBe(true);
         expect(response.body.ready).toBe(true);
         expect(response.body.audit).toBeNull();
+        expect(response.body.columns).toEqual([
+            { index: 0, name: "Rescisión", prompt: "Resume la cláusula de rescisión del contrato" },
+            { index: 1, name: "Rescisión", prompt: "Plazo" },
+            { index: 2, name: "Ley", prompt: "" },
+        ]);
         expect(response.body.lint).toEqual([
             { code: "duplicate_name", column_index: 1, other_index: 0 },
             { code: "short_instruction", column_index: 1 },
@@ -216,7 +221,7 @@ describe("the junior's design review and sample", () => {
 
     it("is reproducible: the stored seed draws the same sample again", async () => {
         const started = await as(PUPIL).post(audit).send({});
-        const { drawSample } = await import("../../lib/trainingReviewAudit");
+        const { drawSample } = await import("../../lib/trainingReviewAudit.js");
         const cells = (h.state!.tables.tabular_cells as { row_id: string; column_index: number }[]);
         const again = drawSample(cells, 5, rows()[0].seed as string).map(key).sort();
         expect(started.body.cells.map(key).sort()).toEqual(again);
@@ -321,7 +326,7 @@ describe("who audits", () => {
     it("is for a junior only; a pasante or someone with no stage gets nothing", async () => {
         h.reviewAccess.add(PASANTE);
         const read = await as(PASANTE).get(audit);
-        expect(read.body).toEqual({ applies: false, ready: false, lint: [], audit: null });
+        expect(read.body).toEqual({ applies: false, ready: false, columns: [], lint: [], audit: null });
         expect((await as(PASANTE).post(audit).send({})).status).toBe(404);
         expect((await as(OWNER).get(audit)).body.applies).toBe(false);
         expect((await as(OWNER).post(audit).send({})).status).toBe(404);
@@ -483,7 +488,7 @@ async function startAndMarkAllExisting(auditView: { cells: { row_id: string; col
 describe("privacy by role", () => {
     it("lists every route in the matrix", async () => {
         const { reviewAuditRouter, pupilReviewAuditsRouter } = await import(
-            "../../modules/training-review-audit/trainingReviewAudit.routes"
+            "../../modules/training-review-audit/trainingReviewAudit.routes.js"
         );
         const routesOf = (router: { stack: { route?: { path: string; methods: Record<string, boolean> } }[] }) =>
             router.stack

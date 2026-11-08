@@ -148,10 +148,11 @@ async function view(db: Db, row: AuditRow, cells: CellRow[], actor: Actor): Prom
 export async function getReviewAudit(db: Db, actor: Actor): Promise<ServiceResult<TrainingReviewAuditState>> {
     const ctx = await loadContext(db, actor);
     if (!ctx.ok) return ctx;
-    if (!ctx.data.applies) return ok({ applies: false, ready: false, lint: [], audit: null });
+    if (!ctx.data.applies) return ok({ applies: false, ready: false, columns: [], lint: [], audit: null });
     const access = await gate(db, actor.userId, ctx.data);
-    if (!access.ok) return ok({ applies: false, ready: false, lint: [], audit: null });
-    const lint = lintColumns(auditColumns(ctx.data.review.columns_config));
+    if (!access.ok) return ok({ applies: false, ready: false, columns: [], lint: [], audit: null });
+    const columns = auditColumns(ctx.data.review.columns_config);
+    const lint = lintColumns(columns);
     const current = await currentAudit(db, ctx.data, actor);
     if (!current.ok) return current;
     let audit: TrainingReviewAudit | null = null;
@@ -167,7 +168,13 @@ export async function getReviewAudit(db: Db, actor: Actor): Promise<ServiceResul
         .eq("status", "done")
         .limit(1);
     if (error) return internalFailure(error);
-    return ok({ applies: true, ready: (done ?? []).length > 0, lint, audit });
+    return ok({
+        applies: true,
+        ready: (done ?? []).length > 0,
+        columns: columns.map(({ index, name, prompt }) => ({ index, name, prompt })),
+        lint,
+        audit,
+    });
 }
 
 function isUniqueViolation(error: unknown): boolean {

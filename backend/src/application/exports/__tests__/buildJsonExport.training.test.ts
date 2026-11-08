@@ -79,6 +79,15 @@ function tables(): Record<string, Row[]> {
             },
             { id: "d3", org_id: "org-a", trainee_user_id: other, questions_status: "none", created_at: "2026-01-06T00:00:00Z" },
         ],
+        training_review_audits: [
+            {
+                id: "a1", org_id: "org-a", trainee_user_id: userId, tabular_review_id: "tr1", columns_snapshot: [],
+                lint: [], seed: "secret-seed", sample: [{ row_id: "w", column_index: 0, digest: "d", mark: "correct" }],
+                status: "complete", completed_at: "2026-01-08T00:00:00Z", mentor_outcome: "adequate",
+                mentor_note: "bien", evaluated_at: "2026-01-09T00:00:00Z", evaluated_by: other, created_at: "2026-01-08T00:00:00Z",
+            },
+            { id: "a2", org_id: "org-a", trainee_user_id: other, tabular_review_id: "tr1", created_at: "2026-01-08T00:00:00Z" },
+        ],
         training_urgency_passes: [
             {
                 id: "p1", org_id: "org-b", trainee_user_id: userId, project_id: "proj-1", granted_by: other,
@@ -91,6 +100,15 @@ function tables(): Record<string, Row[]> {
 }
 
 describe("account export: the holder's training", () => {
+    it("carries the holder's review audits without the seed or the evaluator", async () => {
+        const { db } = makeExportDb(tables());
+        const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
+        expect(out.training.review_audits).toEqual([
+            expect.objectContaining({ id: "a1", mentor_outcome: "adequate", mentor_note: "bien" }),
+        ]);
+        expect(JSON.stringify(out.training.review_audits)).not.toMatch(/secret-seed|colleague/);
+    });
+
     it("Personal's export carries it for every organization, only the holder's own", async () => {
         const { db } = makeExportDb(tables());
         const out = (await buildUserAccountExport(db, userId, "h@example.test", null)) as any;
