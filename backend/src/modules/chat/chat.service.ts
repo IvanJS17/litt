@@ -85,3 +85,7 @@ export {
   WORD_EDIT_FORMATS,
   type WordEditApplyMode,
 } from "./engine/wordDocumentEdits";
+
+// Locating a quote in a document's text, for services that check a model's
+// quote against the source (the periodic full reading of the training layer).
+export { locateQuote } from "./engine/verifyCitations";

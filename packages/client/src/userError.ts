@@ -238,6 +238,15 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_review_key_required: "validation",
     training_review_in_progress: "conflict",
     // --- Training layer 3, card 10 codes (begin) ---
+    // The periodic full reading: it is offered once a month to a junior, the
+    // proposed document is changed once, the person's findings are written
+    // once and before the machine's list, and the document must still be
+    // readable. Retrying the same request cannot help.
+    training_reading_not_due: "conflict",
+    training_reading_no_document: "validation",
+    training_reading_swap_used: "conflict",
+    training_reading_findings_recorded: "conflict",
+    training_reading_document_unavailable: "conflict",
     // --- Training layer 3, card 10 codes (end) ---
     // An oral defense's outcome is recorded once; a correction is a new
     // defense. A promotion is accepted only while LiTT still proposes it:
