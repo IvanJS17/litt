@@ -175,7 +175,13 @@ export function finishTrainingTurn(
         model: string;
         apiKeys?: UserApiKeys;
         /** The saved turn, for the hooks; omit when nothing was saved. */
-        turn?: { userId: string; chatId: string; messageId: string | null | undefined };
+        turn?: {
+            userId: string;
+            chatId: string;
+            messageId: string | null | undefined;
+            /** See TrainingTurnOutcome.recordEgress; the route of the turn. */
+            recordEgress: () => Promise<void>;
+        };
     },
 ): void {
     if (!args.completed) return;
@@ -199,6 +205,7 @@ export function finishTrainingTurn(
                       answer: args.answer,
                       model: args.model,
                       apiKeys: args.apiKeys,
+                      recordEgress: args.turn.recordEgress,
                   }
                 : null;
         for (const hook of args.plan.afterTurn) {

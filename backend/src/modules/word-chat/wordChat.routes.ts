@@ -731,6 +731,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     nonce,
     trainingNote,
     trainingPlan,
+    trainingEgress,
   } = prep.prepared;
   let chatTitle = prep.prepared.chatTitle;
   let memoryTurnScheduled = false;
@@ -938,7 +939,12 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       answer: fullText ?? "",
       model: selectedModel,
       apiKeys,
-      turn: { userId, chatId, messageId: persistChat ? assistantMessageId : null },
+      turn: {
+        userId,
+        chatId,
+        messageId: persistChat ? assistantMessageId : null,
+        recordEgress: trainingEgress,
+      },
     });
     // Word turns used to be audited nowhere, unlike the chat and project-chat
     // modules. chatId/projectId stay null because a Word chat lives in

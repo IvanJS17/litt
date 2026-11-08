@@ -17,7 +17,8 @@
 // listed as unverified and the conclusion is not «backed».
 //
 // The call runs on the conversation's own provider, model and credential
-// (governed BYOK: no fallback), aside from the turn, and cannot fail it. It is
+// (governed BYOK: no fallback), with its own llm.egress written first, aside
+// from the turn, and cannot fail it. It is
 // skipped for answers with nothing to account for.
 
 import type { TrainingStage } from "@mike/contracts";
@@ -324,6 +325,7 @@ type Outcome = {
     answer: string;
     model: string;
     apiKeys?: UserApiKeys;
+    recordEgress: () => Promise<void>;
 };
 
 async function settle(db: Db, id: string, patch: { status: "ready" | "failed"; conclusions: StoredConclusion[] | null }): Promise<void> {
@@ -378,6 +380,9 @@ export async function runBackingCheck(outcome: Outcome): Promise<"skipped" | "re
         checkId = (inserted.data as { id?: string } | null)?.id ?? null;
         if (!checkId) throw new Error("check not created");
 
+        // The second call to the provider has its own egress, same route as the turn, written
+        // before any text is sent; if it cannot be written, nothing is sent.
+        await outcome.recordEgress();
         const raw = await completeText({
             model: outcome.model,
             systemPrompt: BACKING_SYSTEM_PROMPT,
@@ -422,5 +427,6 @@ export const accountabilityHook: AfterTurnHook = async (ctx) => {
         answer: outcome.answer,
         model: outcome.model,
         apiKeys: outcome.apiKeys,
+        recordEgress: outcome.recordEgress,
     });
 };

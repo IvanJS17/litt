@@ -305,6 +305,7 @@ const outcome = (db: ReturnType<typeof world>["db"], over: Partial<Parameters<ty
     answer: LONG_ANSWER,
     model: "conversation-model",
     apiKeys: { openai: "k" } as never,
+    recordEgress: vi.fn(async () => {}),
     ...over,
 });
 
@@ -341,6 +342,34 @@ describe("runBackingCheck", () => {
         expect(stored).toMatchObject({ tabular_chat_id: CHAT });
         // A tabular citation is never verified: the conclusion is not backed.
         expect((stored.conclusions as { status: string }[])[0].status).toBe("citation_unverified");
+    });
+
+    it("W1: writes its own egress before the second call, and sends nothing if it cannot", async () => {
+        const order: string[] = [];
+        const recordEgress = vi.fn(async () => void order.push("egress"));
+        vi.mocked(completeText).mockImplementation(async () => {
+            order.push("call");
+            return JSON.stringify({ conclusions: [] });
+        });
+        const ok = world();
+        expect(await runBackingCheck(outcome(ok.db, { recordEgress }))).toBe("ready");
+        expect(order).toEqual(["egress", "call"]);
+
+        // No egress, no call: the check fails and nothing is sent to the provider.
+        vi.mocked(completeText).mockClear();
+        const refused = world();
+        const failing = vi.fn(async () => {
+            throw new Error("audit down");
+        });
+        expect(await runBackingCheck(outcome(refused.db, { recordEgress: failing }))).toBe("failed");
+        expect(completeText).not.toHaveBeenCalled();
+        expect(refused.tables.training_backing_checks[0]).toMatchObject({ status: "failed" });
+    });
+
+    it("writes no egress when it makes no call (nothing to account for, a missing message)", async () => {
+        const recordEgress = vi.fn(async () => {});
+        expect(await runBackingCheck(outcome(world([]).db, { answer: "Hola", recordEgress }))).toBe("skipped");
+        expect(recordEgress).not.toHaveBeenCalled();
     });
 
     it("calls no model and writes nothing for an answer with nothing to account for, or a missing message", async () => {
@@ -412,11 +441,11 @@ describe("the junior's after-turn wiring", () => {
         const { db } = memoryDb({});
         finishTrainingTurn(db, {
             plan: plan({ afterTurn: [hook] }), note: null, completed: true, answer: "r", model: "m",
-            turn: { userId: USER, chatId: CHAT, messageId: MESSAGE },
+            turn: { userId: USER, chatId: CHAT, messageId: MESSAGE, recordEgress: vi.fn(async () => {}) },
         });
         finishTrainingTurn(db, {
             plan: plan({ afterTurn: [hook] }), note: null, completed: true, answer: "r", model: "m",
-            turn: { userId: USER, chatId: CHAT, messageId: null },
+            turn: { userId: USER, chatId: CHAT, messageId: null, recordEgress: vi.fn(async () => {}) },
         });
         expect(hook.mock.calls[0][0].outcome).toMatchObject({ userId: USER, chatId: CHAT, messageId: MESSAGE, answer: "r", model: "m" });
         expect(hook.mock.calls[1][0].outcome).toBeNull();
@@ -430,11 +459,16 @@ describe("the junior's after-turn wiring", () => {
 
     it("runs the check on the plan's organization and the turn's route", async () => {
         const { db, tables } = world();
+        const recordEgress = vi.fn(async () => {});
         vi.mocked(completeText).mockResolvedValue(JSON.stringify({ conclusions: [{ text: "Procede", citation_ref: null }] }));
         await accountabilityHook({
             plan: plan(), completed: true,
-            outcome: { db, userId: USER, chatId: CHAT, messageId: MESSAGE, answer: LONG_ANSWER, model: "conversation-model" },
+            outcome: {
+                db, userId: USER, chatId: CHAT, messageId: MESSAGE, answer: LONG_ANSWER, model: "conversation-model",
+                recordEgress,
+            },
         });
+        expect(recordEgress).toHaveBeenCalledOnce();
         expect(tables.training_backing_checks[0]).toMatchObject({ org_id: ORG, status: "ready" });
         expect(vi.mocked(completeText).mock.calls[0][0].model).toBe("conversation-model");
     });

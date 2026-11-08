@@ -40,6 +40,13 @@ export type TrainingTurnOutcome = {
     answer: string;
     model: string;
     apiKeys?: UserApiKeys;
+    /**
+     * Writes the llm.egress of a call the hook is about to make with this
+     * route: same provider, model, credential and host as the turn's own,
+     * recorded before any text is sent. A hook that calls a model awaits it
+     * first and makes no call if it fails.
+     */
+    recordEgress: () => Promise<void>;
 };
 
 /** A hook that runs once the final answer is durable. */

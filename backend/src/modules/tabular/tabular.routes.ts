@@ -1032,6 +1032,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
         titleModel,
         trainingNote,
         trainingPlan,
+        trainingEgress,
         writableMemoryProjectId,
     } = preparation.data;
     // The fence `prepareTabularChat` opened is released here unless this turn
@@ -1165,7 +1166,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
                 answer: fullText ?? "",
                 model: selectedChatModel,
                 apiKeys: api_keys,
-                turn: { userId, chatId, messageId: assistantMessageId },
+                turn: { userId, chatId, messageId: assistantMessageId, recordEgress: trainingEgress },
             });
         }
 
