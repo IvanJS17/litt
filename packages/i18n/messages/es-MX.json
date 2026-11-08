@@ -373,7 +373,7 @@
       "meta": "{surface} · {notes, plural, one {# nota} other {# notas}} · {date, date, medium} {date, time, short}",
       "noReview": "Todavía no hay resumen.",
       "newWork": "Hay trabajo nuevo desde este resumen.",
-      "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación; apruébalo desde su documento.} other {# borradores sellados siguen pendientes de aprobación; apruébalos desde cada documento.}}",
+      "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación. Apruébalo con el botón de su fila de arriba o desde su documento.} other {# borradores sellados siguen pendientes de aprobación. Apruébalos con el botón de su fila de arriba o desde cada documento.}}",
       "generate": "Generar resumen",
       "regenerate": "Regenerar",
       "approveTitle": "¿Aprobar esta versión?",
