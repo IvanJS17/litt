@@ -556,11 +556,16 @@
           "wrong": "wrong"
         },
         "noteAttemptHeading": "Your approach",
+        "noteCloseHeading": "How the round went",
         "noteConfidence": "Your mark: {level}",
         "noteContrastFailed": "The contrast couldn't be generated",
         "noteContrastHeading": "Contrast with your approach",
         "noteContrastPending": "Generating contrast…",
+        "noteNotDelivered": "Not delivered",
         "noteFoundation": "Basis: {basis}",
+        "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
+        "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",
+        "noteModeHint": "Hint {step} of 3",
         "notePrivacy": "Private: only you and your mentor see this",
         "noteQuestionHeading": "A question about your basis",
         "noteRegion": "Private training notes",
@@ -578,7 +583,32 @@
         }
       },
       "map": {},
-      "modes": {},
+      "modes": {
+        "closeButton": "Close the round",
+        "closeExplain": "See which objections you held, which you conceded and which you left undefended.",
+        "closeMessage": "I'm closing the round with the counterparty's lawyer.",
+        "counterpartButton": "Test it against the counterparty's lawyer",
+        "counterpartExplain": "The AI plays the other side and objects to your approach; it doesn't answer its own objections.",
+        "counterpartFull": "This round already had three turns. Close it to see the contrast.",
+        "counterpartStatus": "Turn {step} of 3 in this round.",
+        "hintButton": "Ask for a hint",
+        "hintExplain": "A hint points the way and never gives the answer. It starts from your approach and your question.",
+        "hintNext": "Next: hint {level} of 3, {name}.",
+        "hintsDone": "You already asked for all three hints in this conversation. Send your question to see the answer.",
+        "needsQuestion": "Write your question first.",
+        "region": "Help for this turn",
+        "rungState": {
+          "next": "next",
+          "pending": "pending",
+          "used": "used"
+        },
+        "rungs": {
+          "focus": "Focus",
+          "review": "What to review",
+          "where": "Where to look"
+        },
+        "rungsLabel": "Rungs of the hint ladder"
+      },
       "backing": {
         "actions": {
           "save": "save your mark on this conclusion",

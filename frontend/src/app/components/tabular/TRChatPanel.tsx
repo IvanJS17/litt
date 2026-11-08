@@ -1,6 +1,7 @@
 "use client";
 
 import { BackingSlot } from "@/app/components/training/criterion/BackingPanel";
+import type { TrainingTurnMode } from "@mike/contracts";
 import { useTrainingText } from "@/app/hooks/useTrainingText";
 import { useWebTrainingBacking } from "@/app/hooks/useWebTrainingBacking";
 import { nextRevealLength } from "./tabularReveal";
@@ -95,6 +96,8 @@ interface TRMessage {
     role: "user" | "assistant";
     /** LiTT training: the approach this just-sent message went out with. */
     attempt?: string;
+    /** LiTT training: this just-sent message asked for a hint or a counterparty round. */
+    training_mode?: TrainingTurnMode;
     content: string;
     events?: AssistantEvent[];
     annotations?: TRCitationAnnotation[];
@@ -1255,6 +1258,7 @@ export function TRChatPanel({
             role: "user",
             content: trimmed,
             ...(message.attempt ? { attempt: message.attempt } : {}),
+            ...(message.training_mode ? { training_mode: message.training_mode } : {}),
         };
         const assistantMsg: TRMessage = {
             role: "assistant",
@@ -1326,6 +1330,7 @@ export function TRChatPanel({
                     message.reasoning,
                     message.attempt,
                     message.confidence,
+                    message.training_mode,
                 ),
         });
     }

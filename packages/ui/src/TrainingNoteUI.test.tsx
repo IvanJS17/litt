@@ -21,6 +21,27 @@ const note = (
 ) => render(<TrainingNoteUI note={value} text={noteText} {...more} />);
 
 describe("TrainingNoteUI", () => {
+  it.each(["hint", "counterpart"] as const)(
+    "a %s note left pending is not delivered, never a waiting or failed contrast",
+    (mode) => {
+      note({ ...base, contrast: null, contrast_status: "pending", mode, step: 2 });
+      expect(screen.getByText("Not delivered")).toBeInTheDocument();
+      expect(screen.queryByText("Generating contrast…")).toBeNull();
+      expect(screen.queryByText("The contrast couldn't be generated")).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Contrast with your approach" })).toBeNull();
+    },
+  );
+
+  it("a settled hint note and a pending close keep their usual states", () => {
+    const { unmount } = note({ ...base, contrast: null, contrast_status: "skipped", mode: "hint", step: 1 });
+    expect(screen.queryByText("Not delivered")).toBeNull();
+    unmount();
+    note({ ...base, contrast: null, contrast_status: "pending", mode: "counterpart_close", step: 3 });
+    expect(screen.getByText("Generating contrast…")).toBeInTheDocument();
+    expect(screen.queryByText("Not delivered")).toBeNull();
+  });
+
   it("shows the approach, the contrast and the privacy legend", () => {
     note(ready, { className: "extra" });
     expect(screen.getByRole("region", { name: "Private training notes" })).toHaveClass("extra");
@@ -79,6 +100,39 @@ describe("TrainingNoteUI", () => {
     expect(screen.getByText("Match with the answer, per the AI contrast:")).toBeInTheDocument();
     expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.queryByText(/corrected by|per your mentor/)).toBeNull();
+  });
+
+  it("names a hint by its rung and a counterpart turn by its turn, with no contrast block", () => {
+    const { unmount } = note({
+      ...base,
+      contrast: null,
+      contrast_status: "skipped",
+      mode: "hint",
+      step: 2,
+    });
+    expect(screen.getByText("Hint 2 of 3")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Contrast with your approach" })).toBeNull();
+    unmount();
+    note({ ...base, contrast: null, contrast_status: "skipped", mode: "counterpart", step: 1 });
+    expect(screen.getByText("Round, turn 1 of 3")).toBeInTheDocument();
+  });
+
+  it("heads the contrast of a closed round as how the round went", () => {
+    note({
+      ...ready,
+      contrast: "Sostuviste: la primera.",
+      mode: "counterpart_close",
+      step: 3,
+    });
+    expect(screen.getByText("Close of the round")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How the round went" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Contrast with your approach" })).toBeNull();
+    expect(screen.getByText("Sostuviste: la primera.")).toBeInTheDocument();
+  });
+
+  it("falls back to the first step when a mode note carries none", () => {
+    note({ ...base, contrast: null, contrast_status: "skipped", mode: "hint" });
+    expect(screen.getByText("Hint 1 of 3")).toBeInTheDocument();
   });
 
   it("says when the mentor wrote the verdict and shows the basis", () => {

@@ -47,13 +47,17 @@ import {
     useSelectedReasoning,
 } from "@/app/hooks/useSelectedModel";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
-import type { TrainingConfidenceLevel } from "@mike/contracts";
+import type {
+    TrainingConfidenceLevel,
+    TrainingTurnMode,
+} from "@mike/contracts";
 import { useTrainingStage } from "@/app/hooks/useTrainingStage";
 import { useTrainingText } from "@/app/hooks/useTrainingText";
 import {
     isTrainingAttemptReady,
     TrainingAttemptFieldUI,
     TrainingConfidenceUI,
+    TrainingModesUI,
     focusTrainingAttempt,
     useTrainingReply,
     withTrainingReply,
@@ -336,6 +340,10 @@ function ChatInputForChatImpl(
     const trainingTurn = useTrainingStage({
         orgId: workspaceOrgId,
         projectId,
+        // The hint ladder is counted from this chat's notes, and again each
+        // time one of its turns ends.
+        chatId,
+        turnActive: isLoading,
         enabled: trainingTurns && canSend === true,
     });
     const needsAttempt = trainingTurn.attemptRequired;
@@ -345,12 +353,17 @@ function ChatInputForChatImpl(
     const trainingInstanceId = useId();
     const trainingAttemptId = `${TRAINING_ATTEMPT_ID}-${trainingInstanceId}`;
     const trainingConfidenceId = `chat-training-confidence-${trainingInstanceId}`;
+    const trainingModesId = `chat-training-modes-${trainingInstanceId}`;
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
     const [confidence, setConfidence] = useState<TrainingConfidenceLevel | null>(
         null,
     );
     const [confidenceError, setConfidenceError] = useState(false);
+    // A hint or a round was asked for with no question written: the text the
+    // composer held then. It is said until the person types.
+    const [modeErrorAt, setModeErrorAt] = useState<string | null>(null);
+    const modeError = modeErrorAt !== null && modeErrorAt === value;
     // «Responder» on a basis question brings it, quoted, to the approach.
     useTrainingReply({
         enabled: needsAttempt && trainingTurns,
@@ -759,11 +772,21 @@ function ChatInputForChatImpl(
     const hasAnnotatedExcerpt = excerpts.some((excerpt) => excerpt.note);
 
     const submitMessage = (
-        query: string,
+        typed: string,
         workflow: { id: string; title: string } | null,
+        mode?: TrainingTurnMode,
     ) => {
+        // Closing a round needs no question of its own.
+        const query =
+            !typed && mode === "counterpart_close"
+                ? trainingText.closeMessage
+                : typed;
         // An annotated excerpt already says what is being asked about it.
-        if ((!query && !hasAnnotatedExcerpt) || isLoading) return;
+        if (isLoading) return;
+        if (!query && !hasAnnotatedExcerpt) {
+            if (mode) setModeErrorAt(typed);
+            return;
+        }
         if (!model) {
             setModelRequiredWarning(true);
             return;
@@ -772,7 +795,9 @@ function ChatInputForChatImpl(
             setAttemptError(true);
             return;
         }
-        if (needsConfidence && confidence === null) {
+        // A hint is not rated: it has no answer for the mark to be compared with.
+        const rated = needsConfidence && mode !== "hint";
+        if (rated && confidence === null) {
             setConfidenceError(true);
             return;
         }
@@ -803,9 +828,14 @@ function ChatInputForChatImpl(
         setSelectedWorkflow(null);
         setSelectedPlaybook(null);
         setExcerpts([]);
-        setAttempt("");
+        setModeErrorAt(null);
+        // A hint is asked from an approach that may be rewritten with it in
+        // view, and asked unrated: both stay for the turn that follows.
+        if (mode !== "hint") {
+            setAttempt("");
+            setConfidence(null);
+        }
         setAttemptError(false);
-        setConfidence(null);
         setConfidenceError(false);
 
         onSubmit?.({
@@ -820,7 +850,8 @@ function ChatInputForChatImpl(
                 : {}),
             reasoning: reasoningLevel,
             ...(needsAttempt ? { attempt: attempt.trim() } : {}),
-            ...(needsConfidence && confidence !== null ? { confidence } : {}),
+            ...(rated && confidence !== null ? { confidence } : {}),
+            ...(mode ? { training_mode: mode } : {}),
         });
     };
 
@@ -849,6 +880,13 @@ function ChatInputForChatImpl(
             return;
         }
         submitMessage(query, selectedWorkflow);
+    };
+
+    // «Pedir una pista» and the round with the counterparty's lawyer send the
+    // turn in that mode; the server picks the rung and checks it again.
+    const handleMode = (mode: TrainingTurnMode) => {
+        if (!composerOpen || slashCommandsLoading) return;
+        submitMessage(value.trim(), selectedWorkflow, mode);
     };
 
     const handleActionClick = () => {
@@ -1022,6 +1060,21 @@ function ChatInputForChatImpl(
                                     text={trainingText.confidence}
                                     disabled={!composerOpen}
                                     showError={confidenceError}
+                                />
+                            ) : null}
+                            {trainingTurn.modes.length > 0 ? (
+                                <TrainingModesUI
+                                    id={trainingModesId}
+                                    className="px-4 pt-3"
+                                    state={trainingTurn}
+                                    text={trainingText.modes}
+                                    onPick={handleMode}
+                                    disabled={!composerOpen || isLoading}
+                                    error={
+                                        modeError
+                                            ? trainingText.needsQuestion
+                                            : null
+                                    }
                                 />
                             ) : null}
                         </>
