@@ -10,6 +10,7 @@ const {
   downloadFile,
   getSignedUploadUrl,
   headFile,
+  queuePlaybookCorrections,
   queuePlaybookDraft,
   queuePlaybookImport,
   recordAudit,
@@ -23,6 +24,7 @@ const {
   headFile: vi.fn(),
   queuePlaybookImport: vi.fn(),
   queuePlaybookDraft: vi.fn(),
+  queuePlaybookCorrections: vi.fn(),
 }));
 
 vi.mock("../../lib/supabase", () => ({
@@ -73,7 +75,7 @@ vi.mock("../../modules/playbooks/playbooks.service", async (importOriginal) => {
     await importOriginal<
       typeof import("../../modules/playbooks/playbooks.service")
     >();
-  return { ...actual, queuePlaybookImport, queuePlaybookDraft };
+  return { ...actual, queuePlaybookImport, queuePlaybookDraft, queuePlaybookCorrections };
 });
 
 import { playbooksRouter } from "../../modules/playbooks/playbooks.routes";
@@ -424,6 +426,52 @@ describe("draft playbooks over HTTP (LiTT)", () => {
 
     expect(response.status).toBe(404);
     expect(from).not.toHaveBeenCalled();
+  });
+});
+
+describe("corrections over HTTP (LiTT training)", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const body = {
+    model: "claude-opus-5",
+    traineeUserId: "33333333-3333-4333-8333-333333333333",
+    corrections: [{ before: "a", after: "b", comment: "c" }],
+  };
+
+  it("queues the corrections and answers 202 with the attempt", async () => {
+    queuePlaybookCorrections.mockResolvedValue(started({ kind: "correction", filename: "" }));
+    const response = await request(app).post(`/playbooks/${PLAYBOOK_ID}/corrections`).send(body);
+    expect(response.status).toBe(202);
+    expect(response.body).toMatchObject({ kind: "correction", status: "running" });
+    expect(queuePlaybookCorrections).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "u1", userEmail: "u1@example.com", playbookId: PLAYBOOK_ID, ...body }),
+    );
+  });
+
+  it("answers an invalid batch with 400 and training_correction_invalid", async () => {
+    queuePlaybookCorrections.mockRejectedValue(
+      new PlaybookRequestError("Agrega al menos una corrección.", 400, {
+        code: "training_correction_invalid",
+      }),
+    );
+    const response = await request(app)
+      .post(`/playbooks/${PLAYBOOK_ID}/corrections`)
+      .send({ model: "claude-opus-5" });
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("training_correction_invalid");
+  });
+
+  it("answers the uniform 404 for a pupil who is not the caller's", async () => {
+    queuePlaybookCorrections.mockRejectedValue(new PlaybookRequestError("Training data not found", 404));
+    const response = await request(app).post(`/playbooks/${PLAYBOOK_ID}/corrections`).send(body);
+    expect(response.status).toBe(404);
+    expect(response.body.detail).toBe("Training data not found");
+  });
+
+  it("passes no model when none is sent as text", async () => {
+    queuePlaybookCorrections.mockResolvedValue(started({ kind: "correction", filename: "" }));
+    await request(app).post(`/playbooks/${PLAYBOOK_ID}/corrections`).send({ model: 3 });
+    expect(queuePlaybookCorrections).toHaveBeenCalledWith(expect.objectContaining({ model: "" }));
   });
 });
 

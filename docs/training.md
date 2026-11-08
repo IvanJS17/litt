@@ -611,3 +611,32 @@ none while the pupil has no mentor.
 **Word.** The add-in is not changed by layer 2: Word does not honor a pass
 (above), so its composer keeps asking for the attempt, and the panel is used
 on the web.
+
+## From correction to rule (layer 3)
+
+A mentor can turn their corrections of a pupil's work into rules proposed for
+a playbook. The mechanics (route, limits, origin and attribution) are in
+`docs/playbooks.md`, "From a mentor's corrections"; what matters for learning
+data is here.
+
+- **Who.** An Editor or Owner of the playbook who is the pupil's *current*
+  mentor (`assertCurrentMentor`, the one gate in front of learning data). Not
+  an owner or admin by role, not a previous mentor, not a pupil: all get the
+  uniform `404`. The stage grants nothing.
+- **What is kept.** The corrections (the pupil's text, the mentor's text and
+  comment) and the pupil's id live on the playbook import row until the job
+  ends, then they are erased; the failure and interruption paths erase them
+  too. No table of this feature has a column for the pupil, so nothing
+  survives the pupil's membership. What stays is the rule, which belongs to
+  the firm, and the mentor's name as its attribution; if the mentor's account
+  is erased the attribution on the change goes to null.
+- **Copies.** A copy of the playbook carries no attribution and no note from
+  a correction: the rule is "suggestion without backing, review".
+- **Audit** (insert-only, ids and counts, never text): `training.correction_proposed`
+  (organization surface; `org_id`, `target_user_id`, `playbook_id`, `import_id`,
+  `corrections`) when a batch is sent, and `playbook.corrections_ready` when it
+  ends.
+- **Interface.** The playbook page has a **Corrections** panel for Editors who
+  supervise someone: the pupil, up to ten corrections, the model, and the
+  proposed changes with their accept and reject buttons. Strings are in the
+  `training.criterion.corrections` namespace of the catalog.

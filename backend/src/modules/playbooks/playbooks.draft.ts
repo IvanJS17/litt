@@ -261,11 +261,11 @@ export async function beginPlaybookDraft(
 
 // --- Prompt -----------------------------------------------------------------
 
-const FENCED_TAGS = /<(\/?)(respuestas|adjunto)/gi;
+const FENCED_TAGS = /<(\/?)(respuestas|adjunto|correcciones)/gi;
 
 /** Client text that cannot close, or forge, the block that carries it. */
 export function fenced(
-  tag: "respuestas" | "adjunto",
+  tag: "respuestas" | "adjunto" | "correcciones",
   nonce: string,
   text: string,
   attributes = "",
@@ -366,13 +366,18 @@ export function normalizeDraftRule(rule: unknown): unknown {
   const { sourceRefs: _sourceRefs, origin: rawOrigin, legalRefs: rawRefs, ...rest } = rule;
   const origin = isObject(rawOrigin) ? rawOrigin : {};
   const kind =
-    origin.kind === "answer" || origin.kind === "clause" ? origin.kind : "ai_general";
-  const questionIds = Array.isArray(origin.questionIds)
-    ? origin.questionIds
-        .map((id) => text(id, 10))
-        .filter((id): id is string => !!id)
-        .slice(0, 10)
-    : undefined;
+    origin.kind === "answer" || origin.kind === "clause" || origin.kind === "correction"
+      ? origin.kind
+      : "ai_general";
+  const ids = (value: unknown) =>
+    Array.isArray(value)
+      ? value
+          .map((id) => text(id, 10))
+          .filter((id): id is string => !!id)
+          .slice(0, 10)
+      : undefined;
+  const questionIds = ids(origin.questionIds);
+  const correctionIds = ids(origin.correctionIds);
   const legalRefs = (Array.isArray(rawRefs) ? rawRefs : [])
     .map((ref) => (typeof ref === "string" ? { text: ref } : ref))
     .filter(isObject)
@@ -394,6 +399,7 @@ export function normalizeDraftRule(rule: unknown): unknown {
     origin: {
       kind,
       ...(questionIds?.length ? { questionIds } : {}),
+      ...(correctionIds?.length ? { correctionIds } : {}),
       ...(text(origin.sourceId, 100) ? { sourceId: text(origin.sourceId, 100) } : {}),
       ...(text(origin.quote, 5000) ? { quote: text(origin.quote, 5000) } : {}),
       ...(text(origin.note, 500) ? { note: text(origin.note, 500) } : {}),
@@ -487,7 +493,15 @@ export type DraftProvenanceCounts = {
  */
 export function verifyDraftProvenance(
   content: PlaybookContent,
-  evidence: { answers: PlaybookAnswers; sources: Pick<DraftSource, "label" | "text">[] },
+  evidence: {
+    answers: PlaybookAnswers;
+    sources: Pick<DraftSource, "label" | "text">[];
+    /**
+     * Corrections a rule may rest on (c1..cN) and who made them. Only given
+     * when the rules come from corrections (playbooks.corrections.ts).
+     */
+    corrections?: { ids: ReadonlySet<string>; attributedTo: string };
+  },
 ): { content: PlaybookContent; counts: DraftProvenanceCounts } {
   const answered = new Set(Object.keys(evidence.answers));
   const texts = new Map(
@@ -502,9 +516,27 @@ export function verifyDraftProvenance(
   let downgraded = 0;
   const verify = (rule: Rule): Rule => {
     const declared = rule.origin ?? { kind: "ai_general" as const, unbacked: true };
-    const note = declared.note ? { note: declared.note } : {};
+    // Rules from corrections keep no note of the model's, backed or not: it
+    // was written over a trainee's work.
+    const note =
+      declared.note && !evidence.corrections && declared.kind !== "correction"
+        ? { note: declared.note }
+        : {};
     let origin: Rule["origin"];
-    if (declared.kind === "answer") {
+    if (declared.kind === "correction") {
+      // A correction's note and ids are the model's; the attribution is not.
+      const ids = [...new Set(declared.correctionIds ?? [])];
+      if (
+        evidence.corrections &&
+        ids.length &&
+        ids.every((id) => evidence.corrections!.ids.has(id))
+      )
+        origin = {
+          kind: "correction",
+          attributedTo: evidence.corrections.attributedTo,
+          unbacked: false,
+        };
+    } else if (declared.kind === "answer") {
       const ids = [...new Set(declared.questionIds ?? [])];
       if (ids.length && ids.every((id) => answered.has(id)))
         origin = { kind: "answer", questionIds: ids, ...note, unbacked: false };

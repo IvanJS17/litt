@@ -1168,6 +1168,8 @@ export const INTERRUPTED_DRAFT_ERROR =
 /** LiTT: the same, for changes proposed for a copy. */
 export const INTERRUPTED_PROPOSAL_ERROR =
   "Los cambios propuestos se interrumpieron antes de terminar. Vuelve a enviar el cuestionario.";
+export const INTERRUPTED_CORRECTION_ERROR =
+  "Los cambios propuestos desde las correcciones se interrumpieron antes de terminar. Vuelve a enviar las correcciones.";
 
 /** A content write refused while a replacement import of the playbook runs. */
 export const PLAYBOOK_BEING_REPLACED_ERROR =
@@ -1209,7 +1211,7 @@ export async function assertPlaybookNotBeingReplaced(
     playbookImportJobKey,
   );
   const holding = replacing.filter((row) => !interrupted.has(String(row.id)));
-  if (holding.some((row) => row.kind === "proposal"))
+  if (holding.some((row) => row.kind === "proposal" || row.kind === "correction"))
     throw new PlaybookRequestError(PLAYBOOK_PROPOSALS_RUNNING_MESSAGE, 409, {
       code: PLAYBOOK_PROPOSALS_RUNNING_CODE,
     });
@@ -1228,7 +1230,9 @@ export function publicImport(
   const stopped = interrupted.has(String(row.id));
   const status = stopped ? "failed" : String(row.status);
   const kind =
-    row.kind === "draft" || row.kind === "proposal" ? row.kind : "import";
+    row.kind === "draft" || row.kind === "proposal" || row.kind === "correction"
+      ? row.kind
+      : "import";
   return {
     id: String(row.id),
     kind,
@@ -1240,7 +1244,9 @@ export function publicImport(
         ? INTERRUPTED_IMPORT_ERROR
         : kind === "proposal"
           ? INTERRUPTED_PROPOSAL_ERROR
-          : INTERRUPTED_DRAFT_ERROR
+          : kind === "correction"
+            ? INTERRUPTED_CORRECTION_ERROR
+            : INTERRUPTED_DRAFT_ERROR
       : row.error
         ? String(row.error)
         : null,

@@ -15,8 +15,17 @@ export const positionSchema = z.object({
 // it mentions. Both are owned by the server (keepServerOwnedRuleFields): a
 // rule without them was written by a person or imported from a file.
 export const ruleOriginSchema = z.object({
-    kind: z.enum(["answer", "clause", "ai_general"]),
+    // "correction": a mentor's correction of a trainee's work, generalised
+    // into a rule (playbooks.corrections.ts). Like the others, only the
+    // server decides it holds.
+    kind: z.enum(["answer", "clause", "ai_general", "correction"]),
     questionIds: z.array(z.string().trim().min(1).max(10)).max(10).optional(),
+    // The corrections (c1..c10) the model says a rule rests on. Checked and
+    // dropped before anything is stored.
+    correctionIds: z.array(z.string().trim().min(1).max(10)).max(10).optional(),
+    // Who made the correction, as named when it was proposed. Not learning
+    // data: the trainee is never named, kept or linked from a rule.
+    attributedTo: z.string().trim().min(1).max(200).optional(),
     sourceId: z.string().trim().min(1).max(100).optional(),
     quote: z.string().trim().max(5000).optional(),
     note: z.string().trim().max(500).optional(),
