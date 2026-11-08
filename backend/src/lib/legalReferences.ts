@@ -29,13 +29,13 @@ const FRACTION_HEAD = new RegExp(String.raw`\b${FRACTION_WORD}\s*`, "g");
 const FRACTION_OF_ARTICLE = /\s*(?:,\s*)?(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/y;
 const ROMAN_ITEM = /(m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))\b/y;
 // «Tesis 1a./J. 12/2020», «jurisprudencia P./J. 5/2019», «tesis I.3o.C.123».
-const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*(?::\s*)?/g;
+const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)\s*(?:(?<=\s)aisladas?\s*)?(?::\s*)?/g;
 const THESIS_ITEM = /([a-z0-9][a-z0-9./ -]{0,30}?\d+\/\d{4}|[a-z0-9]+(?:[./-][a-z0-9]+)+)/y;
 // The subject letters of an isolated thesis («I.3o.C.123 C»), skipped before a separator.
 const THESIS_SUBJECT = /\s+\(?[a-z]{1,2}\)?(?=\s*,|\s+(?:y|e|o|u)\s)/y;
 // A jurisprudence id on its own: «1a./J. 12/2020».
 const JURISPRUDENCE_ID = /(?<![a-z0-9])((?:\d+[a-z]{0,2}|[a-z]{1,2})\.\s*\/\s*j\.\s*\d+\/\d{4})/g;
-const REGISTRY_HEAD = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
+const REGISTRY_HEAD = /\bregistros?\s*(?:(?<=\s)digital(?:es)?\s*)?(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
 const REGISTRY_ITEM = /(\d{4,})/y;
 
 function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
