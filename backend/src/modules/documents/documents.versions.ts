@@ -98,6 +98,8 @@ async function withTrainingRelease(
     rows: TrainingVersionRow[],
 ): Promise<Record<string, unknown>[]> {
     const held = await heldVersionIdsOrSealed(db, rows);
+    // Shared by the rows: the stage and mentor relation do not change per row.
+    const authorshipMemo = new Map<string, Promise<boolean>>();
     return Promise.all(
         rows.map(async ({ training_author_user_id: author, content_sha256: _hash, ...row }) => {
             const isHeld = held.has(row.id);
@@ -115,6 +117,7 @@ async function withTrainingRelease(
                       userId,
                       author,
                       isHeld && !!author ? canApprove : undefined,
+                      authorshipMemo,
                   ).catch(() => false);
             return {
                 ...row,

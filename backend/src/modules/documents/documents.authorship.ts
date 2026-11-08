@@ -63,6 +63,8 @@ type DocLike = {
  * version sealed to `authorId` (or unsealed when it is null).
  * `canApprove`, when the caller already knows it, saves a second lookup.
  */
+ * `memo` is shared by the rows of one list: what depends only on the caller,
+ * the document or the author is read once instead of once per row.
 export async function mayViewAuthorship(
   db: Db,
   access: AccessLike,
@@ -70,24 +72,35 @@ export async function mayViewAuthorship(
   authorId: string | null,
   canApprove?: boolean,
 ): Promise<boolean> {
+  memo: Map<string, Promise<boolean>> = new Map(),
   const doc = access.doc as DocLike;
+  const once = (key: string, read: () => Promise<boolean>) => {
+    const known = memo.get(key);
+    if (known) return known;
+    const pending = read();
+    memo.set(key, pending);
+    return pending;
+  };
   const orgId = doc.org_id ?? null;
   if (!orgId) return false;
   if (authorId) {
     if (userId === authorId) return true;
     if (canApprove ?? (await mayApproveTrainingVersion(db, access, userId, authorId)))
       return true;
-    return isCurrentMentor(db, orgId, authorId, userId);
+    return once(`mentor:${authorId}`, () => isCurrentMentor(db, orgId, authorId, userId));
   }
   const owner = doc.user_id ?? null;
   if (!owner) return false;
-  if (owner !== userId && !(await isCurrentMentor(db, orgId, owner, userId)))
-    return false;
-  const stage = await resolveTrainingStage(db, owner, {
-    orgId,
-    projectId: doc.project_id ?? null,
+  // The same answer for every unsealed version of the document.
+  return once("unsealed", async () => {
+    if (owner !== userId && !(await isCurrentMentor(db, orgId, owner, userId)))
+      return false;
+    const stage = await resolveTrainingStage(db, owner, {
+      orgId,
+      projectId: doc.project_id ?? null,
+    });
+    return stage !== null;
   });
-  return stage !== null;
 }
 
 /** Oldest first: by creation time, then by version number. */

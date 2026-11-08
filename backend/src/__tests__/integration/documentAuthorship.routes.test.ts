@@ -318,6 +318,27 @@ describe("GET /single-documents/:id/versions flags who is offered the panel", ()
     expect(flags((await list()).body)).toEqual({ "ver-1": true, "ver-2": true, "ver-3": true });
   });
 
+  it("reads the stages and mentors once, however many versions there are", async () => {
+    as("mentor", "viewer");
+    const reads = async () => {
+      const seen: string[] = [];
+      const db = mocks.db as { from: (t: string) => unknown };
+      const from = db.from;
+      db.from = (table: string) => {
+        seen.push(table);
+        return from.call(db, table);
+      };
+      const response = await list();
+      db.from = from;
+      expect(response.status).toBe(200);
+      return seen.filter((name) => name === "training_stages" || name === "training_pupils").length;
+    };
+    const few = await reads();
+    for (let n = 4; n < 44; n += 1)
+      tables.document_versions.push({ id: `ver-${n}`, document_id: "doc-1", version_number: n, source: "upload", created_at: `2026-11-04T10:${String(n).padStart(2, "0")}:00Z`, deleted_at: null, training_author_user_id: null, training_stage: null });
+    expect(await reads()).toBe(few);
+  });
+
   it("a colleague who can only read sees it nowhere, whatever their role in the firm", async () => {
     as("boss", "viewer");
     expect(flags((await list()).body)).toEqual({ "ver-1": false, "ver-2": false, "ver-3": false });
