@@ -31,7 +31,11 @@
     "frontend/src/app/components/playbooks/PlaybookTable.tsx",
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
     "frontend/src/app/components/playbooks/usePlaybookCorrectionPupils.ts",
-    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts"
+    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
+    "frontend/src/app/(pages)/settings/firm-criteria",
+    "frontend/src/app/components/training/firmCriteria",
+    "frontend/src/app/components/assistant/message/FirmCriteriaConsulted.tsx",
+    "packages/ui/src/FirmCriteriaConsultedUI.tsx"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,

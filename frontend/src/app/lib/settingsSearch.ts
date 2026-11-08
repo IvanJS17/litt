@@ -310,6 +310,16 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         href: "/settings/training/mentor#panel-del-mentor",
     },
 
+    {
+        id: "firm-criteria",
+        tabId: "firm-criteria",
+        tab: "Criterios del despacho",
+        title: "Criterios del despacho",
+        description: "Posturas y votos particulares que escriben las personas de tu despacho, con su nombre, y que el asistente puede consultar para quien está en formación.",
+        keywords: ["criterios", "criterio", "firm criteria", "criteria", "voto particular", "dissenting opinion", "postura", "posturas", "despacho", "firm", "socio", "partner", "formacion", "training"],
+        href: "/settings/firm-criteria#criterios-del-despacho",
+    },
+
     // Organizations
     {
         id: "organizations",

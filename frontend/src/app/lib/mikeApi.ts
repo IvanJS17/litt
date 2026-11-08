@@ -2588,6 +2588,54 @@ export async function getPupilReadings(orgId: string, userId: string) {
 }
 // --- Training layer 3, card 10 (end) ---
 
+// --- Training layer 3, card 14: firm criteria (begin) ---
+// Positions people of the firm wrote under their name, and dissenting
+// opinions that name a playbook rule. They are the firm's content: every
+// member reads them, their author writes them, an owner or admin may remove
+// one. The server decides what each person may do and says so in the list.
+
+export type {
+    FirmCriteriaEvent,
+    FirmCriteriaList,
+    FirmCriterion,
+    FirmCriterionInput,
+    FirmCriterionKind,
+    FirmCriterionSnapshot,
+} from "@mike/contracts";
+
+const firmCriteriaPath = (orgId: string, criterionId?: string) =>
+    `/orgs/${encodeURIComponent(orgId)}/firm-criteria${criterionId ? `/${encodeURIComponent(criterionId)}` : ""}`;
+
+function firmCriteriaWrite<T>(path: string, method: string, body?: unknown): Promise<T> {
+    return apiRequest<T>("firm_criteria.write", path, {
+        method,
+        ...(body === undefined
+            ? {}
+            : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
+}
+
+export async function listFirmCriteria(orgId: string) {
+    return apiRequest<import("@mike/contracts").FirmCriteriaList>("firm_criteria.read", firmCriteriaPath(orgId));
+}
+
+export async function createFirmCriterion(orgId: string, input: import("@mike/contracts").FirmCriterionInput) {
+    return firmCriteriaWrite<import("@mike/contracts").FirmCriterion>(firmCriteriaPath(orgId), "POST", input);
+}
+
+export async function updateFirmCriterion(
+    orgId: string,
+    criterionId: string,
+    input: import("@mike/contracts").FirmCriterionInput,
+) {
+    return firmCriteriaWrite<import("@mike/contracts").FirmCriterion>(firmCriteriaPath(orgId, criterionId), "PUT", input);
+}
+
+export async function deleteFirmCriterion(orgId: string, criterionId: string) {
+    return firmCriteriaWrite<{ deleted: true }>(firmCriteriaPath(orgId, criterionId), "DELETE");
+}
+// --- Training layer 3, card 14 (end) ---
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {
