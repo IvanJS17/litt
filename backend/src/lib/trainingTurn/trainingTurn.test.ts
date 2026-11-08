@@ -6,6 +6,7 @@ import {
     TRAINING_ATTEMPT_REQUIRED_CODE,
 } from "../training";
 import type { Db } from "../supabase";
+import { FIRM_CRITERIA_ADDENDUM } from "./criteria";
 import { launchTurnContrast } from "../trainingNotes";
 import {
     beginTrainingTurn,
@@ -115,6 +116,20 @@ describe("beginTrainingTurn: surface × stage × pass × body", () => {
                             attempt: owesAttempt ? GOOD : null,
                             orgId: surface === "word" ? (stage ? ORG : null) : ORG,
                         });
+                        // The firm's criteria: any stage, never without one; the tool only
+                        // reads, so a plan with it limits nothing else.
+                        if (stage) {
+                            expect(begun.plan.systemAddendum).toBe(FIRM_CRITERIA_ADDENDUM);
+                            expect(begun.plan.toolPolicy).toEqual({ firmCriteriaOrgId: ORG });
+                            expect(trainingEnginePlan(begun.plan)).toEqual({
+                                systemAddendum: FIRM_CRITERIA_ADDENDUM,
+                                firmCriteriaOrgId: ORG,
+                            });
+                        } else {
+                            expect(begun.plan.systemAddendum).toBeUndefined();
+                            expect(begun.plan.toolPolicy).toEqual({});
+                            expect(trainingEnginePlan(begun.plan)).toBeUndefined();
+                        }
                     });
                 }
             }

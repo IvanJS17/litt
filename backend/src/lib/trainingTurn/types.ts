@@ -22,6 +22,11 @@ export type TrainingEnginePlan = {
     allowDocumentMutation?: false;
     includeAskInputs?: false;
     noSubagents?: true;
+    /**
+     * The organization whose written criteria the turn may consult
+     * (list_firm_criteria). Read-only, with the caller's own membership.
+     */
+    firmCriteriaOrgId?: string;
 };
 
 /** A hook that runs once the final answer is durable. */

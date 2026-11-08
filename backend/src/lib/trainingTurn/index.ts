@@ -21,6 +21,7 @@ import {
 } from "../trainingNotes";
 import type { UserApiKeys } from "../llm";
 import { applyAttempt } from "./attempt";
+import { withFirmCriteria } from "./criteria";
 import { readTrainingBody } from "./body";
 import type {
     TrainingBody,
@@ -59,8 +60,10 @@ const attemptBehavior: Behavior = (resolved, plan) => {
     return check.ok ? { ...plan, attempt: check.attempt } : check;
 };
 
+const firmCriteriaBehavior: Behavior = (resolved, plan) => withFirmCriteria(plan, resolved.stage, resolved.orgId);
+
 /** One line per behavior; later cards add theirs here. */
-const BEHAVIORS: readonly Behavior[] = [attemptBehavior];
+const BEHAVIORS: readonly Behavior[] = [attemptBehavior, firmCriteriaBehavior];
 
 /**
  * Resolves the author's stage and applies every behavior. A refusal is the
