@@ -81,6 +81,39 @@ describe("TrainingNoteUI", () => {
     expect(screen.queryByText(/corrected by|per your mentor/)).toBeNull();
   });
 
+  it("names a hint by its rung and a counterpart turn by its turn, with no contrast block", () => {
+    const { unmount } = note({
+      ...base,
+      contrast: null,
+      contrast_status: "skipped",
+      mode: "hint",
+      step: 2,
+    });
+    expect(screen.getByText("Hint 2 of 3")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Contrast with your approach" })).toBeNull();
+    unmount();
+    note({ ...base, contrast: null, contrast_status: "skipped", mode: "counterpart", step: 1 });
+    expect(screen.getByText("Round, turn 1 of 3")).toBeInTheDocument();
+  });
+
+  it("heads the contrast of a closed round as how the round went", () => {
+    note({
+      ...ready,
+      contrast: "Sostuviste: la primera.",
+      mode: "counterpart_close",
+      step: 3,
+    });
+    expect(screen.getByText("Close of the round")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How the round went" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Contrast with your approach" })).toBeNull();
+    expect(screen.getByText("Sostuviste: la primera.")).toBeInTheDocument();
+  });
+
+  it("falls back to the first step when a mode note carries none", () => {
+    note({ ...base, contrast: null, contrast_status: "skipped", mode: "hint" });
+    expect(screen.getByText("Hint 1 of 3")).toBeInTheDocument();
+  });
+
   it("says when the mentor wrote the verdict and shows the basis", () => {
     note({
       ...ready,

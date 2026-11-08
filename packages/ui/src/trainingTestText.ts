@@ -1,6 +1,7 @@
 import {
   trainingAttemptText,
   trainingConfidenceText,
+  trainingModesText,
   trainingNoteText,
   type TrainingTranslate,
 } from "./trainingText";
@@ -8,6 +9,26 @@ import {
 // Test support: a translator that answers with the English words the catalog
 // has, so component tests read like the screen without a provider.
 const WORDS: Record<string, string> = {
+  "modes.closeButton": "Close the round",
+  "modes.closeExplain": "See which objections you held.",
+  "modes.closeMessage": "I'm closing the round.",
+  "modes.counterpartButton": "Test it against the counterparty's lawyer",
+  "modes.counterpartExplain": "The AI plays the other side.",
+  "modes.counterpartFull": "This round already had three turns.",
+  "modes.hintButton": "Ask for a hint",
+  "modes.hintExplain": "A hint never gives the answer.",
+  "modes.hintsDone": "You already asked for all three hints.",
+  "modes.needsQuestion": "Write your question first.",
+  "modes.region": "Help for this turn",
+  "modes.rungState.next": "next",
+  "modes.rungState.pending": "pending",
+  "modes.rungState.used": "used",
+  "modes.rungs.focus": "Focus",
+  "modes.rungs.review": "What to review",
+  "modes.rungs.where": "Where to look",
+  "modes.rungsLabel": "Rungs of the hint ladder",
+  noteCloseHeading: "How the round went",
+  noteModeCounterpartClose: "Close of the round",
   attemptLabel: "Your approach (2–3 lines)",
   attemptPlaceholder: "Before asking, write how you would solve it.",
   attemptReady: "Ready.",
@@ -39,8 +60,16 @@ const WORDS: Record<string, string> = {
 };
 
 export const fakeTranslate: TrainingTranslate = (key, values) => {
-  const name = key.replace("training.criterion.turn.", "");
+  const name = key.replace("training.criterion.turn.", "").replace("training.criterion.", "");
   switch (name) {
+    case "modes.hintNext":
+      return `Next: hint ${values?.level} of 3, ${values?.name}.`;
+    case "modes.counterpartStatus":
+      return `Turn ${values?.step} of 3.`;
+    case "noteModeHint":
+      return `Hint ${values?.step} of 3`;
+    case "noteModeCounterpart":
+      return `Round, turn ${values?.step} of 3`;
     case "attemptTooShort":
       return `${values?.length}/${values?.min} caracteres: faltan ${values?.missing}.`;
     case "attemptTooLong":
@@ -60,4 +89,5 @@ export const fakeTranslate: TrainingTranslate = (key, values) => {
 
 export const attemptText = trainingAttemptText(fakeTranslate);
 export const confidenceText = trainingConfidenceText(fakeTranslate);
+export const modesText = trainingModesText(fakeTranslate);
 export const noteText = trainingNoteText(fakeTranslate);

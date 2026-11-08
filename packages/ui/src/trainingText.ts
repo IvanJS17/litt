@@ -1,5 +1,6 @@
 import type { TrainingAttemptFieldText } from "./TrainingAttemptFieldUI";
 import type { TrainingConfidenceText } from "./TrainingConfidenceUI";
+import type { TrainingModesText, TrainingRung } from "./TrainingModesUI";
 import type { TrainingNoteText } from "./TrainingNoteUI";
 
 // LiTT training (docs/training.md): the words of the shared training
@@ -8,9 +9,30 @@ import type { TrainingNoteText } from "./TrainingNoteUI";
 // `training.criterion.turn`, in both catalogs.
 
 type Turn = "training.criterion.turn";
+type Modes = "training.criterion.modes";
 
 /** Every catalog key the training components read. */
 export type TrainingTurnKey =
+  | `${Modes}.closeButton`
+  | `${Modes}.closeExplain`
+  | `${Modes}.closeMessage`
+  | `${Modes}.counterpartButton`
+  | `${Modes}.counterpartExplain`
+  | `${Modes}.counterpartFull`
+  | `${Modes}.counterpartStatus`
+  | `${Modes}.hintButton`
+  | `${Modes}.hintExplain`
+  | `${Modes}.hintNext`
+  | `${Modes}.hintsDone`
+  | `${Modes}.needsQuestion`
+  | `${Modes}.region`
+  | `${Modes}.rungState.next`
+  | `${Modes}.rungState.pending`
+  | `${Modes}.rungState.used`
+  | `${Modes}.rungs.focus`
+  | `${Modes}.rungs.review`
+  | `${Modes}.rungs.where`
+  | `${Modes}.rungsLabel`
   | `${Turn}.attemptLabel`
   | `${Turn}.attemptPlaceholder`
   | `${Turn}.attemptReady`
@@ -28,10 +50,14 @@ export type TrainingTurnKey =
   | `${Turn}.foundations.wrong`
   | `${Turn}.noteAttemptHeading`
   | `${Turn}.noteConfidence`
+  | `${Turn}.noteCloseHeading`
   | `${Turn}.noteContrastFailed`
   | `${Turn}.noteContrastHeading`
   | `${Turn}.noteContrastPending`
   | `${Turn}.noteFoundation`
+  | `${Turn}.noteModeCounterpart`
+  | `${Turn}.noteModeCounterpartClose`
+  | `${Turn}.noteModeHint`
   | `${Turn}.notePrivacy`
   | `${Turn}.noteQuestionHeading`
   | `${Turn}.noteRegion`
@@ -86,6 +112,12 @@ export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {
     contrastHeading: t("training.criterion.turn.noteContrastHeading"),
     contrastPending: t("training.criterion.turn.noteContrastPending"),
     contrastFailed: t("training.criterion.turn.noteContrastFailed"),
+    closeHeading: t("training.criterion.turn.noteCloseHeading"),
+    mode: {
+      hint: (step) => t("training.criterion.turn.noteModeHint", { step }),
+      counterpart: (step) => t("training.criterion.turn.noteModeCounterpart", { step }),
+      counterpart_close: t("training.criterion.turn.noteModeCounterpartClose"),
+    },
     privacy: t("training.criterion.turn.notePrivacy"),
     confidence: (level) => t("training.criterion.turn.noteConfidence", { level }),
     confidenceLevels: levels,
@@ -107,6 +139,45 @@ export function trainingNoteText(t: TrainingTranslate): TrainingNoteText {
     reply: t("training.criterion.turn.noteReply"),
     replyLabel: t("training.criterion.turn.noteReplyLabel"),
   };
+}
+
+export function trainingModesText(t: TrainingTranslate): TrainingModesText {
+  return {
+    region: t("training.criterion.modes.region"),
+    hintButton: t("training.criterion.modes.hintButton"),
+    hintExplain: t("training.criterion.modes.hintExplain"),
+    hintNext: (level: TrainingRung, name: string) =>
+      t("training.criterion.modes.hintNext", { level, name }),
+    hintsDone: t("training.criterion.modes.hintsDone"),
+    rungsLabel: t("training.criterion.modes.rungsLabel"),
+    rungs: {
+      1: t("training.criterion.modes.rungs.focus"),
+      2: t("training.criterion.modes.rungs.where"),
+      3: t("training.criterion.modes.rungs.review"),
+    },
+    rungState: {
+      used: t("training.criterion.modes.rungState.used"),
+      next: t("training.criterion.modes.rungState.next"),
+      pending: t("training.criterion.modes.rungState.pending"),
+    },
+    counterpartButton: t("training.criterion.modes.counterpartButton"),
+    counterpartExplain: t("training.criterion.modes.counterpartExplain"),
+    counterpartStatus: (step: TrainingRung) =>
+      t("training.criterion.modes.counterpartStatus", { step }),
+    counterpartFull: t("training.criterion.modes.counterpartFull"),
+    closeButton: t("training.criterion.modes.closeButton"),
+    closeExplain: t("training.criterion.modes.closeExplain"),
+  };
+}
+
+/** The line sent when a round is closed without a message of its own. */
+export function trainingCloseMessage(t: TrainingTranslate): string {
+  return t("training.criterion.modes.closeMessage");
+}
+
+/** Said when a mode is asked for with no question written. */
+export function trainingNeedsQuestionText(t: TrainingTranslate): string {
+  return t("training.criterion.modes.needsQuestion");
 }
 
 /**

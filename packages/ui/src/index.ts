@@ -53,6 +53,7 @@ export * from "./useReasoningDisclosure";
 // approval" hold on outputs, and the per-turn notes hook
 export * from "./TrainingAttemptFieldUI";
 export * from "./TrainingConfidenceUI";
+export * from "./TrainingModesUI";
 export * from "./trainingReply";
 export * from "./trainingStageStale";
 export * from "./trainingText";
