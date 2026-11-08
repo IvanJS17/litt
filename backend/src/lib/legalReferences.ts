@@ -225,28 +225,103 @@ export function lawOfTitle(title: string | null | undefined): string | null {
 }
 
 const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
+// Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
+const NAME_CONNECTORS = new Set(["de", "del", "la", "las", "los", "y", "e", "para", "sobre", "en", "el"]);
+const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alias.split(" ").length));
+
+type Token = { bare: string; ends: boolean; opens: boolean };
+
+/** The whitespace-separated words of `text`, each without the punctuation around it. */
+function tokens(text: string): Token[] {
+    return text
+        .split(/\s+/)
+        .filter((word) => word !== "")
+        .map((word) => ({
+            bare: word.replace(/^[(\[«"']+/, "").replace(/[.,;:)\]»"']+$/, ""),
+            ends: /[.,;:)\]»"']$/.test(word),
+            opens: /^[(\[«"']/.test(word),
+        }));
+}
+
+const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
+
+/**
+ * The law a name written in prose starts with (`plain` is the same text folded
+ * to lower case, `cased` keeps its capitals); null when none can be delimited.
+ *  - A known abbreviation or alias is matched first, longest first («LFT»,
+ *    «Constitución Federal»), so what follows it («exige…») is never read.
+ *  - A name that starts with «Ley», «Código», … takes words while they are
+ *    capitalized or numbers, or connectors followed by one; it stops at the
+ *    first other lower-case word or at punctuation.
+ *  - A lower-case name has no such boundary: it ends at a verb or connective
+ *    of `LAW_PHRASE_END`, as before.
+ */
+function lawNamedAt(plain: string, cased: string): string | null {
+    const lower = tokens(plain);
+    const upper = tokens(cased);
+    if (lower.length === 0 || lower.length !== upper.length) return null;
+    const alias = (): string | null => {
+        for (let count = Math.min(ALIAS_MAX_WORDS, lower.length); count >= 1; count--) {
+            const span = lower.slice(0, count);
+            // A phrase ends where punctuation does: «constitucion, federal» is not one name.
+            if (span.slice(0, -1).some((token) => token.ends)) continue;
+            const written = span.map((token) => token.bare).join(" ");
+            if (LAW_ALIASES[written]) return normalizeLaw(written);
+        }
+        return null;
+    };
+    if (!LAW_HEADS.has(lower[0].bare)) return alias();
+    // Written in lower case («la constitución exige»), only a known alias has a boundary.
+    if (!isCapitalized(upper[0].bare)) {
+        const known = alias();
+        if (known) return known;
+    }
+    const words: string[] = [];
+    if (isCapitalized(upper[0].bare)) {
+        let index = 0;
+        while (index < upper.length && words.length < LAW_PHRASE_MAX_WORDS) {
+            const token = upper[index];
+            const connector = NAME_CONNECTORS.has(lower[index].bare);
+            // A connector written with a capital («El») starts a sentence, not a name.
+            if ((index > 0 && token.opens) || (connector && token.bare !== lower[index].bare)) break;
+            if (!connector && isCapitalized(token.bare)) {
+                words.push(lower[index].bare);
+                if (token.ends) break;
+                index++;
+                continue;
+            }
+            if (!connector || token.ends) break;
+            // A run of connectors belongs to the name only when a capitalized word follows it.
+            let last = index;
+            while (last < upper.length && NAME_CONNECTORS.has(lower[last].bare) && upper[last].bare === lower[last].bare && !upper[last].ends) last++;
+            if (last >= upper.length || NAME_CONNECTORS.has(lower[last].bare) || !isCapitalized(upper[last].bare) || upper[last].opens) break;
+            for (let take = index; take < last; take++) words.push(lower[take].bare);
+            index = last;
+        }
+    } else {
+        for (const token of lower) {
+            if (!token.bare || LAW_PHRASE_END.has(token.bare) || words.length >= LAW_PHRASE_MAX_WORDS) break;
+            words.push(token.bare);
+            if (token.ends) break;
+        }
+    }
+    return normalizeLaw(words.join(" "));
+}
 
 /** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
-function readLaw(plain: string, at: number): { law: string | null; named: boolean } {
+function readLaw(plain: string, at: number, cased: string = plain): { law: string | null; named: boolean } {
     const adjective = sticky(/\s+constitucional(?:es)?\b/y, plain, at);
     if (adjective) return { law: normalizeLaw("constitucion"), named: true };
     const separator = sticky(LAW_SEPARATOR, plain, at);
-    const direct = separator ? null : sticky(/\s+([a-z]{2,8})\b/y, plain, at);
+    const direct = separator ? null : sticky(/\s+\(?([a-z]{2,8})\b/y, plain, at);
     if (direct) {
         const law = LAW_ALIASES[direct[1]] ? normalizeLaw(direct[1]) : null;
         return { law, named: law !== null };
     }
     if (!separator) return { law: null, named: false };
-    const rest = plain.slice(at + separator[0].length);
-    const words: string[] = [];
-    for (const word of rest.split(/\s+/)) {
-        const bare = word.replace(/[.,;:()]+$/g, "");
-        if (!bare || LAW_PHRASE_END.has(bare) || words.length >= LAW_PHRASE_MAX_WORDS) break;
-        words.push(bare);
-        if (/[.,;:)]$/.test(word)) break;
-    }
+    const from = at + separator[0].length;
     // A «de …» that names no law (a contract, «esta ley») is another source, not this one's.
-    return { law: normalizeLaw(words.join(" ")), named: true };
+    return { law: lawNamedAt(plain.slice(from), cased.slice(from)), named: true };
 }
 
 /**
@@ -261,8 +336,11 @@ function readLaw(plain: string, at: number): { law: string | null; named: boolea
 export function lawReferences(text: string, sourceLaw: string | null = null): Set<string> {
     const plain = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const found = new Set<string>();
+    // The same text with its capitals: they bound a law's name in prose.
+    const folded = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cased = folded.toLowerCase() === plain ? folded : plain;
     const lawAfter = (end: number): string => {
-        const read = readLaw(plain, end);
+        const read = readLaw(plain, end, cased);
         return read.law ?? (read.named ? UNKNOWN_LAW : (sourceLaw ?? UNKNOWN_LAW));
     };
     for (const head of plain.matchAll(ARTICLE_HEAD)) {

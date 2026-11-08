@@ -63,6 +63,44 @@ describe("lawReferences", () => {
         expect([...lawReferences("artículo 5 de la Ley B, y el plazo")]).toEqual(["art:5@ley b"]);
     });
 
+    describe("a law's name ends where the sentence's predicate begins (B1)", () => {
+        const keys = (text: string, law: string | null = null) => [...lawReferences(text, law)];
+        it("does not read the predicate after an abbreviation", () => {
+            expect(keys("El artículo 5 de la LFT exige una jornada máxima.")).toEqual(["art:5@ley federal trabajo"]);
+            expect(keys("El artículo 5 de la CPEUM establece que todos tienen derecho.")).toEqual([`art:5@${normalizeLaw("CPEUM")}`]);
+            expect(keys("Según el artículo 5 de la Constitución Federal prohíbe esto.")).toEqual([`art:5@${normalizeLaw("CPEUM")}`]);
+        });
+        it("gives a full name with a predicate the key of the name alone", () => {
+            const plain = keys("artículo 5 de la Ley Federal del Trabajo");
+            expect(plain).toEqual(["art:5@ley federal trabajo"]);
+            expect(keys("El artículo 5 de la Ley Federal del Trabajo establece que la jornada es de ocho horas.")).toEqual(plain);
+            expect(keys("el artículo 5 de la Ley B exige una jornada máxima")).toEqual(["art:5@ley b"]);
+        });
+        it("keeps connectors and numbers inside the name, and stops at the first other lower-case word", () => {
+            expect(keys("artículo 9 de la Ley del Impuesto sobre la Renta señala un plazo")).toEqual(["art:9@ley impuesto sobre renta"]);
+            expect(keys("artículo 9 de la Ley del Impuesto sobre la Renta señala un plazo")).toEqual(keys("artículo 9 de la LISR"));
+            expect(keys("artículo 3 del Código Nacional de Procedimientos Penales obliga al juez")).toEqual(keys("artículo 3 del CNPP"));
+            expect(keys("artículo 3 de la Ley 1234 obliga")).toEqual(["art:3@ley 1234"]);
+        });
+        it("ends the name at punctuation right after it", () => {
+            for (const written of ["de la LFT,", "de la LFT.", "(LFT)", "de la LFT;", "de la Ley Federal del Trabajo,", "de la Ley Federal del Trabajo."])
+                expect(keys(`El artículo 5 ${written} dice`)).toEqual(["art:5@ley federal trabajo"]);
+            expect(keys("artículo 5 de la Ley B, y exige")).toEqual(["art:5@ley b"]);
+        });
+        it("does not take a sentence that follows for the name", () => {
+            expect(keys("artículo 5 de la Ley Federal del Trabajo. El artículo 6 de la Ley B.")).toEqual([
+                "art:5@ley federal trabajo",
+                "art:6@ley b",
+            ]);
+        });
+        it("fails closed when no law can be delimited", () => {
+            expect(keys("artículo 5 de la ley.", "ley b")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 de la Ley exige algo", "ley b")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 de lo que exige la LFT", "ley b")).toEqual(["art:5@?"]);
+            expect(keys("artículo 5 de la Carta Fundamental exige")).toEqual(["art:5@?"]);
+        });
+    });
+
     it("falls back to the law of the document, and to «unknown» without one", () => {
         expect([...lawReferences("Artículo 5. Texto", "ley b")]).toEqual(["art:5@ley b"]);
         expect([...lawReferences("Artículo 5. Texto")]).toEqual(["art:5@?"]);

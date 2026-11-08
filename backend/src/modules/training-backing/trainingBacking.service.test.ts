@@ -113,6 +113,13 @@ describe("a stored «backed» conclusion is read again with its passage (B1)", (
         });
     });
 
+    it("keeps it backed when the stored text goes on after the law's name", async () => {
+        for (const text of ["El artículo 5 de la LFT exige una jornada máxima", "Aplica el artículo 5 de la Ley B establece que sí"])
+            expect(await present(text, text.includes("LFT") ? "Ley Federal del Trabajo.pdf" : "Ley B.pdf")).toMatchObject({
+                status: "backed", citation_ref: 1, unverified_references: [], passage: { excerpt: "Artículo 5. Texto." },
+            });
+    });
+
     it("shows it unbacked, with the reference unverified and no passage, when the law differs", async () => {
         expect(await present("Aplica el artículo 5 de la Ley A", "Ley B.pdf")).toMatchObject({
             status: "unbacked", citation_ref: null, passage: null, unverified_references: ["art. 5 (ley a)"],

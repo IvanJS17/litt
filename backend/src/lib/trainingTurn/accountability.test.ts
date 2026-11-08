@@ -144,6 +144,15 @@ describe("references", () => {
             expect(unverifiedReferences("Aplica el art. 5 de la Ley B", "Artículo 5 de la LEY B.", null)).toEqual([]);
             expect(unverifiedReferences("Aplica el artículo 5 de la LFT.", passage, "Ley Federal del Trabajo.docx")).toEqual([]);
         });
+        it("backs a citation of the same law however the sentence goes on", () => {
+            const lft = "Artículo 5. Queda prohibida la utilización del trabajo de menores.";
+            expect(unverifiedReferences("El artículo 5 de la LFT exige una jornada máxima.", lft, "Ley Federal del Trabajo.pdf")).toEqual([]);
+            expect(unverifiedReferences("El artículo 5 de la Ley Federal del Trabajo establece que no se trabaja de noche.", lft, "LFT.pdf")).toEqual([]);
+            expect(unverifiedReferences("El artículo 5 de la Ley Federal del Trabajo establece que no.", "Artículo 5 de la Ley Federal del Trabajo dice.", null)).toEqual([]);
+        });
+        it("still does not back law B's predicate with law A's passage, and warns", () => {
+            expect(unverifiedReferences("El artículo 5 de la Ley B exige una jornada máxima.", passage, "Ley A.pdf")).toEqual(["art. 5 (ley b)"]);
+        });
         it("leaves an article with no identifiable law unverified, on either side", () => {
             expect(unverifiedReferences("Aplica el artículo 5.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley no identificada)"]);
             expect(unverifiedReferences("Aplica el artículo 5 de la Ley B.", passage, "contrato.docx")).toEqual(["art. 5 (ley b)"]);
