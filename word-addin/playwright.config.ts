@@ -19,6 +19,9 @@ const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Specs import add-in sources that import the shared packages, which have
+  // no tsconfig of their own: resolve every file with the add-in's paths.
+  tsconfig: "./tsconfig.e2e.json",
   // The Office shim, recorded Word calls and every backend route are installed
   // per page (e2e/support), so files share no state and CI spreads them over
   // parallel workers (E2E_WORKERS in .github/workflows/word-addin.yml). Tests

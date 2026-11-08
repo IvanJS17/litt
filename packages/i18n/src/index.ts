@@ -1,7 +1,7 @@
 // @litt/i18n: the locales LiTT's interface speaks and the catalog behind them.
 // Framework-free so the web app and the Word add-in share one definition;
 // each app wires it into its own provider. See ../README.md.
-import type enUS from "../messages/en-US.json";
+import enUS from "../messages/en-US.json";
 
 export const LOCALES = ["es-MX", "en-US"] as const;
 export type Locale = (typeof LOCALES)[number];
@@ -10,7 +10,7 @@ export type Locale = (typeof LOCALES)[number];
 export const DEFAULT_LOCALE: Locale = "es-MX";
 
 /** The source catalog: every other locale falls back to it key by key. */
-export const SOURCE_LOCALE: Locale = "en-US";
+export const SOURCE_LOCALE = "en-US" satisfies Locale;
 
 /** Cookie that carries the chosen locale between requests. */
 export const LOCALE_COOKIE = "LITT_LOCALE";
@@ -18,11 +18,18 @@ export const LOCALE_COOKIE = "LITT_LOCALE";
 /** en-US is the source catalog; every other locale has exactly its keys. */
 export type Messages = typeof enUS;
 
+/**
+ * The source catalog, loaded with the module. Code that must say something
+ * before (or without) an app loading its locale, such as @mike/client's
+ * failure messages, starts from it; screens use loadMessages.
+ */
+export const SOURCE_MESSAGES: Messages = enUS;
+
 export function isLocale(value: unknown): value is Locale {
     return typeof value === "string" && (LOCALES as readonly string[]).includes(value);
 }
 
-const language = (tag: string) => tag.split(/[-_]/)[0].toLowerCase();
+const language = (tag: string) => tag.replace(/[-_].*$/, "").toLowerCase();
 
 /**
  * Picks the locale for the first requested tag LiTT supports, in order of
@@ -59,12 +66,12 @@ export function parseAcceptLanguage(header: string | null | undefined): string[]
     if (typeof header !== "string") return [];
     const ranges: { tag: string; q: number; index: number }[] = [];
     header.split(",").forEach((part, index) => {
-        const [rawTag, ...params] = part.split(";");
+        const [rawTag = "", ...params] = part.split(";");
         const tag = rawTag.trim();
         if (!tag) return;
         let q = 1;
         for (const param of params) {
-            const [name, value = ""] = param.split("=").map((s) => s.trim());
+            const [name = "", value = ""] = param.split("=").map((s) => s.trim());
             if (name.toLowerCase() !== "q") continue;
             q = /^(0(\.\d{0,3})?|1(\.0{0,3})?)$/.test(value) ? Number(value) : 0;
         }
@@ -92,8 +99,8 @@ function overSource(source: Tree, translated: Tree): Tree {
     return out;
 }
 
-const loaders: Record<Locale, () => Promise<{ default: Messages }>> = {
-    "en-US": () => import("../messages/en-US.json"),
+// Translations load on demand; the source is already here (SOURCE_MESSAGES).
+const translations: Record<Exclude<Locale, typeof SOURCE_LOCALE>, () => Promise<{ default: unknown }>> = {
     "es-MX": () => import("../messages/es-MX.json"),
 };
 
@@ -104,10 +111,7 @@ const loaders: Record<Locale, () => Promise<{ default: Messages }>> = {
  */
 export async function loadMessages(locale: Locale): Promise<Messages> {
     const supported = isLocale(locale) ? locale : DEFAULT_LOCALE;
-    if (supported === SOURCE_LOCALE) return (await loaders[SOURCE_LOCALE]()).default;
-    const [source, translated] = await Promise.all([
-        loaders[SOURCE_LOCALE](),
-        loaders[supported](),
-    ]);
-    return overSource(source.default as Tree, translated.default as Tree) as Messages;
+    if (supported === SOURCE_LOCALE) return SOURCE_MESSAGES;
+    const translated = await translations[supported]();
+    return overSource(SOURCE_MESSAGES as Tree, translated.default as Tree) as Messages;
 }

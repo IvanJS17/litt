@@ -175,6 +175,59 @@ word-addin/src/taskpane/**
 10. **PR/CI/merge:** separate owner authorization and exact-head verification.
 11. **Ledger closeout:** adopted/ported/rejected/deferred, resulting LiTT OID and debt.
 
+## Interface text from upstream
+
+LiTT moves interface text to a catalog ([`i18n.md`](i18n.md)); upstream keeps
+writing English literals. A cycle therefore meets three cases. The rule behind
+all three: `en-US.json` holds upstream's English verbatim, so LiTT never
+resolves a text conflict by editing English.
+
+**A conflicted hunk where LiTT only extracted text** (LiTT's side is
+`t("…")`, upstream changed the line or one next to it):
+
+1. Take upstream's side of the hunk. If LiTT's side also carried a non-i18n
+   change, resolve that part as usual and keep only the extraction out of it.
+2. Run the codemod on the file with the namespace its keys already use
+   (`git grep -o 't("[a-zA-Z.]*' <file>` shows it):
+   `node scripts/i18n/extract.mjs --ns <namespace> --write --prune <file>`.
+   Unchanged text reuses its existing key and translation. Text upstream
+   changed gets a new key with upstream's English in `en-US` and
+   `⟦por traducir⟧` in `es-MX`; that mark is the review flag, and the catalog
+   test fails until it is translated. `--prune` removes the keys that the
+   change orphaned.
+3. Translate the marked messages (the old Spanish is in the diff of the
+   removed key) and run the frontend typecheck and the i18n tests.
+
+Whatever git merged without a conflict but left as a literal in a migrated
+file (upstream moved a text, or rewrote a component around it) is caught by
+the literal guard, and step 2 applies to that file.
+
+**New upstream text in a migrated area** (a new screen, a new label): the
+literal guard fails on it. Run the codemod on the file (step 2) and translate.
+When that work would hold the sync back, the sync PR may instead raise the
+file's count in `i18n-literal-baseline.json` in plain sight, and a follow-up
+card lowers it in the same week; a sync is never blocked by text.
+
+New text outside the migrated areas needs nothing: it stays English until its
+area's card moves it.
+
+**Measuring the cost.** Each cycle's ledger entry records the i18n work:
+conflicted hunks in migrated files, new or changed strings, and the time
+spent. The planning estimate, with about 2 minutes per conflicted hunk and
+half a minute per new string:
+
+| Kind of week | Conflicts in migrated files | New strings | Extra work |
+| --- | --- | --- | --- |
+| Quiet (bug fixes, SQL, backend) | 0–5 hunks | about 0–10 | under 30 minutes |
+| Typical (median of the 8 weeks to 2026-11-07) | about 120 hunks in about 37 files | about 180 | about 4–6 hours plus review of the catalog diff |
+| Large upstream feature | about 350 hunks | over 1,000 | 1–2 days |
+
+The cost grows only as areas are migrated. When more than 15 migrated UI files
+conflict in one cycle, open a separate i18n card in the same cycle instead of
+growing the sync PR. The way to bring this cost near zero is upstream adopting
+a catalog itself, proposed in
+[open-legal-products/mike#817](https://github.com/open-legal-products/mike/issues/817).
+
 ## Parallelism rules
 
 Parallel read-only analysis is encouraged. Parallel writers are allowed only with:

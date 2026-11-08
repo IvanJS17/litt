@@ -7,6 +7,9 @@
 // no DOM at module scope, no application imports. Playwright loads this
 // package directly in Node for the add-in's end-to-end tests.
 
+// The interface locale of plain-function text (errors, toast labels)
+export * from "./locale";
+
 // Failure classification and presentation
 export * from "./userError";
 export * from "./toastStore";

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AUTH_ERROR_MESSAGES, authMessages } from "./authMessages";
+import { SOURCE_LOCALE, SOURCE_MESSAGES, loadMessages } from "@litt/i18n";
+import { configureClientLocale } from "@mike/client";
+import {
+    AUTH_ERROR_MESSAGES,
+    LINK_SPENT_MESSAGE,
+    PASSWORD_LENGTH_MESSAGE,
+    TOO_MANY_ATTEMPTS_MESSAGE,
+    authMessages,
+} from "./authMessages";
 import {
     MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
@@ -45,6 +53,36 @@ describe("authMessages", () => {
         );
         expect(AUTH_ERROR_MESSAGES.password_too_short).toContain(
             String(MIN_PASSWORD_LENGTH),
+        );
+    });
+});
+
+describe("authMessages in es-MX", () => {
+    it("reads each sentence in the configured locale, even from a table built earlier", async () => {
+        // Screens build their table at module scope, before the locale is known.
+        const screenTable = authMessages({ invalid_request: "Use a company email." });
+        configureClientLocale("es-MX", await loadMessages("es-MX"));
+        try {
+            expect(AUTH_ERROR_MESSAGES.invalid_credentials).toBe(
+                "El correo o la contraseña no son correctos.",
+            );
+            expect(screenTable.session_expired).toBe("Tu sesión expiró. Vuelve a iniciar sesión.");
+            expect(screenTable.password_too_short).toBe(
+                `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+            );
+            // A screen's own wording is its own until that screen moves to the catalog.
+            expect(screenTable.invalid_request).toBe("Use a company email.");
+        } finally {
+            configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
+        }
+        expect(screenTable.session_expired).toBe("Your session has expired. Log in again.");
+    });
+
+    it("keeps the reused sentences in the source wording", () => {
+        expect(TOO_MANY_ATTEMPTS_MESSAGE).toBe("Too many attempts. Wait a moment and try again.");
+        expect(LINK_SPENT_MESSAGE).toBe(AUTH_ERROR_MESSAGES.flow_state_expired);
+        expect(PASSWORD_LENGTH_MESSAGE).toBe(
+            `Password must have at least ${MIN_PASSWORD_LENGTH} characters and use at most ${MAX_PASSWORD_LENGTH} UTF-8 bytes.`,
         );
     });
 });
