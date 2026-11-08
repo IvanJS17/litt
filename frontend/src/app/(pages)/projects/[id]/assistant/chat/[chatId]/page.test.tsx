@@ -1515,6 +1515,39 @@ describe("workspace on a phone", () => {
         expect(shown()).toEqual(["chat"]);
     });
 
+    // At 768 px the explorer, the document and the chat at their minimum were
+    // wider than the workspace and the chat ended past the screen's edge.
+    it("folds the explorer away on a tablet where it does not fit", async () => {
+        const width = vi
+            .spyOn(HTMLElement.prototype, "clientWidth", "get")
+            .mockReturnValue(700);
+        try {
+            await renderWorkspace();
+            expect(
+                screen.queryByRole("button", { name: "Open draft" }),
+            ).toBeNull();
+            expect(screen.getByTitle("Expand explorer")).toBeDisabled();
+        } finally {
+            width.mockRestore();
+        }
+    });
+
+    it("leaves the explorer open where it fits", async () => {
+        const width = vi
+            .spyOn(HTMLElement.prototype, "clientWidth", "get")
+            .mockReturnValue(1300);
+        try {
+            await renderWorkspace();
+            expect(
+                screen.getByRole("button", { name: "Open draft" }),
+            ).toBeInTheDocument();
+            fireEvent.click(screen.getByTitle("Collapse explorer"));
+            expect(screen.getByTitle("Expand explorer")).toBeEnabled();
+        } finally {
+            width.mockRestore();
+        }
+    });
+
     it("keeps a collapsed explorer reachable on a phone and collapsed on a desktop", async () => {
         const { switcher, shown } = await renderOnPhone();
         fireEvent.click(screen.getByTitle("Collapse explorer"));

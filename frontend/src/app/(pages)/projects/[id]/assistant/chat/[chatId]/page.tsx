@@ -273,6 +273,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         activeChatPaneRef.current = "side";
     }, []);
     const [explorerCollapsed, setExplorerCollapsed] = useState(false);
+    // Whether the expanded explorer fits beside the document and the chat.
+    const [explorerFits, setExplorerFits] = useState(true);
     const workspaceRef = useRef<HTMLDivElement>(null);
 
     // Upload state
@@ -1247,6 +1249,18 @@ export default function ProjectAssistantChatPage({ params }: Props) {
 
         const fitPanels = () => {
             if (workspace.clientWidth <= 0) return;
+            // From md up the panels sit side by side. Where the explorer
+            // would leave the document and the chat less than their minimum
+            // (a tablet), it folds away instead of pushing the chat off the
+            // screen. A phone shows one panel at a time and skips this.
+            const fits =
+                window.innerWidth < 768 ||
+                fitsWithExplorer(
+                    workspace.clientWidth,
+                    panelLayout.sideChatOpen,
+                );
+            setExplorerFits(fits);
+            if (!fits) setExplorerCollapsed(true);
             setPanelWidths((current) =>
                 fitPanelWidths(current, workspace.clientWidth, panelLayout),
             );
@@ -1579,7 +1593,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         <button
                             onClick={() => setExplorerCollapsed(false)}
                             title="Expand explorer"
-                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                            disabled={!explorerFits}
+                            className="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400"
                         >
                             <ChevronRight className="h-3.5 w-3.5" />
                         </button>
