@@ -132,6 +132,7 @@
       "submitting": "Sending…",
       "loading": "Loading the questions…",
       "loadFailed": "The questions couldn't be loaded.",
+      "loadAction": "load the questions",
       "discardTitle": "Discard your answers?",
       "discardMessage": "What you wrote and the files you attached will be lost.",
       "discard": "Discard",

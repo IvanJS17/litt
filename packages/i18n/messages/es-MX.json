@@ -132,6 +132,7 @@
       "submitting": "Enviando…",
       "loading": "Cargando las preguntas…",
       "loadFailed": "No se pudieron cargar las preguntas.",
+      "loadAction": "cargar las preguntas",
       "discardTitle": "¿Descartar tus respuestas?",
       "discardMessage": "Se perderá lo que escribiste y los archivos que adjuntaste.",
       "discard": "Descartar",

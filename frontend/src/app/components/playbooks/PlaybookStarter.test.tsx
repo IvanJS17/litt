@@ -2,7 +2,7 @@
 // where it comes from, a draft confirms before it is marked ready, models
 // come first when starting a playbook, and the questionnaire is all optional.
 import type { ReactNode } from "react";
-import { fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import esMX from "../../../../../packages/i18n/messages/es-MX.json";
@@ -15,6 +15,7 @@ import {
   type PlaybookContent,
   type PlaybookRule,
 } from "@/app/lib/mikeApi";
+import { notifyError } from "@/app/lib/userFacingError";
 import { NewPlaybookMenu, playbookModels } from "./NewPlaybookMenu";
 import { PlaybookDraftBanner } from "./PlaybookDraftBanner";
 import { PlaybookIntakeModal } from "./PlaybookIntakeModal";
@@ -26,6 +27,11 @@ vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   getPlaybook: vi.fn(),
   getPlaybookQuestionnaire: vi.fn(),
   listPlaybookSources: vi.fn(),
+}));
+
+vi.mock("@/app/lib/userFacingError", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/userFacingError")>()),
+  notifyError: vi.fn(),
 }));
 
 vi.mock("@/app/components/modals/AddDocumentsModal", () => ({
@@ -429,16 +435,25 @@ describe("the questionnaire", () => {
     expect(screen.getByLabelText(/Red lines/)).toHaveValue("");
   });
 
-  it("offers a retry when the questions do not load, in an organization", async () => {
+  it("reports a questionnaire that does not load with a notice that retries it, in an organization", async () => {
+    const offline = new Error("offline");
     vi.mocked(getPlaybookQuestionnaire)
-      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(offline)
       .mockResolvedValueOnce(QUESTIONNAIRE);
     intake({ organizationName: "Socium" });
     expect(await screen.findByRole("alert")).toHaveTextContent("The questions couldn't be loaded.");
     expect(screen.getByRole("button", { name: "Write draft" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    // The retry is the notice's, not an inline button.
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+    expect(notifyError).toHaveBeenCalledExactlyOnceWith(
+      offline,
+      expect.objectContaining({ action: "load the questions", onRetry: expect.any(Function) }),
+    );
+
+    act(() => vi.mocked(notifyError).mock.calls[0][1]!.onRetry!());
     expect(await screen.findByLabelText(/Red lines/)).toBeVisible();
     expect(screen.getByRole("group", { name: "Organisational Access" })).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("is written in Spanish for es-MX", async () => {
