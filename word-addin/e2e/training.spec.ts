@@ -216,6 +216,110 @@ test("a refused turn brings the thermometer and keeps what the pasante wrote", a
   await expect(prompt).toHaveValue("");
 });
 
+test("a refused turn puts back the attached document (once) and the playbook", async ({
+  addin,
+  page,
+}) => {
+  let confidenceRequired = false;
+  await page.route("**/training/stage**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stage: "pasante",
+        attempt_required: true,
+        confidence_required: confidenceRequired,
+      }),
+    }),
+  );
+  await addin.mockApiJson("GET", "**/library/files?*", { documents: [], folders: [] });
+  await addin.mockApiJson("GET", "**/library/templates?*", {
+    documents: [
+      {
+        id: "template-1",
+        filename: "NDA template.docx",
+        file_type: "docx",
+        size_bytes: 2048,
+        created_at: "2026-08-08T00:00:00Z",
+      },
+    ],
+    folders: [],
+  });
+  const PLAYBOOK_ID = "5d0c1c7e-8f0e-4c55-9a43-3c1d2f9f6b10";
+  await page.route("**/playbooks?*", (route, request) =>
+    request.method() !== "GET"
+      ? route.fallback()
+      : route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([
+            {
+              id: PLAYBOOK_ID,
+              name: "NDA review",
+              description: "Mutual NDAs",
+              content: { documentTypes: ["NDA"] },
+            },
+          ]),
+        }),
+  );
+  await addin.mockChatStream(["Procede."], { chatId: "restore-chat" });
+  const bodies: Array<{ messages: Array<Record<string, unknown>> } & Record<string, unknown>> = [];
+  await page.route("**/word-chat", (route, request) => {
+    if (request.method() !== "POST") return route.fallback();
+    const body = request.postDataJSON() as (typeof bodies)[number];
+    bodies.push(body);
+    if (!("confidence" in body)) {
+      confidenceRequired = true;
+      return route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "Mark how sure you are of your approach.",
+          code: "training_confidence_required",
+        }),
+      });
+    }
+    return route.fallback();
+  });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  await page.getByRole("button", { name: "Add documents" }).click();
+  await page.getByRole("menuitem", { name: "Web files" }).click();
+  const files = page.getByRole("dialog", { name: "Add Documents" });
+  await files.getByRole("button", { name: "Templates" }).click();
+  await files.getByRole("button", { name: /NDA template\.docx/ }).click();
+  await files.getByRole("button", { name: "Confirm" }).click();
+  await page.getByRole("button", { name: "Add documents" }).click();
+  await page.getByRole("menuitem", { name: "Playbooks" }).click();
+  const playbooks = page.getByRole("dialog", { name: "Add playbook" });
+  await playbooks.getByRole("button", { name: /NDA review/ }).click();
+  await playbooks.getByRole("button", { name: "Use" }).click();
+
+  const composer = page.getByTestId("chat-input");
+  const document = composer.getByRole("button", { name: "Remove document NDA template.docx" });
+  const playbook = composer.getByRole("button", { name: "Remove playbook NDA review" });
+  await expect(document).toHaveCount(1);
+  await expect(playbook).toHaveCount(1);
+
+  await page.getByPlaceholder("How can I help?").fill("¿Procede la rescisión?");
+  await page.getByLabel("Your approach (2–3 lines)").fill(ATTEMPT);
+  await page.getByRole("button", { name: "Send" }).click();
+
+  // The thermometer appears; the document is back once, and so is the playbook.
+  const group = page.getByRole("radiogroup", { name: "How sure are you of your approach?" });
+  await expect(group.getByRole("radio")).toHaveCount(4);
+  await expect(document).toHaveCount(1);
+  await expect(playbook).toHaveCount(1);
+
+  await group.getByRole("radio", { name: "Fairly sure" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect.poll(() => bodies.length).toBe(2);
+  const last = bodies[1]!.messages.at(-1) as { files?: unknown; playbook?: unknown };
+  expect(last.files).toEqual([{ filename: "NDA template.docx", document_id: "template-1" }]);
+  expect(last.playbook).toEqual({ id: PLAYBOOK_ID, title: "NDA review" });
+});
+
 // ── The note and the floating composer ───────────────────────────────────
 // A short pane: the composer (approach + thermometer) covers most of it, so a
 // tall note's «Reply» only clears the composer if the thread is scrolled for it.
@@ -359,7 +463,13 @@ test("tabbing to a control under the composer scrolls it into view and stays the
   await page.mouse.move(200, 120);
   await page.mouse.wheel(0, 1200);
   await expect.poll(() => scrollTopOf(page)).toBeGreaterThan(300);
-  await reply.focus();
+  // A keyboard user's way there: Tab, from wherever focus is, to the control.
+  // A click on the answer text gives the page the keyboard, as it would.
+  await page.mouse.click(200, 120);
+  for (let step = 0; step < 40; step += 1) {
+    if (await reply.evaluate((node) => node === document.activeElement)) break;
+    await page.keyboard.press("Tab");
+  }
   await expect(reply).toBeFocused();
   await expect.poll(() => isClear(reply)).toBe(true);
   const settled = await scrollTopOf(page);
