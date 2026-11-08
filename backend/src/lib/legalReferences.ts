@@ -412,14 +412,14 @@ function lawNamedAtTokens(lower: Token[], upper: Token[]): string | null {
         if ((index > 0 && token.opens) || (connector && !letterName && token.bare !== lower[index].bare)) break;
         if (letterName) {
             words.push("a");
-            if (token.ends) break;
             index++;
+            if (token.ends) break;
             continue;
         }
         if (!connector && isCapitalized(token.bare)) {
             words.push(lower[index].bare);
-            if (token.ends) break;
             index++;
+            if (token.ends) break;
             continue;
         }
         if (!connector || token.ends) break;
@@ -433,7 +433,8 @@ function lawNamedAtTokens(lower: Token[], upper: Token[]): string | null {
     // «Constitución local»: the bare head stopped at a qualifier is another constitution.
     if (words.length === 1 && words[0] === "constitucion" && !upper[index - 1]?.ends && qualifiesConstitution(lower, index)) return null;
     // «Constitución de 1917» written with capitals: the federal one, unless a qualifier follows.
-    if (words.join(" ") === "constitucion de 1917" && !upper[index - 1]?.ends && !qualifiesAfterConnector(lower, index)) return normalizeLaw("constitucion");
+    // `index` is past the last word taken, so punctuation on it ends the name: nothing follows.
+    if (words.join(" ") === "constitucion de 1917" && (upper[index - 1].ends || !qualifiesAfterConnector(lower, index))) return normalizeLaw("constitucion");
     return normalizeLaw(words.join(" "));
 }
 

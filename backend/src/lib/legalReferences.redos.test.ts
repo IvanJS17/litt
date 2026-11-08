@@ -164,18 +164,56 @@ describe("anchored sticky patterns give the results of the previous module", () 
             Array.from({ length: 1 + next(14) }, () => PIECES[next(PIECES.length)]).join(""));
     };
 
-    // Two later fixes change the result of some strings on purpose, always towards «@?» (fail closed):
-    // a neutral connector («de acuerdo con», «de conformidad con», «de 1917») followed by anything but
-    // the end, punctuation or a word that qualifies nothing, and «constitucional de la Constitución …»
-    // (a qualified constitution). Those strings are compared by that rule instead of by equality:
-    // each key either equals the previous one or is the previous CPEUM key turned into «@?».
+    // Two later fixes change the result of some strings on purpose, always away from the CPEUM (fail
+    // closed): a neutral connector («de acuerdo con», «de conformidad con», «de 1917») followed by
+    // anything but the end, punctuation or a word that qualifies nothing, and «constitucional de la
+    // Constitución …» (a qualified constitution). Those strings are compared by that rule instead of by
+    // equality: each key either equals the previous one or is the previous CPEUM key turned into one of
+    //  - «@?», the law is unknown (a qualified constitution), or
+    //  - «@constitucion 1917», a law of its own name (a capitalized «Constitución de 1917» that
+    //    something qualifies: «de 1917 aplicable en Tlaxcala»).
+    // A key never turns into anything else, and never from a law that was not the CPEUM.
     const CPEUM_SUFFIX = "@constitucion politica estados unidos mexicanos";
+    const TURNED_SUFFIXES = ["@?", "@constitucion 1917"];
     const DIVERGENCE_CAUSE = /de acuerdo con|de conformidad con|de 1917|constitucional/i;
     const onlyTowardsUnknown = (now: string[], previous: string[]): boolean => {
         const old = new Set(previous);
-        const turned = new Set(previous.filter((key) => key.endsWith(CPEUM_SUFFIX)).map((key) => `${key.slice(0, -CPEUM_SUFFIX.length)}@?`));
+        const turned = new Set(
+            previous
+                .filter((key) => key.endsWith(CPEUM_SUFFIX))
+                .flatMap((key) => TURNED_SUFFIXES.map((suffix) => `${key.slice(0, -CPEUM_SUFFIX.length)}${suffix}`)),
+        );
         return now.length === previous.length && now.every((key) => old.has(key) || turned.has(key));
     };
+
+    it("a capitalized «Constitución de 1917» followed by punctuation keeps the result of the previous module; one that something qualifies only turns away from the CPEUM", () => {
+        const same = [
+            "Artículo 5 de la Constitución de 1917.",
+            "artículo 5 de la Constitución de 1917, dice",
+            "artículo 5 de la Constitución de 1917; dice",
+            "¿Qué dice el artículo 5 de la Constitución de 1917?",
+            "artículo 5 de la Constitución de 1917",
+            "artículo 5 de la Constitución de 1917 establece",
+            "artículo 5 de la constitución de 1917.",
+            "artículo 5 de la Constitución de 1917 de Tlaxcala",
+            "artículo 5 de la Constitución de 1917 local",
+        ];
+        for (const text of same) expect([...lawReferences(text, null)], text).toEqual([...before.lawReferences(text, null)]);
+        const qualified = ["artículo 5 de la Constitución de 1917 aplicable en Tlaxcala", "artículo 5 de la Constitución de 1917 aplicable."];
+        for (const text of qualified) {
+            const now = [...lawReferences(text, null)];
+            const previous = [...before.lawReferences(text, null)];
+            expect(now, text).not.toEqual(previous);
+            expect(onlyTowardsUnknown(now, previous), text).toBe(true);
+            expect(now.some((key) => key.endsWith(CPEUM_SUFFIX)), text).toBe(false);
+        }
+        // The rule is exact: it does not excuse a key that was not the CPEUM, nor any other target.
+        expect(onlyTowardsUnknown(["art:5@ley b"], ["art:5@ley a"])).toBe(false);
+        expect(onlyTowardsUnknown(["art:5@constitucion 1917"], ["art:5@ley a"])).toBe(false);
+        expect(onlyTowardsUnknown(["art:5@ley b"], [`art:5${CPEUM_SUFFIX}`])).toBe(false);
+        expect(onlyTowardsUnknown(["art:5@?"], [`art:5${CPEUM_SUFFIX}`])).toBe(true);
+        expect(onlyTowardsUnknown(["art:5@constitucion 1917"], [`art:5${CPEUM_SUFFIX}`])).toBe(true);
+    });
 
     it("legalReferences, lawReferences and the law helpers agree on 60 000 strings", { timeout: 120_000 }, () => {
         let diverged = 0;

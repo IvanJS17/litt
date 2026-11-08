@@ -227,11 +227,28 @@ describe("every loose alias of the federal constitution takes the same qualifier
         "El artículo 5 de la Constitución de conformidad con la ley establece algo.",
         "El artículo 5 de la constitución de 1917 establece algo.",
         "El artículo 5 de la Constitución de 1917 establece algo.",
+        "El artículo 5 de la Constitución de 1917.",
+        "El artículo 5 de la Constitución de 1917, dice algo.",
+        "El artículo 5 de la Constitución de 1917; dice algo.",
+        "El artículo 5 de la Constitución de 1917: dice algo.",
+        "¿Qué dice el artículo 5 de la Constitución de 1917?",
+        "El artículo 5 de la Carta Magna de 1917.",
     ])("still matches the CPEUM: %s", (text) => {
         expect(keys(text)).toEqual([`art:5@${cpeum}`]);
     });
     it("never reads a capitalized «de 1917 de Tlaxcala» as the CPEUM (it stays a law of its own name)", () => {
         const found = keys("El artículo 5 de la Constitución de 1917 de Tlaxcala dice algo.");
+        expect(found).toHaveLength(1);
+        expect(found[0]).not.toBe(`art:5@${cpeum}`);
+    });
+    it.each([
+        "El artículo 5 de la Constitución de 1917 de Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución de 1917 aplicable en Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución de 1917 aplicable en Tlaxcala.",
+        "El artículo 5 de la Constitución de 1917 de Tlaxcala.",
+        "El artículo 5 de la Constitución de 1917 local.",
+    ])("never reads a capitalized «de 1917» that something qualifies as the CPEUM: %s", (text) => {
+        const found = keys(text);
         expect(found).toHaveLength(1);
         expect(found[0]).not.toBe(`art:5@${cpeum}`);
     });
