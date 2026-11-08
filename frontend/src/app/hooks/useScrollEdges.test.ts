@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scrollEdges, scrollFadeMaskStyle } from "./useScrollEdges";
+import { crossAxisGutter, scrollEdges, scrollFadeMaskStyle } from "./useScrollEdges";
 
 function box(sizes: Partial<HTMLElement>): HTMLElement {
     return sizes as HTMLElement;
@@ -24,6 +24,29 @@ describe("scrollEdges", () => {
         expect(
             scrollEdges(box({ scrollTop: 0.5, scrollHeight: 100.6, clientHeight: 100 }), "y"),
         ).toEqual({ start: false, end: false });
+    });
+});
+
+describe("crossAxisGutter", () => {
+    it("is the vertical scrollbar's width for a horizontal scroller", () => {
+        expect(
+            crossAxisGutter(box({ offsetWidth: 815, clientWidth: 800 }), "x"),
+        ).toBe(15);
+    });
+
+    it("is the horizontal scrollbar's height for a vertical scroller", () => {
+        expect(
+            crossAxisGutter(box({ offsetHeight: 415, clientHeight: 400 }), "y"),
+        ).toBe(15);
+    });
+
+    it("is zero for overlay scrollbars, and never negative", () => {
+        expect(
+            crossAxisGutter(box({ offsetWidth: 800, clientWidth: 800 }), "x"),
+        ).toBe(0);
+        expect(
+            crossAxisGutter(box({ offsetWidth: 799, clientWidth: 800 }), "x"),
+        ).toBe(0);
     });
 });
 

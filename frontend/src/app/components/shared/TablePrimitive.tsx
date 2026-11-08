@@ -286,6 +286,7 @@ export function TableScrollArea({
     const {
         ref: horizontalRef,
         edges: horizontal,
+        gutter: verticalScrollbar,
         onScroll: onHorizontalScroll,
     } = useScrollEdges<HTMLDivElement>("x");
     const setScrollElement = useCallback(
@@ -330,10 +331,12 @@ export function TableScrollArea({
                         {children}
                     </div>
                     {/* More columns past the right edge: the rows fade out
-                        there instead of ending in a hard cut. */}
+                        there instead of ending in a hard cut. It stops short
+                        of the vertical scrollbar, which it must not tint. */}
                     <div
                         aria-hidden="true"
                         data-scroll-hint="end"
+                        style={{ right: verticalScrollbar }}
                         className={cn(
                             "pointer-events-none absolute inset-y-0 right-0 z-[85] w-12 bg-gradient-to-l from-[var(--table-cell-background)] to-transparent transition-opacity duration-200 motion-reduce:transition-none",
                             preserveGridBorder && "rounded-r-2xl",
