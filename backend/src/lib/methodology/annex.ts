@@ -79,6 +79,19 @@ export function verifyBasis(basis: string, sources: Record<string, InputSource>)
     return [...named].every((reference) => quoted.has(reference)) ? "backed" : "unverified";
 }
 
+/** The annex date is the person's calendar day in Mexico City, not the server's UTC day. */
+export const ANNEX_TIME_ZONE = "America/Mexico_City";
+
+export function annexDate(date: Date): string {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: ANNEX_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(date);
+    return parts; // en-CA writes YYYY-MM-DD
+}
+
 export function buildAnnex(
     result: MethodologyResult,
     context: {
@@ -129,7 +142,7 @@ export function buildAnnex(
     sections.push({
         heading: "Generación",
         level: 1,
-        content: `Generado en LiTT para ${generatedFor} el ${generatedAt.toISOString().slice(0, 10)} (UTC).\n\n${ANNEX_DISCLAIMER}`,
+        content: `Generado en LiTT para ${generatedFor} el ${annexDate(generatedAt)} (hora de la Ciudad de México).\n\n${ANNEX_DISCLAIMER}`,
     });
     return { title: `Anexo de metodología - ${result.title}`, sections };
 }

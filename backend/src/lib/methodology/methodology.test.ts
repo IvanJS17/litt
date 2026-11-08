@@ -200,6 +200,15 @@ describe("annex", () => {
         expect(describeSource({ status: "person_unverified" })).toContain("No encontrado en tu mensaje");
     });
 
+    it("dates the annex in Mexico City, not in UTC", () => {
+        // 02:30 UTC on the 9th is still the evening of the 8th in Mexico City.
+        const late = buildAnnex(result, { sources: {}, generatedAt: new Date("2026-11-09T02:30:00Z"), generatedFor: "a@b.mx" });
+        expect(late.sections.at(-1)!.content).toContain("el 2026-11-08 (hora de la Ciudad de México)");
+        const noon = buildAnnex(result, { sources: {}, generatedAt: new Date("2026-07-01T12:00:00Z"), generatedFor: "a@b.mx" });
+        expect(noon.sections.at(-1)!.content).toContain("el 2026-07-01 ");
+        expect(noon.sections.at(-1)!.content).not.toContain("UTC");
+    });
+
     it("looks for a figure in the person's message by its digits, not as a piece of another", () => {
         expect(appearsInMessage("1000", "presté $1,000 al 12 %")).toBe(true);
         expect(appearsInMessage("1000000", "son 1 000 000")).toBe(false);
