@@ -1033,9 +1033,11 @@ owner, an admin, another member, an outsider and the pupil on the mentor's
 route get the same `404` as an unknown id. The mentor reads only the notes of
 works in **matters they can open**; the rest are counted
 (`notes_without_access`) and never used. A retake is about a topic, with no
-matter, so the mentor sees its question, answer and contrast only when its
-topic shows in the notes they can open; otherwise `text_hidden: true` and only
-the topic, status and verdict. Only the person's response carries `generation`
+matter, so the mentor gets it only when its topic shows in the notes they can
+open. A retake of any other topic is **only counted** (`retakes_without_access`):
+no label (the model wrote it from notes the mentor cannot read), status,
+verdict or date, and it feeds neither the map nor `open_retake_id`. So
+`text_hidden` is always `false`. Only the person's response carries `generation`
 (whether they can retake and on which of their keys).
 
 **The retake.** Nothing is scheduled; it is generated when the person asks, so

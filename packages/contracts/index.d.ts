@@ -836,11 +836,7 @@ export interface TrainingRetake {
   verdict: TrainingVerdictValue | null;
   created_at: string;
   answered_at: string | null;
-  /**
-   * Only for the mentor: the text of the retake is shown when its topic comes
-   * from work in a matter the mentor can open; otherwise `question`,
-   * `answer` and `contrast` are null and this is true.
-   */
+  /** Always false: a retake the mentor cannot read is not sent at all (`retakes_without_access`). Kept for compatibility. */
   text_hidden: boolean;
 }
 
@@ -870,6 +866,8 @@ export interface TrainingMyCriterion extends TrainingCriterionBase {
 export interface TrainingPupilCriterion extends TrainingCriterionBase {
   /** Turn notes of works in matters the mentor cannot open: counted, never used. */
   notes_without_access: number;
+  /** Retakes whose topic shows only in notes the mentor cannot open: counted, not listed (no label, status or verdict). */
+  retakes_without_access: number;
 }
 
 /** POST /training/me/retakes */

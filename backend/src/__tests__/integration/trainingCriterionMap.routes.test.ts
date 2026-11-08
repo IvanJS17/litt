@@ -471,7 +471,7 @@ describe("what the mentor reads", () => {
         expect(open.body.map.topics).toHaveLength(2);
     });
 
-    it("shows a retake's text only when its topic comes from work the mentor can open", async () => {
+    it("counts, never lists, a retake whose topic comes only from work the mentor cannot open", async () => {
         seed({
             notes: [...weakTopic(), ...[3, 2, 1].map((days) => noteRow({ chat_id: SECRET_CHAT, topics: ["Reservado"], created_at: daysAgo(days) }))],
             retakes: [
@@ -480,12 +480,29 @@ describe("what the mentor reads", () => {
             ],
         });
         const res = await as(MENTOR).get(mentorUrl);
-        const byKey = Object.fromEntries(res.body.retakes.map((r: { topic_key: string }) => [r.topic_key, r]));
-        expect(byKey["prescripcion cambiaria"]).toMatchObject({ text_hidden: false, question: QUESTION, answer: ANSWER });
-        expect(byKey["reservado"]).toMatchObject({ text_hidden: true, question: null, answer: null, contrast: null, verdict: "coincide" });
+        expect(res.body.retakes).toHaveLength(1);
+        expect(res.body.retakes[0]).toMatchObject({ topic_key: "prescripcion cambiaria", text_hidden: false, question: QUESTION, answer: ANSWER });
+        expect(res.body.retakes_without_access).toBe(1);
+        expect(JSON.stringify(res.body)).not.toMatch(/reservado/i);
         // The person's own copy is complete.
-        const own = (await as(PUPIL).get(mineUrl)).body.retakes.find((r: { topic_key: string }) => r.topic_key === "reservado");
-        expect(own).toMatchObject({ text_hidden: false, question: QUESTION });
+        const own = (await as(PUPIL).get(mineUrl)).body;
+        expect(own.retakes.find((r: { topic_key: string }) => r.topic_key === "reservado")).toMatchObject({ text_hidden: false, question: QUESTION });
+        expect(own).not.toHaveProperty("retakes_without_access");
+        // Once the mentor can open the matter, the retake is listed.
+        h.openable.add(`${SECRET_PROJECT}:${MENTOR}`);
+        const open = (await as(MENTOR).get(mentorUrl)).body;
+        expect(open.retakes_without_access).toBe(0);
+        expect(open.retakes).toHaveLength(2);
+    });
+
+    it("does not let a hidden live retake show as the open one", async () => {
+        seed({
+            notes: [...weakTopic(), ...[3, 2, 1].map((days) => noteRow({ chat_id: SECRET_CHAT, topics: ["Reservado"], created_at: daysAgo(days) }))],
+            retakes: [openRetake({ topic_key: "reservado", topic_label: "Reservado" })],
+        });
+        const res = await as(MENTOR).get(mentorUrl);
+        expect(res.body.open_retake_id).toBeNull();
+        expect(res.body.retakes_without_access).toBe(1);
     });
 
     it("never carries the route or its credential", async () => {

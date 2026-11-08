@@ -50,21 +50,21 @@ export const isLiveRetake = (row: Pick<RetakeRow, "status" | "updated_at" | "que
     return status === "pending" || status === "open";
 };
 
-/** The wire form: no credential reference, no route. `hideText` is the mentor's, for a topic of a matter they cannot open. */
-export function serializeRetake(row: RetakeRow, hideText = false, now: number = Date.now()): TrainingRetake {
+/** The wire form: no credential reference, no route. The mentor is never sent a retake whose topic they cannot open (see the view), so nothing here hides text. */
+export function serializeRetake(row: RetakeRow, now: number = Date.now()): TrainingRetake {
     return {
         id: row.id,
         org_id: row.org_id,
         topic_key: row.topic_key,
         topic_label: row.topic_label,
         status: effectiveRetakeStatus(row, now),
-        question: hideText ? null : (row.question ?? null),
-        answer: hideText ? null : (row.answer ?? null),
-        contrast: hideText ? null : (row.contrast ?? null),
+        question: row.question ?? null,
+        answer: row.answer ?? null,
+        contrast: row.contrast ?? null,
         verdict: row.verdict ?? null,
         created_at: row.created_at,
         answered_at: row.answered_at ?? null,
-        text_hidden: hideText,
+        text_hidden: false,
     };
 }
 

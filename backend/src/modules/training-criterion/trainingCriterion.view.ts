@@ -58,8 +58,6 @@ function build(args: {
     traineeId: string;
     rows: readonly EvidenceRow[];
     retakes: readonly RetakeRow[];
-    /** Topics the reader may see the text of a retake for; null: all. */
-    textVisible: Set<string> | null;
     now: number;
 }) {
     const turns = countedTurns(args.rows);
@@ -86,9 +84,7 @@ function build(args: {
         },
         calibration: computeCalibration(turns),
         hints: hintsUsed(args.rows),
-        retakes: args.retakes.map((row) =>
-            serializeRetake(row, args.textVisible !== null && !args.textVisible.has(row.topic_key), args.now),
-        ),
+        retakes: args.retakes.map((row) => serializeRetake(row, args.now)),
         open_retake_id: open?.id ?? null,
     };
 }
@@ -111,7 +107,6 @@ export async function getMyCriterion(
             traineeId: args.userId,
             rows: rows.data,
             retakes: retakes.data,
-            textVisible: null,
             now: args.now ?? Date.now(),
         }),
         generation: await retakeGeneration(db, args.userId, orgId),
@@ -132,11 +127,16 @@ export async function getPupilCriterion(
     if (!visible.ok) return visible;
     const retakes = await readRetakes(db, orgId, traineeId);
     if (!retakes.ok) return retakes;
-    // A retake was built from the person's notes: its text is the mentor's to
-    // read only when its topic shows in the notes the mentor can open.
-    const textVisible = new Set(eventsOf(visible.data.rows, []).map((event) => event.key));
+    // A retake was built from the person's notes, not from a matter: the
+    // mentor sees it only when its topic shows in the notes they can open.
+    // The others are counted and nothing about them is returned (not even
+    // the topic label, which the model wrote from notes the mentor cannot
+    // read), and they feed neither the map nor the open retake.
+    const shown = new Set(eventsOf(visible.data.rows, []).map((event) => event.key));
+    const openable = retakes.data.filter((row) => shown.has(row.topic_key));
     return ok({
-        ...build({ orgId, traineeId, rows: visible.data.rows, retakes: retakes.data, textVisible, now: actor.now ?? Date.now() }),
+        ...build({ orgId, traineeId, rows: visible.data.rows, retakes: openable, now: actor.now ?? Date.now() }),
         notes_without_access: visible.data.withoutAccess,
+        retakes_without_access: retakes.data.length - openable.length,
     });
 }
