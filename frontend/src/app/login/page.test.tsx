@@ -1,6 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { loadMessages } from "@litt/i18n";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import LoginPage from "./page";
 import { AuthApiError } from "@/app/lib/authApi";
 
@@ -324,4 +326,23 @@ it("shows a sign-in failure ahead of the session warning", async () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
         "We could not check your session",
     );
+
+});
+
+it("speaks Spanish (es-MX) and offers the language choice", async () => {
+    const messages = await loadMessages("es-MX");
+    render(
+        <IntlClientProvider locale="es-MX" messages={messages}>
+            <LoginPage />
+        </IntlClientProvider>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Correo electrónico")).toBeInTheDocument();
+    expect(screen.getByLabelText("Contraseña")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Iniciar sesión" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "¿Olvidaste tu contraseña?" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Regístrate" })).toHaveAttribute("href", "/signup");
+    expect(screen.getByRole("combobox", { name: "Idioma" })).toHaveValue("es-MX");
+    expect(screen.queryByText("Forgot password?")).not.toBeInTheDocument();
 });

@@ -145,7 +145,7 @@ describe("SignupPage", () => {
 
         expect(screen.getByLabelText("Password")).toHaveAttribute(
             "placeholder",
-            "Min. 10 Characters",
+            "Min. 10 characters",
         );
 
         await user.type(
