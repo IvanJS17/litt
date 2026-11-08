@@ -17,6 +17,7 @@
 //   node scripts/i18n/extract.mjs --ns <namespace> --write <path>...
 //   node scripts/i18n/extract.mjs --ns <namespace> --from es-MX --write <path>...  # Spanish source text
 //   node scripts/i18n/extract.mjs --ns <namespace> --prune [--write]  # drops unused keys of <namespace>
+//   ... --prune --allow-dynamic   # when t(`ns.${x}`)-style calls exist: keeps the keys they may reach
 //
 // Paths are relative to the repository root. See docs/i18n.md.
 
@@ -230,6 +231,55 @@ function call(key, args) {
     if (!args.length) return `t(${JSON.stringify(key)})`;
     const values = args.map((a) => (a.name === a.text ? a.name : `${a.name}: ${a.text}`)).join(", ");
     return `t(${JSON.stringify(key)}, { ${values} })`;
+}
+
+// ---------------------------------------------------------------- dynamic uses
+
+const TRANSLATE_CALL = /^(t(\.(rich|markup))?|useTranslations|getTranslations)$/;
+const TRANSLATE_HINT = /\b(t(\.(rich|markup))?|useTranslations|getTranslations)\s*\(/;
+
+/**
+ * Calls to t, t.rich, t.markup, useTranslations or getTranslations whose
+ * first argument is not a string literal: the key (or namespace) they use
+ * cannot be read from the source, so --prune cannot see it. Each one has
+ * its line and the literal `prefix` the key is known to start with ("" when
+ * nothing is known: a variable, an imported constant, a call).
+ */
+export function dynamicUses(sf) {
+    const found = [];
+    const visit = (n) => {
+        if (ts.isCallExpression(n) && n.arguments.length) {
+            const callee = n.expression.getText(sf);
+            const arg = n.arguments[0];
+            // getTranslations({ locale, namespace }) is the options form.
+            const options = callee === "getTranslations" && ts.isObjectLiteralExpression(arg);
+            if (TRANSLATE_CALL.test(callee) && !options && !isStringLiteral(arg)) {
+                const head = ts.isTemplateExpression(arg)
+                    ? arg.head.text
+                    : ts.isBinaryExpression(arg) && arg.operatorToken.kind === ts.SyntaxKind.PlusToken && isStringLiteral(arg.left)
+                      ? arg.left.text
+                      : "";
+                found.push({
+                    line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1,
+                    callee,
+                    arg: arg.getText(sf).replace(/\s+/g, " "),
+                    prefix: head,
+                });
+            }
+        }
+        ts.forEachChild(n, visit);
+    };
+    visit(sf);
+    return found;
+}
+
+const dynamicWarning = (file, use) =>
+    `warning: ${file}:${use.line} ${use.callee}(${use.arg}) is not a literal: --prune cannot see which keys it uses\n`;
+
+/** Whether a dynamic use may reach a key, as a full key or under a namespaced translator. */
+function mayReach(use, key) {
+    const parts = key.split(".");
+    return parts.some((_, i) => parts.slice(i).join(".").startsWith(use.prefix));
 }
 
 // ---------------------------------------------------------------- scopes
@@ -523,22 +573,28 @@ function unifiedDiff(label, before, after) {
     }
 }
 
-/** Keys of the namespace that no source file names any more. */
-function unusedKeys(repo, catalog, namespace, pending) {
+/** The source files --prune looks keys up in, with `pending` (not yet written) contents. */
+function keyUserFiles(repo, pending) {
+    return KEY_USERS.filter((p) => existsSync(join(repo, p)))
+        .flatMap((p) => sourceFiles(join(repo, p)))
+        .map((abs) => ({ name: toRepo(repo, abs), text: pending.get(abs) ?? readFileSync(abs, "utf8") }));
+}
+
+/** Keys of the namespace that no source file names any more, less those a dynamic use may reach. */
+function unusedKeys(files, catalog, namespace, dynamic) {
     const root = subtree(catalog.en, namespace, false);
     if (!root) return [];
-    const sources = KEY_USERS.filter((p) => existsSync(join(repo, p)))
-        .flatMap((p) => sourceFiles(join(repo, p)))
-        .map((abs) => pending.get(abs) ?? readFileSync(abs, "utf8"));
+    const sources = files.map((f) => f.text);
     const quoted = (s) => new RegExp(`["'\`]${s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`);
     return leaves(root, `${namespace}.`).filter((key) => {
         const parts = key.split(".");
         // Used in full, or through a namespaced translator: t = useTranslations("a.b"); t("c").
-        return !sources.some(
+        const named = sources.some(
             (src) =>
                 quoted(key).test(src) ||
                 parts.slice(1).some((_, i) => quoted(parts.slice(0, i + 1).join(".")).test(src) && quoted(parts.slice(i + 1).join(".")).test(src)),
         );
+        return !named && !dynamic.some((use) => mayReach(use, key));
     });
 }
 
@@ -553,7 +609,9 @@ export function run({
     from = "en-US",
     write = false,
     prune = false,
+    allowDynamic = false,
     out = (s) => process.stdout.write(s),
+    warn = (s) => process.stderr.write(s),
 }) {
     if (!namespace || !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)*$/.test(namespace))
         throw new Error("--ns <namespace> is required, as dotted camelCase: settings.appearance");
@@ -568,6 +626,19 @@ export function run({
     const changed = [];
     let catalogChanged = false;
     let baselineChanged = false;
+    const warned = new Set();
+    const warnDynamic = (file, source) => {
+        if (!TRANSLATE_HINT.test(source)) return [];
+        const uses = dynamicUses(parseSource(file, source));
+        for (const use of uses) {
+            const message = dynamicWarning(file, use);
+            if (!warned.has(message)) {
+                warned.add(message);
+                warn(message);
+            }
+        }
+        return uses;
+    };
 
     for (const path of paths) {
         const abs = resolve(repo, path);
@@ -588,6 +659,7 @@ export function run({
             }
             for (const { key, message } of result.added) say(`+ ${key}: ${JSON.stringify(message)}\n`);
             for (const s of result.skipped) say(`left ${name}:${s.line} ${JSON.stringify(s.text)}: ${s.reason}\n`);
+            warnDynamic(name, result.source);
             const left = visibleLiterals(name, result.source).length;
             const before = baseline.allowed[name] ?? 0;
             if (left !== before) {
@@ -600,7 +672,14 @@ export function run({
     }
     if (prune) {
         const pending = new Map(changed.map(({ file, source }) => [file, source]));
-        for (const key of unusedKeys(repo, catalog, namespace, pending)) {
+        const files = keyUserFiles(repo, pending);
+        const dynamic = files.flatMap(({ name, text }) => warnDynamic(name, text));
+        if (dynamic.length && !allowDynamic)
+            throw new Error(
+                `--prune refused: ${dynamic.length} call(s) of t(), t.rich(), t.markup() or useTranslations() take a key or namespace that is not a literal (listed above), so unused keys cannot be told apart. Nothing was changed. Make them literals, or add --allow-dynamic to prune without the keys they may reach.`,
+            );
+        if (dynamic.length) say(`(--allow-dynamic: keeping the keys ${dynamic.length} dynamic call(s) may reach)\n`);
+        for (const key of unusedKeys(files, catalog, namespace, dynamic)) {
             removeKey(catalog.en, key);
             removeKey(catalog.es, key);
             catalogChanged = true;
@@ -632,10 +711,18 @@ function main(argv) {
             from: { type: "string", default: "en-US" },
             write: { type: "boolean", default: false },
             prune: { type: "boolean", default: false },
+            "allow-dynamic": { type: "boolean", default: false },
         },
     });
     if (!positionals.length && !values.prune) throw new Error("give at least one path, or --prune");
-    run({ namespace: values.ns, paths: positionals, from: values.from, write: values.write, prune: values.prune });
+    run({
+        namespace: values.ns,
+        paths: positionals,
+        from: values.from,
+        write: values.write,
+        prune: values.prune,
+        allowDynamic: values["allow-dynamic"],
+    });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
