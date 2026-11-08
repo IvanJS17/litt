@@ -22,6 +22,7 @@ import { computeCalibration } from "../../lib/trainingCalibration";
 import {
     computeMap,
     countedTurns,
+    labelFromNotes,
     MAP_MIN_EVENTS,
     MAP_WINDOW_EVENTS,
     mapEvents,
@@ -136,9 +137,22 @@ export async function getPupilCriterion(
     // the topic label, which the model wrote from notes the mentor cannot
     // read), and it feeds neither the map nor the open retake.
     const openableNotes = new Set(visible.data.rows.map((row) => row.id));
-    const openable = retakes.data.filter(
-        (row) => (row.source_note_ids ?? []).length > 0 && (row.source_note_ids ?? []).every((id) => openableNotes.has(id)),
-    );
+    // The label is not taken from the stored one: it is read again from the
+    // retake's own openable sources, so a label the model wrote from a note
+    // the mentor cannot open (an older retake, or a topic's last event) never
+    // reaches them. With no openable source carrying the topic, the retake is
+    // only counted.
+    const notesById = new Map(visible.data.rows.map((row) => [row.id, row]));
+    const openable: RetakeRow[] = [];
+    for (const row of retakes.data) {
+        const sources = row.source_note_ids ?? [];
+        if (sources.length === 0 || !sources.every((id) => openableNotes.has(id))) continue;
+        const label = labelFromNotes(
+            sources.map((id) => notesById.get(id)!),
+            row.topic_key,
+        );
+        if (label) openable.push({ ...row, topic_label: label });
+    }
     return ok({
         ...build({ orgId, traineeId, rows: visible.data.rows, retakes: openable, now: actor.now ?? Date.now() }),
         notes_without_access: visible.data.withoutAccess,

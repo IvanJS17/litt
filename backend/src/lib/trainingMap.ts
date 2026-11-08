@@ -102,6 +102,22 @@ export function countedTurns(notes: readonly EvidenceNote[]): CountedTurn[] {
     return counted;
 }
 
+/**
+ * The label of topic `key` as written in `notes` (newest first wins), or null
+ * when none of them carries it. A caller passes only the notes it may show.
+ */
+export function labelFromNotes(
+    notes: readonly { created_at: string; topics: readonly string[] | null }[],
+    key: string,
+): string | null {
+    const ordered = [...notes].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+    for (const note of ordered) {
+        const found = (note.topics ?? []).find((label) => topicKey(label) === key);
+        if (found) return found;
+    }
+    return null;
+}
+
 export type MapEvent = {
     key: string;
     label: string;

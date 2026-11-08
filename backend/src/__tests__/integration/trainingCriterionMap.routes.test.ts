@@ -547,6 +547,53 @@ describe("what the mentor reads", () => {
             expect(res.body.retakes[0]).toMatchObject({ question: QUESTION, answer: ANSWER, text_hidden: false });
         });
 
+        it("never gives the mentor a label that came from a note they cannot open (R3)", async () => {
+            // Same topic key, other spelling: the last event is in the reserved matter.
+            const open = weakTopic();
+            const secret = noteRow({ chat_id: SECRET_CHAT, topics: ["PRESCRIPCIÓN CAMBIARIA"], created_at: daysAgo(15) });
+            seed({
+                notes: [...open, secret],
+                retakes: [
+                    answeredRetake({
+                        source_note_ids: open.map((n) => n.id),
+                        topic_label: "PRESCRIPCIÓN CAMBIARIA",
+                        answered_at: daysAgo(16),
+                        created_at: daysAgo(17),
+                    }),
+                ],
+            });
+            const res = await as(MENTOR).get(mentorUrl);
+            expect(res.status).toBe(200);
+            expect(res.body.map.topics.map((t: { label: string }) => t.label)).toEqual(["Prescripción cambiaria"]);
+            expect(res.body.retakes[0].topic_label).toBe("Prescripción cambiaria");
+            expect(JSON.stringify(res.body)).not.toContain("PRESCRIPCIÓN");
+            // The person keeps their own latest spelling.
+            const own = (await as(PUPIL).get(mineUrl)).body;
+            expect(own.map.topics[0].label).toBe("PRESCRIPCIÓN CAMBIARIA");
+        });
+
+        it("sets the label of a new retake from its own material, not from the topic's last event (R3)", async () => {
+            const open = weakTopic();
+            seed({
+                notes: open,
+                // A past answered retake carries another spelling and is the topic's last event.
+                retakes: [
+                    answeredRetake({
+                        id: id(710),
+                        source_note_ids: [],
+                        topic_label: "PRESCRIPCIÓN CAMBIARIA",
+                        verdict: "no_coincide",
+                        answered_at: daysAgo(15),
+                        created_at: daysAgo(16),
+                    }),
+                ],
+            });
+            const res = await start();
+            expect(res.status).toBe(201);
+            expect(res.body.topic_label).toBe("Prescripción cambiaria");
+            expect(retakeRows().find((r) => r.id === res.body.id)!.topic_label).toBe("Prescripción cambiaria");
+        });
+
         it("counts only, never shows, a retake whose source note is gone or that records none", async () => {
             const { open } = mixed();
             seed({

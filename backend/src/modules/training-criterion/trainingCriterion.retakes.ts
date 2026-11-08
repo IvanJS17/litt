@@ -21,7 +21,7 @@ import { recordAudit } from "../../lib/audit";
 import { promptNonce } from "../../lib/promptFence";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { computeMap, topicKey } from "../../lib/trainingMap";
+import { computeMap, labelFromNotes, topicKey } from "../../lib/trainingMap";
 import {
     buildRetakeContrastPrompt,
     buildRetakeQuestionPrompt,
@@ -146,6 +146,11 @@ export async function startRetake(
     if (!material.ok) return material;
     if (material.data.material.length === 0) return failure("conflict", NOT_DUE, RETAKE_NOT_DUE_CODE);
     const sourceNoteIds = material.data.foundIds;
+    // The label comes from the retake's own material, not from the topic's
+    // last event: that one may sit in a matter the mentor cannot open, and
+    // the mentor reads this label next to the retake.
+    const sourceSet = new Set(sourceNoteIds);
+    const label = labelFromNotes(notes.data.filter((note) => sourceSet.has(note.id)), key) ?? topic.label;
 
     // The person's own route, fixed on the row; no key, no retake.
     const route = await retakeRoute(db, { userId: args.userId, orgId, row: null, credentialRef: credential.value });
@@ -159,7 +164,7 @@ export async function startRetake(
             org_id: orgId,
             trainee_user_id: args.userId,
             topic_key: key,
-            topic_label: topic.label,
+            topic_label: label,
             status: "pending",
             // The notes the question is made from: the answer is contrasted
             // with these and the mentor's view depends on all of them.
@@ -189,7 +194,7 @@ export async function startRetake(
             model: resolved.route.model,
             apiKeys: resolved.apiKeys,
             systemPrompt: RETAKE_QUESTION_SYSTEM_PROMPT,
-            user: buildRetakeQuestionPrompt(topic.label, material.data.material, promptNonce()),
+            user: buildRetakeQuestionPrompt(label, material.data.material, promptNonce()),
             maxTokens: RETAKE_MAX_TOKENS,
         });
         question = parseRetakeQuestion(text, material.data.material);
