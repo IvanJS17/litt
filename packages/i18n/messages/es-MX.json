@@ -297,6 +297,7 @@
       "project": "Asunto",
       "chooseProject": "Elige un asunto",
       "noProjects": "No tienes asuntos en esta organización",
+      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en esta organización",
       "duration": "Duración",
       "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
       "hours": "{hours, plural, one {# hora} other {# horas}}",

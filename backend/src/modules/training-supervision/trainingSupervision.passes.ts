@@ -73,15 +73,58 @@ export async function readUrgencyPasses(
     return ok(((data ?? []) as Record<string, unknown>[]).map(toPass));
 }
 
+/** Most candidate matters one list answers for; the rest are not asked about. */
+export const PASS_CANDIDATES_MAX = 200;
+const ACCESS_CHECKS_AT_ONCE = 10;
+
+/**
+ * Which of the candidate matters a pass could be granted on, by the grant's
+ * own test: the organization's, openable by the mentor AND by the pupil.
+ * Asking about a matter the mentor cannot open reveals nothing about it.
+ */
+async function grantableProjects(
+    db: Db,
+    args: MentorArgs & { actorEmail?: string | null },
+    candidates: readonly string[],
+): Promise<ServiceResult<string[]>> {
+    const ids = [...new Set(candidates.filter(isUuid))].slice(0, PASS_CANDIDATES_MAX);
+    const open: string[] = [];
+    try {
+        for (let i = 0; i < ids.length; i += ACCESS_CHECKS_AT_ONCE) {
+            const checked = await Promise.all(
+                ids.slice(i, i + ACCESS_CHECKS_AT_ONCE).map(async (projectId) => {
+                    const mentor = await checkProjectAccess(projectId, args.actorId, args.actorEmail, db);
+                    if (!mentor.ok || mentor.project.org_id !== args.orgId) return false;
+                    return (await checkProjectAccess(projectId, args.traineeId as string, null, db)).ok;
+                }),
+            );
+            ids.slice(i, i + ACCESS_CHECKS_AT_ONCE).forEach((projectId, index) => {
+                if (checked[index]) open.push(projectId);
+            });
+        }
+    } catch (error) {
+        return internalFailure(error);
+    }
+    return ok(open);
+}
+
+/**
+ * The pupil's passes. With `projectIds` (the matters the mentor is choosing
+ * among) it also answers `grantable_project_ids`, so the selector offers only
+ * matters the server will not refuse with training_pass_pupil_no_access.
+ */
 export async function listUrgencyPasses(
     db: Db,
-    args: MentorArgs,
+    args: MentorArgs & { actorEmail?: string | null; projectIds?: readonly string[] },
 ): Promise<ServiceResult<TrainingUrgencyPasses>> {
     const access = await assertCurrentMentor(db, args);
     if (!access.ok) return access;
     const passes = await readUrgencyPasses(db, args.orgId as string, args.traineeId as string);
     if (!passes.ok) return passes;
-    return ok({ passes: passes.data });
+    if (!args.projectIds) return ok({ passes: passes.data });
+    const grantable = await grantableProjects(db, args, args.projectIds);
+    if (!grantable.ok) return grantable;
+    return ok({ passes: passes.data, grantable_project_ids: grantable.data });
 }
 
 type GrantInput = {

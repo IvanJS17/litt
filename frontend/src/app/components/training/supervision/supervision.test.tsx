@@ -494,6 +494,30 @@ describe("Urgency pass tab", () => {
         await waitFor(() => expect(screen.getByRole("combobox", { name: "Matter" })).toHaveValue(""));
     });
 
+    it("offers only the matters the pupil can open too", async () => {
+        vi.mocked(api.listProjects).mockResolvedValue([
+            { id: "proj-1", name: "Arrendamiento Ruiz", org_id: "org-1" },
+            { id: "proj-closed", name: "Asunto cerrado al pupilo", org_id: "org-1" },
+            { id: "proj-other", name: "Otro despacho", org_id: "org-2" },
+        ] as unknown as Awaited<ReturnType<typeof api.listProjects>>);
+        vi.mocked(api.getPupilPasses).mockResolvedValue({ passes: [], grantable_project_ids: ["proj-1"] });
+        render(<PassesTab orgId="org-1" pupilId="pupil-1" />);
+        const matter = await screen.findByRole("combobox", { name: "Matter" });
+        expect(api.getPupilPasses).toHaveBeenCalledWith("org-1", "pupil-1", ["proj-1", "proj-closed"]);
+        expect(within(matter).getByText("Arrendamiento Ruiz")).toBeInTheDocument();
+        expect(within(matter).queryByText("Asunto cerrado al pupilo")).toBeNull();
+    });
+
+    it("says so when the pupil can open none of the mentor's matters", async () => {
+        vi.mocked(api.getPupilPasses).mockResolvedValue({ passes: [], grantable_project_ids: [] });
+        render(<PassesTab orgId="org-1" pupilId="pupil-1" />);
+        const matter = await screen.findByRole("combobox", { name: "Matter" });
+        expect(matter).toBeDisabled();
+        expect(
+            within(matter).getByText("The pupil cannot open any of your matters in this organization"),
+        ).toBeInTheDocument();
+    });
+
     it("lists passes and revokes one in force only after confirming", async () => {
         const refused = new Error("409");
         vi.mocked(api.getPupilPasses).mockResolvedValue({

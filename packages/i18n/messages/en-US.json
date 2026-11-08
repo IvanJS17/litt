@@ -297,6 +297,7 @@
       "project": "Matter",
       "chooseProject": "Choose a matter",
       "noProjects": "You have no matters in this organization",
+      "noGrantableProjects": "The pupil cannot open any of your matters in this organization",
       "duration": "Duration",
       "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
       "hours": "{hours, plural, one {# hour} other {# hours}}",
