@@ -4067,7 +4067,7 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
             confidence: null,
             mode: "hint",
             step: 1,
-            contrast_status: "skipped",
+            contrast_status: "pending",
         });
         const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
         expect(stream.trainingPlan).toMatchObject({
@@ -4077,7 +4077,9 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
             systemAddendum: expect.stringContaining("PISTA"),
         });
         expect(await contrastCalls()).toHaveLength(0);
-        expect(noteUpdate()).toBeUndefined();
+        // Pending at insert; skipped only once the turn was delivered.
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast_status: "skipped" });
     });
 
     it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
