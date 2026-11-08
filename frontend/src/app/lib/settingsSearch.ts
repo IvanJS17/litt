@@ -300,6 +300,15 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
         keywords: ["pupilo", "pupilos", "pupils", "mentor", "pasantes", "supervisar", "supervise", "aprobar", "approve", "etapa"],
         href: "/settings/training#mis-pupilos",
     },
+    {
+        id: "training-mentor-panel",
+        tabId: "training",
+        tab: "Formación",
+        title: "Panel del mentor",
+        description: "Supervisa a cada pupilo: resúmenes de su trabajo, defensa oral, pase de urgencia y promoción.",
+        keywords: ["mentor panel", "panel", "supervision", "supervisión", "resumen", "review", "defensa oral", "oral defense", "pase de urgencia", "urgency pass", "promocion", "promoción", "promotion", "pupilos"],
+        href: "/settings/training/mentor#panel-del-mentor",
+    },
 
     // Organizations
     {

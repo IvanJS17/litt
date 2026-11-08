@@ -1,4 +1,4 @@
-# Training: mentors, pupils and stages (layer 1a)
+# Training: mentors, pupils, stages and supervision (layers 1 and 2)
 
 LiTT lets a firm mark the people it is training and change, for them only, how
 the assistant answers. This document describes the behavior and the rules as
@@ -30,11 +30,12 @@ implemented. Nothing here changes anything for a person without a stage.
   `resolveWordTrainingStage` in the same file; a stage for one practice area
   alone never applies in Word. The note of a Word turn belongs to the
   organization whose stage was applied.
-- **Workflows.** A workflow and its assets have an organization but no
-  project or matter, so no practice area: inside a workflow the effective
-  stage is the stage for every practice area (`practice null`) in the
-  workflow's organization, and a stage for one practice area alone never
-  applies there. The workflow's own `practice` label is a catalog tag, not a
+- **Workflows.** A workflow and its assets have no project or matter, so no
+  practice area. In an organization's workflow the effective stage is the
+  stage for every practice area (`practice null`) in that organization, and a
+  stage for one practice area alone never applies there. A personal workflow
+  has no organization, so nobody has a stage in it (see Seal for the copies it
+  refuses). The workflow's own `practice` label is a catalog tag, not a
   practice area for this rule. This holds both for sealing a version written
   into a workflow asset and for who may approve one: a junior whose only
   stage is for one practice area may approve a workflow asset as a lawyer
@@ -197,9 +198,12 @@ including one opened from the assistant's chat list, asks with that project
 - **Organization → Formación** (owners and admins): members with a «Mentor»
   switch and whose mentor each one is.
 - **Settings → Formación**: «Mi formación» shows a pupil their mentor and
-  stages; «Mis pupilos» lets a mentor take members without a mentor, set their
+  stages and, per organization, «Lo que mi mentor ve de mí» (layer 2, below);
+  «Mis pupilos» lets a mentor take members without a mentor, set their
   stage per practice area («Todas las materias», the practice options, or
-  another), and release them.
+  another), and release them, and links to the mentor panel.
+- **Settings → Formación → Panel del mentor** (`/settings/training/mentor`,
+  layer 2, below).
 
 ## The pasante seal and its approval (layer 1b)
 
@@ -540,3 +544,44 @@ proposals are computed on every read and never stored
   again.
 - Layers 3 and 4 add the gym and the confidence meter as further inputs of
   the same function.
+
+### The mentor panel and «Lo que mi mentor ve de mí»
+
+The web app's screens for layer 2 (`frontend/src/app/components/training/supervision/`,
+client calls in `mikeApi.ts`). They are bilingual from the start (en-US and
+es-MX, namespace `training` of `packages/i18n`); the learning data itself (the
+pupil's attempts, the contrasts, the AI's lines, the questions and every
+note) is shown as written and never translated.
+
+**Panel del mentor** (`/settings/training/mentor`, also in the settings
+search). For each organization where the caller is a mentor it lists their
+pupils, most recent work first (never by performance), each with how many of
+their works wait for review (no review, not marked reviewed, or new work since
+the review) and the end of an urgency pass in force. There are no totals,
+charts or comparisons between pupils. «Supervisar» opens one pupil in four
+tabs:
+
+| Tab | What the mentor does |
+|---|---|
+| Trabajos | Each work's four rows (propuso / corrigió la IA / dudó / sin verificar), lines from the model marked «inferido», when and with which model it was generated, «Generar resumen» / «Regenerar» and «Marcar como revisado». The works in matters the mentor cannot open are only counted. A sealed draft still held is counted with a pointer to its document, where «Aprobar esta versión» already lives (the review carries the version id, not its document). |
+| Defensa oral | Create a defense (from a reviewed work, which takes its matter's practice area, or for a practice area), generate the five questions (the change of facts named in text, with what to listen for) and record the outcome, reason and note. Recording asks for confirmation (`ConfirmPopup`) because it is final. A defense can be recorded without questions. |
+| Pase de urgencia | Grant a pass on one of the organization's matters for 30 minutes to 72 hours (8 by default) with a reason and an optional note, list the passes (in force until, ended, revoked) and revoke one in force, with confirmation. The screen says that a pass does not apply in Word. |
+| Promoción | Each stage with its proposal: the pupil's own counts against the required ones («Defensas aprobadas: 1 de 2»), the approved drafts, what blocks it (`blocked_by`) and «Aceptar propuesta», with confirmation. |
+
+**Key and model.** The Trabajos and Defensa oral tabs read `generation`: with
+no usable key they say so and offer no generation (a defense can still be
+recorded); with more than one key a «Llave» choice appears, and with no
+default the mentor must pick one before generating. The client never retries
+on another key: `chat_route_credential_unavailable`, `training_review_in_progress`
+and the other codes of these routes (all in `CODE_KINDS`) reach `notifyError`
+with a sentence of their own.
+
+**«Lo que mi mentor ve de mí»** (in «Mi formación», one per organization)
+renders `GET /training/me/supervision` with the same components the mentor
+sees: the reviews' four rows, the defenses (before the outcome only «Hay una
+defensa programada»; questions and note afterwards, as the server sends them)
+and the passes. It has the same data as the mentor's tabs, no more and no less.
+
+**Word.** The add-in is not changed by layer 2: Word does not honor a pass
+(above), so its composer keeps asking for the attempt, and the panel is used
+on the web.
