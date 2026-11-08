@@ -721,12 +721,13 @@ export async function buildUserAccountExport(
             order: ["created_at"],
         }),
         // Own map and retake (layer 3): the question, the holder's answer and its
-        // contrast. The map itself is computed from the turn notes above. Never
+        // contrast, and the ids of the turn notes (exported above, with their own ids)
+        // the question came from. The map itself is computed from the turn notes above. Never
         // the credential reference of the route.
         selectAll(db, "training_retakes", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
-                "id, org_id, topic_key, topic_label, status, question, answer, contrast, verdict, model_provider, model, created_at, updated_at, answered_at",
+                "id, org_id, topic_key, topic_label, status, question, answer, contrast, verdict, source_note_ids, model_provider, model, created_at, updated_at, answered_at",
             order: ["created_at"],
         }),
     ]);

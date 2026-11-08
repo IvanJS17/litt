@@ -19955,6 +19955,10 @@ grant select, insert, update, delete on public.firm_criteria to service_role;
 --   - The route (provider, model, credential reference; identifiers only) is
 --     the PERSON's own, fixed on the row when the question is made.
 --   - One retake is pending or open at a time per person and organization.
+--   - source_note_ids: the ids of the turn notes the question was made from,
+--     fixed with the row. The answer is contrasted with exactly those, and the
+--     mentor sees the text of a retake only if all of them are in matters
+--     they can open (no foreign key: a deleted note simply stops being found).
 --   - No practice area, no matter and no document are kept: a retake is
 --     about a topic, and its text is generalized by the prompt.
 
@@ -19973,10 +19977,16 @@ create table if not exists public.training_retakes (
   model_provider text,
   model text,
   credential_ref text,
+  -- The turn notes the question was made from (and the answer is contrasted
+  -- with), fixed when the question is made. The mentor reads the text of a
+  -- retake only when every one of them is in a matter they can open.
+  source_note_ids uuid[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   answered_at timestamptz
 );
+
+alter table public.training_retakes add column if not exists source_note_ids uuid[] not null default '{}';
 
 alter table public.training_retakes drop constraint if exists training_retakes_member_fkey;
 alter table public.training_retakes add constraint training_retakes_member_fkey

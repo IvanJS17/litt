@@ -140,7 +140,20 @@ const weakTopic = (extra: Row = {}): Row[] => [
     noteRow({ created_at: daysAgo(20), ...extra }),
 ];
 
+const keyOf = (label: string) => label.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** A seeded retake without explicit sources rests on the seeded notes of its topic. */
+function withSources(notes: Row[], retakes: Row[]): Row[] {
+    return retakes.map((retake) => ({
+        ...retake,
+        source_note_ids:
+            retake.source_note_ids ??
+            notes.filter((note) => (note.topics as string[]).some((t) => keyOf(t) === retake.topic_key)).map((note) => note.id),
+    }));
+}
+
 function seed(overrides: { notes?: Row[]; retakes?: Row[] } = {}) {
+    const seededNotes = overrides.notes ?? weakTopic();
     h.state = memoryDb(
         {
             organizations: [{ id: ORG, kind: "team" }],
@@ -155,8 +168,8 @@ function seed(overrides: { notes?: Row[]; retakes?: Row[] } = {}) {
             ],
             training_pupils: [{ org_id: ORG, trainee_user_id: PUPIL, mentor_user_id: MENTOR }],
             training_stages: [{ org_id: ORG, trainee_user_id: PUPIL, practice: null, stage: "pasante", updated_at: daysAgo(90) }],
-            training_turn_notes: overrides.notes ?? weakTopic(),
-            training_retakes: overrides.retakes ?? [],
+            training_turn_notes: seededNotes,
+            training_retakes: withSources(seededNotes, overrides.retakes ?? []),
             chats: [
                 { id: CHAT, project_id: PROJECT, title: "Pagaré" },
                 { id: SECRET_CHAT, project_id: SECRET_PROJECT, title: "Asunto reservado" },
@@ -493,6 +506,119 @@ describe("what the mentor reads", () => {
         const open = (await as(MENTOR).get(mentorUrl)).body;
         expect(open.retakes_without_access).toBe(0);
         expect(open.retakes).toHaveLength(2);
+    });
+
+    describe("a retake of a mixed topic (sources in more than one matter)", () => {
+        const mixed = () => {
+            const open = weakTopic();
+            const secret = [3, 2, 1].map((days) => noteRow({ chat_id: SECRET_CHAT, created_at: daysAgo(days) }));
+            return { open, secret };
+        };
+
+        it("shows the mentor only the count when one source is in a matter they cannot open", async () => {
+            const { open, secret } = mixed();
+            seed({
+                notes: [...open, ...secret],
+                retakes: [answeredRetake({ source_note_ids: [open[2].id, secret[0].id] })],
+            });
+            const res = await as(MENTOR).get(mentorUrl);
+            expect(res.status).toBe(200);
+            expect(res.body.retakes).toEqual([]);
+            expect(res.body.retakes_without_access).toBe(1);
+            expect(res.body.open_retake_id).toBeNull();
+            expect(JSON.stringify(res.body)).not.toContain(QUESTION);
+            expect(JSON.stringify(res.body)).not.toContain(ANSWER);
+            expect(JSON.stringify(res.body)).not.toContain("source_note_ids");
+            // The person keeps the whole retake.
+            const own = (await as(PUPIL).get(mineUrl)).body;
+            expect(own.retakes[0]).toMatchObject({ question: QUESTION, answer: ANSWER });
+            // Once the mentor can open the other matter, they see it.
+            h.openable.add(`${SECRET_PROJECT}:${MENTOR}`);
+            const seen = (await as(MENTOR).get(mentorUrl)).body;
+            expect(seen.retakes_without_access).toBe(0);
+            expect(seen.retakes[0]).toMatchObject({ question: QUESTION, answer: ANSWER });
+        });
+
+        it("shows the retake when every source is in a matter the mentor can open", async () => {
+            const { open, secret } = mixed();
+            seed({ notes: [...open, ...secret], retakes: [answeredRetake({ source_note_ids: [open[1].id, open[2].id] })] });
+            const res = await as(MENTOR).get(mentorUrl);
+            expect(res.body.retakes_without_access).toBe(0);
+            expect(res.body.retakes[0]).toMatchObject({ question: QUESTION, answer: ANSWER, text_hidden: false });
+        });
+
+        it("counts only, never shows, a retake whose source note is gone or that records none", async () => {
+            const { open } = mixed();
+            seed({
+                notes: open,
+                retakes: [
+                    answeredRetake({ id: id(701), source_note_ids: [open[2].id, id(9999)], created_at: daysAgo(3) }),
+                    answeredRetake({ id: id(702), source_note_ids: [], created_at: daysAgo(2) }),
+                ],
+            });
+            const res = await as(MENTOR).get(mentorUrl);
+            expect(res.body.retakes).toEqual([]);
+            expect(res.body.retakes_without_access).toBe(2);
+        });
+
+        it("makes the question from, and stores, only the notes it used", async () => {
+            const { open } = mixed();
+            seed({ notes: [...open] });
+            const res = await start();
+            expect(res.status).toBe(201);
+            expect([...retakeRows()[0].source_note_ids].sort()).toEqual(open.map((n) => n.id).sort());
+            expect(res.body).not.toHaveProperty("source_note_ids");
+        });
+
+        it("contrasts the answer only with the source notes, even if the topic gains notes after the question", async () => {
+            const { open } = mixed();
+            seed({ notes: [...open] });
+            const retake = await start();
+            const later = noteRow({
+                chat_id: SECRET_CHAT,
+                attempt: "RESERVADO nota posterior en otro asunto.",
+                contrast: "Coincide\n- x.\n\nNo coincide\n- LINEA RESERVADA.\n\nFaltó\n- y.",
+                created_at: daysAgo(0),
+            });
+            h.state!.tables.training_turn_notes.push(later);
+            const res = await as(PUPIL).put(`${retakesUrl}/${retake.body.id}/answer`).send({ answer: ANSWER });
+            expect(res.status).toBe(200);
+            const prompt = vi.mocked(completeText).mock.calls.at(-1)![0].user as string;
+            expect(prompt).toContain(open[0].attempt as string);
+            expect(prompt).not.toMatch(/RESERVADO|LINEA RESERVADA/);
+            expect(retakeRows()[0].source_note_ids).toHaveLength(3);
+        });
+
+        it("uses the sources that remain when some were deleted, and adds no other", async () => {
+            const { open } = mixed();
+            seed({ notes: [...open] });
+            const retake = await start();
+            const extra = noteRow({ attempt: "NOTA NUEVA AJENA", created_at: daysAgo(0) });
+            h.state!.tables.training_turn_notes.push(extra);
+            const kept = open.slice(1);
+            const notes = h.state!.tables.training_turn_notes;
+            notes.splice(notes.findIndex((n) => n.id === open[0].id), 1);
+            const res = await as(PUPIL).put(`${retakesUrl}/${retake.body.id}/answer`).send({ answer: ANSWER });
+            expect(res.status).toBe(200);
+            const prompt = vi.mocked(completeText).mock.calls.at(-1)![0].user as string;
+            expect(prompt).toContain(kept[0].attempt as string);
+            expect(prompt).not.toContain(open[0].attempt as string);
+            expect(prompt).not.toContain("NOTA NUEVA AJENA");
+        });
+
+        it("fails closed when no source remains: 409 source_gone, no model call, the retake is closed", async () => {
+            const { open } = mixed();
+            seed({ notes: [...open] });
+            const retake = await start();
+            h.state!.tables.training_turn_notes.splice(0);
+            vi.mocked(completeText).mockClear();
+            const res = await as(PUPIL).put(`${retakesUrl}/${retake.body.id}/answer`).send({ answer: ANSWER });
+            expect(res.status).toBe(409);
+            expect(res.body.code).toBe("training_retake_source_gone");
+            expect(completeText).not.toHaveBeenCalled();
+            expect(retakeRows()[0]).toMatchObject({ status: "failed" });
+            expect(retakeRows()[0].answer ?? null).toBeNull();
+        });
     });
 
     it("does not let a hidden live retake show as the open one", async () => {

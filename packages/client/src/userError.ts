@@ -224,6 +224,7 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_retake_in_progress: "conflict",
     training_retake_not_due: "conflict",
     training_retake_not_open: "conflict",
+    training_retake_source_gone: "conflict",
     // --- Training layer 3, card 4 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or

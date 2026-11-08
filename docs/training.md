@@ -1149,9 +1149,15 @@ route get the same `404` as an unknown id. The mentor reads only the notes of
 works in **matters they can open**; the rest are counted
 (`notes_without_access`) and never used. A retake is about a topic, with no
 matter, so the mentor gets it only when its topic shows in the notes they can
-open. A retake of any other topic is **only counted** (`retakes_without_access`):
-no label (the model wrote it from notes the mentor cannot read), status,
-verdict or date, and it feeds neither the map nor `open_retake_id`. So
+open. A retake is built from specific notes, so the mentor gets its text, topic,
+status and verdict **only if every one of its `source_note_ids` is in a matter
+they can open today** (the same filter as the notes, `visibleToMentor`). One
+whose sources include a note outside that set, a note that no longer exists, or
+none recorded is **only counted** (`retakes_without_access`): no label (the
+model wrote it from notes the mentor cannot read), status, verdict or date, and
+it feeds neither the map nor `open_retake_id`. A topic that also appears in a
+reserved matter does not open a retake whose sources are all openable to
+anything else, and does not leak one whose sources are not. So
 `text_hidden` is always `false`. Only the person's response carries `generation`
 (whether they can retake and on which of their keys).
 
@@ -1175,9 +1181,14 @@ no decrypted credential is ever kept for a background job.
    three usual headings. The answer, contrast and verdict are written **once**
    (a trigger refuses any later change, `LT002`), `status` becomes `answered`
    and the map gains an event. A PUT that loses the claim to another one
-   answers `409 training_retake_not_open`. The contrast reads the person's
-   newest notes on the topic **at answer time**; the row stores the question,
-   not the lines it came from, so notes written in between count too. If the
+   answers `409 training_retake_not_open`. The contrast reads **exactly the
+   notes the question was made from** (`source_note_ids`, stored on the row when
+   the question is made): notes written on the topic afterwards are never
+   added, since they may sit in matters the mentor cannot open. If some of
+   those notes were deleted meanwhile, the contrast uses the ones that remain;
+   if none remain it fails closed with `409 training_retake_source_gone`, no
+   model is called, and the retake is closed as `failed` so it does not hold the
+   person's slot (they can ask for a new one). If the
    contrast fails the retake stays `open`,
    **the answer is not saved** (`503`) and the person may try again.
 
@@ -1212,7 +1223,8 @@ with `trainee_user_id`, RLS with no browser grant, a cascade from `org_members`
 (it goes with the membership or the account), covered by the generic discovery
 in `performance.litt-training-supervision.sql` and by
 `performance.litt-training-retakes.sql`. The account export carries the
-holder's retakes (`training.retakes`) without the credential reference; the
+holder's retakes (`training.retakes`) with their `source_note_ids` (the ids of
+the holder's own notes, which the export carries with their ids) and without the credential reference; the
 notes it already carries hold the rest of the map's evidence, with no mentor
 id.
 
@@ -1224,7 +1236,8 @@ contrast are the person's across all their notes in the organization, not per
 practice area; a retake that cannot be judged goes back to `open` instead of
 being discarded; the states are `pending | open | answered | failed` (the plan's; there is no
 `settled`); the codes added are `training_retake_in_progress`,
-`training_retake_not_due` and `training_retake_not_open`.
+`training_retake_not_due`, `training_retake_not_open` and
+`training_retake_source_gone`.
 
 ## Periodic full reading (layer 3)
 

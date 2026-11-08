@@ -116,7 +116,7 @@ function tables(): Record<string, Row[]> {
             {
                 id: "k1", org_id: "org-a", trainee_user_id: userId, topic_key: "prescripcion", topic_label: "Prescripción",
                 status: "answered", question: "¿Desde cuándo corre el plazo?", answer: "Desde el vencimiento del título.",
-                contrast: "Coincide\n- Bien", verdict: "parcial", model_provider: "openai", model: "gpt",
+                contrast: "Coincide\n- Bien", verdict: "parcial", source_note_ids: ["n1", "n2"], model_provider: "openai", model: "gpt",
                 credential_ref: "user:holder:v1", created_at: "2026-01-10T00:00:00Z", updated_at: "2026-01-10T01:00:00Z",
                 answered_at: "2026-01-10T01:00:00Z",
             },
@@ -133,7 +133,7 @@ describe("account export: the holder's training", () => {
         expect(out.training.retakes).toEqual([
             expect.objectContaining({
                 id: "k1", topic_label: "Prescripción", question: "¿Desde cuándo corre el plazo?",
-                answer: "Desde el vencimiento del título.", verdict: "parcial", model: "gpt",
+                answer: "Desde el vencimiento del título.", verdict: "parcial", model: "gpt", source_note_ids: ["n1", "n2"],
             }),
         ]);
         expect(JSON.stringify(out.training.retakes)).not.toMatch(/credential|user:holder|colleague|mora/i);

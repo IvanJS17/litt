@@ -25,6 +25,8 @@ export type RetakeRow = {
     model_provider: string | null;
     model: string | null;
     credential_ref: string | null;
+    /** The turn notes the question was made from (and the answer is contrasted with). */
+    source_note_ids: string[] | null;
     created_at: string;
     updated_at: string;
     answered_at: string | null;
@@ -50,7 +52,7 @@ export const isLiveRetake = (row: Pick<RetakeRow, "status" | "updated_at" | "que
     return status === "pending" || status === "open";
 };
 
-/** The wire form: no credential reference, no route. The mentor is never sent a retake whose topic they cannot open (see the view), so nothing here hides text. */
+/** The wire form: no credential reference, no route. The mentor is never sent a retake with a source note outside the matters they can open (see the view), so nothing here hides text. The source ids are not on the wire. */
 export function serializeRetake(row: RetakeRow, now: number = Date.now()): TrainingRetake {
     return {
         id: row.id,

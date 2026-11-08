@@ -246,6 +246,7 @@
       "training_retake_in_progress": "Ya tienes una retoma en curso. Termínala primero.",
       "training_retake_not_due": "Ese tema no toca retomarlo por ahora.",
       "training_retake_not_open": "Esta retoma no está esperando una respuesta.",
+      "training_retake_source_gone": "Las notas de las que salió esta pregunta ya no existen, así que no se puede evaluar. La retoma se cerró; puedes pedir una nueva.",
       "training_review_in_progress": "Esto ya se está generando.",
       "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Llaves propias (BYOK) para generar revisiones, preguntas y retomas.",
       "untrusted_origin": "El origen de la solicitud no está permitido.",

@@ -127,13 +127,18 @@ export async function getPupilCriterion(
     if (!visible.ok) return visible;
     const retakes = await readRetakes(db, orgId, traineeId);
     if (!retakes.ok) return retakes;
-    // A retake was built from the person's notes, not from a matter: the
-    // mentor sees it only when its topic shows in the notes they can open.
-    // The others are counted and nothing about them is returned (not even
+    // A retake was built from specific notes of the person (source_note_ids),
+    // not from a matter: the mentor sees its text, topic, status and verdict
+    // only when EVERY one of those notes is in a matter they can open today
+    // (visibleToMentor, the same filter as the notes). A retake with any
+    // source outside that set, with a source that no longer exists, or with
+    // none recorded is only counted: nothing about it is returned (not even
     // the topic label, which the model wrote from notes the mentor cannot
-    // read), and they feed neither the map nor the open retake.
-    const shown = new Set(eventsOf(visible.data.rows, []).map((event) => event.key));
-    const openable = retakes.data.filter((row) => shown.has(row.topic_key));
+    // read), and it feeds neither the map nor the open retake.
+    const openableNotes = new Set(visible.data.rows.map((row) => row.id));
+    const openable = retakes.data.filter(
+        (row) => (row.source_note_ids ?? []).length > 0 && (row.source_note_ids ?? []).every((id) => openableNotes.has(id)),
+    );
     return ok({
         ...build({ orgId, traineeId, rows: visible.data.rows, retakes: openable, now: actor.now ?? Date.now() }),
         notes_without_access: visible.data.withoutAccess,

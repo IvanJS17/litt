@@ -246,6 +246,7 @@
       "training_retake_in_progress": "You already have a retake in progress. Finish it first.",
       "training_retake_not_due": "That topic isn't due to be retaken right now.",
       "training_retake_not_open": "This retake isn't waiting for an answer.",
+      "training_retake_source_gone": "The notes this question came from no longer exist, so it can't be judged. This retake was closed; you can ask for a new one.",
       "training_review_in_progress": "This is already being generated.",
       "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
