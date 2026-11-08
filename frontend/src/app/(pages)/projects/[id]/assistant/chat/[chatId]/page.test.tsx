@@ -1647,6 +1647,56 @@ describe("workspace where three panels do not fit", () => {
         expect(await chatMenuItems()).toContain("Open side chat");
     });
 
+    it("moves focus to the switcher when the focused panel is hidden", async () => {
+        await renderWorkspace();
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Explorer" }));
+
+        const openDraft = screen.getByRole("button", { name: "Open draft" });
+        openDraft.focus();
+        fireEvent.click(openDraft);
+
+        expect(shown()).toEqual(["document"]);
+        expect(
+            within(switcher()).getByRole("button", { name: "Document" }),
+        ).toHaveFocus();
+    });
+
+    it("moves focus to the switcher once a document tab's menu closes on a hidden panel", async () => {
+        state.getDocument.mockResolvedValue({ id: "doc1", filename: "Draft.docx" });
+        await renderWorkspace();
+        fireEvent.click(within(switcher()).getByRole("button", { name: "Explorer" }));
+        fireEvent.click(screen.getByRole("button", { name: "Open draft" }));
+        await act(async () => {});
+        fireEvent.contextMenu(screen.getByRole("tab", { name: /Draft.docx/ }));
+
+        const addToChat = await screen.findByRole("menuitem", { name: "Add to chat" });
+        addToChat.focus();
+        fireEvent.click(addToChat);
+
+        expect(shown()).toEqual(["chat"]);
+        await waitFor(() =>
+            expect(
+                within(switcher()).getByRole("button", { name: "Chat" }),
+            ).toHaveFocus(),
+        );
+    });
+
+    it("moves focus to the switcher when the workspace narrows under it", async () => {
+        width.mockReturnValue(900);
+        await renderWorkspace();
+        screen.getByRole("button", { name: "Open draft" }).focus();
+
+        width.mockReturnValue(690);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+
+        expect(shown()).toEqual(["chat"]);
+        expect(
+            within(switcher()).getByRole("button", { name: "Chat" }),
+        ).toHaveFocus();
+    });
+
     // An open side chat at 768-1020 px, or the sidebar open, pushed the last
     // chat past the screen's edge.
     it("shows one panel at a time while an open side chat does not fit", async () => {

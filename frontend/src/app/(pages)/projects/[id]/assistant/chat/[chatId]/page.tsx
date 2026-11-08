@@ -1305,6 +1305,57 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         openSideChat("");
     }
 
+    // Hiding the panel that holds focus would drop it on the page body. Move
+    // it to the switcher's current view instead, before the browser does.
+    const inlineSwitcherRef = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        if (!singleView) return;
+        const focusSwitcher = () =>
+            // Below md the switcher sits in the mobile header.
+            (window.innerWidth < 768
+                ? mobileActionsContainer
+                : inlineSwitcherRef.current
+            )
+                ?.querySelector<HTMLButtonElement>(
+                    'button[aria-pressed="true"]',
+                )
+                ?.focus();
+        const inHiddenPanel = (element: Element | null) => {
+            const panel = element?.closest<HTMLElement>(
+                "[data-workspace-panel], [data-chat-pane]",
+            );
+            if (!panel) return false;
+            const view =
+                panel.dataset.workspacePanel ??
+                (panel.dataset.chatPane === "primary" ? "chat" : "side-chat");
+            return view !== mobileView;
+        };
+
+        const active = document.activeElement;
+        if (inHiddenPanel(active)) {
+            focusSwitcher();
+            return;
+        }
+        // A menu opened from a panel ("Add to chat" on a document tab)
+        // hands focus back to that panel once it closes, after this runs.
+        // Watch for a few frames; stop as soon as focus moves elsewhere.
+        if (!active?.closest('[role="menu"]')) return;
+        let frames = 0;
+        let request = requestAnimationFrame(function settle() {
+            const current = document.activeElement;
+            if (current === document.body || inHiddenPanel(current)) {
+                focusSwitcher();
+            } else if (
+                !current?.closest('[role="menu"]') &&
+                !current?.closest('[data-slot="workspace-view-switcher"]')
+            ) {
+                return;
+            }
+            if (++frames < 30) request = requestAnimationFrame(settle);
+        });
+        return () => cancelAnimationFrame(request);
+    }, [singleView, mobileView, mobileActionsContainer]);
+
     function handleCloseSideChat() {
         activatePrimaryChat();
         closeSideChat();
@@ -1385,6 +1436,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                 the one panel on screen. */}
             {singleView && (
                 <div
+                    ref={inlineSwitcherRef}
                     className="mb-2 flex shrink-0 justify-start max-md:hidden"
                 >
                     <ProjectWorkspaceViewSwitcher
