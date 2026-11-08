@@ -227,8 +227,11 @@
       "training_approval_required": "This version is a trainee's draft: it needs approval before it leaves LiTT.",
       "training_confidence_required": "Mark how sure you are of your approach before asking. If you don't see the scale, reload the page.",
       "training_copy_needs_organization": "This file is a trainee's draft and can only be copied to an organization's workflow, where someone can approve it.",
+      "training_counterpart_rounds_done": "This round with the counterparty's lawyer already had three turns. Close it to see the contrast.",
       "training_defense_already_recorded": "This defense's outcome is already recorded. Create a new defense to correct it.",
+      "training_hint_limit_reached": "You already asked for all three hints in this conversation. Send your question to see the answer.",
       "training_mentor_has_pupils": "This mentor still has pupils. Release them or move them to another mentor first.",
+      "training_mode_not_allowed": "This help isn't available for this turn. Reload the page if you still see it.",
       "training_note_not_judgeable": "This turn has nothing to judge: a hint has no answer to compare with.",
       "training_pass_duplicate": "That pass has already been granted.",
       "training_pass_pupil_no_access": "Your pupil can't open this matter. Give them access before granting the pass.",
@@ -556,11 +559,16 @@
           "wrong": "wrong"
         },
         "noteAttemptHeading": "Your approach",
+        "noteCloseHeading": "How the round went",
         "noteConfidence": "Your mark: {level}",
         "noteContrastFailed": "The contrast couldn't be generated",
         "noteContrastHeading": "Contrast with your approach",
         "noteContrastPending": "Generating contrast…",
+        "noteNotDelivered": "Not delivered",
         "noteFoundation": "Basis: {basis}",
+        "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
+        "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",
+        "noteModeHint": "Hint {step} of 3",
         "notePrivacy": "Private: only you and your mentor see this",
         "noteQuestionHeading": "A question about your basis",
         "noteRegion": "Private training notes",
@@ -578,7 +586,32 @@
         }
       },
       "map": {},
-      "modes": {},
+      "modes": {
+        "closeButton": "Close the round",
+        "closeExplain": "See which objections you held, which you conceded and which you left undefended.",
+        "closeMessage": "I'm closing the round with the counterparty's lawyer.",
+        "counterpartButton": "Test it against the counterparty's lawyer",
+        "counterpartExplain": "The AI plays the other side and objects to your approach; it doesn't answer its own objections.",
+        "counterpartFull": "This round already had three turns. Close it to see the contrast.",
+        "counterpartStatus": "Turn {step} of 3 in this round.",
+        "hintButton": "Ask for a hint",
+        "hintExplain": "A hint points the way and never gives the answer. It starts from your approach and your question.",
+        "hintNext": "Next: hint {level} of 3, {name}.",
+        "hintsDone": "You already asked for all three hints in this conversation. Send your question to see the answer.",
+        "needsQuestion": "Write your question first.",
+        "region": "Help for this turn",
+        "rungState": {
+          "next": "next",
+          "pending": "pending",
+          "used": "used"
+        },
+        "rungs": {
+          "focus": "Focus",
+          "review": "What to review",
+          "where": "Where to look"
+        },
+        "rungsLabel": "Rungs of the hint ladder"
+      },
       "backing": {
         "actions": {
           "save": "save your mark on this conclusion",

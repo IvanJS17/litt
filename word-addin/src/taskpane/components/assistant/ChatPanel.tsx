@@ -274,6 +274,10 @@ export function ChatPanel({
       onSelectedWorkflowChange={onSelectedWorkflowChange}
       editApplyMode={editApplyMode}
       onEditApplyModeChange={onEditApplyModeChange}
+      // The server counts the hint ladder from the notes of a chat it keeps;
+      // a chat kept on this device only has none and is offered no mode.
+      trainingChatId={wordChatStorage === "cloud" ? chatId : null}
+      trainingModesAllowed={wordChatStorage === "cloud"}
     />
   );
 }

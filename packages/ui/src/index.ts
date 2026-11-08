@@ -54,6 +54,7 @@ export * from "./useReasoningDisclosure";
 export * from "./FirmCriteriaConsultedUI";
 export * from "./TrainingAttemptFieldUI";
 export * from "./TrainingConfidenceUI";
+export * from "./TrainingModesUI";
 export * from "./trainingReply";
 export * from "./trainingStageStale";
 export * from "./trainingText";

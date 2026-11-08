@@ -159,6 +159,44 @@ describe("lawReferences", () => {
     });
 });
 
+describe("a qualified constitution is not the federal one (B1) and final punctuation does not hide an alias (W4)", () => {
+    const cpeum = normalizeLaw("CPEUM");
+    const keys = (text: string) => [...lawReferences(text)];
+    it.each([
+        "¿Qué exige el artículo 5 de la Constitución local para los municipios?",
+        "El artículo 5 de la constitución de Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución de Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución Política del Estado de Jalisco dice algo.",
+        "El artículo 5 de la constitución política del estado de jalisco dice algo.",
+        "El artículo 5 de la Constitución estatal dice algo.",
+        "El artículo 5 de la constitución de la Ciudad de México dice algo.",
+    ])("does not match the CPEUM: %s", (text) => {
+        const found = keys(text);
+        expect(found).toHaveLength(1);
+        expect(found).not.toContain(`art:5@${cpeum}`);
+        // Either unknown or a law of its own name, never the federal one.
+        expect(found[0]).toMatch(/^art:5@(\?|constitucion .+)$/);
+    });
+    it.each([
+        "El artículo 5 de la Constitución establece algo.",
+        "El artículo 5 de la constitución exige algo.",
+        "El artículo 5 de la Constitución Política de los Estados Unidos Mexicanos establece algo.",
+        "El artículo 5 de la constitución política de los estados unidos mexicanos establece algo.",
+        "El artículo 5 de la CPEUM establece algo.",
+    ])("still matches the CPEUM: %s", (text) => {
+        expect(keys(text)).toEqual([`art:5@${cpeum}`]);
+    });
+    it("recognizes an alias followed by the question's closing mark", () => {
+        expect(keys("¿Qué dice el artículo 47 de la LFT?")).toEqual(["art:47@ley federal trabajo"]);
+        expect(keys("¿Qué dice el artículo 47 de la Constitución?")).toEqual([`art:47@${cpeum}`]);
+        expect(keys("¡Qué dice el artículo 47 de la Constitución!")).toEqual([`art:47@${cpeum}`]);
+        expect(keys("(artículo 47 de la Constitución)")).toEqual([`art:47@${cpeum}`]);
+    });
+    it("keeps a qualified constitution unknown even before a closing mark", () => {
+        expect(keys("¿Qué dice el artículo 5 de la Constitución local?")).toEqual(["art:5@?"]);
+    });
+});
+
 describe("hasKnownLaw", () => {
     it("is false only for an article of an unidentified law", () => {
         expect(hasKnownLaw("art:5@?")).toBe(false);

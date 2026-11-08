@@ -476,3 +476,171 @@ test("tabbing to a control under the composer scrolls it into view and stays the
   await page.waitForTimeout(600);
   expect(await scrollTopOf(page)).toBe(settled);
 });
+
+// --- Hints and the counterparty's lawyer (layer 3, card 7) ---
+
+type StageState = {
+  modes: string[];
+  next_hint_level: number | null;
+  counterpart_next_step: number | null;
+};
+
+/** The stage the server answers, counted again on every read, as it would. */
+async function mockModesStage(
+  page: import("@playwright/test").Page,
+  state: () => StageState,
+) {
+  const urls: string[] = [];
+  await page.route("**/training/stage**", (route, request) => {
+    urls.push(request.url());
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stage: "pasante",
+        attempt_required: true,
+        confidence_required: true,
+        ...state(),
+      }),
+    });
+  });
+  return urls;
+}
+
+test("a hint is asked unrated, the rung moves when the turn ends, and the approach stays", async ({
+  addin,
+  page,
+}) => {
+  let rung: number | null = 1;
+  const urls = await mockModesStage(page, () => ({
+    modes: rung ? ["hint", "counterpart"] : ["counterpart"],
+    next_hint_level: rung,
+    counterpart_next_step: 1,
+  }));
+  await addin.mockChatStream(["Mira qué figura está en juego."], { chatId: "hint-chat" });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const hint = page.getByRole("button", { name: "Ask for a hint" });
+  await expect(hint).toBeVisible();
+  await expect(hint).toHaveAttribute("type", "button");
+  await expect(page.getByText("Next: hint 1 of 3, Focus.")).toBeVisible();
+  const rungs = page.getByRole("list", { name: "Rungs of the hint ladder" });
+  await expect(rungs.getByRole("listitem").nth(0)).toHaveAttribute("aria-current", "step");
+
+  const field = page.getByLabel("Your approach (2–3 lines)");
+  await page.getByPlaceholder("How can I help?").fill("¿Procede la rescisión?");
+  // A hint needs the approach and no mark.
+  await hint.click();
+  await expect(field).toHaveAttribute("aria-invalid", "true");
+  await field.fill(ATTEMPT);
+  rung = 2;
+  const request = page.waitForRequest("**/word-chat");
+  await hint.click();
+  const body = (await request).postDataJSON();
+  expect(body.training_mode).toBe("hint");
+  expect(body.attempt).toBe(ATTEMPT);
+  expect(body).not.toHaveProperty("confidence");
+  expect(body.chat_id).toBeUndefined();
+
+  // The turn ended: the stage is read again, for this chat, and the next rung is two.
+  await expect(page.getByText("Next: hint 2 of 3, Where to look.")).toBeVisible();
+  expect(urls.some((url) => url.includes("chat_id=hint-chat"))).toBe(true);
+  await expect(
+    rungs.getByRole("listitem").nth(0),
+  ).toContainText("used");
+  await expect(rungs.getByRole("listitem").nth(1)).toHaveAttribute("aria-current", "step");
+  await expect(field).toHaveValue(ATTEMPT);
+
+  // The ladder used up: the button goes and the composer says so.
+  rung = null;
+  await page.getByPlaceholder("How can I help?").fill("Otra duda");
+  await hint.click();
+  await expect(page.getByRole("button", { name: "Ask for a hint" })).toHaveCount(0);
+  await expect(page.getByText(/asked for all three hints/)).toBeVisible();
+});
+
+test("a counterparty round owes the mark, takes its turns and is closed with a line of its own", async ({
+  addin,
+  page,
+}) => {
+  let turns = 0;
+  await mockModesStage(page, () => ({
+    modes: [
+      ...(turns < 3 ? ["hint", "counterpart"] : ["hint"]),
+      ...(turns > 0 ? ["counterpart_close"] : []),
+    ],
+    next_hint_level: 1,
+    counterpart_next_step: turns < 3 ? turns + 1 : null,
+  }));
+  await addin.mockChatStream(["1. La cláusula no exige aviso."], { chatId: "round-chat" });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+
+  const round = page.getByRole("button", {
+    name: "Test it against the counterparty's lawyer",
+  });
+  await expect(page.getByText("Turn 1 of 3 in this round.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close the round" })).toHaveCount(0);
+  await page.getByPlaceholder("How can I help?").fill("Procede por el impago.");
+  await page.getByLabel("Your approach (2–3 lines)").fill(ATTEMPT);
+  await round.click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Mark how sure you are" }),
+  ).toBeVisible();
+  await page
+    .getByRole("radiogroup", { name: "How sure are you of your approach?" })
+    .getByRole("radio", { name: "Fairly sure" })
+    .click();
+  turns = 1;
+  let request = page.waitForRequest("**/word-chat");
+  await round.click();
+  let body = (await request).postDataJSON();
+  expect(body.training_mode).toBe("counterpart");
+  expect(body.confidence).toBe(3);
+
+  // A round turn is a whole turn: the next owes its own approach and mark.
+  await expect(page.getByText("Turn 2 of 3 in this round.")).toBeVisible();
+  await expect(page.getByLabel("Your approach (2–3 lines)")).toHaveValue("");
+  const close = page.getByRole("button", { name: "Close the round" });
+  await expect(close).toBeVisible();
+  await page.getByLabel("Your approach (2–3 lines)").fill(ATTEMPT);
+  await page
+    .getByRole("radiogroup", { name: "How sure are you of your approach?" })
+    .getByRole("radio", { name: "Sure", exact: true })
+    .click();
+  request = page.waitForRequest("**/word-chat");
+  await close.click();
+  body = (await request).postDataJSON();
+  expect(body.training_mode).toBe("counterpart_close");
+  expect(body.messages.at(-1).content).toBe(
+    "I'm closing the round with the counterparty's lawyer.",
+  );
+});
+
+test("a chat kept on this device only is offered no hint and no round", async ({
+  addin,
+  page,
+}) => {
+  const urls = await mockModesStage(page, () => ({
+    modes: ["hint", "counterpart"],
+    next_hint_level: 1,
+    counterpart_next_step: 1,
+  }));
+  await addin.mockChatStream(["Answer."]);
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+  await expect(page.getByRole("button", { name: "Ask for a hint" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("switch", { name: "Save chats in the cloud" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("menuitem", { name: "Assistant" }).click();
+
+  await expect(page.getByLabel("Your approach (2–3 lines)")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask for a hint" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Help for this turn" })).toHaveCount(0);
+  expect(urls.at(-1)).toContain("storage=local");
+  expect(urls.at(-1)).not.toContain("chat_id=");
+});

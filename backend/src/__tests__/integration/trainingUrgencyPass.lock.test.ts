@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import { checkTrainingTurn } from "../../lib/training";
 import { resolveTurnTraining, turnStage } from "../../lib/trainingPass";
 import { assertReleasable } from "../../lib/trainingRelease";
+import { beginTrainingTurn } from "../../lib/trainingTurn";
 import { createDocumentVersion } from "../../modules/documents/documents.service";
 import type { Db } from "../../lib/supabase";
 import { memoryDb, type Row } from "../helpers/memoryDb";
@@ -118,6 +119,46 @@ describe("an urgency pass and the output lock", () => {
     });
 });
 
+describe("an urgency pass and the modes (hints, counterpart)", () => {
+    const ATTEMPT = "x".repeat(80);
+    const begin = (db: Db, mode: string) =>
+        beginTrainingTurn(db, {
+            surface: "project_chat",
+            userId: PUPIL,
+            scope: { orgId: ORG, projectId: PROJECT },
+            body: { attempt: ATTEMPT, confidence: 3, training_mode: mode },
+            chatId: null,
+        });
+
+    it("is on for a pasante, off while the pass is in force, and on again once it expires", async () => {
+        const { db, tables } = setup();
+        tables.training_turn_notes = [];
+        tables.organizations = [{ id: ORG, kind: "team", deleted_at: null }];
+        expect(await begin(db, "hint")).toMatchObject({ ok: true, plan: { mode: "hint", step: 1 } });
+
+        tables.training_urgency_passes.push({
+            id: "pass-1",
+            org_id: ORG,
+            trainee_user_id: PUPIL,
+            project_id: PROJECT,
+            granted_by: MENTOR,
+            starts_at: minutesFromNow(-5),
+            expires_at: minutesFromNow(60),
+            reason_code: "plazo",
+            reason_note: null,
+            revoked_at: null,
+        });
+        for (const mode of ["hint", "counterpart", "counterpart_close"])
+            expect(await begin(db, mode)).toMatchObject({ ok: false, status: 400, code: "training_mode_not_allowed" });
+        // The stage itself did not change: the seal still reads it.
+        const during = await resolveTurnTraining(db, PUPIL, { orgId: ORG, projectId: PROJECT });
+        expect(during).toMatchObject({ stage: "pasante", passActive: true });
+
+        tables.training_urgency_passes[0].expires_at = minutesFromNow(-1);
+        expect(await begin(db, "hint")).toMatchObject({ ok: true });
+    });
+});
+
 // D4's contract, read from the sources: the seal, the approvals and the AI
 // review's approved report decide with the raw stage; the chat surfaces with
 // an organization decide the turn with resolveTurnTraining; Word has no
@@ -164,12 +205,23 @@ describe("D4: which rule each place reads", () => {
         expect(call).toMatch(new RegExp(`^beginTrainingTurn\\(\\s*db,\\s*\\{[^}]*\\bsurface:\\s*"${surface}"`));
         expect(call).toMatch(/\bbody:\s*\{[^}]*\battempt:\s*args\.attempt/);
         expect(call).toMatch(/\bbody:\s*\{[^}]*\bconfidence:\s*args\.confidence/);
+        // The mode the person asks for rides on the same call; the rung is the server's.
+        expect(call).toMatch(/\bbody:\s*\{[^}]*\btraining_mode:\s*args\.trainingMode/);
+        expect(call).not.toMatch(/\b(step|hint_level|level)\b/);
         expect(text).not.toMatch(STAGE_READERS);
         // The note is recorded from the plan that call returned, and from nowhere else.
         expect(text).toMatch(/recordTrainingNote\(db,\s*\{\s*plan:\s*trainingPlan/);
         // No other surface name rides on this file's call.
         for (const [, other] of SURFACES)
             if (other !== surface) expect(call).not.toContain(`surface: "${other}"`);
+    });
+
+    // Word with `storage: "local"` keeps no notes, so the server cannot count a
+    // rung there: it tells the turn so, and the modes refuse (modes.test.ts).
+    it("tells the turn whether Word keeps its chat", () => {
+        const call = source("modules/word-chat/wordChat.service.ts");
+        expect(call).toMatch(/persisted:\s*persistChat/);
+        expect(call).toMatch(/chatId:\s*persistChat \? chatId : null/);
     });
 
     it("gives each surface a different name: the four calls are four distinct surfaces", () => {
@@ -182,6 +234,17 @@ describe("D4: which rule each place reads", () => {
         expect(text).toContain("resolveTurnTraining(");
         expect(text).toContain("resolved.passActive ? null : resolved.stage");
         expect(text).not.toContain("resolveTrainingStage(");
+    });
+
+    // Hints and the counterparty's lawyer (card 6) are behaviors of the turn,
+    // so they read the turn's rule: a pass turns them off, and they never read
+    // the raw stage or a pass themselves.
+    it("gives the modes the turn's rule: off under a pass, never reading a stage or a pass", () => {
+        const modes = source("lib/trainingTurn/modes.ts");
+        expect(modes).toContain("resolved.passActive");
+        expect(modes).not.toMatch(STAGE_READERS);
+        expect(modes).not.toMatch(/urgency/i);
+        expect(source("lib/trainingHint.ts")).not.toMatch(STAGE_READERS);
     });
 
     it("leaves Word on its own stage rule, without passes", () => {

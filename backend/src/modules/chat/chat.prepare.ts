@@ -158,6 +158,8 @@ export async function prepareChatStream(
         attempt?: unknown;
         /** LiTT training: how sure the author is of their approach (1 to 4). */
         confidence?: unknown;
+        /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
+        trainingMode?: unknown;
     },
 ): Promise<
     | { ok: true; prepared: PreparedChatStream }
@@ -358,7 +360,8 @@ export async function prepareChatStream(
                 surface: "chat",
                 userId,
                 scope: { orgId: contentOrgId, projectId: resolvedProjectId },
-                body: { attempt: args.attempt, confidence: args.confidence },
+                body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode },
+                chatId,
             });
         } catch (error) {
             return { ok: false, internal: true, error };

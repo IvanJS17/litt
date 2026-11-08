@@ -665,6 +665,8 @@ export async function prepareWordChatStream(
     attempt?: unknown;
     /** LiTT training: how sure the author is of their approach (1 to 4). */
     confidence?: unknown;
+    /** LiTT training: a hint or a counterpart turn the author asks for (the server decides the step). */
+    trainingMode?: unknown;
   },
 ): Promise<
   | { ok: true; prepared: PreparedWordChatStream }
@@ -739,7 +741,9 @@ export async function prepareWordChatStream(
         surface: "word",
         userId,
         scope: { orgId: null },
-        body: { attempt: args.attempt, confidence: args.confidence },
+        body: { attempt: args.attempt, confidence: args.confidence, training_mode: args.trainingMode },
+        chatId: persistChat ? chatId : null,
+        persisted: persistChat,
       });
     } catch (error) {
       return {

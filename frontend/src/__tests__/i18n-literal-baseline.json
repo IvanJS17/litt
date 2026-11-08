@@ -45,6 +45,7 @@
     "packages/ui/src/FirmCriteriaConsultedUI.tsx",
     "packages/ui/src/TrainingAttemptFieldUI.tsx",
     "packages/ui/src/TrainingConfidenceUI.tsx",
+    "packages/ui/src/TrainingModesUI.tsx",
     "packages/ui/src/TrainingNoteUI.tsx",
     "packages/ui/src/trainingReply.ts",
     "packages/ui/src/trainingText.ts",

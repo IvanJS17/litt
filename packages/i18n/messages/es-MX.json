@@ -227,8 +227,11 @@
       "training_approval_required": "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
       "training_confidence_required": "Marca qué tan seguro estás de tu planteamiento antes de preguntar. Si no ves la escala, recarga la página.",
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
+      "training_counterpart_rounds_done": "La ronda con la contraparte ya tuvo tres turnos. Ciérrala para ver el contraste.",
       "training_defense_already_recorded": "El resultado de esta defensa ya está registrado. Crea una defensa nueva para corregirlo.",
+      "training_hint_limit_reached": "Ya pediste las tres pistas de esta conversación. Envía tu consulta para ver la respuesta.",
       "training_mentor_has_pupils": "Este mentor todavía tiene pupilos. Libéralos o pásalos a otro mentor primero.",
+      "training_mode_not_allowed": "Esta ayuda no está disponible en este turno. Recarga la página si todavía la ves.",
       "training_note_not_judgeable": "Este turno no tiene nada que juzgar: una pista no tiene respuesta con la cual comparar.",
       "training_pass_duplicate": "Ese pase ya está concedido.",
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
@@ -556,11 +559,16 @@
           "wrong": "equivocado"
         },
         "noteAttemptHeading": "Tu planteamiento",
+        "noteCloseHeading": "Cómo salió la ronda",
         "noteConfidence": "Tu marca: {level}",
         "noteContrastFailed": "No se pudo generar el contraste",
         "noteContrastHeading": "Contraste con tu planteamiento",
         "noteContrastPending": "Generando contraste…",
+        "noteNotDelivered": "No entregada",
         "noteFoundation": "Fundamento: {basis}",
+        "noteModeCounterpart": "Ronda con el abogado de la contraparte, turno {step} de 3",
+        "noteModeCounterpartClose": "Cierre de la ronda con el abogado de la contraparte",
+        "noteModeHint": "Pista {step} de 3",
         "notePrivacy": "Privado: solo tú y tu mentor lo ven",
         "noteQuestionHeading": "Una pregunta sobre tu fundamento",
         "noteRegion": "Notas privadas de formación",
@@ -578,7 +586,32 @@
         }
       },
       "map": {},
-      "modes": {},
+      "modes": {
+        "closeButton": "Cerrar la ronda",
+        "closeExplain": "Mira qué objeciones sostuviste, cuáles concediste y cuáles quedaron sin defender.",
+        "closeMessage": "Cierro la ronda con el abogado de la contraparte.",
+        "counterpartButton": "Probar con el abogado de la contraparte",
+        "counterpartExplain": "La IA hace de la otra parte y objeta tu planteamiento; no responde a sus propias objeciones.",
+        "counterpartFull": "La ronda ya tuvo tres turnos. Ciérrala para ver el contraste.",
+        "counterpartStatus": "Turno {step} de 3 de esta ronda.",
+        "hintButton": "Pedir una pista",
+        "hintExplain": "Una pista te orienta y nunca da la respuesta. Parte de tu planteamiento y de tu pregunta.",
+        "hintNext": "Sigue: pista {level} de 3, {name}.",
+        "hintsDone": "Ya pediste las tres pistas de esta conversación. Envía tu consulta para ver la respuesta.",
+        "needsQuestion": "Escribe primero tu pregunta.",
+        "region": "Ayudas para este turno",
+        "rungState": {
+          "next": "siguiente",
+          "pending": "pendiente",
+          "used": "usada"
+        },
+        "rungs": {
+          "focus": "Enfoque",
+          "review": "Qué revisar",
+          "where": "Dónde buscar"
+        },
+        "rungsLabel": "Escalones de la pista"
+      },
       "backing": {
         "actions": {
           "save": "guardar tu marca en esta conclusión",

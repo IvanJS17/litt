@@ -1,4 +1,4 @@
-import type { TrainingConfidenceLevel } from "@mike/contracts";
+import type { TrainingConfidenceLevel, TrainingTurnMode } from "@mike/contracts";
 import type { RedlineStreamProjection } from "./redline";
 import type { ReasoningLevel } from "./modelSelectionTypes";
 export type { ReasoningLevel } from "./modelSelectionTypes";
@@ -91,6 +91,8 @@ export interface WordUserMessage extends RuntimeMessageBase {
    * sent. The server stores it as a private note; it is never read back.
    */
   attempt?: string;
+  /** LiTT training: this turn asked for a hint or a counterparty round; its note is told apart by it. */
+  training_mode?: TrainingTurnMode;
 }
 
 export interface WordAssistantMessage extends RuntimeMessageBase {
@@ -117,6 +119,8 @@ export interface WordChatSubmission {
   attempt?: string;
   /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
   confidence?: TrainingConfidenceLevel;
+  /** LiTT training: ask for a hint or a round with the counterparty's lawyer; the server picks the rung. */
+  training_mode?: TrainingTurnMode;
 }
 
 export interface WordChatSubmitOptions {

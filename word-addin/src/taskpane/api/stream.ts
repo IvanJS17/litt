@@ -23,6 +23,7 @@ import type { ReasoningLevel } from "../lib/wordChatTypes";
 import type {
   TextCardEvent,
   TrainingConfidenceLevel,
+  TrainingTurnMode,
 } from "@mike/contracts";
 
 export interface WordChatDocumentReadEvent {
@@ -260,6 +261,8 @@ export async function streamAssistant(
     attempt?: string;
     /** LiTT training: the thermometer mark (1 to 4) that goes with it. */
     confidence?: TrainingConfidenceLevel;
+    /** LiTT training: a hint or a round with the counterparty's lawyer. */
+    trainingMode?: TrainingTurnMode;
     signal?: AbortSignal;
   },
   onText: (text: string) => void,
@@ -279,6 +282,7 @@ export async function streamAssistant(
     client_tools: !!params.onClientToolCall,
     attempt: params.attempt,
     confidence: params.confidence,
+    training_mode: params.trainingMode,
     signal: params.signal,
   });
   await consumeTurnStream(res, params, onText);
