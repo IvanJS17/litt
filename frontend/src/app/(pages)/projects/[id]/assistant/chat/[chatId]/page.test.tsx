@@ -1568,6 +1568,18 @@ describe("workspace where three panels do not fit", () => {
             .map(([name]) => name);
     const switcher = () =>
         screen.getByRole("group", { name: "Workspace view" });
+    async function chatMenuItems() {
+        const trigger = within(panes.chat()!).getByRole("button", {
+            name: "Actions",
+        });
+        fireEvent.pointerDown(
+            trigger,
+            new MouseEvent("pointerdown", { bubbles: true, cancelable: true }),
+        );
+        fireEvent.click(trigger);
+        await screen.findByRole("menuitem", { name: "Memory" });
+        return screen.getAllByRole("menuitem").map((item) => item.textContent);
+    }
     async function renderWithSideChat() {
         const params = Promise.resolve({ id: "p1" });
         await act(async () => {
@@ -1618,6 +1630,23 @@ describe("workspace where three panels do not fit", () => {
         expect(shown()).toEqual(["explorer", "document", "chat"]);
     });
 
+    // The side chat would open where it cannot be seen.
+    it.each([
+        ["a phone", 374],
+        ["a tablet", 690],
+        ["a workspace without room for a second chat", 1000],
+    ])("does not offer a side chat on %s", async (_name, px) => {
+        width.mockReturnValue(px);
+        await renderWorkspace();
+        expect(await chatMenuItems()).not.toContain("Open side chat");
+    });
+
+    it("offers the side chat where a second chat fits beside the explorer", async () => {
+        width.mockReturnValue(1200);
+        await renderWorkspace();
+        expect(await chatMenuItems()).toContain("Open side chat");
+    });
+
     // An open side chat at 768-1020 px, or the sidebar open, pushed the last
     // chat past the screen's edge.
     it("shows one panel at a time while an open side chat does not fit", async () => {
@@ -1631,6 +1660,8 @@ describe("workspace where three panels do not fit", () => {
 
         expect(panes.sideChat()).not.toBeNull();
         expect(shown()).toEqual(["chat"]);
+        // The side chat stays open for when the window widens again.
+        expect(await chatMenuItems()).not.toContain("Close side chat");
     });
 
     it("shows the side chat beside the others where it fits", async () => {

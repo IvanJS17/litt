@@ -256,6 +256,9 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     const singleView =
         room === "single" ||
         (sideChatOpen && room !== null && room !== "splitWithSideChat");
+    // A side chat is offered only where it can be seen beside the others.
+    const sideChatShown =
+        !singleView && (room === null || room === "splitWithSideChat");
     /** Layout classes for a panel: hidden unless it is the one on screen. */
     const viewClass = (view: ProjectWorkspaceView) =>
         mobileView === view
@@ -1297,6 +1300,8 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     }
 
     function handleOpenSideChat() {
+        // Offered only where the second chat fits beside the explorer and a
+        // readable document (`sideChatShown`).
         openSideChat("");
     }
 
@@ -1774,9 +1779,19 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                 )}
                 className={viewClass("chat")}
                 onActivate={activatePrimaryChat}
-                onOpenSideChat={sideChatOpen ? undefined : handleOpenSideChat}
-                onCloseSideChat={sideChatOpen ? handleCloseSideChat : undefined}
-                onAskInSideChat={askInSideChat}
+                // One panel at a time has no room for a second chat: it would
+                // open, or sit open, where it cannot be seen.
+                onOpenSideChat={
+                    sideChatOpen || !sideChatShown
+                        ? undefined
+                        : handleOpenSideChat
+                }
+                onCloseSideChat={
+                    sideChatOpen && sideChatShown
+                        ? handleCloseSideChat
+                        : undefined
+                }
+                onAskInSideChat={sideChatShown ? askInSideChat : undefined}
             />
             {sideChatId !== null && (
                 <>
