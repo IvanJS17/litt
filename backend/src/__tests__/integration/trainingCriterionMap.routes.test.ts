@@ -856,6 +856,19 @@ describe("answering", () => {
         expect(completeText).not.toHaveBeenCalled();
     });
 
+    it("a PUT that loses the claim to another PUT is not-open, not a second retake in progress", async () => {
+        seed({ retakes: [openRetake()] });
+        // The other request claims the row between this one's read and its claim.
+        vi.mocked(loadPinnedChatRoute).mockImplementationOnce((async () => {
+            retakeRows()[0].updated_at = iso(Date.now() + 1000);
+            return { ok: true, route: PUPIL_ROUTE, apiKeys: PUPIL_KEYS };
+        }) as never);
+        const res = await as(PUPIL).put(`${retakesUrl}/${id(700)}/answer`).send({ answer: ANSWER });
+        expect(res.status).toBe(409);
+        expect(res.body.code).toBe("training_retake_not_open");
+        expect(completeText).not.toHaveBeenCalled();
+    });
+
     it("judges again an answer whose earlier judgment was lost", async () => {
         seed({ retakes: [openRetake({ status: "pending", updated_at: iso(Date.now() - SUPERVISION_STALE_MS - 1000) })] });
         const res = await as(PUPIL).put(`${retakesUrl}/${id(700)}/answer`).send({ answer: ANSWER });

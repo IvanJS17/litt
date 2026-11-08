@@ -249,7 +249,11 @@ export async function answerRetake(
     if (!route.ok) return route;
     const resolved = route.data;
 
-    // The material is the person's own notes on the topic, as it was when the question was made.
+    // The material is the person's own newest notes on the topic, read NOW:
+    // the row does not freeze the lines the question was made from. If the
+    // person wrote more on the topic between the question and the answer, the
+    // contrast sees those lines too (and a note removed since is not seen).
+    // The question itself is the stored one. docs/training.md says so.
     const notes = await loadEvidenceNotes(db, { orgId: row.org_id, traineeId: args.userId });
     if (!notes.ok) return notes;
     const readable = await readRetakes(db, row.org_id, args.userId);
