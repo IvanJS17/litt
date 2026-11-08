@@ -8,7 +8,9 @@
     "packages/client/src/reportedUpstream.ts",
     "packages/client/src/toastStore.ts",
     "packages/client/src/userError.ts",
-    "packages/i18n/src"
+    "packages/i18n/src",
+    "frontend/src/app/components/training/supervision",
+    "frontend/src/app/(pages)/settings/training/mentor"
   ],
   "allowed": {}
 }

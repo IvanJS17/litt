@@ -33,19 +33,32 @@ vi.mock("../shared/FileDirectory", () => ({
     }: {
         onChange: (documents: Document[]) => void;
     }) => (
-        <button
-            type="button"
-            onClick={() =>
-                onChange([
-                    {
-                        id: "document-1",
-                        filename: "Precedent.pdf",
-                    } as Document,
-                ])
-            }
-        >
-            Select asset
-        </button>
+        <>
+            <button
+                type="button"
+                onClick={() =>
+                    onChange([
+                        {
+                            id: "document-1",
+                            filename: "Precedent.pdf",
+                        } as Document,
+                    ])
+                }
+            >
+                Select asset
+            </button>
+            <button
+                type="button"
+                onClick={() =>
+                    onChange([
+                        { id: "document-1", filename: "Precedent.pdf" } as Document,
+                        { id: "document-2", filename: "Draft.docx" } as Document,
+                    ])
+                }
+            >
+                Select two assets
+            </button>
+        </>
     ),
 }));
 
@@ -400,6 +413,29 @@ describe("NewWorkflowModal editing", () => {
             ),
         ).toBeInTheDocument();
         expect(screen.queryByText(/Press Create again/)).not.toBeInTheDocument();
+    });
+
+    it("still invites a retry for the copies that failed for another reason", async () => {
+        const user = userEvent.setup({ delay: null });
+        const detail = "Este archivo es un borrador de pasante.";
+        vi.mocked(copyDocumentsToWorkflowAssets)
+            .mockRejectedValueOnce(
+                new MikeApiError({ message: detail, status: 409, code: "training_copy_needs_organization" }),
+            )
+            .mockRejectedValueOnce(new Error("network"));
+        render(<NewWorkflowModal open onClose={vi.fn()} onCreated={vi.fn()} />);
+
+        await user.type(screen.getByLabelText("Title"), "New workflow");
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        await user.click(screen.getByRole("button", { name: "Next" }));
+        await user.click(screen.getByRole("button", { name: "Select two assets" }));
+        await user.click(screen.getByRole("button", { name: "Create workflow" }));
+
+        expect(
+            await screen.findByText(
+                `Workflow created, but 2 assets could not be copied. ${detail} Press Create again to retry the copy.`,
+            ),
+        ).toBeInTheDocument();
     });
 
     it("copies assets only after the grants have been written", async () => {

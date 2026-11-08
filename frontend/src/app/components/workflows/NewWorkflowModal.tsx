@@ -496,6 +496,7 @@ export function NewWorkflowModal({
                     // A pasante's draft is refused by a workflow without an
                     // organization: retrying cannot help, so say why.
                     let refusal = "";
+                    let refusals = 0;
                     for (const id of pendingAssetIds) {
                         try {
                             await copyDocumentsToWorkflowAssets(workflow.id, [
@@ -509,19 +510,28 @@ export function NewWorkflowModal({
                                 "training_copy_needs_organization"
                             ) {
                                 refusal = describeError(err).message;
+                                refusals += 1;
                             }
                         }
                     }
                     if (copyFailures > 0) {
+                        // A refused draft does not stop the invitation to
+                        // retry the copies that failed for another reason.
+                        const retryable = copyFailures - refusals;
                         setError(
-                            `Workflow created, but ${copyFailures} ${
-                                copyFailures === 1 ? "asset" : "assets"
-                            } could not be copied. ${
-                                refusal ||
-                                `Press Create again to retry the ${
-                                    copyFailures === 1 ? "copy" : "copies"
-                                }.`
-                            }`,
+                            [
+                                `Workflow created, but ${copyFailures} ${
+                                    copyFailures === 1 ? "asset" : "assets"
+                                } could not be copied.`,
+                                refusal,
+                                retryable > 0
+                                    ? `Press Create again to retry the ${
+                                          retryable === 1 ? "copy" : "copies"
+                                      }.`
+                                    : "",
+                            ]
+                                .filter(Boolean)
+                                .join(" "),
                         );
                         return;
                     }
