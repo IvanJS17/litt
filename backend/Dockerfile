@@ -8,6 +8,8 @@ COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
 COPY packages/contracts /packages/contracts
+# The annex words come from the shared catalog (lib/methodology/messages.ts).
+COPY packages/i18n/messages /packages/i18n/messages
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-slim
@@ -17,6 +19,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app ./
+COPY --from=build /packages/i18n/messages /packages/i18n/messages
 
 # AGPL-3.0 §13: the full SHA of the published commit this image is built from.
 # /health reports it, and production refuses to start without it, so the build

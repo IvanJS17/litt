@@ -15,6 +15,7 @@ import {
     describeSource,
     type Annex,
     type InputSource,
+    type MethodologyText,
     type MethodologyCalculation,
 } from "../../../../lib/methodology";
 import { locateQuote } from "../verifyCitations";
@@ -99,7 +100,9 @@ export type MethodologyDeps = {
     /** What the person wrote in this turn; a figure they "gave" must be in it. */
     personMessage: string;
     now: () => Date;
-    /** Who the annex is generated for. */
+    /** The words and dates of the person's language (their profile's ui_locale, es-MX by default). */
+    text: MethodologyText;
+    /** Who the annex is generated for; empty reads as "the user" in their language. */
     generatedFor: string;
 };
 
@@ -158,7 +161,7 @@ export async function runMethodology(args: Record<string, unknown>, deps: Method
     }
     let result;
     try {
-        result = calculate(calculation as MethodologyCalculation, values);
+        result = calculate(calculation as MethodologyCalculation, values, deps.text);
     } catch (error) {
         if (error instanceof MethodologyError) return { ok: false, error: error.message };
         throw error;
@@ -166,7 +169,13 @@ export async function runMethodology(args: Record<string, unknown>, deps: Method
     const sources: Record<string, InputSource> = {};
     for (const input of result.inputs) sources[input.name] = await resolveSource(rawSources[input.name], values[input.name], input.value, deps);
     const basis = typeof args.basis === "string" ? args.basis.trim().slice(0, MAX_BASIS_CHARS) : null;
-    const annex = buildAnnex(result, { sources, basis, generatedAt: deps.now(), generatedFor: deps.generatedFor });
+    const annex = buildAnnex(result, {
+        sources,
+        basis,
+        generatedAt: deps.now(),
+        generatedFor: deps.generatedFor,
+        text: deps.text,
+    });
     return {
         ok: true,
         wantsAnnex: args.annex !== false,
@@ -177,7 +186,7 @@ export async function runMethodology(args: Record<string, unknown>, deps: Method
             inputs: result.inputs.map((input) => ({
                 label: input.label,
                 value: input.value,
-                source: describeSource(sources[input.name]),
+                source: describeSource(sources[input.name], deps.text),
             })),
             formula: result.formula,
             steps: result.steps,

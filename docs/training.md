@@ -225,7 +225,9 @@ legal-financial arithmetic in prose. `lib/trainingTurn/methodology.ts` sets
 pasante, a turn with no stage and every other author get nothing, and the
 engine never offers it to a subagent. It is a tool policy, not a permission:
 it reads only documents the turn already holds and writes nothing but the
-annex, and only when the conversation may write documents.
+annex, and only when the caller says explicitly that the turn may write
+documents (`allowDocumentMutation === true`; left out, the steps come back as
+text).
 
 - **Calculations (closed list):** simple interest (by periods, or by dates and
   a 360/365/366 day basis), compound interest, index update (final index over
@@ -236,11 +238,22 @@ annex, and only when the conversation may write documents.
   zero (money to 2 decimals), so the annex states the rule.
 - **No rates or indices ship with LiTT.** Each input carries a source: a
   verbatim quote from a document (located with `locateQuote`; a quote that is
-  not found reads «sin verificar»), «Dato dado por la persona», or «Sin fuente».
+  not found reads «sin verificar»), «Dato dado por la persona» (only when the
+  value is written in the person's message of that turn, ignoring spaces and
+  thousands commas; otherwise «No encontrado en tu mensaje (sin verificar)»),
+  or «Sin fuente». A figure reaches the tool as text: a JSON number that is
+  not a safe integer is rejected, never truncated.
 - **The annex** (a Word document) lists the inputs and their sources, the
   formula, every step with its value, the rounding rule, the result and who
-  generated it and when, and says it is arithmetic support, not a legal
-  opinion. A legal basis is printed as written and marked «sin verificar»
+  generated it and when (the day in `America/Mexico_City`), and says it is
+  arithmetic support, not a legal opinion. It is written in the person's
+  `ui_locale` (`es-MX` when none), with the dates in that language's format
+  and the figures without thousands separators in both. The words live in
+  `packages/i18n`, namespace `training.criterion.methodology` (en-US and
+  es-MX); the backend has no `use-intl`, so `lib/methodology/messages.ts` reads
+  the two JSON files (`/packages/i18n/messages` in the image, copied by
+  `backend/Dockerfile`) and fills the `{name}` arguments, which is all these
+  messages use. A legal basis is printed as written and marked «sin verificar»
   unless a verified source quote names the same reference
   (`legalReferences`).
 - **No model call:** the calculation runs in the process; the BYOK route of the

@@ -7,6 +7,7 @@
 
 import { legalReferences } from "../legalReferences";
 import type { MethodologyResult } from "./calculators";
+import { methodologyText, type MethodologyText } from "./messages";
 
 /** Where one input came from, as the server found it. */
 export type InputSource =
@@ -26,12 +27,25 @@ export type AnnexSection = {
 
 export type Annex = { title: string; sections: AnnexSection[] };
 
-export const NO_SOURCE_TEXT = "Sin fuente";
-export const UNVERIFIED_BASIS_TEXT = "sin verificar";
-export const ANNEX_DISCLAIMER =
-    "Este anexo documenta una operación aritmética con los datos indicados. No es una opinión jurídica ni sustituye la revisión de un abogado. LiTT no aporta tasas ni índices: junto a cada dato se indica su fuente, o que no la tiene.";
-
 const EXCERPT_LIMIT = 300;
+
+export function describeSource(source: InputSource | undefined, text: MethodologyText = methodologyText()): string {
+    const { say } = text;
+    if (!source || source.status === "none") return say("training.criterion.methodology.source.none");
+    if (source.status === "person") return say("training.criterion.methodology.source.person");
+    if (source.status === "person_unverified") return say("training.criterion.methodology.source.personUnverified");
+    if (source.status === "document_unverified") {
+        return source.filename
+            ? say("training.criterion.methodology.source.documentUnverifiedIn", { filename: source.filename })
+            : say("training.criterion.methodology.source.documentUnverified");
+    }
+    const excerpt =
+        source.excerpt.length > EXCERPT_LIMIT ? `${source.excerpt.slice(0, EXCERPT_LIMIT)}…` : source.excerpt;
+    return say("training.criterion.methodology.source.documentVerified", { filename: source.filename, excerpt });
+}
+
+/** Said once, at the end of the annex, in the person's language. */
+export const annexDisclaimer = (text: MethodologyText = methodologyText()): string => text.say("training.criterion.methodology.generation.disclaimer");
 
 const normalizeMessage = (text: string): string =>
     text
@@ -51,18 +65,6 @@ export function appearsInMessage(value: string, message: string): boolean {
     return new RegExp(`(?<![\\d.])${escaped}(?!\\d|\\.\\d)`).test(normalizeMessage(message));
 }
 
-export function describeSource(source: InputSource | undefined): string {
-    if (!source || source.status === "none") return NO_SOURCE_TEXT;
-    if (source.status === "person") return "Dato dado por la persona";
-    if (source.status === "person_unverified") return "No encontrado en tu mensaje (sin verificar)";
-    if (source.status === "document_unverified") {
-        return `Cita no localizada${source.filename ? ` en «${source.filename}»` : ""} (sin verificar)`;
-    }
-    const excerpt =
-        source.excerpt.length > EXCERPT_LIMIT ? `${source.excerpt.slice(0, EXCERPT_LIMIT)}…` : source.excerpt;
-    return `«${source.filename}»: «${excerpt}» (cita verificada)`;
-}
-
 /**
  * Marks a legal basis the model named. It counts as backed only when every
  * reference in it is also named by a verified source quote; otherwise it is
@@ -79,19 +81,6 @@ export function verifyBasis(basis: string, sources: Record<string, InputSource>)
     return [...named].every((reference) => quoted.has(reference)) ? "backed" : "unverified";
 }
 
-/** The annex date is the person's calendar day in Mexico City, not the server's UTC day. */
-export const ANNEX_TIME_ZONE = "America/Mexico_City";
-
-export function annexDate(date: Date): string {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: ANNEX_TIME_ZONE,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    }).format(date);
-    return parts; // en-CA writes YYYY-MM-DD
-}
-
 export function buildAnnex(
     result: MethodologyResult,
     context: {
@@ -100,49 +89,61 @@ export function buildAnnex(
         generatedAt: Date;
         /** Who asked for it, as the conversation knows them. */
         generatedFor: string;
+        /** The person's language; es-MX when absent. */
+        text?: MethodologyText;
     },
 ): Annex {
     const { sources, basis, generatedAt, generatedFor } = context;
+    const text = context.text ?? methodologyText();
+    const { say } = text;
     const sections: AnnexSection[] = [
         {
-            heading: "Datos de origen",
+            heading: say("training.criterion.methodology.annex.sections.inputs"),
             level: 1,
             table: {
-                headers: ["Dato", "Valor", "Fuente"],
-                rows: result.inputs.map((input) => [input.label, input.value, describeSource(sources[input.name])]),
+                headers: [say("training.criterion.methodology.annex.headers.input"), say("training.criterion.methodology.annex.headers.value"), say("training.criterion.methodology.annex.headers.source")],
+                rows: result.inputs.map((input) => [input.label, input.value, describeSource(sources[input.name], text)]),
             },
         },
-        { heading: "Fórmula", level: 1, content: result.formula.join("\n\n") },
+        { heading: say("training.criterion.methodology.annex.sections.formula"), level: 1, content: result.formula.join("\n\n") },
         {
-            heading: "Pasos",
+            heading: say("training.criterion.methodology.annex.sections.steps"),
             level: 1,
             table: {
-                headers: ["Paso", "Operación", "Valor"],
-                rows: result.steps.map((step, index) => [`${index + 1}. ${step.label}`, step.expression, step.value]),
+                headers: [say("training.criterion.methodology.annex.headers.step"), say("training.criterion.methodology.annex.headers.operation"), say("training.criterion.methodology.annex.headers.value")],
+                rows: result.steps.map((step, index) => [
+                    say("training.criterion.methodology.annex.stepNumber", { number: index + 1, label: step.label }),
+                    step.expression,
+                    step.value,
+                ]),
             },
         },
-        { heading: "Regla de redondeo", level: 1, content: result.rounding },
+        { heading: say("training.criterion.methodology.annex.sections.rounding"), level: 1, content: result.rounding },
         {
-            heading: "Resultado",
+            heading: say("training.criterion.methodology.annex.sections.result"),
             level: 1,
             table: {
-                headers: ["Concepto", "Valor"],
+                headers: [say("training.criterion.methodology.annex.headers.concept"), say("training.criterion.methodology.annex.headers.value")],
                 rows: [[result.result.label, result.result.value], ...result.others.map((o) => [o.label, o.value])],
             },
         },
     ];
     if (basis?.trim()) {
-        const status = verifyBasis(basis.trim(), sources) === "backed" ? "respaldado por una cita verificada" : UNVERIFIED_BASIS_TEXT;
+        const status = say(verifyBasis(basis.trim(), sources) === "backed" ? "training.criterion.methodology.basis.backed" : "training.criterion.methodology.basis.unverified");
         sections.push({
-            heading: "Fundamento indicado",
+            heading: say("training.criterion.methodology.annex.sections.basis"),
             level: 1,
-            content: `${basis.trim()}\n\nEstado: ${status}.`,
+            content: say("training.criterion.methodology.basis.state", { basis: basis.trim(), status }),
         });
     }
     sections.push({
-        heading: "Generación",
+        heading: say("training.criterion.methodology.annex.sections.generation"),
         level: 1,
-        content: `Generado en LiTT para ${generatedFor} el ${annexDate(generatedAt)} (hora de la Ciudad de México).\n\n${ANNEX_DISCLAIMER}`,
+        content: say("training.criterion.methodology.generation.line", {
+            person: generatedFor || say("training.criterion.methodology.generation.anonymous"),
+            date: text.today(generatedAt),
+            disclaimer: annexDisclaimer(text),
+        }),
     });
-    return { title: `Anexo de metodología - ${result.title}`, sections };
+    return { title: say("training.criterion.methodology.annex.title", { title: result.title }), sections };
 }

@@ -100,14 +100,14 @@ describe("what the model is shown", () => {
   });
 });
 
-function fakeDb() {
+function fakeDb(uiLocale: string | null = null) {
   return {
     rpc: vi.fn(async () => ({ data: { id: "version-1", version_number: 1 }, error: null })),
     from(table: string) {
       const result = { data: null, error: null };
       const query: Record<string, unknown> = {};
       for (const method of ["insert", "select", "update", "eq"]) query[method] = vi.fn(() => query);
-      query.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+      query.maybeSingle = vi.fn(async () => ({ data: table === "user_profiles" && uiLocale ? { ui_locale: uiLocale } : null, error: null }));
       query.single = vi.fn(async () => ({ data: { id: table === "documents" ? "doc-1" : "version-1" }, error: null }));
       query.then = (resolve: (value: typeof result) => unknown, reject?: (error: unknown) => unknown) =>
         Promise.resolve(result).then(resolve, reject);
@@ -120,7 +120,7 @@ const CONTRACT = "CLÁUSULA TERCERA. El índice inicial será de 100.000 puntos 
 
 async function call(
   input: Record<string, unknown>,
-  options: { methodology?: boolean; allowDocumentMutation?: boolean; personMessage?: string } = {
+  options: { methodology?: boolean; allowDocumentMutation?: boolean; personMessage?: string; uiLocale?: string } = {
     methodology: true,
     allowDocumentMutation: true,
     personMessage: "Actualiza $1,000.00 con los índices del contrato",
@@ -134,7 +134,7 @@ async function call(
     [{ id: "call-1", function: { name: METHODOLOGY_TOOL_NAME, arguments: JSON.stringify(input) } }],
     docStore as never,
     "u1",
-    fakeDb() as never,
+    fakeDb(options.uiLocale ?? null) as never,
     write,
     undefined,
     undefined,
@@ -202,6 +202,23 @@ describe("running the tool", () => {
     const payload = JSON.parse((out.toolResults[0] as { content: string }).content);
     expect(payload.result.value).toBe("1333.33");
     expect(payload.annex).toContain("cannot write documents");
+  });
+
+  it("writes the annex in the language of the person's profile", async () => {
+    let bytes: ArrayBuffer | undefined;
+    uploadFileMock.mockImplementationOnce(async (_key: string, uploaded: ArrayBuffer) => {
+      bytes = uploaded;
+    });
+    const { out } = await call(INDEX_CALL, { methodology: true, allowDocumentMutation: true, uiLocale: "en-US", personMessage: "Update $1,000.00 with the contract indices" });
+    expect(out.docsCreated[0]!.filename).toContain("Methodology annex");
+    const payload = JSON.parse((out.toolResults[0] as { content: string }).content);
+    expect(payload.calculation.result).toEqual({ label: "Updated amount", value: "1333.33" });
+    expect(payload.calculation.inputs[0].source).toBe("Given by the person");
+    const xml = await (await JSZip.loadAsync(bytes!)).file("word/document.xml")!.async("string");
+    for (const text of ["Source data", "Rounding rule", "Mexico City time", "not a legal opinion"]) {
+      expect(xml.toUpperCase()).toContain(text.toUpperCase());
+    }
+    expect(xml).not.toContain("Datos de origen");
   });
 
   it("writes nothing unless the caller said explicitly that it may (fail-closed)", async () => {

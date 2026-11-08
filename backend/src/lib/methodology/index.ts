@@ -11,8 +11,7 @@ export {
     type MethodologyResult,
 } from "./calculators";
 export {
-    ANNEX_DISCLAIMER,
-    NO_SOURCE_TEXT,
+    annexDisclaimer,
     appearsInMessage,
     buildAnnex,
     describeSource,
@@ -21,3 +20,5 @@ export {
     type AnnexSection,
     type InputSource,
 } from "./annex";
+export { methodologyText, type MethodologyText } from "./messages";
+export { readAnnexLocale, type MethodologyLocale } from "./locale";

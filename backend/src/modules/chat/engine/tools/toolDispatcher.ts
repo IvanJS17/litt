@@ -1,6 +1,7 @@
 import type { ConnectorApprovalItem, DocumentSearchEvent, TextCardEvent } from "@mike/contracts";
 import { textCardEvent } from "./textCard";
 import { METHODOLOGY_TOOL_NAME, runMethodology } from "./methodologyTool";
+import { methodologyText, readAnnexLocale } from "../../../../lib/methodology";
 import { internalFailure } from "../../../../lib/serviceResult";
 import { canUseWorkflowInWorkspace } from "../../../../lib/workflowWorkspace";
 import { AppError } from "../../../../lib/appError";
@@ -546,9 +547,10 @@ export async function runToolCalls(
           const text = await readDocumentContent(docId, docStore, write, docIndex, db, { emitEvents: false });
           return { filename: info.filename, text };
         },
+        text: methodologyText(await readAnnexLocale(db, userId)),
         personMessage: options.personMessage ?? "",
         now: () => new Date(),
-        generatedFor: options.userEmail || "la persona usuaria",
+        generatedFor: options.userEmail || "",
       });
       if (!outcome.ok) {
         toolResults.push({

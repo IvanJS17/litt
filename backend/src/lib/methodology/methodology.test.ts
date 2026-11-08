@@ -13,7 +13,9 @@ import {
     roundTo,
 } from "./decimal";
 import { MAX_COMPOUND_PERIODS, calculate, type MethodologyResult } from "./calculators";
-import { ANNEX_DISCLAIMER, appearsInMessage, buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
+import { readAnnexLocale } from "./locale";
+import { methodologyText } from "./messages";
+import { annexDisclaimer, appearsInMessage, buildAnnex, describeSource, verifyBasis, type InputSource } from "./annex";
 
 const dec = (text: string) => parseDecimal(text, "x");
 const code = (run: () => unknown) => {
@@ -189,7 +191,7 @@ describe("annex", () => {
         expect(annex.sections[4]!.table!.rows[0]).toEqual(["Monto actualizado", "1100.00"]);
         const last = annex.sections.at(-1)!.content!;
         expect(last).toContain("ana@example.com");
-        expect(last).toContain("2026-11-08");
+        expect(last).toContain("08/11/2026");
         expect(last).toContain("No es una opinión jurídica");
     });
 
@@ -201,17 +203,79 @@ describe("annex", () => {
     });
 
     it("does not claim every figure has a source when one may have none", () => {
-        expect(ANNEX_DISCLAIMER).not.toContain("proviene de la fuente que se indica");
-        expect(ANNEX_DISCLAIMER).toContain("junto a cada dato se indica su fuente, o que no la tiene");
+        expect(annexDisclaimer()).not.toContain("proviene de la fuente que se indica");
+        expect(annexDisclaimer()).toContain("junto a cada dato se indica su fuente, o que no la tiene");
+        expect(annexDisclaimer(methodologyText("en-US"))).toContain("next to each item its source is shown, or that it has none");
     });
 
     it("dates the annex in Mexico City, not in UTC", () => {
         // 02:30 UTC on the 9th is still the evening of the 8th in Mexico City.
         const late = buildAnnex(result, { sources: {}, generatedAt: new Date("2026-11-09T02:30:00Z"), generatedFor: "a@b.mx" });
-        expect(late.sections.at(-1)!.content).toContain("el 2026-11-08 (hora de la Ciudad de México)");
+        expect(late.sections.at(-1)!.content).toContain("el 08/11/2026 (hora de la Ciudad de México)");
         const noon = buildAnnex(result, { sources: {}, generatedAt: new Date("2026-07-01T12:00:00Z"), generatedFor: "a@b.mx" });
-        expect(noon.sections.at(-1)!.content).toContain("el 2026-07-01 ");
+        expect(noon.sections.at(-1)!.content).toContain("el 01/07/2026 ");
         expect(noon.sections.at(-1)!.content).not.toContain("UTC");
+    });
+
+    it("writes the whole annex in English for an en-US profile, with the dates in US order", () => {
+        const text = methodologyText("en-US");
+        const dated = calculate(
+            "simple_interest",
+            { principal: "1000", rate_percent: "12", start_date: "2026-01-31", end_date: "2026-03-02", day_basis: "360" },
+            text,
+        );
+        const annex = buildAnnex(dated, {
+            sources: { principal: { status: "person_unverified" } },
+            basis: "Artículo 2395",
+            generatedAt: new Date("2026-11-09T02:30:00Z"),
+            generatedFor: "",
+            text,
+        });
+        expect(annex.title).toBe("Methodology annex - Simple interest by days");
+        expect(annex.sections.map((s) => s.heading)).toEqual([
+            "Source data", "Formula", "Steps", "Rounding rule", "Result", "Stated legal basis", "Generation",
+        ]);
+        expect(annex.sections[0]!.table!.rows[2]).toEqual(["Start date", "01/31/2026", "No source"]);
+        expect(annex.sections[0]!.table!.rows[0]![2]).toBe("Not found in your message (unverified)");
+        expect(annex.sections[2]!.table!.rows[0]).toEqual(["1. Calendar days", "03/02/2026 − 01/31/2026", "30"]);
+        expect(annex.sections[5]!.content).toContain("Status: unverified.");
+        expect(annex.sections.at(-1)!.content).toContain("on 11/08/2026 (Mexico City time)");
+        expect(annex.sections.at(-1)!.content).toContain("for the user");
+        // Figures keep the same digits in every language: no thousands separators.
+        const big = calculate("index_update", { amount: "1234567.89", initial_index: "1", final_index: "1" }, text);
+        expect(big.result.value).toBe("1234567.89");
+    });
+
+    it("has every message used by the calculators and the annex in both catalogs, in tú", () => {
+        for (const locale of ["en-US", "es-MX"] as const) {
+            const text = methodologyText(locale);
+            const names: Record<string, Record<string, string>> = {
+                simple_interest: { principal: "1", rate_percent: "1", periods: "1" },
+                compound_interest: { principal: "1", rate_percent: "1", periods: "2" },
+                index_update: { amount: "1", initial_index: "1", final_index: "2" },
+                proportion: { numerator: "1", denominator: "2" },
+            };
+            for (const [name, given] of Object.entries(names)) {
+                const out = calculate(name as never, given, text);
+                const annex = buildAnnex(out, { sources: {}, basis: "x", generatedAt: new Date(), generatedFor: "a@b.mx", text });
+                expect(JSON.stringify(annex)).not.toContain("training.criterion");
+            }
+        }
+        expect(methodologyText("fr-FR").locale).toBe("es-MX");
+        expect(methodologyText(undefined).locale).toBe("es-MX");
+        expect(describeSource({ status: "person_unverified" })).toContain("tu mensaje");
+    });
+
+    it("reads the person's language from the profile and falls back to es-MX", async () => {
+        const db = (row: unknown, error: unknown = null) => ({
+            from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: row, error }) }) }) }),
+        });
+        expect(await readAnnexLocale(db({ ui_locale: "en-US" }), "u")).toBe("en-US");
+        expect(await readAnnexLocale(db({ ui_locale: null }), "u")).toBe("es-MX");
+        expect(await readAnnexLocale(db({ ui_locale: "fr-FR" }), "u")).toBe("es-MX");
+        expect(await readAnnexLocale(db(null), "u")).toBe("es-MX");
+        expect(await readAnnexLocale(db({ ui_locale: "en-US" }, { code: "42703" }), "u")).toBe("es-MX");
+        expect(await readAnnexLocale({ from: () => { throw new Error("down"); } }, "u")).toBe("es-MX");
     });
 
     it("looks for a figure in the person's message by its digits, not as a piece of another", () => {
