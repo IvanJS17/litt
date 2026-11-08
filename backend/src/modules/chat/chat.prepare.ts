@@ -56,6 +56,7 @@ import { getAccessibleChat, validateAccessibleProjectId } from "./chat.access";
 import {
     beginTrainingTurn,
     resolveCriteriaDelegation,
+    unreadableSubagentRoutes,
     recordTrainingNote,
     type TrainingTurnPlan,
 } from "../../lib/trainingTurn";
@@ -390,6 +391,8 @@ export async function prepareChatStream(
     const { modelSettings, selectedReasoningLevel } = selection;
     // A criteria contrast runs on the routes the person configured: decided now, before anything is written.
     if (trainingPlan?.toolPolicy.delegation) {
+        // Unreadable routes are not "no routes" (the conversation's model): stop.
+        if (modelSettings.subagent_routes === null) return unreadableSubagentRoutes();
         const criteria = resolveCriteriaDelegation(trainingPlan, modelSettings.subagent_routes);
         if (!criteria.ok) return criteria;
         trainingPlan = criteria.plan;

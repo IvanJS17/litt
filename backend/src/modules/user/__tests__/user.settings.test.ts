@@ -288,3 +288,42 @@ describe("getUserModelSettings on an un-migrated database", () => {
         expect(settings.tabular_model).toBeNull();
     });
 });
+
+describe("getUserModelSettings subagent routes", () => {
+    /** A profile table whose subagent_routes read answers `routesResult`. */
+    function routesDb(routesResult: { data: unknown; error: unknown }) {
+        let selected = "";
+        const chain: Record<string, unknown> = {};
+        chain.from = vi.fn(() => chain);
+        chain.select = vi.fn((columns: string) => {
+            selected = columns;
+            return chain;
+        });
+        chain.eq = vi.fn(() => chain);
+        chain.single = vi.fn(async () => ({ data: {}, error: null }));
+        chain.maybeSingle = vi.fn(async () =>
+            selected === "subagent_routes" ? routesResult : { data: null, error: null },
+        );
+        return chain as never;
+    }
+
+    it("reads a failed read of the routes as null, not as no routes", async () => {
+        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const settings = await getUserModelSettings(
+            "user-1",
+            routesDb({ data: null, error: { code: "08006", message: "connection lost" } }),
+        );
+        expect(settings.subagent_routes).toBeNull();
+        errorSpy.mockRestore();
+    });
+
+    it("reads no routes stored as an empty list, and a database not migrated yet the same", async () => {
+        const none = await getUserModelSettings("user-1", routesDb({ data: { subagent_routes: null }, error: null }));
+        expect(none.subagent_routes).toEqual({ routes: [], default: null });
+        const notMigrated = await getUserModelSettings(
+            "user-1",
+            routesDb({ data: null, error: { code: "42703", message: "column subagent_routes does not exist" } }),
+        );
+        expect(notMigrated.subagent_routes).toEqual({ routes: [], default: null });
+    });
+});

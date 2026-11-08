@@ -508,7 +508,7 @@ export async function runLLMStream(params: {
             : MIKE_WEB_SEARCH_SYSTEM_PROMPT,
         ]
       : []),
-    ...(subagentRuns ? [delegateSystemPrompt(effectiveRoutes?.routes ?? null)] : []),
+    ...(subagentRuns ? [delegateSystemPrompt(effectiveRoutes?.routes ?? null, effectiveRoutes?.unreadable === true)] : []),
   ].join("\n\n");
   // The person's words of this turn, for checking a figure they "gave".
   const lastPersonMessage =

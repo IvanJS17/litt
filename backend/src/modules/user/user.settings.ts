@@ -11,7 +11,6 @@ import {
 import { loadWebSearchSettings } from "./user.webSearch";
 import { loadSubagentRoutes } from "./user.subagentRoutes";
 import type { SubagentRoutes } from "@mike/contracts";
-import { EMPTY_SUBAGENT_ROUTES } from "../../lib/subagentRoutes";
 import {
     DEFAULT_WEB_SEARCH_SETTINGS,
     type WebSearchSettings,
@@ -39,8 +38,12 @@ export type UserModelSettings = {
     /** Cross-surface fallback used only when a chat has no saved level. */
     last_selected_reasoning_level: ReasoningLevel | null;
     web_search: WebSearchSettings;
-    /** LiTT: the named model routes chat subagents may run on. */
-    subagent_routes: SubagentRoutes;
+    /**
+     * LiTT: the named model routes chat subagents may run on. null means the
+     * routes could not be read, which is not the same as having none: a caller
+     * that runs subagents must fail closed instead of using another model.
+     */
+    subagent_routes: SubagentRoutes | null;
     api_keys: UserApiKeys;
     personalisation?: {
         displayName: string | null;
@@ -112,11 +115,16 @@ export async function getUserModelSettings(
             reportSettingsReadFailure("web search settings load failed", error);
             return DEFAULT_WEB_SEARCH_SETTINGS;
         }),
-        // A failed read runs subagents on the conversation's model, as with no routes.
-        loadSubagentRoutes(client, userId).catch((error: unknown) => {
-            reportSettingsReadFailure("subagent routes load failed", error);
-            return EMPTY_SUBAGENT_ROUTES;
-        }),
+        // A failed read is not "no routes" (which runs subagents on the
+        // conversation's model): it reads as null, and a turn that needs
+        // subagents fails closed on it.
+        loadSubagentRoutes(client, userId).then(
+            (routes): SubagentRoutes | null => routes,
+            (error: unknown) => {
+                reportSettingsReadFailure("subagent routes load failed", error);
+                return null;
+            },
+        ),
     ]);
     let data = profileResult.data;
     let profileError = profileResult.error;

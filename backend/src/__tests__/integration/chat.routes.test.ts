@@ -4192,6 +4192,43 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
             expect(runLLMStream).not.toHaveBeenCalled();
         });
 
+        const withUnreadableRoutes = async () => {
+            const userSettings = await import("../../modules/user/user.settings.js");
+            vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
+                web_search: DEFAULT_WEB_SEARCH_SETTINGS,
+                title_model: null,
+                memory_curator_model: null,
+                subagent_model: null,
+                subagent_reasoning: null,
+                subagent_routes: null,
+                last_selected_reasoning_level: null,
+                tabular_model: null,
+                last_selected_chat_model: "gemini-3.8-flash",
+                api_keys: { gemini: "test-key" },
+            });
+        };
+
+        it("fails closed, before writing or calling a model, when the routes could not be read", async () => {
+            await withUnreadableRoutes();
+            const res = await send({ training_mode: "criteria_contrast" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(res.body.detail).toMatch(/No pude leer tus rutas de subagentes/);
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("still runs a plain turn when the routes could not be read, with subagents that refuse and never use the conversation's model", async () => {
+            await withUnreadableRoutes();
+            const res = await send({});
+            expect(res.status).toBe(200);
+            const stream = runLLMStream.mock.calls[0][0] as unknown as {
+                subagentRoutes: { unreadable?: boolean; govern: () => Promise<unknown> } | null;
+            };
+            expect(stream.subagentRoutes).toMatchObject({ unreadable: true });
+            await expect(stream.subagentRoutes?.govern()).resolves.toMatchObject({ ok: false });
+        });
+
         it("fails closed, saying why, when the server has subagents off", async () => {
             delete process.env.LITT_CHAT_SUBAGENTS;
             const res = await send({ training_mode: "criteria_contrast" });

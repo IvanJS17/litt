@@ -566,6 +566,25 @@ describe("runDelegateCall", () => {
     ...overrides,
   });
 
+  it("refuses a delegation when the routes could not be read, and runs nothing on any model", async () => {
+    const spawn = vi.fn<DelegateContext["spawn"]>();
+    const ctx = context({
+      spawn,
+      subagentRoutes: {
+        routes: { routes: [], default: null },
+        unreadable: true,
+        govern: async () => ({ ok: false, detail: "unreadable" }),
+      },
+    });
+
+    const result = await runDelegateCall(delegate("d1"), ctx);
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(result.event).toBeUndefined();
+    expect(JSON.parse(result.content)).toEqual({ error: expect.stringContaining("could not be read") });
+    expect(ctx.state.started).toBe(0);
+  });
+
   it.each([undefined, "", " \t\n "])("uses a default title for a new task with title %j", async (title) => {
     const spawn = vi.fn<DelegateContext["spawn"]>(async () => ({
       fullText: "Receipt summary.", events: [], citations: [],

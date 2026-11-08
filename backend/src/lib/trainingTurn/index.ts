@@ -49,7 +49,7 @@ export {
     TRAINING_MODE_NOT_ALLOWED_CODE,
 } from "./modes";
 export { hasUnverifiedCitation } from "./unverified";
-export { criteriaOpen, resolveCriteriaDelegation } from "./criteriaContrast";
+export { criteriaOpen, resolveCriteriaDelegation, unreadableSubagentRoutes } from "./criteriaContrast";
 export type {
     CriteriaDelegation,
     CriteriaRun,

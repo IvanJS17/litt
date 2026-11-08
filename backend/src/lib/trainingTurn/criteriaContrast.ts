@@ -36,7 +36,7 @@ import { recordAudit } from "../audit";
 import { chatSubagentsEnabled } from "../chatFeatureGates";
 import { completeText } from "../llm";
 import { fenced, promptNonce } from "../promptFence";
-import { SUBAGENT_ROUTE_NAME } from "../subagentRoutes";
+import { SUBAGENT_ROUTE_NAME, SUBAGENT_ROUTES_UNREADABLE } from "../subagentRoutes";
 import type { Db } from "../supabase";
 import { contrastSections, isValidContrast } from "../trainingNotes";
 import { UNVERIFIED_LEGAL_FOOTER } from "../trainingHint";
@@ -116,6 +116,11 @@ function requestedRoutesOf(value: unknown): string[] | null | undefined {
     const names = value.filter((name): name is string => typeof name === "string" && SUBAGENT_ROUTE_NAME.test(name));
     if (names.length !== 2 || value.length !== 2 || names[0] === names[1]) return undefined;
     return names;
+}
+
+/** The person's routes could not be read: the contrast does not run on another model. */
+export function unreadableSubagentRoutes(): TrainingTurnFailure {
+    return refuse(SUBAGENT_ROUTES_UNREADABLE);
 }
 
 /**
