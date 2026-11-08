@@ -22,17 +22,26 @@ type Rule = PlaybookContent["rules"][number];
  * What the copy keeps of a rule's backing. The original's attachments stay
  * with the original, and so does their text: a legal reference verified
  * against one becomes "not verified", and a clause origin becomes a
- * suggestion without backing. Both lose their `sourceId` and the `quote`
- * taken from the attachment, so no client text travels into the copy.
+ * suggestion without backing, and so does an answer origin, since the copy
+ * carries no questionnaire answers (it loses its `questionIds`). References
+ * lose their `sourceId` and `quote`, origins their `sourceId`, `quote` and
+ * `questionIds`, so no verbatim client text or attachment pointer travels
+ * into the copy. The `note` and the rule's own text stay: the rule's author
+ * wrote them.
  */
 function unbackedOrigin(origin: NonNullable<Rule["origin"]>): NonNullable<Rule["origin"]> {
-  if (origin.kind !== "clause") return origin;
-  const { sourceId: _sourceId, quote: _quote, kind: _kind, ...rest } = origin;
+  if (origin.kind === "ai_general") return origin;
+  const {
+    sourceId: _sourceId,
+    quote: _quote,
+    questionIds: _questionIds,
+    kind: _kind,
+    ...rest
+  } = origin;
   return { ...rest, kind: "ai_general", unbacked: true };
 }
 
 function unverifiedRef(ref: NonNullable<Rule["legalRefs"]>[number]) {
-  if (!ref.verified && !ref.sourceId) return ref;
   const { sourceId: _sourceId, quote: _quote, ...rest } = ref;
   return { ...rest, verified: false };
 }
