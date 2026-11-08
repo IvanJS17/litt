@@ -212,6 +212,9 @@ describe("every loose alias of the federal constitution takes the same qualifier
         "El artículo 5 constitucional del Estado de Jalisco establece algo.",
         "El artículo 5 constitucional de la Ciudad de México establece algo.",
         "El artículo 5 de la constitución de 1917 de Tlaxcala establece algo.",
+        "El artículo 5 de la Constitución del país establece algo.",
+        "El artículo 5 de la constitución de la república establece algo.",
+        "El artículo 5 de la constitución de acuerdo con la de Tlaxcala establece algo.",
     ])("is unknown, never the CPEUM: %s", (text) => {
         expect(keys(text)).toEqual(["art:5@?"]);
     });
@@ -222,8 +225,6 @@ describe("every loose alias of the federal constitution takes the same qualifier
         "El artículo 5 constitucional, de acuerdo con la ley, establece algo.",
         "El artículo 5 de la Constitución de acuerdo con la ley establece algo.",
         "El artículo 5 de la Constitución de conformidad con la ley establece algo.",
-        "El artículo 5 de la Constitución del país establece algo.",
-        "El artículo 5 de la constitución de la república establece algo.",
         "El artículo 5 de la constitución de 1917 establece algo.",
         "El artículo 5 de la Constitución de 1917 establece algo.",
     ])("still matches the CPEUM: %s", (text) => {

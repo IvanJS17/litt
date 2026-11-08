@@ -164,7 +164,21 @@ describe("anchored sticky patterns give the results of the previous module", () 
             Array.from({ length: 1 + next(14) }, () => PIECES[next(PIECES.length)]).join(""));
     };
 
-    it("legalReferences, lawReferences and the law helpers agree on 60 000 strings", () => {
+    // Two later fixes change the result of some strings on purpose, always towards «@?» (fail closed):
+    // a neutral connector («de acuerdo con», «de conformidad con», «de 1917») followed by anything but
+    // the end, punctuation or a word that qualifies nothing, and «constitucional de la Constitución …»
+    // (a qualified constitution). Those strings are compared by that rule instead of by equality:
+    // each key either equals the previous one or is the previous CPEUM key turned into «@?».
+    const CPEUM_SUFFIX = "@constitucion politica estados unidos mexicanos";
+    const DIVERGENCE_CAUSE = /de acuerdo con|de conformidad con|de 1917|constitucional/i;
+    const onlyTowardsUnknown = (now: string[], previous: string[]): boolean => {
+        const old = new Set(previous);
+        const turned = new Set(previous.filter((key) => key.endsWith(CPEUM_SUFFIX)).map((key) => `${key.slice(0, -CPEUM_SUFFIX.length)}@?`));
+        return now.length === previous.length && now.every((key) => old.has(key) || turned.has(key));
+    };
+
+    it("legalReferences, lawReferences and the law helpers agree on 60 000 strings", { timeout: 120_000 }, () => {
+        let diverged = 0;
         const strings = generate(20261108, 60_000);
         expect(strings.length).toBeGreaterThanOrEqual(50_000);
         let withReferences = 0;
@@ -175,7 +189,12 @@ describe("anchored sticky patterns give the results of the previous module", () 
             if (previous.length > 0) withReferences += 1;
             for (const source of [null, "ley sede"]) {
                 const strict = [...before.lawReferences(text, source)];
-                expect([...lawReferences(text, source)], JSON.stringify([text, source])).toEqual(strict);
+                const now = [...lawReferences(text, source)];
+                if (JSON.stringify(now) !== JSON.stringify(strict)) {
+                    expect(DIVERGENCE_CAUSE.test(text), JSON.stringify([text, source])).toBe(true);
+                    expect(onlyTowardsUnknown(now, strict), JSON.stringify([text, source, now, strict])).toBe(true);
+                    diverged += 1;
+                }
                 if (source === null && strict.some((key) => key.startsWith("art:") && before.hasKnownLaw(key))) withLaw += 1;
             }
             expect(lawOfTitle(text), JSON.stringify(text)).toBe(before.lawOfTitle(text));
@@ -184,6 +203,8 @@ describe("anchored sticky patterns give the results of the previous module", () 
         }
         expect(withReferences).toBeGreaterThan(8_000);
         expect(withLaw).toBeGreaterThan(1_000);
+        // The intentional divergences stay a small minority (the other strings are equal).
+        expect(diverged).toBeLessThan(2_000);
     });
 
     const TABS = "\t".repeat(50_000);

@@ -274,10 +274,22 @@ const PLACE_WORDS = new Set([
 const CONSTITUTION_QUALIFIERS = new Set([...LOCAL_WORDS, ...PLACE_WORDS, "particular", "general", "politica", "de", "del"]);
 const FEDERAL_CONSTITUTION_TAIL = ["de los estados unidos mexicanos", "politica de los estados unidos mexicanos"];
 // Closed list of connectors after «Constitución» that qualify nothing («de acuerdo con la
-// Constitución», «la Constitución del país», «de 1917»); only when no qualifier follows them.
-const NEUTRAL_CONNECTORS = ["de acuerdo con", "de conformidad con", "del pais", "de la republica", "de 1917"];
+// Constitución», «de 1917»). «del país» and «de la República» are NOT here: an adjective,
+// a nationality or a state after them («del país vecino») names another constitution.
+const NEUTRAL_CONNECTORS = ["de acuerdo con", "de conformidad con", "de 1917"];
+// After a neutral connector the federal constitution is kept only at the end of the text,
+// at punctuation, or before one of these words, which clearly qualify nothing; any other
+// word (an adjective, a nationality, «la de Tlaxcala», a state) leaves the law unknown.
+const NON_QUALIFYING_AFTER_CONNECTOR = ["que", "se", "es", "establece", "dispone", "senala", "preve", "vigente", "la ley", "las leyes"];
 // Aliases of the federal constitution that a qualifier turns into another law.
 const QUALIFIABLE_ALIASES = new Set(["constitucion", "carta magna"]);
+
+/** Whether what follows a neutral connector (from `index`) may name another constitution: anything but the end of the text or a word that clearly qualifies nothing. */
+function qualifiesAfterConnector(lower: Token[], index: number): boolean {
+    if (lower[index] === undefined) return false;
+    const following = lower.slice(index, index + 2).map((token) => token.bare).join(" ");
+    return !NON_QUALIFYING_AFTER_CONNECTOR.some((word) => following === word || following.startsWith(`${word} `));
+}
 
 /** Whether the token at `index` qualifies the bare alias before it into a law that is not the federal constitution. */
 function qualifiesConstitution(lower: Token[], index: number): boolean {
@@ -290,9 +302,8 @@ function qualifiesConstitution(lower: Token[], index: number): boolean {
         const size = connector.split(" ").length;
         const written = lower.slice(index, index + size);
         if (written.map((token) => token.bare).join(" ") !== connector || written.slice(0, -1).some((token) => token.ends)) continue;
-        // «Constitución de 1917 de Tlaxcala»: a qualifier after the connector still qualifies.
-        const after = lower[index + size];
-        return !written[size - 1].ends && after !== undefined && CONSTITUTION_QUALIFIERS.has(after.bare);
+        // «Constitución de 1917 de Tlaxcala», «… de acuerdo con la de Tlaxcala»: fail closed.
+        return !written[size - 1].ends && qualifiesAfterConnector(lower, index + size);
     }
     return true;
 }
@@ -382,7 +393,7 @@ function lawNamedAt(plain: string, cased: string): string | null {
     // «Constitución local»: the bare head stopped at a qualifier is another constitution.
     if (words.length === 1 && words[0] === "constitucion" && !upper[index - 1]?.ends && qualifiesConstitution(lower, index)) return null;
     // «Constitución de 1917» written with capitals: the federal one, unless a qualifier follows.
-    if (words.join(" ") === "constitucion de 1917" && !upper[index - 1]?.ends && !qualifiesConstitution(lower, index)) return normalizeLaw("constitucion");
+    if (words.join(" ") === "constitucion de 1917" && !upper[index - 1]?.ends && !qualifiesAfterConnector(lower, index)) return normalizeLaw("constitucion");
     return normalizeLaw(words.join(" "));
 }
 
