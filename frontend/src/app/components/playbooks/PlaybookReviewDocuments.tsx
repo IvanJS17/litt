@@ -21,6 +21,7 @@ export function PlaybookReviewDocuments({
   labelledBy,
   emptyPrompt = "Drag and drop PDF, DOCX, or TXT files here, or click to choose saved files or upload more.",
   addMorePrompt = "Drop more documents here, or click to add more.",
+  dropPrompt = "Drop documents to add them",
 }: {
   documents: ReviewDocument[];
   disabled: boolean;
@@ -35,6 +36,8 @@ export function PlaybookReviewDocuments({
   emptyPrompt?: string;
   /** What the area says once it holds documents. */
   addMorePrompt?: string;
+  /** What the area says while files are dragged over it. */
+  dropPrompt?: string;
 }) {
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
@@ -79,9 +82,7 @@ export function PlaybookReviewDocuments({
               onClick={onAddDocuments}
               className="mb-3 block rounded-md text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
-              {dragging
-                ? "Drop documents to add them"
-                : addMorePrompt}
+              {dragging ? dropPrompt : addMorePrompt}
             </button>
           )}
           <ul className="flex flex-wrap gap-1.5">
@@ -148,9 +149,7 @@ export function PlaybookReviewDocuments({
         >
           {/* The field's label sits above the area, as for other fields. */}
           <span className="block text-sm text-gray-700">
-            {dragging
-              ? "Drop documents to add them"
-              : emptyPrompt}
+            {dragging ? dropPrompt : emptyPrompt}
           </span>
         </button>
       )}

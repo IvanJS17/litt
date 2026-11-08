@@ -1,6 +1,12 @@
 {
   "migrated": [
-    "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
+    "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
+    "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
+    "frontend/src/app/components/playbooks/PlaybookIntakeModal.tsx",
+    "frontend/src/app/components/playbooks/PlaybookRuleOrigin.tsx",
+    "frontend/src/app/components/playbooks/PlaybookTable.tsx",
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
+    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
     "frontend/src/app/layout.tsx",
     "frontend/src/app/lib/authMessages.ts",
     "frontend/src/app/lib/userFacingError.ts",
@@ -10,8 +16,12 @@
     "packages/client/src/toastStore.ts",
     "packages/client/src/userError.ts",
     "packages/i18n/src",
+    "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
     "frontend/src/app/components/training/supervision",
     "frontend/src/app/(pages)/settings/training/mentor"
   ],
-  "allowed": {}
+  "allowed": {
+    "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
+    "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52
+  }
 }

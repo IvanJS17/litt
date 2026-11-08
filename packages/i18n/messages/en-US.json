@@ -57,6 +57,93 @@
       "description": "AI-powered legal document analysis and contract review platform."
     }
   },
+  "playbooks": {
+    "newMenu": {
+      "trigger": "New playbook",
+      "models": "Models",
+      "withQuestions": "With questions",
+      "import": "Import from file",
+      "blank": "Start from scratch"
+    },
+    "intake": {
+      "breadcrumb": "Playbooks",
+      "title": "New playbook with questions",
+      "intro": "Answer what you know about this client; every question is optional. The model writes a draft and shows where each rule comes from.",
+      "name": "Playbook name (optional)",
+      "model": "Drafting model",
+      "noModel": "No model is available. <link>Configure an API key</link> or enable a local model.",
+      "question": "Question {number}",
+      "attachments": "Preferred clauses (question 8)",
+      "attachPrompt": "Drag and drop .docx or .pdf files here, or click to choose saved files or upload them.",
+      "attachMorePrompt": "Drop more files here, or click to add more.",
+      "tooManyAttachments": "You can attach up to {max, plural, one {# document} other {# documents}}.",
+      "wrongType": "Attach .docx or .pdf files.",
+      "tooLong": "Your answers add up to more than {max, number} characters. Shorten them.",
+      "noAnswers": "You haven't answered any question. Every rule of the draft will be general practice suggested by the AI, marked as without backing.",
+      "submit": "Write draft",
+      "submitting": "Sending…",
+      "loading": "Loading the questions…",
+      "loadFailed": "The questions couldn't be loaded.",
+      "discardTitle": "Discard your answers?",
+      "discardMessage": "What you wrote and the files you attached will be lost.",
+      "discard": "Discard",
+      "startedTitle": "Writing your draft",
+      "startedMessage": "This can take a few minutes. We'll let you know when it's ready.",
+      "readyTitle": "Draft ready to review",
+      "readyMessage": "{name} is a draft: review its rules and mark it as ready before using it.",
+      "open": "Open",
+      "failedTitle": "The draft wasn't written",
+      "failedMessage": "The draft couldn't be written. Please try again.",
+      "backToQuestions": "Back to the questions",
+      "drafting": "Drafting…",
+      "draftingLabel": "Drafting",
+      "untitled": "Draft playbook",
+      "questions": {
+        "q1": "Who do you represent, and who is the usual counterparty?",
+        "q2": "The client's industry and size, and the regulation of its sector (financial, health, personal data, government…).",
+        "q3": "Type of document: lease, services, NDA, purchase, supply, employment…",
+        "q4": "Jurisdiction and governing law; whether it accepts arbitration, and where.",
+        "q5": "Risk appetite: conservative, balanced or flexible.",
+        "q6": "Red lines: what this client never accepts.",
+        "q7": "What it can give up in a negotiation.",
+        "q8": "The client's preferred clauses or wording; you can attach them.",
+        "q9": "Background: past disputes, the relationship with the counterparty, and what went wrong before.",
+        "q10": "Language, currency and signing format."
+      },
+      "q8Help": "You can attach up to {max, plural, one {# .docx or .pdf document} other {# .docx or .pdf documents}}.",
+      "submitAction": "write the draft",
+      "openAction": "open the draft"
+    },
+    "draft": {
+      "label": "Draft",
+      "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
+      "markReady": "Mark as ready",
+      "confirmTitle": "Mark as ready?",
+      "confirmMessage": "{unbacked, plural, one {# rule has} other {# rules have}} no backing and {unverified, plural, one {# legal reference is} other {# legal references are}} not verified. Once ready, it can be used in reviews and it can't go back to draft.",
+      "markReadyAction": "mark the playbook as ready"
+    },
+    "model": {
+      "label": "Model",
+      "mark": "Mark as model",
+      "unmark": "Remove model mark",
+      "markAction": "change the model mark",
+      "copyAction": "copy the model",
+      "copied": "Your copy of {name} is a draft. Review its rules and mark it as ready.",
+      "copiedTitle": "Copy created"
+    },
+    "origin": {
+      "answer": "Origin: answer to {count, plural, one {question} other {questions}} {questions}",
+      "clause": "Origin: attached clause {name}",
+      "clauseUnnamed": "Origin: attached clause",
+      "aiGeneral": "Origin: general practice suggested by the AI",
+      "unbacked": "Suggestion without backing, review",
+      "unverified": "Not verified",
+      "verified": "Verified in an attached document",
+      "answerLabel": "Answer to question {number}",
+      "quoteLabel": "Fragment of the attached document",
+      "legalRefs": "Legal references"
+    }
+  },
   "errors": {
     "couldnt": "Couldn't {action}",
     "title": {
