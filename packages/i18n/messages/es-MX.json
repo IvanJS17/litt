@@ -244,7 +244,7 @@
       "training_retake_not_due": "Ese tema no toca retomarlo por ahora.",
       "training_retake_not_open": "Esta retoma no está esperando una respuesta.",
       "training_review_in_progress": "Esto ya se está generando.",
-      "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Llaves propias (BYOK) para generar revisiones y preguntas.",
+      "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Llaves propias (BYOK) para generar revisiones, preguntas y retomas.",
       "untrusted_origin": "El origen de la solicitud no está permitido.",
       "upload_incomplete": "El archivo que subiste aún no está disponible.",
       "upload_session_control_rate_limit": "Demasiadas solicitudes de carga. Inténtalo de nuevo más tarde.",

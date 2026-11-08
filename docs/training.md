@@ -1073,7 +1073,8 @@ default) when the question is made, stored on the row (`model_provider`,
 they explicitly pick another of their keys. When the stored route no longer
 serves them the answer is `409 chat_route_credential_unavailable` with no other
 model tried; with no usable key the start answers `400
-training_review_key_required` and nothing is written. `llm.egress`
+training_review_key_required` (the same code as reviews and questions; its
+text names retakes too) and nothing is written. `llm.egress`
 (`surface: training_retake`, `retake_id`, `step`) is recorded before each call
 that sends text. Never the mentor's route.
 

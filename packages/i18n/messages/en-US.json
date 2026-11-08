@@ -244,7 +244,7 @@
       "training_retake_not_due": "That topic isn't due to be retaken right now.",
       "training_retake_not_open": "This retake isn't waiting for an answer.",
       "training_review_in_progress": "This is already being generated.",
-      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews and questions.",
+      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
       "upload_incomplete": "The uploaded file isn't available yet.",
       "upload_session_control_rate_limit": "Too many upload requests. Try again later.",
