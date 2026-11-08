@@ -1,4 +1,6 @@
 import React from "react";
+import { useTranslations } from "use-intl";
+import type { Locale } from "@litt/i18n";
 import { Trash2 } from "lucide-react";
 import {
   ToggleSwitchUI,
@@ -10,6 +12,9 @@ import { PageTitle } from "../primitives/PageTitle";
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 import { Modal } from "../primitives/Modal";
 import { reportFault } from "../../lib/notify";
+import { LocaleSelect } from "../primitives/LocaleSelect";
+import { useLocaleControls } from "../../i18n/LocaleProvider";
+import { updateUiLocale } from "../../api/mikeApi";
 
 interface SettingsPageProps {
   storageMode: WordChatStorageMode;
@@ -22,6 +27,10 @@ export function SettingsPage({
   onStorageModeChange,
   onClearLocalChats,
 }: SettingsPageProps): React.ReactElement {
+  const t = useTranslations();
+  const { locale, setLocale } = useLocaleControls();
+  const [languageSaving, setLanguageSaving] = React.useState(false);
+  const [languageError, setLanguageError] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [clearConfirmOpen, setClearConfirmOpen] = React.useState(false);
@@ -44,10 +53,57 @@ export function SettingsPage({
     }
   };
 
+  // Saved in the profile first, so the web app and Word agree; the pane
+  // switches only once that worked and does not reload.
+  const updateLanguage = async (next: Locale): Promise<void> => {
+    setLanguageSaving(true);
+    setLanguageError(null);
+    try {
+      await updateUiLocale(next);
+      await setLocale(next);
+    } catch (reason) {
+      setLanguageError(
+        reportFault(reason, {
+          fallback: t("word.language.saveFailed"),
+          operation: "settings.profile",
+        }).message,
+      );
+    } finally {
+      setLanguageSaving(false);
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-4">
-      <PageTitle className="mb-5 px-1">Settings</PageTitle>
+      <PageTitle className="mb-5 px-1">{t("word.settings.title")}</PageTitle>
       <section>
+        <GlassCardUI>
+          <div className="p-4">
+            <label
+              htmlFor="settings-language"
+              className="block text-sm font-medium text-gray-900"
+            >
+              {t("word.language.title")}
+            </label>
+            <p className="mt-1 mb-3 text-xs leading-5 text-gray-500">
+              {t("word.language.description")}
+            </p>
+            <LocaleSelect
+              id="settings-language"
+              value={locale}
+              disabled={languageSaving}
+              onChange={(next) => void updateLanguage(next)}
+            />
+            {languageError && (
+              <p role="alert" className="mt-3 text-xs text-red-600">
+                {languageError}
+              </p>
+            )}
+          </div>
+        </GlassCardUI>
+      </section>
+
+      <section className="mt-3">
         <GlassCardUI>
           <div className="p-4">
             <div className="flex items-start justify-between gap-4">

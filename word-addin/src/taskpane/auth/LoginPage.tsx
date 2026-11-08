@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslations } from "use-intl";
 import { useAuth } from "./useAuth";
 import {
   InputUI,
@@ -11,6 +12,8 @@ import {
 import { Label } from "../../shared/ui/label";
 import { WordAddinLogo } from "../components/shell/WordAddinLogo";
 import { WEB_APP_URL, openExternalUrl } from "../lib/openExternalUrl";
+import { LocaleSelect } from "../components/primitives/LocaleSelect";
+import { useLocaleControls } from "../i18n/LocaleProvider";
 
 function openWebAuthPage(
   event: React.MouseEvent<HTMLAnchorElement>,
@@ -21,6 +24,8 @@ function openWebAuthPage(
 }
 
 export function LoginPage(): React.ReactElement {
+  const t = useTranslations();
+  const { locale, setLocale } = useLocaleControls();
   const { login, loginWithGoogle, loading, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,7 +56,7 @@ export function LoginPage(): React.ReactElement {
             className={`${authGlassCardUIClassName} mb-4`}
           >
             <h1 className="mb-6 text-left font-serif text-2xl font-medium text-gray-950">
-              Log In
+              {t("word.login.heading")}
             </h1>
 
             <form
@@ -64,7 +69,7 @@ export function LoginPage(): React.ReactElement {
                   htmlFor="email"
                   className="mb-2 block text-sm font-medium text-gray-700"
                 >
-                  Email
+                  {t("word.login.email")}
                 </Label>
                 <InputUI
                   id="email"
@@ -83,7 +88,7 @@ export function LoginPage(): React.ReactElement {
                     htmlFor="password"
                     className="block text-sm font-medium text-gray-700"
                   >
-                    Password
+                    {t("word.login.password")}
                   </Label>
                   <a
                     href={`${WEB_APP_URL}/forgot-password`}
@@ -94,7 +99,7 @@ export function LoginPage(): React.ReactElement {
                     }
                     className="text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
                   >
-                    Forgot password?
+                    {t("word.login.forgotPassword")}
                   </a>
                 </div>
                 <InputUI
@@ -125,10 +130,10 @@ export function LoginPage(): React.ReactElement {
                   disabled={loading}
                   className="w-full"
                 >
-                  {loading ? "Logging in..." : "Log in"}
+                  {loading ? t("word.login.loggingIn") : t("word.login.logIn")}
                 </PillButton>
               </div>
-              <AuthDivider />
+              <AuthDivider label={t("word.login.or")} />
               <PillButton
                 type="button"
                 tone="white"
@@ -139,12 +144,14 @@ export function LoginPage(): React.ReactElement {
                 onClick={() => void handleGoogleLogin()}
               >
                 <GoogleIconUI className="h-4 w-4" />
-                {googleLoading ? "Continuing…" : "Continue with Google"}
+                {googleLoading
+                  ? t("word.login.continuing")
+                  : t("word.login.continueWithGoogle")}
               </PillButton>
             </form>
           </div>
           <div className="text-center text-sm text-gray-500">
-            Don&apos;t have an account?{" "}
+            {t("word.login.noAccount")}{" "}
             <a
               href={`${WEB_APP_URL}/signup`}
               target="_blank"
@@ -152,8 +159,15 @@ export function LoginPage(): React.ReactElement {
               onClick={(event) => openWebAuthPage(event, "/signup")}
               className="font-medium transition-colors hover:text-gray-950"
             >
-              Sign up
+              {t("word.login.signUp")}
             </a>
+          </div>
+          <div className="mt-4">
+            <LocaleSelect
+              id="login-language"
+              value={locale}
+              onChange={(next) => void setLocale(next)}
+            />
           </div>
         </div>
       </main>
