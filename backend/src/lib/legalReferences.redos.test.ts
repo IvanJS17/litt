@@ -79,3 +79,61 @@ describe("legalReferences on hostile input", () => {
         expect(timed(() => lawReferences(text))).toBeLessThan(BUDGET_MS);
     });
 });
+
+describe("rewritten heads match exactly what the previous patterns matched", () => {
+    const OLD_REGISTRY = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
+    const NEW_REGISTRY = /\bregistros?\s*(?:(?<=\s)digital(?:es)?\s*)?(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
+    const OLD_THESIS = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*(?::\s*)?/g;
+    const NEW_THESIS = /\b(?:tesis|jurisprudencias?)\s*(?:(?<=\s)aisladas?\s*)?(?::\s*)?/g;
+
+    const matches = (re: RegExp, text: string): [number, number][] => {
+        re.lastIndex = 0;
+        const out: [number, number][] = [];
+        for (let m = re.exec(text); m; m = re.exec(text)) {
+            out.push([m.index, m[0].length]);
+            if (m[0].length === 0) re.lastIndex += 1;
+        }
+        return out;
+    };
+
+    const generate = (seed: number, head: string[], tail: string[], count: number): string[] => {
+        let state = seed >>> 0;
+        const next = (n: number): number => {
+            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+            return state % n;
+        };
+        const alphabet = [...head, " ", "\t", ...tail, "no.", "num", "n\u00fameros", ":", "123456", "x"];
+        return Array.from({ length: count }, () =>
+            Array.from({ length: 1 + next(8) }, () => alphabet[next(alphabet.length)]).join(""));
+    };
+
+    it.each([
+        ["registry", OLD_REGISTRY, NEW_REGISTRY, ["registro", "registros"], ["digital", "digitales"]],
+        ["thesis", OLD_THESIS, NEW_THESIS, ["tesis", "jurisprudencia", "jurisprudencias"], ["aislada", "aisladas"]],
+    ] as const)("%s head: identical position and length on 60 000 strings", (_n, oldRe, newRe, head, tail) => {
+        const strings = generate(20260508, [...head], [...tail], 60_000);
+        expect(strings.length).toBe(60_000);
+        let withMatch = 0;
+        for (const text of strings) {
+            const before = matches(oldRe, text);
+            if (before.length > 0) withMatch += 1;
+            expect(matches(newRe, text), JSON.stringify(text)).toEqual(before);
+        }
+        expect(withMatch).toBeGreaterThan(10_000);
+    });
+
+    it("does not read digital glued to the word", () => {
+        expect(matches(NEW_REGISTRY, "registrodigital 5")).toEqual(matches(OLD_REGISTRY, "registrodigital 5"));
+        expect(matches(NEW_REGISTRY, "registrosdigitales 5")).toEqual(matches(OLD_REGISTRY, "registrosdigitales 5"));
+    });
+});
+
+describe("registry head on tabs followed by a near miss", () => {
+    it("stays linear", () => {
+        const text = "registro" + "\t".repeat(50_000) + "digitax";
+        const started = performance.now();
+        legalReferences(text);
+        lawReferences(text);
+        expect(performance.now() - started).toBeLessThan(200);
+    });
+});

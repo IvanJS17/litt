@@ -29,13 +29,13 @@ const FRACTION_HEAD = new RegExp(String.raw`\b${FRACTION_WORD}\s*`, "g");
 const FRACTION_OF_ARTICLE = /\s*(?:,\s*)?(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/y;
 const ROMAN_ITEM = /(m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))\b/y;
 // «Tesis 1a./J. 12/2020», «jurisprudencia P./J. 5/2019», «tesis I.3o.C.123».
-const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*(?::\s*)?/g;
+const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)\s*(?:(?<=\s)aisladas?\s*)?(?::\s*)?/g;
 const THESIS_ITEM = /([a-z0-9][a-z0-9./ -]{0,30}?\d+\/\d{4}|[a-z0-9]+(?:[./-][a-z0-9]+)+)/y;
 // The subject letters of an isolated thesis («I.3o.C.123 C»), skipped before a separator.
 const THESIS_SUBJECT = /\s+\(?[a-z]{1,2}\)?(?=\s*,|\s+(?:y|e|o|u)\s)/y;
 // A jurisprudence id on its own: «1a./J. 12/2020».
 const JURISPRUDENCE_ID = /(?<![a-z0-9])((?:\d+[a-z]{0,2}|[a-z]{1,2})\.\s*\/\s*j\.\s*\d+\/\d{4})/g;
-const REGISTRY_HEAD = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
+const REGISTRY_HEAD = /\bregistros?\s*(?:(?<=\s)digital(?:es)?\s*)?(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
 const REGISTRY_ITEM = /(\d{4,})/y;
 
 function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
@@ -229,8 +229,8 @@ const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alia
 
 type Token = { bare: string; ends: boolean; opens: boolean };
 
-const OPENING_PUNCTUATION = "([«\"'";
-const CLOSING_PUNCTUATION = ".,;:)]»\"'";
+const OPENING_PUNCTUATION = "([«\"'¿¡";
+const CLOSING_PUNCTUATION = ".,;:)]»\"'?!";
 
 /** `word` without the opening and closing punctuation around it (a linear scan, no regex backtracking). */
 function trimPunctuation(word: string): string {
@@ -248,9 +248,30 @@ function tokens(text: string): Token[] {
         .filter((word) => word !== "")
         .map((word) => ({
             bare: trimPunctuation(word),
-            ends: /[.,;:)\]»"']$/.test(word),
-            opens: /^[(\[«"']/.test(word),
+            ends: /[.,;:)\]»"'?!]$/.test(word),
+            opens: /^[(\[«"'¿¡]/.test(word),
         }));
+}
+
+// What may follow the bare alias «Constitución» and make it another constitution
+// («local», «de Tlaxcala», «Política del Estado de Jalisco»): then it is no longer
+// the federal one and the law is unknown (fail closed).
+const CONSTITUTION_QUALIFIERS = new Set([
+    "local", "locales", "estatal", "estatales", "particular", "general", "politica", "de", "del", "estado", "ciudad",
+    "aguascalientes", "baja", "campeche", "chiapas", "chihuahua", "coahuila", "colima", "durango", "guanajuato",
+    "guerrero", "hidalgo", "jalisco", "mexico", "michoacan", "morelos", "nayarit", "nuevo", "oaxaca", "puebla",
+    "queretaro", "quintana", "san", "sinaloa", "sonora", "tabasco", "tamaulipas", "tlaxcala", "veracruz", "yucatan",
+    "zacatecas", "cdmx",
+]);
+const FEDERAL_CONSTITUTION_TAIL = ["de los estados unidos mexicanos", "politica de los estados unidos mexicanos"];
+
+/** Whether the token at `index` qualifies the bare alias before it into a law that is not the federal constitution. */
+function qualifiesConstitution(lower: Token[], index: number): boolean {
+    const next = lower[index];
+    if (!next) return false;
+    const rest = lower.slice(index, index + 6).map((token) => token.bare).join(" ");
+    if (FEDERAL_CONSTITUTION_TAIL.some((tail) => rest.startsWith(tail))) return false;
+    return CONSTITUTION_QUALIFIERS.has(next.bare);
 }
 
 const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
@@ -276,7 +297,10 @@ function lawNamedAt(plain: string, cased: string): string | null {
             // A phrase ends where punctuation does: «constitucion, federal» is not one name.
             if (span.slice(0, -1).some((token) => token.ends)) continue;
             const written = span.map((token) => token.bare).join(" ");
-            if (LAW_ALIASES[written]) return normalizeLaw(written);
+            if (LAW_ALIASES[written]) {
+                if (written === "constitucion" && !span[count - 1].ends && qualifiesConstitution(lower, count)) return null;
+                return normalizeLaw(written);
+            }
         }
         return null;
     };
@@ -320,6 +344,8 @@ function lawNamedAt(plain: string, cased: string): string | null {
         for (let take = index; take < last; take++) words.push(lower[take].bare);
         index = last;
     }
+    // «Constitución local»: the bare head stopped at a qualifier is another constitution.
+    if (words.length === 1 && words[0] === "constitucion" && !upper[index - 1]?.ends && qualifiesConstitution(lower, index)) return null;
     return normalizeLaw(words.join(" "));
 }
 
