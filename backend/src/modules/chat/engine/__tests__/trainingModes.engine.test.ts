@@ -204,11 +204,20 @@ describe("the «sin verificar» footer", () => {
 
   it("is left out when a verified citation of the turn contains the reference", async () => {
     verified.citations = [
-      { ref: 1, doc_id: "doc-0", quote: "Artículo 1949.- La facultad de resolver las obligaciones", verified: true },
+      { ref: 1, doc_id: "doc-0", filename: "Código Civil.pdf", quote: "Artículo 1949.- La facultad de resolver las obligaciones", verified: true },
     ];
     const text = "Revisa el artículo 1949 del Código Civil.\n<CITATIONS>[]</CITATIONS>";
     const { result } = await answer(text, await planFor("hint"));
     expect(result.fullText).not.toContain("Sin verificar");
+  });
+
+  it("does not accept the same article of another law as backing", async () => {
+    verified.citations = [
+      { ref: 1, doc_id: "doc-0", filename: "Ley Federal del Trabajo.pdf", quote: "Artículo 1949.- El patrón", verified: true },
+    ];
+    const text = "Revisa el artículo 1949 del Código Civil.\n<CITATIONS>[]</CITATIONS>";
+    const { result } = await answer(text, await planFor("hint"));
+    expect(result.fullText).toContain("Sin verificar");
   });
 
   it("does not count an unverified citation as backing", async () => {

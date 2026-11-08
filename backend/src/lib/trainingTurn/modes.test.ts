@@ -171,8 +171,12 @@ describe("modes: surface × stage × pass × mode", () => {
     it("a turn with no mode is the ordinary turn", async () => {
         const begun = await begin(undefined);
         expect(begun).toMatchObject({ ok: true, plan: { mode: null, step: null, confidence: 3 } });
-        expect(begun.ok && begun.plan.systemAddendum).toBeUndefined();
-        expect(begun.ok && trainingEnginePlan(begun.plan)).toBeUndefined();
+        // Only card 14's firm-criteria text and tool: nothing of a mode.
+        expect(begun.ok && begun.plan.systemAddendum).not.toMatch(/PISTA|CONTRAPARTE/);
+        expect(begun.ok && trainingEnginePlan(begun.plan)).toEqual({
+            systemAddendum: begun.ok && begun.plan.systemAddendum,
+            firmCriteriaOrgId: ORG,
+        });
     });
 
     it("a mode still owes the approach (a hint is asked from a planteamiento)", async () => {
@@ -327,7 +331,10 @@ describe("what a mode asks of the engine", () => {
                 includeAskInputs: false,
                 noSubagents: true,
                 unverifiedFooter: UNVERIFIED_LEGAL_FOOTER,
+                // Kept on purpose: list_firm_criteria only reads (card 14), so a mode does not take it back.
+                firmCriteriaOrgId: ORG,
             });
+            expect(begun.plan.systemAddendum).toMatch(/criterios del despacho/);
         },
     );
 
