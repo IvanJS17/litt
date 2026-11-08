@@ -240,6 +240,23 @@ function ChatInputForChatImpl(
             draftStore.delete(draftKey);
         else draftStore.set(draftKey, { value, attachedDocs });
     }, [draftStore, draftKey, value, attachedDocs]);
+    // An upload that finishes after the composer closed has no state left to
+    // update, so it lands in the draft the next mount restores.
+    const addDocumentToStoredDraft = useCallback(
+        (document: Document) => {
+            if (!draftStore) return;
+            const stored = draftStore.get(draftKey) ?? {
+                value: "",
+                attachedDocs: [],
+            };
+            if (stored.attachedDocs.some((d) => d.id === document.id)) return;
+            draftStore.set(draftKey, {
+                ...stored,
+                attachedDocs: [...stored.attachedDocs, document],
+            });
+        },
+        [draftStore, draftKey],
+    );
     const [excerpts, setExcerpts] = useState<MessageExcerpt[]>([]);
     const [openExcerpt, setOpenExcerpt] = useState<MessageExcerpt | null>(
         null,
@@ -490,7 +507,10 @@ function ChatInputForChatImpl(
                 })),
             ]);
             const addCompletedDocument = (document: Document) => {
-                if (!uploadGenerationActiveRef.current) return;
+                if (!uploadGenerationActiveRef.current) {
+                    addDocumentToStoredDraft(document);
+                    return;
+                }
                 addAttachedDocuments([document]);
                 setDroppedDocuments((prev) => {
                     const existing = new Set(
@@ -503,7 +523,11 @@ function ChatInputForChatImpl(
                 });
             };
             const handleProgress = (progress: UploadProgress<Document>) => {
-                if (!uploadGenerationActiveRef.current) return;
+                if (!uploadGenerationActiveRef.current) {
+                    if (progress.status === "completed" && progress.result)
+                        addCompletedDocument(progress.result);
+                    return;
+                }
                 if (
                     progress.status === "completed" ||
                     progress.status === "error"
@@ -529,7 +553,13 @@ function ChatInputForChatImpl(
                           { onProgress: handleProgress },
                           workspace,
                       );
-                if (!uploadGenerationActiveRef.current) return;
+                if (!uploadGenerationActiveRef.current) {
+                    outcomes.forEach((outcome) => {
+                        if (outcome.status === "completed" && outcome.result)
+                            addCompletedDocument(outcome.result);
+                    });
+                    return;
+                }
                 const uploaded = outcomes.flatMap((outcome) =>
                     outcome.status === "completed" && outcome.result
                         ? [outcome.result]
@@ -563,6 +593,7 @@ function ChatInputForChatImpl(
         [
             workspace,
             addAttachedDocuments,
+            addDocumentToStoredDraft,
             canSend,
             composerOpen,
             dropUploadsToProject,
