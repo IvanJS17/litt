@@ -286,6 +286,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // A model is a starting point; one without rules cannot be marked.
     playbook_model_empty: "validation",
     // --- Training layer 3, card 14 codes (begin) ---
+    // The firm's criteria: an organization holds a bounded number, and a
+    // dissenting opinion has to name a rule of a playbook the author can open.
+    // Retrying the same request cannot help.
+    firm_criteria_limit_reached: "conflict",
+    firm_criteria_rule_not_found: "validation",
     // --- Training layer 3, card 14 codes (end) ---
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
