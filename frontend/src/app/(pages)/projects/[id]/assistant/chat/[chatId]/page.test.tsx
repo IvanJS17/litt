@@ -1699,19 +1699,44 @@ describe("workspace where three panels do not fit", () => {
 
     // An open side chat at 768-1020 px, or the sidebar open, pushed the last
     // chat past the screen's edge.
-    it("shows one panel at a time while an open side chat does not fit", async () => {
+    it("closes an open side chat that does not fit, so it is never left hidden", async () => {
+        window.history.replaceState(
+            null,
+            "",
+            "/projects/p1/assistant/chat?side=new",
+        );
+        width.mockReturnValue(1200);
+        await renderWithSideChat();
+        expect(shown()).toEqual(["explorer", "document", "chat", "sideChat"]);
+
+        // The window narrows: one chat is all that fits beside the others.
+        width.mockReturnValue(1000);
+        await act(async () => {
+            window.dispatchEvent(new Event("resize"));
+        });
+        await waitFor(() => expect(panes.sideChat()).toBeNull());
+        expect(window.location.search).toBe("");
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
+    });
+
+    it("closes a side chat from the address that does not fit once it is measured", async () => {
         window.history.replaceState(
             null,
             "",
             "/projects/p1/assistant/chat?side=new",
         );
         width.mockReturnValue(1000);
-        await renderWithSideChat();
-
-        expect(panes.sideChat()).not.toBeNull();
-        expect(shown()).toEqual(["chat"]);
-        // The side chat stays open for when the window widens again.
-        expect(await chatMenuItems()).not.toContain("Close side chat");
+        const params = Promise.resolve({ id: "p1" });
+        await act(async () => {
+            render(
+                <Suspense fallback="Loading">
+                    <ProjectAssistantChatPage params={params} />
+                </Suspense>,
+            );
+        });
+        await waitFor(() => expect(window.location.search).toBe(""));
+        expect(panes.sideChat()).toBeNull();
+        expect(shown()).toEqual(["explorer", "document", "chat"]);
     });
 
     it("shows the side chat beside the others where it fits", async () => {

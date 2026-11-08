@@ -158,3 +158,31 @@ export function workspaceRoom(
         return "split";
     return "single";
 }
+
+export type WorkspaceView = {
+    /** One panel at a time, chosen with the view switcher. */
+    singleView: boolean;
+    /** Whether a second chat can be opened or seen beside the others. */
+    sideChatShown: boolean;
+    /** An open side chat that no longer fits and must be closed. */
+    closeSideChat: boolean;
+};
+
+/**
+ * What the workspace shows for a measured `room`. Unmeasured (`null`), the
+ * CSS alone keeps a phone to one panel. A side chat is never left open where
+ * it cannot be seen or closed.
+ */
+export function workspaceView(
+    room: WorkspaceRoom | null,
+    sideChatOpen: boolean,
+): WorkspaceView {
+    const sideChatFits = room === "splitWithSideChat";
+    const closeSideChat = sideChatOpen && room !== null && !sideChatFits;
+    const singleView = room === "single" || closeSideChat;
+    return {
+        singleView,
+        sideChatShown: !singleView && (room === null || sideChatFits),
+        closeSideChat,
+    };
+}

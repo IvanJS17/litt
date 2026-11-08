@@ -5,6 +5,7 @@ import {
     resizeChatSplit,
     resizePanel,
     workspaceRoom,
+    workspaceView,
 } from "./workspacePanelWidths";
 
 const widths = { explorer: 280, chat: 420, sideChat: 420 };
@@ -157,5 +158,40 @@ describe("workspaceRoom with a folded explorer", () => {
         expect(workspaceRoom(1008, false)).toBe("split");
         expect(workspaceRoom(681, true)).toBe("single");
         expect(workspaceRoom(682, true)).toBe("split");
+    });
+});
+
+describe("workspaceView", () => {
+    it("leaves the layout to the CSS until the room is measured", () => {
+        expect(workspaceView(null, false)).toEqual({
+            singleView: false,
+            sideChatShown: true,
+            closeSideChat: false,
+        });
+        // A side chat in the address is kept until we know it cannot fit.
+        expect(workspaceView(null, true).closeSideChat).toBe(false);
+    });
+
+    it("shows the panels side by side where they fit", () => {
+        expect(workspaceView("split", false)).toEqual({
+            singleView: false,
+            sideChatShown: false,
+            closeSideChat: false,
+        });
+        expect(workspaceView("splitWithSideChat", true)).toEqual({
+            singleView: false,
+            sideChatShown: true,
+            closeSideChat: false,
+        });
+    });
+
+    it("closes an open side chat that stops fitting", () => {
+        expect(workspaceView("split", true)).toEqual({
+            singleView: true,
+            sideChatShown: false,
+            closeSideChat: true,
+        });
+        expect(workspaceView("single", true).closeSideChat).toBe(true);
+        expect(workspaceView("single", false).closeSideChat).toBe(false);
     });
 });
