@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { Languages } from "lucide-react";
 import { isLocale, LOCALES, type Locale } from "@litt/i18n";
 import { setLocale } from "@/app/lib/localeActions";
+import { notifyError } from "@/app/lib/userFacingError";
 import { cn } from "@/app/lib/utils";
 
 /**
@@ -37,9 +38,18 @@ export function LocaleSwitcher({ className }: { className?: string }) {
         if (!isLocale(next) || next === current) return;
         setChosen(next);
         startTransition(async () => {
-            const saved = await setLocale(next);
-            if (saved) router.refresh();
-            else setChosen(null);
+            try {
+                const saved = await setLocale(next);
+                if (saved) {
+                    router.refresh();
+                    return;
+                }
+            } catch (error) {
+                // The server action rejected (network, deploy skew): the
+                // language stays as it was and the user is told.
+                notifyError(error, { onRetry: () => change(next) });
+            }
+            setChosen(null);
         });
     }
 

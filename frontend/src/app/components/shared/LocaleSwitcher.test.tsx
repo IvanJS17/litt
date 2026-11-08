@@ -11,11 +11,14 @@ const { refresh, setLocale } = vi.hoisted(() => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("@/app/lib/localeActions", () => ({ setLocale }));
+const { notifyError } = vi.hoisted(() => ({ notifyError: vi.fn() }));
+vi.mock("@/app/lib/userFacingError", () => ({ notifyError }));
 
 describe("LocaleSwitcher", () => {
     beforeEach(() => {
         refresh.mockReset();
         setLocale.mockReset();
+        notifyError.mockReset();
         setLocale.mockResolvedValue(true);
     });
 
@@ -77,5 +80,23 @@ describe("LocaleSwitcher", () => {
         await user.selectOptions(screen.getByRole("combobox"), "es-MX");
         await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("en-US"));
         expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("keeps the language and tells the user when the server action rejects", async () => {
+        const failure = new Error("network");
+        setLocale.mockRejectedValueOnce(failure);
+        const user = userEvent.setup();
+        render(<LocaleSwitcher />);
+        await user.selectOptions(screen.getByRole("combobox"), "es-MX");
+        await waitFor(() => expect(screen.getByRole("combobox")).toHaveValue("en-US"));
+        expect(refresh).not.toHaveBeenCalled();
+        expect(notifyError).toHaveBeenCalledTimes(1);
+        const [error, options] = notifyError.mock.calls[0];
+        expect(error).toBe(failure);
+
+        // Retry offers the same change again and, this time, succeeds.
+        options.onRetry();
+        await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+        expect(setLocale).toHaveBeenLastCalledWith("es-MX");
     });
 });
