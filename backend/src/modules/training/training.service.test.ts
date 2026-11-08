@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Db } from "../../lib/supabase";
 import { normalizePractice } from "../../lib/training";
 import { memoryDb, type Row } from "../../__tests__/helpers/memoryDb";
@@ -98,6 +98,10 @@ beforeEach(() => {
 const withPupil = () => {
     rows("training_pupils").push({ org_id: ORG, trainee_user_id: PUPIL, mentor_user_id: MENTOR });
 };
+
+/** The modes of a pasante who owes an approach on a chat with no notes yet, and of anybody else. */
+const FIRST_RUNG = { modes: ["hint", "counterpart"], next_hint_level: 1, counterpart_next_step: 1 } as const;
+const NO_MODES = { modes: [], next_hint_level: null, counterpart_next_step: null } as const;
 
 describe("mentors", () => {
     it("an owner or admin designates a member as mentor, once, with an audit event", async () => {
@@ -349,15 +353,15 @@ describe("reads", () => {
     it("tells the client the caller's effective stage in a project", async () => {
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null },
+            data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null, ...FIRST_RUNG },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null, ...NO_MODES },
         });
         expect(await getEffectiveTrainingStage(state.db, { userId: MEMBER, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null, ...NO_MODES },
         });
     });
 });
@@ -492,13 +496,13 @@ describe("practice validation", () => {
             state.tables.projects[0].practice = spelling;
             expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
                 ok: true,
-                data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null },
+                data: { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null, ...FIRST_RUNG },
             });
         }
         state.tables.projects[0].practice = "Derecho Civil Y Mercantil";
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
-            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null },
+            data: { stage: null, attempt_required: false, confidence_required: false, urgency_pass: null, ...NO_MODES },
         });
         // Removing uses the same normalization.
         expect(
@@ -531,13 +535,15 @@ describe("GET /training/stage with an urgency pass (layer 2)", () => {
                 attempt_required: false,
                 confidence_required: false,
                 urgency_pass: { project_id: PROJECT, expires_at: "2999-01-01T00:00:00.000Z" },
+                // A pass lifts the approach, and with it the modes (hints, counterpart).
+                ...NO_MODES,
             },
         });
     });
 
     it("asks for the attempt outside the project, with an expired pass, and in Word", async () => {
         state.tables.training_urgency_passes = [pass()];
-        const required = { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null };
+        const required = { stage: "pasante", attempt_required: true, confidence_required: true, urgency_pass: null, ...FIRST_RUNG };
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, orgId: ORG })).toEqual({
             ok: true,
             data: required,
@@ -546,10 +552,103 @@ describe("GET /training/stage with an urgency pass (layer 2)", () => {
             ok: true,
             data: required,
         });
+        // Word with local storage keeps no notes: it announces no modes, but still owes the approach.
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word", storage: "local" })).toEqual({
+            ok: true,
+            data: { ...required, ...NO_MODES },
+        });
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word", storage: "cloud" })).toEqual({
+            ok: true,
+            data: required,
+        });
         state.tables.training_urgency_passes = [pass({ expires_at: new Date(Date.now() - 1000).toISOString() })];
         expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toEqual({
             ok: true,
             data: required,
+        });
+    });
+});
+
+describe("GET /training/stage: the modes and the rung the next hint would be", () => {
+    const CHAT = id(300);
+    const note = (mode: string | null, step: number | null, seconds: number, over: Row = {}): Row => ({
+        trainee_user_id: PUPIL,
+        chat_id: CHAT,
+        word_chat_id: null,
+        tabular_chat_id: null,
+        mode,
+        step,
+        attempt: "intento",
+        created_at: new Date(Date.UTC(2026, 10, 8, 12, 0, seconds)).toISOString(),
+        ...over,
+    });
+    const stage = async (args: Record<string, unknown> = {}, userId = PUPIL) => {
+        const result = await getEffectiveTrainingStage(state.db, { userId, projectId: PROJECT, chatId: CHAT, ...args });
+        if (!result.ok) throw new Error(result.kind);
+        return result.data;
+    };
+    beforeEach(() => {
+        withPupil();
+        rows("training_stages").push({ org_id: ORG, trainee_user_id: PUPIL, practice: null, stage: "pasante" });
+        state.tables.training_turn_notes = [];
+    });
+
+    it("counts the rungs from the caller's own notes, and closes the ladder after three", async () => {
+        expect(await stage()).toMatchObject({ modes: ["hint", "counterpart"], next_hint_level: 1, counterpart_next_step: 1 });
+        rows("training_turn_notes").push(note("hint", 1, 1));
+        expect(await stage()).toMatchObject({ next_hint_level: 2 });
+        rows("training_turn_notes").push(note("hint", 2, 2), note("hint", 3, 3));
+        expect(await stage()).toMatchObject({ modes: ["counterpart"], next_hint_level: null });
+        // The full answer starts the ladder over.
+        rows("training_turn_notes").push(note(null, null, 4));
+        expect(await stage()).toMatchObject({ modes: ["hint", "counterpart"], next_hint_level: 1 });
+    });
+
+    it("offers the round while it has turns left, and the close once it has begun", async () => {
+        rows("training_turn_notes").push(note("counterpart", 1, 1), note("counterpart", 2, 2));
+        expect(await stage()).toMatchObject({ modes: ["hint", "counterpart", "counterpart_close"], counterpart_next_step: 3 });
+        rows("training_turn_notes").push(note("counterpart", 3, 3));
+        expect(await stage()).toMatchObject({ modes: ["hint", "counterpart_close"], counterpart_next_step: null });
+        rows("training_turn_notes").push(note("counterpart_close", 3, 4));
+        expect(await stage()).toMatchObject({ modes: ["hint", "counterpart"], counterpart_next_step: 1 });
+    });
+
+    it("ignores another person's notes and a chat id that is not a uuid", async () => {
+        rows("training_turn_notes").push(note("hint", 1, 1, { trainee_user_id: MEMBER }), note("hint", 2, 2, { trainee_user_id: MEMBER }));
+        expect(await stage()).toMatchObject({ next_hint_level: 1 });
+        rows("training_turn_notes").push(note("hint", 1, 3));
+        expect(await stage({ chatId: "not-a-uuid" })).toMatchObject({ next_hint_level: 1 });
+        expect(await stage({ chatId: undefined })).toMatchObject({ next_hint_level: 1 });
+    });
+
+    it("finds a Word chat by its own column", async () => {
+        rows("training_turn_notes").push(note("hint", 1, 1, { chat_id: null, word_chat_id: CHAT }));
+        expect(await stage({ surface: "word", projectId: undefined })).toMatchObject({ next_hint_level: 2 });
+    });
+
+    it("offers nothing to anybody the turn owes no approach: another stage, no stage, an urgency pass", async () => {
+        rows("training_stages")[0].stage = "junior";
+        expect(await stage()).toMatchObject(NO_MODES);
+        expect(await stage({}, MEMBER)).toMatchObject(NO_MODES);
+        rows("training_stages")[0].stage = "pasante";
+        state.tables.training_urgency_passes = [
+            {
+                org_id: ORG,
+                trainee_user_id: PUPIL,
+                project_id: PROJECT,
+                starts_at: new Date(Date.now() - 60_000).toISOString(),
+                expires_at: "2999-01-01T00:00:00.000Z",
+                revoked_at: null,
+            },
+        ];
+        expect(await stage()).toMatchObject(NO_MODES);
+    });
+
+    it("answers an internal failure when the notes cannot be read, not a guessed rung", async () => {
+        state.failNext("training_turn_notes", "select", { message: "down" });
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: CHAT })).toMatchObject({
+            ok: false,
+            kind: "error",
         });
     });
 });
@@ -571,5 +670,55 @@ describe("GET /training/stage project access", () => {
         expect(
             await getEffectiveTrainingStage(state.db, { userId: OUTSIDER, projectId: PROJECT }),
         ).toMatchObject({ ok: false, kind: "not_found" });
+    });
+});
+
+describe("GET /training/stage: a junior's criteria contrast (layer 3, card 13)", () => {
+    const CHAT = id(300);
+    const saved = process.env.LITT_CHAT_SUBAGENTS;
+    beforeEach(() => {
+        withPupil();
+        rows("training_stages").push({ org_id: ORG, trainee_user_id: PUPIL, practice: null, stage: "junior" });
+        state.tables.training_criteria_contrasts = [];
+        process.env.LITT_CHAT_SUBAGENTS = "enabled";
+    });
+    afterEach(() => {
+        if (saved === undefined) delete process.env.LITT_CHAT_SUBAGENTS;
+        else process.env.LITT_CHAT_SUBAGENTS = saved;
+    });
+
+    it("offers the contrast to a junior where subagents run, and the explanation only while one waits", async () => {
+        const first = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: CHAT });
+        expect(first).toMatchObject({ ok: true, data: { stage: "junior", modes: ["criteria_contrast"], next_hint_level: null } });
+        state.tables.training_criteria_contrasts.push({ chat_id: CHAT, trainee_user_id: PUPIL, status: "awaiting_person" });
+        const waiting = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: CHAT });
+        expect(waiting).toMatchObject({ ok: true, data: { modes: ["criteria_explain"] } });
+        // Another conversation, and somebody else's contrast, wait for nothing.
+        const other = await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, chatId: id(301) });
+        expect(other).toMatchObject({ ok: true, data: { modes: ["criteria_contrast"] } });
+    });
+
+    it("does not offer the contrast on a tabular review, where the turn would refuse it", async () => {
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT, surface: "tabular" })).toMatchObject({
+            ok: true,
+            data: { stage: "junior", ...NO_MODES },
+        });
+    });
+
+    it("offers nothing without subagents on the server, in Word, or to anybody who is not a junior", async () => {
+        delete process.env.LITT_CHAT_SUBAGENTS;
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, projectId: PROJECT })).toMatchObject({
+            ok: true,
+            data: { stage: "junior", ...NO_MODES },
+        });
+        process.env.LITT_CHAT_SUBAGENTS = "enabled";
+        expect(await getEffectiveTrainingStage(state.db, { userId: PUPIL, surface: "word" })).toMatchObject({
+            ok: true,
+            data: { ...NO_MODES },
+        });
+        expect(await getEffectiveTrainingStage(state.db, { userId: MEMBER, projectId: PROJECT })).toMatchObject({
+            ok: true,
+            data: { stage: null, ...NO_MODES },
+        });
     });
 });

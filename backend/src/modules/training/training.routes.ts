@@ -50,7 +50,7 @@ trainingRouter.get("/me", requireAuth, asyncRoute(async (_req, res) => {
     send(res, await getMyTraining(createServerSupabase(), { userId: res.locals.userId as string }));
 }));
 
-// GET /training/stage?org_id=&project_id= | ?surface=word — my effective stage there.
+// GET /training/stage?org_id=&project_id= | ?surface=word[&storage=local|cloud] — my effective stage there.
 trainingRouter.get("/stage", requireAuth, asyncRoute(async (req, res) => {
     send(res, await getEffectiveTrainingStage(createServerSupabase(), {
         userId: res.locals.userId as string,
@@ -58,6 +58,8 @@ trainingRouter.get("/stage", requireAuth, asyncRoute(async (req, res) => {
         orgId: req.query.org_id,
         projectId: req.query.project_id,
         surface: req.query.surface,
+        chatId: req.query.chat_id,
+        storage: req.query.storage,
     }));
 }));
 

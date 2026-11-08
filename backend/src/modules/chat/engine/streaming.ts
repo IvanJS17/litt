@@ -40,6 +40,11 @@ import {
 } from "./tools/webSearchTools";
 import { METHODOLOGY_SYSTEM_PROMPT, METHODOLOGY_TOOL } from "./tools/methodologyTool";
 import {
+  FIRM_CRITERIA_TOOL,
+  FIRM_CRITERIA_TOOL_NAME,
+  runFirmCriteriaCall,
+} from "./tools/firmCriteriaTool";
+import {
   ASK_PARENT_TOOL,
   ASK_PARENT_TOOL_NAME,
   DELEGATE_TOOL_NAME,
@@ -47,6 +52,7 @@ import {
   createDelegateTurnState,
   delegateSystemPrompt,
   delegateTool,
+  narrowedCriteriaRoutes,
   runDelegateCall,
   type DelegateContext,
   type DelegateResult,
@@ -92,6 +98,7 @@ import { buildMemoryTurn } from "../../../lib/memory/prompt";
 export type { AssistantEvent } from "@mike/contracts";
 import type { AssistantEvent, AssistantErrorCode } from "@mike/contracts";
 import type { TrainingEnginePlan } from "../../../lib/trainingTurn";
+import { unverifiedLegalFooter } from "../../../lib/trainingHint";
 
 /**
  * Tools the model can call that execute outside this process — in the Word
@@ -392,6 +399,16 @@ export async function runLLMStream(params: {
   const webSearch = chatWebSearchEnabled() ? requestedWebSearch : null;
   const subagentRuns =
     chatSubagentsEnabled() && !trainingPlan?.noSubagents ? requestedSubagentRuns : null;
+  // A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): exactly two
+  // subagents, on the routes or approaches the server assigned. The tool only
+  // offers those routes, or none (the conversation's model) for the approaches.
+  const criteria = trainingPlan?.delegation;
+  const effectiveRoutes: SubagentRoutePlan | null | undefined = criteria
+    ? (() => {
+        const narrowed = narrowedCriteriaRoutes(criteria, subagentRoutes?.routes ?? null);
+        return narrowed && subagentRoutes ? { ...subagentRoutes, routes: narrowed } : null;
+      })()
+    : subagentRoutes;
   const includeAskInputs = requestedAskInputs && trainingPlan?.includeAskInputs !== false;
   const allowDocumentMutation =
     requestedDocumentMutation && trainingPlan?.allowDocumentMutation !== false;
@@ -418,6 +435,8 @@ export async function runLLMStream(params: {
   const conversationTools = includeAskInputs
     ? TOOLS
     : TOOLS.filter((tool) => tool.function.name !== "ask_inputs");
+  // A trainee's turn may consult the firm's criteria (never a subagent's).
+  const firmCriteriaOrgId = isSubagent ? undefined : trainingPlan?.firmCriteriaOrgId;
   // A junior's calculator: only a training plan that asks for it, never a subagent.
   const offerMethodology = trainingPlan?.methodology === true && !isSubagent;
   const webTools = webToolsFor(webSearch);
@@ -433,9 +452,10 @@ export async function runLLMStream(params: {
     ...PLAYBOOK_TOOLS,
     ...(offerMethodology ? [METHODOLOGY_TOOL] : []),
     ...webTools,
+    ...(firmCriteriaOrgId ? [FIRM_CRITERIA_TOOL] : []),
     ...(subagentRuns && chatModel
       ? // LiTT: a subagent runs on a route the user configured, or on this model.
-        [delegateTool(subagentRoutes?.routes ?? null)]
+        [delegateTool(effectiveRoutes?.routes ?? null)]
       : []),
   ];
   const advertisedTools = [
@@ -488,7 +508,7 @@ export async function runLLMStream(params: {
             : MIKE_WEB_SEARCH_SYSTEM_PROMPT,
         ]
       : []),
-    ...(subagentRuns ? [delegateSystemPrompt(subagentRoutes?.routes ?? null)] : []),
+    ...(subagentRuns ? [delegateSystemPrompt(effectiveRoutes?.routes ?? null)] : []),
   ].join("\n\n");
   // The person's words of this turn, for checking a figure they "gave".
   const lastPersonMessage =
@@ -673,7 +693,8 @@ export async function runLLMStream(params: {
     docStore,
     docIndex,
     runStore,
-    subagentRoutes: subagentRoutes ?? null,
+    subagentRoutes: effectiveRoutes ?? null,
+    criteria,
     nonce,
     signal: delegationSignal,
     write,
@@ -779,6 +800,13 @@ export async function runLLMStream(params: {
       orgId,
     );
     answerModel = selectedModel;
+    // Fail closed: a contrast without subagents is not a contrast, and
+    // nothing stands in for the two analyses.
+    if (criteria && (!subagentRuns || criteria.assignments?.length !== 2)) {
+      throw new UserFacingError(
+        "Subagents are not available for this conversation, so the criteria contrast cannot run.",
+      );
+    }
     const delegateContext = subagentRuns && delegateContextFor(subagentRuns, selectedModel);
     const providerSearches =
       webSearch === "provider" ? providerWebSearch.reserve() : 0;
@@ -892,8 +920,12 @@ export async function runLLMStream(params: {
         const delegateCalls = permittedCalls.filter(
           (c) => c.name === DELEGATE_TOOL_NAME,
         );
+        const firmCalls = firmCriteriaOrgId
+          ? permittedCalls.filter((c) => c.name === FIRM_CRITERIA_TOOL_NAME)
+          : [];
         const handledElsewhere = (c: NormalizedToolCall) =>
           webToolNames.has(c.name) ||
+          (!!firmCriteriaOrgId && c.name === FIRM_CRITERIA_TOOL_NAME) ||
           c.name === DELEGATE_TOOL_NAME ||
           !!clientTools?.owns(c.name);
         const serverCalls = permittedCalls.filter((c) => !handledElsewhere(c));
@@ -920,6 +952,17 @@ export async function runLLMStream(params: {
           events.push(event);
           write(`data: ${JSON.stringify(event)}\n\n`);
         });
+        for (const call of firmCalls) {
+          const { content, event } = await runFirmCriteriaCall(call, {
+            db,
+            userId,
+            orgId: firmCriteriaOrgId!,
+            nonce,
+          });
+          clientResultByCallId.set(call.id, content);
+          events.push(event);
+          write(`data: ${JSON.stringify(event)}\n\n`);
+        }
         if (clientTools) {
           for (const call of permittedCalls) {
             if (!clientTools.owns(call.name)) continue;
@@ -1206,6 +1249,23 @@ export async function runLLMStream(params: {
     emittedCitationCount: citations.length,
     usedCustomCitationBuilder: !!buildCitations,
   });
+  // LiTT training (hints and counterpart turns): a law, article or thesis the
+  // answer names that no verified citation of this turn backs is marked by
+  // the server, not left for the model to flag.
+  if (trainingPlan?.unverifiedFooter && !isSubagent) {
+    const open = fullText.indexOf(CITATIONS_OPEN_TAG);
+    const footer = unverifiedLegalFooter(
+      open >= 0 ? fullText.slice(0, open) : fullText,
+      citations,
+      trainingPlan.unverifiedFooter,
+    );
+    if (footer) {
+      const text = `\n\n${footer}`;
+      fullText += text;
+      events.push({ type: "content", text });
+      write(`data: ${JSON.stringify({ type: "content_delta", text })}\n\n`);
+    }
+  }
   citationSnapshotSeq += 1;
   write(
     `data: ${JSON.stringify({ type: "citations", status: "final", citations })}\n\n`,

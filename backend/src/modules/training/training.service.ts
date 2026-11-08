@@ -47,7 +47,10 @@ import {
     TRAINING_PRACTICE_MAX_CHARS,
     type TrainingScope,
 } from "../../lib/training";
+import { ladderOf, loadLadderNotesAnywhere } from "../../lib/trainingHint";
 import { resolveTurnTraining } from "../../lib/trainingPass";
+import { chatSubagentsEnabled } from "../../lib/chatFeatureGates";
+import { availableModes } from "../../lib/trainingTurn";
 import { isUuid } from "../../lib/uuid";
 
 type Actor = { actorId: string; actorEmail?: string | null; orgId: string };
@@ -160,6 +163,83 @@ export async function getMyTraining(
  * itself; this only tells the client what to show.
  */
 export async function getEffectiveTrainingStage(
+    db: Db,
+    args: {
+        userId: string;
+        userEmail?: string | null;
+        orgId?: unknown;
+        projectId?: unknown;
+        surface?: unknown;
+        /** The chat the turn would continue: the hint ladder is counted from its notes. */
+        chatId?: unknown;
+        /**
+         * Word only: where the add-in keeps the chat. The server cannot know it
+         * here, and a local chat keeps no notes, so no ladder: `local` announces
+         * no modes (the turn would refuse them). Absent or anything else counts
+         * as cloud, as before.
+         */
+        storage?: unknown;
+    },
+): Promise<ServiceResult<TrainingEffectiveStage>> {
+    const base = await effectiveStageOf(db, args);
+    if (!base.ok) return base;
+    const localWord = args.surface === "word" && args.storage === "local";
+    // Subagents exist on the chat and the project chat only, so the criteria contrast
+    // is not announced for Word or tabular review (their turns would refuse it).
+    const subagentSurface = args.surface !== "word" && args.surface !== "tabular";
+    return withModes(db, args.userId, args.chatId, base.data, localWord, subagentSurface);
+}
+
+/**
+ * The modes open to the caller now and the rung the next hint would be
+ * (hints and the counterparty's lawyer). Counted by the server from the
+ * caller's own notes of that chat, as the turn counts them; the client only
+ * shows what it is told.
+ */
+async function withModes(
+    db: Db,
+    userId: string,
+    chatId: unknown,
+    base: TrainingEffectiveStage,
+    keepsNoNotes: boolean,
+    subagentSurface: boolean,
+): Promise<ServiceResult<TrainingEffectiveStage>> {
+    // A junior's criteria contrast (lib/trainingTurn/criteriaContrast.ts): only where
+    // subagents exist and run, and the second step only while a contrast waits
+    // for the person's explanation. The turn decides again.
+    if (base.stage === "junior" && subagentSurface && chatSubagentsEnabled()) {
+        const id = readUserId(chatId);
+        let waiting = false;
+        if (id) {
+            const { data, error } = await db
+                .from("training_criteria_contrasts")
+                .select("id")
+                .eq("chat_id", id)
+                .eq("trainee_user_id", userId)
+                .eq("status", "awaiting_person")
+                .maybeSingle();
+            if (error) return internalFailure(error);
+            waiting = !!data;
+        }
+        return ok({
+            ...base,
+            modes: [waiting ? "criteria_explain" : "criteria_contrast"],
+            next_hint_level: null,
+            counterpart_next_step: null,
+        });
+    }
+    const owes = base.attempt_required && !keepsNoNotes;
+    const id = owes ? readUserId(chatId) : null;
+    let notes: Parameters<typeof ladderOf>[0] = [];
+    if (id) {
+        const loaded = await loadLadderNotesAnywhere(db, { userId, chatId: id });
+        if (!loaded.ok) return internalFailure(loaded.error);
+        notes = loaded.notes;
+    }
+    return ok({ ...base, ...availableModes(owes, ladderOf(notes)) });
+}
+
+async function effectiveStageOf(
     db: Db,
     args: {
         userId: string;

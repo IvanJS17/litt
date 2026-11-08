@@ -4,7 +4,10 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import {
     trainingAttemptText,
+    trainingCloseMessage,
     trainingConfidenceText,
+    trainingModesText,
+    trainingNeedsQuestionText,
     trainingNoteText,
     trainingUrgencyPassText,
     type TrainingTranslate,
@@ -23,6 +26,9 @@ export function useTrainingText() {
         return {
             attempt: trainingAttemptText(translate),
             confidence: trainingConfidenceText(translate),
+            modes: trainingModesText(translate),
+            closeMessage: trainingCloseMessage(translate),
+            needsQuestion: trainingNeedsQuestionText(translate),
             note: trainingNoteText(translate),
             urgencyPass: (expiresAt: string) => trainingUrgencyPassText(translate, expiresAt),
         };

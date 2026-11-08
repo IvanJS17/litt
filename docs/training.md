@@ -173,12 +173,87 @@ Product decisions applied while the open questions of layer 3 are unanswered
 coincidence according to the AI contrast, excluding answers with unverified
 citations, with the mentor able to correct it.
 
+## Hints and the counterparty's lawyer (layer 3)
+
+Two modes of the turn for a **pasante who owes an approach** (not under an
+urgency pass, not a junior, not a lawyer). A mode is an ordinary chat turn on
+the same surfaces, the same pinned route, `llm.egress` and citation check; the
+request names it with `training_mode` (`hint`, `counterpart`,
+`counterpart_close`) and the server does the rest. Nothing is audited: hints and
+rounds are learning data and go with the membership.
+
+**Rules common to the modes**
+
+- They only restrict. The plan (`lib/trainingTurn/modes.ts`) adds a system text
+  and withholds the tools that write documents, `ask_inputs` and subagents
+  (`allowDocumentMutation: false`, `includeAskInputs: false`,
+  `noSubagents: true`). The engine neither advertises nor runs a writer even if
+  the model names one. The stage grants nothing: the same chat is open to the
+  same people.
+- They read the turn's rule: an urgency pass lifts the approach and with it
+  the modes (`400 training_mode_not_allowed`). So does any other stage, no
+  stage, a mode the server does not know, and a chat the server keeps no notes
+  of (Word with `storage: "local"`).
+- A mode still owes the approach (a hint is asked from a *planteamiento*,
+  which may be rewritten with the hint in view). The thermometer mark is owed
+  except on a hint, which is not rated: any mark sent with one is dropped.
+- The note of the turn keeps `mode` and `step`. A hint and a counterpart turn
+  have nothing to compare, so their note is `contrast_status = 'skipped'` and
+  they are never contrasted.
+
+**The ladder is the server's.** `step` is never read from the request. A hint's
+rung is the next one after the run of `hint` notes at the end of the chat (the
+person's own notes of that chat only): 1 *enfoque* (what figure is at stake and
+what to ask), 2 *dónde buscar* (names of the statute and the chapter), 3 *qué
+revisar* (articles or passages of the matter's documents). None gives the
+conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
+full answer) starts the ladder over. Only delivered turns count as a rung: a
+hint or counterpart note is written `pending` and settles as `skipped` when the
+turn completes, so one that failed or was aborted gave the person nothing and
+does not advance the ladder (two aborts leave the first rung next). The turn
+after hints is not flagged anywhere yet; no card reads it.
+
+**The counterparty's lawyer.** A round is up to three `counterpart` turns
+(`COUNTERPART_MAX_ROUNDS`): the AI plays the other side, with up to three
+objections anchored to what the person wrote and the matter's passages, and
+resolves none. A fourth is `400 training_counterpart_rounds_done`.
+`counterpart_close` ends the round (it needs at least one turn, else
+`training_mode_not_allowed`): the AI states which objections were held, conceded
+and left undefended, and a second call, on the conversation's own provider,
+model and credential (no fallback, never fails the turn), produces the note's
+`contrast` with the sections «Sostuviste», «Concediste», «Faltó defender»
+(`lib/trainingCounterpart.ts`). The next counterpart turn opens a new round.
+
+**«Sin verificar».** LiTT has no corpus of laws. In a mode turn, if the answer
+names a legal reference that no citation the server verified in that turn
+holds, the engine appends a fixed line («Sin verificar: … Confírmalos en la
+fuente oficial.») to the stored answer. The comparison is by article **and
+law** (`lawReferences`, as in the accountability and methodology annex): article
+1949 of the Código Civil is not backed by article 1949 of the Ley Federal del
+Trabajo. Each verified citation's law is read from its text or, failing that,
+from its document's title (`lawOfTitle`); an article whose law cannot be
+established, in the answer or in the citation, is marked. The model does not
+decide what is verified.
+
+**What the mentor sees.** The two-minute review gains computed lines in
+`doubts`, ahead of the model's (`source` `hint`, `confidence`, `foundation`,
+`counterpart`, `ref` = the note; they carry no text of the hint or the
+objections) and counts in `signals` (`hints_used`, `max_hint_level`,
+`counterpart_rounds`, `counterpart_closed`). A mark that the AI contrast did not
+bear out (a «Seguro» that did not coincide, a «Casi adivino» that did) and a
+matching conclusion on a weak basis are also lines; they say «según el contraste
+de la IA» and rank nothing.
+
+**`GET /training/stage`** with `chat_id` adds `modes` (those open now, empty
+when no approach is owed), `next_hint_level` and `counterpart_next_step`,
+counted as the turn counts them. The server decides again on every turn.
+
 ## API
 
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3) and the urgency pass in force there (`urgency_pass`, layer 2); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it; `criteria_contrast` and `criteria_explain` are announced only for the chat and the project chat, never for `surface=tabular` or Word); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET /training/me/criterion?org_id=` | the caller's own map, calibration, hint counts and retakes (layer 3) |
 | `POST /training/me/retakes`, `PUT /training/me/retakes/:id/answer` | the caller asks for the retake of a weak topic and answers it (layer 3) |
@@ -242,8 +317,11 @@ The four surfaces do not repeat this logic: each calls `lib/trainingTurn`
   turn did not end in an error.
 - `readTrainingBody` reads the training fields of a request body and ignores
   the rest. `trainingEnginePlan` turns the plan into the engine's single
-  `trainingPlan` argument (extra system text and narrower tool limits, plus
-  the `methodology` flag below).
+  `trainingPlan` argument (extra system text, narrower tool limits, the
+  organization whose firm criteria the turn may read (see «One mold of
+  criterion»), the `methodology` flag below, and the limits of a mode for a hint
+  or a counterpart turn, see below); it asks nothing of the engine for an
+  ordinary turn.
 
 A new training behavior is a file in that folder plus one line in `BEHAVIORS`;
 it does not touch the surfaces again.
@@ -293,6 +371,44 @@ composer; the quoted lines do not count towards the 60 characters, so the
 person still owes an approach of their own. The server decides either way. A composer in a project chat,
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
+
+### Hints and the counterparty's lawyer on screen (layer 3)
+
+The composers (web chat, project and tabular chat, and Word) show the modes
+the server opened, under the approach field and the thermometer, when `GET
+/training/stage?chat_id=` says `modes` (`TrainingModesUI` in `packages/ui`; the
+words are `training.criterion.modes`). They never decide anything: the rung of
+a hint (`next_hint_level`) and the turn of a round (`counterpart_next_step`)
+are the server's, shown in words («Sigue: pista 2 de 3, Dónde buscar.»), with
+the three rungs listed (a used one carries a check mark and «usada», the next
+one is `aria-current="step"`), never by colour alone.
+
+- **«Pedir una pista»** sends the turn in mode `hint`: it needs the question and
+  the approach, not the thermometer mark (a hint is not rated, and the client
+  sends none). The approach and a mark already given stay in the composer for
+  the turn after the hint, which the person may write with the hint in view.
+- **«Probar con el abogado de la contraparte»** sends a `counterpart` turn: a
+  whole turn, so it owes the approach and the mark, and clears them like any
+  send. **«Cerrar la ronda»** sends `counterpart_close`; with nothing written it
+  sends its own line (`training.criterion.modes.closeMessage`).
+- A mode asked for with no question says so (`needsQuestion`) and sends nothing.
+- The composer reads the stage again for its chat when a turn of that chat ends
+  (a hint moves the ladder one rung) and when the server refuses a turn for
+  `training_mode_not_allowed`, `training_hint_limit_reached` or
+  `training_counterpart_rounds_done` (`isTrainingRefusalCode`), so a stale
+  button disappears instead of failing again. The modes are counted per chat
+  and wait for their own reading when the chat changes; the approach field does
+  not flicker while a new chat is given its id.
+- The chat id is the raw one (the side chat's draft key and «Responder» use the
+  same), and the side chat's draft store keeps only the question, never the
+  approach or the mark.
+- **Word.** A chat kept on the device (`storage: "local"`) has no notes the
+  server can count, which answers `training_mode_not_allowed`: no mode is
+  offered there, and no `chat_id` is sent to the stage.
+- The private note names a hint's rung («Pista 2 de 3») and a counterpart
+  turn; a closed round's contrast is headed «Cómo salió la ronda». A message
+  just sent is matched to its note by approach **and mode**, since a hint keeps
+  the approach for the turn after it.
 
 ### Methodology annex (junior)
 
@@ -1031,9 +1147,17 @@ owner, an admin, another member, an outsider and the pupil on the mentor's
 route get the same `404` as an unknown id. The mentor reads only the notes of
 works in **matters they can open**; the rest are counted
 (`notes_without_access`) and never used. A retake is about a topic, with no
-matter, so the mentor sees its question, answer and contrast only when its
-topic shows in the notes they can open; otherwise `text_hidden: true` and only
-the topic, status and verdict. Only the person's response carries `generation`
+matter, so the mentor gets it only when its topic shows in the notes they can
+open. A retake is built from specific notes, so the mentor gets its text, topic,
+status and verdict **only if every one of its `source_note_ids` is in a matter
+they can open today** (the same filter as the notes, `visibleToMentor`). One
+whose sources include a note outside that set, a note that no longer exists, or
+none recorded is **only counted** (`retakes_without_access`): no label (the
+model wrote it from notes the mentor cannot read), status, verdict or date, and
+it feeds neither the map nor `open_retake_id`. A topic that also appears in a
+reserved matter does not open a retake whose sources are all openable to
+anything else, and does not leak one whose sources are not. So
+`text_hidden` is always `false`. Only the person's response carries `generation`
 (whether they can retake and on which of their keys).
 
 **The retake.** Nothing is scheduled; it is generated when the person asks, so
@@ -1055,7 +1179,16 @@ no decrypted credential is ever kept for a background job.
    and a verdict from the closed set); the server writes the contrast with the
    three usual headings. The answer, contrast and verdict are written **once**
    (a trigger refuses any later change, `LT002`), `status` becomes `answered`
-   and the map gains an event. If the contrast fails the retake stays `open`,
+   and the map gains an event. A PUT that loses the claim to another one
+   answers `409 training_retake_not_open`. The contrast reads **exactly the
+   notes the question was made from** (`source_note_ids`, stored on the row when
+   the question is made): notes written on the topic afterwards are never
+   added, since they may sit in matters the mentor cannot open. If some of
+   those notes were deleted meanwhile, the contrast uses the ones that remain;
+   if none remain it fails closed with `409 training_retake_source_gone`, no
+   model is called, and the retake is closed as `failed` so it does not hold the
+   person's slot (they can ask for a new one). If the
+   contrast fails the retake stays `open`,
    **the answer is not saved** (`503`) and the person may try again.
 
 **Model route.** The person's own, governed BYOK, the same rule as the full
@@ -1065,7 +1198,8 @@ default) when the question is made, stored on the row (`model_provider`,
 they explicitly pick another of their keys. When the stored route no longer
 serves them the answer is `409 chat_route_credential_unavailable` with no other
 model tried; with no usable key the start answers `400
-training_review_key_required` and nothing is written. `llm.egress`
+training_review_key_required` (the same code as reviews and questions; its
+text names retakes too) and nothing is written. `llm.egress`
 (`surface: training_retake`, `retake_id`, `step`) is recorded before each call
 that sends text. Never the mentor's route.
 
@@ -1088,7 +1222,8 @@ with `trainee_user_id`, RLS with no browser grant, a cascade from `org_members`
 (it goes with the membership or the account), covered by the generic discovery
 in `performance.litt-training-supervision.sql` and by
 `performance.litt-training-retakes.sql`. The account export carries the
-holder's retakes (`training.retakes`) without the credential reference; the
+holder's retakes (`training.retakes`) with their `source_note_ids` (the ids of
+the holder's own notes, which the export carries with their ids) and without the credential reference; the
 notes it already carries hold the rest of the map's evidence, with no mentor
 id.
 
@@ -1098,8 +1233,10 @@ retake row keeps no practice area (nothing reads it yet: the plan's column can
 be added when calibration by practice area needs it); the labels offered to the
 contrast are the person's across all their notes in the organization, not per
 practice area; a retake that cannot be judged goes back to `open` instead of
-being discarded; the codes added are `training_retake_in_progress`,
-`training_retake_not_due` and `training_retake_not_open`.
+being discarded; the states are `pending | open | answered | failed` (the plan's; there is no
+`settled`); the codes added are `training_retake_in_progress`,
+`training_retake_not_due`, `training_retake_not_open` and
+`training_retake_source_gone`.
 
 ### On screen: «Mi criterio» and the «Criterio» tab
 
@@ -1239,3 +1376,186 @@ action after sending (so the person never sees the machine's list in the same
 step); a reading that cannot be compared stays `failed` and can be retried
 instead of being discarded; `swapped`, `version_id`, `updated_at` and the
 `comparing` state were added to the row of the plan.
+
+## One mold of criterion: the firm's criteria (layer 3)
+
+Migration `backend/migrations/20261108_76_litt_firm_criteria.sql` (also in
+`backend/schema.sql`), module `backend/src/modules/firm-criteria/`, shared logic
+in `backend/src/lib/firmCriteria.ts`, the tool in
+`backend/src/modules/chat/engine/tools/firmCriteriaTool.ts`, the turn behavior
+in `backend/src/lib/trainingTurn/criteria.ts`, the screen in
+`frontend/src/app/components/training/firmCriteria/` (Settings → «Criterios del
+despacho», `/settings/firm-criteria`) and the panel in
+`packages/ui/src/FirmCriteriaConsultedUI.tsx`. Strings are in the
+`training.firmCriteria` namespace of the catalog.
+
+A person of the firm writes a **position** under their name: a `criterio`
+(practice area, topic, text) or a `voto_particular`, which also names the
+playbook rule it disagrees with. LiTT ships none: it has no corpus of laws,
+theses or dissenting opinions, only what the firm writes here or loads as
+documents. A criterion is **a position, not law**: nothing in the screen, the
+panel or the prompt gives it legal authority, and LiTT stores no legal source
+for it.
+
+**It is the firm's content, not learning data.** `firm_criteria` has no pupil
+column, does not hang from a membership and is not a `training_*` table, so the
+learning rule (`training_can_read_learning`) and the generic discovery never
+apply to it. It is closed to the browser roles (RLS on, no policy, no grant;
+the backend is `service_role`) and every query is scoped by `org_id`.
+
+| | Who |
+|---|---|
+| Read | every member of the (team) organization, trainees included |
+| Write, change | a member with **no training stage** in the organization, their own criteria only |
+| Remove | the author, or an owner or admin |
+
+A person who is not a member, a personal workspace, an id of another
+organization and an unknown id all get the same `404`. A trainee gets `403` on a
+write. `GET /orgs/:orgId/firm-criteria` also says what the caller may do
+(`can_write`, `can_manage`) so the screen offers only that. An organization
+holds at most 500 (`409 firm_criteria_limit_reached`). A dissenting opinion's
+playbook must be one the author can open, in the same organization, and the rule
+must be in it (`400 firm_criteria_rule_not_found`); a deleted playbook leaves the
+opinion with its rule id and no link.
+
+**Attribution reuses layer 3's correction attribution** (`docs/playbooks.md`,
+«Origin»): the author's profile name, shown with the date, with no new model
+for who said what. `author_user_id` is `on delete set null`: when an account is
+erased the criterion **stays with the firm** and reads «usuario eliminado»
+(the retention rule: work inside a firm stays with it). Leaving the firm does
+not remove it either. For the same reason it is not in the member handover
+(`ORG_CONTENT_TABLES` is the inventory of what blocks deleting an organization,
+and an organization is only ever soft-deleted), and the account export does not
+carry it.
+
+**The tool.** `list_firm_criteria` (`practice`, `topic`, both optional) is
+advertised **only** in a turn whose training plan names the organization, which
+is any turn of a person with a stage (`pasante` or `junior`), on the four
+surfaces; never in a subagent's. It reads with the caller's own membership,
+calls no model, and returns at most 8 criteria: those of another practice area
+are left out, a topic needs a shared word of four letters or more (heading
+before text, accents and case ignored), and without a topic the most recently
+changed come first. The text goes to the model fenced as untrusted content with
+the turn's nonce. When the table cannot be read the model is told only that the
+consultation failed.
+
+**The event and the panel.** For each call the **server** emits a
+`firm_criteria` event with the criteria exactly as stored, with author and date
+(`FirmCriteriaEvent`, persisted with the message). The web shows it under the
+answer as «Criterios consultados», a disclosure with each criterion's topic,
+kind, practice area, text, author and date, and an honest line when the firm had
+written nothing or the consultation failed. So «según Fulano» never depends on
+what the model writes. Word receives the same event, but its task pane does not
+show the panel yet (the shared component is ready; mounting it is a seam, like
+the mentor panel's pending sections).
+
+**The system instruction.** The training plan (`trainingPlan.systemAddendum`,
+added by the behavior in `lib/trainingTurn/criteria.ts`) tells the model, for
+everyone with a stage: present every reasonable position and never declare one
+the only one; separate what is documented (the matter's documents and the
+criteria the tool returned) from what it knows by memory, marking the latter
+«sin verificar»; attribute each criterion to its author as the tool returns it;
+and never invent a criterion, a dissenting opinion, an author or a date. It can
+only narrow the turn: the text asks for more care and the tool only reads. A
+person with no stage gets neither.
+
+**Audit** (insert-only, `surface: organization`, `{ org_id, criterion_id, kind }`
+only): `firm_criteria.created`, `firm_criteria.updated` and
+`firm_criteria.deleted`. The topic and the text are never audited. The
+consultation costs no model call, so it adds no `llm.egress`; BYOK governance is
+unchanged because the tool runs inside the conversation's own turn.
+
+**Product decisions taken without the plan** (the simplest that comply; open
+question 5): anyone in the firm with no training stage writes and edits their
+own criteria, with their name; everyone in the firm reads them; the author or an
+owner or admin removes one; only the author edits. Removal asks for a second
+confirmation instead of opening a modal.
+
+## Criteria contrast (layer 3, junior)
+
+The same assignment goes to **two subagents**, the junior reads the two
+analyses side by side, writes **why they think the analyses diverge before
+seeing the AI's explanation**, and the AI's explanation is compared with theirs.
+It trains judgment between two readings; nothing is scored and nobody is
+compared with anybody.
+
+**Two modes of the turn** (`lib/trainingTurn/criteriaContrast.ts`, registered with the
+other modes in `modes.ts`), both ordinary chat turns on the chat and the project
+chat, with the conversation's pinned route and its `llm.egress`:
+
+| `training_mode` | What it does |
+|---|---|
+| `criteria_contrast` | The system text obliges the answer to start **exactly two** subagents with the same assignment and return both analyses as «Análisis 1» and «Análisis 2», **without comparing them**. The first call also carries `criteria_routes` (two route names) when the person has two or more routes. |
+| `criteria_explain` | Carries `criteria_explanation` (60 to 4000 characters, the person's own words) in the same conversation. The answer is the AI's explanation (the two analyses come from the row, fenced as content to evaluate; no subagents); afterwards a separate call compares the two explanations. |
+
+**Only a junior, only where subagents run.** The modes need stage `junior` in an
+organization, no urgency pass, a chat the server keeps, a surface with
+subagents (chat and project chat; not tabular review or Word) and
+`LITT_CHAT_SUBAGENTS=enabled`. Anything else is `400 training_mode_not_allowed`
+with its reason, and nothing replaces the missing subagents. Only one contrast
+waits for its explanation in a conversation. They only restrict, like every
+mode: no document writing, no `ask_inputs`, no methodology calculator, and the
+accountability call (Accountability mode) is not made for these two turns.
+
+**Which routes.** The server decides, never the model.
+
+- With **two or more usable routes** in Settings > Subagents, the person picks
+  two (`criteria_routes`, distinct). The `delegate` tool offers only those two,
+  each analysis runs on its own, and whatever route the model names is ignored.
+- With **exactly one** usable route, both analyses run on that same route, one
+  with a literal and one with a systematic **approach**. The conversation's model
+  is never used when the person has a route: the subagents of the chat only run
+  on the named routes the person configured, or on the conversation's model
+  when there are none.
+- With **none configured**, the same two approaches run on the conversation's
+  model (never a route's). Routes configured but none usable (for example the
+  only one left the catalog) fail closed with a message: nothing replaces them.
+  The approaches are the server's instructions (`delegateTools.ts`) and carry
+  no legal content. The page says which case applies before the person starts.
+- A route that **cannot run** (no key, a model the organization does not allow,
+  a model that left the catalog) fails visibly, as every subagent route does,
+  and is **not replaced**: the contrast is recorded as `failed` and the page says
+  which analysis did not run.
+- The engine enforces the rest (`runCriteriaDelegateCall`): a third subagent or a
+  continuation is refused, and what each one ran on is recorded. Without the
+  subagents, or with the assignment not decided, the turn fails closed before
+  any model call.
+
+**Egress of the comparison.** The comparison of the two explanations is a second
+model call on the conversation's own route. It writes its own `llm.egress` with
+`surface: training_contrast` (not `training_backing`) before the call, and makes
+no call if that record cannot be written. The label is free text in
+`audit_events.surface`: no enum, list or database check, so it needs no migration.
+
+**Data.** `training_criteria_contrasts` (migration
+`20261108_82_litt_training_criterion_contrasts.sql`), one row per contrast:
+`routes` (name, approach, provider, model and status of each analysis:
+identifiers only, never a credential), `briefs` (the two analyses),
+`status` (`awaiting_person` | `explained` | `failed`), `person_explanation` and
+`comparison` (the same three sections as every contrast: «Coincide», «No coincide»,
+«Faltó»). It is learning data: the person and their **current** mentor read it
+(`training_can_read_learning`); owners and admins do not; it goes with the
+membership (`org_members` cascade) and with its chat; the ARCO export carries
+the holder's rows (`training.criteria_contrasts`) with no mentor id. The mentor
+sees the routes, the person's explanation and the comparison, for works in
+matters they can open (the others are counted); the two analyses stay in the
+person's chat. `training.criteria_contrast_started` is audited with
+`{ org_id, target_user_id }` and the chat id: no text.
+
+| Endpoint | Who |
+|---|---|
+| `GET /training/me/criteria-contrasts[?chat_id=&org_id=]` | the person, with the analyses |
+| `GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts` | the current mentor |
+
+`GET /training/stage` offers `criteria_contrast` to a junior where it is open,
+and `criteria_explain` (instead) while a contrast waits for the explanation of
+that `chat_id`.
+
+**Screen.** Settings → Training → Criteria contrast
+(`/settings/training/contrast`): the assignment and the two routes (or the note
+about the two approaches), then each contrast with its two analyses in two
+columns (stacked on a phone), the explanation field first, then the comparison
+and a link to the AI's explanation in the conversation. Text and labels in
+en-US and es-MX (`training.criterion.contrast`); the analyses and the
+explanations are never translated. The mentor's section is
+`MentorCriteriaContrasts`.

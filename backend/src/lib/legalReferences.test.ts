@@ -159,6 +159,88 @@ describe("lawReferences", () => {
     });
 });
 
+describe("a qualified constitution is not the federal one (B1) and final punctuation does not hide an alias (W4)", () => {
+    const cpeum = normalizeLaw("CPEUM");
+    const keys = (text: string) => [...lawReferences(text)];
+    it.each([
+        "¿Qué exige el artículo 5 de la Constitución local para los municipios?",
+        "El artículo 5 de la constitución de Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución de Tlaxcala dice algo.",
+        "El artículo 5 de la Constitución Política del Estado de Jalisco dice algo.",
+        "El artículo 5 de la constitución política del estado de jalisco dice algo.",
+        "El artículo 5 de la Constitución estatal dice algo.",
+        "El artículo 5 de la constitución de la Ciudad de México dice algo.",
+    ])("does not match the CPEUM: %s", (text) => {
+        const found = keys(text);
+        expect(found).toHaveLength(1);
+        expect(found).not.toContain(`art:5@${cpeum}`);
+        // Either unknown or a law of its own name, never the federal one.
+        expect(found[0]).toMatch(/^art:5@(\?|constitucion .+)$/);
+    });
+    it.each([
+        "El artículo 5 de la Constitución establece algo.",
+        "El artículo 5 de la constitución exige algo.",
+        "El artículo 5 de la Constitución Política de los Estados Unidos Mexicanos establece algo.",
+        "El artículo 5 de la constitución política de los estados unidos mexicanos establece algo.",
+        "El artículo 5 de la CPEUM establece algo.",
+    ])("still matches the CPEUM: %s", (text) => {
+        expect(keys(text)).toEqual([`art:5@${cpeum}`]);
+    });
+    it("recognizes an alias followed by the question's closing mark", () => {
+        expect(keys("¿Qué dice el artículo 47 de la LFT?")).toEqual(["art:47@ley federal trabajo"]);
+        expect(keys("¿Qué dice el artículo 47 de la Constitución?")).toEqual([`art:47@${cpeum}`]);
+        expect(keys("¡Qué dice el artículo 47 de la Constitución!")).toEqual([`art:47@${cpeum}`]);
+        expect(keys("(artículo 47 de la Constitución)")).toEqual([`art:47@${cpeum}`]);
+    });
+    it("keeps a qualified constitution unknown even before a closing mark", () => {
+        expect(keys("¿Qué dice el artículo 5 de la Constitución local?")).toEqual(["art:5@?"]);
+    });
+});
+
+describe("every loose alias of the federal constitution takes the same qualifier rule", () => {
+    const cpeum = normalizeLaw("CPEUM");
+    const keys = (text: string) => [...lawReferences(text)];
+    it.each([
+        "El artículo 5 de la Carta Magna local establece algo.",
+        "El artículo 5 de la Carta Magna estatal establece algo.",
+        "El artículo 5 de la Carta Magna de Tlaxcala establece algo.",
+        "El artículo 5 de la carta magna del Estado de Jalisco establece algo.",
+        "¿Qué dice el artículo 5 de la Carta Magna local?",
+        "El artículo 5 constitucional de Tlaxcala establece algo.",
+        "El artículo 5 constitucional local establece algo.",
+        "El artículo 5 constitucional estatal establece algo.",
+        "El artículo 5 constitucional del Estado de Jalisco establece algo.",
+        "El artículo 5 constitucional de la Ciudad de México establece algo.",
+        "El artículo 5 de la constitución de 1917 de Tlaxcala establece algo.",
+        "El artículo 5 de la Constitución del país establece algo.",
+        "El artículo 5 de la constitución de la república establece algo.",
+        "El artículo 5 de la constitución de acuerdo con la de Tlaxcala establece algo.",
+    ])("is unknown, never the CPEUM: %s", (text) => {
+        expect(keys(text)).toEqual(["art:5@?"]);
+    });
+    it.each([
+        "El artículo 5 de la Carta Magna establece algo.",
+        "¿Qué dice el artículo 5 de la Carta Magna?",
+        "El artículo 5 constitucional establece algo.",
+        "El artículo 5 constitucional, de acuerdo con la ley, establece algo.",
+        "El artículo 5 de la Constitución de acuerdo con la ley establece algo.",
+        "El artículo 5 de la Constitución de conformidad con la ley establece algo.",
+        "El artículo 5 de la constitución de 1917 establece algo.",
+        "El artículo 5 de la Constitución de 1917 establece algo.",
+    ])("still matches the CPEUM: %s", (text) => {
+        expect(keys(text)).toEqual([`art:5@${cpeum}`]);
+    });
+    it("never reads a capitalized «de 1917 de Tlaxcala» as the CPEUM (it stays a law of its own name)", () => {
+        const found = keys("El artículo 5 de la Constitución de 1917 de Tlaxcala dice algo.");
+        expect(found).toHaveLength(1);
+        expect(found[0]).not.toBe(`art:5@${cpeum}`);
+    });
+    it("keeps a qualifier after a neutral connector unknown", () => {
+        expect(keys("El artículo 5 de la Constitución del país de Tlaxcala dice algo.")).toEqual(["art:5@?"]);
+        expect(keys("El artículo 5 de la Constitución de acuerdo con Tlaxcala dice algo.")).toEqual(["art:5@?"]);
+    });
+});
+
 describe("hasKnownLaw", () => {
     it("is false only for an article of an unidentified law", () => {
         expect(hasKnownLaw("art:5@?")).toBe(false);

@@ -25,13 +25,18 @@ import {
 import { WorkflowModal } from "../workflows/WorkflowModal";
 import { PlaybookModal, playbookTitle } from "../playbooks/PlaybookModal";
 import { ChatInput as ChatInputShell } from "../../../shared/chat/ChatInput";
-import type { TrainingConfidenceLevel } from "@mike/contracts";
+import type {
+  TrainingConfidenceLevel,
+  TrainingTurnMode,
+} from "@mike/contracts";
 import {
   focusTrainingAttempt,
   isTrainingAttemptReady,
   useTrainingStageStale,
   TrainingAttemptFieldUI,
   TrainingConfidenceUI,
+  TrainingModesUI,
+  type TrainingModesState,
   useTrainingReply,
   withTrainingReply,
 } from "@mike/ui";
@@ -143,6 +148,14 @@ interface ChatInputProps {
   containerRef: React.Ref<HTMLDivElement>;
   editApplyMode: WordEditApplyMode;
   onEditApplyModeChange: (mode: WordEditApplyMode) => void;
+  /**
+   * LiTT training: the chat the next turn continues, whose notes the hint
+   * ladder is counted from. Null for a new chat and for a chat kept on this
+   * device only: the server keeps no notes of it and offers no hint there.
+   */
+  trainingChatId?: string | null;
+  /** LiTT training: false where the server cannot count rungs (device-only chats). */
+  trainingModesAllowed?: boolean;
 }
 
 export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
@@ -166,6 +179,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       containerRef,
       editApplyMode,
       onEditApplyModeChange,
+      trainingChatId = null,
+      trainingModesAllowed = false,
     },
     ref,
   ): React.ReactElement {
@@ -216,6 +231,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     // approach before each turn. The server decides; this only shows it.
     const [needsAttempt, setNeedsAttempt] = useState(false);
     const [needsConfidence, setNeedsConfidence] = useState(false);
+    const [trainingModes, setTrainingModes] = useState<{
+      chatId: string | null;
+      state: TrainingModesState;
+    } | null>(null);
+    // A hint or a round asked for with no question written: the text the
+    // composer held then. It is said until the person types.
+    const [modeErrorAt, setModeErrorAt] = useState<string | null>(null);
     const trainingText = useTrainingText();
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
@@ -247,18 +269,48 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     useTrainingStageStale(() => setStageGeneration((value) => value + 1));
     useEffect(() => {
       let cancelled = false;
-      getWordTrainingTurn().then(
+      getWordTrainingTurn(
+        trainingModesAllowed ? trainingChatId : null,
+        trainingModesAllowed ? "cloud" : "local",
+      ).then(
         (turn) => {
           if (cancelled) return;
           setNeedsAttempt(turn.attemptRequired);
           setNeedsConfidence(turn.confidenceRequired);
+          setTrainingModes({
+            chatId: trainingChatId,
+            state: {
+              // With storage on this device the server cannot count rungs
+              // (and refuses with training_mode_not_allowed): none is offered.
+              modes: trainingModesAllowed ? turn.modes : [],
+              nextHintLevel: turn.nextHintLevel,
+              counterpartNextStep: turn.counterpartNextStep,
+            },
+          });
         },
         () => {},
       );
       return () => {
         cancelled = true;
       };
-    }, [sessionKey, stageGeneration]);
+    }, [sessionKey, stageGeneration, trainingChatId, trainingModesAllowed]);
+    // A turn that just ended may have been a hint or a round turn: the server
+    // counts again from the notes it wrote.
+    const wasLoadingRef = useRef(isResponseLoading);
+    useEffect(() => {
+      if (wasLoadingRef.current && !isResponseLoading) {
+        setStageGeneration((value) => value + 1);
+      }
+      wasLoadingRef.current = isResponseLoading;
+    }, [isResponseLoading]);
+    // The modes are counted per chat: those of another chat wait for their own reading.
+    const modesState: TrainingModesState | null =
+      needsAttempt &&
+      trainingModes &&
+      trainingModes.chatId === trainingChatId &&
+      trainingModes.state.modes.length > 0
+        ? trainingModes.state
+        : null;
     const [profileLastSelectedReasoningLevel, setProfileLastSelectedReasoningLevel] =
       useState<ReasoningLevel>(lastSelectedReasoningLevel);
     const [reasoningLevel, setReasoningLevel] = useState<ReasoningLevel>(
@@ -549,10 +601,19 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       setSlashMenuDismissed(true);
     };
 
-    const submit = (): void => {
-      const content = input.trim();
+    const submit = (): void => sendTurn();
+
+    // «Pedir una pista» and the round with the counterparty's lawyer send the
+    // turn in that mode; the server picks the rung and checks it again.
+    const sendTurn = (mode?: TrainingTurnMode): void => {
+      const typed = input.trim();
+      // Closing a round needs no question of its own.
+      const content =
+        !typed && mode === "counterpart_close"
+          ? trainingText.closeMessage
+          : typed;
       if (slashCommandsLoading) return;
-      const exactSlashWorkflow = slashQuery
+      const exactSlashWorkflow = !mode && slashQuery
         ? (slashWorkflows ?? []).find(
             (workflow) =>
               workflowSlashCommandFromTitle(workflow.metadata.title) ===
@@ -563,7 +624,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         selectSlashWorkflow(exactSlashWorkflow);
         return;
       }
-      if ((!content && !hasAnnotatedExcerpt) || isResponseLoading) return;
+      if (isResponseLoading) return;
+      if (!content && !hasAnnotatedExcerpt) {
+        if (mode) setModeErrorAt(typed);
+        return;
+      }
       if (!model) {
         setModelError(
           hasModels === false
@@ -580,7 +645,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         setAttemptError(true);
         return;
       }
-      if (needsConfidence && confidence === null) {
+      // A hint is not rated: it has no answer for the mark to be compared with.
+      const rated = needsConfidence && mode !== "hint";
+      if (rated && confidence === null) {
         setConfidenceError(true);
         return;
       }
@@ -598,7 +665,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           model,
           reasoning: resolvedReasoningLevel,
           ...(needsAttempt ? { attempt: attempt.trim() } : {}),
-          ...(needsConfidence && confidence !== null ? { confidence } : {}),
+          ...(rated && confidence !== null ? { confidence } : {}),
+          ...(mode ? { training_mode: mode } : {}),
         },
         {
           onAccepted: () => {
@@ -613,9 +681,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               playbook: selectedPlaybook,
             };
             setInput("");
-            setAttempt("");
+            setModeErrorAt(null);
+            // A hint is asked from an approach that may be rewritten with it
+            // in view, and asked unrated: both stay for the turn after it.
+            if (mode !== "hint") {
+              setAttempt("");
+              setConfidence(null);
+            }
             setAttemptError(false);
-            setConfidence(null);
             setConfidenceError(false);
             setAttachedDocuments([]);
             setExcerpts([]);
@@ -726,6 +799,21 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               }}
               text={trainingText.confidence}
               showError={confidenceError}
+            />
+          )}
+          {modesState && (
+            <TrainingModesUI
+              id="word-training-modes"
+              className="mb-2"
+              state={modesState}
+              text={trainingText.modes}
+              onPick={(mode) => sendTurn(mode)}
+              disabled={isResponseLoading}
+              error={
+                modeErrorAt !== null && modeErrorAt === input
+                  ? trainingText.needsQuestion
+                  : null
+              }
             />
           )}
           <div ref={composerRef} className="relative">

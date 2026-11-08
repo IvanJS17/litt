@@ -18,29 +18,40 @@ type ReferenceItem = { end: number; key: string; ordinal: number | null; fractio
 type ItemReader = (text: string, at: number) => ReferenceItem | null;
 
 const RANGE_EXPANSION_LIMIT = 100;
-const LIST_SEPARATOR = /\s*,\s*(?:(?:y|e|o|u)\s+)?|\s+(?:y|e|o|u)\s+/y;
-const RANGE_SEPARATOR = /\s+(?:a|al|hasta(?:\s+el)?)\s+/y;
+// Every pattern read through `sticky` starts with `^`: it is matched against the text from `at` on.
+const LIST_SEPARATOR = /^(?:\s*,\s*(?:(?:y|e|o|u)\s+)?|\s+(?:y|e|o|u)\s+)/;
+const RANGE_SEPARATOR = /^\s+(?:a|al|hasta(?:\s+el)?)\s+/;
+const GAP = /^\s+/;
+const CONSTITUTIONAL_ADJECTIVE = /^\s+constitucional(?:es)?\b/;
+const DIRECT_LAW = /^\s+\(?([a-z]{2,8})\b/;
 const ARTICLE_HEAD = /\bart(?:iculos?|s?\.?)\s*/g;
 // «1949», «1o.», «14 bis», «17a».
-const ARTICLE_ITEM = /(\d+)(?:o\b|[º°])?\.?(?:\s*(bis|ter|quater)\b|([a-z])\b)?/y;
+const ARTICLE_ITEM = /^(\d+)(?:o\b|[º°])?\.?(?:\s*(bis|ter|quater)\b|([a-z])\b)?/;
 const FRACTION_WORD = String.raw`(?:fraccion(?:es)?|fracc?\.|fr\.)`;
-const FRACTION_AFTER_ARTICLE = new RegExp(String.raw`\s*,?\s*${FRACTION_WORD}\s*`, "y");
+const FRACTION_AFTER_ARTICLE = new RegExp(String.raw`^\s*(?:,\s*)?${FRACTION_WORD}\s*`);
 const FRACTION_HEAD = new RegExp(String.raw`\b${FRACTION_WORD}\s*`, "g");
-const FRACTION_OF_ARTICLE = /\s*,?\s*(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/y;
-const ROMAN_ITEM = /(m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))\b/y;
+const FRACTION_OF_ARTICLE = /^\s*(?:,\s*)?(?:del?|de\s+los)\s+art(?:iculos?|s?\.?)\s*/;
+const ROMAN_ITEM = /^(m{0,3}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3}))\b/;
 // «Tesis 1a./J. 12/2020», «jurisprudencia P./J. 5/2019», «tesis I.3o.C.123».
-const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)(?:\s+aisladas?)?\s*:?\s*/g;
-const THESIS_ITEM = /([a-z0-9][a-z0-9./ -]{0,30}?\d+\/\d{4}|[a-z0-9]+(?:[./-][a-z0-9]+)+)/y;
+const THESIS_HEAD = /\b(?:tesis|jurisprudencias?)\s*(?:(?<=\s)aisladas?\s*)?(?::\s*)?/g;
+const THESIS_ITEM = /^([a-z0-9][a-z0-9./ -]{0,30}?\d+\/\d{4}|[a-z0-9]+(?:[./-][a-z0-9]+)+)/;
 // The subject letters of an isolated thesis («I.3o.C.123 C»), skipped before a separator.
-const THESIS_SUBJECT = /\s+\(?[a-z]{1,2}\)?(?=\s*,|\s+(?:y|e|o|u)\s)/y;
+const THESIS_SUBJECT = /^\s+\(?[a-z]{1,2}\)?(?=\s*,|\s+(?:y|e|o|u)\s)/;
 // A jurisprudence id on its own: «1a./J. 12/2020».
 const JURISPRUDENCE_ID = /(?<![a-z0-9])((?:\d+[a-z]{0,2}|[a-z]{1,2})\.\s*\/\s*j\.\s*\d+\/\d{4})/g;
-const REGISTRY_HEAD = /\bregistros?(?:\s+digital(?:es)?)?\s*(?:no\.?|num\.?|nums\.?|numeros?)?\s*:?\s*/g;
-const REGISTRY_ITEM = /(\d{4,})/y;
+const REGISTRY_HEAD = /\bregistros?\s*(?:(?<=\s)digital(?:es)?\s*)?(?:(?:no\.?|num\.?|nums\.?|numeros?)\s*)?(?::\s*)?/g;
+const REGISTRY_ITEM = /^(\d{4,})/;
 
-function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
-    pattern.lastIndex = at;
-    return pattern.exec(text);
+/**
+ * `pattern` (anchored with `^`) matched against `text` from `at` on, never from a later
+ * position; `match[0].length` is the length read from `at`. A pattern that only a sticky
+ * flag anchored would be tried from every position of a long run of blanks as far as a
+ * static analysis can tell; `^` says it is not.
+ */
+export function sticky(pattern: RegExp, text: string, at: number): RegExpExecArray | null {
+    if (!pattern.source.startsWith("^") || pattern.global || pattern.sticky)
+        throw new Error(`sticky(): the pattern must start with ^ and carry no g or y flag: ${pattern}`);
+    return pattern.exec(text.slice(at));
 }
 
 function romanValue(roman: string): number {
@@ -160,6 +171,8 @@ export const UNKNOWN_LAW = "?";
 const LAW_STOPWORDS = new Set(["de", "del", "la", "las", "los", "el", "y", "e", "en", "para", "al"]);
 const LAW_HEADS = new Set(["ley", "leyes", "codigo", "constitucion", "reglamento", "decreto", "estatuto", "convenio", "tratado"]);
 const LAW_PHRASE_MAX_WORDS = 10;
+// Characters of text tokenized after an article to read the law's name (widened when the name goes on).
+const LAW_WINDOW_CHARS = 400;
 // Common abbreviations and aliases, to the law they name (as written in full).
 const LAW_ALIASES: Record<string, string> = {
     cpeum: "constitucion politica de los estados unidos mexicanos",
@@ -219,7 +232,12 @@ export function lawOfTitle(title: string | null | undefined): string | null {
     return normalizeLaw(stem);
 }
 
-const LAW_SEPARATOR = /\s*,?\s*(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/y;
+const LAW_SEPARATOR = /^\s*(?:,\s*)?(?:de\s+la|de\s+las|de\s+los|del|de|en\s+la|en\s+el|segun\s+la)\s+/;
+/** Every pattern read through `sticky`, by name (a test checks each one, and that no call site uses another). */
+export const STICKY_PATTERNS: Readonly<Record<string, RegExp>> = {
+    LIST_SEPARATOR, RANGE_SEPARATOR, ARTICLE_ITEM, FRACTION_AFTER_ARTICLE, FRACTION_OF_ARTICLE, ROMAN_ITEM,
+    THESIS_ITEM, THESIS_SUBJECT, REGISTRY_ITEM, GAP, CONSTITUTIONAL_ADJECTIVE, DIRECT_LAW, LAW_SEPARATOR,
+};
 // Connecting words that may sit inside a law's written name («Ley del Impuesto sobre la Renta»).
 const NAME_CONNECTORS = new Set([
     "de", "del", "la", "las", "los", "el", "lo", "y", "e", "o", "u", "a", "al", "en", "para", "por", "con", "sin",
@@ -229,16 +247,96 @@ const ALIAS_MAX_WORDS = Math.max(...Object.keys(LAW_ALIASES).map((alias) => alia
 
 type Token = { bare: string; ends: boolean; opens: boolean };
 
+const OPENING_PUNCTUATION = "([«\"'¿¡";
+const CLOSING_PUNCTUATION = ".,;:)]»\"'?!";
+
+/** `word` without the opening and closing punctuation around it (a linear scan, no regex backtracking). */
+function trimPunctuation(word: string): string {
+    let start = 0;
+    while (start < word.length && OPENING_PUNCTUATION.includes(word[start])) start++;
+    let end = word.length;
+    while (end > start && CLOSING_PUNCTUATION.includes(word[end - 1])) end--;
+    return word.slice(start, end);
+}
+
 /** The whitespace-separated words of `text`, each without the punctuation around it. */
 function tokens(text: string): Token[] {
     return text
         .split(/\s+/)
         .filter((word) => word !== "")
         .map((word) => ({
-            bare: word.replace(/^[(\[«"']+/, "").replace(/[.,;:)\]»"']+$/, ""),
-            ends: /[.,;:)\]»"']$/.test(word),
-            opens: /^[(\[«"']/.test(word),
+            bare: trimPunctuation(word),
+            ends: /[.,;:)\]»"'?!]$/.test(word),
+            opens: /^[(\[«"'¿¡]/.test(word),
         }));
+}
+
+// What may follow a bare alias of the federal constitution («Constitución», «Carta
+// Magna», «artículo 5 constitucional») and make it another constitution («local»,
+// «de Tlaxcala», «Política del Estado de Jalisco»): then it is no longer the
+// federal one and the law is unknown (fail closed). One rule for every alias.
+const LOCAL_WORDS = new Set(["local", "locales", "estatal", "estatales"]);
+const PLACE_WORDS = new Set([
+    "estado", "ciudad",
+    "aguascalientes", "baja", "campeche", "chiapas", "chihuahua", "coahuila", "colima", "durango", "guanajuato",
+    "guerrero", "hidalgo", "jalisco", "mexico", "michoacan", "morelos", "nayarit", "nuevo", "oaxaca", "puebla",
+    "queretaro", "quintana", "san", "sinaloa", "sonora", "tabasco", "tamaulipas", "tlaxcala", "veracruz", "yucatan",
+    "zacatecas", "cdmx",
+]);
+const CONSTITUTION_QUALIFIERS = new Set([...LOCAL_WORDS, ...PLACE_WORDS, "particular", "general", "politica", "de", "del"]);
+const FEDERAL_CONSTITUTION_TAIL = ["de los estados unidos mexicanos", "politica de los estados unidos mexicanos"];
+// Closed list of connectors after «Constitución» that qualify nothing («de acuerdo con la
+// Constitución», «de 1917»). «del país» and «de la República» are NOT here: an adjective,
+// a nationality or a state after them («del país vecino») names another constitution.
+const NEUTRAL_CONNECTORS = ["de acuerdo con", "de conformidad con", "de 1917"];
+// After a neutral connector the federal constitution is kept only at the end of the text,
+// at punctuation, or before one of these words, which clearly qualify nothing; any other
+// word (an adjective, a nationality, «la de Tlaxcala», a state) leaves the law unknown.
+const NON_QUALIFYING_AFTER_CONNECTOR = ["que", "se", "es", "establece", "dispone", "senala", "preve", "vigente", "la ley", "las leyes"];
+// Aliases of the federal constitution that a qualifier turns into another law.
+const QUALIFIABLE_ALIASES = new Set(["constitucion", "carta magna"]);
+
+/** Whether what follows a neutral connector (from `index`) may name another constitution: anything but the end of the text or a word that clearly qualifies nothing. */
+function qualifiesAfterConnector(lower: Token[], index: number): boolean {
+    if (lower[index] === undefined) return false;
+    const following = lower.slice(index, index + 2).map((token) => token.bare).join(" ");
+    return !NON_QUALIFYING_AFTER_CONNECTOR.some((word) => following === word || following.startsWith(`${word} `));
+}
+
+/** Whether the token at `index` qualifies the bare alias before it into a law that is not the federal constitution. */
+function qualifiesConstitution(lower: Token[], index: number): boolean {
+    const next = lower[index];
+    if (!next) return false;
+    const rest = lower.slice(index, index + 6).map((token) => token.bare).join(" ");
+    if (FEDERAL_CONSTITUTION_TAIL.some((tail) => rest.startsWith(tail))) return false;
+    if (!CONSTITUTION_QUALIFIERS.has(next.bare)) return false;
+    for (const connector of NEUTRAL_CONNECTORS) {
+        const size = connector.split(" ").length;
+        const written = lower.slice(index, index + size);
+        if (written.map((token) => token.bare).join(" ") !== connector || written.slice(0, -1).some((token) => token.ends)) continue;
+        // «Constitución de 1917 de Tlaxcala», «… de acuerdo con la de Tlaxcala»: fail closed.
+        return !written[size - 1].ends && qualifiesAfterConnector(lower, index + size);
+    }
+    return true;
+}
+
+/** «constitucional» followed by «local», «estatal», «de/del <estado>» or «de la Constitución <estado>»: a state constitution, not the federal one. */
+function qualifiesConstitutional(plain: string, at: number): boolean {
+    const gap = sticky(GAP, plain, at);
+    if (!gap) return false;
+    const start = at + gap[0].length;
+    const words = tokens(plain.slice(start, start + 200)).slice(0, 12);
+    if (words.length === 0) return false;
+    if (LOCAL_WORDS.has(words[0].bare)) return true;
+    if (words[0].ends || (words[0].bare !== "de" && words[0].bare !== "del")) return false;
+    const article = words[1] && (words[1].bare === "la" || words[1].bare === "el");
+    const place = article ? words[2] : words[1];
+    if (place !== undefined && PLACE_WORDS.has(place.bare)) return true;
+    // «de la Constitución …», «de la Carta Magna …»: the same rule as for the alias written alone.
+    if (!article || words[1].ends || place === undefined || place.ends) return false;
+    if (place.bare === "constitucion") return qualifiesConstitution(words, 3);
+    if (place.bare === "carta" && words[3]?.bare === "magna" && !words[3].ends) return qualifiesConstitution(words, 4);
+    return false;
 }
 
 const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
@@ -255,8 +353,29 @@ const isCapitalized = (word: string) => /^[A-ZÑ0-9]/.test(word);
  *    law is unverified). A name cut by the word limit while it goes on is null too.
  */
 function lawNamedAt(plain: string, cased: string): string | null {
-    const lower = tokens(plain);
-    const upper = tokens(cased);
+    // A name takes at most LAW_PHRASE_MAX_WORDS words (plus a few of look-ahead), so only a window of
+    // the text is tokenized, not its whole tail (that made a text with many articles quadratic). The
+    // window ends in a sentinel token that flags being read: if the answer needed it, the window is
+    // widened, so the result is the one the whole tail would give.
+    for (let size = LAW_WINDOW_CHARS; size < plain.length; size *= 4) {
+        let reached = false;
+        const sentinel = (): Token => ({
+            get bare() { reached = true; return "\u0000"; },
+            get ends() { reached = true; return true; },
+            get opens() { reached = true; return false; },
+        });
+        const lower = tokens(plain.slice(0, size)).slice(0, -1); // the last word may be cut by the window
+        const upper = tokens(cased.slice(0, size)).slice(0, -1);
+        if (lower.length === 0) continue;
+        lower.push(sentinel());
+        upper.push(sentinel());
+        const law = lawNamedAtTokens(lower, upper);
+        if (!reached) return law;
+    }
+    return lawNamedAtTokens(tokens(plain), tokens(cased));
+}
+
+function lawNamedAtTokens(lower: Token[], upper: Token[]): string | null {
     if (lower.length === 0 || lower.length !== upper.length) return null;
     const alias = (): string | null => {
         for (let count = Math.min(ALIAS_MAX_WORDS, lower.length); count >= 1; count--) {
@@ -264,7 +383,10 @@ function lawNamedAt(plain: string, cased: string): string | null {
             // A phrase ends where punctuation does: «constitucion, federal» is not one name.
             if (span.slice(0, -1).some((token) => token.ends)) continue;
             const written = span.map((token) => token.bare).join(" ");
-            if (LAW_ALIASES[written]) return normalizeLaw(written);
+            if (LAW_ALIASES[written]) {
+                if (QUALIFIABLE_ALIASES.has(written) && !span[count - 1].ends && qualifiesConstitution(lower, count)) return null;
+                return normalizeLaw(written);
+            }
         }
         return null;
     };
@@ -308,15 +430,19 @@ function lawNamedAt(plain: string, cased: string): string | null {
         for (let take = index; take < last; take++) words.push(lower[take].bare);
         index = last;
     }
+    // «Constitución local»: the bare head stopped at a qualifier is another constitution.
+    if (words.length === 1 && words[0] === "constitucion" && !upper[index - 1]?.ends && qualifiesConstitution(lower, index)) return null;
+    // «Constitución de 1917» written with capitals: the federal one, unless a qualifier follows.
+    if (words.join(" ") === "constitucion de 1917" && !upper[index - 1]?.ends && !qualifiesAfterConnector(lower, index)) return normalizeLaw("constitucion");
     return normalizeLaw(words.join(" "));
 }
 
 /** The law named right after an article (or list of articles) ending at `at`; null when none is named. */
 function readLaw(plain: string, at: number, cased: string = plain): { law: string | null; named: boolean } {
-    const adjective = sticky(/\s+constitucional(?:es)?\b/y, plain, at);
-    if (adjective) return { law: normalizeLaw("constitucion"), named: true };
+    const adjective = sticky(CONSTITUTIONAL_ADJECTIVE, plain, at);
+    if (adjective) return { law: qualifiesConstitutional(plain, at + adjective[0].length) ? null : normalizeLaw("constitucion"), named: true };
     const separator = sticky(LAW_SEPARATOR, plain, at);
-    const direct = separator ? null : sticky(/\s+\(?([a-z]{2,8})\b/y, plain, at);
+    const direct = separator ? null : sticky(DIRECT_LAW, plain, at);
     if (direct) {
         const law = LAW_ALIASES[direct[1]] ? normalizeLaw(direct[1]) : null;
         return { law, named: law !== null };

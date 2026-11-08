@@ -584,6 +584,7 @@ export function useAssistantChat({
               ask_inputs_response: opts?.askInputsResponse,
               attempt: message.attempt,
               confidence: message.confidence,
+              training_mode: message.training_mode,
               signal: controller.signal,
             })
           : streamChat({
@@ -597,6 +598,7 @@ export function useAssistantChat({
               ask_inputs_response: opts?.askInputsResponse,
               attempt: message.attempt,
               confidence: message.confidence,
+              training_mode: message.training_mode,
               signal: controller.signal,
             });
       // The frames go to the turn record (lib/assistantTurnStream), which

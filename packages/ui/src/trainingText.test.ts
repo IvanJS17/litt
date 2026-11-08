@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fakeTranslate, noteText, attemptText, confidenceText } from "./trainingTestText";
-import { trainingUrgencyPassText } from "./trainingText";
+import { fakeTranslate, noteText, attemptText, confidenceText, modesText } from "./trainingTestText";
+import {
+  trainingCloseMessage,
+  trainingNeedsQuestionText,
+  trainingUrgencyPassText,
+} from "./trainingText";
 
 describe("trainingText", () => {
   it("builds the words of each component from the host's translator", () => {
@@ -21,6 +25,19 @@ describe("trainingText", () => {
     expect(noteText.foundation("weak")).toBe("Basis: weak");
     expect(noteText.verdicts.no_coincide).toBe("Doesn't match");
     expect(noteText.confidenceLevels[1]).toBe("Almost a guess");
+  });
+
+  it("builds the words of the hint ladder and the counterparty round", () => {
+    expect(modesText.hintButton).toBe("Ask for a hint");
+    expect(modesText.hintNext(3, modesText.rungs[3])).toBe("Next: hint 3 of 3, What to review.");
+    expect(modesText.counterpartStatus(2)).toBe("Turn 2 of 3.");
+    expect(modesText.rungState.used).toBe("used");
+    expect(noteText.mode.hint(2)).toBe("Hint 2 of 3");
+    expect(noteText.mode.counterpart(1)).toBe("Round, turn 1 of 3");
+    expect(noteText.mode.counterpart_close).toBe("Close of the round");
+    expect(noteText.closeHeading).toBe("How the round went");
+    expect(trainingCloseMessage(fakeTranslate)).toBe("I'm closing the round.");
+    expect(trainingNeedsQuestionText(fakeTranslate)).toBe("Write your question first.");
   });
 
   it("says only the time when an urgency pass ends today, and the date as well otherwise", () => {

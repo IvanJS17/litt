@@ -204,6 +204,8 @@
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
       "cookie_session_required": "Sign in again to continue.",
       "email_address_invalid": "Enter a valid email address.",
+      "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
+      "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
       "matter_has_owner": "This matter already has an owner.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
@@ -225,8 +227,11 @@
       "training_approval_required": "This version is a trainee's draft: it needs approval before it leaves LiTT.",
       "training_confidence_required": "Mark how sure you are of your approach before asking. If you don't see the scale, reload the page.",
       "training_copy_needs_organization": "This file is a trainee's draft and can only be copied to an organization's workflow, where someone can approve it.",
+      "training_counterpart_rounds_done": "This round with the counterparty's lawyer already had three turns. Close it to see the contrast.",
       "training_defense_already_recorded": "This defense's outcome is already recorded. Create a new defense to correct it.",
+      "training_hint_limit_reached": "You already asked for all three hints in this conversation. Send your question to see the answer.",
       "training_mentor_has_pupils": "This mentor still has pupils. Release them or move them to another mentor first.",
+      "training_mode_not_allowed": "This help isn't available for this turn. Reload the page if you still see it.",
       "training_note_not_judgeable": "This turn has nothing to judge: a hint has no answer to compare with.",
       "training_pass_duplicate": "That pass has already been granted.",
       "training_pass_pupil_no_access": "Your pupil can't open this matter. Give them access before granting the pass.",
@@ -241,8 +246,9 @@
       "training_retake_in_progress": "You already have a retake in progress. Finish it first.",
       "training_retake_not_due": "That topic isn't due to be retaken right now.",
       "training_retake_not_open": "This retake isn't waiting for an answer.",
+      "training_retake_source_gone": "The notes this question came from no longer exist, so it can't be judged. This retake was closed; you can ask for a new one.",
       "training_review_in_progress": "This is already being generated.",
-      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews and questions.",
+      "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
       "upload_incomplete": "The uploaded file isn't available yet.",
       "upload_session_control_rate_limit": "Too many upload requests. Try again later.",
@@ -555,11 +561,16 @@
           "wrong": "wrong"
         },
         "noteAttemptHeading": "Your approach",
+        "noteCloseHeading": "How the round went",
         "noteConfidence": "Your mark: {level}",
         "noteContrastFailed": "The contrast couldn't be generated",
         "noteContrastHeading": "Contrast with your approach",
         "noteContrastPending": "Generating contrast…",
+        "noteNotDelivered": "Not delivered",
         "noteFoundation": "Basis: {basis}",
+        "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
+        "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",
+        "noteModeHint": "Hint {step} of 3",
         "notePrivacy": "Private: only you and your mentor see this",
         "noteQuestionHeading": "A question about your basis",
         "noteRegion": "Private training notes",
@@ -660,7 +671,32 @@
           }
         }
       },
-      "modes": {},
+      "modes": {
+        "closeButton": "Close the round",
+        "closeExplain": "See which objections you held, which you conceded and which you left undefended.",
+        "closeMessage": "I'm closing the round with the counterparty's lawyer.",
+        "counterpartButton": "Test it against the counterparty's lawyer",
+        "counterpartExplain": "The AI plays the other side and objects to your approach; it doesn't answer its own objections.",
+        "counterpartFull": "This round already had three turns. Close it to see the contrast.",
+        "counterpartStatus": "Turn {step} of 3 in this round.",
+        "hintButton": "Ask for a hint",
+        "hintExplain": "A hint points the way and never gives the answer. It starts from your approach and your question.",
+        "hintNext": "Next: hint {level} of 3, {name}.",
+        "hintsDone": "You already asked for all three hints in this conversation. Send your question to see the answer.",
+        "needsQuestion": "Write your question first.",
+        "region": "Help for this turn",
+        "rungState": {
+          "next": "next",
+          "pending": "pending",
+          "used": "used"
+        },
+        "rungs": {
+          "focus": "Focus",
+          "review": "What to review",
+          "where": "Where to look"
+        },
+        "rungsLabel": "Rungs of the hint ladder"
+      },
       "backing": {
         "actions": {
           "save": "save your mark on this conclusion",
@@ -955,7 +991,89 @@
           "actions": "Actions"
         }
       },
-      "contrast": {},
+      "contrast": {
+        "actions": {
+          "load": "load your criteria contrasts",
+          "loadMentor": "load the criteria contrasts",
+          "send": "send your explanation",
+          "start": "start the criteria contrast"
+        },
+        "card": {
+          "analysis": "Analysis {number}",
+          "approach": {
+            "literal": "Literal approach",
+            "systematic": "Systematic approach"
+          },
+          "coincide": "Matches",
+          "comparison": "Your explanation compared with the AI's",
+          "created": "Started on {date, date, medium} {date, time, short}",
+          "didNotRun": "This analysis didn't run ({status}). It was not replaced by another route.",
+          "explainCount": "{count} of {max} characters",
+          "explainHelp": "Write it in your own words, before you see the AI's explanation. It is compared with the AI's, not graded.",
+          "explainLabel": "Why do you think the two analyses diverge?",
+          "explainMin": "Write at least {min} characters.",
+          "failedAfter": "The comparison with the AI's explanation couldn't be made. Your explanation is saved here.",
+          "failedNote": "The contrast couldn't finish. If a route couldn't run, check Settings > Subagents. Nothing replaced it, and you can start a new contrast.",
+          "falto": "Missing from yours",
+          "model": "Model: {model}",
+          "noCoincide": "Doesn't match",
+          "noText": "No text.",
+          "none": "Nothing",
+          "route": "Route: {name}",
+          "runStatus": {
+            "cancelled": "cancelled",
+            "failed": "failed",
+            "incomplete": "stopped early",
+            "needs_input": "waiting for an answer",
+            "not_run": "never started"
+          },
+          "seeAi": "Read the AI's explanation in the conversation",
+          "send": "Send my explanation",
+          "sending": "Getting the AI's explanation and comparing. This can take a minute.",
+          "status": {
+            "awaiting_person": "Waiting for your explanation",
+            "explained": "Explained and compared",
+            "failed": "Didn't finish"
+          },
+          "yourExplanation": "Your explanation"
+        },
+        "mentor": {
+          "awaiting": "Waiting for the person's explanation.",
+          "empty": "No criteria contrasts yet.",
+          "failed": "Didn't finish.",
+          "hidden": "{count, plural, one {# contrast is in a matter you cannot open.} other {# contrasts are in a matter you cannot open.}}",
+          "intro": "The person had two analyses of the same case, wrote why they think they diverge before seeing the AI's explanation, and it was compared with the AI's. It is evidence for you to weigh, with no score and no comparison between people.",
+          "routes": "Ran on",
+          "title": "Criteria contrasts",
+          "yourExplanation": "The person's explanation"
+        },
+        "page": {
+          "approachesNote": "You have no routes in Settings > Subagents yet, so the two analyses use two neutral approaches, literal and systematic, on this conversation's model.",
+          "back": "Back to My training",
+          "caseCount": "{count} of {max} characters",
+          "caseHelp": "Describe the case and what you need analyzed. Both analyses receive the same text. Name your documents as you do in a chat.",
+          "caseLabel": "Assignment",
+          "caseMin": "Write at least {min} characters.",
+          "empty": "You haven't made a contrast yet.",
+          "intro": "Hand the same assignment to two analyses, read them side by side, and write why you think they diverge before you see the AI's explanation. No score is kept.",
+          "listHeading": "Your contrasts",
+          "noScore": "Nothing here is scored or compared with other people.",
+          "notJunior": "The criteria contrast is for juniors.",
+          "routeFirst": "First analysis",
+          "routeSecond": "Second analysis",
+          "routesHeading": "Which routes",
+          "routesHelp": "Each analysis runs on one of the routes you set up in Settings > Subagents. A route that can't run is not replaced.",
+          "routesUnavailableNote": "Your routes in Settings > Subagents are no longer available, so the contrast cannot run. Check Settings > Subagents.",
+          "singleRouteNote": "You have a single route in Settings > Subagents (\"{route}\"), so both analyses, one literal and one systematic, run on that route.",
+          "start": "Compare",
+          "startFailed": "The contrast couldn't start: {reason}",
+          "startFailedGeneric": "The contrast couldn't finish. Check the list below before you try again.",
+          "startHeading": "New contrast",
+          "starting": "Running the two analyses. This can take a few minutes.",
+          "title": "Criteria contrast",
+          "unavailable": "The criteria contrast isn't available right now. Subagents may be turned off on this server."
+        }
+      },
       "authorship": {
         "ai": "From the assistant",
         "baseline": {
@@ -1115,7 +1233,71 @@
         }
       }
     },
-    "firmCriteria": {}
+    "firmCriteria": {
+      "consulted": {
+        "summary": "{count, plural, one {# criterion consulted} other {# criteria consulted}}",
+        "note": "These are positions that people of your firm wrote. They are not law, and LiTT does not check them.",
+        "empty": "Your firm has not written a criterion on this subject.",
+        "failed": "The firm's criteria could not be consulted.",
+        "more": "More criteria match than are shown here.",
+        "kind": {
+          "criterio": "Criterion",
+          "voto_particular": "Dissenting opinion"
+        },
+        "byline": "According to {author} · {date, date, medium}",
+        "bylineDeleted": "According to a deleted user · {date, date, medium}",
+        "practice": "Practice area: {practice}",
+        "rule": "Disagrees with a playbook rule"
+      },
+      "settings": {
+        "tab": "Firm criteria",
+        "title": "Firm criteria",
+        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
+        "noOrganizations": "You do not belong to any firm yet.",
+        "loadFailed": "The firm's criteria could not be loaded.",
+        "empty": "Your firm has not written any criteria yet.",
+        "readOnly": "While you are in training you read your firm's criteria, but you do not write them.",
+        "count": "{count, plural, one {# criterion} other {# criteria}}",
+        "write": "Write a criterion",
+        "edit": "Edit",
+        "editName": "Edit the criterion “{topic}”",
+        "remove": "Remove",
+        "removeName": "Remove the criterion “{topic}”",
+        "confirmRemove": "Remove this criterion? This cannot be undone.",
+        "confirmRemoveYes": "Yes, remove it",
+        "cancel": "Cancel",
+        "removed": "The criterion was removed.",
+        "saved": "The criterion was saved.",
+        "mine": "Yours",
+        "kindLabel": "Type",
+        "kind": {
+          "criterio": "Criterion",
+          "voto_particular": "Dissenting opinion"
+        },
+        "topicLabel": "Topic",
+        "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
+        "practiceLabel": "Practice area",
+        "practiceAny": "Any practice area",
+        "positionLabel": "Position",
+        "positionHelp": "Write your position as you would sign it. It will be shown with your name and the date.",
+        "positionCount": "{count} of {max} characters",
+        "playbookLabel": "Playbook",
+        "playbookPlaceholder": "Choose a playbook",
+        "noPlaybooks": "There are no playbooks to disagree with yet.",
+        "ruleLabel": "Rule",
+        "rulePlaceholder": "Choose a rule",
+        "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
+        "save": "Save",
+        "saving": "Saving…",
+        "rule": "Disagrees with the rule “{rule}” of “{playbook}”",
+        "ruleUnknown": "Disagrees with a rule of a playbook you cannot open",
+        "author": "By {author} · {date, date, medium}",
+        "authorDeleted": "By a deleted user · {date, date, medium}",
+        "changed": "changed {date, date, medium}",
+        "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
+        "loadingLabel": "Loading the firm's criteria"
+      }
+    }
   },
   "word": {
     "app": {

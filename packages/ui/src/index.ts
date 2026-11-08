@@ -51,8 +51,10 @@ export * from "./useReasoningDisclosure";
 
 // LiTT training (formación): attempt field, coach notes, the "pending
 // approval" hold on outputs, and the per-turn notes hook
+export * from "./FirmCriteriaConsultedUI";
 export * from "./TrainingAttemptFieldUI";
 export * from "./TrainingConfidenceUI";
+export * from "./TrainingModesUI";
 export * from "./trainingReply";
 export * from "./trainingStageStale";
 export * from "./trainingText";

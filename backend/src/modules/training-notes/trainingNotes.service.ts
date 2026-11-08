@@ -129,7 +129,14 @@ export async function getChatTurnNotes(
  * null and reads as before (they are simply absent from the response).
  */
 function criterionFields(row: NoteRow): Partial<TrainingTurnNote> {
-    if (row.confidence == null && row.verdict == null && row.foundation == null && !row.answer_unverified && !row.topics)
+    if (
+        row.confidence == null &&
+        row.verdict == null &&
+        row.foundation == null &&
+        !row.answer_unverified &&
+        !row.topics &&
+        !row.mode
+    )
         return {};
     const judged = {
         verdict: row.verdict ?? null,
@@ -144,5 +151,8 @@ function criterionFields(row: NoteRow): Partial<TrainingTurnNote> {
         foundation_question: row.foundation_question ?? null,
         topics: row.topics ?? null,
         answer_unverified: row.answer_unverified === true,
+        // Hints and counterpart turns (card 6).
+        mode: (row.mode as TrainingTurnNote["mode"]) ?? null,
+        step: (row.step as TrainingTurnNote["step"]) ?? null,
     };
 }

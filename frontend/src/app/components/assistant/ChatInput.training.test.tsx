@@ -7,6 +7,12 @@ import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useTrainingStage } from "@/app/hooks/useTrainingStage";
 import { ChatInput } from "./ChatInput";
 
+const NO_MODES = vi.hoisted(() => ({
+    modes: [] as import("@mike/contracts").TrainingTurnMode[],
+    nextHintLevel: null as 1 | 2 | 3 | null,
+    counterpartNextStep: null as 1 | 2 | 3 | null,
+}));
+
 vi.mock("@/app/lib/mikeApi", () => ({
     listWorkflows: vi.fn(async () => []),
     getChatCredentialOptions: vi.fn(async () => ({ provider: "openai", options: [], default: null })),
@@ -18,6 +24,7 @@ vi.mock("@/app/hooks/useTrainingStage", () => ({
         attemptRequired: false,
         confidenceRequired: false,
         urgencyPassExpiresAt: null,
+        ...NO_MODES,
     })),
 }));
 vi.mock("@/app/contexts/UserProfileContext", () => ({ useUserProfile: vi.fn() }));
@@ -85,7 +92,7 @@ describe("ChatInput — «Tu turno primero»", () => {
         } as unknown as ReturnType<typeof useUserProfile>);
     });
 
-    const owed = { attemptRequired: true, confidenceRequired: true, urgencyPassExpiresAt: null };
+    const owed = { attemptRequired: true, confidenceRequired: true, urgencyPassExpiresAt: null, ...NO_MODES };
 
     it("asks a pasante for their approach and their mark, and holds the send until both are there", () => {
         vi.mocked(useTrainingStage).mockReturnValue(owed);
@@ -167,6 +174,7 @@ describe("ChatInput — «Tu turno primero»", () => {
             attemptRequired: false,
             confidenceRequired: false,
             urgencyPassExpiresAt: null,
+            ...NO_MODES,
         });
         renderComposer();
         act(() => requestTrainingReply("¿Por qué?"));
@@ -205,6 +213,7 @@ describe("ChatInput — «Tu turno primero»", () => {
             attemptRequired: false,
             confidenceRequired: false,
             urgencyPassExpiresAt: end.toISOString(),
+            ...NO_MODES,
         });
         const onSubmit = renderComposer();
         expect(screen.queryByLabelText("Your approach (2–3 lines)")).toBeNull();
@@ -219,6 +228,7 @@ describe("ChatInput — «Tu turno primero»", () => {
             attemptRequired: false,
             confidenceRequired: false,
             urgencyPassExpiresAt: null,
+            ...NO_MODES,
         });
         const onSubmit = renderComposer();
         expect(screen.queryByLabelText("Your approach (2–3 lines)")).toBeNull();
@@ -318,5 +328,183 @@ describe("ChatInput — «Tu turno primero»", () => {
         expect(field).toHaveValue("");
         act(() => requestTrainingReply("Sin chat"));
         expect(field).toHaveValue("> Sin chat\n\n");
+    });
+
+    describe("hints and the counterparty's lawyer", () => {
+        const open = {
+            ...owed,
+            modes: ["hint", "counterpart"] as import("@mike/contracts").TrainingTurnMode[],
+            nextHintLevel: 1 as 1 | 2 | 3 | null,
+            counterpartNextStep: 1 as 1 | 2 | 3 | null,
+        };
+        const withClose = {
+            ...open,
+            modes: ["hint", "counterpart", "counterpart_close"] as import("@mike/contracts").TrainingTurnMode[],
+            counterpartNextStep: 2 as 1 | 2 | 3 | null,
+        };
+        const writeApproach = () =>
+            fireEvent.change(screen.getByLabelText("Your approach (2–3 lines)"), {
+                target: { value: ATTEMPT },
+            });
+
+        it("asks the stage for this chat and reads it again when a turn ends", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            renderComposer();
+            expect(vi.mocked(useTrainingStage)).toHaveBeenCalledWith(
+                expect.objectContaining({ chatId: "chat-1", turnActive: false }),
+            );
+        });
+
+        it("offers no help where the server opened no mode", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(owed);
+            renderComposer();
+            expect(screen.queryByRole("region", { name: "Help for this turn" })).toBeNull();
+            expect(screen.queryByRole("button", { name: "Ask for a hint" })).toBeNull();
+        });
+
+        it("sends a hint unrated: the approach is required, the mark is not, and the approach stays for the next turn", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            const onSubmit = renderComposer();
+            const hint = screen.getByRole("button", { name: "Ask for a hint" });
+            const box = screen.getByPlaceholderText("How can I help?");
+            fireEvent.change(box, { target: { value: "¿Procede la rescisión?" } });
+            fireEvent.click(hint);
+            expect(onSubmit).not.toHaveBeenCalled();
+            expect(screen.getByLabelText("Your approach (2–3 lines)")).toHaveAttribute("aria-invalid", "true");
+
+            writeApproach();
+            fireEvent.click(hint);
+            expect(onSubmit).toHaveBeenCalledTimes(1);
+            const sent = onSubmit.mock.calls[0][0];
+            expect(sent).toMatchObject({
+                content: "¿Procede la rescisión?",
+                attempt: ATTEMPT,
+                training_mode: "hint",
+            });
+            expect(sent).not.toHaveProperty("confidence");
+            expect(box).toHaveValue("");
+            expect(screen.getByLabelText("Your approach (2–3 lines)")).toHaveValue(ATTEMPT);
+        });
+
+        it("keeps a mark already given through a hint, and sends it with the full answer", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            const onSubmit = renderComposer();
+            writeApproach();
+            fireEvent.click(screen.getByRole("radio", { name: "Sure" }));
+            send("¿Procede la rescisión?");
+            expect(onSubmit.mock.calls[0][0]).toMatchObject({ confidence: 4 });
+            expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("training_mode");
+        });
+
+        it("holds a counterpart turn for the mark, like any turn, and sends it in its mode", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            const onSubmit = renderComposer();
+            writeApproach();
+            fireEvent.change(screen.getByPlaceholderText("How can I help?"), {
+                target: { value: "Procede por el impago." },
+            });
+            const round = screen.getByRole("button", {
+                name: "Test it against the counterparty's lawyer",
+            });
+            fireEvent.click(round);
+            expect(onSubmit).not.toHaveBeenCalled();
+            expect(screen.getByRole("alert")).toHaveTextContent("Mark how sure you are before sending.");
+            fireEvent.click(screen.getByRole("radio", { name: "Fairly sure" }));
+            fireEvent.click(round);
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: "Procede por el impago.",
+                    attempt: ATTEMPT,
+                    confidence: 3,
+                    training_mode: "counterpart",
+                }),
+            );
+            // A turn of the round is a whole turn: the approach and the mark start over.
+            expect(screen.getByLabelText("Your approach (2–3 lines)")).toHaveValue("");
+            expect(screen.getByRole("radio", { name: "Fairly sure" })).not.toBeChecked();
+        });
+
+        it("says a question is needed when a mode is asked for with nothing written", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            const onSubmit = renderComposer();
+            writeApproach();
+            fireEvent.click(screen.getByRole("button", { name: "Ask for a hint" }));
+            expect(onSubmit).not.toHaveBeenCalled();
+            expect(screen.getByRole("alert")).toHaveTextContent("Write your question first.");
+            fireEvent.change(screen.getByPlaceholderText("How can I help?"), { target: { value: "x" } });
+            expect(screen.queryByRole("alert")).toBeNull();
+        });
+
+        it("closes the round with its own line when nothing is written, and still owes the approach and the mark", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(withClose);
+            const onSubmit = renderComposer();
+            const close = screen.getByRole("button", { name: "Close the round" });
+            fireEvent.click(close);
+            expect(onSubmit).not.toHaveBeenCalled();
+            writeApproach();
+            fireEvent.click(screen.getByRole("radio", { name: "Sure" }));
+            fireEvent.click(close);
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: "I'm closing the round with the counterparty's lawyer.",
+                    attempt: ATTEMPT,
+                    confidence: 4,
+                    training_mode: "counterpart_close",
+                }),
+            );
+        });
+
+        it("keeps what the person wrote when they close the round with their own words", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(withClose);
+            const onSubmit = renderComposer();
+            writeApproach();
+            fireEvent.click(screen.getByRole("radio", { name: "Sure" }));
+            fireEvent.change(screen.getByPlaceholderText("How can I help?"), {
+                target: { value: "Cierro, defendí la primera." },
+            });
+            fireEvent.click(screen.getByRole("button", { name: "Close the round" }));
+            expect(onSubmit.mock.calls[0][0]).toMatchObject({ content: "Cierro, defendí la primera." });
+        });
+
+        it("does nothing while an answer is arriving", () => {
+            vi.mocked(useTrainingStage).mockReturnValue(open);
+            const onSubmit = vi.fn();
+            render(
+                <ChatInput
+                    trainingTurns
+                    projectId="p1"
+                    chatKey="chat-1"
+                    chatId="chat-1"
+                    chatModel="gpt-6-luna"
+                    onSubmit={onSubmit}
+                    onCancel={vi.fn()}
+                    isLoading
+                />,
+            );
+            expect(screen.getByRole("button", { name: "Ask for a hint" })).toBeDisabled();
+            fireEvent.click(screen.getByRole("button", { name: "Ask for a hint" }));
+            expect(onSubmit).not.toHaveBeenCalled();
+        });
+
+        it("speaks es-MX, and the rung is said in words", () => {
+            vi.mocked(useTrainingStage).mockReturnValue({ ...open, nextHintLevel: 2 as 1 | 2 | 3 | null });
+            render(
+                <IntlClientProvider locale="es-MX" messages={esMX}>
+                    <ChatInput
+                        trainingTurns
+                        projectId="p1"
+                        chatKey="chat-1"
+                        chatId="chat-1"
+                        chatModel="gpt-6-luna"
+                        onSubmit={vi.fn()}
+                        onCancel={vi.fn()}
+                        isLoading={false}
+                    />
+                </IntlClientProvider>,
+            );
+            expect(screen.getByRole("button", { name: "Pedir una pista" })).toBeInTheDocument();
+            expect(screen.getByText("Sigue: pista 2 de 3, Dónde buscar.")).toBeInTheDocument();
+            expect(screen.getByRole("list", { name: "Escalones de la pista" })).toBeInTheDocument();
+        });
     });
 });

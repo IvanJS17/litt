@@ -19859,6 +19859,79 @@ create unique index if not exists idx_playbook_imports_one_running_correction
   where status = 'running' and kind = 'correction';
 
 -- ---------------------------------------------------------------------------
+-- 20261108_76_litt_firm_criteria.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-08
+--
+-- LiTT training, layer 3 (docs/training.md, "One mold of criterion"): the
+-- firm's own criteria. A person of the firm writes a position, under their
+-- name, on a subject (practice area and topic); a dissenting opinion
+-- (voto_particular) also names the playbook rule it disagrees with. Pupils'
+-- turns can consult them (the list_firm_criteria tool), so what the assistant
+-- says "according to the firm" is always what a named person wrote.
+--
+-- firm_criteria is the FIRM's content, not learning data: it has no pupil
+-- column and does not hang from a membership. The organization's members read
+-- it; its author writes and edits it; an owner or admin may remove one.
+-- Authorization lives in the backend (service_role); RLS is on and nothing is
+-- granted to the browser roles.
+--
+--   - author_user_id goes to null when the account is erased: the criterion
+--     stays with the firm, shown as written by a deleted user.
+--   - playbook_id goes to null when the playbook is deleted; a dissenting
+--     opinion keeps the rule id it named.
+--   - A criterion states a position; LiTT gives it no legal authority and
+--     stores no legal source for it.
+--
+-- Safe to re-run: create ... if not exists, drop-before-create for
+-- constraints and policies. No rows are inserted.
+
+create table if not exists public.firm_criteria (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null references public.organizations(id) on delete cascade,
+  author_user_id uuid references auth.users(id) on delete set null,
+  kind text not null default 'criterio',
+  -- Normalized like training_stages.practice (lower, trimmed); null: any practice.
+  practice text,
+  topic text not null,
+  position text not null,
+  -- A dissenting opinion names the rule of a playbook it disagrees with.
+  playbook_id uuid references public.playbooks(id) on delete set null,
+  rule_id text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.firm_criteria drop constraint if exists firm_criteria_kind_check;
+alter table public.firm_criteria add constraint firm_criteria_kind_check
+  check (kind in ('criterio', 'voto_particular'));
+
+alter table public.firm_criteria drop constraint if exists firm_criteria_text_check;
+alter table public.firm_criteria add constraint firm_criteria_text_check
+  check (
+    char_length(btrim(topic)) between 1 and 120
+    and char_length(btrim(position)) between 1 and 2000
+    and (practice is null or (practice = lower(btrim(practice)) and char_length(practice) between 1 and 200))
+  );
+
+-- A criterion points at no rule; a dissenting opinion names one.
+alter table public.firm_criteria drop constraint if exists firm_criteria_rule_check;
+alter table public.firm_criteria add constraint firm_criteria_rule_check
+  check (
+    (kind = 'criterio' and playbook_id is null and rule_id is null)
+    or (kind = 'voto_particular' and rule_id is not null and char_length(rule_id) between 1 and 100)
+  );
+
+create index if not exists firm_criteria_org_idx
+  on public.firm_criteria(org_id, updated_at desc);
+create index if not exists firm_criteria_author_idx
+  on public.firm_criteria(author_user_id) where author_user_id is not null;
+create index if not exists firm_criteria_playbook_idx
+  on public.firm_criteria(playbook_id) where playbook_id is not null;
+
+alter table public.firm_criteria enable row level security;
+revoke all on public.firm_criteria from anon, authenticated;
+grant select, insert, update, delete on public.firm_criteria to service_role;
 -- 20261108_78_litt_training_retakes.sql
 -- ---------------------------------------------------------------------------
 -- Migration date: 2026-11-08
@@ -19882,6 +19955,10 @@ create unique index if not exists idx_playbook_imports_one_running_correction
 --   - The route (provider, model, credential reference; identifiers only) is
 --     the PERSON's own, fixed on the row when the question is made.
 --   - One retake is pending or open at a time per person and organization.
+--   - source_note_ids: the ids of the turn notes the question was made from,
+--     fixed with the row. The answer is contrasted with exactly those, and the
+--     mentor sees the text of a retake only if all of them are in matters
+--     they can open (no foreign key: a deleted note simply stops being found).
 --   - No practice area, no matter and no document are kept: a retake is
 --     about a topic, and its text is generalized by the prompt.
 
@@ -19900,10 +19977,16 @@ create table if not exists public.training_retakes (
   model_provider text,
   model text,
   credential_ref text,
+  -- The turn notes the question was made from (and the answer is contrasted
+  -- with), fixed when the question is made. The mentor reads the text of a
+  -- retake only when every one of them is in a matter they can open.
+  source_note_ids uuid[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   answered_at timestamptz
 );
+
+alter table public.training_retakes add column if not exists source_note_ids uuid[] not null default '{}';
 
 alter table public.training_retakes drop constraint if exists training_retakes_member_fkey;
 alter table public.training_retakes add constraint training_retakes_member_fkey
@@ -19980,6 +20063,84 @@ create trigger training_retakes_answer_once
 alter table public.training_retakes enable row level security;
 revoke all on public.training_retakes from anon, authenticated;
 grant select, insert, update, delete on public.training_retakes to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 20261108_82_litt_training_criterion_contrasts.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-08
+--
+-- LiTT training, layer 3 card 13 «Contraste de criterios» (docs/training.md):
+-- a junior hands the same assignment to two subagents, reads the two analyses
+-- side by side, writes why they think they diverge BEFORE seeing the AI's own
+-- explanation, and the AI's explanation is compared with theirs.
+--
+--   training_criteria_contrasts  one row per contrast: the routes the two
+--                                subagents really ran on (identifiers only,
+--                                never a credential), their two briefs, the
+--                                person's explanation and the comparison.
+--
+-- It is learning data. training_can_read_learning(actor, org, trainee) decides
+-- who reads it (the person and their CURRENT mentor; never an owner or an
+-- admin); the backend asks it, and RLS is on with no policies or browser
+-- grants, like the other training_* tables. The row hangs off the junior's
+-- org_members row, so it goes when they leave the organization or their
+-- account is erased (owner decision 2026-10-24); prepare_account_org_departures
+-- is not changed. Releasing the junior keeps it. It goes with its chat.
+--
+-- Safe to re-run: if not exists, drop-before-create.
+
+create table if not exists public.training_criteria_contrasts (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid not null,
+  trainee_user_id uuid not null,
+  -- The conversation of the contrast (chat and project chat share this table).
+  chat_id uuid not null references public.chats(id) on delete cascade,
+  -- The assistant message of step 1, the one that ran the two subagents.
+  message_id uuid not null,
+  -- [{ name?, approach?, provider, model, status }]: what each subagent ran on.
+  routes jsonb not null,
+  -- The two briefs, in the order of routes; null when a subagent did not run.
+  briefs jsonb,
+  status text not null default 'awaiting_person',
+  person_explanation text,
+  comparison text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint training_criteria_contrasts_member_fkey foreign key (org_id, trainee_user_id)
+    references public.org_members(org_id, user_id) on delete cascade,
+  constraint training_criteria_contrasts_status_check check (
+    status in ('awaiting_person', 'explained', 'failed')
+  ),
+  constraint training_criteria_contrasts_routes_check check (
+    jsonb_typeof(routes) = 'array'
+    and jsonb_array_length(routes) between 1 and 2
+    and octet_length(routes::text) <= 4000
+  ),
+  constraint training_criteria_contrasts_briefs_check check (
+    briefs is null
+    or (
+      jsonb_typeof(briefs) = 'array'
+      and jsonb_array_length(briefs) between 1 and 2
+      and octet_length(briefs::text) <= 40000
+    )
+  ),
+  constraint training_criteria_contrasts_explanation_check check (
+    (person_explanation is null or char_length(person_explanation) between 60 and 4000)
+    and (comparison is null or char_length(comparison) between 1 and 4000)
+    and (status <> 'explained' or (person_explanation is not null and comparison is not null))
+    and (status <> 'awaiting_person' or (person_explanation is null and comparison is null and briefs is not null))
+  )
+);
+create unique index if not exists training_criteria_contrasts_message_key
+  on public.training_criteria_contrasts(message_id);
+-- One contrast at a time waits for its explanation in a conversation.
+create unique index if not exists training_criteria_contrasts_awaiting_key
+  on public.training_criteria_contrasts(chat_id) where status = 'awaiting_person';
+create index if not exists training_criteria_contrasts_trainee_idx
+  on public.training_criteria_contrasts(org_id, trainee_user_id, created_at);
+alter table public.training_criteria_contrasts enable row level security;
+revoke all on public.training_criteria_contrasts from anon, authenticated;
+grant select, insert, update, delete on public.training_criteria_contrasts to service_role;
 
 -- ===== end of LiTT extension =====
 
@@ -20233,5 +20394,7 @@ insert into public.schema_migrations (filename) values
   ('20261108_66_litt_training_criterion_review_audits.sql'),
   ('20261108_68_litt_training_criterion_readings.sql'),
   ('20261108_70_litt_playbook_corrections.sql'),
-  ('20261108_78_litt_training_retakes.sql')
+  ('20261108_76_litt_firm_criteria.sql'),
+  ('20261108_78_litt_training_retakes.sql'),
+  ('20261108_82_litt_training_criterion_contrasts.sql')
 on conflict (filename) do nothing;

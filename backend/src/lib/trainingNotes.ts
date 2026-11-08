@@ -49,6 +49,11 @@ export async function createPendingTurnNote(
         attempt: string;
         /** The pasante's own mark on the approach, 1 to 4; null before layer 3. */
         confidence?: number | null;
+        /** A hint or a counterpart turn (lib/trainingHint.ts); `step` goes with it. */
+        mode?: string | null;
+        step?: number | null;
+        /** `skipped` for a turn with nothing to contrast; pending otherwise. */
+        contrastStatus?: "pending" | "skipped";
     },
 ): Promise<{ ok: true; note: CreatedTurnNote } | { ok: false; error: unknown }> {
     const { data, error } = await db
@@ -60,7 +65,9 @@ export async function createPendingTurnNote(
             message_id: args.messageId,
             attempt: args.attempt,
             confidence: args.confidence ?? null,
-            contrast_status: "pending",
+            mode: args.mode ?? null,
+            step: args.step ?? null,
+            contrast_status: args.contrastStatus ?? "pending",
         })
         .select("id")
         .single();

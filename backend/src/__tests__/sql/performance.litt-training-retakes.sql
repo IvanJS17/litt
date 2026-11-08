@@ -12,6 +12,7 @@
 --   4. Constraints: closed statuses, a question before it is open, an answer
 --      with its contrast, verdict and date together and written once, a route
 --      of three columns or none, one retake pending or open per person and firm.
+--   4b. source_note_ids: never null, empty by default, kept across a re-run.
 --   5. The migration re-runs over the final shape.
 --
 -- Runs in CI with the performance.*.sql loop (.github/workflows/schema-drift.yml)
@@ -207,6 +208,36 @@ begin
   update public.training_retakes set status = 'failed' where status = 'pending' and trainee_user_id = me::uuid;
   execute format('insert into public.training_retakes(org_id,trainee_user_id,topic_key,topic_label) values (%L,%L,''rescision'',''Rescisión'')', org, me);
   assert (select count(*) from public.training_retakes where trainee_user_id = me::uuid) = 3, 'three retakes of the pupil';
+end;
+$$;
+rollback;
+
+-- 4b. The source notes: an array that is never null, empty by default, kept
+-- as written, and not lost when the migration runs again over rows that have it.
+begin;
+select pg_temp.fixture();
+do $$
+declare me text := current_setting('litt.pupil'); org text := current_setting('litt.org');
+  a uuid := gen_random_uuid(); b uuid := gen_random_uuid();
+begin
+  assert (select source_note_ids from public.training_retakes where trainee_user_id = me::uuid) = '{}'::uuid[],
+    'a retake starts with no recorded sources';
+  perform pg_temp.rejects(format('update public.training_retakes set source_note_ids = null where trainee_user_id = %L::uuid', me), 'source_note_ids');
+  update public.training_retakes set source_note_ids = array[a, b] where trainee_user_id = me::uuid;
+  assert (select source_note_ids from public.training_retakes where trainee_user_id = me::uuid) = array[a, b],
+    'the sources are kept as written';
+  perform set_config('litt.src_a', a::text, true);
+end;
+$$;
+\ir ../../../migrations/20261108_78_litt_training_retakes.sql
+do $$
+begin
+  assert (select source_note_ids from public.training_retakes where trainee_user_id = current_setting('litt.pupil')::uuid)
+    = array[current_setting('litt.src_a')::uuid, (select source_note_ids[2] from public.training_retakes limit 1)],
+    're-running the migration keeps the recorded sources';
+  assert (select data_type || '/' || is_nullable from information_schema.columns
+    where table_schema = 'public' and table_name = 'training_retakes' and column_name = 'source_note_ids') = 'ARRAY/NO',
+    'source_note_ids is a not-null array';
 end;
 $$;
 rollback;

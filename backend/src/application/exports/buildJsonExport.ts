@@ -653,6 +653,7 @@ export async function buildUserAccountExport(
         trainingReviewAudits,
         trainingReadings,
         trainingRetakes,
+        trainingCriteriaContrasts,
     ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
@@ -721,12 +722,22 @@ export async function buildUserAccountExport(
             order: ["created_at"],
         }),
         // Own map and retake (layer 3): the question, the holder's answer and its
-        // contrast. The map itself is computed from the turn notes above. Never
+        // contrast, and the ids of the turn notes (exported above, with their own ids)
+        // the question came from. The map itself is computed from the turn notes above. Never
         // the credential reference of the route.
         selectAll(db, "training_retakes", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
-                "id, org_id, topic_key, topic_label, status, question, answer, contrast, verdict, model_provider, model, created_at, updated_at, answered_at",
+                "id, org_id, topic_key, topic_label, status, question, answer, contrast, verdict, source_note_ids, model_provider, model, created_at, updated_at, answered_at",
+            order: ["created_at"],
+        }),
+        // Criteria contrasts (layer 3): the routes the two subagents ran on
+        // (identifiers), the two analyses and the holder's explanation with
+        // the comparison. No mentor id is in the row.
+        selectAll(db, "training_criteria_contrasts", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, chat_id, message_id, routes, briefs, status, person_explanation, comparison, created_at, updated_at",
             order: ["created_at"],
         }),
     ]);
@@ -814,6 +825,7 @@ export async function buildUserAccountExport(
             review_audits: trainingReviewAudits,
             readings: trainingReadings,
             retakes: trainingRetakes,
+            criteria_contrasts: trainingCriteriaContrasts,
         },
         audit_events: auditEvents,
     };

@@ -34,6 +34,9 @@ describe("training stage staleness", () => {
   it("knows the codes with which the server refuses a stale composer", () => {
     expect(isTrainingRefusalCode("training_attempt_required")).toBe(true);
     expect(isTrainingRefusalCode("training_confidence_required")).toBe(true);
+    expect(isTrainingRefusalCode("training_mode_not_allowed")).toBe(true);
+    expect(isTrainingRefusalCode("training_hint_limit_reached")).toBe(true);
+    expect(isTrainingRefusalCode("training_counterpart_rounds_done")).toBe(true);
     expect(isTrainingRefusalCode("validation")).toBe(false);
     expect(isTrainingRefusalCode(undefined)).toBe(false);
   });

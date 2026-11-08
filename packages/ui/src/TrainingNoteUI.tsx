@@ -2,6 +2,7 @@ import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import type {
   TrainingConfidenceLevel,
+  TrainingTurnMode,
   TrainingVerdictValue,
 } from "@mike/contracts";
 import { requestTrainingReply } from "./trainingReply";
@@ -36,6 +37,10 @@ export interface TrainingNoteView {
   foundation?: "solid" | "weak" | "wrong" | null;
   /** One question about the basis, to answer in the next turn. */
   foundation_question?: string | null;
+  /** A hint or a turn of a round with the counterparty's lawyer (card 6); absent on plain turns. */
+  mode?: TrainingTurnMode | null;
+  /** The rung of the hint, or the turn of the round. */
+  step?: 1 | 2 | 3 | null;
 }
 
 /** The words of the note, in the host's language. */
@@ -46,6 +51,16 @@ export interface TrainingNoteText {
   contrastHeading: string;
   contrastPending: string;
   contrastFailed: string;
+  /** A hint or counterpart turn left pending (aborted before its answer): not a contrast. */
+  notDelivered: string;
+  /** The heading of the contrast of a closed round with the counterparty's lawyer. */
+  closeHeading: string;
+  /** What a hint or counterpart turn was, e.g. "Hint 2 of 3". */
+  mode: {
+    hint: (step: number) => string;
+    counterpart: (step: number) => string;
+    counterpart_close: string;
+  };
   privacy: string;
   /** "Your mark: {level}" */
   confidence: (level: string) => string;
@@ -67,6 +82,11 @@ export interface TrainingNoteText {
   replyLabel: string;
 }
 
+/** A hint or counterpart note still `pending`: its turn was aborted before delivering. */
+export function isUndeliveredModeNote(note: Pick<TrainingNoteView, "mode" | "contrast_status">): boolean {
+  return (note.mode === "hint" || note.mode === "counterpart") && note.contrast_status === "pending";
+}
+
 export function TrainingNoteUI({
   note,
   text,
@@ -83,6 +103,17 @@ export function TrainingNoteUI({
   const verdict = note.effective_verdict ?? null;
   const question = note.foundation_question?.trim() || null;
   const foundation = note.foundation ?? null;
+  const closed = note.mode === "counterpart_close";
+  // A hint or counterpart turn is recorded pending and settles as skipped once
+  // its answer is delivered; one still pending was aborted. It has no contrast
+  // to wait for or to fail.
+  const undelivered = isUndeliveredModeNote(note);
+  const modeLabel =
+    note.mode === "hint" || note.mode === "counterpart"
+      ? text.mode[note.mode](note.step ?? 1)
+      : closed
+        ? text.mode.counterpart_close
+        : null;
   return (
     <section
       aria-label={text.region}
@@ -103,10 +134,17 @@ export function TrainingNoteUI({
             {text.confidence(text.confidenceLevels[note.confidence])}
           </p>
         ) : null}
+        {modeLabel ? (
+          <p className="mt-1 break-words text-xs font-medium text-foreground">{modeLabel}</p>
+        ) : null}
       </div>
-      {note.contrast_status !== "skipped" ? (
+      {undelivered ? (
+        <p className="min-w-0 break-words border-t border-border pt-3 text-sm text-muted-foreground">
+          {text.notDelivered}
+        </p>
+      ) : note.contrast_status !== "skipped" ? (
         <div className="min-w-0 border-t border-border pt-3">
-          <h4 className="text-xs font-medium text-muted-foreground">{text.contrastHeading}</h4>
+          <h4 className="text-xs font-medium text-muted-foreground">{closed ? text.closeHeading : text.contrastHeading}</h4>
           {ready ? (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
               {note.contrast}

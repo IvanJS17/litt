@@ -25,6 +25,10 @@ export const DOCUMENT_MUTATING_TOOL_NAMES: ReadonlySet<string> = new Set([
   "generate_docx",
   "generate_excel",
   "generate_ppt",
+  // Word add-in client tool (WORD_CLIENT_TOOLS): proposes tracked changes in
+  // the user's open document. Named here, not imported, so this list stays a
+  // leaf; wordClientTools.test.ts pins every writer client tool to it.
+  "apply_word_edits",
 ]);
 
 /** Read a tool schema's function name, whatever shape the entry arrived in. */

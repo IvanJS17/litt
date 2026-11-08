@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useOrganizationInvitationCount } from "@/app/hooks/useOrganizationInvitationCount";
 import { useMemberDataActions } from "@/app/hooks/useMemberDataActions";
@@ -60,6 +61,7 @@ export default function SettingsLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
+    const t = useTranslations();
     const { user, isAuthenticated, authLoading } = useAuth();
     const invitationCount = useOrganizationInvitationCount(
         isAuthenticated && !authLoading ? user?.id : undefined,
@@ -72,8 +74,20 @@ export default function SettingsLayout({
         () =>
             TABS.filter(
                 (tab) => !(hidePrivacyData && tab.id === "privacy-data"),
+            ).flatMap((tab) =>
+                // LiTT training: the firm's written criteria sit beside Formación.
+                tab.id === "training"
+                    ? [
+                          tab,
+                          {
+                              id: "firm-criteria",
+                              label: t("training.firmCriteria.settings.tab"),
+                              href: "/settings/firm-criteria",
+                          },
+                      ]
+                    : [tab],
             ),
-        [hidePrivacyData],
+        [hidePrivacyData, t],
     );
     // Search only what is listed: an entry on a hidden tab would open a page
     // the person is not offered.

@@ -60,6 +60,25 @@ describe("consumeAssistantTurnStream", () => {
     ]);
     turn.finish();
   });
+  it("keeps the firm criteria the assistant consulted, as the server sent them, and ignores a frame without an id", async () => {
+    const turn = begin();
+    const criterion = {
+      id: "c1", kind: "criterio", practice: "mercantil", topic: "Prescripción", position: "Corre desde el vencimiento.",
+      author_user_id: "u1", author_name: "Ana Pérez", playbook_id: null, rule_id: null,
+      created_at: "2026-11-01T10:00:00.000Z", updated_at: "2026-11-01T10:00:00.000Z",
+    };
+    await consumeAssistantTurnStream(sseResponse([
+      frame(1, { type: "firm_criteria", call_id: "call-1", practice: "mercantil", topic: "prescripcion", criteria: [criterion], truncated: true }),
+      frame(2, { type: "firm_criteria", call_id: "call-2", criteria: "nope", error: "x" }),
+      frame(3, { type: "firm_criteria", criteria: [criterion] }),
+      "data: [DONE]\n\n",
+    ]), { turn, sink: createTurnEventSink(turn, []), cursor: createTurnCursor("chat-a") });
+    expect(turn.turn.assistant.events?.filter((e) => e.type === "firm_criteria")).toEqual([
+      { type: "firm_criteria", call_id: "call-1", practice: "mercantil", topic: "prescripcion", criteria: [criterion], truncated: true },
+      { type: "firm_criteria", call_id: "call-2", practice: null, topic: null, criteria: [], truncated: false, error: "x" },
+    ]);
+    turn.finish();
+  });
   it("records what the answer ran on and drops malformed details", async () => {
     const turn = begin();
     await consumeAssistantTurnStream(sseResponse([

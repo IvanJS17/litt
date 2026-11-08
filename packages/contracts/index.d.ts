@@ -452,6 +452,7 @@ export type AssistantEvent =
     }
   | McpToolEvent
   | WebToolEvent
+  | FirmCriteriaEvent
   | DelegationEvent
   | ResponseDetailsEvent
   | {
@@ -764,6 +765,17 @@ export interface TrainingEffectiveStage {
      * from servers older than layer 3, which ask for no mark.
      */
     confidence_required?: boolean;
+    /**
+     * Layer 3, hints and the counterparty's lawyer: the modes open to the
+     * caller now (`TrainingTurnMode`), counted by the server from the
+     * caller's own notes of `chat_id`. Empty when the turn owes no approach
+     * (another stage, an urgency pass). Absent from older servers.
+     */
+    modes?: TrainingTurnMode[];
+    /** The rung the next hint would be, or null when the ladder is used up or no hint is open. */
+    next_hint_level?: 1 | 2 | 3 | null;
+    /** The step the next counterpart turn would take, or null when the round is full or none is open. */
+    counterpart_next_step?: 1 | 2 | 3 | null;
 }
 
 // --- Training layer 3, card 4: own map, calibration and retake (begin) ---
@@ -826,7 +838,7 @@ export interface TrainingRetake {
   org_id: string;
   topic_key: string;
   topic_label: string;
-  /** A `pending` row the server lost track of reads as `failed`. */
+  /** A `pending` row the server lost track of reads as `open` if it has a question (the answer was never saved), else `failed`. */
   status: TrainingRetakeStatus;
   question: string | null;
   answer: string | null;
@@ -835,11 +847,7 @@ export interface TrainingRetake {
   verdict: TrainingVerdictValue | null;
   created_at: string;
   answered_at: string | null;
-  /**
-   * Only for the mentor: the text of the retake is shown when its topic comes
-   * from work in a matter the mentor can open; otherwise `question`,
-   * `answer` and `contrast` are null and this is true.
-   */
+  /** Always false: a retake the mentor cannot read is not sent at all (`retakes_without_access`). Kept for compatibility. */
   text_hidden: boolean;
 }
 
@@ -869,6 +877,8 @@ export interface TrainingMyCriterion extends TrainingCriterionBase {
 export interface TrainingPupilCriterion extends TrainingCriterionBase {
   /** Turn notes of works in matters the mentor cannot open: counted, never used. */
   notes_without_access: number;
+  /** Retakes whose topic shows only in notes the mentor cannot open: counted, not listed (no label, status or verdict). */
+  retakes_without_access: number;
 }
 
 /** POST /training/me/retakes */
@@ -936,9 +946,24 @@ export interface TrainingTurnNote {
   topics?: string[] | null;
   /** The answer carried a citation that could not be verified: the turn does not count as evidence. */
   answer_unverified?: boolean;
+  /** `hint` or `counterpart*` turns (card 6); `step` is the rung or the turn of the round. Absent on plain turns. */
+  mode?: TrainingTurnMode | null;
+  step?: 1 | 2 | 3 | null;
 }
 
 // --- Training layer 3, card 6: ladder hints and counterpart (begin) ---
+/**
+ * What a turn can be besides a plain question, sent as `training_mode`:
+ * `hint` (a rung of the ladder, no answer), `counterpart` (a turn of a round
+ * with the counterparty's lawyer, up to three) and `counterpart_close`
+ * (ends the round with a contrast). The server picks the step.
+ */
+export type TrainingTurnMode =
+  | "hint"
+  | "counterpart"
+  | "counterpart_close"
+  | "criteria_contrast"
+  | "criteria_explain";
 // --- Training layer 3, card 6 (end) ---
 
 /** GET /training-notes/chats/:chatId (404 when the caller may read none). */
@@ -1041,11 +1066,72 @@ export interface TrainingPupilBacking {
 }
 // --- Training layer 3, card 8 (end) ---
 
+// --- Training layer 3, card 13: criteria contrast (begin) ---
+export type TrainingCriteriaContrastStatus = "awaiting_person" | "explained" | "failed";
+
+/** What one of the two subagents ran on: identifiers only, never a credential. */
+export interface TrainingCriteriaContrastRoute {
+  /** The person's named route; absent when a neutral approach ran on the conversation's model. */
+  name?: string;
+  approach?: "literal" | "systematic";
+  provider?: string;
+  model?: string;
+  /** The subagent's status, or "not_run" when it was never started. A failed one is never replaced. */
+  status: string;
+}
+
+/** One contrast of the person's own, as GET /training/me/criteria-contrasts lists it. */
+export interface TrainingCriteriaContrast {
+  id: string;
+  org_id: string;
+  chat_id: string;
+  /** The project the conversation lives in; null for a chat outside any project. */
+  project_id: string | null;
+  status: TrainingCriteriaContrastStatus;
+  routes: TrainingCriteriaContrastRoute[];
+  /** The two analyses, in the order of `routes`; "" for one that did not run. */
+  briefs: string[] | null;
+  person_explanation: string | null;
+  /** The AI's explanation compared with the person's, in the three sections of every contrast. */
+  comparison: string | null;
+  created_at: string;
+}
+
+export interface TrainingMyCriteriaContrasts {
+  contrasts: TrainingCriteriaContrast[];
+}
+
+/** What the pupil's current mentor sees of a contrast: not the analyses, which stay in the pupil's chat. */
+export interface TrainingPupilCriteriaContrast {
+  id: string;
+  chat_id: string;
+  project_id: string | null;
+  title: string | null;
+  status: TrainingCriteriaContrastStatus;
+  routes: TrainingCriteriaContrastRoute[];
+  person_explanation: string | null;
+  comparison: string | null;
+  created_at: string;
+}
+
+/** GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts. The current mentor's only. */
+export interface TrainingPupilCriteriaContrasts {
+  org_id: string;
+  trainee_user_id: string;
+  contrasts: TrainingPupilCriteriaContrast[];
+  /** Contrasts in matters the mentor cannot open: counted, never listed. */
+  contrasts_without_access: number;
+}
+// --- Training layer 3, card 13 (end) ---
+
+
 /** GET /training/stage?org_id=|project_id=|surface=word. `project_id` requires access to the project. */
 export interface TrainingStageQuery {
     org_id?: string;
     project_id?: string;
     surface?: "word";
+    /** The chat the turn would continue; the hint ladder is counted from its notes. */
+    chat_id?: string;
 }
 
 // LiTT training, layer 2 «Supervisión» (docs/training.md). Learning data:
@@ -1183,6 +1269,12 @@ export interface TrainingWorkSignals {
     edits_pending: number;
     /** The pupil's sealed drafts from this work still without an approval. */
     held_versions: number;
+    /** Layer 3: hints asked and the highest rung reached, counted from the notes. Absent on older reviews. */
+    hints_used?: number;
+    max_hint_level?: number;
+    /** Layer 3: counterparty rounds started, and how many were closed. */
+    counterpart_rounds?: number;
+    counterpart_closed?: number;
 }
 /**
  * The two-minute review of one piece of work: one chat with turn notes.
@@ -1205,7 +1297,11 @@ export interface TrainingWorkReview {
     proposed: TrainingReviewItem[] | null;
     /** From the contrasts, put in order by the model. */
     ai_corrected: TrainingReviewItem[] | null;
-    /** Inferred by the model from the signals: every line has source `inferred`. */
+    /**
+     * Inferred by the model from the signals (source `inferred`), after the
+     * lines the server computes from the notes (source `hint`, `confidence`,
+     * `foundation`, `counterpart`; `ref` is the note).
+     */
     doubts: TrainingReviewItem[] | null;
     /** Computed, never generated: unverified citations, held drafts, «Faltó». */
     unverified: TrainingReviewItem[] | null;
@@ -1425,6 +1521,73 @@ export interface TrainingPromotionEvidence {
 }
 
 // --- Training layer 3, card 14: firm criteria (begin) ---
+
+/** `criterio`: a position of the firm. `voto_particular`: disagrees with a playbook rule. */
+export type FirmCriterionKind = "criterio" | "voto_particular";
+
+/**
+ * A position a person of the firm wrote (docs/training.md, "One mold of
+ * criterion"). It is the firm's content, not learning data, and LiTT gives it
+ * no legal authority: it says who wrote what, and when.
+ */
+export type FirmCriterionSnapshot = {
+  id: string;
+  kind: FirmCriterionKind;
+  /** Practice area, normalized; null for any. */
+  practice: string | null;
+  topic: string;
+  position: string;
+  /** Null when the author's account was erased. */
+  author_user_id: string | null;
+  /** The author's name as their profile gives it; null for a deleted user. */
+  author_name: string | null;
+  /** A dissenting opinion names the rule of a playbook it disagrees with. */
+  playbook_id: string | null;
+  rule_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FirmCriterion = FirmCriterionSnapshot & {
+  /** The caller wrote it. */
+  mine: boolean;
+};
+
+export type FirmCriteriaList = {
+  criteria: FirmCriterion[];
+  /** The caller may write criteria (no training stage). */
+  can_write: boolean;
+  /** The caller may remove any criterion (owner or admin). */
+  can_manage: boolean;
+  max_per_organization: number;
+};
+
+export type FirmCriterionInput = {
+  kind?: FirmCriterionKind;
+  practice?: string | null;
+  topic: string;
+  position: string;
+  /** Required with `voto_particular`: the playbook and the rule it disagrees with. */
+  playbook_id?: string | null;
+  rule_id?: string | null;
+};
+
+/**
+ * Emitted by the server when the assistant consults the firm's criteria in a
+ * trainee's turn: the criteria exactly as stored, with author and date, so the
+ * attribution never depends on what the model says.
+ */
+export type FirmCriteriaEvent = {
+  type: "firm_criteria";
+  call_id: string;
+  practice: string | null;
+  topic: string | null;
+  criteria: FirmCriterionSnapshot[];
+  /** There were more matching criteria than the turn carries. */
+  truncated: boolean;
+  /** Set when the consultation failed; no criteria then. */
+  error?: string;
+};
 // --- Training layer 3, card 14 (end) ---
 
 /**

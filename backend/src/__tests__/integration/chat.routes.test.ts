@@ -4057,6 +4057,167 @@ describe("LiTT training: «Tu turno primero» on POST /chat", () => {
         expect(noteUpdate()).toEqual({ contrast: null, contrast_status: "failed", answer_unverified: false });
     });
 
+    it("takes a hint as a turn with the engine's limits, a skipped note and no contrast, and asks no mark", async () => {
+        await answerContrastWith(async () => CONTRAST);
+        trainingStage.value = "pasante";
+        const res = await send({ attempt: ATTEMPT, training_mode: "hint" });
+        expect(res.status).toBe(200);
+        expect(noteInsert()).toMatchObject({
+            attempt: ATTEMPT,
+            confidence: null,
+            mode: "hint",
+            step: 1,
+            contrast_status: "pending",
+        });
+        const stream = runLLMStream.mock.calls[0][0] as { trainingPlan: Record<string, unknown> };
+        expect(stream.trainingPlan).toMatchObject({
+            allowDocumentMutation: false,
+            includeAskInputs: false,
+            noSubagents: true,
+            systemAddendum: expect.stringContaining("PISTA"),
+        });
+        expect(await contrastCalls()).toHaveLength(0);
+        // Pending at insert; skipped only once the turn was delivered.
+        await vi.waitFor(() => expect(noteUpdate()).toBeDefined());
+        expect(noteUpdate()).toEqual({ contrast_status: "skipped" });
+    });
+
+    it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
+        "refuses a hint from %s with training_mode_not_allowed, before writing or calling a model",
+        async (_label, stage) => {
+            trainingStage.value = stage;
+            const res = await send({ attempt: ATTEMPT, confidence: 3, training_mode: "hint" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        },
+    );
+
+    describe("criteria contrast (layer 3, card 13)", () => {
+        const saved = process.env.LITT_CHAT_SUBAGENTS;
+        beforeEach(() => {
+            process.env.LITT_CHAT_SUBAGENTS = "enabled";
+            trainingStage.value = "junior";
+        });
+        afterEach(() => {
+            if (saved === undefined) delete process.env.LITT_CHAT_SUBAGENTS;
+            else process.env.LITT_CHAT_SUBAGENTS = saved;
+        });
+        const withRoutes = async (names: string[]) => {
+            const userSettings = await import("../../modules/user/user.settings.js");
+            vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
+                web_search: DEFAULT_WEB_SEARCH_SETTINGS,
+                title_model: null,
+                memory_curator_model: null,
+                subagent_model: null,
+                subagent_reasoning: null,
+                subagent_routes: {
+                    routes: names.map((name) => ({ name, description: name, model: "gemini-3.8-flash" })),
+                    default: null,
+                },
+                last_selected_reasoning_level: null,
+                tabular_model: null,
+                last_selected_chat_model: "gemini-3.8-flash",
+                api_keys: { gemini: "test-key" },
+            });
+        };
+        type Stream = { trainingPlan: Record<string, any>; subagentRuns: unknown };
+
+        it("with exactly one route, runs both analyses on that route, with the subagent tool still on", async () => {
+            await withRoutes(["solo"]);
+            const res = await send({ training_mode: "criteria_contrast" });
+            expect(res.status).toBe(200);
+            const stream = runLLMStream.mock.calls[0][0] as unknown as Stream;
+            expect(stream.trainingPlan).toMatchObject({
+                allowDocumentMutation: false,
+                includeAskInputs: false,
+                systemAddendum: expect.stringContaining("CONTRASTE DE CRITERIOS"),
+                delegation: {
+                    requestedRoutes: null,
+                    assignments: [
+                        { route: "solo", approach: "literal" },
+                        { route: "solo", approach: "systematic" },
+                    ],
+                },
+            });
+            expect(stream.trainingPlan.noSubagents).toBeUndefined();
+            expect(stream.subagentRuns).toBeTruthy();
+            // A junior's contrast is not a note: nothing to contrast with an attempt.
+            expect(noteInsert()).toBeUndefined();
+            expect(await contrastCalls()).toHaveLength(0);
+        });
+
+        it("with no route configured, runs two neutral approaches on the conversation's model", async () => {
+            await withRoutes([]);
+            const res = await send({ training_mode: "criteria_contrast" });
+            expect(res.status).toBe(200);
+            const stream = runLLMStream.mock.calls[0][0] as unknown as Stream;
+            expect(stream.trainingPlan.delegation).toMatchObject({
+                requestedRoutes: null,
+                assignments: [
+                    { route: null, approach: "literal" },
+                    { route: null, approach: "systematic" },
+                ],
+            });
+            expect(stream.subagentRuns).toBeTruthy();
+        });
+
+        it("with two or more routes, runs the two the person chose, and asks for the choice", async () => {
+            await withRoutes(["a", "b", "c"]);
+            const res = await send({ training_mode: "criteria_contrast", criteria_routes: ["c", "a"] });
+            expect(res.status).toBe(200);
+            const stream = runLLMStream.mock.calls[0][0] as unknown as Stream;
+            expect(stream.trainingPlan.delegation.assignments).toEqual([
+                { route: "c", approach: null },
+                { route: "a", approach: null },
+            ]);
+
+            runLLMStream.mockClear();
+            dbInserts.length = 0;
+            await withRoutes(["a", "b", "c"]);
+            const refused = await send({ training_mode: "criteria_contrast" });
+            expect(refused.status).toBe(400);
+            expect(refused.body.code).toBe("training_mode_not_allowed");
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("refuses a route that is not the person's, before writing or calling a model", async () => {
+            await withRoutes(["a", "b"]);
+            const res = await send({ training_mode: "criteria_contrast", criteria_routes: ["a", "zzz"] });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("fails closed, saying why, when the server has subagents off", async () => {
+            delete process.env.LITT_CHAT_SUBAGENTS;
+            const res = await send({ training_mode: "criteria_contrast" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(res.body.detail).toMatch(/subagentes no están activados/);
+            expect(dbInserts.some(({ table }) => table === "chat_messages")).toBe(false);
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it.each([["a pasante", "pasante"], ["a lawyer", null]] as const)("is not for %s", async (_label, stage) => {
+            trainingStage.value = stage;
+            const res = await send({ attempt: ATTEMPT, confidence: 3, training_mode: "criteria_contrast" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+
+        it("the explanation step needs a waiting contrast of this conversation", async () => {
+            const res = await send({ training_mode: "criteria_explain", criteria_explanation: "x".repeat(80), chat_id: "chat-1" });
+            expect(res.status).toBe(400);
+            expect(res.body.code).toBe("training_mode_not_allowed");
+            expect(runLLMStream).not.toHaveBeenCalled();
+        });
+    });
+
     it.each([["a junior", "junior"], ["a lawyer", null]] as const)(
         "ignores the attempt of %s and changes nothing",
         async (_label, stage) => {

@@ -21,6 +21,12 @@ describe("the egress record of a call that must not go unrecorded (W1)", () => {
         expect(b.tables.audit_events[0]).toMatchObject({ action: "llm.egress", surface: "training_backing" });
     });
 
+    it("writes the comparison of a criteria contrast under its own label", async () => {
+        const { db, tables } = memoryDb({ audit_events: [] });
+        await recordChatEgressOrThrow(db as Db, { ...args, surface: "training_contrast" });
+        expect(tables.audit_events[0]).toMatchObject({ action: "llm.egress", surface: "training_contrast" });
+    });
+
     it("throws when the row cannot be written, while recordChatEgress still swallows it", async () => {
         vi.spyOn(console, "error").mockImplementation(() => {});
         const { db, failNext } = memoryDb({ audit_events: [] });

@@ -22,6 +22,7 @@ import { computeCalibration } from "../../lib/trainingCalibration";
 import {
     computeMap,
     countedTurns,
+    labelFromNotes,
     MAP_MIN_EVENTS,
     MAP_WINDOW_EVENTS,
     mapEvents,
@@ -58,8 +59,6 @@ function build(args: {
     traineeId: string;
     rows: readonly EvidenceRow[];
     retakes: readonly RetakeRow[];
-    /** Topics the reader may see the text of a retake for; null: all. */
-    textVisible: Set<string> | null;
     now: number;
 }) {
     const turns = countedTurns(args.rows);
@@ -86,9 +85,7 @@ function build(args: {
         },
         calibration: computeCalibration(turns),
         hints: hintsUsed(args.rows),
-        retakes: args.retakes.map((row) =>
-            serializeRetake(row, args.textVisible !== null && !args.textVisible.has(row.topic_key), args.now),
-        ),
+        retakes: args.retakes.map((row) => serializeRetake(row, args.now)),
         open_retake_id: open?.id ?? null,
     };
 }
@@ -111,7 +108,6 @@ export async function getMyCriterion(
             traineeId: args.userId,
             rows: rows.data,
             retakes: retakes.data,
-            textVisible: null,
             now: args.now ?? Date.now(),
         }),
         generation: await retakeGeneration(db, args.userId, orgId),
@@ -132,11 +128,34 @@ export async function getPupilCriterion(
     if (!visible.ok) return visible;
     const retakes = await readRetakes(db, orgId, traineeId);
     if (!retakes.ok) return retakes;
-    // A retake was built from the person's notes: its text is the mentor's to
-    // read only when its topic shows in the notes the mentor can open.
-    const textVisible = new Set(eventsOf(visible.data.rows, []).map((event) => event.key));
+    // A retake was built from specific notes of the person (source_note_ids),
+    // not from a matter: the mentor sees its text, topic, status and verdict
+    // only when EVERY one of those notes is in a matter they can open today
+    // (visibleToMentor, the same filter as the notes). A retake with any
+    // source outside that set, with a source that no longer exists, or with
+    // none recorded is only counted: nothing about it is returned (not even
+    // the topic label, which the model wrote from notes the mentor cannot
+    // read), and it feeds neither the map nor the open retake.
+    const openableNotes = new Set(visible.data.rows.map((row) => row.id));
+    // The label is not taken from the stored one: it is read again from the
+    // retake's own openable sources, so a label the model wrote from a note
+    // the mentor cannot open (an older retake, or a topic's last event) never
+    // reaches them. With no openable source carrying the topic, the retake is
+    // only counted.
+    const notesById = new Map(visible.data.rows.map((row) => [row.id, row]));
+    const openable: RetakeRow[] = [];
+    for (const row of retakes.data) {
+        const sources = row.source_note_ids ?? [];
+        if (sources.length === 0 || !sources.every((id) => openableNotes.has(id))) continue;
+        const label = labelFromNotes(
+            sources.map((id) => notesById.get(id)!),
+            row.topic_key,
+        );
+        if (label) openable.push({ ...row, topic_label: label });
+    }
     return ok({
-        ...build({ orgId, traineeId, rows: visible.data.rows, retakes: retakes.data, textVisible, now: actor.now ?? Date.now() }),
+        ...build({ orgId, traineeId, rows: visible.data.rows, retakes: openable, now: actor.now ?? Date.now() }),
         notes_without_access: visible.data.withoutAccess,
+        retakes_without_access: retakes.data.length - openable.length,
     });
 }

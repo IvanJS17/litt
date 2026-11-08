@@ -36,6 +36,26 @@ describe("useTrainingText", () => {
         expect(note.confidence("Seguro")).toBe("Tu marca: Seguro");
     });
 
+    it("words the hints and the counterparty round in es-MX, addressing the user as tú", () => {
+        const { result } = renderHook(() => useTrainingText(), { wrapper: inLocale("es-MX", esMX as typeof enUS) });
+        const { modes, note, closeMessage, needsQuestion } = result.current;
+        expect(modes.hintButton).toBe("Pedir una pista");
+        expect(modes.hintNext(2, modes.rungs[2])).toBe("Sigue: pista 2 de 3, Dónde buscar.");
+        expect([1, 2, 3].map((rung) => modes.rungs[rung as 1 | 2 | 3])).toEqual([
+            "Enfoque",
+            "Dónde buscar",
+            "Qué revisar",
+        ]);
+        expect(modes.rungState).toEqual({ used: "usada", next: "siguiente", pending: "pendiente" });
+        expect(modes.counterpartStatus(3)).toBe("Turno 3 de 3 de esta ronda.");
+        expect(modes.closeButton).toBe("Cerrar la ronda");
+        expect(closeMessage).toBe("Cierro la ronda con el abogado de la contraparte.");
+        expect(needsQuestion).toBe("Escribe primero tu pregunta.");
+        expect(note.mode.hint(1)).toBe("Pista 1 de 3");
+        expect(note.mode.counterpart(2)).toBe("Ronda con el abogado de la contraparte, turno 2 de 3");
+        expect(note.closeHeading).toBe("Cómo salió la ronda");
+    });
+
     it("words an urgency pass by the day it ends", () => {
         const { result } = renderHook(() => useTrainingText(), { wrapper: inLocale("es-MX", esMX as typeof enUS) });
         const today = new Date();

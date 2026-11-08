@@ -10,7 +10,8 @@
 // from what they wrote about the topic and what the contrast flagged, on
 // THEIR route (governed BYOK, fixed on the row, no fallback, llm.egress
 // before any text is sent) → they answer in their own words → a second call
-// contrasts the answer with those same lines → one more event of the map.
+// contrasts the answer with exactly those notes (their ids are kept on the
+// row, source_note_ids; none is added later) → one more event of the map.
 // Nothing is scheduled: it is generated when the person asks, so no
 // credential is ever kept for a background job. One retake is pending or
 // open at a time. The audit gets identifiers only.
@@ -20,7 +21,7 @@ import { recordAudit } from "../../lib/audit";
 import { promptNonce } from "../../lib/promptFence";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { computeMap, topicKey } from "../../lib/trainingMap";
+import { computeMap, labelFromNotes, topicKey } from "../../lib/trainingMap";
 import {
     buildRetakeContrastPrompt,
     buildRetakeQuestionPrompt,
@@ -54,10 +55,12 @@ import { eventsOf } from "./trainingCriterion.view";
 export const RETAKE_IN_PROGRESS_CODE = "training_retake_in_progress";
 export const RETAKE_NOT_DUE_CODE = "training_retake_not_due";
 export const RETAKE_NOT_OPEN_CODE = "training_retake_not_open";
+export const RETAKE_SOURCE_GONE_CODE = "training_retake_source_gone";
 
 const IN_PROGRESS = "You already have a retake in progress.";
 const NOT_DUE = "That topic is not due to be retaken.";
 const NOT_OPEN = "This retake is not waiting for an answer.";
+const SOURCE_GONE = "The notes this question came from no longer exist, so it cannot be judged. This retake was closed; you can ask for a new one.";
 const ANSWER_FAILED = "Your answer could not be contrasted just now, and it was not saved. Try again.";
 const QUESTION_FAILED = "The retake question could not be made just now. Try again.";
 
@@ -81,12 +84,15 @@ async function settleStale(db: Db, rows: readonly RetakeRow[], now: number): Pro
     return ok(null);
 }
 
-/** The lines a retake of `key` rests on: the person's newest counted notes on it. */
+/**
+ * The lines of exactly the notes `noteIds`, oldest first, and the ids found.
+ * It never looks for other notes: one that no longer exists is just absent.
+ */
 async function materialFor(
     db: Db,
     args: { orgId: string; traineeId: string; noteIds: readonly string[] },
-): Promise<ServiceResult<RetakeMaterialNote[]>> {
-    if (args.noteIds.length === 0) return ok([]);
+): Promise<ServiceResult<{ material: RetakeMaterialNote[]; foundIds: string[] }>> {
+    if (args.noteIds.length === 0) return ok({ material: [], foundIds: [] });
     const { data, error } = await db
         .from("training_turn_notes")
         .select("id, attempt, contrast, created_at")
@@ -95,7 +101,8 @@ async function materialFor(
         .in("id", [...args.noteIds]);
     if (error) return internalFailure(error);
     const rows = (data ?? []) as unknown as { id: string; attempt: string; contrast: string | null; created_at: string }[];
-    return ok(rows.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)).map(materialOf));
+    const sorted = rows.sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+    return ok({ material: sorted.map(materialOf), foundIds: sorted.map((row) => row.id) });
 }
 
 /** POST /training/me/retakes: `{ org_id, topic_key, credential_ref? }`. */
@@ -137,7 +144,13 @@ export async function startRetake(
         .map((event) => event.note_id as string);
     const material = await materialFor(db, { orgId, traineeId: args.userId, noteIds });
     if (!material.ok) return material;
-    if (material.data.length === 0) return failure("conflict", NOT_DUE, RETAKE_NOT_DUE_CODE);
+    if (material.data.material.length === 0) return failure("conflict", NOT_DUE, RETAKE_NOT_DUE_CODE);
+    const sourceNoteIds = material.data.foundIds;
+    // The label comes from the retake's own material, not from the topic's
+    // last event: that one may sit in a matter the mentor cannot open, and
+    // the mentor reads this label next to the retake.
+    const sourceSet = new Set(sourceNoteIds);
+    const label = labelFromNotes(notes.data.filter((note) => sourceSet.has(note.id)), key) ?? topic.label;
 
     // The person's own route, fixed on the row; no key, no retake.
     const route = await retakeRoute(db, { userId: args.userId, orgId, row: null, credentialRef: credential.value });
@@ -151,8 +164,11 @@ export async function startRetake(
             org_id: orgId,
             trainee_user_id: args.userId,
             topic_key: key,
-            topic_label: topic.label,
+            topic_label: label,
             status: "pending",
+            // The notes the question is made from: the answer is contrasted
+            // with these and the mentor's view depends on all of them.
+            source_note_ids: sourceNoteIds,
             ...chatRouteColumns(resolved.route),
         })
         .select("*")
@@ -178,10 +194,10 @@ export async function startRetake(
             model: resolved.route.model,
             apiKeys: resolved.apiKeys,
             systemPrompt: RETAKE_QUESTION_SYSTEM_PROMPT,
-            user: buildRetakeQuestionPrompt(topic.label, material.data, promptNonce()),
+            user: buildRetakeQuestionPrompt(label, material.data.material, promptNonce()),
             maxTokens: RETAKE_MAX_TOKENS,
         });
-        question = parseRetakeQuestion(text, material.data);
+        question = parseRetakeQuestion(text, material.data.material);
         if (!question) throw new Error("question without the required format");
     } catch (error) {
         // What the person wrote is learning data: log only the retake id.
@@ -249,18 +265,36 @@ export async function answerRetake(
     if (!route.ok) return route;
     const resolved = route.data;
 
-    // The material is the person's own notes on the topic, as it was when the question was made.
-    const notes = await loadEvidenceNotes(db, { orgId: row.org_id, traineeId: args.userId });
-    if (!notes.ok) return notes;
-    const readable = await readRetakes(db, row.org_id, args.userId);
-    if (!readable.ok) return readable;
-    const noteIds = eventsOf(notes.data, readable.data.filter((other) => other.id !== row.id))
-        .filter((event) => event.key === row.topic_key && event.note_id)
-        .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
-        .slice(0, RETAKE_MATERIAL_NOTES)
-        .map((event) => event.note_id as string);
-    const material = await materialFor(db, { orgId: row.org_id, traineeId: args.userId, noteIds });
+    // The material is exactly the notes the question was made from, kept on
+    // the row. Notes written on the topic since are NOT added (they may sit in
+    // matters the mentor cannot open, and the mentor reads this contrast). If
+    // some of those notes are gone the contrast uses the ones that remain;
+    // with none left it fails closed: the retake is closed as failed (it must
+    // not hold the person's single slot forever) and nothing is sent to a model.
+    const sources = row.source_note_ids ?? [];
+    const material = await materialFor(db, { orgId: row.org_id, traineeId: args.userId, noteIds: sources });
     if (!material.ok) return material;
+    if (material.data.material.length === 0) {
+        const { data: closed, error: closeError } = await db
+            .from("training_retakes")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", row.id)
+            .eq("status", row.status)
+            .eq("updated_at", row.updated_at)
+            .select("id");
+        if (closeError) return internalFailure(closeError);
+        if (((closed ?? []) as unknown[]).length === 0) {
+            // Nothing matched: another request moved the row. Say what it is now.
+            const again = await loadOwnRetake(db, args);
+            if (!again.ok) return again;
+            if (!again.data) return retakeNotFound();
+            const now = effectiveRetakeStatus(again.data, Date.now());
+            if (now === "pending") return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
+            if (now !== "failed") return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
+            // Already closed by someone else: the same outcome as closing it.
+        }
+        return failure("conflict", SOURCE_GONE, RETAKE_SOURCE_GONE_CODE);
+    }
 
     // Claim the retake: one judgment at a time.
     const { data: claimed, error: claimError } = await db
@@ -271,7 +305,9 @@ export async function answerRetake(
         .eq("updated_at", row.updated_at)
         .select("id");
     if (claimError) return internalFailure(claimError);
-    if (((claimed ?? []) as unknown[]).length !== 1) return failure("conflict", IN_PROGRESS, RETAKE_IN_PROGRESS_CODE);
+    // Lost the claim: another request already took this retake. For the
+    // person it is a double send of the same answer, not a second retake.
+    if (((claimed ?? []) as unknown[]).length !== 1) return failure("conflict", NOT_OPEN, RETAKE_NOT_OPEN_CODE);
 
     const question = row.question as string;
     let result: ReturnType<typeof parseRetakeContrast> = null;
@@ -288,10 +324,10 @@ export async function answerRetake(
             model: resolved.route.model,
             apiKeys: resolved.apiKeys,
             systemPrompt: RETAKE_CONTRAST_SYSTEM_PROMPT,
-            user: buildRetakeContrastPrompt({ question, answer: checked.answer, material: material.data }, promptNonce()),
+            user: buildRetakeContrastPrompt({ question, answer: checked.answer, material: material.data.material }, promptNonce()),
             maxTokens: RETAKE_CONTRAST_MAX_TOKENS,
         });
-        result = parseRetakeContrast(text, [question, checked.answer, ...materialTexts(material.data)]);
+        result = parseRetakeContrast(text, [question, checked.answer, ...materialTexts(material.data.material)]);
         if (!result) throw new Error("contrast without the required format");
     } catch (error) {
         console.warn("[training] retake contrast failed", {

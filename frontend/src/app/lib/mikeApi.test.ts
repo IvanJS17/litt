@@ -1327,6 +1327,26 @@ describe("streamTabularChat training attempt", () => {
         });
     });
 
+    it("names a hint or a counterparty round in the body", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        await streamTabularChat(
+            "r1",
+            [{ role: "user", content: "summarize" }],
+            null,
+            undefined,
+            undefined,
+            "openai-gpt-5.2",
+            "low",
+            "Mi planteamiento",
+            undefined,
+            "hint",
+        );
+        expect(JSON.parse(lastFetchCall().init.body as string)).toMatchObject({
+            attempt: "Mi planteamiento",
+            training_mode: "hint",
+        });
+    });
+
     it("sends the pasante's attempt with the turn", async () => {
         fetchMock.mockResolvedValue(streamResponse([]));
         await streamTabularChat(
@@ -1356,6 +1376,8 @@ describe("training API", () => {
         expect(lastFetchCall().url).toBe("/api/training/stage?org_id=o1&project_id=p1");
         await getTrainingStage({});
         expect(lastFetchCall().url).toBe("/api/training/stage?");
+        await getTrainingStage({ orgId: "o1", chatId: "c1" });
+        expect(lastFetchCall().url).toBe("/api/training/stage?org_id=o1&chat_id=c1");
     });
 
     it("reads the caller's memberships, the org overview and pupils", async () => {

@@ -64,6 +64,10 @@ interface ChatViewProps
     onSelectedWorkflowChange: (workflow: WorkflowAttachment | null) => void;
     editApplyMode: WordEditApplyMode;
     onEditApplyModeChange: (mode: WordEditApplyMode) => void;
+    /** LiTT training: the chat whose notes the hint ladder is counted from (cloud chats only). */
+    trainingChatId?: string | null;
+    /** LiTT training: false for a chat kept on this device only, where the server offers no hint. */
+    trainingModesAllowed?: boolean;
 }
 
 /**
@@ -177,6 +181,8 @@ export function ChatView({
     onSelectedWorkflowChange,
     editApplyMode,
     onEditApplyModeChange,
+    trainingChatId,
+    trainingModesAllowed,
 }: ChatViewProps): React.ReactElement {
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -971,6 +977,8 @@ export function ChatView({
                 onTurnReady={requestTurnLayout}
                 editApplyMode={editApplyMode}
                 onEditApplyModeChange={onEditApplyModeChange}
+                trainingChatId={trainingChatId}
+                trainingModesAllowed={trainingModesAllowed}
             />
         </div>
     );

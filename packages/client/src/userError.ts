@@ -224,6 +224,7 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_retake_in_progress: "conflict",
     training_retake_not_due: "conflict",
     training_retake_not_open: "conflict",
+    training_retake_source_gone: "conflict",
     // --- Training layer 3, card 4 codes (end) ---
     // Urgency passes (layer 2): a grant the mentor must change (duration,
     // reason, a matter the pupil cannot open) or one that already exists or
@@ -233,6 +234,12 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     training_pass_duplicate: "conflict",
     training_pass_limit_reached: "conflict",
     // --- Training layer 3, card 6 codes (begin) ---
+    // A hint or a counterpart round the server will not give right now: the
+    // composer was stale (reload), the ladder is used up, or the round is
+    // full. Retrying the same request cannot help.
+    training_mode_not_allowed: "validation",
+    training_hint_limit_reached: "validation",
+    training_counterpart_rounds_done: "validation",
     // --- Training layer 3, card 6 codes (end) ---
     // A pasante's version leaves LiTT only once approved for its current
     // bytes. Retrying cannot help, so the server's detail is shown as-is.
@@ -286,6 +293,11 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // A model is a starting point; one without rules cannot be marked.
     playbook_model_empty: "validation",
     // --- Training layer 3, card 14 codes (begin) ---
+    // The firm's criteria: an organization holds a bounded number, and a
+    // dissenting opinion has to name a rule of a playbook the author can open.
+    // Retrying the same request cannot help.
+    firm_criteria_limit_reached: "conflict",
+    firm_criteria_rule_not_found: "validation",
     // --- Training layer 3, card 14 codes (end) ---
     // The rule changed after the change was proposed: reloading helps.
     playbook_change_stale: "conflict",
