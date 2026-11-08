@@ -1017,6 +1017,12 @@ export interface TrainingWorkReview {
     surface: TrainingWorkSurface;
     chat_id: string | null;
     word_chat_id: string | null;
+    /** Layer 3: hints asked and the highest rung reached, counted from the notes. Absent on older reviews. */
+    hints_used?: number;
+    max_hint_level?: number;
+    /** Layer 3: counterparty rounds started, and how many were closed. */
+    counterpart_rounds?: number;
+    counterpart_closed?: number;
     tabular_chat_id: string | null;
     /** `failed` also covers a generation still pending long after it started. */
     status: TrainingGenerationStatus;
@@ -1026,7 +1032,11 @@ export interface TrainingWorkReview {
     proposed: TrainingReviewItem[] | null;
     /** From the contrasts, put in order by the model. */
     ai_corrected: TrainingReviewItem[] | null;
-    /** Inferred by the model from the signals: every line has source `inferred`. */
+    /**
+     * Inferred by the model from the signals (source `inferred`), after the
+     * lines the server computes from the notes (source `hint`, `confidence`,
+     * `foundation`, `counterpart`; `ref` is the note).
+     */
     doubts: TrainingReviewItem[] | null;
     /** Computed, never generated: unverified citations, held drafts, «Faltó». */
     unverified: TrainingReviewItem[] | null;

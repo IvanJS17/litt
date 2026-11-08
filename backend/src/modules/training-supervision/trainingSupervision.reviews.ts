@@ -497,7 +497,9 @@ export async function generateWorkReview(
               covered_through: work.notes[work.notes.length - 1].created_at,
               proposed: computed.data.proposed,
               ai_corrected: generated.ai_corrected,
-              doubts: generated.doubts,
+              // The computed lines (hints, thermometer, basis, counterpart) come
+              // first and are not the model's: their source is not `inferred`.
+              doubts: [...computed.data.computed, ...generated.doubts],
               unverified: computed.data.unverified,
               signals: computed.data.signals,
               generated_at: now,

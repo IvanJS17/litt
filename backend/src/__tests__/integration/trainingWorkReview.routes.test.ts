@@ -434,6 +434,33 @@ describe("the review", () => {
         expect(res.body.covered_through).toBe(h.state!.tables.training_turn_notes[0].created_at);
     });
 
+    it("puts the lines it computes about hints and the counterpart before the model's doubts", async () => {
+        const t = h.state!.tables;
+        const later = (seconds: number) => new Date(Date.parse(t.training_turn_notes[0].created_at as string) + seconds * 1000).toISOString();
+        t.training_turn_notes.push(
+            { ...note("h1", { chat_id: CHAT }, later(1)), mode: "hint", step: 1, contrast: null, contrast_status: "skipped" },
+            { ...note("h2", { chat_id: CHAT }, later(2)), mode: "hint", step: 2, contrast: null, contrast_status: "skipped" },
+            { ...note("c1", { chat_id: CHAT }, later(3)), mode: "counterpart", step: 1, contrast: null, contrast_status: "skipped" },
+            { ...note("c2", { chat_id: CHAT }, later(4)), mode: "counterpart_close", step: 1 },
+        );
+        const res = await as(MENTOR).post(review()).send({});
+        expect(res.status).toBe(200);
+        // The model's own doubt keeps its `inferred` source, after the computed ones.
+        expect(res.body.doubts).toEqual([
+            { source: "hint", text: "Pidió pista de nivel 1", ref: "h1" },
+            { source: "hint", text: "Pidió pista de nivel 2", ref: "h2" },
+            { source: "counterpart", text: "Cerró una ronda con la contraparte (1 turno)", ref: "c2" },
+            { source: "inferred", text: "Rechazó la edición propuesta", ref: null },
+        ]);
+        expect(res.body.signals).toMatchObject({
+            notes: 5,
+            hints_used: 2,
+            max_hint_level: 2,
+            counterpart_rounds: 1,
+            counterpart_closed: 1,
+        });
+    });
+
     it("carries the held draft's document_id to the mentor and, read-only, to the pupil", async () => {
         const generated = await as(MENTOR).post(review()).send({});
         const line = (body: { unverified: { source: string; document_id?: string }[] }) =>
