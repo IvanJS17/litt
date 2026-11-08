@@ -2703,6 +2703,54 @@ export async function getPupilReadings(orgId: string, userId: string) {
 }
 // --- Training layer 3, card 10 (end) ---
 
+// --- Training layer 3, card 5: own map, calibration and retake (begin) ---
+
+export type {
+    TrainingCalibration,
+    TrainingCalibrationLevel,
+    TrainingMapState,
+    TrainingMapTopic,
+    TrainingMyCriterion,
+    TrainingPupilCriterion,
+    TrainingRetake,
+    TrainingVerdictValue,
+} from "@mike/contracts";
+
+/** The person's own map, calibration, hints and retakes in one organization. */
+export async function getMyCriterion(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingMyCriterion>(
+        "training.read",
+        `/training/me/criterion?${new URLSearchParams({ org_id: orgId })}`,
+    );
+}
+
+/** The same, as the pupil's current mentor reads it (404 for anyone else). */
+export async function getPupilCriterion(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingPupilCriterion>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/criterion`,
+    );
+}
+
+/** One question about a weak topic that is due; on the person's own key. */
+export async function startRetake(orgId: string, topicKey: string, credentialRef?: string | null) {
+    return supervisionWrite<import("@mike/contracts").TrainingRetake>("/training/me/retakes", "POST", {
+        org_id: orgId,
+        topic_key: topicKey,
+        ...credentialBody(credentialRef),
+    });
+}
+
+/** Written once and judged once; a failed contrast saves nothing (503). */
+export async function answerRetake(retakeId: string, answer: string, credentialRef?: string | null) {
+    return supervisionWrite<import("@mike/contracts").TrainingRetake>(
+        `/training/me/retakes/${encodeURIComponent(retakeId)}/answer`,
+        "PUT",
+        { answer, ...credentialBody(credentialRef) },
+    );
+}
+// --- Training layer 3, card 5 (end) ---
+
 export type { OrgPrivateContentItem, OrgPrivateContentKind, OrgPrivateContentPage } from "@mike/contracts";
 
 export async function listOrgPrivateContent(orgId: string, offset = 0, search = "") {

@@ -355,7 +355,8 @@
         "works": "Trabajos",
         "defenses": "Defensa oral",
         "passes": "Pase de urgencia",
-        "promotion": "Promoción"
+        "promotion": "Promoción",
+        "criterion": "Criterio"
       },
       "actions": {
         "load": "cargar tus pupilos"
@@ -575,7 +576,90 @@
           "parcial": "Coincide en parte"
         }
       },
-      "map": {},
+      "map": {
+        "title": "Mi criterio",
+        "intro": "Con qué frecuencia tu planteamiento coincidió con la respuesta de la IA, por tema, y qué tan bien coincidió tu propia seguridad. Cuenta coincidencias con la respuesta de la IA, nunca si tuviste la razón. Solo tú y tu mentor lo ven.",
+        "actions": {
+          "load": "cargar tu criterio",
+          "start": "generar la retoma",
+          "answer": "enviar tu respuesta"
+        },
+        "topics": {
+          "title": "Por tema",
+          "empty": "Todavía no tienes temas. Aparecen conforme trabajas con tu planteamiento primero.",
+          "state": {
+            "strong": "Coincide seguido",
+            "middle": "Intermedio",
+            "weak": "Por reforzar",
+            "few_data": "Aún pocos datos"
+          },
+          "window": "Coincidió {hits} de las últimas {size, plural, one {# vez} other {# veces}}",
+          "events": "{count, plural, one {# vez trabajado} other {# veces trabajado}}",
+          "last": "última el {date, date, medium}",
+          "due": "Listo para retomar"
+        },
+        "calibration": {
+          "title": "Tu seguridad",
+          "intro": "Cuando marcas un nivel, cuántas veces tu planteamiento coincidió con la respuesta de la IA.",
+          "empty": "Todavía no has marcado tu seguridad en turnos que cuenten.",
+          "none": "Sin turnos marcados en este nivel",
+          "line": "Cuando lo marcas, coincidió {coincided} de {marked, plural, one {# vez} other {# veces}}",
+          "partial": "{count, plural, one {# en parte} other {# en parte}}",
+          "fewData": "aún pocos datos"
+        },
+        "hints": {
+          "title": "Pistas",
+          "mine": {
+            "none": "No has pedido pistas.",
+            "some": "{count, plural, one {Pediste # pista} other {Pediste # pistas}}; la más alta fue el escalón {level}."
+          },
+          "mentor": {
+            "none": "Este pupilo no ha pedido pistas.",
+            "some": "{count, plural, one {Pidió # pista} other {Pidió # pistas}}; la más alta fue el escalón {level}."
+          }
+        },
+        "retakes": {
+          "title": "Retomas",
+          "none": "Cuando un tema débil lleva 14 días sin trabajarse, puedes retomarlo aquí con una pregunta nueva.",
+          "noneMentor": "Este pupilo no tiene retomas.",
+          "start": "Retomar este tema",
+          "startName": "Retomar «{topic}»",
+          "generating": "Generando la pregunta…",
+          "refresh": "Actualizar",
+          "status": {
+            "pending": "Generando",
+            "open": "Esperando tu respuesta",
+            "answered": "Respondida",
+            "failed": "No se pudo generar la pregunta"
+          },
+          "started": "empezó el {date, date, medium}",
+          "hidden": "No se muestra el texto de esta retoma: su tema viene de trabajo en asuntos que no puedes abrir.",
+          "question": "Pregunta",
+          "answer": "Respuesta",
+          "contrast": "Contraste con lo que escribiste antes (inferido por la IA)",
+          "verdict": "Coincidencia con lo que escribiste antes, según el contraste de la IA: {verdict}",
+          "answerLabel": "Tu respuesta",
+          "tooShort": "{length}/{min} caracteres. Escribe al menos {min} caracteres.",
+          "count": "{length}/{max} caracteres.",
+          "send": "Enviar respuesta",
+          "once": "Solo puedes enviarla una vez. La IA la contrasta con lo que escribiste antes; no es una calificación."
+        },
+        "codes": {
+          "notDue": "Este tema todavía no está listo para retomarse.",
+          "inProgress": "Ya tienes una retoma en curso. Termínala primero.",
+          "notOpen": "Esta retoma ya no espera una respuesta.",
+          "keyRequired": "Para hacer una retoma necesitas una llave de IA que puedas usar en esta organización.",
+          "credentialUnavailable": "La llave con la que se hizo esta retoma ya no está disponible para ti. Elige otra llave e inténtalo de nuevo."
+        },
+        "mentor": {
+          "title": "Mapa y calibración",
+          "intro": "Con qué frecuencia el planteamiento de este pupilo coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este pupilo: sin puntajes, rankings ni comparaciones.",
+          "withoutAccess": "{count, plural, one {# nota es de un trabajo en un asunto que no puedes abrir, por eso no se cuenta aquí.} other {# notas son de trabajos en asuntos que no puedes abrir, por eso no se cuentan aquí.}}",
+          "actions": {
+            "load": "cargar el mapa del pupilo"
+          }
+        }
+      },
       "modes": {},
       "backing": {
         "actions": {
