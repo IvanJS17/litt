@@ -111,7 +111,7 @@ describe("SignupPage", () => {
         fireEvent.change(screen.getByLabelText("Password"), {
             target: { value: "secret1234" },
         });
-        fireEvent.change(screen.getByLabelText("Confirm Password"), {
+        fireEvent.change(screen.getByLabelText("Confirm password"), {
             target: { value: "secret1234" },
         });
         await act(async () => {
@@ -145,7 +145,7 @@ describe("SignupPage", () => {
 
         expect(screen.getByLabelText("Password")).toHaveAttribute(
             "placeholder",
-            "Min. 10 Characters",
+            "Min. 10 characters",
         );
 
         await user.type(
@@ -154,7 +154,7 @@ describe("SignupPage", () => {
         );
         await user.type(screen.getByLabelText("Password"), "secret1234");
         await user.type(
-            screen.getByLabelText("Confirm Password"),
+            screen.getByLabelText("Confirm password"),
             "secret1234",
         );
         await user.click(screen.getByRole("button", { name: "Sign up" }));
@@ -175,7 +175,7 @@ describe("SignupPage", () => {
             "alex@example.com",
         );
         await user.type(screen.getByLabelText("Password"), password);
-        await user.type(screen.getByLabelText("Confirm Password"), password);
+        await user.type(screen.getByLabelText("Confirm password"), password);
         await user.click(screen.getByRole("button", { name: "Sign up" }));
         return user;
     }

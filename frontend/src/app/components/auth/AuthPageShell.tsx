@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SiteLogo } from "@/app/components/site-logo";
+import { LocaleSwitcher } from "@/app/components/shared/LocaleSwitcher";
 
 /*
  * Vertical rhythm by window height, so a card and the links under it fit a
@@ -39,7 +40,8 @@ const SHORT_LOGO_CLASS =
  * wordmark sits in the normal flow above the card, so the two never overlap
  * however short the window is. `center` puts the card in the middle of the
  * space left under the wordmark; `top` keeps it right under the wordmark, for
- * forms whose height changes as the user types (the card does not jump).
+ * forms whose height changes as the user types (the card does not jump). The
+ * language selector sits under the card on every screen that uses the frame.
  */
 export function AuthPageShell({
     align = "center",
@@ -64,6 +66,10 @@ export function AuthPageShell({
                 }`}
             >
                 {children}
+            </div>
+            {/* Every signed-out screen offers the language choice (plan i18n §2.3). */}
+            <div className="shrink-0 pt-2 [@media(max-height:700px)]:pt-0">
+                <LocaleSwitcher />
             </div>
         </div>
     );

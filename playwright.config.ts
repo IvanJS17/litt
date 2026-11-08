@@ -7,6 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 /** Specs that mock the API in the browser; see the "synthetic" project. */
 const SYNTHETIC_SPECS = [
     /assistant-streaming\.spec\.ts/,
+    /auth-layout\.spec\.ts/,
     /i18n-request-locale\.spec\.ts/,
     /tabular-chat-lifecycle\.spec\.ts/,
     /settings-search-latency\.spec\.ts/,

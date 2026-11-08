@@ -1,5 +1,10 @@
 {
   "auth": {
+    "checkEmail": {
+      "checkYourEmail": "Check your email",
+      "confirmationSent": "We sent a confirmation link to your email address. Confirm your address before logging in.",
+      "returnToLogin": "Return to login"
+    },
     "errors": {
       "accountExists": "An account with this email already exists. Log in instead.",
       "captchaFailed": "The security check didn't pass. Reload the page and try again.",
@@ -39,22 +44,65 @@
       "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
+    },
+    "login": {
+      "email": "Email",
+      "forgotPassword": "Forgot password?",
+      "logIn": "Log in",
+      "loggingIn": "Logging in...",
+      "noAccount": "Don't have an account?",
+      "password": "Password",
+      "retry": "Retry",
+      "retrying": "Retrying...",
+      "signUp": "Sign up"
+    },
+    "signup": {
+      "accountCreated": "Account created!",
+      "confirmPassword": "Confirm password",
+      "continue": "Continue",
+      "creatingAccount": "Creating account...",
+      "email": "Email",
+      "haveAccount": "Have an account?",
+      "logIn": "Log in",
+      "password": "Password",
+      "passwordPlaceholder": "Min. {min} characters",
+      "redirecting": "Redirecting you to finish setting up your account...",
+      "signUp": "Sign up"
+    },
+    "sso": {
+      "backToLogin": "Back to login",
+      "continue": "Continue",
+      "continuing": "Continuing…",
+      "email": "Email",
+      "retry": "Retry",
+      "ssoLogin": "SSO login",
+      "tooManyAttempts": "Too many attempts. Wait a moment and try again."
     }
   },
   "common": {
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "close": "Close",
-    "retry": "Retry",
-    "loading": "Loading…",
     "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
     "continue": "Continue",
-    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "delete": "Delete",
     "greeting": "Hi, {name}",
+    "language": {
+      "english": "English",
+      "label": "Language",
+      "spanish": "Español"
+    },
+    "loading": "Loading…",
     "meta": {
-      "title": "LiTT - Legal AI Platform",
-      "description": "AI-powered legal document analysis and contract review platform."
+      "description": "AI-powered legal document analysis and contract review platform.",
+      "title": "LiTT - Legal AI Platform"
+    },
+    "or": "or",
+    "retry": "Retry",
+    "save": "Save",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "sourceCode": {
+      "description": "of this version (opens in a new tab)",
+      "label": "Source code"
     }
   },
   "playbooks": {
@@ -145,44 +193,6 @@
     }
   },
   "errors": {
-    "couldnt": "Couldn't {action}",
-    "title": {
-      "offline": "You're offline",
-      "network": "Connection problem",
-      "timeout": "Request timed out",
-      "aborted": "Cancelled",
-      "unauthenticated": "Sign in required",
-      "forbidden": "Permission denied",
-      "not_found": "Not found",
-      "conflict": "Conflict",
-      "validation": "Check your input",
-      "payload_too_large": "Too large",
-      "rate_limited": "Slow down",
-      "unavailable": "Service unavailable",
-      "server": "Something went wrong",
-      "unknown": "Something went wrong"
-    },
-    "message": {
-      "offline": "Your device is offline. Check your connection and try again.",
-      "network": "LiTT couldn't reach the server. Check your connection and try again.",
-      "timeout": "The server took too long to respond. Try again.",
-      "aborted": "The request was cancelled.",
-      "unauthenticated": "Your session has expired. Sign in again to continue.",
-      "forbidden": "You don't have permission to do this.",
-      "not_found": "That item no longer exists or was moved.",
-      "conflict": "This was changed somewhere else. Refresh and try again.",
-      "validation": "Some of the information provided isn't valid.",
-      "payload_too_large": "That's too large to upload.",
-      "rate_limited": "Too many requests. Wait a moment and try again.",
-      "unavailable": "LiTT is temporarily unavailable. Try again in a moment.",
-      "server": "Something went wrong on our side. Try again.",
-      "unknown": "Something went wrong. Try again, and contact support if it keeps happening."
-    },
-    "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
-    "upstream": {
-      "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
-      "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
-    },
     "code": {
       "access_inherited": "Access to this item comes from its project. Change it in the project.",
       "account_deletion_receipt_not_found": "This deletion receipt is no longer available.",
@@ -230,16 +240,54 @@
       "validation_failed": "Some of the information provided isn't valid.",
       "workflow_open_source_disabled": "Publishing workflows outside LiTT isn't available."
     },
+    "couldnt": "Couldn't {action}",
+    "message": {
+      "aborted": "The request was cancelled.",
+      "conflict": "This was changed somewhere else. Refresh and try again.",
+      "forbidden": "You don't have permission to do this.",
+      "network": "LiTT couldn't reach the server. Check your connection and try again.",
+      "not_found": "That item no longer exists or was moved.",
+      "offline": "Your device is offline. Check your connection and try again.",
+      "payload_too_large": "That's too large to upload.",
+      "rate_limited": "Too many requests. Wait a moment and try again.",
+      "server": "Something went wrong on our side. Try again.",
+      "timeout": "The server took too long to respond. Try again.",
+      "unauthenticated": "Your session has expired. Sign in again to continue.",
+      "unavailable": "LiTT is temporarily unavailable. Try again in a moment.",
+      "unknown": "Something went wrong. Try again, and contact support if it keeps happening.",
+      "validation": "Some of the information provided isn't valid."
+    },
+    "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
     "signIn": "Sign in",
     "support": {
-      "subject": "LiTT support: {title}",
+      "diagnostics": "--- Details for support (please keep) ---",
       "greeting": "Hi LiTT team,",
       "intro": "I ran into a problem and need help.",
-      "whatHappened": "What happened: {title}",
       "messageShown": "Message shown: {message}",
       "note": "Details: {note}",
-      "diagnostics": "--- Details for support (please keep) ---",
-      "thanks": "Thanks,"
+      "subject": "LiTT support: {title}",
+      "thanks": "Thanks,",
+      "whatHappened": "What happened: {title}"
+    },
+    "title": {
+      "aborted": "Cancelled",
+      "conflict": "Conflict",
+      "forbidden": "Permission denied",
+      "network": "Connection problem",
+      "not_found": "Not found",
+      "offline": "You're offline",
+      "payload_too_large": "Too large",
+      "rate_limited": "Slow down",
+      "server": "Something went wrong",
+      "timeout": "Request timed out",
+      "unauthenticated": "Sign in required",
+      "unavailable": "Service unavailable",
+      "unknown": "Something went wrong",
+      "validation": "Check your input"
+    },
+    "upstream": {
+      "schema_out_of_date": "The server's database needs an update before this can load. Please contact your administrator.",
+      "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
     }
   },
   "projects": {

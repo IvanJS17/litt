@@ -1,5 +1,10 @@
 {
   "auth": {
+    "checkEmail": {
+      "checkYourEmail": "Revisa tu correo",
+      "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
+      "returnToLogin": "Volver al inicio de sesión"
+    },
     "errors": {
       "accountExists": "Ya existe una cuenta con este correo. Mejor inicia sesión.",
       "captchaFailed": "La verificación de seguridad no se superó. Recarga la página e inténtalo de nuevo.",
@@ -39,22 +44,65 @@
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos."
+    },
+    "login": {
+      "email": "Correo electrónico",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "logIn": "Iniciar sesión",
+      "loggingIn": "Iniciando sesión...",
+      "noAccount": "¿No tienes una cuenta?",
+      "password": "Contraseña",
+      "retry": "Reintentar",
+      "retrying": "Reintentando...",
+      "signUp": "Regístrate"
+    },
+    "signup": {
+      "accountCreated": "¡Cuenta creada!",
+      "confirmPassword": "Confirma tu contraseña",
+      "continue": "Continuar",
+      "creatingAccount": "Creando cuenta...",
+      "email": "Correo electrónico",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "logIn": "Inicia sesión",
+      "password": "Contraseña",
+      "passwordPlaceholder": "Mínimo {min} caracteres",
+      "redirecting": "Te estamos redirigiendo para terminar de configurar tu cuenta...",
+      "signUp": "Crea tu cuenta"
+    },
+    "sso": {
+      "backToLogin": "Volver al inicio de sesión",
+      "continue": "Continuar",
+      "continuing": "Continuando…",
+      "email": "Correo electrónico",
+      "retry": "Reintentar",
+      "ssoLogin": "Inicio de sesión con SSO",
+      "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo."
     }
   },
   "common": {
-    "save": "Guardar",
-    "cancel": "Cancelar",
-    "delete": "Eliminar",
-    "close": "Cerrar",
-    "retry": "Reintentar",
-    "loading": "Cargando…",
     "back": "Atrás",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
     "continue": "Continuar",
-    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "delete": "Eliminar",
     "greeting": "Hola, {name}",
+    "language": {
+      "english": "English",
+      "label": "Idioma",
+      "spanish": "Español"
+    },
+    "loading": "Cargando…",
     "meta": {
-      "title": "LiTT - Plataforma legal con IA",
-      "description": "Análisis de documentos legales y revisión de contratos con IA."
+      "description": "Análisis de documentos legales y revisión de contratos con IA.",
+      "title": "LiTT - Plataforma legal con IA"
+    },
+    "or": "o",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "selectedCount": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+    "sourceCode": {
+      "description": "de esta versión (se abre en una pestaña nueva)",
+      "label": "Código fuente"
     }
   },
   "playbooks": {
@@ -145,44 +193,6 @@
     }
   },
   "errors": {
-    "couldnt": "No se pudo {action}",
-    "title": {
-      "offline": "Sin conexión",
-      "network": "Problema de conexión",
-      "timeout": "Se agotó el tiempo de espera",
-      "aborted": "Cancelado",
-      "unauthenticated": "Inicia sesión",
-      "forbidden": "Sin permiso",
-      "not_found": "No encontrado",
-      "conflict": "Conflicto",
-      "validation": "Revisa los datos",
-      "payload_too_large": "Demasiado grande",
-      "rate_limited": "Demasiadas solicitudes",
-      "unavailable": "Servicio no disponible",
-      "server": "Algo salió mal",
-      "unknown": "Algo salió mal"
-    },
-    "message": {
-      "offline": "Tu dispositivo no tiene conexión. Revisa tu conexión e inténtalo de nuevo.",
-      "network": "LiTT no pudo comunicarse con el servidor. Revisa tu conexión e inténtalo de nuevo.",
-      "timeout": "El servidor tardó demasiado en responder. Inténtalo de nuevo.",
-      "aborted": "Se canceló la solicitud.",
-      "unauthenticated": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
-      "forbidden": "No tienes permiso para hacer esto.",
-      "not_found": "Ese elemento ya no existe o se movió.",
-      "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
-      "validation": "Parte de la información que diste no es válida.",
-      "payload_too_large": "Es demasiado grande para subirlo.",
-      "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
-      "unavailable": "LiTT no está disponible por el momento. Inténtalo de nuevo en un momento.",
-      "server": "Algo salió mal de nuestro lado. Inténtalo de nuevo.",
-      "unknown": "Algo salió mal. Inténtalo de nuevo y, si sigue pasando, contacta a soporte."
-    },
-    "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
-    "upstream": {
-      "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
-      "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
-    },
     "code": {
       "access_inherited": "El acceso a este elemento viene de su proyecto. Cámbialo en el proyecto.",
       "account_deletion_receipt_not_found": "Este comprobante de eliminación ya no está disponible.",
@@ -230,16 +240,54 @@
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible."
     },
+    "couldnt": "No se pudo {action}",
+    "message": {
+      "aborted": "Se canceló la solicitud.",
+      "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
+      "forbidden": "No tienes permiso para hacer esto.",
+      "network": "LiTT no pudo comunicarse con el servidor. Revisa tu conexión e inténtalo de nuevo.",
+      "not_found": "Ese elemento ya no existe o se movió.",
+      "offline": "Tu dispositivo no tiene conexión. Revisa tu conexión e inténtalo de nuevo.",
+      "payload_too_large": "Es demasiado grande para subirlo.",
+      "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+      "server": "Algo salió mal de nuestro lado. Inténtalo de nuevo.",
+      "timeout": "El servidor tardó demasiado en responder. Inténtalo de nuevo.",
+      "unauthenticated": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
+      "unavailable": "LiTT no está disponible por el momento. Inténtalo de nuevo en un momento.",
+      "unknown": "Algo salió mal. Inténtalo de nuevo y, si sigue pasando, contacta a soporte.",
+      "validation": "Parte de la información que diste no es válida."
+    },
+    "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
     "signIn": "Iniciar sesión",
     "support": {
-      "subject": "Soporte de LiTT: {title}",
+      "diagnostics": "--- Datos para soporte (no los borres) ---",
       "greeting": "Hola, equipo de LiTT:",
       "intro": "Tuve un problema y necesito ayuda.",
-      "whatHappened": "Qué pasó: {title}",
       "messageShown": "Mensaje que apareció: {message}",
       "note": "Detalles: {note}",
-      "diagnostics": "--- Datos para soporte (no los borres) ---",
-      "thanks": "Gracias."
+      "subject": "Soporte de LiTT: {title}",
+      "thanks": "Gracias.",
+      "whatHappened": "Qué pasó: {title}"
+    },
+    "title": {
+      "aborted": "Cancelado",
+      "conflict": "Conflicto",
+      "forbidden": "Sin permiso",
+      "network": "Problema de conexión",
+      "not_found": "No encontrado",
+      "offline": "Sin conexión",
+      "payload_too_large": "Demasiado grande",
+      "rate_limited": "Demasiadas solicitudes",
+      "server": "Algo salió mal",
+      "timeout": "Se agotó el tiempo de espera",
+      "unauthenticated": "Inicia sesión",
+      "unavailable": "Servicio no disponible",
+      "unknown": "Algo salió mal",
+      "validation": "Revisa los datos"
+    },
+    "upstream": {
+      "schema_out_of_date": "La base de datos del servidor necesita una actualización antes de poder cargar esto. Contacta a tu administrador.",
+      "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
     }
   },
   "projects": {
