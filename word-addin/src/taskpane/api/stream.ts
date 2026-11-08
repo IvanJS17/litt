@@ -20,7 +20,10 @@ import {
   terminalErrorFromFrame,
 } from "../lib/wordChatTerminalError";
 import type { ReasoningLevel } from "../lib/wordChatTypes";
-import type { TextCardEvent } from "@mike/contracts";
+import type {
+  TextCardEvent,
+  TrainingConfidenceLevel,
+} from "@mike/contracts";
 
 export interface WordChatDocumentReadEvent {
   type: "doc_read_start" | "doc_read";
@@ -255,6 +258,8 @@ export async function streamAssistant(
     editApplyMode?: "direct" | "approval";
     /** LiTT training: a pasante's own approach. */
     attempt?: string;
+    /** LiTT training: the thermometer mark (1 to 4) that goes with it. */
+    confidence?: TrainingConfidenceLevel;
     signal?: AbortSignal;
   },
   onText: (text: string) => void,
@@ -273,6 +278,7 @@ export async function streamAssistant(
     // the flag can never drift from the implementation.
     client_tools: !!params.onClientToolCall,
     attempt: params.attempt,
+    confidence: params.confidence,
     signal: params.signal,
   });
   await consumeTurnStream(res, params, onText);

@@ -12,7 +12,12 @@ import type {
 // parity tests) never pull this module, and its runtime imports, into
 // the web app's type-check graph.
 export type { ApiKeyStatus } from "../types";
-import type { TrainingTurnNote, TrainingTurnNotes, UiLocale } from "@mike/contracts";
+import type {
+  TrainingConfidenceLevel,
+  TrainingTurnNote,
+  TrainingTurnNotes,
+  UiLocale,
+} from "@mike/contracts";
 import type { RouterProfileLists } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { sessionHandledError } from "../lib/sessionRefresh";
@@ -495,15 +500,24 @@ function browserTimeZone(): string | undefined {
 }
 
 /**
- * LiTT training: the caller's stage for Word turns (a stage for every
- * practice area, in any organization). Only tells the composer what to show.
+ * LiTT training: what a Word turn owes the caller's mentor (a stage for every
+ * practice area, in any organization). Only tells the composer what to show:
+ * the approach for a pasante, and the thermometer mark when the server asks
+ * for it (`confidence_required`, absent from servers older than layer 3).
  */
-export async function getWordTrainingStage(): Promise<"pasante" | "junior" | null> {
-  const result = await apiRequest<{ stage: "pasante" | "junior" | null }>(
-    "word_chat.turn",
-    "/training/stage?surface=word",
-  );
-  return result.stage;
+export async function getWordTrainingTurn(): Promise<{
+  attemptRequired: boolean;
+  confidenceRequired: boolean;
+}> {
+  const result = await apiRequest<{
+    stage: "pasante" | "junior" | null;
+    confidence_required?: boolean;
+  }>("word_chat.turn", "/training/stage?surface=word");
+  const attemptRequired = result.stage === "pasante";
+  return {
+    attemptRequired,
+    confidenceRequired: attemptRequired && result.confidence_required === true,
+  };
 }
 
 /**
@@ -546,6 +560,8 @@ export async function streamWordChat(payload: {
   client_tools?: boolean;
   /** LiTT training: a pasante's own approach; the server requires it. */
   attempt?: string;
+  /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+  confidence?: TrainingConfidenceLevel;
   signal?: AbortSignal;
 }): Promise<Response> {
   const { signal, ...body } = payload;

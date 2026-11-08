@@ -25,11 +25,17 @@ import {
 import { WorkflowModal } from "../workflows/WorkflowModal";
 import { PlaybookModal, playbookTitle } from "../playbooks/PlaybookModal";
 import { ChatInput as ChatInputShell } from "../../../shared/chat/ChatInput";
+import type { TrainingConfidenceLevel } from "@mike/contracts";
 import {
+  focusTrainingAttempt,
   isTrainingAttemptReady,
   TrainingAttemptFieldUI,
+  TrainingConfidenceUI,
+  useTrainingReply,
+  withTrainingReply,
 } from "@mike/ui";
-import { getWordTrainingStage } from "../../api/client";
+import { useTrainingText } from "../../i18n/useTrainingText";
+import { getWordTrainingTurn } from "../../api/client";
 import {
   getApiKeyStatus,
   failedUploadMessage,
@@ -72,6 +78,9 @@ import {
   WORD_WORKFLOW_SLASH_MENU_ID,
   WorkflowSlashMenu,
 } from "./WorkflowSlashMenu";
+
+/** The approach field of the training composer; «Responder» focuses it. */
+const TRAINING_ATTEMPT_ID = "word-training-attempt";
 
 const SELECT_MODEL_MESSAGE = "Select a model before sending your message.";
 
@@ -205,13 +214,30 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     // LiTT training ("Tu turno primero"): a pasante writes their own
     // approach before each turn. The server decides; this only shows it.
     const [needsAttempt, setNeedsAttempt] = useState(false);
+    const [needsConfidence, setNeedsConfidence] = useState(false);
+    const trainingText = useTrainingText();
     const [attempt, setAttempt] = useState("");
     const [attemptError, setAttemptError] = useState(false);
+    const [confidence, setConfidence] = useState<TrainingConfidenceLevel | null>(
+      null,
+    );
+    const [confidenceError, setConfidenceError] = useState(false);
+    // «Responder» on a basis question brings it, quoted, to the approach.
+    useTrainingReply({
+      enabled: needsAttempt,
+      onReply: (question) => {
+        setAttempt((current) => withTrainingReply(current, question));
+        setAttemptError(false);
+        focusTrainingAttempt(TRAINING_ATTEMPT_ID);
+      },
+    });
     useEffect(() => {
       let cancelled = false;
-      getWordTrainingStage().then(
-        (stage) => {
-          if (!cancelled) setNeedsAttempt(stage === "pasante");
+      getWordTrainingTurn().then(
+        (turn) => {
+          if (cancelled) return;
+          setNeedsAttempt(turn.attemptRequired);
+          setNeedsConfidence(turn.confidenceRequired);
         },
         () => {},
       );
@@ -540,6 +566,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         setAttemptError(true);
         return;
       }
+      if (needsConfidence && confidence === null) {
+        setConfidenceError(true);
+        return;
+      }
       setModelError(null);
       const files = attachedDocuments.map((document) => ({
         filename: document.filename,
@@ -554,12 +584,15 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           model,
           reasoning: resolvedReasoningLevel,
           ...(needsAttempt ? { attempt: attempt.trim() } : {}),
+          ...(needsConfidence && confidence !== null ? { confidence } : {}),
         },
         {
           onAccepted: () => {
             setInput("");
             setAttempt("");
             setAttemptError(false);
+            setConfidence(null);
+            setConfidenceError(false);
             setAttachedDocuments([]);
             setExcerpts([]);
             onSelectedWorkflowChange(null);
@@ -633,11 +666,25 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           )}
           {needsAttempt && (
             <TrainingAttemptFieldUI
-              id="word-training-attempt"
+              id={TRAINING_ATTEMPT_ID}
               className="mb-2"
               value={attempt}
               onChange={setAttempt}
+              text={trainingText.attempt}
               showError={attemptError}
+            />
+          )}
+          {needsAttempt && needsConfidence && (
+            <TrainingConfidenceUI
+              id="word-training-confidence"
+              className="mb-2"
+              value={confidence}
+              onChange={(level) => {
+                setConfidence(level);
+                setConfidenceError(false);
+              }}
+              text={trainingText.confidence}
+              showError={confidenceError}
             />
           )}
           <div ref={composerRef} className="relative">

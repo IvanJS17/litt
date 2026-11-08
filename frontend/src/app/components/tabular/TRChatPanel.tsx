@@ -1,5 +1,6 @@
 "use client";
 
+import { useTrainingText } from "@/app/hooks/useTrainingText";
 import { nextRevealLength } from "./tabularReveal";
 
 import { useMarkdownCheckpoint } from "../assistant/message/markdownCheckpoint";
@@ -386,6 +387,7 @@ export const TRMessageBubble = memo(function MessageBubble({
     trainingNote?: TrainingNoteView;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
+    const trainingText = useTrainingText();
     if (msg.role === "user") {
         return (
             <div className="flex flex-col items-end gap-2">
@@ -395,6 +397,7 @@ export const TRMessageBubble = memo(function MessageBubble({
                 {trainingNote && (
                     <TrainingNoteUI
                         note={trainingNote}
+                        text={trainingText.note}
                         className="w-full max-w-[90%]"
                     />
                 )}
@@ -1310,6 +1313,7 @@ export function TRChatPanel({
                     message.model,
                     message.reasoning,
                     message.attempt,
+                    message.confidence,
                 ),
         });
     }

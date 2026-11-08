@@ -1,3 +1,4 @@
+import type { TrainingConfidenceLevel } from "@mike/contracts";
 import type { RedlineStreamProjection } from "./redline";
 import type { ReasoningLevel } from "./modelSelectionTypes";
 export type { ReasoningLevel } from "./modelSelectionTypes";
@@ -114,6 +115,8 @@ export interface WordChatSubmission {
   reasoning: ReasoningLevel;
   /** LiTT training: a pasante's own approach; the server requires it. */
   attempt?: string;
+  /** LiTT training: how sure they are of it, 1 to 4; the server requires it with the approach. */
+  confidence?: TrainingConfidenceLevel;
 }
 
 export interface WordChatSubmitOptions {

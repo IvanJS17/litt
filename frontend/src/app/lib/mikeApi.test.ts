@@ -1299,6 +1299,25 @@ describe("streamTabularChat", () => {
 });
 
 describe("streamTabularChat training attempt", () => {
+    it("sends the thermometer mark with the approach", async () => {
+        fetchMock.mockResolvedValue(streamResponse([]));
+        await streamTabularChat(
+            "r1",
+            [{ role: "user", content: "summarize" }],
+            null,
+            undefined,
+            undefined,
+            "openai-gpt-5.2",
+            "low",
+            "Mi planteamiento",
+            3,
+        );
+        expect(JSON.parse(lastFetchCall().init.body as string)).toMatchObject({
+            attempt: "Mi planteamiento",
+            confidence: 3,
+        });
+    });
+
     it("sends the pasante's attempt with the turn", async () => {
         fetchMock.mockResolvedValue(streamResponse([]));
         await streamTabularChat(

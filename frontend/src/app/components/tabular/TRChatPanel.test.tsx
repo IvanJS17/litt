@@ -69,6 +69,7 @@ vi.mock("../assistant/ChatInput", () => ({
                         model: "claude-opus-4-7",
                         reasoning: "medium",
                         attempt: "Mi planteamiento",
+                        confidence: 3,
                     })
                 }
             >
@@ -369,6 +370,10 @@ describe("TRChatPanel header", () => {
                 attempt: "Mi planteamiento guardado",
                 contrast: "Coincide en lo esencial.",
                 contrast_status: "ready",
+                confidence: 2,
+                effective_verdict: "parcial",
+                foundation: "weak",
+                foundation_question: "¿En qué precepto se apoya?",
                 created_at: "2026-09-29",
             },
         ]);
@@ -378,10 +383,16 @@ describe("TRChatPanel header", () => {
         );
         expect(await screen.findByText("Mi planteamiento guardado")).toBeInTheDocument();
         expect(screen.getByText("Coincide en lo esencial.")).toBeInTheDocument();
+        // The verdict and the basis question come with the note, with «Reply».
+        expect(screen.getByText("Your mark: I doubt it")).toBeInTheDocument();
+        expect(screen.getByText("Partly matches")).toBeInTheDocument();
+        expect(screen.getByText("¿En qué precepto se apoya?")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Reply to the question about your basis" })).toBeInTheDocument();
         container.querySelector<HTMLDivElement>(".tr-chat-message-fades")!.scrollTo = vi.fn();
         await user.click(screen.getByRole("button", { name: "Send with attempt" }));
         await waitFor(() => expect(streamTabularChat).toHaveBeenCalled());
         expect(vi.mocked(streamTabularChat).mock.calls[0][7]).toBe("Mi planteamiento");
+        expect(vi.mocked(streamTabularChat).mock.calls[0][8]).toBe(3);
     });
 
     it("opens the rejected-key popup for a tabular chat stream error", async () => {

@@ -8,6 +8,7 @@ import {
   type TrainingNoteView,
 } from "@mike/ui";
 import { parseExcerpts, type MessageExcerpt } from "@mike/client";
+import { useTrainingText } from "../../i18n/useTrainingText";
 
 const COLLAPSED_CONTENT_HEIGHT = 144;
 
@@ -31,6 +32,7 @@ function UserMessageImpl({
   /** LiTT training: the private note beside this message, if any. */
   trainingNote?: TrainingNoteView;
 }): React.ReactElement {
+  const trainingText = useTrainingText();
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [canExpand, setCanExpand] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -150,6 +152,7 @@ function UserMessageImpl({
       {trainingNote && (
         <TrainingNoteUI
           note={trainingNote}
+          text={trainingText.note}
           className="w-full max-w-[80%]"
         />
       )}

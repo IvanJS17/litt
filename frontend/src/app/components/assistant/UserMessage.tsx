@@ -12,6 +12,7 @@ import {
     type MessageExcerpt,
 } from "@mike/client";
 import { TrainingNoteUI, type TrainingNoteView } from "@mike/ui";
+import { useTrainingText } from "@/app/hooks/useTrainingText";
 
 interface Props {
     content: string;
@@ -35,6 +36,7 @@ export function UserMessage({
     onWorkflowClick,
     trainingNote,
 }: Props) {
+    const trainingText = useTrainingText();
     const hasFiles = files && files.length > 0;
     // Passages quoted from an earlier response travel as leading blockquotes;
     // here they are pills that open the passage, as in the composer.
@@ -135,6 +137,7 @@ export function UserMessage({
             {trainingNote && (
                 <TrainingNoteUI
                     note={trainingNote}
+                    text={trainingText.note}
                     className="w-full max-w-[80%]"
                 />
             )}

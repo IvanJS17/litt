@@ -1,4 +1,7 @@
-import type { AssistantEvent as WireAssistantEvent } from "@mike/contracts";
+import type {
+  AssistantEvent as WireAssistantEvent,
+  TrainingConfidenceLevel,
+} from "@mike/contracts";
 // Shared TypeScript types for Mike AI legal assistant
 
 import type {
@@ -345,6 +348,8 @@ export interface Message {
    * server keeps it as a private note; it is never read back or shown here.
    */
   attempt?: string;
+  /** LiTT training: the thermometer mark (1 to 4) that goes with `attempt`. */
+  confidence?: TrainingConfidenceLevel;
   citations?: Citation[];
   citationStatus?: "started" | "partial" | "final";
   events?: AssistantEvent[];

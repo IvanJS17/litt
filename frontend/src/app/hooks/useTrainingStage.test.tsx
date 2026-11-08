@@ -5,9 +5,15 @@ import { markTrainingStageStale, useTrainingStage } from "./useTrainingStage";
 
 vi.mock("@/app/lib/mikeApi", () => ({ getTrainingStage: vi.fn() }));
 
-const answer = (attemptRequired: boolean, expiresAt: string | null = null) => ({
+const answer = (
+    attemptRequired: boolean,
+    expiresAt: string | null = null,
+    confidenceRequired: boolean | null = attemptRequired,
+) => ({
     stage: "pasante" as const,
     attempt_required: attemptRequired,
+    // null: a server older than layer 3, which sends no such field.
+    ...(confidenceRequired === null ? {} : { confidence_required: confidenceRequired }),
     urgency_pass: expiresAt ? { project_id: "p1", expires_at: expiresAt } : null,
 });
 
@@ -22,14 +28,24 @@ describe("useTrainingStage", () => {
         vi.mocked(getTrainingStage).mockResolvedValue(answer(false, end));
         const { result } = renderHook(() => useTrainingStage({ orgId: "o1", projectId: "p1" }));
         await waitFor(() =>
-            expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: end }),
+            expect(result.current).toEqual({ attemptRequired: false, confidenceRequired: false, urgencyPassExpiresAt: end }),
         );
         expect(getTrainingStage).toHaveBeenCalledWith({ orgId: "o1", projectId: "p1" });
     });
 
+    it("follows confidence_required for the thermometer, and a server older than layer 3 asks for no mark", async () => {
+        vi.mocked(getTrainingStage).mockResolvedValueOnce(answer(true, null, null));
+        const { result } = renderHook(() => useTrainingStage({ orgId: "o1", projectId: "p1" }));
+        await waitFor(() => expect(result.current.attemptRequired).toBe(true));
+        expect(result.current.confidenceRequired).toBe(false);
+        vi.mocked(getTrainingStage).mockResolvedValueOnce(answer(true, null, true));
+        act(() => markTrainingStageStale());
+        await waitFor(() => expect(result.current.confidenceRequired).toBe(true));
+    });
+
     it("asks nothing while disabled or outside an organization", () => {
         const { result } = renderHook(() => useTrainingStage({ orgId: "o1", projectId: "p1", enabled: false }));
-        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null });
+        expect(result.current).toEqual({ attemptRequired: false, confidenceRequired: false, urgencyPassExpiresAt: null });
         renderHook(() => useTrainingStage({ orgId: null, projectId: null }));
         expect(getTrainingStage).not.toHaveBeenCalled();
     });
@@ -43,7 +59,7 @@ describe("useTrainingStage", () => {
             await new Promise((resolve) => setTimeout(resolve, 10));
         });
         expect(getTrainingStage).toHaveBeenCalledTimes(1);
-        expect(result.current).toEqual({ attemptRequired: false, urgencyPassExpiresAt: null });
+        expect(result.current).toEqual({ attemptRequired: false, confidenceRequired: false, urgencyPassExpiresAt: null });
     });
 
     it("reads again when a turn was refused for a missing approach", async () => {
@@ -53,7 +69,7 @@ describe("useTrainingStage", () => {
         vi.mocked(getTrainingStage).mockResolvedValueOnce(answer(true));
         act(() => markTrainingStageStale());
         await waitFor(() =>
-            expect(result.current).toEqual({ attemptRequired: true, urgencyPassExpiresAt: null }),
+            expect(result.current).toEqual({ attemptRequired: true, confidenceRequired: true, urgencyPassExpiresAt: null }),
         );
     });
 

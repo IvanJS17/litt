@@ -852,6 +852,7 @@ export function useWordAssistantChat({
                     wordChatStorage,
                     editApplyMode,
                     attempt: submission.attempt,
+                    confidence: submission.confidence,
                   },
                   onStreamText,
                 );

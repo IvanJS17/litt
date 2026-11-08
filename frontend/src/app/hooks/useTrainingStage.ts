@@ -7,17 +7,26 @@ import { getTrainingStage } from "@/app/lib/mikeApi";
 export type TrainingTurnState = {
     /** The caller must write their own attempt before this turn. */
     attemptRequired: boolean;
+    /**
+     * The caller must also mark how sure they are of it (the thermometer).
+     * False from a server that predates layer 3, which asks for no mark.
+     */
+    confidenceRequired: boolean;
     /** When the urgency pass that lifts it ends, if one is in force there. */
     urgencyPassExpiresAt: string | null;
 };
 
-const NOTHING_REQUIRED: TrainingTurnState = { attemptRequired: false, urgencyPassExpiresAt: null };
+const NOTHING_REQUIRED: TrainingTurnState = {
+    attemptRequired: false,
+    confidenceRequired: false,
+    urgencyPassExpiresAt: null,
+};
 
 const STALE_EVENT = "litt:training-stage-stale";
 
 /**
  * Tell every mounted composer to read the stage again: the server refused a
- * turn with training_attempt_required, so what it showed (for instance, an
+ * turn with training_attempt_required or training_confidence_required, so what it showed (for instance, an
  * urgency pass that has just expired) is out of date.
  */
 export function markTrainingStageStale(): void {
@@ -29,7 +38,7 @@ const MAX_TIMER_MS = 2_147_483_647;
 
 /**
  * LiTT training: whether a chat turn where the composer is (an organization,
- * and a project in it) needs the caller's attempt, and the urgency pass that
+ * and a project in it) needs the caller's attempt and thermometer mark, and the urgency pass that
  * lifts it there, if any. Only tells the composer what to show; the server
  * applies the same rule to the turn itself. While it is unknown, or if it
  * cannot be read, the composer behaves as today and the server's 400 asks for
@@ -61,6 +70,7 @@ export function useTrainingStage({
                         key,
                         state: {
                             attemptRequired: stage.attempt_required,
+                            confidenceRequired: stage.confidence_required === true,
                             urgencyPassExpiresAt: stage.urgency_pass?.expires_at ?? null,
                         },
                     });
