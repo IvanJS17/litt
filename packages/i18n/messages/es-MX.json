@@ -203,6 +203,16 @@
       "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
     }
   },
+  "projects": {
+    "workspace": {
+      "view": {
+        "chat": "Chat",
+        "document": "Documento",
+        "explorer": "Explorador",
+        "label": "Vista del espacio de trabajo"
+      }
+    }
+  },
   "training": {
     "stage": {
       "pasante": "Pasante",

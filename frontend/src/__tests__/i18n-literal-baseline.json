@@ -1,6 +1,7 @@
 {
   "migrated": [
     "frontend/src/app/(pages)/settings/training/mentor",
+    "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
     "frontend/src/app/components/shared/LocaleSwitcher.tsx",
     "frontend/src/app/components/shared/SourceCodeLink.tsx",
     "frontend/src/app/components/training/supervision",
