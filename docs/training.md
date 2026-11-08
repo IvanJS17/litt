@@ -272,8 +272,22 @@ justify.
 
 The composers (web and Word) show the required field
 «Tu planteamiento (2–3 líneas)» with a counter when `GET /training/stage` says
-`attempt_required` (a pasante without an urgency pass there); the server
-decides either way. A composer in a project chat,
+`attempt_required` (a pasante without an urgency pass there), and under it the
+thermometer when it says `confidence_required` (layer 3): a radio group of four
+named levels («Casi adivino» to «Seguro», chosen level `aria-checked` plus a
+check mark), one mark per approach, cleared once the turn is sent. A send
+without the mark is held in the composer; if the server still answers
+`training_confidence_required` the composer reads the stage again. The mark
+travels as `confidence` in the body of the four surfaces. Neither the approach
+nor the mark survive in the composer draft of the side chat. The words come
+from the host (`training.criterion.turn` in the catalog, one set for web and
+Word; `useTrainingText` in each app builds them for the components in
+`packages/ui`). The private note beside the message adds the mark, the verdict
+(«según el contraste de la IA», «corregido por tu mentor» when the mentor wrote
+it), the basis and, when there is one, the basis question with «Responder»,
+which quotes the question (`> …`) at the start of the approach field of the
+composer; the quoted lines do not count towards the 60 characters, so the
+person still owes an approach of their own. The server decides either way. A composer in a project chat,
 including one opened from the assistant's chat list, asks with that project
 (`project_id`), so it shows the stage for the project's practice area.
 
