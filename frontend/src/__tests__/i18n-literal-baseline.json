@@ -33,7 +33,8 @@
     "frontend/src/app/components/playbooks/PlaybookTable.tsx",
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx",
     "frontend/src/app/components/playbooks/usePlaybookCorrectionPupils.ts",
-    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts"
+    "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
+    "frontend/src/app/components/shared/DocumentAuthorshipPanel.tsx"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,

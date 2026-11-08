@@ -32,6 +32,7 @@ import {
     deleteVersion,
     resolveEdit,
     approveTrainingVersion,
+    getDocumentAuthorship,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -351,6 +352,26 @@ documentsRouter.post(
             userEmail: res.locals.userEmail as string | undefined,
         });
         if (!result.ok) return void sendServiceFailure(res, result);
+        res.json(result.data);
+    }),
+);
+
+// GET /single-documents/:documentId/versions/:versionId/authorship
+// Estimated share of the version that came from the assistant, computed on
+// request and never stored (docs/training.md). 404 for anybody who may not see it.
+documentsRouter.get(
+    "/:documentId/versions/:versionId/authorship",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.authorship");
+        const result = await getDocumentAuthorship(createServerSupabase(), {
+            documentId: req.params.documentId,
+            versionId: req.params.versionId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
         res.json(result.data);
     }),
 );
