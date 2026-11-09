@@ -14,6 +14,21 @@ export async function completeOnboardingIfRequired(page: Page): Promise<void> {
         const assistantInput = page.getByRole("combobox", {
             name: "How can I help?",
         });
+        /* A new account has not accepted the current Terms yet, so the gate
+           shows the acceptance screen first (TermsAcceptance). Accept it, then
+           continue with the normal onboarding steps. */
+        const termsCheckbox = page.getByRole("checkbox", {
+            name: /read and accept|Leí y acepto/i,
+        });
+        await expect(
+            termsCheckbox.or(continueButton).or(assistantInput),
+        ).toBeVisible({ timeout: 15_000 });
+        if (await termsCheckbox.isVisible()) {
+            await termsCheckbox.check();
+            await page
+                .getByRole("button", { name: /Accept and continue|Aceptar y continuar/i })
+                .click();
+        }
         await expect(continueButton.or(assistantInput)).toBeVisible({
             timeout: 15_000,
         });
