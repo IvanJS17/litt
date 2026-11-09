@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { TrainingTurnNote } from "@mike/contracts";
-import { isUndeliveredModeNote } from "./TrainingNoteUI";
+import { TRAINING_NOTE_STALE_MS } from "./TrainingNoteUI";
 
 /** How often a pending contrast is looked up again, and for how long. */
 export const TRAINING_NOTES_POLL_MS = 5_000;
 export const TRAINING_NOTES_POLL_MAX_MS = 120_000;
+/**
+ * A hint or counterpart note is recorded pending and settles as skipped a
+ * moment after its answer is delivered (not awaited by the server). Right
+ * after a turn ends, one still pending is looked up again for this long
+ * before it reads as undelivered.
+ */
+export const TRAINING_NOTES_DELIVERY_GRACE_MS = 10_000;
 
 interface NoteMessage {
     id?: string;
@@ -21,7 +28,11 @@ interface NoteMessage {
  * A chat nobody may read notes on (or without any) yields an empty list.
  * Reloads when a response finishes; while a contrast is pending it polls
  * every 5 s for at most 2 minutes, and stops when the chat changes or the
- * component unmounts.
+ * component unmounts. A hint or counterpart note still pending right after
+ * its turn ended is held back, and looked up again, for a few seconds (the
+ * server settles it after delivering); past that it is shown as undelivered.
+ * A round's closing contrast still pending after the server's stale time is
+ * shown as undelivered without another lookup.
  */
 export function useTrainingTurnNotes(
     chatId: string | null | undefined,
@@ -34,11 +45,28 @@ export function useTrainingTurnNotes(
         notes: TrainingTurnNote[];
     } | null>(null);
     const pollStartedAt = useRef<number | null>(null);
+    const streaming = useRef<{ chatId: string | null | undefined; turnEndedAt: number | null }>({
+        chatId: undefined,
+        turnEndedAt: null,
+    });
 
     useEffect(() => {
-        if (!chatId || isResponseLoading) return;
+        const turn = streaming.current;
+        if (turn.chatId !== chatId) {
+            turn.chatId = chatId;
+            turn.turnEndedAt = null;
+        }
+        if (isResponseLoading) {
+            turn.turnEndedAt = -1;
+            return;
+        }
+        // -1: a response was streaming a moment ago; this is the end of that turn.
+        if (turn.turnEndedAt === -1) turn.turnEndedAt = Date.now();
+        if (!chatId) return;
+        const turnEndedAt = turn.turnEndedAt;
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
+        let staleTimer: ReturnType<typeof setTimeout> | undefined;
         pollStartedAt.current = Date.now();
 
         const load = async () => {
@@ -50,17 +78,46 @@ export function useTrainingTurnNotes(
             }
             // The panel is secondary: a malformed answer must never take the chat down.
             if (cancelled || !Array.isArray(notes)) return;
-            setState({ chatId, notes });
-            const waiting = notes.some((n) => n.contrast_status === "pending" && !isUndeliveredModeNote(n));
-            const elapsed = Date.now() - (pollStartedAt.current ?? Date.now());
-            if (waiting && elapsed < TRAINING_NOTES_POLL_MAX_MS) {
+            const now = Date.now();
+            // Measured from the end of the turn just finished, or from the note's
+            // own creation when the chat was opened later.
+            const graceLeft = (n: TrainingTurnNote) =>
+                n.contrast_status === "pending" && (n.mode === "hint" || n.mode === "counterpart")
+                    ? Math.max(Date.parse(n.created_at) || 0, turnEndedAt ?? 0) +
+                      TRAINING_NOTES_DELIVERY_GRACE_MS -
+                      now
+                    : 0;
+            const settling = notes.filter((n) => graceLeft(n) > 0);
+            setState({ chatId, notes: notes.filter((n) => !settling.includes(n)) });
+            const waiting = notes.some(
+                (n) => n.contrast_status === "pending" && n.mode !== "hint" && n.mode !== "counterpart",
+            );
+            const elapsed = now - (pollStartedAt.current ?? now);
+            if (settling.length > 0) {
+                const left = Math.min(...settling.map(graceLeft));
+                timer = setTimeout(load, Math.min(TRAINING_NOTES_POLL_MS, left));
+            } else if (waiting && elapsed < TRAINING_NOTES_POLL_MAX_MS) {
                 timer = setTimeout(load, TRAINING_NOTES_POLL_MS);
+            }
+            // A round's closing contrast that is still pending at the server's
+            // stale time is shown as undelivered: render again then, without a lookup.
+            const closing = notes
+                .filter((n) => n.contrast_status === "pending" && n.mode === "counterpart_close")
+                .map((n) => Date.parse(n.created_at) + TRAINING_NOTE_STALE_MS - now)
+                .filter((left) => left > 0);
+            if (closing.length > 0) {
+                if (staleTimer) clearTimeout(staleTimer);
+                staleTimer = setTimeout(
+                    () => setState((current) => current && { ...current, notes: [...current.notes] }),
+                    Math.min(...closing),
+                );
             }
         };
         void load();
         return () => {
             cancelled = true;
             if (timer) clearTimeout(timer);
+            if (staleTimer) clearTimeout(staleTimer);
         };
     }, [chatId, isResponseLoading, getTrainingTurnNotes]);
 

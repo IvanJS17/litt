@@ -125,6 +125,28 @@ beforeEach(() => {
     vi.mocked(api.startRetake).mockResolvedValue(retake({ status: "open", answer: null, contrast: null, verdict: null }));
 });
 
+describe("the loading skeleton", () => {
+    it.each([
+        ["Mi criterio", () => <MyCriterion orgId="org-1" />, () => vi.mocked(api.getMyCriterion).mockResolvedValue(criterion())],
+        [
+            "Mapa y calibración",
+            () => <MentorCriterionMap orgId="org-1" pupilId="pupil-1" />,
+            () => {
+                const { generation: _generation, ...mine } = criterion();
+                void _generation;
+                vi.mocked(api.getPupilCriterion).mockResolvedValue({ ...mine, notes_without_access: 0, retakes_without_access: 0 });
+            },
+        ],
+    ])("%s: has as many blocks as the loaded screen has sections", async (heading, view, mock) => {
+        mock();
+        const { container } = renderEs(view());
+        const blocks = screen.getByLabelText("Cargando…").children.length;
+        await screen.findByRole("heading", { name: heading });
+        await waitFor(() => expect(screen.queryByLabelText("Cargando…")).not.toBeInTheDocument());
+        expect(container.querySelectorAll("h4")).toHaveLength(blocks);
+    });
+});
+
 describe("Mi criterio", () => {
     it("shows the topics, the calibration and the hints as counts, with no score", async () => {
         vi.mocked(api.getMyCriterion).mockResolvedValue(criterion());
@@ -286,6 +308,20 @@ describe("Mi criterio", () => {
         expect(await screen.findByRole("button", { name: /^Retomar «/ })).toBeEnabled();
     });
 
+    it("tells a retake closed for lack of its notes from one whose question could not be generated", async () => {
+        vi.mocked(api.getMyCriterion).mockResolvedValue(
+            criterion({
+                retakes: [
+                    retake({ id: "rt-gone", status: "failed", answer: null, contrast: null, verdict: null }),
+                    retake({ id: "rt-nogen", status: "failed", question: null, answer: null, contrast: null, verdict: null }),
+                ],
+            }),
+        );
+        renderEs(<MyCriterion orgId="org-1" />);
+        expect(await screen.findByText(/La retoma se cerró porque ya no están tus notas/)).toBeInTheDocument();
+        expect(screen.getAllByText(/No se pudo generar la pregunta/)).toHaveLength(1);
+    });
+
     it("shows an answered retake with its question, answer, contrast and verdict", async () => {
         vi.mocked(api.getMyCriterion).mockResolvedValue(
             criterion({ retakes: [retake(), retake({ id: "rt-0", status: "failed", question: null, answer: null, contrast: null, verdict: null })] }),
@@ -307,6 +343,15 @@ describe("Mapa y calibración del mentor", () => {
         return { ...mine, notes_without_access: 0, retakes_without_access: 0, ...overrides };
     };
 
+    it("tells the mentor a retake was closed for lack of the pupil's notes, not the person's own «tus notas»", async () => {
+        vi.mocked(api.getPupilCriterion).mockResolvedValue(
+            pupil({ retakes: [retake({ id: "rt-gone", status: "failed", answer: null, contrast: null, verdict: null })] }),
+        );
+        renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/La retoma se cerró porque ya no están sus notas/)).toBeInTheDocument();
+        expect(screen.queryByText(/tus notas/)).not.toBeInTheDocument();
+    });
+
     it("reads the pupil's map without a way to start a retake", async () => {
         vi.mocked(api.getPupilCriterion).mockResolvedValue(
             pupil({ retakes: [retake(), retake({ id: "rt-2", question: null, answer: null, contrast: null })], notes_without_access: 2, retakes_without_access: 3 }),
@@ -321,6 +366,13 @@ describe("Mapa y calibración del mentor", () => {
         expect(screen.getByText(/3 retomas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
         expect(screen.getByText(/2 notas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
         expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    });
+
+    it("does not say there are no retakes when the only ones are in matters the mentor cannot open", async () => {
+        vi.mocked(api.getPupilCriterion).mockResolvedValue(pupil({ retakes: [], retakes_without_access: 2 }));
+        renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/2 retomas son de trabajos en asuntos que no puedes abrir/)).toBeInTheDocument();
+        expect(screen.queryByText("Este pupilo no tiene retomas.")).not.toBeInTheDocument();
     });
 
     it("says when there are no retakes and retries a failed load", async () => {

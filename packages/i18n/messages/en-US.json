@@ -651,7 +651,9 @@
             "pending": "Generating",
             "open": "Waiting for your answer",
             "answered": "Answered",
-            "failed": "The question couldn't be generated"
+            "failed": "The question couldn't be generated",
+            "closed": "The retake was closed because your notes are no longer there",
+            "closedMentor": "The retake was closed because the pupil's notes are no longer there"
           },
           "started": "started on {date, date, medium}",
           "question": "Question",

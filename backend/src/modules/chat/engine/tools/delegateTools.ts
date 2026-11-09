@@ -20,6 +20,7 @@ import {
     providerForModel,
 } from "../../../../lib/llm/models";
 import { REASONING_LEVELS, type ReasoningLevel } from "../../../../lib/llm/types";
+import { SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL } from "../../../../lib/subagentRoutes";
 import { CITATIONS_OPEN_TAG } from "../citations";
 import { spotlight, withDocumentList } from "../contextBuilders";
 import { createDocLabelResolver, type DocIndex, type DocStore } from "../types";
@@ -214,10 +215,15 @@ export type GovernedSubagentRoute =
 
 export type SubagentRoutePlan = {
     routes: SubagentRoutes;
+    /** The routes could not be read: every delegation is refused, none runs on another model. */
+    unreadable?: true;
     govern: (route: SubagentRoute) => Promise<GovernedSubagentRoute>;
 };
 
-export function delegateSystemPrompt(routes: SubagentRoutes | null): string {
+export function delegateSystemPrompt(routes: SubagentRoutes | null, unreadable = false): string {
+    if (unreadable) {
+        return `${DELEGATE_SYSTEM_PROMPT}\nThe user's subagent routes could not be read just now, so a delegation will be refused and no subagent runs on any model. Do the work yourself, and say so if the user asked for a subagent.`;
+    }
     if (!routes?.routes.length) {
         return `${DELEGATE_SYSTEM_PROMPT}\nA subagent runs on this conversation's model.`;
     }
@@ -733,6 +739,7 @@ async function runDelegateCallInner(
             `The limit of ${MAX_SUBAGENTS_PER_ANSWER} subagents for this answer has been reached. Do the remaining work yourself.`,
         );
     }
+    if (ctx.subagentRoutes?.unreadable) return refusal(SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL);
     // Taken before the await below, or parallel delegate calls could all pass the check.
     ctx.state.started += 1;
     const delegation = await resolveDelegation(call, ctx);

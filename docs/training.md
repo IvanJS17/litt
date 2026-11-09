@@ -83,19 +83,19 @@ matter only while they can open that matter; the rest is counted, never shown.
 The stage grants nothing: it never adds access to a document, a chat or a
 matter.
 
-| Data | The person | Their current mentor | Anyone else (404) |
+| Data | The person | Their current mentor | Anyone else |
 |---|---|---|---|
-| Stage and mentor | yes | yes (their pupils' stages) | owners and admins see who mentors whom, never the stage |
-| Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no |
-| Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no |
-| Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no |
-| Accountability checks (junior) | yes | yes, in matters they can open | no |
-| Review audits | yes | yes, they evaluate them | no |
-| Full readings | yes | yes, in matters they can open | no |
-| Criteria contrasts | yes, with the two analyses | the routes, the explanation and the comparison | no |
-| Authorship of a version | a sealed draft: its author; another version: its owner when they have a stage | the current mentor of that person | whoever may approve the sealed draft; for any other version nobody |
-| Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no |
-| The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404` |
+| Stage and mentor | yes | yes (their pupils' stages) | owners and admins see who mentors whom, never the stage; anyone else gets `404` |
+| Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no: `404` |
+| Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no: `404` |
+| Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no: `404` |
+| Accountability checks (junior) | yes | yes, in matters they can open | no: `404` |
+| Review audits | yes | yes, they evaluate them | no: `404` |
+| Full readings | yes | yes, in matters they can open | no: `404` |
+| Criteria contrasts | yes, with the two analyses | the routes, the explanation and the comparison | no: `404` |
+| Authorship of a version | a sealed draft: its author; another version: its owner when they have a stage | the current mentor of that person | whoever may approve the sealed draft also reads it; for any other version nobody; the rest get `404` |
+| Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no: `404` |
+| The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404`, a member reads it |
 
 ## Data
 
@@ -298,7 +298,15 @@ conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
 full answer) starts the ladder over. Only delivered turns count as a rung: a
 hint or counterpart note is written `pending` and settles as `skipped` when the
 turn completes, so one that failed or was aborted gave the person nothing and
-does not advance the ladder (two aborts leave the first rung next). The first
+does not advance the ladder (two aborts leave the first rung next). The server
+settles it after delivering, without awaiting it, so a screen that reads the
+note right after the turn would see `pending`. `useTrainingTurnNotes` holds such a
+note back and looks it up again for about 10 s (`TRAINING_NOTES_DELIVERY_GRACE_MS`),
+counted from the end of the turn, or from the note's creation when the chat is
+opened later; only past that does it show «No entregada». A round's closing
+`counterpart_close` note that is still `pending` after the time the server
+uses to call a contrast lost (`CONTRAST_STALE_MS`, ten minutes) is shown the
+same way, with no further lookups. The first
 full turn after a hint does not count as an event of the map or of the
 calibration (`countedTurns`, see «Own map, calibration and retake»).
 
@@ -438,8 +446,9 @@ Word add-in gives it one of its own), so it takes the unclaimed note whose
 attempt is exactly the one it was sent with, newest with newest
 (`matchTrainingNotes`). A message whose note was never created stays bare. The
 one case left ambiguous is two turns just sent in the same chat with the
-identical attempt: their notes may be shown swapped, and they differ only in
-the contrast. After a reload every message has its id and the match is exact.
+identical attempt **and the same mode**: their notes may be shown swapped, and
+they differ in what the turn produced (the contrast, its verdict and question,
+the step of a hint or counterpart turn), not in the attempt. After a reload every message has its id and the match is exact.
 Using the id instead would mean the stream announcing the saved user message
 id and each client (the web turn registry, the tabular panel and the Word
 add-in, whose local chats keep their own ids) adopting it mid-turn, a change to
@@ -1281,9 +1290,9 @@ none recorded is **only counted** (`retakes_without_access`): no label (the
 model wrote it from notes the mentor cannot read), status, verdict or date, and
 it feeds neither the map nor `open_retake_id`. A topic that also appears in a
 reserved matter does not open a retake whose sources are all openable to
-anything else, and does not leak one whose sources are not. So
-`text_hidden` is always `false`. Only the person's response carries `generation`
-(whether they can retake and on which of their keys).
+anything else, and does not leak one whose sources are not. Only the person's
+response carries `generation` (whether they can retake and on which of their
+keys).
 
 **The retake.** Nothing is scheduled; it is generated when the person asks, so
 no decrypted credential is ever kept for a background job.
@@ -1395,11 +1404,17 @@ own heading, skeleton and failure message, and reads only what the pupil's
 current mentor may read. To add one, add an import and a render line:
 
 1. `MentorCriterionMap`: the pupil's map, calibration, hints and retakes
-   (`GET …/criterion`; read only, with the count of notes of matters the
-   mentor cannot open and `text_hidden` retakes).
+   (`GET …/criterion`; read only, with the count of notes and of retakes
+   of matters the mentor cannot open, `notes_without_access` and
+   `retakes_without_access`; a pupil whose only retakes are of those matters
+   reads that count, never «no tiene retomas»).
 2. `BackingSection` (accountability, card 8).
 3. `MentorReviewAudits` (bulk review designer, card 9).
 4. `MentorReadings` (full reading, card 10).
+5. `MentorCriteriaContrasts` (criteria contrast, card 13): what the pupil wrote
+   about why two analyses diverge and how it compared with the AI's
+   explanation (`GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts`,
+   see «Criteria contrast»).
 
 The panel now has five tabs: Trabajos, Defensa oral, Pase de urgencia,
 Promoción and Criterio.
@@ -1641,6 +1656,15 @@ accountability call (Accountability mode) is not made for these two turns.
   a model that left the catalog) fails visibly, as every subagent route does,
   and is **not replaced**: the contrast is recorded as `failed` and the page says
   which analysis did not run.
+- **Routes that cannot be read** are not «no routes». A failed read of
+  `user_profiles.subagent_routes` makes the user's settings carry
+  `subagent_routes: null` (a missing column in a database not yet migrated
+  still reads as none). The contrast is then refused before anything is written
+  (`400 training_mode_not_allowed`, «No pude leer tus rutas de subagentes…»),
+  and in any other chat turn every `delegate` call is refused with a clear
+  message instead of running a subagent on the conversation's model; a chat
+  that starts no subagents is unaffected. Both chat and project chat do this
+  (`subagentRoutePlan` returns a plan marked `unreadable`).
 - The engine enforces the rest (`runCriteriaDelegateCall`): a third subagent or a
   continuation is refused, and what each one ran on is recorded. Without the
   subagents, or with the assignment not decided, the turn fails closed before

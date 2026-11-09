@@ -45,21 +45,22 @@ export function MentorCriterionMap({ orgId, pupilId }: { orgId: string; pupilId:
                         <HintsLine requested={data.hints.requested} maxLevel={data.hints.max_level} mentor />
                     </Block>
                     <Block title={t("retakes.title")}>
-                        {data.retakes.length === 0 ? (
-                            <p className="text-sm text-gray-500">{t("retakes.noneMentor")}</p>
-                        ) : (
+                        {data.retakes.length > 0 ? (
                             <ul className="min-w-0 space-y-3">
                                 {data.retakes.map((retake) => (
-                                    <RetakeEntry key={retake.id} retake={retake} />
+                                    <RetakeEntry key={retake.id} retake={retake} audience="mentor" />
                                 ))}
                             </ul>
+                        ) : data.retakes_without_access === 0 ? (
+                            <p className="text-sm text-gray-500">{t("retakes.noneMentor")}</p>
+                        ) : null}
+                        {/* Retakes the mentor cannot open exist: never "no retakes", only the count. */}
+                        {data.retakes_without_access > 0 && (
+                            <p className="text-sm text-gray-500">
+                                {t("mentor.retakesWithoutAccess", { count: data.retakes_without_access })}
+                            </p>
                         )}
                     </Block>
-                    {data.retakes_without_access > 0 && (
-                        <p className="text-sm text-gray-500">
-                            {t("mentor.retakesWithoutAccess", { count: data.retakes_without_access })}
-                        </p>
-                    )}
                     {data.notes_without_access > 0 && (
                         <p className="text-sm text-gray-500">
                             {t("mentor.withoutAccess", { count: data.notes_without_access })}

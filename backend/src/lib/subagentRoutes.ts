@@ -14,6 +14,15 @@ export const MAX_SUBAGENT_ROUTE_DESCRIPTION = 200;
 
 export const EMPTY_SUBAGENT_ROUTES: SubagentRoutes = { routes: [], default: null };
 
+/**
+ * The routes could not be read. That is not "no routes" (subagents on the
+ * conversation's model): a turn that needs subagents stops, and says so.
+ */
+export const SUBAGENT_ROUTES_UNREADABLE =
+    "No pude leer tus rutas de subagentes, así que no uso otro modelo en su lugar. Intenta de nuevo en un momento.";
+export const SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL =
+    "The user's subagent routes could not be read, so no subagent can run now. Do the work yourself or tell the user to try again in a moment.";
+
 /** `unavailable` is ours, sent back as read; it is never stored. */
 const ROUTE_FIELDS = new Set(["name", "description", "model", "reasoning", "unavailable"]);
 

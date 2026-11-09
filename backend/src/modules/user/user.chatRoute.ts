@@ -36,6 +36,10 @@ import { insertAuditEvent, recordAudit, type AuditEventInput } from "../../lib/a
 import { resolveEffectiveChatModel } from "../../lib/modelSelection";
 import { AppError } from "../../lib/appError";
 import { reportError } from "../../lib/observability/report";
+import {
+    EMPTY_SUBAGENT_ROUTES,
+    SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL,
+} from "../../lib/subagentRoutes";
 import { checkProjectAccess, resolveStandaloneOrgId } from "../../lib/access";
 import {
     OWNER_TABLE,
@@ -659,6 +663,16 @@ export async function recordChatEgressOrThrow(db: Db, args: ChatEgressArgs): Pro
     await insertAuditEvent(db, chatEgressEvent(args));
 }
 
+/** Routes that could not be read: every delegation is refused, none runs elsewhere. */
+const UNREADABLE_SUBAGENT_ROUTE_PLAN = {
+    routes: EMPTY_SUBAGENT_ROUTES,
+    unreadable: true as const,
+    govern: async (): Promise<{ ok: false; detail: string }> => ({
+        ok: false,
+        detail: SUBAGENT_ROUTES_UNREADABLE_FOR_MODEL,
+    }),
+};
+
 /**
  * LiTT: how a conversation's subagents run on the user's named routes. A
  * route gets the checks a conversation's own model gets — its credential
@@ -672,6 +686,8 @@ export function subagentRoutePlan(
     routes: SubagentRoutes | null | undefined,
     scope: Parameters<typeof subagentRouteGovernor>[1],
 ) {
+    // null is a read that failed (undefined is just absent): not "no routes".
+    if (routes === null) return UNREADABLE_SUBAGENT_ROUTE_PLAN;
     return routes?.routes.length
         ? { routes, govern: subagentRouteGovernor(db, scope) }
         : null;

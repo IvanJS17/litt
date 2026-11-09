@@ -14,7 +14,7 @@
 - **Main:** `ee3f1e58112b91ccdbea904542cf8f5bd4921022` integrates, over
   `267609c2012fc50d0b61451ff77aa7173ac5cb57` (pull requests #77–#106 of
   2026-11-07), the training layer 3 (cards 1–16, see below), the public/private
-  matter succession (#108–#112, with two migrations `20261108_10` and `_20`) and
+  matter succession (#109 and #112, with two migrations `20261108_10` and `_20`) and
   the legal-reference fixes (#124, #126, #129).
 - **Production:** `267609c2` is still what runs, deployed since 2026-11-07
   23:41 CST. **Nothing merged after it is deployed:** not the training layer 3

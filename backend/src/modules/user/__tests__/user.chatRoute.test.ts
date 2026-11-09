@@ -8,6 +8,7 @@ import {
     loadPinnedChatRoute,
     pinChatRoute,
     subagentRouteGovernor,
+    subagentRoutePlan,
     titleModelForRoute,
 } from "../user.chatRoute";
 
@@ -437,5 +438,25 @@ describe("listChatCredentialOptions", () => {
         expect(
             await listChatCredentialOptions(db, { userId: "u1", orgId: null, model: "no-such-model" }),
         ).toBeNull();
+    });
+});
+
+describe("subagentRoutePlan", () => {
+    const conversation = {
+        provider: "gemini" as const,
+        model: "gemini-3.8-flash",
+        credentialRef: "user:u1:gemini:v1",
+    };
+    const scope = { userId: "u1", orgId: null, chatId: "c1", surface: "assistant", conversation };
+    const { db } = fakeDb({});
+
+    it("has no plan for no routes, and a plan that refuses everything for routes it could not read", async () => {
+        expect(subagentRoutePlan(db, { routes: [], default: null }, scope)).toBeNull();
+        expect(subagentRoutePlan(db, undefined, scope)).toBeNull();
+        const unreadable = subagentRoutePlan(db, null, scope);
+        expect(unreadable).toMatchObject({ unreadable: true, routes: { routes: [] } });
+        await expect(
+            unreadable?.govern({ name: "deep", description: "Deep.", model: "claude-opus-5-5" }),
+        ).resolves.toMatchObject({ ok: false, detail: expect.stringContaining("could not be read") });
     });
 });

@@ -476,6 +476,32 @@ describe("POST /projects/:projectId/chat", () => {
         );
     });
 
+    it("still runs a project chat when the subagent routes could not be read, with subagents that never use another model", async () => {
+        const userSettings = await import("../../modules/user/user.settings.js");
+        vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
+            web_search: DEFAULT_WEB_SEARCH_SETTINGS,
+            title_model: null,
+            memory_curator_model: null,
+            subagent_model: null,
+            subagent_reasoning: null,
+            subagent_routes: null,
+            last_selected_reasoning_level: null,
+            tabular_model: null,
+            last_selected_chat_model: "gpt-6-luna",
+            api_keys: { openai: "test-key" },
+        });
+
+        const res = await request(app)
+            .post("/projects/p1/chat")
+            .set("Authorization", "Bearer test")
+            .send({ messages: VALID_BODY.messages });
+
+        expect(res.status).toBe(200);
+        expect(runLLMStream).toHaveBeenCalledWith(
+            expect.objectContaining({ subagentRoutes: expect.objectContaining({ unreadable: true }) }),
+        );
+    });
+
     it("uses the shared last-selected model when a new project chat omits model", async () => {
         const userSettings = await import("../../modules/user/user.settings.js");
         vi.mocked(userSettings.getUserModelSettings).mockResolvedValueOnce({
