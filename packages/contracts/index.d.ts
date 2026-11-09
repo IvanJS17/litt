@@ -1873,3 +1873,22 @@ export interface TrainingVersionApproval {
  * and falls back to `es-MX`.
  */
 export type UiLocale = "en-US" | "es-MX";
+
+/** `GET /platform/me`: what the invite-only beta lets the caller do. */
+export interface PlatformMe {
+    admin: boolean;
+    can_create_org: boolean;
+}
+
+/** A platform (beta) invitation; `/platform/invitations`, administrators only. */
+export interface PlatformInvitation {
+    id: string;
+    email: string;
+    status: "pending" | "used" | "cancelled";
+    expires_at: string;
+    created_at: string;
+    used_at: string | null;
+    /** Only on the create response: whether GoTrue sent the invitation email
+     *  (false: the person has an account, or sending failed). */
+    email_sent?: boolean;
+}

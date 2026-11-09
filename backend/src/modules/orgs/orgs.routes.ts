@@ -14,6 +14,14 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { requireAuth, requireMfaIfEnrolled } from "../../middleware/auth";
 import { asyncRoute, routerErrorHandler } from "../../middleware/asyncRoute";
 import { createServerSupabase } from "../../lib/supabase";
+import {
+    betaMode,
+    claimPlatformInvitation,
+    isPlatformAdmin,
+    releasePlatformInvitation,
+} from "../../lib/platformAccess";
+import { sendSignupInvite } from "../../lib/inviteEmail";
+import { recordAudit } from "../../lib/audit";
 import { sendOrgFailure } from "../../lib/orgFailure";
 import { isPersonalOrg } from "../../lib/personalOrgs";
 import { parsePaginationQuery } from "../../lib/pagination";
@@ -160,8 +168,27 @@ orgsRouter.get("/", requireAuth, asyncRoute(async (_req, res) => {
 orgsRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
     const userId = res.locals.userId as string;
     const db = createServerSupabase();
+    // Beta: only a platform admin, or the holder of a platform invitation,
+    // which serves for this one organization.
+    let invitationId: string | null = null;
+    if (betaMode() && !isPlatformAdmin(res.locals.userEmail)) {
+        invitationId = await claimPlatformInvitation(db, res.locals.userEmail);
+        if (!invitationId)
+            return res.status(403).json({
+                code: "org_creation_restricted",
+                detail: "Creating an organization needs an invitation.",
+            });
+    }
     const result = await createOrg(db, { userId, userEmail: res.locals.userEmail, name: req.body?.name });
-    if (!result.ok) return sendOrgFailure(res, result);
+    if (!result.ok) {
+        if (invitationId) await releasePlatformInvitation(db, invitationId);
+        return sendOrgFailure(res, result);
+    }
+    if (invitationId)
+        await recordAudit(db, {
+            userId, action: "platform.invitation_used", surface: "platform",
+            orgId: String(result.org.id), detail: { invitation_id: invitationId, org_id: result.org.id },
+        });
     res.status(201).json(result.org);
 }));
 
@@ -313,7 +340,8 @@ orgsRouter.post("/:orgId/invitations", requireOrgAuth, asyncRoute(async (req, re
         role: req.body?.role,
     });
     if (!result.ok) return sendOrgFailure(res, result);
-    res.status(201).json(result.invitation);
+    const email_sent = await sendSignupInvite(db, String(result.invitation.email));
+    res.status(201).json({ ...result.invitation, email_sent });
 }));
 
 // GET /orgs/:orgId/invitations — pending/recent invitations (admin only).

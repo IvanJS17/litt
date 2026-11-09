@@ -9,8 +9,12 @@ import type {
     OrgDepartureResolution,
     AccountDeletionReceipt,
     AccountDeletionStarted,
+    PlatformMe,
+    PlatformInvitation,
 } from "@mike/contracts";
 export type {
+    PlatformMe,
+    PlatformInvitation,
     AuditActor,
     AuditActorPage,
     OrgMemberHandover,
@@ -1994,6 +1998,8 @@ export type OrgInvitationStatus =
     | "expired";
 
 export interface OrgInvitation {
+    /** Create response only: whether GoTrue emailed the invitation. */
+    email_sent?: boolean;
     id: string;
     org_id: string;
     email: string;
@@ -2033,6 +2039,28 @@ export async function createOrg(name: string): Promise<Org> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
     });
+}
+
+// --- Invite-only beta (platform administrators) ---------------------------
+
+export async function getPlatformMe(): Promise<PlatformMe> {
+    return apiRequest<PlatformMe>("organizations.manage", "/platform/me");
+}
+
+export async function listPlatformInvitations(): Promise<PlatformInvitation[]> {
+    return apiRequest<PlatformInvitation[]>("organizations.manage", "/platform/invitations");
+}
+
+export async function createPlatformInvitation(email: string): Promise<PlatformInvitation> {
+    return apiRequest<PlatformInvitation>("organizations.manage", "/platform/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+}
+
+export async function deletePlatformInvitation(id: string): Promise<void> {
+    await apiRequest("organizations.manage", `/platform/invitations/${id}`, { method: "DELETE" });
 }
 
 export async function getOrg(orgId: string): Promise<Org> {

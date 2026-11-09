@@ -249,6 +249,8 @@ services:
       DOWNLOAD_SIGNING_SECRET: ${DOWNLOAD_SIGNING_SECRET:?required}
       USER_API_KEYS_ENCRYPTION_SECRET: ${USER_API_KEYS_ENCRYPTION_SECRET:?required}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      # Beta por invitación (README §Decisiones): vacío = registro abierto.
+      PLATFORM_ADMIN_EMAILS: ${PLATFORM_ADMIN_EMAILS:-}
       R2_ENDPOINT_URL: ${R2_ENDPOINT_URL:?required}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:?required}
       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:?required}
