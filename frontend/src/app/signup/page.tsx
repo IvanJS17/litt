@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
+import { SignupLegal } from "@/app/components/legal/LegalDocument";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";
@@ -282,6 +283,7 @@ function SignupContent() {
                         </div>
                     </form>
                 </div>
+                <SignupLegal />
                 <div className="text-center text-sm text-gray-500">
                     {t("auth.signup.haveAccount")}{" "}
                     <Link

@@ -187,6 +187,7 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     org_creation_restricted: "forbidden",
     platform_admin_required: "forbidden",
     platform_invitation_pending: "conflict",
+    terms_version_mismatch: "conflict",
     // Identity
     authentication_failed: "unauthenticated",
     session_expired: "unauthenticated",

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
+import { LegalNotice } from "@/app/components/legal/LegalLinks";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
@@ -255,6 +256,7 @@ export default function LoginPage() {
                         {showSso && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
+                <LegalNotice />
                 <div className="text-center text-sm text-gray-500">
                     {t("auth.login.noAccount")}{" "}
                     <Link

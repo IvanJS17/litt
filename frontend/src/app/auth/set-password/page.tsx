@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
+import { SignupLegal } from "@/app/components/legal/LegalDocument";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -197,6 +198,7 @@ function SetPasswordContent() {
                                     {loading ? t("access.setPassword.saving") : t("access.setPassword.submit")}
                                 </PillButtonUI>
                             </form>
+                            <SignupLegal />
                         </>
                     )}
                 </div>

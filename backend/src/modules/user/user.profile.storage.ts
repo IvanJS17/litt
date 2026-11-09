@@ -3,6 +3,10 @@ import { type Db } from "./user.shared";
 
 export const MONTHLY_CREDIT_LIMIT = 999999;
 
+// The published Terms and Privacy Notice. Raising it makes every account accept
+// again (profile `termsRequired`). Keep in step with frontend/src/content/legal/version.ts.
+export const LEGAL_VERSION = "2026-11-09";
+
 export type UserProfileRow = {
     display_name: string | null;
     profile_photo?: string | null;
@@ -29,6 +33,7 @@ export type UserProfileRow = {
     dark_mode: boolean | null;
     project_memory_default: boolean | null;
     ui_locale?: string | null;
+    terms_accepted_version?: string | null;
 };
 
 // LiTT 20261107_80 adds ui_locale; a database that has not applied it yet
@@ -36,7 +41,11 @@ export type UserProfileRow = {
 const PROFILE_SELECT_NO_UI_LOCALE =
     "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, response_details_visible, dark_mode, project_memory_default";
 
-const PROFILE_SELECT_NEWEST = `${PROFILE_SELECT_NO_UI_LOCALE}, ui_locale`;
+const PROFILE_SELECT_NO_TERMS = `${PROFILE_SELECT_NO_UI_LOCALE}, ui_locale`;
+
+// LiTT 20261109_30 adds terms_accepted_version; a database without it reads as
+// "no acceptance required" so the deploy-before-migrate window locks nobody out.
+const PROFILE_SELECT_NEWEST = `${PROFILE_SELECT_NO_TERMS}, terms_accepted_version`;
 
 const PROFILE_SELECT_NO_RESPONSE_DETAILS =
     "display_name, organisation, jurisdiction, practice_setting, professional_title, practice_areas, onboarding_version, password_set_at, message_credits_used, credits_reset_date, tier, title_model, tabular_model, memory_curator_model, subagent_model, subagent_reasoning, last_selected_chat_model, last_selected_reasoning_level, mfa_on_login, quick_actions_visible, dark_mode, project_memory_default";
@@ -132,6 +141,12 @@ export async function selectProfile(db: Db, userId: string, mode: "maybe" | "sin
     const newest = await read(PROFILE_SELECT_NEWEST);
     if (!newest.error) return newest;
     let cascadeError: unknown = newest.error;
+
+    if (isMissingProfileColumn(cascadeError, "terms_accepted_version")) {
+        const previous = await read(PROFILE_SELECT_NO_TERMS);
+        if (!previous.error) return previous;
+        cascadeError = previous.error;
+    }
 
     if (isMissingProfileColumn(cascadeError, "ui_locale")) {
         const previous = await read(PROFILE_SELECT_NO_UI_LOCALE);

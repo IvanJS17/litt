@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { TermsAcceptance } from "@/app/components/legal/TermsAcceptance";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 
 export function OnboardingGate({ children }: { children: ReactNode }) {
@@ -26,10 +27,14 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         pathname === "/forgot-password" ||
         pathname === "/reset-password" ||
         pathname === "/verify-mfa";
+    // The published texts stay readable to everyone, signed in or not.
+    const isLegalRoute = pathname === "/privacidad" || pathname === "/terminos";
+    const needsTerms =
+        profile?.termsRequired === true && !isLegalRoute && !isAuthTransitionRoute;
     const needsOnboarding = profile?.onboardingComplete === false;
 
     useEffect(() => {
-        if (!user || loading || !profile) return;
+        if (!user || loading || !profile || needsTerms) return;
 
         if (needsOnboarding && !isOnboardingRoute && !isAuthTransitionRoute) {
             router.replace("/onboarding/profile");
@@ -43,6 +48,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         isAuthTransitionRoute,
         loading,
         needsOnboarding,
+        needsTerms,
         profile,
         router,
         user,
@@ -50,6 +56,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
     if (!user) return <>{children}</>;
     if (loading || !profile) return <FullScreenLoader />;
+    if (needsTerms) return <TermsAcceptance />;
     if (needsOnboarding && !isOnboardingRoute && !isAuthTransitionRoute) {
         return <FullScreenLoader />;
     }

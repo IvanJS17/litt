@@ -217,6 +217,7 @@
       "org_creation_restricted": "Creating an organization needs an invitation.",
       "platform_admin_required": "Only platform administrators can do this.",
       "platform_invitation_pending": "This email already has a pending invitation.",
+      "terms_version_mismatch": "These are not the current Terms. Reload the page and try again.",
       "playbook_change_decided": "This change has already been decided. Reload the proposed changes.",
       "playbook_change_stale": "The rule changed after this change was proposed. Reload the proposed changes.",
       "playbook_changes_pending": "This playbook has proposed changes that haven't been decided. Accept or reject each one first.",
@@ -1532,5 +1533,16 @@
       "cancelBody": "{email} will no longer be able to sign up or create a firm with this invitation.",
       "keep": "Keep"
     }
+  },
+  "legal": {
+    "notice": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Notice</privacy>.",
+    "onlySpanish": "Available in Spanish only.",
+    "title": "Terms and Privacy Notice",
+    "intro": "To keep using LiTT, read and accept the <terms>Terms and Conditions</terms> and the <privacy>Privacy Notice</privacy>.",
+    "checkbox": "I have read and accept the Terms and Conditions and the Privacy Notice",
+    "submit": "Accept and continue",
+    "saving": "Saving...",
+    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
+    "simplifiedTitle": "Simplified privacy notice"
   }
 }

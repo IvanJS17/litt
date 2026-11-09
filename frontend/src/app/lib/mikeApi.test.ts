@@ -257,6 +257,7 @@ import {
     streamTabularGeneration,
     streamTabularGenerationResume,
     syncUserPasswordSet,
+    acceptTerms,
     tabularChatSelectionKey,
     parseTabularChatSelectionKey,
     updateMcpConnector,
@@ -2905,6 +2906,13 @@ describe("thin endpoint wrappers", () => {
                 jurisdiction: "Singapore",
                 practiceAreas: ["Litigation"],
             },
+        },
+        {
+            name: "acceptTerms",
+            call: () => acceptTerms("2026-11-09"),
+            url: "/user/terms-acceptance",
+            method: "POST",
+            body: { version: "2026-11-09" },
         },
         {
             name: "syncUserPasswordSet",
