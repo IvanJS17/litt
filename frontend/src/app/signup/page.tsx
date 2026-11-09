@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
+import { SignupLegal } from "@/app/components/legal/LegalDocument";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signup } from "@/app/lib/authApi";
@@ -186,7 +187,7 @@ function SignupContent() {
     return (
         <AuthPageShell>
             <div className="w-full max-w-md">
-                <div className={cn(authGlassCardUIClassName, "mb-4")}>
+                <div className={cn(authGlassCardUIClassName, "mb-4 [@media(max-height:700px)]:mb-1")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
                         {t("auth.signup.signUp")}
                     </h2>
@@ -282,6 +283,7 @@ function SignupContent() {
                         </div>
                     </form>
                 </div>
+                <SignupLegal />
                 <div className="text-center text-sm text-gray-500">
                     {t("auth.signup.haveAccount")}{" "}
                     <Link

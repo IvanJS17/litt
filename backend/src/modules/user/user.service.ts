@@ -13,6 +13,7 @@ export {
     updateUserProfile,
     completeUserOnboarding,
     recordPasswordSet,
+    acceptTerms,
 } from "./user.profile";
 
 export { setUserProfilePhoto } from "./user.photo";

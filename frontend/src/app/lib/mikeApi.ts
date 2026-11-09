@@ -910,6 +910,7 @@ export interface UserProfile extends RouterProfileLists {
     onboardingVersion: number | null;
     onboardingComplete: boolean;
     passwordSet: boolean;
+    termsRequired: boolean;
     messageCreditsUsed: number;
     creditsResetDate: string;
     creditsRemaining: number;
@@ -1205,6 +1206,14 @@ export async function completeUserOnboarding(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+    });
+}
+
+export async function acceptTerms(version: string): Promise<UserProfile> {
+    return apiRequest<UserProfile>("settings.profile", "/user/terms-acceptance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version }),
     });
 }
 

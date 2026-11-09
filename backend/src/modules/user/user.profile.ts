@@ -16,3 +16,4 @@ export {
   completeUserOnboarding,
   recordPasswordSet,
 } from "./user.profile.operations";
+export { acceptTerms } from "./user.terms";

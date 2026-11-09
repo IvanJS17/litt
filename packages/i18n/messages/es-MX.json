@@ -217,6 +217,7 @@
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
+      "terms_version_mismatch": "Esos no son los Términos vigentes. Recarga la página e inténtalo de nuevo.",
       "playbook_change_decided": "Este cambio ya se decidió. Recarga los cambios propuestos.",
       "playbook_change_stale": "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos.",
       "playbook_changes_pending": "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno primero.",
@@ -1532,5 +1533,16 @@
       "cancelBody": "{email} ya no podrá registrarse ni crear un despacho con esta invitación.",
       "keep": "Conservar"
     }
+  },
+  "legal": {
+    "notice": "Al continuar aceptas los <terms>Términos</terms> y el <privacy>Aviso de privacidad</privacy>.",
+    "onlySpanish": "Disponible solo en español.",
+    "title": "Términos y Aviso de privacidad",
+    "intro": "Para seguir usando LiTT, lee y acepta los <terms>Términos y condiciones</terms> y el <privacy>Aviso de privacidad</privacy>.",
+    "checkbox": "Leí y acepto los Términos y condiciones y el Aviso de privacidad",
+    "submit": "Aceptar y continuar",
+    "saving": "Guardando...",
+    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
+    "simplifiedTitle": "Aviso de privacidad simplificado"
   }
 }

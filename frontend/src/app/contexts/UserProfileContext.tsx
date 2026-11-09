@@ -66,6 +66,7 @@ interface UserProfile extends RouterProfileLists {
     onboardingVersion: number | null;
     onboardingComplete: boolean;
     passwordSet: boolean;
+    termsRequired: boolean;
     messageCreditsUsed: number;
     creditsResetDate: string;
     creditsRemaining: number;
@@ -190,6 +191,7 @@ function toProfile(data: ApiUserProfile): UserProfile {
         onboardingVersion: profile.onboardingVersion ?? null,
         onboardingComplete: profile.onboardingComplete !== false,
         passwordSet: profile.passwordSet === true,
+        termsRequired: profile.termsRequired === true,
         memoryCuratorModel: profile.memoryCuratorModel ?? null,
         subagentModel: profile.subagentModel ?? null,
         subagentReasoning: profile.subagentReasoning ?? null,
@@ -284,6 +286,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 onboardingVersion: 0,
                 onboardingComplete: true,
                 passwordSet: false,
+                termsRequired: false,
                 messageCreditsUsed: 0,
                 creditsResetDate: futureResetDate.toISOString(),
                 creditsRemaining: 999999, // temporarily unlimited

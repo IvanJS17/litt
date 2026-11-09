@@ -20277,6 +20277,19 @@ alter table public.platform_invitations enable row level security;
 revoke all on public.platform_invitations from anon, authenticated;
 grant select, insert, update, delete on public.platform_invitations to service_role;
 
+-- ---------------------------------------------------------------------------
+-- 20261109_30_litt_terms_acceptance.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-09
+--
+-- Acceptance of the published Terms and Privacy Notice: the version the
+-- user accepted and when. The version is compared with LEGAL_VERSION in
+-- the backend; a different value makes the profile report termsRequired.
+
+alter table public.user_profiles
+  add column if not exists terms_accepted_version text,
+  add column if not exists terms_accepted_at timestamptz;
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -20533,5 +20546,6 @@ insert into public.schema_migrations (filename) values
   ('20261108_78_litt_training_retakes.sql'),
   ('20261108_82_litt_training_criterion_contrasts.sql'),
   ('20261109_10_litt_training_gym.sql'),
-  ('20261109_20_litt_platform_invitations.sql')
+  ('20261109_20_litt_platform_invitations.sql'),
+  ('20261109_30_litt_terms_acceptance.sql')
 on conflict (filename) do nothing;

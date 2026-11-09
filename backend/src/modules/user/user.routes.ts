@@ -72,6 +72,7 @@ import {
     listMcpConnectors,
     readBooleanBodyField,
     recordPasswordSet,
+    acceptTerms,
     refreshMcpConnectorTools,
     setMcpToolEnabled,
     setMfaOnLogin,
@@ -497,6 +498,13 @@ userRouter.post("/onboarding", requireAuth, asyncRoute(async (req, res) => {
     const result = await completeUserOnboarding(db, userId, parsed.update);
     if (!result.ok) return void sendInternalError(res, result.error);
     res.json(result.body);
+}));
+
+// POST /user/terms-acceptance {version}
+userRouter.post("/terms-acceptance", requireAuth, asyncRoute(async (req, res) => {
+    const result = await acceptTerms(createServerSupabase(), res.locals.userId as string, req.body?.version);
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.json(result.data);
 }));
 
 // POST /user/security/password-set

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
+import { LegalNotice } from "@/app/components/legal/LegalLinks";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/app/lib/authApi";
@@ -166,7 +167,7 @@ export default function LoginPage() {
         <AuthPageShell>
             <div className="w-full max-w-md">
                 {/* Login Form */}
-                <div className={cn(authGlassCardUIClassName, "mb-4")}>
+                <div className={cn(authGlassCardUIClassName, "mb-4 [@media(max-height:700px)]:mb-1")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
                         {t("auth.login.logIn")}
                     </h2>
@@ -255,6 +256,7 @@ export default function LoginPage() {
                         {showSso && <SsoAuthButton disabled={loading} />}
                     </form>
                 </div>
+                <LegalNotice />
                 <div className="text-center text-sm text-gray-500">
                     {t("auth.login.noAccount")}{" "}
                     <Link

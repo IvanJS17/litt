@@ -2,7 +2,7 @@
 import { normalizeOptionalModelPreference, normalizeReasoningLevel } from "../../lib/modelSelection";
 import { type ApiKeyStatus } from "../../lib/providerCredentials/index";
 import { ROUTER_SLUGS, type RouterModelSelections } from "../../lib/routerModels";
-import { UserProfileRow, MONTHLY_CREDIT_LIMIT } from "./user.profile.storage";
+import { UserProfileRow, MONTHLY_CREDIT_LIMIT, LEGAL_VERSION } from "./user.profile.storage";
 import { isUiLocale } from "../../lib/uiLocale";
 
 import { ROUTER_PROFILE_FIELDS } from "./user.profile.routerPreferences";
@@ -33,6 +33,10 @@ export function serializeProfile(
             row.onboarding_version === undefined ||
             row.onboarding_version !== null,
         passwordSet: !!row.password_set_at,
+        // undefined = database without the terms migration: do not lock out.
+        termsRequired:
+            row.terms_accepted_version !== undefined &&
+            row.terms_accepted_version !== LEGAL_VERSION,
         messageCreditsUsed: creditsUsed,
         creditsResetDate: row.credits_reset_date,
         creditsRemaining: Math.max(MONTHLY_CREDIT_LIMIT - creditsUsed, 0),
