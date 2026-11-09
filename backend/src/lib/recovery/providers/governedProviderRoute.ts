@@ -14,7 +14,6 @@ import {
   type ProviderRoute,
 } from "../sharedContracts";
 import {
-  isSupportedOpenCodeGoModel,
   LEGACY_MODEL_IDS,
   providerForModel,
   resolveModel,
@@ -61,8 +60,7 @@ export type ExplicitRouteErrorKind =
   | "invalid_explicit_route"
   | "provider_model_mismatch"
   | "unknown_model"
-  | "retired_model"
-  | "unsupported_model";
+  | "retired_model";
 
 export type ExplicitRouteResult =
   | {
@@ -159,9 +157,6 @@ function resolveExplicitInternal(input: unknown): ExplicitRouteResult {
   const actual = actualProviderFor(model);
   if (!actual || resolveModel(model, "") === "") {
     return failRoute("unknown_model", `model "${model}" is unknown`);
-  }
-  if (model.startsWith("opencode-go/") && !isSupportedOpenCodeGoModel(model)) {
-    return failRoute("unsupported_model", `model "${model}" is not supported`);
   }
   if (provider !== actual) {
     return failRoute(

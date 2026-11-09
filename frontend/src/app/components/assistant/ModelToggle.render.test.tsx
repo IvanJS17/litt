@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mergeConfiguredModelOptions, ModelToggle } from "./ModelToggle";
-import { underlyingProviderGroup } from "@mike/client";
+import { routerModelOptions } from "@mike/client";
 import type {
     ApiKeyState,
     ConfiguredModelOption,
@@ -405,13 +405,15 @@ describe("ModelToggle availability states", () => {
 });
 
 describe("ModelToggle provider grouping", () => {
-    it("maps router catalog IDs to their underlying model providers", () => {
+    it("groups router rows under the router, not the model's maker", () => {
         expect(
-            underlyingProviderGroup("anthropic/claude-fable-5-1", "openrouter"),
-        ).toBe("Anthropic");
-        expect(underlyingProviderGroup("kimi-k3", "opencode-go")).toBe(
-            "Moonshot AI",
-        );
+            routerModelOptions("opencode-go", ["glm-5"]).map((m) => m.group),
+        ).toEqual(["OpenCode Go"]);
+        expect(
+            routerModelOptions("openrouter", ["anthropic/claude-fable-5-1"]).map(
+                (m) => m.group,
+            ),
+        ).toEqual(["OpenRouter"]);
     });
 
     it("offers the user's saved OpenCode Go models once the key is configured", async () => {
@@ -426,10 +428,9 @@ describe("ModelToggle provider grouping", () => {
         );
 
         await user.click(screen.getByRole("button", { name: "Choose model" }));
-        await user.click(await screen.findByText("Zhipu AI"));
+        await user.click(await screen.findByText("OpenCode Go"));
 
         expect(await screen.findByText("Glm 5")).toBeInTheDocument();
-        expect(screen.getByText("OpenCode")).toBeInTheDocument();
     });
 
     it("hides the group when the OpenCode Go key is missing", async () => {
@@ -445,7 +446,7 @@ describe("ModelToggle provider grouping", () => {
 
         await user.click(screen.getByRole("button", { name: "Choose model" }));
 
-        expect(screen.queryByText("OpenCode")).not.toBeInTheDocument();
+        expect(screen.queryByText("OpenCode Go")).not.toBeInTheDocument();
     });
 
     it("distinguishes direct and routed copies of the same model", async () => {
@@ -461,14 +462,14 @@ describe("ModelToggle provider grouping", () => {
 
         await user.click(screen.getByRole("button", { name: "Choose model" }));
 
-        expect(screen.getByText("Direct")).toBeInTheDocument();
+        expect(screen.getByText("Anthropic")).toBeInTheDocument();
         expect(screen.getByText("OpenRouter")).toBeInTheDocument();
     });
 
     it.each([
         { source: "OpenRouter", provider: "openrouter", models: { openrouter: ["openai/gpt-4o"] }, id: "openrouter/openai/gpt-4o" },
-        { source: "Azure", provider: "azure", models: { azure: ["gpt-4o"] }, id: "azure/gpt-4o" },
-        { source: "Bedrock", provider: "bedrock", models: { bedrock: ["us.anthropic.claude-sonnet-4-6-v1:0"] }, id: "bedrock/us.anthropic.claude-sonnet-4-6-v1:0" },
+        { source: "Azure OpenAI", provider: "azure", models: { azure: ["gpt-4o"] }, id: "azure/gpt-4o" },
+        { source: "Amazon Bedrock", provider: "bedrock", models: { bedrock: ["us.anthropic.claude-sonnet-4-6-v1:0"] }, id: "bedrock/us.anthropic.claude-sonnet-4-6-v1:0" },
     ])("identifies $source even without a direct copy of the model", async ({ source, provider, models, id }) => {
         const user = userEvent.setup();
         const onChange = vi.fn();
@@ -482,9 +483,9 @@ describe("ModelToggle provider grouping", () => {
         );
 
         await user.click(screen.getByRole("button", { name: "Choose model" }));
-        const row = screen.getByRole("menuitem", { name: new RegExp(source) });
-        expect(row).toHaveTextContent(source);
-        await user.click(row);
+        // The router's group is open and holds the row.
+        expect(screen.getByText(source)).toBeInTheDocument();
+        await user.click(screen.getAllByRole("menuitem").at(-1)!);
         expect(onChange).toHaveBeenCalledWith(id);
     });
 });

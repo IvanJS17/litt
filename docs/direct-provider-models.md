@@ -220,10 +220,20 @@ custom endpoints and routers, titles use the chat model itself; when that model
 cannot turn reasoning off, the title call gets extra output headroom so its
 thinking cannot use up the whole title budget.
 
-OpenRouter and Vercel continue to use their live catalogs and users' saved
-allowlists. OpenCode Go retains its protocol compatibility list. Ollama models
-remain dynamically discovered. These IDs are not rewritten by the direct-model
-mappings.
+OpenRouter, Vercel and OpenCode Go use their live catalogs and users' saved
+allowlists. The OpenCode Go catalog lists every model whose `type` is `chat` and
+whose `modalities.output` includes `text`; there is no fixed list to maintain.
+All of them are called through Chat Completions, which OpenCode Go translates
+for models native to other protocols. Every request carries
+`x-opencode-session` (the conversation id; `litt` for calls that belong to no
+conversation) and `User-Agent: litt/<short commit>`, without which OpenCode Go
+rejects it. Ollama models remain dynamically discovered. These IDs are not
+rewritten by the direct-model mappings.
+
+The model picker groups direct models by provider (Anthropic, Google, OpenAI,
+Mistral AI) and router, cloud and custom-endpoint models by the service whose
+key is used (OpenCode Go, OpenRouter, Vercel AI Gateway, and so on), sorted by
+name within each group.
 
 ## Catalog maintenance
 

@@ -17,6 +17,7 @@ export async function completeText(params: {
     maxTokens?: number;
     abortSignal?: AbortSignal;
     apiKeys?: UserApiKeys;
+    conversationId?: string | null;
 }): Promise<string> {
     return completeWithProvider(params);
 }

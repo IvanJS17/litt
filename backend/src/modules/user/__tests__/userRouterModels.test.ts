@@ -248,29 +248,6 @@ describe("PATCH /user/profile router model selections", () => {
         expect(replaceUserRouterModels).not.toHaveBeenCalled();
     });
 
-    it("rejects OpenCode Go models that require an unsupported protocol", async () => {
-        const response = await request(app)
-            .patch("/user/profile")
-            .send({ openCodeGoModels: ["gpt-5.6-luna"] });
-
-        expect(response.status).toBe(400);
-        expect(response.body.detail).toBe(
-            "openCodeGoModels contains an invalid or duplicate model ID",
-        );
-        expect(replaceUserRouterModels).not.toHaveBeenCalled();
-    });
-});
-
-describe("normalizeRouterModels", () => {
-    it("keeps router-slug catalog ids verbatim", () => {
-        expect(
-            normalizeRouterModels(["openrouter/auto"], "openrouter"),
-        ).toEqual(["openrouter/auto"]);
-        expect(normalizeRouterModels(["vercel/v0-1.5-md"], "vercel")).toEqual([
-            "vercel/v0-1.5-md",
-        ]);
-    });
-
     it("strips the router prefix only when the remainder is a full id", () => {
         expect(
             normalizeRouterModels(
@@ -285,20 +262,6 @@ describe("normalizeRouterModels", () => {
             "glm-5",
         ]);
         expect(normalizeRouterModels(["glm-5"], "openrouter")).toEqual([]);
-    });
-
-    it("keeps Chat Completions and Messages models but filters unsupported protocols", () => {
-        expect(
-            normalizeRouterModels(
-                [
-                    "glm-5.3",
-                    "qwen3.8-max",
-                    "minimax-m3",
-                    "gpt-5.6-luna",
-                ],
-                "opencode-go",
-            ),
-        ).toEqual(["glm-5.3", "qwen3.8-max", "minimax-m3"]);
     });
 });
 

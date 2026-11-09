@@ -471,23 +471,19 @@ describe("GET /models/opencode-go", () => {
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("returns supported Chat Completions and Messages models with the key server-side", async () => {
+    it("lists every text chat model, whatever its protocol, with the key server-side", async () => {
+        const text = { output: ["text"] };
         const fetchMock = vi.fn().mockResolvedValue(
             new Response(
                 JSON.stringify({
                     data: [
-                        // Qwen and MiniMax use Anthropic Messages; GPT uses the
-                        // unsupported Responses protocol.
-                        { id: "qwen3.8-max", name: "Qwen3.8 Max" },
-                        { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-                        { id: "minimax-m3", name: "MiniMax M3" },
-                        { id: "glm-5.3", name: "GLM-5.3" },
-                        { id: "qwen3.8-max", name: "Qwen3.8 Max (updated)" },
-                        { id: "kimi-k3" },
-                        // The upstream response has no protocol metadata, so
-                        // unknown future models must fail closed too.
-                        { id: "future-model", name: "Future Model" },
-                        { id: "bad id" },
+                        { id: "qwen3.8-max", name: "Qwen3.8 Max", api: "messages", type: "chat", modalities: text },
+                        { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", api: "responses", type: "chat", modalities: text },
+                        { id: "glm-5.3", name: "GLM-5.3", api: "chat", type: "chat", modalities: text },
+                        { id: "kimi-k3", api: "chat", type: "chat", modalities: text },
+                        { id: "image-1", name: "Image 1", type: "image", modalities: { output: ["image"] } },
+                        { id: "chat-image", name: "Chat Image", type: "chat", modalities: { output: ["image"] } },
+                        { id: "bad id", type: "chat", modalities: text },
                         { id: "   " },
                         null,
                     ],
@@ -505,9 +501,9 @@ describe("GET /models/opencode-go", () => {
         expect(response.status).toBe(200);
         expect(response.body.models).toEqual([
             { id: "glm-5.3", label: "GLM-5.3" },
+            { id: "gpt-5.6-luna", label: "GPT-5.6 Luna" },
             { id: "kimi-k3", label: "kimi-k3" },
-            { id: "minimax-m3", label: "MiniMax M3" },
-            { id: "qwen3.8-max", label: "Qwen3.8 Max (updated)" },
+            { id: "qwen3.8-max", label: "Qwen3.8 Max" },
         ]);
         expect(fetchMock).toHaveBeenCalledWith(
             "https://opencode.ai/zen/go/v1/models",

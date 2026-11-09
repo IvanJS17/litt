@@ -27,21 +27,16 @@ import { createRawLlmStreamRecorder, logRawLlmStream } from "./rawStreamLog";
  * a backstop set `LLM_MAX_OUTPUT_TOKENS`; an unusable value is ignored rather
  * than sent upstream.
  *
- * OpenCode Go keeps the previous 16,384: its Messages models (MiniMax, Qwen)
- * go through the Anthropic adapter, which does not recognise them and would
- * otherwise fall back to 4,096.
- *
  * `adapterDefault` is an adapter's own model-aware ceiling for SDKs that do
  * not fill one in (Bedrock sends no maxTokens unless given one, so Bedrock's
  * small server default would apply); see AiSdkAdapterConfig.
  */
 export function maxOutputTokensFor(
-  provider: Provider,
   adapterDefault?: number,
 ): number | undefined {
   const value = Number(process.env.LLM_MAX_OUTPUT_TOKENS);
   if (Number.isSafeInteger(value) && value > 0) return value;
-  return provider === "opencode-go" ? 16_384 : adapterDefault;
+  return adapterDefault;
 }
 
 /**
@@ -542,7 +537,6 @@ export async function streamAiSdk(
         : {}),
       tools,
       maxOutputTokens: maxOutputTokensFor(
-        config.provider,
         config.defaultMaxOutputTokens?.(params.reasoning),
       ),
       stopWhen: sdk.stepCountIs(maxIterations),

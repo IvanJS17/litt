@@ -749,6 +749,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                       model: titleModelForChat(selectedModel, titleModel),
                       message: titleMessage,
                       apiKeys,
+                      conversationId: chatId,
                   })
                       .then(async (title) => {
                           if (stream.signal.aborted) return;
