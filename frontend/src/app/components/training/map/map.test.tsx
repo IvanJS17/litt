@@ -318,7 +318,7 @@ describe("Mi criterio", () => {
             }),
         );
         renderEs(<MyCriterion orgId="org-1" />);
-        expect(await screen.findByText(/La retoma se cerró porque ya no están sus notas/)).toBeInTheDocument();
+        expect(await screen.findByText(/La retoma se cerró porque ya no están tus notas/)).toBeInTheDocument();
         expect(screen.getAllByText(/No se pudo generar la pregunta/)).toHaveLength(1);
     });
 
@@ -342,6 +342,15 @@ describe("Mapa y calibración del mentor", () => {
         void _generation;
         return { ...mine, notes_without_access: 0, retakes_without_access: 0, ...overrides };
     };
+
+    it("tells the mentor a retake was closed for lack of the pupil's notes, not the person's own «tus notas»", async () => {
+        vi.mocked(api.getPupilCriterion).mockResolvedValue(
+            pupil({ retakes: [retake({ id: "rt-gone", status: "failed", answer: null, contrast: null, verdict: null })] }),
+        );
+        renderEs(<MentorCriterionMap orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/La retoma se cerró porque ya no están sus notas/)).toBeInTheDocument();
+        expect(screen.queryByText(/tus notas/)).not.toBeInTheDocument();
+    });
 
     it("reads the pupil's map without a way to start a retake", async () => {
         vi.mocked(api.getPupilCriterion).mockResolvedValue(
