@@ -100,15 +100,16 @@ one organization. It follows the membership, not the work: when someone leaves,
 is removed or erases their account, the database deletes with their
 `org_members` row every `training_*` table that holds their learning (mentor
 and pupil rows, stages, turn notes, work reviews, defenses, urgency passes,
-backing checks, review audits, full readings, retakes and criteria contrasts),
+backing checks, review audits, full readings, retakes, criteria contrasts and gym attempts),
 Word and tabular notes included. Nothing of this is handed over or archived;
 it is not part of the departure rules above. A mentor with pupils cannot leave
 until they are released or moved (`training_mentor_has_pupils`).
 
 What stays: the insert-only audit events (ids only), the approvals of document
 versions (`training_version_approvals`, evidence about a document and not about
-a person's learning), and the firm's criteria (`firm_criteria`), whose author
-shows as «usuario eliminado» when the account goes. The same list decides what
+a person's learning), the firm's criteria (`firm_criteria`), whose author
+shows as «usuario eliminado» when the account goes, and the mentors' gym cases
+(`training_gym_cases`), whose `created_by` becomes null when the account goes. The same list decides what
 the account export carries: `buildJsonExport.trainingCoverage.test.ts`
 discovers every `training_*` table of the schema and fails when one is neither
 exported under `training.*` nor excluded with a reason, nor deleted with the

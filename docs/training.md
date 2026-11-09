@@ -27,6 +27,7 @@ Training has three layers, all integrated into `main`:
 | Layer 2 | [Supervision data](#supervision-data-layer-2): [two-minute review](#the-two-minute-review), [urgency pass](#urgency-pass), [oral defense](#oral-defense), [promotion by evidence](#promotion-by-evidence), [mentor panel](#the-mentor-panel-and-lo-que-mi-mentor-ve-de-mí) |
 | Layer 3, the turn | [Criterion: verdict, thermometer and basis](#criterion-verdict-thermometer-and-basis-layer-3), [Hints and the counterparty's lawyer](#hints-and-the-counterpartys-lawyer-layer-3), [Methodology annex](#methodology-annex-junior), [Accountability mode](#accountability-mode-layer-3-junior), [Criteria contrast](#criteria-contrast-layer-3-junior) |
 | Layer 3, the pupil | [Own map, calibration and retake](#own-map-calibration-and-retake-layer-3), [Periodic full reading](#periodic-full-reading-layer-3), [Bulk review designer](#bulk-review-designer-layer-3), [Authorship of the work](#authorship-of-the-work-layer-3) |
+| Layer 4 | [Layer 4: gym](#layer-4-gym) |
 | Layer 3, the firm | [From correction to rule](#from-correction-to-rule-layer-3), [The firm's criteria](#one-mold-of-criterion-the-firms-criteria-layer-3) |
 | Surfaces | [Word](#the-word-add-in), [Language and privacy](#language-and-privacy) |
 
@@ -89,6 +90,8 @@ matter.
 | Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no: `404` |
 | Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no: `404` |
 | Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no: `404` |
+| Gym cases (fictitious) | no | only their own: each mentor reads and manages only the cases they wrote | no: `404` |
+| Gym attempts | yes; until submitted, only paragraphs, deadline, findings and hints already asked; after, the seeded errors with their explanation and the result | yes, always with the seeded errors | no: `404` |
 | Accountability checks (junior) | yes | yes, in matters they can open | no: `404` |
 | Review audits | yes | yes, they evaluate them | no: `404` |
 | Full readings | yes | yes, in matters they can open | no: `404` |
@@ -143,6 +146,8 @@ mentor id it keeps is the holder's own mentor in `as_pupil`.
 | `training_readings` | 3 | `readings` | deleted with the membership |
 | `training_retakes` | 3 | `retakes` | deleted with the membership |
 | `training_criteria_contrasts` | 3 | `criteria_contrasts` | deleted with the membership and with the chat |
+| `training_gym_attempts` | 4 | `gym_attempts` | deleted with the membership |
+| `training_gym_cases` | 4 | `gym_cases` (the author's) | the mentor's content: stays with the firm, `created_by` becomes null when the account is erased |
 | `training_version_approvals` | 1b | **excluded** | stays (below) |
 
 `training_version_approvals` is evidence about a document version (its content
@@ -351,6 +356,9 @@ counted as the turn counts them. The server decides again on every turn.
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET /training/me/criterion?org_id=` | the caller's own map, calibration, hint counts and retakes (layer 3) |
 | `POST /training/me/retakes`, `PUT /training/me/retakes/:id/answer` | the caller asks for the retake of a weak topic and answers it (layer 3) |
+| `GET/POST /orgs/:orgId/training/gym/cases`, `PUT/DELETE …/cases/:caseId`, `POST …/cases/draft` | a designated mentor's own cases (layer 4); the draft is an AI proposal that is not saved |
+| `GET/POST /orgs/:orgId/training/pupils/:userId/gym/attempts` | the current mentor lists and assigns (`{ case_id }`; assigning again is giving another attempt) |
+| `GET /training/me/gym/attempts?org_id=`, `GET …/:id`, `POST …/:id/start`, `PUT …/:id/findings`, `POST …/:id/hint`, `POST …/:id/submit` | the pupil's own attempts |
 | `GET /orgs/:orgId/training/pupils/:userId/criterion` | the pupil's current mentor reads the same, only from works in matters they can open (layer 3) |
 | `GET /training/me/chats/:chatId/backing`, `PUT …/backing/:checkId/conclusions/:conclusionId`; `GET /orgs/:orgId/training/pupils/:userId/backing` | the junior marks their own checks; the current mentor reads (accountability mode) |
 | `GET/POST /training/me/readings`, `…/readings/:id` (`document`, `swap`, `findings`, `compare`); `GET /orgs/:orgId/training/pupils/:userId/readings` | the person; the current mentor reads (full reading) |
@@ -553,6 +561,58 @@ text).
   (`legalReferences`).
 - **No model call:** the calculation runs in the process; the BYOK route of the
   conversation is the only model involved (the one that invoked the tool).
+
+## Layer 4: gym
+
+Migration `backend/migrations/20261109_10_litt_training_gym.sql`; code in
+`backend/src/modules/training-gym/`, pure logic in `lib/trainingGym.ts`. A
+mentor writes a **fictitious** case (every screen says «Caso ficticio de
+práctica»; it is linked to no matter, document or client) and the pupil marks,
+against a clock, the paragraphs they think hold an error.
+
+- **A case**: title, `practice` (normalized as `training_stages`), numbered
+  paragraphs (from 1), `time_limit_minutes` (1 to 240) and seeded errors
+  `{ paragraph, kind, explanation, hint? }`, at most one per paragraph. Kinds:
+  `superseded_thesis`, `repealed_article`, `wrong_jurisdiction`,
+  `invented_citation`, `other`. The server checks the shape and the length of
+  every text; the database only stores it.
+- **Authorship.** A designated mentor writes the case or asks for an AI draft
+  (`practice`, `topic`, `error_count` 1 to 5). The draft runs on the mentor's
+  own route, never a fallback model (`409` when their key no longer serves);
+  its answer is read strictly and, if it cannot be read, the call fails (`503`):
+  nothing is repaired. A draft is never saved. Each mentor sees and manages only
+  their own cases.
+- **Assigning.** The pupil's current mentor assigns one of their cases; the
+  attempt keeps a copy, so editing or deleting the case changes no history.
+  Giving another attempt is assigning again, and is refused (`409
+  training_gym_attempt_open`) while an attempt of that case is not submitted.
+- **The clock is the server's.** `start` fixes `deadline_at = started_at +
+  minutes`. The pupil's findings (`[{ paragraph, kind, note }]`) are saved as a
+  whole list. Every read and write of an attempt first runs `closeIfExpired`:
+  past the deadline the attempt becomes `submitted` with what was saved
+  (`submitted_at = deadline_at`), by a conditional update; there is no cron. No
+  write is accepted afterwards (`409 training_gym_closed`). Responses carry
+  `server_now` so the browser can compute its clock offset.
+- **No errors before submitting.** Until `submitted` the pupil receives only the
+  paragraphs, the deadline, their findings and the hints already asked for.
+- **Hints.** `POST …/hint` reveals the next hint the mentor wrote, in the order
+  of the errors, skipping paragraphs already marked (`409 training_gym_no_hint`
+  when none is left). Never the explanation; the AI writes nothing in the gym.
+- **Scoring** (`scoreGymAttempt`) is by paragraph number only: an error is found
+  when there is a finding in its paragraph; whether the kind matches is a
+  separate fact (`kind_matches`); findings in a paragraph with no error are
+  `extra` («aquí no había error sembrado»). No text is analyzed.
+- **Result.** Found, missed (with the explanation) and extra, and the hints
+  used. Read only by the pupil and their current mentor
+  (`training_can_read_learning`); an owner or admin gets `404`.
+- **Promotion.** The proposal adds `gym` by practice area since the stage last
+  changed: submitted attempts, seeded errors, found and hints. It is evidence
+  only: no rule blocks on it.
+- **ARCO.** Attempts are learning data (deleted with the membership, exported as
+  `training.gym_attempts`); cases are exported as the author's
+  (`training.gym_cases`). The audit gets ids only
+  (`training.gym_case_created|updated|deleted`, `training.gym_assigned`,
+  `training.gym_submitted`).
 
 ## Settings
 
