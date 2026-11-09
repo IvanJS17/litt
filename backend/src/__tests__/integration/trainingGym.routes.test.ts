@@ -196,7 +196,10 @@ describe("the gym", () => {
             expect((await as(user).post(attemptsUrl).send({ case_id: caseId })).status).toBe(404);
         }
         // Cases: only a designated mentor, and only their own.
-        for (const user of [OWNER, ADMIN, PUPIL]) expect((await as(user).get(casesUrl)).status).toBe(404);
+        for (const user of [OWNER, ADMIN, PUPIL]) {
+            expect((await as(user).get(casesUrl)).status).toBe(404);
+            expect((await as(user).post(casesUrl).send(CASE_BODY)).status).toBe(404);
+        }
         expect((await as(OTHER_MENTOR).put(`${casesUrl}/${caseId}`).send(CASE_BODY)).status).toBe(404);
         expect((await as(OTHER_MENTOR).delete(`${casesUrl}/${caseId}`)).status).toBe(404);
         expect((await as(OTHER_MENTOR).get(casesUrl)).body).toEqual([]);

@@ -82,5 +82,26 @@ describe("Gimnasio del pupilo", () => {
         expect(api.getMyGymAttempt).toHaveBeenCalledTimes(2);
         expect(screen.getByText(/tipo distinto/)).toBeInTheDocument();
         expect(screen.queryByRole("timer")).not.toBeInTheDocument();
+        expect(screen.getByText(/Se acabó el tiempo/)).toBeInTheDocument();
+    });
+
+    it("does not say the time ran out when the pupil submitted before the deadline", async () => {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        const running = attempt({});
+        vi.mocked(api.listMyGymAttempts).mockResolvedValue([running]);
+        vi.mocked(api.getMyGymAttempt).mockResolvedValue(running);
+        vi.mocked(api.submitGymAttempt).mockResolvedValue(
+            attempt({ status: "submitted", submitted_at: new Date(NOW + 1000).toISOString(), errors: [], result: { found: [], missed: [], extra: [] } }),
+        );
+        render(
+            <IntlClientProvider locale="es-MX" messages={esMX}>
+                <MyGym orgId="org-1" />
+            </IntlClientProvider>,
+        );
+        await user.click(await screen.findByRole("button", { name: /Continuar/ }));
+        await user.click(await screen.findByRole("button", { name: "Entregar" }));
+        await user.click(await screen.findAllByRole("button", { name: "Entregar" }).then((all) => all[all.length - 1]));
+        expect(await screen.findByText("Resultado")).toBeInTheDocument();
+        expect(screen.queryByText(/Se acabó el tiempo/)).not.toBeInTheDocument();
     });
 });

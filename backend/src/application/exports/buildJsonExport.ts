@@ -791,13 +791,14 @@ export async function buildUserAccountExport(
         }),
         // Gym (layer 4): the attempts are the holder's learning data (the copy of the
         // case with its seeded errors, their findings and the hints they asked for);
-        // the cases are the mentor's own content.
+        // the cases are the mentor's own content. `errors` is the answer key: it is
+        // exported only once the attempt is submitted, never before (rule 7).
         selectAll(db, "training_gym_attempts", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
             columns:
                 "id, org_id, case_id, title, practice, paragraphs, errors, time_limit_minutes, status, started_at, deadline_at, submitted_at, findings, hints_used, created_at, updated_at",
             order: ["created_at"],
-        }),
+        }).then((rows) => rows.map((row) => (row.status === "submitted" ? row : { ...row, errors: null }))),
         selectAll(db, "training_gym_cases", {
             filter: (query) => trainingScope(query.eq("created_by", userId)),
             columns: "id, org_id, practice, title, paragraphs, errors, time_limit_minutes, fictitious, created_at, updated_at",

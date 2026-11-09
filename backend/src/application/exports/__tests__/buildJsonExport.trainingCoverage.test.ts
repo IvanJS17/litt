@@ -84,9 +84,12 @@ describe("account export: every training_* table has a decision", () => {
             if (TRAINING_EXPORT_AUTHORED.includes(table)) row.created_by = holder;
             rows[table] = [row];
         }
+        rows.training_gym_attempts[0].status = "in_progress";
         const { db } = makeExportDb(rows);
         const out = (await buildUserAccountExport(db, holder, "h@example.test", null)) as any;
 
+        // The answer key of an attempt not yet submitted is not exported.
+        expect(out.training.gym_attempts[0].errors).toBeNull();
         const exportedKeys = Object.keys(out.training).sort();
         expect(exportedKeys).toEqual(Object.values(TRAINING_EXPORT_KEYS).sort());
         for (const [table, key] of Object.entries(TRAINING_EXPORT_KEYS)) {
