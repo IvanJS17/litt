@@ -22,6 +22,7 @@ vi.mock("@/app/lib/mikeApi", () => ({
     })),
     startReading: vi.fn(),
     // Layer 3, own map: «Mi criterio» in Mi formación.
+    listMyGymAttempts: vi.fn(async () => []),
     getMyCriterion: vi.fn(async () => ({
         org_id: "org-1",
         trainee_user_id: "me",

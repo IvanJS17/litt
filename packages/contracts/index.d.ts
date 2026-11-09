@@ -896,6 +896,112 @@ export interface TrainingRetakeAnswerBody {
 }
 // --- Training layer 3, card 4 (end) ---
 
+// --- Training layer 4: gym (begin) ---
+
+/** The kinds of seeded error. Scoring never reads them: a match of kind is shown beside the result. */
+export type TrainingGymErrorKind =
+  | "superseded_thesis"
+  | "repealed_article"
+  | "wrong_jurisdiction"
+  | "invented_citation"
+  | "other";
+
+/** A seeded error: at most one per paragraph; `paragraph` counts from 1. */
+export interface TrainingGymError {
+  paragraph: number;
+  kind: TrainingGymErrorKind;
+  /** The why; the pupil sees it only once the attempt is submitted. */
+  explanation: string;
+  /** Written by the mentor; the pupil can ask for it before submitting. */
+  hint?: string | null;
+}
+
+/** What a mentor writes (and what an AI draft returns). Every screen says «Caso ficticio de práctica». */
+export interface TrainingGymCaseBody {
+  /** Normalized as training_stages.practice. */
+  practice: string;
+  title: string;
+  paragraphs: string[];
+  errors: TrainingGymError[];
+  time_limit_minutes: number;
+  fictitious: true;
+}
+
+/** GET/POST/PUT /orgs/:orgId/training/gym/cases (the author only). */
+export interface TrainingGymCase extends TrainingGymCaseBody {
+  id: string;
+  org_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST /orgs/:orgId/training/gym/cases/draft: not saved. `credential_ref` only to pick another of the mentor's keys. */
+export interface TrainingGymDraftBody {
+  practice: string;
+  topic: string;
+  /** 1 to 5. */
+  error_count: number;
+  credential_ref?: string;
+}
+
+/** POST …/pupils/:userId/gym/attempts (assign, or give another attempt). */
+export interface TrainingGymAssignBody {
+  case_id: string;
+}
+
+/** One paragraph the pupil marked. */
+export interface TrainingGymFinding {
+  paragraph: number;
+  kind: TrainingGymErrorKind;
+  note: string;
+}
+
+/** PUT /training/me/gym/attempts/:id/findings: replaces the whole list. */
+export interface TrainingGymFindingsBody {
+  findings: TrainingGymFinding[];
+}
+
+/** By paragraph number only: no text is read. `error_index` is the position in `errors`. */
+export interface TrainingGymScore {
+  found: { error_index: number; paragraph: number; kind_matches: boolean }[];
+  missed: { error_index: number; paragraph: number }[];
+  /** Findings in a paragraph with no seeded error: «aquí no había error sembrado». */
+  extra: { paragraph: number }[];
+}
+
+export type TrainingGymAttemptStatus = "assigned" | "in_progress" | "submitted";
+
+/**
+ * An attempt. Until it is `submitted` the pupil gets `errors: null` and
+ * `result: null`: only paragraphs, the deadline, their findings and the hints
+ * already asked for. The mentor always gets `errors`. `server_now` lets the
+ * browser compute its clock offset against `deadline_at`.
+ */
+export interface TrainingGymAttempt {
+  id: string;
+  org_id: string;
+  trainee_user_id: string;
+  /** Null once the case was deleted; the attempt keeps its copy. */
+  case_id: string | null;
+  title: string;
+  practice: string;
+  paragraphs: string[];
+  time_limit_minutes: number;
+  status: TrainingGymAttemptStatus;
+  started_at: string | null;
+  deadline_at: string | null;
+  submitted_at: string | null;
+  server_now: string;
+  findings: TrainingGymFinding[];
+  /** The texts of the hints already revealed, in the order asked. */
+  hints: string[];
+  hints_used: number;
+  errors: TrainingGymError[] | null;
+  result: TrainingGymScore | null;
+  created_at: string;
+}
+// --- Training layer 4: gym (end) ---
+
 /** The end of the urgency pass that lifts «Tu turno primero» on a project. */
 export interface TrainingUrgencyPassInForce {
     project_id: string;
@@ -1614,8 +1720,18 @@ export interface TrainingPromotionProposal {
     evaluated_audits: TrainingPromotionAuditEvidence[];
     /** Full readings the pupil handed in since the stage changed: shown, not required. */
     readings: TrainingPromotionEvidence[];
+    /** Layer 4: the gym attempts submitted since the stage changed. Evidence only: it blocks nothing. */
+    gym: TrainingPromotionGym;
     /** Counts of the pupil's own marked turns: never a percentage or a comparison. */
     calibration: TrainingPromotionCalibration;
+}
+/** Gym counts for a stage's practice area (every area for the general stage). */
+export interface TrainingPromotionGym {
+    attempts: number;
+    /** Seeded errors in those attempts, how many were found (a finding in their paragraph), and the hints used. */
+    errors: number;
+    found: number;
+    hints: number;
 }
 export interface TrainingPromotionAuditEvidence extends TrainingPromotionEvidence {
     outcome: "adequate" | "needs_work";

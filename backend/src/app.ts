@@ -12,6 +12,7 @@ import { orgsRouter } from "./modules/orgs/orgs.routes";
 import { orgTrainingRouter, trainingRouter } from "./modules/training/training.routes";
 import { pupilReadingsRouter, trainingReadingsRouter } from "./modules/training-full-reading/trainingFullReading.routes";
 import { firmCriteriaRouter } from "./modules/firm-criteria/firmCriteria.routes";
+import { gymCasesRouter, myGymRouter, pupilGymRouter } from "./modules/training-gym/trainingGym.routes";
 import { trainingNotesRouter } from "./modules/training-notes/trainingNotes.routes";
 import {
     pupilCriterionRouter,
@@ -289,6 +290,8 @@ app.post("/training/me/readings/:readingId/compare", chatLimiter);
 // A retake is one model call to make the question and one to judge the answer, on the person's key.
 app.post("/training/me/retakes", chatLimiter);
 app.put("/training/me/retakes/:retakeId/answer", chatLimiter);
+// A gym case draft is one model call on the mentor's key.
+app.post("/orgs/:orgId/training/gym/cases/draft", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/workflow-addons/:addonId/import", workflowImportLimiter);
 app.post(
@@ -358,11 +361,14 @@ app.use("/orgs/:orgId/training/pupils/:userId/backing", pupilBackingRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/criteria-contrasts", pupilCriteriaContrastRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/review-audits", pupilReviewAuditsRouter);
 app.use("/orgs/:orgId/training/pupils/:userId/readings", pupilReadingsRouter);
+app.use("/orgs/:orgId/training/pupils/:userId/gym/attempts", pupilGymRouter);
+app.use("/orgs/:orgId/training/gym/cases", gymCasesRouter);
 app.use("/orgs/:orgId/firm-criteria", firmCriteriaRouter);
 app.use("/orgs/:orgId/training", orgTrainingRouter);
 app.use("/orgs", orgsRouter);
 app.use("/training/me/chats", myBackingRouter);
 app.use("/training/me/criteria-contrasts", myCriteriaContrastRouter);
+app.use("/training/me/gym/attempts", myGymRouter);
 app.use("/training", trainingRouter);
 app.use("/training", trainingSupervisionRouter);
 app.use("/training", trainingReadingsRouter);

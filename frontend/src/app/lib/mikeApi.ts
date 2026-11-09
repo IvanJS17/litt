@@ -2825,6 +2825,102 @@ export async function answerRetake(retakeId: string, answer: string, credentialR
 }
 // --- Training layer 3, card 5 (end) ---
 
+// --- Training layer 4: gym (begin) ---
+// Fictitious cases with seeded errors. The mentor writes them and assigns
+// them to a pupil; the pupil marks paragraphs against a server-kept clock.
+// Until an attempt is submitted the server sends the pupil no errors.
+
+export type {
+    TrainingGymAttempt,
+    TrainingGymCase,
+    TrainingGymCaseBody,
+    TrainingGymDraftBody,
+    TrainingGymError,
+    TrainingGymErrorKind,
+    TrainingGymFinding,
+    TrainingGymScore,
+} from "@mike/contracts";
+
+const gymCasesPath = (orgId: string) => `/orgs/${encodeURIComponent(orgId)}/training/gym/cases`;
+const myGymPath = (attemptId: string) => `/training/me/gym/attempts/${encodeURIComponent(attemptId)}`;
+
+/** The mentor's own cases. */
+export async function listGymCases(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingGymCase[]>("training.manage", gymCasesPath(orgId));
+}
+
+export async function createGymCase(orgId: string, body: import("@mike/contracts").TrainingGymCaseBody) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymCase>(gymCasesPath(orgId), "POST", body);
+}
+
+export async function updateGymCase(orgId: string, caseId: string, body: import("@mike/contracts").TrainingGymCaseBody) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymCase>(
+        `${gymCasesPath(orgId)}/${encodeURIComponent(caseId)}`,
+        "PUT",
+        body,
+    );
+}
+
+export async function deleteGymCase(orgId: string, caseId: string): Promise<void> {
+    await supervisionWrite(`${gymCasesPath(orgId)}/${encodeURIComponent(caseId)}`, "DELETE");
+}
+
+/** An AI draft on the mentor's own key; nothing is saved (503 when it cannot be read). */
+export async function draftGymCase(orgId: string, body: import("@mike/contracts").TrainingGymDraftBody) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymCaseBody>(`${gymCasesPath(orgId)}/draft`, "POST", body);
+}
+
+/** As the pupil's current mentor (404 for anyone else): with the errors. */
+export async function listPupilGymAttempts(orgId: string, userId: string) {
+    return apiRequest<import("@mike/contracts").TrainingGymAttempt[]>(
+        "training.manage",
+        `${pupilPath(orgId, userId)}/gym/attempts`,
+    );
+}
+
+/** Assign a case, or give another attempt: the same call (409 while one is not submitted). */
+export async function assignGymAttempt(orgId: string, userId: string, caseId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymAttempt>(
+        `${pupilPath(orgId, userId)}/gym/attempts`,
+        "POST",
+        { case_id: caseId },
+    );
+}
+
+/** The person's own attempts: no errors until submitted. */
+export async function listMyGymAttempts(orgId: string) {
+    return apiRequest<import("@mike/contracts").TrainingGymAttempt[]>(
+        "training.read",
+        `/training/me/gym/attempts?${new URLSearchParams({ org_id: orgId })}`,
+    );
+}
+
+export async function getMyGymAttempt(attemptId: string) {
+    return apiRequest<import("@mike/contracts").TrainingGymAttempt>("training.read", myGymPath(attemptId));
+}
+
+/** Fixes the deadline on the server. */
+export async function startGymAttempt(attemptId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymAttempt>(`${myGymPath(attemptId)}/start`, "POST");
+}
+
+/** Replaces the whole list; 409 once submitted or past the deadline. */
+export async function saveGymFindings(attemptId: string, findings: import("@mike/contracts").TrainingGymFinding[]) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymAttempt>(`${myGymPath(attemptId)}/findings`, "PUT", {
+        findings,
+    });
+}
+
+/** The next hint the mentor wrote (409 when none is left). */
+export async function askGymHint(attemptId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymAttempt>(`${myGymPath(attemptId)}/hint`, "POST");
+}
+
+export async function submitGymAttempt(attemptId: string) {
+    return supervisionWrite<import("@mike/contracts").TrainingGymAttempt>(`${myGymPath(attemptId)}/submit`, "POST");
+}
+// --- Training layer 4: gym (end) ---
+
 // --- Training layer 3, card 14: firm criteria (begin) ---
 // Positions people of the firm wrote under their name, and dissenting
 // opinions that name a playbook rule. They are the firm's content: every

@@ -715,6 +715,7 @@ describe("Promotion tab", () => {
                         { id: "a2", at: iso(-HOUR), outcome: "needs_work" as const },
                     ],
                     readings: evidence(1),
+                    gym: { attempts: 2, errors: 5, found: 3, hints: 1 },
                     calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
                 },
                 {
@@ -729,6 +730,7 @@ describe("Promotion tab", () => {
                     required: { approved_defenses: 2, reviewed_works: 3 },
                     evaluated_audits: [],
                     readings: [],
+                    gym: { attempts: 2, errors: 5, found: 3, hints: 1 },
                     calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
                 },
             ],
@@ -743,6 +745,7 @@ describe("Promotion tab", () => {
         expect(screen.getByText("Approved drafts: 1")).toBeInTheDocument();
         expect(screen.getByText("Evaluated review audits: 2 (1 adequate, 1 need work)")).toBeInTheDocument();
         expect(screen.getByText("Full readings handed in: 1")).toBeInTheDocument();
+        expect(screen.getAllByText("Gym: 2 attempts submitted, 3 of 5 errors found, 1 hint")).toHaveLength(2);
         expect(screen.getAllByText(/not enough data yet \(0 of 10 marked turns\)/)).toHaveLength(2);
         expect(screen.getByText(/You can change the stage without LiTT's proposal/)).toBeInTheDocument();
         expect(screen.queryByText(/only counted, not shown/)).toBeNull();
@@ -780,6 +783,7 @@ describe("Promotion tab, calibration and hidden evidence", () => {
         required: { approved_defenses: 2, reviewed_works: 3 },
         evaluated_audits: [],
         readings: [],
+        gym: { attempts: 2, errors: 5, found: 3, hints: 1 },
         calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
         ...over,
     });

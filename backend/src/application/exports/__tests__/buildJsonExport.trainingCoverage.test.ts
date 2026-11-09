@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+    TRAINING_EXPORT_AUTHORED,
     TRAINING_EXPORT_EXCLUDED,
     TRAINING_EXPORT_KEYS,
     buildUserAccountExport,
@@ -80,6 +81,7 @@ describe("account export: every training_* table has a decision", () => {
             row.org_id = "org-a";
             if ("trainee_user_id" in row) row.trainee_user_id = holder;
             if (table === "training_mentors") row.user_id = holder;
+            if (TRAINING_EXPORT_AUTHORED.includes(table)) row.created_by = holder;
             rows[table] = [row];
         }
         const { db } = makeExportDb(rows);
@@ -111,7 +113,7 @@ describe("account export: every training_* table has a decision", () => {
                     return true;
             return false;
         };
-        for (const table of Object.keys(TRAINING_EXPORT_KEYS))
+        for (const table of Object.keys(TRAINING_EXPORT_KEYS).filter((name) => !TRAINING_EXPORT_AUTHORED.includes(name)))
             expect(viaMembership(table), `${table} must be deleted with the membership`).toBe(true);
     });
 
