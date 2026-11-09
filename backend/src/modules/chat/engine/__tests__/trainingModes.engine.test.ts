@@ -211,9 +211,9 @@ describe("the «sin verificar» footer", () => {
     expect(result.fullText).not.toContain("Sin verificar");
   });
 
-  it("does not accept the same article of another law as backing", async () => {
+  it("does not accept a verified article that differs from the one named", async () => {
     verified.citations = [
-      { ref: 1, doc_id: "doc-0", filename: "Ley Federal del Trabajo.pdf", quote: "Artículo 1949.- El patrón", verified: true },
+      { ref: 1, doc_id: "doc-0", filename: "Código Civil.pdf", quote: "Artículo 1950.- Otra obligación", verified: true },
     ];
     const text = "Revisa el artículo 1949 del Código Civil.\n<CITATIONS>[]</CITATIONS>";
     const { result } = await answer(text, await planFor("hint"));

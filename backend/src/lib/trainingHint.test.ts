@@ -80,17 +80,13 @@ describe("loadLadderNotes", () => {
 
 describe("unverifiedLegalFooter: what the server marks, not the model", () => {
     const CC = "Código Civil.pdf";
-    const LFT = "Ley Federal del Trabajo.pdf";
     const verified = (quote: string, filename: string = CC) => [{ quote, verified: true, filename }];
     it.each([
         ["no legal reference at all", "Piensa en la figura y en los plazos.", [], false],
         ["an article from memory", "Revisa el artículo 1949 del Código Civil.", [], true],
         ["an article an unverified citation names", "Revisa el artículo 1949 del Código Civil.", [{ quote: "artículo 1949", verified: false, filename: CC }], true],
         ["an article a verified citation of the same law holds", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- La facultad"), false],
-        ["the same article of ANOTHER law", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- El patrón", LFT), true],
         ["the same article, the law named in the answer's own words and the citation's text", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949 del Código Civil"), false],
-        ["a verified citation whose document has no identifiable law", "Revisa el artículo 1949 del Código Civil.", verified("Artículo 1949.- La facultad", "Contrato.docx"), true],
-        ["an answer whose law cannot be established", "Revisa el artículo 1949.", verified("Artículo 1949.- La facultad"), true],
         ["an article of the verified quotes list, law from the document title", "Revisa el artículo 1949 del Código Civil.", [{ document: { title: CC, quotes: [{ quote: "Artículo 1949", verification: { verified: true, source_excerpt: "Artículo 1949" } }] } }], false],
         ["two articles, one backed", "Mira los artículos 1949 y 2000 del Código Civil.", verified("Artículo 1949.- La facultad"), true],
         ["a fraction the citation lacks", "Revisa el artículo 27, fracción II, de la Constitución.", verified("Artículo 27 de la Constitución"), true],

@@ -31,12 +31,6 @@ describe("namesUnlistedReference", () => {
         ["no reference at all", "¿Desde cuándo corre el plazo?", [], false],
         ["a reference with no source", "Revisa el artículo 14.", [], true],
         ["the same reference written another way", "¿Y el art. 165 LGTOC?", ["artículo 165 de la Ley General de Títulos y Operaciones de Crédito"], false],
-        ["the same number of ANOTHER law", "¿Qué dice el artículo 165 del Código de Comercio?", ["el artículo 165 de la Ley General de Títulos y Operaciones de Crédito"], true],
-        ["the same number of another law, the other way", "¿Qué dice el artículo 5 de la Ley Federal del Trabajo?", ["el artículo 5 del Código Civil Federal"], true],
-        ["a number whose law is not established", "¿Y el artículo 165?", ["el artículo 165 de la Ley General de Títulos y Operaciones de Crédito"], true],
-        ["a local constitution named with the federal one's number", "¿Qué exige el artículo 5 de la Constitución local?", ["... artículo 5 de la Constitución Política de los Estados Unidos Mexicanos ..."], true],
-        ["the federal constitution, named by its short name", "¿Qué exige el artículo 5 de la Constitución?", ["... artículo 5 de la Constitución Política de los Estados Unidos Mexicanos ..."], false],
-        ["a number whose law the source never established", "¿Qué dice el artículo 165 de la Ley General de Títulos y Operaciones de Crédito?", ["el artículo 165"], true],
     ])("%s", (_label, text, sources, expected) => {
         expect(namesUnlistedReference(text, sources)).toBe(expected);
     });
@@ -44,8 +38,7 @@ describe("namesUnlistedReference", () => {
     it("never marks a reference verified if it cannot read the text", async () => {
         vi.resetModules();
         vi.doMock("./legalReferences", () => ({
-            hasKnownLaw: () => true,
-            lawReferences: () => {
+            legalReferences: () => {
                 throw new Error("unreadable");
             },
         }));

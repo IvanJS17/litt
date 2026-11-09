@@ -103,12 +103,8 @@ function present(row: CheckRow, citations: readonly BackingCitation[], now: numb
                   const passage = passageFor(stored, citations);
                   const citation = citations.find((entry) => entry.ref === stored.citation_ref);
                   // Read again with the passage as it is now: a conclusion is backed only while the
-                  // passage shows every reference it names (same law, same number).
-                  const unverified = unverifiedReferences(
-                      stored.text,
-                      passage ? (citation?.excerpt ?? null) : null,
-                      citation?.title ?? null,
-                  );
+                  // passage shows every reference it names.
+                  const unverified = unverifiedReferences(stored.text, passage ? (citation?.excerpt ?? null) : null);
                   const lost = stored.status === "backed" && (!passage || unverified.length > 0);
                   return {
                       id: stored.id,
