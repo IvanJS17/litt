@@ -120,7 +120,7 @@ export function useVerdictLabel() {
 }
 
 /** One retake as it stands: its question, the answer and the AI's contrast. */
-export function RetakeEntry({ retake, children }: { retake: TrainingRetake; children?: ReactNode }) {
+export function RetakeEntry({ retake, audience = "person", children }: { retake: TrainingRetake; audience?: "person" | "mentor"; children?: ReactNode }) {
     const t = useTranslations("training.criterion.map.retakes");
     const verdictLabel = useVerdictLabel();
     return (
@@ -128,7 +128,7 @@ export function RetakeEntry({ retake, children }: { retake: TrainingRetake; chil
             <div className="min-w-0 space-y-0.5">
                 <p className="break-words text-sm font-medium text-gray-900">{retake.topic_label}</p>
                 <p className="text-sm text-gray-500">
-                    {t(retake.status === "failed" && retake.question ? "status.closed" : `status.${retake.status}`)} · {t("started", { date: new Date(retake.created_at) })}
+                    {t(retake.status === "failed" && retake.question ? (audience === "mentor" ? "status.closedMentor" : "status.closed") : `status.${retake.status}`)} · {t("started", { date: new Date(retake.created_at) })}
                 </p>
             </div>
             {retake.question && (

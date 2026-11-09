@@ -83,19 +83,19 @@ matter only while they can open that matter; the rest is counted, never shown.
 The stage grants nothing: it never adds access to a document, a chat or a
 matter.
 
-| Data | The person | Their current mentor | Anyone else (404) |
+| Data | The person | Their current mentor | Anyone else |
 |---|---|---|---|
-| Stage and mentor | yes | yes (their pupils' stages) | owners and admins see who mentors whom, never the stage |
-| Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no |
-| Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no |
-| Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no |
-| Accountability checks (junior) | yes | yes, in matters they can open | no |
-| Review audits | yes | yes, they evaluate them | no |
-| Full readings | yes | yes, in matters they can open | no |
-| Criteria contrasts | yes, with the two analyses | the routes, the explanation and the comparison | no |
-| Authorship of a version | a sealed draft: its author; another version: its owner when they have a stage | the current mentor of that person | whoever may approve the sealed draft; for any other version nobody |
-| Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no |
-| The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404` |
+| Stage and mentor | yes | yes (their pupils' stages) | owners and admins see who mentors whom, never the stage; anyone else gets `404` |
+| Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no: `404` |
+| Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no: `404` |
+| Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no: `404` |
+| Accountability checks (junior) | yes | yes, in matters they can open | no: `404` |
+| Review audits | yes | yes, they evaluate them | no: `404` |
+| Full readings | yes | yes, in matters they can open | no: `404` |
+| Criteria contrasts | yes, with the two analyses | the routes, the explanation and the comparison | no: `404` |
+| Authorship of a version | a sealed draft: its author; another version: its owner when they have a stage | the current mentor of that person | whoever may approve the sealed draft also reads it; for any other version nobody; the rest get `404` |
+| Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no: `404` |
+| The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404`, a member reads it |
 
 ## Data
 

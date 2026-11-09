@@ -652,7 +652,8 @@
             "open": "Esperando tu respuesta",
             "answered": "Respondida",
             "failed": "No se pudo generar la pregunta",
-            "closed": "La retoma se cerró porque ya no están sus notas"
+            "closed": "La retoma se cerró porque ya no están tus notas",
+            "closedMentor": "La retoma se cerró porque ya no están sus notas"
           },
           "started": "empezó el {date, date, medium}",
           "question": "Pregunta",

@@ -48,7 +48,7 @@ export function MentorCriterionMap({ orgId, pupilId }: { orgId: string; pupilId:
                         {data.retakes.length > 0 ? (
                             <ul className="min-w-0 space-y-3">
                                 {data.retakes.map((retake) => (
-                                    <RetakeEntry key={retake.id} retake={retake} />
+                                    <RetakeEntry key={retake.id} retake={retake} audience="mentor" />
                                 ))}
                             </ul>
                         ) : data.retakes_without_access === 0 ? (
