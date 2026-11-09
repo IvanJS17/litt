@@ -10,7 +10,7 @@ export async function completeOnboardingIfRequired(page: Page): Promise<void> {
         timeout: 15_000,
     });
     if (new URL(page.url()).pathname === "/onboarding/profile") {
-        const continueButton = page.getByRole("button", { name: "Continue" });
+        const continueButton = page.getByRole("button", { name: "Continue", exact: true });
         const assistantInput = page.getByRole("combobox", {
             name: "How can I help?",
         });
@@ -41,7 +41,7 @@ export async function completeOnboardingIfRequired(page: Page): Promise<void> {
             await page.waitForURL(/\/onboarding\/invitations/, {
                 timeout: 15_000,
             });
-            await page.getByRole("button", { name: "Continue" }).click();
+            await page.getByRole("button", { name: "Continue", exact: true }).click();
             await page.waitForURL(/\/onboarding\/models/, {
                 timeout: 15_000,
             });

@@ -150,7 +150,11 @@ describe("OnboardingGate", () => {
             expect(submit).toBeDisabled();
             expect(screen.getAllByRole("link", { name: /Terms/ })[0]).toHaveAttribute("href", "/terminos");
 
-            await user.click(screen.getByRole("checkbox"));
+            // The accessible name is the whole sentence, not a cut-off prefix.
+            const box = screen.getByRole("checkbox", {
+                name: "I have read and accept the Terms and Conditions and the Privacy Notice",
+            });
+            await user.click(box);
             await user.click(submit);
 
             expect(state.acceptTerms).toHaveBeenCalledWith("2026-11-09");

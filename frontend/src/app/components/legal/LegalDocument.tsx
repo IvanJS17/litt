@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ModalUI } from "@mike/ui";
 import { useLocale, useTranslations } from "next-intl";
 import { LegalLinks } from "@/app/components/legal/LegalLinks";
 import { AVISO_SIMPLIFICADO } from "@/content/legal/avisoSimplificado";
@@ -16,25 +18,38 @@ const DOCUMENT_CLASS =
     "[&_a]:underline [&_table]:my-4 [&_table]:block [&_table]:overflow-x-auto " +
     "[&_th]:border [&_th]:px-3 [&_th]:py-2 [&_th]:text-left [&_td]:border [&_td]:px-3 [&_td]:py-2";
 
-/** The sign-up line with both links, and the simplified notice behind a fold. */
+/**
+ * The sign-up line with both links. The simplified notice opens from a button
+ * in the same paragraph, so the legal text adds no height under the card
+ * (AuthPageShell: sign-in and sign-up must fit 1280×640).
+ */
 export function SignupLegal() {
     const t = useTranslations("legal");
     const locale = useLocale();
+    const [open, setOpen] = useState(false);
     return (
-        <div className="mt-4 space-y-2 text-center text-xs text-gray-500">
-            <p>
-                <LegalLinks message="signupLine" />
-            </p>
-            {locale !== "es-MX" && <p>{t("onlySpanish")}</p>}
-            <details className="text-left">
-                <summary className="cursor-pointer text-center font-medium">
-                    {t("simplifiedTitle")}
-                </summary>
-                <div className="mt-2 space-y-2 [&_a]:underline [&_h1]:font-semibold [&_p]:my-2">
+        <p className="mt-1 text-center text-xs leading-4 text-gray-500 md:-mx-16 [@media(min-height:701px)]:mt-4">
+            <LegalLinks message="signupLine" />{" "}
+            {locale !== "es-MX" && <>{t("onlySpanish")} </>}
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="font-medium underline transition-colors hover:text-gray-950"
+            >
+                {t("simplifiedTitle")}
+            </button>
+            <ModalUI
+                open={open}
+                onClose={() => setOpen(false)}
+                size="md"
+                ariaLabel={t("simplifiedTitle")}
+                breadcrumbs={[t("simplifiedTitle")]}
+            >
+                <div className="space-y-2 p-6 text-left text-sm text-gray-800 [&_a]:underline [&_h1]:font-semibold">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{AVISO_SIMPLIFICADO}</ReactMarkdown>
                 </div>
-            </details>
-        </div>
+            </ModalUI>
+        </p>
     );
 }
 

@@ -28,7 +28,7 @@ export function LegalLinks({ message }: { message: "notice" | "intro" | "signupL
 /** "By continuing you accept the Terms and the Privacy Notice", under auth forms. */
 export function LegalNotice() {
     return (
-        <p className="mt-4 text-center text-xs text-gray-500">
+        <p className="mt-1 text-center text-xs leading-4 text-gray-500 [@media(min-height:701px)]:mt-4">
             <LegalLinks message="notice" />
         </p>
     );

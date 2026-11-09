@@ -187,7 +187,7 @@ function SignupContent() {
     return (
         <AuthPageShell>
             <div className="w-full max-w-md">
-                <div className={cn(authGlassCardUIClassName, "mb-4")}>
+                <div className={cn(authGlassCardUIClassName, "mb-4 [@media(max-height:700px)]:mb-1")}>
                     <h2 className="mb-6 text-left text-2xl font-medium font-serif text-gray-950">
                         {t("auth.signup.signUp")}
                     </h2>
