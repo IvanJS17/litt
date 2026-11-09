@@ -1,8 +1,34 @@
-# Training: mentors, pupils, stages and supervision (layers 1 and 2)
+# Training: mentors, pupils, stages, supervision and criterion (layers 1 to 3)
 
 LiTT lets a firm mark the people it is training and change, for them only, how
 the assistant answers. This document describes the behavior and the rules as
 implemented. Nothing here changes anything for a person without a stage.
+
+Training has three layers, all integrated into `main`:
+
+- **Layer 1** (1a, 1b): mentors, pupils, per-practice stages, «Tu turno
+  primero», and the seal on a pasante's output with its approval.
+- **Layer 2**: the mentor supervises: the two-minute review, the oral defense,
+  the urgency pass and promotion by evidence, with the mentor panel and the
+  pupil's mirror.
+- **Layer 3**: criterion: the thermometer and the verdict, hints and the
+  counterparty's lawyer, the junior's accountability mode, the methodology
+  annex, the bulk review designer, from correction to rule, the pupil's own
+  map with calibration and retakes, the periodic full reading, the firm's
+  criteria, the criteria contrast, authorship of the work and promotion v2.
+- **Layer 4** (the gym) is not started.
+
+## Contents
+
+| Part | Section |
+|---|---|
+| Foundations | [Concepts](#concepts), [Who sees what](#who-sees-what), [Data](#data), [Rules](#rules), [API](#api), [Settings](#settings) |
+| Layer 1 | [«Tu turno primero»](#tu-turno-primero), [The pasante seal and its approval](#the-pasante-seal-and-its-approval-layer-1b) |
+| Layer 2 | [Supervision data](#supervision-data-layer-2): [two-minute review](#the-two-minute-review), [urgency pass](#urgency-pass), [oral defense](#oral-defense), [promotion by evidence](#promotion-by-evidence), [mentor panel](#the-mentor-panel-and-lo-que-mi-mentor-ve-de-mí) |
+| Layer 3, the turn | [Criterion: verdict, thermometer and basis](#criterion-verdict-thermometer-and-basis-layer-3), [Hints and the counterparty's lawyer](#hints-and-the-counterpartys-lawyer-layer-3), [Methodology annex](#methodology-annex-junior), [Accountability mode](#accountability-mode-layer-3-junior), [Criteria contrast](#criteria-contrast-layer-3-junior) |
+| Layer 3, the pupil | [Own map, calibration and retake](#own-map-calibration-and-retake-layer-3), [Periodic full reading](#periodic-full-reading-layer-3), [Bulk review designer](#bulk-review-designer-layer-3), [Authorship of the work](#authorship-of-the-work-layer-3) |
+| Layer 3, the firm | [From correction to rule](#from-correction-to-rule-layer-3), [The firm's criteria](#one-mold-of-criterion-the-firms-criteria-layer-3) |
+| Surfaces | [Word](#the-word-add-in), [Language and privacy](#language-and-privacy) |
 
 ## Concepts
 
@@ -45,6 +71,32 @@ implemented. Nothing here changes anything for a person without a stage.
 - **Mentor.** Designated by an owner or admin of the organization. Each pupil
   has exactly one current mentor per organization.
 
+## Who sees what
+
+One rule decides who reads a person's learning data
+(`training_can_read_learning`, and `assertCurrentMentor` in the services): **the
+person themselves and their current mentor**, both members of the organization.
+Everybody else gets the same `404` as for an id that does not exist: an owner
+or admin by role, a previous mentor, another mentor, another member, an
+outsider, and the pupil on a mentor's route. The mentor reads work done inside a
+matter only while they can open that matter; the rest is counted, never shown.
+The stage grants nothing: it never adds access to a document, a chat or a
+matter.
+
+| Data | The person | Their current mentor | Anyone else (404) |
+|---|---|---|---|
+| Stage and mentor | yes | yes (their pupils' stages) | owners and admins see who mentors whom, never the stage |
+| Turn notes: approach, contrast, mark, verdict, hints | yes | yes, in matters they can open | no |
+| Work reviews, defenses, urgency passes | yes (a defense's questions once its outcome is recorded) | yes, they write them | no |
+| Map, calibration, retakes | yes | yes, only from notes and retakes in matters they can open | no |
+| Accountability checks (junior) | yes | yes, in matters they can open | no |
+| Review audits | yes | yes, they evaluate them | no |
+| Full readings | yes | yes, in matters they can open | no |
+| Criteria contrasts | yes, with the two analyses | the routes, the explanation and the comparison | no |
+| Authorship of a version | a sealed draft: its author; another version: its owner when they have a stage | the current mentor of that person | whoever may approve the sealed draft; for any other version nobody |
+| Promotion proposal | no: it is the mentor's decision, computed from the person's own evidence above | yes, they decide | no |
+| The firm's criteria (`firm_criteria`) | every member of the firm reads | every member reads | not learning data: a non-member gets `404` |
+
 ## Data
 
 Migration `backend/migrations/20261106_50_litt_training.sql` (also in
@@ -64,6 +116,42 @@ the notes).
 
 The attempt and its contrast are learning data. They are **not** stored on the
 chat message, so the people who can read the chat never see them.
+
+### Every training table
+
+Layers 2 and 3 add tables; this is the complete list. A `training_*` table
+holds one person's learning data unless it says otherwise. The account export
+(`POST /user/exports`) is checked against the schema:
+`buildJsonExport.trainingCoverage.test.ts` discovers every `training_*` table
+and fails when one is neither exported under `training.<key>` nor excluded here
+with a reason, nor deleted with the membership. The export never carries
+another person's id (the mentor who corrected a verdict, generated or reviewed
+something, granted a pass or set a stage) nor a credential reference; the one
+mentor id it keeps is the holder's own mentor in `as_pupil`.
+
+| Table | Layer | Export key (`training.…`) | When the holder leaves |
+|---|---|---|---|
+| `training_mentors` | 1 | `mentor_designations` | deleted with the membership |
+| `training_pupils` | 1 | `as_pupil` | deleted with the membership |
+| `training_stages` | 1 | `stages` | deleted with the pupil row |
+| `training_turn_notes` | 1 | `turn_notes` | deleted with the membership and with the chat |
+| `training_work_reviews` | 2 | `work_reviews` | deleted with the membership and with the chat |
+| `training_defenses` | 2 | `defenses` | deleted with the membership |
+| `training_urgency_passes` | 2 | `urgency_passes` | deleted with the pupil row |
+| `training_backing_checks` | 3 | `backing_checks` | deleted with the membership and with the chat |
+| `training_review_audits` | 3 | `review_audits` | deleted with the membership |
+| `training_readings` | 3 | `readings` | deleted with the membership |
+| `training_retakes` | 3 | `retakes` | deleted with the membership |
+| `training_criteria_contrasts` | 3 | `criteria_contrasts` | deleted with the membership and with the chat |
+| `training_version_approvals` | 1b | **excluded** | stays (below) |
+
+`training_version_approvals` is evidence about a document version (its content
+hash and who approved it), not the holder's learning data: it has no trainee
+column, hangs from no membership, is insert-only and records another person's
+decision. It is not exported and not deleted on departure, as stated for the
+seal. `firm_criteria` is not a `training_*` table: it belongs to the firm, and
+neither the export nor the departure touches it (see «The firm's criteria»).
+The same rules are in [`organization-offboarding.md`](organization-offboarding.md#training-data).
 
 ### When membership ends
 
@@ -210,8 +298,9 @@ conclusion. A fourth is `400 training_hint_limit_reached`. Any other turn (the
 full answer) starts the ladder over. Only delivered turns count as a rung: a
 hint or counterpart note is written `pending` and settles as `skipped` when the
 turn completes, so one that failed or was aborted gave the person nothing and
-does not advance the ladder (two aborts leave the first rung next). The turn
-after hints is not flagged anywhere yet; no card reads it.
+does not advance the ladder (two aborts leave the first rung next). The first
+full turn after a hint does not count as an event of the map or of the
+calibration (`countedTurns`, see «Own map, calibration and retake»).
 
 **The counterparty's lawyer.** A round is up to three `counterpart` turns
 (`COUNTERPART_MAX_ROUNDS`): the AI plays the other side, with up to three
@@ -253,11 +342,17 @@ counted as the turn counts them. The server decides again on every turn.
 | Route | Purpose |
 |---|---|
 | `GET /training/me` | the caller's mentor, stages and mentor role, per organization |
-| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes — the Word card of layer 3 must send it; `criteria_contrast` and `criteria_explain` are announced only for the chat and the project chat, never for `surface=tabular` or Word); the client only uses it to decide what to show |
+| `GET /training/stage?org_id=&project_id=` or `?surface=word[&storage=local]` | the caller's effective stage where a turn would run, whether a turn there needs their attempt (`attempt_required`) and their thermometer mark (`confidence_required`, layer 3), the urgency pass in force there (`urgency_pass`, layer 2) and, with `&chat_id=`, the modes open now (`modes`, `next_hint_level`, `counterpart_next_step`, layer 3 hints; the server cannot tell a local Word chat, so the Word client sends `storage=local` and gets no modes; `criteria_contrast` and `criteria_explain` are announced only for the chat and the project chat, never for `surface=tabular` or Word); the client only uses it to decide what to show |
 | `PUT /orgs/:orgId/training/pupils/:userId/notes/:noteId/verdict` | the current mentor corrects the verdict of a turn (layer 3) |
 | `GET /training/me/criterion?org_id=` | the caller's own map, calibration, hint counts and retakes (layer 3) |
 | `POST /training/me/retakes`, `PUT /training/me/retakes/:id/answer` | the caller asks for the retake of a weak topic and answers it (layer 3) |
 | `GET /orgs/:orgId/training/pupils/:userId/criterion` | the pupil's current mentor reads the same, only from works in matters they can open (layer 3) |
+| `GET /training/me/chats/:chatId/backing`, `PUT …/backing/:checkId/conclusions/:conclusionId`; `GET /orgs/:orgId/training/pupils/:userId/backing` | the junior marks their own checks; the current mentor reads (accountability mode) |
+| `GET/POST /training/me/readings`, `…/readings/:id` (`document`, `swap`, `findings`, `compare`); `GET /orgs/:orgId/training/pupils/:userId/readings` | the person; the current mentor reads (full reading) |
+| `GET/POST /tabular-review/:reviewId/training-audit` (`cells/…`, `complete`); `GET /orgs/:orgId/training/pupils/:userId/review-audits`, `PUT …/review-audits/:id/evaluation` | the junior; the current mentor evaluates (bulk review designer) |
+| `GET /training/me/criteria-contrasts`; `GET /orgs/:orgId/training/pupils/:userId/criteria-contrasts` | the person; the current mentor (criteria contrast) |
+| `GET /single-documents/:documentId/versions/:versionId/authorship` | who may ask is in «Authorship of the work» |
+| `GET/POST /orgs/:orgId/firm-criteria`, `PUT/DELETE …/:criterionId` | the firm's criteria (everybody reads; those without a stage write) |
 | `GET/POST /orgs/:orgId/training/mentors`, `DELETE …/mentors/:userId` | owners and admins |
 | `GET/POST /orgs/:orgId/training/pupils`, `DELETE …/pupils/:userId` | mentors (and owners or admins to move or release) |
 | `PUT/DELETE /orgs/:orgId/training/pupils/:userId/stages` | the current mentor; `DELETE` takes `?practice=`, none for every practice area |
@@ -464,6 +559,13 @@ text).
   another), and release them, and links to the mentor panel.
 - **Settings → Formación → Panel del mentor** (`/settings/training/mentor`,
   layer 2, below).
+- **Settings → Formación**, layer 3, per organization: «Mi criterio» (the map,
+  the calibration and the retakes), the notice and the page of the monthly full
+  reading (`/settings/training/reading/[readingId]`), and the criteria contrast
+  (`/settings/training/contrast`). A tabular review's menu offers «Auditar
+  preguntas» (`/tabular-reviews/[id]/audit`) to a junior.
+- **Settings → Criterios del despacho** (`/settings/firm-criteria`): the firm's
+  criteria, read by everybody in the firm and written by those without a stage.
 
 ## The pasante seal and its approval (layer 1b)
 
@@ -882,8 +984,8 @@ proposals are computed on every read and never stored
   change, followed by `training.promotion_accepted` with
   `{ org_id, target_user_id }` only. The new stage starts its evidence
   again.
-- Layers 3 and 4 add the gym and the confidence meter as further inputs of
-  the same function.
+- Layer 3 added the confidence calibration and the new evidence above as
+  further inputs of the same function; layer 4 will add the gym.
 
 ### The mentor panel and «Lo que mi mentor ve de mí»
 
@@ -1087,6 +1189,7 @@ answer 404. No model is involved: the design review and the sample are code
 web app the page is `/tabular-reviews/:id/audit`, offered in the review's
 menu («Auditar preguntas») only when the read says `applies`. The mentor's
 section is `MentorReviewAudits`, mounted in the mentor panel's «Criterio» tab.
+
 ## From correction to rule (layer 3)
 
 A mentor can turn their corrections of a pupil's work into rules proposed for
@@ -1232,8 +1335,8 @@ the person's texts name is **dropped** and the retake fails. A contrast that
 names one keeps its text and the server appends «Sin verificar: … confirma en la
 fuente oficial». If the references of a text cannot be read it is treated as
 unverified, never as verified. The comparison is in one function
-(`namesUnlistedReference`) so it can move to the safer comparison by law and
-number once that lands (PR #115).
+(`namesUnlistedReference`) and is by law and number (`lawReferences`): an
+article whose law cannot be established is treated as unverified.
 
 **Audit** (insert-only, `surface: organization`, `{ org_id, target_user_id,
 retake_id }` only): `training.retake_generated` and `training.retake_answered`.
@@ -1467,9 +1570,9 @@ consultation failed.
 answer as «Criterios consultados», a disclosure with each criterion's topic,
 kind, practice area, text, author and date, and an honest line when the firm had
 written nothing or the consultation failed. So «según Fulano» never depends on
-what the model writes. Word receives the same event, but its task pane does not
-show the panel yet (the shared component is ready; mounting it is a seam, like
-the mentor panel's pending sections).
+what the model writes. Word receives the same event and shows the same
+panel under the answer (`FirmCriteriaPanel` in the task pane, the shared
+component of `packages/ui`, the same catalog).
 
 **The system instruction.** The training plan (`trainingPlan.systemAddendum`,
 added by the behavior in `lib/trainingTurn/criteria.ts`) tells the model, for
@@ -1581,3 +1684,37 @@ and a link to the AI's explanation in the conversation. Text and labels in
 en-US and es-MX (`training.criterion.contrast`); the analyses and the
 explanations are never translated. The mentor's section is
 `MentorCriteriaContrasts`.
+
+## The Word add-in
+
+The Word task pane is a fourth surface of the same turn
+(`POST /word-chat`, one wiring in `lib/trainingTurn`) and shows the shared
+components of `packages/ui` with the web app's catalog (`useTrainingText`,
+`training.criterion.*`; the pane speaks es-MX and en-US from one catalog). What
+it shows, and what it does not:
+
+| Surface | In Word | Notes |
+|---|---|---|
+| Approach field and thermometer | yes | for a pasante with an approach owed; the Word stage is the most junior one with practice «all» (see «Concepts»); the urgency pass is never honored there |
+| Hints and the counterparty's lawyer | yes, for a chat saved in the cloud | a chat with `storage: "local"` has no notes the server can count: no mode is offered and the stage is read with `storage=local` and no `chat_id` |
+| Private note beside the message (mark, verdict, basis, hint rung) | yes, for a cloud chat | read from `/training-notes/chats/:chatId`; a local chat keeps none |
+| «Criterios consultados» | yes | the same panel and the server's `firm_criteria` event; a local chat keeps the event on the device with the message |
+| Accountability panel | yes, for a junior's cloud chat | `useWordTrainingBacking`; a local chat keeps no transcript, so no check |
+| Authorship of the work | no | the web viewer and document panel only |
+| Map, retakes, full reading, bulk review audit, firm criteria screen, criteria contrast, mentor panel | no | web only; the criteria contrast needs subagents, which Word has not |
+
+`storage: "local"` means the server keeps no transcript and no note: the
+approach and the mark are still required for the turn, nothing of it is
+stored, and nothing is offered that needs the server to remember a previous
+turn.
+
+## Language and privacy
+
+Every text of the training screens is in the catalog (`packages/i18n`, namespace
+`training`, en-US and es-MX, same keys in both) and follows
+[`i18n.md`](i18n.md) and the glossary: address the person as «tú», and write a
+count as an ICU plural when its noun changes with it (`{count, plural, one {# vez} other {# veces}}`),
+never «{n} veces». The learning data itself (an approach, a contrast, an AI
+line, a question, an explanation) is shown as written and never translated.
+Nothing of it is audited beyond ids and counts, and none of it is returned
+with a score, an average or a ranking.
