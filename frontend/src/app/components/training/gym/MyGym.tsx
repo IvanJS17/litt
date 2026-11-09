@@ -204,7 +204,10 @@ function GymRun({ initial, onBack }: { initial: TrainingGymAttempt; onBack: () =
             <h4 className="break-words text-sm font-medium text-gray-900">{attempt.title}</h4>
             {submitted ? (
                 <>
-                    {initial.status === "in_progress" && <p className="text-sm text-gray-500">{t("pupil.expired")}</p>}
+                    {initial.status === "in_progress" &&
+                        attempt.submitted_at !== null &&
+                        attempt.deadline_at !== null &&
+                        attempt.submitted_at >= attempt.deadline_at && <p className="text-sm text-gray-500">{t("pupil.expired")}</p>}
                     <GymResult attempt={attempt} />
                 </>
             ) : (

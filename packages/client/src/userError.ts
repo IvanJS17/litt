@@ -277,6 +277,13 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // the evidence changed, so the panel reloads it.
     training_defense_already_recorded: "conflict",
     training_promotion_not_proposed: "conflict",
+    // Gym: a case with an open attempt, a pupil not assigned to the mentor, an
+    // attempt already closed and a hint with nothing left to reveal are all
+    // states the screen reloads.
+    training_gym_attempt_open: "conflict",
+    training_gym_not_assigned: "conflict",
+    training_gym_closed: "conflict",
+    training_gym_no_hint: "conflict",
     // --- Training layer 3, card 12 codes (begin) ---
     // Corrections a mentor sends to turn into rules: the batch itself has to
     // change (none, too many, too long, no corrected text). Retrying the same
