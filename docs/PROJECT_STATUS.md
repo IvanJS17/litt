@@ -9,18 +9,19 @@
 
 ## Executive status
 
-### Production and integration 2026-11-08
+### Production and integration 2026-11-09
 
-- **Main:** `cf84ddd1df4c927719ea2e5f9fb6830a9e8f4d7c` (merge of pull request
-  #134, which simplifies the legal references: the law is the document cited).
-- **Production:** runs `cf84ddd1df4c927719ea2e5f9fb6830a9e8f4d7c`, deployed on
-  2026-11-08 at 21:05 CST. The ten migrations `20261108_*` are applied:
-  `_10`, `_20`, `_60`, `_64`, `_66`, `_68`, `_70`, `_76`, `_78` and `_82`.
-  Training layers 1, 2 and 3 are in production, and so is the simplification of
-  legal references (#134). The earlier deploy of `267609c2` (2026-11-07 23:41
-  CST) and the deploys before it are superseded. The Word add-in service
-  (`litt-word`) runs as part of this deploy.
-- **Pending:** training layer 4 (the gym), the interface languages phase 1
+- **Main:** `bf00e4f21691f922a65a746d8c48aa50a1df72ff` (merge of pull request
+  #137, the follow-ups of training layer 4).
+- **Production:** runs `bf00e4f21691f922a65a746d8c48aa50a1df72ff`, deployed on
+  2026-11-09. Migration `20261109_10_litt_training_gym.sql` is applied on top
+  of the ten `20261108_*` migrations (`_10`, `_20`, `_60`, `_64`, `_66`,
+  `_68`, `_70`, `_76`, `_78` and `_82`). Training layers 1 to 4 are in
+  production, and so is the simplification of legal references (#134). The
+  deploy of `cf84ddd1` (2026-11-08 21:05 CST) and the deploys before it are
+  superseded. The Word add-in service (`litt-word`) runs as part of this
+  deploy.
+- **Pending:** the interface languages phase 1
   (including the English literals in the Word chat), and the DNS for Word
   (`A word.litt`, no Cloudflare proxy). Technical follow-ups from the recent
   pull requests are listed in [`followups.md`](followups.md).
@@ -69,7 +70,19 @@
   discovers the `training_*` tables of the schema).
 - **Deployed:** in production since 2026-11-08 (`cf84ddd1`), with its ten
   `20261108_*` migrations.
-- **Layer 4:** not started (the gym).
+- **Layer 4:** deployed (below).
+
+### Training layer 4: gym (2026-11-09)
+
+- **What:** fictitious practice cases written by the mentor (optionally from an
+  AI draft on the mentor's own route), with planted errors, assigned to a pupil
+  as a timed attempt. The server keeps the clock and closes the attempt with
+  what was saved when time runs out; the answer key is hidden until submission;
+  scoring is by paragraph number only; the mentor can give another attempt.
+  Web only. Results feed promotion as counts. Rules:
+  [`training.md`](training.md) («Layer 4: gym»).
+- **State:** integrated and deployed: #136 and its follow-ups #137 (the account
+  export hides the answer key of an attempt not yet submitted).
 
 ### Training layer 2: supervision (2026-11-07)
 
@@ -85,9 +98,8 @@
   in four tabs, the pupil's view and `docs/training.md`, bilingual; PR #99) and
   its follow-ups (PR #104). The panel has a fifth tab, «Criterio», since layer
   3. Word does not honor a pass. It is deployed with `267609c2`.
-- **Layers 3 and 4:** layer 3 is deployed (above) and added the confidence
-  calibration to the promotion function; layer 4, the gym, is not started
-  and will be a further input of it
+- **Layers 3 and 4:** both are deployed (above); layer 3 added the confidence
+  calibration to the promotion function and layer 4 the gym counts
   ([`training.md`](training.md#supervision-data-layer-2)).
 
 ### Playbooks layer 1 (2026-11-07)
