@@ -13,6 +13,7 @@ export {
     generateWorkReview,
     listPupilWorks,
     markWorkReviewed,
+    mentorRoute,
     REVIEW_IN_PROGRESS_CODE,
     REVIEW_KEY_REQUIRED_CODE,
 } from "./trainingSupervision.reviews";

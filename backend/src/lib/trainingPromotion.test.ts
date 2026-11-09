@@ -83,6 +83,7 @@ describe("proposePromotions", () => {
             required: { approved_defenses: 2, reviewed_works: 3 },
             evaluated_audits: [],
             readings: [],
+            gym: { attempts: 0, errors: 0, found: 0, hints: 0 },
             calibration: {
                 marked_turns: 0,
                 min_marked_turns: 10,
@@ -425,5 +426,24 @@ describe("audits and readings as evidence (layer 3)", () => {
         });
         expect(proposal.evaluated_audits.map((row) => row.id)).toEqual(["a1"]);
         expect(proposal.readings.map((row) => row.id)).toEqual(["r1"]);
+    });
+});
+
+describe("gym evidence in the promotion (layer 4)", () => {
+    it("counts the gym since the stage changed, by practice, and blocks nothing", () => {
+        const row = (id: string, practice: string, at: string) => ({ id, practice, at, errors: 3, found: 2, hints: 1 });
+        const [proposal] = proposePromotions({
+            stages: [{ practice: "laboral", stage: "pasante", updated_at: SINCE }],
+            defenses: approvedDefenses("laboral"),
+            reviews: reviewedWorks("laboral"),
+            approvals: [],
+            gym: [
+                row("a", "laboral", "2026-06-01T00:00:00.000Z"),
+                row("old", "laboral", "2025-12-01T00:00:00.000Z"),
+                row("other", "civil", "2026-06-01T00:00:00.000Z"),
+            ],
+        });
+        expect(proposal.gym).toEqual({ attempts: 1, errors: 3, found: 2, hints: 1 });
+        expect(proposal.blocked_by).toBeNull();
     });
 });

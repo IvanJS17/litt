@@ -32,7 +32,7 @@ create function pg_temp.fixture() returns void language plpgsql as $$
 declare
   org uuid := gen_random_uuid(); other_org uuid := gen_random_uuid();
   project uuid := gen_random_uuid(); chat uuid := gen_random_uuid();
-  review uuid := gen_random_uuid(); tabular_review uuid := gen_random_uuid();
+  review uuid := gen_random_uuid(); tabular_review uuid := gen_random_uuid(); gym_case uuid := gen_random_uuid();
   a record;
 begin
   delete from litt_training_actors;
@@ -95,6 +95,14 @@ begin
     values (org, current_setting('litt.pupil')::uuid, project, 'assigned');
   insert into public.training_retakes(org_id, trainee_user_id, topic_key, topic_label)
     values (org, current_setting('litt.pupil')::uuid, 'prescripcion', 'Prescripción');
+  -- Layer 4, the gym: a case of the mentor and the pupil's attempt at a copy of it.
+  insert into public.training_gym_cases(id, created_by, org_id, practice, title, paragraphs, errors, time_limit_minutes)
+    values (gym_case, current_setting('litt.mentor_a')::uuid, org, 'laboral', 'Caso ficticio', array['uno', 'dos'],
+      '[{"paragraph":1,"kind":"other","explanation":"x"}]', 30);
+  insert into public.training_gym_attempts(org_id, trainee_user_id, case_id, assigned_by, title, practice, paragraphs,
+      errors, time_limit_minutes)
+    values (org, current_setting('litt.pupil')::uuid, gym_case, current_setting('litt.mentor_a')::uuid, 'Caso ficticio',
+      'laboral', array['uno', 'dos'], '[{"paragraph":1,"kind":"other","explanation":"x"}]', 30);
   -- Layer 3, card 13: a criteria contrast waiting for the pupil's explanation.
   insert into public.training_criteria_contrasts(org_id, trainee_user_id, chat_id, message_id, routes, briefs)
     values (org, current_setting('litt.pupil')::uuid, chat, gen_random_uuid(),

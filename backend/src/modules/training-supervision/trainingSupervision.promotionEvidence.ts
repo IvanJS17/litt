@@ -6,6 +6,7 @@
 // criterion map. Nothing here is a score: the function that uses it counts
 // the same person's own events.
 
+import type { TrainingGymError, TrainingGymFinding } from "@mike/contracts";
 import { ensureReviewAccess } from "../../lib/access";
 import { selectInBatches } from "../../lib/batchedQuery";
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
@@ -13,7 +14,8 @@ import type { Db } from "../../lib/supabase";
 import { loadEvidenceNotes } from "../../lib/trainingEvidenceNotes";
 import { countedTurns } from "../../lib/trainingMap";
 import type { TurnNoteSurface } from "../../lib/trainingNotes";
-import type { PromotionAudit, PromotionTurn, PromotionWork } from "../../lib/trainingPromotion";
+import { scoreGymAttempt } from "../../lib/trainingGym";
+import type { PromotionAudit, PromotionGym, PromotionTurn, PromotionWork } from "../../lib/trainingPromotion";
 import { workPlace } from "../../lib/trainingWork";
 import type { projectLens, Viewer } from "./trainingSupervision.lens";
 
@@ -22,6 +24,7 @@ export type PromotionLayer3 = {
     turns: PromotionTurn[];
     audits: PromotionAudit[];
     readings: PromotionWork[];
+    gym: PromotionGym[];
     without_access: { turns: number; audits: number; readings: number };
 };
 
@@ -131,6 +134,35 @@ async function loadReadings(db: Db, viewer: Viewer, lens: Lens): Promise<Service
     return ok({ readings, without });
 }
 
+/** Layer 4: the pupil's submitted gym attempts, as counts. A case is fictitious and in no matter, so nothing is hidden. */
+async function loadGym(db: Db, viewer: Viewer): Promise<ServiceResult<PromotionGym[]>> {
+    const read = await db
+        .from("training_gym_attempts")
+        .select("id, practice, submitted_at, errors, findings, hints_used")
+        .eq("org_id", viewer.orgId)
+        .eq("trainee_user_id", viewer.traineeId)
+        .eq("status", "submitted");
+    if (read.error) return internalFailure(read.error);
+    type Row = {
+        id: string;
+        practice: string;
+        submitted_at: string;
+        errors: TrainingGymError[];
+        findings: TrainingGymFinding[];
+        hints_used: number[];
+    };
+    return ok(
+        ((read.data ?? []) as unknown as Row[]).map((row) => ({
+            id: row.id,
+            practice: row.practice,
+            at: row.submitted_at,
+            errors: row.errors.length,
+            found: scoreGymAttempt(row.errors, row.findings).found.length,
+            hints: row.hints_used.length,
+        })),
+    );
+}
+
 /** Everything layer 3 adds to the input of proposePromotions, and what was left out. */
 export async function loadPromotionLayer3(db: Db, viewer: Viewer, lens: Lens): Promise<ServiceResult<PromotionLayer3>> {
     try {
@@ -140,10 +172,13 @@ export async function loadPromotionLayer3(db: Db, viewer: Viewer, lens: Lens): P
         if (!audits.ok) return audits;
         const readings = await loadReadings(db, viewer, lens);
         if (!readings.ok) return readings;
+        const gym = await loadGym(db, viewer);
+        if (!gym.ok) return gym;
         return ok({
             turns: turns.data.turns,
             audits: audits.data.audits,
             readings: readings.data.readings,
+            gym: gym.data,
             without_access: { turns: turns.data.without, audits: audits.data.without, readings: readings.data.without },
         });
     } catch (error) {

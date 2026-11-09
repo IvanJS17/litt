@@ -58,6 +58,8 @@ export type PromotionInput = {
     audits?: readonly PromotionAudit[];
     /** Full readings handed in, dated by when. */
     readings?: readonly PromotionWork[];
+    /** Layer 4: gym attempts submitted. Evidence only. */
+    gym?: readonly PromotionGym[];
 };
 
 /** A turn the calibration counts; `practice` null: outside any practice area. */
@@ -69,6 +71,8 @@ export type PromotionTurn = {
     confidence: number | null;
     verdict: "coincide" | "parcial" | "no_coincide";
 };
+/** A gym attempt submitted: counts only (layer 4). */
+export type PromotionGym = { id: string; practice: string | null; at: string; errors: number; found: number; hints: number };
 /** An audit the mentor evaluated, dated by the evaluation. */
 export type PromotionAudit = { id: string; practice: string | null; at: string; outcome: "adequate" | "needs_work" };
 
@@ -76,6 +80,15 @@ const time = (value: string) => Date.parse(value);
 
 function evidence(rows: readonly { id: string; at: string }[]): TrainingPromotionEvidence[] {
     return [...rows].sort((a, b) => time(a.at) - time(b.at)).map(({ id, at }) => ({ id, at }));
+}
+
+function gymCounts(rows: readonly PromotionGym[]) {
+    return {
+        attempts: rows.length,
+        errors: rows.reduce((sum, row) => sum + row.errors, 0),
+        found: rows.reduce((sum, row) => sum + row.found, 0),
+        hints: rows.reduce((sum, row) => sum + row.hints, 0),
+    };
 }
 
 /**
@@ -103,6 +116,7 @@ export function proposePromotions(input: PromotionInput): TrainingPromotionPropo
     const turns = input.turns ?? [];
     const audits = input.audits ?? [];
     const readings = input.readings ?? [];
+    const gym = input.gym ?? [];
     return ordered.map((stage) => {
         const since = time(stage.updated_at);
         const inScope = (row: { practice: string | null }) =>
@@ -148,6 +162,7 @@ export function proposePromotions(input: PromotionInput): TrainingPromotionPropo
                 .sort((a, b) => time(a.at) - time(b.at))
                 .map(({ id, at, outcome }) => ({ id, at, outcome })),
             readings: evidence(readings.filter((row) => inScope(row) && time(row.at) >= since)),
+            gym: gymCounts(gym.filter((row) => inScope(row) && time(row.at) >= since)),
             calibration: {
                 marked_turns: marked.length,
                 min_marked_turns: PROMOTION_MIN_MARKED_TURNS,

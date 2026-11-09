@@ -467,7 +467,16 @@ export const TRAINING_EXPORT_KEYS = {
     training_readings: "readings",
     training_retakes: "retakes",
     training_criteria_contrasts: "criteria_contrasts",
+    training_gym_attempts: "gym_attempts",
+    training_gym_cases: "gym_cases",
 } as const;
+
+/**
+ * Exported tables that hold a mentor's own content, not a person's learning:
+ * they are found by author (`created_by`), outlive the membership and lose
+ * their author when the account is erased.
+ */
+export const TRAINING_EXPORT_AUTHORED: readonly string[] = ["training_gym_cases"];
 
 export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
     training_version_approvals:
@@ -681,6 +690,8 @@ export async function buildUserAccountExport(
         trainingReadings,
         trainingRetakes,
         trainingCriteriaContrasts,
+        trainingGymAttempts,
+        trainingGymCases,
     ] = await Promise.all([
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
@@ -778,6 +789,20 @@ export async function buildUserAccountExport(
                 "id, org_id, chat_id, message_id, routes, briefs, status, person_explanation, comparison, created_at, updated_at",
             order: ["created_at"],
         }),
+        // Gym (layer 4): the attempts are the holder's learning data (the copy of the
+        // case with its seeded errors, their findings and the hints they asked for);
+        // the cases are the mentor's own content.
+        selectAll(db, "training_gym_attempts", {
+            filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns:
+                "id, org_id, case_id, title, practice, paragraphs, errors, time_limit_minutes, status, started_at, deadline_at, submitted_at, findings, hints_used, created_at, updated_at",
+            order: ["created_at"],
+        }),
+        selectAll(db, "training_gym_cases", {
+            filter: (query) => trainingScope(query.eq("created_by", userId)),
+            columns: "id, org_id, practice, title, paragraphs, errors, time_limit_minutes, fictitious, created_at, updated_at",
+            order: ["created_at"],
+        }),
     ]);
 
     const playbooks = await loadUserPlaybooks(
@@ -864,6 +889,8 @@ export async function buildUserAccountExport(
             [TRAINING_EXPORT_KEYS.training_readings]: trainingReadings,
             [TRAINING_EXPORT_KEYS.training_retakes]: trainingRetakes,
             [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: trainingCriteriaContrasts,
+            [TRAINING_EXPORT_KEYS.training_gym_attempts]: trainingGymAttempts,
+            [TRAINING_EXPORT_KEYS.training_gym_cases]: trainingGymCases,
         },
         audit_events: auditEvents,
     };
