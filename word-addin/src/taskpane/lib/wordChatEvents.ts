@@ -12,6 +12,7 @@ import type {
   WordReasoningEvent,
   WordThinkingEvent,
 } from "../types";
+import type { FirmCriteriaEvent } from "@mike/contracts";
 import type { WordAssistantMessage, WordChatMessage } from "./wordChatTypes";
 import { createRedlineStreamProjector, projectRedlineStream } from "./redline";
 import { isToolEditBlockIndex } from "./wordTrackedEditKeys";
@@ -70,6 +71,17 @@ export function isWordTextCardEvent(
     typeof event.card_id === "string" &&
     typeof event.title === "string" &&
     typeof event.text === "string"
+  );
+}
+
+export function isWordFirmCriteriaEvent(
+  event: WordAssistantEvent,
+): event is WordAssistantEvent & FirmCriteriaEvent {
+  return (
+    event.type === "firm_criteria" &&
+    typeof event.call_id === "string" &&
+    Array.isArray(event.criteria) &&
+    typeof event.truncated === "boolean"
   );
 }
 
