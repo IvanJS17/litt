@@ -11,9 +11,17 @@
 
 ### Production and integration 2026-11-08
 
-- **Main:** `267609c2012fc50d0b61451ff77aa7173ac5cb57` integrates pull requests
-  #77–#106 of 2026-11-07 (the sections below list them by area).
-- **Production:** `267609c2` is deployed since 2026-11-07 23:41 CST. The
+- **Main:** `ee3f1e58112b91ccdbea904542cf8f5bd4921022` integrates, over
+  `267609c2012fc50d0b61451ff77aa7173ac5cb57` (pull requests #77–#106 of
+  2026-11-07), the training layer 3 (cards 1–16, see below), the public/private
+  matter succession (#108–#112, with two migrations `20261108_10` and `_20`) and
+  the legal-reference fixes (#124, #126, #129).
+- **Production:** `267609c2` is still what runs, deployed since 2026-11-07
+  23:41 CST. **Nothing merged after it is deployed:** not the training layer 3
+  (eight migrations `20261108_60` to `20261108_82` and the succession pair are
+  not applied in production), not the corrections of #107–#131. The training
+  layer 2 is in `267609c2` (cards 1–5, PRs #69–#104, all ancestors of that
+  commit), so it runs in production. The
   release before it was `558da046` (PR #91, 19:25 CST the same day); the one
   before that, `39ca4b38` (PR #72), since 09:32 CST. The earlier deploys
   carried the training layer 1 (PRs #56, #58–#60), the visual identity v1.0
@@ -32,8 +40,9 @@
   2026-11-09) reports anything newer. Policy:
   [`UPSTREAM_POLICY.md`](UPSTREAM_POLICY.md); receipts in
   [`UPSTREAM_COMPATIBILITY_LEDGER.md`](UPSTREAM_COMPATIBILITY_LEDGER.md) §20–§29.
-- **Pending:** training layers 3 and 4, the i18n cards that remain and the DNS
-  for Word (see the areas below).
+- **Pending:** training layer 4, the deploy of `main` (layer 3 and the rest of
+  what is listed above), the i18n cards that remain (0D2, 0E, 0F and phase 1)
+  and the DNS for Word (see the areas below).
 - **Startup secrets:** the backend refuses to start when
   `DOWNLOAD_SIGNING_SECRET` or `USER_API_KEYS_ENCRYPTION_SECRET` holds the
   `backend/.env.example` placeholder or is shorter than 32 characters (cycle 9,
@@ -44,6 +53,33 @@
   reached by nobody once its creator leaves the firm (§24.3); the private
   catalogue must exclude matter content before it is ever opened (§24.2).
   Each rule is unchanged until the owner decides.
+
+### Training layer 3: criterion (2026-11-08)
+
+- **What:** the learning layer that trains judgment, not only the answer: the
+  thermometer and the verdict («según el contraste de la IA»), hints and the
+  counterparty's lawyer, the junior's accountability mode, the methodology
+  annex, the bulk review designer, from correction to rule, the pupil's own map
+  with calibration and retakes, the periodic full reading, the firm's criteria,
+  the criteria contrast, authorship of the work and promotion by evidence v2.
+  Rules: [`training.md`](training.md) (index at the top).
+- **State:** complete and integrated into `main`, cards 1 to 16, each with its
+  pull request: card 1 turn wiring (#110, with #107 the performance and status
+  work before it), 2 verdict and confidence on the server (#113), 3 thermometer
+  on screen (#116), 4 map, calibration and retake on the server (#122), 5 the
+  map on screen (#125), 6 hints and the counterparty's lawyer on the server
+  (#123), 7 hints on screen (#127), 8 accountability (#115), 9 bulk review
+  designer (#114), 10 full reading (#118), 11 methodology (#117), 12 from
+  correction to rule (#119), 13 criteria contrast (#128), 14 the firm's
+  criteria (#121), 15 authorship (#120) and 16 promotion v2 (#131). The
+  legal-reference fixes #124, #126 and #129 came along.
+- **Closure (card 17b):** this file and `training.md` made coherent, the counts
+  of the training screens as ICU plurals, the Word add-in shows the consulted
+  firm criteria, and the account export carries every learning table (a test
+  discovers the `training_*` tables of the schema).
+- **Not deployed:** production runs `267609c2`, which has no layer 3. Deploying
+  it needs the eight layer-3 migrations and the owner's go-ahead.
+- **Layer 4:** not started (the gym).
 
 ### Training layer 2: supervision (2026-11-07)
 
@@ -57,9 +93,11 @@
   contracts and access, PR #69), cards 2–4 (PRs #73, #77, #85) and the card 4
   follow-ups (PR #95), card 5 (the mentor panel at `/settings/training/mentor`
   in four tabs, the pupil's view and `docs/training.md`, bilingual; PR #99) and
-  its follow-ups (PR #104). Word is unchanged: it does not honor a pass.
-- **Layers 3 and 4:** not started. They add the gym and the confidence meter as
-  further inputs of the promotion function
+  its follow-ups (PR #104). The panel has a fifth tab, «Criterio», since layer
+  3. Word does not honor a pass. It is deployed with `267609c2`.
+- **Layers 3 and 4:** layer 3 is integrated (above) and added the confidence
+  calibration to the promotion function; layer 4, the gym, is not started
+  and will be a further input of it
   ([`training.md`](training.md#supervision-data-layer-2)).
 
 ### Playbooks layer 1 (2026-11-07)

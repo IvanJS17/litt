@@ -447,6 +447,33 @@ export async function buildUserTabularReviewsExport(
  * to — and Personal's content; an organization's carries only the person's
  * work in it.
  */
+/**
+ * Every `training_*` table of the schema is either carried by the account
+ * export (under `training.<key>`) or left out with a reason. The test
+ * `buildJsonExport.trainingCoverage.test.ts` finds the tables in the schema
+ * and fails when one is in neither list, so a new learning table cannot ship
+ * without a decision about the holder's right of access.
+ */
+export const TRAINING_EXPORT_KEYS = {
+    training_mentors: "mentor_designations",
+    training_pupils: "as_pupil",
+    training_stages: "stages",
+    training_turn_notes: "turn_notes",
+    training_work_reviews: "work_reviews",
+    training_defenses: "defenses",
+    training_urgency_passes: "urgency_passes",
+    training_backing_checks: "backing_checks",
+    training_review_audits: "review_audits",
+    training_readings: "readings",
+    training_retakes: "retakes",
+    training_criteria_contrasts: "criteria_contrasts",
+} as const;
+
+export const TRAINING_EXPORT_EXCLUDED: Record<string, string> = {
+    training_version_approvals:
+        "Insert-only evidence about a document version (document_version_id, content hash, approver), not learning data of the holder: it has no trainee column, hangs from no membership and records another person's decision. The holder's sealed drafts are in their documents.",
+};
+
 export async function buildUserAccountExport(
     db: Db,
     userId: string,
@@ -658,15 +685,26 @@ export async function buildUserAccountExport(
         // These two have no `id`: their key is (org_id, person), so for one
         // person org_id is the unique paging key.
         selectAllByKey<Row>("export training_mentors", () =>
-            trainingScope((db as any).from("training_mentors").select("*").eq("user_id", userId)),
+            trainingScope(
+                (db as any)
+                    .from("training_mentors")
+                    .select("org_id, user_id, created_at")
+                    .eq("user_id", userId),
+            ),
             "org_id",
         ).then((rows) => sortRows(rows, "created_at", "org_id")),
         selectAllByKey<Row>("export training_pupils", () =>
-            trainingScope((db as any).from("training_pupils").select("*").eq("trainee_user_id", userId)),
+            trainingScope(
+                (db as any)
+                    .from("training_pupils")
+                    .select("org_id, trainee_user_id, mentor_user_id, created_at, updated_at")
+                    .eq("trainee_user_id", userId),
+            ),
             "org_id",
         ).then((rows) => sortRows(rows, "created_at", "org_id")),
         selectAll(db, "training_stages", {
             filter: (query) => trainingScope(query.eq("trainee_user_id", userId)),
+            columns: "id, org_id, trainee_user_id, practice, stage, updated_at",
             order: ["updated_at"],
         }),
         selectAll(db, "training_turn_notes", {
@@ -814,18 +852,18 @@ export async function buildUserAccountExport(
         },
         memory: appMemory,
         training: {
-            mentor_designations: trainingMentor,
-            as_pupil: trainingPupil,
-            stages: trainingStages,
-            turn_notes: trainingNotes,
-            work_reviews: trainingWorkReviews,
-            defenses: trainingDefenses,
-            urgency_passes: trainingUrgencyPasses,
-            backing_checks: trainingBackingChecks,
-            review_audits: trainingReviewAudits,
-            readings: trainingReadings,
-            retakes: trainingRetakes,
-            criteria_contrasts: trainingCriteriaContrasts,
+            [TRAINING_EXPORT_KEYS.training_mentors]: trainingMentor,
+            [TRAINING_EXPORT_KEYS.training_pupils]: trainingPupil,
+            [TRAINING_EXPORT_KEYS.training_stages]: trainingStages,
+            [TRAINING_EXPORT_KEYS.training_turn_notes]: trainingNotes,
+            [TRAINING_EXPORT_KEYS.training_work_reviews]: trainingWorkReviews,
+            [TRAINING_EXPORT_KEYS.training_defenses]: trainingDefenses,
+            [TRAINING_EXPORT_KEYS.training_urgency_passes]: trainingUrgencyPasses,
+            [TRAINING_EXPORT_KEYS.training_backing_checks]: trainingBackingChecks,
+            [TRAINING_EXPORT_KEYS.training_review_audits]: trainingReviewAudits,
+            [TRAINING_EXPORT_KEYS.training_readings]: trainingReadings,
+            [TRAINING_EXPORT_KEYS.training_retakes]: trainingRetakes,
+            [TRAINING_EXPORT_KEYS.training_criteria_contrasts]: trainingCriteriaContrasts,
         },
         audit_events: auditEvents,
     };

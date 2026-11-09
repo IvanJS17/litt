@@ -235,7 +235,7 @@ describe("Mentor panel", () => {
         expect(await screen.findByText("No defenses yet.")).toBeInTheDocument();
         fireEvent.click(within(tabs).getByRole("button", { name: "Urgency pass" }));
         expect(await screen.findAllByText("Arrendamiento Ruiz", { selector: "p" })).toHaveLength(2);
-        vi.mocked(api.getPupilPromotion).mockResolvedValue({ proposals: [] });
+        vi.mocked(api.getPupilPromotion).mockResolvedValue({ proposals: [], without_access: { turns: 0, audits: 0, readings: 0 } });
         fireEvent.click(within(tabs).getByRole("button", { name: "Promotion" }));
         expect(await screen.findByText("This pupil has no stage to promote.")).toBeInTheDocument();
 
@@ -710,6 +710,12 @@ describe("Promotion tab", () => {
                     reviewed_works: evidence(3),
                     approved_versions: evidence(1),
                     required: { approved_defenses: 2, reviewed_works: 3 },
+                    evaluated_audits: [
+                        { id: "a1", at: iso(-HOUR), outcome: "adequate" as const },
+                        { id: "a2", at: iso(-HOUR), outcome: "needs_work" as const },
+                    ],
+                    readings: evidence(1),
+                    calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
                 },
                 {
                     practice: null,
@@ -721,8 +727,12 @@ describe("Promotion tab", () => {
                     reviewed_works: [],
                     approved_versions: [],
                     required: { approved_defenses: 2, reviewed_works: 3 },
+                    evaluated_audits: [],
+                    readings: [],
+                    calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
                 },
             ],
+            without_access: { turns: 0, audits: 0, readings: 0 },
         });
         vi.mocked(api.acceptPromotion).mockRejectedValueOnce(new Error("409"));
         render(<PromotionTab orgId="org-1" pupilId="pupil-1" />);
@@ -731,6 +741,11 @@ describe("Promotion tab", () => {
         expect(screen.getByText("Approved defenses: 2 of 2")).toBeInTheDocument();
         expect(screen.getByText("Reviewed works: 0 of 3")).toBeInTheDocument();
         expect(screen.getByText("Approved drafts: 1")).toBeInTheDocument();
+        expect(screen.getByText("Evaluated review audits: 2 (1 adequate, 1 need work)")).toBeInTheDocument();
+        expect(screen.getByText("Full readings handed in: 1")).toBeInTheDocument();
+        expect(screen.getAllByText(/not enough data yet \(0 of 10 marked turns\)/)).toHaveLength(2);
+        expect(screen.getByText(/You can change the stage without LiTT's proposal/)).toBeInTheDocument();
+        expect(screen.queryByText(/only counted, not shown/)).toBeNull();
         expect(screen.getByText(/A defense was not approved after the last approved one/)).toBeInTheDocument();
         expect(screen.getByText("Not proposed yet.")).toBeInTheDocument();
         expect(screen.getAllByRole("button", { name: "Accept proposal" })).toHaveLength(1);
@@ -749,6 +764,56 @@ describe("Promotion tab", () => {
             expect.any(Error),
             expect.objectContaining({ codeMessages: { training_promotion_not_proposed: expect.any(String) } }),
         );
+    });
+});
+
+describe("Promotion tab, calibration and hidden evidence", () => {
+    const proposal = (over: Partial<api.TrainingPromotionProposal>): api.TrainingPromotionProposal => ({
+        practice: null,
+        from: "pasante",
+        to: "junior",
+        proposed: false,
+        blocked_by: null,
+        approved_defenses: [],
+        reviewed_works: [],
+        approved_versions: [],
+        required: { approved_defenses: 2, reviewed_works: 3 },
+        evaluated_audits: [],
+        readings: [],
+        calibration: { marked_turns: 0, min_marked_turns: 10, sure_marked: 0, sure_coincided: 0, min_sure_marked: 4, enough: false },
+        ...over,
+    });
+
+    it("says in words that the «Seguro» turns blocked the proposal, with the counts, and only counts what is hidden", async () => {
+        vi.mocked(api.getPupilPromotion).mockResolvedValue({
+            proposals: [
+                proposal({
+                    blocked_by: "overconfident",
+                    calibration: { marked_turns: 12, min_marked_turns: 10, sure_marked: 5, sure_coincided: 2, min_sure_marked: 4, enough: true },
+                }),
+            ],
+            without_access: { turns: 3, audits: 1, readings: 2 },
+        });
+        render(<PromotionTab orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/fewer than 3 of every 4 times coincided/)).toBeInTheDocument();
+        expect(screen.getByText(/when they marked “Sure”, it coincided 2 of 5 times, among 12 marked turns/)).toBeInTheDocument();
+        expect(screen.getByText(/Marked turns: 3. Audits: 1. Readings: 2./)).toBeInTheDocument();
+        expect(screen.getByText("Not proposed yet.")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Accept proposal" })).toBeNull();
+        expect(screen.getByText(/without LiTT's proposal/)).toBeInTheDocument();
+    });
+
+    it("asks for more «Seguro» turns before weighing them", async () => {
+        vi.mocked(api.getPupilPromotion).mockResolvedValue({
+            proposals: [
+                proposal({
+                    calibration: { marked_turns: 11, min_marked_turns: 10, sure_marked: 2, sure_coincided: 0, min_sure_marked: 4, enough: true },
+                }),
+            ],
+            without_access: { turns: 0, audits: 0, readings: 0 },
+        });
+        render(<PromotionTab orgId="org-1" pupilId="pupil-1" />);
+        expect(await screen.findByText(/At least 4 “Sure” turns are needed/)).toBeInTheDocument();
     });
 });
 

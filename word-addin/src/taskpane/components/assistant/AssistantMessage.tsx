@@ -12,6 +12,7 @@ import type {
 import { PillButtonUI as PillButton } from "@mike/ui";
 import { TextCardUI } from "@mike/ui";
 import { EditCard } from "./EditCard";
+import { FirmCriteriaPanel } from "./FirmCriteriaPanel";
 import { PreResponseWrapper } from "./PreResponseWrapper";
 import { EditCardsSection } from "./message/EditCardsSection";
 import {
@@ -484,6 +485,7 @@ function AssistantMessageImpl({
             </React.Fragment>
           );
         })}
+        <FirmCriteriaPanel events={message.events} />
         {error && (
           <p
             role="alert"

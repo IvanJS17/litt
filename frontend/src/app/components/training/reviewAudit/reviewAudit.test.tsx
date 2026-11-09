@@ -171,8 +171,8 @@ describe("the junior's page", () => {
         expect(finish).toBeEnabled();
         fireEvent.click(finish);
         expect(await screen.findByRole("heading", { name: "Tu resultado" })).toBeInTheDocument();
-        expect(screen.getByText("“Rescisión”: 1 marcadas, 1 incorrectas, 0 incompletas.")).toBeInTheDocument();
-        expect(screen.getByText("Columna 2: 1 marcadas, 0 incorrectas, 0 incompletas.")).toBeInTheDocument();
+        expect(screen.getByText("“Rescisión”: marcadas 1, incorrectas 1, incompletas 0.")).toBeInTheDocument();
+        expect(screen.getByText("Columna 2: marcadas 1, incorrectas 0, incompletas 0.")).toBeInTheDocument();
         expect(screen.getByText(/Terminaste esta auditoría el/)).toBeInTheDocument();
         expect(screen.getByText("Lo que dijo tu mentor: Por mejorar")).toBeInTheDocument();
         expect(screen.getByText("Precisa el plazo")).toBeInTheDocument();

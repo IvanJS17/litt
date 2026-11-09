@@ -328,7 +328,7 @@ describe("the mentor's section", () => {
         expect(screen.getByText(EXPLANATION)).toBeInTheDocument();
         expect(screen.getByText("Plazo del pagaré")).toBeInTheDocument();
         expect(screen.getByText("Esperando la explicación de la persona.")).toBeInTheDocument();
-        expect(screen.getByText("2 contrastes están en un asunto que no puedes abrir.")).toBeInTheDocument();
+        expect(screen.getByText("2 contrastes están en asuntos que no puedes abrir.")).toBeInTheDocument();
         expect(screen.getByText(/Enfoque sistemático/)).toBeInTheDocument();
         expect(api.getPupilCriteriaContrasts).toHaveBeenCalledWith(ORG, "pupil-1");
     });

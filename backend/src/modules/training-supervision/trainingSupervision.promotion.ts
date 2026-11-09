@@ -12,7 +12,11 @@
 // stage change. The audit adds training.promotion_accepted with no stage.
 //
 // The evidence is what the current mentor can see: works in matters they
-// cannot open, and drafts in them, do not count.
+// cannot open, and drafts, turns, audits and readings in them, do not count;
+// layer 3 only counts them (`without_access`). The calibration and the
+// audits and readings (trainingSupervision.promotionEvidence.ts) may block a
+// proposal (`overconfident`) or be shown beside it; they never decide: the
+// mentor can change the stage without LiTT's proposal.
 
 import type {
     TrainingAcceptPromotionBody,
@@ -22,7 +26,7 @@ import type {
 import { recordAudit } from "../../lib/audit";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { isTrainingStage, projectPractice } from "../../lib/training";
+import { isTrainingStage } from "../../lib/training";
 import {
     proposePromotions,
     type PromotionDefense,
@@ -30,9 +34,11 @@ import {
     type PromotionStage,
     type PromotionWork,
 } from "../../lib/trainingPromotion";
-import { mayOpenWorkMatter, workPlace } from "../../lib/trainingWork";
+import { workPlace } from "../../lib/trainingWork";
 import { readPractice, removeStage, setStage } from "../training/training.service";
 import { assertCurrentMentor } from "./trainingSupervision.access";
+import { projectLens, type Viewer } from "./trainingSupervision.lens";
+import { loadPromotionLayer3, type PromotionLayer3 } from "./trainingSupervision.promotionEvidence";
 import { selectIn, surfaceOf } from "./trainingSupervision.signals";
 
 export const PROMOTION_NOT_PROPOSED_CODE = "training_promotion_not_proposed";
@@ -40,32 +46,11 @@ const NOT_PROPOSED = "LiTT no longer proposes this promotion. Reload to see the 
 const APPROVALS_LIMIT = 1000;
 
 type Actor = { actorId: string; actorEmail: string | null; orgId: unknown; traineeId: unknown };
-type Viewer = { orgId: string; traineeId: string; actorId: string; actorEmail: string | null };
-
-/** A project's practice area, memoized; whether the viewer may open it. */
-function projectLens(db: Db, viewer: Viewer) {
-    const practices = new Map<string, Promise<string | null>>();
-    const access = new Map<string, Promise<boolean>>();
-    return {
-        practice(projectId: string | null) {
-            if (!projectId) return Promise.resolve(null);
-            if (!practices.has(projectId)) practices.set(projectId, projectPractice(db, projectId));
-            return practices.get(projectId) as Promise<string | null>;
-        },
-        mayOpen(projectId: string | null) {
-            if (!projectId) return Promise.resolve(true);
-            if (!access.has(projectId))
-                access.set(
-                    projectId,
-                    mayOpenWorkMatter(db, { projectId, actorId: viewer.actorId, actorEmail: viewer.actorEmail }),
-                );
-            return access.get(projectId) as Promise<boolean>;
-        },
-    };
-}
 
 /** Reads everything proposePromotions needs. */
-async function loadPromotionInput(db: Db, viewer: Viewer): Promise<ServiceResult<PromotionInput>> {
+type Loaded = { input: PromotionInput; without_access: PromotionLayer3["without_access"] };
+
+async function loadPromotionInput(db: Db, viewer: Viewer): Promise<ServiceResult<Loaded>> {
     const { orgId, traineeId } = viewer;
     const lens = projectLens(db, viewer);
     try {
@@ -151,7 +136,10 @@ async function loadPromotionInput(db: Db, viewer: Viewer): Promise<ServiceResult
             if (!(await lens.mayOpen(projectId))) continue;
             approvals.push({ id: row.document_version_id, practice: await lens.practice(projectId), at: row.created_at });
         }
-        return ok({ stages, defenses, reviews, approvals });
+        const layer3 = await loadPromotionLayer3(db, viewer, lens);
+        if (!layer3.ok) return layer3;
+        const { without_access, ...evidence } = layer3.data;
+        return ok({ input: { stages, defenses, reviews, approvals, ...evidence }, without_access });
     } catch (error) {
         return internalFailure(error);
     }
@@ -163,7 +151,7 @@ export async function getPromotion(db: Db, actor: Actor): Promise<ServiceResult<
     if (!gate.ok) return gate;
     const input = await loadPromotionInput(db, { ...gate.data, actorId: actor.actorId, actorEmail: actor.actorEmail });
     if (!input.ok) return input;
-    return ok({ proposals: proposePromotions(input.data) });
+    return ok({ proposals: proposePromotions(input.data.input), without_access: input.data.without_access });
 }
 
 /** POST …/pupils/:userId/promotion: `{ practice, to }`, a proposal still in force. */
@@ -183,7 +171,7 @@ export async function acceptPromotion(
     const viewer = { orgId, traineeId, actorId: actor.actorId, actorEmail: actor.actorEmail };
     const input = await loadPromotionInput(db, viewer);
     if (!input.ok) return input;
-    const proposal = proposePromotions(input.data).find(
+    const proposal = proposePromotions(input.data.input).find(
         (entry) => entry.practice === practice.data && entry.to === to && entry.proposed,
     );
     if (!proposal) return failure("conflict", NOT_PROPOSED, PROMOTION_NOT_PROPOSED_CODE);
@@ -202,5 +190,5 @@ export async function acceptPromotion(
     });
     const after = await loadPromotionInput(db, viewer);
     if (!after.ok) return after;
-    return ok({ proposals: proposePromotions(after.data) });
+    return ok({ proposals: proposePromotions(after.data.input), without_access: after.data.without_access });
 }

@@ -502,7 +502,7 @@
       }
     },
     "promotion": {
-      "intro": "LiTT proposes; you decide. A proposal rests only on this pupil's approved defenses and reviewed works since their stage last changed.",
+      "intro": "LiTT proposes; you decide. A proposal rests on this pupil's approved defenses and reviewed works since their stage last changed. The rest of the evidence is shown to you, not required.",
       "empty": "This pupil has no stage to promote.",
       "move": "{practice}: {from} → {to}",
       "defenses": "Approved defenses: {count} of {required}",
@@ -511,8 +511,9 @@
       "proposed": "LiTT proposes this promotion.",
       "notYet": "Not proposed yet.",
       "blocked": {
+        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it.",
         "not_approved_after": "A defense was not approved after the last approved one.",
-        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it."
+        "overconfident": "When they marked “Sure”, fewer than 3 of every 4 times coincided with the AI's answer. This blocks only the proposal."
       },
       "accept": "Accept proposal",
       "confirmTitle": "Accept this promotion?",
@@ -523,7 +524,16 @@
       "actions": {
         "load": "load the promotion",
         "accept": "accept the promotion"
-      }
+      },
+      "decideWithout": "You can change the stage without LiTT's proposal, whenever you want, in Training. The proposal is a reading of the evidence, not a condition.",
+      "audits": "Evaluated review audits: {count} ({adequate} adequate, {needsWork} need work)",
+      "readings": "Full readings handed in: {count}",
+      "calibration": {
+        "few": "Confidence calibration: not enough data yet ({count} of {required, plural, one {# marked turn} other {# marked turns}}). It does not block the proposal.",
+        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure, plural, one {# time} other {# times}}, among {count, plural, one {# marked turn} other {# marked turns}}. Coincidence is measured against the AI's answer, according to the AI's contrast.",
+        "needSure": "At least {required} “Sure” turns are needed to weigh them."
+      },
+      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}."
     },
     "mentorSeesMe": {
       "title": "What my mentor sees of me",
@@ -915,7 +925,7 @@
           "title": "Full readings",
           "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
           "empty": "No full readings yet.",
-          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in a matter you cannot open.}}",
+          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in matters you cannot open.}}",
           "notSent": "Not sent yet",
           "sentOn": "Sent on {date, date, medium}",
           "started": "Started on {date, date, medium}",
@@ -1042,7 +1052,7 @@
           "awaiting": "Waiting for the person's explanation.",
           "empty": "No criteria contrasts yet.",
           "failed": "Didn't finish.",
-          "hidden": "{count, plural, one {# contrast is in a matter you cannot open.} other {# contrasts are in a matter you cannot open.}}",
+          "hidden": "{count, plural, one {# contrast is in a matter you cannot open.} other {# contrasts are in matters you cannot open.}}",
           "intro": "The person had two analyses of the same case, wrote why they think they diverge before seeing the AI's explanation, and it was compared with the AI's. It is evidence for you to weigh, with no score and no comparison between people.",
           "routes": "Ran on",
           "title": "Criteria contrasts",

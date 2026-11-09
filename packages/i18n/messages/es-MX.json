@@ -502,7 +502,7 @@
       }
     },
     "promotion": {
-      "intro": "LiTT propone; tú decides. Una propuesta se apoya solo en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa.",
+      "intro": "LiTT propone; tú decides. Una propuesta se apoya en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa. El resto de la evidencia se te muestra, pero no es requisito.",
       "empty": "Este pupilo no tiene etapa que promover.",
       "move": "{practice}: {from} → {to}",
       "defenses": "Defensas aprobadas: {count} de {required}",
@@ -511,8 +511,9 @@
       "proposed": "LiTT propone esta promoción.",
       "notYet": "Todavía no se propone.",
       "blocked": {
+        "general_stage_remains": "Seguiría aplicando su etapa para todas las materias, así que quitar esta no lo haría abogado en esta materia.",
         "not_approved_after": "Hubo una defensa no aprobada después de la última aprobada.",
-        "general_stage_remains": "Seguiría aplicando su etapa para todas las materias, así que quitar esta no lo haría abogado en esta materia."
+        "overconfident": "Cuando marcó «Seguro», menos de 3 de cada 4 veces coincidió con la respuesta de la IA. Esto bloquea solo la propuesta."
       },
       "accept": "Aceptar propuesta",
       "confirmTitle": "¿Aceptar esta promoción?",
@@ -523,7 +524,16 @@
       "actions": {
         "load": "cargar la promoción",
         "accept": "aceptar la promoción"
-      }
+      },
+      "decideWithout": "Puedes cambiar la etapa sin la propuesta de LiTT, cuando quieras, en Formación. La propuesta es una lectura de la evidencia, no una condición.",
+      "audits": "Auditorías de revisiones evaluadas: {count} ({adequate} adecuadas, {needsWork} por mejorar)",
+      "readings": "Lecturas completas entregadas: {count}",
+      "calibration": {
+        "few": "Calibración de la confianza: aún hay pocos datos ({count} de {required, plural, one {# turno marcado} other {# turnos marcados}}). No bloquea la propuesta.",
+        "sure": "Calibración de la confianza: cuando marcó «Seguro», coincidió {coincided} de {sure, plural, one {# vez} other {# veces}}, entre {count, plural, one {# turno marcado} other {# turnos marcados}}. La coincidencia se mide contra la respuesta de la IA, según el contraste de la IA.",
+        "needSure": "Se necesitan al menos {required} turnos «Seguro» para valorarlos."
+      },
+      "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}."
     },
     "mentorSeesMe": {
       "title": "Lo que mi mentor ve de mí",
@@ -805,7 +815,7 @@
         },
         "result": {
           "title": "Tu resultado",
-          "column": "{column}: {marked} marcadas, {incorrect} incorrectas, {incomplete} incompletas.",
+          "column": "{column}: marcadas {marked}, incorrectas {incorrect}, incompletas {incomplete}.",
           "done": "Terminaste esta auditoría el {date, date, medium}."
         },
         "evaluation": {
@@ -915,7 +925,7 @@
           "title": "Lecturas completas",
           "intro": "Cada mes un junior lee un documento completo sin el asistente y escribe lo que encontró antes de ver lo que encontró la máquina. Es evidencia, no un requisito de promoción.",
           "empty": "Todavía no hay lecturas completas.",
-          "hidden": "{count, plural, one {# lectura está en un asunto que no puedes abrir.} other {# lecturas están en un asunto que no puedes abrir.}}",
+          "hidden": "{count, plural, one {# lectura está en un asunto que no puedes abrir.} other {# lecturas están en asuntos que no puedes abrir.}}",
           "notSent": "Aún sin enviar",
           "sentOn": "Enviada el {date, date, medium}",
           "started": "Iniciada el {date, date, medium}",
@@ -1042,7 +1052,7 @@
           "awaiting": "Esperando la explicación de la persona.",
           "empty": "Todavía no hay contrastes de criterios.",
           "failed": "No terminó.",
-          "hidden": "{count, plural, one {# contraste está en un asunto que no puedes abrir.} other {# contrastes están en un asunto que no puedes abrir.}}",
+          "hidden": "{count, plural, one {# contraste está en un asunto que no puedes abrir.} other {# contrastes están en asuntos que no puedes abrir.}}",
           "intro": "La persona tuvo dos análisis del mismo caso, escribió por qué cree que divergen antes de ver la explicación de la IA y se comparó con la de la IA. Es evidencia para que la valores, sin puntaje y sin comparar a unas personas con otras.",
           "routes": "Corrió en",
           "title": "Contrastes de criterios",
