@@ -18,7 +18,7 @@
 // names that no verified citation of the turn backs is marked «sin verificar»
 // by the server (unverifiedLegalFooter), not by the model.
 
-import { hasKnownLaw, lawOfTitle, lawReferences } from "./legalReferences";
+import { legalReferences } from "./legalReferences";
 import type { Db } from "./supabase";
 import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "./trainingNotes";
 
@@ -168,10 +168,8 @@ function verifiedPassages(value: unknown, inherited: string | null = null, depth
 /**
  * The «sin verificar» line to append to an answer, or null. A reference counts
  * as backed only when a citation the server verified in this turn holds the
- * same article of the SAME law (article 1949 of the Código Civil is not
- * article 1949 of the Ley Federal del Trabajo); everything else the model
- * remembers is flagged, and so is an article whose law cannot be established
- * on either side (fails closed). Never throws.
+ * same reference; everything else the model remembers is flagged. The law is
+ * the document cited, never read from the text. Never throws.
  */
 export function unverifiedLegalFooter(
     answer: string,
@@ -179,12 +177,11 @@ export function unverifiedLegalFooter(
     footer: string = UNVERIFIED_LEGAL_FOOTER,
 ): string | null {
     try {
-        const named = lawReferences(answer);
+        const named = legalReferences(answer);
         if (named.size === 0) return null;
         const backed = new Set<string>();
-        for (const { text, title } of verifiedPassages(citations))
-            for (const reference of lawReferences(text, lawOfTitle(title))) backed.add(reference);
-        for (const reference of named) if (!hasKnownLaw(reference) || !backed.has(reference)) return footer;
+        for (const { text } of verifiedPassages(citations)) for (const reference of legalReferences(text)) backed.add(reference);
+        for (const reference of named) if (!backed.has(reference)) return footer;
         return null;
     } catch {
         return null;

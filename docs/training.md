@@ -324,12 +324,9 @@ model and credential (no fallback, never fails the turn), produces the note's
 **«Sin verificar».** LiTT has no corpus of laws. In a mode turn, if the answer
 names a legal reference that no citation the server verified in that turn
 holds, the engine appends a fixed line («Sin verificar: … Confírmalos en la
-fuente oficial.») to the stored answer. The comparison is by article **and
-law** (`lawReferences`, as in the accountability and methodology annex): article
-1949 of the Código Civil is not backed by article 1949 of the Ley Federal del
-Trabajo. Each verified citation's law is read from its text or, failing that,
-from its document's title (`lawOfTitle`); an article whose law cannot be
-established, in the answer or in the citation, is marked. The model does not
+fuente oficial.») to the stored answer. The comparison is by reference (`legalReferences`, as in the accountability and
+methodology annex). The law of a citation is its document, never read from the
+text; the mentor judges it. The model does not
 decide what is verified.
 
 **What the mentor sees.** The two-minute review gains computed lines in
@@ -1065,15 +1062,10 @@ LiTT has no corpus of laws, so **a law cited from memory is `unbacked`**, and a
 legal reference a conclusion names that the shown passage does not
 (`legalReferences` in `lib/legalReferences.ts`: articles, fractions, theses,
 registry numbers) is listed on that conclusion as «Sin verificar: art. 27, fr.
-IV (ley federal trabajo). Confírmalo en la fuente oficial.» An article counts as
-shown only if the passage names the same article **of the same law**
-(`lawReferences`): the law is the one named right after the article («de la Ley
-Federal del Trabajo», «LFT», «constitucional»; names and common abbreviations
-such as CPEUM and «Constitución» normalize to one identity) or, when the
-passage names none, the law its document is (from its title, «Ley Federal del
-Trabajo.pdf»). An article whose law cannot be identified, in the conclusion or
-in the passage, is never shown («ley no identificada»); so are two names the
-normalizer does not equate («Código Civil» vs «Código Civil Federal»). A
+IV. Confírmalo en la fuente oficial.» The law of a passage is the document it comes from, never read from the text:
+the panel (web and Word) shows the document's name next to the passage and the
+mentor judges it.
+A
 conclusion whose passage does not show every reference it names is `unbacked`
 (not `backed`), both when it is written and when it is displayed. A conclusion naming a reference the answer itself
 never named is dropped. The AI only proposes the link; the panel says so and
@@ -1344,8 +1336,7 @@ the person's texts name is **dropped** and the retake fails. A contrast that
 names one keeps its text and the server appends «Sin verificar: … confirma en la
 fuente oficial». If the references of a text cannot be read it is treated as
 unverified, never as verified. The comparison is in one function
-(`namesUnlistedReference`) and is by law and number (`lawReferences`): an
-article whose law cannot be established is treated as unverified.
+(`namesUnlistedReference`) and is by reference (`legalReferences`).
 
 **Audit** (insert-only, `surface: organization`, `{ org_id, target_user_id,
 retake_id }` only): `training.retake_generated` and `training.retake_answered`.

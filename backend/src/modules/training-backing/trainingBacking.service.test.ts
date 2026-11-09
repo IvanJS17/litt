@@ -120,9 +120,9 @@ describe("a stored «backed» conclusion is read again with its passage (B1)", (
             });
     });
 
-    it("shows it unbacked, with the reference unverified and no passage, when the law differs", async () => {
-        expect(await present("Aplica el artículo 5 de la Ley A", "Ley B.pdf")).toMatchObject({
-            status: "unbacked", citation_ref: null, passage: null, unverified_references: ["art. 5 (ley a)"],
+    it("shows it unbacked, with the reference unverified and no passage, when the passage does not show the article", async () => {
+        expect(await present("Aplica el artículo 6 de la Ley A", "Ley B.pdf")).toMatchObject({
+            status: "unbacked", citation_ref: null, passage: null, unverified_references: ["art. 6"],
         });
     });
 });

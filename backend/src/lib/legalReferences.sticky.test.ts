@@ -21,7 +21,7 @@ describe("sticky() only reads patterns anchored with ^", () => {
 
     it("every pattern passed to sticky() in the module is anchored and carries no g or y flag", () => {
         const names = Object.keys(STICKY_PATTERNS);
-        expect(names.length).toBeGreaterThanOrEqual(13);
+        expect(names.length).toBeGreaterThanOrEqual(9);
         for (const name of names) {
             const pattern = STICKY_PATTERNS[name];
             expect(pattern.source.startsWith("^"), name).toBe(true);
@@ -34,7 +34,7 @@ describe("sticky() only reads patterns anchored with ^", () => {
         const source = readFileSync(join(__dirname, "legalReferences.ts"), "utf8");
         const arguments_ = [...source.matchAll(/\bsticky\(\s*([^,\s)]+)/g)].map((match) => match[1]);
         const called = arguments_.filter((argument) => argument !== "pattern:");
-        expect(called.length).toBeGreaterThanOrEqual(14);
+        expect(called.length).toBeGreaterThanOrEqual(9);
         for (const argument of called) expect(Object.keys(STICKY_PATTERNS), argument).toContain(argument);
         const used = new Set(called);
         for (const name of Object.keys(STICKY_PATTERNS)) expect(used.has(name), `${name} is registered but never used`).toBe(true);

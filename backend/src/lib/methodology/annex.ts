@@ -5,7 +5,7 @@
 // says so; a legal basis is shown only as the person wrote it, marked
 // unverified unless a verified source quote names the same reference.
 
-import { hasKnownLaw, lawOfTitle, lawReferences } from "../legalReferences";
+import { legalReferences } from "../legalReferences";
 import type { MethodologyResult } from "./calculators";
 import { methodologyText, type MethodologyText } from "./messages";
 
@@ -67,20 +67,19 @@ export function appearsInMessage(value: string, message: string): boolean {
 
 /**
  * Marks a legal basis the model named. It counts as backed only when every
- * reference in it is also named, for the SAME law, by a verified source quote
- * (the law the quote names or, if it names none, the one its document is);
- * otherwise it is shown as unverified. A reference whose law cannot be
- * established, or none at all, is also unverified.
+ * reference in it is also named by a verified source quote; otherwise it is
+ * shown as unverified, and so is a basis with no reference. The law is the
+ * source document, whose file name the annex shows; the mentor judges it.
  */
 export function verifyBasis(basis: string, sources: Record<string, InputSource>): "backed" | "unverified" {
-    const named = lawReferences(basis);
+    const named = legalReferences(basis);
     if (named.size === 0) return "unverified";
     const quoted = new Set<string>();
     for (const source of Object.values(sources)) {
         if (source.status !== "document_verified") continue;
-        for (const reference of lawReferences(source.excerpt, lawOfTitle(source.filename))) quoted.add(reference);
+        for (const reference of legalReferences(source.excerpt)) quoted.add(reference);
     }
-    return [...named].every((reference) => hasKnownLaw(reference) && quoted.has(reference)) ? "backed" : "unverified";
+    return [...named].every((reference) => quoted.has(reference)) ? "backed" : "unverified";
 }
 
 export function buildAnnex(

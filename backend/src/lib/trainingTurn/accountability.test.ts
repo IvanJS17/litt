@@ -116,73 +116,21 @@ describe("references", () => {
         ["art:14bis", "art. 14bis"],
         ["tesis:1a./j.12/2020", "tesis 1a./j.12/2020"],
         ["registro:2021234", "registro 2021234"],
-        ["art:5@ley federal trabajo", "art. 5 (ley federal trabajo)"],
-        ["art:27:fr:4@cpeum", "art. 27, fr. IV (cpeum)"],
-        ["art:5@?", "art. 5 (ley no identificada)"],
         ["otro:x", "otro:x"],
     ])("describes %s", (key, text) => expect(describeReference(key)).toBe(text));
 
     it("lists the references the shown passage does not name, most specific first", () => {
-        const LFT = "Ley Federal del Trabajo";
-        expect(unverifiedReferences("Procede conforme al artículo 2000 de la LFT.", null)).toEqual(["art. 2000 (ley federal trabajo)"]);
-        expect(unverifiedReferences("Procede conforme al artículo 2000 de la LFT.", "Artículo 2000.- Texto", `${LFT}.pdf`)).toEqual([]);
-        expect(unverifiedReferences("Ver artículo 27, fracción IV, de la LFT.", "Artículo 27 dice algo", `${LFT}.pdf`)).toEqual([
-            "art. 27, fr. IV (ley federal trabajo)",
-        ]);
+        expect(unverifiedReferences("Procede conforme al artículo 2000 de la LFT.", null)).toEqual(["art. 2000"]);
+        expect(unverifiedReferences("Procede conforme al artículo 2000 de la LFT.", "Artículo 2000.- Texto")).toEqual([]);
+        expect(unverifiedReferences("Ver artículo 27, fracción IV, de la LFT.", "Artículo 27 dice algo")).toEqual(["art. 27, fr. IV"]);
         expect(unverifiedReferences("Sin referencias.", null)).toEqual([]);
-        expect(unverifiedReferences("Artículos 1 y 2 de la LFT", "artículo 1", `${LFT}.pdf`)).toEqual(["art. 2 (ley federal trabajo)"]);
+        expect(unverifiedReferences("Artículos 1 y 2 de la LFT", "artículo 1")).toEqual(["art. 2"]);
     });
 
-    describe("the law of the reference (B1)", () => {
-        const passage = "Artículo 5. Queda prohibida la utilización del trabajo de menores de catorce años.";
-        it("does not back article 5 of law A with article 5 of law B", () => {
-            expect(unverifiedReferences("Aplica el artículo 5 de la Ley A.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley a)"]);
-            expect(unverifiedReferences("Aplica el artículo 5 de la Ley A.", "Artículo 5 de la Ley B.", null)).toEqual(["art. 5 (ley a)"]);
-        });
-        it("backs the same article of the same law, however the law is written", () => {
-            expect(unverifiedReferences("Aplica el artículo 5 de la Ley B.", passage, "Ley B.pdf")).toEqual([]);
-            expect(unverifiedReferences("Aplica el art. 5 de la Ley B", "Artículo 5 de la LEY B.", null)).toEqual([]);
-            expect(unverifiedReferences("Aplica el artículo 5 de la LFT.", passage, "Ley Federal del Trabajo.docx")).toEqual([]);
-        });
-        it("backs a citation of the same law however the sentence goes on", () => {
-            const lft = "Artículo 5. Queda prohibida la utilización del trabajo de menores.";
-            expect(unverifiedReferences("El artículo 5 de la LFT exige una jornada máxima.", lft, "Ley Federal del Trabajo.pdf")).toEqual([]);
-            expect(unverifiedReferences("El artículo 5 de la Ley Federal del Trabajo establece que no se trabaja de noche.", lft, "LFT.pdf")).toEqual([]);
-            expect(unverifiedReferences("El artículo 5 de la Ley Federal del Trabajo establece que no.", "Artículo 5 de la Ley Federal del Trabajo dice.", null)).toEqual([]);
-        });
-        it("still does not back law B's predicate with law A's passage, and warns", () => {
-            expect(unverifiedReferences("El artículo 5 de la Ley B exige una jornada máxima.", passage, "Ley A.pdf")).toEqual(["art. 5 (ley b)"]);
-        });
-        it("does not back a lower-case, non-alias law name with another document's passage (B1)", () => {
-            const text = "El artículo 5 de la ley exige que el patrón entregue equipo.";
-            expect(unverifiedReferences(text, passage, "Contrato.pdf")).toEqual(["art. 5 (ley no identificada)"]);
-            expect(unverifiedReferences(text, passage, "Ley A.pdf")).toEqual(["art. 5 (ley no identificada)"]);
-        });
-        it("keeps «Protección al Consumidor» and «Protección a la Propiedad Industrial» apart, each backed by itself", () => {
-            const consumer = "Artículo 5 de la Ley Federal de Protección al Consumidor. Texto.";
-            const industrial = "Artículo 5 de la Ley Federal de Protección a la Propiedad Industrial. Texto.";
-            const cite = (law: string) => `Aplica el artículo 5 de la ${law}.`;
-            const lfpc = "Ley Federal de Protección al Consumidor";
-            const lfppi = "Ley Federal de Protección a la Propiedad Industrial";
-            expect(unverifiedReferences(cite(lfpc), industrial, null)).toEqual(["art. 5 (ley federal proteccion consumidor)"]);
-            expect(unverifiedReferences(cite(lfppi), consumer, null)).toEqual(["art. 5 (ley federal proteccion a propiedad industrial)"]);
-            expect(unverifiedReferences(cite(lfpc), consumer, null)).toEqual([]);
-            expect(unverifiedReferences(cite(lfppi), industrial, null)).toEqual([]);
-        });
-        it("leaves an article with no identifiable law unverified, on either side", () => {
-            expect(unverifiedReferences("Aplica el artículo 5.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley no identificada)"]);
-            expect(unverifiedReferences("Aplica el artículo 5 de la Ley B.", passage, "contrato.docx")).toEqual(["art. 5 (ley b)"]);
-            expect(unverifiedReferences("Aplica el artículo 5.", passage, null)).toEqual(["art. 5 (ley no identificada)"]);
-            expect(unverifiedReferences("Aplica el artículo 5 de esta ley.", passage, "Ley B.pdf")).toEqual(["art. 5 (ley no identificada)"]);
-        });
-        it("treats the common abbreviations of one law as that law", () => {
-            for (const written of ["CPEUM", "la Constitución", "la Constitución Política de los Estados Unidos Mexicanos"])
-                expect(unverifiedReferences(`Rige el artículo 123 de ${written.startsWith("la ") ? "" : "la "}${written}.`, "Artículo 123. Toda persona tiene derecho al trabajo.", "CPEUM.pdf")).toEqual([]);
-            expect(unverifiedReferences("Rige el artículo 123 constitucional.", "Artículo 123. Trabajo.", "Constitución Política de los Estados Unidos Mexicanos.pdf")).toEqual([]);
-            // A different law, or one this does not know how to equate, falls to unverified.
-            expect(unverifiedReferences("Rige el artículo 123 del Código Civil.", "Artículo 123.", "CPEUM.pdf")).toEqual(["art. 123 (codigo civil)"]);
-            expect(unverifiedReferences("Rige el artículo 123 de la Carta Fundamental.", "Artículo 123.", "CPEUM.pdf")).toEqual(["art. 123 (ley no identificada)"]);
-        });
+    it("never reads the law from the text: the number is what the passage must show", () => {
+        const passage = "Artículo 5. Queda prohibido el trabajo de menores.";
+        expect(unverifiedReferences("Aplica el artículo 5 de la Ley A.", passage)).toEqual([]);
+        expect(unverifiedReferences("Aplica el artículo 6 de la Ley A.", passage)).toEqual(["art. 6"]);
     });
 });
 
@@ -220,8 +168,8 @@ describe("parseBackingConclusions", () => {
             answer,
             citations,
         );
-        expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null, unverified_references: ["art. 1949 (codigo civil)"] });
-        expect(got?.[1]).toMatchObject({ status: "unbacked", unverified_references: ["art. 2000 (ley no identificada)"] });
+        expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null, unverified_references: ["art. 1949"] });
+        expect(got?.[1]).toMatchObject({ status: "unbacked", unverified_references: ["art. 2000"] });
     });
 
     it("W3: a verified passage that does not show the named reference does not back the conclusion", () => {
@@ -232,39 +180,19 @@ describe("parseBackingConclusions", () => {
                 quotes: [{ page: 1, quote: "x", verification: { verified: true, source_excerpt: "Artículo 5. Texto de la ley B." } }],
             },
         ]);
-        const answer = `${LONG_ANSWER} El artículo 5 de la Ley A y el artículo 5 de la Ley B.`;
+        const answer = `${LONG_ANSWER} El artículo 6 de la Ley A y el artículo 5 de la Ley B.`;
         const got = parseBackingConclusions(
             json([
-                { text: "Aplica el artículo 5 de la Ley A", citation_ref: 1 },
+                { text: "Aplica el artículo 6 de la Ley A", citation_ref: 1 },
                 { text: "Aplica el artículo 5 de la Ley B", citation_ref: 1 },
             ]),
             answer,
             law,
         );
         // Not «backed» while the reference is listed as unverified, and no passage is shown for it.
-        expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null, unverified_references: ["art. 5 (ley a)"] });
+        expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null, unverified_references: ["art. 6"] });
         expect(got?.[1]).toMatchObject({ status: "backed", citation_ref: 1, unverified_references: [] });
         expect(got?.every((c) => c.status !== "backed" || c.unverified_references.length === 0)).toBe(true);
-    });
-
-    it("B1: a lower-case law name is never «backed» by a passage of another document", () => {
-        const answer = `${LONG_ANSWER} El artículo 5 de la ley exige que el patrón entregue equipo.`;
-        for (const filename of ["Contrato.pdf", "Ley A.pdf"]) {
-            const other = readBackingCitations([
-                {
-                    ...VERIFIED,
-                    filename,
-                    quotes: [{ page: 1, quote: "x", verification: { verified: true, source_excerpt: "Artículo 5. El patrón entregará equipo." } }],
-                },
-            ]);
-            const got = parseBackingConclusions(
-                json([{ text: "El artículo 5 de la ley exige que el patrón entregue equipo", citation_ref: 1 }]),
-                answer,
-                other,
-            );
-            expect(got?.[0]).toMatchObject({ status: "unbacked", citation_ref: null });
-            expect(got?.[0].unverified_references).not.toEqual([]);
-        }
     });
 
     it("drops a conclusion that names a reference the answer never named", () => {
