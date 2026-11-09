@@ -644,3 +644,69 @@ test("a chat kept on this device only is offered no hint and no round", async ({
   expect(urls.at(-1)).toContain("storage=local");
   expect(urls.at(-1)).not.toContain("chat_id=");
 });
+
+const CRITERION = {
+  id: "crit-1",
+  kind: "criterio",
+  practice: "laboral",
+  topic: "Prescripción de la rescisión",
+  position: "En este despacho se cuenta desde que el patrón conoce la falta.",
+  author_name: "Ana Torres",
+  playbook_id: null,
+  rule_id: null,
+  created_at: "2026-11-01T12:00:00Z",
+};
+
+test("the criteria the assistant consulted are shown under the answer, with their author", async ({
+  addin,
+  page,
+}) => {
+  await addin.mockApiJson("GET", "**/training/stage**", { stage: "junior" });
+  await addin.mockChatStream(["Procede la rescisión."], {
+    chatId: "criteria-chat",
+    firmCriteria: [
+      {
+        call_id: "call-1",
+        practice: "laboral",
+        topic: "prescripción",
+        criteria: [CRITERION],
+        truncated: false,
+      },
+    ],
+  });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+  await page.getByPlaceholder("How can I help?").fill("¿Prescribió la acción?");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  const panel = page.getByTestId("firm-criteria-consulted");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("1 criterion consulted")).toBeVisible();
+  await panel.getByText("1 criterion consulted").click();
+  await expect(panel.getByText("Prescripción de la rescisión")).toBeVisible();
+  await expect(panel.getByText(/According to Ana Torres/)).toBeVisible();
+  await expect(panel.getByText(/They are not law/)).toBeVisible();
+});
+
+test("the consulted criteria read in Spanish and say so when the firm wrote none", async ({
+  addin,
+  page,
+}) => {
+  await page.addInitScript(() => window.localStorage.setItem("litt.locale", "es-MX"));
+  await addin.mockApiJson("GET", "**/training/stage**", { stage: "junior" });
+  await addin.mockChatStream(["Respuesta."], {
+    chatId: "criteria-chat-es",
+    firmCriteria: [
+      { call_id: "call-2", practice: null, topic: "mora", criteria: [], truncated: false },
+    ],
+  });
+  await addin.gotoTaskpane();
+  await addin.expectAuthedShell();
+  await page.getByPlaceholder("How can I help?").fill("¿Hay mora?");
+  await page.getByRole("button", { name: "Send" }).click();
+
+  const panel = page.getByTestId("firm-criteria-consulted");
+  await expect(panel).toBeVisible();
+  await panel.locator("summary").click();
+  await expect(panel.getByText("Tu despacho no ha escrito un criterio sobre este tema.")).toBeVisible();
+});

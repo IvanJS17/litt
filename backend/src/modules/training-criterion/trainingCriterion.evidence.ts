@@ -6,76 +6,9 @@
 
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { TURN_NOTE_CHAT_COLUMN, type TurnNoteSurface } from "../../lib/trainingNotes";
-import type { EvidenceNote } from "../../lib/trainingMap";
-import { openableWorkMatters, WORK_SURFACES, workPlace } from "../../lib/trainingWork";
-
-/** The newest notes read; a person is nowhere near this many in practice. */
-export const EVIDENCE_NOTES_LIMIT = 1000;
-
-const COLUMNS =
-    "id, chat_id, word_chat_id, tabular_chat_id, created_at, contrast_status, confidence, verdict, verdict_source, foundation, topics, answer_unverified, mode, step";
-
-type StoredNote = {
-    id: string;
-    chat_id: string | null;
-    word_chat_id: string | null;
-    tabular_chat_id: string | null;
-    created_at: string;
-    contrast_status: string;
-    confidence: number | null;
-    verdict: EvidenceNote["verdict"];
-    verdict_source: EvidenceNote["verdict_source"];
-    foundation: EvidenceNote["foundation"];
-    topics: string[] | null;
-    answer_unverified: boolean | null;
-    mode: string | null;
-    step: number | null;
-};
-
-export type EvidenceRow = EvidenceNote & {
-    surface: TurnNoteSurface;
-    chat_id: string;
-    step: number | null;
-};
-
-/** The person's notes in one organization with the columns the map reads, oldest first. */
-export async function loadEvidenceNotes(
-    db: Db,
-    args: { orgId: string; traineeId: string },
-): Promise<ServiceResult<EvidenceRow[]>> {
-    const { data, error } = await db
-        .from("training_turn_notes")
-        .select(COLUMNS)
-        .eq("org_id", args.orgId)
-        .eq("trainee_user_id", args.traineeId)
-        .order("created_at", { ascending: false })
-        .limit(EVIDENCE_NOTES_LIMIT);
-    if (error) return internalFailure(error);
-    const rows: EvidenceRow[] = [];
-    for (const note of (data ?? []) as unknown as StoredNote[]) {
-        const surface = WORK_SURFACES.find((candidate) => note[TURN_NOTE_CHAT_COLUMN[candidate] as "chat_id"] != null);
-        if (!surface) continue;
-        const chatId = note[TURN_NOTE_CHAT_COLUMN[surface] as "chat_id"] as string;
-        rows.push({
-            id: note.id,
-            surface,
-            chat_id: chatId,
-            work: `${surface}:${chatId}`,
-            created_at: note.created_at,
-            contrast_status: note.contrast_status,
-            confidence: note.confidence ?? null,
-            verdict: note.verdict ?? null,
-            verdict_source: note.verdict_source ?? null,
-            foundation: note.foundation ?? null,
-            topics: note.topics ?? null,
-            answer_unverified: note.answer_unverified === true,
-            mode: note.mode ?? null,
-            step: note.step ?? null,
-        });
-    }
-    return ok(rows.reverse());
-}
+import type { TurnNoteSurface } from "../../lib/trainingNotes";
+import { openableWorkMatters, workPlace } from "../../lib/trainingWork";
+import type { EvidenceRow } from "../../lib/trainingEvidenceNotes";
 
 /**
  * Of `rows`, those of works in matters the actor may open (a Word chat, or a

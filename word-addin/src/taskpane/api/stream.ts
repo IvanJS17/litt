@@ -21,6 +21,7 @@ import {
 } from "../lib/wordChatTerminalError";
 import type { ReasoningLevel } from "../lib/wordChatTypes";
 import type {
+  FirmCriteriaEvent,
   TextCardEvent,
   TrainingConfidenceLevel,
   TrainingTurnMode,
@@ -92,6 +93,12 @@ export interface WordTurnHandlers {
    * citations frame; the final frame supersedes earlier partial ones.
    */
   onCitations?: (citations: unknown[]) => void;
+  /**
+   * The firm's criteria the assistant consulted (docs/training.md, "One mold
+   * of criterion"), exactly as the server stored them: the attribution is the
+   * server's, never the model's.
+   */
+  onFirmCriteria?: (event: FirmCriteriaEvent) => void;
   /** The sequence number of each frame applied, for a reconnect's `from`. */
   onEventId?: (seq: number) => void;
 }
@@ -189,6 +196,22 @@ async function consumeTurnStream(
           ...(typeof d.document_id === "string" && d.document_id
             ? { documentId: d.document_id }
             : {}),
+        });
+      } else if (
+        d.type === "firm_criteria" &&
+        typeof d.call_id === "string" &&
+        d.call_id
+      ) {
+        params.onFirmCriteria?.({
+          type: "firm_criteria",
+          call_id: d.call_id,
+          practice: typeof d.practice === "string" ? d.practice : null,
+          topic: typeof d.topic === "string" ? d.topic : null,
+          criteria: Array.isArray(d.criteria)
+            ? (d.criteria as FirmCriteriaEvent["criteria"])
+            : [],
+          truncated: d.truncated === true,
+          ...(typeof d.error === "string" && d.error ? { error: d.error } : {}),
         });
       } else if (d.type === "citations" && Array.isArray(d.citations)) {
         params.onCitations?.(d.citations);

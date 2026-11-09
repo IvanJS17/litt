@@ -31,7 +31,8 @@ import {
     type MapEvent,
 } from "../../lib/trainingMap";
 import { assertCurrentMentor, assertLearningAccess } from "../training-supervision/trainingSupervision.service";
-import { loadEvidenceNotes, visibleToMentor, type EvidenceRow } from "./trainingCriterion.evidence";
+import { loadEvidenceNotes, type EvidenceRow } from "../../lib/trainingEvidenceNotes";
+import { visibleToMentor } from "./trainingCriterion.evidence";
 import { retakeGeneration } from "./trainingCriterion.retakeRoute";
 import { isLiveRetake, readRetakes, serializeRetake, type RetakeRow } from "./trainingCriterion.retakeRows";
 import type { TrainingVerdict } from "../../lib/trainingVerdict";

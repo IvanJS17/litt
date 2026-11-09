@@ -40,7 +40,7 @@ import {
 import { completeSupervision } from "../../lib/trainingSupervisionAi";
 import { assertLearningAccess } from "../training-supervision/trainingSupervision.service";
 import { chatRouteColumns, parseCredentialRef, recordChatEgress } from "../user/user.service";
-import { loadEvidenceNotes } from "./trainingCriterion.evidence";
+import { loadEvidenceNotes } from "../../lib/trainingEvidenceNotes";
 import {
     effectiveRetakeStatus,
     loadOwnRetake,

@@ -84,6 +84,8 @@ interface ChatStreamOpts {
   }[];
   /** Emit a final `citations` frame (the quotes behind `[n]` markers). */
   citations?: unknown[];
+  /** Emit `firm_criteria` frames (the firm's criteria the assistant consulted). */
+  firmCriteria?: Record<string, unknown>[];
 }
 
 interface MockJsonOpts {
@@ -721,6 +723,12 @@ export const test = base.extend<{ addin: Addin }>({
               tool_call_id: call.toolCallId,
               name: call.name,
               input: call.input,
+            })}\n\n`;
+          }
+          for (const consultation of opts?.firmCriteria ?? []) {
+            body += `data: ${JSON.stringify({
+              type: "firm_criteria",
+              ...consultation,
             })}\n\n`;
           }
           for (const chunk of chunks) {

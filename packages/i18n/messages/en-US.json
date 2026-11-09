@@ -529,8 +529,8 @@
       "audits": "Evaluated review audits: {count} ({adequate} adequate, {needsWork} need work)",
       "readings": "Full readings handed in: {count}",
       "calibration": {
-        "few": "Confidence calibration: not enough data yet ({count} of {required} marked turns). It does not block the proposal.",
-        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure} times, among {count} marked turns. Coincidence is measured against the AI's answer, according to the AI's contrast.",
+        "few": "Confidence calibration: not enough data yet ({count} of {required, plural, one {# marked turn} other {# marked turns}}). It does not block the proposal.",
+        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure, plural, one {# time} other {# times}}, among {count, plural, one {# marked turn} other {# marked turns}}. Coincidence is measured against the AI's answer, according to the AI's contrast.",
         "needSure": "At least {required} “Sure” turns are needed to weigh them."
       },
       "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}."
@@ -924,7 +924,7 @@
           "title": "Full readings",
           "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
           "empty": "No full readings yet.",
-          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in a matter you cannot open.}}",
+          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in matters you cannot open.}}",
           "notSent": "Not sent yet",
           "sentOn": "Sent on {date, date, medium}",
           "started": "Started on {date, date, medium}",
@@ -1051,7 +1051,7 @@
           "awaiting": "Waiting for the person's explanation.",
           "empty": "No criteria contrasts yet.",
           "failed": "Didn't finish.",
-          "hidden": "{count, plural, one {# contrast is in a matter you cannot open.} other {# contrasts are in a matter you cannot open.}}",
+          "hidden": "{count, plural, one {# contrast is in a matter you cannot open.} other {# contrasts are in matters you cannot open.}}",
           "intro": "The person had two analyses of the same case, wrote why they think they diverge before seeing the AI's explanation, and it was compared with the AI's. It is evidence for you to weigh, with no score and no comparison between people.",
           "routes": "Ran on",
           "title": "Criteria contrasts",

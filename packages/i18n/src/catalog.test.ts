@@ -218,4 +218,15 @@ describe("@litt/i18n catalog", () => {
         expect(detailMismatches(en, es, "es-MX")).toEqual([]);
         expect(detailMismatches(en, "{n, plural, one {# archivo} other {# archivos}}", "es-MX")).toEqual([]);
     });
+
+    it("a counted noun in the training screens never follows a bare argument (it uses a plural)", () => {
+        // «coincidió {n} de {m} veces» must be `{m, plural, one {# vez} other {# veces}}`.
+        const bare = /\{\w+\}\s+(times?|veces|vez|marked turns?|turnos? marcados?)\b/i;
+        const found: string[] = [];
+        for (const [name, tree] of [["en-US", enUS], ["es-MX", esMX]] as const) {
+            for (const [key, value] of flatten((tree as Tree).training as Tree, "training"))
+                if (typeof value === "string" && bare.test(value)) found.push(`${name} ${key}: ${value}`);
+        }
+        expect(found).toEqual([]);
+    });
 });

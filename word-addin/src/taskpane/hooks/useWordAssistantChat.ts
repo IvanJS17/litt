@@ -810,6 +810,15 @@ export function useWordAssistantChat({
                 ];
                 publishAssistantEvents();
               },
+              // The criteria the assistant consulted stay in the message
+              // (the server persists the same event), shown under the answer.
+              onFirmCriteria: (event) => {
+                if (!requestIsCurrent()) return;
+                assistantEvents = [
+                  ...completeAssistantEvents(assistantEvents), event,
+                ];
+                publishAssistantEvents();
+              },
           };
           const onStreamText = (chunk: string): void => {
               if (!requestIsCurrent()) return;
