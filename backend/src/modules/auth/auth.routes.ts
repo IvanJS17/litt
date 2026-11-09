@@ -46,6 +46,7 @@ import {
   factorSchema,
   friendlyNameSchema,
   handoffSchema,
+  inviteSessionSchema,
   issueWordHandoff,
   listMfaFactors,
   mfaAssuranceLevel,
@@ -301,6 +302,29 @@ authRouter.post("/exchange", asyncRoute(async (req, res) => {
       });
       res.json({ handoffTicket });
       return;
+    }
+    res.json({ user: publicAuthUser(data.user) });
+  } catch (error) {
+    authError(res, error);
+  }
+}));
+
+// An invitation link (admin-issued, so no PKCE code) lands with the session
+// in the URL hash; the page posts it here to become an HttpOnly cookie session.
+// GoTrue validates the tokens, so a forged pair gets nothing.
+authRouter.post("/invite-session", asyncRoute(async (req, res) => {
+  setOperation("auth.signin");
+  const parsed = inviteSessionSchema.safeParse(req.body);
+  if (!parsed.success) return invalidBody(res);
+  try {
+    const client = createRequestSupabase(req, res);
+    const { data, error } = await applyHandoffSession(client, {
+      accessToken: parsed.data.accessToken,
+      refreshToken: parsed.data.refreshToken,
+    });
+    if (error || !data.user || !data.session) {
+      clearRequestAuthCookies(req, res);
+      return authError(res, error);
     }
     res.json({ user: publicAuthUser(data.user) });
   } catch (error) {

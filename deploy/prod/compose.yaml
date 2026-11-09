@@ -96,6 +96,15 @@ services:
       GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      # Correos en español: las plantillas viven en frontend/public/email-templates
+      # y GoTrue las pide a litt-web por la red interna (`default`, que ambos
+      # comparten); el nombre es el servicio, único en esa red.
+      GOTRUE_MAILER_TEMPLATES_INVITE: http://litt-web:3000/email-templates/invite.html
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: http://litt-web:3000/email-templates/confirmation.html
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: http://litt-web:3000/email-templates/recovery.html
+      GOTRUE_MAILER_SUBJECTS_INVITE: Te invitaron a LiTT
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: Confirma tu correo de LiTT
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: Recupera tu contraseña de LiTT
     depends_on:
       db:
         condition: service_healthy

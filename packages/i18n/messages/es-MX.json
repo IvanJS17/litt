@@ -37,6 +37,7 @@
       "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
       "signInIncomplete": "No se pudo completar el inicio de sesión. Empieza de nuevo desde la página de inicio de sesión.",
       "signupDisabled": "Por ahora no se pueden crear cuentas nuevas.",
+      "signupInviteOnly": "LiTT está en beta cerrada: necesitas una invitación. Si ya te invitaron, revisa tu correo; si no, pídela al despacho y regístrate con ese mismo correo.",
       "ssoDisabled": "El inicio de sesión único (SSO) no está activado.",
       "ssoDomainNotAllowed": "El inicio de sesión único (SSO) no está disponible para este dominio de correo.",
       "ssoNotSetUp": "El inicio de sesión único (SSO) no está configurado para este dominio de correo.",
@@ -212,7 +213,7 @@
       "member_data_action_disabled": "Los propietarios de esta organización no permiten que los miembros hagan esto.",
       "memory_revision_conflict": "La memoria cambió desde que se cargó. Revisa lo que está guardado ahora e inténtalo de nuevo.",
       "mfa_verification_required": "Completa la verificación en dos pasos para continuar.",
-      "signup_invite_only": "LiTT está en beta cerrada: necesitas una invitación. Pídela al despacho que te invitó y regístrate con ese mismo correo.",
+      "signup_invite_only": "LiTT está en beta cerrada: necesitas una invitación. Si ya te invitaron, revisa tu correo; si no, pídela al despacho y regístrate con ese mismo correo.",
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
@@ -1487,6 +1488,49 @@
     },
     "settings": {
       "title": "Ajustes"
+    }
+  },
+  "access": {
+    "noOrgInvite": "Pide una invitación a tu despacho",
+    "invite": {
+      "sent": "Le enviamos un correo con la invitación",
+      "notSent": "No pudimos enviar el correo. Avísale que entre a LiTT con ese correo"
+    },
+    "setPassword": {
+      "title": "Crea tu contraseña",
+      "subtitle": "Usa al menos {min} caracteres. Después seguirás con la configuración de tu cuenta.",
+      "password": "Contraseña",
+      "confirm": "Confirma tu contraseña",
+      "mismatch": "Las contraseñas no coinciden.",
+      "submit": "Guardar contraseña",
+      "saving": "Guardando...",
+      "verifying": "Verificando tu invitación...",
+      "invalidTitle": "Invitación no disponible",
+      "invalid": "Este enlace de invitación no es válido o expiró. Pide que te inviten de nuevo.",
+      "toLogin": "Ir a iniciar sesión"
+    },
+    "beta": {
+      "tab": "Invitaciones a la beta",
+      "heading": "Invitaciones a la beta",
+      "hint": "La persona invitada podrá crear un despacho y ser su dueña.",
+      "emailLabel": "Correo de la persona invitada",
+      "invite": "Invitar",
+      "inviting": "Invitando...",
+      "empty": "Todavía no hay invitaciones.",
+      "loadError": "No pudimos cargar las invitaciones.",
+      "colEmail": "Correo",
+      "colStatus": "Estado",
+      "colExpires": "Vence",
+      "status": {
+        "pending": "Pendiente",
+        "used": "Usada",
+        "cancelled": "Cancelada",
+        "expired": "Vencida"
+      },
+      "cancel": "Cancelar invitación",
+      "cancelTitle": "¿Cancelar la invitación?",
+      "cancelBody": "{email} ya no podrá registrarse ni crear un despacho con esta invitación.",
+      "keep": "Conservar"
     }
   }
 }

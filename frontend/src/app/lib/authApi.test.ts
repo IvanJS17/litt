@@ -17,6 +17,7 @@ import {
     requestPasswordReset,
     signup,
     startGoogleOAuth,
+    startInviteSession,
     startSso,
     unenrollMfa,
     updateAuthEmail,
@@ -347,6 +348,13 @@ describe("cookie auth client", () => {
             "/api/auth/exchange",
             "POST",
             { code: "oauth-code" },
+        ],
+        [
+            "invitation session",
+            () => startInviteSession("a1", "r1"),
+            "/api/auth/invite-session",
+            "POST",
+            { accessToken: "a1", refreshToken: "r1" },
         ],
         [
             "email update",

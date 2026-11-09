@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { OrganizationSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
+import { usePlatformMe } from "@/app/hooks/usePlatformMe";
 import { notifyOrganizationInvitationsChanged } from "@/app/hooks/useOrganizationInvitationCount";
 import {
   acceptOrgInvitation,
@@ -39,6 +41,8 @@ const CARD_GRID_CLASS = "grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2";
  */
 export function OrganizationsOverview() {
   const router = useRouter();
+  const t = useTranslations();
+  const canCreateOrg = usePlatformMe()?.can_create_org !== false;
   const { workspaceId, setWorkspace, refreshOrganizations } = useWorkspace();
   // `null` is "no workspace to compare with" (outside a WorkspaceProvider),
   // where nothing is narrowed.
@@ -140,17 +144,21 @@ export function OrganizationsOverview() {
           <SettingsHeading id="my-organizations-heading">
             Organizations
           </SettingsHeading>
-          <PillButtonUI
-            tone="white"
-            size="xs"
-            onClick={() => setCreateOpen(true)}
-            aria-label="New organization"
-            aria-haspopup="dialog"
-            className={`h-7 ${LIQUID_GLASS_SUBTLE_CLASS}`}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            New
-          </PillButtonUI>
+          {canCreateOrg ? (
+            <PillButtonUI
+              tone="white"
+              size="xs"
+              onClick={() => setCreateOpen(true)}
+              aria-label="New organization"
+              aria-haspopup="dialog"
+              className={`h-7 ${LIQUID_GLASS_SUBTLE_CLASS}`}
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              New
+            </PillButtonUI>
+          ) : (
+            <SettingsDescription>{t("access.noOrgInvite")}</SettingsDescription>
+          )}
         </div>
         {loading ? (
           <div className={CARD_GRID_CLASS} aria-busy="true">

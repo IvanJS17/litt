@@ -52,7 +52,7 @@ beforeEach(() => {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   }));
-  mocks.createOrgInvitation.mockResolvedValue({});
+  mocks.createOrgInvitation.mockResolvedValue({ email_sent: true });
   mocks.cancelOrgInvitation.mockResolvedValue(undefined);
   mocks.resendOrgInvitation.mockResolvedValue(undefined);
   mocks.deleteOrg.mockResolvedValue(undefined);
@@ -88,7 +88,7 @@ describe("InviteOrganizationMemberModal", () => {
     await waitFor(() => expect(mocks.createOrgInvitation).toHaveBeenCalled());
     expect(
       await screen.findByText(
-        "Invitation sent to new@firm.example. The list below may be out of date — reload to see the current one.",
+        "We emailed them the invitation. The list below may be out of date — reload to see the current one.",
       ),
     ).toBeInTheDocument();
     // The mutation succeeded, so it is still not reported as a failure.
@@ -112,7 +112,29 @@ describe("InviteOrganizationMemberModal", () => {
     await typeInvitation(user);
 
     expect(
-      await screen.findByText("Invitation sent to new@firm.example."),
+      await screen.findByText("We emailed them the invitation"),
+    ).toBeInTheDocument();
+  });
+
+  it("tells the admin when the invitation email could not be sent", async () => {
+    mocks.createOrgInvitation.mockResolvedValue({ email_sent: false });
+    const user = userEvent.setup();
+    render(
+      <InviteOrganizationMemberModal
+        open
+        org={org}
+        invitations={[]}
+        onClose={vi.fn()}
+        onChanged={vi.fn()}
+      />,
+    );
+
+    await typeInvitation(user);
+
+    expect(
+      await screen.findByText(
+        "We couldn't send the email. Tell them to sign in to LiTT with that email",
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -190,6 +190,14 @@ describe("SignupPage", () => {
             "An account with this email already exists. Log in instead.",
         ],
         [
+            "closed beta without an invitation",
+            Object.assign(new Error("Sign-up is by invitation."), {
+                status: 403,
+                code: "signup_invite_only",
+            }),
+            "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
+        ],
+        [
             "too many attempts",
             Object.assign(new Error("Request rate limit reached"), {
                 status: 429,

@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useOrganizationInvitationCount } from "@/app/hooks/useOrganizationInvitationCount";
+import { usePlatformMe } from "@/app/hooks/usePlatformMe";
 import { useMemberDataActions } from "@/app/hooks/useMemberDataActions";
 import {
     SettingsShell,
@@ -70,6 +71,8 @@ export default function SettingsLayout({
     // owners allow neither exports nor bulk deletes, so it is not listed.
     const { canExport, canDelete } = useMemberDataActions();
     const hidePrivacyData = !canExport && !canDelete;
+    // Beta invitations are for platform administrators only.
+    const isPlatformAdmin = usePlatformMe(user?.id)?.admin === true;
     const visibleTabs = useMemo(
         () =>
             TABS.filter(
@@ -85,9 +88,18 @@ export default function SettingsLayout({
                               href: "/settings/firm-criteria",
                           },
                       ]
-                    : [tab],
+                    : tab.id === "organizations" && isPlatformAdmin
+                      ? [
+                            tab,
+                            {
+                                id: "beta-invitations",
+                                label: t("access.beta.tab"),
+                                href: "/settings/beta-invitations",
+                            },
+                        ]
+                      : [tab],
             ),
-        [hidePrivacyData, t],
+        [hidePrivacyData, isPlatformAdmin, t],
     );
     // Search only what is listed: an entry on a hidden tab would open a page
     // the person is not offered.

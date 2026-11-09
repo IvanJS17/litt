@@ -394,6 +394,10 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   backend no tiene credenciales de correo: al invitar a un correo sin cuenta
   pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene
   cuenta ve su invitación dentro de la app.
+- **Correos de GoTrue en español**: las plantillas (`invite`, `confirmation`,
+  `recovery`) están en `frontend/public/email-templates/` y GoTrue las lee de
+  `http://litt-web:3000/email-templates/` por la red interna; los asuntos van en
+  `GOTRUE_MAILER_SUBJECTS_*`. Si `litt-web` no responde, GoTrue no puede enviar.
 - **Signup abierto con confirmación de correo** (`GOTRUE_MAILER_AUTOCONFIRM=false`):
   una cuenta nueva no entra hasta confirmar su correo. Cerrar el signup
   (`DISABLE_SIGNUP=true`) cuando todo el equipo tenga cuenta.
