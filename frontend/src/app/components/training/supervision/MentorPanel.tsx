@@ -18,6 +18,7 @@ import {
     listOrgMembers,
     type OrgMember,
 } from "@/app/lib/mikeApi";
+import { GymTab } from "../gym/GymTab";
 import { MemberIdentity } from "../trainingShared";
 import { CriterionTab } from "./CriterionTab";
 import { DefensesTab } from "./DefensesTab";
@@ -28,10 +29,10 @@ import { LoadFailed, passInForce, useSupervisionData } from "./supervisionShared
 
 // Ajustes → Formación → Panel del mentor (docs/training.md): the caller's
 // pupils, one organization at a time, ordered by their latest work (never by
-// performance), and one pupil's supervision in five tabs. There are no
+// performance), and one pupil's supervision in six tabs. There are no
 // totals, charts or comparisons across pupils.
 
-const TABS = ["works", "defenses", "passes", "promotion", "criterion"] as const;
+const TABS = ["works", "defenses", "passes", "promotion", "criterion", "gym"] as const;
 type Tab = (typeof TABS)[number];
 
 type PupilSummary = {
@@ -247,6 +248,7 @@ function PupilSupervision({
             {tab === "passes" && <PassesTab orgId={orgId} pupilId={pupil.userId} />}
             {tab === "promotion" && <PromotionTab orgId={orgId} pupilId={pupil.userId} />}
             {tab === "criterion" && <CriterionTab orgId={orgId} pupilId={pupil.userId} />}
+            {tab === "gym" && <GymTab orgId={orgId} pupilId={pupil.userId} />}
         </section>
     );
 }

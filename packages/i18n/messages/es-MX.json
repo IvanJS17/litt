@@ -362,7 +362,8 @@
         "defenses": "Defensa oral",
         "passes": "Pase de urgencia",
         "promotion": "Promoción",
-        "criterion": "Criterio"
+        "criterion": "Criterio",
+        "gym": "Gimnasio"
       },
       "actions": {
         "load": "cargar tus pupilos"
@@ -533,7 +534,8 @@
         "sure": "Calibración de la confianza: cuando marcó «Seguro», coincidió {coincided} de {sure, plural, one {# vez} other {# veces}}, entre {count, plural, one {# turno marcado} other {# turnos marcados}}. La coincidencia se mide contra la respuesta de la IA, según el contraste de la IA.",
         "needSure": "Se necesitan al menos {required} turnos «Seguro» para valorarlos."
       },
-      "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}."
+      "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}.",
+      "gym": "Gimnasio: {attempts, plural, one {# intento entregado} other {# intentos entregados}}, {found} de {errors} errores encontrados, {hints, plural, one {# pista} other {# pistas}}"
     },
     "mentorSeesMe": {
       "title": "Lo que mi mentor ve de mí",
@@ -1308,6 +1310,130 @@
         "changed": "cambiado el {date, date, medium}",
         "limit": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
         "loadingLabel": "Cargando los criterios del despacho"
+      }
+    },
+    "gym": {
+      "notice": "Caso ficticio de práctica",
+      "kinds": {
+        "superseded_thesis": "Tesis superada",
+        "repealed_article": "Artículo derogado",
+        "wrong_jurisdiction": "Competencia confundida",
+        "invented_citation": "Cita inventada",
+        "other": "Otro"
+      },
+      "status": {
+        "assigned": "Asignado",
+        "in_progress": "En curso",
+        "submitted": "Entregado"
+      },
+      "paragraph": "Párrafo {number}",
+      "minutes": "{count, plural, one {# minuto} other {# minutos}}",
+      "codes": {
+        "open": "Este caso ya tiene un intento sin entregar con este pupilo.",
+        "closed": "El tiempo de este intento ya terminó. Se entregó lo que tenías guardado.",
+        "noHint": "No quedan pistas para los párrafos que no has marcado."
+      },
+      "result": {
+        "title": "Resultado",
+        "summary": "Encontrados: {found} de {total} errores sembrados.",
+        "found": "Encontrados",
+        "kindOk": "tipo correcto",
+        "kindDiff": "tipo distinto",
+        "missed": "Escapados",
+        "extra": "Hallazgos donde no había error",
+        "extraNote": "Aquí no había error sembrado.",
+        "none": "Ninguno",
+        "hints": "{count, plural, =0 {No usaste pistas} one {Pistas usadas: #} other {Pistas usadas: #}}",
+        "mentorHints": "Pistas usadas: {count}",
+        "note": "Nota: {note}"
+      },
+      "pupil": {
+        "title": "Gimnasio",
+        "intro": "Casos ficticios de práctica que tu mentor te asigna. Cada intento tiene un tiempo límite que lleva el servidor.",
+        "empty": "Tu mentor todavía no te asigna ningún caso.",
+        "start": "Empezar",
+        "continue": "Continuar",
+        "viewResult": "Ver resultado",
+        "startName": "{action}: {title}",
+        "back": "Volver a mis intentos",
+        "actions": {
+          "load": "cargar tus intentos del gimnasio",
+          "open": "abrir el intento",
+          "save": "guardar tus hallazgos",
+          "hint": "pedir una pista",
+          "submit": "entregar el intento"
+        },
+        "timeLeft": "Tiempo restante: {time}",
+        "paragraphs": "Párrafos",
+        "mark": "Marcar",
+        "unmark": "Quitar",
+        "markName": "Marcar el párrafo {number}",
+        "unmarkName": "Quitar la marca del párrafo {number}",
+        "kind": "Tipo de error",
+        "note": "Nota (opcional)",
+        "noteName": "Nota del párrafo {number}",
+        "hint": "Pedir pista",
+        "hints": "Pistas",
+        "submit": "Entregar",
+        "confirmTitle": "¿Entregar este intento?",
+        "confirmMessage": "Ya no podrás cambiar tus hallazgos y verás el resultado.",
+        "expired": "Se acabó el tiempo. Se entregó lo que tenías guardado."
+      },
+      "mentor": {
+        "casesTitle": "Mis casos",
+        "casesIntro": "Solo tú ves tus casos. Asignar uno crea un intento con una copia, así que editarlo o borrarlo no cambia lo ya hecho.",
+        "noCases": "Todavía no tienes casos.",
+        "newCase": "Nuevo caso",
+        "edit": "Editar",
+        "editName": "Editar {title}",
+        "delete": "Borrar",
+        "deleteName": "Borrar {title}",
+        "assign": "Asignar a este pupilo",
+        "assignName": "Asignar a este pupilo: {title}",
+        "assignedOpen": "Hay un intento sin entregar de este caso.",
+        "caseLine": "{practice} · {minutes} · {errors}",
+        "errorsCount": "{count, plural, one {# error sembrado} other {# errores sembrados}}",
+        "deleteTitle": "¿Borrar este caso?",
+        "deleteMessage": "Los intentos ya asignados conservan su copia.",
+        "attemptsTitle": "Intentos de este pupilo",
+        "noAttempts": "Este pupilo todavía no tiene intentos.",
+        "attemptLine": "{status} · {found} de {total} encontrados · {hints, plural, one {# pista} other {# pistas}}",
+        "attemptLineOpen": "{status} · {hints, plural, one {# pista} other {# pistas}}",
+        "detail": "Ver el detalle",
+        "another": "Dar otro intento",
+        "anotherName": "Dar otro intento: {title}",
+        "actions": {
+          "load": "cargar el gimnasio",
+          "save": "guardar el caso",
+          "delete": "borrar el caso",
+          "assign": "asignar el caso",
+          "draft": "pedir el borrador"
+        }
+      },
+      "form": {
+        "title": "Título",
+        "practice": "Materia",
+        "minutes": "Minutos (1 a 240)",
+        "paragraphs": "Párrafos",
+        "paragraphsHelp": "Separa los párrafos con una línea en blanco.",
+        "preview": "Vista numerada",
+        "errors": "Errores sembrados",
+        "noErrors": "Todavía no hay errores.",
+        "addError": "Agregar error",
+        "removeError": "Quitar el error {number}",
+        "errorParagraph": "Párrafo del error {number}",
+        "errorKind": "Tipo del error {number}",
+        "explanation": "Explicación del error {number}",
+        "hint": "Pista opcional del error {number}",
+        "duplicate": "Cada párrafo admite un solo error.",
+        "fictitious": "Confirmo que son datos ficticios",
+        "save": "Guardar caso",
+        "cancel": "Cancelar",
+        "draftTitle": "Borrador con IA",
+        "draftTopic": "Tema",
+        "draftCount": "Cantidad de errores (1 a 5)",
+        "draftButton": "Borrador con IA",
+        "draftHelp": "Llena el formulario sin guardar. Revísalo y edítalo antes de guardar."
       }
     }
   },

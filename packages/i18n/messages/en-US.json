@@ -362,7 +362,8 @@
         "defenses": "Oral defense",
         "passes": "Urgency pass",
         "promotion": "Promotion",
-        "criterion": "Criterion"
+        "criterion": "Criterion",
+        "gym": "Gym"
       },
       "actions": {
         "load": "load your pupils"
@@ -533,7 +534,8 @@
         "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure, plural, one {# time} other {# times}}, among {count, plural, one {# marked turn} other {# marked turns}}. Coincidence is measured against the AI's answer, according to the AI's contrast.",
         "needSure": "At least {required} “Sure” turns are needed to weigh them."
       },
-      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}."
+      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}.",
+      "gym": "Gym: {attempts, plural, one {# attempt submitted} other {# attempts submitted}}, {found} of {errors} errors found, {hints, plural, one {# hint} other {# hints}}"
     },
     "mentorSeesMe": {
       "title": "What my mentor sees of me",
@@ -1308,6 +1310,130 @@
         "changed": "changed {date, date, medium}",
         "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
         "loadingLabel": "Loading the firm's criteria"
+      }
+    },
+    "gym": {
+      "notice": "Fictitious practice case",
+      "kinds": {
+        "superseded_thesis": "Superseded thesis",
+        "repealed_article": "Repealed article",
+        "wrong_jurisdiction": "Wrong jurisdiction",
+        "invented_citation": "Invented citation",
+        "other": "Other"
+      },
+      "status": {
+        "assigned": "Assigned",
+        "in_progress": "In progress",
+        "submitted": "Submitted"
+      },
+      "paragraph": "Paragraph {number}",
+      "minutes": "{count, plural, one {# minute} other {# minutes}}",
+      "codes": {
+        "open": "This case already has an unsubmitted attempt with this pupil.",
+        "closed": "This attempt's time is up. What you had saved was submitted.",
+        "noHint": "There are no hints left for the paragraphs you have not marked."
+      },
+      "result": {
+        "title": "Result",
+        "summary": "Found: {found} of {total} seeded errors.",
+        "found": "Found",
+        "kindOk": "right type",
+        "kindDiff": "different type",
+        "missed": "Missed",
+        "extra": "Findings where there was no error",
+        "extraNote": "There was no seeded error here.",
+        "none": "None",
+        "hints": "{count, plural, =0 {You used no hints} one {Hints used: #} other {Hints used: #}}",
+        "mentorHints": "Hints used: {count}",
+        "note": "Note: {note}"
+      },
+      "pupil": {
+        "title": "Gym",
+        "intro": "Fictitious practice cases your mentor assigns you. Each attempt has a time limit kept by the server.",
+        "empty": "Your mentor has not assigned you any case yet.",
+        "start": "Start",
+        "continue": "Continue",
+        "viewResult": "View result",
+        "startName": "{action}: {title}",
+        "back": "Back to my attempts",
+        "actions": {
+          "load": "load your gym attempts",
+          "open": "open the attempt",
+          "save": "save your findings",
+          "hint": "ask for a hint",
+          "submit": "submit the attempt"
+        },
+        "timeLeft": "Time left: {time}",
+        "paragraphs": "Paragraphs",
+        "mark": "Mark",
+        "unmark": "Remove",
+        "markName": "Mark paragraph {number}",
+        "unmarkName": "Remove the mark on paragraph {number}",
+        "kind": "Kind of error",
+        "note": "Note (optional)",
+        "noteName": "Note for paragraph {number}",
+        "hint": "Ask for a hint",
+        "hints": "Hints",
+        "submit": "Submit",
+        "confirmTitle": "Submit this attempt?",
+        "confirmMessage": "You will not be able to change your findings and you will see the result.",
+        "expired": "Time is up. What you had saved was submitted."
+      },
+      "mentor": {
+        "casesTitle": "My cases",
+        "casesIntro": "Only you see your cases. Assigning one creates an attempt with a copy, so editing or deleting it changes nothing already done.",
+        "noCases": "You have no cases yet.",
+        "newCase": "New case",
+        "edit": "Edit",
+        "editName": "Edit {title}",
+        "delete": "Delete",
+        "deleteName": "Delete {title}",
+        "assign": "Assign to this pupil",
+        "assignName": "Assign to this pupil: {title}",
+        "assignedOpen": "There is an unsubmitted attempt of this case.",
+        "caseLine": "{practice} · {minutes} · {errors}",
+        "errorsCount": "{count, plural, one {# seeded error} other {# seeded errors}}",
+        "deleteTitle": "Delete this case?",
+        "deleteMessage": "Attempts already assigned keep their copy.",
+        "attemptsTitle": "This pupil's attempts",
+        "noAttempts": "This pupil has no attempts yet.",
+        "attemptLine": "{status} · {found} of {total} found · {hints, plural, one {# hint} other {# hints}}",
+        "attemptLineOpen": "{status} · {hints, plural, one {# hint} other {# hints}}",
+        "detail": "View details",
+        "another": "Give another attempt",
+        "anotherName": "Give another attempt: {title}",
+        "actions": {
+          "load": "load the gym",
+          "save": "save the case",
+          "delete": "delete the case",
+          "assign": "assign the case",
+          "draft": "ask for the draft"
+        }
+      },
+      "form": {
+        "title": "Title",
+        "practice": "Practice area",
+        "minutes": "Minutes (1 to 240)",
+        "paragraphs": "Paragraphs",
+        "paragraphsHelp": "Separate paragraphs with a blank line.",
+        "preview": "Numbered view",
+        "errors": "Seeded errors",
+        "noErrors": "There are no errors yet.",
+        "addError": "Add error",
+        "removeError": "Remove error {number}",
+        "errorParagraph": "Paragraph of error {number}",
+        "errorKind": "Kind of error {number}",
+        "explanation": "Explanation of error {number}",
+        "hint": "Optional hint of error {number}",
+        "duplicate": "Each paragraph takes only one error.",
+        "fictitious": "I confirm this is fictitious data",
+        "save": "Save case",
+        "cancel": "Cancel",
+        "draftTitle": "AI draft",
+        "draftTopic": "Topic",
+        "draftCount": "Number of errors (1 to 5)",
+        "draftButton": "AI draft",
+        "draftHelp": "Fills the form without saving. Review and edit it before saving."
       }
     }
   },

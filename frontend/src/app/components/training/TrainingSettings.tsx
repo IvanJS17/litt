@@ -30,6 +30,7 @@ import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { MemberIdentity, membersById, practiceLabel, STAGE_LABEL } from "./trainingShared";
 import { MentorSeesMe } from "./supervision/MentorSeesMe";
 import { ReadingNotice } from "./reading/ReadingNotice";
+import { MyGym } from "./gym/MyGym";
 import { MyCriterion } from "./map/MyCriterion";
 
 // Ajustes → Formación (docs/training.md):
@@ -210,6 +211,9 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
             )}
             <SettingsRow layout="stacked">
                 <MyCriterion orgId={membership.org_id} />
+            </SettingsRow>
+            <SettingsRow layout="stacked">
+                <MyGym orgId={membership.org_id} />
             </SettingsRow>
             <SettingsRow layout="stacked">
                 <MentorSeesMe orgId={membership.org_id} />

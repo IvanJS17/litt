@@ -105,6 +105,7 @@ export function PromotionTab({ orgId, pupilId }: { orgId: string; pupilId: strin
                                 })}
                             </li>
                             <li>{t("readings", { count: proposal.readings.length })}</li>
+                            <li>{t("gym", { ...proposal.gym })}</li>
                         </ul>
                         <div className="space-y-0.5 text-sm text-gray-700">
                             <p className="break-words">
