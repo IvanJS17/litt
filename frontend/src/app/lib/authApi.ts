@@ -186,6 +186,18 @@ export async function exchangeAuthCode(code: string) {
     });
 }
 
+/** An invitation link carries its session in the URL hash; this makes it the
+ *  cookie session every other screen reads. */
+export async function startInviteSession(
+    accessToken: string,
+    refreshToken: string,
+) {
+    return authRequest<{ user: AuthUser }>("auth.signin", "/invite-session", {
+        method: "POST",
+        body: JSON.stringify({ accessToken, refreshToken }),
+    });
+}
+
 export async function requestPasswordReset(email: string) {
     return authRequest<void>("auth.signin", "/password-reset", {
         method: "POST",

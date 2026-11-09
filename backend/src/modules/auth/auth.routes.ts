@@ -22,6 +22,8 @@ import {
   sendInternalError,
   sendUpstreamUnavailable,
 } from "../../lib/httpError";
+import { betaMode, canSignUp } from "../../lib/platformAccess";
+import { createServerSupabase } from "../../lib/supabase";
 import { isAuthUpstreamFailure } from "../../lib/authUpstream";
 import { AppError } from "../../lib/appError";
 import { reportError, setOperation } from "../../lib/observability/report";
@@ -44,6 +46,7 @@ import {
   factorSchema,
   friendlyNameSchema,
   handoffSchema,
+  inviteSessionSchema,
   issueWordHandoff,
   listMfaFactors,
   mfaAssuranceLevel,
@@ -147,10 +150,20 @@ authRouter.post("/login", asyncRoute(async (req, res) => {
   }
 }));
 
+// Beta mode: the same answer whether or not the email exists or is invited.
+function inviteOnly(res: Response) {
+  return res.status(403).json({
+    code: "signup_invite_only",
+    detail: "LiTT is in closed beta: an invitation is required.",
+  });
+}
+
 authRouter.post("/signup", asyncRoute(async (req, res) => {
   setOperation("auth.signup");
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return invalidBody(res, parsed.error.issues);
+  if (betaMode() && !(await canSignUp(createServerSupabase(), parsed.data.email)))
+    return inviteOnly(res);
 
   try {
     const client = createRequestSupabase(req, res);
@@ -238,6 +251,7 @@ authRouter.get("/providers", asyncRoute(async (_req, res) => {
 
 authRouter.post("/oauth", asyncRoute(async (req, res) => {
   setOperation("auth.signin");
+  if (betaMode()) return inviteOnly(res);
   if (req.body?.provider === "sso") return startSso(req, res);
   if (req.body?.provider !== "google") return invalidBody(res);
   try {
@@ -288,6 +302,29 @@ authRouter.post("/exchange", asyncRoute(async (req, res) => {
       });
       res.json({ handoffTicket });
       return;
+    }
+    res.json({ user: publicAuthUser(data.user) });
+  } catch (error) {
+    authError(res, error);
+  }
+}));
+
+// An invitation link (admin-issued, so no PKCE code) lands with the session
+// in the URL hash; the page posts it here to become an HttpOnly cookie session.
+// GoTrue validates the tokens, so a forged pair gets nothing.
+authRouter.post("/invite-session", asyncRoute(async (req, res) => {
+  setOperation("auth.signin");
+  const parsed = inviteSessionSchema.safeParse(req.body);
+  if (!parsed.success) return invalidBody(res);
+  try {
+    const client = createRequestSupabase(req, res);
+    const { data, error } = await applyHandoffSession(client, {
+      accessToken: parsed.data.accessToken,
+      refreshToken: parsed.data.refreshToken,
+    });
+    if (error || !data.user || !data.session) {
+      clearRequestAuthCookies(req, res);
+      return authError(res, error);
     }
     res.json({ user: publicAuthUser(data.user) });
   } catch (error) {

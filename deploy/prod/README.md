@@ -391,11 +391,20 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   envía con `gopkg.in/gomail.v2` (`internal/mailer/mailmeclient`), cuyo
   `NewDialer` activa TLS implícito cuando el puerto es 465. Los enlaces apuntan a
   `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app. El
-  backend no envía correo propio: las invitaciones a organizaciones se ven
-  dentro de la app.
+  backend no tiene credenciales de correo: al invitar a un correo sin cuenta
+  pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene
+  cuenta ve su invitación dentro de la app.
+- **Correos de GoTrue en español**: las plantillas (`invite`, `confirmation`,
+  `recovery`) están en `frontend/public/email-templates/` y GoTrue las lee de
+  `http://litt-web:3000/email-templates/` por la red interna; los asuntos van en
+  `GOTRUE_MAILER_SUBJECTS_*`. Si `litt-web` no responde, GoTrue no puede enviar.
 - **Signup abierto con confirmación de correo** (`GOTRUE_MAILER_AUTOCONFIRM=false`):
   una cuenta nueva no entra hasta confirmar su correo. Cerrar el signup
   (`DISABLE_SIGNUP=true`) cuando todo el equipo tenga cuenta.
+- **Beta por invitación** (`PLATFORM_ADMIN_EMAILS`, correos separados por
+  comas): con valor, el registro exige invitación (de despacho o de plataforma)
+  o ser administrador, `POST /auth/oauth` se cierra y solo los administradores
+  o quien tenga una invitación de plataforma crean despacho; vacío = abierto.
 - **Login con Google**: deshabilitado (requiere credenciales de sistema).
 - **Documentos en R2** (`litt-docs`): el respaldo NO los incluye (política de
   borrado definitivo sin retención oculta); R2 es el almacén durable.

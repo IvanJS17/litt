@@ -88,6 +88,11 @@ export const exchangeSchema = z.object({
   code: z.string().trim().min(1).max(4096),
   handoffRequestId: handoffRequestIdSchema.optional(),
 });
+/** The tokens GoTrue puts in the URL hash of an invitation link. */
+export const inviteSessionSchema = z.object({
+  accessToken: z.string().trim().min(1).max(4096),
+  refreshToken: z.string().trim().min(1).max(4096),
+});
 export const handoffSchema = z.object({
   ticket: z
     .string()

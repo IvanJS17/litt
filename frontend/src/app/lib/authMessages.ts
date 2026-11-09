@@ -54,6 +54,7 @@ export const AUTH_ERROR_SENTENCES = {
     user_already_exists: "accountExists",
     email_exists: "accountExists",
     signup_disabled: "signupDisabled",
+    signup_invite_only: "signupInviteOnly",
     email_address_invalid: "emailInvalid",
     email_address_not_authorized: "emailNotAuthorized",
 

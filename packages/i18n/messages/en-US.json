@@ -37,6 +37,7 @@
       "sessionExpired": "Your session has expired. Log in again.",
       "signInIncomplete": "Sign-in couldn't be completed. Start again from the login page.",
       "signupDisabled": "New accounts aren't open right now.",
+      "signupInviteOnly": "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
       "ssoDisabled": "Single sign-on is not enabled.",
       "ssoDomainNotAllowed": "Single sign-on is not available for this email domain.",
       "ssoNotSetUp": "Single sign-on is not set up for this email domain.",
@@ -212,6 +213,10 @@
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
       "memory_revision_conflict": "Memory changed since it was loaded. Review what is saved now and try again.",
       "mfa_verification_required": "Finish two-factor verification to continue.",
+      "signup_invite_only": "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
+      "org_creation_restricted": "Creating an organization needs an invitation.",
+      "platform_admin_required": "Only platform administrators can do this.",
+      "platform_invitation_pending": "This email already has a pending invitation.",
       "playbook_change_decided": "This change has already been decided. Reload the proposed changes.",
       "playbook_change_stale": "The rule changed after this change was proposed. Reload the proposed changes.",
       "playbook_changes_pending": "This playbook has proposed changes that haven't been decided. Accept or reject each one first.",
@@ -1483,6 +1488,49 @@
     },
     "settings": {
       "title": "Settings"
+    }
+  },
+  "access": {
+    "noOrgInvite": "Ask your firm for an invitation",
+    "invite": {
+      "sent": "We emailed them the invitation",
+      "notSent": "We couldn't send the email. Tell them to sign in to LiTT with that email"
+    },
+    "setPassword": {
+      "title": "Create your password",
+      "subtitle": "Use at least {min} characters. You'll then continue setting up your account.",
+      "password": "Password",
+      "confirm": "Confirm your password",
+      "mismatch": "The passwords don't match.",
+      "submit": "Save password",
+      "saving": "Saving...",
+      "verifying": "Checking your invitation...",
+      "invalidTitle": "Invitation unavailable",
+      "invalid": "This invitation link is invalid or has expired. Ask to be invited again.",
+      "toLogin": "Go to log in"
+    },
+    "beta": {
+      "tab": "Beta invitations",
+      "heading": "Beta invitations",
+      "hint": "The invited person will be able to create a firm and be its owner.",
+      "emailLabel": "Invitee's email",
+      "invite": "Invite",
+      "inviting": "Inviting...",
+      "empty": "There are no invitations yet.",
+      "loadError": "We couldn't load the invitations.",
+      "colEmail": "Email",
+      "colStatus": "Status",
+      "colExpires": "Expires",
+      "status": {
+        "pending": "Pending",
+        "used": "Used",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "cancel": "Cancel invitation",
+      "cancelTitle": "Cancel this invitation?",
+      "cancelBody": "{email} will no longer be able to sign up or create a firm with this invitation.",
+      "keep": "Keep"
     }
   }
 }

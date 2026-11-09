@@ -759,6 +759,26 @@ describe("auth routes", () => {
     );
   });
 
+  it("turns the tokens of an invitation link into a cookie session", async () => {
+    authClient.auth.setSession.mockResolvedValue({
+      data: { user, session },
+      error: null,
+    });
+
+    const response = await request(app)
+      .post("/auth/invite-session")
+      .set("Origin", origin)
+      .send({ accessToken: "invite-access", refreshToken: "invite-refresh" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.id).toBe(user.id);
+    expect(authClient.auth.setSession).toHaveBeenCalledWith({
+      access_token: "invite-access",
+      refresh_token: "invite-refresh",
+    });
+    expect(JSON.stringify(response.body)).not.toContain("invite-access");
+  });
+
   it("redeems a Word handoff into an HttpOnly session without returning tokens", async () => {
     process.env.WORD_ADDIN_URL = wordOrigin;
     consumeAuthHandoff.mockResolvedValue({

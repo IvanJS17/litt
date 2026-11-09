@@ -712,7 +712,7 @@ describe("OrganizationMembers", () => {
 
   it("does not report a sent invitation as failed when the refresh rejects", async () => {
     const user = userEvent.setup();
-    mocks.createOrgInvitation.mockResolvedValue({});
+    mocks.createOrgInvitation.mockResolvedValue({ email_sent: true });
     mocks.listOrgInvitations
       .mockResolvedValueOnce([])
       .mockRejectedValue(new Error("refresh failed"));
@@ -742,7 +742,7 @@ describe("OrganizationMembers", () => {
       ),
     );
     expect(
-      await screen.findByText("Invitation sent to new@firm.example."),
+      await screen.findByText("We emailed them the invitation"),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Could not send the invitation."),

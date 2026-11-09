@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, RotateCw, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { AddUserInput } from "@/app/components/shared/AddUserInput";
 import { Modal } from "@/app/components/modals/Modal";
 import { ModalSelect } from "@/app/components/modals/ModalSelect";
@@ -22,7 +23,7 @@ import {
   canManageOrgRole,
   type InvitableOrgRole,
 } from "@/app/lib/permissions";
-import { userFacingApiError } from "@/app/lib/userFacingError";
+import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
 
 function friendlyError(error: unknown, fallback: string) {
@@ -67,6 +68,7 @@ export function CreateOrganizationModal({
   onClose: () => void;
   onCreated: (org: Org) => void;
 }) {
+  const t = useTranslations();
   const [name, setName] = useState("");
   const [memberEmails, setMemberEmails] = useState<string[]>([]);
   const [createdOrg, setCreatedOrg] = useState<Org | null>(null);
@@ -109,7 +111,11 @@ export function CreateOrganizationModal({
       }
       onCreated(org);
     } catch (err) {
-      setError(friendlyError(err, "Could not create the organization."));
+      setError(
+        errorCode(err) === "org_creation_restricted"
+          ? t("access.noOrgInvite")
+          : friendlyError(err, "Could not create the organization."),
+      );
     } finally {
       setCreating(false);
     }
@@ -244,6 +250,7 @@ export function InviteOrganizationMemberModal({
   onClose: () => void;
   onChanged: () => Promise<void> | void;
 }) {
+  const t = useTranslations();
   const [role, setRole] = useState<InvitableOrgRole>("member");
   // Inviting somebody as an admin is appointing one, which only an owner may
   // do, so an admin is offered Member alone and the picker has nothing to ask.
@@ -268,18 +275,20 @@ export function InviteOrganizationMemberModal({
   async function invite(email: string) {
     setError(null);
     setNotice(null);
+    let sent: boolean;
     try {
-      await createOrgInvitation(org.id, email, role);
+      sent = Boolean((await createOrgInvitation(org.id, email, role)).email_sent);
     } catch (err) {
       setError(friendlyError(err, "Could not send the invitation."));
       return false;
     }
-    setNotice(`Invitation sent to ${email}.`);
+    const sentNotice = t(sent ? "access.invite.sent" : "access.invite.notSent");
+    setNotice(sentNotice);
     // The invitation really was sent, so the notice stands — but if the list
     // behind this modal could not be re-read, say that rather than let the
     // unchanged list quietly contradict the notice.
     if (!(await refreshQuietly(onChanged)))
-      setNotice(`Invitation sent to ${email}. ${STALE_LIST_NOTICE}`);
+      setNotice(`${sentNotice}. ${STALE_LIST_NOTICE}`);
     return true;
   }
 

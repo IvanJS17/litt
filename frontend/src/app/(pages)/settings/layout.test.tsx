@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { listMyOrgInvitations, type OrgInvitation } from "@/app/lib/mikeApi";
+import { getPlatformMe, listMyOrgInvitations, type OrgInvitation } from "@/app/lib/mikeApi";
 import SettingsLayout from "./layout";
 
 const push = vi.fn();
@@ -22,6 +22,7 @@ vi.mock("@/app/contexts/AuthContext", () => ({
 
 vi.mock("@/app/lib/mikeApi", () => ({
     listMyOrgInvitations: vi.fn(),
+    getPlatformMe: vi.fn(),
 }));
 
 // What Privacy & Data may do in the active workspace; everything unless a
@@ -36,6 +37,7 @@ describe("SettingsLayout", () => {
         vi.clearAllMocks();
         pathname = "/settings/memory";
         vi.mocked(listMyOrgInvitations).mockResolvedValue([]);
+        vi.mocked(getPlatformMe).mockResolvedValue({ admin: false, can_create_org: false });
         dataActions.canExport = true;
         dataActions.canDelete = true;
     });
@@ -132,5 +134,28 @@ describe("SettingsLayout", () => {
         );
         await user.click(organizations);
         expect(push).toHaveBeenCalledWith("/settings/organizations");
+    });
+
+    it("lists Beta invitations only for a platform administrator", async () => {
+        const { unmount } = render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        await waitFor(() => expect(getPlatformMe).toHaveBeenCalled());
+        expect(
+            screen.queryByRole("button", { name: "Beta invitations" }),
+        ).not.toBeInTheDocument();
+        unmount();
+
+        vi.mocked(getPlatformMe).mockResolvedValue({ admin: true, can_create_org: true });
+        render(
+            <SettingsLayout>
+                <div />
+            </SettingsLayout>,
+        );
+        expect(
+            await screen.findByRole("button", { name: "Beta invitations" }),
+        ).toBeInTheDocument();
     });
 });

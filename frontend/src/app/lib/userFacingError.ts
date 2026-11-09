@@ -112,6 +112,7 @@ const AUTH_ROUTES = [
     "/forgot-password",
     "/verify-mfa",
     "/auth/callback",
+    "/auth/set-password",
     "/sso",
 ];
 

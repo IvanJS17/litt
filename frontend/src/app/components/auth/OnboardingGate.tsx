@@ -22,6 +22,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         pathname === "/signup" ||
         pathname === "/signup/check-email" ||
         pathname === "/auth/callback" ||
+        pathname === "/auth/set-password" ||
         pathname === "/forgot-password" ||
         pathname === "/reset-password" ||
         pathname === "/verify-mfa";
