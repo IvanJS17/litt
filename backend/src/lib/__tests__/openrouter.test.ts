@@ -50,104 +50,6 @@ function functionTool(
     };
 }
 
-function messagesStreamResponse(model: string, text: string): Response {
-    const events = [
-        {
-            type: "message_start",
-            message: {
-                id: "msg_1",
-                type: "message",
-                role: "assistant",
-                model,
-                content: [],
-                stop_reason: null,
-                stop_sequence: null,
-                usage: { input_tokens: 3, output_tokens: 0 },
-            },
-        },
-        {
-            type: "content_block_start",
-            index: 0,
-            content_block: { type: "text", text: "", citations: null },
-        },
-        {
-            type: "content_block_delta",
-            index: 0,
-            delta: { type: "text_delta", text },
-        },
-        { type: "content_block_stop", index: 0 },
-        {
-            type: "message_delta",
-            delta: { stop_reason: "end_turn", stop_sequence: null },
-            usage: { output_tokens: 4 },
-        },
-        { type: "message_stop" },
-    ];
-    const body = events
-        .map(
-            (event) =>
-                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
-        )
-        .join("");
-    return new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/event-stream" },
-    });
-}
-
-function messagesToolStreamResponse(model: string): Response {
-    const events = [
-        {
-            type: "message_start",
-            message: {
-                id: "msg_tool",
-                type: "message",
-                role: "assistant",
-                model,
-                content: [],
-                stop_reason: null,
-                stop_sequence: null,
-                usage: { input_tokens: 3, output_tokens: 0 },
-            },
-        },
-        {
-            type: "content_block_start",
-            index: 0,
-            content_block: {
-                type: "tool_use",
-                id: "tool_1",
-                name: "lookup",
-                input: {},
-            },
-        },
-        {
-            type: "content_block_delta",
-            index: 0,
-            delta: {
-                type: "input_json_delta",
-                partial_json: '{"query":"contract"}',
-            },
-        },
-        { type: "content_block_stop", index: 0 },
-        {
-            type: "message_delta",
-            delta: { stop_reason: "tool_use", stop_sequence: null },
-            usage: { output_tokens: 4 },
-        },
-        { type: "message_stop" },
-    ];
-    const body = events
-        .map(
-            (event) =>
-                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
-        )
-        .join("");
-    return new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/event-stream" },
-    });
-}
-
 describe("OpenRouter LLM adapter", () => {
     afterEach(() => {
         vi.unstubAllGlobals();
@@ -692,91 +594,51 @@ describe("OpenCode Go LLM adapter", () => {
         );
     });
 
-    it("uses the Messages endpoint for Qwen and MiniMax models", async () => {
-        const fetchMock = vi.fn().mockResolvedValue(
-            new Response(
-                JSON.stringify({
-                    id: "msg_1",
-                    type: "message",
-                    role: "assistant",
-                    model: "qwen3.8-max",
-                    content: [{ type: "text", text: "A Qwen title" }],
-                    stop_reason: "end_turn",
-                    stop_sequence: null,
-                    usage: { input_tokens: 3, output_tokens: 4 },
-                }),
-                {
-                    status: 200,
-                    headers: { "Content-Type": "application/json" },
-                },
-            ),
-        );
-        vi.stubGlobal("fetch", fetchMock);
-
-        const result = await completeWithProvider({
-            model: "opencode-go/qwen3.8-max",
-            user: "Title this",
-            apiKeys: { "opencode-go": "oc-user-key" },
-        });
-
-        expect(result).toBe("A Qwen title");
-        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-        expect(url).toBe("https://opencode.ai/zen/go/v1/messages");
-        expect(new Headers(init.headers).get("x-api-key")).toBe("oc-user-key");
-        expect(JSON.parse(String(init.body))).toMatchObject({
-            model: "qwen3.8-max",
-            max_tokens: 512,
-            messages: [
-                {
-                    role: "user",
-                    content: [{ type: "text", text: "Title this" }],
-                },
-            ],
-        });
-    });
-
-    it("streams Messages models through the Anthropic-compatible adapter", async () => {
+    it("continues a Chat Completions tool call for Qwen models", async () => {
         const fetchMock = vi
             .fn()
-            .mockResolvedValue(messagesStreamResponse("minimax-m3", "Hello"));
-        vi.stubGlobal("fetch", fetchMock);
-        const deltas: string[] = [];
-
-        const result = await streamWithProvider({
-            model: "opencode-go/minimax-m3",
-            systemPrompt: "Be concise",
-            messages: [{ role: "user", content: "Hello" }],
-            apiKeys: { "opencode-go": "oc-user-key" },
-            reasoning: "high",
-            callbacks: { onContentDelta: (delta) => deltas.push(delta) },
-        });
-
-        expect(result.fullText).toBe("Hello");
-        expect(deltas).toEqual(["Hello"]);
-        const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-        expect(url).toBe("https://opencode.ai/zen/go/v1/messages");
-        const body = JSON.parse(String(init.body));
-        expect(body).toMatchObject({
-            model: "minimax-m3",
-            system: [{ type: "text", text: "Be concise" }],
-            stream: true,
-        });
-        expect(body).not.toHaveProperty("thinking");
-        expect(body).not.toHaveProperty("output_config");
-    });
-
-    it("preserves the Messages tool-use loop for Qwen and MiniMax", async () => {
-        const fetchMock = vi
-            .fn()
-            .mockResolvedValueOnce(messagesToolStreamResponse("qwen3.8-max"))
             .mockResolvedValueOnce(
-                messagesStreamResponse("qwen3.8-max", "Found it"),
+                streamResponse([
+                    {
+                        choices: [
+                            {
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: "call-1",
+                                            type: "function",
+                                            function: {
+                                                name: "lookup",
+                                                arguments:
+                                                    '{"term":"contract"}',
+                                            },
+                                        },
+                                    ],
+                                },
+                                finish_reason: "tool_calls",
+                            },
+                        ],
+                    },
+                ]),
+            )
+            .mockResolvedValueOnce(
+                streamResponse([
+                    {
+                        choices: [
+                            {
+                                delta: { content: "Found it" },
+                                finish_reason: "stop",
+                            },
+                        ],
+                    },
+                ]),
             );
         vi.stubGlobal("fetch", fetchMock);
         const runTools = vi
             .fn()
             .mockResolvedValue([
-                { tool_use_id: "tool_1", content: "Contract result" },
+                { tool_use_id: "call-1", content: "Contract result" },
             ]);
 
         const result = await streamWithProvider({
@@ -784,18 +646,11 @@ describe("OpenCode Go LLM adapter", () => {
             systemPrompt: "Use tools",
             messages: [{ role: "user", content: "Find the contract" }],
             tools: [
-                {
-                    type: "function",
-                    function: {
-                        name: "lookup",
-                        description: "Look up a document",
-                        parameters: {
-                            type: "object",
-                            properties: { query: { type: "string" } },
-                            required: ["query"],
-                        },
-                    },
-                },
+                functionTool("lookup", {
+                    type: "object",
+                    properties: { term: { type: "string" } },
+                    required: ["term"],
+                }),
             ],
             runTools,
             apiKeys: { "opencode-go": "oc-user-key" },
@@ -803,58 +658,23 @@ describe("OpenCode Go LLM adapter", () => {
 
         expect(result.fullText).toBe("Found it");
         expect(runTools).toHaveBeenCalledWith([
-            {
-                id: "tool_1",
-                name: "lookup",
-                input: { query: "contract" },
-            },
+            { id: "call-1", name: "lookup", input: { term: "contract" } },
         ]);
         expect(fetchMock).toHaveBeenCalledTimes(2);
+        const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+        expect(url).toBe("https://opencode.ai/zen/go/v1/chat/completions");
         const secondBody = JSON.parse(
             String((fetchMock.mock.calls[1]?.[1] as RequestInit).body),
         );
-        expect(secondBody.messages).toEqual([
-            {
-                role: "user",
-                content: [{ type: "text", text: "Find the contract" }],
-            },
-            {
-                role: "assistant",
-                content: [
-                    {
-                        type: "tool_use",
-                        id: "tool_1",
-                        name: "lookup",
-                        input: { query: "contract" },
-                    },
-                ],
-            },
-            {
-                role: "user",
-                content: [
-                    {
-                        type: "tool_result",
-                        tool_use_id: "tool_1",
-                        content: "Contract result",
-                    },
-                ],
-            },
-        ]);
-    });
-
-    it("rejects models that require an unsupported protocol before sending a request", async () => {
-        const fetchMock = vi.fn();
-        vi.stubGlobal("fetch", fetchMock);
-
-        await expect(
-            completeWithProvider({
-                model: "opencode-go/gpt-5.6-luna",
-                user: "Title this",
-                apiKeys: { "opencode-go": "oc-user-key" },
-            }),
-        ).rejects.toThrow(
-            "OpenCode Go model gpt-5.6-luna requires a protocol LiTT does not support yet",
+        expect(secondBody.messages).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ role: "assistant" }),
+                expect.objectContaining({
+                    role: "tool",
+                    tool_call_id: "call-1",
+                    content: "Contract result",
+                }),
+            ]),
         );
-        expect(fetchMock).not.toHaveBeenCalled();
     });
 });

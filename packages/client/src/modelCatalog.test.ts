@@ -37,8 +37,7 @@ describe("model display names", () => {
         expect(routerModelOptions("vercel", ["openai/gpt-5.4"])[0]).toMatchObject({
             id: "vercel/openai/gpt-5.4",
             label: "GPT 5.4",
-            group: "OpenAI",
-            source: "Vercel",
+            group: "Vercel AI Gateway",
         });
     });
 });
@@ -65,12 +64,11 @@ describe("cloud platform options", () => {
         );
     });
 
-    it("groups Bedrock models by maker and keeps the id verbatim", () => {
+    it("groups Bedrock models under Bedrock and keeps the id verbatim", () => {
         expect(routerModelOptions("bedrock", ["us.anthropic.claude-opus-5-5"])[0]).toEqual({
             id: "bedrock/us.anthropic.claude-opus-5-5",
             label: "Claude Opus 5.5",
-            group: "Anthropic",
-            source: "Bedrock",
+            group: "Amazon Bedrock",
         });
     });
 
@@ -97,12 +95,11 @@ describe("cloud platform options", () => {
         expect(routerModelOptions("vertex", ["claude-opus-5-5@20260101"])[0]).toEqual({
             id: "vertex/claude-opus-5-5@20260101",
             label: "Claude Opus 5.5",
-            group: "Anthropic",
-            source: "Vertex",
+            group: "Google Vertex AI",
         });
         expect(routerModelOptions("vertex", ["gemini-3.1-pro-preview"])[0]).toMatchObject({
             id: "vertex/gemini-3.1-pro-preview",
-            group: "Google",
+            group: "Google Vertex AI",
         });
     });
 
@@ -110,20 +107,17 @@ describe("cloud platform options", () => {
         expect(routerModelOptions("azure-foundry", ["claude-opus-5-5"])[0]).toEqual({
             id: "azure-foundry/claude-opus-5-5",
             label: "Claude Opus 5.5",
-            group: "Anthropic",
-            source: "Foundry",
+            group: "Azure AI Foundry",
         });
         expect(routerModelOptions("xai", ["grok-4.3"])[0]).toEqual({
             id: "xai/grok-4.3",
             label: "Grok 4.3",
             group: "xAI",
-            source: "xAI",
         });
         expect(routerModelOptions("custom", ["deepseek/deepseek-v4"])[0]).toEqual({
             id: "custom/deepseek/deepseek-v4",
             label: "Deepseek V4",
-            group: "DeepSeek",
-            source: "Custom",
+            group: "OpenAI-compatible endpoint",
         });
     });
 
@@ -131,8 +125,7 @@ describe("cloud platform options", () => {
         expect(routerModelOptions("azure", ["gpt-6.1-sol"])[0]).toEqual({
             id: "azure/gpt-6.1-sol",
             label: "GPT 6.1 Sol",
-            group: "OpenAI",
-            source: "Azure",
+            group: "Azure OpenAI",
         });
     });
 });
@@ -306,7 +299,7 @@ describe("explicit cloud protocols", () => {
         expect(routerModelOptions("vertex", ["openai:mistral-large-2411"])[0]).toMatchObject({
             id: "vertex/openai:mistral-large-2411",
             label: "Mistral Large 2411",
-            group: "Mistral AI",
+            group: "Google Vertex AI",
         });
     });
 });

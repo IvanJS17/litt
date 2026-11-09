@@ -6,7 +6,7 @@
 // out, no req/res). The profile-row loaders (ensureProfileRow / loadProfile)
 // are exported for intra-module reuse by user.mfa.ts; the facade does NOT
 // re-export them, so they stay off the module's public surface.
-import { isSafeAccountModelId, isSupportedOpenCodeGoModel, type AccountModelPrefix, } from "./llm";
+import { isSafeAccountModelId, type AccountModelPrefix, } from "./llm";
 import { type RouterSlug } from "./routerModels";
 const CATALOG_MODEL_ID_RE = /^[^\s/]+\/[^\s]+$/;
 /** Accepts a router's catalog id or account-specific model id. */
@@ -62,8 +62,6 @@ export function normalizeRouterModels(
             !model ||
             model.length > 200 ||
             !isValidId(model) ||
-            (provider === "opencode-go" &&
-                !isSupportedOpenCodeGoModel(model)) ||
             seen.has(model)
         ) {
             continue;

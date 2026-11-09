@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -149,6 +150,32 @@ describe("RouterSettingsSection", () => {
         expect(
             screen.queryByTestId("openrouter-model-catalog"),
         ).not.toBeInTheDocument();
+    });
+
+    it("keeps the catalog open until a click outside completes, so Save registers on the first click", async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        render(
+            <>
+                <RouterSettingsSection />
+                <button type="button" onClick={onSave}>
+                    Save
+                </button>
+            </>,
+        );
+        await waitFor(() => expect(getOpenRouterModels).toHaveBeenCalled());
+        await user.click(screen.getByRole("combobox", { name: "OpenRouter models" }));
+        await user.keyboard("{ArrowDown}");
+        expect(screen.getByTestId("openrouter-model-catalog")).toBeInTheDocument();
+
+        // Closing the list on press shrinks the dialog under the pointer, so
+        // the release lands elsewhere and the click never fires.
+        await user.pointer({ keys: "[MouseLeft>]", target: screen.getByText("Save") });
+        expect(screen.getByTestId("openrouter-model-catalog")).toBeInTheDocument();
+        await user.pointer({ keys: "[/MouseLeft]" });
+
+        expect(onSave).toHaveBeenCalledOnce();
+        expect(screen.queryByTestId("openrouter-model-catalog")).not.toBeInTheDocument();
     });
 
     it("closes only the catalog on Escape inside a provider modal", async () => {

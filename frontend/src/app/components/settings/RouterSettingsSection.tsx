@@ -289,6 +289,7 @@ function RouterModelsSetting({
   const [error, setError] = useState<string | null>(null);
   const typeaheadRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pressedOutside = useRef(false);
   const catalogId = `${provider}-model-catalog`;
 
   useEffect(() => {
@@ -319,7 +320,10 @@ function RouterModelsSetting({
 
   useEffect(() => {
     if (!catalogOpen) return;
-    const closeOnOutsidePointer = (event: PointerEvent) => {
+    // Close once the click completes, not when the press starts: the list is
+    // in flow, so closing on press shrinks the dialog under the pointer and
+    // the release lands off the button (Save needed a second click).
+    const closeOnOutsidePointer = (event: MouseEvent) => {
       if (
         event.target instanceof Node &&
         !typeaheadRef.current?.contains(event.target)
@@ -327,6 +331,11 @@ function RouterModelsSetting({
         setCatalogOpen(false);
         setActiveCatalogIndex(-1);
       }
+    };
+    const trackPress = (event: PointerEvent) => {
+      pressedOutside.current =
+        event.target instanceof Node &&
+        !typeaheadRef.current?.contains(event.target);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -338,10 +347,13 @@ function RouterModelsSetting({
         setActiveCatalogIndex(-1);
       }
     };
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("pointerdown", trackPress);
+    document.addEventListener("click", closeOnOutsidePointer);
     document.addEventListener("keydown", closeOnEscape);
     return () => {
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      pressedOutside.current = false;
+      document.removeEventListener("pointerdown", trackPress);
+      document.removeEventListener("click", closeOnOutsidePointer);
       document.removeEventListener("keydown", closeOnEscape);
     };
   }, [catalogOpen]);
@@ -413,6 +425,9 @@ function RouterModelsSetting({
         ref={typeaheadRef}
         className="relative"
         onBlur={(event) => {
+          // A press elsewhere moves focus first; the click handler above
+          // closes the list after it completes. Blur still closes it for Tab.
+          if (pressedOutside.current) return;
           if (!event.currentTarget.contains(event.relatedTarget)) {
             setCatalogOpen(false);
             setActiveCatalogIndex(-1);

@@ -242,62 +242,6 @@ export function modelDisplayName(modelId: string): string {
   return `${label} (${variantLabel})`;
 }
 
-const ROUTER_VENDOR_GROUPS: Record<string, string> = {
-  anthropic: "Anthropic",
-  claude: "Anthropic",
-  google: "Google",
-  gemini: "Google",
-  openai: "OpenAI",
-  gpt: "OpenAI",
-  moonshot: "Moonshot AI",
-  moonshotai: "Moonshot AI",
-  kimi: "Moonshot AI",
-  zhipu: "Zhipu AI",
-  zhipuai: "Zhipu AI",
-  zai: "Zhipu AI",
-  minimax: "MiniMax",
-  qwen: "Alibaba",
-  alibaba: "Alibaba",
-  deepseek: "DeepSeek",
-  xiaomi: "Xiaomi",
-  mimo: "Xiaomi",
-  mistral: "Mistral AI",
-  mistralai: "Mistral AI",
-  meta: "Meta",
-  amazon: "Amazon",
-  xai: "xAI",
-  grok: "xAI",
-};
-
-/** Model maker used for grouping; the router remains a separate source. */
-export function underlyingProviderGroup(
-  catalogModelId: string,
-  router: RouterSlug,
-): string {
-  const vendor = catalogModelId.includes("/")
-    ? catalogModelId.split("/", 1)[0]!.toLowerCase()
-    : catalogModelId.toLowerCase().split(/[-_.]/, 1)[0]!;
-  const mapped = ROUTER_VENDOR_GROUPS[vendor];
-  if (mapped) return mapped;
-  if (catalogModelId.includes("/")) {
-    return vendor
-      .split(/[-_]/)
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" ");
-  }
-
-  if (router === "opencode-go") {
-    if (/^glm-/i.test(catalogModelId)) return "Zhipu AI";
-    if (/^kimi-/i.test(catalogModelId)) return "Moonshot AI";
-    if (/^minimax-/i.test(catalogModelId)) return "MiniMax";
-    if (/^qwen/i.test(catalogModelId)) return "Alibaba";
-    if (/^deepseek-/i.test(catalogModelId)) return "DeepSeek";
-    if (/^mimo-/i.test(catalogModelId)) return "Xiaomi";
-  }
-  return "Other providers";
-}
-
 // Bedrock's cross-region inference-profile prefixes ("us.anthropic.claude-…").
 const BEDROCK_GEO_PREFIXES = new Set([
   "us",
@@ -353,29 +297,14 @@ function withoutVersionPin(modelId: string): string {
 }
 
 /**
- * How each router's saved ids become picker rows: the source label shown for
- * duplicates, the id the label and vendor group are read from (Bedrock and
- * Vertex strip cloud-only decoration), and a fixed group where the router
- * only serves one maker. Azure and Foundry deployments are named by their
- * owner, so the name is the label.
+ * How each router's saved ids become picker rows: the id the label is read
+ * from (Bedrock and Vertex strip cloud-only decoration). Azure and Foundry
+ * deployments are named by their owner, so the name is the label.
  */
-const ROUTER_OPTIONS: Record<
-  RouterSlug,
-  {
-    source: string;
-    catalogModel?: (model: string) => string;
-    group?: string;
-  }
-> = {
-  openrouter: { source: "OpenRouter" },
-  vercel: { source: "Vercel" },
-  "opencode-go": { source: "OpenCode" },
-  bedrock: { source: "Bedrock", catalogModel: bedrockCatalogModel },
-  azure: { source: "Azure" },
-  "azure-foundry": { source: "Foundry", catalogModel: withoutExplicitProtocol },
-  vertex: { source: "Vertex", catalogModel: vertexCatalogModel },
-  xai: { source: "xAI", group: "xAI" },
-  custom: { source: "Custom" },
+const ROUTER_CATALOG_MODEL: Partial<Record<RouterSlug, (model: string) => string>> = {
+  bedrock: bedrockCatalogModel,
+  "azure-foundry": withoutExplicitProtocol,
+  vertex: vertexCatalogModel,
 };
 
 /**
@@ -388,17 +317,15 @@ export function routerModelOptions(
   router: RouterSlug,
   models: readonly string[],
 ): ModelOption[] {
-  const { source, catalogModel = (model: string) => model, group } =
-    ROUTER_OPTIONS[router];
-  return models.map((model) => {
-    const catalogId = catalogModel(model);
-    return {
+  const catalogModel = ROUTER_CATALOG_MODEL[router] ?? ((model: string) => model);
+  return models
+    .map((model) => ({
       id: `${router}/${model}`,
-      label: modelDisplayName(catalogId),
-      group: group ?? underlyingProviderGroup(catalogId, router),
-      source,
-    };
-  });
+      label: modelDisplayName(catalogModel(model)),
+      // Grouped by the service whose key is used, not by the model's maker.
+      group: PROVIDER_NAMES[router].name,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 /** Picker rows for every router's saved Model Selections, in router order. */

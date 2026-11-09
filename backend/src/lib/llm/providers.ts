@@ -26,8 +26,6 @@ import {
   bedrockModelId,
   customEndpointModelId,
   isAzureFoundryClaudeDeployment,
-  isOpenCodeGoChatCompletionsModel,
-  isOpenCodeGoMessagesModel,
   isSafeAccountModel,
   normalizeReasoningLevelForModel,
   openCodeGoModelId,
@@ -54,10 +52,14 @@ import type {
 import { REASONING_LEVELS } from "./types";
 import { vertexAuthClient } from "./vertexAuth";
 import { UserFacingError } from "../userFacingError";
+import { sourceCommit } from "../runtimeConfig";
 
 const OPENROUTER_BASE_URL =
   process.env.OPENROUTER_BASE_URL?.trim().replace(/\/+$/, "") ||
   "https://openrouter.ai/api/v1";
+// Session for one-off calls that belong to no conversation.
+const OPENCODE_DEFAULT_SESSION = "litt";
+
 const OPENCODE_GO_BASE_URL =
   process.env.OPENCODE_GO_BASE_URL?.trim().replace(/\/+$/, "") ||
   "https://opencode.ai/zen/go/v1";
@@ -71,6 +73,8 @@ type CompleteProviderParams = {
   maxTokens?: number;
   abortSignal?: AbortSignal;
   apiKeys?: UserApiKeys;
+  /** Conversation (or task) the call belongs to; OpenCode Go groups requests by it. */
+  conversationId?: string | null;
 };
 
 type RouterProvider = Extract<
@@ -151,7 +155,7 @@ function routerKey(provider: RouterProvider, apiKeys?: UserApiKeys): string {
 }
 
 async function createAnthropicAdapter(args: {
-  provider: Extract<Provider, "claude" | "opencode-go" | "azure-foundry">;
+  provider: Extract<Provider, "claude" | "azure-foundry">;
   label: string;
   model: string;
   apiKey: string;
@@ -185,10 +189,8 @@ async function createRouterAdapter(
   provider: RouterProvider,
   model: string,
   apiKeys?: UserApiKeys,
+  conversationId?: string | null,
 ): Promise<AiSdkAdapterConfig> {
-  if (provider === "opencode-go" && !isOpenCodeGoChatCompletionsModel(model)) {
-    throw unsupportedOpenCodeGoModel(model);
-  }
   const key = routerKey(provider, apiKeys);
 
   if (provider === "openrouter") {
@@ -229,7 +231,20 @@ async function createRouterAdapter(
     name: "opencodeGo",
     apiKey: key,
     baseURL: OPENCODE_GO_BASE_URL,
-    fetch: aiSdkFetch,
+    // OpenCode Go rejects any request without a session id (MissingSessionID).
+    // Set on the outgoing request because the AI SDK replaces a provider-level
+    // User-Agent with its own on every call.
+    fetch: (input, init) => {
+      const headers = new Headers(init?.headers);
+      headers.set("x-opencode-session", conversationId || OPENCODE_DEFAULT_SESSION);
+      headers.set(
+        "user-agent",
+        [`litt/${sourceCommit()?.slice(0, 7) ?? "dev"}`, headers.get("user-agent")]
+          .filter(Boolean)
+          .join(" "),
+      );
+      return aiSdkFetch(input, { ...init, headers });
+    },
   });
   return {
     provider,
@@ -531,12 +546,6 @@ async function createConfiguredAdapter(
   };
 }
 
-function unsupportedOpenCodeGoModel(model: string): Error {
-  return new Error(
-    `OpenCode Go model ${openCodeGoModelId(model)} requires a protocol LiTT does not support yet. Select a model listed under Model Selections for OpenCode Go in Settings → Bring Your Own Keys.`,
-  );
-}
-
 function ollamaBaseUrl(): string {
   return (
     process.env.OLLAMA_BASE_URL?.trim() || "http://localhost:11434/v1"
@@ -556,6 +565,7 @@ export function ollamaAuthHeaders(): Record<string, string> {
 async function createProviderAdapter(
   model: string,
   apiKeys?: UserApiKeys,
+  conversationId?: string | null,
 ): Promise<AiSdkAdapterConfig> {
   const provider = providerForModel(model);
   if (apiKeys?.disabledProviders?.includes(provider)) {
@@ -615,22 +625,12 @@ async function createProviderAdapter(
     return { provider, label: "Mistral", model: mistral(model), modelId: model };
   }
 
-  if (provider === "openrouter" || provider === "vercel") {
-    return createRouterAdapter(provider, model, apiKeys);
-  }
-
-  if (provider === "opencode-go") {
-    if (isOpenCodeGoMessagesModel(model)) {
-      return createAnthropicAdapter({
-        provider,
-        label: "OpenCode Go",
-        model: openCodeGoModelId(model),
-        apiKey: routerKey(provider, apiKeys),
-        baseURL: OPENCODE_GO_BASE_URL,
-        supportsReasoning: false,
-      });
-    }
-    return createRouterAdapter(provider, model, apiKeys);
+  if (
+    provider === "openrouter" ||
+    provider === "vercel" ||
+    provider === "opencode-go"
+  ) {
+    return createRouterAdapter(provider, model, apiKeys, conversationId);
   }
 
   if (provider === "bedrock") return createBedrockAdapter(model, apiKeys);
@@ -706,7 +706,11 @@ export async function streamWithProvider(
   try {
     return await streamAiSdk(
       tracked,
-      await createProviderAdapter(params.model, params.apiKeys),
+      await createProviderAdapter(
+          params.model,
+          params.apiKeys,
+          params.conversationId,
+        ),
     );
   } catch (error) {
     const retryReasoning = fallbackReasoningLevelFromProviderError(
@@ -716,7 +720,11 @@ export async function streamWithProvider(
     if (retryReasoning) {
       return streamAiSdk(
         { ...normalizedParams, reasoning: retryReasoning },
-        await createProviderAdapter(params.model, params.apiKeys),
+        await createProviderAdapter(
+          params.model,
+          params.apiKeys,
+          params.conversationId,
+        ),
       );
     }
     if (shouldRetryWithoutWebSearch(error, params, streamed)) {
@@ -727,7 +735,11 @@ export async function streamWithProvider(
           systemPrompt: `${normalizedParams.systemPrompt}\n\nWeb search is unavailable for this answer.`,
           providerWebSearch: null,
         },
-        await createProviderAdapter(params.model, params.apiKeys),
+        await createProviderAdapter(
+          params.model,
+          params.apiKeys,
+          params.conversationId,
+        ),
       );
     }
     if (
@@ -740,7 +752,11 @@ export async function streamWithProvider(
     ) {
       return streamAiSdk(
         { ...normalizedParams, tools: undefined, runTools: undefined },
-        await createProviderAdapter(params.model, params.apiKeys),
+        await createProviderAdapter(
+          params.model,
+          params.apiKeys,
+          params.conversationId,
+        ),
       );
     }
     throw error;
@@ -812,6 +828,10 @@ export async function completeWithProvider(
 ): Promise<string> {
   return completeAiSdkText(
     params,
-    await createProviderAdapter(params.model, params.apiKeys),
+    await createProviderAdapter(
+          params.model,
+          params.apiKeys,
+          params.conversationId,
+        ),
   );
 }

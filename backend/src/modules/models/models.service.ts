@@ -28,7 +28,6 @@ export type {
 
 import type { Db } from "../../lib/supabase";
 import { ollamaAuthHeaders as authHeaders } from "../../lib/llm/providers";
-import { isSupportedOpenCodeGoModel } from "../../lib/llm/models";
 import { configuredEndpointSummaries } from "../../lib/llm/registry";
 import { getEffectiveApiKeys, getUserApiKeys } from "../../lib/providerCredentials/index";
 
@@ -286,12 +285,7 @@ export async function listVercelModels(
     }
 }
 
-/**
- * OpenCode Go's catalog spans Chat Completions, Anthropic Messages, and
- * Responses models, but unlike OpenRouter and Vercel it publishes no protocol
- * metadata to filter on. Fail closed against the compatibility lists in
- * lib/llm/models instead of offering Responses models Mike cannot yet use.
- */
+/** Every OpenCode Go chat model with text output; all speak Chat Completions. */
 export async function listOpenCodeGoModels(
     db: Db,
     userId: string,
@@ -319,13 +313,25 @@ export async function listOpenCodeGoModels(
         if (!response.ok) return await upstreamFailure("OpenCode Go", response);
 
         const payload = (await response.json()) as {
-            data?: Array<{ id?: unknown; name?: unknown }>;
+            data?: Array<{
+                id?: unknown;
+                name?: unknown;
+                type?: unknown;
+                modalities?: { output?: unknown };
+            }>;
         };
         const byId = new Map<string, CatalogModel>();
         for (const model of payload.data ?? []) {
             if (typeof model?.id !== "string" || !model.id.trim()) continue;
             const id = model.id.trim();
-            if (!isSupportedOpenCodeGoModel(id)) continue;
+            const output = model.modalities?.output;
+            if (
+                model.type !== "chat" ||
+                !Array.isArray(output) ||
+                !output.includes("text")
+            ) {
+                continue;
+            }
             // The id is stored verbatim in user_router_models and prefixed
             // with the router slug to build the app-level model id, so an id
             // containing whitespace could never round-trip.

@@ -59,7 +59,7 @@ describe("word add-in model catalog", () => {
         // The declarations that used to be mirrored by hand. Any of them
         // reappearing under word-addin/src is a second catalog to drift.
         const copied =
-            /export (?:const|function) (?:ROUTER_SLUGS|STATIC_MODELS|MODELS|LEGACY_MODEL_IDS|modelDisplayName|underlyingProviderGroup|bedrockCatalogModel|vertexCatalogModel|\w+ModelOptions|NO_MODELS_MESSAGES)\b/;
+            /export (?:const|function) (?:ROUTER_SLUGS|STATIC_MODELS|MODELS|LEGACY_MODEL_IDS|modelDisplayName|bedrockCatalogModel|vertexCatalogModel|\w+ModelOptions|NO_MODELS_MESSAGES)\b/;
         const offenders = addinSources(path.join(ADDIN_ROOT, "src")).filter(
             (file) => copied.test(readFileSync(file, "utf8")),
         );

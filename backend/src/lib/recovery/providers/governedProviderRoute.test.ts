@@ -127,18 +127,6 @@ describe("explicit route failure without fallback", () => {
     }
   });
 
-  it("rejects unsupported opencode-go models", () => {
-    const result = resolveExplicitProviderRoute({
-      provider: "opencode-go",
-      model: "opencode-go/unsupported-xyz-1",
-      credential_ref: "user-key-1",
-    });
-    expect(result).toEqual({
-      ok: false,
-      error: expect.objectContaining({ kind: "unsupported_model" }),
-    });
-  });
-
   it("rejects incomplete routes and never returns stale_saved_preference", () => {
     for (const bad of [
       { provider: "", model: "gpt-6.1-sol", credential_ref: "r" },
