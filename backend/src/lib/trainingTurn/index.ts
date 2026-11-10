@@ -255,6 +255,7 @@ export function finishTrainingTurn(
             answer: args.answer,
             model: args.model,
             apiKeys: args.apiKeys,
+            chatId: args.turn?.chatId,
         });
     } else if (args.note && !args.plan?.mode) {
         launchTurnContrast(db, {
@@ -264,6 +265,7 @@ export function finishTrainingTurn(
             model: args.model,
             apiKeys: args.apiKeys,
             answerUnverified: hasUnverifiedCitation(args.citations),
+            chatId: args.turn?.chatId,
         });
     }
     if (args.plan) {

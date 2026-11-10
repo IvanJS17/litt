@@ -364,6 +364,7 @@ export async function runBackingCheck(outcome: Outcome): Promise<"skipped" | "re
             user: buildBackingPrompt(outcome.answer, citations, promptNonce()),
             maxTokens: BACKING_MAX_TOKENS,
             apiKeys: outcome.apiKeys,
+            conversationId: outcome.chatId,
             abortSignal: controller.signal,
         });
         const conclusions = parseBackingConclusions(raw, outcome.answer, citations);

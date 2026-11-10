@@ -196,6 +196,8 @@ export type GenerateContrastArgs = {
     answerUnverified?: boolean;
     /** The person's own topic labels to reuse; read from their notes when absent. */
     knownTopics?: readonly string[];
+    /** The chat the turn belongs to; its id is the OpenCode Go session. */
+    chatId?: string | null;
 };
 
 async function settle(
@@ -247,6 +249,7 @@ export async function generateTurnContrast(
             ),
             maxTokens: CONTRAST_MAX_TOKENS,
             apiKeys: args.apiKeys,
+            conversationId: args.chatId,
             abortSignal: controller.signal,
         });
         // The model's trailer is untrusted input: parsed and checked here, and

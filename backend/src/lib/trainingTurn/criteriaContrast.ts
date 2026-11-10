@@ -376,6 +376,7 @@ export const criteriaExplainHook: AfterTurnHook = async ({ plan, completed, outc
             user: buildComparisonPrompt(criteria.explanation, outcome.answer, promptNonce()),
             maxTokens: COMPARISON_MAX_TOKENS,
             apiKeys: outcome.apiKeys,
+            conversationId: outcome.chatId,
             abortSignal: controller.signal,
         });
         const comparison = text.trim().slice(0, COMPARISON_MAX_CHARS);
