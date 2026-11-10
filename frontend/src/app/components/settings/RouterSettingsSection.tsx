@@ -615,6 +615,9 @@ function RouterModelsSetting({
           ))}
         </div>
       )}
+      <p className="text-xs text-gray-500">
+        Models are saved as you pick them.
+      </p>
       {ROUTER_MODEL_ID[provider].hint && (
         <p className="text-xs text-gray-500">
           {ROUTER_MODEL_ID[provider].hint}
