@@ -94,6 +94,68 @@ describe("OpenRouter LLM adapter", () => {
         });
     });
 
+    it("caps chat output at 32000 and gives titles reasoning headroom", async () => {
+        const saved = process.env.LLM_MAX_OUTPUT_TOKENS;
+        delete process.env.LLM_MAX_OUTPUT_TOKENS;
+        try {
+            const fetchMock = vi
+                .fn()
+                .mockImplementationOnce(async () =>
+                    streamResponse([
+                        {
+                            choices: [
+                                {
+                                    delta: { content: "Done" },
+                                    finish_reason: "stop",
+                                },
+                            ],
+                        },
+                    ]),
+                )
+                .mockImplementationOnce(
+                    async () =>
+                        new Response(
+                            JSON.stringify({
+                                choices: [
+                                    {
+                                        message: {
+                                            role: "assistant",
+                                            content: "Title",
+                                        },
+                                    },
+                                ],
+                            }),
+                            {
+                                status: 200,
+                                headers: { "Content-Type": "application/json" },
+                            },
+                        ),
+                );
+            vi.stubGlobal("fetch", fetchMock);
+
+            await streamWithProvider({
+                model: "openrouter/z-ai/glm-5.3-flashx-legal",
+                systemPrompt: "Help",
+                messages: [{ role: "user", content: "Review" }],
+                apiKeys: { openrouter: "or-user-key" },
+            });
+            await completeWithProvider({
+                model: "openrouter/z-ai/glm-5.3-flashx-legal",
+                user: "Title this",
+                maxTokens: 64,
+                apiKeys: { openrouter: "or-user-key" },
+            });
+
+            const bodies = fetchMock.mock.calls.map((call) =>
+                JSON.parse(String((call[1] as RequestInit).body)),
+            );
+            expect(bodies[0].max_tokens).toBe(32_000);
+            expect(bodies[1].max_tokens).toBe(64 + 4_096);
+        } finally {
+            if (saved !== undefined) process.env.LLM_MAX_OUTPUT_TOKENS = saved;
+        }
+    });
+
     it.each(["none", "low", "medium", "high", "xhigh", "max"] as const)(
         "forwards the %s reasoning level in OpenRouter's request body",
         async (reasoning) => {

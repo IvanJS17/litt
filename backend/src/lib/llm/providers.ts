@@ -82,6 +82,13 @@ type RouterProvider = Extract<
   "openrouter" | "vercel" | "opencode-go"
 >;
 
+/**
+ * Output ceiling sent to every router. Without one, OpenRouter reserves the
+ * model's maximum (e.g. 65,536) against the user's balance and answers 402
+ * when it cannot afford that. Only a limit: unused tokens cost nothing.
+ */
+const ROUTER_DEFAULT_MAX_OUTPUT_TOKENS = 32_000;
+
 const ROUTER_LABELS: Record<RouterProvider, string> = {
   openrouter: "OpenRouter",
   vercel: "Vercel AI Gateway",
@@ -208,6 +215,8 @@ async function createRouterAdapter(
       label: ROUTER_LABELS[provider],
       model: openrouter.chat(openRouterModelId(model)),
       modelId: model,
+      defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
+      alwaysReasoningHeadroom: true,
     };
   }
 
@@ -223,6 +232,8 @@ async function createRouterAdapter(
       label: ROUTER_LABELS[provider],
       model: gateway.chat(vercelModelId(model)),
       modelId: model,
+      defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
+      alwaysReasoningHeadroom: true,
     };
   }
 
@@ -252,6 +263,8 @@ async function createRouterAdapter(
     model: openCodeGo(openCodeGoModelId(model)),
     modelId: model,
     supportsReasoning: false,
+    defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
+    alwaysReasoningHeadroom: true,
   };
 }
 
