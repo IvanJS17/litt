@@ -10,6 +10,8 @@
 
 import type { Db } from "../../lib/supabase";
 import {
+    webSearchAccountFor,
+    type WebSearchAccount,
     webSearchPlanFor,
     type WebSearchPlan,
 } from "../../lib/webSearch";
@@ -151,6 +153,8 @@ export type PreparedProjectChatStream = {
     apiMessages: ReturnType<typeof buildMessages>;
     workflowStore: Awaited<ReturnType<typeof buildWorkflowStore>>;
     webSearch: WebSearchPlan | null;
+    /** The search service's own key, from the user's saved keys; never part of `apiKeys`. */
+    webSearchAccount: WebSearchAccount | null;
     /** Only the conversation's pinned credential (see user.chatRoute). */
     apiKeys: Awaited<ReturnType<typeof getUserModelSettings>>["api_keys"];
     /** The provider + model + credential this conversation is fixed to. */
@@ -659,6 +663,13 @@ export async function prepareProjectChatStream(
 
         // Only the pinned credential leaves this function.
         const apiKeys = governed.apiKeys;
+        // A search key is not a model credential: it comes from the user's saved
+        // keys and goes only to the search service, never into `apiKeys`.
+        const webSearch = webSearchPlanFor(
+            modelSettings.web_search,
+            selectedModel,
+            modelSettings.api_keys,
+        );
         const titleModel = titleModelForRoute(route, modelSettings.title_model);
         const { personalisation } = modelSettings;
         const personalisationPrompt = buildUserPersonalisationPrompt(
@@ -702,11 +713,8 @@ export async function prepareProjectChatStream(
                 docStore,
                 apiMessages,
                 workflowStore,
-                webSearch: webSearchPlanFor(
-                    modelSettings.web_search,
-                    selectedModel,
-                    apiKeys,
-                ),
+                webSearch,
+                webSearchAccount: webSearchAccountFor(webSearch, modelSettings.api_keys),
                 apiKeys,
                 route,
                 orgId: projectAccess.project.org_id ?? null,
