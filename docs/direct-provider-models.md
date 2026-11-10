@@ -230,6 +230,12 @@ conversation) and `User-Agent: litt/<short commit>`, without which OpenCode Go
 rejects it. Ollama models remain dynamically discovered. These IDs are not
 rewritten by the direct-model mappings.
 
+Router requests always carry an output ceiling of 32,000 tokens
+(`LLM_MAX_OUTPUT_TOKENS` overrides it); without one OpenRouter reserves the
+model's maximum against the user's balance and can answer 402. Short
+completions such as titles get the extra reasoning headroom on every router,
+since a routed model may not be able to stop reasoning.
+
 The model picker groups direct models by provider (Anthropic, Google, OpenAI,
 Mistral AI) and router, cloud and custom-endpoint models by the service whose
 key is used (OpenCode Go, OpenRouter, Vercel AI Gateway, and so on), sorted by

@@ -215,6 +215,11 @@ export type AiSdkAdapterConfig = {
    * Output ceiling for a chat step at the given reasoning level, for SDKs
    * that send none by default. LLM_MAX_OUTPUT_TOKENS still wins.
    */
+  /**
+   * Routers cannot say whether a model can stop reasoning, so one-shot
+   * completions always get the reasoning headroom.
+   */
+  alwaysReasoningHeadroom?: boolean;
   defaultMaxOutputTokens?: (
     reasoning: StreamChatParams["reasoning"],
   ) => number | undefined;
@@ -773,7 +778,7 @@ export async function completeAiSdkText(
     // allowance thinking and return no text. The cap is only a ceiling, so
     // the headroom costs nothing unless the model actually uses it.
     maxOutputTokens:
-      reasoning && reasoning !== "none"
+      config.alwaysReasoningHeadroom || (reasoning && reasoning !== "none")
         ? requested + COMPLETION_REASONING_HEADROOM_TOKENS
         : requested,
     reasoning: reasoning as
