@@ -187,7 +187,13 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
           // grow the moment a key is saved.
           size={routerSlug && (!store || store.routerModels) ? "md" : "sm"}
           className="h-auto max-h-[calc(100vh-2rem)]"
-          primaryAction={{ ...saveAction, variant: "blue" }}
+          // With no key waiting to be saved (models save as they are picked),
+          // the primary button closes the dialog instead of sitting disabled.
+          primaryAction={
+            saveAction.settled
+              ? { label: "Done", onClick: onClose, disabled: false, variant: "blue" }
+              : { ...saveAction, variant: "blue" }
+          }
           secondaryAction={removeAction ? { ...removeAction, label: "Clear", variant: "danger" } : undefined}
         >
           <div data-modal-scroll="vertical" className="min-h-0 min-w-0 space-y-6 overflow-y-auto pb-4">

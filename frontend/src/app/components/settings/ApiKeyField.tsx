@@ -42,6 +42,8 @@ type ApiKeyFieldAction = {
   label: string;
   onClick: () => Promise<void>;
   disabled: boolean;
+  /** Nothing is waiting to be saved, so the primary action can just close. */
+  settled?: boolean;
 };
 
 export function ApiKeyField({
@@ -246,6 +248,7 @@ export function ApiKeyField({
     label: isSaving ? "Saving..." : saved ? "Saved" : "Save",
     onClick: handleSave,
     disabled: isSaving || !dirty || saved,
+    settled: !isSaving && hasSavedKey && (!dirty || saved),
   };
   const removeAction = hasSavedKey ? {
     label: "Remove",

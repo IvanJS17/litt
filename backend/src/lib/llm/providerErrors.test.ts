@@ -43,6 +43,17 @@ describe("toProviderStreamError", () => {
     );
   });
 
+  it("says a 429 from an overloaded provider is overload, not a quota", () => {
+    const error = toProviderStreamError(
+      apiCallError(429, '{"error":{"message":"The inference service is overloaded. Please try again later."}}'),
+      gemini,
+    );
+
+    expect(error.message).toBe(
+      "Gemini: this model is overloaded right now. Try again in a moment, or select another model.",
+    );
+  });
+
   it("unwraps the last error from an AI SDK retry error", () => {
     const retryError = Object.assign(new Error("Failed after 3 attempts"), {
       name: "AI_RetryError",
