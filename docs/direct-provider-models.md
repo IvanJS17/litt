@@ -225,9 +225,14 @@ allowlists. The OpenCode Go catalog lists every model whose `type` is `chat` and
 whose `modalities.output` includes `text`; there is no fixed list to maintain.
 All of them are called through Chat Completions, which OpenCode Go translates
 for models native to other protocols. Every request carries
-`x-opencode-session` (the conversation id; `litt` for calls that belong to no
-conversation) and `User-Agent: litt/<short commit>`, without which OpenCode Go
-rejects it. Ollama models remain dynamically discovered. These IDs are not
+`x-opencode-session` and `User-Agent: litt/<short commit>`, without which
+OpenCode Go rejects it (`400 MissingSessionID`). Per
+[OpenCode's documentation](https://opencode.ai/docs/console/go/) the session id
+must be stable for each conversation, so a call that belongs to a chat (turn,
+title or auxiliary call) sends that chat's id, and a call with no conversation
+(tabular review, playbooks, training supervision) sends a fresh
+`oneshot-<16 hex>` id per call, never one shared across users. This is the rule
+of the Hermes client. Ollama models remain dynamically discovered. These IDs are not
 rewritten by the direct-model mappings.
 
 Router requests always carry an output ceiling of 32,000 tokens

@@ -77,6 +77,8 @@ export type CloseCounterpartArgs = {
     /** The conversation's own model and pinned credential. */
     model: string;
     apiKeys?: UserApiKeys;
+    /** The chat the round belongs to; its id is the OpenCode Go session. */
+    chatId?: string | null;
 };
 
 async function settle(db: Db, noteId: string, patch: { contrast: string | null; contrast_status: "ready" | "failed" }) {
@@ -104,6 +106,7 @@ export async function generateCounterpartClose(db: Db, args: CloseCounterpartArg
             user: buildCounterpartClosePrompt(args.attempts, args.answer, promptNonce()),
             maxTokens: CLOSE_MAX_TOKENS,
             apiKeys: args.apiKeys,
+            conversationId: args.chatId,
             abortSignal: controller.signal,
         });
         const contrast = text.trim().slice(0, CLOSE_MAX_CHARS);

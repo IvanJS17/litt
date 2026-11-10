@@ -52,13 +52,12 @@ import type {
 import { REASONING_LEVELS } from "./types";
 import { vertexAuthClient } from "./vertexAuth";
 import { UserFacingError } from "../userFacingError";
+import { randomBytes } from "node:crypto";
 import { sourceCommit } from "../runtimeConfig";
 
 const OPENROUTER_BASE_URL =
   process.env.OPENROUTER_BASE_URL?.trim().replace(/\/+$/, "") ||
   "https://openrouter.ai/api/v1";
-// Session for one-off calls that belong to no conversation.
-const OPENCODE_DEFAULT_SESSION = "litt";
 
 const OPENCODE_GO_BASE_URL =
   process.env.OPENCODE_GO_BASE_URL?.trim().replace(/\/+$/, "") ||
@@ -73,7 +72,13 @@ type CompleteProviderParams = {
   maxTokens?: number;
   abortSignal?: AbortSignal;
   apiKeys?: UserApiKeys;
-  /** Conversation (or task) the call belongs to; OpenCode Go groups requests by it. */
+  /**
+   * Chat the call belongs to (a turn, its title or an auxiliary call of it).
+   * OpenCode Go takes it as the stable `x-opencode-session` of the conversation
+   * (https://opencode.ai/docs/console/go/). A call with no conversation leaves
+   * it unset and gets a fresh `oneshot-<16 hex>` id per call, never a shared one
+   * (the rule of the Hermes client).
+   */
   conversationId?: string | null;
 };
 
@@ -247,7 +252,7 @@ async function createRouterAdapter(
     // User-Agent with its own on every call.
     fetch: (input, init) => {
       const headers = new Headers(init?.headers);
-      headers.set("x-opencode-session", conversationId || OPENCODE_DEFAULT_SESSION);
+      headers.set("x-opencode-session", conversationId || `oneshot-${randomBytes(8).toString("hex")}`);
       headers.set(
         "user-agent",
         [`litt/${sourceCommit()?.slice(0, 7) ?? "dev"}`, headers.get("user-agent")]

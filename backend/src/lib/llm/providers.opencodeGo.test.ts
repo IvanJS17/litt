@@ -36,4 +36,35 @@ describe("OpenCode Go requests", () => {
     expect(headers.get("x-opencode-session")).toBe("chat-123");
     expect(headers.get("user-agent")).toMatch(/^litt\//);
   });
+
+  it("gives a call with no conversation a fresh oneshot id each time", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () =>
+      Response.json({
+        id: "chatcmpl_1",
+        object: "chat.completion",
+        created: 1_700_000_000,
+        model: "qwen3.8-max",
+        choices: [
+          { index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" },
+        ],
+        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (let i = 0; i < 2; i++) {
+      await completeWithProvider({
+        model: "opencode-go/qwen3.8-max",
+        user: "hi",
+        apiKeys: { "opencode-go": "oc-key" },
+      });
+    }
+
+    const ids = fetchMock.mock.calls.map(([, init]) =>
+      new Headers((init as RequestInit).headers).get("x-opencode-session"),
+    );
+    expect(ids[0]).toMatch(/^oneshot-[0-9a-f]{16}$/);
+    expect(ids[1]).toMatch(/^oneshot-[0-9a-f]{16}$/);
+    expect(ids[0]).not.toBe(ids[1]);
+  });
 });

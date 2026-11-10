@@ -267,9 +267,9 @@ services:
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_ANON_KEY:?required}
       # Decisión de Iván (30-oct-2026, ledger §16 "Web search and subagents
       # in chat"): subagentes encendidos, con las rutas de modelo con nombre
-      # que configura cada usuario; búsqueda web apagada.
+      # que configura cada usuario; búsqueda web encendida (owner, 2026-11-10).
       LITT_CHAT_SUBAGENTS: ${LITT_CHAT_SUBAGENTS:-enabled}
-      LITT_CHAT_WEB_SEARCH: ${LITT_CHAT_WEB_SEARCH:-disabled}
+      LITT_CHAT_WEB_SEARCH: ${LITT_CHAT_WEB_SEARCH:-enabled}
       # Complemento de Word (servicio litt-word). Con WORD_ADDIN_URL el backend
       # acepta ese origen, usa cookies particionadas para Word en la web y
       # exige AUTH_HANDOFF_ENCRYPTION_SECRET (>= 32 caracteres) al arrancar.
