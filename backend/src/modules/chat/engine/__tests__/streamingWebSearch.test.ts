@@ -103,7 +103,9 @@ describe("runLLMStream web search", () => {
     const result = await runLLMStream({
       ...baseParams(),
       webSearch: "tavily",
-      apiKeys: { brave: "brave-key", tavily: "tavily-key" },
+      // The search key is its own parameter: the model's keys do not carry it.
+      apiKeys: { brave: "brave-key" },
+      webSearchAccount: { backend: "tavily", apiKey: "tavily-key" },
     });
 
     expect(searchWeb).toHaveBeenCalledWith(

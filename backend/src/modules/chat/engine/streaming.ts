@@ -1,6 +1,6 @@
 import { AppError } from "../../../lib/appError";
 import { teamOrgIdOf } from "../../../lib/personalOrgs";
-import { webSearchAccountFor, type WebSearchPlan } from "../../../lib/webSearch";
+import type { WebSearchAccount, WebSearchPlan } from "../../../lib/webSearch";
 import { buildGoogleWorkspaceTools } from "../../../lib/integrations/googleWorkspace";
 import {
   streamChatWithTools,
@@ -273,6 +273,8 @@ export async function runLLMStream(params: {
   extraTools?: unknown[];
   /** How this turn may search the web; null or omitted means it may not. */
   webSearch?: WebSearchPlan | null;
+  /** The search service key for `webSearch`, apart from the model's `apiKeys`. */
+  webSearchAccount?: WebSearchAccount | null;
   /** Expose ask_inputs only to clients that can render and answer it. */
   includeAskInputs?: boolean;
   /**
@@ -372,6 +374,7 @@ export async function runLLMStream(params: {
     write: unsafeWrite,
     extraTools,
     webSearch: requestedWebSearch = null,
+    webSearchAccount: requestedWebSearchAccount = null,
     includeAskInputs: requestedAskInputs = true,
     connectorApprovals = false,
     allowDocumentMutation: requestedDocumentMutation = true,
@@ -440,7 +443,7 @@ export async function runLLMStream(params: {
   // A junior's calculator: only a training plan that asks for it, never a subagent.
   const offerMethodology = trainingPlan?.methodology === true && !isSubagent;
   const webTools = webToolsFor(webSearch);
-  const webSearchAccount = webSearchAccountFor(webSearch, apiKeys);
+  const webSearchAccount = webSearch ? requestedWebSearchAccount : null;
   const webToolNames = new Set<string>(
     webTools.map((tool) => tool.function.name),
   );
@@ -723,6 +726,7 @@ export async function runLLMStream(params: {
         apiKeys: spawn.apiKeys ?? apiKeys,
         nonce,
         webSearch,
+        webSearchAccount: requestedWebSearchAccount,
         onActivity: params.onActivity,
         write: () => {},
         model: spawn.model,
