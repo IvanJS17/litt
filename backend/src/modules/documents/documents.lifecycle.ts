@@ -48,6 +48,8 @@ export type NewDocumentVersion = {
   page_count?: number | null;
   textless_page_count?: number | null;
   content_sha256?: string | null;
+  /** A user edit: the version it was made on. The RPC refuses it if it is no longer current. */
+  base_version_id?: string | null;
 };
 
 export type DocumentVersionRecord = Omit<NewDocumentVersion, "authorship"> &

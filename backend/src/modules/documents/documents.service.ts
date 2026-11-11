@@ -49,6 +49,11 @@ export {
     loadCurrentVersionBytes,
 } from "./documents.trackedEdits";
 
+export {
+    saveMarkdownEdit,
+    compareVersionTexts,
+} from "./documents.markdown";
+
 export { renameDocument } from "./documents.rename";
 export { deleteCollectionDocuments } from "./documents.cleanup";
 

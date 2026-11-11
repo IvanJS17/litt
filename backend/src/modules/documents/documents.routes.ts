@@ -33,6 +33,8 @@ import {
     resolveEdit,
     approveTrainingVersion,
     getDocumentAuthorship,
+    saveMarkdownEdit,
+    compareVersionTexts,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -335,6 +337,48 @@ documentsRouter.post(
             return void res.status(status).json({ detail: result.detail });
         }
         res.status(201).json(result.version);
+    }),
+);
+
+// GET /single-documents/:documentId/versions/compare?base=<id>&head=<id>
+// Read-only: the stored text of two versions, for the compare view. Declared
+// before the :versionId routes so "compare" is never read as a version id.
+documentsRouter.get(
+    "/:documentId/versions/compare",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.version_compare");
+        const result = await compareVersionTexts(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+            baseVersionId: req.query.base,
+            headVersionId: req.query.head,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
+        res.json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/versions/markdown
+// Save an edit of a Markdown document as a new `user_edit` version. Body:
+// { text, base_version_id }. 409 document_version_conflict when the base is
+// no longer the current version.
+documentsRouter.post(
+    "/:documentId/versions/markdown",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.version_markdown");
+        const result = await saveMarkdownEdit(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+            text: req.body?.text,
+            baseVersionId: req.body?.base_version_id,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.status(201).json(result.data);
     }),
 );
 
