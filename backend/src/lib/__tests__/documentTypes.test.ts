@@ -3,6 +3,8 @@ import {
     ALLOWED_DOCUMENT_TYPES,
     ALLOWED_DOCUMENT_TYPES_LABEL,
     contentTypeForDocumentType,
+    decodeMarkdownBytes,
+    isMarkdownDocumentType,
     isPresentationDocumentType,
     isSpreadsheetDocumentType,
     isWordDocumentType,
@@ -91,6 +93,7 @@ describe("contentTypeForDocumentType", () => {
             xls: "application/vnd.ms-excel",
             pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
             ppt: "application/vnd.ms-powerpoint",
+            md: "text/markdown; charset=utf-8",
         };
         for (const type of ALLOWED_DOCUMENT_TYPES) {
             expect(contentTypeForDocumentType(type)).toBe(expected[type]);
@@ -108,5 +111,27 @@ describe("contentTypeForDocumentType", () => {
         expect(contentTypeForDocumentType(undefined)).toBe(
             "application/octet-stream",
         );
+    });
+});
+
+describe("Markdown", () => {
+    it("is its own type: no PDF rendition, case-insensitive", () => {
+        expect(isMarkdownDocumentType("md")).toBe(true);
+        expect(isMarkdownDocumentType("MD")).toBe(true);
+        expect(isMarkdownDocumentType("txt")).toBe(false);
+        expect(isMarkdownDocumentType(null)).toBe(false);
+        expect(shouldConvertToPdf("md")).toBe(false);
+    });
+
+    it("decodes UTF-8 as the file is, keeping a byte order mark", () => {
+        const bytes = new TextEncoder().encode("\uFEFF# ñ 日本 😀\n");
+        expect(decodeMarkdownBytes(bytes)).toBe("\uFEFF# ñ 日本 😀\n");
+        expect(decodeMarkdownBytes(bytes.buffer as ArrayBuffer)).toBe("\uFEFF# ñ 日本 😀\n");
+    });
+
+    it("replaces invalid bytes unless fatal, in which case it throws", () => {
+        const bad = new Uint8Array([0x61, 0xff]);
+        expect(decodeMarkdownBytes(bad)).toBe("a\uFFFD");
+        expect(() => decodeMarkdownBytes(bad, { fatal: true })).toThrow();
     });
 });

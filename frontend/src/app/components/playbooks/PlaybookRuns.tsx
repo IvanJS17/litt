@@ -31,7 +31,7 @@ import {
   notifyPlaybookRunsChanged,
   setViewedPlaybookRun,
 } from "@/app/lib/playbookRunActivity";
-import { diffWords } from "@/app/lib/wordDiff";
+import { diffWords } from "@/app/lib/textDiff";
 import { modelDisplayName } from "@mike/client";
 import { PillButtonUI, TextButtonUI, TextSlabUI } from "@mike/ui";
 import { ModalSegmentedToggle } from "@/app/components/modals/ModalSegmentedToggle";

@@ -7,10 +7,14 @@ export const ALLOWED_DOCUMENT_TYPES = new Set([
   "xls",
   "pptx",
   "ppt",
+  "md",
 ]);
 
+/** The size cap on any one stored document file (uploads and saved edits). */
+export const MAX_DOCUMENT_UPLOAD_BYTES = 100 * 1024 * 1024;
+
 export const ALLOWED_DOCUMENT_TYPES_LABEL =
-  "pdf, docx, doc, xlsx, xlsm, xls, pptx, ppt";
+  "pdf, docx, doc, xlsx, xlsm, xls, pptx, ppt, md";
 
 // The lowercased extension of a filename, or "" when it has none. Three call
 // sites spelled this out with the same semantics; the other extension readers
@@ -23,6 +27,26 @@ export function documentSuffix(filename: string): string {
 const WORD_TYPES = new Set(["docx", "doc"]);
 const SPREADSHEET_TYPES = new Set(["xlsx", "xlsm", "xls"]);
 const PRESENTATION_TYPES = new Set(["pptx", "ppt"]);
+
+/**
+ * Markdown is stored and served as UTF-8 text, byte for byte. It has no
+ * signature to check (the upload worker validates UTF-8 instead), no PDF
+ * rendition and no pages.
+ */
+export function isMarkdownDocumentType(fileType: string | null | undefined) {
+  return (fileType ?? "").toLowerCase() === "md";
+}
+
+/** Decoded as the file is, BOM included: the text of a .md is the file. */
+export function decodeMarkdownBytes(
+  bytes: ArrayBuffer | Uint8Array,
+  options: { fatal?: boolean } = {},
+): string {
+  return new TextDecoder("utf-8", {
+    fatal: options.fatal ?? false,
+    ignoreBOM: true,
+  }).decode(bytes);
+}
 
 export function isWordDocumentType(fileType: string | null | undefined) {
   return WORD_TYPES.has((fileType ?? "").toLowerCase());
@@ -79,6 +103,8 @@ export function contentTypeForDocumentType(fileType: string | null | undefined) 
       return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     case "ppt":
       return "application/vnd.ms-powerpoint";
+    case "md":
+      return "text/markdown; charset=utf-8";
     default:
       return "application/octet-stream";
   }

@@ -6,7 +6,8 @@ vi.mock("../../convert", () => ({
   docxToPdf: vi.fn(),
   normalizeDocxZipPaths: async (buf: Buffer) => buf,
 }));
-import { extractDocxMarkdown } from "../documentMarkdown";
+import { extractDocumentMarkdown, extractDocxMarkdown } from "../documentMarkdown";
+import { EXTRACTION_OPS } from "../ops";
 
 const docx = (value: string) => {
   html.value = value;
@@ -29,4 +30,14 @@ it("strips a crafted run of unmatched brackets in linear time", async () => {
   const elapsed = performance.now() - started;
   expect(out.endsWith("tail")).toBe(true);
   expect(elapsed).toBeLessThan(1_000);
+});
+
+it("reads a Markdown file as exactly its text, for tabular review and read_document", async () => {
+  const source = "\uFEFF# Título\n\n<b>no tags stripped</b> &amp; ñ 😀\n";
+  const raw = new TextEncoder().encode(source).buffer as ArrayBuffer;
+  expect(await extractDocumentMarkdown(raw, "md")).toBe(source);
+  expect(await extractDocumentMarkdown(raw, "MD")).toBe(source);
+  expect(await EXTRACTION_OPS.markdownText(raw)).toBe(source);
+  expect(await EXTRACTION_OPS.documentMarkdown(raw, "md")).toBe(source);
+  expect(await EXTRACTION_OPS.documentText(raw, "md")).toEqual({ text: source, textlessPageCount: null });
 });

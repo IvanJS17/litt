@@ -1,5 +1,6 @@
 "use client";
 
+import { Editor } from "@tiptap/core";
 import { useEditor, EditorContent, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { TableKit } from "@tiptap/extension-table";
@@ -45,6 +46,11 @@ export interface MarkdownEditorProps {
    * is withheld, which is what the memory editors want.
    */
   allowTables?: boolean;
+  /**
+   * Show the toolbar button that swaps to the raw Markdown view. A host that
+   * offers its own formatted/text switch turns it off.
+   */
+  rawToggle?: boolean;
 }
 
 function comparableMarkdown(value: string) {
@@ -123,7 +129,41 @@ function AppToolbarButton({
   );
 }
 
-function getEditorMarkdown(editor: NonNullable<ReturnType<typeof useEditor>>) {
+function markdownExtensions() {
+  return [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] },
+    }),
+    TableKit.configure({
+      table: {
+        renderWrapper: true,
+      },
+    }),
+    Markdown.configure({
+      html: false,
+      transformPastedText: true,
+      transformCopiedText: true,
+    }),
+  ];
+}
+
+/**
+ * Whether the rich editor keeps this Markdown: loading it and writing it back
+ * gives the same document (tables or syntax the editor drops do not).
+ */
+export function markdownSurvivesRichEditing(source: string): boolean {
+  const editor = new Editor({
+    extensions: markdownExtensions(),
+    content: source,
+  });
+  try {
+    return markdownRoundTrips(source, getEditorMarkdown(editor));
+  } finally {
+    editor.destroy();
+  }
+}
+
+function getEditorMarkdown(editor: Pick<Editor, "storage">) {
   // tiptap-markdown adds .markdown to storage but isn't typed on Editor.storage
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (editor.storage as any).markdown.getMarkdown() as string;
@@ -137,6 +177,7 @@ export function MarkdownEditor({
   ariaLabel = "Markdown editor",
   className,
   allowTables = true,
+  rawToggle = true,
 }: MarkdownEditorProps) {
   const lastEmittedRef = useRef(value);
   // The first sync must check the initial content too; after that only an
@@ -161,21 +202,7 @@ export function MarkdownEditor({
   } | null>(null);
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
-      TableKit.configure({
-        table: {
-          renderWrapper: true,
-        },
-      }),
-      Markdown.configure({
-        html: false,
-        transformPastedText: true,
-        transformCopiedText: true,
-      }),
-    ],
+    extensions: markdownExtensions(),
     content: value,
     editable: !readOnly && !suspended,
     immediatelyRender: false,
@@ -646,14 +673,16 @@ export function MarkdownEditor({
               Raw view preserves this Markdown
             </span>
           ) : null}
-          <AppToolbarButton
-            disabled={suspended}
-            onClick={handleRawToggle}
-            active={rawMode}
-            title={rawMode ? "Show rich editor" : "Show raw Markdown"}
-          >
-            <Code2 className="h-4 w-4" />
-          </AppToolbarButton>
+          {rawToggle ? (
+            <AppToolbarButton
+              disabled={suspended}
+              onClick={handleRawToggle}
+              active={rawMode}
+              title={rawMode ? "Show rich editor" : "Show raw Markdown"}
+            >
+              <Code2 className="h-4 w-4" />
+            </AppToolbarButton>
+          ) : null}
         </div>
       )}
       {readOnly && (

@@ -19,8 +19,9 @@ import {
   ALLOWED_DOCUMENT_TYPES_LABEL,
   contentTypeForDocumentType,
   documentSuffix,
+  MAX_DOCUMENT_UPLOAD_BYTES,
 } from "../../lib/documentTypes";
-export const MAX_UPLOAD_SIZE_BYTES = 100 * 1024 * 1024;
+export const MAX_UPLOAD_SIZE_BYTES = MAX_DOCUMENT_UPLOAD_BYTES;
 export const MAX_UPLOAD_SESSION_FILES = 50;
 export const MAX_UPLOAD_SESSION_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
 export const UPLOAD_SESSION_TTL_SECONDS = 30 * 60;

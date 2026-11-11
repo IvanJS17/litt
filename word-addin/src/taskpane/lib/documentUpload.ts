@@ -1,16 +1,11 @@
-export const SUPPORTED_DOCUMENT_ACCEPT =
-  ".pdf,.docx,.doc,.xlsx,.xlsm,.xls,.pptx,.ppt";
+import {
+  SUPPORTED_DOCUMENT_ACCEPT,
+  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+  hasSupportedDocumentExtension,
+} from "@mike/client";
 
-const SUPPORTED_EXTENSIONS = new Set([
-  "pdf",
-  "docx",
-  "doc",
-  "xlsx",
-  "xlsm",
-  "xls",
-  "pptx",
-  "ppt",
-]);
+// The list itself lives in @mike/client, shared with the web app.
+export { SUPPORTED_DOCUMENT_ACCEPT, UNSUPPORTED_DOCUMENT_WARNING_MESSAGE };
 
 export function partitionSupportedDocumentFiles(files: File[]): {
   supported: File[];
@@ -20,11 +15,9 @@ export function partitionSupportedDocumentFiles(files: File[]): {
   const unsupported: File[] = [];
 
   for (const file of files) {
-    const extension = file.name.split(".").pop()?.toLowerCase();
-    (extension && SUPPORTED_EXTENSIONS.has(extension)
-      ? supported
-      : unsupported
-    ).push(file);
+    (hasSupportedDocumentExtension(file.name) ? supported : unsupported).push(
+      file,
+    );
   }
 
   return { supported, unsupported };

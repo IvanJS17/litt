@@ -3,6 +3,8 @@
 
 import { docxToPdf, normalizeDocxZipPaths } from "../convert";
 import {
+    decodeMarkdownBytes,
+    isMarkdownDocumentType,
     isPresentationDocumentType,
     isSpreadsheetDocumentType,
     isWordDocumentType,
@@ -23,6 +25,7 @@ export async function extractDocumentMarkdown(
 ): Promise<string> {
     const normalizedType = (fileType ?? "").toLowerCase();
     if (normalizedType === "pdf") return extractPdfMarkdown(buf);
+    if (isMarkdownDocumentType(normalizedType)) return decodeMarkdownBytes(buf);
     if (normalizedType === "docx") return extractDocxMarkdown(buf);
     if (isSpreadsheetDocumentType(normalizedType)) {
         // SheetJS handles .xlsx/.xlsm/.xls directly, no PDF detour.

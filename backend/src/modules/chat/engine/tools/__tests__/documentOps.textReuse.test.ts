@@ -40,3 +40,10 @@ it("keeps turn caches separate", async () => {
   await readDocumentContent("D1", store(), () => {}, index, {} as Db);
   expect(mocks.text).toHaveBeenCalledTimes(2);
 });
+it("reads a Markdown document through the plain-text reader, not mammoth", async () => {
+  mocks.text.mockResolvedValue({ revision: "r1", text: null, textlessPageCount: 0 });
+  const docs: DocStore = new Map([["D1", { storage_path: "source", filename: "notes.md", file_type: "md" }]]);
+  mocks.extract.mockResolvedValue("# Notes");
+  expect(await readDocumentContent("D1", docs, () => {}, index, {} as Db)).toBe("# Notes");
+  expect(mocks.extract).toHaveBeenCalledWith("markdownText", expect.anything());
+});

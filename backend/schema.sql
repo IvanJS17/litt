@@ -1348,7 +1348,8 @@ create table if not exists public.document_versions (
       'assistant_edit'::text,
       'user_accept'::text,
       'user_reject'::text,
-      'generated'::text
+      'generated'::text,
+      'user_edit'::text
     ]))
 );
 
@@ -1466,7 +1467,7 @@ create table if not exists public.upload_session_files (
   constraint upload_session_files_filename_check
     check (length(filename) between 1 and 255),
   constraint upload_session_files_file_type_check
-    check (file_type in ('pdf', 'docx', 'doc', 'xlsx', 'xlsm', 'xls', 'pptx', 'ppt')),
+    check (file_type in ('pdf', 'docx', 'doc', 'xlsx', 'xlsm', 'xls', 'pptx', 'ppt', 'md')),
   constraint upload_session_files_content_type_check
     check (length(content_type) between 1 and 255),
   constraint upload_session_files_size_check
@@ -3846,7 +3847,7 @@ begin
        or file_row.resource_id is null
        or length(file_row.client_id) not between 1 and 128
        or length(file_row.filename) not between 1 and 255
-       or file_row.file_type not in ('pdf', 'docx', 'doc', 'xlsx', 'xlsm', 'xls', 'pptx', 'ppt')
+       or file_row.file_type not in ('pdf', 'docx', 'doc', 'xlsx', 'xlsm', 'xls', 'pptx', 'ppt', 'md')
        or length(file_row.content_type) not between 1 and 255
        or file_row.expected_size_bytes not between 1 and 104857600
        or length(file_row.staging_storage_path) < 1
@@ -7273,12 +7274,19 @@ begin
     -- version after somebody has already created a newer one.
     return to_jsonb(v_row);
   end if;
+  -- A user edit names the version it was made on. Checked under the document
+  -- lock, so two saves of the same base cannot both become current.
+  if p_version ? 'base_version_id' and (
+    select current_version_id from public.documents where id = p_document_id
+  ) is distinct from (p_version->>'base_version_id')::uuid then
+    raise exception 'document_version_conflict' using errcode = 'P0001';
+  end if;
   v_number := (p_version->>'version_number')::integer;
   if v_number is null then
     select coalesce(max(version_number), 1) + 1 into v_number
     from public.document_versions
     where document_id = p_document_id
-      and source in ('upload', 'user_upload', 'assistant_edit');
+      and source in ('upload', 'user_upload', 'assistant_edit', 'user_edit');
   end if;
   insert into public.document_versions(
     id, document_id, storage_path, pdf_storage_path, source, version_number,
@@ -12494,7 +12502,8 @@ alter table public.document_versions
     'user_accept'::text,
     'user_reject'::text,
     'generated'::text,
-    'ai_review_report'::text
+    'ai_review_report'::text,
+    'user_edit'::text
   ]));
 
 create table if not exists public.ai_document_version_pages (
@@ -20290,6 +20299,17 @@ alter table public.user_profiles
   add column if not exists terms_accepted_version text,
   add column if not exists terms_accepted_at timestamptz;
 
+-- ---------------------------------------------------------------------------
+-- 20261111_10_litt_markdown_versions.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-11
+--
+-- Markdown documents and edited versions. The effect is applied in place above
+-- (the document_versions source check, the upload_session_files file-type
+-- check, create_upload_session and create_document_version, which also takes
+-- a base_version_id); the migration
+-- file re-applies the same statements to upgraded databases.
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -20547,5 +20567,6 @@ insert into public.schema_migrations (filename) values
   ('20261108_82_litt_training_criterion_contrasts.sql'),
   ('20261109_10_litt_training_gym.sql'),
   ('20261109_20_litt_platform_invitations.sql'),
-  ('20261109_30_litt_terms_acceptance.sql')
+  ('20261109_30_litt_terms_acceptance.sql'),
+  ('20261111_10_litt_markdown_versions.sql')
 on conflict (filename) do nothing;

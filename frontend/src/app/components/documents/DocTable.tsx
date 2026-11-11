@@ -3718,7 +3718,7 @@ export function DocTable({
     }, []);
 
     const sidePanelDoc = viewingDoc ? (docs.find((doc) => doc.id === viewingDoc.id) ?? viewingDoc) : null;
-    const versionUploadAccept = ".pdf,.docx,.doc,.xlsx,.xlsm,.xls,.pptx,.ppt";
+    const versionUploadAccept = SUPPORTED_DOCUMENT_ACCEPT;
     const q = serverQueryActive ? "__server_results__" : search.toLowerCase();
     const viewedFolder = viewedFolderId
         ? folders.find((folder) => folder.id === viewedFolderId) ?? null

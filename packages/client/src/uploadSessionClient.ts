@@ -105,6 +105,10 @@ const UPLOAD_FILE_CONTENT_MESSAGES: Record<
         filenames.length === 1
             ? `${filenames[0]} is not a valid PDF file.`
             : `${filenames.join(", ")} are not valid PDF files.`,
+    invalid_markdown_file: (filenames) =>
+        filenames.length === 1
+            ? `${filenames[0]} is not a valid UTF-8 text file.`
+            : `${filenames.join(", ")} are not valid UTF-8 text files.`,
 };
 
 /**

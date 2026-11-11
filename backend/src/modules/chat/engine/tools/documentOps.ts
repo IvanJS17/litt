@@ -29,6 +29,7 @@ import {
 } from "../types";
 import {
   contentTypeForDocumentType,
+  isMarkdownDocumentType,
   isPresentationDocumentType,
   isSpreadsheetDocumentType,
   isWordDocumentType,
@@ -1380,6 +1381,7 @@ export async function readDocumentContent(
           | "spreadsheet"
           | "presentation"
           | "legacyOfficeText"
+          | "markdownText"
           | "rawText",
       ) => extract(op, source);
       if (fileType === "pdf") {
@@ -1402,6 +1404,8 @@ export async function readDocumentContent(
         devLog(
           `[read_document] spreadsheet extracted length=${text.length} for filename="${docInfo.filename}"`,
         );
+      } else if (isMarkdownDocumentType(fileType)) {
+        text = await readIsolated("markdownText");
       } else if (fileType === "pptx") {
         text = await readIsolated("presentation");
         devLog(

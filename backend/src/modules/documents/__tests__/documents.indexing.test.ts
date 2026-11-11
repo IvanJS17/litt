@@ -131,6 +131,14 @@ describe("version text extraction", () => {
     expect((await extractDocumentText(bytes, "pptx")).text).toContain("Words");
     await expect(extractDocumentText(bytes, "exe")).rejects.toThrow("unsupported_format");
   });
+  it("indexes a Markdown file as exactly its text, with no extractor and no page count", async () => {
+    const source = "\uFEFF# Cláusula 1\r\n\r\n| a | b |\n|---|---|\n| ñ | 日本 😀 |\n";
+    const raw = new TextEncoder().encode(source);
+    expect(await extractDocumentText(raw.buffer as ArrayBuffer, "md")).toEqual({ text: source, textlessPageCount: null });
+    expect(mocks.docx).not.toHaveBeenCalled();
+    expect(mocks.mammoth).not.toHaveBeenCalled();
+    expect(mocks.convert).not.toHaveBeenCalled();
+  });
   it("schedules a bounded resumable backfill with explicit failure retries", async () => {
     const fake = scriptedDb([{ rpc: "backfill_document_text", data: 3 }]);
     expect(await backfillDocumentText(fake.db, { limit: 25, retryFailed: true })).toBe(3);

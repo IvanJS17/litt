@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import {
     AlertCircle,
@@ -8,6 +9,7 @@ import {
     Check,
     Download,
     Eye,
+    GitCompare,
     Loader2,
     Pencil,
     Plus,
@@ -20,7 +22,9 @@ import { DocumentPaneTitle } from "@/app/components/shared/DocumentPaneTitle";
 import { PdfView } from "@/app/components/shared/views/PdfView";
 import { DocxView } from "@/app/components/shared/views/DocxView";
 import { SpreadsheetView } from "@/app/components/shared/views/SpreadsheetView";
-import { CloseButton, PillButtonUI } from "@mike/ui";
+import { VersionCompareModal } from "@/app/components/versions/VersionCompareModal";
+import { MarkdownView } from "@/app/components/shared/views/MarkdownView";
+import { CloseButton, PillButtonUI, TextButtonUI } from "@mike/ui";
 import type { Document } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
@@ -29,6 +33,7 @@ import { reportFault,
     notifyError,
 } from "@/app/lib/userFacingError";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
+import { SUPPORTED_DOCUMENT_ACCEPT } from "@/app/lib/documentUploadValidation";
 import { textLayerWarning } from "@/app/lib/textLayerWarning";
 import {
     LIQUID_FLOAT_PANEL_SURFACE_CLASS,
@@ -116,6 +121,7 @@ export function DocumentSidePanel({
     addLabel = "Add",
     onTrainingApproved,
 }: DocumentSidePanelProps) {
+    const t = useTranslations();
     const [mounted, setMounted] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
@@ -133,6 +139,7 @@ export function DocumentSidePanel({
     const [replacingVersionId, setReplacingVersionId] = useState<string | null>(
         null,
     );
+    const [compareOpen, setCompareOpen] = useState(false);
     const [deletingDocument, setDeletingDocument] = useState(false);
     const [confirmDeleteDocumentOpen, setConfirmDeleteDocumentOpen] =
         useState(false);
@@ -256,7 +263,7 @@ export function DocumentSidePanel({
 
     const activeDoc = doc;
     const documentId = activeDoc.id;
-    const newVersionAccept = ".pdf,.docx,.doc,.xlsx,.xlsm,.xls,.pptx,.ppt";
+    const newVersionAccept = SUPPORTED_DOCUMENT_ACCEPT;
     // Latest first: by version number, then by upload time.
     const orderedVersions = [...versions].sort(
         (a, b) =>
@@ -309,7 +316,11 @@ export function DocumentSidePanel({
         ? fileTypeForVersion(replaceTargetVersion, selectedFileType)
         : selectedFileType;
     const replaceVersionAccept =
-        replaceFileType === "pdf" ? ".pdf" : ".docx,.doc";
+        replaceFileType === "pdf"
+            ? ".pdf"
+            : replaceFileType === "md"
+              ? ".md"
+              : ".docx,.doc";
     const ownerLabel =
         doc.owner_display_name?.trim() || doc.owner_email?.trim() || "—";
 
@@ -621,6 +632,21 @@ export function DocumentSidePanel({
                                 versionId={selectedVersionId}
                                 displayUrl={displayUrl}
                             />
+                        ) : selectedViewType === "markdown" ? (
+                            <MarkdownView
+                                rounded="top-right"
+                                key={`${selectedVersionId ?? "current"}:${selectedUploadedAt ?? ""}:${selectedSizeBytes ?? ""}`}
+                                documentId={doc.id}
+                                versionId={selectedVersionId}
+                                canEdit={!readOnly && !displayUrl}
+                                onSaved={(saved) => {
+                                    void onLoadVersions(doc.id);
+                                    onSelectVersion(
+                                        saved.id,
+                                        saved.filename,
+                                    );
+                                }}
+                            />
                         ) : selectedViewType === "docx" ? (
                             <DocxView
                                 rounded="top-right"
@@ -796,8 +822,20 @@ export function DocumentSidePanel({
 
                     {!readOnly && (
                         <>
-                            <div className="mb-2 mt-4 shrink-0 text-xs font-medium text-gray-900">
+                            <div className="mb-2 mt-4 flex shrink-0 items-center justify-between gap-2 text-xs font-medium text-gray-900">
                                 Versions
+                                {activeVersionCount >= 2 && (
+                                    <TextButtonUI
+                                        size="sm"
+                                        onClick={() => setCompareOpen(true)}
+                                    >
+                                        <GitCompare
+                                            aria-hidden="true"
+                                            className="h-3.5 w-3.5"
+                                        />
+                                        {t("versionCompare.compare")}
+                                    </TextButtonUI>
+                                )}
                             </div>
                     <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 py-2">
                             {versionsLoading && versions.length === 0 ? (
@@ -1112,6 +1150,13 @@ export function DocumentSidePanel({
                     </div>
                 </aside>
             </div>
+            <VersionCompareModal
+                open={compareOpen}
+                onClose={() => setCompareOpen(false)}
+                documentId={documentId}
+                versions={versions}
+                currentVersionId={currentVersionId ?? null}
+            />
             <ConfirmPopup
                 open={replaceConfirmOpen}
                 title="Replace version?"
@@ -1228,6 +1273,7 @@ function fileTypeForVersion(version: DocumentVersion, fallback: string | null) {
     const name = version.filename?.trim().toLowerCase() ?? "";
     if (name.endsWith(".pdf")) return "pdf";
     if (name.endsWith(".doc") || name.endsWith(".docx")) return "docx";
+    if (name.endsWith(".md") || name.endsWith(".markdown")) return "md";
     return fallback;
 }
 

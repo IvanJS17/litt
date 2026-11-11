@@ -23,6 +23,12 @@ describe("isSupportedDocumentFile", () => {
         }
     });
 
+    it("accepts Markdown and says so when it refuses another type", () => {
+        expect(SUPPORTED_DOCUMENT_ACCEPT.split(",")).toContain(".md");
+        expect(isSupportedDocumentFile(file("notes.MD"))).toBe(true);
+        expect(UNSUPPORTED_DOCUMENT_WARNING_MESSAGE).toMatch(/Markdown \(\.md\)/);
+    });
+
     it("is case-insensitive on the extension", () => {
         expect(isSupportedDocumentFile(file("SCAN.PDF"))).toBe(true);
         expect(isSupportedDocumentFile(file("Deed.DocX"))).toBe(true);

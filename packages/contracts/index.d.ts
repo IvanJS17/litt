@@ -10,6 +10,7 @@ export type SourceDocumentType =
   | "docx"
   | "pdf"
   | "spreadsheet"
+  | "markdown"
   | "case"
   | "legislation";
 
@@ -1864,6 +1865,47 @@ export interface TrainingVersionApproval {
     document_version_id: string;
     content_sha256: string;
     approved_at: string;
+}
+
+/**
+ * POST /single-documents/:documentId/versions/markdown: a Markdown edit saved
+ * as a new version (`source` 'user_edit'). Body `{ text, base_version_id }`;
+ * 409 `document_version_conflict` when the base is no longer current.
+ */
+export interface MarkdownVersionSaved {
+    id: string;
+    version_number: number;
+    source: string;
+    created_at: string;
+    filename: string;
+    file_type: "md";
+    size_bytes: number;
+}
+
+/** `text_status` of a version in a compare: `none` means it has no text to index. */
+export type VersionCompareTextStatus = "ready" | "pending" | "failed" | "none";
+
+/** One side of GET /single-documents/:documentId/versions/compare. */
+export interface VersionCompareSide {
+    id: string;
+    version_number: number | null;
+    filename: string | null;
+    /** How the version was made (`assistant_edit` and `generated` are the AI's). */
+    source: string | null;
+    created_at: string;
+    text_status: VersionCompareTextStatus;
+    /** Only when `text_status` is `ready` and the text is within the size cap. */
+    text: string | null;
+    /** The text is ready but over the cap, so it was withheld. */
+    too_large: boolean;
+    /** PDF pages without a text layer; null = not measured. */
+    textless_page_count: number | null;
+}
+
+/** GET /single-documents/:documentId/versions/compare?base=<id>&head=<id> */
+export interface VersionCompare {
+    base: VersionCompareSide;
+    head: VersionCompareSide;
 }
 
 /**

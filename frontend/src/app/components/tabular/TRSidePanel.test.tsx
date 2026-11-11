@@ -16,6 +16,11 @@ vi.mock("../shared/views/PdfView", () => ({
 vi.mock("../shared/views/DocxView", () => ({
     DocxView: () => <div>DOCX</div>,
 }));
+vi.mock("../shared/views/MarkdownView", () => ({
+    MarkdownView: ({ documentId }: { documentId: string }) => (
+        <div>Markdown {documentId}</div>
+    ),
+}));
 vi.mock("../shared/views/SpreadsheetView", () => ({
     SpreadsheetView: () => <div>Spreadsheet</div>,
 }));
@@ -291,4 +296,17 @@ it.each(["membership", "document"] as const)("does not render an initial source 
     view.rerender(<TRSidePanel {...props} />);
     view.rerender(<TRSidePanel {...removed} />);
     expect(screen.getByText("PDF doc-2")).toBeInTheDocument();
+});
+
+it("opens a .md document in the read-only Markdown viewer", () => {
+    const document = { id: "doc-md", filename: "notes.md", file_type: "md" } as Document;
+    const row = { id: "row-1", label: document.filename, row_type: "document",
+        document_id: document.id, source_document_ids: [document.id] } as TabularReviewRow;
+    const column = { index: 0, name: "Clause", prompt: "Extract" } as ColumnConfig;
+    const cell = { id: "cell-1", row_id: row.id, column_index: 0, status: "done",
+        content: { summary: "Answer", flag: "grey", reasoning: "" } } as TabularCell;
+    render(<TRSidePanel cell={cell} row={row} rows={[row]} documentId={document.id}
+        documents={[document]} column={column} columns={[column]} displayDocument
+        onClose={vi.fn()} onNavigate={vi.fn()} />);
+    expect(screen.getByText("Markdown doc-md")).toBeInTheDocument();
 });

@@ -5,6 +5,7 @@ import { PdfView } from "./views/PdfView";
 import { DocxView } from "./views/DocxView";
 import type { DocxCloseGuard, DocxSaveState } from "./views/DocxRenderer.types";
 import { SpreadsheetView } from "./views/SpreadsheetView";
+import { MarkdownView } from "./views/MarkdownView";
 import {
     CitationQuotesSection,
     documentQuoteId,
@@ -339,6 +340,16 @@ export function DocumentContent({
                         onWarningDismiss={onWarningDismiss}
                         initialScrollTop={initialScrollTop ?? null}
                         onScrollChange={onScrollChange}
+                    />
+                ) : viewType === "markdown" ? (
+                    <MarkdownView
+                        documentId={documentId}
+                        versionId={versionId}
+                        canEdit={canEdit}
+                        rounded={false}
+                        refetchKey={refetchKey}
+                        onCloseGuardReady={onCloseGuardReady}
+                        onSaved={(saved) => onVersionChange?.(saved)}
                     />
                 ) : viewType === "spreadsheet" ? (
                     <SpreadsheetView

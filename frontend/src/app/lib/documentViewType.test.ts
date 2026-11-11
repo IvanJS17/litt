@@ -26,6 +26,11 @@ describe("resolveDocumentViewType", () => {
       "pdf",
     ],
     [null, "application/pdf", "pdf"],
+    ["notes.md", null, "markdown"],
+    ["NOTES.MD", null, "markdown"],
+    [null, "md", "markdown"],
+    [null, "text/markdown", "markdown"],
+    ["readme.markdown", null, "markdown"],
   ] as const)(
     "resolves filename %s and file type %s to %s",
     (filename, fileType, expected) => {

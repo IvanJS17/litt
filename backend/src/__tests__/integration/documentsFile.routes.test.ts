@@ -123,6 +123,39 @@ describe("GET /single-documents/:documentId/file", () => {
     expect(mocks.downloadFile).not.toHaveBeenCalled();
   });
 
+  it("serves a Markdown version as UTF-8 text with the exact stored bytes", async () => {
+    const bytes = Buffer.from("\uFEFF# Título\r\n\r\n| a |\n|---|\n| ñ 😀 |\n", "utf8");
+    mocks.loadActiveVersion.mockResolvedValue({
+      id: "version-3",
+      storage_path: "documents/user-1/document-1/notes.md",
+      pdf_storage_path: null,
+      version_number: 3,
+      filename: "notes.md",
+      source: "user_edit",
+      file_type: "md",
+      size_bytes: bytes.length,
+      page_count: null,
+    });
+    mocks.headFile.mockResolvedValue({ size: bytes.length, etag: '"etag"', contentType: "text/markdown; charset=utf-8" });
+    mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+
+    const response = await request(app)
+      .get("/single-documents/document-1/file?version_id=version-3")
+      .set("Authorization", "Bearer test")
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => done(null, Buffer.concat(chunks)));
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toBe("text/markdown; charset=utf-8");
+    expect(response.headers["content-length"]).toBe(String(bytes.length));
+    expect(response.headers["content-disposition"]).toContain("notes.md");
+    expect(Buffer.compare(response.body as Buffer, bytes)).toBe(0);
+  });
+
   it("does not read storage when the caller cannot access the document", async () => {
     mocks.ensureDocAccess.mockResolvedValue({ ok: false });
 
