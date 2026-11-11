@@ -1,13 +1,13 @@
 # Direct provider models
 
-The curated catalog was checked against provider documentation on 2026-10-07.
+The curated catalog was checked against provider documentation on 2026-11-10.
 It offers current general-purpose text/tool models, with smaller models for
 automatic titles and task settings. It does not include image-generation,
 audio, embedding, or restricted-access models.
 
 | Provider | Chat and tabular selection | Automatic title model |
 | --- | --- | --- |
-| Anthropic | Claude Fable 5.1, Opus 5.5, Sonnet 5.5 | Claude Haiku 4.5 |
+| Anthropic | Claude Fable 5.2, Fable 5.1, Opus 5.5, Sonnet 5.5 | Claude Haiku 4.5 |
 | Google | Gemini 3.8 Flash, Gemini 3.1 Pro (Preview) | Gemini 3.5 Flash-Lite |
 | OpenAI | GPT-6 Astra, GPT-6.1 Sol, GPT-6 Luna | GPT-6 Luna |
 | Mistral AI | Mistral Large 4 (Preview), Medium 3.5, Small 4 | Mistral Small 4 |

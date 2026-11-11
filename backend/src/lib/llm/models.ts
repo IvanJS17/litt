@@ -6,6 +6,7 @@ import { REASONING_LEVELS, type Provider, type ReasoningLevel } from "./types";
 // ---------------------------------------------------------------------------
 // Main-chat tier (top-end) — user picks one of these per message.
 export const CLAUDE_MAIN_MODELS = [
+    "claude-fable-5-2",
     "claude-fable-5-1",
     "claude-opus-5-5",
     "claude-sonnet-5-5",
@@ -71,7 +72,7 @@ export function reasoningLevelsForModel(
               .replace(/^(vertex\/[^@]+)@/, "$1-");
     // Astra, Sol 6.1, and current Fable/Opus cannot disable thinking.
     if (
-        /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-1|claude-opus-5-5)(?:$|-)/.test(
+        /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-[12]|claude-opus-5-5)(?:$|-)/.test(
             catalogId,
         )
     ) {
@@ -158,7 +159,7 @@ export function providerForModel(model: string): Provider {
 // and localStorage selections outlive catalog renames; mapping here keeps an
 // old saved value working instead of silently kicking it to the fallback.
 export const LEGACY_MODEL_IDS: Record<string, string> = {
-    "claude-fable-5": "claude-fable-5-1",
+    "claude-fable-5": "claude-fable-5-2",
     "claude-opus-5": "claude-opus-5-5",
     "claude-opus-4-8": "claude-opus-5-5",
     "claude-opus-4-7": "claude-opus-5-5",

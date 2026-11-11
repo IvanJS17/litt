@@ -344,6 +344,7 @@ describe("reasoningLevelsForModel", () => {
             "bedrock/anthropic.claude-opus-5-5",
             "bedrock/us.anthropic.claude-opus-5-5",
             "bedrock/global.anthropic.claude-fable-5-1-v1:0",
+            "bedrock/global.anthropic.claude-fable-5-2",
             "bedrock/us-gov.anthropic.claude-opus-5-5",
             "bedrock/arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-opus-5-5",
         ]) {
@@ -400,7 +401,7 @@ describe("catalog refresh", () => {
         }
         expect(providerForModel("openrouter/mistralai/mistral-large-4")).toBe("openrouter");
     });
-    it.each(["gpt-6-astra", "gpt-6.1-sol", "claude-fable-5-1", "claude-opus-5-5"])("never disables required reasoning for %s", (model) => {
+    it.each(["gpt-6-astra", "gpt-6.1-sol", "claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5"])("never disables required reasoning for %s", (model) => {
         expect(reasoningLevelsForModel(model)).not.toContain("none");
         expect(normalizeReasoningLevelForModel(model, "none")).toBe("low");
     });

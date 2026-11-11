@@ -35,6 +35,7 @@ const direct = (option: Omit<ModelOption, "source">): ModelOption => ({
 
 /** The direct-provider models every picker offers. */
 export const MODELS: readonly ModelOption[] = [
+  direct({ id: "claude-fable-5-2", label: "Claude Fable 5.2", group: "Anthropic" }),
   direct({ id: "claude-fable-5-1", label: "Claude Fable 5.1", group: "Anthropic" }),
   direct({ id: "claude-opus-5-5", label: "Claude Opus 5.5", group: "Anthropic" }),
   direct({ id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5", group: "Anthropic" }),
@@ -69,7 +70,7 @@ export const ALLOWED_MODEL_IDS: ReadonlySet<string> = new Set(
  * (frontend/src/wordAddin/catalogParity.test.ts pins the two).
  */
 export const LEGACY_MODEL_IDS: Readonly<Record<string, string>> = {
-  "claude-fable-5": "claude-fable-5-1",
+  "claude-fable-5": "claude-fable-5-2",
   "claude-opus-5": "claude-opus-5-5",
   "claude-opus-4-8": "claude-opus-5-5",
   "claude-opus-4-7": "claude-opus-5-5",

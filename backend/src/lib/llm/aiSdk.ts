@@ -790,7 +790,7 @@ export async function completeAiSdkText(
 
 /**
  * Extra output allowance for one-shot completions on models that always
- * reason (Opus 5.5, Fable 5.1, GPT-6 Astra/Sol 6.1 — directly, or through
+ * reason (Opus 5.5, Fable 5.2/5.1, GPT-6 Astra/Sol 6.1 — directly, or through
  * Bedrock, Vertex, Foundry, Azure or a router). 4,096 matches what
  * @ai-sdk/amazon-bedrock adds on top of a thinking budget for the answer.
  */

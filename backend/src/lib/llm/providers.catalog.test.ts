@@ -49,6 +49,7 @@ describe("current provider model compatibility", () => {
   );
 
   it.each([
+    ["claude-fable-5-2", "low"],
     ["claude-fable-5-1", "low"],
     ["claude-opus-5-5", "low"],
     ["claude-sonnet-5-5", "between_tools"],
