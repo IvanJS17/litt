@@ -10,6 +10,7 @@ export type SourceDocumentType =
   | "docx"
   | "pdf"
   | "spreadsheet"
+  | "markdown"
   | "case"
   | "legislation";
 

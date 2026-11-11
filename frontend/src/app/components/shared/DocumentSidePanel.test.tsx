@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createPortal } from "react-dom";
 import { expect, it, vi } from "vitest";
 import type { Document } from "@/app/components/shared/types";
@@ -203,4 +203,66 @@ it("offers the estimated authorship of the selected version only where the serve
     render(<DocumentSidePanel {...props} versions={[{ ...version, training_authorship: false }]} />);
     expect(screen.queryByRole("button", { name: "Show estimated authorship" })).toBeNull();
     authorship.mockRestore();
+});
+
+const mdDoc: Document = { ...doc, id: "md-1", filename: "notes.md", file_type: "md" };
+const mdVersion = (n: number, source = "upload"): DocumentVersion => ({
+    id: `m${n}`,
+    version_number: n,
+    source,
+    created_at: `2026-09-0${n}T00:00:00Z`,
+    filename: "notes.md",
+});
+
+it("views a .md in the Markdown viewer and, after a save, selects the new version", async () => {
+    const mikeApi = await import("@/app/lib/mikeApi");
+    vi.spyOn(mikeApi, "getDocumentFile").mockResolvedValue({
+        blob: new Blob(["# Notas"], { type: "text/markdown" }),
+        filename: "notes.md",
+    });
+    vi.spyOn(mikeApi, "listDocumentVersions").mockResolvedValue({
+        current_version_id: "m2",
+        versions: [],
+    });
+    vi.spyOn(mikeApi, "saveMarkdownVersion").mockResolvedValue({
+        id: "m3",
+        version_number: 3,
+        source: "user_edit",
+        created_at: "2026-09-03T00:00:00Z",
+        filename: "notes.md",
+        file_type: "md",
+        size_bytes: 4,
+    });
+    const onLoadVersions = vi.fn();
+    const onSelectVersion = vi.fn();
+    render(
+        <DocumentSidePanel
+            doc={mdDoc}
+            versions={[mdVersion(1), mdVersion(2)]}
+            versionsLoading={false}
+            currentVersionId="m2"
+            onClose={vi.fn()}
+            onLoadVersions={onLoadVersions}
+            onSelectVersion={onSelectVersion}
+            onDownloadDocument={vi.fn()}
+            onDownloadVersion={vi.fn()}
+            onRenameVersion={vi.fn()}
+            onDeleteVersion={vi.fn()}
+            onUploadNewVersion={vi.fn()}
+            onReplaceVersion={vi.fn()}
+            onDelete={vi.fn()}
+        />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Notas" })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Text" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Markdown source" }), {
+        target: { value: "# Notas nuevas" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSelectVersion).toHaveBeenCalledWith("m3", "notes.md"));
+    expect(onLoadVersions).toHaveBeenCalledWith("md-1");
+    vi.restoreAllMocks();
 });

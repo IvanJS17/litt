@@ -1,4 +1,4 @@
-export type DocumentViewType = "pdf" | "docx" | "spreadsheet";
+export type DocumentViewType = "pdf" | "docx" | "spreadsheet" | "markdown";
 
 type LegacyDocViewType = Extract<DocumentViewType, "pdf" | "docx">;
 
@@ -12,7 +12,7 @@ export interface ResolveDocumentViewTypeOptions {
 }
 
 type DocumentTypeToken =
-  "pdf" | "doc" | "docx" | "spreadsheet" | "presentation" | "other";
+  "pdf" | "doc" | "docx" | "spreadsheet" | "presentation" | "markdown" | "other";
 
 function documentTypeToken(
   value: string | null | undefined,
@@ -28,6 +28,7 @@ function documentTypeToken(
   }
   if (normalized.includes("presentation")) return "presentation";
   if (normalized === "application/pdf") return "pdf";
+  if (normalized === "text/markdown") return "markdown";
 
   const withoutQuery = normalized.split(/[?#]/, 1)[0];
   const token = withoutQuery.includes(".")
@@ -41,11 +42,13 @@ function documentTypeToken(
   if (token === "doc") return "doc";
   if (token === "pptx" || token === "ppt") return "presentation";
   if (token === "pdf") return "pdf";
+  if (token === "md" || token === "markdown") return "markdown";
   return "other";
 }
 
 /**
- * Resolve the shared viewer used for a document-like asset. Unsupported and
+ * Resolve the shared viewer used for a document-like asset. Markdown has its
+ * own viewer (it is the file's text). Unsupported and
  * presentation formats fall back to PdfView because the backend supplies a
  * PDF rendition for those formats where required.
  */
@@ -60,6 +63,10 @@ export function resolveDocumentViewType({
 
   if (fileTypeToken === "spreadsheet" || filenameToken === "spreadsheet") {
     return "spreadsheet";
+  }
+
+  if (fileTypeToken === "markdown" || filenameToken === "markdown") {
+    return "markdown";
   }
 
   const wordToken =

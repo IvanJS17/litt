@@ -1545,5 +1545,28 @@
     "saving": "Saving...",
     "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
     "simplifiedTitle": "Simplified privacy notice"
+  },
+  "markdownDocument": {
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "modeLabel": "Editing mode",
+    "modeRich": "Formatted",
+    "modeText": "Text",
+    "editorLabel": "Markdown editor",
+    "sourceLabel": "Markdown source",
+    "loadError": "This Markdown file could not be loaded.",
+    "loadingLabel": "Loading document",
+    "conflict": "Someone saved another version; reload to see the changes.",
+    "copyText": "Copy my text",
+    "textCopied": "Text copied",
+    "copyFailed": "Your browser did not allow copying. Select the text and copy it by hand.",
+    "reload": "Reload",
+    "richUnavailable": "The formatted editor would change this Markdown when saving (tables or syntax it does not keep). Keep editing in Text mode.",
+    "unsaved": "You have unsaved changes. If you leave now, you will lose them.",
+    "discardTitle": "Discard unsaved changes?",
+    "discard": "Discard changes",
+    "keepEditing": "Keep editing"
   }
 }

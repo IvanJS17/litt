@@ -55,7 +55,8 @@ export function DocumentTitleRow({
     const isFile =
         document.type === "docx" ||
         document.type === "pdf" ||
-        document.type === "spreadsheet";
+        document.type === "spreadsheet" ||
+        document.type === "markdown";
     const versionNumber = document.version_number;
     // LiTT training: a pasante's unapproved draft is viewed here, never
     // downloaded; the download below reads /file, which stays open.

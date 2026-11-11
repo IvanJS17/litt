@@ -30,6 +30,7 @@ import { getPillClass } from "./pillUtils";
 import { PdfView } from "../shared/views/PdfView";
 import { SpreadsheetView } from "../shared/views/SpreadsheetView";
 import { DocxView } from "../shared/views/DocxView";
+import { MarkdownView } from "../shared/views/MarkdownView";
 import { FileTypeIcon } from "../shared/FileTypeIcon";
 import { DocumentPaneTitle } from "../shared/DocumentPaneTitle";
 import { SubfolderSvgIcon } from "../shared/FolderSvgIcon";
@@ -374,7 +375,9 @@ export function TRSidePanel({
                             />
                         </div>
                     )}
-                    {documentViewType === "docx" ? (
+                    {documentViewType === "markdown" ? (
+                        <MarkdownView rounded="top-right" documentId={doc.id} />
+                    ) : documentViewType === "docx" ? (
                         <DocxView
                             rounded="top-right"
                             documentId={doc.id}

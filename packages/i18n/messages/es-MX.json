@@ -1545,5 +1545,28 @@
     "saving": "Guardando...",
     "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
     "simplifiedTitle": "Aviso de privacidad simplificado"
+  },
+  "markdownDocument": {
+    "edit": "Editar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "cancel": "Cancelar",
+    "modeLabel": "Modo de edición",
+    "modeRich": "Con formato",
+    "modeText": "Texto",
+    "editorLabel": "Editor de Markdown",
+    "sourceLabel": "Markdown fuente",
+    "loadError": "No se pudo cargar este archivo Markdown.",
+    "loadingLabel": "Cargando documento",
+    "conflict": "Alguien guardó otra versión; recarga para ver los cambios.",
+    "copyText": "Copiar mi texto",
+    "textCopied": "Texto copiado",
+    "copyFailed": "Tu navegador no permitió copiar. Selecciona el texto y cópialo a mano.",
+    "reload": "Recargar",
+    "richUnavailable": "El editor con formato cambiaría este Markdown al guardarlo (tablas o sintaxis que no conserva). Sigue editando en modo Texto.",
+    "unsaved": "Tienes cambios sin guardar. Si sales ahora, los perderás.",
+    "discardTitle": "¿Descartar los cambios sin guardar?",
+    "discard": "Descartar cambios",
+    "keepEditing": "Seguir editando"
   }
 }
