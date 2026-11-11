@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ByokProviderModal } from "./ByokProviderModal";
 
 const mocks = vi.hoisted(() => ({
   updateApiKey: vi.fn(async () => true),
+  apiKeys: {} as Record<string, unknown>,
 }));
 
 vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
@@ -14,7 +15,7 @@ vi.mock("@/app/components/popups/MfaVerificationPopup", () => ({
 vi.mock("@/app/contexts/UserProfileContext", () => ({
   useUserProfile: () => ({
     profile: {
-      apiKeys: { claude: { configured: true, enabled: true, source: "user" } },
+      apiKeys: mocks.apiKeys,
       apiKeySettings: undefined,
     },
     updateApiKey: mocks.updateApiKey,
@@ -28,6 +29,28 @@ const provider = {
 } as const;
 
 describe("ByokProviderModal primary action", () => {
+  beforeEach(() => {
+    mocks.apiKeys = {
+      claude: { configured: true, enabled: true, source: "user" },
+    };
+  });
+
+  it("is Done, with no React warning, for a key supplied by the server environment", async () => {
+    mocks.apiKeys = {
+      claude: { configured: true, enabled: true, source: "env" },
+    };
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<ByokProviderModal provider={provider} onClose={onClose} />);
+
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
   it("is an enabled Done that closes when no key is waiting to be saved", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

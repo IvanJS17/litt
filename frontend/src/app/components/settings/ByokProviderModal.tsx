@@ -141,6 +141,8 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
   const hasSavedKey = store
     ? store.hasSavedKey
     : !!provider && profile?.apiKeys[provider.provider]?.source === "user";
+  const hasEnvKey =
+    !store && !!provider && profile?.apiKeys[provider.provider]?.source === "env";
   const savedSettings = store ? store.settings : profile?.apiKeySettings;
   const saveKey = store ? store.save : updateApiKey;
   const settingsProvider =
@@ -165,6 +167,7 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
       variant="modal"
       label={provider.label}
       hasSavedKey={hasSavedKey}
+      hasEnvKey={hasEnvKey}
       keyLabel={provider.keyLabel}
       validateKey={provider.provider === "vertex" ? validateVertexKey : undefined}
       setting={settingsProvider ? keySetting(settingsProvider, savedSettings) : undefined}
@@ -192,7 +195,12 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
           primaryAction={
             saveAction.settled
               ? { label: "Done", onClick: onClose, disabled: false, variant: "blue" }
-              : { ...saveAction, variant: "blue" }
+              : {
+                  label: saveAction.label,
+                  onClick: saveAction.onClick,
+                  disabled: saveAction.disabled,
+                  variant: "blue",
+                }
           }
           secondaryAction={removeAction ? { ...removeAction, label: "Clear", variant: "danger" } : undefined}
         >
