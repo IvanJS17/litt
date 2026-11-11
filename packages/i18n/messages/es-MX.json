@@ -1580,7 +1580,7 @@
       "unidentifiedDocument": "No se pudo identificar este documento de Word."
     },
     "language": {
-      "description": "Elige el idioma que LiTT usa en Word. Se guarda en tu perfil, así que también se aplica en la aplicación web.",
+      "description": "Elige el idioma que LiTT usa en Word. Se guarda en tu perfil, así que también se aplica en la app web.",
       "label": "Idioma de la interfaz",
       "names": {
         "en-US": "English",
