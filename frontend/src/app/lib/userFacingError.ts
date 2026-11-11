@@ -347,6 +347,8 @@ const USER_SIDE_UPLOAD_CODES: ReadonlySet<string> = new Set([
     "direct_upload_failed",
     // The bytes were never a PDF (a renamed file); only the user can fix that.
     "invalid_pdf_file",
+    // The bytes were not UTF-8 text; only the user can fix that.
+    "invalid_markdown_file",
 ]);
 
 /**

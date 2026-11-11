@@ -218,6 +218,7 @@
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
       "terms_version_mismatch": "Esos no son los Términos vigentes. Recarga la página e inténtalo de nuevo.",
+      "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "playbook_change_decided": "Este cambio ya se decidió. Recarga los cambios propuestos.",
       "playbook_change_stale": "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos.",
       "playbook_changes_pending": "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno primero.",

@@ -251,6 +251,7 @@ describe("uploadBatchFault", () => {
     it("does not report a file the server refused as not a PDF", () => {
         // The worker names the bytes, not a fault of ours (PR #577).
         expect(uploadBatchFault([outcome("invalid_pdf_file")])).toBeNull();
+        expect(uploadBatchFault([outcome("invalid_markdown_file")])).toBeNull();
     });
 
     it("wraps the failures when one of them is ours", () => {

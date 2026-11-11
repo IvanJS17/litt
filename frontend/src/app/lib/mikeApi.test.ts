@@ -31,6 +31,8 @@ import {
     clearTabularCells,
     completeUserOnboarding,
     copyDocumentVersionFromDocument,
+    saveMarkdownVersion,
+    compareDocumentVersions,
     copyDocumentsToWorkflowAssets,
     createChat,
     createQuickAction,
@@ -3288,6 +3290,18 @@ describe("thin endpoint wrappers", () => {
             name: "getDocumentAuthorship",
             call: () => getDocumentAuthorship("d 1", "v 1"),
             url: "/single-documents/d%201/versions/v%201/authorship",
+        },
+        {
+            name: "saveMarkdownVersion",
+            call: () => saveMarkdownVersion("d 1", "# Hola\n", "v1"),
+            url: "/single-documents/d%201/versions/markdown",
+            method: "POST",
+            body: { text: "# Hola\n", base_version_id: "v1" },
+        },
+        {
+            name: "compareDocumentVersions",
+            call: () => compareDocumentVersions("d 1", "v 1", "v&2"),
+            url: "/single-documents/d%201/versions/compare?base=v%201&head=v%262",
         },
         {
             name: "copyDocumentVersionFromDocument",

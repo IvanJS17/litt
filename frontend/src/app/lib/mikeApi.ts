@@ -3658,6 +3658,39 @@ export async function listDocumentVersions(documentId: string): Promise<{
     return apiRequest("documents.directory", `/single-documents/${documentId}/versions`);
 }
 
+/**
+ * Save a Markdown edit as a new `user_edit` version. `baseVersionId` is the
+ * version the edit started from; 409 `document_version_conflict` when
+ * another save came first.
+ */
+export async function saveMarkdownVersion(
+    documentId: string,
+    text: string,
+    baseVersionId: string,
+): Promise<import("@mike/contracts").MarkdownVersionSaved> {
+    return apiRequest(
+        "documents.directory",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/markdown`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, base_version_id: baseVersionId }),
+        },
+    );
+}
+
+/** Read-only: the stored text of two versions of a document, for comparing. */
+export async function compareDocumentVersions(
+    documentId: string,
+    baseVersionId: string,
+    headVersionId: string,
+): Promise<import("@mike/contracts").VersionCompare> {
+    return apiRequest(
+        "documents.directory",
+        `/single-documents/${encodeURIComponent(documentId)}/versions/compare?base=${encodeURIComponent(baseVersionId)}&head=${encodeURIComponent(headVersionId)}`,
+    );
+}
+
 export async function uploadDocumentVersion(
     documentId: string,
     file: File,

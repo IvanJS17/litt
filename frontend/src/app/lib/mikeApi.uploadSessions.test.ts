@@ -1326,6 +1326,21 @@ describe("failedUploadMessage for a file the worker refused", () => {
         );
     });
 
+    it("names a Markdown file that is not UTF-8 text, singly and in a list", () => {
+        expect(failedUploadMessage([refused("notes.md", "invalid_markdown_file")])).toBe(
+            "notes.md is not a valid UTF-8 text file.",
+        );
+        expect(
+            failedUploadMessage([
+                refused("a.md", "invalid_markdown_file"),
+                refused("b.md", "invalid_markdown_file"),
+            ]),
+        ).toBe("a.md, b.md are not valid UTF-8 text files.");
+        expect(
+            uploadOutcomeNeedsRetry({ status: "error", errorCode: "invalid_markdown_file" }),
+        ).toBe(false);
+    });
+
     it("lists every refused file when all share the reason", () => {
         expect(
             failedUploadMessage([

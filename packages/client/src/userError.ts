@@ -205,6 +205,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     review_stale: "conflict",
     memory_revision_conflict: "conflict",
     upload_target_busy: "conflict",
+    // A Markdown edit was made on a version that is no longer the current one.
+    document_version_conflict: "conflict",
     access_inherited: "conflict",
     ask_inputs_stale: "conflict",
     // LiTT governed BYOK: a conversation keeps the route it was started on.
