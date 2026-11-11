@@ -12,6 +12,17 @@ siempre igual en la web y en Word.
 Se trata al usuario de **tú** («Guarda tus cambios», «Elige tu idioma»), como ya
 hacen las piezas propias de LiTT. No se usa «usted».
 
+## Estilo
+
+Reglas cortas, sacadas de lo que ya hace el catálogo:
+
+- Verbos directos de trato «tú»: «Escribe», no «Ingresa»; «Pide», no «Solicita».
+- Pretérito simple, no perfecto compuesto: «expiró», no «ha expirado».
+- Sin calcos del inglés: nada de «en su lugar» ni «proporcionada» («la información que diste»).
+- «correo» basta cuando el contexto es claro; no se repite «correo electrónico» en cada mensaje.
+- «verificación en dos pasos», no «verificación de dos factores».
+- Frases cortas.
+
 ## Términos
 
 | Inglés | Español (es-MX) | Nota |

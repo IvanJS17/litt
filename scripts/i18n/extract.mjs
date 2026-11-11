@@ -27,6 +27,7 @@ import { tmpdir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+import { CATALOGS, isTree, leaves, serializeCatalog, sortTree } from "./catalog-io.mjs";
 import {
     PENDING_TRANSLATION,
     findVisibleLiterals,
@@ -37,7 +38,8 @@ import {
 } from "./literals.mjs";
 
 const DEFAULT_REPO = resolve(fileURLToPath(import.meta.url), "../../..");
-export const CATALOGS = { en: "packages/i18n/messages/en-US.json", es: "packages/i18n/messages/es-MX.json" };
+export { serializeCatalog };
+export { CATALOGS };
 export const BASELINE = "frontend/src/__tests__/i18n-literal-baseline.json";
 // Where catalog keys are looked up by --prune.
 const KEY_USERS = ["frontend/src", "word-addin/src", "packages", "backend/src"];
@@ -45,8 +47,6 @@ const KEY_USERS = ["frontend/src", "word-addin/src", "packages", "backend/src"];
 class Skip extends Error {}
 
 // ---------------------------------------------------------------- catalog
-
-const isTree = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /** The object at a dotted namespace, created when `create` is set. */
 function subtree(tree, namespace, create) {
@@ -95,21 +95,6 @@ function keyFor(catalog, namespace, message, slugSource, from) {
     }
     if (!(name in other)) other[name] = PENDING_TRANSLATION + message;
     return { key: `${namespace}.${name}`, isNew };
-}
-
-function sortTree(tree) {
-    return Object.fromEntries(
-        Object.keys(tree)
-            .sort()
-            .map((k) => [k, isTree(tree[k]) ? sortTree(tree[k]) : tree[k]]),
-    );
-}
-export const serializeCatalog = (tree) => `${JSON.stringify(sortTree(tree), null, 2)}\n`;
-
-function leaves(tree, prefix = "") {
-    return Object.entries(tree).flatMap(([k, v]) =>
-        isTree(v) ? leaves(v, `${prefix}${k}.`) : [`${prefix}${k}`],
-    );
 }
 
 function removeKey(tree, key) {
