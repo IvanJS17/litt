@@ -398,6 +398,60 @@ describe("upload processing", () => {
     },
   );
 
+  it("accepts a UTF-8 Markdown file, stores it as is and makes no PDF rendition", async () => {
+    const bytes = Buffer.from("# Título\n\n- ñandú, 日本語, 😀\n");
+    mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+    const db = fakeDb({ documents: [{ data: null, error: null }, { data: { id: baseFile.resource_id } }] });
+    await processUploadFile(db as never, baseSession, {
+      ...baseFile, filename: "notes.md", file_type: "md", content_type: "text/markdown; charset=utf-8",
+      expected_size_bytes: bytes.length,
+    });
+    expect(mocks.copyFile).toHaveBeenCalledOnce();
+    expect(mocks.officeFileToPdf).not.toHaveBeenCalled();
+    expect(mocks.uploadFileFromPath).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a stray continuation byte", Buffer.from([0x23, 0x20, 0x80, 0x0a])],
+    ["Latin-1 text", Buffer.from("caf\xe9", "latin1")],
+    ["a truncated multi-byte sequence", Buffer.from([0x61, 0xe2, 0x82])],
+  ])("rejects a Markdown file that is %s, before any write", async (_label, bytes) => {
+    mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+    const db = fakeDb();
+    await expect(processUploadFile(db as never, baseSession, {
+      ...baseFile, filename: "notes.md", file_type: "md", expected_size_bytes: bytes.length,
+    })).rejects.toThrow("invalid_markdown_file");
+    expect(db.from).not.toHaveBeenCalled();
+    expect(db.rpc).not.toHaveBeenCalled();
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+  });
+
+  it("keeps a non-UTF-8 Markdown file terminal with its own error code", async () => {
+    const bytes = Buffer.from([0xff, 0xfe, 0x41]);
+    mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));
+    const db = scriptedDb([
+      { data: { id: "job-1", session_id: baseSession.id, file_id: baseFile.id, attempts: 1, locked_by: "worker-1" } },
+      { data: baseSession },
+      { data: { ...baseFile, filename: "notes.md", file_type: "md", expected_size_bytes: bytes.length } },
+      { data: { id: "job-1" } }, // Initial heartbeat.
+      { error: null }, // Processing status.
+      { data: { id: "job-1" } }, // Failure heartbeat.
+      { error: null }, // File error.
+      { error: null }, // Document error.
+      { data: { id: "job-1" } }, // Final heartbeat.
+      { error: null }, // Remove failed document.
+      { data: [{ sealed_storage_path: baseFile.sealed_storage_path }] },
+      { data: { id: "job-1" } },
+    ]);
+    await processUploadJob(db as never, "job-1", "worker-1");
+    expect(db.calls).toContainEqual(expect.objectContaining({
+      table: "upload_session_files", operation: "update",
+      payload: expect.objectContaining({ status: "error", error_code: "invalid_markdown_file" }),
+    }));
+    expect(mocks.copyFile).not.toHaveBeenCalled();
+    expect(db.remaining).toHaveLength(0);
+  });
+
   it.each([false, true])("keeps invalid PDFs terminal when already failed=%s", async (alreadyFailed) => {
     const bytes = Buffer.from("not a PDF");
     mocks.createFileReadStream.mockImplementation(() => Readable.from([bytes]));

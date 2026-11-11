@@ -3,12 +3,14 @@ import { extractPdfTextForIndex } from "../pdfText";
 import { docxToPdf } from "../convert";
 import { extractPresentationText } from "../officeText";
 import { spreadsheetToLLMText } from "../spreadsheet";
-import { isSpreadsheetDocumentType, requiresLibreOfficeTextExtraction } from "../documentTypes";
+import { decodeMarkdownBytes, isMarkdownDocumentType, isSpreadsheetDocumentType, requiresLibreOfficeTextExtraction } from "../documentTypes";
 
 /** Complete text, using the same accepted DOCX view as the edit matcher. */
 export async function extractDocumentText(raw: ArrayBuffer, fileType: string) {
   const type = fileType.toLowerCase();
   if (type === "pdf") return extractPdfTextForIndex(raw);
+  // A Markdown file is its own text: no conversion, no page count.
+  if (isMarkdownDocumentType(type)) return { text: decodeMarkdownBytes(raw), textlessPageCount: null };
   if (requiresLibreOfficeTextExtraction(type)) {
     const pdf = await docxToPdf(Buffer.from(raw));
     return extractPdfTextForIndex(Uint8Array.from(pdf).buffer);

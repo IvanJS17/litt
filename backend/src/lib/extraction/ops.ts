@@ -6,6 +6,7 @@ import { extractDocxBodyText } from "../docxTrackedChanges";
 import { extractPresentationText } from "../officeText";
 import { extractLegacyOfficeText, extractPdfTextForModel } from "../pdfText";
 import { spreadsheetToLLMText } from "../spreadsheet";
+import { decodeMarkdownBytes } from "../documentTypes";
 import { extractDocumentMarkdown } from "./documentMarkdown";
 import { extractDocumentText } from "./documentText";
 
@@ -31,6 +32,8 @@ export const EXTRACTION_OPS = {
     spreadsheetToLLMText(Buffer.from(bytes)),
   presentation: (bytes: ArrayBuffer) =>
     extractPresentationText(Buffer.from(bytes)),
+  /** A Markdown file is its own text. */
+  markdownText: (bytes: ArrayBuffer) => decodeMarkdownBytes(bytes),
   legacyOfficeText: (bytes: ArrayBuffer) => extractLegacyOfficeText(bytes),
   rawText: (bytes: ArrayBuffer) => mammothRawText(bytes),
 };

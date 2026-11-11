@@ -37,7 +37,11 @@ import {
   type PollFailureGate,
 } from "../../lib/observability/pollFailureGate";
 import { asReportableError } from "../../lib/httpError";
-import { shouldConvertToPdf } from "../../lib/documentTypes";
+import {
+  decodeMarkdownBytes,
+  isMarkdownDocumentType,
+  shouldConvertToPdf,
+} from "../../lib/documentTypes";
 import { countPagesWithoutText } from "../../lib/pdfText";
 import { uploadJobWallClockMs } from "../../lib/runtimeConfig";
 import {
@@ -109,6 +113,7 @@ const TERMINAL_UPLOAD_ERROR_CODES = new Set([
   "size_mismatch",
   "content_type_mismatch",
   "invalid_pdf_file",
+  "invalid_markdown_file",
   // The destination document no longer exists. Retrying cannot make it exist
   // again — it can only put it back, which is the bug this code prevents.
   "document_deleted",
@@ -145,6 +150,25 @@ class InvalidPdfFileError extends Error {
   constructor() {
     super("invalid_pdf_file");
     this.name = "InvalidPdfFileError";
+  }
+}
+
+class InvalidMarkdownFileError extends Error {
+  constructor() {
+    super("invalid_markdown_file");
+    this.name = "InvalidMarkdownFileError";
+  }
+}
+
+// A .md has no signature. Its only structural rule is that the bytes are
+// UTF-8: it is stored, indexed and served exactly as uploaded, so a file in
+// another encoding is refused rather than silently altered.
+async function validateMarkdownFile(filePath: string): Promise<void> {
+  const bytes = await readFile(filePath);
+  try {
+    decodeMarkdownBytes(bytes, { fatal: true });
+  } catch {
+    throw new InvalidMarkdownFileError();
   }
 }
 
@@ -751,6 +775,8 @@ export async function processUploadFile(
   const artifact = await requireSealedFile(file);
   try {
     if (file.file_type === "pdf") await validatePdfFile(artifact.filePath);
+    if (isMarkdownDocumentType(file.file_type))
+      await validateMarkdownFile(artifact.filePath);
     switch (session.purpose) {
       case "document_create":
         return await processCreatedDocument(db, session, file, artifact);
@@ -970,10 +996,12 @@ export async function processUploadJob(
         terminalProcessingFailure =
           error instanceof DeletedDocumentError ||
           error instanceof ChangedDocumentError ||
-          error instanceof InvalidPdfFileError;
+          error instanceof InvalidPdfFileError ||
+          error instanceof InvalidMarkdownFileError;
         if (
           !(error instanceof ChangedDocumentError) &&
-          !(error instanceof InvalidPdfFileError)
+          !(error instanceof InvalidPdfFileError) &&
+          !(error instanceof InvalidMarkdownFileError)
         ) {
           reportError(error, {
             tags: {
@@ -1003,6 +1031,7 @@ export async function processUploadJob(
               ? "document_changed"
               : error instanceof DeletedDocumentError ? "document_deleted"
               : error instanceof InvalidPdfFileError ? "invalid_pdf_file"
+              : error instanceof InvalidMarkdownFileError ? "invalid_markdown_file"
               : "processing_failed",
             updated_at: new Date().toISOString(),
           })
