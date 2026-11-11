@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import {
     AlertCircle,
@@ -8,6 +9,7 @@ import {
     Check,
     Download,
     Eye,
+    GitCompare,
     Loader2,
     Pencil,
     Plus,
@@ -20,8 +22,9 @@ import { DocumentPaneTitle } from "@/app/components/shared/DocumentPaneTitle";
 import { PdfView } from "@/app/components/shared/views/PdfView";
 import { DocxView } from "@/app/components/shared/views/DocxView";
 import { SpreadsheetView } from "@/app/components/shared/views/SpreadsheetView";
+import { VersionCompareModal } from "@/app/components/versions/VersionCompareModal";
 import { MarkdownView } from "@/app/components/shared/views/MarkdownView";
-import { CloseButton, PillButtonUI } from "@mike/ui";
+import { CloseButton, PillButtonUI, TextButtonUI } from "@mike/ui";
 import type { Document } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { cn } from "@/app/lib/utils";
@@ -118,6 +121,7 @@ export function DocumentSidePanel({
     addLabel = "Add",
     onTrainingApproved,
 }: DocumentSidePanelProps) {
+    const t = useTranslations();
     const [mounted, setMounted] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
@@ -135,6 +139,7 @@ export function DocumentSidePanel({
     const [replacingVersionId, setReplacingVersionId] = useState<string | null>(
         null,
     );
+    const [compareOpen, setCompareOpen] = useState(false);
     const [deletingDocument, setDeletingDocument] = useState(false);
     const [confirmDeleteDocumentOpen, setConfirmDeleteDocumentOpen] =
         useState(false);
@@ -817,8 +822,20 @@ export function DocumentSidePanel({
 
                     {!readOnly && (
                         <>
-                            <div className="mb-2 mt-4 shrink-0 text-xs font-medium text-gray-900">
+                            <div className="mb-2 mt-4 flex shrink-0 items-center justify-between gap-2 text-xs font-medium text-gray-900">
                                 Versions
+                                {activeVersionCount >= 2 && (
+                                    <TextButtonUI
+                                        size="sm"
+                                        onClick={() => setCompareOpen(true)}
+                                    >
+                                        <GitCompare
+                                            aria-hidden="true"
+                                            className="h-3.5 w-3.5"
+                                        />
+                                        {t("versionCompare.compare")}
+                                    </TextButtonUI>
+                                )}
                             </div>
                     <div className="-mx-2 min-h-0 flex-1 overflow-y-auto px-2 py-2">
                             {versionsLoading && versions.length === 0 ? (
@@ -1133,6 +1150,13 @@ export function DocumentSidePanel({
                     </div>
                 </aside>
             </div>
+            <VersionCompareModal
+                open={compareOpen}
+                onClose={() => setCompareOpen(false)}
+                documentId={documentId}
+                versions={versions}
+                currentVersionId={currentVersionId ?? null}
+            />
             <ConfirmPopup
                 open={replaceConfirmOpen}
                 title="Replace version?"

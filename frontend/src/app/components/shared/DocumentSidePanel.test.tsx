@@ -266,3 +266,44 @@ it("views a .md in the Markdown viewer and, after a save, selects the new versio
     expect(onLoadVersions).toHaveBeenCalledWith("md-1");
     vi.restoreAllMocks();
 });
+
+it("offers Compare only with two or more versions, and opens the comparison", async () => {
+    const mikeApi = await import("@/app/lib/mikeApi");
+    const compare = vi.spyOn(mikeApi, "compareDocumentVersions").mockReturnValue(new Promise(() => {}));
+    const props = {
+        doc,
+        versionsLoading: false,
+        currentVersionId: "v2",
+        onClose: vi.fn(),
+        onLoadVersions: vi.fn(),
+        onSelectVersion: vi.fn(),
+        onDownloadDocument: vi.fn(),
+        onDownloadVersion: vi.fn(),
+        onRenameVersion: vi.fn(),
+        onDeleteVersion: vi.fn(),
+        onUploadNewVersion: vi.fn(),
+        onReplaceVersion: vi.fn(),
+        onDelete: vi.fn(),
+    };
+    const version = (n: number, deleted = false): DocumentVersion => ({
+        id: `v${n}`,
+        version_number: n,
+        source: n === 2 ? "assistant_edit" : "upload",
+        created_at: `2026-09-0${n}T00:00:00Z`,
+        filename: `agreement-v${n}.docx`,
+        deleted_at: deleted ? "2026-09-09T00:00:00Z" : null,
+    });
+    const { rerender } = render(<DocumentSidePanel {...props} versions={[version(1)]} />);
+    expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
+    rerender(<DocumentSidePanel {...props} versions={[version(1), version(2, true)]} />);
+    expect(screen.queryByRole("button", { name: "Compare" })).toBeNull();
+    rerender(<DocumentSidePanel {...props} versions={[version(1), version(2)]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Compare" }));
+    expect(await screen.findByRole("dialog", { name: "Compare versions" })).toBeInTheDocument();
+    expect(compare).toHaveBeenCalledWith("doc-1", "v1", "v2");
+    // A press inside the comparison does not count as outside the panel.
+    fireEvent.pointerDown(screen.getByRole("dialog", { name: "Compare versions" }));
+    expect(props.onClose).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+});

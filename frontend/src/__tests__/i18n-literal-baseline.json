@@ -53,7 +53,9 @@
     "packages/ui/src/useTrainingBacking.ts",
     "word-addin/src/taskpane/components/assistant/BackingPanel.tsx",
     "word-addin/src/taskpane/hooks/useWordTrainingBacking.ts",
-    "word-addin/src/taskpane/i18n/useTrainingText.ts"
+    "word-addin/src/taskpane/i18n/useTrainingText.ts",
+    "frontend/src/app/components/versions",
+    "frontend/src/app/components/shared/views/MarkdownView.tsx"
   ],
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
