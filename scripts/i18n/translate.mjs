@@ -5,7 +5,7 @@
 // decision of 2026-11-11: there is no option to change it, and the script
 // refuses to run if one is given.
 //
-//   node scripts/i18n/translate.mjs [--ns <namespace>] [--dry-run] [--batch 80] [--receipt <path>]
+//   node scripts/i18n/translate.mjs [--ns <namespace>] [--dry-run] [--batch 40] [--receipt <path>]
 //
 // For each pending key the source is the en-US message. Per key, before
 // anything is written (no AI involved):
@@ -35,7 +35,9 @@ import { PENDING_TRANSLATION } from "./literals.mjs";
 
 const DEFAULT_REPO = resolve(fileURLToPath(import.meta.url), "../../..");
 export const MODEL = "gemini-3.8-flash-high";
-export const DEFAULT_BATCH = 80;
+export const DEFAULT_BATCH = 40;
+export const EXAMPLE_COUNT = 40;
+const SHORT_MESSAGE = 60; // characters: what counts as a short interface message
 const PRINT_TIMEOUT_S = 300;
 const MARK = PENDING_TRANSLATION.trim(); // "⟦por traducir⟧"
 
@@ -66,8 +68,41 @@ Rules:
 
 Return only a JSON object with exactly the keys you were given, each mapped to its Spanish message.`;
 
-export function buildPrompt(glossary, entries) {
-    return `${RULES}\n\n# Glossary\n\n${glossary.trim()}\n\n# Messages to translate\n\nA JSON object: key -> English message.\n\n${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`;
+/** The first segment of a key: its root namespace. */
+const rootOf = (key) => key.split(".")[0];
+
+/**
+ * Style examples: already translated en-US -> es-MX pairs of the real catalog
+ * (never pending ones, never keys of the batch). Deterministic: the batch's own
+ * root namespaces first, then the others; inside each group the short plain
+ * messages first, then the rest, always in key order.
+ * @returns {Array<[string, string, string]>} [key, en, es]
+ */
+export function selectExamples(catalog, entries, count = EXAMPLE_COUNT) {
+    const asked = new Set(entries.map(([k]) => k));
+    const roots = new Set(entries.map(([k]) => rootOf(k)));
+    const pool = [];
+    for (const key of leaves(catalog.es)) {
+        if (asked.has(key)) continue;
+        const es = getLeaf(catalog.es, key);
+        const en = getLeaf(catalog.en, key);
+        if (typeof es !== "string" || typeof en !== "string") continue;
+        if (es.trim() === "" || en.trim() === "" || es.includes(MARK) || en.includes(MARK) || es === en) continue;
+        pool.push([key, en, es]);
+    }
+    const byKey = (a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+    const plainShort = ([, en, es]) => en.length <= SHORT_MESSAGE && es.length <= SHORT_MESSAGE && !/[{}<]/.test(en);
+    const ordered = (group) => [...group.filter(plainShort).sort(byKey), ...group.filter((e) => !plainShort(e)).sort(byKey)];
+    const same = pool.filter(([k]) => roots.has(rootOf(k)));
+    const other = pool.filter(([k]) => !roots.has(rootOf(k)));
+    return [...ordered(same), ...ordered(other)].slice(0, count);
+}
+
+export function buildPrompt(glossary, entries, examples = []) {
+    const style = examples.length
+        ? `# Examples of LiTT's style\n\nThese are already translated and are NOT pending: examples of the style of LiTT; translate the messages below in the same way. Do not include them in your answer.\n\n${JSON.stringify(examples.map(([, en, es]) => ({ en, es })), null, 2)}\n\n`
+        : "";
+    return `${RULES}\n\n# Glossary\n\n${glossary.trim()}\n\n${style}# Messages to translate\n\nA JSON object: key -> English message.\n\n${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`;
 }
 
 /** A JSON schema asking for exactly these keys, all strings. */
@@ -233,16 +268,18 @@ export function run({
             say(`\n--- batch ${i + 1}/${batches.length}: ${b.length} key(s)`);
             say(b.map(([k]) => `  ${k}`).join("\n"));
         });
-        say(`\n--- prompt of batch 1\n${buildPrompt(glossary, batches[0])}`);
+        say(`\n--- prompt of batch 1\n${buildPrompt(glossary, batches[0], selectExamples(catalog, batches[0]))}`);
         return { translated: [], failed: [], tokens: { input: 0, output: 0 }, exitCode: 0 };
     }
 
+    // Style examples come from the messages that were already translated when the run began, never from this run's own output.
+    const styleCatalog = { en: catalog.en, es: structuredClone(catalog.es) };
     const tokens = { input: 0, output: 0 };
     const translated = [];
     const failures = new Map(); // key -> reasons of the last attempt
     const log = [];
     const attempt = (label, work) => {
-        const result = callAntigravity({ prompt: buildPrompt(glossary, work), schema: buildSchema(work.map(([k]) => k)), env });
+        const result = callAntigravity({ prompt: buildPrompt(glossary, work, selectExamples(styleCatalog, work)), schema: buildSchema(work.map(([k]) => k)), env });
         tokens.input += result.usage?.input_tokens ?? 0;
         tokens.output += result.usage?.output_tokens ?? 0;
         const tok = `tokens in=${result.usage?.input_tokens ?? 0} out=${result.usage?.output_tokens ?? 0}`;

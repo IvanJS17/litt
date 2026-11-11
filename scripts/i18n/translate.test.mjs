@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CATALOGS, serializeCatalog } from "./catalog-io.mjs";
 import { PENDING_TRANSLATION } from "./literals.mjs";
-import { MODEL, buildSchema, run, validateResponse } from "./translate.mjs";
+import { DEFAULT_BATCH, MODEL, buildPrompt, buildSchema, run, selectExamples, validateResponse } from "./translate.mjs";
 
 const P = PENDING_TRANSLATION;
 const PLURAL = "{count, plural, one {# file} other {# files}}";
@@ -78,6 +78,30 @@ describe("translate: the validator", () => {
     });
 });
 
+describe("translate: style examples", () => {
+    const en = { a: { save: "Save", other: "Other" }, b: { z: "Close", y: "Back", pend: "Next", same: "LiTT", long: "x".repeat(80) }, c: { k: "Open" } };
+    const es = { a: { save: `${P}Save`, other: "Otra" }, b: { z: "Cerrar", y: "Atrás", pend: `${P}Next`, same: "LiTT", long: "y".repeat(80) }, c: { k: "Abrir" } };
+    const catalog = { en, es };
+    const batch = [["a.save", "Save"]];
+
+    it("defaults to batches of 40", () => expect(DEFAULT_BATCH).toBe(40));
+
+    it("takes only translated pairs: same root first, then short ones in key order, never pending or batch keys", () => {
+        const picked = selectExamples(catalog, batch, 40);
+        expect(picked.map(([k]) => k)).toEqual(["a.other", "b.y", "b.z", "c.k", "b.long"]);
+        expect(selectExamples(catalog, batch, 2).map(([k]) => k)).toEqual(["a.other", "b.y"]);
+        expect(selectExamples(catalog, batch, 40)).toEqual(picked); // deterministic
+    });
+
+    it("puts the examples in the prompt, apart from the messages to translate", () => {
+        const prompt = buildPrompt("# G", batch, selectExamples(catalog, batch, 2));
+        expect(prompt).toContain("examples of the style of LiTT");
+        expect(prompt).toContain('"es": "Otra"');
+        expect(prompt.indexOf("Otra")).toBeLessThan(prompt.indexOf("# Messages to translate"));
+        expect(buildPrompt("# G", batch)).not.toContain("examples of the style");
+    });
+});
+
 describe("translate: the run, with a stub CLI", () => {
     const dirs = [];
     afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })));
@@ -143,6 +167,21 @@ console.log(JSON.stringify({ conversation_id: "c", status: step.status ?? "SUCCE
         expect(JSON.parse(args[args.indexOf("--json-schema") + 1]).required).toEqual(["a.files", "a.hello", "a.save", "a.terms"]); // catalog (sorted) order
         expect(args[1]).toContain("| matter | asunto |"); // the glossary rides in the prompt
         expect(readFileSync(join(t.repo, "receipt.log"), "utf8")).toMatch(/translated=4 failed=0 tokens_in=100 tokens_out=20/);
+    });
+
+    it("sends translated examples in the prompt and only the batch keys in the schema", () => {
+        const t = setup([{ response: good }]);
+        const en = JSON.parse(readFileSync(join(t.repo, CATALOGS.en), "utf8"));
+        const es = JSON.parse(readFileSync(join(t.repo, CATALOGS.es), "utf8"));
+        en.b = { close: "Close" };
+        es.b = { close: "Cerrar ya" };
+        writeFileSync(join(t.repo, CATALOGS.en), serializeCatalog(en));
+        writeFileSync(join(t.repo, CATALOGS.es), serializeCatalog(es));
+        t.go();
+        const [args] = t.calls();
+        expect(args[1]).toContain("Cerrar ya"); // already translated: an example
+        expect(args[1]).not.toMatch(/"es": ".*por traducir/); // never a pending one
+        expect(JSON.parse(args[args.indexOf("--json-schema") + 1]).required).toEqual(["a.files", "a.hello", "a.save", "a.terms"]);
     });
 
     it("accepts a fenced JSON reply", () => {
