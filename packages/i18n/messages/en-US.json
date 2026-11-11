@@ -1568,5 +1568,10 @@
     "discardTitle": "Discard unsaved changes?",
     "discard": "Discard changes",
     "keepEditing": "Keep editing"
+  },
+  "assistantExport": {
+    "downloadMarkdown": "Download .md",
+    "downloaded": "Response downloaded",
+    "defaultName": "response"
   }
 }

@@ -1568,5 +1568,10 @@
     "discardTitle": "¿Descartar los cambios sin guardar?",
     "discard": "Descartar cambios",
     "keepEditing": "Seguir editando"
+  },
+  "assistantExport": {
+    "downloadMarkdown": "Descargar .md",
+    "downloaded": "Respuesta descargada",
+    "defaultName": "respuesta"
   }
 }

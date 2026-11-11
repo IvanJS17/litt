@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
 import { AssistantMessage } from "./AssistantMessage";
+import * as download from "@/app/lib/downloadDocument";
 
 describe("AssistantMessage copy", () => {
     beforeEach(() => clearToasts());
@@ -80,5 +81,32 @@ describe("AssistantMessage web sources", () => {
         expect(toggle).toHaveTextContent("2 web pages");
         await user.click(toggle);
         expect(screen.getByText("Section 172")).toBeInTheDocument();
+    });
+});
+
+describe("AssistantMessage export", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("downloads the Markdown the answer already is, under a safe name", async () => {
+        const user = userEvent.setup();
+        const spy = vi.spyOn(download, "downloadBlob").mockImplementation(() => {});
+        const text = "# Resumen del contrato\n\n| a | b |\n|---|---|\n| 1 | 2 |";
+        render(<AssistantMessage events={[{ type: "content", text }]} />);
+
+        await user.click(screen.getByRole("button", { name: "Download .md" }));
+
+        const [blob, name] = spy.mock.calls[0];
+        expect(name).toBe("resumen-del-contrato.md");
+        expect(blob.type).toBe("text/markdown;charset=utf-8");
+        expect(await blob.text()).toBe(text);
+    });
+
+    it("offers no download while streaming or when the answer has no text", () => {
+        const { rerender } = render(
+            <AssistantMessage isStreaming events={[{ type: "content", text: "Partial" }]} />,
+        );
+        expect(screen.queryByRole("button", { name: "Download .md" })).toBeNull();
+        rerender(<AssistantMessage events={[{ type: "content", text: "   " }]} />);
+        expect(screen.queryByRole("button", { name: "Download .md" })).toBeNull();
     });
 });

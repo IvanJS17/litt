@@ -6,7 +6,8 @@ import { createCitationPreprocessor } from "./message/citationPreprocessor";
 import { TextCardUI } from "@mike/ui";
 import { memo, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WebSource } from "@mike/contracts";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type {
     AssistantEvent,
     Citation,
@@ -14,6 +15,10 @@ import type {
 } from "../shared/types";
 import { ConnectorSkeuoIcon } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { notifyError } from "@/app/lib/userFacingError";
+import {
+    downloadResponseMarkdown,
+    responseMarkdown,
+} from "@/app/lib/assistantMarkdownExport";
 import { useOptionalUserProfile } from "@/app/contexts/UserProfileContext";
 import { EditCard } from "./EditCard";
 import { PreResponseWrapper } from "./PreResponseWrapper";
@@ -156,6 +161,7 @@ function AssistantMessageImpl({
     isEditReloading,
     resolvedEditStatuses,
 }: Props) {
+    const t = useTranslations();
     const contentDivRef = useRef<HTMLDivElement | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     // Per-document override of the download URL, set as Accept/Reject resolves
@@ -291,6 +297,12 @@ function AssistantMessageImpl({
     const webSources = [...webSourcesByUrl.values()];
     const showCitationBlock =
         !!citationStatus || (!isStreaming && citations.length > 0);
+    const exportedMarkdown = responseMarkdown(events);
+    const handleDownloadMarkdown = () =>
+        downloadResponseMarkdown(
+            exportedMarkdown,
+            t("assistantExport.defaultName"),
+        );
     const handleCopy = async () => {
         try {
             let html = "";
@@ -1060,6 +1072,17 @@ function AssistantMessageImpl({
                             ) : (
                                 <Copy className="h-3 w-3" />
                             )}
+                        </button>
+                    )}
+                    {!isStreaming && !awaitingInput && exportedMarkdown && (
+                        <button
+                            type="button"
+                            aria-label={t("assistantExport.downloadMarkdown")}
+                            title={t("assistantExport.downloadMarkdown")}
+                            className="p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                            onClick={handleDownloadMarkdown}
+                        >
+                            <Download className="h-3 w-3" />
                         </button>
                     )}
                     {!isStreaming && answerDetails?.type === "response_details" && (
