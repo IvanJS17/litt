@@ -105,7 +105,7 @@ function ResetPasswordContent() {
         return () => {
             cancelled = true;
         };
-    }, [isUnavailablePreview, isVerifyingPreview]);
+    }, [isUnavailablePreview, isVerifyingPreview, t]);
 
     async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
