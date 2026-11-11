@@ -1,16 +1,12 @@
 import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import {
-    isStructurallySame,
-    parse,
-    TYPE,
-    type MessageFormatElement,
-} from "@formatjs/icu-messageformat-parser";
+import { isStructurallySame, parse } from "@formatjs/icu-messageformat-parser";
 import { describe, expect, it } from "vitest";
 import enUS from "../messages/en-US.json";
 import esMX from "../messages/es-MX.json";
+import { detailMismatches } from "../../../scripts/i18n/icu-compare.mjs";
 import { PENDING_TRANSLATION } from "../../../scripts/i18n/literals.mjs";
-import { LOCALES, type Locale } from "./index";
+import { LOCALES } from "./index";
 
 type Tree = { [key: string]: string | Tree };
 
@@ -42,83 +38,6 @@ function namespaces(tree: Tree, prefix = ""): string[] {
 
 const source = flatten(enUS);
 const target = flatten(esMX);
-
-// What isStructurallySame does not look at: for each argument, its number or
-// date style or skeleton, its select options, and its plural offset, cases
-// and categories. Keyed by argument name so the two messages line up.
-type Detail =
-    | { kind: "style"; style: string }
-    | { kind: "select"; options: string[] }
-    | { kind: "plural"; type: "cardinal" | "ordinal"; offset: number; exact: string[]; categories: string[] };
-
-function details(elements: MessageFormatElement[], out = new Map<string, Detail>()) {
-    for (const el of elements) {
-        switch (el.type) {
-            case TYPE.number:
-            case TYPE.date:
-            case TYPE.time:
-                out.set(`{${el.value}}`, { kind: "style", style: JSON.stringify(el.style) });
-                break;
-            case TYPE.select:
-                out.set(`{${el.value}}`, { kind: "select", options: Object.keys(el.options).sort() });
-                for (const option of Object.values(el.options)) details(option.value, out);
-                break;
-            case TYPE.plural: {
-                const keys = Object.keys(el.options);
-                out.set(`{${el.value}}`, {
-                    kind: "plural",
-                    type: el.pluralType ?? "cardinal",
-                    offset: el.offset,
-                    exact: keys.filter((k) => k.startsWith("=")).sort(),
-                    categories: keys.filter((k) => !k.startsWith("=")).sort(),
-                });
-                for (const option of Object.values(el.options)) details(option.value, out);
-                break;
-            }
-            case TYPE.tag:
-                details(el.children, out);
-                break;
-        }
-    }
-    return out;
-}
-
-const categoriesOf = (locale: Locale, type: "cardinal" | "ordinal") =>
-    new Intl.PluralRules(locale, { type }).resolvedOptions().pluralCategories as string[];
-
-/**
- * Differences isStructurallySame lets through. Plural categories are the one
- * part that may differ, because languages count differently: a translation
- * may only use its own language's categories, must keep `other`, and must
- * keep every category the source uses that its language also has, so a
- * dropped `one` ("1 seleccionados") fails.
- */
-function detailMismatches(en: string, translated: string, locale: Locale): string[] {
-    const want = details(parse(en));
-    const got = details(parse(translated));
-    const problems: string[] = [];
-    for (const name of new Set([...want.keys(), ...got.keys()])) {
-        const a = want.get(name);
-        const b = got.get(name);
-        if (!a || !b || a.kind !== b.kind) {
-            problems.push(`${name} is ${a?.kind ?? "absent"} in en-US, ${b?.kind ?? "absent"} in ${locale}`);
-            continue;
-        }
-        if (a.kind === "plural" && b.kind === "plural") {
-            if (a.type !== b.type || a.offset !== b.offset) problems.push(`${name}: plural type or offset differs`);
-            if (a.exact.join() !== b.exact.join()) problems.push(`${name}: =N cases differ`);
-            const own = categoriesOf(locale, b.type);
-            const foreign = b.categories.filter((c) => !own.includes(c));
-            const dropped = a.categories.filter((c) => own.includes(c) && !b.categories.includes(c));
-            if (foreign.length) problems.push(`${name}: ${locale} has no plural category ${foreign.join(", ")}`);
-            if (dropped.length) problems.push(`${name}: missing plural category ${dropped.join(", ")}`);
-            if (!b.categories.includes("other")) problems.push(`${name}: missing plural category other`);
-        } else if (JSON.stringify(a) !== JSON.stringify(b)) {
-            problems.push(`${name}: ${JSON.stringify(a)} in en-US, ${JSON.stringify(b)} in ${locale}`);
-        }
-    }
-    return problems;
-}
 
 describe("@litt/i18n catalog", () => {
     it("has one catalog file per supported locale, and no others", () => {
