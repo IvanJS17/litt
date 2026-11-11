@@ -206,6 +206,29 @@ describe("VersionCompareModal", () => {
         expect(screen.getAllByText("Contains numbers").length).toBeGreaterThan(0);
     });
 
+    it("numbers a change in the list like the counter does when the filter is on", async () => {
+        const user = userEvent.setup();
+        serve({
+            base: side("v2", "assistant_edit", BASE_TEXT.replace("30 días", "treinta días")),
+            head: side(
+                "v3",
+                "user_edit",
+                BASE_TEXT.replace("30 días", "cuarenta días").replace(
+                    "El cliente paga.",
+                    "El cliente paga 45 veces.",
+                ),
+            ),
+        });
+        renderModal();
+        await screen.findByRole("table");
+        const list = screen.getByRole("navigation", { name: "List of changes" });
+        expect(within(list).getByRole("button", { name: /Go to change 2:/ })).toBeVisible();
+        await user.click(screen.getByRole("checkbox", { name: "Only changes with numbers" }));
+        expect(screen.getAllByText(/Change 1 of 1/).length).toBeGreaterThan(0);
+        expect(within(list).getByRole("button", { name: /Go to change 1:/ })).toBeVisible();
+        expect(within(list).queryByRole("button", { name: /Go to change 2:/ })).toBeNull();
+    });
+
     it("says so when no change has numbers", async () => {
         const user = userEvent.setup();
         serve({

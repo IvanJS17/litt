@@ -34,3 +34,4 @@ export * from "./theme";
 // AGPL-3.0 §13 source link: the commit a build embeds and the URL of its
 // tree. Plain ESM so the build configs can import the same file.
 export * from "./sourceCommit.mjs";
+export * from "./requestLimits";

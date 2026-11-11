@@ -40,7 +40,8 @@ en otro bucket de R2 (`litt-backups`), cada uno con su propio token limitado a
       configurados).
 - [ ] Registro DNS `A litt` → `78.47.184.224` (Cloudflare; mismo modo que
       `contextlexmx`).
-- [ ] Registro DNS `A word.litt` → la misma IP, sin proxy de Cloudflare (§9).
+- [x] Registro DNS `A word.litt` → la misma IP, sin proxy de Cloudflare (§9);
+      creado el 2026-11-11.
 - [ ] Imágenes del release construidas desde el commit exacto y verificadas
       (sección 1).
 
@@ -347,13 +348,17 @@ editar solo entre los marcadores, `caddy validate`, `caddy reload`, `probe` desp
 `diff`. Si cambió un dominio ajeno, restaurar el respaldo y recargar. `word.litt`
 aparece en el `probe` de después (el de antes no lo conoce), lo esperado es `200`.
 
+El 2026-11-11 el bloque de `word.litt.asteroitt.com` que está en vivo en el Caddy
+compartido ya coincide con el de `Caddyfile.litt`.
+
 ### Checklist de la primera publicación
 
 1. [ ] Este PR revisado y en `main`; el SHA de `main` es el que se construye (§1).
 2. [ ] En `/srv/litt/.env` (sin imprimirlo): agregar `WORD_ADDIN_URL=https://word.litt.asteroitt.com`
        y `AUTH_HANDOFF_ENCRYPTION_SECRET=<openssl rand -hex 32>`. Comprobar con
        `grep -c '^WORD_ADDIN_URL=\|^AUTH_HANDOFF_ENCRYPTION_SECRET=' /srv/litt/.env` → `2`.
-3. [ ] DNS `A word.litt` → `78.47.184.224`, sin proxy; resuelve por DoH.
+3. [x] DNS `A word.litt` → `78.47.184.224`, sin proxy; resuelve por DoH
+       (hecho el 2026-11-11).
 4. [ ] Construir las tres imágenes y desplegar con `litt-deploy.sh` (§1). El script
        comprueba que `litt-word` esté healthy y que su manifiesto apunte a `WORD_ADDIN_URL`.
 5. [ ] Caddy: bloque `word.litt.asteroitt.com` con el procedimiento de §5; ningún dominio
@@ -384,12 +389,21 @@ el administrador lo actualiza desde «Aplicaciones integradas» (ver la guía).
   `drivePublicationUnavailable` de forma fail-closed. El workstream del conector
   real (self-serve) reescribirá esas páginas cuando se apruebe.
 - **Correo del sistema (SMTP)**: lo envía GoTrue desde `LiTT
-  <no-reply@asteroitt.com>`, con SSL implícito en el puerto 465 de
+  <no-reply@asteroitt.com>`, por el puerto 587 de
   `svgs440.serverneubox.com.mx`, el nombre del servidor Neubox, que es para el
   que vale su certificado. No se usa `mail.asteroitt.com`, porque pasa por el
-  proxy de Cloudflare y el SMTP no lo atraviesa. Fuente del 465: GoTrue v2.189.0
-  envía con `gopkg.in/gomail.v2` (`internal/mailer/mailmeclient`), cuyo
-  `NewDialer` activa TLS implícito cuando el puerto es 465. Los enlaces apuntan a
+  proxy de Cloudflare y el SMTP no lo atraviesa. El 465 de Neubox dejó de
+  responder el 2026-11-09 y desde entonces el correo sale por el 587
+  (`GOTRUE_SMTP_PORT=587`, que también es el default de `compose.yaml`).
+  Cómo se cifra el 587: GoTrue v2.189.0 envía con `gopkg.in/gomail.v2`
+  (`internal/mailer/mailmeclient/mailmeclient.go` llama a
+  `gomail.NewDialer(host, port, user, pass)`; `go.mod` fija
+  `gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df`). En ese commit,
+  `smtp.go` de [go-gomail/gomail](https://github.com/go-gomail/gomail/blob/81ebce5c23dfd25c6c67194b37d3dd3f338c98b1/smtp.go)
+  fija `SSL: port == 465` en `NewDialer`; con `SSL` en falso, `Dial` abre la
+  conexión sin cifrar y, si el servidor anuncia la extensión `STARTTLS`, llama a
+  `StartTLS`. Es decir, en el 587 hay STARTTLS cuando el servidor lo ofrece; si
+  no lo ofreciera, gomail seguiría sin cifrar. Los enlaces apuntan a
   `https://litt.asteroitt.com/auth/v1/verify` (§5) y regresan a la app. El
   backend no tiene credenciales de correo: al invitar a un correo sin cuenta
   pide a GoTrue (`inviteUserByEmail`) que envíe la invitación; quien ya tiene

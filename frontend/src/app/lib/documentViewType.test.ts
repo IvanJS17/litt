@@ -30,6 +30,8 @@ describe("resolveDocumentViewType", () => {
     ["NOTES.MD", null, "markdown"],
     [null, "md", "markdown"],
     [null, "text/markdown", "markdown"],
+    [null, "text/markdown; charset=utf-8", "markdown"],
+    [null, "Text/Markdown ;charset=UTF-8", "markdown"],
     ["readme.markdown", null, "markdown"],
   ] as const)(
     "resolves filename %s and file type %s to %s",

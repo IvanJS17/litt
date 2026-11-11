@@ -78,8 +78,11 @@ describe("current provider model compatibility", () => {
     expect(url).toBe("https://api.anthropic.com/v1/messages");
     const body = JSON.parse(init.body);
     expect(body.model).toBe(model);
-    expect(body.thinking?.type).not.toBe("disabled");
-    if (mode === "between_tools") expect(body.thinking.type).toBe(mode);
-    else expect(body.output_config.effort).toBe(mode);
+    if (mode === "between_tools") {
+      expect(body.thinking.type).toBe(mode);
+    } else {
+      expect(body.thinking.type).toBe("adaptive");
+      expect(body.output_config.effort).toBe(mode);
+    }
   });
 });

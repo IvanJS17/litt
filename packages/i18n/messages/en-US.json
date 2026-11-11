@@ -1564,6 +1564,7 @@
     "copyFailed": "Your browser did not allow copying. Select the text and copy it by hand.",
     "reload": "Reload",
     "richUnavailable": "The formatted editor would change this Markdown when saving (tables or syntax it does not keep). Keep editing in Text mode.",
+    "tooLarge": "This document is too large to save from the editor (the limit is 50 MB). Copy your text and split it, or upload it as a new version instead.",
     "unsaved": "You have unsaved changes. If you leave now, you will lose them.",
     "discardTitle": "Discard unsaved changes?",
     "discard": "Discard changes",

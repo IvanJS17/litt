@@ -1564,6 +1564,7 @@
     "copyFailed": "Tu navegador no permitió copiar. Selecciona el texto y cópialo a mano.",
     "reload": "Recargar",
     "richUnavailable": "El editor con formato cambiaría este Markdown al guardarlo (tablas o sintaxis que no conserva). Sigue editando en modo Texto.",
+    "tooLarge": "Este documento es demasiado grande para guardarse desde el editor (el límite es de 50 MB). Copia tu texto y divídelo, o súbelo como una versión nueva.",
     "unsaved": "Tienes cambios sin guardar. Si sales ahora, los perderás.",
     "discardTitle": "¿Descartar los cambios sin guardar?",
     "discard": "Descartar cambios",

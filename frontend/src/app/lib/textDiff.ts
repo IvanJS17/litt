@@ -99,6 +99,9 @@ export interface DiffLine {
   segments: DiffSegment[];
 }
 
+/** Longest summary of a change, ellipsis included. */
+const SUMMARY_MAX = 80;
+
 export interface TextChange {
   kind: "change";
   /** 0-based position among all changes. */
@@ -258,11 +261,16 @@ export function compareTexts(
     for (const text of addedText) seeHeadLine(text);
 
     const fragment = `${changedText(removed)} ${changedText(added)}`;
-    const summary = (
+    const summaryText =
       added.map((l) => l.text.trim()).find(Boolean) ??
       removed.map((l) => l.text.trim()).find(Boolean) ??
-      ""
-    ).slice(0, 80);
+      "";
+    // Cut by code point so a long line never ends on half an emoji.
+    const summaryChars = Array.from(summaryText);
+    const summary =
+      summaryChars.length > SUMMARY_MAX
+        ? `${summaryChars.slice(0, SUMMARY_MAX - 1).join("").trimEnd()}…`
+        : summaryText;
     const change: TextChange = {
       kind: "change",
       index: changes.length,

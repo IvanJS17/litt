@@ -51,6 +51,7 @@ export function ApiKeyField({
   variant = "settings",
   description,
   hasSavedKey,
+  hasEnvKey = false,
   keyLabel = "API key",
   validateKey,
   setting,
@@ -62,6 +63,8 @@ export function ApiKeyField({
   variant?: "settings" | "modal";
   description?: string;
   hasSavedKey: boolean;
+  /** The server's environment supplies a key, so there is nothing to save. */
+  hasEnvKey?: boolean;
   /** What the modal calls the secret, when it is not a plain API key. */
   keyLabel?: string;
   /** Why a typed key cannot be saved, or null when it can. */
@@ -248,7 +251,7 @@ export function ApiKeyField({
     label: isSaving ? "Saving..." : saved ? "Saved" : "Save",
     onClick: handleSave,
     disabled: isSaving || !dirty || saved,
-    settled: !isSaving && hasSavedKey && (!dirty || saved),
+    settled: !isSaving && (hasSavedKey || hasEnvKey) && !dirty,
   };
   const removeAction = hasSavedKey ? {
     label: "Remove",

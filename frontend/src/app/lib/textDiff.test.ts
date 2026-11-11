@@ -101,6 +101,15 @@ describe("compareTexts", () => {
     expect(removedOnly.summary).toBe("quitar");
   });
 
+  it("ends a summary of a long line with an ellipsis, within 80 characters", () => {
+    const long = "palabra ".repeat(20);
+    const [change] = ok("a\n", `a\n${long}\n`).changes;
+    expect([...change.summary]).toHaveLength(80);
+    expect(change.summary.endsWith("…")).toBe(true);
+    const exact = "x".repeat(80);
+    expect(ok("a\n", `a\n${exact}\n`).changes[0].summary).toBe(exact);
+  });
+
   it("pairs lines by position and leaves the extra ones whole", () => {
     const [change] = ok("uno\ndos\n", "UNO\nDOS\ntres\n").changes;
     expect(change.removed).toHaveLength(2);
