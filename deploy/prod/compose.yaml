@@ -80,12 +80,15 @@ services:
       GOTRUE_MAILER_AUTOCONFIRM: 'false'
       GOTRUE_EXTERNAL_GOOGLE_ENABLED: 'false'
       GOTRUE_PASSWORD_MIN_LENGTH: '10'
-      # Correo del sistema: no-reply@asteroitt.com por SMTP con SSL implícito
-      # (puerto 465; GoTrue v2.189.0 usa gomail.v2, que activa TLS implícito
-      # cuando el puerto es 465). Host = nombre del servidor Neubox, no
-      # mail.asteroitt.com (proxy de Cloudflare, no deja pasar SMTP).
+      # Correo del sistema: no-reply@asteroitt.com por SMTP en el puerto 587
+      # (desde el 2026-11-09 el 465 de Neubox dejó de responder). GoTrue
+      # v2.189.0 usa gomail.v2, que solo activa TLS implícito en el 465; en
+      # cualquier otro puerto abre la conexión y, si el servidor ofrece
+      # STARTTLS, la cifra con STARTTLS (README §Decisiones). Host = nombre
+      # del servidor Neubox, no mail.asteroitt.com (proxy de Cloudflare, no
+      # deja pasar SMTP).
       GOTRUE_SMTP_HOST: ${GOTRUE_SMTP_HOST:?required}
-      GOTRUE_SMTP_PORT: ${GOTRUE_SMTP_PORT:-465}
+      GOTRUE_SMTP_PORT: ${GOTRUE_SMTP_PORT:-587}
       GOTRUE_SMTP_USER: ${GOTRUE_SMTP_USER:?required}
       GOTRUE_SMTP_PASS: ${GOTRUE_SMTP_PASS:?required}
       GOTRUE_SMTP_ADMIN_EMAIL: ${GOTRUE_SMTP_ADMIN_EMAIL:?required}
@@ -116,7 +119,7 @@ services:
       timeout: 5s
       retries: 24
       start_period: 10s
-    # Egreso solo para el SMTP saliente (puerto 465 del servidor de correo).
+    # Egreso solo para el SMTP saliente (puerto 587 del servidor de correo).
     # `litt-gotrue`: nombre único para auth-edge, que también está en la red
     # compartida del Caddy.
     networks:
