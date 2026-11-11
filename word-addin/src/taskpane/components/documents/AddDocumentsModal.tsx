@@ -13,6 +13,7 @@ import {
 import {
   partitionSupportedDocumentFiles,
   SUPPORTED_DOCUMENT_ACCEPT,
+  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
 } from "../../lib/documentUpload";
 import { Modal } from "../primitives/Modal";
 import { Spinner } from "../../../shared/ui/spinner";
@@ -378,7 +379,7 @@ export function AddDocumentsModal({
     setWarning(
       unsupported.length === 0
         ? null
-        : "Only PDF, Word, Excel, and PowerPoint files can be uploaded.",
+        : UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
     );
     if (supported.length === 0) return;
 

@@ -21,6 +21,7 @@ export * from "./modelCatalog";
 
 // Uploads
 export * from "./uploadSessionClient";
+export * from "./documentUploadTypes";
 export * from "./settleWithConcurrency";
 export * from "./secureUuid";
 

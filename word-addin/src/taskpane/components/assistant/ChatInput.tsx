@@ -58,6 +58,7 @@ import type { Document, Workflow } from "../../types";
 import {
   partitionSupportedDocumentFiles,
   SUPPORTED_DOCUMENT_ACCEPT,
+  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
 } from "../../lib/documentUpload";
 import { EditApplyModeMenu } from "./EditApplyModeMenu";
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
@@ -513,7 +514,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       const { supported, unsupported } = partitionSupportedDocumentFiles(files);
       if (supported.length === 0) {
         setDocumentUploadError(
-          "Only PDF, Word, Excel, and PowerPoint files can be uploaded.",
+          UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
         );
         return;
       }
