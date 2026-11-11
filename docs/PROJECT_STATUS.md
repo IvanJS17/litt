@@ -3,11 +3,46 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-11-08<br>
+**Last reconciled:** 2026-11-11<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
+
+### Production and integration 2026-11-11
+
+- **Main:** `3752c539` (merge of pull request #155). **Production:** runs
+  `3752c539`, deployed and verified on 2026-11-11, with migration
+  `20261111_10_litt_markdown_versions.sql` applied. It supersedes the
+  2026-11-09 section below, whose `bf00e4f2` deploy is no longer current.
+- **Integrated and deployed (#150 to #155):**
+  - #150: router output is capped at 32,000 tokens, with reasoning headroom for
+    short completions (conversation titles through routers).
+  - #151: OpenCode Go receives a per-conversation `x-opencode-session`, as its
+    official rule asks.
+  - #152: the BYOK provider modal's primary button becomes «Done» when no key is
+    waiting to be saved; the «overloaded» provider message was also fixed.
+  - #153: web search takes its key from the saved keys, not from the pinned
+    model bag. Web search is on in production (owner decision of 2026-11-10),
+    served by Brave; `LITT_CHAT_WEB_SEARCH` other than `enabled` turns it off.
+  - #154: Claude Fable 5.2 in the direct Anthropic catalog.
+  - #155: Markdown documents (`.md` upload, view and edit; each save creates a
+    new `user_edit` version) and GitHub-style comparison of two versions of a
+    document, text against text.
+- **Closed beta by invitation:** access is by invitation only (#139,
+  `20261109_20_litt_platform_invitations.sql`, Spanish auth emails), with the
+  legal pages and their acceptance (#148, `20261109_30_litt_terms_acceptance.sql`),
+  both in production.
+- **Word add-in:** `word.litt.asteroitt.com` now has its DNS record
+  (`A word.litt`, no Cloudflare proxy) and its Caddy block, both ready on
+  2026-11-11; the service (`litt-word`) was already deployed
+  ([`../deploy/prod/README.md`](../deploy/prod/README.md) §9).
+- **System mail:** GoTrue sends over port 587 since 2026-11-09; the 465 of
+  Neubox stopped answering.
+- **Pending:** the interface languages phase 1 (including the English literals
+  in the Word chat and the BYOK modal) and the OCR choice (local or LandingAI,
+  owner to decide). Technical follow-ups from these pull requests are listed in
+  [`followups.md`](followups.md).
 
 ### Production and integration 2026-11-09
 
@@ -181,7 +216,7 @@
   bucket `litt-docs` and the daily restic repository (30 days) in
   `litt-backups`, each bucket with its own token; system mail from
   `LiTT <no-reply@asteroitt.com>` through GoTrue over SMTP with implicit TLS
-  on port 465. Email confirmation is on in production
+  on port 465 (since 2026-11-09 it is 587, see the 2026-11-11 section). Email confirmation is on in production
   (`GOTRUE_MAILER_AUTOCONFIRM=false`), and only `GET /auth/v1/verify` of
   GoTrue is public, through `auth-edge`. The restic commands, the
   `auth-edge` routing, the Caddy block and the compose interpolation were

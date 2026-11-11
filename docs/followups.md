@@ -4,7 +4,7 @@ Technical follow-ups that are not yet done, grouped by area. Each item names the
 pull request where it was found. Items marked **(unverified)** were not confirmed
 against the current code and need checking before they are scheduled.
 
-Checked against `main` at `cf84ddd1`, 2026-11-08. Items closed by later pull
+Checked against `main` at `cf84ddd1`, 2026-11-08; the section «Markdown, version compare and web search (#150–#155)» against `3752c539`, 2026-11-11. Items closed by later pull
 requests (including #132–#134 and the legal-reference rewrite in #134, which
 removed the `lawReferences`/`lawNamedAt` logic) are not listed.
 
@@ -189,6 +189,24 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
   limit that can fail on a loaded runner. (#124)
 - Test-only: the `skipped` value in `contrast_status` is documented; check the
   documentation list matches the enum. (#113) **(unverified)**
+
+## Markdown, version compare and web search (#150–#155)
+
+- The version diff has no button to expand the context around a change. (#155)
+- UTF-8 validation of an uploaded or saved `.md` reads the whole file. (#155)
+- The playbook diff changed from LCS to Myers (jsdiff) when the text diff was
+  unified; check that playbook changes still read the same. (#155)
+- `saveMarkdownEdit` does not set `archived_at`, as the upload path does not
+  either. (#155)
+- `read_webpage` shares its URL with the search service. (#150–#155)
+- Search may use a firm's key or the platform's, depending on how it is
+  configured. (#150–#155)
+- There is no test of the search wiring in the project chat. (#150–#155)
+- There is no test that `chatId` reaches the four auxiliary calls. (#150–#155)
+- The BYOK modal texts and the «overloaded» message are still in English and
+  wait for phase 1 of i18n. (#152)
+- The SDK warns that it does not know `claude-fable-5-2`. (#154)
+- Search: Brave answers 429 when several searches run in parallel. (#150–#155)
 
 ## Structural (merge conflicts across parallel cards)
 
