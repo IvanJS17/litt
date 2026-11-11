@@ -145,6 +145,20 @@ describe("MarkdownView editing", () => {
         expect(screen.getByRole("button", { name: "Edit" })).toBeVisible();
     });
 
+    it("says so, without sending anything, when the text is over the server's limit", async () => {
+        const user = userEvent.setup();
+        await open();
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+        const editor = screen.getByRole("textbox", { name: "Markdown editor" });
+        fireEvent.change(editor, { target: { value: "a".repeat(51 * 1024 * 1024) } });
+        await user.click(screen.getByRole("button", { name: "Save" }));
+        expect(await screen.findByRole("alert")).toHaveTextContent(/too large to save/);
+        expect(mocks.saveMarkdownVersion).not.toHaveBeenCalled();
+        // Shortening the text takes the notice away.
+        fireEvent.change(editor, { target: { value: "# Corto" } });
+        expect(screen.queryByRole("alert")).toBeNull();
+    });
+
     it("builds the next save on the version it just made", async () => {
         const user = userEvent.setup();
         mocks.saveMarkdownVersion.mockResolvedValue(saved);

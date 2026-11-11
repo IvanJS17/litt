@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Copy, Pencil } from "lucide-react";
 import { PillButtonUI, TextButtonUI } from "@mike/ui";
 import type { MarkdownVersionSaved } from "@mike/contracts";
+import { exceedsJsonBodyLimit } from "@mike/client";
 import { MarkdownContent } from "@/app/components/assistant/message/MarkdownContent";
 import {
     MarkdownEditor,
@@ -116,6 +117,8 @@ function MarkdownViewContent({
     const [richBlocked, setRichBlocked] = useState(false);
     const [saving, setSaving] = useState(false);
     const [conflict, setConflict] = useState(false);
+    // The draft a save was refused for being over the request limit.
+    const [tooLargeDraft, setTooLargeDraft] = useState<string | null>(null);
     const [confirmDiscard, setConfirmDiscard] = useState(false);
     const [copied, setCopied] = useState<"done" | "failed" | null>(null);
     const dirty = editing && draft !== text;
@@ -218,6 +221,15 @@ function MarkdownViewContent({
 
     const save = useCallback(async () => {
         if (!baseVersionId || saving) return;
+        // Say so here rather than let the server answer with a bare 413.
+        if (
+            exceedsJsonBodyLimit(
+                JSON.stringify({ text: draft, base_version_id: baseVersionId }),
+            )
+        ) {
+            setTooLargeDraft(draft);
+            return;
+        }
         setSaving(true);
         try {
             const saved = await saveMarkdownVersion(
@@ -352,6 +364,14 @@ function MarkdownViewContent({
                     className="mx-3 mb-2 shrink-0 rounded-md bg-warning-surface px-2 py-1.5 text-xs text-warning"
                 >
                     {t("markdownDocument.richUnavailable")}
+                </p>
+            )}
+            {editing && tooLargeDraft === draft && (
+                <p
+                    role="alert"
+                    className="mx-3 mb-2 shrink-0 rounded-md bg-warning-surface px-2 py-1.5 text-xs text-warning"
+                >
+                    {t("markdownDocument.tooLarge")}
                 </p>
             )}
             {editing && conflict && (

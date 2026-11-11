@@ -13,11 +13,14 @@ export function ChangeList({
     groups,
     byHeading,
     activeIndex,
+    positions,
     onSelect,
 }: {
     groups: ChangeGroup[];
     byHeading: boolean;
     activeIndex: number | null;
+    /** Each change's place among the changes shown: the "change N of M" count. */
+    positions: ReadonlyMap<number, { position: number; total: number }>;
     onSelect: (change: TextChange) => void;
 }) {
     const t = useTranslations("versionCompare");
@@ -42,7 +45,7 @@ export function ChangeList({
                                             activeIndex === change.index ? "true" : undefined
                                         }
                                         aria-label={t("goToChange", {
-                                            number: change.index + 1,
+                                            number: positions.get(change.index)?.position ?? change.index + 1,
                                             summary,
                                         })}
                                         className={cn(

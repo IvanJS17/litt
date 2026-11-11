@@ -17,7 +17,12 @@ type DocumentTypeToken =
 function documentTypeToken(
   value: string | null | undefined,
 ): DocumentTypeToken {
-  const normalized = (value ?? "").trim().toLowerCase();
+  const lowered = (value ?? "").trim().toLowerCase();
+  // A MIME type may carry parameters (`text/markdown; charset=utf-8`); only
+  // the type itself says what the document is.
+  const normalized = /^[a-z0-9.+-]+\/[a-z0-9.+-]+\s*;/.test(lowered)
+    ? lowered.split(";", 1)[0].trim()
+    : lowered;
   if (!normalized) return "other";
 
   if (normalized.includes("spreadsheet") || normalized.includes("ms-excel")) {

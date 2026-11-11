@@ -67,6 +67,8 @@ const isProduction = process.env.NODE_ENV === "production";
 
 // Ceiling for JSON API requests. File bytes upload directly to object storage;
 // only small upload-session manifests and control requests reach Express.
+// The clients keep a copy as JSON_BODY_LIMIT_BYTES in
+// packages/client/src/requestLimits.ts; change both together.
 const JSON_BODY_LIMIT = "50mb";
 
 function minutes(value: number): number {
