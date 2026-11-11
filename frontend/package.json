@@ -36,6 +36,7 @@
         "@tiptap/starter-kit": "^3.32.2",
         "@types/jsdom": "^30.0.0",
         "clsx": "^2.1.1",
+        "diff": "9.0.0",
         "docx": "^9.15.1",
         "dompurify": "^3.4.17",
         "exceljs": "^4.4.0",
