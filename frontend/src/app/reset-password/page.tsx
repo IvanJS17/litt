@@ -29,6 +29,7 @@ import {
     supportMailtoFor,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: here every session-
  *  shaped failure is really "your reset link is no longer usable". */
@@ -45,6 +46,7 @@ const RESET_ERROR_MESSAGES = authMessages({
 });
 
 function ResetPasswordContent() {
+    const t = useTranslations();
     const searchParams = useSearchParams();
     const [ready, setReady] = useState(false);
     const [password, setPassword] = useState("");
@@ -76,7 +78,7 @@ function ResetPasswordContent() {
                 if (cancelled) return;
                 if (!session) {
                     setError(
-                        "This password-reset link is invalid or has expired.",
+                        t("auth.resetPassword.thisPasswordResetLinkIsInvalid"),
                     );
                 }
                 setReady(true);
@@ -118,7 +120,7 @@ function ResetPasswordContent() {
             return;
         }
         if (password !== confirmPassword) {
-            setError("Passwords do not match.");
+            setError(t("auth.resetPassword.passwordsDoNotMatch"));
             return;
         }
 
@@ -147,20 +149,19 @@ function ResetPasswordContent() {
                         <div>
                             <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                             <h1 className="mt-4 font-serif text-2xl font-medium text-gray-950">
-                                Verifying your reset link...
+                                {t("auth.resetPassword.verifyingYourResetLink")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                This should only take a moment.
+                                {t("auth.resetPassword.thisShouldOnlyTakeAMoment")}
                             </p>
                         </div>
                     ) : success ? (
                         <div>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Password updated
+                                {t("auth.resetPassword.passwordUpdated")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                Your password has been changed. Log in again
-                                with your new password.
+                                {t("auth.resetPassword.yourPasswordHasBeenChangedLog")}
                             </p>
                             <Link
                                 href="/login"
@@ -170,13 +171,13 @@ function ResetPasswordContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Log in
+                                {t("auth.resetPassword.logIn")}
                             </Link>
                         </div>
                     ) : resetUnavailable ? (
                         <div>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Reset link unavailable
+                                {t("auth.resetPassword.resetLinkUnavailable")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
                                 {displayedError}
@@ -189,16 +190,16 @@ function ResetPasswordContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Request another link
+                                {t("auth.resetPassword.requestAnotherLink")}
                             </Link>
                         </div>
                     ) : (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Choose a new password
+                                {t("auth.resetPassword.chooseANewPassword")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                Use at least {MIN_PASSWORD_LENGTH} characters.
+                                {t("auth.resetPassword.useAtLeastMinPasswordLength", { MIN_PASSWORD_LENGTH })}
                             </p>
                             <form
                                 onSubmit={handleSubmit}
@@ -206,7 +207,7 @@ function ResetPasswordContent() {
                             >
                                 <div>
                                     <FieldLabel htmlFor="password">
-                                        New password
+                                        {t("auth.resetPassword.newPassword")}
                                     </FieldLabel>
                                     <InputUI
                                         id="password"
@@ -222,7 +223,7 @@ function ResetPasswordContent() {
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="confirmPassword">
-                                        Confirm new password
+                                        {t("auth.resetPassword.confirmNewPassword")}
                                     </FieldLabel>
                                     <InputUI
                                         id="confirmPassword"
@@ -252,7 +253,7 @@ function ResetPasswordContent() {
                                                 )}
                                                 className="ml-2 underline underline-offset-2"
                                             >
-                                                Contact support
+                                                {t("auth.resetPassword.contactSupport")}
                                             </a>
                                         )}
                                     </div>
@@ -267,8 +268,8 @@ function ResetPasswordContent() {
                                     className="w-full"
                                 >
                                     {loading
-                                        ? "Updating password..."
-                                        : "Update password"}
+                                        ? t("auth.resetPassword.updatingPassword")
+                                        : t("auth.resetPassword.updatePassword")}
                                 </PillButtonUI>
                             </form>
                         </>

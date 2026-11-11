@@ -16,6 +16,7 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { LINK_SPENT_MESSAGE, authMessages } from "@/app/lib/authMessages";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: on the callback route
  *  every spent one-time code is the same spent confirmation link. */
@@ -49,6 +50,7 @@ function describeCallbackError(
 }
 
 function AuthCallbackContent() {
+    const t = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { refreshSession } = useAuth();
@@ -135,7 +137,7 @@ function AuthCallbackContent() {
                     {displayedMessage ? (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Unable to confirm
+                                {t("auth.callback.unableToConfirm")}
                             </h1>
                             <p
                                 role="alert"
@@ -152,7 +154,7 @@ function AuthCallbackContent() {
                                         )}
                                         className="font-medium underline underline-offset-2"
                                     >
-                                        Contact support
+                                        {t("auth.callback.contactSupport")}
                                     </a>
                                 </p>
                             )}
@@ -164,17 +166,17 @@ function AuthCallbackContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Return to login
+                                {t("auth.callback.returnToLogin")}
                             </Link>
                         </>
                     ) : (
                         <>
                             <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                             <h1 className="mt-4 text-2xl font-medium font-serif text-gray-950">
-                                Confirming your request
+                                {t("auth.callback.confirmingYourRequest")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                This should only take a moment.
+                                {t("auth.callback.thisShouldOnlyTakeAMoment")}
                             </p>
                         </>
                     )}

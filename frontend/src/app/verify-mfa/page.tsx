@@ -19,6 +19,7 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas. */
 const MFA_ERROR_MESSAGES = authMessages({
@@ -37,6 +38,7 @@ type MfaFactor = {
 };
 
 export default function VerifyMfaPage() {
+    const t = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, authLoading, signOut } = useAuth();
@@ -180,11 +182,10 @@ export default function VerifyMfaPage() {
             <div className={`w-full max-w-md ${authGlassCardUIClassName}`}>
                 <div className="mb-8 space-y-2">
                     <h1 className="font-serif text-2xl font-medium text-gray-950">
-                        Verify your identity
+                        {t("auth.verifyMfa.verifyYourIdentity")}
                     </h1>
                     <p className="text-sm text-gray-500">
-                        Enter the six-digit code from your authenticator app to
-                        continue.
+                        {t("auth.verifyMfa.enterTheSixDigitCodeFrom")}
                     </p>
                 </div>
 
@@ -192,12 +193,11 @@ export default function VerifyMfaPage() {
                     {displayedLoading ? (
                         <div className="flex h-13 items-center justify-center text-sm text-gray-500">
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Loading authenticator...
+                            {t("auth.verifyMfa.loadingAuthenticator")}
                         </div>
                     ) : displayedFactors.length === 0 ? (
                         <p className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600">
-                            No verified authenticator factor is available for
-                            this session.
+                            {t("auth.verifyMfa.noVerifiedAuthenticatorFactorIsAvailable")}
                         </p>
                     ) : (
                         <>
@@ -215,7 +215,7 @@ export default function VerifyMfaPage() {
                                             value={factor.id}
                                         >
                                             {factor.friendly_name ||
-                                                "Authenticator app"}
+                                                t("auth.verifyMfa.authenticatorApp")}
                                         </option>
                                     ))}
                                 </select>
@@ -242,7 +242,7 @@ export default function VerifyMfaPage() {
                                     )}
                                     className="ml-2 underline underline-offset-2"
                                 >
-                                    Contact support
+                                    {t("auth.verifyMfa.contactSupport")}
                                 </a>
                             )}
                         </p>
@@ -255,7 +255,7 @@ export default function VerifyMfaPage() {
                             disabled={verifying}
                             className="px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:text-gray-950 disabled:cursor-not-allowed disabled:text-gray-400"
                         >
-                            Cancel
+                            {t("auth.verifyMfa.cancel")}
                         </button>
                         <PillButtonUI
                             tone="black"
@@ -265,7 +265,7 @@ export default function VerifyMfaPage() {
                             disabled={!canVerify}
                             loading={verifying}
                         >
-                            {verifying ? "Verifying..." : "Verify"}
+                            {verifying ? "Verifying..." : t("auth.verifyMfa.verify")}
                         </PillButtonUI>
                     </div>
                 </div>

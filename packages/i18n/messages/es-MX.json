@@ -42,12 +42,33 @@
       "verifying": "Verificando tu invitación..."
     }
   },
+  "accountDeleted": {
+    "deleted": "⟦por traducir⟧ Deleted",
+    "deletingYourAccount": "⟦por traducir⟧ Deleting your account…",
+    "finishAndSignOut": "⟦por traducir⟧ Finish and sign out",
+    "finishedOn": "⟦por traducir⟧ Finished on",
+    "goToLitt": "⟦por traducir⟧ Go to LiTT",
+    "keptAndWhy": "⟦por traducir⟧ Kept, and why",
+    "theLastBackupCopyOfYour": "⟦por traducir⟧ The last backup copy of your data is deleted by",
+    "thereIsNoAccountDeletionTo": "⟦por traducir⟧ There is no account deletion to show in this tab.",
+    "thisCanTakeAFewMinutes": "⟦por traducir⟧ This can take a few minutes. Keep this page open to see your receipt.",
+    "yourAccountCouldNotBeFully": "⟦por traducir⟧ Your account could not be fully deleted",
+    "yourAccountHasBeenDeleted": "⟦por traducir⟧ Your account has been deleted",
+    "yourAccountStaysLockedAndNobody": "⟦por traducir⟧ Your account stays locked and nobody can sign in to it. Contact support to finish the deletion."
+  },
   "assistantExport": {
     "defaultName": "respuesta",
     "downloadMarkdown": "Descargar .md",
     "downloaded": "Respuesta descargada"
   },
   "auth": {
+    "callback": {
+      "confirmingYourRequest": "⟦por traducir⟧ Confirming your request",
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "returnToLogin": "⟦por traducir⟧ Return to login",
+      "thisShouldOnlyTakeAMoment": "⟦por traducir⟧ This should only take a moment.",
+      "unableToConfirm": "⟦por traducir⟧ Unable to confirm"
+    },
     "checkEmail": {
       "checkYourEmail": "Revisa tu correo",
       "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
@@ -94,6 +115,25 @@
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos."
     },
+    "forgotPassword": {
+      "checkYourEmail": "⟦por traducir⟧ Check your email",
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "email": "⟦por traducir⟧ Email",
+      "enterYourAccountEmailAndWe": "⟦por traducir⟧ Enter your account email and we will send you a secure reset link.",
+      "ifAnAccountExistsFor": "⟦por traducir⟧ If an account exists for",
+      "resetYourPassword": "⟦por traducir⟧ Reset your password",
+      "retry": "⟦por traducir⟧ Retry",
+      "returnToLogin": "⟦por traducir⟧ Return to login",
+      "sendResetLink": "⟦por traducir⟧ Send reset link",
+      "sendingResetLink": "⟦por traducir⟧ Sending reset link...",
+      "weSentAPasswordResetLink": "⟦por traducir⟧ , we sent a password-reset link. The link expires and can only be used once."
+    },
+    "form": {
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "continueWithGoogle": "⟦por traducir⟧ Continue with Google",
+      "continueWithSso": "⟦por traducir⟧ Continue with SSO",
+      "dismissWarning": "⟦por traducir⟧ Dismiss warning"
+    },
     "login": {
       "email": "Correo electrónico",
       "forgotPassword": "¿Olvidaste tu contraseña?",
@@ -104,6 +144,51 @@
       "retry": "Reintentar",
       "retrying": "Reintentando...",
       "signUp": "Regístrate"
+    },
+    "onboarding": {
+      "accept": "⟦por traducir⟧ Accept",
+      "acceptName": "⟦por traducir⟧ Accept {name}",
+      "addTheDetailsWeShouldUse": "⟦por traducir⟧ Add the details we should use across LiTT.",
+      "back": "⟦por traducir⟧ Back",
+      "checkingYourInvitations": "⟦por traducir⟧ Checking your invitations",
+      "connectAModel": "⟦por traducir⟧ Connect a model",
+      "continue": "⟦por traducir⟧ Continue",
+      "finish": "⟦por traducir⟧ Finish",
+      "fromInvitedByEmail": "⟦por traducir⟧ From {invited_by_email}",
+      "invitationAcceptedFinishSetupToOpen": "⟦por traducir⟧ Invitation accepted. Finish setup to open your organization workspace.",
+      "invitedAs": "⟦por traducir⟧ Invited as",
+      "joined": "⟦por traducir⟧ Joined",
+      "joinedAs": "⟦por traducir⟧ Joined as",
+      "name": "⟦por traducir⟧ Name",
+      "optionallyAddYourProfessionalSettingPrimary": "⟦por traducir⟧ Optionally add your professional setting, primary jurisdiction, and the areas you work in.",
+      "organisation": "⟦por traducir⟧ Organisation",
+      "organizationInvitations": "⟦por traducir⟧ Organization invitations",
+      "pleaseTryAgain": "⟦por traducir⟧ Please try again.",
+      "refreshInvitations": "⟦por traducir⟧ Refresh invitations",
+      "skip": "⟦por traducir⟧ Skip",
+      "tellUsAboutYou": "⟦por traducir⟧ Tell us about you",
+      "tryAgain": "⟦por traducir⟧ Try again",
+      "unableToFinishSetup": "⟦por traducir⟧ Unable to finish setup",
+      "youHaveNoPendingInvitationsYou": "⟦por traducir⟧ You have no pending invitations. You can join an organization later from Settings.",
+      "yourLegalPractice": "⟦por traducir⟧ Your legal practice"
+    },
+    "resetPassword": {
+      "chooseANewPassword": "⟦por traducir⟧ Choose a new password",
+      "confirmNewPassword": "⟦por traducir⟧ Confirm new password",
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "logIn": "⟦por traducir⟧ Log in",
+      "newPassword": "⟦por traducir⟧ New password",
+      "passwordUpdated": "⟦por traducir⟧ Password updated",
+      "passwordsDoNotMatch": "⟦por traducir⟧ Passwords do not match.",
+      "requestAnotherLink": "⟦por traducir⟧ Request another link",
+      "resetLinkUnavailable": "⟦por traducir⟧ Reset link unavailable",
+      "thisPasswordResetLinkIsInvalid": "⟦por traducir⟧ This password-reset link is invalid or has expired.",
+      "thisShouldOnlyTakeAMoment": "⟦por traducir⟧ This should only take a moment.",
+      "updatePassword": "⟦por traducir⟧ Update password",
+      "updatingPassword": "⟦por traducir⟧ Updating password...",
+      "useAtLeastMinPasswordLength": "⟦por traducir⟧ Use at least {MIN_PASSWORD_LENGTH} characters.",
+      "verifyingYourResetLink": "⟦por traducir⟧ Verifying your reset link...",
+      "yourPasswordHasBeenChangedLog": "⟦por traducir⟧ Your password has been changed. Log in again with your new password."
     },
     "signup": {
       "accountCreated": "¡Cuenta creada!",
@@ -126,6 +211,16 @@
       "retry": "Reintentar",
       "ssoLogin": "Inicio de sesión con SSO",
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+    },
+    "verifyMfa": {
+      "authenticatorApp": "⟦por traducir⟧ Authenticator app",
+      "cancel": "⟦por traducir⟧ Cancel",
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "enterTheSixDigitCodeFrom": "⟦por traducir⟧ Enter the six-digit code from your authenticator app to continue.",
+      "loadingAuthenticator": "⟦por traducir⟧ Loading authenticator...",
+      "noVerifiedAuthenticatorFactorIsAvailable": "⟦por traducir⟧ No verified authenticator factor is available for this session.",
+      "verify": "⟦por traducir⟧ Verify",
+      "verifyYourIdentity": "⟦por traducir⟧ Verify your identity"
     }
   },
   "common": {
@@ -247,6 +342,14 @@
       "validation": "Parte de la información que diste no es válida."
     },
     "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
+    "page": {
+      "back": "⟦por traducir⟧ Back",
+      "goHome": "⟦por traducir⟧ Go home",
+      "home": "⟦por traducir⟧ Home",
+      "pageNotFound": "⟦por traducir⟧ Page not found",
+      "somethingWentWrongLitt": "⟦por traducir⟧ Something went wrong – LiTT",
+      "thePageYoureLookingForDoesnt": "⟦por traducir⟧ The page you're looking for doesn't exist or may have been moved."
+    },
     "signIn": "Iniciar sesión",
     "support": {
       "diagnostics": "--- Datos para soporte (no los borres) ---",
@@ -411,6 +514,30 @@
         "label": "Vista del espacio de trabajo"
       }
     }
+  },
+  "support": {
+    "askAQuestionAboutUsingLitt": "⟦por traducir⟧ Ask a question about using LiTT",
+    "backToHome": "⟦por traducir⟧ Back to Home",
+    "bugReport": "⟦por traducir⟧ Bug Report",
+    "emailSupportDirectly": "⟦por traducir⟧ Email support directly",
+    "featureRequest": "⟦por traducir⟧ Feature Request",
+    "generalFeedbackOrOtherInquiries": "⟦por traducir⟧ General feedback or other inquiries",
+    "ifTheBugIsInA": "⟦por traducir⟧ If the bug is in a chat, mouseover the chat in the sidebar, click the dots, then click share and paste the link here.",
+    "linkToIssueOptional": "⟦por traducir⟧ Link to issue (optional)",
+    "message": "⟦por traducir⟧ Message",
+    "other": "⟦por traducir⟧ Other",
+    "pleaseDescribeYourQuestionIssueOr": "⟦por traducir⟧ Please describe your question, issue, or suggestion in detail...",
+    "question": "⟦por traducir⟧ Question",
+    "reportSomethingThatIsntWorking": "⟦por traducir⟧ Report something that isn't working",
+    "sending": "⟦por traducir⟧ Sending...",
+    "subject": "⟦por traducir⟧ Subject",
+    "submit": "⟦por traducir⟧ Submit",
+    "suggestANewFeatureOrImprovement": "⟦por traducir⟧ Suggest a new feature or improvement",
+    "support": "⟦por traducir⟧ Support",
+    "thankYouForHelpingUsImprove": "⟦por traducir⟧ Thank you for helping us improve.",
+    "weWillGetInTouchWith": "⟦por traducir⟧ We will get in touch with you soon via email.",
+    "wellRespondTo": "⟦por traducir⟧ We'll respond to:",
+    "whatCanWeHelpYouWith": "⟦por traducir⟧ What can we help you with?"
   },
   "training": {
     "allPractices": "Todas las materias",

@@ -42,12 +42,33 @@
       "verifying": "Checking your invitation..."
     }
   },
+  "accountDeleted": {
+    "deleted": "Deleted",
+    "deletingYourAccount": "Deleting your account…",
+    "finishAndSignOut": "Finish and sign out",
+    "finishedOn": "Finished on",
+    "goToLitt": "Go to LiTT",
+    "keptAndWhy": "Kept, and why",
+    "theLastBackupCopyOfYour": "The last backup copy of your data is deleted by",
+    "thereIsNoAccountDeletionTo": "There is no account deletion to show in this tab.",
+    "thisCanTakeAFewMinutes": "This can take a few minutes. Keep this page open to see your receipt.",
+    "yourAccountCouldNotBeFully": "Your account could not be fully deleted",
+    "yourAccountHasBeenDeleted": "Your account has been deleted",
+    "yourAccountStaysLockedAndNobody": "Your account stays locked and nobody can sign in to it. Contact support to finish the deletion."
+  },
   "assistantExport": {
     "defaultName": "response",
     "downloadMarkdown": "Download .md",
     "downloaded": "Response downloaded"
   },
   "auth": {
+    "callback": {
+      "confirmingYourRequest": "Confirming your request",
+      "contactSupport": "Contact support",
+      "returnToLogin": "Return to login",
+      "thisShouldOnlyTakeAMoment": "This should only take a moment.",
+      "unableToConfirm": "Unable to confirm"
+    },
     "checkEmail": {
       "checkYourEmail": "Check your email",
       "confirmationSent": "We sent a confirmation link to your email address. Confirm your address before logging in.",
@@ -94,6 +115,25 @@
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
     },
+    "forgotPassword": {
+      "checkYourEmail": "Check your email",
+      "contactSupport": "Contact support",
+      "email": "Email",
+      "enterYourAccountEmailAndWe": "Enter your account email and we will send you a secure reset link.",
+      "ifAnAccountExistsFor": "If an account exists for",
+      "resetYourPassword": "Reset your password",
+      "retry": "Retry",
+      "returnToLogin": "Return to login",
+      "sendResetLink": "Send reset link",
+      "sendingResetLink": "Sending reset link...",
+      "weSentAPasswordResetLink": ", we sent a password-reset link. The link expires and can only be used once."
+    },
+    "form": {
+      "contactSupport": "Contact support",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithSso": "Continue with SSO",
+      "dismissWarning": "Dismiss warning"
+    },
     "login": {
       "email": "Email",
       "forgotPassword": "Forgot password?",
@@ -104,6 +144,51 @@
       "retry": "Retry",
       "retrying": "Retrying...",
       "signUp": "Sign up"
+    },
+    "onboarding": {
+      "accept": "Accept",
+      "acceptName": "Accept {name}",
+      "addTheDetailsWeShouldUse": "Add the details we should use across LiTT.",
+      "back": "Back",
+      "checkingYourInvitations": "Checking your invitations",
+      "connectAModel": "Connect a model",
+      "continue": "Continue",
+      "finish": "Finish",
+      "fromInvitedByEmail": "From {invited_by_email}",
+      "invitationAcceptedFinishSetupToOpen": "Invitation accepted. Finish setup to open your organization workspace.",
+      "invitedAs": "Invited as",
+      "joined": "Joined",
+      "joinedAs": "Joined as",
+      "name": "Name",
+      "optionallyAddYourProfessionalSettingPrimary": "Optionally add your professional setting, primary jurisdiction, and the areas you work in.",
+      "organisation": "Organisation",
+      "organizationInvitations": "Organization invitations",
+      "pleaseTryAgain": "Please try again.",
+      "refreshInvitations": "Refresh invitations",
+      "skip": "Skip",
+      "tellUsAboutYou": "Tell us about you",
+      "tryAgain": "Try again",
+      "unableToFinishSetup": "Unable to finish setup",
+      "youHaveNoPendingInvitationsYou": "You have no pending invitations. You can join an organization later from Settings.",
+      "yourLegalPractice": "Your legal practice"
+    },
+    "resetPassword": {
+      "chooseANewPassword": "Choose a new password",
+      "confirmNewPassword": "Confirm new password",
+      "contactSupport": "Contact support",
+      "logIn": "Log in",
+      "newPassword": "New password",
+      "passwordUpdated": "Password updated",
+      "passwordsDoNotMatch": "Passwords do not match.",
+      "requestAnotherLink": "Request another link",
+      "resetLinkUnavailable": "Reset link unavailable",
+      "thisPasswordResetLinkIsInvalid": "This password-reset link is invalid or has expired.",
+      "thisShouldOnlyTakeAMoment": "This should only take a moment.",
+      "updatePassword": "Update password",
+      "updatingPassword": "Updating password...",
+      "useAtLeastMinPasswordLength": "Use at least {MIN_PASSWORD_LENGTH} characters.",
+      "verifyingYourResetLink": "Verifying your reset link...",
+      "yourPasswordHasBeenChangedLog": "Your password has been changed. Log in again with your new password."
     },
     "signup": {
       "accountCreated": "Account created!",
@@ -126,6 +211,16 @@
       "retry": "Retry",
       "ssoLogin": "SSO login",
       "tooManyAttempts": "Too many attempts. Wait a moment and try again."
+    },
+    "verifyMfa": {
+      "authenticatorApp": "Authenticator app",
+      "cancel": "Cancel",
+      "contactSupport": "Contact support",
+      "enterTheSixDigitCodeFrom": "Enter the six-digit code from your authenticator app to continue.",
+      "loadingAuthenticator": "Loading authenticator...",
+      "noVerifiedAuthenticatorFactorIsAvailable": "No verified authenticator factor is available for this session.",
+      "verify": "Verify",
+      "verifyYourIdentity": "Verify your identity"
     }
   },
   "common": {
@@ -247,6 +342,14 @@
       "validation": "Some of the information provided isn't valid."
     },
     "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
+    "page": {
+      "back": "Back",
+      "goHome": "Go home",
+      "home": "Home",
+      "pageNotFound": "Page not found",
+      "somethingWentWrongLitt": "Something went wrong – LiTT",
+      "thePageYoureLookingForDoesnt": "The page you're looking for doesn't exist or may have been moved."
+    },
     "signIn": "Sign in",
     "support": {
       "diagnostics": "--- Details for support (please keep) ---",
@@ -411,6 +514,30 @@
         "label": "Workspace view"
       }
     }
+  },
+  "support": {
+    "askAQuestionAboutUsingLitt": "Ask a question about using LiTT",
+    "backToHome": "Back to Home",
+    "bugReport": "Bug Report",
+    "emailSupportDirectly": "Email support directly",
+    "featureRequest": "Feature Request",
+    "generalFeedbackOrOtherInquiries": "General feedback or other inquiries",
+    "ifTheBugIsInA": "If the bug is in a chat, mouseover the chat in the sidebar, click the dots, then click share and paste the link here.",
+    "linkToIssueOptional": "Link to issue (optional)",
+    "message": "Message",
+    "other": "Other",
+    "pleaseDescribeYourQuestionIssueOr": "Please describe your question, issue, or suggestion in detail...",
+    "question": "Question",
+    "reportSomethingThatIsntWorking": "Report something that isn't working",
+    "sending": "Sending...",
+    "subject": "Subject",
+    "submit": "Submit",
+    "suggestANewFeatureOrImprovement": "Suggest a new feature or improvement",
+    "support": "Support",
+    "thankYouForHelpingUsImprove": "Thank you for helping us improve.",
+    "weWillGetInTouchWith": "We will get in touch with you soon via email.",
+    "wellRespondTo": "We'll respond to:",
+    "whatCanWeHelpYouWith": "What can we help you with?"
   },
   "training": {
     "allPractices": "All practice areas",

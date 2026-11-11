@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { pillButtonUIClassName } from "@mike/ui";
 import { CrashScreen } from "@/app/components/shared/CrashScreen";
+import { useTranslations } from "next-intl";
 
 export default function Error({
     error,
@@ -11,6 +12,7 @@ export default function Error({
     error: Error & { digest?: string };
     reset?: () => void;
 }) {
+    const t = useTranslations();
     return (
         <CrashScreen
             error={error}
@@ -21,7 +23,7 @@ export default function Error({
                     href="/"
                     className={pillButtonUIClassName({ tone, size: "normal" })}
                 >
-                    Home
+                    {t("errors.page.home")}
                 </Link>
             )}
         />

@@ -10,6 +10,7 @@ import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { updateUserProfile } from "@/app/lib/mikeApi";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { describeError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 export default function OnboardingProfilePage() {
     const router = useRouter();
@@ -40,6 +41,7 @@ function ProfileDetailsForm({
     initialName: string;
     initialOrganisation: string;
 }) {
+    const t = useTranslations();
     const router = useRouter();
     const { reloadProfile } = useUserProfile();
     const [name, setName] = useState(initialName);
@@ -76,13 +78,13 @@ function ProfileDetailsForm({
     return (
         <OnboardingShell
             step="Step 1 of 4"
-            title="Tell us about you"
-            description="Add the details we should use across LiTT."
+            title={t("auth.onboarding.tellUsAboutYou")}
+            description={t("auth.onboarding.addTheDetailsWeShouldUse")}
         >
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <FieldLabel htmlFor="name">
-                        Name
+                        {t("auth.onboarding.name")}
                     </FieldLabel>
                     <InputUI
                         id="name"
@@ -96,7 +98,7 @@ function ProfileDetailsForm({
 
                 <div>
                     <FieldLabel htmlFor="organisation">
-                        Organisation
+                        {t("auth.onboarding.organisation")}
                     </FieldLabel>
                     <InputUI
                         id="organisation"
@@ -127,7 +129,7 @@ function ProfileDetailsForm({
                         disabled={submitting}
                         className="w-full"
                     >
-                        {submitting ? "Saving..." : "Continue"}
+                        {submitting ? "Saving..." : t("auth.onboarding.continue")}
                     </PillButtonUI>
                 </div>
             </form>

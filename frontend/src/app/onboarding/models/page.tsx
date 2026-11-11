@@ -16,6 +16,7 @@ import {
 import { apiKeyStateFromStatus } from "@/app/lib/apiKeyState";
 import { getOrgApiKeys, listOrgs, type ApiKeyState } from "@/app/lib/mikeApi";
 import { PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 export default function OnboardingModelsPage() {
     const router = useRouter();
@@ -122,6 +123,7 @@ function stepDescription(
 }
 
 function ModelStep({ userId }: { userId: string }) {
+    const t = useTranslations();
     const router = useRouter();
     const { profile, completeOnboarding } = useUserProfile();
     const joined = useJoinedOrganization(userId);
@@ -144,7 +146,7 @@ function ModelStep({ userId }: { userId: string }) {
     return (
         <OnboardingShell
             step="Step 4 of 4"
-            title="Connect a model"
+            title={t("auth.onboarding.connectAModel")}
             description={stepDescription(profile?.apiKeys, joined)}
             width="wide"
         >
@@ -152,8 +154,8 @@ function ModelStep({ userId }: { userId: string }) {
             <WarningPopup
                 open={error}
                 onClose={() => setError(false)}
-                title="Unable to finish setup"
-                message="Please try again."
+                title={t("auth.onboarding.unableToFinishSetup")}
+                message={t("auth.onboarding.pleaseTryAgain")}
             />
             <div className="flex items-center justify-between gap-3 pt-6">
                 <PillButtonUI
@@ -163,7 +165,7 @@ function ModelStep({ userId }: { userId: string }) {
                     disabled={submitting}
                     onClick={() => router.push("/onboarding/invitations")}
                 >
-                    Back
+                    {t("auth.onboarding.back")}
                 </PillButtonUI>
                 <PillButtonUI
                     type="button"
@@ -172,7 +174,7 @@ function ModelStep({ userId }: { userId: string }) {
                     disabled={submitting}
                     onClick={() => void finish()}
                 >
-                    {submitting ? "Finishing..." : "Finish"}
+                    {submitting ? "Finishing..." : t("auth.onboarding.finish")}
                 </PillButtonUI>
             </div>
         </OnboardingShell>

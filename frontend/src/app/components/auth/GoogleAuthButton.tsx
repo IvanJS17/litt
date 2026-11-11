@@ -7,6 +7,7 @@ import {
     describeError,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 const GOOGLE_ERROR_MESSAGES = {
     provider_disabled:
@@ -28,6 +29,7 @@ export function GoogleAuthButton({
     disabled = false,
     onLoadingChange,
 }: GoogleAuthButtonProps) {
+    const t = useTranslations();
     const [loading, setLoading] = useState(false);
 
     const handleGoogleAuth = async () => {
@@ -65,7 +67,7 @@ export function GoogleAuthButton({
             onClick={() => void handleGoogleAuth()}
         >
             <GoogleIconUI className="h-4 w-4" />
-            {loading ? "Continuing…" : "Continue with Google"}
+            {loading ? "Continuing…" : t("auth.form.continueWithGoogle")}
         </PillButtonUI>
     );
 }

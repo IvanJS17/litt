@@ -6,6 +6,7 @@ import "./fonts/fonts.css";
 import "./globals.css";
 import { CrashScreen } from "@/app/components/shared/CrashScreen";
 import { PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 export default function GlobalError({
     error,
@@ -14,10 +15,11 @@ export default function GlobalError({
     error: Error & { digest?: string };
     reset?: () => void;
 }) {
+    const t = useTranslations();
     return (
         <html lang="en">
             <head>
-                <title>Something went wrong – LiTT</title>
+                <title>{t("errors.page.somethingWentWrongLitt")}</title>
             </head>
             <body className="font-sans antialiased">
                 <CrashScreen
@@ -33,7 +35,7 @@ export default function GlobalError({
                             size="normal"
                             onClick={() => window.history.back()}
                         >
-                            Back
+                            {t("errors.page.back")}
                         </PillButtonUI>
                     )}
                 />
