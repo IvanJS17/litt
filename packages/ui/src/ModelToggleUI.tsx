@@ -78,7 +78,7 @@ export function reasoningLevelsForModel(
         .replace(/^(vertex\/[^@]+)@/, "$1-");
   // Astra, Sol 6.1, and current Fable/Opus cannot disable thinking.
   if (
-    /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-1|claude-opus-5-5)(?:$|-)/.test(
+    /(?:^|\/)(?:gpt-6-astra|gpt-6\.1-sol|claude-fable-5-[12]|claude-opus-5-5)(?:$|-)/.test(
       catalogId,
     )
   ) {
