@@ -136,12 +136,12 @@
     },
     "chatCredentialPicker": {
       "chooseAKey": "Elige una llave",
-      "deploymentKey": "Llave de la instalación",
+      "deploymentKey": "Llave de la plataforma",
       "key": "Llave",
       "keyForThisConversationLabel": "Llave de esta conversación: {label}",
       "noKey": "Sin llave",
       "noKeyIsAvailableForThis": "No hay ninguna llave disponible para este modelo. Agrega una en Ajustes o elige otro modelo.",
-      "operatorEndpoint": "Endpoint del operador",
+      "operatorEndpoint": "Modelo propio de la plataforma",
       "organizationKey": "Llave de la organización",
       "theConversationKeepsThisKeyAnd": "La conversación conserva esta llave y su modelo una vez que empieza.",
       "yourKey": "Tu llave"
@@ -4019,8 +4019,8 @@
     "agregarPupilo": "Agregar pupilo",
     "allPractices": "Todas las materias",
     "credentialSource": {
-      "deployment": "Llave de la instalación",
-      "operator": "Endpoint del operador",
+      "deployment": "Llave de la plataforma",
+      "operator": "Modelo propio de la plataforma",
       "organization": "Llave de la organización",
       "personal": "Tu llave"
     },
