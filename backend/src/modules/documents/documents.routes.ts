@@ -392,7 +392,7 @@ documentsRouter.get(
     "/:documentId/convert/preview",
     requireAuth,
     asyncRoute(async (req, res) => {
-        setOperation("documents.formatConvertPreview");
+        setOperation("documents.format_convert_preview");
         const result = await previewDocumentConversion(createServerSupabase(), {
             documentId: req.params.documentId,
             userId: res.locals.userId as string,
@@ -412,7 +412,7 @@ documentsRouter.post(
     "/:documentId/convert",
     requireAuth,
     asyncRoute(async (req, res) => {
-        setOperation("documents.formatConvert");
+        setOperation("documents.format_convert");
         const result = await convertDocument(createServerSupabase(), {
             documentId: req.params.documentId,
             userId: res.locals.userId as string,

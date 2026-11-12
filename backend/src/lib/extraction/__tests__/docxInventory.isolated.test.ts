@@ -39,6 +39,8 @@ describe("docxInventory in the parser process", () => {
 
   it("cuts a package that lies about its size at the parser's memory limit, without growing the API", async () => {
     vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "64");
+    // Whichever bound trips first (memory or deadline) stops it; both are limits.
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "15000");
     const bytes = await lyingDocx(200 * 1024 * 1024);
     expect(bytes.length).toBeLessThan(1024 * 1024);
     const before = process.memoryUsage().rss;
