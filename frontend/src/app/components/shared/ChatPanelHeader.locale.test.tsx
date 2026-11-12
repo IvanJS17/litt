@@ -14,6 +14,7 @@ describe("ChatPanelHeader in es-MX", () => {
                     currentTitle={null}
                     onLoad={vi.fn()}
                     onNewChat={vi.fn()}
+                    actions={null}
                 />
             </IntlClientProvider>,
         );
