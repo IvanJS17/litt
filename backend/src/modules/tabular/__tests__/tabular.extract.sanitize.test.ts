@@ -1,18 +1,20 @@
-// The DOCX→markdown path strips mammoth's HTML down to text. Two properties
-// matter for the sanitization (both flagged by CodeQL on the single-pass
-// version): tag-stripping must reach a fixed point so a reassembled tag like
-// "<scr<script>ipt>" cannot survive, and entity decoding must handle "&amp;"
-// last so already-escaped text is not double-unescaped into live markup.
+// The DOCX→Markdown path (lib/docxMarkdown: mammoth → turndown) is what tabular
+// review and the assistant read. Two properties matter for sanitization
+// (both flagged by CodeQL on the old regex version): the output must not carry
+// a live tag assembled from the document's text, and entities must be decoded
+// exactly once so already-escaped text is not unescaped into markup.
 
 import { describe, it, expect, vi } from "vitest";
 
 let mammothHtml = "";
-vi.mock("mammoth", () => ({
-    default: {
-        convertToHtml: async () => ({ value: mammothHtml }),
-    },
-    convertToHtml: async () => ({ value: mammothHtml }),
-}));
+vi.mock("mammoth", () => {
+    const convertToHtml = async () => ({ value: mammothHtml });
+    return {
+        default: { convertToHtml },
+        convertToHtml,
+        images: { imgElement: () => () => undefined },
+    };
+});
 vi.mock("../../../lib/convert", () => ({
     normalizeDocxZipPaths: async (buf: Buffer) => buf,
     docxToPdf: async (buf: Buffer) => buf,
@@ -26,10 +28,10 @@ async function markdownFor(html: string): Promise<string> {
 }
 
 describe("extractDocxMarkdown sanitization", () => {
-    it("strips nested/reassembled tags to a fixed point", async () => {
-        const out = await markdownFor("<p>safe <scr<script>ipt>alert(1)</script> text</p>");
-        expect(out).not.toContain("<script");
-        expect(out).not.toContain("<scr");
+    it("drops scripts and never leaves a live tag in the text", async () => {
+        const out = await markdownFor("<p>safe</p><script>alert(1)</script><p>text &lt;script&gt;x&lt;/script&gt;</p>");
+        expect(out).not.toContain("alert(1)<");
+        expect(out).not.toMatch(/(^|[^\\])<script/);
         expect(out).toContain("safe");
         expect(out).toContain("text");
     });
@@ -43,6 +45,6 @@ describe("extractDocxMarkdown sanitization", () => {
 
     it("still decodes plain entities once", async () => {
         const out = await markdownFor("<p>a &lt;tag&gt; &amp; more&nbsp;here</p>");
-        expect(out).toBe("a <tag> & more here");
+        expect(out).toBe("a \\<tag> & more\u00a0here");
     });
 });
