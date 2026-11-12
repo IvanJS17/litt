@@ -174,7 +174,7 @@ function ModelStep({ userId }: { userId: string }) {
                     disabled={submitting}
                     onClick={() => void finish()}
                 >
-                    {submitting ? "Finishing..." : t("auth.onboarding.finish")}
+                    {submitting ? t("auth.onboarding.finishing") : t("auth.onboarding.finish")}
                 </PillButtonUI>
             </div>
         </OnboardingShell>

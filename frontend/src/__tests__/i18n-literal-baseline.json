@@ -34,7 +34,6 @@
     "frontend/src/app/components/versions",
     "frontend/src/app/error.tsx",
     "frontend/src/app/forgot-password/page.tsx",
-    "frontend/src/app/global-error.tsx",
     "frontend/src/app/hooks/useTrainingText.ts",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",
     "frontend/src/app/layout.tsx",

@@ -40,4 +40,17 @@ describe("GlobalError", () => {
         expect(support.getAttribute("href")).toMatch(/^mailto:/);
         expect(screen.getByText(/d1gest/)).toBeTruthy();
     });
+    it("renders without an intl provider, as it does in production", async () => {
+        // global-error replaces the root layout, the only place that mounts
+        // NextIntlClientProvider, so it must not need one. vitest.setup wraps
+        // every Testing Library render in a provider; use the real render.
+        vi.spyOn(console, "error").mockImplementation(() => {});
+        const rtl = await vi.importActual<typeof import("@testing-library/react")>("@testing-library/react");
+        const error = Object.assign(new Error("boom"), { digest: "d1gest" });
+        rtl.render(<GlobalError error={error} />, {
+            container: document.documentElement,
+            baseElement: document.documentElement,
+        });
+        expect(rtl.screen.getByRole("button", { name: "Back" })).toBeTruthy();
+    });
 });

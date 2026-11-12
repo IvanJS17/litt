@@ -171,6 +171,7 @@
       "connectAModel": "Connect a model",
       "continue": "Continue",
       "finish": "Finish",
+      "finishing": "Finishing...",
       "fromInvitedByEmail": "From {invited_by_email}",
       "invitationAcceptedFinishSetupToOpen": "Invitation accepted. Finish setup to open your organization workspace.",
       "invitedAs": "Invited as",
@@ -185,6 +186,7 @@
       "refreshInvitations": "Refresh invitations",
       "saveDetailsAction": "save your details",
       "saveDetailsFailed": "Unable to save your details. Try again.",
+      "saving": "Saving...",
       "skip": "Skip",
       "stepAddKey": "Add an API key for at least one provider to start using LiTT. Your key also works in an organization for any provider it has not set up, unless its owners turn that off. You can add or change keys later in Settings.",
       "stepDeployment": "This deployment already provides models, so you can finish now. A key you add here replaces the deployment's for your Personal workspace.",
@@ -270,7 +272,8 @@
       "verify": "Verify",
       "verifyCodeAction": "verify that code",
       "verifyIdentityAction": "verify your identity",
-      "verifyYourIdentity": "Verify your identity"
+      "verifyYourIdentity": "Verify your identity",
+      "verifying": "Verifying..."
     }
   },
   "common": {
@@ -393,11 +396,9 @@
     },
     "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
     "page": {
-      "back": "Back",
       "goHome": "Go home",
       "home": "Home",
       "pageNotFound": "Page not found",
-      "somethingWentWrongLitt": "Something went wrong – LiTT",
       "thePageYoureLookingForDoesnt": "The page you're looking for doesn't exist or may have been moved."
     },
     "signIn": "Sign in",

@@ -264,7 +264,7 @@ export default function VerifyMfaPage() {
                             disabled={!canVerify}
                             loading={verifying}
                         >
-                            {verifying ? "Verifying..." : t("auth.verifyMfa.verify")}
+                            {verifying ? t("auth.verifyMfa.verifying") : t("auth.verifyMfa.verify")}
                         </PillButtonUI>
                     </div>
                 </div>

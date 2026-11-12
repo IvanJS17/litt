@@ -129,7 +129,7 @@ function ProfileDetailsForm({
                         disabled={submitting}
                         className="w-full"
                     >
-                        {submitting ? "Saving..." : t("auth.onboarding.continue")}
+                        {submitting ? t("auth.onboarding.saving") : t("auth.onboarding.continue")}
                     </PillButtonUI>
                 </div>
             </form>

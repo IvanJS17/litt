@@ -46,7 +46,7 @@
     "deleted": "Eliminado",
     "deletingYourAccount": "Eliminando tu cuenta…",
     "finishAndSignOut": "Finalizar y cerrar sesión",
-    "finishedOn": "Finalizó el",
+    "finishedOn": "Terminó el",
     "goToLitt": "Ir a LiTT",
     "keptAndWhy": "Conservado, y por qué",
     "loadReceiptAction": "cargar tu comprobante de eliminación",
@@ -121,7 +121,7 @@
     "forgotPassword": {
       "checkYourEmail": "Revisa tu correo",
       "contactSupport": "Contacta a soporte",
-      "email": "Correo electrónico",
+      "email": "Correo",
       "enterYourAccountEmailAndWe": "Escribe el correo de tu cuenta y te enviaremos un enlace seguro de restablecimiento.",
       "ifAnAccountExistsFor": "Si existe una cuenta para",
       "resetYourPassword": "Restablece tu contraseña",
@@ -171,6 +171,7 @@
       "connectAModel": "Conecta un modelo",
       "continue": "Continuar",
       "finish": "Finalizar",
+      "finishing": "Terminando...",
       "fromInvitedByEmail": "De {invited_by_email}",
       "invitationAcceptedFinishSetupToOpen": "Invitación aceptada. Completa la configuración para abrir el espacio de trabajo de tu organización.",
       "invitedAs": "Te invitaron como",
@@ -185,11 +186,12 @@
       "refreshInvitations": "Actualizar invitaciones",
       "saveDetailsAction": "guardar tus datos",
       "saveDetailsFailed": "No se pudieron guardar tus datos. Inténtalo de nuevo.",
+      "saving": "Guardando...",
       "skip": "Omitir",
-      "stepAddKey": "Agrega una llave de API de al menos un proveedor para empezar a usar LiTT. Tu llave también funciona en una organización para cualquier proveedor que no haya configurado, a menos que sus propietarios lo desactiven. Puedes agregar o cambiar llaves más tarde en Configuración.",
+      "stepAddKey": "Agrega una llave de API de al menos un proveedor para empezar a usar LiTT. Tu llave también funciona en una organización para cualquier proveedor que no haya configurado, a menos que sus propietarios lo desactiven. Puedes agregar o cambiar llaves más tarde en Ajustes.",
       "stepDeployment": "Esta instalación ya ofrece modelos, así que puedes terminar ahora. Una llave que agregues aquí reemplaza la de la instalación para tu espacio de trabajo Personal.",
       "stepJoined": "Te uniste a {name} y sus modelos están disponibles ahí, así que puedes terminar ahora. {ownKeys, select, allowed {Tus llaves propias funcionan en tu espacio de trabajo Personal y, en {name}, para cualquier proveedor que no haya configurado.} other {{name} solo funciona con sus llaves propias, así que las llaves que agregues aquí son para tu espacio de trabajo Personal.}}",
-      "stepKeySaved": "Tu llave se guardó. Agrega más proveedores ahora o cámbialos más tarde en Configuración.",
+      "stepKeySaved": "Tu llave se guardó. Agrega más proveedores ahora o cámbialos más tarde en Ajustes.",
       "stepOf": "Paso {step} de {total}",
       "tellUsAboutYou": "Cuéntanos sobre ti",
       "tryAgain": "Inténtalo de nuevo",
@@ -202,8 +204,8 @@
       "chooseANewPassword": "Elige una nueva contraseña",
       "confirmNewPassword": "Confirma tu nueva contraseña",
       "contactSupport": "Contacta a soporte",
-      "linkExpired": "Este enlace de restablecimiento de contraseña expiró. Pide uno nuevo.",
-      "linkInvalidRequestNew": "Este enlace de restablecimiento de contraseña no es válido o expiró. Pide uno nuevo.",
+      "linkExpired": "Este enlace para restablecer tu contraseña expiró. Pide uno nuevo.",
+      "linkInvalidRequestNew": "Este enlace para restablecer tu contraseña no es válido o expiró. Pide uno nuevo.",
       "logIn": "Iniciar sesión",
       "newPassword": "Nueva contraseña",
       "passwordUpdated": "Contraseña actualizada",
@@ -218,7 +220,7 @@
       "updatePassword": "Actualizar contraseña",
       "updatingPassword": "Actualizando contraseña...",
       "useAtLeastMinPasswordLength": "Usa al menos {MIN_PASSWORD_LENGTH} caracteres.",
-      "verifyingYourResetLink": "Verificando tu enlace de restablecimiento...",
+      "verifyingYourResetLink": "Verificando tu enlace para restablecer la contraseña...",
       "yourPasswordHasBeenChangedLog": "Se cambió tu contraseña. Vuelve a iniciar sesión con tu nueva contraseña."
     },
     "signup": {
@@ -244,11 +246,11 @@
       "backToLogin": "Volver al inicio de sesión",
       "continue": "Continuar",
       "continuing": "Continuando…",
-      "email": "Correo electrónico",
+      "email": "Correo",
       "retry": "Reintentar",
       "ssoLogin": "Inicio de sesión con SSO",
-      "startAction": "iniciar el inicio de sesión único (SSO)",
-      "startFailed": "No se pudo iniciar el inicio de sesión único (SSO). Inténtalo de nuevo.",
+      "startAction": "iniciar sesión con SSO",
+      "startFailed": "No se pudo iniciar sesión con SSO. Inténtalo de nuevo.",
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       "validCompanyEmail": "Escribe un correo corporativo válido."
     },
@@ -270,7 +272,8 @@
       "verify": "Verificar",
       "verifyCodeAction": "verificar ese código",
       "verifyIdentityAction": "verificar tu identidad",
-      "verifyYourIdentity": "Verifica tu identidad"
+      "verifyYourIdentity": "Verifica tu identidad",
+      "verifying": "Verificando..."
     }
   },
   "common": {
@@ -393,11 +396,9 @@
     },
     "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
     "page": {
-      "back": "Volver",
       "goHome": "Ir al inicio",
       "home": "Inicio",
       "pageNotFound": "Página no encontrada",
-      "somethingWentWrongLitt": "Algo salió mal – LiTT",
       "thePageYoureLookingForDoesnt": "La página que buscas no existe o tal vez fue movida."
     },
     "signIn": "Iniciar sesión",
