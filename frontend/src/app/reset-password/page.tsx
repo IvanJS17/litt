@@ -13,15 +13,12 @@ import {
     authInputUIClassName,
 } from "@mike/ui";
 import {
+    MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     isPasswordTooLong,
-    maximumPasswordMessage,
-    minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
-import {
-    PASSWORD_LENGTH_MESSAGE,
-    authMessages,
-} from "@/app/lib/authMessages";
+import { authMessages, authSentence } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { getAuthSession, updateAuthPassword } from "@/app/lib/authApi";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import {
@@ -34,15 +31,13 @@ import { useTranslations } from "next-intl";
 /** The shared auth table with this screen's deltas: here every session-
  *  shaped failure is really "your reset link is no longer usable". */
 const RESET_ERROR_MESSAGES = authMessages({
-    validation_failed: PASSWORD_LENGTH_MESSAGE,
-    invalid_request: PASSWORD_LENGTH_MESSAGE,
-    otp_expired: "This password-reset link has expired. Request a new one.",
-    session_expired: "This password-reset link has expired. Request a new one.",
-    session_not_found:
-        "This password-reset link is invalid or has expired. Request a new one.",
-    cookie_session_required:
-        "This password-reset link is invalid or has expired. Request a new one.",
-    reauthentication_needed: "Log in again before changing your password.",
+    validation_failed: authSentence("passwordLength"),
+    invalid_request: authSentence("passwordLength"),
+    otp_expired: () => clientTranslator()("auth.resetPassword.linkExpired"),
+    session_expired: () => clientTranslator()("auth.resetPassword.linkExpired"),
+    session_not_found: () => clientTranslator()("auth.resetPassword.linkInvalidRequestNew"),
+    cookie_session_required: () => clientTranslator()("auth.resetPassword.linkInvalidRequestNew"),
+    reauthentication_needed: () => clientTranslator()("auth.resetPassword.reauthenticate"),
 });
 
 function ResetPasswordContent() {
@@ -63,7 +58,7 @@ function ResetPasswordContent() {
     const isUnavailablePreview = preview === "reset-unavailable";
     const displayedReady = isUnavailablePreview || ready;
     const displayedError = isUnavailablePreview
-        ? "This password-reset link is invalid or has expired."
+        ? t("auth.resetPassword.thisPasswordResetLinkIsInvalid")
         : error;
     const resetUnavailable =
         displayedReady && !!displayedError && !password && !confirmPassword;
@@ -89,15 +84,14 @@ function ResetPasswordContent() {
                 // not, and telling the user to request a new link then would
                 // send them round a loop that cannot work.
                 const described = describeError(caught, {
-                    action: "check your reset link",
-                    fallback:
-                        "This password-reset link is invalid or has expired.",
+                    action: t("auth.resetPassword.checkLinkAction"),
+                    fallback: t("auth.resetPassword.thisPasswordResetLinkIsInvalid"),
                 });
                 setError(
                     described.kind === "unauthenticated" ||
                         described.kind === "not_found" ||
                         described.kind === "validation"
-                        ? "This password-reset link is invalid or has expired."
+                        ? t("auth.resetPassword.thisPasswordResetLinkIsInvalid")
                         : described.message,
                 );
                 setReady(true);
@@ -112,11 +106,17 @@ function ResetPasswordContent() {
         setError(null);
         setFailure(null);
         if (password.length < MIN_PASSWORD_LENGTH) {
-            setError(`${minimumPasswordMessage}.`);
+            setError(
+                t("auth.errors.passwordTooShort", {
+                    min: MIN_PASSWORD_LENGTH,
+                }),
+            );
             return;
         }
         if (isPasswordTooLong(password)) {
-            setError(maximumPasswordMessage);
+            setError(
+                t("auth.errors.passwordTooLong", { max: MAX_PASSWORD_LENGTH }),
+            );
             return;
         }
         if (password !== confirmPassword) {
@@ -130,9 +130,9 @@ function ResetPasswordContent() {
             setSuccess(true);
         } catch (caught) {
             const described = describeError(caught, {
-                action: "update your password",
+                action: t("auth.resetPassword.updateAction"),
                 codeMessages: RESET_ERROR_MESSAGES,
-                fallback: "Unable to update your password. Try again.",
+                fallback: t("auth.resetPassword.updateFailed"),
             });
             setFailure(described);
             setError(described.message);

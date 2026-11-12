@@ -31,7 +31,7 @@ import {
 function localSignupError(message: string): UserFacingError {
     return describeError(
         new UserVisibleError(message, { kind: "validation" }),
-        { action: "create your account" },
+        { action: clientTranslator()("auth.signup.createAction") },
     );
 }
 
@@ -41,32 +41,31 @@ function localSignupError(message: string): UserFacingError {
  * still says what actually happened.
  */
 const SIGNUP_ERROR_MESSAGES = authMessages({
-    validation_failed: "Check your email address and password and try again.",
-    invalid_request: "Check your email address and password and try again.",
-    over_email_send_rate_limit:
-        "Too many signup emails have been requested. Wait a few minutes and try again.",
-    request_timeout: "The signup request timed out. Try again.",
+    validation_failed: () => clientTranslator()("auth.signup.checkCredentials"),
+    invalid_request: () => clientTranslator()("auth.signup.checkCredentials"),
+    over_email_send_rate_limit: () => clientTranslator()("auth.signup.emailRateLimit"),
+    request_timeout: () => clientTranslator()("auth.signup.requestTimeout"),
 });
 
 /** Classify a signup failure into text a person can act on. */
 function describeSignupError(error: unknown): UserFacingError {
     const described = reportFault(error, {
-        action: "create your account",
+        action: clientTranslator()("auth.signup.createAction"),
         codeMessages: SIGNUP_ERROR_MESSAGES,
-        fallback: "Unable to create your account right now. Try again.",
+        fallback: clientTranslator()("auth.signup.createFailed"),
         operation: "auth.signup",
     });
     return described.kind === "rate_limited"
-        ? { ...described, message: TOO_MANY_ATTEMPTS_MESSAGE }
+        ? { ...described, message: authSentenceText("tooManyAttempts") }
         : described;
 }
 import {
+    MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     isPasswordTooLong,
-    maximumPasswordMessage,
-    minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
-import { TOO_MANY_ATTEMPTS_MESSAGE, authMessages } from "@/app/lib/authMessages";
+import { authMessages, authSentenceText } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { GoogleAuthButton } from "@/app/components/auth/GoogleAuthButton";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { useTranslations } from "next-intl";
@@ -116,7 +115,7 @@ function SignupContent() {
 
         // Validate passwords match
         if (password !== confirmPassword) {
-            setError(localSignupError("The two passwords don't match."));
+            setError(localSignupError(t("auth.signup.passwordsDontMatch")));
             setLoading(false);
             return;
         }
@@ -124,12 +123,18 @@ function SignupContent() {
         // Validate password length. The upper bound is bcrypt's 72 BYTES:
         // GoTrue rejects anything longer, so say so before the round trip.
         if (password.length < MIN_PASSWORD_LENGTH) {
-            setError(localSignupError(`${minimumPasswordMessage}.`));
+            setError(localSignupError(
+                    t("auth.errors.passwordTooShort", {
+                        min: MIN_PASSWORD_LENGTH,
+                    }),
+                ));
             setLoading(false);
             return;
         }
         if (isPasswordTooLong(password)) {
-            setError(localSignupError(maximumPasswordMessage));
+            setError(localSignupError(
+                    t("auth.errors.passwordTooLong", { max: MAX_PASSWORD_LENGTH }),
+                ));
             setLoading(false);
             return;
         }

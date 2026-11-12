@@ -103,25 +103,6 @@ function useJoinedOrganization(userId: string) {
 // any provider the organization has not set up, unless its owners turn that
 // off. The copy never says a key is for the Personal workspace only unless
 // the organization the person joined says so.
-function stepDescription(
-    keys: ApiKeyState | undefined,
-    joined: JoinedOrganization | null,
-): string {
-    if (joined?.hasModels) {
-        const ownKeys = joined.allowsOwnKeys
-            ? `Your own keys work in your Personal workspace and, in ${joined.name}, for any provider it has not set up.`
-            : `${joined.name} runs on its own keys only, so keys you add here are for your Personal workspace.`;
-        return `You joined ${joined.name}, and its models are available there, so you can finish now. ${ownKeys}`;
-    }
-    if (hasUsableProvider(keys, "user")) {
-        return "Your key is saved. Add more providers now, or change them later in Settings.";
-    }
-    if (hasUsableProvider(keys, "env")) {
-        return "This deployment already provides models, so you can finish now. A key you add here replaces the deployment's for your Personal workspace.";
-    }
-    return "Add an API key for at least one provider to start using LiTT. Your key also works in an organization for any provider it has not set up, unless its owners turn that off. You can add or change keys later in Settings.";
-}
-
 function ModelStep({ userId }: { userId: string }) {
     const t = useTranslations();
     const router = useRouter();
@@ -129,6 +110,25 @@ function ModelStep({ userId }: { userId: string }) {
     const joined = useJoinedOrganization(userId);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(false);
+
+    function stepDescription(
+        keys: ApiKeyState | undefined,
+        joined: JoinedOrganization | null,
+    ): string {
+        if (joined?.hasModels) {
+            return t("auth.onboarding.stepJoined", {
+                name: joined.name,
+                ownKeys: joined.allowsOwnKeys ? "allowed" : "own",
+            });
+        }
+        if (hasUsableProvider(keys, "user")) {
+            return t("auth.onboarding.stepKeySaved");
+        }
+        if (hasUsableProvider(keys, "env")) {
+            return t("auth.onboarding.stepDeployment");
+        }
+        return t("auth.onboarding.stepAddKey");
+    }
 
     async function finish() {
         if (submitting) return;
@@ -145,7 +145,7 @@ function ModelStep({ userId }: { userId: string }) {
 
     return (
         <OnboardingShell
-            step="Step 4 of 4"
+            step={t("auth.onboarding.stepOf", { step: 4, total: 4 })}
             title={t("auth.onboarding.connectAModel")}
             description={stepDescription(profile?.apiKeys, joined)}
             width="wide"

@@ -90,7 +90,7 @@ export default function SupportPage() {
                     new Error(
                         typeof body.detail === "string"
                             ? body.detail
-                            : "Support request failed",
+                            : t("support.requestFailed"),
                     ),
                     {
                         status: response.status,
@@ -106,9 +106,8 @@ export default function SupportPage() {
             console.error("Error submitting feedback:", err);
             setError(
                 describeError(err, {
-                    action: "send your message",
-                    fallback:
-                        "LiTT couldn't send your message. Try again, or email us directly.",
+                    action: t("support.sendAction"),
+                    fallback: t("support.sendFailed"),
                 }),
             );
         } finally {

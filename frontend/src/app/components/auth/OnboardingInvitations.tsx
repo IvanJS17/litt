@@ -43,12 +43,12 @@ export function OnboardingInvitations({
         void listMyOrgInvitations().then((items) => {
             if (!cancelled) setInvitations(items);
         }, (error) => {
-            if (!cancelled) setLoadError(userFacingApiError(error, "Could not load your invitations."));
+            if (!cancelled) setLoadError(userFacingApiError(error, t("auth.onboarding.loadInvitationsFailed")));
         }).finally(() => {
             if (!cancelled) onBusyChange(false);
         });
         return () => { cancelled = true; mounted.current = false; };
-    }, [attempt, onBusyChange, userId]);
+    }, [attempt, onBusyChange, t, userId]);
 
     function reload() {
         setInvitations(null);
@@ -71,7 +71,7 @@ export function OnboardingInvitations({
             setJoined((current) => ({ ...current, [invitation.id]: accepted.role }));
             notifyOrganizationInvitationsChanged();
         } catch (error) {
-            if (mounted.current) setAnswerError(userFacingApiError(error, "Could not accept this invitation. Please try again."));
+            if (mounted.current) setAnswerError(userFacingApiError(error, t("auth.onboarding.acceptInvitationFailed")));
         } finally {
             accepting.current = false;
             if (mounted.current) { setAnsweringId(null); onBusyChange(false); }

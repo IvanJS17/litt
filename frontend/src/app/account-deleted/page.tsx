@@ -64,7 +64,7 @@ export default function AccountDeletedPage() {
       } catch (error) {
         if (cancelled) return;
         notifyError(error, {
-          action: "load your deletion receipt",
+          action: t("accountDeleted.loadReceiptAction"),
           onRetry: () => void poll(),
           dedupeKey: "account-deletion-receipt",
         });
@@ -75,7 +75,7 @@ export default function AccountDeletedPage() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [token]);
+  }, [t, token]);
 
   const finish = async () => {
     sessionStorage.removeItem(ACCOUNT_DELETION_TOKEN_KEY);

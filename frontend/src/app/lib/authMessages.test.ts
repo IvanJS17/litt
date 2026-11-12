@@ -7,6 +7,8 @@ import {
     PASSWORD_LENGTH_MESSAGE,
     TOO_MANY_ATTEMPTS_MESSAGE,
     authMessages,
+    authSentence,
+    authSentenceText,
 } from "./authMessages";
 import {
     MAX_PASSWORD_LENGTH,
@@ -76,6 +78,29 @@ describe("authMessages in es-MX", () => {
             configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
         }
         expect(screenTable.session_expired).toBe("Your session has expired. Log in again.");
+    });
+
+    it("reads a function override and a shared sentence each time, in the configured locale", async () => {
+        let wording = "uno";
+        const table = authMessages({
+            invalid_request: () => wording,
+            session_expired: authSentence("tooManyAttempts"),
+        });
+        expect(table.invalid_request).toBe("uno");
+        wording = "dos";
+        expect(table.invalid_request).toBe("dos");
+        expect(table.session_expired).toBe(TOO_MANY_ATTEMPTS_MESSAGE);
+        configureClientLocale("es-MX", await loadMessages("es-MX"));
+        try {
+            expect(authSentenceText("tooManyAttempts")).toBe(
+                "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+            );
+            expect(table.session_expired).toBe(
+                authSentenceText("tooManyAttempts"),
+            );
+        } finally {
+            configureClientLocale(SOURCE_LOCALE, SOURCE_MESSAGES);
+        }
     });
 
     it("keeps the reused sentences in the source wording", () => {

@@ -53,9 +53,8 @@ export default function ForgotPasswordPage() {
             setSubmitted(true);
         } catch (caught) {
             const described = describeError(caught, {
-                action: "send the reset link",
-                fallback:
-                    "LiTT couldn't send the reset link. Try again in a moment.",
+                action: t("auth.forgotPassword.sendAction"),
+                fallback: t("auth.forgotPassword.sendFailed"),
             });
             if (DELIVERY_FAILURE_KINDS.has(described.kind)) {
                 setError(described);

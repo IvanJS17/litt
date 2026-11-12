@@ -66,8 +66,8 @@ function ProfileDetailsForm({
         } catch (submitError) {
             setError(
                 describeError(submitError, {
-                    action: "save your details",
-                    fallback: "Unable to save your details. Try again.",
+                    action: t("auth.onboarding.saveDetailsAction"),
+                    fallback: t("auth.onboarding.saveDetailsFailed"),
                 }).message,
             );
         } finally {
@@ -77,7 +77,7 @@ function ProfileDetailsForm({
 
     return (
         <OnboardingShell
-            step="Step 1 of 4"
+            step={t("auth.onboarding.stepOf", { step: 1, total: 4 })}
             title={t("auth.onboarding.tellUsAboutYou")}
             description={t("auth.onboarding.addTheDetailsWeShouldUse")}
         >

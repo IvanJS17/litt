@@ -15,14 +15,15 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: the address asked for
  *  here is a work address, so "valid email" is not specific enough. */
 const SSO_ERROR_MESSAGES = authMessages({
-    invalid_request: "Enter a valid company email address.",
-    validation_failed: "Enter a valid company email address.",
-    email_address_invalid: "Enter a valid company email address.",
+    invalid_request: () => clientTranslator()("auth.sso.validCompanyEmail"),
+    validation_failed: () => clientTranslator()("auth.sso.validCompanyEmail"),
+    email_address_invalid: () => clientTranslator()("auth.sso.validCompanyEmail"),
 });
 
 export default function SsoLoginPage() {
@@ -51,9 +52,9 @@ export default function SsoLoginPage() {
             window.location.assign(url);
         } catch (caught) {
             const described = reportFault(caught, {
-                action: "start single sign-on",
+                action: t("auth.sso.startAction"),
                 codeMessages: SSO_ERROR_MESSAGES,
-                fallback: "Unable to start single sign-on. Try again.",
+                fallback: t("auth.sso.startFailed"),
                 operation: "auth.signin",
             });
             setError(

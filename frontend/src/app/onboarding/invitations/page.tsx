@@ -33,7 +33,7 @@ function InvitationStep({ userId }: { userId: string }) {
 
     return (
         <OnboardingShell
-            step="Step 3 of 4"
+            step={t("auth.onboarding.stepOf", { step: 3, total: 4 })}
             title={t("auth.onboarding.organizationInvitations")}
         >
             <OnboardingInvitations

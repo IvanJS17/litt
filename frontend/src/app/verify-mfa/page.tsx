@@ -19,16 +19,16 @@ import { reportFault,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas. */
 const MFA_ERROR_MESSAGES = authMessages({
     // Only here is a missing authenticator a lock-out rather than a
     // settings row that disappeared.
-    mfa_factor_not_found:
-        "This authenticator is no longer registered. Contact support to regain access.",
-    validation_failed: "Enter the six-digit code from your authenticator app.",
-    invalid_request: "Enter the six-digit code from your authenticator app.",
+    mfa_factor_not_found: () => clientTranslator()("auth.verifyMfa.factorNotRegistered"),
+    validation_failed: () => clientTranslator()("auth.verifyMfa.enterSixDigitCode"),
+    invalid_request: () => clientTranslator()("auth.verifyMfa.enterSixDigitCode"),
 });
 
 type MfaFactor = {
@@ -55,7 +55,7 @@ export default function VerifyMfaPage() {
         ? [
               {
                   id: "preview-factor",
-                  friendly_name: "Authenticator app",
+                  friendly_name: t("auth.verifyMfa.authenticatorApp"),
                   factor_type: "totp",
               },
           ]
@@ -105,10 +105,10 @@ export default function VerifyMfaPage() {
                     setError(
                         describeError(
                             new UserVisibleError(
-                                "No verified authenticator is registered for this account. Contact support to regain access.",
+                                t("auth.verifyMfa.noVerifiedAuthenticator"),
                                 { kind: "forbidden" },
                             ),
-                            { action: "verify your identity" },
+                            { action: t("auth.verifyMfa.verifyIdentityAction") },
                         ),
                     );
                 }
@@ -116,10 +116,9 @@ export default function VerifyMfaPage() {
                 if (cancelled) return;
                 setError(
                     reportFault(caught, {
-                        action: "load your authenticator",
+                        action: t("auth.verifyMfa.loadAction"),
                         codeMessages: MFA_ERROR_MESSAGES,
-                        fallback:
-                            "Unable to load authenticator verification. Try again.",
+                        fallback: t("auth.verifyMfa.loadFailed"),
                         operation: "auth.mfa",
                     }),
                 );
@@ -133,7 +132,7 @@ export default function VerifyMfaPage() {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, isMfaPreview, nextPath, router, user]);
+    }, [authLoading, isMfaPreview, nextPath, router, t, user]);
 
     async function verify() {
         if (!canVerify) return;
@@ -146,9 +145,9 @@ export default function VerifyMfaPage() {
             setVerifying(false);
             setError(
                 reportFault(caught, {
-                    action: "verify that code",
+                    action: t("auth.verifyMfa.verifyCodeAction"),
                     codeMessages: MFA_ERROR_MESSAGES,
-                    fallback: "That code is invalid or expired.",
+                    fallback: t("auth.verifyMfa.codeInvalid"),
                     operation: "auth.mfa",
                 }),
             );
@@ -169,8 +168,8 @@ export default function VerifyMfaPage() {
         } catch (caught) {
             setError(
                 reportFault(caught, {
-                    action: "sign out",
-                    fallback: "Unable to sign out. Try again.",
+                    action: t("auth.verifyMfa.signOutAction"),
+                    fallback: t("auth.verifyMfa.signOutFailed"),
                     operation: "auth.session",
                 }),
             );

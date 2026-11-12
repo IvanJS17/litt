@@ -88,7 +88,7 @@ function PracticeDetailsForm({
 
     return (
         <OnboardingShell
-            step="Step 2 of 4"
+            step={t("auth.onboarding.stepOf", { step: 2, total: 4 })}
             title={t("auth.onboarding.yourLegalPractice")}
             description={t("auth.onboarding.optionallyAddYourProfessionalSettingPrimary")}
         >

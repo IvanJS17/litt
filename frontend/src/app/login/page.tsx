@@ -27,9 +27,10 @@ import {
 } from "@/app/lib/userFacingError";
 import {
     AUTH_ERROR_MESSAGES,
-    TOO_MANY_ATTEMPTS_MESSAGE,
     authMessages,
+    authSentenceText,
 } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { SourceCodeLink } from "@/app/components/shared/SourceCodeLink";
 import { useTranslations } from "next-intl";
 
@@ -43,28 +44,31 @@ import { useTranslations } from "next-intl";
 const LOGIN_ERROR_MESSAGES = authMessages({
     // Same text as invalid_credentials: saying "no such account" would let
     // anyone test which addresses are registered.
-    user_not_found: AUTH_ERROR_MESSAGES.invalid_credentials,
+    user_not_found: () => AUTH_ERROR_MESSAGES.invalid_credentials,
     // Here the account exists; it is this sign-in route that is closed.
-    signup_disabled: "This account can't be used to log in.",
-    validation_failed: "Enter your email address and password.",
-    invalid_request: "Enter your email address and password.",
-    request_timeout: "The login request timed out. Try again.",
+    signup_disabled: () => clientTranslator()("auth.login.signupDisabled"),
+    validation_failed: () => clientTranslator()("auth.login.enterCredentials"),
+    invalid_request: () => clientTranslator()("auth.login.enterCredentials"),
+    request_timeout: () => clientTranslator()("auth.login.requestTimeout"),
 });
 
 /** The title `notifyError` gives the same warning away from this page. */
-const SESSION_WARNING_TITLE = "Couldn't check your session";
+function sessionWarningTitle(): string {
+    const t = clientTranslator();
+    return t("errors.couldnt", { action: t("auth.login.checkSessionAction") });
+}
 
 /** Classify a login failure into text a person can act on. */
 function describeLoginError(error: unknown): UserFacingError {
     const described = reportFault(error, {
-        action: "log in",
+        action: clientTranslator()("auth.login.logInAction"),
         codeMessages: LOGIN_ERROR_MESSAGES,
-        fallback: "Unable to log in right now. Try again.",
+        fallback: clientTranslator()("auth.login.logInFailed"),
         operation: "auth.signin",
     });
     // A 429 without a GoTrue code still means "you tried too often".
     return described.kind === "rate_limited"
-        ? { ...described, message: TOO_MANY_ATTEMPTS_MESSAGE }
+        ? { ...described, message: authSentenceText("tooManyAttempts") }
         : described;
 }
 
@@ -132,8 +136,8 @@ export default function LoginPage() {
             // session error look permanent; say so instead.
             setSessionError(
                 reportFault(caught, {
-                    action: "restore your session",
-                    fallback: "Unable to restore your session. Try again.",
+                    action: t("auth.login.restoreAction"),
+                    fallback: t("auth.login.restoreFailed"),
                     operation: "auth.session",
                 }),
             );
@@ -213,7 +217,7 @@ export default function LoginPage() {
                                 title={
                                     shownError
                                         ? shownError.title
-                                        : SESSION_WARNING_TITLE
+                                        : sessionWarningTitle()
                                 }
                                 message={
                                     shownError ? shownError.message : authError
