@@ -528,10 +528,11 @@ export const test = base.extend<{ addin: Addin }>({
           page.getByTestId("header-menu"),
         ).toBeVisible();
         await expect(
-          page.getByRole("button", { name: "New chat" }),
+          page.getByRole("button", { name: /^(New chat|Chat nuevo)$/ }),
         ).toHaveCount(0);
+        /* Some specs run the pane in es-MX (litt.locale); accept either name. */
         await expect(
-          page.getByRole("button", { name: "Chat history" }),
+          page.getByRole("button", { name: /^(Chat history|Historial del chat)$/ }),
         ).toBeVisible();
       },
 
