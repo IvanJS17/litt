@@ -44,6 +44,8 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | tracked changes / redline (la función) | control de cambios | |
 | tracked change (cada cambio) | cambio marcado | Plural: cambios marcados. Nunca «cambio de control de cambios». |
 | Personal (workspace) | Personal | Es el nombre del espacio de trabajo y se queda así. |
+| deployment key | llave de la plataforma | La llave que ofrece la plataforma, no la de la persona ni la de la organización. |
+| operator endpoint | modelo propio de la plataforma | El modelo que la plataforma sirve por su cuenta. |
 
 ## Lo que no se traduce
 

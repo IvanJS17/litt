@@ -51,7 +51,8 @@ import {
   TableScrollArea,
   TableStickyCell,
 } from "../shared/TablePrimitive";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { formatShortDate, type DateFormatter } from "@/app/lib/dateText";
 
 /** Every failure on this screen belongs to the workflow it serves. */
 const ASSET_FLOW = { operation: "workflows.run" } as const;
@@ -66,13 +67,9 @@ function formatBytes(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(format: DateFormatter, value: string | null | undefined) {
   if (!value) return "—";
-  return new Date(value).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatShortDate(format, value);
 }
 
 export interface WorkflowAssetsHandle {
@@ -90,6 +87,7 @@ export const WorkflowAssets = forwardRef<
   }
 >(function WorkflowAssets({ workflowId, readOnly, onUploadingChange }, ref) {
   const t = useTranslations();
+  const format = useFormatter();
   const [files, setFiles] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -472,7 +470,7 @@ export const WorkflowAssets = forwardRef<
                   {formatBytes(file.size_bytes)}
                 </TableCell>
                 <TableCell className="w-32 text-xs text-gray-500">
-                  {formatDate(file.updated_at)}
+                  {formatDate(format, file.updated_at)}
                 </TableCell>
                 <div
                   className="flex w-8 shrink-0 justify-end"

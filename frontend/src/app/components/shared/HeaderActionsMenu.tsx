@@ -12,6 +12,8 @@ import { cn } from "@/app/lib/utils";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
 
 export type HeaderActionsMenuItem = {
+    /** Stable identifier. Labels are translated, so decide by id, never by label. */
+    id?: string;
     label: string;
     icon?: LucideIcon;
     onSelect: () => void;

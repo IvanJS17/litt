@@ -1,6 +1,6 @@
 "use client";
 
-import { isChatMenuItemVisible } from "./chatMenuItems";
+import { isChatMenuItemVisible, type ChatMenuItem } from "./chatMenuItems";
 import {
     Fragment,
     useCallback,
@@ -661,6 +661,52 @@ export function ProjectChatPanel({
     const resolvingDocumentIds = useMemo(() => new Set(Object.values(resolvingEdits)), [resolvingEdits]);
     const isDocReloading = useCallback((id: string) => resolvingDocumentIds.has(id), [resolvingDocumentIds]);
 
+    const allChatMenuItems: ChatMenuItem[] = [];
+    if (onOpenSideChat) {
+        allChatMenuItems.push({
+            id: "openSideChat",
+            label: t("projects.openSideChat"),
+            icon: MessageSquare,
+            onSelect: onOpenSideChat,
+        });
+    }
+    if (onCloseSideChat) {
+        allChatMenuItems.push({
+            id: "closeSideChat",
+            label: t("projects.closeSideChat"),
+            icon: X,
+            onSelect: onCloseSideChat,
+        });
+    }
+    allChatMenuItems.push(
+        {
+            id: "rename",
+            label: t("projects.rename"),
+            icon: Pencil,
+            onSelect: () => void handleRenameChat(),
+            disabled: !chatLoaded || !activeChatId || !canRenameChat,
+        },
+        {
+            id: "memory",
+            label: t("projects.memory"),
+            icon: Brain,
+            onSelect: onOpenMemory,
+            disabled: !project,
+        },
+        {
+            id: "delete",
+            label: deletingChat ? t("projects.deleting") : t("projects.delete"),
+            icon: Trash2,
+            onSelect: () => void handleDeleteChat(),
+            disabled: deletingChat || !chatLoaded || !activeChatId || !canDeleteChat,
+            variant: "danger",
+        },
+    );
+    const chatMenuItems = allChatMenuItems.filter((item) =>
+        // Decide by id: labels are translated.
+        isChatMenuItemVisible(item.id, { activeChatId, canRenameChat, canDeleteChat }),
+    );
+
     return (
         <>
             <div
@@ -747,62 +793,7 @@ export function ProjectChatPanel({
                                     if (editingChatTitle)
                                         event.preventDefault();
                                 }}
-                                items={[
-                                    ...(onOpenSideChat
-                                        ? [
-                                              {
-                                                  id: "openSideChat" as const,
-                                                  label: t("projects.openSideChat"),
-                                                  icon: MessageSquare,
-                                                  onSelect: onOpenSideChat,
-                                              },
-                                          ]
-                                        : []),
-                                    ...(onCloseSideChat
-                                        ? [
-                                              {
-                                                  id: "closeSideChat" as const,
-                                                  label: t("projects.closeSideChat"),
-                                                  icon: X,
-                                                  onSelect: onCloseSideChat,
-                                              },
-                                          ]
-                                        : []),
-                                    {
-                                        id: "rename" as const,
-                                        label: t("projects.rename"),
-                                        icon: Pencil,
-                                        onSelect: () => void handleRenameChat(),
-                                        disabled:
-                                            !chatLoaded ||
-                                            !activeChatId ||
-                                            !canRenameChat,
-                                    },
-                                    {
-                                        id: "memory" as const,
-                                        label: t("projects.memory"),
-                                        icon: Brain,
-                                        onSelect: onOpenMemory,
-                                        disabled: !project,
-                                    },
-                                    {
-                                        id: "delete" as const,
-                                        label: deletingChat
-                                            ? t("projects.deleting")
-                                            : t("projects.delete"),
-                                        icon: Trash2,
-                                        onSelect: () => void handleDeleteChat(),
-                                        disabled:
-                                            deletingChat ||
-                                            !chatLoaded ||
-                                            !activeChatId ||
-                                            !canDeleteChat,
-                                        variant: "danger" as const,
-                                    },
-                                ].filter((item) =>
-                                    // Decide by id: labels are translated.
-                                    isChatMenuItemVisible(item.id, { activeChatId, canRenameChat, canDeleteChat }),
-                                )}
+                                items={chatMenuItems}
                             />
                         }
                     />

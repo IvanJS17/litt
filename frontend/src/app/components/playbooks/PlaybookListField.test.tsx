@@ -51,7 +51,7 @@ describe("PlaybookListField with options", () => {
 
   it("keeps a state apart from a country of the same name", () => {
     const georgias = PLAYBOOK_JURISDICTION_OPTIONS.filter(
-      (option) => option.label === "Georgia",
+      (option) => option.value.split(" (")[0] === "Georgia",
     );
     expect(georgias.map((option) => option.value)).toEqual([
       "Georgia",

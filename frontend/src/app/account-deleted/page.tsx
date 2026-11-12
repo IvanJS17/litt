@@ -8,24 +8,24 @@ import { PillButtonUI, authGlassCardUIClassName } from "@mike/ui";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { getAccountDeletionReceipt } from "@/app/lib/mikeApi";
 import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
+import type { DateFormatter } from "@/app/lib/dateText";
 import { notifyError } from "@/app/lib/userFacingError";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;
 
 /** The card title every signed-out screen uses; the wordmark is the h1. */
 const TITLE_CLASS = "font-serif text-2xl font-medium text-gray-950";
 
-function formatDate(value: string) {
+function formatDate(format: DateFormatter, value: string) {
   // A date-only value is a UTC calendar date; show it as that date.
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? new Date(`${value}T00:00:00Z`)
-    : new Date(value);
-  return date.toLocaleDateString(undefined, {
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = dateOnly ? new Date(`${value}T00:00:00Z`) : new Date(value);
+  return format.dateTime(date, {
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: /^\d{4}-\d{2}-\d{2}$/.test(value) ? "UTC" : undefined,
+    ...(dateOnly ? { timeZone: "UTC" } : {}),
   });
 }
 
@@ -40,6 +40,7 @@ const subscribeToNothing = () => () => {};
  */
 export default function AccountDeletedPage() {
   const t = useTranslations();
+  const format = useFormatter();
   const router = useRouter();
   const { signOut } = useAuth();
   // undefined while prerendering; the stored token (or null) in the browser.
@@ -121,7 +122,7 @@ export default function AccountDeletedPage() {
             ) : (
               <div className="space-y-4 text-sm text-gray-600">
                 <h2 className={TITLE_CLASS}>{t("accountDeleted.yourAccountHasBeenDeleted")}</h2>
-                <p>{t("accountDeleted.finishedOn")} {formatDate(receipt.completed_at)}.</p>
+                <p>{t("accountDeleted.finishedOn")} {formatDate(format, receipt.completed_at)}.</p>
                 <section className="space-y-1">
                   <h3 className="font-medium text-gray-900">{t("accountDeleted.deleted")}</h3>
                   <ul className="list-disc space-y-1 pl-5">
@@ -143,7 +144,7 @@ export default function AccountDeletedPage() {
                 <p>
                   {t("accountDeleted.theLastBackupCopyOfYour")}{" "}
                   <strong className="font-medium text-gray-900">
-                    {formatDate(receipt.backups_expire_on)}
+                    {formatDate(format, receipt.backups_expire_on)}
                   </strong>
                   .
                 </p>

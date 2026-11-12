@@ -5,6 +5,8 @@ import { clientTranslator } from "./locale";
 export type ToastTone = "error" | "success" | "info";
 
 export interface ToastAction {
+    /** Stable identifier. The label is translated, so decide by id, never by label. */
+    id?: string;
     label: string;
     onClick: () => void | Promise<void>;
     /** Keep the toast open after the action runs. Default: dismiss. */
@@ -24,6 +26,7 @@ export function retryToastAction(
     onFailure: (error: unknown) => void,
 ): ToastAction {
     return {
+        id: "retry",
         label: clientTranslator()("common.retry"),
         onClick: async () => {
             try {

@@ -40,6 +40,7 @@ import {
 import { apiKeyStateFromStatus } from "@/app/lib/apiKeyState";
 import type { Message } from "@/app/components/shared/types";
 import { applyDarkMode } from "@/app/lib/theme";
+import { syncUiLocale } from "@/app/lib/uiLocaleSync";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
 import { useHydrationSnapshot } from "@/app/hooks/useHydrationSnapshot";
@@ -255,6 +256,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             }
             setProfile(toProfile(profileData));
             setApiKeysDegraded(false);
+            void syncUiLocale(profileData.uiLocale);
         } catch (error) {
             console.warn(
                 "[profile] fetch failed after retry; API key availability is unknown and fails open",

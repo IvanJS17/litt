@@ -30,7 +30,7 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
 - Methodology review: `verifyBasis` compares article numbers only, so the same
   number in two laws matches. Add the cross-law test and compare by law and number
   (`lawReferences` no longer exists; use `legalReferences`). (#117)
-- Methodology annex: the annex is only in Spanish; «dato dado por la persona» is not
+- Methodology annex: «dato dado por la persona» is not
   checked against the message; the verified excerpt has no spotlight; the disclaimer
   text contradicts «Sin fuente». Also: the `isSubagent` guard has no test, and
   `allowDocumentMutation` is optional and fails open. (#117) **(unverified)**
@@ -122,8 +122,9 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
   `describeError`/`notifyError`. (#98) **(unverified)**
 - The counts in the «Mark as ready» confirmation are computed on the client and can
   differ from the audit when another editor saves first. (#98)
-- In en-US, the detail of a 4xx response is shown in Spanish before the catalog
-  sentence. Existing i18n debt. (#98)
+- In en-US, the 4xx `detail` of the training endpoints (`lib/training.ts`,
+  `lib/trainingTurn/confidence.ts`) is written in Spanish and shown as is.
+  Other 4xx details are English. (#98)
 
 ## Chat and composer (web)
 
@@ -156,31 +157,10 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
 
 ## Word add-in and interface languages
 
-- No web file writes `ui_locale`. The web language selector only sets the
-  `LITT_LOCALE` cookie, so a web user with English set gets the annex in es-MX.
-  Either persist `ui_locale` from the selector or use the request locale in the
-  annex. (#117)
-- Word: about 15 `action:` strings in `notifyError`, `codeMessages` and the fallback
-  in `auth/session.ts`, plus 13 literals in `SettingsPage.tsx`, are still mixed
-  language. Assign them to the phase 1 cards or open one. (#102) **(unverified)**
-- The i18n literal baseline does not yet cover every Word route. It includes some
-  `word-addin` paths; extend it to all Word routes. (#102) **(unverified)**
 - `GET /user/profile` may be requested twice, once for the theme and once for the
   locale. Unify them. (#102) **(unverified)**
 - Race: a profile GET already in flight can re-apply the old language after the user
   changes it. (#102) **(unverified)**
-- Zone 2 (documents, library, memory, history) leaves for PR 4 (`shared`): the
-  `Document*` panels and menus in `components/shared` (`DocumentSidePanel`,
-  `DocumentVersionPicker`, `DocumentUploadMenu`, `DocumentTitleRow`,
-  `DocumentTabActions`, `DocumentTabBar`, `DocumentPill`), `FileDirectory`,
-  `PermissionDeniedPopup` and `ProjectPageParts.formatDate`. Until the popup is
-  moved, the Spanish `action` phrases `DocTable` hands it ("agregar documentos")
-  sit inside its English frame "Only an editor can …".
-- `failedUploadMessage` (`mikeApi`) and `UNSUPPORTED_DOCUMENT_WARNING_MESSAGE`
-  (`@mike/client`) still produce English upload sentences that `DocTable` shows.
-- Audit dates (`auditTimestamp`, `formatRangeDate`) still use
-  `toLocale…String(undefined)` (the browser's language, the browser's time zone),
-  not `useFormatter()` in `America/Mexico_City` as `docs/i18n.md` asks.
 - The literal detector skips lone lowercase words in a ternary
   (`n === 1 ? "folder" : "folders"`) and the `supportNote` diagnostics (English
   on purpose: they go to support). Only a hand review finds the first kind.
@@ -193,8 +173,6 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
   `.gitattributes`.
 - The message catalogs are single files per locale. Split them by namespace, one file
   per area, so parallel cards do not touch the same file.
-- The baseline's sort order was applied only to the added block. (#121)
-  **(unverified)**
 - Flaky (existing): `TabularReviewView.generation.test.tsx` «hides unsafe server error
   details» fails on «Stop generation» in some runs. (#107 CI, #131) **(unverified)**
 - Flaky (existing): `settings/byok/page.test.tsx` reported an unhandled
@@ -218,8 +196,9 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
   configured. (#150–#155)
 - There is no test of the search wiring in the project chat. (#150–#155)
 - There is no test that `chatId` reaches the four auxiliary calls. (#150–#155)
-- The BYOK modal texts and the «overloaded» message are still in English and
-  wait for phase 1 of i18n. (#152)
+- The «overloaded» message, like the other provider failure sentences in
+  `backend/src/lib/llm/providerErrors.ts`, is written in English by the backend,
+  so a person using es-MX reads it in English. The BYOK modal is translated. (#152)
 - The SDK warns that it does not know `claude-fable-5-2`. (#154)
 - Search: Brave answers 429 when several searches run in parallel. (#150–#155)
 
