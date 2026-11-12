@@ -33,3 +33,15 @@ describe("docxToMarkdown on a synthetic Word file", () => {
         await expect(docxToMarkdown(Buffer.from("not a zip"))).rejects.toThrow();
     });
 });
+
+describe("docxToMarkdown escaping", () => {
+    // The document's own words that look like markup stay words: turndown
+    // escapes backslashes and Markdown characters, then "<" is escaped too, so
+    // a backslash before "<" can never cancel that escape (CodeQL alert 78).
+    it("escapes backslashes before the bracket so text never becomes a tag", async () => {
+        const { Document, Packer, Paragraph } = await import("docx");
+        const doc = new Document({ sections: [{ children: [new Paragraph("a\\b \\<b>bold\\</b> <i>")] }] });
+        const markdown = await docxToMarkdown(await Packer.toBuffer(doc));
+        expect(markdown).toBe("a\\\\b \\\\\\<b>bold\\\\\\</b> \\<i>");
+    });
+});

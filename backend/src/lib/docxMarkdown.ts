@@ -61,7 +61,9 @@ function createService(): TurndownService {
     });
     service.use(gfm);
     // Text that reads "<b>" is the document's own words, not markup: escape the
-    // bracket so no viewer can take it for a tag.
+    // bracket so no viewer can take it for a tag. turndown's escape has already
+    // doubled every backslash, so "\\<" cannot cancel this escape (tested in
+    // docxMarkdown.test.ts, "escapes backslashes before the bracket").
     const escapeMarkdown = service.escape.bind(service);
     service.escape = (text) => escapeMarkdown(text).replace(/</g, "\\<");
     service.remove(["script", "style"]);
