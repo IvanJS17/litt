@@ -6,6 +6,7 @@ import { FieldLabel, FormTextInput } from "@/app/components/ui/form-field";
 import type { PlaybookContent } from "@/app/lib/mikeApi";
 import { PlaybookListField } from "./PlaybookListField";
 import { PLAYBOOK_JURISDICTION_OPTIONS } from "./playbookJurisdictions";
+import { useTranslations } from "next-intl";
 
 /** What the new-playbook and details modals edit. */
 export type PlaybookDetails = Pick<
@@ -61,18 +62,19 @@ export function PlaybookDetailsFields({
   disabled?: boolean;
   autoFocus?: boolean;
 }) {
+  const t = useTranslations();
   const nameId = useId();
   const partyId = useId();
   const descriptionId = useId();
   return (
     <>
       <div>
-        <FieldLabel htmlFor={nameId}>Playbook name</FieldLabel>
+        <FieldLabel htmlFor={nameId}>{t("playbooks.playbookName")}</FieldLabel>
         <FormTextInput
           id={nameId}
           value={value.name}
           onChange={(event) => onChange({ ...value, name: event.target.value })}
-          placeholder="Add playbook name"
+          placeholder={t("playbooks.addPlaybookName")}
           variant="minimal"
           maxLength={200}
           disabled={disabled}
@@ -80,41 +82,41 @@ export function PlaybookDetailsFields({
         />
       </div>
       <div>
-        <FieldLabel htmlFor={partyId}>Represented party</FieldLabel>
+        <FieldLabel htmlFor={partyId}>{t("playbooks.representedParty")}</FieldLabel>
         <FormTextInput
           id={partyId}
           value={value.representedParty}
           onChange={(event) =>
             onChange({ ...value, representedParty: event.target.value })
           }
-          placeholder="Buyer, Licensee"
+          placeholder={t("playbooks.buyerLicensee")}
           disabled={disabled}
         />
       </div>
       <PlaybookListField
-        label="Document types"
+        label={t("playbooks.documentTypes")}
         value={value.documentTypes}
-        placeholder="NDA, MSA"
+        placeholder={t("playbooks.ndaMsa")}
         onChange={(documentTypes) => onChange({ ...value, documentTypes })}
         disabled={disabled}
       />
       <PlaybookListField
-        label="Jurisdictions"
+        label={t("playbooks.jurisdictions")}
         value={value.jurisdictions}
-        placeholder="England and Wales, New York"
+        placeholder={t("playbooks.englandAndWalesNewYork")}
         options={PLAYBOOK_JURISDICTION_OPTIONS}
         onChange={(jurisdictions) => onChange({ ...value, jurisdictions })}
         disabled={disabled}
       />
       <div>
-        <FieldLabel htmlFor={descriptionId}>Description</FieldLabel>
+        <FieldLabel htmlFor={descriptionId}>{t("playbooks.description")}</FieldLabel>
         <ModalTextarea
           id={descriptionId}
           value={value.description}
           onChange={(event) =>
             onChange({ ...value, description: event.target.value })
           }
-          placeholder="What this playbook is for"
+          placeholder={t("playbooks.whatThisPlaybookIsFor")}
           disabled={disabled}
         />
       </div>

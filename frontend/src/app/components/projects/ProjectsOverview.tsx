@@ -83,14 +83,9 @@ import { useQueryParamTab } from "@/app/hooks/useQueryParamTab";
 import { AccessScopeLabel } from "@/app/components/shared/AccessScopeLabel";
 import { useIdSet } from "@/app/hooks/useIdSet";
 import { indexById } from "@/app/lib/idCollections";
-
-function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-}
+import { useFormatter, useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
+import { formatShortDate } from "@/app/lib/dateText";
 
 /**
  * Who created the row. This is provenance, not permission: what the caller may
@@ -98,13 +93,14 @@ function formatDate(iso: string) {
  */
 function getProjectCreatorLabel(
     project: Project,
-    currentUserId?: string | null,
+    currentUserId: string | null | undefined,
+    t: NsTranslate<"projects">,
 ) {
-    if (project.is_owner ?? project.user_id === currentUserId) return "Me";
+    if (project.is_owner ?? project.user_id === currentUserId) return t("projects.me");
     return (
         project.owner_display_name?.trim() ||
         project.owner_email?.trim() ||
-        "Shared"
+        t("projects.shared")
     );
 }
 
@@ -113,16 +109,8 @@ function getProjectCreatorLabel(
 type ProjectFilter = "all" | "private" | "public" | "mine" | "shared";
 type ProjectSortKey = "name" | "cm" | "files" | "chats" | "reviews" | "created";
 
-const ORGANIZATION_PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "private", label: "Private" },
-    { id: "public", label: "Public" },
-];
-const PERSONAL_PROJECT_FILTERS: { id: ProjectFilter; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "mine", label: "My Projects" },
-    { id: "shared", label: "Shared with Me" },
-];
+const ORGANIZATION_FILTER_IDS: ProjectFilter[] = ["all", "private", "public"];
+const PERSONAL_FILTER_IDS: ProjectFilter[] = ["all", "mine", "shared"];
 const PROJECT_FILTER_SCOPES: Record<ProjectFilter, ProjectScope> = {
     all: "all",
     public: "public",
@@ -130,21 +118,30 @@ const PROJECT_FILTER_SCOPES: Record<ProjectFilter, ProjectScope> = {
     mine: "mine",
     shared: "shared",
 };
-const ACCESS_FILTER_OPTIONS: TableFilterOption<"public" | "private">[] = [
-    { value: "public", label: "Public" },
-    { value: "private", label: "Private" },
-];
 
 export function ProjectsOverview() {
+    const t = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [modalOpen, setModalOpen] = useState(false);
     const [detailsProject, setDetailsProject] = useState<Project | null>(null);
     const workspace = useWorkspaceParam();
     const isPersonalWorkspace = workspace === PERSONAL_WORKSPACE;
-    const projectFilters = isPersonalWorkspace
-        ? PERSONAL_PROJECT_FILTERS
-        : ORGANIZATION_PROJECT_FILTERS;
+    const format = useFormatter();
+    const filterLabels: Record<ProjectFilter, string> = {
+        all: t("projects.all"),
+        private: t("projects.private"),
+        public: t("projects.public"),
+        mine: t("projects.myProjects"),
+        shared: t("projects.sharedWithMe"),
+    };
+    const projectFilters = (
+        isPersonalWorkspace ? PERSONAL_FILTER_IDS : ORGANIZATION_FILTER_IDS
+    ).map((id) => ({ id, label: filterLabels[id] }));
+    const accessFilterOptions: TableFilterOption<"public" | "private">[] = [
+        { value: "public", label: t("projects.public") },
+        { value: "private", label: t("projects.private") },
+    ];
     const [activeFilter, setActiveFilter] = useQueryParamTab(
         projectFilters.map((filter) => filter.id),
         "all",
@@ -227,7 +224,7 @@ export function ProjectsOverview() {
                 // set a practice", so the empty dropdown is explained rather
                 // than left to be misread.
                 notifyError(error, {
-                    action: "load the project filters",
+                    action: t("projects.loadTheProjectFilters"),
                     dedupeKey: "projects-filter-options",
                     onRetry: () =>
                         setFilterOptionsAttempt((attempt) => attempt + 1),
@@ -314,7 +311,7 @@ export function ProjectsOverview() {
         sort?.key === "created" ? sort.direction : null;
     const nameFilterButton = (
         <TableSortFilter
-            label="Sort by project name"
+            label={t("projects.sortByProjectName")}
             value={nameSortDirection}
             align="right"
             onChange={(direction) => handleSortChange("name", direction)}
@@ -322,15 +319,15 @@ export function ProjectsOverview() {
     );
     const accessFilterButton = !isPersonalWorkspace && (
         <TableFilters
-            label="Filter by access"
+            label={t("projects.filterByAccess")}
             value={
                 activeFilter === "public" || activeFilter === "private"
                     ? activeFilter
                     : null
             }
-            allLabel="All Access"
+            allLabel={t("projects.allAccess")}
             widthClassName="w-40"
-            options={ACCESS_FILTER_OPTIONS}
+            options={accessFilterOptions}
             onChange={(value) => {
                 setActiveFilter(value ?? "all");
                 clearSelection();
@@ -339,16 +336,16 @@ export function ProjectsOverview() {
     );
     const cmFilterButton = (
         <TableSortFilter
-            label="Sort by CM"
+            label={t("projects.sortByCm")}
             value={cmSortDirection}
             onChange={(direction) => handleSortChange("cm", direction)}
         />
     );
     const practiceFilterButton = (
         <TableFilters
-            label="Filter by practice"
+            label={t("projects.filterByPractice")}
             value={practiceFilter}
-            allLabel="All Practices"
+            allLabel={t("projects.allPractices")}
             options={practices.map((practice) => ({
                 value: practice,
                 label: practice,
@@ -358,7 +355,7 @@ export function ProjectsOverview() {
     );
     const ownerFilterButton = (
         <PersonFilter
-            label="Filter by creator"
+            label={t("projects.filterByCreator")}
             selectedTitle={(name) => `Created by ${name}`}
             value={
                 ownerPeople.find((person) => person.user_id === ownerFilter) ??
@@ -372,28 +369,28 @@ export function ProjectsOverview() {
     );
     const filesFilterButton = (
         <TableSortFilter
-            label="Sort by files"
+            label={t("projects.sortByFiles")}
             value={filesSortDirection}
             onChange={(direction) => handleSortChange("files", direction)}
         />
     );
     const chatsFilterButton = (
         <TableSortFilter
-            label="Sort by chats"
+            label={t("projects.sortByChats")}
             value={chatsSortDirection}
             onChange={(direction) => handleSortChange("chats", direction)}
         />
     );
     const reviewsFilterButton = (
         <TableSortFilter
-            label="Sort by tabular reviews"
+            label={t("projects.sortByTabularReviews")}
             value={reviewsSortDirection}
             onChange={(direction) => handleSortChange("reviews", direction)}
         />
     );
     const createdFilterButton = (
         <TableSortFilter
-            label="Sort by created date"
+            label={t("projects.sortByCreatedDate")}
             value={createdSortDirection}
             onChange={(direction) => handleSortChange("created", direction)}
         />
@@ -410,7 +407,7 @@ export function ProjectsOverview() {
         // mistaken for an outsider just because they did not create it.
         if (!can(roleFrom(detailsProject), "access.manage")) {
             setOwnerOnlyAction({
-                action: "edit project details",
+                action: t("projects.editProjectDetails"),
                 contacts: detailsProject.admin_contacts,
             });
             return;
@@ -463,18 +460,19 @@ export function ProjectsOverview() {
             .filter((project) => failedIdSet.has(project.id))
             .map((project) => project.name);
         const named = failedNames.length
-            ? ` (${failedNames.slice(0, 3).join(", ")}${
-                  failedNames.length > 3
-                      ? ` and ${failedNames.length - 3} more`
-                      : ""
-              })`
+            ? failedNames.length > 3
+                ? t("projects.namesAndMore", {
+                      names: failedNames.slice(0, 3).join(", "),
+                      count: failedNames.length - 3,
+                  })
+                : failedNames.join(", ")
             : "";
         notifyPartialFailure(
-            `${failedIds.length} of ${ids.length} projects couldn't be deleted${named}. They are back in the list and still selected.`,
+            named
+                ? t("projects.someProjectsCouldntBeDeletedNamed", { failed: failedIds.length, total: ids.length, names: named })
+                : t("projects.someProjectsCouldntBeDeleted", { failed: failedIds.length, total: ids.length }),
             {
-                action: `delete ${failedIds.length} project${
-                    failedIds.length === 1 ? "" : "s"
-                }`,
+                action: t("projects.deleteCountProjects", { count: failedIds.length }),
                 dedupeKey: "projects-bulk-delete",
                 onRetry: () => void deleteProjectRows(failedIds),
             },
@@ -564,7 +562,7 @@ export function ProjectsOverview() {
                     .map((project) => project?.admin_contacts),
             );
             setOwnerOnlyAction({
-                action: `delete ${blocked} of the selected projects — only a project owner can delete a project`,
+                action: t("projects.deleteBlockedProjects", { count: blocked }),
                 contacts: blockedContacts,
             });
         }
@@ -587,7 +585,7 @@ export function ProjectsOverview() {
                         ? undefined
                         : () => router.push(`/projects/${project!.id}`)
                 }
-                viewLabel="Open"
+                viewLabel={t("projects.open")}
                 onEditDetails={
                     appliesToSelection || !canManage
                         ? undefined
@@ -630,17 +628,17 @@ export function ProjectsOverview() {
                         type: "search",
                         value: search,
                         onChange: setSearch,
-                        placeholder: "Search projects…",
+                        placeholder: t("projects.searchProjects"),
                     },
                     {
                         type: "new",
                         onClick: () => setModalOpen(true),
-                        title: "New project",
+                        title: t("projects.newProject"),
                     },
                 ]}
             >
                 <h1 className={`${PAGE_HEADER_TITLE_CLASS} text-gray-900`}>
-                    Projects
+                    {t("projects.projects")}
                 </h1>
             </PageHeader>
 
@@ -677,55 +675,55 @@ export function ProjectsOverview() {
                                     }}
                                     onChange={toggleAll}
                                     className={TABLE_CHECKBOX_CLASS}
-                                    aria-label="Select all projects"
+                                    aria-label={t("projects.selectAllProjects")}
                                 />
                             )}
-                            <span className="mr-1">Name</span>
+                            <span className="mr-1">{t("projects.name")}</span>
                             {!loading && nameFilterButton}
                         </TableStickyCell>
                         <TableHeaderCell className="ml-auto w-32">
-                            <span className="mr-1">Access</span>
+                            <span className="mr-1">{t("projects.access")}</span>
                             {!loading && accessFilterButton}
                         </TableHeaderCell>
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>CM</span>
+                                <span>{t("projects.cm")}</span>
                                 {!loading && cmFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-36">
                             <div className="flex items-center gap-1">
-                                <span>Practice</span>
+                                <span>{t("projects.practice")}</span>
                                 {!loading && practiceFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>Creator</span>
+                                <span>{t("projects.creator")}</span>
                                 {!loading && ownerFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-24">
                             <div className="flex items-center gap-1">
-                                <span>Files</span>
+                                <span>{t("projects.files")}</span>
                                 {!loading && filesFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-24">
                             <div className="flex items-center gap-1">
-                                <span>Chats</span>
+                                <span>{t("projects.chats")}</span>
                                 {!loading && chatsFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-36">
                             <div className="flex items-center gap-1">
-                                <span>Tabular Reviews</span>
+                                <span>{t("projects.tabularReviews")}</span>
                                 {!loading && reviewsFilterButton}
                             </div>
                         </TableHeaderCell>
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>Created</span>
+                                <span>{t("projects.created")}</span>
                                 {!loading && createdFilterButton}
                             </div>
                         </TableHeaderCell>
@@ -777,7 +775,7 @@ export function ProjectsOverview() {
                     <TableEmptyState>
                         <EmptyState
                             icon={<OpenProjectSvgIcon />}
-                            title="Projects"
+                            title={t("projects.projects")}
                             description={loadError}
                             tone="error"
                             action={
@@ -786,7 +784,7 @@ export function ProjectsOverview() {
                                     size="sm"
                                     onClick={retry}
                                 >
-                                    Try again
+                                    {t("projects.tryAgain")}
                                 </PillButtonUI>
                             }
                         />
@@ -796,21 +794,21 @@ export function ProjectsOverview() {
                         {activeFilter === "public" || activeFilter === "shared" ? (
                             <p className="text-sm text-gray-400">
                                 {activeFilter === "public"
-                                    ? "No public projects"
-                                    : "No projects shared with you"}
+                                    ? t("projects.noPublicProjects")
+                                    : t("projects.noProjectsSharedWithYou")}
                             </p>
                         ) : (
                             <EmptyState
                                 icon={<OpenProjectSvgIcon />}
-                                title="Projects"
-                                description="Upload documents into projects and to commence chats and tabular reviews with them."
+                                title={t("projects.projects")}
+                                description={t("projects.uploadDocumentsIntoProjectsAndTo")}
                                 action={
                                     <PillButtonUI
                                         tone="black"
                                         size="sm"
                                         onClick={() => setModalOpen(true)}
                                     >
-                                        Create
+                                        {t("projects.create")}
                                     </PillButtonUI>
                                 }
                             />
@@ -924,6 +922,7 @@ export function ProjectsOverview() {
                                             label={getProjectCreatorLabel(
                                                 project,
                                                 user?.id,
+                                                t,
                                             )}
                                             photo={project.owner_profile_photo}
                                             name={project.owner_display_name}
@@ -940,7 +939,7 @@ export function ProjectsOverview() {
                                         {project.review_count ?? 0}
                                     </TableCell>
                                     <TableCell className="w-32">
-                                        {formatDate(project.created_at)}
+                                        {formatShortDate(format, project.created_at)}
                                     </TableCell>
 
                                     <div
@@ -953,7 +952,7 @@ export function ProjectsOverview() {
                                                     `/projects/${project.id}`,
                                                 )
                                             }
-                                            viewLabel="Open"
+                                            viewLabel={t("projects.open")}
                                             onEditDetails={
                                                 canManage
                                                     ? () => {
@@ -1024,24 +1023,24 @@ export function ProjectsOverview() {
                 open={confirmDeleteAllOpen && selectedIds.length > 0}
                 title={
                     selectionCameFromSelectAll
-                        ? "Delete all selected projects?"
-                        : "Delete selected projects?"
+                        ? t("projects.deleteAllSelectedProjects")
+                        : t("projects.deleteSelectedProjects")
                 }
                 message={
                     selectionCameFromSelectAll
-                        ? `This will permanently delete every selected project you administer, including selected projects not currently shown. Every file within those projects will also be deleted. Projects you cannot delete will be skipped. ${selectedIds.length} projects are selected.`
-                        : `This will permanently delete ${selectedIds.length === 1 ? "the selected project" : `the ${selectedIds.length} selected projects`} you administer, with every document and chat within ${selectedIds.length === 1 ? "it" : "them"}. Projects you cannot delete will be skipped. This can't be undone.`
+                        ? t("projects.thisWillPermanentlyDeleteEverySelected", { length: selectedIds.length })
+                        : t("projects.thisWillPermanentlyDeleteTheSelected", { count: selectedIds.length })
                 }
-                confirmLabel="Delete"
+                confirmLabel={t("projects.delete")}
                 confirmVariant="danger"
                 onCancel={() => setConfirmDeleteAllOpen(false)}
                 onConfirm={() => void handleDeleteSelected()}
             />
             <ConfirmPopup
                 open={!!projectPendingDelete}
-                title="Delete project?"
-                message={`“${projectPendingDelete?.name ?? ""}” will be permanently deleted, with every document and chat in it. This can't be undone.`}
-                confirmLabel="Delete"
+                title={t("projects.deleteProject")}
+                message={t("projects.projectWillBePermanentlyDeleted", { name: projectPendingDelete?.name ?? "" })}
+                confirmLabel={t("projects.delete")}
                 confirmVariant="danger"
                 onCancel={() => setProjectPendingDelete(null)}
                 onConfirm={() => {

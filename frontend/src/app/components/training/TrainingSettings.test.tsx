@@ -70,14 +70,14 @@ describe("Ajustes → Formación", () => {
             },
         ]);
         render(<TrainingSettings />);
-        expect(await screen.findByText("Mi formación")).toBeInTheDocument();
+        expect(await screen.findByText("My training")).toBeInTheDocument();
         expect(await screen.findByText("Ana Mentora")).toBeInTheDocument();
         expect(
             screen.getByText("ana.mentora.con.un.correo.muy.largo@despacho-ruiz.example.mx"),
         ).toBeInTheDocument();
-        expect(screen.getByText("Todas las materias: Junior")).toBeInTheDocument();
-        expect(screen.getByText("Employment: Pasante")).toBeInTheDocument();
-        expect(screen.queryByText("Mis pupilos")).toBeNull();
+        expect(screen.getByText("All practice areas: Junior")).toBeInTheDocument();
+        expect(screen.getByText("Employment: Intern")).toBeInTheDocument();
+        expect(screen.queryByText("My pupils")).toBeNull();
         // Layer 2: what their mentor sees of them, in that organization.
         expect(await screen.findByText("What my mentor sees of me")).toBeInTheDocument();
         expect(api.getMySupervision).toHaveBeenCalledWith("org-1");
@@ -91,7 +91,7 @@ describe("Ajustes → Formación", () => {
     it("tells a lawyer they have no training", async () => {
         vi.mocked(api.getMyTraining).mockResolvedValue([]);
         render(<TrainingSettings />);
-        expect(await screen.findByText(/No tienes mentor en ninguna organización/)).toBeInTheDocument();
+        expect(await screen.findByText(/You don't have a mentor in any organization/)).toBeInTheDocument();
     });
 
     it("lets a mentor take a pupil, set and remove a stage, and release them", async () => {
@@ -103,26 +103,26 @@ describe("Ajustes → Formación", () => {
             candidates: ["free-1"],
         });
         render(<TrainingSettings />);
-        expect(await screen.findByText("Mis pupilos")).toBeInTheDocument();
+        expect(await screen.findByText("My pupils")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Open the mentor panel" })).toHaveAttribute(
             "href",
             "/settings/training/mentor",
         );
         expect(await screen.findByText("Luis Pasante")).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole("button", { name: "Guardar etapa" }));
+        fireEvent.click(screen.getByRole("button", { name: "Save stage" }));
         await waitFor(() =>
             expect(api.setTrainingStage).toHaveBeenCalledWith("org-1", "pupil-1", null, "pasante"),
         );
 
-        const stage = screen.getByText("fiscal: Pasante").closest("li")!;
-        fireEvent.click(within(stage).getByRole("button", { name: "Quitar" }));
+        const stage = screen.getByText("fiscal: Intern").closest("li")!;
+        fireEvent.click(within(stage).getByRole("button", { name: "Remove" }));
         await waitFor(() =>
             expect(api.removeTrainingStage).toHaveBeenCalledWith("org-1", "pupil-1", "fiscal"),
         );
 
-        fireEvent.click(screen.getByRole("button", { name: "Liberar" }));
+        fireEvent.click(screen.getByRole("button", { name: "Release" }));
         await waitFor(() => expect(api.releaseTrainingPupil).toHaveBeenCalledWith("org-1", "pupil-1"));
-        expect(screen.getByRole("button", { name: "Agregar pupilo" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Add pupil" })).toBeDisabled();
     });
 });

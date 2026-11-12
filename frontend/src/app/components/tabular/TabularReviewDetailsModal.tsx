@@ -6,6 +6,7 @@ import { ModalSelect } from "../modals/ModalSelect";
 import { FieldLabel, FormTextInput } from "../ui/form-field";
 import { ToggleSwitchUI } from "@mike/ui";
 import type { Project, TabularReview } from "../shared/types";
+import { useTranslations } from "next-intl";
 
 interface TabularReviewDetailsModalProps {
     open: boolean;
@@ -29,6 +30,7 @@ export function TabularReviewDetailsModal({
     onClose,
     onSave,
 }: TabularReviewDetailsModalProps) {
+    const t = useTranslations();
     const [titleDraft, setTitleDraft] = useState("");
     const [underProject, setUnderProject] = useState(false);
     const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -57,7 +59,7 @@ export function TabularReviewDetailsModal({
                           project.name +
                           (project.cm_number ? ` (#${project.cm_number})` : ""),
                   }))
-                : [{ value: "", label: "No projects found" }],
+                : [{ value: "", label: t("tabular.noProjectsFound") }],
         [projects],
     );
     const hasChanges = useMemo(() => {
@@ -90,7 +92,7 @@ export function TabularReviewDetailsModal({
             });
             setSaved(true);
         } catch {
-            setError("Could not update tabular review details.");
+            setError(t("tabular.couldNotUpdateTabularReviewDetails"));
         } finally {
             setSaving(false);
         }
@@ -101,21 +103,21 @@ export function TabularReviewDetailsModal({
             open={open}
             onClose={onClose}
             breadcrumbs={[
-                "Tabular Reviews",
-                review.title || "Untitled Review",
-                "Details",
+                t("tabular.tabularReviews"),
+                review.title || t("tabular.untitledReview"),
+                t("tabular.details"),
             ]}
             footerStatus={
                 error ? (
                     <span className="text-sm text-red-600">{error}</span>
                 ) : saved ? (
-                    <span className="text-sm text-gray-400">Updated</span>
+                    <span className="text-sm text-gray-400">{t("tabular.updated")}</span>
                 ) : null
             }
             primaryAction={
                 canEdit
                     ? {
-                          label: saving ? "Saving..." : "Save",
+                          label: saving ? t("tabular.saving2") : t("tabular.save"),
                           onClick: () => void handleSave(),
                           disabled:
                               saving ||
@@ -130,7 +132,7 @@ export function TabularReviewDetailsModal({
             <div className="space-y-6">
                 <div>
                     <FieldLabel htmlFor="tabular-review-details-title">
-                        Review name
+                        {t("tabular.reviewName")}
                     </FieldLabel>
                     <FormTextInput
                         id="tabular-review-details-title"
@@ -141,7 +143,7 @@ export function TabularReviewDetailsModal({
                             setSaved(false);
                             setError(null);
                         }}
-                        placeholder="Review name"
+                        placeholder={t("tabular.reviewName")}
                         variant="minimal"
                         className="placeholder:text-gray-400"
                         disabled={!canEdit || saving}
@@ -151,7 +153,7 @@ export function TabularReviewDetailsModal({
 
                 {!lockProject && (
                     <div className="space-y-3">
-                        <FieldLabel as="p">Project</FieldLabel>
+                        <FieldLabel as="p">{t("tabular.project")}</FieldLabel>
                         <ToggleSwitchUI
                             checked={underProject}
                             disabled={!canEdit || saving}
@@ -162,7 +164,7 @@ export function TabularReviewDetailsModal({
                                 setError(null);
                             }}
                         >
-                            Move under a project
+                            {t("tabular.moveUnderAProject")}
                         </ToggleSwitchUI>
 
                         {underProject && (
@@ -175,7 +177,7 @@ export function TabularReviewDetailsModal({
                                     setSaved(false);
                                     setError(null);
                                 }}
-                                placeholder="Select project..."
+                                placeholder={t("tabular.selectProject")}
                                 disabled={
                                     !canEdit || saving || projects.length === 0
                                 }

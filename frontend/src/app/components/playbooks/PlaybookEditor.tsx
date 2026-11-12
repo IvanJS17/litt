@@ -33,7 +33,7 @@ import {
 } from "./playbookPaneStyles";
 import {
   PlaybookRuleForm,
-  RULE_FORM_TABS,
+  ruleFormTabs,
   type RuleFormTab,
   type UndoableRuleChange,
 } from "./PlaybookRuleForm";
@@ -56,6 +56,8 @@ import { setRowDragPreview } from "@/app/lib/rowDragPreview";
 import { movePlaybookRule, type RuleDropTarget } from "./playbookRuleMoves";
 import { createPlaybookRule } from "./playbookRules";
 import type { PlaybookContent, PlaybookRule } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
 
 const RULE_BUTTON_CLASS =
   "grid w-full min-w-0 cursor-pointer grid-cols-[12px_minmax(0,1fr)] items-center gap-2 rounded-lg py-1.5 text-left text-xs transition-colors";
@@ -63,8 +65,8 @@ const RULE_BUTTON_CLASS =
 const RULE_DRAG_TYPE = "application/x-mike-playbook-rule";
 type ContextTarget = { topicId: string | null; ruleId?: string };
 
-function ruleDisplayName(rule: PlaybookRule) {
-  return rule.name.trim() || "Untitled rule";
+function ruleDisplayName(rule: PlaybookRule, t: NsTranslate<"playbooks">) {
+  return rule.name.trim() || t("playbooks.untitledRule");
 }
 
 export function PlaybookEditor({
@@ -85,6 +87,7 @@ export function PlaybookEditor({
   provenance?: PlaybookProvenance;
   children?: ReactNode;
 }) {
+  const t = useTranslations();
   const [expandedTopics, setExpandedTopics] = useState(
     () => new Set(content.topics.map((topic) => topic.id)),
   );
@@ -131,7 +134,7 @@ export function PlaybookEditor({
     const id = `topic-${crypto.randomUUID()}`;
     onChange({
       ...content,
-      topics: [...content.topics, { id, name: "New topic", rules: [] }],
+      topics: [...content.topics, { id, name: t("playbooks.newTopic"), rules: [] }],
     });
     setExpandedTopics((current) => new Set([...current, id]));
     setNewTopicId(id);
@@ -169,7 +172,7 @@ export function PlaybookEditor({
     const copy: PlaybookRule = {
       ...structuredClone(source),
       id: `rule-${crypto.randomUUID()}`,
-      name: `${ruleDisplayName(source)} (copy)`,
+      name: t("playbooks.ruleCopy", { name: ruleDisplayName(source, t) }),
     };
     const insertCopy = (siblings: PlaybookRule[]) =>
       siblings.flatMap((rule) => (rule.id === ruleId ? [rule, copy] : [rule]));
@@ -203,13 +206,13 @@ export function PlaybookEditor({
   function openRuleActions(ruleId: string): HeaderActionsMenuItem[] {
     return [
       {
-        label: "Duplicate rule",
+        label: t("playbooks.duplicateRule"),
         icon: Copy,
         disabled,
         onSelect: () => duplicateRule(ruleId),
       },
       {
-        label: "Delete rule",
+        label: t("playbooks.deleteRule"),
         icon: Trash2,
         variant: "danger",
         disabled,
@@ -232,7 +235,7 @@ export function PlaybookEditor({
         ...(target.topicId
           ? [
               {
-                label: "Move out of topic",
+                label: t("playbooks.moveOutOfTopic"),
                 icon: FolderOutput,
                 disabled,
                 onSelect: () => moveRule(ruleId, { topicId: null }),
@@ -246,13 +249,13 @@ export function PlaybookEditor({
       const topicId = target.topicId;
       return [
         {
-          label: "Add rule",
+          label: t("playbooks.addRule"),
           icon: Plus,
           disabled,
           onSelect: () => addRule(topicId),
         },
         {
-          label: "Remove topic (keep rules)",
+          label: t("playbooks.removeTopicKeepRules"),
           icon: FolderMinus,
           disabled,
           onSelect: () => removeTopic(topicId),
@@ -260,8 +263,8 @@ export function PlaybookEditor({
       ];
     }
     return [
-      { label: "Add rule", icon: Plus, disabled, onSelect: () => addRule() },
-      { label: "Add topic", icon: FolderPlus, disabled, onSelect: addTopic },
+      { label: t("playbooks.addRule"), icon: Plus, disabled, onSelect: () => addRule() },
+      { label: t("playbooks.addTopic"), icon: FolderPlus, disabled, onSelect: addTopic },
     ];
   }
 
@@ -395,7 +398,7 @@ export function PlaybookEditor({
       durationMs: 8000,
       actions: [
         {
-          label: "Undo",
+          label: t("playbooks.undo"),
           onClick: () => {
             undoToasts.current.delete(toastId);
             updateRule(next.id, undo);
@@ -409,7 +412,7 @@ export function PlaybookEditor({
   };
 
   function ruleButton(rule: PlaybookRule, topicId: string | null = null) {
-    const name = ruleDisplayName(rule);
+    const name = ruleDisplayName(rule, t);
     const target = { topicId, ruleId: rule.id };
     const isDropTarget =
       dropTarget?.ruleId === rule.id && rule.id !== draggedRuleId;
@@ -461,7 +464,7 @@ export function PlaybookEditor({
           <span className="min-w-0 truncate">{name}</span>
         </button>
         <HeaderActionsMenu
-          title={`Rule actions for ${name}`}
+          title={t("playbooks.ruleActionsForName", { name })}
           triggerClassName="h-6 w-6"
           items={menuActions(target)}
           onCloseAutoFocus={(event) => {
@@ -478,7 +481,7 @@ export function PlaybookEditor({
         <section
           ref={sidebarRef}
           tabIndex={0}
-          aria-label="Topics and rules"
+          aria-label={t("playbooks.topicsAndRules")}
           onContextMenu={(event) => openContext(event, { topicId: null })}
           onKeyDown={(event) => contextKey(event, { topicId: null })}
           onDragOver={(event) => dragOver(event, { topicId: null })}
@@ -495,10 +498,10 @@ export function PlaybookEditor({
           <div
             className={`flex items-center justify-between gap-2 ${PLAYBOOK_SIDE_HEADER_CLASS}`}
           >
-            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>Rules</h2>
+            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>{t("playbooks.rules")}</h2>
             <div className="flex h-5 items-center gap-1">
               <HeaderActionsMenu
-                title="Rules actions"
+                title={t("playbooks.rulesActions")}
                 triggerClassName="h-6 w-6"
                 onCloseAutoFocus={(event) => {
                   if (newTopicId) event.preventDefault();
@@ -508,8 +511,8 @@ export function PlaybookEditor({
               <TextButtonUI
                 size="icon-xs"
                 className="h-6"
-                aria-label="Add rule"
-                title="Add rule"
+                aria-label={t("playbooks.addRule")}
+                title={t("playbooks.addRule")}
                 disabled={disabled}
                 onClick={() => addRule()}
               >
@@ -520,10 +523,10 @@ export function PlaybookEditor({
           <fieldset
             className={`max-h-64 min-h-0 min-w-0 space-y-1 overflow-y-auto @[48rem]:max-h-none @[48rem]:flex-1 ${PLAYBOOK_SIDE_LIST_CLASS}`}
           >
-            <legend className="sr-only">Choose a rule</legend>
+            <legend className="sr-only">{t("playbooks.chooseARule")}</legend>
             {rules.length === 0 && content.topics.length === 0 && (
               <p className="px-2 py-1.5 text-xs text-gray-500">
-                Add a rule to get started.
+                {t("playbooks.addARuleToGetStarted")}
               </p>
             )}
             {ungroupedRules.map((rule) => ruleButton(rule))}
@@ -543,7 +546,7 @@ export function PlaybookEditor({
                   <TextButtonUI
                     size="icon-xs"
                     className="h-7 w-3"
-                    aria-label={`${expandedTopics.has(topic.id) ? "Collapse" : "Expand"} topic ${topic.name}`}
+                    aria-label={expandedTopics.has(topic.id) ? t("playbooks.collapseTopic", { name: topic.name }) : t("playbooks.expandTopic", { name: topic.name })}
                     aria-expanded={expandedTopics.has(topic.id)}
                     onClick={() =>
                       setExpandedTopics((current) => {
@@ -578,12 +581,12 @@ export function PlaybookEditor({
                         ),
                       })
                     }
-                    aria-label={`Topic ${topicIndex + 1} name`}
+                    aria-label={t("playbooks.topicName", { n: topicIndex + 1 })}
                     title={topic.name}
                     className="-mx-1 h-7 min-w-0 rounded-md bg-transparent px-1 py-0 text-xs text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                   />
                   <HeaderActionsMenu
-                    title={`Topic actions for ${topic.name || "Untitled topic"}`}
+                    title={t("playbooks.topicActionsFor", { name: topic.name || t("playbooks.untitledTopic") })}
                     triggerClassName="h-6 w-6"
                     items={menuActions({ topicId: topic.id })}
                     onCloseAutoFocus={(event) => {
@@ -642,7 +645,7 @@ export function PlaybookEditor({
       }
     >
       <section
-        aria-label="Rule editor"
+        aria-label={t("playbooks.ruleEditor")}
         className={`@container flex min-h-0 min-w-0 flex-col overflow-hidden ${EDITOR_SURFACE_CLASS}`}
       >
         {selectedRule && (
@@ -650,20 +653,20 @@ export function PlaybookEditor({
             disabled={disabled}
             className={`min-w-0 ${PLAYBOOK_PANE_HEADER_CLASS}`}
           >
-            <legend className="sr-only">Rule name and actions</legend>
+            <legend className="sr-only">{t("playbooks.ruleNameAndActions")}</legend>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <label
                   htmlFor={ruleNameId}
                   className={`mb-1 block ${PLAYBOOK_LABEL_CLASS}`}
                 >
-                  Rule
+                  {t("playbooks.rule")}
                 </label>
                 <textarea
                   id={ruleNameId}
                   rows={1}
                   value={selectedRule.name}
-                  placeholder="Untitled rule"
+                  placeholder={t("playbooks.untitledRule")}
                   onChange={(event) =>
                     replaceRule({
                       ...selectedRule,
@@ -677,7 +680,7 @@ export function PlaybookEditor({
                 />
               </div>
               <HeaderActionsMenu
-                title="Rule actions"
+                title={t("playbooks.ruleActions")}
                 triggerClassName="h-6 w-6 shrink-0"
                 items={openRuleActions(selectedRule.id)}
                 onCloseAutoFocus={(event) => {
@@ -691,10 +694,10 @@ export function PlaybookEditor({
           // Outside the disabled fieldset: readers switch sections too.
           <div
             role="group"
-            aria-label="Rule sections"
+            aria-label={t("playbooks.ruleSections")}
             className={`flex shrink-0 flex-wrap gap-1.5 pb-2 ${PLAYBOOK_PANE_INSET_CLASS}`}
           >
-            {RULE_FORM_TABS.map((tab) => (
+            {ruleFormTabs(t).map((tab) => (
               <TabPillButtonUI
                 key={tab.id}
                 surface="flat"
@@ -718,7 +721,7 @@ export function PlaybookEditor({
             disabled={disabled}
             className={`min-w-0 shrink-0 ${!selectedRule ? "flex flex-1 flex-col justify-center" : ruleTab === "escalation" ? "flex flex-1 flex-col" : ""}`}
           >
-            <legend className="sr-only">Edit rule</legend>
+            <legend className="sr-only">{t("playbooks.editRule")}</legend>
             {selectedRule ? (
               <PlaybookRuleForm
                 key={selectedRule.id}
@@ -730,18 +733,18 @@ export function PlaybookEditor({
               />
             ) : (
               <EmptyState
-                title="No rules yet"
+                title={t("playbooks.noRulesYet")}
                 description={
                   disabled
-                    ? "This playbook has no rules yet."
-                    : "Add a rule to start building this playbook."
+                    ? t("playbooks.thisPlaybookHasNoRulesYet")
+                    : t("playbooks.addARuleToStartBuilding")
                 }
                 className="mx-auto w-fit max-w-full py-12"
                 action={
                   !disabled && (
                     <PillButtonUI tone="black" onClick={() => addRule()}>
                       <Plus aria-hidden="true" className="h-4 w-4" />
-                      Add
+                      {t("playbooks.add")}
                     </PillButtonUI>
                   )
                 }

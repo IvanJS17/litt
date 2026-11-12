@@ -12,6 +12,7 @@ import {
 } from "@/app/components/ui/form-field";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { LIQUID_GLASS_FLAT_CLASS } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 type OpenSourceContributorMode = "named" | "anonymous";
 type OpenSourceStatus = "idle" | "loading" | "complete";
@@ -36,6 +37,7 @@ export function OpenSourceWorkflowModal({
     pending,
     onSubmitted,
 }: OpenSourceWorkflowModalProps) {
+    const t = useTranslations();
     const [status, setStatus] = useState<OpenSourceStatus>("idle");
     const [error, setError] = useState<string | null>(null);
     const [contributorMode, setContributorMode] =
@@ -118,7 +120,7 @@ export function OpenSourceWorkflowModal({
             setError(
                 userFacingApiError(
                     err,
-                    "Failed to submit workflow for review.",
+                    t("workflows.failedToSubmitWorkflowFor"),
                 ),
             );
         }
@@ -135,10 +137,10 @@ export function OpenSourceWorkflowModal({
             breadcrumbs={[
                 "Workflows",
                 submitted
-                    ? "Submitted"
+                    ? t("workflows.submitted")
                     : pending
-                      ? "Update open-source submission"
-                      : "Open source",
+                      ? t("workflows.updateOpenSourceSubmission")
+                      : t("workflows.openSource"),
             ]}
             primaryAction={
                 submitted
@@ -146,11 +148,11 @@ export function OpenSourceWorkflowModal({
                     : {
                           label: loading
                               ? pending
-                                  ? "Updating..."
-                                  : "Submitting..."
+                                  ? t("workflows.updating")
+                                  : t("workflows.submitting")
                               : pending
-                                ? "Update submission"
-                                : "Submit for review",
+                                ? t("workflows.updateSubmission")
+                                : t("workflows.submitForReview"),
                           onClick: () => void handleSubmit(),
                           disabled: loading || needsConsent,
                       }
@@ -162,46 +164,41 @@ export function OpenSourceWorkflowModal({
                         <Check className="h-6 w-6" />
                     </div>
                     <h3 className="text-2xl font-serif text-gray-950">
-                        Workflow submitted
+                        {t("workflows.workflowSubmitted")}
                     </h3>
                     <p className="mt-3 max-w-sm text-xs leading-6 text-gray-600">
-                        Your workflow snapshot has been submitted for review.
-                        You&apos;ll be notified by email if it is accepted.
+                        {t("workflows.yourWorkflowSnapshotHasBeenSubmitted")}
                     </p>
                     <p className="mt-6 text-xs font-medium text-gray-500">
-                        Closing in {closeCountdown}
+                        {t("workflows.closingInClosecountdown", { closeCountdown })}
                     </p>
                 </div>
             ) : (
                 <div className="space-y-4 pb-2 text-sm text-gray-700">
                     <h3 className="text-2xl font-serif text-gray-950">
-                        Contribute to open source legal
+                        {t("workflows.contributeToOpenSourceLegal")}
                     </h3>
                     <p className="leading-6 text-xs text-gray-600">
-                        Submit a snapshot of this workflow for review. If
-                        accepted, it will be shared under the Apache License 2.0
-                        in the{" "}
+                        {t("workflows.submitASnapshotOfThisWorkflow")}{" "}
                         <a
                             href={WORKFLOWS_REPO_URL}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-gray-950 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-gray-600"
                         >
-                            Open-Legal-Products/mike-workflows
+                            {t("workflows.openLegalProductsMikeWorkflows")}
                         </a>{" "}
-                        repo. You&apos;ll be notified by email if your workflow
-                        is accepted.
+                        {t("workflows.repoYoullBeNotifiedByEmail")}
                     </p>
                     {pending && (
                         <p className={`rounded-xl px-3 py-2 text-xs leading-5 text-gray-600 ${LIQUID_GLASS_FLAT_CLASS}`}>
-                            You already have a pending submission. This will
-                            replace that pending snapshot.
+                            {t("workflows.youAlreadyHaveAPendingSubmission")}
                         </p>
                     )}
 
                     <div className="space-y-2 pt-2">
                         <FieldLabel as="p">
-                            Contributor attribution
+                            {t("workflows.contributorAttribution")}
                         </FieldLabel>
                         <ModalSegmentedToggle
                             value={contributorMode}
@@ -210,12 +207,12 @@ export function OpenSourceWorkflowModal({
                             options={[
                                 {
                                     value: "anonymous",
-                                    label: "Anonymous",
+                                    label: t("workflows.anonymous"),
                                     icon: EyeOff,
                                 },
                                 {
                                     value: "named",
-                                    label: "Disclose details",
+                                    label: t("workflows.discloseDetails"),
                                     icon: User,
                                 },
                             ]}
@@ -224,7 +221,7 @@ export function OpenSourceWorkflowModal({
                             <div className="grid gap-x-4 gap-y-5 pt-4 sm:grid-cols-2">
                                 <div>
                                     <FieldLabel htmlFor="open-source-contributor-name">
-                                        Full Name
+                                        {t("workflows.fullName")}
                                     </FieldLabel>
                                     <FormTextInput
                                         id="open-source-contributor-name"
@@ -234,13 +231,13 @@ export function OpenSourceWorkflowModal({
                                                 event.target.value,
                                             )
                                         }
-                                        placeholder="Jane Doe"
+                                        placeholder={t("workflows.janeDoe")}
                                         disabled={loading}
                                     />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="open-source-contributor-organisation">
-                                        Organisation
+                                        {t("workflows.organisation")}
                                     </FieldLabel>
                                     <FormTextInput
                                         id="open-source-contributor-organisation"
@@ -250,13 +247,13 @@ export function OpenSourceWorkflowModal({
                                                 event.target.value,
                                             )
                                         }
-                                        placeholder="Acme LLP"
+                                        placeholder={t("workflows.acmeLlp")}
                                         disabled={loading}
                                     />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="open-source-contributor-role">
-                                        Role
+                                        {t("workflows.role")}
                                     </FieldLabel>
                                     <FormTextInput
                                         id="open-source-contributor-role"
@@ -266,13 +263,13 @@ export function OpenSourceWorkflowModal({
                                                 event.target.value,
                                             )
                                         }
-                                        placeholder="Senior Associate"
+                                        placeholder={t("workflows.seniorAssociate")}
                                         disabled={loading}
                                     />
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="open-source-contributor-linkedin">
-                                        LinkedIn
+                                        {t("workflows.linkedin")}
                                     </FieldLabel>
                                     <FormTextInput
                                         id="open-source-contributor-linkedin"
@@ -305,8 +302,7 @@ export function OpenSourceWorkflowModal({
                                             htmlFor="open-source-disclosure-consent"
                                             className="cursor-pointer"
                                         >
-                                            I consent to disclosing the personal
-                                            information above in the public
+                                            {t("workflows.iConsentToDisclosingThePersonal")}
                                         </label>{" "}
                                         <a
                                             href={WORKFLOWS_REPO_URL}
@@ -314,14 +310,13 @@ export function OpenSourceWorkflowModal({
                                             rel="noopener noreferrer"
                                             className="font-medium text-gray-900 underline decoration-gray-300 underline-offset-4 transition-colors hover:text-gray-600"
                                         >
-                                            Open-Legal-Products/mike-workflows
+                                            {t("workflows.openLegalProductsMikeWorkflows")}
                                         </a>{" "}
                                         <label
                                             htmlFor="open-source-disclosure-consent"
                                             className="cursor-pointer"
                                         >
-                                            GitHub repository and on the
-                                            mikeoss.com website.
+                                            {t("workflows.githubRepositoryAndOnTheMikeoss")}
                                         </label>
                                     </p>
                                 </div>

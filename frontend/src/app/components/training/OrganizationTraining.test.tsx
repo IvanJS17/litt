@@ -1,8 +1,22 @@
+import type { ReactElement } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { OrganizationTraining } from "./OrganizationTraining";
+import esMX from "../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
+
+// These screens are written in Spanish (LiTT's own), so they render in es-MX.
+const wrapEs = (ui: ReactElement) => (
+    <IntlClientProvider locale="es-MX" messages={esMX}>
+        {ui}
+    </IntlClientProvider>
+);
+const renderEs = (ui: ReactElement) => {
+    const result = render(wrapEs(ui));
+    return { ...result, rerender: (next: ReactElement) => result.rerender(wrapEs(next)) };
+};
 
 const settings = vi.hoisted(() => ({ role: "owner" as "owner" | "member" }));
 vi.mock("@/app/components/organizations/OrganizationSettingsShell", () => ({
@@ -34,7 +48,7 @@ beforeEach(() => {
 
 describe("Organización → Formación", () => {
     it("lists who is a mentor and of whom, and designates a mentor", async () => {
-        render(<OrganizationTraining />);
+        renderEs(<OrganizationTraining />);
         await screen.findByRole("switch", { name: "Mentor: Luis Pasante" });
         expect(screen.getByText("Mentor de:").parentElement).toHaveTextContent("Mentor de: Luis Pasante");
         expect(screen.getByText(/Pupilo de Ana Mentora/)).toBeInTheDocument();
@@ -47,7 +61,7 @@ describe("Organización → Formación", () => {
     it("explains why a mentor with pupils cannot be retired", async () => {
         const conflict = Object.assign(new Error("conflict"), { code: "training_mentor_has_pupils" });
         vi.mocked(api.removeTrainingMentor).mockRejectedValueOnce(conflict);
-        render(<OrganizationTraining />);
+        renderEs(<OrganizationTraining />);
         fireEvent.click(await screen.findByRole("switch", { name: "Mentor: Ana Mentora" }));
         await waitFor(() =>
             expect(notifyError).toHaveBeenCalledWith(
@@ -63,7 +77,7 @@ describe("Organización → Formación", () => {
 
     it("offers nothing to a member and reads nothing", () => {
         settings.role = "member";
-        render(<OrganizationTraining />);
+        renderEs(<OrganizationTraining />);
         expect(screen.getByText(/Solo el dueño o un administrador/)).toBeInTheDocument();
         expect(api.getOrgTraining).not.toHaveBeenCalled();
     });

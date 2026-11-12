@@ -27,7 +27,8 @@ import {
     type TrainingStageEntry,
 } from "@/app/lib/mikeApi";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
-import { MemberIdentity, membersById, practiceLabel, STAGE_LABEL } from "./trainingShared";
+import { MemberIdentity, membersById } from "./trainingShared";
+import { usePracticeLabel, useStageLabel } from "./supervision/supervisionShared";
 import { MentorSeesMe } from "./supervision/MentorSeesMe";
 import { ReadingNotice } from "./reading/ReadingNotice";
 import { MyGym } from "./gym/MyGym";
@@ -48,6 +49,7 @@ const OTHER_PRACTICE = "__other__";
 
 export function TrainingSettings() {
     const t = useTranslations("training.mentorPanel");
+    const tr = useTranslations();
     const { organizations } = useWorkspace();
     const [memberships, setMemberships] = useState<TrainingMembership[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -83,11 +85,10 @@ export function TrainingSettings() {
     return (
         <div className="space-y-8">
             <section className="space-y-3">
-                <SettingsHeading id="mi-formacion">Mi formación</SettingsHeading>
+                <SettingsHeading id="mi-formacion">{tr("training.miFormacion")}</SettingsHeading>
                 {asPupil.length === 0 ? (
                     <SettingsDescription>
-                        No tienes mentor en ninguna organización. Sin etapa, LiTT funciona para ti
-                        como para cualquier abogado.
+                        {tr("training.noTienesMentor")}
                     </SettingsDescription>
                 ) : (
                     asPupil.map((membership) => (
@@ -101,7 +102,7 @@ export function TrainingSettings() {
             </section>
             {asMentor.length > 0 && (
                 <section className="space-y-3">
-                    <SettingsHeading id="mis-pupilos">Mis pupilos</SettingsHeading>
+                    <SettingsHeading id="mis-pupilos">{tr("training.misPupilos")}</SettingsHeading>
                     <Link
                         href="/settings/training/mentor"
                         className="inline-flex rounded text-sm font-medium text-interactive underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
@@ -147,8 +148,11 @@ function StageList({
     onRemove?: (practice: string | null) => void;
     busy?: boolean;
 }) {
+    const t = useTranslations();
+    const practiceLabel = usePracticeLabel();
+    const stageLabel = useStageLabel();
     if (stages.length === 0)
-        return <p className="text-sm text-gray-500">Sin etapa asignada.</p>;
+        return <p className="text-sm text-gray-500">{t("training.sinEtapaAsignada")}</p>;
     return (
         <ul className="space-y-1">
             {stages.map((entry) => (
@@ -157,7 +161,7 @@ function StageList({
                     className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-700"
                 >
                     <span className="break-words">
-                        {practiceLabel(entry.practice)}: {STAGE_LABEL[entry.stage]}
+                        {practiceLabel(entry.practice)}: {stageLabel(entry.stage)}
                     </span>
                     {onRemove && (
                         <button
@@ -166,7 +170,7 @@ function StageList({
                             onClick={() => onRemove(entry.practice)}
                             className="rounded text-sm text-gray-500 underline-offset-2 hover:text-gray-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
                         >
-                            Quitar
+                            {t("training.quitar")}
                         </button>
                     )}
                 </li>
@@ -178,19 +182,20 @@ function StageList({
 function MyTraining({ membership, orgName }: { membership: TrainingMembership; orgName: string }) {
     const members = useOrgMembers(membership.org_id);
     const t = useTranslations("training.criterion.contrast");
+    const tr = useTranslations();
     return (
         <GlassCardUI>
             <SettingsRow layout="stacked">
                 <SettingsLabel>{orgName}</SettingsLabel>
                 <div className="space-y-1">
-                    <p className="text-sm text-gray-500">Mentor</p>
+                    <p className="text-sm text-gray-500">{tr("training.mentor")}</p>
                     <MemberIdentity
                         member={members.get(membership.mentor_user_id!)}
                         userId={membership.mentor_user_id!}
                     />
                 </div>
                 <div className="space-y-1">
-                    <p className="text-sm text-gray-500">Etapas por materia</p>
+                    <p className="text-sm text-gray-500">{tr("training.etapasPorMateria")}</p>
                     <StageList stages={membership.stages} />
                 </div>
             </SettingsRow>
@@ -223,6 +228,7 @@ function MyTraining({ membership, orgName }: { membership: TrainingMembership; o
 }
 
 function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
+    const t = useTranslations();
     const members = useOrgMembers(orgId);
     const [data, setData] = useState<TrainingMyPupils | null>(null);
     const [candidate, setCandidate] = useState("");
@@ -260,7 +266,7 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
     };
 
     const name = (userId: string) =>
-        members.get(userId)?.display_name || members.get(userId)?.email || "Miembro";
+        members.get(userId)?.display_name || members.get(userId)?.email || t("training.miembro");
 
     return (
         <GlassCardUI>
@@ -272,10 +278,10 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <ModalSelect
                             id={`training-candidate-${orgId}`}
-                            aria-label="Miembro sin mentor"
+                            aria-label={t("training.miembroSinMentor")}
                             value={candidate}
                             placeholder={
-                                data.candidates.length ? "Elige a un miembro sin mentor" : "Todos los miembros tienen mentor"
+                                data.candidates.length ? t("training.eligeAUnMiembroSinMentor") : t("training.todosLosMiembrosTienenMentor")
                             }
                             options={data.candidates.map((id) => ({ value: id, label: name(id) }))}
                             onChange={setCandidate}
@@ -295,14 +301,14 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
                                 })
                             }
                         >
-                            Agregar pupilo
+                            {t("training.agregarPupilo")}
                         </PillButtonUI>
                     </div>
                 )}
             </SettingsRow>
             {data?.pupils.length === 0 && (
                 <SettingsRow>
-                    <SettingsDescription>Todavía no tienes pupilos aquí.</SettingsDescription>
+                    <SettingsDescription>{t("training.todaviaNoTienesPupilosAqui")}</SettingsDescription>
                 </SettingsRow>
             )}
             {data?.pupils.map((pupil) => (
@@ -318,7 +324,7 @@ function MyPupils({ orgId, orgName }: { orgId: string; orgName: string }) {
                                 void run("release the pupil", () => releaseTrainingPupil(orgId, pupil.user_id))
                             }
                         >
-                            Liberar
+                            {t("training.liberar")}
                         </PillButtonUI>
                     </div>
                     <StageList
@@ -355,6 +361,8 @@ export function StageEditor({
     disabled: boolean;
     onSave: (practice: string | null, stage: TrainingStage) => void;
 }) {
+    const t = useTranslations();
+    const stageLabel = useStageLabel();
     const [practice, setPractice] = useState(ALL_PRACTICES);
     const [custom, setCustom] = useState("");
     const [stage, setStage] = useState<TrainingStage>("pasante");
@@ -365,15 +373,15 @@ export function StageEditor({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ModalSelect
                 id={`${id}-practice`}
-                aria-label="Materia"
+                aria-label={t("training.materia")}
                 value={practice}
                 options={[
-                    { value: ALL_PRACTICES, label: "Todas las materias" },
+                    { value: ALL_PRACTICES, label: t("training.allPractices") },
                     ...PRACTICE_OPTIONS.filter((option) => option !== "Other").map((option) => ({
                         value: option,
                         label: option,
                     })),
-                    { value: OTHER_PRACTICE, label: "Otra materia" },
+                    { value: OTHER_PRACTICE, label: t("training.otraMateria") },
                 ]}
                 onChange={setPractice}
                 disabled={disabled}
@@ -382,8 +390,8 @@ export function StageEditor({
             />
             {practice === OTHER_PRACTICE && (
                 <FormTextInput
-                    aria-label="Nombre de la materia"
-                    placeholder="Escribe la materia"
+                    aria-label={t("training.nombreDeLaMateria")}
+                    placeholder={t("training.escribeLaMateria")}
                     value={custom}
                     maxLength={200}
                     onChange={(event) => setCustom(event.target.value)}
@@ -393,11 +401,11 @@ export function StageEditor({
             )}
             <ModalSelect
                 id={`${id}-stage`}
-                aria-label="Etapa"
+                aria-label={t("training.etapa")}
                 value={stage}
                 options={[
-                    { value: "pasante", label: STAGE_LABEL.pasante },
-                    { value: "junior", label: STAGE_LABEL.junior },
+                    { value: "pasante", label: stageLabel("pasante") },
+                    { value: "junior", label: stageLabel("junior") },
                 ]}
                 onChange={(value) => setStage(value as TrainingStage)}
                 disabled={disabled}
@@ -410,7 +418,7 @@ export function StageEditor({
                 disabled={disabled || !ready}
                 onClick={() => onSave(chosen, stage)}
             >
-                Guardar etapa
+                {t("training.guardarEtapa")}
             </PillButtonUI>
         </div>
     );

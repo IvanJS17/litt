@@ -19,6 +19,19 @@ describe("distinctPeople", () => {
   });
 });
 
+describe("distinctPeople order without a name", () => {
+  it("falls back to the email, and puts a person with neither last", () => {
+    expect(
+      distinctPeople([
+        { user_id: "u3", display_name: null, email: null },
+        { user_id: "u2", display_name: null, email: "zed@example.com" },
+        { user_id: "u1", display_name: null, email: "amy@example.com" },
+        { user_id: "u4", display_name: "Bea" },
+      ]).map((person) => person.user_id),
+    ).toEqual(["u1", "u4", "u2", "u3"]);
+  });
+});
+
 describe("PersonFilter", () => {
   it("searches a local list and selects a creator", async () => {
     const user = userEvent.setup();

@@ -273,7 +273,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                         <li
                             key={`uploading-${upload.clientId}`}
                             role="status"
-                            aria-label={`Uploading ${upload.filename}`}
+                            aria-label={t("projects.uploadingFilename", { filename: upload.filename })}
                             className="flex items-center gap-2 py-1.5 pr-2 text-gray-400"
                             style={{ paddingLeft: basePadding }}
                         >
@@ -307,7 +307,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             ref={newFolderInputRef}
                             autoFocus
                             className="flex-1 min-w-0 text-xs bg-transparent outline-none border-b border-gray-300 text-gray-800"
-                            placeholder="Folder name"
+                            placeholder={t("projects.folderName")}
                             value={newFolderName}
                             onChange={(e) => setNewFolderName(e.target.value)}
                             onKeyDown={(e) => {
@@ -556,7 +556,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                 uploadingDocuments.length === 0 &&
                 creatingIn === undefined && (
                     <li className="px-2 py-2 text-xs text-gray-400">
-                        No documents in this project.
+                        {t("projects.noDocumentsInThisProject")}
                     </li>
                 )}
 
@@ -594,7 +594,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             onSelect={() => void onDownloadFolder(contextFolder)}
                         >
                             <Download aria-hidden="true" className="h-3.5 w-3.5" />
-                            Download
+                            {t("projects.download")}
                         </DropdownItem>
                     )}
                     {onCreateFolder && !contextMenu.docId && (
@@ -610,7 +610,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             }}
                         >
                             <SubfolderSvgIcon className="h-3.5 w-3.5 shrink-0" />
-                            New subfolder
+                            {t("projects.newSubfolder")}
                         </DropdownItem>
                     )}
                     {contextMenu.folderId && onRenameFolder && (
@@ -621,7 +621,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             }}
                         >
                             <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
-                            Rename
+                            {t("projects.rename")}
                         </DropdownItem>
                     )}
                     {contextMenu.folderId && onDeleteFolder && (
@@ -630,7 +630,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             onSelect={() => onDeleteFolder(contextMenu.folderId!)}
                         >
                             <Trash2 className="h-3.5 w-3.5" />
-                            Delete folder
+                            {t("projects.deleteFolder")}
                         </DropdownItem>
                     )}
                 </DropdownAtPoint>

@@ -346,16 +346,22 @@ describe("playbook rule form", () => {
 });
 
 describe("rule form helpers", () => {
-  it("writes source markers out for people", () => {
-    expect(describeSourceRefs(["P4", "T2R3C1", "custom"])).toBe(
+  it("writes source markers out for people", async () => {
+    const { createTranslator } = await import("use-intl");
+    const { loadMessages } = await import("@litt/i18n");
+    const t = createTranslator({
+      locale: "en-US",
+      messages: await loadMessages("en-US"),
+    }) as unknown as Parameters<typeof describeSourceRefs>[1];
+    expect(describeSourceRefs(["P4", "T2R3C1", "custom"], t)).toBe(
       "paragraph 4; table 2, row 3, cell 1; custom",
     );
   });
 
   it("flags usages that contradict their position", () => {
     expect(clauseUsageConflict("standard", "preferred")).toBeNull();
-    expect(clauseUsageConflict("fallbacks", "unacceptable")).not.toBeNull();
-    expect(clauseUsageConflict("unacceptable", "accepted")).not.toBeNull();
+    expect(clauseUsageConflict("fallbacks", "unacceptable")).toBe("acceptable");
+    expect(clauseUsageConflict("unacceptable", "accepted")).toBe("unacceptable");
     expect(clauseUsageConflict("unacceptable", "illustrative")).toBeNull();
   });
 });

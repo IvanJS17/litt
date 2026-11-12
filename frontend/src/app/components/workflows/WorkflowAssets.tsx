@@ -51,6 +51,7 @@ import {
   TableScrollArea,
   TableStickyCell,
 } from "../shared/TablePrimitive";
+import { useTranslations } from "next-intl";
 
 /** Every failure on this screen belongs to the workflow it serves. */
 const ASSET_FLOW = { operation: "workflows.run" } as const;
@@ -88,6 +89,7 @@ export const WorkflowAssets = forwardRef<
     onUploadingChange?: (uploading: boolean) => void;
   }
 >(function WorkflowAssets({ workflowId, readOnly, onUploadingChange }, ref) {
+  const t = useTranslations();
   const [files, setFiles] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export const WorkflowAssets = forwardRef<
       setError("");
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Unable to load assets."));
+      setError(userFacingApiError(caught, t("workflows.unableToLoadAssets")));
     } finally {
       setLoading(false);
     }
@@ -154,16 +156,16 @@ export const WorkflowAssets = forwardRef<
   }
 
   function uploadAction(failedCount: number, total: number) {
-    if (failedCount === 1 && total === 1) return "upload this file";
+    if (failedCount === 1 && total === 1) return t("workflows.uploadThisFile");
     return failedCount === total
-      ? `upload ${total} files`
-      : `upload ${failedCount} of ${total} files`;
+      ? t("workflows.uploadAllFiles", { total })
+      : t("workflows.uploadSomeFiles", { failedCount, total });
   }
 
   async function upload(filesToUpload: File[]) {
     if (uploadInFlightRef.current) {
       appendWarning(
-        "An upload is already in progress. Wait for it to finish, then add the files again.",
+        t("workflows.anUploadIsAlreadyIn"),
       );
       return;
     }
@@ -220,8 +222,8 @@ export const WorkflowAssets = forwardRef<
         ...ASSET_FLOW,
         fallback:
           supported.length === 1
-            ? `${supported[0]?.name ?? "That file"} could not be uploaded. Try again.`
-            : "Those files could not be uploaded. Try again.",
+            ? t("workflows.fileCouldNotBeUploadedTryAgain", { name: supported[0]?.name ?? t("workflows.thatFile") })
+            : t("workflows.thoseFilesCouldNotBe"),
         onRetry: () => void upload(supported),
       });
     } finally {
@@ -234,7 +236,7 @@ export const WorkflowAssets = forwardRef<
     if (documents.length === 0) return;
     if (uploadInFlightRef.current) {
       appendWarning(
-        "Files are already being added. Wait for them to finish, then add the saved files again.",
+        t("workflows.filesAreAlreadyBeingAdded"),
       );
       return;
     }
@@ -249,7 +251,7 @@ export const WorkflowAssets = forwardRef<
       setFiles((current) => [...current, ...created]);
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Unable to add saved files."));
+      setError(userFacingApiError(caught, t("workflows.unableToAddSavedFiles")));
     } finally {
       uploadInFlightRef.current = false;
       setBusyId(null);
@@ -271,7 +273,7 @@ export const WorkflowAssets = forwardRef<
       });
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Unable to load asset versions."));
+      setError(userFacingApiError(caught, t("workflows.unableToLoadAssetVersions")));
     } finally {
       setLoadingVersionAssetIds((current) => {
         const next = new Set(current);
@@ -297,7 +299,7 @@ export const WorkflowAssets = forwardRef<
       await refreshVersionState(target.id);
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Version upload failed."));
+      setError(userFacingApiError(caught, t("workflows.versionUploadFailed")));
     } finally {
       setBusyId(null);
     }
@@ -313,7 +315,7 @@ export const WorkflowAssets = forwardRef<
       anchor.click();
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Download failed."));
+      setError(userFacingApiError(caught, t("workflows.downloadFailed")));
     } finally {
       setBusyId(null);
     }
@@ -344,7 +346,7 @@ export const WorkflowAssets = forwardRef<
       await deleteAsset(file);
     } catch (caught) {
       reportFault(caught, ASSET_FLOW);
-      setError(userFacingApiError(caught, "Delete failed."));
+      setError(userFacingApiError(caught, t("workflows.deleteFailed")));
     } finally {
       setBusyId(null);
       setPendingDeleteFile(null);
@@ -394,11 +396,11 @@ export const WorkflowAssets = forwardRef<
         header={
           <TableHeaderRow>
             <TableStickyCell header widthClassName={ASSET_NAME_COL_W}>
-              Name
+              {t("workflows.name")}
             </TableStickyCell>
-            <TableHeaderCell className="ml-auto w-20">Type</TableHeaderCell>
-            <TableHeaderCell className="w-24">Size</TableHeaderCell>
-            <TableHeaderCell className="w-32">Updated</TableHeaderCell>
+            <TableHeaderCell className="ml-auto w-20">{t("workflows.type")}</TableHeaderCell>
+            <TableHeaderCell className="w-24">{t("workflows.size")}</TableHeaderCell>
+            <TableHeaderCell className="w-32">{t("workflows.updated")}</TableHeaderCell>
             <TableHeaderCell className="w-8" />
           </TableHeaderRow>
         }
@@ -430,8 +432,8 @@ export const WorkflowAssets = forwardRef<
         ) : files.length === 0 ? (
           <TableEmptyState>
             <EmptyState
-              title="Assets"
-              description="Upload assets that this workflow can use when it runs."
+              title={t("workflows.assets")}
+              description={t("workflows.uploadAssetsThatThisWorkflowCan")}
             />
           </TableEmptyState>
         ) : (
@@ -487,7 +489,7 @@ export const WorkflowAssets = forwardRef<
                             versionUploadInputRef.current?.click();
                           }
                     }
-                    uploadNewVersionLabel="Upload new version"
+                    uploadNewVersionLabel={t("workflows.uploadNewVersion")}
                     onDelete={
                       readOnly ? undefined : () => setPendingDeleteFile(file)
                     }
@@ -519,7 +521,7 @@ export const WorkflowAssets = forwardRef<
         }}
         onTrainingApproved={(assetId) => {
           refreshVersionState(assetId).catch((caught: unknown) =>
-            notifyError(caught, { action: "refresh this file" }),
+            notifyError(caught, { action: t("workflows.refreshThisFile") }),
           );
         }}
         onRenameVersion={async (assetId, versionId, filename) => {
@@ -546,18 +548,18 @@ export const WorkflowAssets = forwardRef<
       />
       <ConfirmPopup
         open={pendingDeleteFile !== null}
-        title="Delete asset?"
+        title={t("workflows.deleteAsset")}
         message={
           pendingDeleteFile ? (
             <p>
               <span className="font-medium text-gray-950">
                 {pendingDeleteFile.filename}
               </span>{" "}
-              will be permanently deleted.
+              {t("workflows.willBePermanentlyDeleted")}
             </p>
           ) : undefined
         }
-        confirmLabel="Delete"
+        confirmLabel={t("workflows.delete")}
         confirmVariant="danger"
         confirmStatus={deleteStatus}
         onConfirm={() => void confirmRemove()}

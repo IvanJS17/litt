@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTranslations } from "next-intl";
 import { Search, X } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { LIQUID_GLASS_SUBTLE_CLASS } from "@mike/ui";
@@ -45,9 +46,9 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
             value,
             onValueChange,
             size = "normal",
-            clearLabel = "Clear search",
-            label = "Search",
-            placeholder = "Search...",
+            clearLabel: clearLabelProp,
+            label: labelProp,
+            placeholder: placeholderProp,
             className,
             wrapperClassName,
             inputClassName,
@@ -55,6 +56,10 @@ export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
         },
         ref,
     ) => {
+        const t = useTranslations();
+        const clearLabel = clearLabelProp ?? t("ui.clearSearch");
+        const label = labelProp ?? t("ui.search");
+        const placeholder = placeholderProp ?? t("ui.search2");
         const classes = sizeClasses[size];
 
         return (

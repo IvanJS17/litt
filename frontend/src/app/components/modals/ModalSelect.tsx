@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown, type LucideIcon } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { FORM_CONTROL_GLASS_CLASS } from "../ui/form-field";
@@ -53,7 +54,7 @@ export function ModalSelect({
     value,
     options,
     onChange,
-    placeholder = "Select...",
+    placeholder: placeholderProp,
     disabled = false,
     open,
     onOpenChange,
@@ -62,6 +63,8 @@ export function ModalSelect({
     wrapLabels = false,
     variant = "glass",
 }: ModalSelectProps) {
+    const t = useTranslations();
+    const placeholder = placeholderProp ?? t("modals.select");
     const [internalOpen, setInternalOpen] = useState(false);
     const isOpen = open ?? internalOpen;
     const normalizedOptions = options.map(normalizeOption);

@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { PillButtonUI, NoticeCardUI, useNoticeStackSlot } from "@mike/ui";
 
 /**
@@ -68,6 +69,7 @@ export function WarningPopup({
     actions,
     className,
 }: WarningPopupProps) {
+    const t = useTranslations();
     const stackSlot = useNoticeStackSlot();
 
     useEffect(() => {
@@ -91,7 +93,7 @@ export function WarningPopup({
             message={message}
             icon={icon}
             onDismiss={onClose}
-            dismissLabel="Dismiss warning"
+            dismissLabel={t("popups.dismissWarning")}
             className={className}
             actions={
                 actions || primaryAction ? (

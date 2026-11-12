@@ -37,6 +37,7 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
 } from "@/app/components/ui/liquid-surface";
 import { useIdSet } from "@/app/hooks/useIdSet";
+import { useTranslations } from "next-intl";
 
 const SKELETON_COLS = 4;
 const SKELETON_ROWS = 5;
@@ -114,6 +115,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
     },
     ref,
 ) {
+    const t = useTranslations();
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const lastScrollLeftRef = useRef(0);
     const [scrollCloseSignal, setScrollCloseSignal] = useState(0);
@@ -134,7 +136,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
     const cellsByRow = useMemo(() => indexReviewCells(cells), [cells]);
     const selectedRows = useIdSet(selectedRowIds);
     const firstColumnLabel =
-        documentGrouping === "folder" ? "Folder / Document" : "Document";
+        documentGrouping === "folder" ? t("tabular.folderDocument2") : t("tabular.document");
     const totalContentWidth =
         DOC_COL_W_PX + sortedColumns.length * DATA_COL_W_PX + 32;
     const skeletonContentWidth =
@@ -266,8 +268,8 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                     <EmptyState
                         className="mx-auto w-full max-w-xs flex-1 justify-center"
                         icon={<TabularReviewSkeuoIcon />}
-                        title="Tabular Review"
-                        description="Add columns and documents to get started."
+                        title={t("tabular.tabularReview")}
+                        description={t("tabular.addColumnsAndDocumentsToGet")}
                         action={
                             <div className="flex items-center gap-2">
                                 <PillButtonUI
@@ -276,7 +278,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                                     onClick={onAddColumn}
                                 >
                                     <Plus className="h-3.5 w-3.5" />
-                                    Add Columns
+                                    {t("tabular.addColumns2")}
                                 </PillButtonUI>
                                 <PillButtonUI
                                     tone="white"
@@ -284,7 +286,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                                     onClick={onAddDocuments}
                                 >
                                     <Upload className="h-3.5 w-3.5" />
-                                    Add Documents
+                                    {t("tabular.addDocuments")}
                                 </PillButtonUI>
                             </div>
                         }
@@ -315,7 +317,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                             }}
                             onChange={toggleAll}
                             className={TABLE_CHECKBOX_CLASS}
-                            aria-label={`Select all ${firstColumnLabel.toLowerCase()}`}
+                            aria-label={documentGrouping === "folder" ? t("tabular.selectAllFoldersDocuments") : t("tabular.selectAllDocuments")}
                         />
                         <span>{firstColumnLabel}</span>
                     </div>
@@ -366,7 +368,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                                 type="checkbox"
                                 disabled
                                 className="mr-3 h-2.5 w-2.5 shrink-0 rounded border-gray-200 cursor-default accent-black disabled:opacity-100"
-                                aria-label={`Select ${filename}`}
+                                aria-label={t("tabular.selectFilename", { filename })}
                             />
                             <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin shrink-0" />
                             <span className="line-clamp-1" title={filename}>

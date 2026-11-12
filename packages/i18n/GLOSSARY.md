@@ -39,6 +39,8 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | organization | organización | Es el término del producto (Ajustes → Organizaciones). |
 | firm | despacho | Solo donde el inglés dice *firm*. |
 | add-in (Word) | complemento | «el complemento de Word». |
+| add-ons (flujos de trabajo) | extensiones | Femenino: «las extensiones». No confundir con el complemento de Word. |
+| snapshot (de un flujo) | versión publicada | |
 | tracked changes / redline (la función) | control de cambios | |
 | tracked change (cada cambio) | cambio marcado | Plural: cambios marcados. Nunca «cambio de control de cambios». |
 | Personal (workspace) | Personal | Es el nombre del espacio de trabajo y se queda así. |

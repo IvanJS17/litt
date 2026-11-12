@@ -2,7 +2,7 @@
 
 import { streamChatTurn } from "@/app/lib/mikeApi";
 import { readSseFrames } from "@/app/lib/sse";
-import { isAbortError } from "@mike/client";
+import { clientTranslator, isAbortError } from "@mike/client";
 import { isPanelDocument } from "@/app/components/shared/types";
 import type { AssistantEvent, Citation } from "@/app/components/shared/types";
 import type { AssistantTurnHandle } from "@/app/lib/assistantTurnTypes";
@@ -108,7 +108,7 @@ function readableStreamError(value: unknown, safeToDisplay: boolean): string {
   if (safeToDisplay && typeof value === "string" && value.trim()) {
     return value.trim();
   }
-  return "Sorry, something went wrong.";
+  return clientTranslator()("assistant.eventUtils.sorrySomethingWentWrong");
 }
 
 function isConnectorApprovalItem(

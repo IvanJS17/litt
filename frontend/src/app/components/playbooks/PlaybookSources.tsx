@@ -45,6 +45,8 @@ import {
   PLAYBOOK_SIDE_LIST_CLASS,
   PLAYBOOK_SIDE_TITLE_CLASS,
 } from "./playbookPaneStyles";
+import { useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
 
 const IMPORTED_ID = "imported";
 const ACCEPT =
@@ -83,6 +85,7 @@ export function PlaybookSources({
   /** Lets the page toolbar start an upload. */
   ref?: Ref<PlaybookSourcesHandle>;
 }) {
+  const t = useTranslations();
   const [supplementary, setSupplementary] = useState<
     PlaybookSupplementarySource[] | null
   >(null);
@@ -110,7 +113,7 @@ export function PlaybookSources({
     } catch (error) {
       setSupplementary([]);
       notifyError(error, {
-        action: "load the reference documents",
+        action: t("playbooks.loadTheReferenceDocuments"),
         onRetry: load,
         dedupeKey: `playbook-sources:${playbookId}`,
       });
@@ -162,7 +165,7 @@ export function PlaybookSources({
 
   function addFiles(files: File[]) {
     const accepted = files.filter((file) => SOURCE_FILE.test(file.name));
-    if (accepted.length < files.length) rejectOtherTypes();
+    if (accepted.length < files.length) rejectOtherTypes(t);
     void add(
       accepted.map((file) => file.name),
       (index) => uploadPlaybookSource(playbookId, accepted[index]),
@@ -207,12 +210,12 @@ export function PlaybookSources({
         </button>
         {removable && original && (
           <HeaderActionsMenu
-            title={`Actions for ${entry.filename}`}
+            title={t("playbooks.actionsForFilename", { filename: entry.filename })}
             // Hidden until hover only where a pointer can hover; touch keeps it.
             triggerClassName="h-6 w-6 shrink-0 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
             items={[
               {
-                label: "Remove",
+                label: t("playbooks.remove"),
                 variant: "danger",
                 onSelect: () => setRemoving(original),
               },
@@ -225,22 +228,22 @@ export function PlaybookSources({
 
   return (
     <PlaybookPanels
-      resizeLabel="Resize references panel"
+      resizeLabel={t("playbooks.resizeReferencesPanel")}
       sidebar={
         <section
-          aria-label="Reference documents"
+          aria-label={t("playbooks.referenceDocuments")}
           className={`flex min-h-0 min-w-0 flex-col ${EDITOR_SURFACE_CLASS}`}
         >
           <div className={`flex items-center justify-between gap-2 ${PLAYBOOK_SIDE_HEADER_CLASS}`}>
-            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>References</h2>
+            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>{t("playbooks.references")}</h2>
             {canEdit && (
               <Dropdown>
                 <DropdownTrigger asChild>
                   <TextButtonUI
                     size="icon-xs"
                     className="-my-0.5 h-6"
-                    aria-label="Add reference document"
-                    title="Add reference document"
+                    aria-label={t("playbooks.addReferenceDocument")}
+                    title={t("playbooks.addReferenceDocument")}
                   >
                     <Plus aria-hidden="true" className="h-3.5 w-3.5" />
                   </TextButtonUI>
@@ -248,11 +251,11 @@ export function PlaybookSources({
                 <DropdownContent align="end" className="w-56">
                   <DropdownItem onSelect={() => fileInput.current?.click()}>
                     <Upload aria-hidden="true" className="h-4 w-4" />
-                    Upload a file
+                    {t("playbooks.uploadAFile")}
                   </DropdownItem>
                   <DropdownItem onSelect={() => setPickerOpen(true)}>
                     <Cloud aria-hidden="true" className="h-4 w-4" />
-                    Choose from documents
+                    {t("playbooks.chooseFromDocuments")}
                   </DropdownItem>
                 </DropdownContent>
               </Dropdown>
@@ -265,7 +268,7 @@ export function PlaybookSources({
               {supplementary === null ? (
                 <div
                   role="status"
-                  aria-label="Loading reference documents"
+                  aria-label={t("playbooks.loadingReferenceDocuments")}
                   className="space-y-1"
                 >
                   {["w-3/4", "w-1/2"].map((width) => (
@@ -293,7 +296,7 @@ export function PlaybookSources({
                 >
                   <FileTypeIcon fileType={name} muted />
                   <span className="min-w-0 flex-1 truncate">
-                    <span className="sr-only">Adding </span>
+                    <span className="sr-only">{t("playbooks.adding")} </span>
                     {name}
                   </span>
                   <Loader2
@@ -306,7 +309,7 @@ export function PlaybookSources({
                 supplementary?.length === 0 &&
                 pending.length === 0 && (
                   <p className="px-2 py-1.5 text-xs text-gray-500">
-                    None yet.
+                    {t("playbooks.noneYet")}
                   </p>
                 )}
             </div>
@@ -328,7 +331,7 @@ export function PlaybookSources({
       }
     >
       <section
-        aria-label="Reference document"
+        aria-label={t("playbooks.referenceDocument")}
         className={`flex min-h-[24rem] min-w-0 flex-col overflow-hidden @[48rem]:min-h-0 ${EDITOR_SURFACE_CLASS}`}
       >
         {selected && (
@@ -369,11 +372,11 @@ export function PlaybookSources({
         ) : (
           <div className={`flex min-h-0 flex-1 items-center justify-center ${PLAYBOOK_PANE_EMPTY_CLASS}`}>
             <EmptyState
-              title="No reference documents"
+              title={t("playbooks.noReferenceDocuments")}
               description={
                 canEdit
-                  ? "Add documents the rules can refer to, such as policies or templates."
-                  : "This playbook has no reference documents."
+                  ? t("playbooks.addDocumentsTheRulesCanRefer")
+                  : t("playbooks.thisPlaybookHasNoReferenceDocuments")
               }
               action={
                 canEdit && (
@@ -383,11 +386,11 @@ export function PlaybookSources({
                       onClick={() => fileInput.current?.click()}
                     >
                       <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                      Upload a file
+                      {t("playbooks.uploadAFile")}
                     </PillButtonUI>
                     <PillButtonUI tone="white" onClick={() => setPickerOpen(true)}>
                       <Cloud aria-hidden="true" className="h-3.5 w-3.5" />
-                      Choose from documents
+                      {t("playbooks.chooseFromDocuments")}
                     </PillButtonUI>
                   </div>
                 )
@@ -401,14 +404,14 @@ export function PlaybookSources({
         <AddDocumentsModal
           open={pickerOpen}
           onClose={() => setPickerOpen(false)}
-          breadcrumb={["Playbooks", "References"]}
+          breadcrumb={[t("playbooks.intake.breadcrumb"), t("playbooks.references")]}
           uploadStateId={`playbook-sources:${playbookId}`}
           onSelect={(documents) => {
             setPickerOpen(false);
             const accepted = documents.filter((document) =>
               SOURCE_FILE.test(document.filename),
             );
-            if (accepted.length < documents.length) rejectOtherTypes();
+            if (accepted.length < documents.length) rejectOtherTypes(t);
             void add(
               accepted.map((document) => document.filename),
               (index) =>
@@ -419,9 +422,9 @@ export function PlaybookSources({
       )}
       <ConfirmPopup
         open={!!removing}
-        title={removing ? `Remove ${removing.filename}?` : undefined}
-        message="Reviews will no longer be able to read it. The original, if it is in your documents, is not affected."
-        confirmLabel="Remove"
+        title={removing ? t("playbooks.removeFilename", { filename: removing.filename }) : undefined}
+        message={t("playbooks.reviewsWillNoLongerBeAble")}
+        confirmLabel={t("playbooks.remove")}
         confirmVariant="danger"
         confirmStatus={removeStatus}
         onConfirm={() => removing && void remove(removing)}
@@ -431,10 +434,10 @@ export function PlaybookSources({
   );
 }
 
-function rejectOtherTypes() {
+function rejectOtherTypes(t: NsTranslate<"playbooks">) {
   showToast({
     tone: "error",
-    title: "Some files were not added",
-    message: "References must be .docx or .pdf files.",
+    title: t("playbooks.someFilesWereNotAdded"),
+    message: t("playbooks.referencesMustBeDocxOrPdf"),
   });
 }

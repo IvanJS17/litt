@@ -15,12 +15,14 @@ import { can, roleFrom } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { useTranslations } from "next-intl";
 
 interface Props {
     params: Promise<{ id: string }>;
 }
 
 export default function ProjectAssistantPage({ params }: Props) {
+    const t = useTranslations();
     use(params);
     const workspace = useProjectWorkspace();
     const router = useRouter();
@@ -68,10 +70,10 @@ export default function ProjectAssistantPage({ params }: Props) {
             await renameChat(chatId, trimmed);
         } catch (error) {
             setActionNotice({
-                title: "The chat was not renamed",
+                title: t("projects.theChatWasNotRenamed"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be renamed. Please try again.",
+                    t("projects.theChatCouldNotBe2"),
                 ),
             });
             return;
@@ -90,7 +92,7 @@ export default function ProjectAssistantPage({ params }: Props) {
     // who may not delete anything.
     async function handleDeleteChatRow(chat: Chat) {
         if (!can(roleFrom(chat), "container.delete")) {
-            setOwnerOnlyAction("delete this chat");
+            setOwnerOnlyAction(t("projects.deleteThisChat"));
             return;
         }
         // Await first, remove after: a refusal or an outage used to make the
@@ -101,10 +103,10 @@ export default function ProjectAssistantPage({ params }: Props) {
             await deleteChat(chat.id);
         } catch (error) {
             setActionNotice({
-                title: "The chat was not deleted",
+                title: t("projects.theChatWasNotDeleted"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be deleted. Please try again.",
+                    t("projects.theChatCouldNotBe"),
                 ),
             });
             return;
@@ -155,15 +157,15 @@ export default function ProjectAssistantPage({ params }: Props) {
                 ? `${blocked} selected chat${blocked === 1 ? " was" : "s were"} skipped because only a project owner can delete them.`
                 : null,
             failedIds.length > 0
-                ? `${failedIds.length} chat${failedIds.length === 1 ? " was" : "s were"} not deleted because the request failed. ${failedIds.length === 1 ? "It remains" : "They remain"} selected so you can try again.`
+                ? `${failedIds.length} chat${failedIds.length === 1 ? " was" : "s were"} not deleted because the request failed. ${failedIds.length === 1 ? "It remains" : t("projects.theyRemain")} selected so you can try again.`
                 : null,
         ].filter((notice): notice is string => notice !== null);
         if (notices.length > 0)
             setActionNotice({
-                title: "Some chats were not deleted",
+                title: t("projects.someChatsWereNotDeleted"),
                 message: notices.join(" "),
             });
-    }, [chats, selectedChatIds, setProjectChats]);
+    }, [chats, selectedChatIds, setProjectChats, t]);
 
     return (
         <>
@@ -195,11 +197,11 @@ export default function ProjectAssistantPage({ params }: Props) {
                 open={confirmDeleteSelectedOpen && selectedChatIds.length > 0}
                 title={
                     selectedChatIds.length === 1
-                        ? "Delete chat?"
-                        : `Delete ${selectedChatIds.length} chats?`
+                        ? t("projects.deleteChat")
+                        : t("projects.deleteLengthChats", { length: selectedChatIds.length })
                 }
-                message="This cannot be undone."
-                confirmLabel="Delete"
+                message={t("projects.thisCannotBeUndone")}
+                confirmLabel={t("projects.projectPageParts.delete")}
                 confirmVariant="danger"
                 onCancel={() => setConfirmDeleteSelectedOpen(false)}
                 onConfirm={() => void handleDeleteSelectedChats()}

@@ -16,6 +16,7 @@ import type {
 import { listOrgs, type Org } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { ProjectPracticeField } from "./ProjectPracticeField";
+import { useTranslations } from "next-intl";
 
 const PERSONAL_WORKSPACE = "__personal__";
 
@@ -42,6 +43,7 @@ export function ProjectDetailsModal({
     onSave,
     onShareProject,
 }: ProjectDetailsModalProps) {
+    const t = useTranslations();
     const [nameDraft, setNameDraft] = useState("");
     const [cmDraft, setCmDraft] = useState("");
     const [practiceDraft, setPracticeDraft] = useState("");
@@ -109,7 +111,7 @@ export function ProjectDetailsModal({
     // UUID. The row already carries the name — use it.
     const orgOptions = useMemo(() => {
         const options = [
-            { value: PERSONAL_WORKSPACE, label: "No organization" },
+            { value: PERSONAL_WORKSPACE, label: t("projects.noOrganization") },
             ...orgs.map((org) => ({ value: org.id, label: org.name })),
         ];
         if (
@@ -118,7 +120,7 @@ export function ProjectDetailsModal({
         ) {
             options.push({
                 value: project.org_id,
-                label: project.organization_name ?? "Organisation",
+                label: project.organization_name ?? t("projects.organisation"),
             });
         }
         return options;
@@ -149,7 +151,7 @@ export function ProjectDetailsModal({
             // An intentional 4xx (a name conflict, a refusal) says something
             // the generic line cannot; anything else still falls back to it.
             setError(
-                userFacingApiError(err, "Could not update project details."),
+                userFacingApiError(err, t("projects.couldNotUpdateProjectDetails")),
             );
         } finally {
             setSaving(false);
@@ -160,11 +162,11 @@ export function ProjectDetailsModal({
         <Modal
             open={open}
             onClose={onClose}
-            breadcrumbs={["Projects", project.name, "Details"]}
+            breadcrumbs={[t("projects.projects"), project.name, t("projects.details")]}
             secondaryAction={
                 onShareProject
                     ? {
-                          label: "Share",
+                          label: t("projects.share"),
                           icon: <Users className="h-4 w-4" />,
                           onClick: onShareProject,
                       }
@@ -174,13 +176,13 @@ export function ProjectDetailsModal({
                 error ? (
                     <span className="text-sm text-red-600">{error}</span>
                 ) : saved ? (
-                    <span className="text-sm text-gray-400">Updated</span>
+                    <span className="text-sm text-gray-400">{t("projects.updated")}</span>
                 ) : null
             }
             primaryAction={
                 canEdit
                     ? {
-                          label: saving ? "Updating..." : "Update",
+                          label: saving ? t("projects.updating") : t("projects.update"),
                           onClick: () => void handleSave(),
                           disabled: saving || !hasChanges || !trimmedName,
                       }
@@ -191,7 +193,7 @@ export function ProjectDetailsModal({
             <div className="flex min-h-0 flex-1 flex-col gap-6 py-1">
                 <div>
                     <FieldLabel htmlFor="project-details-name">
-                        Project name
+                        {t("projects.projectName")}
                     </FieldLabel>
                     <FormTextInput
                         id="project-details-name"
@@ -202,14 +204,14 @@ export function ProjectDetailsModal({
                             setError(null);
                         }}
                         disabled={!canEdit || saving}
-                        placeholder="Add project name"
+                        placeholder={t("projects.addProjectName")}
                         variant="minimal"
                     />
                 </div>
 
                 <div>
                     <FieldLabel htmlFor="project-details-cm">
-                        CM number
+                        {t("projects.cmNumber")}
                     </FieldLabel>
                     <FormTextInput
                         id="project-details-cm"
@@ -220,7 +222,7 @@ export function ProjectDetailsModal({
                             setError(null);
                         }}
                         disabled={!canEdit || saving}
-                        placeholder="Add a CM number..."
+                        placeholder={t("projects.addACmNumber")}
                         variant="minimal"
                         className="text-xl text-gray-600"
                     />
@@ -228,7 +230,7 @@ export function ProjectDetailsModal({
 
                 <div>
                     <FieldLabel htmlFor="project-details-practice">
-                        Practice
+                        {t("projects.practice")}
                     </FieldLabel>
                     <ProjectPracticeField
                         id="project-details-practice"
@@ -244,7 +246,7 @@ export function ProjectDetailsModal({
 
                 <div>
                     <FieldLabel htmlFor="project-details-org">
-                        Organisation
+                        {t("projects.organisation")}
                     </FieldLabel>
                     <ModalSelect
                         id="project-details-org"
@@ -259,9 +261,9 @@ export function ProjectDetailsModal({
                     // LiTT: a private matter is never opened to the whole
                     // organization, so the Private/Public choice is not offered.
                     <div data-slot="private-matter-access">
-                        <FieldLabel as="p">Organisational Access</FieldLabel>
+                        <FieldLabel as="p">{t("projects.organisationalAccess")}</FieldLabel>
                         <p className="text-xs leading-4 text-gray-500">
-                            Private matter. Only the people on this matter&apos;s team can open it.
+                            {t("projects.privateMatterOnlyThePeopleOn")}
                         </p>
                     </div>
                 ) : project.org_id ? (

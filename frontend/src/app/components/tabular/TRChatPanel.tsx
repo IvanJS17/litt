@@ -53,9 +53,9 @@ import { chatRequestError } from "@/app/lib/assistantTurnStream";
 import { restoreOptimisticallyDeletedRows } from "@/app/lib/optimisticRows";
 import { notifyError, notifyInfo } from "@/app/lib/userFacingError";
 import {
-    CHAT_CHANGED_MESSAGE,
-    TURN_INTERRUPTED_MESSAGE,
-    TURN_MAY_BE_RUNNING_MESSAGE,
+    chatChangedMessage,
+    turnInterruptedMessage,
+    turnMayBeRunningMessage,
     checkHistoryLabel,
     errorFrameFailure,
     isUncertainDelivery,
@@ -82,6 +82,7 @@ import {
     providerLabel,
     type ModelProvider,
 } from "@/app/lib/modelAvailability";
+import { useTranslations } from "next-intl";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -175,6 +176,7 @@ function TRAssistantMessage({
     msg: TRMessage;
     onCitationClick: (colIdx: number, rowIdx: number) => void;
 }) {
+    const t = useTranslations();
     const annotations = msg.annotations ?? EMPTY_TR_ANNOTATIONS;
     const citationsList: TRCitationAnnotation[] = [];
     const events = msg.events ?? [];
@@ -249,7 +251,7 @@ function TRAssistantMessage({
         if (event.type === "thinking") {
             return (
                 <EventBlock key={key} showConnector={showConnector} isStreaming>
-                    <span>Thinking...</span>
+                    <span>{t("tabular.thinking")}</span>
                 </EventBlock>
             );
         }
@@ -444,6 +446,7 @@ export function TRChatPanel({
     onChatIdChange,
     canSend = true,
 }: Props) {
+    const t = useTranslations();
     const [chats, setChats] = useState<TRChat[]>([]);
     const [currentChatId, setCurrentChatId] = useState<string | null>(
         initialChatId ?? null,
@@ -596,7 +599,7 @@ export function TRChatPanel({
                     // Without this the chat menu just stays empty and the
                     // model/reasoning pickers silently fall back to defaults.
                     notifyError(error, {
-                        action: "load your chat history",
+                        action: t("tabular.loadYourChatHistory"),
                         dedupeKey: `tr-chats:${reviewId}`,
                         onRetry: loadChats,
                     });
@@ -1053,7 +1056,7 @@ export function TRChatPanel({
                 setMessages(snapshot.messages);
             }
             notifyError(error, {
-                action: "delete this chat",
+                action: t("tabular.deleteThisChat"),
                 onRetry: () => {
                     void handleDeleteChat(chatId);
                 },
@@ -1081,7 +1084,7 @@ export function TRChatPanel({
             );
             if (chatId === currentChatId) setCurrentChatTitle(previousTitle);
             notifyError(error, {
-                action: "rename this chat",
+                action: t("tabular.renameThisChat"),
                 onRetry: () => {
                     void handleRenameChat(chatId, title);
                 },
@@ -1183,7 +1186,7 @@ export function TRChatPanel({
             const active = loaded.find((chat) => chat.id === chatId)?.active_turn;
             await recoverTurn(gen, chatId, active?.id ?? null);
         } catch (error) {
-            notifyError(error, { action: "load your chat history" });
+            notifyError(error, { action: t("tabular.loadYourChatHistory") });
         }
     }
 
@@ -1294,7 +1297,7 @@ export function TRChatPanel({
         // attempt created; it refuses once the panel has moved on.
         const retryThisTurn = async () => {
             if (!turnStillCurrent(gen, cursor.chatId)) {
-                notifyInfo(CHAT_CHANGED_MESSAGE);
+                notifyInfo(chatChangedMessage());
                 return;
             }
             await handleSubmit(message, {
@@ -1661,7 +1664,7 @@ export function TRChatPanel({
                                 return updated;
                             });
                             notifyError(failure, {
-                                action: "get a response",
+                                action: t("tabular.getAResponse"),
                                 operation: "tabular.chat",
                                 dedupeKey: `tr-chat-error:${cursor.chatId ?? reviewId}`,
                                 onRetry: retry,
@@ -1695,7 +1698,7 @@ export function TRChatPanel({
                     // part of the answer is missing from the transcript, and
                     // the stream itself keeps going.
                     notifyError(err, {
-                        action: "show part of this answer",
+                        action: t("tabular.showPartOfThisAnswer"),
                         dedupeKey: `tr-chat-frame:${gen}`,
                     });
                 }
@@ -1860,8 +1863,8 @@ export function TRChatPanel({
                             ? {}
                             : {
                                   error: uncertain
-                                      ? TURN_MAY_BE_RUNNING_MESSAGE
-                                      : TURN_INTERRUPTED_MESSAGE,
+                                      ? turnMayBeRunningMessage()
+                                      : turnInterruptedMessage(),
                               }),
                     };
                 }
@@ -1875,7 +1878,7 @@ export function TRChatPanel({
                 // Offer a history check instead.
                 const chatKnown = serverChatId ?? currentChatIdRef.current;
                 notifyError(uncertainDeliveryError(err), {
-                    action: "finish this answer",
+                    action: t("tabular.finishThisAnswer"),
                     dedupeKey: `tr-chat-stream:${reviewId}`,
                     actions: [
                         {
@@ -1896,15 +1899,15 @@ export function TRChatPanel({
                 serverChatId && serverTurnId
                     ? async () => {
                           if (!turnStillCurrent(gen, serverChatId)) {
-                              notifyInfo(CHAT_CHANGED_MESSAGE);
+                              notifyInfo(chatChangedMessage());
                               return;
                           }
                           await recoverTurn(gen, serverChatId, serverTurnId);
                       }
                     : args.settings.retry;
             notifyError(err, {
-                action: "finish this answer",
-                fallback: `${TURN_INTERRUPTED_MESSAGE} Anything already shown is kept.`,
+                action: t("tabular.finishThisAnswer"),
+                fallback: `${turnInterruptedMessage()} Anything already shown is kept.`,
                 dedupeKey: `tr-chat-stream:${reviewId}`,
                 onRetry: retry,
             });
@@ -2004,11 +2007,11 @@ export function TRChatPanel({
                                 }}
                                 items={[
                                     {
-                                        label: "Rename",
+                                        label: t("tabular.rename"),
                                         icon: Pencil,
                                         onSelect: () =>
                                             setTitleDraft(
-                                                currentChatTitle ?? "New Chat",
+                                                currentChatTitle ?? t("tabular.newChat"),
                                             ),
                                         disabled:
                                             !canSend ||
@@ -2017,7 +2020,7 @@ export function TRChatPanel({
                                             isLoading,
                                     },
                                     {
-                                        label: "Delete",
+                                        label: t("tabular.delete"),
                                         icon: Trash2,
                                         onSelect: () => {
                                             if (currentChatId)
@@ -2130,18 +2133,18 @@ export function TRChatPanel({
             </div>
             <WarningPopup
                 open={messageLoadWarning}
-                title="Chat unavailable"
-                message="This chat’s messages could not be loaded. Please try again."
+                title={t("tabular.chatUnavailable")}
+                message={t("tabular.thisChatsMessagesCouldNotBe")}
                 onClose={() => setMessageLoadWarning(false)}
             />
             <ApiKeyMissingPopup
                 open={rejectedApiKey !== null}
-                title="API key rejected"
-                message={`${
+                title={t("tabular.apiKeyRejected")}
+                message={
                     rejectedApiKey?.provider
-                        ? `The ${providerLabel(rejectedApiKey.provider)} API key`
-                        : "That API key"
-                } was rejected. If it is your own key, check it in Settings; otherwise contact your administrator.`}
+                        ? t("tabular.namedApiKeyWasRejected", { provider: providerLabel(rejectedApiKey.provider) })
+                        : t("tabular.thatApiKeyWasRejected")
+                }
                 onClose={() => setRejectedApiKey(null)}
             />
         </div>

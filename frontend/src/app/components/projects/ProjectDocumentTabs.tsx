@@ -52,7 +52,7 @@ export function ProjectDocumentTabs({
     const t = useTranslations();
     return (
         <DocumentTabBar
-            label="Project documents"
+            label={t("projects.projectDocuments")}
             idPrefix="project-document"
             className="project-document-tabs"
             tabs={tabs.map((tab) => {

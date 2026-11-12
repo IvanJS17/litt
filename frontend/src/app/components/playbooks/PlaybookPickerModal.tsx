@@ -13,6 +13,8 @@ import { useDocumentWorkspace } from "@/app/contexts/WorkspaceContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { listPlaybooks, type Playbook } from "@/app/lib/mikeApi";
 import { LIQUID_GLASS_SUBTLE_CLASS } from "@mike/ui";
+import { useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
 
 type Props = {
   open: boolean;
@@ -22,11 +24,11 @@ type Props = {
   initialPlaybookId?: string;
 };
 
-function ruleNames(playbook: Playbook) {
+function ruleNames(playbook: Playbook, t: NsTranslate<"playbooks">) {
   return [
     ...(playbook.content.rules ?? []),
     ...playbook.content.topics.flatMap((topic) => topic.rules),
-  ].map((rule) => rule.name || "Untitled rule");
+  ].map((rule) => rule.name || t("playbooks.untitledRule"));
 }
 
 /** Picks a playbook to run in chat; laid out like the workflow picker. */
@@ -37,6 +39,7 @@ function PlaybookPickerModalForWorkspace({
   breadcrumbs,
   initialPlaybookId,
 }: Props) {
+  const t = useTranslations();
   const workspace = useDocumentWorkspace();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,7 +111,7 @@ function PlaybookPickerModalForWorkspace({
       size={selected ? "xl" : "lg"}
       breadcrumbs={breadcrumbs}
       primaryAction={{
-        label: "Use",
+        label: t("playbooks.use"),
         disabled: !selected,
         onClick: () => {
           if (!selected) return;
@@ -126,7 +129,7 @@ function PlaybookPickerModalForWorkspace({
           <SearchBar
             value={search}
             onValueChange={setSearch}
-            placeholder="Search playbooks..."
+            placeholder={t("playbooks.searchPlaybooks")}
           />
           <div
             data-modal-scroll="vertical"
@@ -148,7 +151,7 @@ function PlaybookPickerModalForWorkspace({
               </div>
             ) : filtered.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">
-                {query ? "No matches found" : "No playbooks found"}
+                {query ? t("playbooks.noMatchesFound") : t("playbooks.noPlaybooksFound")}
               </p>
             ) : (
               <div className="space-y-px">
@@ -172,7 +175,7 @@ function PlaybookPickerModalForWorkspace({
                           isSelected ? "font-medium text-gray-900" : "text-gray-700"
                         }`}
                       >
-                        {playbook.name || "Untitled playbook"}
+                        {playbook.name || t("playbooks.untitledPlaybook")}
                       </span>
                       {!selected && playbook.content.documentTypes.length > 0 && (
                         <span className="shrink-0 truncate text-xs text-gray-400">
@@ -204,15 +207,16 @@ function PlaybookPreview({
   playbook: Playbook;
   onClear: () => void;
 }) {
-  const rules = ruleNames(playbook);
+  const t = useTranslations();
+  const rules = ruleNames(playbook, t);
   const facts = [
-    { label: "Represented", value: playbook.content.representedParty },
-    { label: "Type", value: playbook.content.documentTypes.join(", ") },
-    { label: "Jurisdiction", value: playbook.content.jurisdictions.join(", ") },
+    { label: t("playbooks.represented"), value: playbook.content.representedParty },
+    { label: t("playbooks.type"), value: playbook.content.documentTypes.join(", ") },
+    { label: t("playbooks.jurisdiction"), value: playbook.content.jurisdictions.join(", ") },
   ].filter((fact) => fact.value);
   return (
     <section
-      aria-label={`${playbook.name || "Untitled playbook"} preview`}
+      aria-label={t("playbooks.nameWithPreview", { name: playbook.name || t("playbooks.untitledPlaybook") })}
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-visible"
     >
       <div
@@ -220,11 +224,11 @@ function PlaybookPreview({
       >
         <div className="flex h-9 shrink-0 items-center justify-between px-3">
           <p className="min-w-0 flex-1 truncate text-xs font-medium text-gray-700">
-            {playbook.name || "Untitled playbook"}
+            {playbook.name || t("playbooks.untitledPlaybook")}
           </p>
           <button
             type="button"
-            aria-label="Clear selection"
+            aria-label={t("playbooks.clearSelection")}
             onClick={onClear}
             className={`rounded-md p-1 text-gray-400 transition-colors hover:text-gray-600 ${LIQUID_GLASS_HOVER_CLASS}`}
           >

@@ -10,6 +10,7 @@ import {
     LIQUID_GLASS_MODAL_ROW_HOVER_CLASS,
     LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 type PrimaryAction = Omit<
     ButtonHTMLAttributes<HTMLButtonElement>,
@@ -40,6 +41,7 @@ export function ProjectPickerModal({
     breadcrumbs,
     primaryAction,
 }: Props) {
+    const t = useTranslations();
     const [search, setSearch] = useState("");
     const q = search.toLowerCase().trim();
     const filtered = q
@@ -57,7 +59,7 @@ export function ProjectPickerModal({
                 <SearchBar
                     value={search}
                     onValueChange={setSearch}
-                    placeholder="Search projects..."
+                    placeholder={t("modals.searchProjects")}
                     autoFocus
                 />
             </div>
@@ -83,13 +85,13 @@ export function ProjectPickerModal({
                     </div>
                 ) : filtered.length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-8">
-                        {q ? "No matches found" : "No projects yet"}
+                        {q ? t("modals.noMatchesFound") : t("modals.noProjectsYet")}
                     </p>
                 ) : (
                     <div className="rounded-sm overflow-hidden">
                         <div className="flex items-center justify-between px-2 py-2">
                             <p className="text-xs font-medium text-gray-400">
-                                Projects
+                                {t("modals.projects")}
                             </p>
                         </div>
                         <div className="space-y-px">
@@ -106,7 +108,7 @@ export function ProjectPickerModal({
                                     >
                                         <SelectionCheckbox
                                             checked={isSelected}
-                                            label={`Select ${project.name}`}
+                                            label={t("modals.selectName", { name: project.name })}
                                             onChange={() => onSelect(isSelected ? null : project.id)}
                                         />
                                         <ClosedProjectSvgIcon className="h-3.5 w-3.5 shrink-0" />

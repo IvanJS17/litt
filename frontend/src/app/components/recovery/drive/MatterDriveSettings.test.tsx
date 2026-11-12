@@ -1,7 +1,21 @@
+import type { ReactElement } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MatterDriveSettings } from "./MatterDriveSettings";
+import esMX from "../../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
+
+// These screens are written in Spanish (LiTT's own), so they render in es-MX.
+const wrapEs = (ui: ReactElement) => (
+    <IntlClientProvider locale="es-MX" messages={esMX}>
+        {ui}
+    </IntlClientProvider>
+);
+const renderEs = (ui: ReactElement) => {
+    const result = render(wrapEs(ui));
+    return { ...result, rerender: (next: ReactElement) => result.rerender(wrapEs(next)) };
+};
 
 const api = vi.hoisted(() => ({
   getMatterDriveFolder: vi.fn(),
@@ -63,7 +77,7 @@ beforeEach(() => {
 
 describe("MatterDriveSettings", () => {
   it("makes the non-publication scope and touch controls explicit", async () => {
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await screen.findByDisplayValue("folder-1");
     expect(screen.getByText(/Guardar no publica documentos/)).toBeVisible();
     expect(screen.getByRole("button", { name: "Guardar" })).toHaveClass("h-10");
@@ -76,7 +90,7 @@ describe("MatterDriveSettings", () => {
     api.updateMatterDriveFolder.mockRejectedValue({
       code: "mfa_verification_required",
     });
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await screen.findByDisplayValue("folder-1");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await screen.findByRole("alert");
@@ -89,7 +103,7 @@ describe("MatterDriveSettings", () => {
     expect(api.updateMatterDriveFolder).toHaveBeenCalledTimes(1);
   });
   it("loads and renders the authoritative folder setting for its scope", async () => {
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
 
     expect(screen.getByText("Cargando configuración…")).toBeVisible();
     await waitFor(() =>
@@ -109,7 +123,7 @@ describe("MatterDriveSettings", () => {
 
   it("allows a matter owner to save and explicitly clear the setting", async () => {
     const user = userEvent.setup();
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await waitFor(() =>
       expect(screen.getByDisplayValue("folder-1")).toBeVisible(),
     );
@@ -153,7 +167,7 @@ describe("MatterDriveSettings", () => {
     "keeps %s without edit authority read-only",
     async (role, can_edit) => {
       api.getMatterDriveFolder.mockResolvedValue(settings({ role, can_edit }));
-      render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+      renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
 
       await waitFor(() =>
         expect(screen.getByDisplayValue("folder-1")).toBeVisible(),
@@ -177,14 +191,14 @@ describe("MatterDriveSettings", () => {
       code: "mfa_verification_required",
       message: "internal MFA detail",
     });
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await waitFor(() =>
       expect(screen.getByDisplayValue("folder-1")).toBeVisible(),
     );
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() =>
-      expect(screen.getByText(/Se requiere verificar MFA/)).toBeVisible(),
+      expect(screen.getByText(/Se requiere la verificación en dos pasos/)).toBeVisible(),
     );
     expect(screen.queryByText("internal MFA detail")).not.toBeInTheDocument();
   });
@@ -193,7 +207,7 @@ describe("MatterDriveSettings", () => {
     api.getMatterDriveFolder.mockRejectedValue(
       new Error("secret backend detail"),
     );
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
 
     await waitFor(() =>
       expect(screen.getByText(/no está disponible/)).toBeVisible(),
@@ -208,7 +222,7 @@ describe("MatterDriveSettings", () => {
     const user = userEvent.setup();
     const pending = deferred<ReturnType<typeof settings>>();
     api.updateMatterDriveFolder.mockReturnValue(pending.promise);
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await waitFor(() =>
       expect(screen.getByDisplayValue("folder-1")).toBeVisible(),
     );
@@ -237,7 +251,7 @@ describe("MatterDriveSettings", () => {
             }),
           ),
     );
-    const { rerender } = render(
+    const { rerender } = renderEs(
       <MatterDriveSettings projectId="project-1" matterId="matter-1" />,
     );
     rerender(<MatterDriveSettings projectId="project-2" matterId="matter-2" />);
@@ -256,7 +270,7 @@ describe("MatterDriveSettings", () => {
     const oldWrite = deferred<ReturnType<typeof settings>>();
     api.updateMatterDriveFolder.mockReturnValue(oldWrite.promise);
     const user = userEvent.setup();
-    const { rerender } = render(
+    const { rerender } = renderEs(
       <MatterDriveSettings projectId="project-1" matterId="matter-1" />,
     );
     await waitFor(() =>
@@ -289,7 +303,7 @@ describe("MatterDriveSettings", () => {
       ...settings(),
       project_id: "other-project",
     });
-    const { rerender } = render(
+    const { rerender } = renderEs(
       <MatterDriveSettings projectId="project-1" matterId="matter-1" />,
     );
     await waitFor(() =>
@@ -327,7 +341,7 @@ describe("MatterDriveSettings", () => {
       ...settings(),
       can_edit: "true",
     });
-    const { rerender } = render(
+    const { rerender } = renderEs(
       <MatterDriveSettings projectId="project-1" matterId="matter-1" />,
     );
     await waitFor(() =>
@@ -362,7 +376,7 @@ describe("MatterDriveSettings", () => {
 
   it("rejects blank values and URLs instead of normalizing them", async () => {
     const user = userEvent.setup();
-    render(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
+    renderEs(<MatterDriveSettings projectId="project-1" matterId="matter-1" />);
     await waitFor(() =>
       expect(screen.getByDisplayValue("folder-1")).toBeVisible(),
     );

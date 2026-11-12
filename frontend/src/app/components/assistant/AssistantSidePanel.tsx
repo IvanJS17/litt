@@ -18,7 +18,7 @@ import legislation from "../../../../public/icons/legal-sources/legislation.svg"
 import { BookOpenText } from "lucide-react";
 import { DocumentContent, type DocumentContentMode } from "@/app/components/shared/DocumentContent";
 import { DocumentTabBar } from "../shared/DocumentTabBar";
-import type { Citation, EditAnnotation, PanelDocument } from "../shared/types";
+import { CASE_TITLE_FALLBACK, type Citation, type EditAnnotation, type PanelDocument } from "../shared/types";
 import { cn } from "@/app/lib/utils";
 import { LIQUID_GLASS_FLOAT_CLASS } from "@/app/components/ui/liquid-surface";
 import { reorderTabs, type TabDropPosition } from "@/app/lib/reorderTabs";
@@ -373,7 +373,10 @@ export function AssistantSidePanel({
                         : documentActions?.(tab.document);
                     return {
                         id: tab.id,
-                        title: tab.document.title,
+                        title:
+                            tab.document.title === CASE_TITLE_FALLBACK
+                                ? t("shared.types.caseTitle")
+                                : tab.document.title,
                         versionNumber: tab.document.version_number,
                         icon: isLegalSource ? (
                             <SvgAssetIcon

@@ -20,6 +20,7 @@ import {
     NOTICE_STACK_POSITION_CLASS,
     WarningPopup,
 } from "@/app/components/popups/WarningPopup";
+import { useTranslations } from "next-intl";
 
 export {
     ToastViewportUI,
@@ -36,15 +37,16 @@ export {
 export const OFFLINE_TOAST_KEY = "connectivity";
 
 export function useOfflineNotice() {
+    const t = useTranslations();
     useEffect(() => {
         let offlineToastId: string | null = null;
 
         const onOffline = () => {
             offlineToastId = showToast({
                 tone: "error",
-                title: "You're offline",
+                title: t("ui.youreOffline"),
                 message:
-                    "Changes can't be saved until your connection is back.",
+                    t("ui.changesCantBeSavedUntilYour"),
                 durationMs: null,
                 dedupeKey: OFFLINE_TOAST_KEY,
             });
@@ -55,7 +57,7 @@ export function useOfflineNotice() {
                 offlineToastId = null;
                 showToast({
                     tone: "success",
-                    message: "You're back online.",
+                    message: t("ui.youreBackOnline"),
                     dedupeKey: OFFLINE_TOAST_KEY,
                 });
             }

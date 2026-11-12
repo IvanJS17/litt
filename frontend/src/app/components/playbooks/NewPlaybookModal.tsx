@@ -11,6 +11,7 @@ import {
   trimPlaybookDetails,
   type PlaybookDetails,
 } from "./PlaybookDetailsFields";
+import { useTranslations } from "next-intl";
 
 /**
  * Starts a playbook from scratch. Only the name is required; the rest can be
@@ -32,6 +33,7 @@ export function NewPlaybookModal({
     visibility: ContentVisibility,
   ) => Promise<boolean>;
 }) {
+  const t = useTranslations();
   const [details, setDetails] = useState(EMPTY_PLAYBOOK_DETAILS);
   const [visibility, setVisibility] = useState<ContentVisibility>("private");
   const [creating, setCreating] = useState(false);
@@ -62,16 +64,16 @@ export function NewPlaybookModal({
       onClose={() => {
         if (!creating) onClose();
       }}
-      breadcrumbs={["Playbooks", "New playbook"]}
+      breadcrumbs={[t("playbooks.intake.breadcrumb"), t("playbooks.newMenu.trigger")]}
       primaryAction={{
-        label: creating ? "Creating…" : "Create",
+        label: creating ? t("playbooks.creating") : t("playbooks.create"),
         icon: creating ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : undefined,
         onClick: () => void create(),
         disabled: !trimmed.name || creating,
       }}
-      cancelAction={{ label: "Cancel", onClick: onClose, disabled: creating }}
+      cancelAction={{ label: t("playbooks.cancel"), onClick: onClose, disabled: creating }}
     >
       <form
         data-modal-scroll="vertical"

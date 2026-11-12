@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { Workflow } from "../shared/types";
 import { WorkflowPickerModal } from "../workflows/WorkflowPickerModal";
+import { useTranslations } from "next-intl";
 
 interface TRWorkflowModalProps {
     open: boolean;
@@ -19,6 +20,7 @@ export function TRWorkflowModal({
     breadcrumbs,
     applying = false,
 }: TRWorkflowModalProps) {
+    const t = useTranslations();
     return (
         <WorkflowPickerModal
             open={open}
@@ -26,8 +28,8 @@ export function TRWorkflowModal({
             onSelect={onApply}
             workflowType="tabular"
             breadcrumbs={breadcrumbs}
-            primaryLabel="Apply"
-            selectingLabel="Applying..."
+            primaryLabel={t("tabular.apply")}
+            selectingLabel={t("tabular.applying")}
             selecting={applying}
             closeOnSelect={false}
             disabledWorkflow={(workflow) => !workflow.columns_config?.length}

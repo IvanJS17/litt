@@ -8,7 +8,7 @@ import {
     type Dispatch,
     type SetStateAction,
 } from "react";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import {
     RowActionMenuItems,
@@ -50,11 +50,16 @@ import type { Chat } from "@/app/components/shared/types";
 import { can, roleFrom } from "@/app/lib/permissions";
 import type { OwnerGate } from "./ProjectWorkspace";
 import { formatDate } from "./ProjectPageParts";
+import type { NsTranslate } from "@/i18n/Translate";
 import { useIdSet } from "@/app/hooks/useIdSet";
 
-function creatorLabel(chat: Chat, currentUserId?: string | null) {
-    if (currentUserId && chat.user_id === currentUserId) return "Me";
-    return chat.creator_display_name?.trim() || "Shared";
+function creatorLabel(
+    chat: Chat,
+    currentUserId: string | null | undefined,
+    t: NsTranslate<"projects">,
+) {
+    if (currentUserId && chat.user_id === currentUserId) return t("projects.me");
+    return chat.creator_display_name?.trim() || t("projects.shared");
 }
 
 type ProjectChatSortKey = "name" | "created";
@@ -98,6 +103,7 @@ export function ProjectAssistantTable({
     loading?: boolean;
     renderToolbar?: (actions: ReactNode) => ReactNode;
 }) {
+    const t = useTranslations();
     const format = useFormatter();
     const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
     const [sort, setSort] = useState<{
@@ -119,7 +125,7 @@ export function ProjectAssistantTable({
      */
     function requestDeleteChat(chat: Chat) {
         if (!can(roleFrom(chat), "container.delete")) {
-            onOwnerOnlyAction("delete this chat");
+            onOwnerOnlyAction(t("projects.deleteThisChat"));
             return;
         }
         setChatPendingDelete(chat);
@@ -132,10 +138,10 @@ export function ProjectAssistantTable({
 
     function requestRenameChat(chat: Chat) {
         if (!can(roleFrom(chat), "access.manage")) {
-            onOwnerOnlyAction({ action: "rename this chat", requiredRole: "owner" });
+            onOwnerOnlyAction({ action: t("projects.renameThisChat"), requiredRole: "owner" });
             return;
         }
-        setRenameChatValue(chat.title ?? "Untitled Chat");
+        setRenameChatValue(chat.title ?? t("projects.untitledChat"));
         setRenamingChatId(chat.id);
     }
 
@@ -209,12 +215,12 @@ export function ProjectAssistantTable({
             }
 
             return (
-                (a.title ?? "Untitled Chat").localeCompare(
-                    b.title ?? "Untitled Chat",
+                (a.title ?? t("projects.untitledChat")).localeCompare(
+                    b.title ?? t("projects.untitledChat"),
                 ) * multiplier
             );
         });
-    }, [creatorFilter, filteredChats, sort]);
+    }, [creatorFilter, filteredChats, sort, t]);
 
     const allVisibleChatsSelected =
         visibleChats.length > 0 &&
@@ -227,7 +233,7 @@ export function ProjectAssistantTable({
         sort?.key === "created" ? sort.direction : null;
     const nameFilterButton = (
         <TableSortFilter
-            label="Sort by chat name"
+            label={t("projects.sortByChatName")}
             value={nameSortDirection}
             align="right"
             onChange={(direction) => handleSortChange("name", direction)}
@@ -235,7 +241,7 @@ export function ProjectAssistantTable({
     );
     const creatorFilterButton = (
         <PersonFilter
-            label="Filter by creator"
+            label={t("projects.filterByCreator")}
             selectedTitle={(name) => `Created by ${name}`}
             value={
                 creatorPeople.find(
@@ -250,7 +256,7 @@ export function ProjectAssistantTable({
     );
     const createdFilterButton = (
         <TableSortFilter
-            label="Sort by created date"
+            label={t("projects.sortByCreatedDate")}
             value={createdSortDirection}
             onChange={(direction) => handleSortChange("created", direction)}
         />
@@ -290,18 +296,18 @@ export function ProjectAssistantTable({
                                 className={TABLE_CHECKBOX_CLASS}
                             />
                         )}
-                        <span className="mr-1">Chats</span>
+                        <span className="mr-1">{t("projects.chats")}</span>
                         {!loading && nameFilterButton}
                     </TableStickyCell>
                     <TableHeaderCell className="ml-auto w-32">
                         <div className="flex items-center gap-1">
-                            <span>Creator</span>
+                            <span>{t("projects.creator")}</span>
                             {!loading && creatorFilterButton}
                         </div>
                     </TableHeaderCell>
                     <TableHeaderCell className="w-32">
                         <div className="flex items-center gap-1">
-                            <span>Created</span>
+                            <span>{t("projects.created")}</span>
                             {!loading && createdFilterButton}
                         </div>
                     </TableHeaderCell>
@@ -315,8 +321,8 @@ export function ProjectAssistantTable({
                 <TableEmptyState>
                     <EmptyState
                         icon={<ChatSkeuoIcon />}
-                        title="Assistant"
-                        description="Ask questions and get answers grounded in the documents in this project."
+                        title={t("projects.assistant")}
+                        description={t("projects.askQuestionsAndGetAnswersGrounded")}
                         action={
                             <PillButtonUI
                                 tone="black"
@@ -324,7 +330,7 @@ export function ProjectAssistantTable({
                                 onClick={onCreateChat}
                                 disabled={!canCreateChat}
                             >
-                                Create
+                                {t("projects.create")}
                             </PillButtonUI>
                         }
                     />
@@ -382,7 +388,7 @@ export function ProjectAssistantTable({
                                             : [...prev, chat.id];
                                     })
                                 }
-                                label={chat.title ?? "Untitled Chat"}
+                                label={chat.title ?? t("projects.untitledChat")}
                                 editing={renamingChatId === chat.id}
                                 editValue={renameChatValue}
                                 onEditValueChange={setRenameChatValue}
@@ -393,7 +399,7 @@ export function ProjectAssistantTable({
                             />
                             <TableCell className="ml-auto w-32">
                                 <CreatorLabel
-                                    label={creatorLabel(chat, currentUserId)}
+                                    label={creatorLabel(chat, currentUserId, t)}
                                     photo={chat.creator_profile_photo}
                                     name={chat.creator_display_name}
                                 />
@@ -419,9 +425,9 @@ export function ProjectAssistantTable({
         </TableScrollArea>
         <ConfirmPopup
             open={chatPendingDelete !== null}
-            title="Delete chat?"
-            message="This cannot be undone."
-            confirmLabel="Delete"
+            title={t("projects.deleteChat")}
+            message={t("projects.thisCannotBeUndone")}
+            confirmLabel={t("projects.delete")}
             confirmVariant="danger"
             onCancel={() => setChatPendingDelete(null)}
             onConfirm={() => {

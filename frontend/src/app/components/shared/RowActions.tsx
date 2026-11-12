@@ -87,7 +87,7 @@ export function RowActionMenuItems({
     onDeselect,
     onView,
     onAdd,
-    addLabel = "Add",
+    addLabel: addLabelProp,
     addStatus,
     addDisabled = false,
     onDelete,
@@ -115,6 +115,7 @@ export function RowActionMenuItems({
     onClose,
 }: RowActionMenuItemsProps) {
     const t = useTranslations();
+  const addLabel = addLabelProp ?? t("shared.rowActions.add");
     const run = (action: () => void) => () => {
         onClose?.();
         action();

@@ -18,12 +18,14 @@ import {
 import { isOrgAdmin } from "@/app/lib/permissions";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { MemberIdentity, membersById } from "./trainingShared";
+import { useTranslations } from "next-intl";
 
 // Ajustes → Organización → Formación, for its owners and admins: who is a
 // mentor and whose mentor they are. Stages are a matter between a mentor
 // and their pupil, so they are not shown here (the server does not send them).
 
 export function OrganizationTraining() {
+    const t = useTranslations();
     const { orgId, org } = useOrganizationSettings();
     const canManage = org !== null && isOrgAdmin(org.role);
     const [members, setMembers] = useState<OrgMember[] | null>(null);
@@ -52,7 +54,7 @@ export function OrganizationTraining() {
     if (!canManage) {
         return (
             <SettingsDescription>
-                Solo el dueño o un administrador de la organización designa mentores.
+                {t("training.soloElDuenoOUnAdministrador")}
             </SettingsDescription>
         );
     }
@@ -84,10 +86,9 @@ export function OrganizationTraining() {
 
     return (
         <section className="space-y-3">
-            <SettingsHeading>Formación</SettingsHeading>
+            <SettingsHeading>{t("training.formacion")}</SettingsHeading>
             <SettingsDescription>
-                Designa a los mentores del despacho. Cada mentor toma a sus pupilos y les
-                asigna su etapa por materia en Ajustes → Formación.
+                {t("training.designaALosMentoresDelDespacho")}
             </SettingsDescription>
             {loadError && <p className="text-sm text-red-600">{loadError}</p>}
             <GlassCardUI>
@@ -109,31 +110,31 @@ export function OrganizationTraining() {
                                     <MemberIdentity member={member} userId={member.user_id} />
                                     {pupils.length > 0 && (
                                         <div className="text-sm text-gray-500">
-                                            <span className="font-medium text-gray-700">Mentor de: </span>
+                                            <span className="font-medium text-gray-700">{t("training.mentorDe")} </span>
                                             {pupils
                                                 .map((pupil) => {
                                                     const who = byId.get(pupil.trainee_user_id);
-                                                    return who?.display_name || who?.email || "Miembro";
+                                                    return who?.display_name || who?.email || t("training.miembro");
                                                 })
                                                 .join(", ")}
                                         </div>
                                     )}
                                     {mentorOf && (
                                         <p className="text-sm text-gray-500 break-words">
-                                            Pupilo de{" "}
+                                            {t("training.pupiloDe")}{" "}
                                             {byId.get(mentorOf.mentor_user_id)?.display_name ||
                                                 byId.get(mentorOf.mentor_user_id)?.email ||
-                                                "un mentor"}
+                                                t("training.unMentor")}
                                         </p>
                                     )}
                                 </div>
                                 <label className="flex shrink-0 items-center gap-2 text-sm text-gray-700">
-                                    Mentor
+                                    {t("training.mentor")}
                                     <ToggleSwitchUI
                                         checked={mentors.has(member.user_id)}
                                         disabled={saving !== null}
                                         aria-busy={saving === member.user_id}
-                                        aria-label={`Mentor: ${member.display_name || member.email || "miembro"}`}
+                                        aria-label={t("training.mentorNombre", { name: member.display_name || member.email || t("training.miembro") })}
                                         onCheckedChange={(checked) => {
                                             void toggleMentor(member.user_id, checked);
                                         }}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { DocumentPill } from "@/app/components/shared/DocumentPill";
@@ -19,9 +20,9 @@ export function PlaybookReviewDocuments({
   onAddDocuments,
   onRemove,
   labelledBy,
-  emptyPrompt = "Drag and drop PDF, DOCX, or TXT files here, or click to choose saved files or upload more.",
-  addMorePrompt = "Drop more documents here, or click to add more.",
-  dropPrompt = "Drop documents to add them",
+  emptyPrompt: emptyPromptProp,
+  addMorePrompt: addMorePromptProp,
+  dropPrompt: dropPromptProp,
 }: {
   documents: ReviewDocument[];
   disabled: boolean;
@@ -39,6 +40,10 @@ export function PlaybookReviewDocuments({
   /** What the area says while files are dragged over it. */
   dropPrompt?: string;
 }) {
+  const t = useTranslations();
+  const emptyPrompt = emptyPromptProp ?? t("playbooks.dragAndDropPdfDocxOrTxt");
+  const addMorePrompt = addMorePromptProp ?? t("playbooks.dropMoreDocumentsHere");
+  const dropPrompt = dropPromptProp ?? t("playbooks.dropDocumentsToAddThem");
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
 
@@ -74,7 +79,7 @@ export function PlaybookReviewDocuments({
         <>
           {disabled ? (
             <p className="mb-3 text-xs text-gray-500" aria-live="polite">
-              {`${documents.filter((document) => document.status === "completed").length} of ${documents.length} started`}
+              {t("playbooks.countOfTotalStarted", { count: documents.filter((document) => document.status === "completed").length, total: documents.length })}
             </p>
           ) : (
             <button
@@ -113,11 +118,11 @@ export function PlaybookReviewDocuments({
                   }
                   status={
                     document.status === "reviewing"
-                      ? "Starting…"
+                      ? t("playbooks.starting")
                       : document.status === "completed"
-                        ? "Started"
+                        ? t("playbooks.started")
                         : document.status === "failed"
-                          ? "Couldn’t start"
+                          ? t("playbooks.couldnTStart")
                           : undefined
                   }
                   tone={document.status === "failed" ? "error" : "default"}
