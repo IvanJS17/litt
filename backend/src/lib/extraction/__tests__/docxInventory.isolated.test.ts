@@ -38,17 +38,23 @@ describe("docxInventory in the parser process", () => {
   });
 
   it("cuts a package that lies about its size at the parser's memory limit, without growing the API", async () => {
-    vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "64");
+    // A budget above the parser's start-up floor: a valid package passes in it,
+    // so the failure below comes from the lying package and not from the budget.
+    vi.stubEnv("EXTRACTION_MAX_MEMORY_MB", "512");
     // Whichever bound trips first (memory or deadline) stops it; both are limits.
-    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "15000");
-    const bytes = await lyingDocx(200 * 1024 * 1024);
-    expect(bytes.length).toBeLessThan(1024 * 1024);
+    vi.stubEnv("EXTRACTION_TIMEOUT_MS", "30000");
+    const valid = await buildRichDocx();
+    await expect(
+      runIsolatedExtraction("docxInventory", async () => toBuffer(valid), { fileType: "docx" }),
+    ).resolves.toMatchObject({ comments: 1 });
+    const bytes = await lyingDocx(800 * 1024 * 1024);
+    expect(bytes.length).toBeLessThan(2 * 1024 * 1024);
     const before = process.memoryUsage().rss;
     await expect(
       runIsolatedExtraction("docxInventory", async () => toBuffer(bytes), { fileType: "docx" }),
     ).rejects.toBeInstanceOf(ExtractionLimitError);
     const grown = process.memoryUsage().rss - before;
-    // Inflating 200 MB here would grow the process by at least that much.
+    // Inflating 800 MB here would grow the process by at least that much.
     expect(grown).toBeLessThan(100 * 1024 * 1024);
-  }, 60_000);
+  }, 90_000);
 });
