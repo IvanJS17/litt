@@ -97,7 +97,7 @@ export function OrganizationGeneralSettings() {
   function pickLogo(file: File) {
     try {
       // Type and size, before anything is opened.
-      validateOrgLogoFile(file);
+      validateOrgLogoFile(file, t);
     } catch (error) {
       setFailure({
         title: t("organizations.organizationGeneralSettings.logoNotUpdated"),

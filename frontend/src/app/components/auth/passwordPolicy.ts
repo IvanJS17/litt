@@ -8,9 +8,6 @@ export const MIN_PASSWORD_LENGTH = 10;
  */
 export const MAX_PASSWORD_LENGTH = 72;
 
-export const minimumPasswordMessage = `Password must be at least ${MIN_PASSWORD_LENGTH} characters`;
-export const maximumPasswordMessage = `Password must be at most ${MAX_PASSWORD_LENGTH} UTF-8 bytes. Accented characters and emoji can use more than one byte.`;
-
 /** What the 72-byte limit actually counts. */
 export function passwordByteLength(password: string): number {
     return new TextEncoder().encode(password).length;

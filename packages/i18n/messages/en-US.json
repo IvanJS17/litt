@@ -181,6 +181,7 @@
       "name": "Name",
       "optionallyAddYourProfessionalSettingPrimary": "Optionally add your professional setting, primary jurisdiction, and the areas you work in.",
       "organisation": "Organisation",
+      "organizationFallback": "Organization",
       "organizationInvitations": "Organization invitations",
       "pleaseTryAgain": "Please try again.",
       "refreshInvitations": "Refresh invitations",
@@ -949,6 +950,11 @@
       "emailNotSent": "The invitation to {email} was created, but the email could not be sent.",
       "invalidEmail": "{email} is not a valid email address.",
       "other": "{email} could not be invited. Try again."
+    },
+    "logoImage": {
+      "chooseSize": "Choose an image under 10 MB.",
+      "chooseType": "Choose a PNG, JPEG or WebP image.",
+      "couldNotPrepare": "That image could not be prepared."
     },
     "memberDepartureDialog": {
       "archivedsummaryWillBeArchivedFor30": "{archivedSummary} will be archived for 30 days.",
@@ -1906,6 +1912,159 @@
       },
       "tieredPricing": "tiered pricing",
       "variesByProvider": "varies by provider"
+    },
+    "searchIndex": {
+      "accountDelete": {
+        "description": "Permanently delete your account and everything you keep outside your firm's matters. You can download your data first.",
+        "keywords": "danger zone|remove account|close account|deactivate|cancel account|erase|erasure|borrar cuenta|eliminar cuenta|borrado de cuenta|darse de baja",
+        "title": "Delete account"
+      },
+      "accountEmail": {
+        "description": "The email address you sign in with, and how to change it.",
+        "keywords": "email address|change email|update email|login email|sign in|mail",
+        "title": "Email"
+      },
+      "accountPlan": {
+        "description": "The plan your account is on.",
+        "keywords": "plan|subscription|billing|free|pro|tier|upgrade|pricing|usage",
+        "title": "Usage Plan"
+      },
+      "accountProfile": {
+        "description": "Your display name and profile photo.",
+        "keywords": "name|display name|photo|picture|avatar|upload photo|username|nickname",
+        "title": "Profile"
+      },
+      "accountSourceCode": {
+        "description": "LiTT is free software under the AGPL-3.0 licence: the code of the exact version you are using.",
+        "keywords": "acerca de|about|source code|source|codigo|agpl|license|licencia|open source|software libre|github|version|commit",
+        "title": "Source code"
+      },
+      "appearanceDarkMode": {
+        "description": "Use a darker color palette throughout LiTT.",
+        "keywords": "theme|dark|light mode|night mode|colour|color|palette|display|look|contrast|black background",
+        "title": "Dark mode"
+      },
+      "byok": {
+        "description": "Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",
+        "keywords": "byok|api key|api keys|key|keys|token|secret|credentials|provider|providers|model provider|anthropic|claude|openai|chatgpt|gpt|gemini|google|mistral|xai|grok|bedrock|aws|azure|vertex|openrouter|vercel|ai gateway|custom endpoint|base url|own model|connect model|llm|llave|clave api|conectar modelo|add key|add provider|enable provider|disable provider|no models|missing key",
+        "title": "Bring Your Own Keys"
+      },
+      "connectorsDiscover": {
+        "description": "Connect Google Drive, Gmail, Calendar, or a custom MCP server.",
+        "keywords": "google drive|gmail|google calendar|calendar|drive|add connector|custom connector|mcp|oauth|connect google|link account|integration",
+        "title": "Discover connectors"
+      },
+      "connectorsInstalled": {
+        "description": "The data sources and tools connected to this workspace.",
+        "keywords": "connector|integration|integrations|mcp|mcp server|plugin|plugins|tools|data source|connected apps|remove connector|disconnect",
+        "title": "Installed connectors"
+      },
+      "featuresQuickActions": {
+        "description": "Show the quick actions row on the assistant start screen.",
+        "keywords": "shortcuts|start screen|home screen|suggestions|prompt suggestions|assistant|buttons",
+        "title": "Quick actions"
+      },
+      "featuresResponseDetails": {
+        "description": "Show the model, reasoning effort and token count under each response and subagent.",
+        "keywords": "token count|tokens|usage|model name|reasoning effort|metadata|debug|stats|show model|cost",
+        "title": "Response details"
+      },
+      "firmCriteria": {
+        "description": "Positions and dissenting opinions written by the people in your firm, under their name, which the assistant can consult for whoever is in training.",
+        "keywords": "criterios|criterio|firm criteria|criteria|voto particular|dissenting opinion|postura|posturas|despacho|firm|socio|partner|formacion|training",
+        "title": "Firm criteria"
+      },
+      "memory": {
+        "description": "Whether LiTT remembers durable information from your conversations.",
+        "keywords": "remember|forget|memories|recall|context|history|learn|retain|memorise|memorize",
+        "title": "Memory"
+      },
+      "memoryFile": {
+        "description": "Read and edit what LiTT has remembered about you.",
+        "keywords": "edit memory|memory notes|what litt knows|saved facts|clear memory|memory contents",
+        "title": "Memory file"
+      },
+      "modelsChatTitle": {
+        "description": "Which model names your chats.",
+        "keywords": "chat titles|conversation name|auto title|naming|cheap model|low cost model",
+        "title": "Chat title generation"
+      },
+      "modelsMemory": {
+        "description": "The model that decides what is worth remembering after a conversation.",
+        "keywords": "memory model|curation|remember|default model",
+        "title": "Memory curation model"
+      },
+      "modelsSubagents": {
+        "description": "The model routes LiTT's subagents may run on; each result names the route and model it used.",
+        "keywords": "subagent|subagents|sub-agent|subagente|agents|agentes|route|routes|model route|rutas|ruta de modelo|reasoning|reasoning effort|thinking|delegate|parallel|worker model|effort level",
+        "title": "Subagentes"
+      },
+      "modelsTabular": {
+        "description": "The model preselected when you create a tabular review.",
+        "keywords": "tabular|review model|table review|spreadsheet|extraction model|default model",
+        "title": "Tabular review model"
+      },
+      "myActivity": {
+        "description": "A log of what you have done in LiTT.",
+        "keywords": "activity log|audit|audit log|history|events|recent actions|what did i do|timeline|sessions",
+        "title": "My Activity"
+      },
+      "organizations": {
+        "description": "The organizations you belong to, and each one's settings.",
+        "keywords": "organisation|organization|org|team|workspace|company|firm|members|admin|switch organization|leave organization|create organization",
+        "title": "My organizations"
+      },
+      "organizationsInvitations": {
+        "description": "Organizations that have invited you to join.",
+        "keywords": "invite|invitation|invited|join|join team|pending invitations|accept invitation|decline",
+        "title": "Invitations"
+      },
+      "personalisationBackground": {
+        "description": "Your title, professional setting, jurisdiction and practice areas, so responses fit your context.",
+        "keywords": "role|job title|profession|jurisdiction|country|practice area|practice areas|law firm|in-house|lawyer|solicitor|attorney|context|personalization|profile|about me",
+        "title": "Your background"
+      },
+      "personalisationResponseStyle": {
+        "description": "How LiTT shapes its answers: verbosity, tone and language.",
+        "keywords": "verbosity|concise|detailed|tone|language|formal|casual|length|short answers|long answers|writing style|output style|translate|locale",
+        "title": "Response style"
+      },
+      "privacyDelete": {
+        "description": "Delete all your chats, tabular reviews, projects or memory.",
+        "keywords": "delete chats|delete all chats|clear history|delete projects|delete reviews|delete memory|wipe|erase|purge|remove data|clear everything|gdpr",
+        "title": "Delete data"
+      },
+      "privacyExport": {
+        "description": "Download your chats, tabular reviews, account JSON and memory, for example before deleting your account.",
+        "keywords": "download|backup|export chats|export reviews|json|take my data|data portability|gdpr|archive|copy of my data|privacy|descargar datos|descarga de datos|exportar|privacidad|respaldo",
+        "title": "Export data"
+      },
+      "securityMfa": {
+        "description": "Add an authenticator app to protect sensitive actions, and ask for a code on every login.",
+        "keywords": "mfa|2fa|two factor|two-factor|two step|authenticator|authenticator app|totp|verification code|login verification|one time code|otp|google authenticator|authy|secure account|protect account",
+        "title": "Multi-Factor Authentication"
+      },
+      "securityPassword": {
+        "description": "Set a password or send yourself a password-reset link.",
+        "keywords": "change password|reset password|forgot password|new password|passcode|credentials|login|sign in",
+        "title": "Password"
+      },
+      "tabFirmCriteria": "Firm criteria",
+      "training": {
+        "description": "Your mentor and your stages as an intern: your turn first, notes and approval of your drafts.",
+        "keywords": "formacion|training|mentor|mentora|pasante|intern|trainee|etapa|etapas|stage|tu turno primero|notas|sello|aprobacion|approval|supervisor",
+        "title": "My training"
+      },
+      "trainingMentorPanel": {
+        "description": "Supervise each mentee: summaries of their work, oral defence, urgency pass and promotion.",
+        "keywords": "mentor panel|panel|supervision|supervisión|resumen|review|defensa oral|oral defense|pase de urgencia|urgency pass|promocion|promoción|promotion|pupilos",
+        "title": "Mentor panel"
+      },
+      "trainingPupils": {
+        "description": "The interns you supervise as a mentor and each one's stage.",
+        "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
+        "title": "My mentees"
+      }
     },
     "security": {
       "actions": {

@@ -181,6 +181,7 @@
       "name": "Nombre",
       "optionallyAddYourProfessionalSettingPrimary": "Si quieres, agrega tu ámbito profesional, tu jurisdicción principal y las áreas en las que trabajas.",
       "organisation": "Organización",
+      "organizationFallback": "⟦por traducir⟧ Organization",
       "organizationInvitations": "Invitaciones a organizaciones",
       "pleaseTryAgain": "Inténtalo de nuevo.",
       "refreshInvitations": "Actualizar invitaciones",
@@ -949,6 +950,11 @@
       "emailNotSent": "Se creó la invitación para {email}, pero no se pudo enviar el correo.",
       "invalidEmail": "{email} no es una dirección de correo válida.",
       "other": "No se pudo invitar a {email}. Inténtalo de nuevo."
+    },
+    "logoImage": {
+      "chooseSize": "⟦por traducir⟧ Choose an image under 10 MB.",
+      "chooseType": "⟦por traducir⟧ Choose a PNG, JPEG or WebP image.",
+      "couldNotPrepare": "⟦por traducir⟧ That image could not be prepared."
     },
     "memberDepartureDialog": {
       "archivedsummaryWillBeArchivedFor30": "{archivedSummary} se archivará durante 30 días.",
@@ -1906,6 +1912,159 @@
       },
       "tieredPricing": "precios por niveles",
       "variesByProvider": "varía según el proveedor"
+    },
+    "searchIndex": {
+      "accountDelete": {
+        "description": "⟦por traducir⟧ Permanently delete your account and everything you keep outside your firm's matters. You can download your data first.",
+        "keywords": "⟦por traducir⟧ danger zone|remove account|close account|deactivate|cancel account|erase|erasure|borrar cuenta|eliminar cuenta|borrado de cuenta|darse de baja",
+        "title": "⟦por traducir⟧ Delete account"
+      },
+      "accountEmail": {
+        "description": "⟦por traducir⟧ The email address you sign in with, and how to change it.",
+        "keywords": "⟦por traducir⟧ email address|change email|update email|login email|sign in|mail",
+        "title": "⟦por traducir⟧ Email"
+      },
+      "accountPlan": {
+        "description": "⟦por traducir⟧ The plan your account is on.",
+        "keywords": "⟦por traducir⟧ plan|subscription|billing|free|pro|tier|upgrade|pricing|usage",
+        "title": "⟦por traducir⟧ Usage Plan"
+      },
+      "accountProfile": {
+        "description": "⟦por traducir⟧ Your display name and profile photo.",
+        "keywords": "⟦por traducir⟧ name|display name|photo|picture|avatar|upload photo|username|nickname",
+        "title": "⟦por traducir⟧ Profile"
+      },
+      "accountSourceCode": {
+        "description": "LiTT es software libre bajo la licencia AGPL-3.0: el código de la versión exacta que estás usando.",
+        "keywords": "acerca de|about|source code|source|codigo|agpl|license|licencia|open source|software libre|github|version|commit",
+        "title": "Código fuente"
+      },
+      "appearanceDarkMode": {
+        "description": "⟦por traducir⟧ Use a darker color palette throughout LiTT.",
+        "keywords": "⟦por traducir⟧ theme|dark|light mode|night mode|colour|color|palette|display|look|contrast|black background",
+        "title": "⟦por traducir⟧ Dark mode"
+      },
+      "byok": {
+        "description": "⟦por traducir⟧ Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",
+        "keywords": "⟦por traducir⟧ byok|api key|api keys|key|keys|token|secret|credentials|provider|providers|model provider|anthropic|claude|openai|chatgpt|gpt|gemini|google|mistral|xai|grok|bedrock|aws|azure|vertex|openrouter|vercel|ai gateway|custom endpoint|base url|own model|connect model|llm|llave|clave api|conectar modelo|add key|add provider|enable provider|disable provider|no models|missing key",
+        "title": "⟦por traducir⟧ Bring Your Own Keys"
+      },
+      "connectorsDiscover": {
+        "description": "⟦por traducir⟧ Connect Google Drive, Gmail, Calendar, or a custom MCP server.",
+        "keywords": "⟦por traducir⟧ google drive|gmail|google calendar|calendar|drive|add connector|custom connector|mcp|oauth|connect google|link account|integration",
+        "title": "⟦por traducir⟧ Discover connectors"
+      },
+      "connectorsInstalled": {
+        "description": "⟦por traducir⟧ The data sources and tools connected to this workspace.",
+        "keywords": "⟦por traducir⟧ connector|integration|integrations|mcp|mcp server|plugin|plugins|tools|data source|connected apps|remove connector|disconnect",
+        "title": "⟦por traducir⟧ Installed connectors"
+      },
+      "featuresQuickActions": {
+        "description": "⟦por traducir⟧ Show the quick actions row on the assistant start screen.",
+        "keywords": "⟦por traducir⟧ shortcuts|start screen|home screen|suggestions|prompt suggestions|assistant|buttons",
+        "title": "⟦por traducir⟧ Quick actions"
+      },
+      "featuresResponseDetails": {
+        "description": "⟦por traducir⟧ Show the model, reasoning effort and token count under each response and subagent.",
+        "keywords": "⟦por traducir⟧ token count|tokens|usage|model name|reasoning effort|metadata|debug|stats|show model|cost",
+        "title": "⟦por traducir⟧ Response details"
+      },
+      "firmCriteria": {
+        "description": "Posturas y votos particulares que escriben las personas de tu despacho, con su nombre, y que el asistente puede consultar para quien está en formación.",
+        "keywords": "criterios|criterio|firm criteria|criteria|voto particular|dissenting opinion|postura|posturas|despacho|firm|socio|partner|formacion|training",
+        "title": "Criterios del despacho"
+      },
+      "memory": {
+        "description": "⟦por traducir⟧ Whether LiTT remembers durable information from your conversations.",
+        "keywords": "⟦por traducir⟧ remember|forget|memories|recall|context|history|learn|retain|memorise|memorize",
+        "title": "⟦por traducir⟧ Memory"
+      },
+      "memoryFile": {
+        "description": "⟦por traducir⟧ Read and edit what LiTT has remembered about you.",
+        "keywords": "⟦por traducir⟧ edit memory|memory notes|what litt knows|saved facts|clear memory|memory contents",
+        "title": "⟦por traducir⟧ Memory file"
+      },
+      "modelsChatTitle": {
+        "description": "⟦por traducir⟧ Which model names your chats.",
+        "keywords": "⟦por traducir⟧ chat titles|conversation name|auto title|naming|cheap model|low cost model",
+        "title": "⟦por traducir⟧ Chat title generation"
+      },
+      "modelsMemory": {
+        "description": "⟦por traducir⟧ The model that decides what is worth remembering after a conversation.",
+        "keywords": "⟦por traducir⟧ memory model|curation|remember|default model",
+        "title": "⟦por traducir⟧ Memory curation model"
+      },
+      "modelsSubagents": {
+        "description": "⟦por traducir⟧ The model routes LiTT's subagents may run on; each result names the route and model it used.",
+        "keywords": "⟦por traducir⟧ subagent|subagents|sub-agent|subagente|agents|agentes|route|routes|model route|rutas|ruta de modelo|reasoning|reasoning effort|thinking|delegate|parallel|worker model|effort level",
+        "title": "⟦por traducir⟧ Subagentes"
+      },
+      "modelsTabular": {
+        "description": "⟦por traducir⟧ The model preselected when you create a tabular review.",
+        "keywords": "⟦por traducir⟧ tabular|review model|table review|spreadsheet|extraction model|default model",
+        "title": "⟦por traducir⟧ Tabular review model"
+      },
+      "myActivity": {
+        "description": "⟦por traducir⟧ A log of what you have done in LiTT.",
+        "keywords": "⟦por traducir⟧ activity log|audit|audit log|history|events|recent actions|what did i do|timeline|sessions",
+        "title": "⟦por traducir⟧ My Activity"
+      },
+      "organizations": {
+        "description": "⟦por traducir⟧ The organizations you belong to, and each one's settings.",
+        "keywords": "⟦por traducir⟧ organisation|organization|org|team|workspace|company|firm|members|admin|switch organization|leave organization|create organization",
+        "title": "⟦por traducir⟧ My organizations"
+      },
+      "organizationsInvitations": {
+        "description": "⟦por traducir⟧ Organizations that have invited you to join.",
+        "keywords": "⟦por traducir⟧ invite|invitation|invited|join|join team|pending invitations|accept invitation|decline",
+        "title": "⟦por traducir⟧ Invitations"
+      },
+      "personalisationBackground": {
+        "description": "⟦por traducir⟧ Your title, professional setting, jurisdiction and practice areas, so responses fit your context.",
+        "keywords": "⟦por traducir⟧ role|job title|profession|jurisdiction|country|practice area|practice areas|law firm|in-house|lawyer|solicitor|attorney|context|personalization|profile|about me",
+        "title": "⟦por traducir⟧ Your background"
+      },
+      "personalisationResponseStyle": {
+        "description": "⟦por traducir⟧ How LiTT shapes its answers: verbosity, tone and language.",
+        "keywords": "⟦por traducir⟧ verbosity|concise|detailed|tone|language|formal|casual|length|short answers|long answers|writing style|output style|translate|locale",
+        "title": "⟦por traducir⟧ Response style"
+      },
+      "privacyDelete": {
+        "description": "⟦por traducir⟧ Delete all your chats, tabular reviews, projects or memory.",
+        "keywords": "⟦por traducir⟧ delete chats|delete all chats|clear history|delete projects|delete reviews|delete memory|wipe|erase|purge|remove data|clear everything|gdpr",
+        "title": "⟦por traducir⟧ Delete data"
+      },
+      "privacyExport": {
+        "description": "⟦por traducir⟧ Download your chats, tabular reviews, account JSON and memory, for example before deleting your account.",
+        "keywords": "⟦por traducir⟧ download|backup|export chats|export reviews|json|take my data|data portability|gdpr|archive|copy of my data|privacy|descargar datos|descarga de datos|exportar|privacidad|respaldo",
+        "title": "⟦por traducir⟧ Export data"
+      },
+      "securityMfa": {
+        "description": "⟦por traducir⟧ Add an authenticator app to protect sensitive actions, and ask for a code on every login.",
+        "keywords": "⟦por traducir⟧ mfa|2fa|two factor|two-factor|two step|authenticator|authenticator app|totp|verification code|login verification|one time code|otp|google authenticator|authy|secure account|protect account",
+        "title": "⟦por traducir⟧ Multi-Factor Authentication"
+      },
+      "securityPassword": {
+        "description": "⟦por traducir⟧ Set a password or send yourself a password-reset link.",
+        "keywords": "⟦por traducir⟧ change password|reset password|forgot password|new password|passcode|credentials|login|sign in",
+        "title": "⟦por traducir⟧ Password"
+      },
+      "tabFirmCriteria": "Criterios del despacho",
+      "training": {
+        "description": "Tu mentor y tus etapas como pasante: tu turno primero, notas y aprobación de tus borradores.",
+        "keywords": "formacion|training|mentor|mentora|pasante|intern|trainee|etapa|etapas|stage|tu turno primero|notas|sello|aprobacion|approval|supervisor",
+        "title": "Mi formación"
+      },
+      "trainingMentorPanel": {
+        "description": "Supervisa a cada pupilo: resúmenes de su trabajo, defensa oral, pase de urgencia y promoción.",
+        "keywords": "mentor panel|panel|supervision|supervisión|resumen|review|defensa oral|oral defense|pase de urgencia|urgency pass|promocion|promoción|promotion|pupilos",
+        "title": "Panel del mentor"
+      },
+      "trainingPupils": {
+        "description": "Los pasantes que supervisas como mentor y la etapa de cada uno.",
+        "keywords": "pupilo|pupilos|pupils|mentor|pasantes|supervisar|supervise|aprobar|approve|etapa",
+        "title": "Mis pupilos"
+      }
     },
     "security": {
       "actions": {
