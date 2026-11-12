@@ -19,6 +19,11 @@ export function formatShortDateTime(format: DateFormatter, iso: string | Date): 
     });
 }
 
+/** "12 nov 2026" */
+export function formatShortDate(format: DateFormatter, iso: string | Date): string {
+    return format.dateTime(new Date(iso), { day: "numeric", month: "short", year: "numeric" });
+}
+
 /** Numeric date and time, for dense lists. */
 export function formatNumericDateTime(format: DateFormatter, iso: string | Date): string {
     return format.dateTime(new Date(iso), { dateStyle: "short", timeStyle: "medium" });

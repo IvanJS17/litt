@@ -33,6 +33,7 @@ import {
 } from "@/app/components/documents/DocTable";
 import { TabPillButtonUI } from "@mike/ui";
 import { ProjectSectionToolbar, useProjectWorkspace } from "./ProjectWorkspace";
+import { useTranslations } from "next-intl";
 
 interface Props {
     projectId: string;
@@ -42,6 +43,7 @@ interface Props {
 const PROJECT_DIRECTORY_PAGE_SIZE = 40;
 
 export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
+    const t = useTranslations();
     const router = useRouter();
     const workspace = useProjectWorkspace();
     const {
@@ -301,7 +303,7 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                     }
                 >
                     <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Folder</span>
+                    <span className="hidden sm:inline">{t("projects.folder")}</span>
                 </TabPillButtonUI>
             )}
         </div>
@@ -310,7 +312,7 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
     if (!projectLoading && !project) {
         return (
             <div className="flex h-full items-center justify-center">
-                <p className="text-gray-400">Project not found</p>
+                <p className="text-gray-400">{t("projects.projectNotFound")}</p>
             </div>
         );
     }
@@ -333,7 +335,7 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                 loading={projectLoading}
                 search={search}
                 operations={operations}
-                emptyStateTitle="Documents"
+                emptyStateTitle={t("projects.documents")}
                 onAddDocumentsActionChange={
                     canDo("content.edit")
                         ? handleSavedFilesActionChange
@@ -379,12 +381,12 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                             onClose={onClose}
                             onSelect={onSelect}
                             breadcrumb={[
-                                "Projects",
+                                t("projects.projects"),
                                 project.name +
                                     (project.cm_number
                                         ? ` (${project.cm_number})`
                                         : ""),
-                                "Add Documents",
+                                t("projects.addDocuments"),
                             ]}
                             projectId={projectId}
                         />

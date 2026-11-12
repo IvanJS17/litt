@@ -1540,7 +1540,7 @@ export function TRView({ reviewId, projectId }: Props) {
 
     function requestReviewDelete() {
         if (!can(reviewRole, "container.delete")) {
-            if (roleKnown) setOwnerOnlyAction("delete this tabular review");
+            if (roleKnown) setOwnerOnlyAction(t("tabular.deleteThisTabularReview"));
             return;
         }
         setDeleteReviewStatus("idle");

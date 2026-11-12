@@ -58,6 +58,7 @@ import {
     ProjectPageHeader,
     type ProjectWorkspaceSection,
 } from "./ProjectPageParts";
+import { useTranslations } from "next-intl";
 
 /**
  * A denied action: the sentence for the popup plus which role the action is
@@ -174,6 +175,7 @@ export function ProjectWorkspaceProvider({
     projectId: string;
     children: ReactNode;
 }) {
+    const t = useTranslations();
     const [project, setProject] = useState<Project | null>(null);
     const [folders, setFolders] = useState<ProjectFolder[]>([]);
     const [projectLoading, setProjectLoading] = useState(true);
@@ -273,7 +275,7 @@ export function ProjectWorkspaceProvider({
                 setProject(null);
                 setFolders([]);
                 notifyError(error, {
-                    action: "load this project",
+                    action: t("projects.loadThisProject"),
                     dedupeKey: `project-load:${projectId}`,
                     onRetry: () =>
                         setProjectReloadToken((token) => token + 1),
@@ -373,7 +375,7 @@ export function ProjectWorkspaceProvider({
         } catch (error) {
             setGrantsUnavailable(true);
             notifyError(error, {
-                action: "load who has access",
+                action: t("projects.loadWhoHasAccess"),
                 dedupeKey: `project-access:${projectId}`,
                 onRetry: () => refreshGrantsRef.current?.(),
             });
@@ -407,7 +409,7 @@ export function ProjectWorkspaceProvider({
 
     const createChat = useCallback(() => {
         if (!canDo("content.edit")) {
-            denyUnlessLoading({ action: "create a chat", requiredRole: "editor" });
+            denyUnlessLoading({ action: t("projects.createAChat"), requiredRole: "editor" });
             return;
         }
         router.push(`/projects/${projectId}/assistant/chat`);
@@ -419,7 +421,7 @@ export function ProjectWorkspaceProvider({
         // an unexplained failed submit.
         if (!canDo("content.edit")) {
             denyUnlessLoading({
-                action: "create a tabular review",
+                action: t("projects.createATabularReview"),
                 requiredRole: "editor",
             });
             return;
@@ -468,7 +470,7 @@ export function ProjectWorkspaceProvider({
     }) {
         if (!canDo("access.manage")) {
             denyUnlessLoading({
-                action: "edit project details",
+                action: t("projects.editProjectDetails"),
                 requiredRole: "owner",
             });
             return;
@@ -521,7 +523,7 @@ export function ProjectWorkspaceProvider({
             // project still listed, which reads as "nothing happened".
             setDeleteProjectStatus("idle");
             notifyError(error, {
-                action: "delete this project",
+                action: t("projects.deleteThisProject"),
                 dedupeKey: `project-delete:${projectId}`,
                 // Retry re-opens the confirmation rather than deleting from
                 // the notice: a destructive action is always confirmed.
@@ -669,9 +671,9 @@ export function ProjectWorkspaceProvider({
 
                     <ConfirmPopup
                         open={deleteProjectConfirmOpen}
-                        title="Delete project?"
-                        message="This will permanently delete the project and its related documents, chats, and tabular reviews."
-                        confirmLabel="Delete"
+                        title={t("projects.deleteProject")}
+                        message={t("projects.thisWillPermanentlyDeleteTheProject")}
+                        confirmLabel={t("projects.delete")}
                         confirmVariant="danger"
                         confirmStatus={
                             deleteProjectStatus === "deleting"
@@ -680,7 +682,7 @@ export function ProjectWorkspaceProvider({
                                   ? "complete"
                                   : "idle"
                         }
-                        cancelLabel="Cancel"
+                        cancelLabel={t("projects.cancel")}
                         onCancel={() => {
                             if (deleteProjectStatus === "deleting") return;
                             setDeleteProjectConfirmOpen(false);
@@ -701,18 +703,18 @@ export function ProjectWorkspaceProvider({
                             // them out of their own project.
                             currentUserId={user?.id ?? null}
                             breadcrumb={[
-                                "Projects",
+                                t("projects.projects"),
                                 project.name +
                                     (project.cm_number
                                         ? ` (${project.cm_number})`
                                         : ""),
-                                "Access",
+                                t("projects.projectPageParts.access"),
                             ]}
                             access={{
                                 grants: grants ?? [],
                                 grantsUnavailable,
                                 orgId: project.org_id ?? null,
-                                ownerLabel: "Project owners",
+                                ownerLabel: t("projects.projectOwners"),
                                 canManage: canDo("access.manage"),
                                 visibility: project.visibility ?? "private",
                                 onGrant: async (email, role) => {
@@ -743,6 +745,7 @@ export function ProjectSectionToolbar({
     actions?: ReactNode;
     backAction?: (() => void) | null;
 }) {
+    const t = useTranslations();
     const { activeSection, projectId } = useProjectWorkspace();
     const router = useRouter();
 
@@ -752,9 +755,9 @@ export function ProjectSectionToolbar({
                 backAction
                     ? []
                     : [
-                          { id: "documents", label: "Documents" },
-                          { id: "assistant", label: "Chats" },
-                          { id: "reviews", label: "Tabular Reviews" },
+                          { id: "documents", label: t("projects.documents") },
+                          { id: "assistant", label: t("projects.chats") },
+                          { id: "reviews", label: t("projects.tabularReviews") },
                       ]
             }
             active={activeSection}
@@ -771,7 +774,7 @@ export function ProjectSectionToolbar({
                 backAction ? (
                     <TabPillButtonUI onClick={backAction} className="pl-2">
                         <ChevronLeft className="h-3.5 w-3.5" />
-                        Back
+                        {t("projects.back")}
                     </TabPillButtonUI>
                 ) : undefined
             }

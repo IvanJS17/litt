@@ -2,6 +2,7 @@
 
 import { use, useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
     deleteTabularReview,
     listProjectReviewCreators,
@@ -41,6 +42,7 @@ interface Props {
 
 export default function ProjectTabularReviewsPage({ params }: Props) {
     use(params);
+    const t = useTranslations();
     const workspace = useProjectWorkspace();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -104,7 +106,7 @@ export default function ProjectTabularReviewsPage({ params }: Props) {
         // list must refuse with the member sentence the review page uses.
         if (!can(roleFrom(review), "content.edit")) {
             setOwnerOnlyAction({
-                action: "edit tabular review details",
+                action: t("projects.editTabularReviewDetails"),
                 requiredRole: "editor",
             });
             return;
@@ -119,7 +121,7 @@ export default function ProjectTabularReviewsPage({ params }: Props) {
         if (!detailsReview) return;
         if (!can(roleFrom(detailsReview), "content.edit")) {
             setOwnerOnlyAction({
-                action: "edit tabular review details",
+                action: t("projects.editTabularReviewDetails"),
                 requiredRole: "editor",
             });
             return;
@@ -149,7 +151,7 @@ export default function ProjectTabularReviewsPage({ params }: Props) {
 
     async function handleDeleteReviewRow(review: TabularReview) {
         if (!can(roleFrom(review), "container.delete")) {
-            setOwnerOnlyAction("delete this tabular review");
+            setOwnerOnlyAction(t("projects.deleteThisTabularReview"));
             return;
         }
         const snapshot = reviews;
@@ -242,7 +244,7 @@ export default function ProjectTabularReviewsPage({ params }: Props) {
                 reviews={visibleReviews}
                 selectedReviewIds={selectedReviewIds}
                 createDisabled={workspace.creatingReview || docs.length === 0}
-                emptyDescription="Extract data from project documents into tables using AI."
+                emptyDescription={t("projects.extractDataFromProjectDocuments")}
                 loading={effectiveLoading}
                 loadingMore={loadingMore}
                 hasMore={hasMore}

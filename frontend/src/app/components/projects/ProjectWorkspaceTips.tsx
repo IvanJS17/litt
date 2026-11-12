@@ -2,28 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-const PROJECT_WORKSPACE_TIPS = [
-    "You can drag and drop a document from the Explorer to the Chat.",
-    "Ask the Chat to explain a difficult passage or summarise a project document.",
-    "Ask the Chat to edit a project document and save the changes as a new version.",
-    "The Chat can create a new project document using your instructions and project context.",
-    "Ask the Chat to replicate an existing document when you want a new draft based on it.",
-];
+const PROJECT_WORKSPACE_TIP_COUNT = 5;
 
 export function ProjectWorkspaceTips() {
+    const t = useTranslations();
+    const PROJECT_WORKSPACE_TIPS = [
+        t("projects.tips.dragAndDrop"),
+        t("projects.tips.explainPassage"),
+        t("projects.tips.editDocument"),
+        t("projects.tips.createDocument"),
+        t("projects.tips.replicateDocument"),
+    ];
     const [tipIndex, setTipIndex] = useState(0);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- randomising after mount avoids a server/client hydration mismatch
-        setTipIndex(Math.floor(Math.random() * PROJECT_WORKSPACE_TIPS.length));
+        setTipIndex(Math.floor(Math.random() * PROJECT_WORKSPACE_TIP_COUNT));
     }, []);
 
     function rotateTip(direction: -1 | 1) {
         setTipIndex(
             (current) =>
-                (current + direction + PROJECT_WORKSPACE_TIPS.length) %
-                PROJECT_WORKSPACE_TIPS.length,
+                (current + direction + PROJECT_WORKSPACE_TIP_COUNT) %
+                PROJECT_WORKSPACE_TIP_COUNT,
         );
     }
 
@@ -33,26 +36,26 @@ export function ProjectWorkspaceTips() {
                 aria-live="polite"
                 className="min-w-0 rounded-full bg-app-surface px-4 py-2 text-xs"
             >
-                <strong>Tip:</strong> {PROJECT_WORKSPACE_TIPS[tipIndex]}
+                <strong>{t("projects.tip")}</strong> {PROJECT_WORKSPACE_TIPS[tipIndex]}
             </p>
             <div className="flex items-center gap-1">
                 <button
                     type="button"
-                    aria-label="Previous tip"
+                    aria-label={t("projects.previousTip")}
                     onClick={() => rotateTip(-1)}
                     className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                     <ChevronLeft aria-hidden="true" className="h-3.5 w-3.5" />
                 </button>
                 <span
-                    aria-label={`Tip ${tipIndex + 1} of ${PROJECT_WORKSPACE_TIPS.length}`}
+                    aria-label={t("projects.tipNOfTotal", { n: tipIndex + 1, total: PROJECT_WORKSPACE_TIP_COUNT })}
                     className="min-w-8 text-center text-[10px] tabular-nums text-gray-500"
                 >
-                    {tipIndex + 1}/{PROJECT_WORKSPACE_TIPS.length}
+                    {tipIndex + 1}/{PROJECT_WORKSPACE_TIP_COUNT}
                 </span>
                 <button
                     type="button"
-                    aria-label="Next tip"
+                    aria-label={t("projects.nextTip")}
                     onClick={() => rotateTip(1)}
                     className="flex h-6 w-5 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-surface-active/50 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >

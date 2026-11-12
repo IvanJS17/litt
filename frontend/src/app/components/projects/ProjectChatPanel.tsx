@@ -70,6 +70,7 @@ import { LIQUID_GLASS_FLAT_CLASS } from "@/app/components/ui/liquid-surface";
 import { cn } from "@/app/lib/utils";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import type { MessageExcerpt } from "@mike/client";
+import { useTranslations } from "next-intl";
 
 // The «L.» pixel monogram at one of its native sizes; it is never scaled.
 const ICON_SIZE = 32;
@@ -81,6 +82,7 @@ const ASSISTANT_HEADER_HEIGHT = 48;
 // never animated); only the greeting fades in beside it once the profile
 // has loaded.
 function AssistantGreeting({ username }: { username: string }) {
+    const t = useTranslations();
     const { profile } = useUserProfile();
     const loaded = !!profile;
 
@@ -95,7 +97,7 @@ function AssistantGreeting({ username }: { username: string }) {
                     className="text-3xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
                     style={{ opacity: loaded ? 1 : 0 }}
                 >
-                    Hi, {username}
+                    {t("projects.hiUsername", { username })}
                 </h1>
             </div>
         </div>
@@ -169,7 +171,7 @@ interface Props {
     onEditorGate: (action: string) => void;
     onOwnerGate: (action: string) => void;
     onActionError: (error: { title: string; message: string }) => void;
-    /** The reader used this panel: it is the one "Add to chat" targets. */
+    /** The reader used this panel: it is the one t("projects.addToChat") targets. */
     onActivate: () => void;
     /** Offers opening a second chat beside this one. */
     onOpenSideChat?: () => void;
@@ -229,6 +231,7 @@ export function ProjectChatPanel({
     incomingExcerpt,
     onIncomingExcerptAdded,
 }: Props) {
+    const t = useTranslations();
     const router = useRouter();
     const { user, authLoading } = useAuth();
     const { profile } = useUserProfile();
@@ -541,7 +544,7 @@ export function ProjectChatPanel({
 
     function handleNewChat() {
         if (!canEditContent) {
-            if (project) onEditorGate("create a chat");
+            if (project) onEditorGate(t("projects.createAChat"));
             return;
         }
         resetChat();
@@ -555,7 +558,7 @@ export function ProjectChatPanel({
             // Only accuse somebody of lacking a role once we know they do:
             // `projectRole` is null for the whole load window, and a refusal
             // popup raised then is a guess.
-            if (projectRole) onOwnerGate("delete this chat");
+            if (projectRole) onOwnerGate(t("projects.deleteThisChat"));
             return;
         }
         setDeletingChat(true);
@@ -576,10 +579,10 @@ export function ProjectChatPanel({
             // Without this the refusal was an unhandled rejection and the
             // panel just sat there, indistinguishable from a slow delete.
             onActionError({
-                title: "Chat not deleted",
+                title: t("projects.chatNotDeleted"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be deleted. Please try again.",
+                    t("projects.theChatCouldNotBe"),
                 ),
             });
         } finally {
@@ -590,13 +593,13 @@ export function ProjectChatPanel({
     async function handleRenameChat(nextTitle?: string) {
         if (!activeChatId) return;
         if (!canRenameChat) {
-            if (projectRole) onOwnerGate("rename this chat");
+            if (projectRole) onOwnerGate(t("projects.renameThisChat"));
             return;
         }
         if (nextTitle === undefined) {
             setChatTitleEdit({
                 chatId: activeChatId,
-                title: chatTitle ?? "New Chat",
+                title: chatTitle ?? t("projects.newChat"),
             });
             return;
         }
@@ -644,10 +647,10 @@ export function ProjectChatPanel({
                 ),
             );
             onActionError({
-                title: "Chat not renamed",
+                title: t("projects.chatNotRenamed"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be renamed. Please try again.",
+                    t("projects.theChatCouldNotBe2"),
                 ),
             });
         }
@@ -700,7 +703,7 @@ export function ProjectChatPanel({
                 {chatDragOver && (
                     <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-md">
                         <p className="font-serif text-xl text-gray-900">
-                            Drop files here to add to chat
+                            {t("projects.dropFilesHereToAddTo")}
                         </p>
                     </div>
                 )}
@@ -747,7 +750,7 @@ export function ProjectChatPanel({
                                     ...(onOpenSideChat
                                         ? [
                                               {
-                                                  label: "Open side chat",
+                                                  label: t("projects.openSideChat"),
                                                   icon: MessageSquare,
                                                   onSelect: onOpenSideChat,
                                               },
@@ -756,14 +759,14 @@ export function ProjectChatPanel({
                                     ...(onCloseSideChat
                                         ? [
                                               {
-                                                  label: "Close side chat",
+                                                  label: t("projects.closeSideChat"),
                                                   icon: X,
                                                   onSelect: onCloseSideChat,
                                               },
                                           ]
                                         : []),
                                     {
-                                        label: "Rename",
+                                        label: t("projects.rename"),
                                         icon: Pencil,
                                         onSelect: () => void handleRenameChat(),
                                         disabled:
@@ -772,15 +775,15 @@ export function ProjectChatPanel({
                                             !canRenameChat,
                                     },
                                     {
-                                        label: "Memory",
+                                        label: t("projects.memory"),
                                         icon: Brain,
                                         onSelect: onOpenMemory,
                                         disabled: !project,
                                     },
                                     {
                                         label: deletingChat
-                                            ? "Deleting..."
-                                            : "Delete",
+                                            ? t("projects.deleting")
+                                            : t("projects.delete"),
                                         icon: Trash2,
                                         onSelect: () => void handleDeleteChat(),
                                         disabled:
@@ -992,12 +995,12 @@ export function ProjectChatPanel({
             </div>
             <ApiKeyMissingPopup
                 open={rejectedApiKey !== null}
-                title="API key rejected"
-                message={`${
+                title={t("projects.apiKeyRejected")}
+                message={
                     rejectedKeyProvider
-                        ? `The ${providerLabel(rejectedKeyProvider)} API key`
-                        : "That API key"
-                } was rejected. If it is your own key, check it in Settings; otherwise contact your administrator.`}
+                        ? t("projects.namedApiKeyWasRejected", { provider: providerLabel(rejectedKeyProvider) })
+                        : t("projects.thatApiKeyWasRejected")
+                }
                 onClose={dismissInvalidApiKey}
             />
         </>

@@ -33,6 +33,7 @@ import {
 } from "../modals/CreateAccessStep";
 import { AccessVisibilityField } from "../modals/AccessVisibilityField";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
+import { useTranslations } from "next-intl";
 
 const PERSONAL_WORKSPACE = "__personal__";
 
@@ -49,6 +50,7 @@ interface Props {
 
 /** Collects project details, pending access choices, and documents before creating the project. */
 export function NewProjectModal({ open, onClose, onCreated }: Props) {
+    const t = useTranslations();
     const [step, setStep] = useState<"details" | "access" | "documents">(
         "details",
     );
@@ -290,15 +292,13 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                         (file) => !uploadedFilesRef.current.has(file),
                     ).length;
                 setError(
-                    `Project created, but access was not granted to ${grantFailures
-                        .map((failure) => failure.email)
-                        .join(", ")}: ${grantFailures[0].detail}${
-                        stillPending > 0
-                            ? ` The ${stillPending} selected ${
-                                  stillPending === 1 ? "file is" : "files are"
-                              } still pending and will be attached when you try again.`
-                            : ""
-                    }`,
+                    t("projects.projectCreatedButAccessNotGranted", {
+                        emails: grantFailures.map((failure) => failure.email).join(", "),
+                        detail: grantFailures[0].detail,
+                    }) +
+                        (stillPending > 0
+                            ? ` ${t("projects.selectedFilesStillPendingAttach", { count: stillPending })}`
+                            : ""),
                 );
                 // Stay open on THIS dialog: createdProjectRef holds the
                 // project, so pressing Create again retries only the grants.
@@ -368,7 +368,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                             ? failedUploadMessage(uploadError.outcomes)
                             : userFacingApiError(
                                   uploadError,
-                                  "The attached files could not be uploaded. Please try again.",
+                                  t("projects.theAttachedFilesCouldNot"),
                               );
                 }
             }
@@ -432,7 +432,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
 
             finishCreation({ ...stamped, document_count: attachedCount });
         } catch (err: unknown) {
-            setError(userFacingApiError(err, "Failed to create project"));
+            setError(userFacingApiError(err, t("projects.failedToCreateProject")));
         } finally {
             setLoading(false);
         }
@@ -476,27 +476,27 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
             open={open}
             onClose={handleClose}
             breadcrumbs={[
-                "Projects",
-                "New project",
+                t("projects.projects"),
+                t("projects.newProject"),
                 step === "details"
-                    ? "Details"
+                    ? t("projects.details")
                     : step === "access"
                       ? orgId === PERSONAL_WORKSPACE
-                          ? "Access"
-                          : "People"
-                      : "Add Documents",
+                          ? t("projects.projectPageParts.access")
+                          : t("projects.people")
+                      : t("projects.addDocuments"),
             ]}
             secondaryAction={
                 step === "documents"
                     ? {
-                          label: `Upload${pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""}`,
+                          label: pendingFiles.length > 0 ? t("projects.uploadCount", { count: pendingFiles.length }) : t("projects.upload"),
                           icon: <Upload className="h-3.5 w-3.5" />,
                           onClick: () => fileInputRef.current?.click(),
                           disabled: loading,
                       }
                     : step === "access"
                       ? {
-                            label: "Back",
+                            label: t("projects.back"),
                             type: "button",
                             onClick: () => setStep("details"),
                             disabled: loading,
@@ -506,7 +506,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
             cancelAction={
                 step === "documents"
                     ? {
-                          label: "Back",
+                          label: t("projects.back"),
                           onClick: () => setStep("access"),
                           // Back stays open once the project exists: a retry
                           // persists a changed memory choice before anything
@@ -518,7 +518,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                       }
                     : step === "access"
                       ? {
-                            label: "Skip",
+                            label: t("projects.skip"),
                             type: "button",
                             onClick: () => {
                                 setSharedUsers([]);
@@ -532,24 +532,24 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
             primaryAction={
                 step === "details"
                     ? {
-                          label: "Next",
+                          label: t("projects.next"),
                           type: "button",
                           onClick: () => setStep("access"),
                           disabled: !name.trim() || loading,
                       }
                     : step === "access"
                       ? {
-                            label: "Next",
+                            label: t("projects.next"),
                             type: "button",
                             onClick: () => setStep("documents"),
                             disabled: loading,
                         }
                       : {
                             label: loading
-                                ? "Creating…"
+                                ? t("projects.creating")
                                 : pendingProject
-                                  ? "Continue"
-                                  : "Create project",
+                                  ? t("projects.continue")
+                                  : t("projects.createProject"),
                             type: "button",
                             onClick: () => void createProjectFromDocuments(),
                             disabled: !name.trim() || loading,
@@ -572,14 +572,14 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                     <div className="space-y-6">
                         <div>
                             <FieldLabel htmlFor="new-project-name">
-                                Project name
+                                {t("projects.projectName")}
                             </FieldLabel>
                             <FormTextInput
                                 id="new-project-name"
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                placeholder="Add project name"
+                                placeholder={t("projects.addProjectName")}
                                 variant="minimal"
                                 // Once the project EXISTS the retry reuses
                                 // `createdProjectRef` and never reads these
@@ -594,14 +594,14 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
 
                         <div>
                             <FieldLabel htmlFor="new-project-cm-number">
-                                CM number
+                                {t("projects.cmNumber")}
                             </FieldLabel>
                             <FormTextInput
                                 id="new-project-cm-number"
                                 type="text"
                                 value={cmNumber}
                                 onChange={(e) => setCmNumber(e.target.value)}
-                                placeholder="Add a CM number..."
+                                placeholder={t("projects.addACmNumber")}
                                 variant="minimal"
                                 className="text-xl text-gray-600"
                                 disabled={projectExists}
@@ -610,7 +610,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
 
                         <div>
                             <FieldLabel htmlFor="new-project-practice">
-                                Practice
+                                {t("projects.practice")}
                             </FieldLabel>
                             <ProjectPracticeField
                                 id="new-project-practice"
@@ -641,24 +641,21 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                         ) : null}
                         {projectExists && (
                             <p className="text-sm text-gray-500">
-                                The project has been created, so its name, CM
-                                number and practice can no longer be changed
-                                here. Edit them from the project once this
-                                finishes.
+                                {t("projects.theProjectHasBeenCreatedSo")}
                             </p>
                         )}
 
                         <div>
-                            <FieldLabel as="p">Project memory</FieldLabel>
+                            <FieldLabel as="p">{t("projects.projectMemory")}</FieldLabel>
                             <ToggleSwitchUI
                                 checked={memoryEnabled}
                                 onCheckedChange={(enabled) => {
                                     memoryEditedRef.current = true;
                                     setMemoryEnabled(enabled);
                                 }}
-                                aria-label="Enable project memory"
+                                aria-label={t("projects.enableProjectMemory")}
                             >
-                                {memoryEnabled ? "On" : "Off"}
+                                {memoryEnabled ? t("projects.on") : t("projects.off")}
                             </ToggleSwitchUI>
                         </div>
                     </div>
@@ -673,7 +670,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                         onDirectGrantsChange={setSharedUsers}
                         orgOverrides={orgOverrides}
                         onOrgOverridesChange={setOrgOverrides}
-                        ownerLabel="Project owners"
+                        ownerLabel={t("projects.projectOwners")}
                         visibility={visibility}
                     />
                 ) : (

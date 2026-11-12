@@ -1,5 +1,6 @@
 {
   "migrated": [
+    "frontend/src/app/(pages)/projects",
     "frontend/src/app/(pages)/settings/appearance/page.tsx",
     "frontend/src/app/(pages)/settings/connectors/page.tsx",
     "frontend/src/app/(pages)/settings/features/page.tsx",
@@ -12,6 +13,7 @@
     "frontend/src/app/(pages)/settings/security/page.tsx",
     "frontend/src/app/(pages)/settings/training/mentor",
     "frontend/src/app/(pages)/settings/training/reading",
+    "frontend/src/app/(pages)/tabular-reviews",
     "frontend/src/app/(pages)/tabular-reviews/[id]/audit",
     "frontend/src/app/account-deleted/page.tsx",
     "frontend/src/app/auth/callback/page.tsx",
@@ -96,6 +98,7 @@
     "frontend/src/app/components/playbooks/usePlaybookCorrectionPupils.ts",
     "frontend/src/app/components/playbooks/usePlaybookProvenance.ts",
     "frontend/src/app/components/popups",
+    "frontend/src/app/components/projects",
     "frontend/src/app/components/projects/ProjectMemoryModal.tsx",
     "frontend/src/app/components/projects/ProjectPageParts.tsx",
     "frontend/src/app/components/projects/ProjectWorkspaceViewSwitcher.tsx",
