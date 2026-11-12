@@ -71,7 +71,7 @@ export interface DocumentContentProps {
     /**
      * Whether the viewer may edit the document. Fails closed: without it a
      * DOCX stays read-only and offers no Edit toggle, so a reader never types
-     * into a file whose every autosave the server would refuse.
+     * into a file whose every save the server would refuse.
      */
     canEdit?: boolean;
     active?: boolean;

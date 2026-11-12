@@ -132,7 +132,7 @@ export function DocxCommentComposer({
     }
     try {
       // Core owns anchoring, protection, history and OOXML serialization.
-      // Its change event feeds the existing DOCX autosave pipeline.
+      // Its change event feeds the existing DOCX change pipeline.
       const result = editor.addComment(draft.trim(), author);
       if (!result.ok) {
         setError(

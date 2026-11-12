@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Download, ExternalLink, SquarePen } from "lucide-react";
 import { downloadDocumentFile } from "@/app/lib/downloadDocument";
 import { userFacingApiError } from "@/app/lib/userFacingError";
-import { TextButtonUI, textButtonUIClassName } from "@mike/ui";
+import { PillButtonUI, TextButtonUI, textButtonUIClassName } from "@mike/ui";
 import { WarningPopup } from "../popups/WarningPopup";
 import { FileTypeIcon } from "./FileTypeIcon";
 import { DocumentVersionPicker } from "./DocumentVersionPicker";
@@ -129,6 +129,22 @@ export function DocumentTitleRow({
                     {document.type === "docx" && saveState?.ready && (
                         <DocxSaveStatus state={saveState} />
                     )}
+                    {document.type === "docx" &&
+                        saveState?.ready &&
+                        saveState.editable &&
+                        saveState.save && (
+                            <PillButtonUI
+                                tone="black"
+                                size="sm"
+                                onClick={() => void saveState.save?.()}
+                                disabled={!saveState.dirty}
+                                loading={saveState.status === "saving"}
+                            >
+                                {saveState.status === "saving"
+                                    ? t("markdownDocument.saving")
+                                    : t("markdownDocument.save")}
+                            </PillButtonUI>
+                        )}
                     {document.type === "docx" && (
                         <DocxSaveErrorPopup error={saveState?.error ?? null} />
                     )}
@@ -208,12 +224,12 @@ export function DocumentTitleRow({
     );
 }
 
-/** How long "Saved" confirms a completed autosave before clearing. */
+/** How long "Saved" confirms a completed save before clearing. */
 const SAVED_VISIBLE_MS = 1000;
 
 /**
- * Autosave status: "Saving…" while edits are pending or uploading, then
- * "Saved" briefly, then nothing. Each save produces a new state object, so a
+ * Save status: "Unsaved changes" while edits wait for the Save button,
+ * "Saving…" while uploading, then "Saved" briefly, then nothing. Each save produces a new state object, so a
  * later save shows "Saved" again. The live region stays mounted while empty
  * so status changes are still announced.
  */
@@ -228,9 +244,11 @@ function DocxSaveStatus({ state }: { state: DocxSaveState }) {
     }, [saved, state]);
     const label = state.error
         ? t("shared.documentTitleRow.notSaved")
-        : state.dirty || state.status === "saving"
+        : state.status === "saving"
           ? t("shared.documentTitleRow.saving")
-          : saved && expired !== state
+          : state.dirty
+            ? t("shared.documentTitleRow.unsaved")
+            : saved && expired !== state
             ? t("shared.documentTitleRow.saved")
             : null;
     return (

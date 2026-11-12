@@ -30,13 +30,15 @@ function view(saveState: DocxSaveState) {
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
-it("shows Saving… while edits upload, Saved for one second, then nothing", () => {
+it("shows Unsaved changes, Saving… while uploading, Saved for one second, then nothing", () => {
     const { rerender } = render(view(state({})));
     const status = screen.getByRole("status");
     // Nothing to report before the first edit.
     expect(status).toBeEmptyDOMElement();
 
-    rerender(view(state({ dirty: true, status: "pending" })));
+    rerender(view(state({ dirty: true, status: "idle" })));
+    expect(status).toHaveTextContent("Unsaved changes");
+    rerender(view(state({ dirty: true, status: "saving" })));
     expect(status).toHaveTextContent("Saving…");
     rerender(view(state({ dirty: false, status: "saving" })));
     expect(status).toHaveTextContent("Saving…");
@@ -51,7 +53,7 @@ it("shows Saving… while edits upload, Saved for one second, then nothing", () 
     expect(status).toBeEmptyDOMElement();
 
     // A later save confirms again.
-    rerender(view(state({ dirty: true, status: "pending" })));
+    rerender(view(state({ dirty: true, status: "idle" })));
     rerender(view(state({ status: "saved" })));
     expect(status).toHaveTextContent("Saved");
 });
@@ -76,4 +78,23 @@ it("reports a save failure in a warning popup that returns if a retry fails agai
     expect(screen.getByRole("alert")).toHaveTextContent(
         "Your changes could not be saved.",
     );
+});
+
+it("offers Save only to an editor: disabled until there are changes, one click saves", () => {
+    const save = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(view(state({ editable: true, save })));
+    const button = screen.getByRole("button", { name: "Save" });
+    expect(button).toBeDisabled();
+
+    rerender(view(state({ editable: true, save, dirty: true })));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(save).toHaveBeenCalledOnce();
+
+    rerender(view(state({ editable: true, save, dirty: true, status: "saving" })));
+    expect(screen.getByRole("button", { name: /Saving…/ })).toBeDisabled();
+
+    rerender(view(state({ editable: false, save, dirty: true })));
+    expect(screen.queryByRole("button", { name: /Sav/ })).toBeNull();
+    rerender(view(state({ save, dirty: true })));
+    expect(screen.queryByRole("button", { name: /Sav/ })).toBeNull();
 });

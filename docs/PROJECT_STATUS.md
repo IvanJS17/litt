@@ -18,8 +18,11 @@
   edit was made on (same design as the Markdown editor); a stale base answers
   409 `document_version_conflict` and writes nothing. No version an AI run, a
   review or an approved artifact refers to is replaced, and an editor save
-  never approves. `document_version_replace` remains for the Word add-in, the
-  document table and workflow assets.
+  never approves. The editor saves only when the user presses **Save**
+  (or Cmd/Ctrl+S), plus once when the tab closes with unsaved edits: there is
+  no timer, so an editing session does not fill the version history.
+  `document_version_replace` is used by the document table and workflow
+  assets, not by the Word add-in or the web editor.
 - Evidence: a browser round trip over four synthetic `.docx`
   (`npx playwright test -c playwright.docx-roundtrip.config.ts`) keeps text,
   tables, numbering, comments, tracked changes, header/footer and

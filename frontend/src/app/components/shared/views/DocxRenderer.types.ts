@@ -3,8 +3,12 @@ export type DocxMode = "view" | "edit" | "suggesting";
 export interface DocxSaveState {
     ready: boolean;
     dirty: boolean;
-    status: "idle" | "pending" | "saving" | "saved" | "error";
+    status: "idle" | "saving" | "saved" | "error";
     error: string | null;
+    /** The reader may edit; only then does the title row offer Save. */
+    editable?: boolean;
+    /** Save the open edits as one new version (the Save button). */
+    save?: () => Promise<void>;
 }
 
 /** The `w:id`s of one Mike edit's insertion and deletion halves. */
