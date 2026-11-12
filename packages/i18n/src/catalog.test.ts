@@ -52,6 +52,16 @@ describe("@litt/i18n catalog", () => {
         expect({ missing, extra }, "es-MX must match en-US key for key").toEqual({ missing: [], extra: [] });
     });
 
+    it("es-MX writes the ellipsis as one character, never three dots", () => {
+        // Messages still marked as pending hold the English text and are
+        // reported by the pending test below; this guards the translations.
+        const threeDots = [...target]
+            .filter(([, value]) => typeof value === "string" && !value.startsWith(PENDING_TRANSLATION.trim()))
+            .filter(([, value]) => (value as string).includes("..."))
+            .map(([key]) => key);
+        expect(threeDots, "Use … (U+2026) in es-MX, as the glossary says").toEqual([]);
+    });
+
     it("es-MX has exactly the namespaces of en-US, empty ones included", () => {
         const en = new Set(namespaces(enUS));
         const es = new Set(namespaces(esMX));

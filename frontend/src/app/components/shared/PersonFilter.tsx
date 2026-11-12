@@ -57,6 +57,7 @@ export function distinctPeople(
   rows: {
     user_id?: string | null;
     display_name?: string | null;
+    email?: string | null;
     profile_photo?: string | null;
   }[],
 ): PersonOption[] {
@@ -66,12 +67,15 @@ export function distinctPeople(
     byId.set(row.user_id, {
       user_id: row.user_id,
       display_name: row.display_name?.trim() || null,
-      email: null,
+      email: row.email?.trim() || null,
       profile_photo: row.profile_photo ?? null,
     });
   }
+  // Sorted by what the row shows: the name, else the email. A person with
+  // neither has nothing to sort by and goes last.
+  const sortKey = (person: PersonOption) => personName(person, "\uffff");
   return [...byId.values()].sort((a, b) =>
-    (a.display_name ?? "").localeCompare(b.display_name ?? ""),
+    sortKey(a).localeCompare(sortKey(b)),
   );
 }
 

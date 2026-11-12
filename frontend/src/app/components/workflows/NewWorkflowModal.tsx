@@ -49,6 +49,8 @@ import {
 } from "../modals/CreateAccessStep";
 import { useTranslations } from "next-intl";
 
+// A stored jurisdiction value (compared as it is saved, never as shown).
+const JURISDICTION_UNITED_STATES = "United States";
 const DEFAULT_LANGUAGE = "English";
 const DEFAULT_PRACTICE = "";
 const DEFAULT_JURISDICTION = "";
@@ -211,7 +213,7 @@ export function NewWorkflowModal({
         : [jurisdiction, ...JURISDICTION_OPTIONS];
     const jurisdictionOptions = baseJurisdictionOptions.filter(Boolean);
     const jurisdictionRegionOptions =
-        jurisdiction === "United States"
+        jurisdiction === JURISDICTION_UNITED_STATES
             ? US_STATE_OPTIONS
             : jurisdiction === "Canada"
               ? CANADA_PROVINCE_OPTIONS
@@ -311,7 +313,7 @@ export function NewWorkflowModal({
             ).includes(savedJurisdiction);
             if (!isKnownJurisdiction && savedJurisdiction) {
                 if (isUsState) {
-                    setJurisdiction("United States");
+                    setJurisdiction(JURISDICTION_UNITED_STATES);
                     setJurisdictionRegion(savedJurisdiction);
                     setCustomJurisdiction("");
                 } else if (isCanadaProvince) {
@@ -664,7 +666,7 @@ export function NewWorkflowModal({
                     options={jurisdictionRegionOptions}
                     disabled={viewOnly}
                     placeholder={
-                        jurisdiction === t("workflows.unitedStates")
+                        jurisdiction === JURISDICTION_UNITED_STATES
                             ? t("workflows.selectState")
                             : t("workflows.selectProvince")
                     }

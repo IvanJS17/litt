@@ -27,12 +27,9 @@ function startedLabel(t: AppTranslate, delegations: DelegationEvent[]): string {
             total: delegations.length,
         });
     }
-    return t(
-        resumed
-            ? "assistant.subagentGroup.resumedCount"
-            : "assistant.subagentGroup.startedCount",
-        { count: delegations.length },
-    );
+    return resumed
+        ? t("assistant.subagentGroup.resumedCount", { count: delegations.length })
+        : t("assistant.subagentGroup.startedCount", { count: delegations.length });
 }
 
 function stepCount(event: DelegationEvent): number {

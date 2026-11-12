@@ -14,7 +14,8 @@ import { LIQUID_FLOAT_PANEL_SURFACE_CLASS } from "@/app/components/ui/liquid-sur
 import { DocxCommentEdit } from "./DocxCommentEdit";
 import { DocxCommentReply } from "./DocxCommentReply";
 import { docxCommentEditable } from "./docxCommentEditing";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { formatShortDateTime } from "@/app/lib/dateText";
 
 /** One thread: the root comment, its replies, and a reply action. */
 export function DocxCommentCard({
@@ -169,17 +170,12 @@ export function DocxCommentCard({
 
 /** Word omits `@w:date` when date stamping is off; show nothing then. */
 function CommentTime({ date }: { date?: string }) {
+    const format = useFormatter();
     const time = date ? new Date(date) : null;
     if (!time || Number.isNaN(time.getTime())) return null;
     return (
         <time dateTime={date} className="block text-[11px] text-muted-foreground">
-            {time.toLocaleString(undefined, {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-            })}
+            {formatShortDateTime(format, time)}
         </time>
     );
 }
