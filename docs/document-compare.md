@@ -75,15 +75,16 @@ connection (checked in the prototype with `--network none`).
   the redline that comes back is capped at 64 MB (binary results have their
   own cap, `EXTRACTION_MAX_BINARY_BYTES`); the parser's time and memory limits
   apply as for any op, and it is retired after an error or a deadline.
-- **Memory budget:** the parser's default (`EXTRACTION_MAX_MEMORY_MB`, 1024) is
-  enough; it was **not** raised. Measured with the synthetic pairs through the
-  real parser process (prlimit as in production): peak resident set ~330 MB
-  after three comparisons in one warm process (about 245 MB in the owner's
-  measurement with a real 6,200-word contract, 1.3 s). Budgets of 640 and
-  768 MB passed; **512 MB fails** (`parser memory budget exceeded`, mapped to
-  `compare_source_too_large`). So the default leaves about 1.5× headroom over
-  the smallest budget that works for 1-page documents; larger real contracts
-  were not tested at lower budgets.
+- **Memory budget:** the parser's default (`EXTRACTION_MAX_MEMORY_MB`, 1024)
+  is enough; it was **not** raised. Measured peaks of a comparison: 357-389 MB
+  resident in the review's runs through the real parser process (prlimit as in
+  production), 247-257 MB for a real 6,200-word contract in a container capped
+  at 300 MB. The parser's address-space bound is the budget plus 1 GB; a
+  comparison reaches about 1.8 GB of address space (WebAssembly reservations),
+  so budgets well below the default fail (`compare_source_too_large`). The
+  parser runs inside the backend container, whose limit is 1024 MB in
+  production (`deploy/prod/compose.yaml`) to leave room next to the API
+  (~330 MB).
 - **Time:** first comparison in a fresh parser, about 3 s on a loaded machine
   (process start + WASM load); the next ones in the same warm parser, 0.6–0.9 s.
   The parser stays warm for 60 s idle.

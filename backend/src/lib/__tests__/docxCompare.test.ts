@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import JSZip from "jszip";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CommentRangeEnd, CommentRangeStart, CommentReference, Document, Packer, Paragraph, TextRun } from "docx";
 import { COMPARE_AUTHOR, compareDocx, packComparePair } from "../docxCompare";
 import { runIsolatedExtraction, stopExtractionProcess } from "../extraction/isolated";
@@ -33,6 +33,9 @@ const PAIRS = [
   { name: "par3_confidencialidad", ins: 3, del: 3, fmt: 0 },
 ];
 
+// vitest.config turns isolation off; this file exists to test the parser process.
+beforeEach(() => vi.stubEnv("EXTRACTION_ISOLATION", "on"));
+afterEach(() => vi.unstubAllEnvs());
 afterAll(stopExtractionProcess);
 
 describe("docxCompare in the isolated parser", () => {

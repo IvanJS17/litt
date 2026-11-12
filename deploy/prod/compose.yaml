@@ -249,8 +249,10 @@ services:
     # (AGPL §13: /health y el enlace "Código fuente" lo reportan; README §1).
     image: litt-backend:${LITT_SOURCE_COMMIT:?required}
     restart: unless-stopped
-    mem_limit: 768m
-    memswap_limit: 1088m
+    # 1024m: the isolated parser runs inside this container; a Word comparison
+    # (Docxodus WASM) peaks at ~360-390 MB on top of the API's ~330 MB.
+    mem_limit: 1024m
+    memswap_limit: 1344m
     environment:
       NODE_ENV: production
       PORT: '3001'
