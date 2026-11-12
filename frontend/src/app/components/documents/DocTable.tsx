@@ -1,5 +1,7 @@
 "use client";
 
+import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import type { DocumentConversionType } from "@mike/contracts";
 import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { useDocumentConversionPolling } from "@/app/hooks/useDocumentConversionPolling";
 import { indexFolderDirectory } from "../shared/folderDirectoryIndex";
@@ -297,6 +299,12 @@ interface DocTableProps {
     catalog?: DocTableCatalog;
     /** Adds a Creator column; the project directory shows who added each row. */
     showCreator?: boolean;
+    /**
+     * Starts "Convert to…" for a document; the menus offer only the formats
+     * valid for its type. Omit where conversion does not apply (catalogs, the
+     * personal library).
+     */
+    onConvertDoc?: (doc: Document, target: DocumentConversionType) => void;
 }
 
 export interface DocTableCatalog {
@@ -466,6 +474,7 @@ export function DocTable({
     defaultSort = null,
     catalog,
     showCreator = false,
+    onConvertDoc,
 }: DocTableProps) {
     const t = useTranslations();
     const format = useFormatter();
@@ -2636,6 +2645,17 @@ export function DocTable({
         };
     }
 
+    /** The "Convert to…" entries of a document's menu; none for a draft the firm holds back. */
+    function convertActions(doc: Document) {
+        const targets = conversionTargetsFor(doc.file_type);
+        return onConvertDoc && !isTrainingHeld(doc) && targets.length > 0
+            ? {
+                  convertTargets: targets,
+                  onConvert: (target: DocumentConversionType) => onConvertDoc(doc, target),
+              }
+            : {};
+    }
+
     function catalogDocumentActions(doc: Document) {
         return {
             onView:
@@ -2966,6 +2986,7 @@ export function DocTable({
                                                             }}
                                                             renameLabel={t("documents.table.renameDocument")}
                                                             onDownload={isTrainingHeld(doc) ? undefined : () => downloadDoc(doc.id)}
+                                                            {...convertActions(doc)}
                                                             onShowAllVersions={
                                                                 hasVersions && !isVersionsOpen
                                                                     ? () => void toggleVersions(doc.id)
@@ -4221,6 +4242,7 @@ export function DocTable({
                 }}
                 renameLabel={t("documents.table.renameDocument")}
                 onDownload={isTrainingHeld(menuDoc) ? undefined : () => downloadDoc(menuDoc.id)}
+                {...convertActions(menuDoc)}
                 onShowAllVersions={
                     menuDocHasVersions && !menuDocVersionsOpen
                         ? () => void toggleVersions(menuDoc.id)
@@ -4959,6 +4981,7 @@ export function DocTable({
                                                                             }}
                                                                             renameLabel={t("documents.table.renameDocument")}
                                                                             onDownload={isTrainingHeld(doc) ? undefined : () => downloadDoc(doc.id)}
+                                                                            {...convertActions(doc)}
                                                                             onShowAllVersions={
                                                                                 hasVersions && !isVersionsOpen
                                                                                     ? () => void toggleVersions(doc.id)

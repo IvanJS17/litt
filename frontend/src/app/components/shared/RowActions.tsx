@@ -7,6 +7,7 @@ import {
     Eye,
     EyeOff,
     Eraser,
+    FileOutput,
     FolderMinus,
     Hash,
     History,
@@ -28,6 +29,8 @@ import {
     DropdownItem,
     DropdownTrigger,
 } from "@mike/ui";
+import { CONVERT_ACTION_KEYS } from "@/app/lib/documentConversion";
+import type { DocumentConversionType } from "@mike/contracts";
 import { notifyError } from "@/app/lib/userFacingError";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
 import { useTranslations } from "next-intl";
@@ -49,6 +52,12 @@ interface Props {
     onHide?: () => void;
     onUnhide?: () => void;
     onDownload?: () => void;
+    /**
+     * "Convert to…" entries, one per target and only the ones valid for the
+     * file's type (conversionTargetsFor). Choosing one opens the notice.
+     */
+    convertTargets?: ReadonlyArray<DocumentConversionType>;
+    onConvert?: (target: DocumentConversionType) => void;
     onClearResults?: () => void;
     clearResultsDisabled?: boolean;
     onRemoveFromFolder?: () => void;
@@ -94,6 +103,8 @@ export function RowActionMenuItems({
     onHide,
     onUnhide,
     onDownload,
+    convertTargets,
+    onConvert,
     onClearResults,
     clearResultsDisabled,
     onRemoveFromFolder,
@@ -210,6 +221,17 @@ export function RowActionMenuItems({
                     {t("shared.rowActions.download")}
                 </DropdownItem>
             )}
+            {onConvert &&
+                convertTargets?.map((target) => (
+                    <DropdownItem
+                        key={target}
+                        id={`convert-${target}`}
+                        onSelect={run(() => onConvert(target))}
+                    >
+                        <FileOutput className="h-3.5 w-3.5" />
+                        {t(CONVERT_ACTION_KEYS[target])}
+                    </DropdownItem>
+                ))}
             {onShowAllVersions && (
                 <DropdownItem onSelect={run(onShowAllVersions)}>
                     <History className="h-3.5 w-3.5" />
