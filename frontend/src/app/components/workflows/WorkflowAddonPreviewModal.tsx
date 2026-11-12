@@ -16,6 +16,7 @@ import { PdfView } from "../shared/views/PdfView";
 import { SpreadsheetView } from "../shared/views/SpreadsheetView";
 import { workflowAddonAssetDisplayUrl } from "@/app/lib/mikeApi";
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
+import { useTranslations } from "next-intl";
 
 type DetailView = "columns" | "skill" | "assets";
 type AddonAsset = NonNullable<WorkflowAddon["assets"]>[number];
@@ -75,6 +76,7 @@ function withoutLeadingTitle(markdown: string) {
 }
 
 function SkillViewer({ skill }: { skill: string }) {
+  const t = useTranslations();
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -112,19 +114,19 @@ function SkillViewer({ skill }: { skill: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex min-h-10 shrink-0 items-center justify-between border-b border-white/60 px-3 py-1.5">
-        <span className="text-xs font-medium text-gray-500">SKILL.md</span>
+        <span className="text-xs font-medium text-gray-500">{t("workflows.skillMd")}</span>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => void copy()}
             className="flex items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-700"
           >
-            {copied ? <Check className="h-3 w-3" /> : "Copy"}
+            {copied ? <Check className="h-3 w-3" /> : t("workflows.copy")}
           </button>
           <button
             type="button"
             aria-label={
-              showRaw ? "Show rendered SKILL.md" : "Show raw SKILL.md"
+              showRaw ? t("workflows.showRenderedSkillMd") : t("workflows.showRawSkillMd")
             }
             aria-pressed={showRaw}
             onClick={() => setShowRaw((current) => !current)}
@@ -150,7 +152,7 @@ function SkillViewer({ skill }: { skill: string }) {
               remarkPlugins={[remarkGfm]}
               components={markdownComponents}
             >
-              {markdown || "_No instructions provided._"}
+              {markdown || t("workflows.noInstructionsProvided")}
             </ReactMarkdown>
           </div>
         )}
@@ -260,6 +262,7 @@ function WorkflowAddonPreviewDialog({
   onClose: () => void;
   onImport: (addon: WorkflowAddon) => Promise<void>;
 }) {
+  const t = useTranslations();
   const [view, setView] = useState<DetailView>(
     addon.type === "tabular" ? "columns" : "skill",
   );
@@ -282,11 +285,11 @@ function WorkflowAddonPreviewDialog({
   const assets = addon.assets ?? [];
   const tabs: { id: DetailView; label: string }[] =
     addon.type === "tabular"
-      ? [{ id: "columns", label: "Columns" }]
+      ? [{ id: "columns", label: t("workflows.columns") }]
       : [
-          { id: "skill", label: "SKILL.md" },
+          { id: "skill", label: t("workflows.skillMd") },
           ...(assets.length > 0
-            ? [{ id: "assets" as const, label: "Assets" }]
+            ? [{ id: "assets" as const, label: t("workflows.assets") }]
             : []),
         ];
 
@@ -296,13 +299,13 @@ function WorkflowAddonPreviewDialog({
       onClose={onClose}
       breadcrumbs={[
         "Workflows",
-        "Add-ons",
+        t("workflows.addOns"),
         addon.title,
         ...(selectedAsset ? [selectedAsset.filename] : []),
       ]}
       size={selectedAsset ? "xl" : "lg"}
       primaryAction={{
-        label: importing ? "Importing…" : "Import",
+        label: importing ? t("workflows.importing") : t("workflows.import"),
         icon: <Plus className="h-4 w-4" />,
         disabled: importing,
         onClick: () => void onImport(addon),
@@ -310,7 +313,7 @@ function WorkflowAddonPreviewDialog({
       secondaryAction={
         selectedAsset
           ? {
-              label: "Back",
+              label: t("workflows.back"),
               icon: <ChevronLeft className="h-4 w-4" />,
               onClick: () => setSelectedAsset(null),
             }
@@ -349,19 +352,19 @@ function WorkflowAddonPreviewDialog({
           <section className="shrink-0">
             <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
               <MetadataItem
-                label="Contributor"
+                label={t("workflows.contributor")}
                 value={addon.contributors
                   .map((contributor) => contributor.name)
                   .join(", ")}
               />
-              <MetadataItem label="Language" value={addon.language || "—"} />
-              <MetadataItem label="Version" value={addon.version || "—"} />
+              <MetadataItem label={t("workflows.language")} value={addon.language || "—"} />
+              <MetadataItem label={t("workflows.version")} value={addon.version || "—"} />
               <MetadataItem
-                label="Practice"
-                value={addon.practice || "General"}
+                label={t("workflows.practice")}
+                value={addon.practice || t("workflows.general")}
               />
               <MetadataItem
-                label="Jurisdiction"
+                label={t("workflows.jurisdiction")}
                 value={addon.jurisdictions?.join(", ") || "—"}
               />
             </div>
@@ -381,7 +384,7 @@ function WorkflowAddonPreviewDialog({
                       }
                       className="ml-1 inline font-medium text-interactive transition-colors hover:text-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
-                      {descriptionExpanded ? "Show less" : "Show more"}
+                      {descriptionExpanded ? t("workflows.showLess") : t("workflows.showMore")}
                     </button>
                   )}
                 </p>
@@ -403,10 +406,10 @@ function WorkflowAddonPreviewDialog({
                   <div className="grid min-h-10 shrink-0 grid-cols-[52px_0.8fr_1.8fr] items-center border-b border-white/60 text-xs font-medium text-gray-500">
                     <div className="px-3 py-1.5">#</div>
                     <div className="border-l border-white/60 px-3 py-1.5">
-                      Column
+                      {t("workflows.column")}
                     </div>
                     <div className="border-l border-white/60 px-3 py-1.5">
-                      Prompt
+                      {t("workflows.prompt")}
                     </div>
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto">
@@ -431,12 +434,12 @@ function WorkflowAddonPreviewDialog({
               ) : view === "assets" ? (
                 <div className="flex h-full min-h-0 flex-col">
                   <div className="flex min-h-10 shrink-0 items-center border-b border-white/60 px-3 py-1.5 text-xs font-medium text-gray-500">
-                    Assets
+                    {t("workflows.assets")}
                   </div>
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     {assets.length === 0 ? (
                       <div className="flex h-full min-h-24 items-center justify-center px-4 text-xs text-gray-400">
-                        No assets included.
+                        {t("workflows.noAssetsIncluded")}
                       </div>
                     ) : (
                       assets.map((file) => (

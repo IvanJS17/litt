@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Loader2, MoreHorizontal, Plus, X } from "lucide-react";
 import type { ColumnConfig, ColumnFormat } from "../shared/types";
 import { generateTabularColumnPrompt } from "@/app/lib/mikeApi";
-import { FORMAT_OPTIONS, formatLabel, formatIcon } from "./columnFormat";
+import { formatOptions, formatLabel, formatIcon } from "./columnFormat";
 import { TAG_COLORS } from "./pillUtils";
 import {
     Dropdown,
@@ -19,6 +19,7 @@ import {
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@mike/ui";
 import { FieldLabel } from "@/app/components/ui/form-field";
+import { useTranslations } from "next-intl";
 
 // Liquid-glass field styling shared by the menu's inputs/controls, matching the
 // modal's glass treatment (translucent white over the light-gray panel).
@@ -40,6 +41,7 @@ export function TREditColumnMenu({
     onSave,
     onDelete,
 }: TREditColumnMenuProps) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     const menuId = useId();
     const [name, setName] = useState(column.name);
@@ -248,17 +250,17 @@ export function TREditColumnMenu({
                     >
                     <div className="flex items-center justify-between mb-3">
                         <p className="font-serif text-lg font-medium text-gray-900">
-                            Edit Column
+                            {t("tabular.editColumn")}
                         </p>
                         <GlassIconButtonUI
                             onClick={() => setOpen(false)}
-                            aria-label="Close"
+                            aria-label={t("tabular.close")}
                         >
                             <X className="h-3.5 w-3.5" />
                         </GlassIconButtonUI>
                     </div>
                     <FieldLabel htmlFor={`${menuId}-name`}>
-                        Label
+                        {t("tabular.label")}
                     </FieldLabel>
                     <input
                         id={`${menuId}-name`}
@@ -271,7 +273,7 @@ export function TREditColumnMenu({
                     {/* Format */}
                     <div className="mt-3">
                         <FieldLabel htmlFor={`${menuId}-format`}>
-                            Format
+                            {t("tabular.format")}
                         </FieldLabel>
                         <Dropdown>
                             <DropdownTrigger asChild>
@@ -286,7 +288,7 @@ export function TREditColumnMenu({
                                                 <Icon className="h-3 w-3 text-gray-400" />
                                             );
                                         })()}
-                                        {formatLabel(format)}
+                                        {formatLabel(format, t)}
                                     </span>
                                     <ChevronDown className="h-3 w-3 text-gray-400" />
                                 </button>
@@ -305,7 +307,7 @@ export function TREditColumnMenu({
                                         setTagInput("");
                                     }}
                                 >
-                                    {FORMAT_OPTIONS.map((o) => (
+                                    {formatOptions(t).map((o) => (
                                         <DropdownRadioItem
                                             key={o.value}
                                             value={o.value}
@@ -356,7 +358,7 @@ export function TREditColumnMenu({
                                     onKeyDown={handleTagKeyDown}
                                     onBlur={commitTag}
                                     placeholder={
-                                        tags.length === 0 ? "Add tags…" : ""
+                                        tags.length === 0 ? t("tabular.addTags") : ""
                                     }
                                     className="min-w-[60px] flex-1 bg-transparent text-xs text-gray-700 placeholder-gray-300 focus:outline-none"
                                 />
@@ -368,7 +370,7 @@ export function TREditColumnMenu({
                     <div className="mt-3">
                         <div className="flex items-start justify-between">
                             <FieldLabel htmlFor={`${menuId}-prompt`}>
-                                Prompt
+                                {t("tabular.prompt")}
                             </FieldLabel>
                             <button
                                 type="button"
@@ -381,7 +383,7 @@ export function TREditColumnMenu({
                                 ) : (
                                     <Plus className="h-3 w-3" />
                                 )}
-                                Auto-generate
+                                {t("tabular.autoGenerate")}
                             </button>
                         </div>
                         <textarea
@@ -399,7 +401,7 @@ export function TREditColumnMenu({
                             onClick={handleDelete}
                             disabled={deleting || saving}
                         >
-                            Delete
+                            {t("tabular.delete")}
                         </PillButtonUI>
                         <PillButtonUI
                             tone="black"
@@ -413,7 +415,7 @@ export function TREditColumnMenu({
                                 !prompt.trim()
                             }
                         >
-                            {saving ? "Saving…" : "Save"}
+                            {saving ? t("tabular.saving") : t("tabular.save")}
                         </PillButtonUI>
                     </div>
                     </div>,

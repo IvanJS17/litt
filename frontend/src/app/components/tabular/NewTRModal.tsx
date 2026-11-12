@@ -49,6 +49,7 @@ import {
 } from "../modals/CreateAccessStep";
 import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
 import { appendMissingById } from "@/app/lib/idCollections";
+import { useTranslations } from "next-intl";
 
 const isDev = process.env.NODE_ENV !== "production";
 const devLog = (...args: Parameters<typeof console.log>) => {
@@ -95,6 +96,7 @@ function NewTRModalForWorkspace({
     projectName,
     projectCmNumber,
 }: Props) {
+    const t = useTranslations();
     // A document uploaded on its own belongs to the workspace it is
     // uploaded in.
     const workspace = useDocumentWorkspace();
@@ -206,7 +208,7 @@ function NewTRModalForWorkspace({
                 // An empty list reads as "this firm has no templates", so a
                 // failed load has to say that it failed.
                 notifyError(error, {
-                    action: "load the workflow templates",
+                    action: t("tabular.loadTheWorkflowTemplates"),
                     dedupeKey: "new-review-workflows",
                     onRetry: () => setWorkflowReloadKey((key) => key + 1),
                 });
@@ -350,7 +352,7 @@ function NewTRModalForWorkspace({
             handleClose();
         } catch (error) {
             setUploadError(
-                userFacingApiError(error, "Could not create the review."),
+                userFacingApiError(error, t("tabular.couldNotCreateTheReview")),
             );
         } finally {
             creatingRef.current = false;
@@ -385,7 +387,7 @@ function NewTRModalForWorkspace({
             // Without this the picker just sat there empty, and the rejection
             // went nowhere because the caller does not await it.
             notifyError(error, {
-                action: "load this project's files",
+                action: t("tabular.loadThisProjectsFiles"),
                 dedupeKey: `new-review-project:${projectId}`,
                 onRetry: () => void handleSelectProject(projectId),
             });
@@ -457,7 +459,7 @@ function NewTRModalForWorkspace({
                         ? failedUploadMessage(err.outcomes)
                         : userFacingApiError(
                               err,
-                              "The selected files could not be uploaded. Please try again.",
+                              t("tabular.theSelectedFilesCouldNot"),
                           ),
                 ),
             );
@@ -471,8 +473,8 @@ function NewTRModalForWorkspace({
         {
             value: "",
             label: loadingWorkflows
-                ? "Loading templates..."
-                : "No template - start from scratch",
+                ? t("tabular.loadingTemplates")
+                : t("tabular.noTemplateStartFromScratch"),
         },
         ...workflows.map((workflow) => ({
             value: workflow.id,
@@ -486,7 +488,7 @@ function NewTRModalForWorkspace({
                   project.name +
                   (project.cm_number ? ` (#${project.cm_number})` : ""),
           }))
-        : [{ value: "", label: "No projects found" }];
+        : [{ value: "", label: t("tabular.noProjectsFound") }];
 
     // What to show in the directory depends on mode and toggle state
     const directoryDocuments = isProjectMode
@@ -508,11 +510,11 @@ function NewTRModalForWorkspace({
     const breadcrumbs =
         isProjectMode && projectName
             ? [
-                  "Projects",
+                  t("tabular.projects"),
                   `${projectName}${projectCmNumber ? ` (#${projectCmNumber})` : ""}`,
-                  "New Tabular Review",
+                  t("tabular.newTabularReview"),
               ]
-            : ["Tabular Reviews", "New Tabular Review"];
+            : [t("tabular.tabularReviews"), t("tabular.newTabularReview")];
 
     return (
         <Modal
@@ -521,15 +523,15 @@ function NewTRModalForWorkspace({
             breadcrumbs={[
                 ...breadcrumbs,
                 step === "details"
-                    ? "Details"
+                    ? t("tabular.details")
                     : step === "access"
-                      ? "Access"
-                      : "Add Documents",
+                      ? t("tabular.access")
+                      : t("tabular.addDocuments"),
             ]}
             secondaryAction={
                 step === "documents"
                     ? {
-                          label: uploading ? "Uploading..." : "Upload",
+                          label: uploading ? t("tabular.uploading") : t("tabular.upload"),
                           icon: uploading ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
@@ -542,12 +544,12 @@ function NewTRModalForWorkspace({
                           // dropped without a word. Freeze both.
                           disabled: uploading || reviewExists,
                           title: reviewExists
-                              ? "The review has been created — add documents from the review itself."
+                              ? t("tabular.theReviewHasBeenCreatedAdd")
                               : undefined,
                       }
                     : step === "access"
                       ? {
-                            label: "Back",
+                            label: t("tabular.back"),
                             type: "button",
                             onClick: () => setStep("details"),
                             disabled: uploading,
@@ -557,16 +559,16 @@ function NewTRModalForWorkspace({
             cancelAction={
                 step === "documents"
                     ? {
-                          label: "Back",
+                          label: t("tabular.back"),
                           onClick: () => setStep("access"),
                           disabled: uploading || reviewExists,
                           title: reviewExists
-                              ? "The review has been created — its details and access can be changed from the review itself."
+                              ? t("tabular.theReviewHasBeenCreatedIts")
                               : undefined,
                       }
                     : step === "access"
                       ? {
-                            label: "Skip",
+                            label: t("tabular.skip"),
                             type: "button",
                             onClick: () => {
                                 setDirectGrants([]);
@@ -580,7 +582,7 @@ function NewTRModalForWorkspace({
             primaryAction={
                 step === "details"
                     ? {
-                          label: "Next",
+                          label: t("tabular.next"),
                           type: "button",
                           onClick: () => setStep("access"),
                           disabled:
@@ -590,7 +592,7 @@ function NewTRModalForWorkspace({
                       }
                     : step === "access"
                       ? {
-                            label: "Next",
+                            label: t("tabular.next"),
                             type: "button",
                             onClick: (event) => {
                                 // The same footer node becomes the submit button
@@ -602,10 +604,10 @@ function NewTRModalForWorkspace({
                             disabled: uploading,
                         }
                       : {
-                          label: creating ? "Creating..." : "Create",
+                          label: creating ? t("tabular.creating") : t("tabular.create"),
                           type: "submit",
                           form: formId,
-                          name: "modalAction",
+                          name: t("tabular.modalaction"),
                           value: "create-review",
                           disabled:
                               !title.trim() ||
@@ -632,14 +634,14 @@ function NewTRModalForWorkspace({
                     <div className="space-y-6">
                         <div>
                             <FieldLabel htmlFor="new-tr-title">
-                                Review name
+                                {t("tabular.reviewName")}
                             </FieldLabel>
                             <FormTextInput
                                 id="new-tr-title"
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                placeholder="Review name"
+                                placeholder={t("tabular.reviewName")}
                                 variant="minimal"
                                 className="placeholder:text-gray-400"
                                 autoFocus
@@ -647,7 +649,7 @@ function NewTRModalForWorkspace({
                         </div>
 
                         <div>
-                            <FieldLabel as="p">Model</FieldLabel>
+                            <FieldLabel as="p">{t("tabular.model")}</FieldLabel>
                             <ModelToggle
                                 value={selectedModel}
                                 onChange={setSelectedModel}
@@ -661,7 +663,7 @@ function NewTRModalForWorkspace({
 
                         {/* Workflow template */}
                         <div>
-                            <FieldLabel as="p">Workflow template</FieldLabel>
+                            <FieldLabel as="p">{t("tabular.workflowTemplate")}</FieldLabel>
                             <ModalSelect
                                 id="new-tr-workflow-template"
                                 value={selectedWorkflowId ?? ""}
@@ -676,7 +678,7 @@ function NewTRModalForWorkspace({
                         {/* Create under a project toggle */}
                         {!isProjectMode && (
                             <div className="space-y-3">
-                                <FieldLabel as="p">Project</FieldLabel>
+                                <FieldLabel as="p">{t("tabular.project")}</FieldLabel>
                                 <ToggleSwitchUI
                                     checked={underProject}
                                     onCheckedChange={(next) => {
@@ -684,7 +686,7 @@ function NewTRModalForWorkspace({
                                         if (!next) clearProjectSelection();
                                     }}
                                 >
-                                    Create under a project
+                                    {t("tabular.createUnderAProject")}
                                 </ToggleSwitchUI>
 
                                 {underProject && (
@@ -697,7 +699,7 @@ function NewTRModalForWorkspace({
                                                 void handleSelectProject(value);
                                             }
                                         }}
-                                        placeholder="Select project..."
+                                        placeholder={t("tabular.selectProject")}
                                         disabled={projects.length === 0}
                                     />
                                 )}
@@ -705,13 +707,12 @@ function NewTRModalForWorkspace({
                         )}
 
                         <div>
-                            <FieldLabel as="p">Document grouping</FieldLabel>
+                            <FieldLabel as="p">{t("tabular.documentGrouping")}</FieldLabel>
                             <ToggleSwitchUI
                                 checked={groupBySubfolder}
                                 onCheckedChange={setGroupBySubfolder}
                             >
-                                Treat documents in the same folder as one review
-                                row
+                                {t("tabular.treatDocumentsInTheSameFolder")}
                             </ToggleSwitchUI>
                         </div>
                     </div>
@@ -734,16 +735,14 @@ function NewTRModalForWorkspace({
                                   ? selectedProjectId || null
                                   : null
                         }
-                        ownerLabel="Review owners"
+                        ownerLabel={t("tabular.reviewOwners")}
                         resourceNoun="review"
                     />
                 ) : (
                     <div className="flex min-h-0 flex-1 flex-col">
                         {reviewExists && (
                             <p className="mb-3 text-sm text-gray-500">
-                                The review has been created, so its documents
-                                can no longer be changed here. Add documents
-                                from the review once access has been granted.
+                                {t("tabular.theReviewHasBeenCreatedSo")}
                             </p>
                         )}
                         {showDirectory && (

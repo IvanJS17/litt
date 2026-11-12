@@ -209,6 +209,7 @@
     "frontend/src/app/components/shared/views/pdfQuoteSearch.ts",
     "frontend/src/app/components/shared/views/pdfTextOrder.ts",
     "frontend/src/app/components/shared/views/viewRounding.ts",
+    "frontend/src/app/components/tabular",
     "frontend/src/app/components/training/criterion",
     "frontend/src/app/components/training/firmCriteria",
     "frontend/src/app/components/training/map",
@@ -216,6 +217,7 @@
     "frontend/src/app/components/training/reviewAudit",
     "frontend/src/app/components/training/supervision",
     "frontend/src/app/components/versions",
+    "frontend/src/app/components/workflows",
     "frontend/src/app/error.tsx",
     "frontend/src/app/forgot-password/page.tsx",
     "frontend/src/app/hooks/useAssistantChat.ts",
@@ -307,6 +309,8 @@
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
     "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
     "frontend/src/app/components/shared/ChatPanelHeader.tsx": 1,
+    "frontend/src/app/components/tabular/columnPresets.ts": 13,
+    "frontend/src/app/components/workflows/workflowZipExport.ts": 1,
     "word-addin/src/taskpane/api/mikeApi.ts": 2,
     "word-addin/src/taskpane/hooks/useWordAssistantChat.ts": 5
   }

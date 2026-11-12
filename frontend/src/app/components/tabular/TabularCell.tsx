@@ -10,6 +10,7 @@ import { getPillClass } from "./pillUtils";
 import { SkeletonLine } from "../shared/TablePrimitive";
 import { TRExpandedCellSurface } from "./TRExpandedCellSurface";
 import { CitationPillUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 interface Props {
     cell: TCell;
@@ -190,6 +191,7 @@ export function TabularCell({
     onExpand,
     onCitationClick,
 }: Props) {
+    const t = useTranslations();
     const [inlineExpanded, setInlineExpanded] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -312,7 +314,7 @@ export function TabularCell({
                             className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
                         >
                             <Expand className="h-3 w-3" />
-                            See details
+                            {t("tabular.seeDetails")}
                         </button>
                     </div>
                 </TRExpandedCellSurface>

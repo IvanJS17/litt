@@ -5,6 +5,7 @@ import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { listWorkflows } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 import { Modal } from "../modals/Modal";
 import type { Workflow } from "../shared/types";
 import { WorkflowPickerContent } from "./WorkflowPickerContent";
@@ -34,13 +35,15 @@ function WorkflowPickerModalForWorkspace({
     onSelect,
     workflowType,
     breadcrumbs,
-    primaryLabel = "Use",
+    primaryLabel: primaryLabelProp,
     selectingLabel,
     selecting = false,
     closeOnSelect = true,
     initialWorkflowId,
     disabledWorkflow,
 }: WorkflowPickerModalProps) {
+    const t = useTranslations();
+    const primaryLabel = primaryLabelProp ?? t("workflows.use");
     const workspace = useDocumentWorkspace();
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [loading, setLoading] = useState(false);

@@ -47,6 +47,7 @@ import {
     type PendingDirectGrant,
     type PendingOrgOverride,
 } from "../modals/CreateAccessStep";
+import { useTranslations } from "next-intl";
 
 const DEFAULT_LANGUAGE = "English";
 const DEFAULT_PRACTICE = "";
@@ -122,6 +123,7 @@ export function NewWorkflowModal({
     readOnly = false,
     onUpdated,
 }: Props) {
+    const t = useTranslations();
     const [title, setTitle] = useState("");
     const [step, setStep] = useState<"details" | "access" | "assets">(
         "details",
@@ -468,17 +470,13 @@ export function NewWorkflowModal({
                     // workflow, so pressing Create again retries only the
                     // grants against the same workflow.
                     setError(
-                        `Workflow created, but access was not granted to ${grantFailures
-                            .map((failure) => failure.email)
-                            .join(", ")}: ${grantFailures[0]!.detail}${
-                            pendingAssetIds.length > 0
-                                ? ` The ${pendingAssetIds.length} selected ${
-                                      pendingAssetIds.length === 1
-                                          ? "file is"
-                                          : "files are"
-                                  } still pending and will be copied when you try again.`
-                                : ""
-                        }`,
+                        t("workflows.workflowCreatedButAccessNotGranted", {
+                            emails: grantFailures.map((failure) => failure.email).join(", "),
+                            detail: grantFailures[0]!.detail,
+                        }) +
+                            (pendingAssetIds.length > 0
+                                ? ` ${t("workflows.selectedFilesStillPending", { count: pendingAssetIds.length })}`
+                                : ""),
                     );
                     return;
                 }
@@ -561,7 +559,7 @@ export function NewWorkflowModal({
             setError(
                 userFacingApiError(
                     err,
-                    `Failed to ${isEditing ? "update" : "create"} workflow`,
+                    isEditing ? t("workflows.failedToUpdateWorkflow") : t("workflows.failedToCreateWorkflow"),
                 ),
             );
         } finally {
@@ -611,7 +609,7 @@ export function NewWorkflowModal({
         ) {
             setImportedSkillMd("");
             setImportedSkillName(null);
-            setMarkdownImportError("Choose a .md or .markdown file.");
+            setMarkdownImportError(t("workflows.chooseAMdOrMarkdown"));
             e.target.value = "";
             return;
         }
@@ -623,7 +621,7 @@ export function NewWorkflowModal({
         } catch {
             setImportedSkillMd("");
             setImportedSkillName(null);
-            setMarkdownImportError("Could not read that markdown file.");
+            setMarkdownImportError(t("workflows.couldNotReadThatMarkdown"));
             e.target.value = "";
         }
     }
@@ -631,13 +629,13 @@ export function NewWorkflowModal({
     const jurisdictionField = (
         <div>
             <FieldLabel htmlFor="workflow-jurisdiction">
-                Jurisdiction
+                {t("workflows.jurisdiction")}
             </FieldLabel>
             <ModalSelect
                 id="workflow-jurisdiction"
                 value={jurisdiction}
                 options={jurisdictionOptions}
-                placeholder="Select jurisdiction"
+                placeholder={t("workflows.selectJurisdiction")}
                 disabled={viewOnly}
                 open={openDropdown === "jurisdiction"}
                 onOpenChange={(nextOpen) =>
@@ -666,9 +664,9 @@ export function NewWorkflowModal({
                     options={jurisdictionRegionOptions}
                     disabled={viewOnly}
                     placeholder={
-                        jurisdiction === "United States"
-                            ? "Select state..."
-                            : "Select province..."
+                        jurisdiction === t("workflows.unitedStates")
+                            ? t("workflows.selectState")
+                            : t("workflows.selectProvince")
                     }
                     open={openDropdown === "jurisdictionRegion"}
                     onOpenChange={(nextOpen) =>
@@ -693,7 +691,7 @@ export function NewWorkflowModal({
                     value={customJurisdiction}
                     disabled={viewOnly}
                     onChange={(e) => setCustomJurisdiction(e.target.value)}
-                    placeholder="Enter jurisdiction…"
+                    placeholder={t("workflows.enterJurisdiction")}
                     className="mt-2"
                 />
             )}
@@ -706,16 +704,16 @@ export function NewWorkflowModal({
             onClose={handleClose}
             breadcrumbs={[
                 "Workflows",
-                isEditing ? "View and Edit details" : "New workflow",
+                isEditing ? "View and Edit details" : t("workflows.newWorkflow"),
                 ...(!isEditing
                     ? [
                           step === "details"
-                              ? "Details"
+                              ? t("workflows.details")
                               : step === "assets"
-                                ? "Add Assets"
+                                ? t("workflows.addAssets")
                                 : orgId === PERSONAL_WORKSPACE
-                                  ? "Access"
-                                  : "People",
+                                  ? t("workflows.access")
+                                  : t("workflows.people"),
                       ]
                     : []),
             ]}
@@ -724,14 +722,14 @@ export function NewWorkflowModal({
                     ? undefined
                     : !isEditing && step === "details"
                       ? {
-                            label: "Next",
+                            label: t("workflows.next"),
                             type: "button",
                             onClick: () => setStep("access"),
                             disabled: !title.trim() || loading,
                         }
                       : !isEditing && step === "access" && type === "assistant"
                         ? {
-                              label: "Next",
+                              label: t("workflows.next"),
                               type: "button",
                               onClick: () => setStep("assets"),
                               disabled: loading,
@@ -739,11 +737,11 @@ export function NewWorkflowModal({
                         : {
                               label: loading
                                   ? isEditing
-                                      ? "Saving…"
-                                      : "Creating…"
+                                      ? t("workflows.saving")
+                                      : t("workflows.creating")
                                   : isEditing
-                                    ? "Save"
-                                    : "Create workflow",
+                                    ? t("workflows.save")
+                                    : t("workflows.createWorkflow"),
                               type: isEditing ? "submit" : "button",
                               form: isEditing ? formId : undefined,
                               onClick: isEditing
@@ -758,21 +756,21 @@ export function NewWorkflowModal({
             secondaryAction={
                 !isEditing && step === "assets"
                     ? {
-                          label: "Back",
+                          label: t("workflows.back"),
                           type: "button",
                           onClick: () => setStep("access"),
                           disabled: loading,
                       }
                     : !isEditing && step === "access"
                       ? {
-                            label: "Back",
+                            label: t("workflows.back"),
                             type: "button",
                             onClick: () => setStep("details"),
                             disabled: loading,
                         }
                       : !isEditing && step === "details" && type === "assistant"
                         ? {
-                              label: importedSkillName ?? "Upload markdown",
+                              label: importedSkillName ?? t("workflows.uploadMarkdown"),
                               icon: <Upload className="h-3.5 w-3.5" />,
                               onClick: () => markdownInputRef.current?.click(),
                               disabled: loading,
@@ -782,7 +780,7 @@ export function NewWorkflowModal({
             cancelAction={
                 !isEditing && step === "access"
                     ? {
-                          label: "Skip",
+                          label: t("workflows.skip"),
                           type: "button",
                           onClick: () => {
                               setDirectGrants([]);
@@ -815,7 +813,8 @@ export function NewWorkflowModal({
                         onDirectGrantsChange={setDirectGrants}
                         orgOverrides={orgOverrides}
                         onOrgOverridesChange={setOrgOverrides}
-                        ownerLabel="Workflow owners"
+                        ownerLabel={t("workflows.workflowOwners")}
+                        resourceNoun="workflow"
                         visibility={visibility}
                     />
                 ) : !isEditing && step === "assets" ? (
@@ -831,14 +830,14 @@ export function NewWorkflowModal({
                         <div className="space-y-4">
                             <div>
                                 <FieldLabel htmlFor="workflow-title">
-                                    Title
+                                    {t("workflows.title")}
                                 </FieldLabel>
                                 <FormTextInput
                                     id="workflow-title"
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
-                                    placeholder="Add workflow name"
+                                    placeholder={t("workflows.addWorkflowName")}
                                     variant="minimal"
                                     disabled={viewOnly}
                                     autoFocus={!viewOnly}
@@ -849,19 +848,19 @@ export function NewWorkflowModal({
                             {!isEditing && (
                                 <div className="grid gap-5 md:grid-cols-2">
                                     <div>
-                                        <FieldLabel as="p">Type</FieldLabel>
+                                        <FieldLabel as="p">{t("workflows.type")}</FieldLabel>
                                         <ModalSegmentedToggle
                                             value={type}
                                             onChange={setType}
                                             options={[
                                                 {
                                                     value: "assistant",
-                                                    label: "Assistant",
+                                                    label: t("workflows.assistant"),
                                                     icon: ChatSkeuoIcon,
                                                 },
                                                 {
                                                     value: "tabular",
-                                                    label: "Tabular",
+                                                    label: t("workflows.tabular"),
                                                     icon: TabularReviewSkeuoIcon,
                                                 },
                                             ]}
@@ -875,7 +874,7 @@ export function NewWorkflowModal({
                         <div className="grid gap-5 md:grid-cols-2">
                             <div>
                                 <FieldLabel htmlFor="workflow-language">
-                                    Language
+                                    {t("workflows.language")}
                                 </FieldLabel>
                                 <ModalSelect
                                     id="workflow-language"
@@ -909,7 +908,7 @@ export function NewWorkflowModal({
                                         onChange={(e) =>
                                             setCustomLanguage(e.target.value)
                                         }
-                                        placeholder="Enter language…"
+                                        placeholder={t("workflows.enterLanguage")}
                                         className="mt-2"
                                     />
                                 )}
@@ -917,13 +916,13 @@ export function NewWorkflowModal({
 
                             <div>
                                 <FieldLabel htmlFor="workflow-practice">
-                                    Practice area
+                                    {t("workflows.practiceArea")}
                                 </FieldLabel>
                                 <ModalSelect
                                     id="workflow-practice"
                                     value={practice}
                                     options={PRACTICE_OPTIONS}
-                                    placeholder="Select practice area"
+                                    placeholder={t("workflows.selectPracticeArea")}
                                     disabled={viewOnly}
                                     open={openDropdown === "practice"}
                                     onOpenChange={(nextOpen) =>
@@ -954,7 +953,7 @@ export function NewWorkflowModal({
                                             practiceEditedRef.current = true;
                                             setCustomPractice(e.target.value);
                                         }}
-                                        placeholder="Enter practice area…"
+                                        placeholder={t("workflows.enterPracticeArea")}
                                         className="mt-2"
                                     />
                                 )}
@@ -965,12 +964,12 @@ export function NewWorkflowModal({
 
                         {orgId !== PERSONAL_WORKSPACE && isEditing ? (
                             <div>
-                                <FieldLabel as="p">Organisation</FieldLabel>
+                                <FieldLabel as="p">{t("workflows.organisation")}</FieldLabel>
                                 <p
                                     data-slot="workflow-workspace"
                                     className="break-words text-sm text-gray-700"
                                 >
-                                    {organizationName ?? "Organisation"}
+                                    {organizationName ?? t("workflows.organisation")}
                                 </p>
                             </div>
                         ) : null}

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Plus, X } from "lucide-react";
 import type { ColumnConfig, ColumnFormat } from "../shared/types";
 import { generateTabularColumnPrompt } from "@/app/lib/mikeApi";
-import { FORMAT_OPTIONS } from "./columnFormat";
+import { formatOptions } from "./columnFormat";
 import { TAG_COLORS } from "./pillUtils";
 import { getPresetConfig, PROMPT_PRESETS } from "./columnPresets";
 import { Modal } from "../modals/Modal";
@@ -15,6 +15,7 @@ import {
     LIQUID_GLASS_FLOAT_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 interface ColumnDraft {
     name: string;
@@ -45,6 +46,7 @@ export function AddColumnModal({
     onClose,
     onAdd,
 }: Props) {
+    const t = useTranslations();
     const formId = "add-column-modal-form";
     const [columns, setColumns] = useState<ColumnDraft[]>([{ ...EMPTY_DRAFT }]);
     const [collapsedIndices, setCollapsedIndices] = useState<number[]>([]);
@@ -196,16 +198,16 @@ export function AddColumnModal({
         <Modal
             open={open}
             onClose={handleClose}
-            breadcrumbs={["Tabular Review", "New column"]}
+            breadcrumbs={[t("tabular.tabularReview"), t("tabular.newColumn")]}
             primaryAction={{
-                label: "Add columns",
+                label: t("tabular.addColumns"),
                 type: "submit",
                 form: formId,
                 disabled: columns.some(
                     (col) => !col.name.trim() || !col.prompt.trim(),
                 ),
             }}
-            cancelAction={{ label: "Cancel", onClick: handleClose }}
+            cancelAction={{ label: t("tabular.cancel"), onClick: handleClose }}
         >
             <form
                 id={formId}
@@ -243,7 +245,7 @@ export function AddColumnModal({
                                                         className={`h-4 w-4 shrink-0 text-gray-600 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
                                                     />
                                                     <h3 className="font-serif text-2xl text-gray-950">
-                                                        Column {index + 1}
+                                                        {t("tabular.column")} {index + 1}
                                                     </h3>
                                                 </button>
                                                 {columns.length > 1 && (
@@ -253,7 +255,7 @@ export function AddColumnModal({
                                                             removeColumn(index)
                                                         }
                                                         className="rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-500"
-                                                        aria-label="Remove column"
+                                                        aria-label={t("tabular.removeColumn")}
                                                     >
                                                         <X className="h-4 w-4" />
                                                     </button>
@@ -262,7 +264,7 @@ export function AddColumnModal({
                                             {!isCollapsed && (
                                                 <>
                                             <FieldLabel htmlFor={nameInputId}>
-                                                Column title
+                                                {t("tabular.columnTitle")}
                                             </FieldLabel>
                                 {/* Name row */}
                                 <div className="flex items-start gap-2">
@@ -298,7 +300,7 @@ export function AddColumnModal({
                                                         : {}),
                                                 });
                                             }}
-                                            placeholder="Column name"
+                                            placeholder={t("tabular.columnName")}
                                             className="flex-1"
                                             autoFocus={index === 0}
                                         />
@@ -311,7 +313,7 @@ export function AddColumnModal({
                                                         : index,
                                                 )
                                             }
-                                            title="Column presets"
+                                            title={t("tabular.columnPresets")}
                                             className="mt-1.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                                         >
                                             <ChevronDown
@@ -328,7 +330,7 @@ export function AddColumnModal({
                                                     }}
                                                     className="theme-dropdown-item w-full border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-400 transition-colors"
                                                 >
-                                                    No Preset
+                                                    {t("tabular.noPreset")}
                                                 </button>
                                                 {PROMPT_PRESETS.map(
                                                     (preset) => (
@@ -367,12 +369,12 @@ export function AddColumnModal({
                                 {/* Format */}
                                 <div className="mt-4">
                                     <FieldLabel htmlFor={formatInputId}>
-                                        Format
+                                        {t("tabular.format")}
                                     </FieldLabel>
                                     <ModalSelect
                                         id={formatInputId}
                                         value={column.format}
-                                        options={FORMAT_OPTIONS.map((option) => ({
+                                        options={formatOptions(t).map((option) => ({
                                             value: option.value,
                                             label: option.label,
                                             icon: option.icon,
@@ -392,7 +394,7 @@ export function AddColumnModal({
                                 {column.format === "tag" && (
                                     <div className="mt-3">
                                         <FieldLabel htmlFor={tagInputId}>
-                                            Tags
+                                            {t("tabular.tags")}
                                         </FieldLabel>
                                         <div
                                             className={`mt-1 flex flex-wrap gap-1.5 rounded-xl px-2 py-1.5 ${LIQUID_GLASS_SUBTLE_CLASS}`}
@@ -438,12 +440,12 @@ export function AddColumnModal({
                                                     handleTagKeyDown(e, index)
                                                 }
                                                 onBlur={() => commitTag(index)}
-                                                placeholder="Add tag…"
+                                                placeholder={t("tabular.addTag")}
                                                 className="min-w-[80px] flex-1 bg-transparent font-sans text-sm text-gray-700 shadow-none placeholder:text-gray-400"
                                             />
                                         </div>
                                         <p className="mt-1 text-xs text-gray-400">
-                                            Press Enter or comma to add a tag.
+                                            {t("tabular.pressEnterOrCommaToAdd")}
                                         </p>
                                     </div>
                                 )}
@@ -451,7 +453,7 @@ export function AddColumnModal({
                                 {/* Prompt */}
                                 <div className="mt-4 flex items-center justify-between">
                                     <FieldLabel htmlFor={promptInputId}>
-                                        Prompt
+                                        {t("tabular.prompt")}
                                     </FieldLabel>
                                     <button
                                         type="button"
@@ -469,7 +471,7 @@ export function AddColumnModal({
                                         ) : (
                                             <Plus className="h-4 w-4" />
                                         )}
-                                        Auto-Generate Prompt
+                                        {t("tabular.autoGeneratePrompt")}
                                     </button>
                                 </div>
                                 <ModalTextarea
@@ -481,7 +483,7 @@ export function AddColumnModal({
                                             prompt: e.target.value,
                                         })
                                     }
-                                    placeholder="Write the analysis prompt — describe what LiTT should extract from each document for this column…"
+                                    placeholder={t("tabular.writeTheAnalysisPromptDescribeWhat")}
                                     className="mt-2 min-h-36"
                                 />
                                                 </>
@@ -498,7 +500,7 @@ export function AddColumnModal({
                             className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-900"
                         >
                             <Plus className="h-4 w-4" />
-                            Add another column
+                            {t("tabular.addAnotherColumn")}
                         </button>
                 </div>
             </form>

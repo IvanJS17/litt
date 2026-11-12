@@ -22,6 +22,7 @@ import {
     LIQUID_GLASS_MODAL_ROW_SELECTED_CLASS,
 } from "@/app/components/ui/liquid-surface";
 import { LIQUID_GLASS_SUBTLE_CLASS } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 type WorkflowPreviewMode = "auto" | "prompt" | "columns";
 type MobilePickerPane = "list" | "details";
@@ -57,6 +58,7 @@ export function WorkflowPickerContent({
     showTypeIcon = false,
     allowClearPreview = true,
 }: WorkflowPickerContentProps) {
+    const t = useTranslations();
     const selectedRowRef = useRef<HTMLButtonElement>(null);
     const selectedId = selected?.id ?? null;
     const [mobilePaneState, setMobilePaneState] = useState<{
@@ -97,10 +99,12 @@ export function WorkflowPickerContent({
     const resolvedEmptyMessage =
         emptyMessage ??
         (search
-            ? "No matches found"
+            ? t("workflows.noMatchesFound")
             : workflowType === "all"
-              ? "No workflows found"
-              : `No ${workflowType} workflows found`);
+              ? t("workflows.noWorkflowsFound")
+              : workflowType === "assistant"
+                ? t("workflows.noAssistantWorkflowsFound")
+                : t("workflows.noTabularWorkflowsFound"));
     const handleSelectWorkflow = (workflow: Workflow | null) => {
         onSelect(workflow);
         setMobilePane(workflow ? "details" : "list");
@@ -120,7 +124,7 @@ export function WorkflowPickerContent({
                 <SearchBar
                     value={search}
                     onValueChange={onSearchChange}
-                    placeholder="Search workflows..."
+                    placeholder={t("workflows.searchWorkflows2")}
                 />
 
                 <div
@@ -280,10 +284,11 @@ function WorkflowPreview({
 }
 
 function WorkflowPreviewSkeleton({ mode }: { mode: "prompt" | "columns" }) {
+    const t = useTranslations();
     return (
         <div
             role="status"
-            aria-label={`Loading workflow ${mode}`}
+            aria-label={mode === "columns" ? t("workflows.loadingWorkflowColumns") : t("workflows.loadingWorkflowPrompt")}
             className="min-w-0 flex-1 space-y-3 px-3 py-3"
         >
             {(mode === "columns"
@@ -390,13 +395,14 @@ function WorkflowPromptMarkdown({ content }: { content: string }) {
 }
 
 function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
+    const t = useTranslations();
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
     const sortedColumns = [...columns].sort((a, b) => a.index - b.index);
     return (
         <div className="min-w-0 flex-1 space-y-px rounded-sm">
             {sortedColumns.length === 0 ? (
                 <p className="px-4 py-6 text-center text-xs text-gray-400">
-                    No columns defined
+                    {t("workflows.noColumnsDefined")}
                 </p>
             ) : (
                 sortedColumns.map((column) => {
@@ -424,7 +430,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                     {column.name}
                                 </span>
                                 <span className="max-w-24 shrink-0 truncate text-gray-400">
-                                    {formatLabel(column.format ?? "text")}
+                                    {formatLabel(column.format ?? "text", t)}
                                 </span>
                                 <ChevronDown
                                     className={`h-3 w-3 shrink-0 text-gray-300 transition-transform duration-150 ${isExpanded ? "rotate-180" : ""}`}
@@ -435,7 +441,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                     {column.tags && column.tags.length > 0 ? (
                                         <div>
                                             <p className="mb-1.5 text-[11px] font-medium text-gray-600">
-                                                Tags
+                                                {t("workflows.tags")}
                                             </p>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {column.tags.map(
@@ -453,7 +459,7 @@ function WorkflowColumnPreview({ columns }: { columns: ColumnConfig[] }) {
                                     ) : null}
                                     <div>
                                         <p className="mb-1 text-[11px] font-medium text-gray-600">
-                                            Prompt
+                                            {t("workflows.prompt")}
                                         </p>
                                         <WorkflowPromptMarkdown
                                             content={

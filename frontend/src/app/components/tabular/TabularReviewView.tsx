@@ -126,6 +126,7 @@ interface Props {
 
 /** Display a review grid and resume its active generation through the latest stream handler. */
 export function TRView({ reviewId, projectId }: Props) {
+    const t = useTranslations();
     const configuredModels = useConfiguredModels();
     const configuredModelIds = useMemo(
         () => configuredModels.map((model) => model.id),
@@ -350,9 +351,9 @@ export function TRView({ reviewId, projectId }: Props) {
                     ) {
                         retryRef.current?.resume().catch((err) =>
                             notifyError(err, {
-                                action: "reconnect to the running review",
+                                action: t("tabular.reconnectToTheRunningReview"),
                                 fallback:
-                                    "LiTT lost contact with the run in progress. Results already saved are still here.",
+                                    t("tabular.littLostContactWithThe"),
                                 dedupeKey: `tr-resume:${reviewId}`,
                                 // Returned, so a failed retry is reported
                                 // again by notifyError's Retry wrapper.
@@ -367,7 +368,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 .catch((error) => {
                     if (cancelled) return;
                     notifyError(error, {
-                        action: "load this review",
+                        action: t("tabular.loadThisReview"),
                         dedupeKey: `tr-review:${reviewId}`,
                         onRetry: () => retryRef.current?.reloadReview(),
                     });
@@ -385,7 +386,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         // contacts shown on permission refusals, so silence
                         // here reads as "this review has no project".
                         notifyError(error, {
-                            action: "load this review's project",
+                            action: t("tabular.loadThisReviewsProject"),
                             dedupeKey: `tr-project:${projectId}`,
                         });
                     }),
@@ -418,7 +419,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 // An empty picker is indistinguishable from "you have no
                 // projects", which is the wrong thing to conclude.
                 notifyError(error, {
-                    action: "load your projects",
+                    action: t("tabular.loadYourProjects"),
                     dedupeKey: "tr-project-list",
                 });
             });
@@ -459,7 +460,7 @@ export function TRView({ reviewId, projectId }: Props) {
             // An empty grant list looks like "shared with nobody", which
             // would invite re-sharing a review that is already shared.
             notifyError(error, {
-                action: "load who this review is shared with",
+                action: t("tabular.loadWhoThisReviewIs"),
                 dedupeKey: `tr-access:${reviewId}`,
                 onRetry: () => {
                     void refreshGrants();
@@ -619,9 +620,9 @@ export function TRView({ reviewId, projectId }: Props) {
             if (uploaded.length > 0) await handleAddDocuments(uploaded);
         } catch (err) {
             notifyError(err, {
-                action: "add the uploaded files to this review",
+                action: t("tabular.addTheUploadedFilesTo"),
                 fallback:
-                    "The files uploaded, but the review could not be refreshed. Reload to see them.",
+                    t("tabular.theFilesUploadedButThe"),
                 // Re-read, never re-PATCH: each upload already attached
                 // itself, and handleAddDocuments from this closure would
                 // resend the document set and column config as they were
@@ -638,8 +639,8 @@ export function TRView({ reviewId, projectId }: Props) {
             notifyError(
                 new UserVisibleError(
                     failedNames.length === 1
-                        ? `“${failedNames[0]}” could not be uploaded.`
-                        : `${failedNames.length} files could not be uploaded: ${failedNames.join(", ")}.`,
+                        ? t("tabular.fileCouldNotBeUploaded", { name: failedNames[0] })
+                        : t("tabular.filesCouldNotBeUploaded", { count: failedNames.length, names: failedNames.join(", ") }),
                     { kind: "unknown", retryable: true, cause: dropUploadError },
                 ),
                 {
@@ -698,9 +699,9 @@ export function TRView({ reviewId, projectId }: Props) {
                 // resumable stream.
                 resumeGenerationStream().catch((err) =>
                     notifyError(err, {
-                        action: "follow this cell's regeneration",
+                        action: t("tabular.followThisCellsRegeneration"),
                         fallback:
-                            "The cell is still being generated, but LiTT lost contact with the run. Reload to see the result.",
+                            t("tabular.theCellIsStillBeing"),
                         dedupeKey: `tr-resume:${reviewId}`,
                     }),
                 );
@@ -727,7 +728,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 return;
             }
             notifyError(err, {
-                action: "regenerate this cell",
+                action: t("tabular.regenerateThisCell"),
                 onRetry: () => {
                     void handleRegenerateCell(rowId, colIndex);
                 },
@@ -805,7 +806,7 @@ export function TRView({ reviewId, projectId }: Props) {
                             typeof data.message === "string" &&
                             data.message.trim()
                                 ? data.message.trim()
-                                : "The review could not be completed. Please try again.",
+                                : t("tabular.theReviewCouldNotBe"),
                         );
                     }
                 }
@@ -813,9 +814,9 @@ export function TRView({ reviewId, projectId }: Props) {
                 // One notice per review: a cell update we could not apply
                 // leaves that cell showing stale text while the run goes on.
                 notifyError(err, {
-                    action: "show a generated cell",
+                    action: t("tabular.showAGeneratedCell"),
                     fallback:
-                        "A result arrived that LiTT couldn't display. Reload to see it.",
+                        t("tabular.aResultArrivedThatLittCouldnt"),
                     dedupeKey: `tr-cell-update:${reviewId}`,
                 });
             }
@@ -1046,7 +1047,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 // Cells left "generating" used to be the only sign of this,
                 // and they look identical to a run still in progress.
                 notifyError(err, {
-                    action: "run this review",
+                    action: t("tabular.runThisReview"),
                     operation: "tabular.run",
                     dedupeKey: `tr-generate:${reviewId}`,
                     onRetry: () => retryRef.current?.generate(),
@@ -1060,9 +1061,9 @@ export function TRView({ reviewId, projectId }: Props) {
                         await refreshAfterGeneration();
                     } catch (err) {
                         notifyError(err, {
-                            action: "refresh the review",
+                            action: t("tabular.refreshTheReview"),
                             fallback:
-                                "The table may be out of date. Reload to see the latest results.",
+                                t("tabular.theTableMayBeOut"),
                             dedupeKey: `tr-refresh:${reviewId}`,
                             onRetry: () => {
                                 void loadLatestReview();
@@ -1100,7 +1101,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 current ? { ...current, model: previousModel } : current,
             );
             notifyError(err, {
-                action: "change the model",
+                action: t("tabular.changeTheModel"),
                 onRetry: () => {
                     void handleReviewModelChange(model);
                 },
@@ -1122,7 +1123,7 @@ export function TRView({ reviewId, projectId }: Props) {
             // Both callers are "Check again"/"Load latest" buttons in a
             // blocking popup that otherwise just stops responding.
             notifyError(err, {
-                action: "load the latest version of this review",
+                action: t("tabular.loadTheLatestVersionOf"),
                 dedupeKey: `tr-latest:${reviewId}`,
                 onRetry: () => {
                     void loadLatestReview();
@@ -1212,8 +1213,8 @@ export function TRView({ reviewId, projectId }: Props) {
             applyColumns((current) => current.filter(removal.keepsColumn));
             setCells((prev) => prev.filter(removal.keepsCell));
             notifyError(err, {
-                action: "add the column",
-                fallback: "This column could not be saved. Try again.",
+                action: t("tabular.addTheColumn"),
+                fallback: t("tabular.thisColumnCouldNotBe"),
             });
         } finally {
             setSavingColumn(false);
@@ -1248,8 +1249,8 @@ export function TRView({ reviewId, projectId }: Props) {
                 );
             }
             notifyError(err, {
-                action: "save the column",
-                fallback: "This column could not be saved. Try again.",
+                action: t("tabular.saveTheColumn"),
+                fallback: t("tabular.thisColumnCouldNotBe"),
                 onRetry: () => retryRef.current?.updateColumn(nextColumn),
             });
         }
@@ -1280,7 +1281,7 @@ export function TRView({ reviewId, projectId }: Props) {
                       ],
             );
             notifyError(err, {
-                action: "delete the column",
+                action: t("tabular.deleteTheColumn"),
                 onRetry: () => retryRef.current?.deleteColumn(columnIndex),
             });
         }
@@ -1368,10 +1369,10 @@ export function TRView({ reviewId, projectId }: Props) {
             notifyError(err, {
                 action:
                     rowIdsToDelete.length === 1
-                        ? "remove the document"
-                        : "remove those documents",
+                        ? t("tabular.removeTheDocument")
+                        : t("tabular.removeThoseDocuments"),
                 fallback:
-                    "The documents were not removed and are still selected.",
+                    t("tabular.theDocumentsWereNotRemoved"),
             });
         }
     }
@@ -1425,7 +1426,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 ...new Set([...current, ...previousSelectedRowIds]),
             ]);
             notifyError(err, {
-                action: "clear the results",
+                action: t("tabular.clearTheResults"),
                 onRetry: () => {
                     void clearResultsForRows(rowIds);
                 },
@@ -1487,7 +1488,7 @@ export function TRView({ reviewId, projectId }: Props) {
         if (!canEditDetails) {
             if (roleKnown) {
                 setOwnerOnlyAction({
-                    action: "edit tabular review details",
+                    action: t("tabular.editTabularReviewDetails"),
                     requiredRole: "editor",
                 });
             }
@@ -1511,9 +1512,9 @@ export function TRView({ reviewId, projectId }: Props) {
         // gets an explanation instead of an unexplained failed save.
         if (projectChanged && !canMoveReview()) {
             setOwnerOnlyAction({
-                title: "Review creator only",
+                title: t("tabular.reviewCreatorOnly"),
                 message:
-                    "Only the person who created this review can move it to another project.",
+                    t("tabular.onlyThePersonWhoCreatedThis"),
             });
             return;
         }
@@ -1563,7 +1564,7 @@ export function TRView({ reviewId, projectId }: Props) {
             setDeleteReviewStatus("idle");
             // The confirm dialog stays open, so its button is the retry.
             notifyError(err, {
-                action: "delete this review",
+                action: t("tabular.deleteThisReview"),
             });
         }
     }
@@ -1596,9 +1597,9 @@ export function TRView({ reviewId, projectId }: Props) {
                     // The new columns are saved either way; say so rather
                     // than leaving stale answers under new questions.
                     notifyError(err, {
-                        action: "clear the previous results",
+                        action: t("tabular.clearThePreviousResults"),
                         fallback:
-                            "The workflow's columns were applied, but the old results could not be cleared. Clear them from the Actions menu.",
+                            t("tabular.theWorkflowsColumnsWereAppliedBut"),
                     });
                 }
             }
@@ -1613,8 +1614,8 @@ export function TRView({ reviewId, projectId }: Props) {
                     setCells(detail.cells);
                 } catch (err) {
                     notifyError(err, {
-                        action: "refresh the applied workflow",
-                        fallback: "The workflow was applied, but the latest results could not be loaded.",
+                        action: t("tabular.refreshTheAppliedWorkflow"),
+                        fallback: t("tabular.theWorkflowWasAppliedBut"),
                         onRetry: refreshAppliedWorkflow,
                     });
                 }
@@ -1624,7 +1625,7 @@ export function TRView({ reviewId, projectId }: Props) {
             applyColumns(() => previousColumns);
             setCells(previousCells);
             notifyError(err, {
-                action: "apply the workflow",
+                action: t("tabular.applyTheWorkflow"),
                 supportNote: `Workflow ${workflow.metadata.title}`,
                 onRetry: () => {
                     void handleApplyWorkflow(workflow);
@@ -1675,7 +1676,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         ...(projectId
                             ? [
                                   {
-                                      label: "Projects",
+                                      label: t("tabular.projects"),
                                       onClick: () => router.push("/projects"),
                                   },
                                   loading
@@ -1686,7 +1687,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                                 router.push(
                                                     `/projects/${projectId}`,
                                                 ),
-                                            title: "Back to project",
+                                            title: t("tabular.backToProject"),
                                         }
                                       : {
                                             label: project?.name ?? "",
@@ -1694,26 +1695,26 @@ export function TRView({ reviewId, projectId }: Props) {
                                                 router.push(
                                                     `/projects/${projectId}`,
                                                 ),
-                                            title: "Back to project",
+                                            title: t("tabular.backToProject"),
                                         },
                               ]
                             : [
                                   {
-                                      label: "Tabular Reviews",
+                                      label: t("tabular.tabularReviews"),
                                       onClick: () =>
                                           router.push("/tabular-reviews"),
-                                      title: "Back to Tabular Reviews",
+                                      title: t("tabular.backToTabularReviews"),
                                   },
                               ]),
                         ...(projectId
                             ? [
                                   {
-                                      label: "Tabular Reviews",
+                                      label: t("tabular.tabularReviews"),
                                       onClick: () =>
                                           router.push(
                                               `/projects/${projectId}/tabular-reviews`,
                                           ),
-                                      title: "Back to Tabular Reviews",
+                                      title: t("tabular.backToTabularReviews"),
                                   },
                               ]
                             : []),
@@ -1723,7 +1724,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                   skeletonClassName: "w-40",
                               }
                             : {
-                                  label: review?.title || "Untitled Review",
+                                  label: review?.title || t("tabular.untitledReview"),
                               },
                     ]}
                     actionGroups={[
@@ -1732,7 +1733,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                 type: "search",
                                 value: search,
                                 onChange: setSearch,
-                                placeholder: "Search rows…",
+                                placeholder: t("tabular.searchRows"),
                             },
                             {
                                 type: "custom",
@@ -1741,20 +1742,20 @@ export function TRView({ reviewId, projectId }: Props) {
                                         items={[
                                             ...(!projectId
                                                 ? [{
-                                                      label: "Access",
+                                                      label: t("tabular.access"),
                                                       icon: Users,
                                                       onSelect: () => setAccessModalOpen(true),
                                                       disabled: loading,
                                                   }]
                                                 : []),
                                             {
-                                                label: "Edit details",
+                                                label: t("tabular.editDetails"),
                                                 icon: Pencil,
                                                 onSelect: requestReviewDetails,
                                                 disabled: !roleKnown,
                                             },
                                             {
-                                                label: "Apply workflow",
+                                                label: t("tabular.applyWorkflow"),
                                                 icon: WandSparkles,
                                                 onSelect: requestWorkflow,
                                                 disabled: !roleKnown,
@@ -1767,13 +1768,13 @@ export function TRView({ reviewId, projectId }: Props) {
                                                   }]
                                                 : []),
                                             {
-                                                label: "Export",
+                                                label: t("tabular.export"),
                                                 icon: Download,
                                                 onSelect: () =>
                                                     exportTabularReviewToExcel({
                                                         reviewTitle:
                                                             review?.title ||
-                                                            "Tabular Review",
+                                                            t("tabular.tabularReview"),
                                                         columns,
                                                         rows,
                                                         cells: cellStore.values(),
@@ -1783,7 +1784,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                                     rows.length === 0,
                                             },
                                             {
-                                                label: "Clear results",
+                                                label: t("tabular.clearResults"),
                                                 icon: X,
                                                 onSelect: handleClearAllResults,
                                                 disabled:
@@ -1792,7 +1793,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                                     cellMutationsBlocked,
                                             },
                                             {
-                                                label: "Delete",
+                                                label: t("tabular.delete"),
                                                 icon: Trash2,
                                                 onSelect: requestReviewDelete,
                                                 variant: "danger",
@@ -1816,8 +1817,8 @@ export function TRView({ reviewId, projectId }: Props) {
                                         columns.length === 0 ||
                                         rows.length === 0,
                                     title: chatOpen
-                                        ? "Close chat"
-                                        : "Open chat",
+                                        ? t("tabular.closeChat")
+                                        : t("tabular.openChat"),
                                     icon: chatOpen ? (
                                         <MessageSquareX className="h-4 w-4" />
                                     ) : (
@@ -1825,7 +1826,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                     ),
                                     label: (
                                         <span className="hidden sm:inline">
-                                            Chat
+                                            {t("tabular.chat")}
                                         </span>
                                     ),
                                 },
@@ -1848,7 +1849,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                 <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                     <fieldset
                                         disabled={loading}
-                                        aria-label="Review generation"
+                                        aria-label={t("tabular.reviewGeneration")}
                                         // The group owns the glass surface; its buttons only add hover states.
                                         className={[
                                             `flex h-7 min-w-0 max-w-full items-center rounded-full p-0 ${LIQUID_GLASS_SUBTLE_CLASS}`,
@@ -1887,10 +1888,10 @@ export function TRView({ reviewId, projectId }: Props) {
                                             }
                                             title={
                                                 stoppingGeneration
-                                                    ? "Stopping generation"
+                                                    ? t("tabular.stoppingGeneration")
                                                     : generating
-                                                      ? "Stop generation"
-                                                      : "Run review"
+                                                      ? t("tabular.stopGeneration")
+                                                      : t("tabular.runReview")
                                             }
                                             className="shrink-0 whitespace-nowrap rounded-l-none"
                                         >
@@ -1901,7 +1902,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                             ) : (
                                                 <Play aria-hidden="true" className="h-3.5 w-3.5" />
                                             )}
-                                            {stoppingGeneration ? "Stopping…" : generating ? "Stop" : "Run"}
+                                            {stoppingGeneration ? t("tabular.stopping") : generating ? t("tabular.stop") : t("tabular.run")}
                                         </TabPillButtonUI>
                                     </fieldset>
                                     <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -1955,7 +1956,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                                 className="pl-2"
                                             >
                                                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
-                                                Add Columns
+                                                {t("tabular.addColumns2")}
                                             </TabPillButtonUI>
                                         )}
                                         {!loading && selectedRowIds.length > 0 && (
@@ -2155,14 +2156,14 @@ export function TRView({ reviewId, projectId }: Props) {
                         onClose={() => setAddDocsOpen(false)}
                         onSelect={(docs: Document[]) => handleAddDocuments(docs)}
                         breadcrumb={[
-                            "Projects",
+                            t("tabular.projects"),
                             project.name +
                                 (project.cm_number
                                     ? ` (#${project.cm_number})`
                                     : ""),
-                            "Tabular Reviews",
-                            ...(review ? [review.title || "Untitled Review"] : []),
-                            "Add Documents",
+                            t("tabular.tabularReviews"),
+                            ...(review ? [review.title || t("tabular.untitledReview")] : []),
+                            t("tabular.addDocuments"),
                         ]}
                         uploadStateId={`tabular-review:${review?.id ?? "new"}:project`}
                         projectId={project.id}
@@ -2177,9 +2178,9 @@ export function TRView({ reviewId, projectId }: Props) {
                         onClose={() => setAddDocsOpen(false)}
                         onSelect={(docs: Document[]) => handleAddDocuments(docs)}
                         breadcrumb={[
-                            "Tabular Reviews",
-                            ...(review ? [review.title || "Untitled Review"] : []),
-                            "Add Documents",
+                            t("tabular.tabularReviews"),
+                            ...(review ? [review.title || t("tabular.untitledReview")] : []),
+                            t("tabular.addDocuments"),
                         ]}
                         uploadStateId={`tabular-review:${review?.id ?? "new"}:library`}
                         tabs={["files", "projects"]}
@@ -2207,9 +2208,9 @@ export function TRView({ reviewId, projectId }: Props) {
                 // cannot offer the caller a Remove that locks them out.
                 currentUserId={user?.id ?? null}
                 breadcrumb={[
-                    "Tabular Reviews",
-                    review?.title || "Untitled Review",
-                    "Access",
+                    t("tabular.tabularReviews"),
+                    review?.title || t("tabular.untitledReview"),
+                    t("tabular.access"),
                 ]}
                 access={{
                     grants: grants ?? [],
@@ -2220,7 +2221,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         accessOrgId === undefined
                             ? (review?.org_id ?? null)
                             : accessOrgId,
-                    ownerLabel: "Review owners",
+                    ownerLabel: t("tabular.reviewOwners"),
                     resourceNoun: "review",
                     inheritedFromProjectId: review?.project_id ?? null,
                     canManage: can(reviewRole, "access.manage"),
@@ -2249,25 +2250,25 @@ export function TRView({ reviewId, projectId }: Props) {
                 breadcrumbs={[
                     ...(project
                         ? [
-                              "Projects",
+                              t("tabular.projects"),
                               project.name +
                                   (project.cm_number
                                       ? ` (#${project.cm_number})`
                                       : ""),
                           ]
                         : []),
-                    "Tabular Reviews",
-                    review?.title || "Untitled Review",
-                    "Add workflow",
+                    t("tabular.tabularReviews"),
+                    review?.title || t("tabular.untitledReview"),
+                    t("tabular.addWorkflow"),
                 ]}
                 applying={applyingWorkflow}
             />
 
             <ConfirmPopup
                 open={deleteReviewConfirmOpen}
-                title="Delete tabular review?"
-                message="This will permanently delete the tabular review and its generated cells."
-                confirmLabel="Delete"
+                title={t("tabular.deleteTabularReview")}
+                message={t("tabular.thisWillPermanentlyDeleteTheTabular")}
+                confirmLabel={t("tabular.delete")}
                 confirmVariant="danger"
                 confirmStatus={
                     deleteReviewStatus === "deleting"
@@ -2276,7 +2277,7 @@ export function TRView({ reviewId, projectId }: Props) {
                           ? "complete"
                           : "idle"
                 }
-                cancelLabel="Cancel"
+                cancelLabel={t("tabular.cancel")}
                 onCancel={() => {
                     if (deleteReviewStatus === "deleting") return;
                     setDeleteReviewConfirmOpen(false);
@@ -2293,19 +2294,21 @@ export function TRView({ reviewId, projectId }: Props) {
             <WarningPopup
                 open={generationError !== null}
                 onClose={() => setGenerationError(null)}
-                title="Review stopped"
+                title={t("tabular.reviewStopped")}
                 message={generationError}
             />
             <ApiKeyMissingPopup
                 open={apiKeyWarning !== null}
                 title={
                     apiKeyWarning?.kind === "rejected"
-                        ? "API key rejected"
+                        ? t("tabular.apiKeyRejected")
                         : undefined
                 }
                 message={
                     apiKeyWarning?.kind === "rejected"
-                        ? `The ${apiKeyWarning.provider ? providerLabel(apiKeyWarning.provider) : "model provider"} API key was rejected. If you added your own key, check it in Settings → Bring Your Own Keys; otherwise contact your administrator.`
+                        ? t("tabular.apiKeyWasRejectedByok", {
+                              provider: apiKeyWarning.provider ? providerLabel(apiKeyWarning.provider) : t("tabular.modelProvider"),
+                          })
                         : undefined
                 }
                 onClose={() => setApiKeyWarning(null)}
@@ -2318,20 +2321,20 @@ export function TRView({ reviewId, projectId }: Props) {
 
             <WarningPopup
                 open={modelRequiredWarning}
-                title="Select a model"
-                message="Select a model for this tabular review before running it."
+                title={t("tabular.selectAModel")}
+                message={t("tabular.selectAModelForThisTabular")}
                 onClose={() => setModelRequiredWarning(false)}
             />
 
             <WarningPopup
                 open={generationGuard === "running"}
-                title="Tabular review is already running"
-                message="This review is being run in another tab or by another collaborator. Wait for that run to finish or be stopped before trying again."
+                title={t("tabular.tabularReviewIsAlreadyRunning")}
+                message={t("tabular.thisReviewIsBeingRunIn")}
                 onClose={() => {
                     if (!reloadingLatestReview) setGenerationGuard(null);
                 }}
                 primaryAction={{
-                    label: reloadingLatestReview ? "Checking…" : "Check again",
+                    label: reloadingLatestReview ? t("tabular.checking") : t("tabular.checkAgain"),
                     disabled: reloadingLatestReview,
                     onClick: () => void loadLatestReview(),
                 }}
@@ -2339,13 +2342,13 @@ export function TRView({ reviewId, projectId }: Props) {
 
             <WarningPopup
                 open={generationGuard === "stale"}
-                title="A newer version is available"
-                message="Load the latest version of this tabular review before running it."
+                title={t("tabular.aNewerVersionIsAvailable")}
+                message={t("tabular.loadTheLatestVersionOfThis")}
                 onClose={() => {
                     if (!reloadingLatestReview) setGenerationGuard(null);
                 }}
                 primaryAction={{
-                    label: reloadingLatestReview ? "Loading…" : "Load latest",
+                    label: reloadingLatestReview ? t("tabular.loading") : t("tabular.loadLatest"),
                     disabled: reloadingLatestReview,
                     onClick: () => void loadLatestReview(),
                 }}

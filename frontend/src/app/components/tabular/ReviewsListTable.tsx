@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Loader2 } from "lucide-react";
 import { can, roleFrom } from "@/app/lib/permissions";
@@ -135,6 +135,7 @@ export function ReviewsListTable({
     loading?: boolean;
     renderToolbar?: (actions: ReactNode) => ReactNode;
 }) {
+    const t = useTranslations();
     const format = useFormatter();
     const selectedReviewIdSet = useIdSet(selectedReviewIds);
     function clearSelection() {
@@ -143,7 +144,7 @@ export function ReviewsListTable({
 
     function requestReviewDetails(review: TabularReview) {
         if (!can(roleFrom(review), "content.edit")) {
-            onOwnerOnlyAction({ action: "edit tabular review details", requiredRole: "editor" }, review);
+            onOwnerOnlyAction({ action: t("tabular.editTabularReviewDetails"), requiredRole: "editor" }, review);
             return;
         }
         onOpenDetails(review);
@@ -158,7 +159,7 @@ export function ReviewsListTable({
             <RowActionMenuItems
                 onClose={onClose}
                 onView={!appliesToSelection && review ? () => onOpenReview(review) : undefined}
-                viewLabel="Open"
+                viewLabel={t("tabular.open")}
                 onEditDetails={!appliesToSelection && review ? () => requestReviewDetails(review) : undefined}
                 onDelete={() =>
                     appliesToSelection || !review
@@ -198,7 +199,7 @@ export function ReviewsListTable({
         sort?.key === "updated" ? sort.direction : null;
     const nameFilterButton = (
         <TableSortFilter
-            label="Sort by review name"
+            label={t("tabular.sortByReviewName")}
             value={nameSortDirection}
             align="right"
             onChange={(direction) => handleSortChange("name", direction)}
@@ -206,28 +207,28 @@ export function ReviewsListTable({
     );
     const columnsFilterButton = (
         <TableSortFilter
-            label="Sort by columns"
+            label={t("tabular.sortByColumns")}
             value={columnsSortDirection}
             onChange={(direction) => handleSortChange("columns", direction)}
         />
     );
     const documentsFilterButton = (
         <TableSortFilter
-            label="Sort by documents"
+            label={t("tabular.sortByDocuments")}
             value={documentsSortDirection}
             onChange={(direction) => handleSortChange("documents", direction)}
         />
     );
     const createdFilterButton = (
         <TableSortFilter
-            label="Sort by created date"
+            label={t("tabular.sortByCreatedDate")}
             value={createdSortDirection}
             onChange={(direction) => handleSortChange("created", direction)}
         />
     );
     const updatedFilterButton = (
         <TableSortFilter
-            label="Sort by updated date"
+            label={t("tabular.sortByUpdatedDate")}
             value={updatedSortDirection}
             onChange={(direction) => handleSortChange("updated", direction)}
         />
@@ -269,33 +270,33 @@ export function ReviewsListTable({
                                 }}
                                 onChange={onToggleAll}
                                 className={TABLE_CHECKBOX_CLASS}
-                                aria-label="Select all reviews"
+                                aria-label={t("tabular.selectAllReviews")}
                             />
                         )}
-                        <span className="mr-1">Name</span>
+                        <span className="mr-1">{t("tabular.name")}</span>
                         {!loading && nameFilterButton}
                     </TableStickyCell>
                     <TableHeaderCell className="ml-auto w-24">
                         <div className="flex items-center gap-1">
-                            <span>Columns</span>
+                            <span>{t("tabular.columns")}</span>
                             {!loading && columnsFilterButton}
                         </div>
                     </TableHeaderCell>
                     <TableHeaderCell className="w-24">
                         <div className="flex items-center gap-1">
-                            <span>Documents</span>
+                            <span>{t("tabular.documents")}</span>
                             {!loading && documentsFilterButton}
                         </div>
                     </TableHeaderCell>
                     {projectColumn && (
                         <TableHeaderCell className="w-52">
                             <div className="flex items-center gap-1">
-                                <span>Project</span>
+                                <span>{t("tabular.project")}</span>
                                 {!loading && (
                                     <TableFilters
-                                        label="Filter by project"
+                                        label={t("tabular.filterByProject")}
                                         value={projectColumn.filter}
-                                        allLabel="All Projects"
+                                        allLabel={t("tabular.allProjects")}
                                         options={projectColumn.projects.map(
                                             (project) => ({
                                                 value: project.id,
@@ -311,10 +312,10 @@ export function ReviewsListTable({
                     {showCreator && (
                         <TableHeaderCell className="w-32">
                             <div className="flex items-center gap-1">
-                                <span>Creator</span>
+                                <span>{t("tabular.creator")}</span>
                                 {!loading && creatorFilter && (
                                     <PersonFilter
-                                        label="Filter by creator"
+                                        label={t("tabular.filterByCreator")}
                                         selectedTitle={(name) =>
                                             `Created by ${name}`
                                         }
@@ -326,13 +327,13 @@ export function ReviewsListTable({
                     )}
                     <TableHeaderCell className="w-32">
                         <div className="flex items-center gap-1">
-                            <span>Created</span>
+                            <span>{t("tabular.created")}</span>
                             {!loading && createdFilterButton}
                         </div>
                     </TableHeaderCell>
                     <TableHeaderCell className="w-32">
                         <div className="flex items-center gap-1">
-                            <span>Updated</span>
+                            <span>{t("tabular.updated")}</span>
                             {!loading && updatedFilterButton}
                         </div>
                     </TableHeaderCell>
@@ -349,10 +350,10 @@ export function ReviewsListTable({
             ) : error ? (
                 <TableEmptyState>
                     <p className="text-lg font-medium font-serif text-gray-900">
-                        Unable to load reviews
+                        {t("tabular.unableToLoadReviews")}
                     </p>
                     <p className="mt-1 text-xs text-gray-400">
-                        Check your connection and try again.
+                        {t("tabular.checkYourConnectionAndTryAgain")}
                     </p>
                     <PillButtonUI
                         tone="black"
@@ -360,19 +361,19 @@ export function ReviewsListTable({
                         onClick={onRetry}
                         className="mt-4"
                     >
-                        Try again
+                        {t("tabular.tryAgain")}
                     </PillButtonUI>
                 </TableEmptyState>
             ) : reviews.length === 0 ? (
                 <TableEmptyState>
                     {hasActiveFilters ? (
                         <p className="text-sm text-gray-400">
-                            No reviews found
+                            {t("tabular.noReviewsFound")}
                         </p>
                     ) : (
                         <EmptyState
                             icon={<TabularReviewSkeuoIcon />}
-                            title="Tabular Reviews"
+                            title={t("tabular.tabularReviews")}
                             description={emptyDescription}
                             action={
                                 <PillButtonUI
@@ -381,7 +382,7 @@ export function ReviewsListTable({
                                     onClick={onCreateReview}
                                     disabled={createDisabled}
                                 >
-                                    Create
+                                    {t("tabular.create")}
                                 </PillButtonUI>
                             }
                         />
@@ -430,7 +431,7 @@ export function ReviewsListTable({
                                                 : [...prev, review.id],
                                         )
                                     }
-                                    label={review.title ?? "Untitled Review"}
+                                    label={review.title ?? t("tabular.untitledReview")}
                                 />
                                 <TableCell className="ml-auto w-24">
                                     {review.columns_config?.length ?? 0}
@@ -455,9 +456,9 @@ export function ReviewsListTable({
                                         <CreatorLabel
                                             label={
                                                 review.is_owner
-                                                    ? "Me"
+                                                    ? t("tabular.me")
                                                     : review.owner_display_name?.trim() ||
-                                                      "Shared"
+                                                      t("tabular.shared")
                                             }
                                             photo={review.owner_profile_photo}
                                             name={review.owner_display_name}
@@ -488,7 +489,7 @@ export function ReviewsListTable({
                                 >
                                     <RowActions
                                         onView={() => onOpenReview(review)}
-                                        viewLabel="Open"
+                                        viewLabel={t("tabular.open")}
                                         onEditDetails={() => requestReviewDetails(review)}
                                         onDelete={() => onDeleteReview(review)}
                                     />
