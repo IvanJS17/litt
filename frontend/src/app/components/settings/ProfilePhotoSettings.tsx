@@ -33,7 +33,7 @@ export function ProfilePhotoSettings() {
       setFile(null);
       setEditing(false);
     } catch (cause) {
-      setError(userFacingApiError(cause, "Could not save your profile photo. Try again."));
+      setError(userFacingApiError(cause, t("settings.profilePhotoSettings.couldNotSaveYourProfilePhoto")));
     } finally {
       setSaving(null);
     }
@@ -60,7 +60,7 @@ export function ProfilePhotoSettings() {
             setFile(picked);
             setEditing(true);
           } catch (cause) {
-            setError(cause instanceof OrgLogoImageError ? cause.message : "Choose another image.");
+            setError(cause instanceof OrgLogoImageError ? cause.message : t("settings.profilePhotoSettings.chooseAnotherImage"));
           }
         }} />
         <PillButtonUI size="sm" tone={profile?.profilePhoto ? "blue" : "white"} disabled={loading || saving !== null} onClick={() => {
@@ -74,7 +74,7 @@ export function ProfilePhotoSettings() {
       {editing ? <ImageCropModal
         file={file ?? undefined}
         imageUrl={profile?.profilePhoto}
-        name={profile?.displayName || user?.email || "You"}
+        name={profile?.displayName || user?.email || t("settings.profilePhotoSettings.you")}
         variant="photo"
         saving={saving === "save"}
         removing={saving === "remove"}

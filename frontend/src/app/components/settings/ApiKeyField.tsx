@@ -53,7 +53,7 @@ export function ApiKeyField({
   description,
   hasSavedKey,
   hasEnvKey = false,
-  keyLabel = "API key",
+  keyLabel,
   validateKey,
   setting,
   onSave,
@@ -136,9 +136,9 @@ export function ApiKeyField({
     }
     notifyInfo(
       valueRef.current.trim().length > 0
-        ? `Your ${label} has changed since that attempt. Press Save to store the key now in the field.`
-        : `The ${label} field is empty, so there is nothing to retry. Enter the key again and press Save.`,
-      "Nothing was sent",
+        ? t("settings.apiKeyField.yourLabelHasChanged", { label })
+        : t("settings.apiKeyField.theLabelFieldIsEmpty", { label }),
+      t("settings.apiKeyField.nothingWasSent"),
     );
   };
 
@@ -177,11 +177,11 @@ export function ApiKeyField({
         // The caller reports failure as `false`, with no error to classify.
         notifyError(
           new UserVisibleError(
-            `LiTT couldn't save your ${label}. The key was not changed.`,
+            t("settings.apiKeyField.couldntSave", { label }),
             { retryable: true },
           ),
           {
-            action: `save your ${label}`,
+            action: t("settings.apiKeyField.saveYourLabel", { label }),
             onRetry: () => retrySave(attempted, attemptedSetting),
           },
         );
@@ -194,7 +194,7 @@ export function ApiKeyField({
         // shown as written, with no Retry (the same value would be refused
         // again); a transient failure offers one.
         notifyError(error, {
-          action: `save your ${label}`,
+          action: t("settings.apiKeyField.saveYourLabel", { label }),
           onRetry: () => retrySave(attempted, attemptedSetting),
         });
       }
@@ -216,11 +216,11 @@ export function ApiKeyField({
       } else {
         notifyError(
           new UserVisibleError(
-            `LiTT couldn't remove your ${label}. The key is still saved.`,
+            t("settings.apiKeyField.couldntRemove", { label }),
             { retryable: true },
           ),
           {
-            action: `remove your ${label}`,
+            action: t("settings.apiKeyField.removeYourLabel", { label }),
             onRetry: () => void handleRemove(),
           },
         );
@@ -230,7 +230,7 @@ export function ApiKeyField({
         setPendingMfaAction("remove");
       } else {
         notifyError(error, {
-          action: `remove your ${label}`,
+          action: t("settings.apiKeyField.removeYourLabel", { label }),
           onRetry: () => void handleRemove(),
         });
       }
@@ -250,7 +250,7 @@ export function ApiKeyField({
   };
 
   const saveAction = {
-    label: isSaving ? t("settings.apiKeyField.saving") : saved ? "Saved" : "Save",
+    label: isSaving ? t("settings.apiKeyField.saving") : saved ? t("settings.home.saved") : t("common.save"),
     onClick: handleSave,
     disabled: isSaving || !dirty || saved,
     settled: !isSaving && (hasSavedKey || hasEnvKey) && !dirty,
@@ -278,7 +278,7 @@ export function ApiKeyField({
       <div className={variant === "modal" ? "space-y-4" : "space-y-2"}>
         <div>
           {variant === "modal" && (
-            <FieldLabel htmlFor={`${settingInputId}-key`}>{keyLabel}</FieldLabel>
+            <FieldLabel htmlFor={`${settingInputId}-key`}>{keyLabel ?? t("settings.apiKeyField.apiKey")}</FieldLabel>
           )}
           <div className="relative flex-1">
             <Input

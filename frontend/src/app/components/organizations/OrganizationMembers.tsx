@@ -63,7 +63,6 @@ import {
   type OrgMember,
 } from "@/app/lib/mikeApi";
 import {
-  ORG_ROLE_LABELS,
   ORG_ROLES,
   canManageOrgRole,
   isOrgAdmin,
@@ -74,6 +73,8 @@ import { OrganizationDepartedMembers } from "./OrganizationDepartedMembers";
 import { InviteOrganizationMemberModal } from "./OrganizationModals";
 import { useIdSet } from "@/app/hooks/useIdSet";
 import { useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
+import { orgRoleLabel } from "./orgRoleText";
 
 /** The roster's fixed order: who decides, who runs it, everybody else. */
 const ROLE_ORDER: Record<OrgRole, number> = { owner: 0, admin: 1, member: 2 };
@@ -87,19 +88,21 @@ const AFTER_DEPARTURE = "/settings/organizations";
 // Role colours follow the project access editor: blue for the top role,
 // violet for the middle one, grey for the base one. Amber is the app's
 // caution colour, so no role uses it.
-const ROLE_FILTER_OPTIONS: TableFilterOption<OrgRole>[] = [
-  { value: "owner", label: ORG_ROLE_LABELS.owner, className: "text-interactive" },
-  {
-    value: "admin",
-    label: ORG_ROLE_LABELS.admin,
-    className: "text-interactive",
-  },
-  {
-    value: "member",
-    label: ORG_ROLE_LABELS.member,
-    className: "text-gray-600",
-  },
-];
+function roleFilterOptions(t: Translate): TableFilterOption<OrgRole>[] {
+  return [
+    { value: "owner", label: orgRoleLabel(t, "owner"), className: "text-interactive" },
+    {
+      value: "admin",
+      label: orgRoleLabel(t, "admin"),
+      className: "text-interactive",
+    },
+    {
+      value: "member",
+      label: orgRoleLabel(t, "member"),
+      className: "text-gray-600",
+    },
+  ];
+}
 
 /**
  * The page's tabs: everyone, the people holding one role, or — for the
@@ -107,15 +110,15 @@ const ROLE_FILTER_OPTIONS: TableFilterOption<OrgRole>[] = [
  */
 type RosterTab = "all" | OrgRole | "departed";
 
-const ROSTER_TABS: { id: RosterTab; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "owner", label: "Owners" },
-  { id: "admin", label: "Admins" },
-  { id: "member", label: "Members" },
+const ROSTER_TABS: { id: RosterTab; label: SettingsKey }[] = [
+  { id: "all", label: "organizations.organizationMembers.tabAll" },
+  { id: "owner", label: "organizations.organizationMembers.tabOwners" },
+  { id: "admin", label: "organizations.organizationMembers.tabAdmins" },
+  { id: "member", label: "organizations.organizationMembers.tabMembers" },
 ];
-const OWNER_TABS: { id: RosterTab; label: string }[] = [
+const OWNER_TABS: { id: RosterTab; label: SettingsKey }[] = [
   ...ROSTER_TABS,
-  { id: "departed", label: "Departed" },
+  { id: "departed", label: "organizations.organizationMembers.tabDeparted" },
 ];
 
 function formatDate(value?: string | null) {
@@ -225,12 +228,12 @@ export function OrganizationMembers({
     } catch (error) {
       console.error("Failed to load organization", error);
       setLoadError(
-        userFacingApiError(error, "Could not load this organization."),
+        userFacingApiError(error, t("organizations.organizationMembers.couldNotLoadThisOrganization")),
       );
     } finally {
       setLoading(false);
     }
-  }, [applyMembers, orgId]);
+  }, [applyMembers, orgId, t]);
 
   const refreshInvitations = useCallback(async () => {
     if (!isOrgAdmin(org?.role)) return;
@@ -272,10 +275,10 @@ export function OrganizationMembers({
     setActionError(
       userFacingApiError(
         failure.reason,
-        "This organization's people could not be refreshed. Reload to see the current list.",
+        t("organizations.organizationMembers.peopleCouldNotBeRefreshed"),
       ),
     );
-  }, [refreshInvitations, refreshMembers]);
+  }, [refreshInvitations, refreshMembers, t]);
 
   useEffect(() => {
     void load();
@@ -285,7 +288,10 @@ export function OrganizationMembers({
   const isAdmin = isOrgAdmin(viewerRole);
   // The Departed view is its owners' alone: nobody else is offered the tab,
   // and a link to it opens the roster for them.
-  const tabs = viewerRole === "owner" ? OWNER_TABS : ROSTER_TABS;
+  const tabs = (viewerRole === "owner" ? OWNER_TABS : ROSTER_TABS).map((tab) => ({
+    id: tab.id,
+    label: t(tab.label),
+  }));
   const tab = rosterTab === "departed" && viewerRole !== "owner" ? "all" : rosterTab;
   const changeTab = (next: RosterTab) => {
     setRosterTab(next);
@@ -353,7 +359,7 @@ export function OrganizationMembers({
         void refreshOrganizations();
       }
     } catch (error) {
-      setActionError(userFacingApiError(error, "Could not change that role."));
+      setActionError(userFacingApiError(error, t("organizations.organizationMembers.couldNotChangeThatRole")));
     } finally {
       setBusyMemberId(null);
     }
@@ -367,7 +373,7 @@ export function OrganizationMembers({
     if (!member) return;
     if (!result.removedUserIds.includes(member.user_id)) {
       setActionError(
-        userFacingApiError(result.error, "Could not remove that member."),
+        userFacingApiError(result.error, t("organizations.organizationMembers.couldNotRemoveThatMember")),
       );
       return;
     }
@@ -390,7 +396,7 @@ export function OrganizationMembers({
       selectedMemberIdSet.has(member.id),
     );
     if (selectedMembers.some((member) => member.user_id === user?.id)) {
-      setActionError("Use Leave organization to remove yourself.");
+      setActionError(t("organizations.organizationMembers.useLeaveOrganization"));
       return;
     }
     if (
@@ -399,7 +405,7 @@ export function OrganizationMembers({
       )
     ) {
       setActionError(
-        "Only an organization owner can remove admins and other owners.",
+        t("organizations.organizationMembers.onlyAnOwnerCanRemoveAdmins"),
       );
       return;
     }
@@ -423,7 +429,7 @@ export function OrganizationMembers({
       setActionError(
         userFacingApiError(
           result.error,
-          "Could not remove all selected members.",
+          t("organizations.organizationMembers.couldNotRemoveAllSelected"),
         ),
       );
     }
@@ -788,7 +794,7 @@ function PeopleTable({
               <TableSortFilter
                 label={t("organizations.organizationMembers.sortByName")}
                 value={sort?.key === "name" ? sort.direction : null}
-                allLabel="Default order"
+                allLabel={t("organizations.organizationMembers.defaultOrder")}
                 align="right"
                 onChange={(direction) => setSortFor("name", direction)}
               />
@@ -800,7 +806,7 @@ function PeopleTable({
               <TableSortFilter
                 label={t("organizations.organizationMembers.sortByEmail")}
                 value={sort?.key === "email" ? sort.direction : null}
-                allLabel="Default order"
+                allLabel={t("organizations.organizationMembers.defaultOrder")}
                 onChange={(direction) => setSortFor("email", direction)}
               />
             ) : null}
@@ -814,7 +820,7 @@ function PeopleTable({
               <TableSortFilter
                 label={t("organizations.organizationMembers.sortByDateAdded")}
                 value={sort?.key === "added" ? sort.direction : null}
-                allLabel="Default order"
+                allLabel={t("organizations.organizationMembers.defaultOrder")}
                 onChange={(direction) => setSortFor("added", direction)}
               />
             ) : null}
@@ -840,13 +846,9 @@ function PeopleTable({
           <p className="text-sm text-gray-400">
             {search.trim()
               ? t("organizations.organizationMembers.noPeopleMatchThisSearch")
-              : `This organization has no ${
-                  roleFilter === "owner"
-                    ? "owners"
-                    : roleFilter === "admin"
-                      ? "admins"
-                      : t("organizations.organizationMembers.ordinaryMembers")
-                }.`}
+              : t("organizations.organizationMembers.noRoleInOrganization", {
+                  role: roleFilter ?? "member",
+                })}
           </p>
         </TableEmptyState>
       ) : (
@@ -874,7 +876,7 @@ function PeopleTable({
                 <TablePrimaryCell
                   selected={isSelected}
                   onSelectionChange={() => toggleMember(member.id)}
-                  checkboxTitle={`Select ${label}`}
+                  checkboxTitle={t("organizations.organizationMembers.selectLabel", { label })}
                 >
                   <UserAvatar photo={member.profile_photo} name={member.display_name} email={member.email} size="sm" className="mr-2" />
                   <span className="min-w-0 flex-1 text-xs text-gray-800 [overflow-wrap:anywhere]">
@@ -961,7 +963,7 @@ function OrganizationRoleTab({
   const className = `inline-flex h-6 min-w-20 items-center justify-center gap-1 rounded-full px-2 text-[11px] font-medium ${tone}`;
 
   if (!editable) {
-    return <span className={className}>{ORG_ROLE_LABELS[role]}</span>;
+    return <span className={className}>{orgRoleLabel(t, role)}</span>;
   }
 
   return (
@@ -973,7 +975,7 @@ function OrganizationRoleTab({
           disabled={disabled}
           className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait disabled:opacity-50`}
         >
-          <span className="flex-1 text-center">{ORG_ROLE_LABELS[role]}</span>
+          <span className="flex-1 text-center">{orgRoleLabel(t, role)}</span>
           {disabled ? (
             <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
           ) : (
@@ -982,7 +984,7 @@ function OrganizationRoleTab({
         </button>
       </DropdownTrigger>
       <DropdownContent align="start" className="w-36">
-        {ROLE_FILTER_OPTIONS.filter((option) =>
+        {roleFilterOptions(t).filter((option) =>
           assignableRoles.includes(option.value),
         ).map((option) => (
           <DropdownItem

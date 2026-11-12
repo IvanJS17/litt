@@ -8,6 +8,7 @@ import {
     MODEL_API_KEY_FIELDS,
     ModelProviderIcon,
     type ModelApiKeyField,
+    byokProvider,
 } from "@/app/components/settings/modelProviders";
 import { PillButtonUI } from "@mike/ui";
 import { ToggleSwitchUI } from "@mike/ui";
@@ -29,24 +30,16 @@ const PROVIDER_SECTIONS = [
     {
         id: "active",
         active: true,
-        title: "Saved Providers",
-        empty: "No saved providers yet. Add an API key to one of the providers below.",
+        title: "settings.personalProviderKeys.savedProviders",
+        empty: "settings.personalProviderKeys.noSavedProvidersYet",
     },
     {
         id: "available",
         active: false,
-        title: "Available Providers",
-        empty: "Every provider has a key saved.",
+        title: "settings.personalProviderKeys.availableProviders",
+        empty: "settings.personalProviderKeys.everyProviderHasAKeySaved",
     },
 ] as const;
-
-const DEFAULT_INTRO = (
-    <SettingsDescription>
-        Your keys run your work in your Personal workspace. In an
-        organization its own keys come first, and yours cover any provider it
-        has not set up, unless its owners turn members&rsquo; own keys off.
-    </SettingsDescription>
-);
 
 /**
  * The caller's own model provider keys: the Saved and Available provider
@@ -55,7 +48,7 @@ const DEFAULT_INTRO = (
  * either place goes through the same checks.
  */
 export function PersonalProviderKeys({
-    intro = DEFAULT_INTRO,
+    intro,
 }: {
     /** The sentence above the grids; `null` when the page says it already. */
     intro?: ReactNode;
@@ -77,13 +70,13 @@ export function PersonalProviderKeys({
         setToggleError(null);
         try {
             const saved = await updateApiKeyEnabled(provider, enabled);
-            if (!saved) setToggleError("The provider could not be updated. Please try again.");
+            if (!saved) setToggleError(t("settings.personalProviderKeys.theProviderCouldNotBeUpdated"));
         } catch (error) {
             if (isMfaRequiredError(error)) setPendingToggle({ provider, enabled });
             else {
                 // The message is fixed; the report keeps the fault's identity.
                 reportFault(error, { operation: "settings.keys" });
-                setToggleError("The provider could not be updated. Please try again.");
+                setToggleError(t("settings.personalProviderKeys.theProviderCouldNotBeUpdated"));
             }
         } finally {
             setBusyProvider(null);
@@ -120,7 +113,7 @@ export function PersonalProviderKeys({
                 onOpen={hasSavedKey ? open : undefined}
                 action={
                     hasSavedKey ? (
-                        renderToggle(field, `${field.name} provider`)
+                        renderToggle(field, t("settings.personalProviderKeys.nameProvider", { name: field.name }))
                     ) : (
                         <PillButtonUI
                             tone="blue"
@@ -140,7 +133,9 @@ export function PersonalProviderKeys({
 
     return (
         <div className="@container space-y-8">
-            {intro}
+            {intro === undefined ? (
+                <SettingsDescription>{t("settings.personalProviderKeys.yourKeysRunYourWork")}</SettingsDescription>
+            ) : intro}
             {PROVIDER_SECTIONS.map((section) => {
                 // While the profile loads, which providers are active is not
                 // known yet: every card waits in the second section.
@@ -158,13 +153,13 @@ export function PersonalProviderKeys({
                         className="space-y-3"
                     >
                         <SettingsHeading id={headingId}>
-                            {section.title}
+                            {t(section.title)}
                         </SettingsHeading>
                         {loading && section.active ? (
                             <span className="block h-5 w-56 max-w-full animate-pulse rounded bg-gray-200" />
                         ) : fields.length === 0 ? (
                             <SettingsDescription>
-                                {section.empty}
+                                {t(section.empty)}
                             </SettingsDescription>
                         ) : (
                             <div
@@ -178,11 +173,11 @@ export function PersonalProviderKeys({
                 );
             })}
             <ByokProviderModal
-                provider={selected ?? null}
+                provider={selected ? byokProvider(t, selected) : null}
                 enabledToggle={
                     selected &&
                     profile?.apiKeys[selected.provider]?.source === "user"
-                        ? renderToggle(selected, `Use ${selected.name}`)
+                        ? renderToggle(selected, t("settings.personalProviderKeys.useName", { name: selected.name }))
                         : undefined
                 }
                 onClose={() => setSelectedProvider(null)}

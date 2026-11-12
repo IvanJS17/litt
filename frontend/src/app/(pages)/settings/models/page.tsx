@@ -129,7 +129,7 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "titleModel"}
               isSaved={savedField === "titleModel"}
-              emptyOptionLabel="Automatic — same provider as chat"
+              emptyOptionLabel={t("settings.models.automaticSameProviderAsChat")}
               onChange={(id) => handlePreferenceChange("titleModel", id)}
             />
           </SettingsRow>
@@ -152,7 +152,7 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "tabularModel"}
               isSaved={savedField === "tabularModel"}
-              emptyOptionLabel="No default model"
+              emptyOptionLabel={t("settings.models.noDefaultModel")}
               onChange={(id) => handlePreferenceChange("tabularModel", id)}
             />
           </SettingsRow>
@@ -177,7 +177,7 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "memoryCuratorModel"}
               isSaved={savedField === "memoryCuratorModel"}
-              emptyOptionLabel="Automatic — use chat model"
+              emptyOptionLabel={t("settings.models.automaticUseChatModel")}
               onChange={(id) =>
                 handlePreferenceChange("memoryCuratorModel", id)
               }
@@ -198,7 +198,7 @@ export default function ModelPreferencesPage() {
               value={value}
               options={subagentModelOptions}
               apiKeys={profile?.apiKeys}
-              emptyOptionLabel="Elige un modelo"
+              emptyOptionLabel={t("settings.models.chooseAModel")}
               onChange={onChange}
             />
           )}

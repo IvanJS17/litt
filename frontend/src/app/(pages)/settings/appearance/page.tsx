@@ -30,7 +30,7 @@ export default function AppearancePage() {
       setDarkModeError(
         userFacingApiError(
           toggleError,
-          "Could not update the appearance setting.",
+          t("settings.appearance.couldNotUpdateTheAppearanceSetting"),
         ),
       );
     } finally {

@@ -71,3 +71,19 @@ describe("visibleLiterals: a lone word with a trailing ellipsis", () => {
         expect(literals('busy ? "saving..." : "SAVE_NOW"')).toEqual([]);
     });
 });
+
+describe("visibleLiterals: a catalog key kept in a table is not visible text", () => {
+    const literals = (source) => visibleLiterals("Demo.tsx", source);
+
+    it("skips a dotted camelCase key in a label field, so a table of keys needs no allowance", () => {
+        expect(literals('export const ROWS = [{ label: "settings.layout.tab.account", title: "organizations.organizationPrivacyData.deleteRows.chats.title" }];')).toEqual([]);
+    });
+
+    it("still flags a sentence, a single word and a short dotted phrase", () => {
+        expect(literals('export const ROWS = [{ label: "Account settings" }, { label: "Account" }, { title: "Done. Really." }];')).toEqual([
+            "Account settings",
+            "Account",
+            "Done. Really.",
+        ]);
+    });
+});

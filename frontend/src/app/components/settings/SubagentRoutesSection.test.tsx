@@ -57,7 +57,7 @@ describe("SubagentRoutesSection", () => {
     const route = await screen.findByRole("listitem");
     expect(within(route).getByText("rapida")).toBeInTheDocument();
     expect(within(route).getByText("Extrae datos.")).toBeInTheDocument();
-    expect(within(route).getByText("Gemini · Gemini 3.8 Flash · razonamiento según la tarea")).toBeInTheDocument();
+    expect(within(route).getByText("Gemini · Gemini 3.8 Flash · reasoning depends on the task")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /None: they use the conversation model/ })).toBeInTheDocument();
   });
 
@@ -80,7 +80,7 @@ describe("SubagentRoutesSection", () => {
         default: null,
       }),
     );
-    expect(await screen.findByText("Anthropic · Claude Opus 5.5 · razonamiento según la tarea")).toBeInTheDocument();
+    expect(await screen.findByText("Anthropic · Claude Opus 5.5 · reasoning depends on the task")).toBeInTheDocument();
   });
 
   it("refuses a name outside lowercase letters, digits and hyphens before saving", async () => {
@@ -93,7 +93,7 @@ describe("SubagentRoutesSection", () => {
     await user.selectOptions(screen.getByLabelText("Model"), "claude-opus-5-5");
     await user.click(screen.getByRole("button", { name: "Save route" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("minúsculas");
+    expect(screen.getByRole("alert")).toHaveTextContent("lowercase");
     expect(updateSubagentRoutes).not.toHaveBeenCalled();
   });
 
@@ -121,7 +121,7 @@ describe("SubagentRoutesSection", () => {
     const route = await screen.findByRole("listitem");
     expect(
       within(route).getByText(
-        "retired-model-1 · no disponible: el modelo ya no se ofrece; edítala o bórrala · razonamiento según la tarea",
+        "retired-model-1 · unavailable: the model is no longer offered; edit or delete it · reasoning depends on the task",
       ),
     ).toBeInTheDocument();
     expect(
@@ -129,7 +129,7 @@ describe("SubagentRoutesSection", () => {
     ).toBeInTheDocument();
   });
 
-  it("names the reasoning level in Spanish, in the list and in the editor", async () => {
+  it("names the reasoning level, in the list and in the editor", async () => {
     vi.mocked(getSubagentRoutes).mockResolvedValue({
       routes: [{ ...saved.routes[0], reasoning: "xhigh" }],
       default: null,
@@ -138,13 +138,13 @@ describe("SubagentRoutesSection", () => {
     renderSection();
 
     expect(
-      await screen.findByText("Gemini · Gemini 3.8 Flash · razonamiento muy alto"),
+      await screen.findByText("Gemini · Gemini 3.8 Flash · reasoning very high"),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Edit route rapida" }));
     const options = within(screen.getByLabelText("Reasoning"))
       .getAllByRole("option")
       .map((o) => o.textContent);
-    expect(options).toEqual(["Según la tarea", "Ninguno", "Bajo", "Medio", "Alto", "Muy alto", "Máximo"]);
+    expect(options).toEqual(["Depends on the task", "None", "Low", "Medium", "High", "Very high", "Maximum"]);
   });
 
   it("reports a failed load through the shared error popup", async () => {

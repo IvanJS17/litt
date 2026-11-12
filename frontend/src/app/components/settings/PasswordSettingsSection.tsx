@@ -5,11 +5,10 @@ import { authInputUIClassName, InputUI, PillButtonUI, GlassCardUI } from "@mike/
 import {
   MIN_PASSWORD_LENGTH,
   isPasswordTooLong,
-  maximumPasswordMessage,
-  minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
 import {
-  PASSWORD_LENGTH_MESSAGE,
+  authSentence,
+  authSentenceText,
   authMessages,
 } from "@/app/lib/authMessages";
 import { Modal } from "@/app/components/modals/Modal";
@@ -27,13 +26,15 @@ import { SettingsRow } from "./SettingsRow";
 import { SettingsDescription, SettingsLabel } from "./SettingsText";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { useTranslations } from "next-intl";
+import { clientTranslator } from "@mike/client";
 
 /** The shared auth table with this section's deltas, keyed by the `code`
  *  GoTrue returns from `PATCH /api/auth/password`. */
 const PASSWORD_ERROR_MESSAGES = authMessages({
-  validation_failed: PASSWORD_LENGTH_MESSAGE,
-  invalid_request: PASSWORD_LENGTH_MESSAGE,
-  reauthentication_needed: "Log in again before setting a password.",
+  validation_failed: authSentence("passwordLength"),
+  invalid_request: authSentence("passwordLength"),
+  reauthentication_needed: () =>
+    clientTranslator()("settings.passwordSettingsSection.reauthenticateBeforeSettingAPassword"),
 });
 
 export function PasswordSettingsSection() {
@@ -55,15 +56,15 @@ export function PasswordSettingsSection() {
   async function addPassword() {
     setPasswordSetError(null);
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setPasswordSetError(localPasswordError(`${minimumPasswordMessage}.`));
+      setPasswordSetError(localPasswordError(authSentenceText("passwordTooShort")));
       return;
     }
     if (isPasswordTooLong(password)) {
-      setPasswordSetError(localPasswordError(maximumPasswordMessage));
+      setPasswordSetError(localPasswordError(authSentenceText("passwordTooLong")));
       return;
     }
     if (password !== confirmPassword) {
-      setPasswordSetError(localPasswordError("The two passwords don't match."));
+      setPasswordSetError(localPasswordError(t("settings.passwordSettingsSection.theTwoPasswordsDontMatch")));
       return;
     }
 
@@ -73,21 +74,21 @@ export function PasswordSettingsSection() {
       const synced = await syncPasswordSet();
       if (!synced) {
         throw new UserVisibleError(
-          "Your password was set, but its account status could not be refreshed. Reload the page and try again.",
+          t("settings.passwordSettingsSection.passwordSetButNotRefreshed"),
         );
       }
       setPasswordValue("");
       setConfirmPassword("");
       setSetPasswordOpen(false);
-      setPasswordStatus("Password added to your account.");
+      setPasswordStatus(t("settings.passwordSettingsSection.passwordAddedToYourAccount"));
     } catch (error) {
       // GoTrue's own wording ("Password should be at least 6 characters")
       // contradicts Mike's policy, so the code decides the text instead.
       setPasswordSetError(
         describeError(error, {
-          action: "set your password",
+          action: t("settings.passwordSettingsSection.actions.setYourPassword"),
           codeMessages: PASSWORD_ERROR_MESSAGES,
-          fallback: "Unable to set your password. Try again.",
+          fallback: t("settings.passwordSettingsSection.unableToSetYourPasswordTryAgain"),
         }),
       );
     } finally {
@@ -101,14 +102,13 @@ export function PasswordSettingsSection() {
     setPasswordStatus(null);
     try {
       await requestPasswordReset(user.email);
-      setPasswordStatus(`Password-reset instructions sent to ${user.email}.`);
+      setPasswordStatus(t("settings.passwordSettingsSection.passwordResetInstructionsSent", { email: user.email }));
     } catch (error) {
       setPasswordStatus(
         describeError(error, {
-          action: "send the reset email",
+          action: t("settings.passwordSettingsSection.actions.sendTheResetEmail"),
           codeMessages: PASSWORD_ERROR_MESSAGES,
-          fallback:
-            "Unable to send a password-reset email right now. Try again.",
+          fallback: t("settings.passwordSettingsSection.unableToSendAResetEmail"),
         }).message,
       );
     } finally {
@@ -119,7 +119,7 @@ export function PasswordSettingsSection() {
   /** A failure the form found itself; the text is already user-facing. */
   function localPasswordError(message: string): UserFacingError {
     return describeError(new UserVisibleError(message, { kind: "validation" }), {
-      action: "set your password",
+      action: t("settings.passwordSettingsSection.actions.setYourPassword"),
     });
   }
 
@@ -172,7 +172,7 @@ export function PasswordSettingsSection() {
       <Modal
         open={setPasswordOpen}
         onClose={closeSetPassword}
-        breadcrumbs={["Security", "Set password"]}
+        breadcrumbs={[t("settings.layout.tab.security"), t("settings.passwordSettingsSection.setPassword")]}
         size="sm"
         className="h-auto"
         cancelAction={{
@@ -221,7 +221,7 @@ export function PasswordSettingsSection() {
                 <a
                   href={supportMailtoFor(
                     passwordSetError,
-                    "Failed to set an account password.",
+                    t("settings.passwordSettingsSection.failedToSetAnAccountPassword"),
                   )}
                   className="ml-2 underline underline-offset-2"
                 >

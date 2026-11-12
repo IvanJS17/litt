@@ -75,7 +75,7 @@ export function DeleteAccountModal({
         return;
       }
       notifyError(error, {
-        action: "download your data",
+        action: t("settings.deleteAccountModal.actions.downloadYourData"),
         onRetry: () => void download(),
       });
     } finally {
@@ -88,7 +88,7 @@ export function DeleteAccountModal({
       <Modal
         open={open}
         onClose={close}
-        breadcrumbs={["Account", "Delete account"]}
+        breadcrumbs={[t("settings.layout.tab.account"), t("settings.deleteAccountModal.deleteAccount")]}
         size="sm"
         className="h-auto"
         cancelAction={{ label: t("common.cancel"), onClick: close, disabled: deleting }}

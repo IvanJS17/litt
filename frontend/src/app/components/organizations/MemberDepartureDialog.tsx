@@ -14,6 +14,7 @@ import {
   type OrgMemberHandover,
 } from "@/app/lib/mikeApi";
 import { useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
 
 // Shared work is handed to one successor; unshared work is archived for
 // 30 days. Existing co-owned items stay with their remaining owners.
@@ -31,16 +32,22 @@ export interface MemberDepartureResult {
   error: unknown | null;
 }
 
-const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+const COUNT_KEYS = {
+  project: "organizations.memberDepartureDialog.count.project",
+  workflow: "organizations.memberDepartureDialog.count.workflow",
+  sharedChat: "organizations.memberDepartureDialog.count.sharedChat",
+  sharedTabularReview: "organizations.memberDepartureDialog.count.sharedTabularReview",
+  document: "organizations.memberDepartureDialog.count.document",
+  privateProject: "organizations.memberDepartureDialog.count.privateProject",
+  privateWorkflow: "organizations.memberDepartureDialog.count.privateWorkflow",
+  privateChat: "organizations.memberDepartureDialog.count.privateChat",
+  tabularReview: "organizations.memberDepartureDialog.count.tabularReview",
+} as const satisfies Record<string, SettingsKey>;
 
-function joinCounts(parts: string[]): string {
-  return parts.length <= 1
-    ? (parts[0] ?? "")
-    : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
-
-const nameOf = (member: DepartingMember) =>
-  member.display_name?.trim() || member.email || "This member";
+const nameOf = (t: Translate, member: DepartingMember) =>
+  member.display_name?.trim() ||
+  member.email ||
+  t("organizations.memberDepartureDialog.thisMember");
 
 export function MemberDepartureDialog({
   orgId,
@@ -104,11 +111,11 @@ export function MemberDepartureDialog({
           const name = member.display_name?.trim();
           return {
             value: member.user_id,
-            label: name || member.email || "Unnamed member",
+            label: name || member.email || t("organizations.memberDepartureDialog.unnamedMember"),
             suffix: name && member.email ? `(${member.email})` : undefined,
           };
         }),
-    [roster, departing],
+    [roster, departing, t],
   );
 
   const projects = handover?.projects ?? [];
@@ -129,29 +136,35 @@ export function MemberDepartureDialog({
     .map((item) => item.title.trim()).filter(Boolean);
 
   const several = departing.length > 1;
-  const who = leaving
-    ? "You"
-    : several
-      ? "These members"
-      : nameOf(departing[0] ?? { user_id: "" });
+  const countOf = (kind: keyof typeof COUNT_KEYS, n: number) =>
+    t(COUNT_KEYS[kind], { count: n });
+  const joinCounts = (parts: string[]) =>
+    parts.length <= 1
+      ? (parts[0] ?? "")
+      : t("organizations.memberDepartureDialog.listAnd", {
+          rest: parts.slice(0, -1).join(", "),
+          last: parts[parts.length - 1],
+        });
   const lead = leaving
-    ? "You will lose access to this organization's shared resources."
+    ? t("organizations.memberDepartureDialog.lead.leaving")
     : several
-      ? `${departing.length} selected members will lose access to this organization.`
-      : `${who} will lose organization access.`;
+      ? t("organizations.memberDepartureDialog.lead.several", { count: departing.length })
+      : t("organizations.memberDepartureDialog.lead.one", {
+          who: nameOf(t, departing[0] ?? { user_id: "" }),
+        });
   const owedSummary = joinCounts([
-    ...(projects.length ? [count(projects.length, "project")] : []),
-    ...(workflows.length ? [count(workflows.length, "workflow")] : []),
-    ...(sharedChats ? [count(sharedChats, "shared chat")] : []),
-    ...(sharedReviews ? [count(sharedReviews, "shared tabular review")] : []),
-    ...(sharedDocuments ? [count(sharedDocuments, "document")] : []),
+    ...(projects.length ? [countOf("project", projects.length)] : []),
+    ...(workflows.length ? [countOf("workflow", workflows.length)] : []),
+    ...(sharedChats ? [countOf("sharedChat", sharedChats)] : []),
+    ...(sharedReviews ? [countOf("sharedTabularReview", sharedReviews)] : []),
+    ...(sharedDocuments ? [countOf("document", sharedDocuments)] : []),
   ]);
   const archivedSummary = joinCounts([
-    ...(privateProjects ? [count(privateProjects, "private project")] : []),
-    ...(privateWorkflows ? [count(privateWorkflows, "private workflow")] : []),
-    ...(chats ? [count(chats, "private chat")] : []),
-    ...(reviews ? [count(reviews, "tabular review")] : []),
-    ...(documents ? [count(documents, "document")] : []),
+    ...(privateProjects ? [countOf("privateProject", privateProjects)] : []),
+    ...(privateWorkflows ? [countOf("privateWorkflow", privateWorkflows)] : []),
+    ...(chats ? [countOf("privateChat", chats)] : []),
+    ...(reviews ? [countOf("tabularReview", reviews)] : []),
+    ...(documents ? [countOf("document", documents)] : []),
   ]);
 
   const ready = handover !== null && roster !== null && !loadFailed;
@@ -188,7 +201,11 @@ export function MemberDepartureDialog({
       onClose={() => {
         if (!working) onCancel();
       }}
-      breadcrumbs={["Organization", "Members", leaving ? "Leave" : "Remove"]}
+      breadcrumbs={[
+        t("organizations.organizationSettingsShell.organization"),
+        t("organizations.organizationSettingsShell.members"),
+        leaving ? t("organizations.memberDepartureDialog.breadcrumb.leave") : t("organizations.memberDepartureDialog.breadcrumb.remove"),
+      ]}
       size="sm"
       className="h-auto max-h-[calc(100vh-2rem)]"
       cancelAction={{
@@ -199,11 +216,11 @@ export function MemberDepartureDialog({
       primaryAction={{
         label: working
           ? leaving
-            ? "Leaving..."
-            : "Removing..."
+            ? t("organizations.memberDepartureDialog.leaving")
+            : t("organizations.memberDepartureDialog.removing")
           : leaving
-            ? "Leave"
-            : "Remove",
+            ? t("organizations.memberDepartureDialog.breadcrumb.leave")
+            : t("organizations.memberDepartureDialog.breadcrumb.remove"),
         variant: "danger",
         disabled: !canConfirm,
         onClick: () => void confirm(),

@@ -20,7 +20,7 @@ import {
   type Org,
   type OrgInvitation,
 } from "@/app/lib/mikeApi";
-import { ORG_ROLE_LABELS } from "@/app/lib/permissions";
+import { orgRoleLabel } from "./orgRoleText";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LIQUID_GLASS_SUBTLE_CLASS, PillButtonUI } from "@mike/ui";
 import { DeletedOrganizations } from "./DeletedOrganizations";
@@ -76,7 +76,7 @@ export function OrganizationsOverview() {
       // two halves of one screen answered the same kind of failure
       // differently — and the more useful answer was the one discarded.
       setLoadError(
-        userFacingApiError(orgsResult.reason, "Could not load organizations."),
+        userFacingApiError(orgsResult.reason, t("organizations.organizationsOverview.couldNotLoadOrganizations")),
       );
       setOrgs([]);
     }
@@ -89,11 +89,11 @@ export function OrganizationsOverview() {
       setInvitationsError(
         userFacingApiError(
           invitationsResult.reason,
-          "Could not load your invitations.",
+          t("organizations.organizationsOverview.couldNotLoadYourInvitations"),
         ),
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -107,7 +107,7 @@ export function OrganizationsOverview() {
       else await declineOrgInvitation(invitation.id);
     } catch (error) {
       setInvitationError(
-        userFacingApiError(error, "Could not answer that invitation."),
+        userFacingApiError(error, t("organizations.organizationsOverview.couldNotAnswerThatInvitation")),
       );
     } finally {
       setAnsweringId(null);
@@ -199,9 +199,7 @@ export function OrganizationsOverview() {
                   key={org.id}
                   kind="organization"
                   name={org.name}
-                  detail={`${ORG_ROLE_LABELS[org.role]} · ${members} ${
-                    members === 1 ? "member" : "members"
-                  }`}
+                  detail={t("organizations.organizationsOverview.roleAndMembers", { role: orgRoleLabel(t, org.role), count: members })}
                   icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                   // Only the workspace the person is in opens its settings;
                   // every other organization is switched to first.
@@ -265,14 +263,14 @@ export function OrganizationsOverview() {
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {invitations.map((invitation) => {
-                const name = invitation.org_name ?? "An organization";
+                const name = invitation.org_name ?? t("organizations.organizationsOverview.anOrganization");
                 const answering = answeringId === invitation.id;
                 return (
                   <ConnectorCard
                     key={invitation.id}
                     kind="invitation"
                     name={name}
-                    detail={`Invited you as ${ORG_ROLE_LABELS[invitation.role]}`}
+                    detail={t("organizations.organizationsOverview.invitedYouAs", { role: orgRoleLabel(t, invitation.role) })}
                     icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                     action={
                       <span className="flex items-center gap-2">

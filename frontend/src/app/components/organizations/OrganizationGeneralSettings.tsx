@@ -37,7 +37,6 @@ import {
   validateOrgLogoFile,
 } from "@/app/lib/orgLogoImage";
 import {
-  ORG_ROLE_LABELS,
   isOrgAdmin,
   isOrgOwner,
 } from "@/app/lib/permissions";
@@ -46,6 +45,7 @@ import { GlassCardUI, LittMonogramPixel, PillButtonUI } from "@mike/ui";
 import { OrganizationLogoModal } from "./OrganizationLogoModal";
 import { useOrganizationSettings } from "./OrganizationSettingsShell";
 import { useTranslations } from "next-intl";
+import { orgRoleLabel } from "./orgRoleText";
 
 // The General section of an organization's settings. Everyone in the
 // organization sees it: its name, their own role and the way out. Renaming
@@ -126,7 +126,7 @@ export function OrganizationGeneralSettings() {
       // The dialog stays up, with the framing intact, to try again.
       setFailure({
         title: t("organizations.organizationGeneralSettings.logoNotUpdated"),
-        message: userFacingApiError(error, "The logo could not be saved."),
+        message: userFacingApiError(error, t("organizations.organizationGeneralSettings.theLogoCouldNotBeSaved")),
       });
     } finally {
       setLogoBusy(null);
@@ -145,7 +145,7 @@ export function OrganizationGeneralSettings() {
     } catch (error) {
       setFailure({
         title: t("organizations.organizationGeneralSettings.logoNotRemoved"),
-        message: userFacingApiError(error, "The logo could not be removed."),
+        message: userFacingApiError(error, t("organizations.organizationGeneralSettings.theLogoCouldNotBeRemoved")),
       });
     } finally {
       setLogoBusy(null);
@@ -174,7 +174,7 @@ export function OrganizationGeneralSettings() {
       void refreshOrganizations();
     } catch (error) {
       setNameStatus({
-        error: userFacingApiError(error, "Could not rename the organization."),
+        error: userFacingApiError(error, t("organizations.organizationGeneralSettings.couldNotRenameTheOrganization")),
       });
     }
   }
@@ -188,7 +188,7 @@ export function OrganizationGeneralSettings() {
         title: t("organizations.organizationGeneralSettings.couldNotLeaveTheOrganization"),
         message: userFacingApiError(
           result.error,
-          "You could not be removed from the organization.",
+          t("organizations.organizationGeneralSettings.youCouldNotBeRemoved"),
         ),
       });
       return;
@@ -224,7 +224,7 @@ export function OrganizationGeneralSettings() {
         title: t("organizations.organizationGeneralSettings.organizationNotDeleted"),
         message: userFacingApiError(
           error,
-          "Could not delete the organization.",
+          t("organizations.organizationGeneralSettings.couldNotDeleteTheOrganization"),
         ),
       });
       return;
@@ -238,9 +238,9 @@ export function OrganizationGeneralSettings() {
 
   const statusText =
     nameStatus === "saving"
-      ? "Saving..."
+      ? t("settings.home.saving")
       : nameStatus === "saved"
-        ? "Saved"
+        ? t("settings.home.saved")
         : typeof nameStatus === "object"
           ? nameStatus.error
           : "";
@@ -366,7 +366,7 @@ export function OrganizationGeneralSettings() {
               <SettingsLabel>{t("organizations.organizationGeneralSettings.yourRole")}</SettingsLabel>
               {org ? (
                 <p className="text-sm text-gray-500">
-                  {ORG_ROLE_LABELS[org.role]}
+                  {orgRoleLabel(t, org.role)}
                 </p>
               ) : (
                 <span className="block h-5 w-20 animate-pulse rounded bg-gray-200" />
@@ -447,7 +447,7 @@ export function OrganizationGeneralSettings() {
       ) : null}
       <ConfirmPopup
         open={pending === "delete"}
-        title={`Delete ${org?.name ?? t("organizations.organizationGeneralSettings.thisOrganization")}?`}
+        title={t("organizations.organizationGeneralSettings.deleteName", { name: org?.name ?? t("organizations.organizationGeneralSettings.thisOrganization") })}
         message={t("organizations.organizationGeneralSettings.thisRemovesAccessToTheOrganization")}
         confirmLabel={t("common.delete")}
         confirmVariant="danger"

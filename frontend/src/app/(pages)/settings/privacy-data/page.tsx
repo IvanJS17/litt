@@ -34,6 +34,7 @@ import {
 import { notifyError } from "@/app/lib/userFacingError";
 import { saveUserExport } from "@/app/lib/userExportDownload";
 import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 
 type DeleteDataAction = "chats" | "tabular-reviews" | "projects" | "memory";
 type ExportDataAction =
@@ -55,50 +56,47 @@ const devLog = (...args: Parameters<typeof console.log>) => {
  * Personal there is nothing to tell apart, and it names none.
  */
 function deleteDataCopy(
+  t: Translate,
   action: DeleteDataAction,
   personal: boolean,
   workspaceName: string | null,
 ): { title: string; message: string } {
-  const where = workspaceName ? ` in ${workspaceName}` : "";
-  const others = workspaceName
-    ? " Your other workspaces are not affected."
-    : "";
-  const undo = "This action cannot be undone.";
+  const values = {
+    scoped: workspaceName ? "yes" : "no",
+    workspace: workspaceName ?? "",
+  };
+  const undo = t("settings.privacyData.cannotBeUndone");
   switch (action) {
     case "chats":
       return {
-        title: `Delete all chats${where}?`,
-        message: `This will permanently delete your assistant and tabular review chat history${where}.${others} ${undo}`,
+        title: t("settings.privacyData.deleteTitle.chats", values),
+        message: `${t("settings.privacyData.deleteBody.chats", values)} ${undo}`,
       };
     case "tabular-reviews":
       return {
-        title: `Delete all tabular reviews${where}?`,
-        message: `This will permanently delete all tabular reviews you own${where}, including their cells and review chats.${others} ${undo}`,
+        title: t("settings.privacyData.deleteTitle.tabularReviews", values),
+        message: `${t("settings.privacyData.deleteBody.tabularReviews", values)} ${undo}`,
       };
     case "projects":
       return {
-        title: `Delete all projects${where}?`,
-        message: personal
-          ? `This will permanently delete all projects you own${where}, including their documents, chats, and tabular reviews.${others} ${undo}`
-          : `This will permanently delete all projects you created${where}, including their documents, chats, and tabular reviews. Colleagues lose them too.${others} ${undo}`,
+        title: t("settings.privacyData.deleteTitle.projects", values),
+        message: `${t(personal ? "settings.privacyData.deleteBody.projectsPersonal" : "settings.privacyData.deleteBody.projectsShared", values)} ${undo}`,
       };
     case "memory":
       return {
-        title: `Delete all memory${where}?`,
-        message: personal
-          ? `This permanently deletes your ${workspaceName ? `${workspaceName} memory` : "app memory"} and memories for private projects you created. Project collaborators will also lose those memories.${others} Memory remains enabled and can be rebuilt from future conversations. ${undo}`
-          : `This permanently deletes your memory${where}. Project memories there are not affected, and neither are your other workspaces. Memory remains enabled and can be rebuilt from future conversations. ${undo}`,
+        title: t("settings.privacyData.deleteTitle.memory", values),
+        message: `${t(personal ? "settings.privacyData.deleteBody.memoryPersonal" : "settings.privacyData.deleteBody.memoryShared", values)} ${undo}`,
       };
   }
 }
 
 /** Imperative, lower case: "Couldn't delete your chats". */
-const DELETE_ACTION_LABELS: Record<DeleteDataAction, string> = {
-  chats: "delete your chats",
-  "tabular-reviews": "delete your tabular reviews",
-  projects: "delete your projects",
-  memory: "delete your memory",
-};
+const DELETE_ACTION_KEYS = {
+  chats: "settings.privacyData.actions.deleteYourChats",
+  "tabular-reviews": "settings.privacyData.actions.deleteYourTabularReviews",
+  projects: "settings.privacyData.actions.deleteYourProjects",
+  memory: "settings.privacyData.actions.deleteYourMemory",
+} as const satisfies Record<DeleteDataAction, string>;
 
 // Exports and deletion work on the active workspace, and in an organization
 // only as far as its owners allow members. Keyed by workspace, so switching
@@ -114,7 +112,7 @@ export default function PrivacyDataPage() {
     return (
       <EmptyState
         title={t("settings.privacyData.managedByYourOrganization")}
-        description={`Exporting and bulk-deleting your data in ${activeOrganization?.name ?? t("settings.privacyData.thisOrganization")} is managed by its owners and is not available to members. Your other workspaces are not affected.`}
+        description={t("settings.privacyData.managedByOwnersDescription", { name: activeOrganization?.name ?? t("settings.privacyData.thisOrganization") })}
       />
     );
   }
@@ -183,7 +181,7 @@ function PrivacyData({
         return;
       }
       notifyError(error, {
-        action: "export your account data",
+        action: t("settings.privacyData.actions.exportYourAccountData"),
         onRetry: () => void handleExportAccountData(),
       });
     } finally {
@@ -210,7 +208,7 @@ function PrivacyData({
         return;
       }
       notifyError(error, {
-        action: "export your chats",
+        action: t("settings.privacyData.actions.exportYourChats"),
         onRetry: () => void handleExportChatData(),
       });
     } finally {
@@ -240,7 +238,7 @@ function PrivacyData({
         return;
       }
       notifyError(error, {
-        action: "export your tabular reviews",
+        action: t("settings.privacyData.actions.exportYourTabularReviews"),
         onRetry: () => void handleExportTabularReviewsData(),
       });
     } finally {
@@ -267,7 +265,7 @@ function PrivacyData({
         return;
       }
       notifyError(error, {
-        action: "export your memory",
+        action: t("settings.privacyData.actions.exportYourMemory"),
         onRetry: () => void handleExportMemoryData(),
       });
     } finally {
@@ -310,7 +308,7 @@ function PrivacyData({
         return;
       }
       notifyError(error, {
-        action: DELETE_ACTION_LABELS[action],
+        action: t(DELETE_ACTION_KEYS[action]),
         // Re-open the confirmation rather than deleting again from the
         // notice: this erases data permanently, so it is always the dialog
         // that starts it.
@@ -342,7 +340,7 @@ function PrivacyData({
 
   const personal = workspace === PERSONAL_WORKSPACE;
   const pendingDeleteCopy = pendingDeleteAction
-    ? deleteDataCopy(pendingDeleteAction, personal, workspaceName)
+    ? deleteDataCopy(t, pendingDeleteAction, personal, workspaceName)
     : null;
 
   return (
@@ -512,7 +510,7 @@ function PrivacyData({
                 <SettingsLabel>{t("settings.privacyData.deleteAllMemory")}</SettingsLabel>
                 <SettingsDescription>
                   {!personal
-                    ? `Permanently delete your memory in ${workspaceName ?? t("settings.privacyData.thisWorkspace")}.`
+                    ? t("settings.privacyData.permanentlyDeleteYourMemoryInWorkspace", { workspace: workspaceName ?? t("settings.privacyData.thisWorkspace") })
                     : workspaceName
                       ? t("settings.privacyData.permanentlyDeleteYourWorkspacenameMemoryAnd", { workspaceName })
                       : t("settings.privacyData.permanentlyDeleteYourAppMemoryAnd")}

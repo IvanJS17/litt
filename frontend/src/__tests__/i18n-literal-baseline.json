@@ -117,22 +117,8 @@
     "word-addin/src/taskpane/i18n/useTrainingText.ts"
   ],
   "allowed": {
-    "frontend/src/app/(pages)/settings/layout.tsx": 13,
-    "frontend/src/app/(pages)/settings/privacy-data/page.tsx": 12,
-    "frontend/src/app/(pages)/settings/security/page.tsx": 1,
-    "frontend/src/app/components/organizations/OrganizationDepartedMembers.tsx": 9,
-    "frontend/src/app/components/organizations/OrganizationGeneralSettings.tsx": 1,
-    "frontend/src/app/components/organizations/OrganizationMembers.tsx": 6,
-    "frontend/src/app/components/organizations/OrganizationPrivacyData.tsx": 22,
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
-    "frontend/src/app/components/settings/ByokProviderModal.tsx": 8,
-    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
-    "frontend/src/app/components/settings/PersonalProviderKeys.tsx": 3,
-    "frontend/src/app/components/settings/PersonalisationFields.tsx": 1,
-    "frontend/src/app/components/settings/ResponseStyleSection.tsx": 25,
-    "frontend/src/app/components/settings/RouterSettingsSection.tsx": 11,
-    "frontend/src/app/components/settings/WebSearchSection.tsx": 14,
-    "frontend/src/app/onboarding/options.ts": 3
+    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1
   }
 }

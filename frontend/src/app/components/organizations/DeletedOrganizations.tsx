@@ -61,7 +61,7 @@ export function DeletedOrganizations({
       if (isMfaRequiredError(err)) setMfaOrg(id);
       else
         setError(
-          userFacingApiError(err, "Could not restore the organization."),
+          userFacingApiError(err, t("organizations.deletedOrganizations.couldNotRestoreTheOrganization")),
         );
       return;
     } finally {

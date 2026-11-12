@@ -96,7 +96,7 @@ export function ConnectorDetailsModal({
         <Modal
             open={!!connector}
             onClose={onClose}
-            breadcrumbs={["Connectors", connector?.name ?? "Connector"]}
+            breadcrumbs={[t("settings.layout.tab.connectors"), connector?.name ?? t("settings.connectorDetailsModal.connector")]}
             size="lg"
             secondaryAction={
                 connector
@@ -307,7 +307,7 @@ function ToolList({
                                     }
                                     className="inline-flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     aria-expanded={isExpanded}
-                                    aria-label={`${isExpanded ? t("settings.connectorDetailsModal.collapse") : t("settings.connectorDetailsModal.expand")} ${tool.title}`}
+                                    aria-label={t(isExpanded ? "settings.connectorDetailsModal.collapseTool" : "settings.connectorDetailsModal.expandTool", { title: tool.title })}
                                 >
                                     <ChevronDown
                                         className={`h-3.5 w-3.5 transition-transform ${

@@ -107,10 +107,10 @@ export function OrganizationSettingsProvider({
       setLoadError(null);
     } catch (error) {
       setLoadError(
-        userFacingApiError(error, "Could not load this organization."),
+        userFacingApiError(error, t("organizations.organizationSettingsShell.couldNotLoadThisOrganization")),
       );
     }
-  }, [inWorkspace, orgId]);
+  }, [inWorkspace, orgId, t]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- start the organization request once its id is known
@@ -241,13 +241,13 @@ export function OrganizationSettingsFrame({
           ]
         : []),
     ],
-    [canManage, isOwner, orgId],
+    [canManage, isOwner, orgId, t],
   );
 
   return (
     <SettingsShell
       title={t("organizations.organizationSettingsShell.organization")}
-      navLabel="Organization"
+      navLabel={t("organizations.organizationSettingsShell.organization")}
       tabs={tabs}
       rootHref={organizationSettingsHref(orgId)}
     >

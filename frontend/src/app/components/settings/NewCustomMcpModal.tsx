@@ -51,7 +51,7 @@ export function NewCustomMcpModal({
         <Modal
             open={open}
             onClose={onClose}
-            breadcrumbs={["Connectors", "New Custom Connector"]}
+            breadcrumbs={[t("settings.layout.tab.connectors"), t("settings.newCustomMcpModal.newCustomConnector")]}
             size="lg"
             primaryAction={
                 step === "success" && result
@@ -64,8 +64,8 @@ export function NewCustomMcpModal({
                               step === "working"
                                   ? t("settings.newCustomMcpModal.connecting")
                                   : step === "auth"
-                                    ? "Authorizing..."
-                                    : "Connect",
+                                    ? t("settings.newCustomMcpModal.authorizing")
+                                    : t("settings.newCustomMcpModal.connect"),
                           icon:
                               step === "working" || step === "auth" ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -103,7 +103,7 @@ export function NewCustomMcpModal({
                         idPrefix="new-mcp"
                         draft={draft}
                         showToken={showToken}
-                        tokenPlaceholder="Bearer token"
+                        tokenPlaceholder={t("settings.newCustomMcpModal.bearerToken")}
                         disabled={step === "working"}
                         className="pt-1"
                         onDraftChange={onDraftChange}

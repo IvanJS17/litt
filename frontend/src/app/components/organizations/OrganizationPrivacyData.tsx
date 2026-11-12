@@ -35,84 +35,73 @@ import {
   useOrganizationSettings,
 } from "./OrganizationSettingsShell";
 import { useTranslations } from "next-intl";
+import type { SettingsKey } from "@/i18n/Translate";
 
 // The Privacy & Data section of an organization's settings: the
 // organization-wide twin of a person's own Privacy & Data page. Each action
 // reaches every member's work in the organization, so the section is its
 // owners' alone; the server refuses anyone else.
 
-const DELETE_ROWS: {
-  kind: OrgDataKind;
-  label: string;
-  description: string;
-  title: string;
-  message: string;
-}[] = [
+const DELETE_ROWS = [
   {
     kind: "chats",
-    label: "Delete all chats",
-    description:
-      "Permanently delete the organization's assistant, project and tabular review chat history.",
-    title: "Delete all organization chats?",
-    message:
-      "This will permanently delete assistant, project and tabular review chat history across the organization, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+    label: "organizations.organizationPrivacyData.deleteRows.chats.label",
+    description: "organizations.organizationPrivacyData.deleteRows.chats.description",
+    title: "organizations.organizationPrivacyData.deleteRows.chats.title",
+    message: "organizations.organizationPrivacyData.deleteRows.chats.message",
   },
   {
     kind: "tabular-reviews",
-    label: "Delete all tabular reviews",
-    description:
-      "Permanently delete every tabular review in the organization, including cells and review chats.",
-    title: "Delete all organization tabular reviews?",
-    message:
-      "This will permanently delete every tabular review in the organization, including their cells and review chats, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+    label: "organizations.organizationPrivacyData.deleteRows.tabularReviews.label",
+    description: "organizations.organizationPrivacyData.deleteRows.tabularReviews.description",
+    title: "organizations.organizationPrivacyData.deleteRows.tabularReviews.title",
+    message: "organizations.organizationPrivacyData.deleteRows.tabularReviews.message",
   },
   {
     kind: "projects",
-    label: "Delete all projects",
-    description:
-      "Permanently delete every project in the organization, including documents, chats, and tabular reviews.",
-    title: "Delete all organization projects?",
-    message:
-      "This will permanently delete every project in the organization, including their documents, chats, and tabular reviews, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+    label: "organizations.organizationPrivacyData.deleteRows.projects.label",
+    description: "organizations.organizationPrivacyData.deleteRows.projects.description",
+    title: "organizations.organizationPrivacyData.deleteRows.projects.title",
+    message: "organizations.organizationPrivacyData.deleteRows.projects.message",
   },
   {
     kind: "playbooks",
-    label: "Delete all playbooks",
-    description:
-      "Permanently delete every playbook in the organization, including review history and reference documents.",
-    title: "Delete all organization playbooks?",
-    message:
-      "This will permanently delete every playbook in the organization, public and private, including their review history and reference documents, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+    label: "organizations.organizationPrivacyData.deleteRows.playbooks.label",
+    description: "organizations.organizationPrivacyData.deleteRows.playbooks.description",
+    title: "organizations.organizationPrivacyData.deleteRows.playbooks.title",
+    message: "organizations.organizationPrivacyData.deleteRows.playbooks.message",
   },
   {
     kind: "memories",
-    label: "Delete all memory",
-    description:
-      "Permanently delete the memory of every project in the organization.",
-    title: "Delete all organization memory?",
-    message:
-      "This permanently deletes the memory of every project in the organization. Memory remains enabled and can be rebuilt from future conversations. This action cannot be undone.",
+    label: "organizations.organizationPrivacyData.deleteRows.memory.label",
+    description: "organizations.organizationPrivacyData.deleteRows.memory.description",
+    title: "organizations.organizationPrivacyData.deleteRows.memory.title",
+    message: "organizations.organizationPrivacyData.deleteRows.memory.message",
   },
-];
+] as const satisfies readonly {
+  kind: OrgDataKind;
+  label: SettingsKey;
+  description: SettingsKey;
+  title: SettingsKey;
+  message: SettingsKey;
+}[];
 
-const POLICY_ROWS: {
-  key: keyof OrgMemberDataPolicy;
-  label: string;
-  description: (orgName: string) => string;
-}[] = [
+const POLICY_ROWS = [
   {
     key: "allow_member_exports",
-    label: "Let members export their data",
-    description: (orgName) =>
-      `Members can export their own chats, tabular reviews, projects and memory in ${orgName} from Settings › Privacy & Data. Owners always can.`,
+    label: "organizations.organizationPrivacyData.letMembersExport",
+    description: "organizations.organizationPrivacyData.letMembersExportDescription",
   },
   {
     key: "allow_member_deletes",
-    label: "Let members delete their data in bulk",
-    description: (orgName) =>
-      `Members can delete all of their own chats, tabular reviews, projects or memory in ${orgName} at once. Deleting one item at a time is not affected.`,
+    label: "organizations.organizationPrivacyData.letMembersDelete",
+    description: "organizations.organizationPrivacyData.letMembersDeleteDescription",
   },
-];
+] as const satisfies readonly {
+  key: keyof OrgMemberDataPolicy;
+  label: SettingsKey;
+  description: SettingsKey;
+}[];
 
 /**
  * Whether members may export, and bulk-delete, their own work here. Both
@@ -147,7 +136,7 @@ function MemberDataPolicySection() {
       if (isMfaRequiredError(error)) setPendingMfa({ next, key });
       else
         notifyError(error, {
-          action: "change what members can do with their data",
+          action: t("organizations.organizationPrivacyData.actions.changeWhatMembersCanDo"),
           onRetry: () => void save(next, key),
         });
     } finally {
@@ -162,14 +151,14 @@ function MemberDataPolicySection() {
         {POLICY_ROWS.map((row) => (
           <SettingsRow key={row.key}>
             <div className="space-y-1">
-              <SettingsLabel>{row.label}</SettingsLabel>
+              <SettingsLabel>{t(row.label)}</SettingsLabel>
               <SettingsDescription>
-                {row.description(org?.name ?? "this organization")}
+                {t(row.description, { orgName: org?.name ?? t("organizations.organizationPrivacyData.thisOrganization") })}
               </SettingsDescription>
             </div>
             <ToggleSwitchUI
               checked={policy[row.key]}
-              aria-label={row.label}
+              aria-label={t(row.label)}
               disabled={!org || savingKey !== null}
               onCheckedChange={(checked) =>
                 void save({ ...policy, [row.key]: checked }, row.key)
@@ -261,10 +250,10 @@ function OwnerSectionsSkeleton({
             <SettingsRow key={row.key}>
               <div className="space-y-1">
                 <SettingsLabel>
-                  <SkeletonText>{row.label}</SkeletonText>
+                  <SkeletonText>{t(row.label)}</SkeletonText>
                 </SettingsLabel>
                 <SettingsDescription>
-                  <SkeletonText>{row.description(orgName)}</SkeletonText>
+                  <SkeletonText>{t(row.description, { orgName })}</SkeletonText>
                 </SettingsDescription>
               </div>
               <SkeletonControl
@@ -287,7 +276,7 @@ function OwnerSectionsSkeleton({
               </SettingsLabel>
               <SettingsDescription>
                 <SkeletonText>
-                  {DEPARTED_DESCRIPTION}
+                  {t("organizations.organizationPrivacyData.departedDescription")}
                 </SkeletonText>
               </SettingsDescription>
             </div>
@@ -301,9 +290,6 @@ function OwnerSectionsSkeleton({
     </div>
   );
 }
-
-const DEPARTED_DESCRIPTION =
-  "Private, unshared work a member leaves behind is kept for 30 days, then permanently deleted. Reassign or delete it from the Members page.";
 
 export function OrganizationPrivacyData() {
   const t = useTranslations();
@@ -363,7 +349,7 @@ export function OrganizationPrivacyData() {
         setMfaKind(kind);
         return;
       }
-      setWarningMessage("Failed to delete data. Please try again.");
+      setWarningMessage(t("organizations.organizationPrivacyData.failedToDeleteData"));
     } finally {
       setDeletingKind(null);
     }
@@ -375,7 +361,7 @@ export function OrganizationPrivacyData() {
     <div className="space-y-8">
       {org ? null : (
         <OwnerSectionsSkeleton
-          orgName={listedOrgName ?? "this organization"}
+          orgName={listedOrgName ?? t("organizations.organizationPrivacyData.thisOrganization")}
           owner={knownRole !== undefined && isOrgOwner(knownRole)}
         />
       )}
@@ -391,7 +377,7 @@ export function OrganizationPrivacyData() {
             <SettingsRow>
               <div className="space-y-1">
                 <SettingsLabel>{t("organizations.organizationPrivacyData.workLeftByDepartedMembers")}</SettingsLabel>
-                <SettingsDescription>{DEPARTED_DESCRIPTION}</SettingsDescription>
+                <SettingsDescription>{t("organizations.organizationPrivacyData.departedDescription")}</SettingsDescription>
               </div>
               <PillButtonUI
                 tone="black"
@@ -416,13 +402,13 @@ export function OrganizationPrivacyData() {
           {DELETE_ROWS.map((row) => (
             <SettingsRow key={row.kind}>
               <div className="space-y-1">
-                <SettingsLabel>{row.label}</SettingsLabel>
-                <SettingsDescription>{row.description}</SettingsDescription>
+                <SettingsLabel>{t(row.label)}</SettingsLabel>
+                <SettingsDescription>{t(row.description)}</SettingsDescription>
               </div>
               <PillButtonUI
                 tone="danger"
                 size="sm"
-                aria-label={row.label}
+                aria-label={t(row.label)}
                 onClick={() => setPendingKind(row.kind)}
                 // Not offered until the caller is known to be an owner.
                 disabled={!org || deletingKind !== null}
@@ -438,8 +424,8 @@ export function OrganizationPrivacyData() {
       </section>
       <ConfirmPopup
         open={pendingKind !== null}
-        title={pendingRow?.title}
-        message={pendingRow?.message}
+        title={pendingRow ? t(pendingRow.title) : undefined}
+        message={pendingRow ? t(pendingRow.message) : undefined}
         confirmLabel={t("common.delete")}
         confirmVariant="danger"
         confirmStatus={deletingKind ? "loading" : "idle"}

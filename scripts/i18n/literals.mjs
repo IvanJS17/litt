@@ -57,6 +57,27 @@ export const EXCEPTIONS = new Set([
     "Microsoft Word",
     "Google Drive",
     "BYOK",
+    // Model and search providers are named the same in every language.
+    "Anthropic (Claude)",
+    "Google (Gemini)",
+    "OpenAI",
+    "Mistral AI",
+    "xAI",
+    "Amazon Bedrock",
+    "Azure OpenAI",
+    "Azure AI Foundry",
+    "Google Vertex AI",
+    "OpenRouter",
+    "Vercel AI Gateway",
+    "OpenCode Go",
+    "OpenAI-compatible endpoint",
+    "Brave Search",
+    "Tavily",
+    "DeepSeek",
+    "Claude",
+    "DeepSeek Search",
+    "Anthropic Search",
+    "OpenAI Search",
 ]);
 
 export const VISIBLE_ATTRS = new Set([
@@ -78,6 +99,7 @@ const CALLS =
 const hasWords = (s) => /[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/.test(s);
 const looksTechnical = (s) =>
     /^[a-z0-9_.\-/:#@?=&%]+$/.test(s) || // ids, classes, paths, keys
+    /^[a-z][A-Za-z0-9]*(\.[A-Za-z0-9_]+){2,}$/.test(s) || // catalog keys: settings.layout.tab.account
     /^(https?:|\/|#|\.|@)/.test(s) ||
     /^[A-Z0-9_]+$/.test(s) || // CONSTANTS and codes
     /\b(flex|grid|px-|py-|text-|bg-|rounded|border|w-|h-|gap-|items-|justify-)/.test(s);

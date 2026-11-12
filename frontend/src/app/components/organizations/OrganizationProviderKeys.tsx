@@ -13,6 +13,7 @@ import {
 import {
   MODEL_API_KEY_FIELDS,
   ModelProviderIcon,
+  byokProvider,
   type ModelApiKeyField,
 } from "@/app/components/settings/modelProviders";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
@@ -48,9 +49,6 @@ type PendingMfa =
   | { kind: "policy"; allowed: boolean }
   | { kind: "models"; provider: RouterSlug; models: string[] };
 
-const LOAD_ERROR = "The organization's model providers could not be loaded.";
-const UPDATE_ERROR = "The provider could not be updated. Please try again.";
-const POLICY_ERROR = "The setting could not be updated. Please try again.";
 
 export function OrganizationProviderKeys({
   orgId,
@@ -74,9 +72,9 @@ export function OrganizationProviderKeys({
     try {
       setSettings(await getOrgApiKeys(orgId));
     } catch (error) {
-      setLoadError(userFacingApiError(error, LOAD_ERROR));
+      setLoadError(userFacingApiError(error, t("organizations.organizationProviderKeys.loadError")));
     }
-  }, [orgId]);
+  }, [orgId, t]);
 
   useEffect(() => {
     void load();
@@ -109,7 +107,7 @@ export function OrganizationProviderKeys({
     } catch (error) {
       if (isMfaRequiredError(error))
         setPendingMfa({ kind: "toggle", provider, enabled });
-      else setActionError(userFacingApiError(error, UPDATE_ERROR));
+      else setActionError(userFacingApiError(error, t("organizations.organizationProviderKeys.updateError")));
     } finally {
       setBusy(null);
     }
@@ -121,7 +119,7 @@ export function OrganizationProviderKeys({
       applied(await setOrgPersonalApiKeysAllowed(orgId, allowed));
     } catch (error) {
       if (isMfaRequiredError(error)) setPendingMfa({ kind: "policy", allowed });
-      else setActionError(userFacingApiError(error, POLICY_ERROR));
+      else setActionError(userFacingApiError(error, t("organizations.organizationProviderKeys.policyError")));
     } finally {
       setBusy(null);
     }
@@ -199,7 +197,7 @@ export function OrganizationProviderKeys({
               {isEnabled(field.provider) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
             </span>
           ) : saved ? (
-            renderToggle(field, `${field.name} provider`)
+            renderToggle(field, t("organizations.organizationProviderKeys.nameProvider", { name: field.name }))
           ) : (
             <PillButtonUI
               tone="blue"
@@ -326,7 +324,7 @@ export function OrganizationProviderKeys({
 
       {canManage ? (
         <ByokProviderModal
-          provider={selected}
+          provider={selected ? byokProvider(t, selected) : null}
           store={{
             hasSavedKey: selected ? hasOrgKey(selected.provider) : false,
             settings: settings?.keys.settings,
@@ -344,7 +342,7 @@ export function OrganizationProviderKeys({
           }}
           enabledToggle={
             selected && hasOrgKey(selected.provider)
-              ? renderToggle(selected, `Use ${selected.name}`)
+              ? renderToggle(selected, t("organizations.organizationProviderKeys.useName", { name: selected.name }))
               : undefined
           }
           onClose={() => setSelectedProvider(null)}

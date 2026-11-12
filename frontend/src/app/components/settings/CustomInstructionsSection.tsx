@@ -71,7 +71,7 @@ export function CustomInstructionsSection() {
       setSaveError(
         userFacingApiError(
           cause,
-          "Custom instructions could not be saved. Your draft has been kept.",
+          t("settings.customInstructionsSection.couldNotBeSaved"),
         ),
       );
     },

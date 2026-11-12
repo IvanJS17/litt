@@ -30,6 +30,7 @@ import {
 } from "@/app/lib/accountModelIds";
 import { SettingsDescription } from "./SettingsText";
 import { useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
 
 const COST_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -46,17 +47,17 @@ function formatPerMillion(value?: string): string | null {
     : null;
 }
 
-function modelCostLabel(model: RouterCatalogModel): string | null {
+function modelCostLabel(t: Translate, model: RouterCatalogModel): string | null {
   if (!model.pricing) return null;
   const input = formatPerMillion(model.pricing.input);
   const output = formatPerMillion(model.pricing.output);
   const costs = [
-    input ? `${input}/M input` : null,
-    output ? `${output}/M output` : null,
+    input ? t("settings.routerSettingsSection.perMillionInput", { amount: input }) : null,
+    output ? t("settings.routerSettingsSection.perMillionOutput", { amount: output }) : null,
   ].filter(Boolean);
   if (costs.length === 0) return null;
-  if (model.pricing.tiered) costs.push("tiered pricing");
-  if (model.pricing.variesByProvider) costs.push("varies by provider");
+  if (model.pricing.tiered) costs.push(t("settings.routerSettingsSection.tieredPricing"));
+  if (model.pricing.variesByProvider) costs.push(t("settings.routerSettingsSection.variesByProvider"));
   return costs.join(" · ");
 }
 
@@ -76,53 +77,53 @@ const accountModelId =
  */
 const ROUTER_MODEL_ID: Record<
   RouterSlug,
-  { accepts: (id: string) => boolean; shape: string; example: string; hint?: string }
+  { accepts: (id: string) => boolean; shape: SettingsKey; example: string; hint?: SettingsKey }
 > = {
   openrouter: {
     accepts: (id) => CATALOG_MODEL_ID_RE.test(id),
-    shape: "vendor/model",
+    shape: "settings.routerSettingsSection.shape.vendorModel",
     example: "anthropic/claude-sonnet-5",
   },
   vercel: {
     accepts: (id) => CATALOG_MODEL_ID_RE.test(id),
-    shape: "vendor/model",
+    shape: "settings.routerSettingsSection.shape.vendorModel",
     example: "anthropic/claude-sonnet-5",
   },
   "opencode-go": {
     accepts: (id) => /^[^\s]+$/.test(id),
-    shape: "a model name with no spaces",
+    shape: "settings.routerSettingsSection.shape.aModelNameWithNoSpaces",
     example: "glm-5",
   },
   bedrock: {
     accepts: accountModelId("bedrock"),
-    shape: "a Bedrock model or inference-profile ID with no spaces",
+    shape: "settings.routerSettingsSection.shape.aBedrockModel",
     example: "us.anthropic.claude-opus-5-5",
   },
   azure: {
     accepts: accountModelId("azure"),
-    shape: "a deployment name with no spaces",
+    shape: "settings.routerSettingsSection.shape.aDeploymentName",
     example: "gpt-6.1-sol",
   },
   "azure-foundry": {
     accepts: accountModelId("azure-foundry"),
-    shape: "a deployment name with no spaces",
+    shape: "settings.routerSettingsSection.shape.aDeploymentName",
     example: "claude-opus-5-5",
-    hint: "Claude deployments are recognised by name. If a deployment is named differently, add it as anthropic:<name>, or openai:<name> for any other model.",
+    hint: "settings.routerSettingsSection.hint.foundry",
   },
   vertex: {
     accepts: accountModelId("vertex"),
-    shape: "a Vertex AI model ID with no spaces",
+    shape: "settings.routerSettingsSection.shape.aVertexModelId",
     example: "gemini-3.1-pro-preview",
-    hint: "Claude and publisher/model IDs are recognised by name. For other partner models add openai:<id>; anthropic:<id> and gemini:<id> also work.",
+    hint: "settings.routerSettingsSection.hint.vertex",
   },
   xai: {
     accepts: accountModelId("xai"),
-    shape: "a model name with no spaces",
+    shape: "settings.routerSettingsSection.shape.aModelNameWithNoSpaces",
     example: "grok-4.3",
   },
   custom: {
     accepts: accountModelId("custom"),
-    shape: "a model name with no spaces",
+    shape: "settings.routerSettingsSection.shape.aModelNameWithNoSpaces",
     example: "my-model",
   },
 };
@@ -319,7 +320,7 @@ function RouterModelsSetting({
     return () => {
       cancelled = true;
     };
-  }, [catalogWorkspace, label, loadCatalog]);
+  }, [catalogWorkspace, label, loadCatalog, t]);
 
   useEffect(() => {
     if (!catalogOpen) return;
@@ -381,8 +382,8 @@ function RouterModelsSetting({
     if (!model) {
       setError(
         candidate.length > MAX_MODEL_ID_LENGTH
-          ? `Model IDs are at most ${MAX_MODEL_ID_LENGTH} characters.`
-          : `"${candidate}" is not a model ID — pick one from the list, or type it as ${ROUTER_MODEL_ID[provider].shape}.`,
+          ? t("settings.routerSettingsSection.modelIdsAreAtMost", { max: MAX_MODEL_ID_LENGTH })
+          : t("settings.routerSettingsSection.notAModelId", { candidate, shape: t(ROUTER_MODEL_ID[provider].shape) }),
       );
       return;
     }
@@ -458,7 +459,7 @@ function RouterModelsSetting({
               : {})}
             value={input}
             disabled={saving}
-            placeholder={`e.g. ${ROUTER_MODEL_ID[provider].example}`}
+            placeholder={t("settings.routerSettingsSection.example", { example: ROUTER_MODEL_ID[provider].example })}
             className={loadCatalog ? "pr-9" : undefined}
             onChange={(event) => {
               setInput(event.target.value);
@@ -556,7 +557,7 @@ function RouterModelsSetting({
               {visibleCatalog.map((model, index) => {
                 const selected = selection.includes(model.id);
                 const active = index === activeCatalogIndex;
-                const costLabel = modelCostLabel(model);
+                const costLabel = modelCostLabel(t, model);
                 return (
                   <DropdownButton
                     key={model.id}
@@ -623,7 +624,7 @@ function RouterModelsSetting({
       </p>
       {ROUTER_MODEL_ID[provider].hint && (
         <p className="text-xs text-gray-500">
-          {ROUTER_MODEL_ID[provider].hint}
+          {t(ROUTER_MODEL_ID[provider].hint!)}
         </p>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}

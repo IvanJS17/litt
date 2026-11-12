@@ -516,6 +516,7 @@
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible."
     },
     "couldnt": "No se pudo {action}",
+    "couldntTryAgain": "⟦por traducir⟧ LiTT couldn't {action}. Try again.",
     "message": {
       "aborted": "Se canceló la solicitud.",
       "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
@@ -931,6 +932,7 @@
   },
   "organizations": {
     "deletedOrganizations": {
+      "couldNotRestoreTheOrganization": "⟦por traducir⟧ Could not restore the organization.",
       "loadingDeletedOrganizations": "⟦por traducir⟧ Loading deleted organizations",
       "ownersCanRestoreAnOrganizationWithin": "⟦por traducir⟧ Owners can restore an organization within 30 days of deletion.",
       "recentlyDeleted": "⟦por traducir⟧ Recently deleted",
@@ -942,26 +944,66 @@
     },
     "memberDepartureDialog": {
       "archivedsummaryWillBeArchivedFor30": "⟦por traducir⟧ {archivedSummary} will be archived for 30 days.",
+      "breadcrumb": {
+        "leave": "⟦por traducir⟧ Leave",
+        "remove": "⟦por traducir⟧ Remove"
+      },
       "checkingWhatWouldBeTransferredOr": "⟦por traducir⟧ Checking what would be transferred or archived",
       "chooseAMember": "⟦por traducir⟧ Choose a member",
       "couldNotCheckWhatWouldBe": "⟦por traducir⟧ Could not check what would be transferred or archived. Close this and try again.",
+      "count": {
+        "document": "⟦por traducir⟧ {count, plural, one {# document} other {# documents}}",
+        "privateChat": "⟦por traducir⟧ {count, plural, one {# private chat} other {# private chats}}",
+        "privateProject": "⟦por traducir⟧ {count, plural, one {# private project} other {# private projects}}",
+        "privateWorkflow": "⟦por traducir⟧ {count, plural, one {# private workflow} other {# private workflows}}",
+        "project": "⟦por traducir⟧ {count, plural, one {# project} other {# projects}}",
+        "sharedChat": "⟦por traducir⟧ {count, plural, one {# shared chat} other {# shared chats}}",
+        "sharedTabularReview": "⟦por traducir⟧ {count, plural, one {# shared tabular review} other {# shared tabular reviews}}",
+        "tabularReview": "⟦por traducir⟧ {count, plural, one {# tabular review} other {# tabular reviews}}",
+        "workflow": "⟦por traducir⟧ {count, plural, one {# workflow} other {# workflows}}"
+      },
       "handOverTo": "⟦por traducir⟧ Hand over to",
+      "lead": {
+        "leaving": "⟦por traducir⟧ You will lose access to this organization's shared resources.",
+        "one": "⟦por traducir⟧ {who} will lose organization access.",
+        "several": "⟦por traducir⟧ {count} selected members will lose access to this organization."
+      },
+      "leaving": "⟦por traducir⟧ Leaving...",
+      "listAnd": "⟦por traducir⟧ {rest} and {last}",
       "onlyOrganizationOwnersCanRecoverReassign": "⟦por traducir⟧ Only organization owners can recover, reassign or delete this work. Anything not recovered within 30 days will be permanently deleted, including its contents.",
       "owedsummaryNeedANewOwnerShared": "⟦por traducir⟧ {owed, plural, one {{owedSummary} needs a new owner. Shared and public work will transfer together.} other {{owedSummary} need a new owner. Shared and public work will transfer together.}}",
       "privateWorkRetainedFor30Days": "⟦por traducir⟧ Private work retained for 30 days",
+      "removing": "⟦por traducir⟧ Removing...",
       "thereIsNoOtherMemberTo": "⟦por traducir⟧ There is no other member to hand this to.",
+      "thisMember": "⟦por traducir⟧ This member",
       "transferOwnership": "⟦por traducir⟧ Transfer ownership",
+      "unnamedMember": "⟦por traducir⟧ Unnamed member",
       "viewItems": "⟦por traducir⟧ View items"
     },
     "organizationDepartedMembers": {
       "accountDeleted": "⟦por traducir⟧ Account deleted",
+      "actionsFor": "⟦por traducir⟧ Actions for {name}",
       "archivedWorkDeleted": "⟦por traducir⟧ Archived work deleted.",
       "archivedWorkNotChanged": "⟦por traducir⟧ Archived work not changed",
       "archivedWorkNotRefreshed": "⟦por traducir⟧ Archived work not refreshed",
+      "breadcrumb": {
+        "departedMembers": "⟦por traducir⟧ Departed members",
+        "reassign": "⟦por traducir⟧ Reassign"
+      },
       "chooseWhoTakesOverLabelProjects": "⟦por traducir⟧ Choose who takes over {label}. Projects and workflows keep their contents, and the work stays private to its new owner.",
       "collapseGroupname": "⟦por traducir⟧ Collapse {groupName}",
       "collapseName": "⟦por traducir⟧ Collapse {name}",
+      "confirmDelete": "⟦por traducir⟧ Permanently delete {label}, with its contents? This cannot be undone.",
       "contents": "⟦por traducir⟧ Contents",
+      "couldNotDeleteThisWork": "⟦por traducir⟧ Could not delete this work.",
+      "couldNotLoadDepartedMembers": "⟦por traducir⟧ Could not load departed members.",
+      "couldNotReassignThisWork": "⟦por traducir⟧ Could not reassign this work.",
+      "deadline": {
+        "inDays": "⟦por traducir⟧ in {days} days",
+        "line": "⟦por traducir⟧ {date} · {distance}",
+        "today": "⟦por traducir⟧ today",
+        "tomorrow": "⟦por traducir⟧ tomorrow"
+      },
       "deleteArchivedWork": "⟦por traducir⟧ Delete archived work?",
       "deleteSelected": "⟦por traducir⟧ Delete selected",
       "deletes": "⟦por traducir⟧ Deletes",
@@ -971,6 +1013,41 @@
       "everythingThisFormerMemberLeft": "⟦por traducir⟧ everything this former member left",
       "expandGroupname": "⟦por traducir⟧ Expand {groupName}",
       "expandName": "⟦por traducir⟧ Expand {name}",
+      "formerMember": "⟦por traducir⟧ Former member",
+      "itemContents": {
+        "chats": "⟦por traducir⟧ {count, plural, one {# chat} other {# chats}}",
+        "documents": "⟦por traducir⟧ {count, plural, one {# document} other {# documents}}",
+        "empty": "⟦por traducir⟧ Empty",
+        "reviews": "⟦por traducir⟧ {count, plural, one {# review} other {# reviews}}"
+      },
+      "itemCount": "⟦por traducir⟧ {count, plural, one {# item} other {# items}}",
+      "kind": {
+        "chat": {
+          "label": "⟦por traducir⟧ Chats",
+          "owned": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} {count, plural, one {# chat} other {# chats}}",
+          "ownedName": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} chats"
+        },
+        "document": {
+          "label": "⟦por traducir⟧ Library files",
+          "owned": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} {count, plural, one {# library file} other {# library files}}",
+          "ownedName": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} library files"
+        },
+        "project": {
+          "label": "⟦por traducir⟧ Projects",
+          "owned": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} {count, plural, one {# project} other {# projects}}",
+          "ownedName": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} projects"
+        },
+        "tabularReview": {
+          "label": "⟦por traducir⟧ Tabular reviews",
+          "owned": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} {count, plural, one {# tabular review} other {# tabular reviews}}",
+          "ownedName": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} tabular reviews"
+        },
+        "workflow": {
+          "label": "⟦por traducir⟧ Workflows",
+          "owned": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} {count, plural, one {# workflow} other {# workflows}}",
+          "ownedName": "⟦por traducir⟧ {named, select, yes {{name}'s} other {this former member's}} workflows"
+        }
+      },
       "left": "⟦por traducir⟧ Left",
       "name": "⟦por traducir⟧ Name",
       "noDepartedMembersOrArchivedWork": "⟦por traducir⟧ No departed members or archived work match this search.",
@@ -980,13 +1057,24 @@
       "reassign2": "⟦por traducir⟧ Reassign",
       "reassignSelected": "⟦por traducir⟧ Reassign selected…",
       "reassignTo": "⟦por traducir⟧ Reassign to",
+      "reassignedTo": "⟦por traducir⟧ Reassigned to {name}.",
       "reassigning": "⟦por traducir⟧ Reassigning...",
+      "selectAllArchivedWork": "⟦por traducir⟧ Select all archived work",
+      "selectEverythingNameLeft": "⟦por traducir⟧ Select everything {name} left",
+      "selectName": "⟦por traducir⟧ Select {name}",
+      "selectedItems": "⟦por traducir⟧ the {count, plural, one {# selected item} other {# selected items}}",
+      "theSelectedMember": "⟦por traducir⟧ the selected member",
       "thisWork": "⟦por traducir⟧ this work",
-      "tryAgain": "⟦por traducir⟧ Try again"
+      "tryAgain": "⟦por traducir⟧ Try again",
+      "unresolvedDelete": "⟦por traducir⟧ {count, plural, one {# item} other {# items}} could not be deleted. Try again.",
+      "unresolvedReassign": "⟦por traducir⟧ {count, plural, one {# item} other {# items}} could not be reassigned: the recovery period has ended, or the member is no longer in the organization."
     },
     "organizationGeneralSettings": {
+      "couldNotDeleteTheOrganization": "⟦por traducir⟧ Could not delete the organization.",
       "couldNotLeaveTheOrganization": "⟦por traducir⟧ Could not leave the organization",
+      "couldNotRenameTheOrganization": "⟦por traducir⟧ Could not rename the organization.",
       "currentLogo": "⟦por traducir⟧ Current logo",
+      "deleteName": "⟦por traducir⟧ Delete {name}?",
       "deleteOrganization": "⟦por traducir⟧ Delete Organization",
       "deleteThisOrganization": "⟦por traducir⟧ Delete this organization",
       "edit": "⟦por traducir⟧ Edit",
@@ -1004,12 +1092,15 @@
       "removeAccessForAllMembersOwners": "⟦por traducir⟧ Remove access for all members. Owners can restore the organization for 30 days before its content is permanently deleted.",
       "shownAtTheTopOfThe": "⟦por traducir⟧ Shown at the top of the sidebar. PNG, JPEG or WebP.",
       "thatImageCannotBeUsed": "⟦por traducir⟧ That image cannot be used.",
+      "theLogoCouldNotBeRemoved": "⟦por traducir⟧ The logo could not be removed.",
+      "theLogoCouldNotBeSaved": "⟦por traducir⟧ The logo could not be saved.",
       "thisActionIsSensitiveEnterA": "⟦por traducir⟧ This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "⟦por traducir⟧ this organization",
       "thisRemovesAccessToTheOrganization": "⟦por traducir⟧ This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → Organizations during that period. After 30 days, it is permanently deleted.",
       "twoFactorVerificationRequired": "⟦por traducir⟧ Two-factor verification required",
       "upload": "⟦por traducir⟧ Upload",
       "uploadLogo": "⟦por traducir⟧ Upload logo",
+      "youCouldNotBeRemoved": "⟦por traducir⟧ You could not be removed from the organization.",
       "youWillLoseAccessToEverything": "⟦por traducir⟧ You will lose access to everything shared with you in this organization.",
       "yourMembership": "⟦por traducir⟧ Your Membership",
       "yourRole": "⟦por traducir⟧ Your role"
@@ -1020,45 +1111,70 @@
       "added": "⟦por traducir⟧ Added",
       "backToOrganization": "⟦por traducir⟧ Back to Organization",
       "changeRoleForLabel": "⟦por traducir⟧ Change role for {label}",
+      "couldNotChangeThatRole": "⟦por traducir⟧ Could not change that role.",
+      "couldNotLoadThisOrganization": "⟦por traducir⟧ Could not load this organization.",
+      "couldNotRemoveAllSelected": "⟦por traducir⟧ Could not remove all selected members.",
+      "couldNotRemoveThatMember": "⟦por traducir⟧ Could not remove that member.",
+      "defaultOrder": "⟦por traducir⟧ Default order",
       "email": "⟦por traducir⟧ Email",
       "giveUpOwnerAccess": "⟦por traducir⟧ Give up owner access?",
       "leaveOrganization": "⟦por traducir⟧ Leave organization",
       "members": "⟦por traducir⟧ Members",
       "name": "⟦por traducir⟧ Name",
       "noPeopleMatchThisSearch": "⟦por traducir⟧ No people match this search.",
+      "noRoleInOrganization": "⟦por traducir⟧ {role, select, owner {This organization has no owners.} admin {This organization has no admins.} other {This organization has no members.}}",
+      "onlyAnOwnerCanRemoveAdmins": "⟦por traducir⟧ Only an organization owner can remove admins and other owners.",
       "onlyOrganizationAdminsCanAddMembers": "⟦por traducir⟧ Only organization admins can add members",
-      "ordinaryMembers": "⟦por traducir⟧ ordinary members",
       "organization": "⟦por traducir⟧ Organization",
       "organizationActionFailed": "⟦por traducir⟧ Organization action failed",
       "people": "⟦por traducir⟧ People",
+      "peopleCouldNotBeRefreshed": "⟦por traducir⟧ This organization's people could not be refreshed. Reload to see the current list.",
       "removeAllSelected": "⟦por traducir⟧ Remove all selected",
       "removeMember": "⟦por traducir⟧ Remove member",
       "role": "⟦por traducir⟧ Role",
       "searchDepartedMembers": "⟦por traducir⟧ Search departed members…",
       "searchMembers": "⟦por traducir⟧ Search members…",
       "selectAllPeople": "⟦por traducir⟧ Select all people",
+      "selectLabel": "⟦por traducir⟧ Select {label}",
       "sortByDateAdded": "⟦por traducir⟧ Sort by date added",
       "sortByEmail": "⟦por traducir⟧ Sort by email",
       "sortByName": "⟦por traducir⟧ Sort by name",
       "stepDownToAdmin": "⟦por traducir⟧ Step down to admin?",
+      "tabAdmins": "⟦por traducir⟧ Admins",
+      "tabAll": "⟦por traducir⟧ All",
+      "tabDeparted": "⟦por traducir⟧ Departed",
+      "tabMembers": "⟦por traducir⟧ Members",
+      "tabOwners": "⟦por traducir⟧ Owners",
       "thisOrganizationHasNoMembers": "⟦por traducir⟧ This organization has no members.",
       "tryAgain": "⟦por traducir⟧ Try again",
+      "useLeaveOrganization": "⟦por traducir⟧ Use Leave organization to remove yourself.",
       "you": "⟦por traducir⟧ (You)",
       "youWillLoseOwnerAccessTo": "⟦por traducir⟧ You will lose owner access to this organization and can no longer manage its people, settings or invitations.",
       "youWillStayAnAdminBut": "⟦por traducir⟧ You will stay an admin, but can no longer delete this organization or appoint and remove its admins and owners."
     },
     "organizationModals": {
       "addMember": "⟦por traducir⟧ Add member",
+      "addMemberBreadcrumb": "⟦por traducir⟧ Add member",
       "addMemberByEmail": "⟦por traducir⟧ Add member by email…",
       "cancelInvitationToEmail": "⟦por traducir⟧ Cancel invitation to {email}",
+      "couldNotCancelTheInvitation": "⟦por traducir⟧ Could not cancel the invitation.",
+      "couldNotCreateTheOrganization": "⟦por traducir⟧ Could not create the organization.",
+      "couldNotResendTheInvitation": "⟦por traducir⟧ Could not resend the invitation.",
+      "couldNotSendTheInvitation": "⟦por traducir⟧ Could not send the invitation.",
+      "create": "⟦por traducir⟧ Create",
+      "creating": "⟦por traducir⟧ Creating...",
       "eGEliteLawLlp": "⟦por traducir⟧ e.g. Elite Law LLP",
       "emailAddress": "⟦por traducir⟧ Email address",
       "expired": "⟦por traducir⟧ Expired",
       "invitationActionFailed": "⟦por traducir⟧ Invitation action failed",
+      "invitationResentTo": "⟦por traducir⟧ Invitation resent to {email}.",
+      "invitationToCancelled": "⟦por traducir⟧ Invitation to {email} cancelled.",
       "inviteByEmail": "⟦por traducir⟧ Invite by email…",
       "inviteMembers": "⟦por traducir⟧ Invite members",
       "membersReceiveAnInvitationYouCan": "⟦por traducir⟧ Members receive an invitation. You can also add people later from the organization page.",
+      "newOrganization": "⟦por traducir⟧ New organization",
       "onlyAnOrganizationOwnerCanInvite": "⟦por traducir⟧  Only an organization owner can invite admins.",
+      "onlyAnOwnerCanChangeAnAdminInvitation": "⟦por traducir⟧ Only an organization owner can change an admin invitation",
       "openOrganization": "⟦por traducir⟧ Open organization",
       "organizationCreatedButSomeInvitationsCould": "⟦por traducir⟧ Organization created, but some invitations could not be sent. You can add them later.",
       "organizationName": "⟦por traducir⟧ Organization name",
@@ -1070,19 +1186,64 @@
       "role": "⟦por traducir⟧ Role",
       "sendInvitation": "⟦por traducir⟧ Send invitation",
       "someInvitationsWereNotSent": "⟦por traducir⟧ Some invitations were not sent",
+      "staleAfterAction": "⟦por traducir⟧ {notice} The list below may be out of date — reload to see the current one.",
+      "staleAfterInvite": "⟦por traducir⟧ {notice}. The list below may be out of date — reload to see the current one.",
+      "thisEmailHasAlreadyBeenAdded": "⟦por traducir⟧ This email has already been added.",
       "youWillBecomeTheFirstAdministrator": "⟦por traducir⟧ You will become the first administrator."
     },
     "organizationPrivacyData": {
       "actionFailed": "⟦por traducir⟧ Action failed",
+      "actions": {
+        "changeWhatMembersCanDo": "⟦por traducir⟧ change what members can do with their data"
+      },
       "backToGeneral": "⟦por traducir⟧ Back to General",
       "deleteData": "⟦por traducir⟧ Delete data",
+      "deleteRows": {
+        "chats": {
+          "description": "⟦por traducir⟧ Permanently delete the organization's assistant, project and tabular review chat history.",
+          "label": "⟦por traducir⟧ Delete all chats",
+          "message": "⟦por traducir⟧ This will permanently delete assistant, project and tabular review chat history across the organization, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+          "title": "⟦por traducir⟧ Delete all organization chats?"
+        },
+        "memory": {
+          "description": "⟦por traducir⟧ Permanently delete the memory of every project in the organization.",
+          "label": "⟦por traducir⟧ Delete all memory",
+          "message": "⟦por traducir⟧ This permanently deletes the memory of every project in the organization. Memory remains enabled and can be rebuilt from future conversations. This action cannot be undone.",
+          "title": "⟦por traducir⟧ Delete all organization memory?"
+        },
+        "playbooks": {
+          "description": "⟦por traducir⟧ Permanently delete every playbook in the organization, including review history and reference documents.",
+          "label": "⟦por traducir⟧ Delete all playbooks",
+          "message": "⟦por traducir⟧ This will permanently delete every playbook in the organization, public and private, including their review history and reference documents, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+          "title": "⟦por traducir⟧ Delete all organization playbooks?"
+        },
+        "projects": {
+          "description": "⟦por traducir⟧ Permanently delete every project in the organization, including documents, chats, and tabular reviews.",
+          "label": "⟦por traducir⟧ Delete all projects",
+          "message": "⟦por traducir⟧ This will permanently delete every project in the organization, including their documents, chats, and tabular reviews, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+          "title": "⟦por traducir⟧ Delete all organization projects?"
+        },
+        "tabularReviews": {
+          "description": "⟦por traducir⟧ Permanently delete every tabular review in the organization, including cells and review chats.",
+          "label": "⟦por traducir⟧ Delete all tabular reviews",
+          "message": "⟦por traducir⟧ This will permanently delete every tabular review in the organization, including their cells and review chats, for every member. Consider exporting anything you need to keep first. This action cannot be undone.",
+          "title": "⟦por traducir⟧ Delete all organization tabular reviews?"
+        }
+      },
+      "departedDescription": "⟦por traducir⟧ Private, unshared work a member leaves behind is kept for 30 days, then permanently deleted. Reassign or delete it from the Members page.",
       "departedMembers": "⟦por traducir⟧ Departed members",
+      "failedToDeleteData": "⟦por traducir⟧ Failed to delete data. Please try again.",
+      "letMembersDelete": "⟦por traducir⟧ Let members delete their data in bulk",
+      "letMembersDeleteDescription": "⟦por traducir⟧ Members can delete all of their own chats, tabular reviews, projects or memory in {orgName} at once. Deleting one item at a time is not affected.",
+      "letMembersExport": "⟦por traducir⟧ Let members export their data",
+      "letMembersExportDescription": "⟦por traducir⟧ Members can export their own chats, tabular reviews, projects and memory in {orgName} from Settings › Privacy & Data. Owners always can.",
       "membersData": "⟦por traducir⟧ Members' data",
       "onlyThisOrganizationsOwnersCanManage": "⟦por traducir⟧ Only this organization's owners can manage its data.",
       "privacyData": "⟦por traducir⟧ Privacy & Data",
       "review": "⟦por traducir⟧ Review",
       "reviewDepartedMembers": "⟦por traducir⟧ Review departed members",
       "thisActionIsSensitiveEnterA": "⟦por traducir⟧ This action is sensitive. Enter a code from your authenticator app to continue.",
+      "thisOrganization": "⟦por traducir⟧ this organization",
       "thisSettingIsSensitiveEnterA": "⟦por traducir⟧ This setting is sensitive. Enter a code from your authenticator app to continue.",
       "twoFactorVerificationRequired": "⟦por traducir⟧ Two-factor verification required",
       "workLeftByDepartedMembers": "⟦por traducir⟧ Work left by departed members"
@@ -1097,23 +1258,30 @@
       "allowMembersOwnKeys2": "⟦por traducir⟧ Allow members' own keys",
       "availableProviders": "⟦por traducir⟧ Available Providers",
       "everyProviderHasAKeySaved": "⟦por traducir⟧ Every provider has a key saved.",
+      "loadError": "⟦por traducir⟧ The organization's model providers could not be loaded.",
       "membersOwnKeys": "⟦por traducir⟧ Members’ Own Keys",
+      "nameProvider": "⟦por traducir⟧ {name} provider",
       "noProvidersYetAddAnApi": "⟦por traducir⟧ No providers yet. Add an API key to one of the providers below.",
       "off": "⟦por traducir⟧ Off",
       "on": "⟦por traducir⟧ On",
       "organizationProviders": "⟦por traducir⟧ Organization Providers",
+      "policyError": "⟦por traducir⟧ The setting could not be updated. Please try again.",
       "providerUpdateFailed": "⟦por traducir⟧ Provider update failed",
       "thisOrganizationHasNotSetUp": "⟦por traducir⟧ This organization has not set up a model provider yet.",
-      "tryAgain": "⟦por traducir⟧ Try again"
+      "tryAgain": "⟦por traducir⟧ Try again",
+      "updateError": "⟦por traducir⟧ The provider could not be updated. Please try again.",
+      "useName": "⟦por traducir⟧ Use {name}"
     },
     "organizationProvidersSettings": {
       "backToGeneral": "⟦por traducir⟧ Back to General",
       "bringYourOwnKeys": "⟦por traducir⟧ Bring Your Own Keys",
-      "onlyThisOrganizationsOwnersAndAdmins": "⟦por traducir⟧ Only this organization's owners and admins can manage its keys."
+      "onlyThisOrganizationsOwnersAndAdmins": "⟦por traducir⟧ Only this organization's owners and admins can manage its keys.",
+      "organization": "⟦por traducir⟧ Organization"
     },
     "organizationSettingsShell": {
       "auditLog": "⟦por traducir⟧ Audit log",
       "bringYourOwnKeys": "⟦por traducir⟧ Bring Your Own Keys",
+      "couldNotLoadThisOrganization": "⟦por traducir⟧ Could not load this organization.",
       "formacion": "Formación",
       "general": "⟦por traducir⟧ General",
       "members": "⟦por traducir⟧ Members",
@@ -1126,19 +1294,39 @@
     "organizationsOverview": {
       "accept": "⟦por traducir⟧ Accept",
       "acceptName": "⟦por traducir⟧ Accept {name}",
+      "anOrganization": "⟦por traducir⟧ An organization",
+      "couldNotAnswerThatInvitation": "⟦por traducir⟧ Could not answer that invitation.",
+      "couldNotLoadOrganizations": "⟦por traducir⟧ Could not load organizations.",
+      "couldNotLoadYourInvitations": "⟦por traducir⟧ Could not load your invitations.",
       "decline": "⟦por traducir⟧ Decline",
       "declineName": "⟦por traducir⟧ Decline {name}",
       "invitationNotUpdated": "⟦por traducir⟧ Invitation not updated",
       "invitations": "⟦por traducir⟧ Invitations",
+      "invitedYouAs": "⟦por traducir⟧ Invited you as {role}",
       "manage": "⟦por traducir⟧ Manage",
       "manageName": "⟦por traducir⟧ Manage {name}",
       "new": "⟦por traducir⟧ New",
       "newOrganization": "⟦por traducir⟧ New organization",
       "noOrganizationsYetCreateOneTo": "⟦por traducir⟧ No organizations yet. Create one to share projects and workflows with your team.",
       "organizations": "⟦por traducir⟧ Organizations",
+      "roleAndMembers": "⟦por traducir⟧ {role} · {count, plural, one {# member} other {# members}}",
       "switch": "⟦por traducir⟧ Switch",
       "switchToName": "⟦por traducir⟧ Switch to {name}",
       "tryAgain": "⟦por traducir⟧ Try again"
+    },
+    "role": {
+      "admin": {
+        "description": "⟦por traducir⟧ Manages the organization's members, invitations and settings and is an Owner of organization content by default.",
+        "label": "⟦por traducir⟧ Admin"
+      },
+      "member": {
+        "description": "⟦por traducir⟧ Can edit organization content by default.",
+        "label": "⟦por traducir⟧ Member"
+      },
+      "owner": {
+        "description": "⟦por traducir⟧ Everything an admin can do, plus deleting the organization and appointing or removing admins and other owners.",
+        "label": "⟦por traducir⟧ Owner"
+      }
     }
   },
   "playbooks": {
@@ -1244,32 +1432,60 @@
   },
   "settings": {
     "apiKeyField": {
+      "apiKey": "⟦por traducir⟧ API key",
+      "couldntRemove": "⟦por traducir⟧ LiTT couldn't remove your {label}. The key is still saved.",
+      "couldntSave": "⟦por traducir⟧ LiTT couldn't save your {label}. The key was not changed.",
       "hideKey": "⟦por traducir⟧ Hide key",
       "labelRemoved": "⟦por traducir⟧ {label} removed.",
+      "nothingWasSent": "⟦por traducir⟧ Nothing was sent",
       "remove": "⟦por traducir⟧ Remove",
+      "removeYourLabel": "⟦por traducir⟧ remove your {label}",
+      "saveYourLabel": "⟦por traducir⟧ save your {label}",
       "saving": "⟦por traducir⟧ Saving...",
-      "showKey": "⟦por traducir⟧ Show key"
+      "showKey": "⟦por traducir⟧ Show key",
+      "theLabelFieldIsEmpty": "⟦por traducir⟧ The {label} field is empty, so there is nothing to retry. Enter the key again and press Save.",
+      "yourLabelHasChanged": "⟦por traducir⟧ Your {label} has changed since that attempt. Press Save to store the key now in the field."
     },
     "appearance": {
       "appearance": "⟦por traducir⟧ Appearance",
+      "couldNotUpdateTheAppearanceSetting": "⟦por traducir⟧ Could not update the appearance setting.",
       "darkMode": "⟦por traducir⟧ Dark mode",
       "useADarkerColorPaletteThroughout": "⟦por traducir⟧ Use a darker color palette throughout LiTT."
     },
     "byokProviderModal": {
+      "awsRegion": "⟦por traducir⟧ AWS region",
+      "azureFoundryResource": "⟦por traducir⟧ Azure AI Foundry resource name or endpoint",
+      "azureFoundryResourcePlaceholder": "⟦por traducir⟧ contoso-foundry or https://contoso-foundry.services.ai.azure.com",
+      "azureOpenaiResource": "⟦por traducir⟧ Azure OpenAI resource name or endpoint",
+      "azureOpenaiResourcePlaceholder": "⟦por traducir⟧ contoso-openai or https://contoso-openai.openai.azure.com",
+      "baseUrl": "⟦por traducir⟧ Base URL",
       "clear": "⟦por traducir⟧ Clear",
       "done": "⟦por traducir⟧ Done",
-      "enabled": "⟦por traducir⟧ Enabled"
+      "enabled": "⟦por traducir⟧ Enabled",
+      "enterAFoundryResource": "⟦por traducir⟧ Enter a resource name, or an https endpoint on services.ai.azure.com, cognitiveservices.azure.com or openai.azure.com.",
+      "enterAnAzureResource": "⟦por traducir⟧ Enter a resource name, or an https endpoint on openai.azure.com, cognitiveservices.azure.com or services.ai.azure.com.",
+      "enterTheAwsRegion": "⟦por traducir⟧ Enter the AWS region the key was created in, for example us-east-1.",
+      "enterTheBaseUrl": "⟦por traducir⟧ Enter the endpoint's public https base URL, for example https://llm.example.com/v1.",
+      "enterTheVertexLocation": "⟦por traducir⟧ Enter the Vertex AI location to call, for example us-central1, europe-west4 or global.",
+      "modelProviders": "⟦por traducir⟧ Model Providers",
+      "pasteTheFullServiceAccountKey": "⟦por traducir⟧ Paste the full contents of a Google Cloud service-account key file (JSON).",
+      "vertexLocation": "⟦por traducir⟧ Vertex AI location",
+      "vertexLocationPlaceholder": "⟦por traducir⟧ us-central1 or global"
     },
     "connectorCard": {
-      "manageName": "⟦por traducir⟧ Manage {name}"
+      "manageName": "⟦por traducir⟧ Manage {name}",
+      "nameKind": "⟦por traducir⟧ {kind, select, provider {{name} provider} organization {{name} organization} invitation {{name} invitation} other {{name} connector}}"
     },
     "connectorDetailsModal": {
       "account": "⟦por traducir⟧ Account",
       "askForPermissionForWriteActions": "⟦por traducir⟧ Ask for permission for write actions",
       "collapse": "⟦por traducir⟧ Collapse",
+      "collapseTool": "⟦por traducir⟧ Collapse {title}",
+      "connector": "⟦por traducir⟧ Connector",
       "details": "⟦por traducir⟧ Details",
       "disableAllWriteToolsTurnOff": "⟦por traducir⟧ Disable all write tools. Turn off to restore your individual tool settings.",
       "expand": "⟦por traducir⟧ Expand",
+      "expandTool": "⟦por traducir⟧ Expand {title}",
       "littAsksYouInTheChat": "⟦por traducir⟧ LiTT asks you in the chat before running an action that changes data.",
       "noToolsDiscoveredYet": "⟦por traducir⟧ No tools discovered yet.",
       "readOnly": "⟦por traducir⟧ Read-only",
@@ -1284,27 +1500,48 @@
       "openConnectorSetupGuide": "⟦por traducir⟧ Open connector setup guide"
     },
     "connectors": {
+      "actions": {
+        "addThisConnector": "⟦por traducir⟧ add this connector",
+        "changeReadOnlySetting": "⟦por traducir⟧ change this connector's read-only setting",
+        "changeThisConnector": "⟦por traducir⟧ change this connector",
+        "changeThisTool": "⟦por traducir⟧ change this tool",
+        "changeWriteApproval": "⟦por traducir⟧ change write approval for this connector",
+        "clearTheStoredToken": "⟦por traducir⟧ clear the stored token",
+        "deleteThisConnector": "⟦por traducir⟧ delete this connector",
+        "loadThisConnector": "⟦por traducir⟧ load this connector",
+        "loadYourConnectors": "⟦por traducir⟧ load your connectors",
+        "refreshThisConnector": "⟦por traducir⟧ refresh this connector",
+        "saveThisConnector": "⟦por traducir⟧ save this connector",
+        "updateThisConnector": "⟦por traducir⟧ update this connector"
+      },
       "add": "⟦por traducir⟧ Add",
       "addCustomConnector": "⟦por traducir⟧ Add custom connector",
       "addFilesFromGoogleDrive": "⟦por traducir⟧ Add files from Google Drive",
       "addNameConnector": "⟦por traducir⟧ Add {name} connector",
       "adding": "⟦por traducir⟧ Adding...",
       "administratorSetupRequired": "⟦por traducir⟧ Administrator setup required",
+      "authorizationCancelledNotRemoved": "⟦por traducir⟧ Authorization was cancelled, but the incomplete connector could not be removed. Remove it from Installed before trying again.",
       "cancelNameAuthorization": "⟦por traducir⟧ Cancel {name} authorization",
       "clear": "⟦por traducir⟧ Clear",
       "cleared": "⟦por traducir⟧ Cleared",
+      "completeAuthorizationInThePopup": "⟦por traducir⟧ Complete authorization in the popup to finish connecting this MCP server.",
       "connectorUpdateFailed": "⟦por traducir⟧ Connector update failed",
       "couldNotAddConnector": "⟦por traducir⟧ Could not add connector",
+      "couldNotLoadConnector": "⟦por traducir⟧ Could not load {name}. Reload this page and try again.",
       "custom": "⟦por traducir⟧ Custom",
       "discover": "⟦por traducir⟧ Discover",
       "everyAvailableConnectorIsInstalled": "⟦por traducir⟧ Every available connector is installed.",
+      "incompleteNotRemoved": "⟦por traducir⟧ {message} The incomplete connector could not be removed; remove it from Installed before trying again.",
       "installed": "⟦por traducir⟧ Installed",
+      "migrationNeeded": "⟦por traducir⟧ An administrator needs to apply the {provider, select, drive {Google Drive} other {Gmail and Calendar}} database migration and restart the server before you can add {name}.",
       "nameConnector": "⟦por traducir⟧ {name} connector",
       "noConnectorsYet": "⟦por traducir⟧ No connectors yet.",
-      "savedForSavedforEachWorkspaceHas": "⟦por traducir⟧ Saved for {savedFor}. Each workspace has its own connectors."
+      "savedForSavedforEachWorkspaceHas": "⟦por traducir⟧ Saved for {savedFor}. Each workspace has its own connectors.",
+      "savedTokenEncrypted": "⟦por traducir⟧ Saved token encrypted"
     },
     "customInstructionsSection": {
       "charactersOrFewerShortenThemTo": "⟦por traducir⟧ characters or fewer. Shorten them to save your changes.",
+      "couldNotBeSaved": "⟦por traducir⟧ Custom instructions could not be saved. Your draft has been kept.",
       "couldNotLoadYourCustomInstructions": "⟦por traducir⟧ Could not load your custom instructions. Please try again.",
       "customInstructions": "⟦por traducir⟧ Custom instructions",
       "customInstructionsMustBe": "⟦por traducir⟧ Custom instructions must be",
@@ -1312,7 +1549,11 @@
       "tellLittHowYouWouldLike": "⟦por traducir⟧ Tell LiTT how you would like it to respond in chats."
     },
     "deleteAccountModal": {
+      "actions": {
+        "downloadYourData": "⟦por traducir⟧ download your data"
+      },
       "beforeYouDeleteYourAccountYou": "⟦por traducir⟧ Before you delete your account, you can download a copy of your personal data.",
+      "deleteAccount": "⟦por traducir⟧ Delete account",
       "deleteMyAccount": "⟦por traducir⟧ Delete my account",
       "downloadMyData": "⟦por traducir⟧ Download my data",
       "downloadingYourDataIsSensitiveEnter": "⟦por traducir⟧ Downloading your data is sensitive. Enter a code from your authenticator app to continue.",
@@ -1330,7 +1571,13 @@
     "home": {
       "accountDeletionIsSensitiveEnterA": "⟦por traducir⟧ Account deletion is sensitive. Enter a code from your authenticator app to continue.",
       "acercaDe": "Acerca de",
+      "actions": {
+        "deleteYourAccount": "⟦por traducir⟧ delete your account",
+        "updateYourEmail": "⟦por traducir⟧ update your email"
+      },
       "anAccountWithThisEmailAlready": "⟦por traducir⟧ An account with this email already exists.",
+      "changeEmail": "⟦por traducir⟧ Change email",
+      "confirmationSentToBoth": "⟦por traducir⟧ Confirmation sent to your current address and {pendingEmail}. Confirm both messages to finish the change. Your current email remains {email} until then.",
       "currentEmailEmail": "⟦por traducir⟧ Current email: {email}",
       "dangerZone": "⟦por traducir⟧ Danger Zone",
       "deleteAccount": "⟦por traducir⟧ Delete account",
@@ -1340,17 +1587,21 @@
       "emailAlreadyRegistered": "⟦por traducir⟧ Email already registered",
       "emailChangeUnavailable": "⟦por traducir⟧ Email change unavailable",
       "emailChangesAreSensitiveEnterA": "⟦por traducir⟧ Email changes are sensitive. Enter a code from your authenticator app to continue.",
+      "emailUpdated": "⟦por traducir⟧ Email updated.",
       "enterYourEmail": "⟦por traducir⟧ Enter your email",
       "enterYourName": "⟦por traducir⟧ Enter your name",
       "free": "⟦por traducir⟧ Free",
       "goToSecurity": "⟦por traducir⟧ Go to Security",
       "littEsSoftwareLibreBajoLa": "LiTT es software libre bajo la licencia AGPL-3.0. Consulta el código de la versión exacta que estás usando.",
+      "oneConfirmationWasAcceptedConfirmTheEmail": "⟦por traducir⟧ One confirmation was accepted. Confirm the email change from both your current and new addresses to finish.",
       "pendingConfirmationPendingemail": "⟦por traducir⟧ Pending confirmation: {pendingEmail}",
       "permanentlyDeleteYourAccountAndEverything": "⟦por traducir⟧ Permanently delete your account and everything you keep outside your firm’s matters. You can download your data first.",
       "profile": "⟦por traducir⟧ Profile",
+      "reauthenticateBeforeChangingEmail": "⟦por traducir⟧ Log in again before changing your email.",
       "saved": "⟦por traducir⟧ Saved",
       "saving": "⟦por traducir⟧ Saving...",
       "twoFactorVerificationRequired": "⟦por traducir⟧ Two-factor verification required",
+      "unableToUpdateYourEmailTryAgain": "⟦por traducir⟧ Unable to update your email. Try again.",
       "update": "⟦por traducir⟧ Update",
       "usagePlan": "⟦por traducir⟧ Usage Plan",
       "youCantChangeYourEmailThis": "⟦por traducir⟧ You can’t change your email this often. Wait a few minutes before trying again.",
@@ -1358,7 +1609,22 @@
     },
     "layout": {
       "pendingInvitations": "⟦por traducir⟧ {invitationCount, plural, one {pending invitation} other {pending invitations}}",
-      "settings": "⟦por traducir⟧ Settings"
+      "settings": "⟦por traducir⟧ Settings",
+      "tab": {
+        "account": "⟦por traducir⟧ Account",
+        "appearance": "⟦por traducir⟧ Appearance",
+        "byok": "⟦por traducir⟧ Bring Your Own Keys",
+        "connectors": "⟦por traducir⟧ Connectors",
+        "features": "⟦por traducir⟧ Features",
+        "memory": "⟦por traducir⟧ Memory",
+        "models": "⟦por traducir⟧ Model Preferences",
+        "myActivity": "⟦por traducir⟧ My Activity",
+        "organizations": "⟦por traducir⟧ Organizations",
+        "personalisation": "⟦por traducir⟧ Personalisation",
+        "privacyData": "⟦por traducir⟧ Privacy & Data",
+        "security": "⟦por traducir⟧ Security",
+        "training": "Formación"
+      }
     },
     "mcpConnectorForm": {
       "bearerToken": "⟦por traducir⟧ Bearer token",
@@ -1371,12 +1637,21 @@
       "tokensAreStoredEncrypted": "⟦por traducir⟧ Tokens are stored encrypted.",
       "urlEndpoint": "⟦por traducir⟧ URL endpoint"
     },
+    "modelProviders": {
+      "apiKey": "⟦por traducir⟧ {name} API Key",
+      "serviceAccountKey": "⟦por traducir⟧ {name} service-account key",
+      "serviceAccountKeyJson": "⟦por traducir⟧ Service-account key (JSON)"
+    },
     "models": {
+      "automaticSameProviderAsChat": "⟦por traducir⟧ Automatic — same provider as chat",
+      "automaticUseChatModel": "⟦por traducir⟧ Automatic — use chat model",
       "byDefaultTitlesUseALow": "⟦por traducir⟧ By default, titles use a low cost model from the chat provider. Choose a model here to override that.",
       "chatTitleGeneration": "⟦por traducir⟧ Chat title generation",
+      "chooseAModel": "Elige un modelo",
       "littPuedePasarPartesDeUna": "LiTT puede pasar partes de una tarea a subagentes que trabajan por separado y le reportan. Configura las rutas de modelo que pueden usar; cada resultado indica la ruta y el modelo con que corrió.",
       "memoryCurationModel": "⟦por traducir⟧ Memory curation model",
       "modelPreferences": "⟦por traducir⟧ Model Preferences",
+      "noDefaultModel": "⟦por traducir⟧ No default model",
       "preselectedWhenCreatingAReviewEach": "⟦por traducir⟧ Preselected when creating a review. Each review stores its own model and can be changed separately.",
       "selectAModel": "⟦por traducir⟧ Select a model",
       "subagentes": "⟦por traducir⟧ Subagentes",
@@ -1385,39 +1660,66 @@
     },
     "newCustomMcpModal": {
       "authenticationRequired": "⟦por traducir⟧ Authentication required",
+      "authorizing": "⟦por traducir⟧ Authorizing...",
+      "bearerToken": "⟦por traducir⟧ Bearer token",
       "completeAuthorizationInThePopupTo": "⟦por traducir⟧ Complete authorization in the popup to finish connecting this MCP server.",
+      "connect": "⟦por traducir⟧ Connect",
       "connecting": "⟦por traducir⟧ Connecting...",
       "disabled": "⟦por traducir⟧ Disabled",
       "done": "⟦por traducir⟧ Done",
       "enabled": "⟦por traducir⟧ Enabled",
       "lengthToolsDiscovered": "⟦por traducir⟧ {length} tools discovered.",
       "nameIsConnected": "⟦por traducir⟧ {name} is connected.",
+      "newCustomConnector": "⟦por traducir⟧ New Custom Connector",
       "viewConnector": "⟦por traducir⟧ View connector"
     },
     "passwordSettingsSection": {
+      "actions": {
+        "sendTheResetEmail": "⟦por traducir⟧ send the reset email",
+        "setYourPassword": "⟦por traducir⟧ set your password"
+      },
       "addAPasswordToSignIn": "⟦por traducir⟧ Add a password to sign in with your email and change your account email.",
       "confirmPassword": "⟦por traducir⟧ Confirm password",
       "contactSupport": "⟦por traducir⟧ Contact support",
+      "failedToSetAnAccountPassword": "⟦por traducir⟧ Failed to set an account password.",
       "password": "⟦por traducir⟧ Password",
+      "passwordAddedToYourAccount": "⟦por traducir⟧ Password added to your account.",
+      "passwordResetInstructionsSent": "⟦por traducir⟧ Password-reset instructions sent to {email}.",
+      "passwordSetButNotRefreshed": "⟦por traducir⟧ Your password was set, but its account status could not be refreshed. Reload the page and try again.",
+      "reauthenticateBeforeSettingAPassword": "⟦por traducir⟧ Log in again before setting a password.",
       "resetPassword": "⟦por traducir⟧ Reset password",
       "sendASecurePasswordResetLink": "⟦por traducir⟧ Send a secure password-reset link to {email}.",
       "sendResetEmail": "⟦por traducir⟧ Send reset email",
       "sending": "⟦por traducir⟧ Sending...",
       "setPassword": "⟦por traducir⟧ Set password",
       "setting": "⟦por traducir⟧ Setting...",
+      "theTwoPasswordsDontMatch": "⟦por traducir⟧ The two passwords don't match.",
+      "unableToSendAResetEmail": "⟦por traducir⟧ Unable to send a password-reset email right now. Try again.",
+      "unableToSetYourPasswordTryAgain": "⟦por traducir⟧ Unable to set your password. Try again.",
       "useAtLeastMinPasswordLength": "⟦por traducir⟧ Use at least {MIN_PASSWORD_LENGTH} characters."
     },
     "personalProviderKeys": {
       "add": "⟦por traducir⟧ Add",
       "addName": "⟦por traducir⟧ Add {name}",
-      "providerUpdateFailed": "⟦por traducir⟧ Provider update failed"
+      "availableProviders": "⟦por traducir⟧ Available Providers",
+      "everyProviderHasAKeySaved": "⟦por traducir⟧ Every provider has a key saved.",
+      "nameProvider": "⟦por traducir⟧ {name} provider",
+      "noSavedProvidersYet": "⟦por traducir⟧ No saved providers yet. Add an API key to one of the providers below.",
+      "providerUpdateFailed": "⟦por traducir⟧ Provider update failed",
+      "savedProviders": "⟦por traducir⟧ Saved Providers",
+      "theProviderCouldNotBeUpdated": "⟦por traducir⟧ The provider could not be updated. Please try again.",
+      "useName": "⟦por traducir⟧ Use {name}",
+      "yourKeysRunYourWork": "⟦por traducir⟧ Your keys run your work in your Personal workspace. In an organization its own keys come first, and yours cover any provider it has not set up, unless its owners turn members’ own keys off."
     },
     "personalisation": {
+      "practiceAreas": "⟦por traducir⟧ Practice areas",
       "tellLittAboutYourRoleAnd": "⟦por traducir⟧ Tell LiTT about your role and practice so responses can be tailored to your professional context.",
       "yourBackground": "⟦por traducir⟧ Your background"
     },
     "personalisationFields": {
       "enterYourJurisdiction": "⟦por traducir⟧ Enter your jurisdiction",
+      "enterYourJurisdictionOfPractice": "⟦por traducir⟧ Enter your jurisdiction of practice",
+      "enterYourOtherPracticeArea": "⟦por traducir⟧ Enter your other practice area",
       "enterYourPracticeArea": "⟦por traducir⟧ Enter your practice area",
       "jurisdictionOfPractice": "⟦por traducir⟧ Jurisdiction of practice",
       "lengthSelected": "⟦por traducir⟧ {length} selected",
@@ -1426,6 +1728,11 @@
       "otherJurisdiction": "⟦por traducir⟧ Other jurisdiction",
       "otherPracticeArea": "⟦por traducir⟧ Other practice area",
       "practiceAreas": "⟦por traducir⟧ Practice areas",
+      "practiceSetting": {
+        "inHouse": "⟦por traducir⟧ In-house",
+        "notPractising": "⟦por traducir⟧ Not a practising attorney",
+        "privatePractice": "⟦por traducir⟧ Private practice"
+      },
       "professionalSetting": "⟦por traducir⟧ Professional setting",
       "removeArea": "⟦por traducir⟧ Remove {area}",
       "selectACountry": "⟦por traducir⟧ Select a country",
@@ -1435,11 +1742,36 @@
       "title": "⟦por traducir⟧ Title"
     },
     "privacyData": {
+      "actions": {
+        "deleteYourChats": "⟦por traducir⟧ delete your chats",
+        "deleteYourMemory": "⟦por traducir⟧ delete your memory",
+        "deleteYourProjects": "⟦por traducir⟧ delete your projects",
+        "deleteYourTabularReviews": "⟦por traducir⟧ delete your tabular reviews",
+        "exportYourAccountData": "⟦por traducir⟧ export your account data",
+        "exportYourChats": "⟦por traducir⟧ export your chats",
+        "exportYourMemory": "⟦por traducir⟧ export your memory",
+        "exportYourTabularReviews": "⟦por traducir⟧ export your tabular reviews"
+      },
+      "cannotBeUndone": "⟦por traducir⟧ This action cannot be undone.",
       "deleteAllChats": "⟦por traducir⟧ Delete all chats",
       "deleteAllMemory": "⟦por traducir⟧ Delete all memory",
       "deleteAllProjects": "⟦por traducir⟧ Delete all projects",
       "deleteAllTabularReviews": "⟦por traducir⟧ Delete all tabular reviews",
+      "deleteBody": {
+        "chats": "⟦por traducir⟧ {scoped, select, yes {This will permanently delete your assistant and tabular review chat history in {workspace}. Your other workspaces are not affected.} other {This will permanently delete your assistant and tabular review chat history.}}",
+        "memoryPersonal": "⟦por traducir⟧ {scoped, select, yes {This permanently deletes your {workspace} memory and memories for private projects you created. Project collaborators will also lose those memories. Your other workspaces are not affected. Memory remains enabled and can be rebuilt from future conversations.} other {This permanently deletes your app memory and memories for private projects you created. Project collaborators will also lose those memories. Memory remains enabled and can be rebuilt from future conversations.}}",
+        "memoryShared": "⟦por traducir⟧ {scoped, select, yes {This permanently deletes your memory in {workspace}. Project memories there are not affected, and neither are your other workspaces. Memory remains enabled and can be rebuilt from future conversations.} other {This permanently deletes your memory. Project memories there are not affected, and neither are your other workspaces. Memory remains enabled and can be rebuilt from future conversations.}}",
+        "projectsPersonal": "⟦por traducir⟧ {scoped, select, yes {This will permanently delete all projects you own in {workspace}, including their documents, chats, and tabular reviews. Your other workspaces are not affected.} other {This will permanently delete all projects you own, including their documents, chats, and tabular reviews.}}",
+        "projectsShared": "⟦por traducir⟧ {scoped, select, yes {This will permanently delete all projects you created in {workspace}, including their documents, chats, and tabular reviews. Colleagues lose them too. Your other workspaces are not affected.} other {This will permanently delete all projects you created, including their documents, chats, and tabular reviews. Colleagues lose them too.}}",
+        "tabularReviews": "⟦por traducir⟧ {scoped, select, yes {This will permanently delete all tabular reviews you own in {workspace}, including their cells and review chats. Your other workspaces are not affected.} other {This will permanently delete all tabular reviews you own, including their cells and review chats.}}"
+      },
       "deleteData": "⟦por traducir⟧ Delete data",
+      "deleteTitle": {
+        "chats": "⟦por traducir⟧ {scoped, select, yes {Delete all chats in {workspace}?} other {Delete all chats?}}",
+        "memory": "⟦por traducir⟧ {scoped, select, yes {Delete all memory in {workspace}?} other {Delete all memory?}}",
+        "projects": "⟦por traducir⟧ {scoped, select, yes {Delete all projects in {workspace}?} other {Delete all projects?}}",
+        "tabularReviews": "⟦por traducir⟧ {scoped, select, yes {Delete all tabular reviews in {workspace}?} other {Delete all tabular reviews?}}"
+      },
       "deletesDataInWorkspacenameOnlyTo": "⟦por traducir⟧ Deletes data in {workspaceName} only. To delete data in another workspace, switch to it first.",
       "downloadAccountMetadataProjectsDocumentMetadata": "⟦por traducir⟧ Download account metadata, projects, document metadata, workflows, playbooks, and review data as JSON.",
       "downloadAllOwnedTabularReviewsCells": "⟦por traducir⟧ Download all owned tabular reviews, cells, and review chat records as JSON.",
@@ -1454,12 +1786,14 @@
       "exportTabularReviews": "⟦por traducir⟧ Export tabular reviews",
       "exporting": "⟦por traducir⟧ Exporting...",
       "exportsDataInWorkspacenameOnlyTo": "⟦por traducir⟧ Exports data in {workspaceName} only. To export another workspace, switch to it first.",
+      "managedByOwnersDescription": "⟦por traducir⟧ Exporting and bulk-deleting your data in {name} is managed by its owners and is not available to members. Your other workspaces are not affected.",
       "managedByYourOrganization": "⟦por traducir⟧ Managed by your organization",
       "permanentlyDeleteAllProjectsYouCreated": "⟦por traducir⟧ Permanently delete all projects you created here, including documents, chats, and tabular reviews.",
       "permanentlyDeleteAllProjectsYouOwn": "⟦por traducir⟧ Permanently delete all projects you own, including documents, chats, and tabular reviews.",
       "permanentlyDeleteAllTabularReviewsYou": "⟦por traducir⟧ Permanently delete all tabular reviews you own, including cells and review chats.",
       "permanentlyDeleteYourAppMemoryAnd": "⟦por traducir⟧ Permanently delete your app memory and memories for private projects you created.",
       "permanentlyDeleteYourAssistantAndTabular": "⟦por traducir⟧ Permanently delete your assistant and tabular review chat history.",
+      "permanentlyDeleteYourMemoryInWorkspace": "⟦por traducir⟧ Permanently delete your memory in {workspace}.",
       "permanentlyDeleteYourWorkspacenameMemoryAnd": "⟦por traducir⟧ Permanently delete your {workspaceName} memory and memories for private projects you created.",
       "thisActionIsSensitiveEnterA": "⟦por traducir⟧ This action is sensitive. Enter a code from your authenticator app to continue.",
       "thisOrganization": "⟦por traducir⟧ this organization",
@@ -1467,31 +1801,113 @@
       "twoFactorVerificationRequired": "⟦por traducir⟧ Two-factor verification required"
     },
     "profilePhotoSettings": {
+      "chooseAnotherImage": "⟦por traducir⟧ Choose another image.",
+      "couldNotSaveYourProfilePhoto": "⟦por traducir⟧ Could not save your profile photo. Try again.",
       "edit": "⟦por traducir⟧ Edit",
       "profilePhoto": "⟦por traducir⟧ Profile photo",
       "shownBesideYourNameWhenYou": "⟦por traducir⟧ Shown beside your name when you share or work with others.",
       "uploadPhoto": "⟦por traducir⟧ Upload photo",
-      "uploadProfilePhoto": "⟦por traducir⟧ Upload profile photo"
+      "uploadProfilePhoto": "⟦por traducir⟧ Upload profile photo",
+      "you": "⟦por traducir⟧ You"
     },
     "responseStyleSection": {
+      "aPreciseClientReadyLegalRegister": "⟦por traducir⟧ A precise, client-ready legal register.",
+      "arabic": "⟦por traducir⟧ Arabic",
+      "automatic": "⟦por traducir⟧ Automatic",
+      "balanced": "⟦por traducir⟧ Balanced",
+      "chineseSimplified": "⟦por traducir⟧ Chinese (Simplified)",
+      "chineseTraditional": "⟦por traducir⟧ Chinese (Traditional)",
       "chooseHowLittShapesItsAnswers": "⟦por traducir⟧ Choose how LiTT shapes its answers in chats.",
+      "concise": "⟦por traducir⟧ Concise",
       "couldNotLoadYourResponseStyle": "⟦por traducir⟧ Could not load your response style.",
-      "responseStyle": "⟦por traducir⟧ Response style"
+      "czech": "⟦por traducir⟧ Czech",
+      "danish": "⟦por traducir⟧ Danish",
+      "detailed": "⟦por traducir⟧ Detailed",
+      "dutch": "⟦por traducir⟧ Dutch",
+      "englishUk": "⟦por traducir⟧ English (UK)",
+      "englishUs": "⟦por traducir⟧ English (US)",
+      "enoughExplanationToFollowTheReasoning": "⟦por traducir⟧ Enough explanation to follow the reasoning.",
+      "finnish": "⟦por traducir⟧ Finnish",
+      "formalAndLegal": "⟦por traducir⟧ Formal and Legal",
+      "french": "⟦por traducir⟧ French",
+      "fullerReasoningExceptionsAndPracticalNext": "⟦por traducir⟧ Fuller reasoning, exceptions, and practical next steps.",
+      "german": "⟦por traducir⟧ German",
+      "greek": "⟦por traducir⟧ Greek",
+      "headersAndLists": "⟦por traducir⟧ Headers and Lists",
+      "headingsBulletPointsAndTablesFor": "⟦por traducir⟧ Headings, bullet points, and tables for easy scanning.",
+      "hebrew": "⟦por traducir⟧ Hebrew",
+      "hindi": "⟦por traducir⟧ Hindi",
+      "indonesian": "⟦por traducir⟧ Indonesian",
+      "italian": "⟦por traducir⟧ Italian",
+      "japanese": "⟦por traducir⟧ Japanese",
+      "korean": "⟦por traducir⟧ Korean",
+      "less": "⟦por traducir⟧ Less",
+      "littPicksTheLayoutThatSuits": "⟦por traducir⟧ LiTT picks the layout that suits each answer.",
+      "littRepliesInName": "⟦por traducir⟧ LiTT replies in {name}.",
+      "littRepliesInTheLanguageYouWriteIn": "⟦por traducir⟧ LiTT replies in the language you write in.",
+      "littsUsualProfessionalTone": "⟦por traducir⟧ LiTT's usual professional tone.",
+      "malay": "⟦por traducir⟧ Malay",
+      "more": "⟦por traducir⟧ More",
+      "mostlyProseWithHeadingsAndLists": "⟦por traducir⟧ Mostly prose, with headings and lists only when needed.",
+      "norwegian": "⟦por traducir⟧ Norwegian",
+      "plainAndSimple": "⟦por traducir⟧ Plain and Simple",
+      "polish": "⟦por traducir⟧ Polish",
+      "portugueseBrazil": "⟦por traducir⟧ Portuguese (Brazil)",
+      "portuguesePortugal": "⟦por traducir⟧ Portuguese (Portugal)",
+      "responseStyle": "⟦por traducir⟧ Response style",
+      "russian": "⟦por traducir⟧ Russian",
+      "shortDirectAnswersThatLeadWith": "⟦por traducir⟧ Short, direct answers that lead with the conclusion.",
+      "shortSentencesAndEverydayWordsWith": "⟦por traducir⟧ Short sentences and everyday words, with legal terms explained.",
+      "spanish": "⟦por traducir⟧ Spanish",
+      "swedish": "⟦por traducir⟧ Swedish",
+      "thai": "⟦por traducir⟧ Thai",
+      "thisSettingCouldNotBeSaved": "⟦por traducir⟧ This setting could not be saved. Please try again.",
+      "tone": "⟦por traducir⟧ Tone",
+      "turkish": "⟦por traducir⟧ Turkish",
+      "ukrainian": "⟦por traducir⟧ Ukrainian",
+      "verbosity": "⟦por traducir⟧ Verbosity",
+      "vietnamese": "⟦por traducir⟧ Vietnamese"
     },
     "routerSettingsSection": {
       "addTheModelsYouWantTo": "⟦por traducir⟧ Add the models you want to use. Saved models appear in model selectors.",
       "chooseLabelModel": "⟦por traducir⟧ Choose {label} model",
+      "example": "⟦por traducir⟧ e.g. {example}",
+      "hint": {
+        "foundry": "⟦por traducir⟧ Claude deployments are recognised by name. If a deployment is named differently, add it as anthropic:'<'name'>', or openai:'<'name'>' for any other model.",
+        "vertex": "⟦por traducir⟧ Claude and publisher/model IDs are recognised by name. For other partner models add openai:'<'id'>'; anthropic:'<'id'>' and gemini:'<'id'>' also work."
+      },
       "labelModelCatalog": "⟦por traducir⟧ {label} model catalog",
       "labelModelPreferencesCouldNotBe": "⟦por traducir⟧ {label} model preferences could not be saved.",
       "labelModels": "⟦por traducir⟧ {label} models",
       "labelsModelListCouldNotBe": "⟦por traducir⟧ {label}'s model list could not be loaded. You can still type a model ID.",
+      "modelIdsAreAtMost": "⟦por traducir⟧ Model IDs are at most {max} characters.",
       "modelSelections": "⟦por traducir⟧ Model Selections",
       "modelsAreSavedAsYouPick": "⟦por traducir⟧ Models are saved as you pick them.",
       "noMatchingModels": "⟦por traducir⟧ No matching models.",
+      "notAModelId": "⟦por traducir⟧ \"{candidate}\" is not a model ID — pick one from the list, or type it as {shape}.",
+      "perMillionInput": "⟦por traducir⟧ {amount}/M input",
+      "perMillionOutput": "⟦por traducir⟧ {amount}/M output",
       "pressEnterToAddThisModel": "⟦por traducir⟧ Press Enter to add this model ID.",
-      "removeModel": "⟦por traducir⟧ Remove {model}"
+      "removeModel": "⟦por traducir⟧ Remove {model}",
+      "shape": {
+        "aBedrockModel": "⟦por traducir⟧ a Bedrock model or inference-profile ID with no spaces",
+        "aDeploymentName": "⟦por traducir⟧ a deployment name with no spaces",
+        "aModelNameWithNoSpaces": "⟦por traducir⟧ a model name with no spaces",
+        "aVertexModelId": "⟦por traducir⟧ a Vertex AI model ID with no spaces",
+        "vendorModel": "⟦por traducir⟧ vendor/model"
+      },
+      "tieredPricing": "⟦por traducir⟧ tiered pricing",
+      "variesByProvider": "⟦por traducir⟧ varies by provider"
     },
     "security": {
+      "actions": {
+        "checkYourSecuritySettings": "⟦por traducir⟧ check your security settings",
+        "loadYourSecuritySettings": "⟦por traducir⟧ load your security settings",
+        "startAuthenticatorSetup": "⟦por traducir⟧ start authenticator setup",
+        "turnOffTwoFactorAuthentication": "⟦por traducir⟧ turn off two-factor authentication",
+        "updateYourLoginVerificationSetting": "⟦por traducir⟧ update your login verification setting",
+        "verifyThatCode": "⟦por traducir⟧ verify that code"
+      },
       "addAnAuthenticatorAppToProtect": "⟦por traducir⟧ Add an authenticator app to protect sensitive actions such as exporting data, deleting data, deleting your account, and changing API keys.",
       "askForAnAuthenticatorCodeAfter": "⟦por traducir⟧ Ask for an authenticator code after each new login, instead of only before sensitive actions.",
       "authenticatorAppIsSavedOnYour": "⟦por traducir⟧ Authenticator app is saved on your account. Sensitive actions are unlocked for this session.",
@@ -1506,6 +1922,7 @@
       "downloadAndOpenYourAuthenticatorApp": "⟦por traducir⟧ Download and open your authenticator app.",
       "enabled": "⟦por traducir⟧ Enabled",
       "enterACodeFromYourAuthenticator": "⟦por traducir⟧ Enter a code from your authenticator app to change login verification.",
+      "failedToChangeASecuritySetting": "⟦por traducir⟧ Failed to change a security setting.",
       "inYourAuthenticatorAppAddA": "⟦por traducir⟧ In your authenticator app, add a new account and scan the QR code. If you cannot scan it, enter the setup key below manually.",
       "loginVerification": "⟦por traducir⟧ Login verification",
       "mfaDisabled": "⟦por traducir⟧ MFA disabled.",
@@ -1516,19 +1933,26 @@
       "removeAuthenticatorApp": "⟦por traducir⟧ Remove authenticator app",
       "scanThisCode": "⟦por traducir⟧ Scan this code",
       "setUp": "⟦por traducir⟧ Set up",
+      "setUpAuthenticatorApp": "⟦por traducir⟧ Set up authenticator app",
       "setupKey": "⟦por traducir⟧ Setup key",
       "sixDigitVerificationCode": "⟦por traducir⟧ Six digit verification code",
       "starting": "⟦por traducir⟧ Starting...",
       "step1": "⟦por traducir⟧ Step 1",
       "step2": "⟦por traducir⟧ Step 2",
+      "verificationCodeDigitIndex": "⟦por traducir⟧ Verification code digit {index}",
       "verificationMethod": "⟦por traducir⟧ Verification method",
       "verify": "⟦por traducir⟧ Verify",
+      "verifyYourIdentityAgain": "⟦por traducir⟧ Verify your identity again before changing this setting.",
       "verifying": "⟦por traducir⟧ Verifying..."
     },
     "settingsSearch": {
       "lengthSettingsFound": "⟦por traducir⟧ {length} settings found",
+      "matches": "⟦por traducir⟧ Matches",
       "n1SettingFound": "⟦por traducir⟧ 1 setting found",
       "noSettingsMatch": "⟦por traducir⟧ No settings match “",
+      "related": "⟦por traducir⟧ Related",
+      "resultLabel": "⟦por traducir⟧ {title}. {description}",
+      "resultLabelWithTab": "⟦por traducir⟧ {title}, {tab}. {description}",
       "searchSettings": "⟦por traducir⟧ Search settings",
       "settingsSearchResults": "⟦por traducir⟧ Settings search results",
       "text": "⟦por traducir⟧ ”."
@@ -1537,6 +1961,12 @@
       "loading": "⟦por traducir⟧ Loading..."
     },
     "subagentRoutesSection": {
+      "actions": {
+        "changeTheDefaultSubagentRoute": "⟦por traducir⟧ change the default subagent route",
+        "deleteTheSubagentRoute": "⟦por traducir⟧ delete the subagent route",
+        "loadTheSubagentRoutes": "⟦por traducir⟧ load the subagent routes",
+        "saveTheSubagentRoute": "⟦por traducir⟧ save the subagent route"
+      },
       "agregarRuta": "Agregar ruta",
       "borrarLaRutaName": "Borrar la ruta {name}",
       "cancelar": "Cancelar",
@@ -1552,18 +1982,61 @@
       "noSePudieronCargarLasRutas": "No se pudieron cargar las rutas de subagentes. Recarga la página para intentarlo de nuevo.",
       "nombre": "Nombre",
       "paraQueSirveEnUnaLinea": "Para qué sirve, en una línea",
+      "problem": {
+        "chooseAModel": "Elige un modelo.",
+        "descriptionRequired": "Escribe una descripción de una línea.",
+        "descriptionTooLong": "La descripción admite hasta {max} caracteres.",
+        "nameRules": "El nombre solo admite minúsculas, números y guiones, hasta 32 caracteres.",
+        "nameTaken": "Ya hay una ruta con ese nombre."
+      },
       "razonamiento": "Razonamiento",
+      "reasoning": {
+        "high": "Alto",
+        "low": "Bajo",
+        "max": "Máximo",
+        "medium": "Medio",
+        "none": "Ninguno",
+        "xhigh": "Muy alto"
+      },
+      "reasoningByTask": "razonamiento según la tarea",
+      "reasoningWithLevel": "razonamiento {level}",
+      "routeNoKey": "{model} · sin llave conectada · {reasoning}",
+      "routeSummary": "{group} · {label} · {reasoning}",
+      "routeUnavailable": "{model} · no disponible: el modelo ya no se ofrece; edítala o bórrala · {reasoning}",
       "rutaPredeterminada": "Ruta predeterminada",
       "rutas": "Rutas",
       "segunLaTarea": "Según la tarea",
       "sinRutasLosSubagentesUsanEl": "Sin rutas, los subagentes usan el modelo de la conversación."
     },
+    "useGoogleConnector": {
+      "allowPopups": "⟦por traducir⟧ Allow popups for LiTT, then try adding the connector again.",
+      "authorizationTimedOut": "⟦por traducir⟧ Google authorization timed out. Try again."
+    },
+    "useGoogleDrivePicker": {
+      "addedFiles": "⟦por traducir⟧ {count, plural, one {Added # file. LiTT can now search and read them.} other {Added # files. LiTT can now search and read them.}}",
+      "couldNotBeOpened": "⟦por traducir⟧ Google Drive could not be opened. Try again.",
+      "noFilesAdded": "⟦por traducir⟧ No files added."
+    },
     "webSearchSection": {
+      "actions": {
+        "changeWebSearchFor": "⟦por traducir⟧ change web search for {name}",
+        "otherModels": "⟦por traducir⟧ other models",
+        "turnOffWebSearch": "⟦por traducir⟧ turn off web search",
+        "turnOnWebSearch": "⟦por traducir⟧ turn on web search"
+      },
       "allModels": "⟦por traducir⟧ All models",
+      "anthropicRunsTheSearch": "⟦por traducir⟧ Anthropic runs the search. Billed to your Claude API key.",
       "couldNotLoadYourWebSearch": "⟦por traducir⟧ Could not load your web search settings.",
+      "deepseekSearchesAndReadsPages": "⟦por traducir⟧ DeepSeek searches and reads pages. Works with any model.",
       "enableWebSearch": "⟦por traducir⟧ Enable web search",
       "letLittSearchTheWebAnd": "⟦por traducir⟧ Let LiTT search the web and read pages when an answer needs current or public information.",
+      "littSearchesWithBraveSearch": "⟦por traducir⟧ LiTT searches with Brave Search. Works with any model.",
+      "modelsOfFamily": "⟦por traducir⟧ {name} models",
+      "off": "⟦por traducir⟧ Off",
+      "openaiRunsTheSearch": "⟦por traducir⟧ OpenAI runs the search. Billed to your OpenAI API key.",
       "otherModels": "⟦por traducir⟧ Other models",
+      "tavilySearchesAndReadsPages": "⟦por traducir⟧ Tavily searches and reads pages. Works with any model.",
+      "theseModelsWontSearchTheWeb": "⟦por traducir⟧ These models won't search the web.",
       "webSearch": "⟦por traducir⟧ Web Search"
     }
   },

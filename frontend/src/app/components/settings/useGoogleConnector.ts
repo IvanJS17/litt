@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { clientTranslator } from "@mike/client";
 import type {
   GoogleWorkspaceProvider,
   NativeConnectorTool,
@@ -169,7 +170,7 @@ export function useGoogleConnector(
     try {
       if (!popup)
         throw new GoogleConnectorFlowError(
-          "Allow popups for LiTT, then try adding the connector again.",
+          clientTranslator()("settings.useGoogleConnector.allowPopups"),
         );
       const { authorizationUrl } = await api.start();
       pending = new URL(authorizationUrl).searchParams.get("state");
@@ -214,7 +215,7 @@ export function useGoogleConnector(
         }
       }
       throw new GoogleConnectorFlowError(
-        "Google authorization timed out. Try again.",
+        clientTranslator()("settings.useGoogleConnector.authorizationTimedOut"),
       );
     } finally {
       if (pending) {

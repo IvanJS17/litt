@@ -66,21 +66,22 @@ import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { PillButtonUI, LIQUID_GLASS_SUBTLE_CLASS, ToggleSwitchUI } from "@mike/ui";
 import { useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
 
 /** What the user was doing, for "Couldn't ..." and honest retry text. */
-const CONNECTOR_ACTION_LABELS = {
-  create: "add this connector",
-  save: "save this connector",
-  "clear-token": "clear the stored token",
-  delete: "delete this connector",
-  refresh: "refresh this connector",
-  "connector-enabled": "change this connector",
-  "tool-enabled": "change this tool",
-  "google-add": "add this connector",
-  "native-update": "update this connector",
-  "write-approval": "change write approval for this connector",
-  "read-only": "change this connector's read-only setting",
-} as const;
+const CONNECTOR_ACTION_KEYS = {
+  create: "settings.connectors.actions.addThisConnector",
+  save: "settings.connectors.actions.saveThisConnector",
+  "clear-token": "settings.connectors.actions.clearTheStoredToken",
+  delete: "settings.connectors.actions.deleteThisConnector",
+  refresh: "settings.connectors.actions.refreshThisConnector",
+  "connector-enabled": "settings.connectors.actions.changeThisConnector",
+  "tool-enabled": "settings.connectors.actions.changeThisTool",
+  "google-add": "settings.connectors.actions.addThisConnector",
+  "native-update": "settings.connectors.actions.updateThisConnector",
+  "write-approval": "settings.connectors.actions.changeWriteApproval",
+  "read-only": "settings.connectors.actions.changeReadOnlySetting",
+} as const satisfies Record<string, SettingsKey>;
 
 /**
  * The one place connector failures become words. Never echoes a raw error.
@@ -89,10 +90,10 @@ const CONNECTOR_ACTION_LABELS = {
  * `describeError` untouched, and `oauth_required` from Refresh is handled
  * by re-running the authorization, never shown.
  */
-function connectorMessage(error: unknown, action: string): string {
+function connectorMessage(t: Translate, error: unknown, action: string): string {
   return reportFault(error, {
     action,
-    fallback: `LiTT couldn't ${action}. Try again.`,
+    fallback: t("errors.couldntTryAgain", { action }),
     operation: "settings.connectors",
   }).message;
 }
@@ -489,12 +490,12 @@ function WorkspaceConnectors({
     try {
       setConnectors(await listMcpConnectors(workspace));
     } catch (err) {
-      setError(connectorMessage(err, "load your connectors"));
+      setError(connectorMessage(t, err, t("settings.connectors.actions.loadYourConnectors")));
     } finally {
       setLoading(false);
       setConnectorsLoaded(true);
     }
-  }, [workspace]);
+  }, [workspace, t]);
 
   useEffect(() => {
     void loadConnectors();
@@ -589,7 +590,7 @@ function WorkspaceConnectors({
         current && current.id !== connectorId ? current : fresh,
       );
     } catch (err) {
-      setDetailError(connectorMessage(err, "load this connector"));
+      setDetailError(connectorMessage(t, err, t("settings.connectors.actions.loadThisConnector")));
     } finally {
       setLoadingConnectorId((current) =>
         current === connectorId ? null : current,
@@ -623,10 +624,10 @@ function WorkspaceConnectors({
         // Refresh from the details modal on a Slack/Google connector
         // whose OAuth client is not configured on this server: show
         // the operator guidance where the user is looking.
-        setDetailSetupNotice(connectorMessage(err, CONNECTOR_ACTION_LABELS[action.type]));
+        setDetailSetupNotice(connectorMessage(t, err, t(CONNECTOR_ACTION_KEYS[action.type])));
         return;
       }
-      const message = connectorMessage(err, CONNECTOR_ACTION_LABELS[action.type]);
+      const message = connectorMessage(t, err, t(CONNECTOR_ACTION_KEYS[action.type]));
       if (action.type === "google-add") {
         setAddErrorGuideUrl(
           isConnectorSetupError(err)
@@ -662,16 +663,14 @@ function WorkspaceConnectors({
     if (connector.loadFailed) {
       setAddErrorGuideUrl(null);
       setAddError(
-        `Could not load ${connector.name}. Reload this page and try again.`,
+        t("settings.connectors.couldNotLoadConnector", { name: connector.name }),
       );
       return;
     }
     if (connector.status?.schemaReady === false) {
       setAddErrorGuideUrl(googleSetupGuideUrl(provider));
       setAddError(
-        `An administrator needs to apply the ${
-          provider === "google-drive" ? "Google Drive" : "Gmail and Calendar"
-        } database migration and restart the server before you can add ${connector.name}.`,
+        t("settings.connectors.migrationNeeded", { provider: provider === "google-drive" ? "drive" : "other", name: connector.name }),
       );
       return;
     }
@@ -948,7 +947,7 @@ function WorkspaceConnectors({
         if (needsAuthorization) {
           if (surface === "modal") {
             setAddAuthMessage(
-              "Complete authorization in the popup to finish connecting this MCP server.",
+              t("settings.connectors.completeAuthorizationInThePopup"),
             );
             setAddStep("auth");
           }
@@ -972,7 +971,7 @@ function WorkspaceConnectors({
           const discarded = await discardCreatedConnector();
           if (!discarded) {
             setAddError(
-              "Authorization was cancelled, but the incomplete connector could not be removed. Remove it from Installed before trying again.",
+              t("settings.connectors.authorizationCancelledNotRemoved"),
             );
           }
           return;
@@ -990,7 +989,7 @@ function WorkspaceConnectors({
           // the incomplete connector from Installed is immediately actionable.
           await loadConnectors();
         }
-        const message = connectorMessage(err, "add this connector");
+        const message = connectorMessage(t, err, t("settings.connectors.actions.addThisConnector"));
         const discarded = await discardCreatedConnector();
         setAddErrorGuideUrl(
           isConnectorSetupError(err)
@@ -1000,7 +999,7 @@ function WorkspaceConnectors({
         setAddError(
           discarded
             ? message
-            : `${message} The incomplete connector could not be removed; remove it from Installed before trying again.`,
+            : t("settings.connectors.incompleteNotRemoved", { message }),
         );
       } finally {
         setBusyKey(null);
@@ -1533,8 +1532,8 @@ function WorkspaceConnectors({
               showToken={showDetailToken}
               tokenPlaceholder={
                 selectedConnector.hasAuthConfig
-                  ? "Saved token encrypted"
-                  : "Bearer token"
+                  ? t("settings.connectors.savedTokenEncrypted")
+                  : t("settings.newCustomMcpModal.bearerToken")
               }
               tokenAction={
                 selectedConnector.hasAuthConfig ||

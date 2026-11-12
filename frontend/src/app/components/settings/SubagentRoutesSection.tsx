@@ -23,22 +23,21 @@ import {
 } from "@/app/components/settings/SettingsText";
 import { SETTINGS_CONTROL_CLASS } from "@/app/components/settings/SettingsTextInput";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 /** Mirrors the backend's checks (lib/subagentRoutes.ts); the server has the last word. */
 const MAX_ROUTES = 8;
 const NAME_PATTERN = /^[a-z0-9-]{1,32}$/;
 const MAX_DESCRIPTION = 200;
 
-/** This section is in Spanish; ModelToggleUI's labels are English. */
-const REASONING_LABELS: Record<ReasoningLevel, string> = {
-  none: "Ninguno",
-  low: "Bajo",
-  medium: "Medio",
-  high: "Alto",
-  xhigh: "Muy alto",
-  max: "Máximo",
-};
+const REASONING_LABEL_KEYS = {
+  none: "settings.subagentRoutesSection.reasoning.none",
+  low: "settings.subagentRoutesSection.reasoning.low",
+  medium: "settings.subagentRoutesSection.reasoning.medium",
+  high: "settings.subagentRoutesSection.reasoning.high",
+  xhigh: "settings.subagentRoutesSection.reasoning.xhigh",
+  max: "settings.subagentRoutesSection.reasoning.max",
+} as const satisfies Record<ReasoningLevel, string>;
 
 type Draft = { name: string; description: string; model: string; reasoning: string };
 const EMPTY_DRAFT: Draft = { name: "", description: "", model: "", reasoning: "" };
@@ -59,6 +58,7 @@ export function SubagentRoutesSection({
   modelPicker: (value: string, onChange: (id: string) => void) => ReactNode;
 }) {
   const t = useTranslations();
+  const locale = useLocale();
   const [saved, setSaved] = useState<SubagentRoutes | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,7 +79,7 @@ export function SubagentRoutesSection({
         if (controller.signal.aborted) return;
         setLoadFailed(true);
         notifyError(error, {
-          action: "load the subagent routes",
+          action: t("settings.subagentRoutesSection.actions.loadTheSubagentRoutes"),
           onRetry: () => {
             setLoadFailed(false);
             setLoadAttempt((n) => n + 1);
@@ -87,7 +87,7 @@ export function SubagentRoutesSection({
         });
       });
     return () => controller.abort();
-  }, [loadAttempt]);
+  }, [loadAttempt, t]);
 
   const save = async (next: SubagentRoutes, action: string): Promise<boolean> => {
     setSaving(true);
@@ -132,14 +132,16 @@ export function SubagentRoutesSection({
     const model = models.find((m) => m.id === route.model);
     const level = REASONING_LEVELS.find((l) => l === route.reasoning);
     const reasoning = level
-      ? `razonamiento ${REASONING_LABELS[level].toLocaleLowerCase("es")}`
-      : "razonamiento según la tarea";
+      ? t("settings.subagentRoutesSection.reasoningWithLevel", {
+          level: t(REASONING_LABEL_KEYS[level]).toLocaleLowerCase(locale),
+        })
+      : t("settings.subagentRoutesSection.reasoningByTask");
     if (route.unavailable) {
-      return `${route.model} · no disponible: el modelo ya no se ofrece; edítala o bórrala · ${reasoning}`;
+      return t("settings.subagentRoutesSection.routeUnavailable", { model: route.model, reasoning });
     }
     return model
-      ? `${model.group} · ${model.label} · ${reasoning}`
-      : `${route.model} · sin llave conectada · ${reasoning}`;
+      ? t("settings.subagentRoutesSection.routeSummary", { group: model.group, label: model.label, reasoning })
+      : t("settings.subagentRoutesSection.routeNoKey", { model: route.model, reasoning });
   };
 
   const openEditor = (index: number) => {
@@ -163,15 +165,15 @@ export function SubagentRoutesSection({
     const description = draft.description.trim();
     const others = saved.routes.filter((_, i) => i !== editing);
     const problem = !NAME_PATTERN.test(name)
-      ? "El nombre solo admite minúsculas, números y guiones, hasta 32 caracteres."
+      ? t("settings.subagentRoutesSection.problem.nameRules")
       : others.some((r) => r.name === name)
-        ? "Ya hay una ruta con ese nombre."
+        ? t("settings.subagentRoutesSection.problem.nameTaken")
         : !description || description.includes("\n")
-          ? "Escribe una descripción de una línea."
+          ? t("settings.subagentRoutesSection.problem.descriptionRequired")
           : description.length > MAX_DESCRIPTION
-            ? `La descripción admite hasta ${MAX_DESCRIPTION} caracteres.`
+            ? t("settings.subagentRoutesSection.problem.descriptionTooLong", { max: MAX_DESCRIPTION })
             : !draft.model
-              ? "Elige un modelo."
+              ? t("settings.subagentRoutesSection.problem.chooseAModel")
               : null;
     if (problem) {
       setDraftError(problem);
@@ -190,7 +192,7 @@ export function SubagentRoutesSection({
         : saved.routes.map((r, i) => (i === editing ? route : r));
     const nextDefault =
       saved.default && saved.default === previousName ? name : saved.default;
-    if (await save({ routes, default: nextDefault }, "save the subagent route")) {
+    if (await save({ routes, default: nextDefault }, t("settings.subagentRoutesSection.actions.saveTheSubagentRoute"))) {
       setEditing(null);
     }
   };
@@ -202,7 +204,7 @@ export function SubagentRoutesSection({
         routes: saved.routes.filter((_, i) => i !== index),
         default: saved.default === name ? null : saved.default,
       },
-      "delete the subagent route",
+      t("settings.subagentRoutesSection.actions.deleteTheSubagentRoute"),
     );
   };
 
@@ -321,7 +323,7 @@ export function SubagentRoutesSection({
                 <option value="">{t("settings.subagentRoutesSection.segunLaTarea")}</option>
                 {REASONING_LEVELS.map((level) => (
                   <option key={level} value={level}>
-                    {REASONING_LABELS[level]}
+                    {t(REASONING_LABEL_KEYS[level])}
                   </option>
                 ))}
               </select>
@@ -371,7 +373,7 @@ export function SubagentRoutesSection({
                   !selected &&
                   void save(
                     { routes: saved.routes, default: choice.value },
-                    "change the default subagent route",
+                    t("settings.subagentRoutesSection.actions.changeTheDefaultSubagentRoute"),
                   )
                 }
               >

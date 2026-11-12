@@ -68,7 +68,7 @@ export function ConnectorCard({
     </div>
   );
   return (
-    <section aria-label={`${name} ${kind}`} className="min-w-0">
+    <section aria-label={t("settings.connectorCard.nameKind", { name, kind })} className="min-w-0">
       <GlassCardUI>
         {onOpen ? (
           <div

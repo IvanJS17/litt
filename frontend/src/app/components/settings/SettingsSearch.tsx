@@ -17,10 +17,10 @@ import {
 } from "@/app/lib/settingsSearch";
 import { useTranslations } from "next-intl";
 
-const GROUP_LABEL: Record<SettingsSearchMatchKind, string> = {
-    exact: "Matches",
-    related: "Related",
-};
+const GROUP_LABEL = {
+    exact: "settings.settingsSearch.matches",
+    related: "settings.settingsSearch.related",
+} as const satisfies Record<SettingsSearchMatchKind, string>;
 
 /**
  * Wait for the chosen section to mount. Route compilation and page data may
@@ -218,7 +218,7 @@ export function SettingsSearch({
                                 <div
                                     key={group.kind}
                                     role="group"
-                                    aria-label={GROUP_LABEL[group.kind]}
+                                    aria-label={t(GROUP_LABEL[group.kind])}
                                     className={DROPDOWN_ROWS_CLASS}
                                 >
                                     {groups.length > 1 ? (
@@ -226,7 +226,7 @@ export function SettingsSearch({
                                             aria-hidden
                                             className="px-3 pb-0.5 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-400"
                                         >
-                                            {GROUP_LABEL[group.kind]}
+                                            {t(GROUP_LABEL[group.kind])}
                                         </p>
                                     ) : null}
                                     {group.results.map((result, index) => {
@@ -237,11 +237,16 @@ export function SettingsSearch({
                                                 data-settings-result
                                                 // The visible spans run together
                                                 // without this; read as a sentence.
-                                                aria-label={`${result.entry.title}${
+                                                aria-label={t(
                                                     result.entry.tab !== result.entry.title
-                                                        ? `, ${result.entry.tab}`
-                                                        : ""
-                                                }. ${result.entry.description}`}
+                                                        ? "settings.settingsSearch.resultLabelWithTab"
+                                                        : "settings.settingsSearch.resultLabel",
+                                                    {
+                                                        title: result.entry.title,
+                                                        tab: result.entry.tab,
+                                                        description: result.entry.description,
+                                                    },
+                                                )}
                                                 className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left"
                                                 onClick={() => choose(result)}
                                             >

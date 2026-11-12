@@ -18,7 +18,8 @@ import {
 } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { deleteAccount, isMfaRequiredError } from "@/app/lib/mikeApi";
-import { authMessages } from "@/app/lib/authMessages";
+import { authMessages, authSentence } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import {
   describeError,
   notifyError,
@@ -47,9 +48,10 @@ interface EmailWarning {
 // differs here, because a validation failure on this screen can only mean
 // the address itself.
 const EMAIL_ERROR_MESSAGES = authMessages({
-  validation_failed: "Enter a valid email address.",
-  invalid_request: "Enter a valid email address.",
-  reauthentication_needed: "Log in again before changing your email.",
+  validation_failed: authSentence("emailInvalid"),
+  invalid_request: authSentence("emailInvalid"),
+  reauthentication_needed: () =>
+    clientTranslator()("settings.home.reauthenticateBeforeChangingEmail"),
 });
 
 const EMAIL_TAKEN_CODES = new Set(["email_exists", "user_already_exists"]);
@@ -102,11 +104,11 @@ export default function SettingsPage() {
     }
     setEmailStatus(
       user.pendingEmail
-        ? "One confirmation was accepted. Confirm the email change from both your current and new addresses to finish."
-        : "Email updated.",
+        ? t("settings.home.oneConfirmationWasAcceptedConfirmTheEmail")
+        : t("settings.home.emailUpdated"),
     );
     window.history.replaceState({}, "", "/settings");
-  }, [user]);
+  }, [user, t]);
 
   const handleDeleteAccount = async () => {
     devLog("[account/mfa] delete account requested");
@@ -136,7 +138,7 @@ export default function SettingsPage() {
       }
       setDeleteConfirm(false);
       notifyError(error, {
-        action: "delete your account",
+        action: t("settings.home.actions.deleteYourAccount"),
         // Retry re-opens the confirmation instead of deleting outright: a
         // button in a notice must never be the only thing between a stray
         // click and an irreversible account deletion.
@@ -170,8 +172,8 @@ export default function SettingsPage() {
       setEmailSaved(true);
       setEmailStatus(
         pendingEmail
-          ? `Confirmation sent to your current address and ${pendingEmail}. Confirm both messages to finish the change. Your current email remains ${updatedUser.email} until then.`
-          : "Email updated.",
+          ? t("settings.home.confirmationSentToBoth", { pendingEmail, email: updatedUser.email })
+          : t("settings.home.emailUpdated"),
       );
       setTimeout(() => setEmailSaved(false), 2000);
     } catch (error: unknown) {
@@ -179,9 +181,9 @@ export default function SettingsPage() {
       // The backend passes GoTrue's `code` through, so the outcome is decided
       // by that code rather than by matching English in the message.
       const described = describeError(error, {
-        action: "update your email",
+        action: t("settings.home.actions.updateYourEmail"),
         codeMessages: EMAIL_ERROR_MESSAGES,
-        fallback: "Unable to update your email. Try again.",
+        fallback: t("settings.home.unableToUpdateYourEmailTryAgain"),
       });
 
       if (described.code && EMAIL_TAKEN_CODES.has(described.code)) {
@@ -395,7 +397,7 @@ export default function SettingsPage() {
       <Modal
         open={googleEmailModalOpen}
         onClose={() => setGoogleEmailModalOpen(false)}
-        breadcrumbs={["Account", "Change email"]}
+        breadcrumbs={[t("settings.layout.tab.account"), t("settings.home.changeEmail")]}
         size="sm"
         className="h-auto"
         primaryAction={{

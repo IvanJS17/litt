@@ -68,6 +68,7 @@ export function usePersonalisationFields(
   initial: PersonalisationInitialValues,
   onFieldChange?: (field: PersonalisationField) => void,
 ) {
+  const t = useTranslations();
   const commonAreas = initial.practiceAreas.filter((area) =>
     COMMON_PRACTICE_AREAS.includes(
       area as (typeof COMMON_PRACTICE_AREAS)[number],
@@ -149,9 +150,9 @@ export function usePersonalisationFields(
     details,
     invalidGroups,
     validationError: jurisdictionIncomplete
-      ? "Enter your jurisdiction of practice"
+      ? t("settings.personalisationFields.enterYourJurisdictionOfPractice")
       : practiceAreasIncomplete
-        ? "Enter your other practice area"
+        ? t("settings.personalisationFields.enterYourOtherPracticeArea")
         : null,
     setJurisdictionChoice(value: string) {
       setJurisdictionChoiceState(value);
@@ -240,7 +241,10 @@ export function PersonalisationFields({
         status={statusFor?.("practiceSetting")}
         value={form.practiceSetting}
         placeholder={t("settings.personalisationFields.selectAProfessionalSetting")}
-        options={PRACTICE_SETTING_OPTIONS}
+        options={PRACTICE_SETTING_OPTIONS.map((option) => ({
+          value: option.value,
+          label: t(option.labelKey),
+        }))}
         onChange={(value) =>
           form.setPracticeSetting(value ? (value as PracticeSetting) : null)
         }
@@ -355,7 +359,7 @@ export function PersonalisationFields({
             {form.otherSelected && form.otherArea.trim() && (
               <OptionPill
                 onClick={() => form.setOtherSelected(false)}
-                aria-label={`Remove ${form.otherArea.trim()}`}
+                aria-label={t("settings.personalisationFields.removeArea", { area: form.otherArea.trim() })}
               >
                 {form.otherArea.trim()}
                 <X className="h-3 w-3" />

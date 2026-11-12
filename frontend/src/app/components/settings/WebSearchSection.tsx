@@ -25,78 +25,101 @@ import {
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 
-const SEARCH_SERVICES: Record<
+function searchServices(
+  t: Translate,
+): Record<
   WebSearchBackend,
   { label: string; description: string; keyLabel: string }
-> = {
+> {
+  return {
   brave: {
     label: "Brave Search",
-    description: "LiTT searches with Brave Search. Works with any model.",
-    keyLabel: "Brave Search API Key",
+    description: t("settings.webSearchSection.littSearchesWithBraveSearch"),
+    keyLabel: t("settings.modelProviders.apiKey", { name: "Brave Search" }),
   },
   tavily: {
     label: "Tavily",
-    description: "Tavily searches and reads pages. Works with any model.",
-    keyLabel: "Tavily API Key",
+    description: t("settings.webSearchSection.tavilySearchesAndReadsPages"),
+    keyLabel: t("settings.modelProviders.apiKey", { name: "Tavily" }),
   },
   deepseek: {
     label: "DeepSeek Search",
-    description: "DeepSeek searches and reads pages. Works with any model.",
-    keyLabel: "DeepSeek API Key",
+    description: t("settings.webSearchSection.deepseekSearchesAndReadsPages"),
+    keyLabel: t("settings.modelProviders.apiKey", { name: "DeepSeek" }),
   },
-};
+  };
+}
 
-const SEARCH_SERVICE_OPTIONS: SettingsSelectOption[] = WEB_SEARCH_BACKENDS.map(
-  (backend) => {
-    const { label, description } = SEARCH_SERVICES[backend];
+function searchServiceOptions(t: Translate): SettingsSelectOption[] {
+  const services = searchServices(t);
+  return WEB_SEARCH_BACKENDS.map((backend) => {
+    const { label, description } = services[backend];
     return { value: backend, label, description };
-  },
-);
+  });
+}
 
 type Field = keyof WebSearchSettings;
 
 type Family = Exclude<Field, "enabled">;
 
-const PROVIDER_FAMILIES: Array<{
+type ProviderFamily = {
   family: "claude" | "openai";
   label: string;
   provider: { label: string; description: string };
-}> = [
+};
+
+function providerFamilyTable(t: Translate): ProviderFamily[] {
+  return [
   {
     family: "claude",
-    label: "Claude models",
+    label: t("settings.webSearchSection.modelsOfFamily", { name: "Claude" }),
     provider: {
       label: "Anthropic Search",
-      description: "Anthropic runs the search. Billed to your Claude API key.",
+      description: t("settings.webSearchSection.anthropicRunsTheSearch"),
     },
   },
   {
     family: "openai",
-    label: "OpenAI models",
+    label: t("settings.webSearchSection.modelsOfFamily", { name: "OpenAI" }),
     provider: {
       label: "OpenAI Search",
-      description: "OpenAI runs the search. Billed to your OpenAI API key.",
+      description: t("settings.webSearchSection.openaiRunsTheSearch"),
     },
   },
-];
+  ];
+}
 
-const OFF_OPTION = {
-  value: "off",
-  label: "Off",
-  description: "These models won't search the web.",
-};
+function offOption(t: Translate) {
+  return {
+    value: "off",
+    label: t("settings.webSearchSection.off"),
+    description: t("settings.webSearchSection.theseModelsWontSearchTheWeb"),
+  };
+}
 
-function saveAction(field: Field, next: WebSearchSettings[Field]): string {
+function saveAction(
+  t: Translate,
+  field: Field,
+  next: WebSearchSettings[Field],
+): string {
   if (field === "enabled") {
-    return next ? "turn on web search" : "turn off web search";
+    return next
+      ? t("settings.webSearchSection.actions.turnOnWebSearch")
+      : t("settings.webSearchSection.actions.turnOffWebSearch");
   }
-  const family = PROVIDER_FAMILIES.find((entry) => entry.family === field);
-  return `change web search for ${family?.label ?? "other models"}`;
+  const family = providerFamilyTable(t).find((entry) => entry.family === field);
+  return t("settings.webSearchSection.actions.changeWebSearchFor", {
+    name: family?.label ?? t("settings.webSearchSection.actions.otherModels"),
+  });
 }
 
 export function WebSearchSection() {
   const t = useTranslations();
+  const SEARCH_SERVICES = searchServices(t);
+  const SEARCH_SERVICE_OPTIONS = searchServiceOptions(t);
+  const OFF_OPTION = offOption(t);
   const { profile, updateApiKey } = useUserProfile();
   const [settings, setSettings] = useState<WebSearchSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -143,7 +166,7 @@ export function WebSearchSection() {
       if (request !== latestRequestRef.current[field]) return;
       settle(previous);
       notifyError(error, {
-        action: saveAction(field, next),
+        action: saveAction(t, field, next),
         onRetry: () => void retryRef.current?.(field, next),
       });
     }
@@ -156,7 +179,7 @@ export function WebSearchSection() {
     setSaving(false);
   };
 
-  const providerFamilies = PROVIDER_FAMILIES.filter(
+  const providerFamilies = providerFamilyTable(t).filter(
     ({ family }) => profile && isProviderAvailable(family, profile.apiKeys),
   ).map(({ family, label, provider }) => ({
     family,

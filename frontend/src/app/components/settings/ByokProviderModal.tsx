@@ -19,6 +19,7 @@ import {
 import type { ApiKeyProvider, ApiKeySettings } from "@/app/lib/mikeApi";
 import { isRouterSlug } from "@mike/client";
 import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 
 export type ByokProvider = {
   provider: ApiKeyProvider;
@@ -40,57 +41,58 @@ const SETTINGS_PROVIDERS: readonly SettingsProvider[] = [
 
 /** The setting each of these keys is saved with. */
 function keySetting(
+  t: Translate,
   provider: SettingsProvider,
   settings: ApiKeySettings | undefined,
 ): ApiKeyFieldSetting {
   if (provider === "bedrock") {
     return {
-      label: "AWS region",
+      label: t("settings.byokProviderModal.awsRegion"),
       placeholder: "us-east-1",
       savedValue: settings?.bedrock?.region ?? null,
       normalize: normalizeAwsRegion,
       invalidMessage:
-        "Enter the AWS region the key was created in, for example us-east-1.",
+        t("settings.byokProviderModal.enterTheAwsRegion"),
     };
   }
   if (provider === "azure-foundry") {
     return {
-      label: "Azure AI Foundry resource name or endpoint",
+      label: t("settings.byokProviderModal.azureFoundryResource"),
       placeholder:
-        "contoso-foundry or https://contoso-foundry.services.ai.azure.com",
+        t("settings.byokProviderModal.azureFoundryResourcePlaceholder"),
       savedValue: settings?.["azure-foundry"]?.endpoint ?? null,
       normalize: normalizeAzureFoundryEndpoint,
       invalidMessage:
-        "Enter a resource name, or an https endpoint on services.ai.azure.com, cognitiveservices.azure.com or openai.azure.com.",
+        t("settings.byokProviderModal.enterAFoundryResource"),
     };
   }
   if (provider === "vertex") {
     return {
-      label: "Vertex AI location",
-      placeholder: "us-central1 or global",
+      label: t("settings.byokProviderModal.vertexLocation"),
+      placeholder: t("settings.byokProviderModal.vertexLocationPlaceholder"),
       savedValue: settings?.vertex?.location ?? null,
       normalize: normalizeVertexLocation,
       invalidMessage:
-        "Enter the Vertex AI location to call, for example us-central1, europe-west4 or global.",
+        t("settings.byokProviderModal.enterTheVertexLocation"),
     };
   }
   if (provider === "custom") {
     return {
-      label: "Base URL",
+      label: t("settings.byokProviderModal.baseUrl"),
       placeholder: "https://llm.example.com/v1",
       savedValue: settings?.custom?.baseUrl ?? null,
       normalize: normalizeCustomBaseUrl,
       invalidMessage:
-        "Enter the endpoint's public https base URL, for example https://llm.example.com/v1.",
+        t("settings.byokProviderModal.enterTheBaseUrl"),
     };
   }
   return {
-    label: "Azure OpenAI resource name or endpoint",
-    placeholder: "contoso-openai or https://contoso-openai.openai.azure.com",
+    label: t("settings.byokProviderModal.azureOpenaiResource"),
+    placeholder: t("settings.byokProviderModal.azureOpenaiResourcePlaceholder"),
     savedValue: settings?.azure?.endpoint ?? null,
     normalize: normalizeAzureEndpoint,
     invalidMessage:
-      "Enter a resource name, or an https endpoint on openai.azure.com, cognitiveservices.azure.com or services.ai.azure.com.",
+      t("settings.byokProviderModal.enterAnAzureResource"),
   };
 }
 
@@ -104,10 +106,10 @@ function settingsFor(
   return { endpoint: value };
 }
 
-function validateVertexKey(value: string): string | null {
+function validateVertexKey(t: Translate, value: string): string | null {
   return isVertexServiceAccountKey(value)
     ? null
-    : "Paste the full contents of a Google Cloud service-account key file (JSON).";
+    : t("settings.byokProviderModal.pasteTheFullServiceAccountKey");
 }
 
 /**
@@ -171,8 +173,8 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
       hasSavedKey={hasSavedKey}
       hasEnvKey={hasEnvKey}
       keyLabel={provider.keyLabel}
-      validateKey={provider.provider === "vertex" ? validateVertexKey : undefined}
-      setting={settingsProvider ? keySetting(settingsProvider, savedSettings) : undefined}
+      validateKey={provider.provider === "vertex" ? (value) => validateVertexKey(t, value) : undefined}
+      setting={settingsProvider ? keySetting(t, settingsProvider, savedSettings) : undefined}
       onSave={(value, settingValue) => saveKey(
         provider.provider, value.trim() || null,
         settingsProvider && settingValue ? settingsFor(settingsProvider, settingValue) : undefined,
@@ -187,7 +189,7 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
         <Modal
           open
           onClose={onClose}
-          breadcrumbs={[store?.breadcrumb ?? "Model Providers", provider.name]}
+          breadcrumbs={[store?.breadcrumb ?? t("settings.byokProviderModal.modelProviders"), provider.name]}
           // Sized for the model list from the start, so the dialog does not
           // grow the moment a key is saved.
           size={routerSlug && (!store || store.routerModels) ? "md" : "sm"}

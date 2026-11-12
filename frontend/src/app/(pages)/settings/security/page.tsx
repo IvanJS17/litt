@@ -37,7 +37,8 @@ import {
   supportMailtoFor,
   type UserFacingError,
 } from "@/app/lib/userFacingError";
-import { authMessages } from "@/app/lib/authMessages";
+import { authMessages, authSentence } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { useTranslations } from "next-intl";
 
 /** The shared auth table with this page's deltas, keyed by the `code` the
@@ -45,11 +46,11 @@ import { useTranslations } from "next-intl";
 const MFA_ERROR_MESSAGES = authMessages({
   // On this page a one-time code is always an authenticator code, and a
   // step-up is about the setting being changed, not about signing in.
-  otp_expired:
-    "That code expired. Enter the current six-digit code from your authenticator app.",
-  insufficient_aal: "Verify your identity again before changing this setting.",
-  reauthentication_needed:
-    "Verify your identity again before changing this setting.",
+  otp_expired: authSentence("mfaCodeExpired"),
+  insufficient_aal: () =>
+    clientTranslator()("settings.security.verifyYourIdentityAgain"),
+  reauthentication_needed: () =>
+    clientTranslator()("settings.security.verifyYourIdentityAgain"),
 });
 
 type MfaFactor = {
@@ -161,7 +162,7 @@ function VerificationCodeInput({
           onPaste={handlePaste}
           onKeyDown={(event) => handleKeyDown(event, index)}
           className="h-11 w-10 rounded-lg border border-transparent bg-gray-100 text-center text-lg font-medium text-gray-950 shadow-none outline-none transition-colors focus:border-gray-200 focus:ring-2 focus:ring-gray-300/45 disabled:cursor-not-allowed disabled:opacity-45"
-          aria-label={`Verification code digit ${index + 1}`}
+          aria-label={t("settings.security.verificationCodeDigitIndex", { index: index + 1 })}
           maxLength={1}
         />
       ))}
@@ -205,7 +206,7 @@ export default function SecurityPage() {
     const described = describeError(error, {
       action,
       codeMessages: MFA_ERROR_MESSAGES,
-      fallback: `LiTT couldn't ${action}. Try again.`,
+      fallback: t("errors.couldntTryAgain", { action }),
     });
     setStatus(described.message);
     setStatusError(described);
@@ -247,7 +248,7 @@ export default function SecurityPage() {
       traceMfa("[security/mfa] state load failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-      failStatus(error, "load your security settings");
+      failStatus(error, t("settings.security.actions.loadYourSecuritySettings"));
       setFactors([]);
       setCurrentLevel(null);
       setNextLevel(null);
@@ -311,7 +312,7 @@ export default function SecurityPage() {
       traceMfa("[security/mfa] setup failed", {
         errorType: error instanceof Error ? error.name : typeof error,
       });
-      failStatus(error, "start authenticator setup");
+      failStatus(error, t("settings.security.actions.startAuthenticatorSetup"));
     } finally {
       setBusy(false);
     }
@@ -360,7 +361,7 @@ export default function SecurityPage() {
       setStatus(t("settings.security.mfaEnabled"));
       await refreshMfaState();
     } catch (error) {
-      failStatus(error, "verify that code");
+      failStatus(error, t("settings.security.actions.verifyThatCode"));
     } finally {
       setBusy(false);
     }
@@ -394,7 +395,7 @@ export default function SecurityPage() {
       traceMfa("[security/mfa] state verification failed", {
         errorType: error instanceof Error ? error.name : typeof error,
       });
-      failStatus(error, "check your security settings");
+      failStatus(error, t("settings.security.actions.checkYourSecuritySettings"));
       return;
     }
 
@@ -421,7 +422,7 @@ export default function SecurityPage() {
       traceMfa("[security/mfa] disable failed", {
         errorType: error instanceof Error ? error.name : typeof error,
       });
-      failStatus(error, "turn off two-factor authentication");
+      failStatus(error, t("settings.security.actions.turnOffTwoFactorAuthentication"));
       return;
     }
     setBusy(false);
@@ -446,7 +447,7 @@ export default function SecurityPage() {
       }
       await saveLoginPreference(enabled);
     } catch (error) {
-      failStatus(error, "update your login verification setting");
+      failStatus(error, t("settings.security.actions.updateYourLoginVerificationSetting"));
     } finally {
       setSavingLoginPreference(false);
     }
@@ -467,7 +468,7 @@ export default function SecurityPage() {
       if (isMfaRequiredError(error)) {
         setPendingLoginPreference(enabled);
       } else {
-        failStatus(error, "update your login verification setting");
+        failStatus(error, t("settings.security.actions.updateYourLoginVerificationSetting"));
       }
     } finally {
       setSavingLoginPreference(false);
@@ -555,7 +556,7 @@ export default function SecurityPage() {
                 <a
                   href={supportMailtoFor(
                     statusError,
-                    "Failed to change a security setting.",
+                    t("settings.security.failedToChangeASecuritySetting"),
                   )}
                   className="ml-2 underline underline-offset-2"
                 >
@@ -570,7 +571,7 @@ export default function SecurityPage() {
       <Modal
         open={setupModalOpen}
         onClose={() => void closeSetupModal()}
-        breadcrumbs={["Security", "Set up authenticator app"]}
+        breadcrumbs={[t("settings.layout.tab.security"), t("settings.security.setUpAuthenticatorApp")]}
         cancelAction={{
           label: enrollment ? t("common.back") : t("common.cancel"),
           onClick: enrollment
