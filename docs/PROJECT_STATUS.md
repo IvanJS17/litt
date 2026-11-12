@@ -60,8 +60,9 @@
   `converted` to `document_versions_source_check`) is not applied anywhere.
 - Word → Markdown now has one converter (`docxToMarkdown`, mammoth + turndown):
   it replaced the regex conversion of `extractDocxMarkdown` and serves the
-  person's conversion. Tabular review and the assistant still read plain text
-  with offsets (`documentText`, `extractDocxBodyText`), unchanged.
+  person's conversion. Tabular review (`documentText`) and the assistant
+  (`docxText`) still read plain text with offsets (`extractDocxBodyText`),
+  unchanged.
 
 ### Branch not integrated: layer 6, scan reading (LandingAI)
 
