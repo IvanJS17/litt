@@ -211,7 +211,7 @@ export function PlaybookRunsTable({
           label: label.trim() || t("playbooks.untitledPlaybook"),
         }))
         .sort((a, b) => a.label.localeCompare(b.label)),
-    [all],
+    [all, t],
   );
   // A playbook that has left the list stops filtering it.
   const playbookFilter =

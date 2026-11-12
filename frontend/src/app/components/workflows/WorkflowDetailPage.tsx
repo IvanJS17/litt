@@ -350,7 +350,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
         userFacingApiError(error, t("workflows.theChangeWasSavedBut")),
       );
     }
-  }, [fetchWorkflowShares]);
+  }, [fetchWorkflowShares, t]);
 
   const fetchWorkflowAccess = useCallback(async (): Promise<ProjectPeople> => {
     return getWorkflowPeople(id);
@@ -383,7 +383,7 @@ export function WorkflowDetailPage({ id, workflowType }: Props) {
         });
       }
     },
-    [id, showSaveStatus],
+    [id, showSaveStatus, t],
   );
 
   const save = useCallback(

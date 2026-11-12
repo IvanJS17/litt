@@ -743,7 +743,7 @@ function WorkflowTable({
       { value: "assistant", label: t("workflows.assistant") },
       { value: "tabular", label: t("workflows.tabular") },
     ],
-    [],
+    [t],
   );
   const practiceOptions = useMemo(
     () => workflowFilterOptions(filterOptions.practices),

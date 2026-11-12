@@ -280,7 +280,7 @@ export function PlaybookTable({
         playbooks.flatMap((playbook) => playbook.content.jurisdictions),
       ),
     };
-  }, [playbooks]);
+  }, [playbooks, tAll]);
 
   // Switching tabs or deleting a playbook can remove a filtered value; the
   // filter then stops applying instead of hiding every row.

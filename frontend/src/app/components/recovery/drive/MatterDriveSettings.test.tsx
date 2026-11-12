@@ -198,7 +198,7 @@ describe("MatterDriveSettings", () => {
 
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() =>
-      expect(screen.getByText(/Se requiere verificar MFA/)).toBeVisible(),
+      expect(screen.getByText(/Se requiere la verificación en dos pasos/)).toBeVisible(),
     );
     expect(screen.queryByText("internal MFA detail")).not.toBeInTheDocument();
   });

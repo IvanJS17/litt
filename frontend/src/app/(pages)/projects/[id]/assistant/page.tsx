@@ -165,7 +165,7 @@ export default function ProjectAssistantPage({ params }: Props) {
                 title: t("projects.someChatsWereNotDeleted"),
                 message: notices.join(" "),
             });
-    }, [chats, selectedChatIds, setProjectChats]);
+    }, [chats, selectedChatIds, setProjectChats, t]);
 
     return (
         <>

@@ -36,7 +36,7 @@ export function ProjectPracticeField({
             { value: OPTION_NONE, label: t("projects.none") },
             ...PRACTICE_OPTIONS,
         ],
-        [],
+        [t],
     );
 
     function handleSelect(option: string) {

@@ -220,7 +220,7 @@ export function ProjectAssistantTable({
                 ) * multiplier
             );
         });
-    }, [creatorFilter, filteredChats, sort]);
+    }, [creatorFilter, filteredChats, sort, t]);
 
     const allVisibleChatsSelected =
         visibleChats.length > 0 &&
