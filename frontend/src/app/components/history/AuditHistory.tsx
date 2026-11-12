@@ -3,7 +3,8 @@
 import {
   useCallback,
   useEffect,
-  useId,
+    useId,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -70,8 +71,9 @@ import {
 } from "./HistoryApplicationIcon";
 import { HistoryEventModal } from "./HistoryEventModal";
 import {
-  ACTION_LABELS,
-  SURFACE_LABELS,
+    auditActionLabels,
+  auditStatusLabel,
+  auditSurfaceLabels,
   auditAction,
   auditActor,
   auditSubject,
@@ -102,35 +104,20 @@ const STATUS_DOT_STYLES: Record<string, string> = {
 const GLASS_DOT =
   "h-2.5 w-2.5 shrink-0 rounded-full border border-white/80 shadow-[0_1px_2px_rgba(21,26,38,0.08),inset_0_1px_1px_rgba(255,255,255,0.55)]";
 
-const STATUS_OPTIONS = [
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "failed", label: "Failed" },
-];
-
-const ACTION_OPTIONS = Object.entries(ACTION_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const SURFACE_OPTIONS = Object.entries(SURFACE_LABELS).map(
-  ([value, label]) => ({ value, label, icon: HISTORY_APPLICATION_ICONS[value] }),
-);
-
 type AuditSortKey = "created_at" | "title";
 
 type HistoryDateRange = { from: string; to: string };
 
 const DATE_RANGE_PRESETS = [
-  { value: "today", label: "Today" },
-  { value: "last7", label: "Last 7 days" },
-  { value: "last30", label: "Last 30 days" },
-  { value: "thisMonth", label: "This month" },
-  { value: "lastMonth", label: "Last month" },
-  { value: "custom", label: "Custom range" },
+  "today",
+  "last7",
+  "last30",
+  "thisMonth",
+  "lastMonth",
+  "custom",
 ] as const;
 
-type HistoryDatePreset = (typeof DATE_RANGE_PRESETS)[number]["value"];
+type HistoryDatePreset = (typeof DATE_RANGE_PRESETS)[number];
 
 function presetDateRange(
   preset: Exclude<HistoryDatePreset, "custom">,
@@ -152,39 +139,40 @@ function presetDateRange(
 
 function matchingDatePreset(range: HistoryDateRange): HistoryDatePreset {
   return (
-    DATE_RANGE_PRESETS.find(({ value }) => {
+    DATE_RANGE_PRESETS.find((value) => {
       if (value === "custom") return false;
       const preset = presetDateRange(value);
       return range.from === preset.from && range.to === preset.to;
-    })?.value ?? "custom"
+    }) ?? "custom"
   );
 }
 
-function dateRangeError(range: HistoryDateRange): string | null {
-  if (!range.from || !range.to) return "Choose a start and end date.";
+function dateRangeErrorKey(
+  range: HistoryDateRange,
+):
+  | "history.dateError.choose"
+  | "history.dateError.format"
+  | "history.dateError.order"
+  | "history.dateError.future"
+  | null {
+  if (!range.from || !range.to) return "history.dateError.choose";
   if (!parseHistoryDate(range.from) || !parseHistoryDate(range.to)) {
-    return "Enter a valid date in YYYY-MM-DD format.";
+    return "history.dateError.format";
   }
-  if (range.from > range.to) return "End date must be on or after start date.";
+  if (range.from > range.to) return "history.dateError.order";
   if (range.to > localDateValue(new Date())) {
-    return "Dates cannot be in the future.";
+    return "history.dateError.future";
   }
   return null;
 }
 
-function formatRangeDate(value: string): string {
-  if (!value) return "Open";
+function formatRangeDate(value: string, openLabel: string): string {
+  if (!value) return openLabel;
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
     year: "numeric",
   });
-}
-
-function formatStatus(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 export function AuditHistory({
@@ -195,7 +183,33 @@ export function AuditHistory({
   onBack?: () => void;
 }) {
   const t = useTranslations();
-  const title = orgId ? "Audit log" : "My Activity";
+    const title = orgId ? t("history.auditLog") : t("history.myActivity");
+  const statusOptions = useMemo(
+    () =>
+      (["completed", "cancelled", "failed"] as const).map((value) => ({
+        value,
+        label: auditStatusLabel(value, t),
+      })),
+    [t],
+  );
+  const actionOptions = useMemo(
+    () =>
+      Object.entries(auditActionLabels(t)).map(([value, label]) => ({
+        value,
+        label,
+      })),
+    [t],
+  );
+  const surfaceLabels = useMemo(() => auditSurfaceLabels(t), [t]);
+  const surfaceOptions = useMemo(
+    () =>
+      Object.entries(surfaceLabels).map(([value, label]) => ({
+        value,
+        label,
+        icon: HISTORY_APPLICATION_ICONS[value],
+      })),
+    [surfaceLabels],
+  );
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -304,7 +318,7 @@ export function AuditHistory({
   const handleExport = async (range: HistoryDateRange, eventIds?: string[]) => {
     if (exportingRef.current) return;
     if (eventIds && eventIds.length > 2000) {
-      setActionError("Select up to 2,000 entries to export at once.");
+      setActionError(t("history.selectUpTo2000"));
       return;
     }
     exportingRef.current = true;
@@ -338,7 +352,7 @@ export function AuditHistory({
       if (!eventIds) setExportOpen(false);
     } catch {
       if (eventIds)
-        setActionError("Your export could not be created. Please try again.");
+        setActionError(t("history.exportNotCreated"));
       else setExportError(true);
     } finally {
       exportingRef.current = false;
@@ -569,8 +583,8 @@ export function AuditHistory({
                 <TableFilters
                   label={t("history.filterByAction")}
                   value={action}
-                  allLabel="All actions"
-                  options={ACTION_OPTIONS}
+                  allLabel={t("history.allActions")}
+                  options={actionOptions}
                   onChange={setAction}
                   contentClassName="max-h-[min(20rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
                 />
@@ -593,8 +607,8 @@ export function AuditHistory({
                 <TableFilters
                   label={t("history.filterByApplication")}
                   value={surface}
-                  allLabel="All applications"
-                  options={SURFACE_OPTIONS}
+                  allLabel={t("history.allApplications")}
+                  options={surfaceOptions}
                   onChange={setSurface}
                 />
               )}
@@ -605,8 +619,8 @@ export function AuditHistory({
                 <TableFilters
                   label={t("history.filterByStatus")}
                   value={status}
-                  allLabel="All statuses"
-                  options={STATUS_OPTIONS}
+                  allLabel={t("history.allStatuses")}
+                  options={statusOptions}
                   onChange={setStatus}
                 />
               )}
@@ -656,9 +670,9 @@ export function AuditHistory({
           <TableBody>
             {events.map((event) => {
               const selected = selectedIds.has(event.id);
-              const subject = auditSubject(event);
+              const subject = auditSubject(event, t);
               const subjectEmail = auditSubjectEmail(event);
-              const actor = auditActor(event);
+              const actor = auditActor(event, t);
               const rowActions = (close: () => void) =>
                 renderActions(
                   selected ? selectedEvents : [event],
@@ -673,7 +687,7 @@ export function AuditHistory({
                   role="button"
                   tabIndex={0}
                   aria-haspopup="dialog"
-                  aria-label={`View details for ${subject.name === "-" ? auditAction(event) : subject.name}`}
+                  aria-label={t("history.viewDetailsFor", { name: subject.name === "-" ? auditAction(event, t) : subject.name })}
                   className="h-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                   onClick={(click) => {
                     click.currentTarget.focus();
@@ -694,14 +708,14 @@ export function AuditHistory({
                     className="items-center"
                     selected={selected}
                     onSelectionChange={() => toggleSelection(event.id)}
-                    checkboxTitle={`Select ${event.title ?? auditAction(event)}`}
+                    checkboxTitle={t("history.selectName", { name: event.title ?? auditAction(event, t) })}
                   >
                     <time
                       dateTime={event.created_at}
-                      title={auditTimestamp(event.created_at, true)}
+                      title={auditTimestamp(event.created_at, true, t)}
                       className="whitespace-nowrap text-xs text-gray-700"
                     >
-                      {auditTimestamp(event.created_at)}
+                      {auditTimestamp(event.created_at, false, t)}
                     </time>
                   </TablePrimaryCell>
                   {orgId && (
@@ -729,9 +743,9 @@ export function AuditHistory({
                   )}
                   <TableCell
                     className="w-48 pr-4 text-xs text-gray-700"
-                    title={auditAction(event)}
+                    title={auditAction(event, t)}
                   >
-                    {auditAction(event)}
+                    {auditAction(event, t)}
                   </TableCell>
                   <TableCell
                     className="w-64 pr-6 text-xs text-gray-800"
@@ -749,7 +763,7 @@ export function AuditHistory({
                       <span className="flex min-w-0 items-center gap-2">
                         <HistoryApplicationIcon surface={event.surface} />
                         <span className="truncate">
-                          {SURFACE_LABELS[event.surface] ?? event.surface}
+                          {surfaceLabels[event.surface] ?? event.surface}
                         </span>
                       </span>
                     ) : (
@@ -763,12 +777,12 @@ export function AuditHistory({
                         data-testid={`status-dot-${event.id}`}
                         className={`${GLASS_DOT} ${STATUS_DOT_STYLES[event.status] ?? "bg-gray-400/80"}`}
                       />
-                      {formatStatus(event.status)}
+                      {auditStatusLabel(event.status, t)}
                     </span>
                   </TableCell>
                   <TableCell className="w-10">
                     <RowActions
-                      ariaLabel={`Actions for ${event.title ?? auditAction(event)}`}
+                      ariaLabel={t("history.actionsFor", { name: event.title ?? auditAction(event, t) })}
                       renderItems={rowActions}
                     />
                   </TableCell>
@@ -841,7 +855,7 @@ function HistoryExportModal({
 }) {
   const t = useTranslations();
   const [range, setRange] = useState({ from, to });
-  const validRange = !dateRangeError(range);
+  const validRange = !dateRangeErrorKey(range);
 
   return (
     <Modal
@@ -851,7 +865,7 @@ function HistoryExportModal({
       className="h-auto max-h-[calc(100dvh-2rem)]"
       breadcrumbs={[
         title,
-        title === "My Activity" ? "Export My Activity" : "Export audit log",
+        organization ? t("history.exportAuditLog") : t("history.exportMyActivity"),
       ]}
       cancelAction={{ label: t("history.cancel"), onClick: onClose }}
       primaryAction={{
@@ -906,7 +920,12 @@ function HistoryDateRangeFields({
   const t = useTranslations();
   const id = useId();
   const [preset, setPreset] = useState(() => matchingDatePreset(range));
-  const error = dateRangeError(range);
+  const errorKey = dateRangeErrorKey(range);
+  const error = errorKey ? t(errorKey) : null;
+  const presetOptions = DATE_RANGE_PRESETS.map((value) => ({
+    value,
+    label: t(`history.datePreset.${value}`),
+  }));
   const today = localDateValue(new Date());
 
   return (
@@ -917,18 +936,16 @@ function HistoryDateRangeFields({
           variant="flat"
           className="h-8 rounded-lg px-2.5 text-xs"
           id={`${id}-preset`}
-          aria-label={`Date range: ${DATE_RANGE_PRESETS.find(({ value }) => value === preset)?.label}`}
+          aria-label={t("history.dateRangeValue", { range: t(`history.datePreset.${preset}`) })}
           value={preset}
-          options={DATE_RANGE_PRESETS}
+          options={presetOptions}
           disabled={disabled}
           onChange={(value) => {
-            const selected = DATE_RANGE_PRESETS.find(
-              (option) => option.value === value,
-            );
+            const selected = DATE_RANGE_PRESETS.find((option) => option === value);
             if (!selected) return;
-            setPreset(selected.value);
-            if (selected.value !== "custom") {
-              const nextRange = presetDateRange(selected.value);
+            setPreset(selected);
+            if (selected !== "custom") {
+              const nextRange = presetDateRange(selected);
               onChange(nextRange);
               onPresetSelect?.(nextRange);
             }
@@ -988,7 +1005,7 @@ function DateRangeDropdown({
   };
 
   const handleConfirm = () => {
-    if (!hasChanges || dateRangeError(draftRange)) return;
+    if (!hasChanges || dateRangeErrorKey(draftRange)) return;
     onChange(draftRange);
     setOpen(false);
   };
@@ -1000,10 +1017,10 @@ function DateRangeDropdown({
           active
           data-icon-position="right"
           className="pl-2.5 pr-2"
-          aria-label={`Select date range: ${formatRangeDate(from)} – ${formatRangeDate(to)}`}
+          aria-label={t("history.selectDateRange", { from: formatRangeDate(from, t("history.open")), to: formatRangeDate(to, t("history.open")) })}
         >
           <CalendarDays aria-hidden="true" className="h-3.5 w-3.5" />
-          {formatRangeDate(from)} – {formatRangeDate(to)}
+          {formatRangeDate(from, t("history.open"))} – {formatRangeDate(to, t("history.open"))}
           <ChevronDown
             aria-hidden="true"
             className={`h-3.5 w-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -1029,7 +1046,7 @@ function DateRangeDropdown({
               <div className="flex justify-end">
                 <PillButtonUI
                   tone="black"
-                  disabled={!hasChanges || Boolean(dateRangeError(draftRange))}
+                  disabled={!hasChanges || Boolean(dateRangeErrorKey(draftRange))}
                   onClick={handleConfirm}
                 >
                   {t("history.apply")}

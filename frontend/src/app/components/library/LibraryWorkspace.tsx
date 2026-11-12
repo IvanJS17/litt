@@ -90,10 +90,6 @@ type LibraryWorkspaceContextValue = {
     ) => void;
 };
 
-const LIBRARY_TABS: { id: LibraryKind; label: string }[] = [
-    { id: "files", label: "Documents" },
-    { id: "templates", label: "Templates" },
-];
 
 const EMPTY_COLLECTION: LibraryViewCollection = {
     documents: [],
@@ -138,7 +134,8 @@ export function LibraryWorkspaceProvider({
 }: {
     children: ReactNode;
 }) {
-    const scoped = useScopedLibrary();
+        const scoped = useScopedLibrary();
+    const t = useTranslations();
     const [collections, setCollections] = useState<
         Record<LibraryKind, LibraryViewCollection | null>
     >({
@@ -272,7 +269,7 @@ export function LibraryWorkspaceProvider({
                 // is indistinguishable from "you have no files", so the user
                 // has to be told which one it is.
                 notifyError(error, {
-                    action: `load your ${kind}`,
+                    action: t(kind === "files" ? "library.actions.loadYourFiles" : "library.actions.loadYourTemplates"),
                     dedupeKey: `library:${kind}`,
                     onRetry: () => retryRef.current?.loadLibrary(kind),
                 });
@@ -292,7 +289,7 @@ export function LibraryWorkspaceProvider({
                 }
             }
         },
-        [loadedFolderIdsByKind, documentLimitByKind, scoped],
+        [loadedFolderIdsByKind, documentLimitByKind, scoped, t],
     );
 
     const loadFolderChildren = useCallback(
@@ -348,7 +345,7 @@ export function LibraryWorkspaceProvider({
                     }));
                 } catch (error) {
                     notifyError(error, {
-                        action: "open the folder",
+                        action: t("library.actions.openFolder"),
                         dedupeKey: `library-folder:${kind}:${folderId}`,
                         onRetry: () =>
                             retryRef.current?.loadFolderChildren(
@@ -363,7 +360,7 @@ export function LibraryWorkspaceProvider({
             folderChildrenRequestsRef.current.set(key, request);
             return request;
         },
-        [loadedFolderIdsByKind, scoped],
+        [loadedFolderIdsByKind, scoped, t],
     );
 
   // Fetches a fixed-size next page for one level. The old implementation
@@ -433,7 +430,7 @@ export function LibraryWorkspaceProvider({
                     }));
                 } catch (error) {
                     notifyError(error, {
-                        action: `load more ${kind}`,
+                        action: t(kind === "files" ? "library.actions.loadMoreFiles" : "library.actions.loadMoreTemplates"),
                         dedupeKey: `library-more:${kind}:${levelKey}`,
                         onRetry: () =>
                             retryRef.current?.loadMoreDocuments(kind, parentId),
@@ -449,7 +446,7 @@ export function LibraryWorkspaceProvider({
             loadMoreDocumentsRequestsRef.current.set(requestKey, request);
             return request;
         },
-        [documentLimitByKind, scoped],
+        [documentLimitByKind, scoped, t],
     );
 
     // "Retry" on a failed load re-enters the latest loader (see useLatestRef).
@@ -580,7 +577,11 @@ export function LibraryCollectionPage({
     const search = searchByKind[kind];
     const collectionRootPath = kind === "files" ? "/library" : "/library/templates";
   const debouncedSearch = useDebouncedValue(search, 250);
-    const title = kind === "files" ? "Documents" : "Templates";
+    const title = kind === "files" ? t("library.documents") : t("library.templates");
+    const libraryTabs: { id: LibraryKind; label: string }[] = [
+        { id: "files", label: t("library.documents") },
+        { id: "templates", label: t("library.templates") },
+    ];
     const [selectionActions, setSelectionActions] = useState<DocTableSelectionActions | null>(null);
   const [documentTypeOptions, setDocumentTypeOptions] = useState<string[]>([]);
   const [tableQuery, setTableQuery] = useState<DocTableQuery>({
@@ -662,7 +663,7 @@ export function LibraryCollectionPage({
                 // The user asked for a folder and landed at the root
                 // instead; say why, and let Retry navigate back into it.
                 notifyError(error, {
-                    action: "open the folder",
+                    action: t("library.actions.openFolder"),
                     dedupeKey: `library-route:${kind}:${folderId}`,
                     onRetry: () =>
                         router.push(
@@ -681,8 +682,9 @@ export function LibraryCollectionPage({
         collectionRootPath,
         folderId,
         kind,
-        router,
+                router,
         setFoldersForKind,
+        t,
     ]);
 
     const handleFolderViewIdChange = useCallback(
@@ -814,7 +816,7 @@ export function LibraryCollectionPage({
         // so the user is told the list is missing rather than wrong.
         setDocumentTypeOptions([]);
         notifyError(error, {
-          action: "load the file type filter",
+          action: t("library.actions.loadFileTypeFilter"),
           dedupeKey: `library-filter-options:${kind}`,
           onRetry: () => setFilterOptionsAttempt((attempt) => attempt + 1),
         });
@@ -822,7 +824,7 @@ export function LibraryCollectionPage({
     return () => {
       cancelled = true;
     };
-  }, [filterOptionsAttempt, kind, scoped]);
+  }, [filterOptionsAttempt, kind, scoped, t]);
 
   const serverQueryActive =
     debouncedSearch.trim().length > 0 ||
@@ -865,7 +867,7 @@ export function LibraryCollectionPage({
           setServerQueryHasMore(false);
           // No results and a failed search look identical in the table.
           notifyError(error, {
-            action: "search this library",
+            action: t("library.actions.searchLibrary"),
             dedupeKey: `library-search:${kind}`,
             onRetry: () =>
               setServerQueryRefreshVersion((version) => version + 1),
@@ -887,6 +889,7 @@ export function LibraryCollectionPage({
     kind,
     serverQueryActive,
     serverQueryRefreshVersion,
+        t,
     tableQuery.fileType,
     tableQuery.sort,
   ]);
@@ -927,7 +930,7 @@ export function LibraryCollectionPage({
     } catch (error) {
       if (requestVersion === serverQueryRequestRef.current) {
         notifyError(error, {
-          action: "load more search results",
+          action: t("library.actions.loadMoreSearchResults"),
           dedupeKey: `library-search-more:${kind}`,
           onRetry: () => loadMoreServerDocumentsRef.current?.(),
         });
@@ -946,6 +949,7 @@ export function LibraryCollectionPage({
     serverQueryHasMore,
     serverQueryLoading,
     serverQueryLoadingMore,
+        t,
     tableQuery.fileType,
     tableQuery.sort,
   ]);
@@ -1027,7 +1031,7 @@ export function LibraryCollectionPage({
                                 type: "search",
                                 value: search,
                 onChange: (value) => setSearchForKind(kind, value),
-                                placeholder: `Search ${title.toLowerCase()}...`,
+                                placeholder: t(kind === "files" ? "library.searchDocuments" : "library.searchTemplates"),
                             },
                             kind === "templates" && {
                                 type: "custom",
@@ -1065,7 +1069,7 @@ export function LibraryCollectionPage({
 
             <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                 <TableToolbar
-                    items={folderBackAction ? [] : LIBRARY_TABS}
+                    items={folderBackAction ? [] : libraryTabs}
                     active={kind}
                     onChange={(next) =>
                         router.push(
@@ -1076,7 +1080,7 @@ export function LibraryCollectionPage({
                         folderBackAction ? (
                             <TabPillButtonUI onClick={folderBackAction} className="pl-2">
                                 <ChevronLeft className="h-3.5 w-3.5" />
-                                {t("library.back")}
+                                {t("common.back")}
                             </TabPillButtonUI>
                         ) : undefined
                     }

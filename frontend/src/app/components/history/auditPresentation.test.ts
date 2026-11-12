@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { loadMessages } from "@litt/i18n";
+import { configureClientLocale } from "@mike/client";
 import type { AuditEvent } from "@/app/lib/mikeApi";
 import {
   auditAction,
@@ -126,8 +128,20 @@ describe("audit event presentation", () => {
       "Playbook run deleted",
     );
     expect(auditAction({ ...run, action: "playbook.marked_ready" })).toBe(
+      "Playbook marked as ready",
+    );
+  });
+
+  it("speaks Spanish through the configured client translator", async () => {
+    configureClientLocale("es-MX", await loadMessages("es-MX"));
+    expect(auditAction({ ...event, action: "playbook.marked_ready" })).toBe(
       "Playbook marcado como listo",
     );
+    expect(auditAction({ ...event, action: "playbook.model_unmarked" })).toBe(
+      "Marca de modelo retirada",
+    );
+    expect(auditActor({ ...event, user_deleted: true })).not.toBe("Deleted user");
+    expect(auditSubject(event).type).not.toBe("Member");
   });
 
   it("keeps failed actions from reading as successful changes", () => {

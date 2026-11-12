@@ -24,16 +24,18 @@ import {
 import { knownErrorCodeMessage } from "@/app/lib/userFacingError";
 import {
   auditAction,
-  auditActor,
+    auditActor,
   auditDestination,
   auditDetailFields,
-  auditLabel,
-  auditPrivateAccess,
+    auditPrivateAccess,
   auditSubject,
+    auditStatusLabel,
   auditSubjectEmail,
+  auditSubjectIsPerson,
   auditSummary,
+  auditSurfaceLabel,
+  auditSurfaceLabels,
   auditTimestamp,
-  SURFACE_LABELS,
 } from "./auditPresentation";
 import { useTranslations } from "next-intl";
 
@@ -106,20 +108,20 @@ export function HistoryEventModal({
         if (!current) return;
         setError(
           cause instanceof MikeApiError && cause.status === 403
-            ? "You do not have access to this document."
+            ? t("history.noAccessToDocument")
             : cause instanceof MikeApiError && cause.status === 404
-              ? "This document is no longer available."
+              ? t("history.documentNoLongerAvailable")
               : knownErrorCodeMessage(
                   cause,
                   {},
-                  "This document could not be opened. Please try again.",
+                  t("history.documentNotOpened"),
                 ),
         );
       });
     return () => {
       current = false;
     };
-  }, [documentId, preview, attempt]);
+  }, [documentId, preview, attempt, t]);
   async function withAccess(action: () => void | Promise<void>) {
     if (pending.current) return;
     pending.current = true;
@@ -140,7 +142,7 @@ export function HistoryEventModal({
       if (mounted.current) await action();
     } catch (cause) {
       if (mounted.current)
-        setActionError(privateAccessError(cause, "Could not open this item."));
+        setActionError(privateAccessError(cause, t("history.itemNotOpened"), t));
     } finally {
       pending.current = false;
       if (mounted.current) setBusy(false);
@@ -169,7 +171,7 @@ export function HistoryEventModal({
       onAccessChange?.(false);
     } catch (cause) {
       if (mounted.current)
-        setActionError(privateAccessError(cause, "Could not end access."));
+        setActionError(privateAccessError(cause, t("history.accessNotEnded"), t));
     } finally {
       pending.current = false;
       if (mounted.current) setBusy(false);
@@ -179,18 +181,19 @@ export function HistoryEventModal({
     setError(null);
     setAttempt((value) => value + 1);
   };
-  const subject = auditSubject(event);
+  const subject = auditSubject(event, t);
+  const surfaceLabels = auditSurfaceLabels(t);
   const subjectEmail = auditSubjectEmail(event);
-  const destination = auditDestination(event);
+  const destination = auditDestination(event, t);
   const fields = [
-    { label: t("history.description"), value: auditSummary(event, personal) },
+    { label: t("history.description"), value: auditSummary(event, personal, t) },
     ...(!personal
       ? [
           {
             label: t("history.performedBy"),
             value: (
               <span className="flex max-w-full items-center justify-end gap-2">
-                {auditActor(event) !== t("history.system") && (
+                {auditActor(event, t) !== t("history.system") && (
                   <UserAvatar
                     photo={event.user_profile_photo}
                     name={event.user_display_name}
@@ -198,7 +201,7 @@ export function HistoryEventModal({
                   />
                 )}
                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                  {`${auditActor(event)}${event.user_email && event.user_display_name ? ` (${event.user_email})` : ""}`}
+                  {`${auditActor(event, t)}${event.user_email && event.user_display_name ? ` (${event.user_email})` : ""}`}
                 </span>
               </span>
             ),
@@ -208,7 +211,7 @@ export function HistoryEventModal({
     {
       label: subject.type,
       value:
-        ["Member", "Recipient"].includes(subject.type) &&
+        auditSubjectIsPerson(event) &&
         subject.name !== "-" ? (
           <span className="flex max-w-full items-center justify-end gap-2">
             <HistorySubjectIcon event={event} />
@@ -220,23 +223,23 @@ export function HistoryEventModal({
           subject.name
         ),
     },
-    ...auditDetailFields(event).filter(
-      (field) => !privateAccess || field.label !== "Access",
+    ...auditDetailFields(event, t).filter(
+      (field) => !privateAccess || field.label !== t("history.audit.field.access"),
     ),
     ...(subject.context &&
-    subject.context !== (SURFACE_LABELS[event.surface ?? ""] ?? event.surface)
+    subject.context !== (surfaceLabels[event.surface ?? ""] ?? event.surface)
       ? [{ label: t("history.location"), value: subject.context }]
       : []),
-    { label: t("history.when"), value: auditTimestamp(event.created_at, true) },
-    { label: t("history.status"), value: auditLabel(event.status) },
+    { label: t("history.when"), value: auditTimestamp(event.created_at, true, t) },
+    { label: t("history.status"), value: auditStatusLabel(event.status, t) },
     ...(privateAccess
-      ? [{ label: t("history.access"), value: "Read-only · access is logged" }]
+      ? [{ label: t("history.access"), value: t("history.readOnlyLogged") }]
       : []),
     ...(event.surface
       ? [
           {
             label: t("history.application"),
-            value: SURFACE_LABELS[event.surface] ?? auditLabel(event.surface),
+            value: auditSurfaceLabel(event.surface, t),
           },
         ]
       : []),
@@ -254,7 +257,7 @@ export function HistoryEventModal({
             ? "h-[min(800px,calc(100dvh-2rem))]"
             : "h-auto max-h-[calc(100dvh-2rem)]"
         }`}
-        breadcrumbs={[title, preview ? "Document" : "Event details"]}
+        breadcrumbs={[title, preview ? t("history.document") : t("history.eventDetails")]}
         primaryAction={
           preview
             ? error
@@ -450,11 +453,15 @@ function HistoryDocumentPreview({
   );
 }
 
-function privateAccessError(cause: unknown, fallback: string): string {
+function privateAccessError(
+  cause: unknown,
+  fallback: string,
+  t: (key: "history.noPermissionToItem" | "history.itemNoLongerAvailable") => string,
+): string {
   if (cause instanceof MikeApiError) {
     if (cause.status === 403)
-      return "You no longer have permission to access this item.";
-    if (cause.status === 404) return "This item is no longer available.";
+      return t("history.noPermissionToItem");
+    if (cause.status === 404) return t("history.itemNoLongerAvailable");
   }
   return knownErrorCodeMessage(cause, {}, fallback);
 }

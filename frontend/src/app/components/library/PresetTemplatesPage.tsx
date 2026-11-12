@@ -125,7 +125,7 @@ export function PresetTemplatesPage({
         setError(
           userFacingApiError(
             caught,
-            "Could not add this preset. Please try again.",
+            t("library.presetNotAdded"),
           ),
         );
       } finally {
@@ -137,7 +137,7 @@ export function PresetTemplatesPage({
         }
       }
     },
-    [folderId, importStatus, setDocumentsForKind, templatesLoaded, workspace],
+    [folderId, importStatus, setDocumentsForKind, t, templatesLoaded, workspace],
   );
 
   const catalog = useMemo<DocTableCatalog>(
@@ -149,9 +149,9 @@ export function PresetTemplatesPage({
       canPreview: canUsePreset,
       canAdd: canUsePreset,
       addLabel: (count, status) => {
-        if (status === "pending") return "Import…";
-        if (status === "complete") return "Imported";
-        return count > 1 ? `Import ${count}` : "Import";
+        if (status === "pending") return t("library.importing");
+        if (status === "complete") return t("library.imported");
+        return count > 1 ? t("library.importCount", { count }) : t("library.import");
       },
       addStatus: (documents) => {
         if (documents.some((doc) => importStatus[doc.id] === "pending")) return "pending";
@@ -161,7 +161,7 @@ export function PresetTemplatesPage({
       addDisabled: Object.values(importStatus).includes("pending"),
       onAdd: (documents) => void handleAdd(documents),
     }),
-    [handleAdd, importStatus],
+    [handleAdd, importStatus, t],
   );
 
   const handleFolderBackActionChange = useCallback(
@@ -206,7 +206,7 @@ export function PresetTemplatesPage({
               className="pl-2"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              {t("library.back")}
+              {t("common.back")}
             </TabPillButtonUI>
           }
           actions={
@@ -227,7 +227,7 @@ export function PresetTemplatesPage({
           loading={false}
           search={search}
           operations={CATALOG_OPERATIONS}
-          emptyStateTitle="Presets"
+          emptyStateTitle={t("library.presets")}
           onSelectionActionsChange={setSelectionActions}
           onFolderViewBackActionChange={handleFolderBackActionChange}
           onFolderViewChange={handleFolderViewChange}

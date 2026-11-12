@@ -139,8 +139,8 @@ export function HistoryDatePicker({
                 YearsDropdown: CalendarYearDropdown,
               }}
               labels={{
-                labelMonthDropdown: () => "Month",
-                labelYearDropdown: () => "Year",
+                labelMonthDropdown: () => t("history.month"),
+                labelYearDropdown: () => t("history.year"),
               }}
               style={CALENDAR_STYLE}
               classNames={CALENDAR_CLASSES}

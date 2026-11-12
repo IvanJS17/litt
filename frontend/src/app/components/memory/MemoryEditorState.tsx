@@ -4,10 +4,22 @@ import { PillButtonUI } from "@mike/ui";
 import type { MemoryAutosaveStatus } from "./useMemoryAutosave";
 import type { MemoryCurrent } from "@/app/lib/mikeApi";
 import { useTranslations } from "next-intl";
+import { clientTranslator } from "@mike/client";
 
-export function memoryActivityLabel(memory: MemoryCurrent) {
-  if (memory.status === "scheduled") return "Memory review scheduled";
-  if (memory.status === "processing") return "Updating memory…";
+type MemoryActivityTranslate = (
+  key: "memory.reviewScheduled" | "memory.updatingMemory",
+) => string;
+
+/**
+ * What the memory file is doing, if anything. Pass the component's own `t`
+ * when rendering; without it the configured client translator is used.
+ */
+export function memoryActivityLabel(
+  memory: MemoryCurrent,
+  t: MemoryActivityTranslate = clientTranslator() as unknown as MemoryActivityTranslate,
+) {
+  if (memory.status === "scheduled") return t("memory.reviewScheduled");
+  if (memory.status === "processing") return t("memory.updatingMemory");
   return null;
 }
 
@@ -27,7 +39,7 @@ export function MemoryConflictNotice({
       role="alert"
     >
       <p className="font-medium">
-        {project ? t("memory.projectMemory") : t("memory.memory")} {t("memory.changedWhileYouWereEditing")}
+        {project ? t("memory.projectConflictTitle") : t("memory.conflictTitle")}
       </p>
       <p className="mt-1 text-xs text-warning">
         {t("memory.reloadWhatIsSavedNowOr")}
@@ -69,7 +81,7 @@ export function MemorySaveStatus({
           className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
           onClick={onRetry}
         >
-          {t("memory.retry")}
+          {t("common.retry")}
         </button>
       </span>
     );

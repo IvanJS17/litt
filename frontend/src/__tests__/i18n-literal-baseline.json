@@ -78,11 +78,6 @@
     "word-addin/src/taskpane/i18n/useTrainingText.ts"
   ],
   "allowed": {
-    "frontend/src/app/components/documents/DocTable.tsx": 6,
-    "frontend/src/app/components/history/AuditHistory.tsx": 13,
-    "frontend/src/app/components/history/auditPresentation.ts": 6,
-    "frontend/src/app/components/library/LibraryWorkspace.tsx": 3,
-    "frontend/src/app/components/memory/UserMemoryPage.tsx": 3,
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
     "frontend/src/app/onboarding/options.ts": 3

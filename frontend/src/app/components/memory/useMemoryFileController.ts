@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { MikeApiError, type MemoryCurrent } from "@/app/lib/mikeApi";
 import { notifyError, userFacingApiError } from "@/app/lib/userFacingError";
 import { useMemoryAutosave } from "./useMemoryAutosave";
@@ -54,6 +55,7 @@ export function useMemoryFileController({
   disabledError,
   onCurrentChange,
 }: Options) {
+  const t = useTranslations();
   const [memory, setMemory] = useState<MemoryCurrent | null>(null);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -234,7 +236,7 @@ export function useMemoryFileController({
           // ends the status refresh: the file would sit on "processing"
           // forever unless the user hears about it and can reload.
           notifyError(cause, {
-            action: "check for memory updates",
+            action: t("memory.checkForUpdates"),
             dedupeKey: "memory-file-poll",
             onRetry: () => void load(),
           });
@@ -256,6 +258,7 @@ export function useMemoryFileController({
     polling,
     quietPolls,
     syncCurrent,
+    t,
     visible,
   ]);
 

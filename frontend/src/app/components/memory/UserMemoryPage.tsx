@@ -70,8 +70,8 @@ function WorkspaceMemory({
   const t = useTranslations();
   // What this memory is called, wherever the page names it.
   const memoryName = organizationName
-    ? `Memory in ${organizationName}`
-    : "Personal memory";
+    ? t("memory.memoryIn", { name: organizationName })
+    : t("memory.personalMemory");
   const [settingsMutation, setSettingsMutation] = useState<
     "enable" | "disable" | null
   >(null);
@@ -111,10 +111,10 @@ function WorkspaceMemory({
     loadMemory,
     saveMemory,
     conflictLoadError:
-      "Memory changed while you were editing. Reload the page before saving again.",
-    saveError: "Memory could not be saved. Your draft has been kept.",
+      t("memory.changedReloadFirst"),
+    saveError: t("memory.notSavedDraftKept"),
     disabledError:
-      "Memory was turned off while you were editing, so your changes were not saved.",
+      t("memory.turnedOffWhileEditing"),
   });
 
   const interactionLocked =
@@ -135,7 +135,7 @@ function WorkspaceMemory({
       setError(
         userFacingApiError(
           cause,
-          "Memory could not be turned on. Please try again.",
+          t("memory.notTurnedOn"),
         ),
       );
     } finally {
@@ -155,7 +155,7 @@ function WorkspaceMemory({
       setError(
         userFacingApiError(
           cause,
-          "Memory could not be turned off. Please try again.",
+          t("memory.notTurnedOff"),
         ),
       );
       setConfirmAction(null);
@@ -195,7 +195,7 @@ function WorkspaceMemory({
                 </p>
               </div>
               <PillButtonUI tone="white" size="sm" onClick={() => void load()}>
-                {t("memory.retry")}
+                {t("common.retry")}
               </PillButtonUI>
             </SettingsRow>
           ) : (
@@ -204,7 +204,10 @@ function WorkspaceMemory({
                 <SettingsLabel>{memoryName}</SettingsLabel>
                 <SettingsDescription>
                   {organizationName
-                    ? `Let LiTT curate useful details after your own conversations in ${organizationName} and use them in future answers there. Only you can see it.${multipleWorkspaces ? t("memory.youHaveASeparateMemoryFor") : ""}`
+                    ? t("memory.curateInOrganization", {
+                        organizationName,
+                        separate: multipleWorkspaces ? "yes" : "no",
+                      })
                     : multipleWorkspaces
                       ? t("memory.letLittCurateUsefulDetailsAfter")
                       : t("memory.letLittCurateUsefulDetailsAfter2")}
@@ -266,9 +269,9 @@ function WorkspaceMemory({
                   autosave.retry();
                 }}
               />
-              {memoryActivityLabel(memory) ? (
+              {memoryActivityLabel(memory, t) ? (
                 <p className="text-xs text-gray-400" role="status">
-                  {memoryActivityLabel(memory)}
+                  {memoryActivityLabel(memory, t)}
                 </p>
               ) : null}
             </div>
@@ -303,7 +306,12 @@ function WorkspaceMemory({
             ? t("memory.turnOffAndDeleteYourMemory", { organizationName })
             : t("memory.turnOffAndDeleteYourPersonal")
         }
-        message={`This will delete the existing memory.md file${multipleWorkspaces ? ` for ${organizationName ?? t("memory.personal")}` : ""}${dirty ? t("memory.andYourUnsavedDraft") : ""}, cancel pending memory updates, and stop future memory updates here until you turn it on again.${multipleWorkspaces ? t("memory.yourMemoryInOtherWorkspacesIs") : ""}`}
+        message={t("memory.confirmTurnOff", {
+          hasScope: multipleWorkspaces ? "yes" : "no",
+          scope: organizationName ?? t("memory.personal"),
+          dirty: dirty ? "yes" : "no",
+          others: multipleWorkspaces ? "yes" : "no",
+        })}
         confirmLabel={t("memory.disable")}
         confirmVariant="danger"
         confirmStatus={settingsMutation ? "loading" : "idle"}
@@ -344,7 +352,7 @@ function ProjectMemoryDefaultRow() {
       setError(
         userFacingApiError(
           cause,
-          "That preference could not be saved. Please try again.",
+          t("memory.preferenceNotSaved"),
         ),
       );
     } finally {
