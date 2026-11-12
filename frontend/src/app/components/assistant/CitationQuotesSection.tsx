@@ -1,5 +1,6 @@
 "use client";
 
+import type { AppTranslate } from "@/i18n/Translate";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { QuoteIcon } from "@radix-ui/react-icons";
@@ -12,6 +13,7 @@ import {
 } from "./message/citationVerification";
 import { ContextNumberBadge } from "./ContextNumberBadge";
 import { RESPONSE_GLASS_SURFACE } from "./message/messageStyles";
+import { useTranslations } from "next-intl";
 
 export type CitationQuoteSectionItem = {
     id: string;
@@ -51,26 +53,29 @@ export function documentQuoteId(documentId: string, index: number): string {
     return `${documentId}:quote:${index}`;
 }
 
-function formatCellTarget(quote: PanelDocumentQuote): string | null {
+function formatCellTarget(quote: PanelDocumentQuote, t: AppTranslate): string | null {
     const { sheet, cell } = quote.target;
     if (!cell) return sheet ?? null;
-    const cellWord = cell.includes(":") ? "cells" : "cell";
-    const cellPart = `${cellWord} ${cell}`;
+    const cellPart = t("assistant.citationQuotesSection.cellTarget", {
+        range: String(cell.includes(":")),
+        cell,
+    });
     return sheet ? `${sheet}, ${cellPart}` : cellPart;
 }
 
-function formatQuoteTarget(quote: PanelDocumentQuote): string | null {
+function formatQuoteTarget(quote: PanelDocumentQuote, t: AppTranslate): string | null {
     if (quote.target.sheet || quote.target.cell) {
-        return formatCellTarget(quote);
+        return formatCellTarget(quote, t);
     }
-    return quote.target.page !== undefined ? `Page ${quote.target.page}` : null;
+    return quote.target.page !== undefined ? t("assistant.citationQuotesSection.pageNumber", { page: quote.target.page }) : null;
 }
 
 function documentQuoteItems(
     document: PanelDocument,
+    t: AppTranslate,
 ): CitationQuoteSectionItem[] {
     return document.quotes.map((quote, index) => {
-        const locator = formatQuoteTarget(quote);
+        const locator = formatQuoteTarget(quote, t);
         return {
             id: documentQuoteId(document.document_id, index),
             quote: quote.quote.replaceAll(PAGE_BREAK_SENTINEL, "..."),
@@ -92,10 +97,11 @@ export function CitationQuotesSection({
     onIndexChange,
     onClose,
 }: Props) {
+    const t = useTranslations();
     const quotes = useMemo(
         () =>
-            document ? documentQuoteItems(document) : (suppliedQuotes ?? []),
-        [document, suppliedQuotes],
+            document ? documentQuoteItems(document, t) : (suppliedQuotes ?? []),
+        [document, suppliedQuotes, t],
     );
     const requestedIndex =
         suppliedCurrentIndex ??
@@ -114,12 +120,12 @@ export function CitationQuotesSection({
         <div className="px-2 pb-2">
             <div className={`${RESPONSE_GLASS_SURFACE} p-2`}>
                 <div className="mb-2 flex items-center justify-between">
-                    <ContextNumberBadge number={citationRef} label="Citation" />
+                    <ContextNumberBadge number={citationRef} label={t("assistant.citationQuotesSection.citation")} />
                     <div className="ml-auto flex items-center gap-2">
                         {hasMultipleQuotes && (
                             <div className="flex items-center gap-1">
                                 <span className="mr-0.5 text-xs font-medium text-gray-500">
-                                    Quotes
+                                    {t("assistant.citationQuotesSection.quotes")}
                                 </span>
                                 {quotes.map((quote, index) => {
                                     const isUnverified =
@@ -170,12 +176,12 @@ export function CitationQuotesSection({
                         />
                     ) : (
                         <RelevantQuoteMessage>
-                            No relevant quotes.
+                            {t("assistant.citationQuotesSection.noRelevantQuotes")}
                         </RelevantQuoteMessage>
                     )}
                     {onClose && (isLoading || error || !currentQuote) && (
                         <div className="mt-2 flex justify-end">
-                            <TextButtonUI size="xs" title="Close citation" onClick={onClose}>Close</TextButtonUI>
+                            <TextButtonUI size="xs" title={t("assistant.citationQuotesSection.closeCitation")} onClick={onClose}>{t("assistant.citationQuotesSection.close")}</TextButtonUI>
                         </div>
                     )}
                 </div>
@@ -228,6 +234,7 @@ function QuoteItem({
     onView: () => void;
     onClose?: () => void;
 }) {
+    const t = useTranslations();
     const isUnverified = quote.verificationState === "unverified";
     const isSelected = isActive && !isUnverified;
 
@@ -248,7 +255,7 @@ function QuoteItem({
                                 : "text-gray-700"
                         }`}
                     >
-                        &ldquo;{quote.quote.replace(/"/g, "'")}&rdquo;
+                        {t("assistant.citationQuotesSection.text")}{quote.quote.replace(/"/g, "'")}{t("assistant.citationQuotesSection.text2")}
                         {quoteLabel && (
                             <span
                                 className={`text-sm ${
@@ -273,8 +280,8 @@ function QuoteItem({
                     />
                 )}
                 {onClose && (
-                    <TextButtonUI size="xs" title="Close citation" onClick={onClose} className="ml-auto">
-                        Close
+                    <TextButtonUI size="xs" title={t("assistant.citationQuotesSection.closeCitation")} onClick={onClose} className="ml-auto">
+                        {t("assistant.citationQuotesSection.close")}
                     </TextButtonUI>
                 )}
                 <PillButtonUI
@@ -283,7 +290,7 @@ function QuoteItem({
                     disabled={isUnverified}
                     onClick={onView}
                 >
-                    View
+                    {t("assistant.citationQuotesSection.view")}
                 </PillButtonUI>
             </div>
         </div>
@@ -302,6 +309,7 @@ function CiteQuoteButton({
     quoteText: string;
     quoteLabel: string;
 }) {
+    const t = useTranslations();
     const [isCopied, setIsCopied] = useState(false);
     const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -331,7 +339,7 @@ function CiteQuoteButton({
             tone="white"
             size="xs"
             onClick={handleClick}
-            title="Copy Quote and Citation"
+            title={t("assistant.citationQuotesSection.copyQuoteAndCitation")}
         >
             {isCopied ? (
                 <Check aria-hidden="true" className="h-3 w-3 text-green-600" />
@@ -339,7 +347,7 @@ function CiteQuoteButton({
                 <QuoteIcon aria-hidden="true" className="h-3 w-3" />
             )}
             {/* The visible label is the accessible name; do not override it. */}
-            <span role="status">{isCopied ? "Copied" : "Cite"}</span>
+            <span role="status">{isCopied ? t("assistant.citationQuotesSection.copied") : t("assistant.citationQuotesSection.cite")}</span>
         </PillButtonUI>
     );
 }

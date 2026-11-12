@@ -12,6 +12,7 @@ import { TextButtonUI, PillButtonUI } from "@mike/ui";
 import { FORM_CONTROL_GLASS_CLASS } from "@/app/components/ui/form-field";
 import { cn } from "@/app/lib/utils";
 import { docxEditComment } from "./docxCommentEditing";
+import { useTranslations } from "next-intl";
 
 export function DocxCommentEdit({
     editor,
@@ -24,6 +25,7 @@ export function DocxCommentEdit({
     author?: string;
     onClose: () => void;
 }) {
+    const t = useTranslations();
     useEditorSnapshot(editor);
     const [draft, setDraft] = useState(comment.text);
     const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function DocxCommentEdit({
     const submit = () => {
         if (disabled || !author) return;
         const failure =
-            "Your edit could not be saved. Your draft is kept; please try again.";
+            t("shared.docxCommentEdit.yourEditCouldNotBeSaved");
         try {
             if (docxEditComment(editor, comment, draft.trim(), author))
                 onClose();
@@ -73,7 +75,7 @@ export function DocxCommentEdit({
             }}
         >
             <label htmlFor={id} className="sr-only">
-                Edit comment
+                {t("shared.docxCommentEdit.editComment")}
             </label>
             <textarea
                 id={id}
@@ -92,14 +94,14 @@ export function DocxCommentEdit({
                 </p>
             )}
             <div className="flex justify-end gap-2">
-                <TextButtonUI onClick={onClose}>Cancel</TextButtonUI>
+                <TextButtonUI onClick={onClose}>{t("shared.docxCommentEdit.cancel")}</TextButtonUI>
                 <PillButtonUI
                     type="submit"
                     size="xs"
                     tone="black"
                     disabled={disabled}
                 >
-                    Save
+                    {t("shared.docxCommentEdit.save")}
                 </PillButtonUI>
             </div>
         </form>

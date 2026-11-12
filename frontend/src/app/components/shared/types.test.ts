@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { panelDocumentFromCitation, type DocumentCitation } from "./types";
 
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as AppTranslate;
+
 describe("panelDocumentFromCitation", () => {
     it("preserves quote verification for legacy document citations", () => {
         const citation: DocumentCitation = {
@@ -21,7 +26,7 @@ describe("panelDocumentFromCitation", () => {
             ],
         };
 
-        expect(panelDocumentFromCitation(citation).quotes[0]).toMatchObject({
+        expect(panelDocumentFromCitation(citation, true, t).quotes[0]).toMatchObject({
             quote: "Unmatched quote",
             verification: { verified: false },
             target: { page: 3 },
@@ -59,7 +64,7 @@ describe("panelDocumentFromCitation", () => {
             },
         };
 
-        expect(panelDocumentFromCitation(citation).quotes[0]).toMatchObject({
+        expect(panelDocumentFromCitation(citation, true, t).quotes[0]).toMatchObject({
             quote: "Corrected source quote",
             verification: { verified: true },
             target: { page: 3 },

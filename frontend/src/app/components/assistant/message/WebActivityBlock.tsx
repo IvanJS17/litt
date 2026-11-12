@@ -3,6 +3,7 @@ import type { WebSource } from "@mike/contracts";
 import type { AssistantEvent } from "../../shared/types";
 import { EventBlock } from "./EventBlocks";
 import { EventDisclosureButton, EventLabel } from "./EventDisclosure";
+import { useTranslations } from "next-intl";
 
 type WebSearchEvent = Extract<AssistantEvent, { type: "web_search" }>;
 type WebReadEvent = Extract<AssistantEvent, { type: "web_read" }>;
@@ -82,16 +83,16 @@ export function WebSearchBlock({
     isStreaming?: boolean;
     showConnector?: boolean;
 }) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     const query = event.query.trim();
-    const forQuery = query ? <> for &ldquo;{query}&rdquo;</> : null;
-    const error = event.error;
+        const error = event.error;
     const label: ReactNode = isStreaming ? (
-        <>Searching the web{forQuery}</>
+        <>{t("assistant.webActivityBlock.searchingTheWeb", { query, hasQuery: String(!!query) })}</>
     ) : error ? (
-        query ? <>Web search failed{forQuery}</> : "Web search unavailable"
+        query ? <>{t("assistant.webActivityBlock.webSearchFailed", { query })}</> : t("assistant.webActivityBlock.webSearchUnavailable")
     ) : (
-        <>Searched the web{forQuery}</>
+        <>{t("assistant.webActivityBlock.searchedTheWeb", { query, hasQuery: String(!!query) })}</>
     );
     const results = event.results;
 
@@ -128,6 +129,7 @@ export function WebReadBlock({
     isStreaming?: boolean;
     showConnector?: boolean;
 }) {
+    const t = useTranslations();
     const error = event.error;
     return (
         <EventBlock
@@ -136,7 +138,7 @@ export function WebReadBlock({
             dotColor={error ? "red" : "green"}
         >
             <EventLabel>
-                {isStreaming ? "Reading" : error ? "Read failed" : "Read"}
+                {isStreaming ? t("assistant.webActivityBlock.reading") : error ? t("assistant.webActivityBlock.readFailed") : t("assistant.webActivityBlock.read")}
             </EventLabel>{" "}
             {/* Only a page the server actually read is a link: the model
                 picks the URL, and it may not be one the user should open. */}
@@ -148,13 +150,14 @@ export function WebReadBlock({
 }
 
 export function WebSourcesBlock({ sources }: { sources: WebSource[] }) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     return (
         <EventBlock>
             <EventDisclosureButton
                 open={open}
                 onToggle={() => setOpen((value) => !value)}
-                label="Sources"
+                label={t("assistant.webActivityBlock.sources")}
                 detail={`${sources.length} ${sources.length === 1 ? "web page" : "web pages"}`}
             />
             {open && <WebPageList sources={sources} />}

@@ -27,6 +27,7 @@ import {
 } from "./LiquidGlassUI";
 
 import type { ModelToggleGroup, ModelToggleOption } from "@mike/client";
+import { useTranslations } from "use-intl";
 
 export type { ModelToggleGroup, ModelToggleOption };
 
@@ -41,14 +42,35 @@ export const REASONING_LEVELS = [
 
 export type ReasoningLevel = (typeof REASONING_LEVELS)[number];
 
-export const REASONING_LEVEL_LABELS: Record<ReasoningLevel, string> = {
-  none: "None",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  xhigh: "XHigh",
-  max: "Max",
-};
+/** The catalog key of each level's name; read it with the caller's `t`. */
+export const REASONING_LEVEL_LABEL_KEYS = {
+  none: "ui.modelToggle.levelNone",
+  low: "ui.modelToggle.levelLow",
+  medium: "ui.modelToggle.levelMedium",
+  high: "ui.modelToggle.levelHigh",
+  xhigh: "ui.modelToggle.levelXhigh",
+  max: "ui.modelToggle.levelMax",
+} as const satisfies Record<ReasoningLevel, string>;
+
+/**
+ * The catalog key of the names a route group or source is shown under when
+ * they are words and not a provider. The stored value stays "Local" or
+ * "Configured"; only its label follows the language.
+ */
+const ROUTE_LABEL_KEYS = {
+  Direct: "ui.modelToggle.routeDirect",
+  Local: "ui.modelToggle.routeLocal",
+  Configured: "ui.modelToggle.routeConfigured",
+} as const;
+
+function routeLabel(
+  t: (key: (typeof ROUTE_LABEL_KEYS)[keyof typeof ROUTE_LABEL_KEYS]) => string,
+  value: string,
+): string {
+  return Object.hasOwn(ROUTE_LABEL_KEYS, value)
+    ? t(ROUTE_LABEL_KEYS[value as keyof typeof ROUTE_LABEL_KEYS])
+    : value;
+}
 
 const STANDARD_REASONING_LEVELS: readonly ReasoningLevel[] =
   REASONING_LEVELS.filter((level) => level !== "max");
@@ -192,7 +214,7 @@ export function ModelToggleUI({
   modalInput = false,
   toolbar = false,
   triggerClassName,
-  emptyLabel = "No Models",
+  emptyLabel,
   onEmptyClick,
   reasoningLevel,
   onReasoningChange,
@@ -200,6 +222,7 @@ export function ModelToggleUI({
   open: openProp,
   onOpenChange,
 }: ModelToggleUIProps) {
+  const t = useTranslations();
   const TriggerButton = toolbar ? TabPillButtonUI : "button";
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
   const open = openProp ?? uncontrolledOpen;
@@ -219,7 +242,9 @@ export function ModelToggleUI({
   const label =
     selectedLabel ??
     selected?.label ??
-    (models.length > 0 ? "Select model" : emptyLabel);
+    (models.length > 0
+      ? t("ui.modelToggle.selectModel")
+      : (emptyLabel ?? t("ui.modelToggle.noModels")));
   const reasoningIndex = reasoningLevel
     ? Math.max(0, reasoningLevels.indexOf(reasoningLevel))
     : 0;
@@ -245,8 +270,8 @@ export function ModelToggleUI({
     return (
       <TriggerButton
         type="button"
-        aria-label="No models available"
-        title="Configure models"
+        aria-label={t("ui.modelToggle.noModelsAvailable")}
+        title={t("ui.modelToggle.configureModels")}
         onClick={onEmptyClick}
         disabled={!onEmptyClick}
         className={
@@ -265,7 +290,7 @@ export function ModelToggleUI({
               )
         }
       >
-        <span className="max-w-[200px] truncate">{emptyLabel}</span>
+        <span className="max-w-[200px] truncate">{emptyLabel ?? t("ui.modelToggle.noModels")}</span>
       </TriggerButton>
     );
   }
@@ -275,15 +300,15 @@ export function ModelToggleUI({
       <DropdownTrigger asChild>
         <TriggerButton
           type="button"
-          aria-label="Choose model"
+          aria-label={t("ui.modelToggle.chooseModel")}
           title={
             loading
-              ? "Checking API keys"
+              ? t("ui.modelToggle.checkingApiKeys")
               : models.length === 0
-                ? "No API key configured"
+                ? t("ui.modelToggle.noApiKeyConfigured")
                 : selectedAvailable
-                  ? `Choose model — ${label}`
-                  : "API key missing for selected model"
+                  ? t("ui.modelToggle.chooseModelLabel", { label })
+                  : t("ui.modelToggle.apiKeyMissingForSelectedModel")
           }
           disabled={loading}
           className={
@@ -342,7 +367,7 @@ export function ModelToggleUI({
                     setExpandedGroup(expanded ? null : group);
                   }}
                 >
-                  <span className="flex-1">{group}</span>
+                  <span className="flex-1">{routeLabel(t, group)}</span>
                   <ChevronDown
                     className={`h-3.5 w-3.5 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
                   />
@@ -374,7 +399,7 @@ export function ModelToggleUI({
                             `${model.group}\u0000${model.label.toLocaleLowerCase()}`,
                           ) ?? 0) > 1) && (
                           <span className="shrink-0 text-right text-[10px] font-medium text-gray-400">
-                            {model.source}
+                            {routeLabel(t, model.source)}
                           </span>
                         )}
                     </DropdownItem>
@@ -387,7 +412,7 @@ export function ModelToggleUI({
           <div className="shrink-0">
             <DropdownSeparator />
             <DropdownItem
-              aria-label={`Reasoning level: ${REASONING_LEVEL_LABELS[reasoningLevel]}`}
+              aria-label={t("ui.modelToggle.reasoningLevelValue", { level: t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel]) })}
               onSelect={(event) => event.preventDefault()}
               onFocus={(event) => {
                 if (event.target === event.currentTarget) {
@@ -398,9 +423,9 @@ export function ModelToggleUI({
             >
               <div>
                 <div className="mb-1.5 flex items-center gap-2 text-xs text-gray-700">
-                  <span className="font-medium">Reasoning</span>
+                  <span className="font-medium">{t("ui.modelToggle.reasoning")}</span>
                   <span className="ml-auto text-[10px] text-gray-500">
-                    {REASONING_LEVEL_LABELS[reasoningLevel]}
+                    {t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel])}
                   </span>
                 </div>
                 <div className="relative h-4 w-full rounded-full bg-gray-200/80 transition-shadow duration-150 has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-focus has-[input:focus-visible]:ring-offset-2">
@@ -422,8 +447,8 @@ export function ModelToggleUI({
                   <input
                     ref={reasoningInputRef}
                     type="range"
-                    aria-label="Reasoning level"
-                    aria-valuetext={REASONING_LEVEL_LABELS[reasoningLevel]}
+                    aria-label={t("ui.modelToggle.reasoningLevel")}
+                    aria-valuetext={t(REASONING_LEVEL_LABEL_KEYS[reasoningLevel])}
                     min={0}
                     max={reasoningLevels.length - 1}
                     step={1}

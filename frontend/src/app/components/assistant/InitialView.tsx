@@ -13,6 +13,7 @@ import {
 } from "@mike/ui";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { Document, Message, QuickAction } from "../shared/types";
+import { useTranslations } from "next-intl";
 
 interface InitialViewProps {
     onSubmit: (message: Message) => void;
@@ -32,6 +33,7 @@ export function InitialView({
     quickActions,
     onEditQuickActions,
 }: InitialViewProps) {
+    const t = useTranslations();
     const { user } = useAuth();
     const { profile } = useUserProfile();
     const loaded = !!profile;
@@ -78,7 +80,7 @@ export function InitialView({
                         className="text-4xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
                         style={{ opacity: loaded ? 1 : 0 }}
                     >
-                        Hi, {username}
+                        {t("assistant.initialView.hiUsername", { username })}
                     </h1>
                 </div>
             </div>
@@ -97,7 +99,7 @@ export function InitialView({
             <div className="min-h-0 w-full max-w-4xl justify-self-center px-0 pt-1 xl:px-8">
                 <div className="text-center">
                     <p className="text-xs py-2 mb-12 text-gray-500">
-                        AI can make mistakes. Answers are not legal advice.
+                        {t("assistant.initialView.aiCanMakeMistakesAnswersAre")}
                     </p>
                 </div>
 
@@ -112,12 +114,12 @@ export function InitialView({
                                     aria-hidden="true"
                                     className="h-3.5 w-3.5 shrink-0"
                                 />
-                                Quick actions
+                                {t("assistant.initialView.quickActions")}
                             </span>
                             <button
                                 type="button"
                                 onClick={onEditQuickActions}
-                                aria-label="Configure quick actions"
+                                aria-label={t("assistant.initialView.configureQuickActions")}
                                 className="absolute left-full ml-1.5 flex h-5 w-5 items-center justify-center text-gray-400 opacity-0 transition-all hover:text-gray-700 group-hover:opacity-100 focus:opacity-100"
                             >
                                 <MoreHorizontal className="h-3.5 w-3.5" />

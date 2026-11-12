@@ -7,6 +7,7 @@ import "katex/dist/katex.min.css";
 import type { Citation } from "../../shared/types";
 import { CitationPillUI, EXCERPT_SOURCE_PROPS } from "@mike/ui";
 import { withoutMarkdownNode } from "./messageStyles";
+import { useTranslations } from "next-intl";
 import { citationTooltip } from "./CitationSources";
 import {
     citationVerificationAriaLabel,
@@ -40,6 +41,7 @@ function MarkdownContentImpl({
     onCitationClick?: (c: Citation) => void;
     divRef?: RefObject<HTMLDivElement | null>;
 }) {
+    const t = useTranslations();
 
     return (
         <div
@@ -184,7 +186,7 @@ function MarkdownContentImpl({
                             const idx = parseInt(citMatch[1]);
                             const annotation = inlineCitationTargets[idx];
                             if (annotation) {
-                                const tooltipText = citationTooltip(annotation);
+                                const tooltipText = citationTooltip(annotation, t);
                                 return (
                                     <CitationPillUI
                                         active={activeCitation === annotation}
@@ -195,6 +197,7 @@ function MarkdownContentImpl({
                                         className={`${citationVerificationPillClassName(annotation)} mx-0.5 align-super`}
                                         aria-label={citationVerificationAriaLabel(
                                             annotation,
+                                            t,
                                         )}
                                         title={tooltipText}
                                     >

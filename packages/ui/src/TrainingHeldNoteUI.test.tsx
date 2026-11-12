@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { isTrainingHeld, TRAINING_HELD_LABEL, TrainingHeldNoteUI } from "./TrainingHeldNoteUI";
+import { isTrainingHeld, TrainingHeldNoteUI } from "./TrainingHeldNoteUI";
 
 describe("TrainingHeldNoteUI", () => {
   it("says in plain text that the draft waits for approval", () => {
     render(<TrainingHeldNoteUI className="mt-1" />);
-    const note = screen.getByText(TRAINING_HELD_LABEL);
+    const note = screen.getByText("Intern draft, pending approval");
     expect(note.tagName).toBe("SPAN");
     expect(note).toHaveClass("mt-1", "text-muted-foreground");
   });

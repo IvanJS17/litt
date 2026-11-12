@@ -8,12 +8,14 @@ import {
   WorkflowSkeuoIcon,
 } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { ClosedProjectSvgIcon } from "@/app/components/shared/FolderSvgIcon";
+import { useTranslations } from "next-intl";
 import type { AuditEvent } from "@/app/lib/mikeApi";
 import { auditSubject, auditSubjectEmail, auditSubjectKind } from "./auditPresentation";
 
 export function HistorySubjectIcon({ event, avatarSize }: { event: AuditEvent; avatarSize?: UserAvatarSize }) {
+  const t = useTranslations();
   const type = auditSubjectKind(event);
-  const { name } = auditSubject(event);
+  const { name } = auditSubject(event, t);
   const className = "h-4 w-4 shrink-0";
   if (type === "document")
     return (

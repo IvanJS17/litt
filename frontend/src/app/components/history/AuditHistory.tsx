@@ -78,6 +78,7 @@ import {
   auditActor,
   auditSubject,
   auditSubjectEmail,
+  auditActorIsSystem,
   auditTimestamp,
   auditDestination,
   auditPrivateAccess,
@@ -93,7 +94,8 @@ import {
   DropdownSurface,
   DropdownTrigger,
 } from "@mike/ui";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import type { DateFormatter } from "@/app/lib/dateText";
 
 const STATUS_DOT_STYLES: Record<string, string> = {
   completed: "bg-green-400/80",
@@ -166,12 +168,18 @@ function dateRangeErrorKey(
   return null;
 }
 
-function formatRangeDate(value: string, openLabel: string): string {
+function formatRangeDate(
+  format: DateFormatter,
+  value: string,
+  openLabel: string,
+): string {
   if (!value) return openLabel;
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+  // A calendar day with no time of day: shown as that same day everywhere.
+  return format.dateTime(new Date(`${value}T00:00:00Z`), {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -183,6 +191,7 @@ export function AuditHistory({
   onBack?: () => void;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
     const title = orgId ? t("history.auditLog") : t("history.myActivity");
   const statusOptions = useMemo(
     () =>
@@ -398,7 +407,7 @@ export function AuditHistory({
   ) => {
     const single = targets.length === 1 ? targets[0] : null;
     const privateAccess = single && orgId ? auditPrivateAccess(single) : null;
-    const destination = single && !privateAccess ? auditDestination(single) : null;
+    const destination = single && !privateAccess ? auditDestination(single, t) : null;
     return (
       <>
         {selection && (
@@ -712,10 +721,10 @@ export function AuditHistory({
                   >
                     <time
                       dateTime={event.created_at}
-                      title={auditTimestamp(event.created_at, true, t)}
+                      title={auditTimestamp(event.created_at, true, t, format)}
                       className="whitespace-nowrap text-xs text-gray-700"
                     >
-                      {auditTimestamp(event.created_at, false, t)}
+                      {auditTimestamp(event.created_at, false, t, format)}
                     </time>
                   </TablePrimaryCell>
                   {orgId && (
@@ -729,7 +738,7 @@ export function AuditHistory({
                         .join(" · ")}
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        {actor !== t("history.system") && (
+                        {!auditActorIsSystem(event) && (
                           <UserAvatar
                             size="sm"
                             photo={event.user_profile_photo}
@@ -995,6 +1004,7 @@ function DateRangeDropdown({
   onChange: (range: { from: string; to: string }) => void;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const [open, setOpen] = useState(false);
   const [draftRange, setDraftRange] = useState({ from, to });
   const hasChanges = draftRange.from !== from || draftRange.to !== to;
@@ -1017,10 +1027,10 @@ function DateRangeDropdown({
           active
           data-icon-position="right"
           className="pl-2.5 pr-2"
-          aria-label={t("history.selectDateRange", { from: formatRangeDate(from, t("history.open")), to: formatRangeDate(to, t("history.open")) })}
+          aria-label={t("history.selectDateRange", { from: formatRangeDate(format, from, t("history.open")), to: formatRangeDate(format, to, t("history.open")) })}
         >
           <CalendarDays aria-hidden="true" className="h-3.5 w-3.5" />
-          {formatRangeDate(from, t("history.open"))} – {formatRangeDate(to, t("history.open"))}
+          {formatRangeDate(format, from, t("history.open"))} – {formatRangeDate(format, to, t("history.open"))}
           <ChevronDown
             aria-hidden="true"
             className={`h-3.5 w-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}

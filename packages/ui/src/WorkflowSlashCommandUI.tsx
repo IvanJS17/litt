@@ -1,3 +1,4 @@
+import { useTranslations } from "use-intl";
 export function workflowSlashCommandFromTitle(title: string): string | null {
     const titleSlug = title
         .trim()
@@ -42,20 +43,20 @@ export function withoutSlashCommand(value: string): string {
 }
 
 export function WorkflowSlashCommandUI({ title }: { title: string }) {
+    const t = useTranslations();
     const command = workflowSlashCommandFromTitle(title);
 
     return (
         <p className="mt-2 min-h-5 text-xs leading-5 text-gray-500">
             {command ? (
-                <>
-                    Type{" "}
-                    <span className="text-gray-700">
-                        {command}
-                    </span>{" "}
-                    in chat to activate this workflow.
-                </>
+                t.rich("ui.workflowSlashCommand.typeCommandInChat", {
+                    command,
+                    code: (chunks) => (
+                        <span className="text-gray-700">{chunks}</span>
+                    ),
+                })
             ) : (
-                <span aria-hidden="true">&nbsp;</span>
+                <span aria-hidden="true">{"\u00a0"}</span>
             )}
         </p>
     );

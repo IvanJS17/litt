@@ -1,5 +1,7 @@
 import { modelDisplayName } from "@mike/client";
-import { REASONING_LEVEL_LABELS, REASONING_LEVELS } from "@mike/ui";
+import { REASONING_LEVEL_LABEL_KEYS, REASONING_LEVELS } from "@mike/ui";
+import type { DateFormatter } from "@/app/lib/dateText";
+import type { AppTranslate } from "@/i18n/Translate";
 import type { AssistantEvent } from "../../shared/types";
 
 /**
@@ -12,29 +14,39 @@ type Usage = { input_tokens: number; output_tokens: number };
 type ResponseDetailsEvent = Extract<AssistantEvent, { type: "response_details" }>;
 type DelegationEvent = Extract<AssistantEvent, { type: "delegation" }>;
 
-const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact" });
+/** The language and the number format of the screen the text is shown in. */
+type Text = { t: AppTranslate; format: DateFormatter };
 
-function reasoningLabel(level: string | undefined): string | null {
+const compact = ({ format }: Text, value: number) =>
+    format.number(value, { notation: "compact" });
+
+function reasoningLabel(text: Text, level: string | undefined): string | null {
     const known = REASONING_LEVELS.find((l) => l === level);
     if (!known) return null;
-    return known === "none" ? "No reasoning" : REASONING_LEVEL_LABELS[known];
+    return known === "none"
+        ? text.t("assistant.responseDetails.noReasoning")
+        : text.t(REASONING_LEVEL_LABEL_KEYS[known]);
 }
 
-function runText(run: {
+function runText(text: Text, run: {
     model?: string;
     reasoning?: string;
     usage?: Usage;
     budget?: number;
 }): string {
     if (!run.model) return "";
-    const reasoning = reasoningLabel(run.reasoning);
+    const reasoning = reasoningLabel(text, run.reasoning);
     // Non-breaking spaces keep "304K tokens" and "(2.5M budget allocated)"
     // whole, so a narrow line wraps between the parts rather than inside one.
     const tokens = run.usage
-        ? `: ${compactNumber.format(run.usage.input_tokens + run.usage.output_tokens)}\u00a0tokens`
+        ? text.t("assistant.responseDetails.tokens", {
+              count: compact(text, run.usage.input_tokens + run.usage.output_tokens),
+          })
         : "";
     const budget = run.budget
-        ? ` (${compactNumber.format(run.budget)}\u00a0budget\u00a0allocated)`
+        ? text.t("assistant.responseDetails.budgetAllocated", {
+              count: compact(text, run.budget),
+          })
         : "";
     return `${modelDisplayName(run.model)}${reasoning ? ` (${reasoning})` : ""}${tokens}${budget}`;
 }
@@ -46,12 +58,16 @@ function runText(run: {
  * Subagents total: 608K tokens."
  */
 export function responseDetailsText(
+    text: Text,
     event: ResponseDetailsEvent,
     subagents?: Usage | null,
 ): string {
-    if (!subagents) return runText(event);
-    const total = compactNumber.format(subagents.input_tokens + subagents.output_tokens);
-    return `Main: ${runText(event)}. Subagents\u00a0total:\u00a0${total}\u00a0tokens.`;
+    if (!subagents) return runText(text, event);
+    const total = compact(text, subagents.input_tokens + subagents.output_tokens);
+    return text.t("assistant.responseDetails.mainAndSubagents", {
+        main: runText(text, event),
+        total,
+    });
 }
 
 /** The tokens every subagent in an answer used, or null when none reported any. */
@@ -67,6 +83,6 @@ export function subagentUsage(events: AssistantEvent[]): Usage | null {
 }
 
 /** A subagent: "Claude Haiku 4.5 (Low): 30K tokens (600K budget allocated)". */
-export function subagentDetailsText(event: DelegationEvent): string {
-    return runText({ ...event, budget: event.token_budget });
+export function subagentDetailsText(text: Text, event: DelegationEvent): string {
+    return runText(text, { ...event, budget: event.token_budget });
 }

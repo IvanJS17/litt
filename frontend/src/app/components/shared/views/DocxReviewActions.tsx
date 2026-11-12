@@ -21,6 +21,7 @@ import {
     docxHighlightedComment,
     docxReviewTarget,
 } from "./docxReviewTarget";
+import { useTranslations } from "next-intl";
 
 export function DocxReviewActions({
     editor,
@@ -41,6 +42,7 @@ export function DocxReviewActions({
     /** Reveal a highlighted comment's bubble in the comments column. */
     onView?: (key: string) => void;
 }) {
+    const t = useTranslations();
     useEditorSnapshot(editor);
     const pending = useRef<{
         action: "reply" | "edit" | "view";
@@ -147,9 +149,9 @@ export function DocxReviewActions({
                       ? editor.acceptReviewItem(item.key)
                       : editor.rejectReviewItem(item.key);
             if (!result.ok)
-                setError("This action could not be applied. Please try again.");
+                setError(t("shared.docxReviewActions.thisActionCouldNotBeApplied"));
         } catch {
-            setError("This action could not be applied. Please try again.");
+            setError(t("shared.docxReviewActions.thisActionCouldNotBeApplied"));
         }
     };
     return (
@@ -203,7 +205,7 @@ export function DocxReviewActions({
                                 }}
                             >
                                 <MessageSquare className="h-3.5 w-3.5" />
-                                View comment
+                                {t("shared.docxReviewActions.viewComment")}
                             </DropdownItem>
                             <DropdownItem
                                 disabled={disabled}
@@ -211,7 +213,7 @@ export function DocxReviewActions({
                                 onSelect={() => run("delete")}
                             >
                                 <Trash2 className="h-3.5 w-3.5" />
-                                Delete comment
+                                {t("shared.docxReviewActions.deleteComment")}
                             </DropdownItem>
                         </>
                     ) : item?.kind === "comment" ? (
@@ -227,7 +229,7 @@ export function DocxReviewActions({
                                 }}
                             >
                                 <Reply className="h-3.5 w-3.5" />
-                                Reply to comment
+                                {t("shared.docxReviewActions.replyToComment")}
                             </DropdownItem>
                             {onEdit && (
                                 <DropdownItem
@@ -248,7 +250,7 @@ export function DocxReviewActions({
                                     }}
                                 >
                                     <Pencil className="h-3.5 w-3.5" />
-                                    Edit comment
+                                    {t("shared.docxReviewActions.editComment")}
                                 </DropdownItem>
                             )}
                             <DropdownItem
@@ -257,7 +259,7 @@ export function DocxReviewActions({
                                 onSelect={() => run("delete")}
                             >
                                 <Trash2 className="h-3.5 w-3.5" />
-                                Delete comment
+                                {t("shared.docxReviewActions.deleteComment")}
                             </DropdownItem>
                         </>
                     ) : (
@@ -267,14 +269,14 @@ export function DocxReviewActions({
                                 onSelect={() => run("accept")}
                             >
                                 <Check className="h-3.5 w-3.5" />
-                                Accept tracked change
+                                {t("shared.docxReviewActions.acceptTrackedChange")}
                             </DropdownItem>
                             <DropdownItem
                                 disabled={disabled}
                                 onSelect={() => run("reject")}
                             >
                                 <X className="h-3.5 w-3.5" />
-                                Reject tracked change
+                                {t("shared.docxReviewActions.rejectTrackedChange")}
                             </DropdownItem>
                         </>
                     )}
@@ -282,7 +284,7 @@ export function DocxReviewActions({
             </Dropdown>
             <WarningPopup
                 open={!!error}
-                title="Unable to update document"
+                title={t("shared.docxReviewActions.unableToUpdateDocument")}
                 message={error}
                 onClose={() => setError(null)}
             />

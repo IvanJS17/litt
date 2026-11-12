@@ -2,6 +2,7 @@
 
 import type { Workflow } from "../shared/types";
 import { WorkflowPickerModal } from "../workflows/WorkflowPickerModal";
+import { useTranslations } from "next-intl";
 
 interface Props {
     open: boolean;
@@ -20,14 +21,15 @@ export function AssistantWorkflowModal({
     projectCmNumber,
     initialWorkflowId,
 }: Props) {
+    const t = useTranslations();
     const breadcrumbs = projectName
         ? [
-              "Projects",
+              t("assistant.assistantWorkflowModal.projects"),
               `${projectName}${projectCmNumber ? ` (#${projectCmNumber})` : ""}`,
-              "Assistant",
-              "Add workflow",
+              t("assistant.assistantWorkflowModal.assistant"),
+              t("assistant.assistantWorkflowModal.addWorkflow"),
           ]
-        : ["Assistant", "Add workflow"];
+        : [t("assistant.assistantWorkflowModal.assistant"), t("assistant.assistantWorkflowModal.addWorkflow")];
 
     return (
         <WorkflowPickerModal
@@ -36,7 +38,7 @@ export function AssistantWorkflowModal({
             onSelect={onSelect}
             workflowType="assistant"
             breadcrumbs={breadcrumbs}
-            primaryLabel="Use"
+            primaryLabel={t("assistant.assistantWorkflowModal.use")}
             initialWorkflowId={initialWorkflowId}
         />
     );

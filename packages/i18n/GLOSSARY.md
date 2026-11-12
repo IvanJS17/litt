@@ -24,6 +24,7 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 - «correo» basta cuando el contexto es claro; no se repite «correo electrónico» en cada mensaje.
 - «verificación en dos pasos», no «verificación de dos factores».
 - Frases cortas.
+- Elipsis: … (un carácter).
 
 ## Términos
 

@@ -2,68 +2,72 @@
 
 import type { ConnectorApprovalItem } from "@mike/contracts";
 import { ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
 
 // Readable labels for the argument names Mike's built-in connectors use.
 // Anything else (for example an MCP server's own parameters) shows its key.
-const labels: Record<string, string> = {
-  to: "To",
-  cc: "Cc",
-  bcc: "Bcc",
-  subject: "Subject",
-  body: "Message",
-  calendar_id: "Calendar",
-  event_id: "Event",
-  file_id: "File",
-  parent_id: "Destination folder",
-  file_type: "File type",
-  content: "New contents",
-  file: "File",
-  destination: "Destination folder",
-  name: "Name",
-  draft_id: "Draft",
-  message_id: "Message",
-  summary: "Title",
-  description: "Description",
-  location: "Location",
-  start: "Start",
-  end: "End (exclusive for all-day events)",
-  attendees: "Attendees",
-  add_label_ids: "Add labels",
-  remove_label_ids: "Remove labels",
-  date: "Date",
-  dateTime: "Date and time",
-  timeZone: "Time zone",
-  email: "Email",
-};
+const LABEL_KEYS = {
+  to: "shared.connectorActionCard.argTo",
+  cc: "shared.connectorActionCard.argCc",
+  bcc: "shared.connectorActionCard.argBcc",
+  subject: "shared.connectorActionCard.argSubject",
+  body: "shared.connectorActionCard.argMessage",
+  calendar_id: "shared.connectorActionCard.argCalendar",
+  event_id: "shared.connectorActionCard.argEvent",
+  file_id: "shared.connectorActionCard.argFile",
+  parent_id: "shared.connectorActionCard.argDestinationFolder",
+  file_type: "shared.connectorActionCard.argFileType",
+  content: "shared.connectorActionCard.argNewContents",
+  file: "shared.connectorActionCard.argFile",
+  destination: "shared.connectorActionCard.argDestinationFolder",
+  name: "shared.connectorActionCard.argName",
+  draft_id: "shared.connectorActionCard.argDraft",
+  message_id: "shared.connectorActionCard.argMessage",
+  summary: "shared.connectorActionCard.argTitle",
+  description: "shared.connectorActionCard.argDescription",
+  location: "shared.connectorActionCard.argLocation",
+  start: "shared.connectorActionCard.argStart",
+  end: "shared.connectorActionCard.argEndExclusiveForAll",
+  attendees: "shared.connectorActionCard.argAttendees",
+  add_label_ids: "shared.connectorActionCard.argAddLabels",
+  remove_label_ids: "shared.connectorActionCard.argRemoveLabels",
+  date: "shared.connectorActionCard.argDate",
+  dateTime: "shared.connectorActionCard.argDateAndTime",
+  timeZone: "shared.connectorActionCard.argTimeZone",
+  email: "shared.connectorActionCard.argEmail",
+} as const;
 
-function argumentLabel(key: string): string {
-  return Object.hasOwn(labels, key) ? labels[key] : key;
+function argumentLabel(t: AppTranslate, key: string): string {
+  return Object.hasOwn(LABEL_KEYS, key)
+    ? t(LABEL_KEYS[key as keyof typeof LABEL_KEYS])
+    : key;
 }
 
-function display(value: unknown): string {
-  if (Array.isArray(value)) return value.map(display).join("\n");
+function display(t: AppTranslate, value: unknown): string {
+  if (Array.isArray(value)) return value.map((item) => display(t, item)).join("\n");
   if (value && typeof value === "object")
     return Object.entries(value)
       .filter(([, nested]) => nested !== undefined && nested !== null)
-      .map(([key, nested]) => `${argumentLabel(key)}: ${display(nested)}`)
+      .map(([key, nested]) => `${argumentLabel(t, key)}: ${display(t, nested)}`)
       .join("\n");
   return String(value ?? "");
 }
 
-function consequenceNote(item: ConnectorApprovalItem): string | null {
+function consequenceNote(t: AppTranslate, item: ConnectorApprovalItem): string | null {
   if (item.tool_name === "google_drive_replace_file_content")
-    return "This replaces all file contents with the text shown below. Existing Google Doc formatting is replaced.";
+    return t("shared.connectorActionCard.replacesFileContents");
   if (item.tool_name === "google_drive_trash_file")
-    return "This moves the item to Google Drive Trash. Trashing a folder affects its contents.";
+    return t("shared.connectorActionCard.movesToTrash");
   if (item.tool_name === "google_drive_move_file")
-    return "Moving this item may change access inherited from its folder.";
+    return t("shared.connectorActionCard.movingMayChangeAccess");
   if (
     item.binding.type === "google" &&
     item.binding.provider === "google-calendar"
   )
-    return "Google will notify attendees of this change. Deleting an event sends cancellation notices.";
+    return t("shared.connectorActionCard.googleNotifiesAttendees");
   if (item.tool_name === "gmail_delete_draft")
-    return "This deletes the draft. Review its contents before approving.";
+    return t("shared.connectorActionCard.deletesTheDraft");
   return null;
 }
 
@@ -73,13 +77,14 @@ function consequenceNote(item: ConnectorApprovalItem): string | null {
  * the surface around it.
  */
 export function ConnectorActionCard({ item }: { item: ConnectorApprovalItem }) {
-  const note = consequenceNote(item);
+  const t = useTranslations();
+  const note = consequenceNote(t, item);
   const args = Object.entries(item.arguments).filter(
     ([, value]) => value !== undefined && value !== null,
   );
   return (
     <article
-      aria-label={`${item.title} on ${item.connector_name}`}
+      aria-label={t("shared.connectorActionCard.titleOnConnectorName", { title: item.title, connector_name: item.connector_name })}
       className="space-y-3 text-left"
     >
       <div>
@@ -90,7 +95,7 @@ export function ConnectorActionCard({ item }: { item: ConnectorApprovalItem }) {
         </p>
         {item.requested_by && (
           <p className="mt-0.5 text-xs text-gray-500 [overflow-wrap:anywhere]">
-            Requested by subagent: {item.requested_by}
+            {t("shared.connectorActionCard.requestedBySubagentRequestedBy", { requested_by: item.requested_by })}
           </p>
         )}
       </div>
@@ -99,15 +104,15 @@ export function ConnectorActionCard({ item }: { item: ConnectorApprovalItem }) {
         <dl className="space-y-2 text-sm">
           {args.map(([key, value]) => (
             <div key={key}>
-              <dt className="text-xs text-gray-500">{argumentLabel(key)}</dt>
+              <dt className="text-xs text-gray-500">{argumentLabel(t, key)}</dt>
               <dd className="whitespace-pre-wrap text-gray-800 [overflow-wrap:anywhere]">
-                {display(value)}
+                {display(t, value)}
               </dd>
             </div>
           ))}
         </dl>
       ) : (
-        <p className="text-sm text-gray-500">This action takes no details.</p>
+        <p className="text-sm text-gray-500">{t("shared.connectorActionCard.thisActionTakesNoDetails")}</p>
       )}
       {item.before !== undefined && (
         <details className="group/approval-details">
@@ -116,10 +121,10 @@ export function ConnectorActionCard({ item }: { item: ConnectorApprovalItem }) {
               aria-hidden="true"
               className="size-3 shrink-0 group-open/approval-details:rotate-90"
             />
-            Current item before this change
+            {t("shared.connectorActionCard.currentItemBeforeThisChange")}
           </summary>
           <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap font-sans text-xs text-gray-700 [overflow-wrap:anywhere]">
-            {display(item.before)}
+            {display(t, item.before)}
           </pre>
         </details>
       )}

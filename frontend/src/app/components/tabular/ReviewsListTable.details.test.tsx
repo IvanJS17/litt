@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { createFormatter } from "use-intl";
 import { ReviewsListTable } from "./ReviewsListTable";
 import { formatDate } from "@/app/components/projects/ProjectPageParts";
 import type { TabularReview } from "@/app/components/shared/types";
@@ -146,7 +147,13 @@ describe("ReviewsListTable updated column", () => {
             { onOpenDetails: vi.fn(), onOwnerOnlyAction: vi.fn() },
         );
         expect(screen.getByText("Updated")).toBeVisible();
-        expect(screen.getByText(formatDate(updated))).toBeVisible();
+        expect(screen.getByText(formatDate(
+                    createFormatter({
+                        locale: "en-US",
+                        timeZone: "America/Mexico_City",
+                    }),
+                    updated,
+                ))).toBeVisible();
         expect(
             screen.getByRole("button", { name: "Sort by updated date" }),
         ).toBeInTheDocument();

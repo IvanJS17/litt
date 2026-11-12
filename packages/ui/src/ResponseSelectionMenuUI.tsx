@@ -11,6 +11,7 @@ import {
     normalizeExcerptText,
     type MessageExcerpt,
 } from "@mike/client";
+import { useTranslations } from "use-intl";
 
 /** Marks the response text a reader can highlight to quote or annotate. */
 export const EXCERPT_SOURCE_PROPS = { "data-excerpt-source": "" } as const;
@@ -222,6 +223,7 @@ function AnnotationBubble({
     onSubmit: (note: string) => void;
     onClose: () => void;
 }) {
+    const t = useTranslations();
     const [note, setNote] = useState("");
     const surfaceRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -276,15 +278,15 @@ function AnnotationBubble({
                     ref={inputRef}
                     value={note}
                     onChange={(event) => setNote(event.target.value)}
-                    aria-label="Note about the selected text"
+                    aria-label={t("ui.responseSelectionMenu.noteAboutTheSelectedText")}
                     // Sits on the surface's glass with no fill of its own.
                     data-dropdown-input="flush"
-                    placeholder="Add a note about this passage"
+                    placeholder={t("ui.responseSelectionMenu.addANoteAboutThisPassage")}
                     className="min-w-0 flex-1 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
                 />
                 <button
                     type="submit"
-                    aria-label="Add annotation to chat"
+                    aria-label={t("ui.responseSelectionMenu.addAnnotationToChat")}
                     disabled={!trimmed}
                     className={`${COMPOSER_SEND_BUTTON_CLASS} h-7 w-7 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus`}
                 >
@@ -323,6 +325,7 @@ export function ResponseSelectionMenuUI({
      */
     scopeRef?: RefObject<Element | null>;
 }) {
+    const t = useTranslations();
     const [menu, setMenu] = useState<SelectedExcerpt | null>(null);
     const [annotating, setAnnotating] = useState<SelectedExcerpt | null>(null);
     useRangeHighlight(annotating?.range ?? menu?.range ?? null);
@@ -395,7 +398,7 @@ export function ResponseSelectionMenuUI({
                     point={menu.point}
                     followPoint
                     onClose={() => setMenu(null)}
-                    aria-label="Selected text"
+                    aria-label={t("ui.responseSelectionMenu.selectedText")}
                     className="w-44"
                 >
                     <DropdownItem
@@ -406,7 +409,7 @@ export function ResponseSelectionMenuUI({
                         }}
                     >
                         <Copy aria-hidden="true" className="h-3.5 w-3.5" />
-                        Copy
+                        {t("ui.responseSelectionMenu.copy")}
                     </DropdownItem>
                     {canAsk && (
                         <>
@@ -419,14 +422,14 @@ export function ResponseSelectionMenuUI({
                                     aria-hidden="true"
                                     className="h-3.5 w-3.5"
                                 />
-                                Ask
+                                {t("ui.responseSelectionMenu.ask")}
                             </DropdownItem>
                             <DropdownItem onSelect={() => setAnnotating(menu)}>
                                 <TextQuote
                                     aria-hidden="true"
                                     className="h-3.5 w-3.5"
                                 />
-                                Annotate and ask
+                                {t("ui.responseSelectionMenu.annotateAndAsk")}
                             </DropdownItem>
                             {onAskInSideChat && (
                                 <DropdownItem
@@ -449,7 +452,7 @@ export function ResponseSelectionMenuUI({
                                         aria-hidden="true"
                                         className="h-3.5 w-3.5"
                                     />
-                                    Ask in side chat
+                                    {t("ui.responseSelectionMenu.askInSideChat")}
                                 </DropdownItem>
                             )}
                         </>

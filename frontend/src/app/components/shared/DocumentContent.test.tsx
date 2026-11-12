@@ -20,6 +20,11 @@ import {
 } from "./types";
 import { DocumentContent, type DocumentContentMode } from "./DocumentContent";
 
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as AppTranslate;
+
 const { viewer, resolveEdit, loadVersions } = vi.hoisted(() => ({
     viewer: vi.fn(),
     resolveEdit: vi.fn(),
@@ -97,6 +102,8 @@ function content(
                 canEdit={canEdit}
                 document={panelDocumentFromCitation(
                     mode.kind === "citation" ? mode.citation : citation,
+                    true,
+                    t,
                 )}
                 mode={
                     mode.kind === "edit"
@@ -445,7 +452,7 @@ it.each(["pdf", "spreadsheet", "case"] as const)(
 
 function VersionHarness({ surface }: { surface: "assistant" | "project" }) {
     const [document, setDocument] = useState({
-        ...panelDocumentFromCitation(citation),
+        ...panelDocumentFromCitation(citation, true, t),
         version_id: "v1",
         version_number: 1,
     });

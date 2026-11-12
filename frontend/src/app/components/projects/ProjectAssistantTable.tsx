@@ -8,6 +8,7 @@ import {
     type Dispatch,
     type SetStateAction,
 } from "react";
+import { useFormatter } from "next-intl";
 import { SelectionActionsMenu } from "@/app/components/shared/SelectionActionsMenu";
 import {
     RowActionMenuItems,
@@ -97,6 +98,7 @@ export function ProjectAssistantTable({
     loading?: boolean;
     renderToolbar?: (actions: ReactNode) => ReactNode;
 }) {
+    const format = useFormatter();
     const [creatorFilter, setCreatorFilter] = useState<string | null>(null);
     const [sort, setSort] = useState<{
         key: ProjectChatSortKey;
@@ -397,7 +399,7 @@ export function ProjectAssistantTable({
                                 />
                             </TableCell>
                             <TableCell className="w-32">
-                                {formatDate(chat.created_at)}
+                                {formatDate(format, chat.created_at)}
                             </TableCell>
                             <div
                                 className="w-8 shrink-0 flex justify-end"

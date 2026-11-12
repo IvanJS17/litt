@@ -11,6 +11,7 @@ import {
     DropdownContent,
     DropdownTrigger,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 /** Extend EigenPal's overflow panel; keep navigation available when nothing overflows. */
 export function DocxNavigationMenu({ toolbar, open, onToggle }: {
@@ -18,6 +19,7 @@ export function DocxNavigationMenu({ toolbar, open, onToggle }: {
     open: boolean;
     onToggle: () => void;
 }) {
+    const t = useTranslations();
     const [menu, setMenu] = useState<{ trigger: HTMLButtonElement | null; panel: HTMLElement | null }>({ trigger: null, panel: null });
     useEffect(() => {
         // The packaged toolbar has no overflow-content slot and mounts its
@@ -45,7 +47,7 @@ export function DocxNavigationMenu({ toolbar, open, onToggle }: {
             }}
         >
             <ListTree aria-hidden="true" className="h-4 w-4" />
-            Navigation pane
+            {t("shared.docxNavigationMenu.navigationPane")}
             {open && <Check aria-hidden="true" className="ml-auto h-4 w-4" />}
         </DropdownButton>,
         menu.panel,
@@ -55,14 +57,14 @@ export function DocxNavigationMenu({ toolbar, open, onToggle }: {
         <span data-toolbar-fixed="" className="ml-auto flex flex-none items-center">
             <Dropdown>
                 <DropdownTrigger asChild>
-                    <TextButtonUI size="icon-xs" aria-label="More" title="More" className="h-6">
+                    <TextButtonUI size="icon-xs" aria-label={t("shared.docxNavigationMenu.more")} title={t("shared.docxNavigationMenu.more")} className="h-6">
                         <Ellipsis aria-hidden="true" className="h-4 w-4" />
                     </TextButtonUI>
                 </DropdownTrigger>
                 <DropdownContent align="end">
                     <DropdownCheckboxItem checked={open} onCheckedChange={onToggle}>
                         <ListTree aria-hidden="true" className="h-4 w-4" />
-                        Navigation pane
+                        {t("shared.docxNavigationMenu.navigationPane")}
                     </DropdownCheckboxItem>
                 </DropdownContent>
             </Dropdown>

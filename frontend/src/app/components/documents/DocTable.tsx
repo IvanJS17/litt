@@ -468,7 +468,7 @@ export function DocTable({
     showCreator = false,
 }: DocTableProps) {
     const t = useTranslations();
-        const format = useFormatter();
+    const format = useFormatter();
     const extensionChangeWarning = (filename: string) => {
         const extension = filenameExtension(filename);
         return extension
@@ -2938,14 +2938,14 @@ export function DocTable({
                                             {renderCreatorCell(doc)}
                                             <div className="w-32 shrink-0 text-xs text-gray-500 truncate">
                                                 {doc.created_at ? (
-                                                    formatDate(doc.created_at)
+                                                    formatDate(format, doc.created_at)
                                                 ) : (
                                                     <span className="text-gray-300">—</span>
                                                 )}
                                             </div>
                                             <div className="w-32 shrink-0 text-xs text-gray-500 truncate">
                                                 {doc.updated_at ? (
-                                                    formatDate(doc.updated_at)
+                                                    formatDate(format, doc.updated_at)
                                                 ) : (
                                                     <span className="text-gray-300">—</span>
                                                 )}
@@ -3237,10 +3237,11 @@ export function DocTable({
                                 <div className="w-20 shrink-0 text-xs text-gray-300">—</div>
                                 {renderCreatorCell(folder)}
                                 <div className="w-32 shrink-0 truncate text-xs text-gray-500">
-                                    {formatDate(folder.created_at)}
+                                    {formatDate(format, folder.created_at)}
                                 </div>
                                 <div className="w-32 shrink-0 truncate text-xs text-gray-500">
                                     {formatDate(
+                                        format,
                                         folder.updated_at ?? folder.created_at,
                                     )}
                                 </div>
@@ -4930,14 +4931,14 @@ export function DocTable({
                                                             {renderCreatorCell(doc)}
                                                             <div className="w-32 shrink-0 text-xs text-gray-500 truncate">
                                                                 {doc.created_at ? (
-                                                                    formatDate(doc.created_at)
+                                                                    formatDate(format, doc.created_at)
                                                                 ) : (
                                                                     <span className="text-gray-300">—</span>
                                                                 )}
                                                             </div>
                                                             <div className="w-32 shrink-0 text-xs text-gray-500 truncate">
                                                                 {doc.updated_at ? (
-                                                                    formatDate(doc.updated_at)
+                                                                    formatDate(format, doc.updated_at)
                                                                 ) : (
                                                                     <span className="text-gray-300">—</span>
                                                                 )}

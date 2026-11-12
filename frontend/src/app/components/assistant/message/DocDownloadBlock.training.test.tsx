@@ -10,7 +10,7 @@ vi.mock("@/app/lib/mikeApi", () => ({ getTokenDownload: mocks.getTokenDownload }
 vi.mock("@/app/lib/downloadDocument", () => ({ downloadBlob: mocks.downloadBlob }));
 vi.mock("@/app/lib/userFacingError", () => ({ notifyError: mocks.notifyError }));
 
-import { TRAINING_HELD_LABEL } from "@mike/ui";
+
 import { DocDownloadBlock } from "./EventBlocks";
 
 beforeEach(() => vi.clearAllMocks());
@@ -21,7 +21,7 @@ describe("DocDownloadBlock and the training lock (docs/training.md)", () => {
         render(
             <DocDownloadBlock filename="draft.docx" download_url="/download/t" trainingHeld onOpen={onOpen} />,
         );
-        expect(screen.getByText(TRAINING_HELD_LABEL)).toBeInTheDocument();
+        expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Download draft.docx" })).toBeNull();
         fireEvent.click(screen.getByRole("button"));
         expect(onOpen).toHaveBeenCalledOnce();
@@ -30,7 +30,7 @@ describe("DocDownloadBlock and the training lock (docs/training.md)", () => {
 
     it("offers nothing to click for a held draft it cannot open", () => {
         render(<DocDownloadBlock filename="draft.docx" download_url="/download/t" trainingHeld />);
-        expect(screen.getByText(TRAINING_HELD_LABEL)).toBeInTheDocument();
+        expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
         expect(screen.queryByRole("button")).toBeNull();
     });
 

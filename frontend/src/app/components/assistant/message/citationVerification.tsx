@@ -6,21 +6,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "../../ui/popover";
+import { useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
 
 export type CitationVerificationDisplayState = "verified" | "unverified";
 
-type VerificationPresentation = {
-  label: string;
-  description: string;
-  pillClassName: string;
-};
-
-const UNVERIFIED_PRESENTATION: VerificationPresentation = {
-  label: "Could not verify quote",
-  description: "Quote could not be matched to the source text.",
+const UNVERIFIED_PRESENTATION = {
+  labelKey: "assistant.citationVerification.couldNotVerifyQuote",
+  descriptionKey: "assistant.citationVerification.quoteCouldNotBeMatched",
   pillClassName:
     "!bg-red-100/85 !text-red-800 hover:!bg-red-200/80 hover:!text-red-800 dark:!bg-red-950 dark:!text-white dark:hover:!bg-red-900 dark:hover:!text-white",
-};
+} as const;
 
 export function citationVerificationState(
   citation: Citation,
@@ -42,16 +38,20 @@ export function citationVerificationPillClassName(citation: Citation): string {
 
 export function citationVerificationDescription(
   citation: Citation,
+  t: AppTranslate,
 ): string | null {
   const state = citationVerificationState(citation);
-  return state === "unverified" ? UNVERIFIED_PRESENTATION.description : null;
+  return state === "unverified" ? t(UNVERIFIED_PRESENTATION.descriptionKey) : null;
 }
 
-export function citationVerificationAriaLabel(citation: Citation): string {
-  const state = citationVerificationState(citation);
-  const suffix =
-    state === "unverified" ? `. ${UNVERIFIED_PRESENTATION.label}` : "";
-  return `Citation ${citation.ref}${suffix}`;
+export function citationVerificationAriaLabel(
+  citation: Citation,
+  t: AppTranslate,
+): string {
+  return t("assistant.citationVerification.citationRef", {
+    ref: citation.ref,
+    unverified: String(citationVerificationState(citation) === "unverified"),
+  });
 }
 
 export function CitationVerificationBadge({
@@ -59,6 +59,7 @@ export function CitationVerificationBadge({
 }: {
   state: CitationVerificationDisplayState;
 }) {
+  const t = useTranslations();
   if (state !== "unverified") return null;
 
   const presentation = UNVERIFIED_PRESENTATION;
@@ -71,7 +72,7 @@ export function CitationVerificationBadge({
           className="w-fit gap-1 font-sans !text-red-600 hover:!text-red-700"
         >
           <CircleAlert className="h-3 w-3" aria-hidden="true" />
-          {presentation.label}
+          {t(presentation.labelKey)}
         </PillButtonUI>
       </PopoverTrigger>
       <PopoverContent
@@ -80,13 +81,10 @@ export function CitationVerificationBadge({
         className="z-[220] w-72"
       >
         <span className="block text-xs font-medium text-gray-900">
-          Quote not found in document
+          {t("assistant.citationVerification.quoteNotFoundInDocument")}
         </span>
         <span className="mt-1 block text-xs font-normal leading-5 text-gray-600">
-          The language model produced a quote that could not be found in the
-          source document. Treat it as hallucinated and double-check the
-          related section of the assistant response against the document
-          before relying on it.
+          {t("assistant.citationVerification.theLanguageModelProducedAQuote")}
         </span>
       </PopoverContent>
     </Popover>

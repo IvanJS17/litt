@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState, type ReactElement } from "react";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { buildChatHistoryItems } from "@/app/components/shared/ChatPanelHeader";
@@ -25,6 +26,8 @@ export function AssistantChatHistoryMenu({
     hiddenChatId?: string | null;
     onLoad: (chatId: string) => void;
 }) {
+    const t = useTranslations();
+    const format = useFormatter();
     const { chats, hasMoreChats, loadingMoreChats, loadMoreChats } =
         useChatHistoryContext();
     const [query, setQuery] = useState("");
@@ -51,13 +54,15 @@ export function AssistantChatHistoryMenu({
             query={query}
             onQueryChange={setQuery}
             loading={chats === null}
-            emptyLabel={chats?.length ? "No matches." : "No chats yet."}
+            emptyLabel={chats?.length ? t("shared.chatPanelHeader.noMatches") : t("shared.chatPanelHeader.noChatsYet")}
             items={buildChatHistoryItems({
                 chats: chats ?? [],
                 currentChatId,
                 hiddenChatId,
                 query,
                 now,
+                t,
+                format,
             })}
             onSelect={(chatId) => {
                 if (chatId !== currentChatId) onLoad(chatId);

@@ -17,6 +17,7 @@ import { createPdfQuoteMatcher, normalizePdfQuoteText } from "./pdfQuoteSearch";
 import { orderTextItemLines, type TextItemGeometry } from "./pdfTextOrder";
 import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@mike/ui";
 import { viewRoundingClass, type ViewRounding } from "./viewRounding";
+import { useTranslations } from "next-intl";
 
 interface Props {
     doc: { document_id: string; version_id?: string | null } | null;
@@ -217,6 +218,7 @@ export function PdfView({
     fallbackPage,
     rounded = true,
 }: Props) {
+    const t = useTranslations();
     const containerRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const pdfDocRef = useRef<import("pdfjs-dist").PDFDocumentProxy | null>(
@@ -778,7 +780,7 @@ export function PdfView({
             await renderPDF(pdfDoc, list);
         })().catch(() => {
             if (!cancelled)
-                setPdfLoadError({ result, message: "Failed to load document." });
+                setPdfLoadError({ result, message: t("shared.pdfView.failedToLoadDocument") });
         });
         return () => {
             cancelled = true;

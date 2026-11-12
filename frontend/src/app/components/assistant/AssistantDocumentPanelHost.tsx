@@ -16,6 +16,7 @@ import { cn } from "@/app/lib/utils";
 import type { PanelDocument } from "../shared/types";
 import { AssistantSidePanel } from "./AssistantSidePanel";
 import type { AssistantDocumentPanel } from "./useAssistantDocumentPanel";
+import { useTranslations } from "next-intl";
 
 /**
  * The document side panel beside the assistant's chats, with the dialogs its
@@ -26,6 +27,7 @@ export function AssistantDocumentPanelHost({
 }: {
     panel: AssistantDocumentPanel;
 }) {
+    const t = useTranslations();
     const [deleteTarget, setDeleteTarget] = useState<PanelDocument | null>(
         null,
     );
@@ -41,9 +43,9 @@ export function AssistantDocumentPanelHost({
         <>
             <ConfirmPopup
                 open={!!deleteTarget}
-                title="Delete file?"
-                message={`Delete “${deleteTarget?.title ?? "this file"}” and its versions? This cannot be undone.`}
-                confirmLabel="Delete file"
+                title={t("assistant.assistantDocumentPanelHost.deleteFile")}
+                message={t("assistant.assistantDocumentPanelHost.deleteTitleAndItsVersions", { title: deleteTarget?.title ?? t("assistant.assistantDocumentPanelHost.thisFile") })}
+                confirmLabel={t("assistant.assistantDocumentPanelHost.deleteFile2")}
                 confirmVariant="danger"
                 confirmStatus={deletingDocument ? "loading" : "idle"}
                 onCancel={() => { if (!deletingDocument) setDeleteTarget(null); }}
@@ -55,7 +57,7 @@ export function AssistantDocumentPanelHost({
                         try {
                             const file = await getDocument(target.document_id);
                             if (file.can_delete !== true) {
-                                setActionError({ title: "Delete failed", message: "You do not have permission to delete this file." });
+                                setActionError({ title: t("assistant.assistantDocumentPanelHost.deleteFailed"), message: t("assistant.assistantDocumentPanelHost.youDoNotHavePermissionTo") });
                                 return;
                             }
                             await deleteDocument(target.document_id);
@@ -66,14 +68,14 @@ export function AssistantDocumentPanelHost({
                             });
                             setDeleteTarget(null);
                         } catch (cause) {
-                            setActionError({ title: "Delete failed", message: userFacingApiError(cause, "This file could not be deleted. Please try again.") });
+                            setActionError({ title: t("assistant.assistantDocumentPanelHost.deleteFailed"), message: userFacingApiError(cause, t("assistant.assistantDocumentPanelHost.thisFileCouldNotBe")) });
                         } finally { setDeletingDocument(false); }
                     })();
                 }}
             />
             <WarningPopup
                 open={!!actionError}
-                title={actionError?.title ?? "Chat action failed"}
+                title={actionError?.title ?? t("assistant.assistantDocumentPanelHost.chatActionFailed")}
                 message={actionError?.message ?? null}
                 onClose={() => setActionError(null)}
             />
@@ -183,7 +185,7 @@ export function AssistantDocumentPanelHost({
                         getTargetPane()?.openDocument(document),
                     );
                 }}
-                breadcrumb={["Assistant", "Open Documents"]}
+                breadcrumb={[t("assistant.assistantDocumentPanelHost.assistant"), t("assistant.assistantDocumentPanelHost.openDocuments")]}
                 uploadStateId="assistant-side-panel"
             />
         </>

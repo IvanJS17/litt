@@ -18,6 +18,7 @@ export default function Error({
             error={error}
             reset={reset}
             component="route-error-boundary"
+            t={t}
             secondaryAction={(tone) => (
                 <Link
                     href="/"

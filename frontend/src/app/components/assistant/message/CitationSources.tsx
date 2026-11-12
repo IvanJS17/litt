@@ -11,6 +11,8 @@ import {
     citationVerificationDescription,
     citationVerificationPillClassName,
 } from "./citationVerification";
+import { useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
 
 type CitationSourceRow = {
     key: string;
@@ -26,21 +28,21 @@ function citationSourceKey(annotation: Citation): string {
     return `document:${annotation.document_id}`;
 }
 
-function citationSourceLabel(annotation: Citation): string {
+function citationSourceLabel(annotation: Citation, t: AppTranslate): string {
     if (annotation.kind === "case") {
         const caseName = annotation.case_name?.trim();
         const citation = annotation.citation?.trim();
         if (caseName && citation) return `${caseName}, ${citation}`;
-        return caseName || citation || `Case ${annotation.cluster_id}`;
+        return caseName || citation || t("shared.types.caseNumber", { id: annotation.cluster_id });
     }
     return annotation.filename;
 }
 
-export function citationTooltip(annotation: Citation): string {
-    const locator = formatCitationPage(annotation);
+export function citationTooltip(annotation: Citation, t: AppTranslate): string {
+    const locator = formatCitationPage(annotation, t);
     const quote = displayCitationQuote(annotation);
     const source = locator ? `${locator}: "${quote}"` : `"${quote}"`;
-    const verification = citationVerificationDescription(annotation);
+    const verification = citationVerificationDescription(annotation, t);
     return verification ? `${source} — ${verification}` : source;
 }
 
@@ -61,7 +63,7 @@ function CitationSourceIcon({ annotation }: { annotation: Citation }) {
     );
 }
 
-function buildCitationSourceRows(citations: Citation[]): CitationSourceRow[] {
+function buildCitationSourceRows(citations: Citation[], t: AppTranslate): CitationSourceRow[] {
     const rows = new Map<string, CitationSourceRow>();
     citations.forEach((annotation, index) => {
         const key = citationSourceKey(annotation);
@@ -72,7 +74,7 @@ function buildCitationSourceRows(citations: Citation[]): CitationSourceRow[] {
         }
         rows.set(key, {
             key,
-            label: citationSourceLabel(annotation),
+            label: citationSourceLabel(annotation, t),
             source: annotation,
             entries: [{ annotation, index }],
         });
@@ -93,7 +95,7 @@ function ensureTerminalPeriod(value: string): string {
     return /[.!?]$/.test(value.trim()) ? value.trim() : `${value.trim()}.`;
 }
 
-export function buildCitationAppendix(citations: Citation[]) {
+export function buildCitationAppendix(citations: Citation[], t: AppTranslate) {
     if (citations.length === 0) return { html: "", text: "" };
     let previousSourceKey: string | null = null;
     const entries = citations.map((annotation) => {
@@ -101,7 +103,7 @@ export function buildCitationAppendix(citations: Citation[]) {
         const label =
             sourceKey === previousSourceKey
                 ? "Id."
-                : citationSourceLabel(annotation);
+                : citationSourceLabel(annotation, t);
         previousSourceKey = sourceKey;
         return {
             number: annotation.ref,
@@ -149,7 +151,8 @@ export function CitationsBlock({
     showWhenEmpty?: boolean;
     isLoading?: boolean;
 }) {
-    const rows = buildCitationSourceRows(citations);
+    const t = useTranslations();
+    const rows = buildCitationSourceRows(citations, t);
     if (rows.length === 0 && !showWhenEmpty) return null;
 
     return (
@@ -157,7 +160,7 @@ export function CitationsBlock({
             <div className={`overflow-hidden ${RESPONSE_GLASS_SURFACE}`}>
                 <div className="flex items-center justify-between gap-3 bg-white/25 px-3 py-2">
                     <h3 className="text-base font-serif text-gray-900">
-                        Citations
+                        {t("assistant.citationSources.citations")}
                     </h3>
                     {isLoading && (
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
@@ -213,9 +216,11 @@ export function CitationsBlock({
                                                 )}
                                                 aria-label={citationVerificationAriaLabel(
                                                     annotation,
+                                                    t,
                                                 )}
                                                 title={citationTooltip(
                                                     annotation,
+                                                    t,
                                                 )}
                                             >
                                                 {annotation.ref}

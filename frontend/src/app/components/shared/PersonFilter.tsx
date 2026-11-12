@@ -11,6 +11,7 @@ import { SearchBar } from "@/app/components/ui/search-bar";
 import { UserAvatar } from "@/app/components/ui/user-avatar";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 import { DropdownButton, DropdownSurface, textButtonUIClassName } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 /** A person a table can be filtered by. */
 export interface PersonOption {
@@ -70,12 +71,12 @@ export function distinctPeople(
     });
   }
   return [...byId.values()].sort((a, b) =>
-    personName(a).localeCompare(personName(b)),
+    (a.display_name ?? "").localeCompare(b.display_name ?? ""),
   );
 }
 
-export const personName = (person: PersonOption) =>
-  person.display_name || person.email || "Unknown user";
+export const personName = (person: PersonOption, unknown: string) =>
+  person.display_name || person.email || unknown;
 
 /**
  * Search and select one person in a table header, loading additional people
@@ -86,8 +87,8 @@ export function PersonFilter({
   value,
   onChange,
   loadPeople,
-  label = "Filter by person",
-  selectedTitle = (name) => `Performed by ${name}`,
+  label,
+  selectedTitle,
 }: {
   value: PersonOption | null;
   onChange: (value: PersonOption | null) => void;
@@ -96,6 +97,8 @@ export function PersonFilter({
   label?: string;
   selectedTitle?: (name: string) => string;
 }) {
+  const t = useTranslations();
+  const unknownUser = t("shared.personFilter.unknownUser");
   const loadPeopleRef = useRef(loadPeople);
   useEffect(() => {
     loadPeopleRef.current = loadPeople;
@@ -180,9 +183,9 @@ export function PersonFilter({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={label}
+          aria-label={label ?? t("shared.personFilter.filterByPerson")}
           aria-pressed={Boolean(value)}
-          title={value ? selectedTitle(personName(value)) : label}
+          title={value ? (selectedTitle ?? ((name) => t("shared.personFilter.performedBy", { name })))(personName(value, unknownUser)) : label ?? t("shared.personFilter.filterByPerson")}
           className={textButtonUIClassName({
             className: `h-[18px] w-[22px] p-0 ${value ? "text-interactive" : "text-gray-400"}`,
           })}
@@ -192,7 +195,7 @@ export function PersonFilter({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        aria-label={label}
+        aria-label={label ?? t("shared.personFilter.filterByPerson")}
         className="w-80 max-w-[calc(100vw-2rem)] border-0 bg-transparent p-0 shadow-none"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -206,8 +209,8 @@ export function PersonFilter({
               size="sm"
               value={search}
               onValueChange={setSearch}
-              label="Search people"
-              placeholder="Search name or email"
+              label={t("shared.personFilter.searchPeople")}
+              placeholder={t("shared.personFilter.searchNameOrEmail")}
               maxLength={200}
               onKeyDown={(event) => {
                 if (event.key === "ArrowDown") {
@@ -222,7 +225,7 @@ export function PersonFilter({
           <div
             ref={list}
             role="group"
-            aria-label="People"
+            aria-label={t("shared.personFilter.people")}
             className="max-h-72 overflow-y-auto overscroll-contain"
             onScroll={(event) => {
               const target = event.currentTarget;
@@ -267,7 +270,7 @@ export function PersonFilter({
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left"
               onClick={() => choose(null)}
             >
-              All people{" "}
+              {t("shared.personFilter.allPeople")}{" "}
               {!value && <Check aria-hidden className="h-3.5 w-3.5" />}
             </DropdownButton>
             {users.map((user) => (
@@ -285,7 +288,7 @@ export function PersonFilter({
                 />
                 <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
                   <span className="block text-gray-800">
-                    {personName(user)}
+                    {personName(user, unknownUser)}
                   </span>
                   {user.display_name && user.email && (
                     <span className="block text-gray-500">{user.email}</span>
@@ -299,7 +302,7 @@ export function PersonFilter({
             {loading && !users.length ? (
               <div
                 role="status"
-                aria-label="Loading people"
+                aria-label={t("shared.personFilter.loadingPeople")}
                 className="space-y-4 px-3 py-2"
               >
                 {[0, 1, 2].map((row) => (
@@ -315,7 +318,7 @@ export function PersonFilter({
             ) : null}
             {!loading && !users.length && errorOffset === null && (
               <p className="px-3 py-4 text-center text-xs text-gray-500">
-                No people found.
+                {t("shared.personFilter.noPeopleFound")}
               </p>
             )}
             {errorOffset !== null ? (
@@ -323,12 +326,12 @@ export function PersonFilter({
                 role="alert"
                 className="px-3 py-3 text-center text-xs text-gray-500"
               >
-                Could not load people.
+                {t("shared.personFilter.couldNotLoadPeople")}
                 <DropdownButton
                   className="mt-2 block w-full rounded-lg py-2"
                   onClick={() => void load(errorOffset)}
                 >
-                  Try again
+                  {t("shared.personFilter.tryAgain")}
                 </DropdownButton>
               </div>
             ) : nextOffset !== null ? (
@@ -340,7 +343,7 @@ export function PersonFilter({
                 {loading && (
                   <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" />
                 )}
-                {loading ? "Loading people…" : "Load more people"}
+                {loading ? t("shared.personFilter.loadingPeople2") : t("shared.personFilter.loadMorePeople")}
               </DropdownButton>
             ) : null}
           </div>

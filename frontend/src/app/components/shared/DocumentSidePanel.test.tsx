@@ -125,10 +125,10 @@ it("marks a pasante draft, hides its downloads and lets an approver approve it",
         />,
     );
     // The selected version's mark, and the one in its history row.
-    expect(screen.getAllByText("Borrador de pasante, pendiente de aprobación")).toHaveLength(2);
+    expect(screen.getAllByText("Intern draft, pending approval")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Download V2" })).toBeNull();
     expect(screen.getByRole("button", { name: /Download/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Aprobar esta versión" }));
+    fireEvent.click(screen.getByRole("button", { name: "Approve this version" }));
     await vi.waitFor(() => expect(onTrainingApproved).toHaveBeenCalledWith("doc-1"));
     expect(approve).toHaveBeenCalledWith("doc-1", "v2");
     approve.mockRestore();
@@ -153,10 +153,10 @@ it("speaks for the current version from the row before the versions load, and hi
             onDelete={vi.fn()}
         />,
     );
-    expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+    expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Download/ })).toBeNull();
     // Nobody said this caller may approve.
-    expect(screen.queryByRole("button", { name: "Aprobar esta versión" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve this version" })).toBeNull();
 });
 
 it("offers the estimated authorship of the selected version only where the server said so", async () => {

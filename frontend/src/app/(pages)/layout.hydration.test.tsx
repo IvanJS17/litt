@@ -1,5 +1,7 @@
 import { renderToString } from "react-dom/server";
 import { expect, it, vi } from "vitest";
+import enUS from "../../../../packages/i18n/messages/en-US.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import MikeLayout from "./layout";
 
 const state = vi.hoisted(() => ({ loading: true }));
@@ -18,7 +20,11 @@ vi.mock("@/app/components/shared/AppSidebar", () => ({ AppSidebar: () => <aside>
 it("preloads account-menu icons in the server loading shell before the menu mounts", () => {
     state.loading = true;
     const container = document.createElement("div");
-    container.innerHTML = renderToString(<MikeLayout><p>Workspace</p></MikeLayout>);
+    container.innerHTML = renderToString(
+        <IntlClientProvider locale="en-US" messages={enUS}>
+            <MikeLayout><p>Workspace</p></MikeLayout>
+        </IntlClientProvider>,
+    );
     expect(container).not.toHaveTextContent("Sidebar");
     const images = Array.from(container.querySelectorAll('link[rel="preload"][as="image"]'))
         .map((link) => link.getAttribute("href"));

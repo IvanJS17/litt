@@ -15,6 +15,7 @@ import {
     highlightDocxQuote,
     QUOTE_HIGHLIGHT_CLASS,
 } from "../shared/views/highlightDocxQuote";
+import { useTranslations } from "next-intl";
 
 const CASE_HTML_SANITIZER_CONFIG = {
     ALLOWED_TAGS: [
@@ -109,6 +110,7 @@ export function CaseView({
     onRetry?: () => void;
     onClearQuote?: () => void;
 }) {
+    const t = useTranslations();
     const subdocuments = useMemo(
         () => document.subdocuments ?? [],
         [document.subdocuments],
@@ -218,7 +220,7 @@ export function CaseView({
                         </p>
                         {onRetry && (
                             <PillButtonUI tone="white" onClick={onRetry}>
-                                Try again
+                                {t("assistant.caseView.tryAgain")}
                             </PillButtonUI>
                         )}
                     </div>
@@ -232,7 +234,7 @@ export function CaseView({
                                 surfaceClassName,
                             )}
                         >
-                            No content was returned for this document.
+                            {t("assistant.caseView.noContentWasReturnedForThis")}
                         </p>
                     )}
                 {!visibleLoading && !visibleError && activeSubdocument && (
@@ -268,6 +270,7 @@ function CaseSubdocument({
     subdocument: PanelSubdocument;
     contentRef: React.RefObject<HTMLElement | null>;
 }) {
+    const t = useTranslations();
     const sanitizedHtml = useMemo(
         () => (subdocument.html ? sanitizeCaseHtml(subdocument.html) : ""),
         [subdocument.html],
@@ -287,7 +290,7 @@ function CaseSubdocument({
                 />
             ) : (
                 <div className="whitespace-pre-wrap font-serif text-sm leading-7 text-gray-900 [&_p]:my-3">
-                    {subdocument.text || "No document text returned."}
+                    {subdocument.text || t("assistant.caseView.noDocumentTextReturned")}
                 </div>
             )}
         </article>

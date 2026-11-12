@@ -1,4 +1,4 @@
-import { clientTranslator } from "@mike/client";
+import type { DateFormatter } from "@/app/lib/dateText";
 import type { Messages } from "@litt/i18n";
 import type { AuditEvent, OrgPrivateContentKind } from "@/app/lib/mikeApi";
 
@@ -11,15 +11,13 @@ export type AuditKey = Leaves<Messages["history"]["audit"], "history.audit"> | "
 
 /**
  * A message translator, as `useTranslations()` returns it. Text shown while
- * rendering takes the component's own `t`; a caller outside React (a test)
- * gets the configured client translator.
+ * rendering takes the component's own `t`, never a module-level translator,
+ * so it also works when the page is rendered on the server.
  */
 export type AuditTranslate = (
   key: AuditKey,
   values?: Record<string, string | number | Date>,
 ) => string;
-
-const clientT = (): AuditTranslate => clientTranslator() as unknown as AuditTranslate;
 
 
 export interface AuditPrivateAccess {
@@ -139,20 +137,20 @@ const SURFACE_KEYS = {
 } as const;
 
 /** The label of each action the audit log knows, by its recorded name. */
-export function auditActionLabels(t: AuditTranslate = clientT()): Record<string, string> {
+export function auditActionLabels(t: AuditTranslate): Record<string, string> {
   return Object.fromEntries(
     Object.entries(ACTION_KEYS).map(([action, key]) => [action, t(`history.audit.action.${key}`)]),
   );
 }
 
 /** The label of each application (surface) the audit log knows. */
-export function auditSurfaceLabels(t: AuditTranslate = clientT()): Record<string, string> {
+export function auditSurfaceLabels(t: AuditTranslate): Record<string, string> {
   return Object.fromEntries(
     Object.entries(SURFACE_KEYS).map(([surface, key]) => [surface, t(`history.audit.surface.${key}`)]),
   );
 }
 
-export function auditSurfaceLabel(surface: string, t: AuditTranslate = clientT()): string {
+export function auditSurfaceLabel(surface: string, t: AuditTranslate): string {
   const key = SURFACE_KEYS[surface as keyof typeof SURFACE_KEYS];
   return key ? t(`history.audit.surface.${key}`) : auditLabel(surface);
 }
@@ -170,7 +168,7 @@ const STATUS_KEYS = {
 } as const;
 
 /** The label of a status the audit log records. */
-export function auditStatusLabel(status: string, t: AuditTranslate = clientT()): string {
+export function auditStatusLabel(status: string, t: AuditTranslate): string {
   const key = STATUS_KEYS[status as keyof typeof STATUS_KEYS];
   return key ? t(`history.audit.status.${key}`) : auditLabel(status);
 }
@@ -182,7 +180,7 @@ function roleLabel(role: string, t: AuditTranslate): string {
   return key ? t(`history.audit.role.${key}`) : auditLabel(role);
 }
 
-export function auditAction(event: AuditEvent, t: AuditTranslate = clientT()): string {
+export function auditAction(event: AuditEvent, t: AuditTranslate): string {
   const actionKey = ACTION_KEYS[event.action as keyof typeof ACTION_KEYS];
   const label = actionKey ? t(`history.audit.action.${actionKey}`) : auditLabel(event.action);
   // Failed or cancelled operations must not read as successful changes.
@@ -196,13 +194,27 @@ function detailText(event: AuditEvent, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-export function auditActor(event: AuditEvent, t: AuditTranslate = clientT()): string {
+/**
+ * Whether the system, not a person, did it. Ask this and never compare an
+ * actor's shown name with the translated "System": the name follows the
+ * language, the event does not.
+ */
+export function auditActorIsSystem(event: AuditEvent): boolean {
+  return (
+    !event.user_deleted &&
+    !event.user_display_name &&
+    !event.user_email &&
+    (event.action === "org.purged" ||
+      event.action === "org.departure.item.expired")
+  );
+}
+
+export function auditActor(event: AuditEvent, t: AuditTranslate): string {
   if (event.user_deleted) return t("history.audit.deletedUser");
   return (
     event.user_display_name ||
     event.user_email ||
-    (event.action === "org.purged" ||
-    event.action === "org.departure.item.expired"
+    (auditActorIsSystem(event)
       ? t("history.system")
       : t("history.audit.unknownUser"))
   );
@@ -269,7 +281,7 @@ export function auditSubjectIsPerson(event: AuditEvent): boolean {
   return code === "member" || code === "recipient";
 }
 
-export function auditSubject(event: AuditEvent, t: AuditTranslate = clientT()) {
+export function auditSubject(event: AuditEvent, t: AuditTranslate) {
   const code = subjectCode(event);
   const type =
     typeof code === "string"
@@ -313,10 +325,15 @@ export function auditSubjectEmail(event: AuditEvent): string | null {
   return email && /^[^\s@]+@[^\s@]+$/.test(email) ? email : null;
 }
 
-export function auditTimestamp(value: string, exact = false, t: AuditTranslate = clientT()): string {
+export function auditTimestamp(
+  value: string,
+  exact: boolean,
+  t: AuditTranslate,
+  format: DateFormatter,
+): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return t("history.audit.dateUnavailable");
-  return date.toLocaleString(undefined, {
+  return format.dateTime(date, {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -326,14 +343,19 @@ export function auditTimestamp(value: string, exact = false, t: AuditTranslate =
   });
 }
 
-export type AuditDetailField = { label: string; value: string };
+/** `id` names a field for code that has to find it; `label` is only for reading. */
+export type AuditDetailField = { label: string; value: string; id?: "access" };
 
-export function auditDetailFields(event: AuditEvent, t: AuditTranslate = clientT()): AuditDetailField[] {
+export function auditDetailFields(
+  event: AuditEvent,
+  t: AuditTranslate,
+  format: DateFormatter,
+): AuditDetailField[] {
   const fields: AuditDetailField[] = [];
   const detail = event.detail ?? {};
-  const add = (label: string, value: unknown) => {
+  const add = (label: string, value: unknown, id?: AuditDetailField["id"]) => {
     if (typeof value === "string" && value.trim())
-      fields.push({ label, value });
+      fields.push({ label, value, id });
     else if (typeof value === "number" && Number.isFinite(value))
       fields.push({ label, value: String(value) });
     else if (typeof value === "boolean")
@@ -369,10 +391,10 @@ export function auditDetailFields(event: AuditEvent, t: AuditTranslate = clientT
   )
     add(t("history.audit.field.enabled"), detail.enabled);
   if (event.action === "org.private_content.opened")
-    add(t("history.audit.field.access"), t("history.audit.readOnly"));
+    add(t("history.audit.field.access"), t("history.audit.readOnly"), "access");
   const purgeAfter = detailText(event, "purge_after");
   if (purgeAfter && !Number.isNaN(new Date(purgeAfter).getTime()))
-    add(t("history.audit.field.scheduledDeletion"), auditTimestamp(purgeAfter, true, t));
+    add(t("history.audit.field.scheduledDeletion"), auditTimestamp(purgeAfter, true, t, format));
   if (event.action.startsWith("export.")) {
     add(t("history.audit.field.format"), detail.format);
     add(t("history.audit.field.documentsExported"), detail.document_count);
@@ -384,7 +406,7 @@ export function auditDetailFields(event: AuditEvent, t: AuditTranslate = clientT
 export function auditSummary(
   event: AuditEvent,
   personal: boolean,
-  t: AuditTranslate = clientT(),
+  t: AuditTranslate,
 ): string {
   const actor = personal ? "" : auditActor(event, t);
   const self = personal ? "yes" : "no";
@@ -419,7 +441,7 @@ export function auditSummary(
 
 export function auditDestination(
   event: AuditEvent,
-  t: AuditTranslate = clientT(),
+  t: AuditTranslate,
 ): { href: string; label: string } | null {
   if (event.review_id)
     return {

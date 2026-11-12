@@ -22,6 +22,8 @@ import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { HeaderActionsMenu } from "@/app/components/shared/HeaderActionsMenu";
 import { DocumentUploadMenu } from "@/app/components/shared/DocumentUploadMenu";
 import { tableTreeCellStyle } from "@/app/components/shared/TablePrimitive";
+import { useFormatter, useTranslations } from "next-intl";
+import type { DateFormatter } from "@/app/lib/dateText";
 
 export type ProjectWorkspaceSection =
     | "documents"
@@ -53,8 +55,8 @@ export function formatBytes(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString(undefined, {
+export function formatDate(format: DateFormatter, iso: string) {
+    return format.dateTime(new Date(iso), {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -128,6 +130,8 @@ export function DocVersionHistory({
     /** Keeps the rows aligned with a table that shows a Creator column. */
     showCreator?: boolean;
 }) {
+    const t = useTranslations();
+    const format = useFormatter();
     const [editingVersionId, setEditingVersionId] = useState<string | null>(
         null,
     );
@@ -209,7 +213,7 @@ export function DocVersionHistory({
                     className={`sticky left-0 z-[60] ${DOC_NAME_COL_W} bg-gray-50/80 py-2 pl-3 pr-2`}
                     style={treeNameCellStyle(depth)}
                 >
-                    <div>No version history.</div>
+                    <div>{t("projects.projectPageParts.noVersionHistory")}</div>
                 </div>
             </div>
         );
@@ -229,14 +233,14 @@ export function DocVersionHistory({
                     v.version_number >= 1
                         ? `${v.version_number}`
                         : v.source === "upload"
-                          ? "Original"
+                          ? t("projects.projectPageParts.original")
                           : "—";
                 const displayLabel = v.filename?.trim() || numberLabel;
                 const downloadFilename = v.filename?.trim() || filename;
                 const dt = new Date(v.created_at);
                 const dateLabel = Number.isNaN(dt.valueOf())
                     ? ""
-                    : dt.toLocaleString(undefined, {
+                    : format.dateTime(dt, {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -313,7 +317,7 @@ export function DocVersionHistory({
                                     >
                                         {isDeleted && (
                                             <span className="font-medium text-gray-500">
-                                                [Deleted]{" "}
+                                                {t("projects.projectPageParts.deleted")}{" "}
                                             </span>
                                         )}
                                         {displayLabel}
@@ -353,7 +357,7 @@ export function DocVersionHistory({
                                 isDeleted ? "text-gray-300" : "text-gray-500"
                             }`}
                         >
-                            {dateLabel ? formatDate(v.created_at) : <span className="text-gray-300">—</span>}
+                            {dateLabel ? formatDate(format, v.created_at) : <span className="text-gray-300">—</span>}
                         </div>
                         <div className="w-32 shrink-0 truncate text-xs text-gray-400">
                             —
@@ -384,7 +388,7 @@ export function DocVersionHistory({
                                               }
                                             : undefined
                                     }
-                                    renameLabel="Rename version"
+                                    renameLabel={t("projects.projectPageParts.renameVersion")}
                                     onDownload={
                                         isTrainingHeld(v)
                                             ? undefined
@@ -455,6 +459,7 @@ export function ProjectPageHeader({
         onClick: () => void;
     }>;
 }) {
+    const t = useTranslations();
     const sectionAction: PageHeaderAction | null =
         activeSection === "documents"
             ? {
@@ -472,8 +477,8 @@ export function ProjectPageHeader({
                     onClick: onNewChat,
                     disabled: !roleKnown,
                     icon: <Plus className="h-4 w-4" />,
-                    label: <span className="hidden sm:inline">Chat</span>,
-                    title: "Create chat",
+                    label: <span className="hidden sm:inline">{t("projects.projectPageParts.chat")}</span>,
+                    title: t("projects.projectPageParts.createChat"),
                 }
               : activeSection === "reviews"
                 ? {
@@ -484,8 +489,8 @@ export function ProjectPageHeader({
                     ) : (
                         <Plus className="h-4 w-4" />
                     ),
-                    label: <span className="hidden sm:inline">Review</span>,
-                    title: "Create review",
+                    label: <span className="hidden sm:inline">{t("projects.projectPageParts.review")}</span>,
+                    title: t("projects.projectPageParts.createReview"),
                   }
                 : null;
 
@@ -493,16 +498,16 @@ export function ProjectPageHeader({
         <PageHeader
             breadcrumbs={[
                 {
-                    label: "Projects",
+                    label: t("projects.projectPageParts.projects"),
                     onClick: onBackToProjects,
-                    title: "Back to Projects",
+                    title: t("projects.projectPageParts.backToProjects"),
                 },
                 {
                     ...(project
                         ? {
                               label: project.name,
                               onClick: onProjectRoot,
-                              title: "Back to project documents",
+                              title: t("projects.projectPageParts.backToProjectDocuments"),
                           }
                         : {
                               loading: true,
@@ -510,9 +515,9 @@ export function ProjectPageHeader({
                           }),
                 },
                 ...(activeSection === "assistant"
-                    ? [{ label: "Chats" }]
+                    ? [{ label: t("projects.projectPageParts.chats") }]
                     : activeSection === "reviews"
-                      ? [{ label: "Tabular Reviews" }]
+                      ? [{ label: t("projects.projectPageParts.tabularReviews") }]
                       : (documentFolderBreadcrumbs ?? [])),
             ]}
             actionGroups={[
@@ -521,12 +526,12 @@ export function ProjectPageHeader({
                         type: "search",
                         value: search,
                         onChange: onSearchChange,
-                        placeholder: "Search…",
+                        placeholder: t("projects.projectPageParts.search"),
                     },
                     {
                         onClick: onOpenAccess,
                         iconOnly: true,
-                        title: "Access",
+                        title: t("projects.projectPageParts.access"),
                         icon: <Users className="h-4 w-4" />,
                     },
                     {
@@ -536,14 +541,14 @@ export function ProjectPageHeader({
                                 items={[
                                     {
                                         label: canManageProject
-                                            ? "Edit details"
-                                            : "View details",
+                                            ? t("projects.projectPageParts.editDetails")
+                                            : t("projects.projectPageParts.viewDetails"),
                                         icon: Pencil,
                                         onSelect: onOpenDetails,
                                         disabled: !roleKnown,
                                     },
                                     {
-                                        label: "Memory",
+                                        label: t("projects.projectPageParts.memory"),
                                         icon: Brain,
                                         onSelect: onOpenMemory,
                                         disabled: !roleKnown,
@@ -553,7 +558,7 @@ export function ProjectPageHeader({
                                         // refusal can name someone who can
                                         // lift it; disabled only while the
                                         // role itself is still unknown.
-                                        label: "Delete",
+                                        label: t("projects.projectPageParts.delete"),
                                         icon: Trash2,
                                         onSelect: onDeleteProject,
                                         variant: "danger",

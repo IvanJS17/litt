@@ -9,6 +9,7 @@ import {
     HeaderButtonUI,
     TabPillButtonUI,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 interface DocumentUploadMenuProps {
     onSavedFiles?: (() => void) | null;
@@ -25,6 +26,7 @@ export function DocumentUploadMenu({
     disabled = false,
     toolbar = false,
 }: DocumentUploadMenuProps) {
+    const t = useTranslations();
     const TriggerButton = toolbar ? TabPillButtonUI : HeaderButtonUI;
     const triggerDisabled =
         disabled || (!onSavedFiles && !onUploadFiles && !onUploadFolder);
@@ -34,12 +36,12 @@ export function DocumentUploadMenu({
             <DropdownTrigger asChild>
                 <TriggerButton
                     disabled={triggerDisabled}
-                    title="Upload"
-                    aria-label="Upload"
+                    title={t("shared.documentUploadMenu.upload")}
+                    aria-label={t("shared.documentUploadMenu.upload")}
                     {...(toolbar ? { className: "pl-2" } : { iconOnly: true })}
                 >
                     <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                    {toolbar && "Upload"}
+                    {toolbar && t("shared.documentUploadMenu.upload")}
                 </TriggerButton>
             </DropdownTrigger>
             <DropdownContent
@@ -53,7 +55,7 @@ export function DocumentUploadMenu({
                         className="flex items-center px-3 py-2"
                     >
                         <Cloud className="mr-2 h-3.5 w-3.5" />
-                        Saved Documents
+                        {t("shared.documentUploadMenu.savedDocuments")}
                     </DropdownItem>
                 )}
                 <DropdownItem
@@ -62,7 +64,7 @@ export function DocumentUploadMenu({
                     className="flex items-center px-3 py-2"
                 >
                     <Upload className="mr-2 h-3.5 w-3.5" />
-                    Upload Documents
+                    {t("shared.documentUploadMenu.uploadDocuments")}
                 </DropdownItem>
                 {onUploadFolder !== undefined && (
                     <DropdownItem
@@ -71,7 +73,7 @@ export function DocumentUploadMenu({
                         className="flex items-center px-3 py-2"
                     >
                         <FolderUp className="mr-2 h-3.5 w-3.5" />
-                        Upload folder
+                        {t("shared.documentUploadMenu.uploadFolder")}
                     </DropdownItem>
                 )}
             </DropdownContent>

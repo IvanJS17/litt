@@ -16,6 +16,7 @@
  * positioning, no Escape key. Those belong to the two wrappers above.
  */
 
+import { useTranslations } from "use-intl";
 import type { HTMLAttributes, ReactNode, Ref } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -111,11 +112,12 @@ export function NoticeCardUI({
     icon,
     actions,
     onDismiss,
-    dismissLabel = "Dismiss notification",
+    dismissLabel,
     className,
     ref,
     ...rest
 }: NoticeCardUIProps) {
+    const t = useTranslations();
     const toneIconNode = icon ?? toneIcon[tone];
 
     // Every popup and toast in the app moves with this markup, so change it
@@ -168,7 +170,7 @@ export function NoticeCardUI({
             </div>
             <CloseButton
                 onClick={onDismiss}
-                label={dismissLabel}
+                label={dismissLabel ?? t("ui.noticeCard.dismissNotification")}
                 size="sm"
                 className="absolute right-2 top-2"
             />

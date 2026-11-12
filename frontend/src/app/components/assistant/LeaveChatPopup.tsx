@@ -5,6 +5,7 @@ import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 export function LeaveChatPopup({
     chatId,
@@ -15,6 +16,7 @@ export function LeaveChatPopup({
     onClose: () => void;
     onLeft: () => void;
 }) {
+    const t = useTranslations();
     const { leaveChat } = useChatHistoryContext();
     const [leaving, setLeaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function LeaveChatPopup({
         } catch (cause) {
             setError(userFacingApiError(
                 cause,
-                "The chat could not be left. Please try again.",
+                t("assistant.leaveChatPopup.theChatCouldNotBe"),
             ));
         } finally {
             setLeaving(false);
@@ -40,16 +42,16 @@ export function LeaveChatPopup({
         <>
             <ConfirmPopup
                 open={!error}
-                title="Leave chat?"
-                message="Your shared access will be removed. An owner can share this chat with you again."
-                confirmLabel="Leave"
+                title={t("assistant.leaveChatPopup.leaveChat")}
+                message={t("assistant.leaveChatPopup.yourSharedAccessWillBeRemoved")}
+                confirmLabel={t("assistant.leaveChatPopup.leave")}
                 confirmStatus={leaving ? "loading" : "idle"}
                 onConfirm={() => void confirmLeave()}
                 onCancel={() => { if (!leaving) onClose(); }}
             />
             <WarningPopup
                 open={!!error}
-                title="Chat not left"
+                title={t("assistant.leaveChatPopup.chatNotLeft")}
                 message={error}
                 onClose={() => { setError(null); onClose(); }}
             />

@@ -69,7 +69,7 @@ export function EventDisclosureButton({
         >
             <span className="min-w-0">
                 <EventLabel>{label}</EventLabel>
-                {detail ? <>&nbsp;{detail}</> : null}
+                {detail ? <>{"\u00a0"}{detail}</> : null}
                 {isStreaming ? "..." : null}
             </span>
             <EventChevron open={open} />

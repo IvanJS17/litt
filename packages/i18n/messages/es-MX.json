@@ -57,6 +57,369 @@
     "yourAccountHasBeenDeleted": "Tu cuenta se eliminó",
     "yourAccountStaysLockedAndNobody": "Tu cuenta sigue bloqueada y nadie puede iniciar sesión en ella. Contacta a soporte para completar la eliminación."
   },
+  "assistant": {
+    "addDocButton": {
+      "addToMessage": "Agregar al mensaje",
+      "playbooks": "Playbooks",
+      "savedDocuments": "Documentos guardados",
+      "uploadDocuments": "Subir documentos",
+      "workflows": "Flujos de trabajo"
+    },
+    "askInputPopup": {
+      "add": "+ Agregar",
+      "addDocuments": "Agregar documentos",
+      "addTheFollowingDocumentsIfAvailable": "Agrega los siguientes documentos si están disponibles:",
+      "approval": "Aprobación",
+      "approve": "Aprobar",
+      "approved": "Aprobada",
+      "assistant": "Asistente",
+      "confirm": "Confirmar",
+      "confirmed": "Confirmado",
+      "couldNotSendTheseInputsPlease": "No se pudieron enviar estos datos. Inténtalo de nuevo.",
+      "dismiss": "Descartar",
+      "inputsSent": "Datos enviados",
+      "lengthFilesAdded": "{length, plural, one {# archivo agregado} other {# archivos agregados}}",
+      "littWantsToRunThisAction": "LiTT quiere ejecutar esta acción. Apruébala para ejecutarla ahora.",
+      "other": "Otro",
+      "question": "Pregunta",
+      "reject": "Rechazar",
+      "sendingInputs": "Enviando datos…",
+      "skip": "Omitir",
+      "tabDocuments": "Documentos",
+      "typeYourAnswer": "Escribe tu respuesta…",
+      "unskip": "Dejar de omitir"
+    },
+    "assistantChatDivider": {
+      "resizeChats": "Cambiar tamaño de los chats"
+    },
+    "assistantDocumentPanelHost": {
+      "assistant": "Asistente",
+      "chatActionFailed": "Falló la acción del chat",
+      "deleteFailed": "No se pudo borrar",
+      "deleteFile": "¿Borrar archivo?",
+      "deleteFile2": "Borrar archivo",
+      "deleteTitleAndItsVersions": "¿Borrar «{title}» y sus versiones? Esto no se puede deshacer.",
+      "openDocuments": "Abrir documentos",
+      "thisFile": "este archivo",
+      "thisFileCouldNotBe": "No se pudo borrar este archivo. Inténtalo de nuevo.",
+      "youDoNotHavePermissionTo": "No tienes permiso para borrar este archivo."
+    },
+    "assistantMessage": {
+      "copyResponse": "Copiar respuesta",
+      "copyThisAnswer": "copiar esta respuesta",
+      "littCouldnTWriteTo": "LiTT no pudo copiar al portapapeles. Revisa el permiso del portapapeles de tu navegador y luego inténtalo de nuevo.",
+      "responseCopied": "Respuesta copiada",
+      "thinking": "Pensando...",
+      "usingConnector": "Usando conector…"
+    },
+    "assistantSidePanel": {
+      "assistantDocuments": "Documentos del asistente",
+      "openDocuments": "Abrir documentos"
+    },
+    "assistantWorkflowModal": {
+      "addWorkflow": "Agregar flujo de trabajo",
+      "assistant": "Asistente",
+      "projects": "Proyectos",
+      "use": "Usar"
+    },
+    "caseView": {
+      "noContentWasReturnedForThis": "No se devolvió contenido para este documento.",
+      "noDocumentTextReturned": "No se devolvió texto del documento.",
+      "tryAgain": "Inténtalo de nuevo"
+    },
+    "chatAccessModal": {
+      "access": "Acceso",
+      "assistant": "Asistente",
+      "loadWhoThisChatIs": "cargar con quién está compartido este chat",
+      "owners": "Propietarios",
+      "refreshWhoThisChatIs": "actualizar con quién está compartido este chat",
+      "sharingDetailsCouldNotBe": "No se pudieron cargar los detalles de uso compartido, así que el acceso no se puede cambiar aquí.",
+      "untitledChat": "Chat sin título"
+    },
+    "chatCredentialPicker": {
+      "chooseAKey": "Elige una llave",
+      "deploymentKey": "Llave de la instalación",
+      "key": "Llave",
+      "keyForThisConversationLabel": "Llave de esta conversación: {label}",
+      "noKey": "Sin llave",
+      "noKeyIsAvailableForThis": "No hay ninguna llave disponible para este modelo. Agrega una en Ajustes o elige otro modelo.",
+      "operatorEndpoint": "Endpoint del operador",
+      "organizationKey": "Llave de la organización",
+      "theConversationKeepsThisKeyAnd": "La conversación conserva esta llave y su modelo una vez que empieza.",
+      "yourKey": "Tu llave"
+    },
+    "chatInput": {
+      "aResponseIsStillArriving": "Todavía llega una respuesta…",
+      "addDocuments": "Agregar documentos",
+      "addPlaybook": "Agregar playbook",
+      "assistant": "Asistente",
+      "chooseAModelBeforeSendingYour": "Elige un modelo antes de enviar tu mensaje.",
+      "documentsCouldNotBeUploaded": "No se pudieron subir los documentos. Inténtalo de nuevo.",
+      "howCanIHelp": "¿En qué te ayudo?",
+      "loading": "Cargando…",
+      "loadingThisChat": "Cargando este chat…",
+      "onlySomeoneWithEditAccess": "Solo quien tenga acceso de edición puede agregar documentos.",
+      "openWorkflowTitle": "Abrir flujo de trabajo {title}",
+      "projects": "Proyectos",
+      "selectAModel": "Selecciona un modelo",
+      "sendMessage": "Enviar mensaje",
+      "stopResponse": "Detener respuesta",
+      "untitledPlaybook": "Playbook sin título",
+      "uploadDocuments": "Subir documentos",
+      "uploading": "Subiendo",
+      "viewingOnlySendingNeedsEditAccess": "Solo lectura: enviar requiere acceso de edición"
+    },
+    "chatView": {
+      "apiKeyRejected": "Llave de API rechazada",
+      "assistant": "Asistente",
+      "chatActionFailed": "Falló la acción del chat",
+      "chatActions": "Acciones del chat",
+      "chatHistory": "Historial del chat",
+      "chatNotDeleted": "No se borró el chat",
+      "chatNotRenamed": "No se renombró el chat",
+      "chatTitle": "Título del chat",
+      "closeSideChat": "Cerrar chat lateral",
+      "closeSidePanel": "Cerrar panel lateral",
+      "delete": "Borrar",
+      "deleteThisChat": "borrar este chat",
+      "documentNotShared": "Documento no compartido",
+      "documentUnavailable": "Documento no disponible",
+      "editQuickActions": "Editar acciones rápidas",
+      "leave": "Salir",
+      "loadChat": "Cargar chat",
+      "newChat": "Chat nuevo",
+      "openSideChat": "Abrir chat lateral",
+      "openSidePanel": "Abrir panel lateral",
+      "openThisDocument": "abrir este documento",
+      "providerApiKeyWasRejected": "Se rechazó la llave de API de {provider}. Si es tu propia llave, revísala en Ajustes; si no, comunícate con tu administrador.",
+      "rename": "Renombrar",
+      "renameChat": "Renombrar chat",
+      "renameThisChat": "renombrar este chat",
+      "scrollToBottom": "Ir al final",
+      "share": "Compartir",
+      "shareThisChat": "compartir este chat",
+      "thatApiKeyWasRejected": "Se rechazó esa llave de API. Si es tu propia llave, revísala en Ajustes; si no, comunícate con tu administrador.",
+      "theChatCouldNotBe": "No se pudo renombrar el chat. Inténtalo de nuevo.",
+      "theChatCouldNotBe2": "No se pudo borrar el chat. Inténtalo de nuevo.",
+      "thePersonWhoSharedThisChat": "Quien compartió este chat no ha compartido sus documentos.",
+      "thisDocumentCouldNotBeOpened": "Este documento no se pudo abrir. Inténtalo de nuevo.",
+      "thisDocumentIsNoLongerAvailable": "Este documento ya no está disponible.",
+      "untitledChat": "Chat sin título",
+      "untitledPlaybook": "Playbook sin título"
+    },
+    "citationQuotesSection": {
+      "cellTarget": "{range, select, true {celdas} other {celda}} {cell}",
+      "citation": "Cita",
+      "cite": "Citar",
+      "close": "Cerrar",
+      "closeCitation": "Cerrar cita",
+      "copied": "Copiado",
+      "copyQuoteAndCitation": "Copiar cita textual y cita",
+      "noRelevantQuotes": "No hay citas textuales relevantes.",
+      "pageNumber": "Página {page}",
+      "quotes": "Citas textuales",
+      "text": "«",
+      "text2": "»",
+      "view": "Ver"
+    },
+    "citationSources": {
+      "citations": "Citas"
+    },
+    "citationVerification": {
+      "citationRef": "Cita {ref}{unverified, select, true {. No se pudo verificar la cita textual} other {}}",
+      "couldNotVerifyQuote": "No se pudo verificar la cita textual",
+      "quoteCouldNotBeMatched": "La cita textual no coincide con el texto fuente.",
+      "quoteNotFoundInDocument": "No se encontró la cita textual en el documento",
+      "theLanguageModelProducedAQuote": "El modelo de lenguaje produjo una cita textual que no se encuentra en el documento fuente. Trátala como una alucinación y revisa la sección relacionada de la respuesta del asistente contra el documento antes de confiar en ella."
+    },
+    "docSearchBlock": {
+      "scopeForQuery": "{scope} para «{query}»",
+      "searchFailedIn": "La búsqueda falló en",
+      "searched": "Buscado",
+      "searching": "Buscando"
+    },
+    "editCard": {
+      "couldntSaveAcceptReverted": "No se pudo guardar la aceptación; se revirtió.",
+      "couldntSaveRejectReverted": "No se pudo guardar el rechazo; se revirtió."
+    },
+    "editCardsSection": {
+      "acceptAll": "Aceptar todo",
+      "acceptingAll": "Aceptando todo…",
+      "couldntSaveOneOrMoreAccepts": "No se pudo guardar una o más aceptaciones.",
+      "couldntSaveOneOrMoreRejects": "No se pudo guardar uno o más rechazos.",
+      "rejectAll": "Rechazar todo",
+      "rejectingAll": "Rechazando todo…",
+      "view": "Ver"
+    },
+    "eventBlocks": {
+      "analyzing": "Analizando…",
+      "approval": "Aprobación",
+      "approved": "Aprobada",
+      "askedForApproval": "Pidió aprobación",
+      "askedForInput": "Pidió datos",
+      "askingForApproval": "Pidiendo aprobación",
+      "askingForInput": "Pidiendo datos",
+      "created": "Creado",
+      "creating": "Creando",
+      "documents": "Documentos",
+      "documentsRequested": "Documentos pedidos",
+      "downloadFilename": "Descargar {filename}",
+      "downloadThisDocument": "descargar este documento",
+      "editFailed": "Falló la edición",
+      "edited": "Editado",
+      "editing": "Editando",
+      "noDocumentsAttached": "No hay documentos adjuntos",
+      "openWorkflowTitle": "Abrir flujo de trabajo {title}",
+      "pondering": "Reflexionando…",
+      "question": "Pregunta",
+      "read": "Leído",
+      "reasoning": "Razonando…",
+      "rejected": "Rechazado",
+      "replicated": "Copiado",
+      "replicating": "Copiando",
+      "reviewing": "Revisando…",
+      "skipped": "Omitido",
+      "thinking": "Pensando...",
+      "thoughtProcess": "Proceso de razonamiento"
+    },
+    "eventUtils": {
+      "sorrySomethingWentWrong": "Perdona, algo salió mal.",
+      "toolAskInputs": "Pidiendo datos…",
+      "toolConnector": "Usando conector…",
+      "toolCreateTextCard": "Preparando texto…",
+      "toolDelegate": "Iniciando un subagente…",
+      "toolEditDocument": "Editando documento…",
+      "toolFetchDocuments": "Leyendo documentos…",
+      "toolFindDocuments": "Buscando documentos…",
+      "toolFindInDocument": "Buscando en el documento…",
+      "toolGenerateDocx": "Creando documento…",
+      "toolGenerateExcel": "Creando hoja de cálculo…",
+      "toolGeneratePpt": "Creando presentación…",
+      "toolListDocuments": "Cargando documentos…",
+      "toolListFirmCriteria": "Consultando criterios del despacho…",
+      "toolListWorkflows": "Cargando flujos de trabajo…",
+      "toolReadDocument": "Leyendo documento…",
+      "toolReadWebpage": "Leyendo página web…",
+      "toolReadWorkflow": "Leyendo flujo de trabajo…",
+      "toolReplicateDocument": "Copiando documento…",
+      "toolRunning": "Ejecutando {name}…",
+      "toolWebSearch": "Buscando en la web…",
+      "toolWorking": "Trabajando…"
+    },
+    "initialView": {
+      "aiCanMakeMistakesAnswersAre": "La IA puede cometer errores. Las respuestas no son asesoría legal.",
+      "configureQuickActions": "Configurar acciones rápidas",
+      "hiUsername": "Hola, {username}",
+      "quickActions": "Acciones rápidas"
+    },
+    "leaveChatPopup": {
+      "chatNotLeft": "No se salió del chat",
+      "leave": "Salir",
+      "leaveChat": "¿Salir del chat?",
+      "theChatCouldNotBe": "No se pudo salir del chat. Inténtalo de nuevo.",
+      "yourSharedAccessWillBeRemoved": "Se quitará tu acceso compartido. Un propietario puede volver a compartir este chat contigo."
+    },
+    "modelToggle": {
+      "noModels": "Sin modelos",
+      "selectModel": "Selecciona modelo"
+    },
+    "quickActionsModal": {
+      "active": "Activo",
+      "add": "Agregar",
+      "askForSourceDocumentsBeforeLaunching": "Pide los documentos fuente antes de iniciar este flujo de trabajo.",
+      "assistant": "Asistente",
+      "back": "Atrás",
+      "couldNotCreateQuickAction": "No se pudo crear la acción rápida.",
+      "couldNotLoadAssistantWorkflows": "No se pudieron cargar los flujos de trabajo del asistente.",
+      "couldNotSaveQuickAction": "No se pudo guardar la acción rápida.",
+      "create": "Crear",
+      "creating": "Creando…",
+      "inactive": "Inactivo",
+      "name": "Nombre",
+      "newQuickAction": "Nueva acción rápida",
+      "noQuickActionsFound": "No se encontraron acciones rápidas.",
+      "prompt": "Prompt",
+      "promptPlacedInTheAssistantComposer": "Prompt colocado en el redactor del Asistente",
+      "quickAction": "Acción rápida",
+      "quickActionName": "Nombre de la acción rápida",
+      "quickActions": "Acciones rápidas",
+      "requestDocumentUpload": "Pedir subir documentos",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "searchQuickActions": "Buscar acciones rápidas...",
+      "selectAnAssistantWorkflow": "Selecciona un flujo de trabajo del asistente",
+      "showThisActionInTheAssistant": "Muestra esta acción en la vista inicial del Asistente.",
+      "workflowUsed": "Flujo de trabajo usado"
+    },
+    "responseDetails": {
+      "budgetAllocated": " ({count} de presupuesto asignado)",
+      "mainAndSubagents": "Principal: {main}. Total de subagentes: {total} tokens.",
+      "noReasoning": "Sin razonamiento",
+      "tokens": ": {count} tokens"
+    },
+    "subagentGroup": {
+      "askedLitt": "Preguntó a LiTT",
+      "askedLittAQuestion": "Hizo una pregunta a LiTT",
+      "brief": "Informe",
+      "completedIn": "Completado en {steps}",
+      "couldNotFinish": "No se pudo terminar",
+      "couldNotStart": "No se pudo iniciar: {reason}",
+      "countSubagentsFinished": "{count} subagentes terminaron",
+      "partialBrief": "informe parcial",
+      "resumedCount": "Se reanudó {count, plural, one {un subagente} other {# subagentes}}",
+      "returnedABriefToLitt": "Devolvió un informe a LiTT",
+      "returnedAPartialBriefToLitt": "Devolvió un informe parcial a LiTT",
+      "route": "Ruta {route}",
+      "startedAndResumed": "Se iniciaron {started} y se reanudaron {resumed} {total, plural, one {subagente} other {subagentes}}",
+      "startedCount": "Se inició {count, plural, one {un subagente} other {# subagentes}}",
+      "statusCompleted": "Completado",
+      "statusResumed": "Reanudado",
+      "statusRunning": "En curso",
+      "statusStopped": "Detenido",
+      "stepsAppearWhenTheSubagentFinishes": "Los pasos aparecen cuando termina el subagente.",
+      "stepsCount": "{count, plural, one {# paso} other {# pasos}}",
+      "stoppedAtItsLimit": "Se detuvo al llegar a su límite",
+      "subagent": "Subagente",
+      "subagentFinished": "Subagente terminado",
+      "subagents": "Subagentes",
+      "taskFromLitt": "Tarea de LiTT",
+      "waitingForYourApproval": "Esperando tu aprobación"
+    },
+    "uploadOverlay": {
+      "dropFilesHereToAdd": "Suelta los archivos aquí para agregarlos al chat"
+    },
+    "useAssistantChat": {
+      "aNewerMessageHasReplacedThis": "Un mensaje más reciente reemplazó a este. Envíalo de nuevo si todavía necesitas una respuesta.",
+      "getAResponse": "obtener una respuesta",
+      "loadThisChat": "carga este chat",
+      "openThisChatAndWaitFor": "Abre este chat y espera su respuesta actual antes de volver a intentarlo.",
+      "waitForThisChatsCurrentAnswer": "Espera la respuesta actual de este chat antes de volver a intentarlo."
+    },
+    "useResolvedPanelDocument": {
+      "couldNotLoadShortly": "No se pudo cargar este documento. Inténtalo de nuevo en unos minutos.",
+      "couldNotLoadThisDocument": "No se pudo cargar este documento.",
+      "rateLimited": "Esta fuente tiene un límite temporal de solicitudes. Inténtalo de nuevo en unos minutos.",
+      "rateLimitedWait": "Esta fuente tiene un límite temporal de solicitudes. Inténtalo de nuevo en aproximadamente {seconds, plural, one {# segundo} other {# segundos}}."
+    },
+    "userMessage": {
+      "openFilename": "Abrir {filename}",
+      "openPlaybookTitle": "Abrir playbook {title}",
+      "openWorkflowTitle": "Abrir flujo de trabajo {title}"
+    },
+    "webActivityBlock": {
+      "read": "Leído",
+      "readFailed": "No se pudo leer",
+      "reading": "Leyendo",
+      "searchedTheWeb": "Buscó en la web{hasQuery, select, true { «{query}»} other {}}",
+      "searchingTheWeb": "Buscando en la web{hasQuery, select, true { «{query}»} other {}}",
+      "sources": "Fuentes",
+      "webSearchFailed": "No se pudo buscar en la web «{query}»",
+      "webSearchUnavailable": "Búsqueda web no disponible"
+    },
+    "workflowSlashMenu": {
+      "workflowCommands": "Comandos del flujo de trabajo"
+    }
+  },
   "assistantExport": {
     "defaultName": "respuesta",
     "downloadMarkdown": "Descargar .md",
@@ -305,7 +668,7 @@
   },
   "documents": {
     "table": {
-      "aFolderNamedFoldernameAlreadyExists": "Ya existe una carpeta llamada “{folderName}”. Esta carpeta se subirá como “{suggestedName}”.",
+      "aFolderNamedFoldernameAlreadyExists": "Ya existe una carpeta llamada «{folderName}». Esta carpeta se subirá como «{suggestedName}».",
       "actions": {
         "addDocuments": "agregar documentos",
         "createFolders": "crear carpetas",
@@ -431,6 +794,15 @@
       "uploaderOnly": "Solo quien lo subió",
       "uploading": "Subiendo",
       "version": "Versión"
+    },
+    "upload": {
+      "batchTooLarge": "Un lote de subida debe pesar {size} GB o menos.",
+      "fileTooLarge": "Cada archivo debe pesar {size} MB o menos.",
+      "filesFailed": "No se pudo subir {names}. Inténtalo de nuevo.",
+      "invalidMarkdown": "{count, plural, one {{names} no es un archivo de texto UTF-8 válido.} other {{names} no son archivos de texto UTF-8 válidos.}}",
+      "invalidPdf": "{count, plural, one {{names} no es un archivo PDF válido.} other {{names} no son archivos PDF válidos.}}",
+      "tooManyFiles": "Puedes subir como máximo {count} archivos a la vez.",
+      "unsupportedType": "Tipo de archivo no compatible. Solo puedes subir archivos PDF, Word, Excel, PowerPoint y Markdown (.md)."
     },
     "viewers": {
       "discardChanges": "Descartar cambios",
@@ -596,7 +968,7 @@
         "chatMessageSent": "Mensaje de chat enviado",
         "chatsExported": "Chats exportados",
         "departedWorkArchived": "Trabajo del miembro saliente archivado",
-        "departedWorkDeleted": "Trabajo del miembro saliente eliminado",
+        "departedWorkDeleted": "Trabajo del miembro saliente borrado",
         "departedWorkExpired": "Trabajo del miembro saliente expirado",
         "departedWorkRecovered": "Trabajo del miembro saliente recuperado",
         "departedWorkTransferred": "Trabajo del miembro saliente transferido",
@@ -615,7 +987,7 @@
         "memberDeparted": "Salida del miembro",
         "memberExportsAllowed": "Exportaciones de miembros permitidas",
         "memberExportsTurnedOff": "Exportaciones de miembros desactivadas",
-        "memberLeft": "El miembro salió",
+        "memberLeft": "Salida del miembro",
         "memberRemoved": "Miembro quitado",
         "memberRoleChanged": "Rol del miembro cambiado",
         "membersMatterProjectsPassedOn": "Proyectos de asuntos del miembro transferidos",
@@ -623,7 +995,7 @@
         "modelMarkRemoved": "Marca de modelo retirada",
         "modelsUpdated": "Modelos actualizados",
         "organizationCreated": "Organización creada",
-        "organizationDataDeleted": "Datos de la organización eliminados",
+        "organizationDataDeleted": "Datos de la organización borrados",
         "organizationDeleted": "Organización eliminada",
         "organizationPermanentlyDeleted": "Organización eliminada permanentemente",
         "organizationRestored": "Organización restaurada",
@@ -729,7 +1101,7 @@
         "otherStatus": "{action} está {status}.",
         "resentInvitation": "{self, select, yes {Reenviaste una invitación a {name}.} other {{actor} reenvió una invitación a {name}.}}",
         "roleChanged": "{self, select, yes {Cambiaste el rol en la organización de {name}.} other {{actor} cambió el rol en la organización de {name}.}}",
-        "unnamed": "«{type}»",
+        "unnamed": "un elemento sin nombre ({type})",
         "uploaded": "{self, select, yes {Subiste {name}.} other {{actor} subió {name}.}}"
       },
       "surface": {
@@ -984,7 +1356,7 @@
       },
       "leaving": "Saliendo...",
       "listAnd": "{rest} y {last}",
-      "onlyOrganizationOwnersCanRecoverReassign": "Solo los propietarios de la organización pueden recuperar, reasignar o eliminar este trabajo. Lo que no se recupere en 30 días se borrará permanentemente, junto con su contenido.",
+      "onlyOrganizationOwnersCanRecoverReassign": "Solo los propietarios de la organización pueden recuperar, reasignar o borrar este trabajo. Lo que no se recupere en 30 días se borrará permanentemente, junto con su contenido.",
       "owedsummaryNeedANewOwnerShared": "{owed, plural, one {{owedSummary} necesita un nuevo propietario. El trabajo compartido y público se transferirá junto.} other {{owedSummary} necesitan un nuevo propietario. El trabajo compartido y público se transferirá junto.}}",
       "privateWorkRetainedFor30Days": "Trabajo privado conservado durante 30 días",
       "removing": "Quitando...",
@@ -1435,6 +1807,55 @@
     "savingStatus": "Guardando…"
   },
   "projects": {
+    "projectMemoryModal": {
+      "aProjectOwnerCanEnableMemory": "Un propietario del proyecto puede activar la memoria para las próximas conversaciones del proyecto.",
+      "closeWithoutSaving": "¿Cerrar sin guardar?",
+      "closeWithoutSaving2": "Cerrar sin guardar",
+      "consistsOfSharedProjectContextCurated": "Contiene el contexto compartido del proyecto, seleccionado de los chats de este proyecto.",
+      "disable": "Desactivar",
+      "done": "Listo",
+      "enableProjectMemory": "Activar memoria del proyecto",
+      "loadingProjectMemory": "Cargando memoria del proyecto",
+      "project": "Proyecto",
+      "projectMemory": "Memoria del proyecto",
+      "projectMemoryBreadcrumb": "Memoria del proyecto",
+      "projectMemoryChangedWhileYouWere": "La memoria del proyecto cambió mientras editabas. Vuelve a abrirla antes de guardar de nuevo.",
+      "projectMemoryCouldNotBeDisabled": "No se pudo desactivar la memoria del proyecto. Inténtalo de nuevo.",
+      "projectMemoryCouldNotBeEnabled": "No se pudo activar la memoria del proyecto. Inténtalo de nuevo.",
+      "projectMemoryCouldNotBeLoaded": "No se pudo cargar la memoria del proyecto",
+      "projectMemoryCouldNotBeSaved": "No se pudo guardar la memoria del proyecto. Se conservó tu borrador.",
+      "projectMemoryEnabled": "Memoria del proyecto activada",
+      "projectMemoryIsOff": "La memoria del proyecto está desactivada",
+      "projectMemoryWasTurnedOffWhile": "La memoria del proyecto se desactivó mientras editabas, así que tus cambios no se guardaron.",
+      "projects": "Proyectos",
+      "retry": "Reintentar",
+      "theLatestChangesCouldNotBe": "No se pudieron guardar los últimos cambios en el memory.md de este proyecto. Si cierras ahora, se descartarán.",
+      "thisWillDeleteTheExistingProjectMemory": "Esto borrará el archivo memory.md de la memoria del proyecto{dirty, select, true { y tu borrador sin guardar} other {}}, cancelará las actualizaciones pendientes y detendrá las futuras hasta que vuelvas a activar la memoria del proyecto.",
+      "tryAgainToInspectThisProjects": "Inténtalo de nuevo para revisar la memoria compartida de este proyecto.",
+      "turnItOnToStartA": "Actívala para empezar una nueva memoria.md compartida del proyecto para las próximas conversaciones.",
+      "turnOffProjectMemory": "¿Desactivar memoria del proyecto?"
+    },
+    "projectPageParts": {
+      "access": "Acceso",
+      "backToProjectDocuments": "Volver a documentos del proyecto",
+      "backToProjects": "Volver a Proyectos",
+      "chat": "Chat",
+      "chats": "Chats",
+      "createChat": "Crear chat",
+      "createReview": "Crear revisión",
+      "delete": "Borrar",
+      "deleted": "[Borrado]",
+      "editDetails": "Editar detalles",
+      "memory": "Memoria",
+      "noVersionHistory": "Sin historial de versiones.",
+      "original": "Original",
+      "projects": "Proyectos",
+      "renameVersion": "Renombrar versión",
+      "review": "Revisión",
+      "search": "Buscar…",
+      "tabularReviews": "Revisiones tabulares",
+      "viewDetails": "Ver detalles"
+    },
     "workspace": {
       "view": {
         "chat": "Chat",
@@ -1898,7 +2319,7 @@
       "modelSelections": "Selección de modelos",
       "modelsAreSavedAsYouPick": "Los modelos se guardan conforme los eliges.",
       "noMatchingModels": "No hay modelos que coincidan.",
-      "notAModelId": "\"{candidate}\" no es un ID de modelo — elige uno de la lista o escríbelo como {shape}.",
+      "notAModelId": "«{candidate}» no es un ID de modelo — elige uno de la lista o escríbelo como {shape}.",
       "perMillionInput": "{amount}/M de entrada",
       "perMillionOutput": "{amount}/M de salida",
       "pressEnterToAddThisModel": "Presiona Intro para agregar este ID de modelo.",
@@ -2205,6 +2626,458 @@
       "tavilySearchesAndReadsPages": "Tavily busca y lee páginas. Funciona con cualquier modelo.",
       "theseModelsWontSearchTheWeb": "Estos modelos no buscarán en la web.",
       "webSearch": "Búsqueda web"
+    }
+  },
+  "shared": {
+    "accessScopeLabel": {
+      "private": "Privado",
+      "privateShared": "Privado (compartido)",
+      "public": "Público",
+      "sharedWithCountUsers": "Compartido con {count, plural, one {# usuario} other {# usuarios}}",
+      "sharedWithEveryoneIn": "Compartido con todos en {organizationName}",
+      "sharedWithEveryoneInTheOrganisation": "Compartido con todos en la organización",
+      "sharedWithIndividuals": "Compartido con personas"
+    },
+    "addUserInput": {
+      "add": "Agregar",
+      "addByEmail": "Agregar por correo...",
+      "addUser": "Agregar usuario",
+      "couldNotAddThisUser": "No se pudo agregar este usuario. Inténtalo de nuevo.",
+      "emailDoesNotBelongToA": "{email} no pertenece a un usuario de LiTT.",
+      "enterAValidEmail": "Escribe un correo válido."
+    },
+    "appShellSkeleton": {
+      "loading": "Cargando"
+    },
+    "appSidebar": {
+      "accountMenu": "Menú de la cuenta",
+      "closeSidebar": "Cerrar barra lateral",
+      "history": "Historial",
+      "loadMoreProjects": "cargar más proyectos",
+      "loadYourRecentProjects": "cargar tus proyectos recientes",
+      "loadingWorkspace": "Cargando espacio de trabajo",
+      "navAssistant": "Asistente",
+      "navIde": "IDE",
+      "navLibrary": "Biblioteca",
+      "navPlaybooks": "Playbooks",
+      "navProjects": "Proyectos",
+      "navTabularReview": "Revisión tabular",
+      "navWorkflows": "Flujos de trabajo",
+      "noHistoryYet": "Sin historial todavía",
+      "noProjectsYet": "Aún no hay proyectos",
+      "openSidebar": "Abrir barra lateral",
+      "organization": "Organización",
+      "recentProjects": "Proyectos recientes",
+      "settings": "Ajustes",
+      "signOut": "Cerrar sesión",
+      "signOutAction": "cerrar sesión",
+      "someHistoryCouldNotBeLoaded": "No se pudo cargar parte del historial. Inténtalo de nuevo",
+      "tabularReviewStatus": "Revisión tabular: {title}{status, select, loading { (en curso)} complete { (completada)} other {}}",
+      "titleReviewRunning": "Revisión de {title} en curso",
+      "untitledReview": "Revisión sin título",
+      "workspace": "Espacio de trabajo"
+    },
+    "chatPanelHeader": {
+      "chatTitle": "Título del chat",
+      "closeChatPanel": "Cerrar panel del chat",
+      "newChat": "Nuevo chat",
+      "newChat2": "Chat nuevo",
+      "noChatsYet": "Aún no hay chats.",
+      "noMatches": "Sin coincidencias.",
+      "updatedAt": "Actualizado {date}"
+    },
+    "connectorActionCard": {
+      "argAddLabels": "Agregar etiquetas",
+      "argAttendees": "Asistentes",
+      "argBcc": "Cco",
+      "argCalendar": "Calendario",
+      "argCc": "Cc",
+      "argDate": "Fecha",
+      "argDateAndTime": "Fecha y hora",
+      "argDescription": "Descripción",
+      "argDestinationFolder": "Carpeta de destino",
+      "argDraft": "Borrador",
+      "argEmail": "Correo",
+      "argEndExclusiveForAll": "Fin (excluyente para eventos de todo el día)",
+      "argEvent": "Evento",
+      "argFile": "Archivo",
+      "argFileType": "Tipo de archivo",
+      "argLocation": "Ubicación",
+      "argMessage": "Mensaje",
+      "argName": "Nombre",
+      "argNewContents": "Contenido nuevo",
+      "argRemoveLabels": "Quitar etiquetas",
+      "argStart": "Empezar",
+      "argSubject": "Asunto",
+      "argTimeZone": "Zona horaria",
+      "argTitle": "Título",
+      "argTo": "Hasta",
+      "currentItemBeforeThisChange": "Elemento actual antes de este cambio",
+      "deletesTheDraft": "Esto borra el borrador. Revisa su contenido antes de aprobar.",
+      "googleNotifiesAttendees": "Google avisará a los asistentes de este cambio. Al borrar un evento se envían avisos de cancelación.",
+      "movesToTrash": "Esto mueve el elemento a la papelera de Google Drive. Si envías una carpeta a la papelera, afecta su contenido.",
+      "movingMayChangeAccess": "Mover este elemento puede cambiar el acceso heredado de su carpeta.",
+      "replacesFileContents": "Esto reemplaza todo el contenido del archivo por el texto de abajo. Se reemplaza el formato existente del Documento de Google.",
+      "requestedBySubagentRequestedBy": "Solicitado por el subagente: {requested_by}",
+      "thisActionTakesNoDetails": "Esta acción no requiere detalles.",
+      "titleOnConnectorName": "{title} en {connector_name}"
+    },
+    "crashScreen": {
+      "back": "Atrás",
+      "contactSupport": "Contactar a soporte",
+      "documentTitle": "Algo salió mal – LiTT",
+      "errorReferenceDigest": "Referencia del error: {digest}",
+      "somethingWentWrong": "Algo salió mal",
+      "thisPageDidntLoadTryAgain": "Esta página no cargó. Inténtalo de nuevo y contacta a soporte si sigue pasando.",
+      "tryAgain": "Inténtalo de nuevo"
+    },
+    "documentAnnotationLayer": {
+      "documentAnnotation": "Anotación del documento"
+    },
+    "documentPill": {
+      "openFilename": "Abrir {filename}",
+      "removeFilename": "Quitar {filename}"
+    },
+    "documentSidePanel": {
+      "add": "Agregar",
+      "cancel": "Cancelar",
+      "closePanel": "Cerrar panel",
+      "couldNotSaveTheNewName": "No se pudo guardar el nuevo nombre. Inténtalo de nuevo.",
+      "delete": "Borrar",
+      "deleteDocument": "Borrar documento",
+      "deleteDocument2": "¿Borrar documento?",
+      "deleteThisDocument": "borrar este documento",
+      "deleteThisDocumentVersion": "borrar esta versión del documento",
+      "deleteThisVersion": "borrar esta versión",
+      "deleteTitle": "Borrar {title}",
+      "deleteVersion": "Borrar versión",
+      "deleted": "Eliminado",
+      "details": "Detalles",
+      "document": "Documento",
+      "documentData": "Datos del documento",
+      "download": "Descargar",
+      "downloadTitle": "Descargar {title}",
+      "downloadVersion": "Descargar versión",
+      "editName": "Editar nombre",
+      "fileExtensionsCannotBeChanged": "Las extensiones de archivo no se pueden cambiar aquí.",
+      "fileExtensionsCannotBeChangedKeep": "Las extensiones de archivo no se pueden cambiar aquí. Mantén {extension} al final del nombre.",
+      "name": "Nombre",
+      "nameIsRequired": "El nombre es obligatorio.",
+      "noVersionHistory": "Sin historial de versiones.",
+      "onlyThePersonWhoUploadedThis": "Solo quien subió este documento puede borrar sus versiones",
+      "onlyThePersonWhoUploadedThis2": "Solo quien subió este documento puede borrarlo",
+      "original": "Original",
+      "pages": "Páginas",
+      "renameThisVersion": "renombrar esta versión",
+      "replace": "Reemplazar",
+      "replaceThisVersion": "reemplazar esta versión",
+      "replaceTitle": "Reemplazar {title}",
+      "replaceVersion": "¿Reemplazar versión?",
+      "replaceVersionFile": "Reemplazar archivo de la versión",
+      "resizeDocumentPanel": "Cambiar tamaño del panel del documento",
+      "resizeDocumentView": "Cambiar tamaño de la vista del documento",
+      "saveName": "Guardar nombre",
+      "selectedfilenameHasLengthVersionsDeletingThis": "{selectedFilename} tiene {length} versiones. Al borrar este documento se borrarán todas sus versiones. No se puede deshacer.",
+      "selectedfilenameWillBePermanentlyDeletedThis": "{selectedFilename} se borrará para siempre. No se puede deshacer.",
+      "size": "Tamaño",
+      "theNewVersionCouldNotBe": "No se pudo subir la nueva versión. Inténtalo de nuevo.",
+      "theSelectedFile": "el archivo seleccionado",
+      "thisVersion": "esta versión",
+      "thisVersionCouldNotBeReplaced": "No se pudo reemplazar esta versión. Inténtalo de nuevo.",
+      "thisWillWipeVersionAndReplaceIt": "Esto borrará {version} y lo reemplazará con {file}. Guarda como nueva versión si quieres conservar ambas copias.",
+      "type": "Tipo",
+      "uploadANewVersion": "subir una nueva versión",
+      "uploadNewVersion": "Subir nueva versión",
+      "uploaded": "Subido",
+      "uploadedBy": "Subido por",
+      "version": "Versión",
+      "versionNumber": "Versión {number}",
+      "versions": "Versiones"
+    },
+    "documentTabActions": {
+      "addToChat": "Agregar al chat",
+      "deleteFile": "Borrar archivo",
+      "download": "Descargar",
+      "fileActionFailed": "Falló la acción sobre el archivo",
+      "fileName": "Nombre del archivo",
+      "open": "Abrir",
+      "rename": "Renombrar",
+      "renameFailed": "Falló el renombrado",
+      "thisFileActionCouldNotBe": "No se pudo completar esta acción sobre el archivo. Inténtalo de nuevo.",
+      "thisFileCouldNotBeRenamed": "No se pudo renombrar este archivo. Inténtalo de nuevo."
+    },
+    "documentTabBar": {
+      "add": "Agregar",
+      "closePanel": "Cerrar panel",
+      "closeTitle": "Cerrar {title}",
+      "documentViewer": "Visor de documentos"
+    },
+    "documentTitleRow": {
+      "download": "Descargar",
+      "downloadFailed": "Falló la descarga",
+      "edit": "Editar",
+      "enableEditing": "Activar edición",
+      "notSaved": "No guardado",
+      "saved": "Guardado",
+      "saving": "Guardando…",
+      "stopEditing": "Dejar de editar",
+      "thisFileCouldNotBeDownloaded": "No se pudo descargar este archivo. Inténtalo de nuevo."
+    },
+    "documentUploadMenu": {
+      "savedDocuments": "Documentos guardados",
+      "upload": "Subir",
+      "uploadDocuments": "Subir documentos",
+      "uploadFolder": "Subir carpeta"
+    },
+    "documentVersionPicker": {
+      "chooseDocumentVersion": "Elige la versión del documento",
+      "chooseDocumentVersionCurrentlyVdisplayednumber": "Elige la versión del documento, actualmente V{displayedNumber}",
+      "couldNotLoadVersionsClickTo": "No se pudieron cargar las versiones. Haz clic para reintentar.",
+      "current": "Actual",
+      "retryLoadingDocumentVersions": "Reintentar la carga de las versiones del documento",
+      "saveChangesBeforeSwitchingVersions": "Guarda tus cambios antes de cambiar de versión",
+      "version": "Versión"
+    },
+    "docxCommentCard": {
+      "actionsForBy": "Acciones para {kind, select, comment {comentario} other {respuesta}} de {author}",
+      "commentBy": "Comentario de {author}",
+      "delete": "Borrar",
+      "edit": "Editar",
+      "emptyComment": "Comentario vacío",
+      "moreActions": "Más acciones",
+      "reply": "Responder",
+      "resolved": "Resuelto",
+      "thisCommentCouldNotBeDeleted": "No se pudo borrar este comentario. Inténtalo de nuevo.",
+      "thisCommentCouldNotBeShown": "No se pudo mostrar este comentario en el documento.",
+      "unknownAuthor": "Autor desconocido"
+    },
+    "docxCommentComposer": {
+      "addComment": "Agregar comentario",
+      "anAuthorNameIsRequired": "Se necesita un nombre de autor para agregar comentarios.",
+      "cancel": "Cancelar",
+      "commentAdded": "Comentario agregado.",
+      "newComment": "Nuevo comentario",
+      "selectTextInTheDocumentThen": "Selecciona texto en el documento y luego elige Nuevo comentario.",
+      "selectThePassageAgainThenChoose": "Vuelve a seleccionar el pasaje y luego elige Nuevo comentario.",
+      "theSelectedPassageChangedYourDraft": "El pasaje seleccionado cambió. Tu borrador sigue aquí; cancela y vuelve a seleccionar el pasaje antes de agregar el comentario.",
+      "thisCommentCouldNotBeAdded": "No se pudo agregar este comentario. Tu borrador sigue aquí; inténtalo de nuevo o cancela para elegir otro pasaje.",
+      "thisCommentCouldNotBeAdded2": "No se pudo agregar este comentario. Tu borrador sigue aquí; inténtalo de nuevo.",
+      "thisDocumentIsReadOnly": "Este documento es de solo lectura.",
+      "thisDocumentIsReadOnlyYour": "Este documento es de solo lectura. Tu borrador se conserva hasta que canceles.",
+      "writeAComment": "Escribe un comentario…"
+    },
+    "docxCommentEdit": {
+      "cancel": "Cancelar",
+      "editComment": "Editar comentario",
+      "save": "Guardar",
+      "yourEditCouldNotBeSaved": "No se pudo guardar tu edición. Tu borrador se conserva; inténtalo de nuevo."
+    },
+    "docxCommentReply": {
+      "cancel": "Cancelar",
+      "reply": "Responder",
+      "replyToComment": "Responder al comentario",
+      "writeAReply": "Escribe una respuesta…",
+      "yourReplyCouldNotBeAdded": "No se pudo agregar tu respuesta. Tu borrador se conserva; inténtalo de nuevo."
+    },
+    "docxNavigationMenu": {
+      "more": "Más",
+      "navigationPane": "Panel de navegación"
+    },
+    "docxReviewActions": {
+      "acceptTrackedChange": "Aceptar cambio marcado",
+      "deleteComment": "Borrar comentario",
+      "editComment": "Editar comentario",
+      "rejectTrackedChange": "Rechazar cambio marcado",
+      "replyToComment": "Responder al comentario",
+      "thisActionCouldNotBeApplied": "No se pudo aplicar esta acción. Inténtalo de nuevo.",
+      "unableToUpdateDocument": "No fue posible actualizar el documento",
+      "viewComment": "Ver comentario"
+    },
+    "docxReviewPanel": {
+      "closeComments": "Cerrar comentarios",
+      "comments": "Comentarios",
+      "documentComments": "Comentarios del documento",
+      "noComments": "No hay comentarios."
+    },
+    "docxSaveErrorPopup": {
+      "changesNotSaved": "Cambios sin guardar"
+    },
+    "docxView": {
+      "dismissWarning": "Descartar advertencia",
+      "downloadFailed": "Error al descargar",
+      "loadingDocument": "Cargando documento",
+      "thisDocumentCouldNotBeDisplayed": "No se pudo mostrar este documento. Descárgalo para verlo.",
+      "thisDocumentCouldNotBeDownloaded": "No se pudo descargar este documento. Tus ediciones siguen abiertas; inténtalo de nuevo."
+    },
+    "eigenpalDocxRenderer": {
+      "comments": "Comentarios",
+      "dismiss": "Descartar",
+      "someDocumentFontsCouldNotBe": "No se pudieron cargar algunas fuentes del documento. El texto podría verse diferente."
+    },
+    "fileDirectory": {
+      "collapse": "Contraer",
+      "created": "Creado",
+      "documents": "Documentos",
+      "empty": "Vacío",
+      "expand": "Expandir",
+      "expandNameAndLoadAllFiles": "Expande {name} y carga todos los archivos antes de seleccionarlo",
+      "fileDirectory": "Directorio de archivos",
+      "loadingProjectFiles": "Cargando archivos del proyecto",
+      "name": "Nombre",
+      "noDocumentsYet": "Aún no hay documentos",
+      "noMatchesFound": "No se encontraron coincidencias",
+      "noProjectsYet": "Aún no hay proyectos",
+      "noTemplatesYet": "Aún no hay plantillas",
+      "projects": "Proyectos",
+      "search": "Buscar...",
+      "selectAllFilesInName": "Seleccionar todos los archivos de {name}",
+      "selectFilename": "Seleccionar {filename}",
+      "selectedcountSelected": "{selectedCount} seleccionados",
+      "size": "Tamaño",
+      "templates": "Plantillas",
+      "uploading": "Subiendo",
+      "version": "Versión"
+    },
+    "headerActionsMenu": {
+      "actions": "Acciones"
+    },
+    "markdownView": {
+      "saveThisDocument": "guarda este documento"
+    },
+    "pageHeader": {
+      "back": "Atrás",
+      "clearSearch": "Borrar búsqueda",
+      "search": "Buscar…",
+      "showCollapsedBreadcrumbs": "Mostrar la ruta contraída",
+      "showPath": "Mostrar ruta"
+    },
+    "pdfView": {
+      "failedToLoadDocument": "No se pudo cargar el documento."
+    },
+    "permissionDenied": {
+      "askContact": "Pregunta a <person>{contact}</person> si necesitas acceso de {role, select, owner {propietario} other {editor}}.",
+      "editorsOnlyTitle": "Solo editores",
+      "onlyRoleCan": "Solo {role, select, owner {un propietario} other {un editor}} puede {action}.",
+      "onlyRoleCanPerform": "Solo {role, select, owner {un propietario} other {un editor}} puede realizar esta acción.",
+      "ownerOnlyTitle": "Acción solo para propietarios"
+    },
+    "personFilter": {
+      "allPeople": "Todas las personas",
+      "couldNotLoadPeople": "No se pudieron cargar las personas.",
+      "filterByPerson": "Filtrar por persona",
+      "loadMorePeople": "Cargar más personas",
+      "loadingPeople": "Cargando personas",
+      "loadingPeople2": "Cargando personas…",
+      "noPeopleFound": "No se encontraron personas.",
+      "people": "Personas",
+      "performedBy": "Realizado por {name}",
+      "searchNameOrEmail": "Busca por nombre o correo",
+      "searchPeople": "Buscar personas",
+      "tryAgain": "Inténtalo de nuevo",
+      "unknownUser": "Usuario desconocido"
+    },
+    "relative": {
+      "days": "{count} d",
+      "hours": "{count} h",
+      "minutes": "{count} min",
+      "now": "ahora"
+    },
+    "rowActions": {
+      "activate": "Activar",
+      "clearResults": "Borrar resultados",
+      "deactivate": "Desactivar",
+      "delete": "Borrar",
+      "deleteThisItem": "borrar este elemento",
+      "deselectRows": "Deseleccionar filas",
+      "download": "Descargar",
+      "editCmNo": "Editar núm. de CM",
+      "editDetails": "Editar detalles",
+      "newSubfolder": "Nueva subcarpeta",
+      "openRowActions": "Abrir acciones de la fila",
+      "removeFromSubfolder": "Quitar de la subcarpeta",
+      "rename": "Renombrar",
+      "showAllVersions": "Mostrar todas las versiones",
+      "uploadNewVersion": "Subir nueva versión",
+      "view": "Ver"
+    },
+    "selectionActionsMenu": {
+      "actions": "Acciones"
+    },
+    "sidebarChatItem": {
+      "actionsFor": "Acciones para {title}",
+      "assistant": "Asistente",
+      "chatNotDeleted": "No se borró el chat",
+      "chatNotRenamed": "No se renombró el chat",
+      "chatTitle": "Título del chat",
+      "chattitleResponseLoading": "Cargando la respuesta de {chatTitle}",
+      "delete": "Borrar",
+      "leave": "Salir",
+      "openInSideChat": "Abrir en el chat lateral",
+      "rename": "Renombrar",
+      "renameChat": "Renombrar chat",
+      "share": "Compartir",
+      "shared": "Compartido",
+      "theChatCouldNotBeDeleted": "No se pudo borrar el chat. Inténtalo de nuevo.",
+      "theChatCouldNotBeRenamed": "No se pudo renombrar el chat. Inténtalo de nuevo.",
+      "untitledChat": "Chat sin título"
+    },
+    "sidebarPlaybookRunItem": {
+      "documentnameReviewRunning": "Revisión de {documentName} en curso",
+      "playbookRunStatus": "Ejecución de playbook: {title}{status, select, loading { (en curso)} complete { (completada)} other {}}",
+      "untitledDocument": "Documento sin título",
+      "untitledPlaybook": "Playbook sin título"
+    },
+    "sidebarProjectItem": {
+      "chat": "Chat",
+      "couldNotLoadItems": "No se pudieron cargar los elementos.",
+      "couldNotRefreshItems": "No se pudieron actualizar los elementos.",
+      "hide": "Ocultar",
+      "loading": "Cargando...",
+      "noChatsOrReviewsYet": "Aún no hay chats ni revisiones",
+      "retry": "Reintentar",
+      "seeMore": "Ver más",
+      "show": "Mostrar",
+      "someItemsCouldNotBeLoaded": "No se pudieron cargar algunos elementos.",
+      "tabularReview": "Revisión tabular",
+      "toggleRecent": "{expanded, select, true {Ocultar} other {Mostrar}} chats y revisiones recientes de {name}",
+      "untitledChat": "Chat sin título",
+      "untitledReview": "Revisión sin título"
+    },
+    "spreadsheetView": {
+      "failedToLoadSpreadsheet": "No se pudo cargar la hoja de cálculo.",
+      "thisSpreadsheetCouldNotBeDisplayed": "No se pudo mostrar esta hoja de cálculo."
+    },
+    "tableLoadMoreRow": {
+      "loadMore": "Cargar más",
+      "loading": "Cargando…",
+      "retryLoading": "Reintentar la carga"
+    },
+    "tablePrimitive": {
+      "ascending": "Ascendente",
+      "defaultOrder": "Orden predeterminado",
+      "descending": "Descendente",
+      "selectLabel": "Seleccionar {label}"
+    },
+    "tableToolbar": {
+      "toolbarActions": "Acciones de la barra de herramientas"
+    },
+    "trainingVersionStatus": {
+      "approveAction": "aprobar esta versión",
+      "approveThisVersion": "aprobar esta versión"
+    },
+    "types": {
+      "caseNumber": "Caso {id}",
+      "date": "Fecha",
+      "download": "Descargar",
+      "link": "Enlace",
+      "page": "Página {page}",
+      "pages": "Páginas {pages}"
+    },
+    "useDirectoryData": {
+      "loadMoreProjectFiles": "cargar más archivos del proyecto",
+      "loadMoreProjects": "cargar más proyectos",
+      "openTheFolder": "abrir la carpeta",
+      "openTheProjectFolder": "abrir la carpeta del proyecto"
     }
   },
   "support": {
@@ -3352,6 +4225,125 @@
       "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso."
     }
   },
+  "ui": {
+    "chatHistoryDropdown": {
+      "loadingChats": "Cargando chats…",
+      "loadingMoreChats": "Cargando más chats…",
+      "openingTitle": "Abriendo {title}",
+      "retry": "Reintentar",
+      "searchChats": "Buscar chats",
+      "searchChatsPlaceholder": "Buscar chats…"
+    },
+    "closeButton": {
+      "close": "Cerrar"
+    },
+    "documentEventBlocks": {
+      "finding": "Buscando",
+      "found": "Encontrados",
+      "in": "en",
+      "queryMatchsuffix": "«{query}»{matchSuffix}",
+      "read": "Leído",
+      "reading": "Leyendo"
+    },
+    "editCard": {
+      "accept": "Aceptar",
+      "acceptApply": "Aceptar y aplicar",
+      "accepted": "Aceptado",
+      "accepting": "Aceptando...",
+      "acceptingApplying": "Aceptando y aplicando…",
+      "apply": "Aplicar",
+      "applying": "Aplicando…",
+      "close": "Cerrar",
+      "closeTrackedChange": "Cerrar cambio marcado",
+      "editActions": "Acciones de edición",
+      "inLocationhint": "En: «{locationHint}»",
+      "reject": "Rechazar",
+      "rejected": "Rechazado",
+      "rejecting": "Rechazando…",
+      "thisChangeHasBeenResolvedAnd": "Este cambio se resolvió y ya no está en el documento.",
+      "trackedChangeChangenumber": "Cambio marcado {changeNumber}",
+      "view": "Ver"
+    },
+    "editCardsSection": {
+      "collapseEdits": "Contraer ediciones",
+      "expandEdits": "Expandir ediciones",
+      "trackedChangeActions": "Acciones de control de cambios"
+    },
+    "excerptModal": {
+      "annotation": "Anotación",
+      "assistant": "Asistente",
+      "excerpt": "Extracto"
+    },
+    "excerptPill": {
+      "annotatedExcerpt": "Extracto anotado",
+      "excerpt": "Extracto",
+      "removeExcerptPreview": "Quitar extracto: {preview}",
+      "viewExcerptPreview": "Ver extracto: {preview}"
+    },
+    "modelToggle": {
+      "apiKeyMissingForSelectedModel": "Falta la llave de API del modelo seleccionado",
+      "checkingApiKeys": "Revisando llaves de API",
+      "chooseModel": "Elige modelo",
+      "chooseModelLabel": "Elige modelo — {label}",
+      "configureModels": "Configurar modelos",
+      "levelHigh": "Alto",
+      "levelLow": "Bajo",
+      "levelMax": "Max",
+      "levelMedium": "Medio",
+      "levelNone": "Ninguno",
+      "levelXhigh": "XHigh",
+      "noApiKeyConfigured": "No hay llave de API configurada",
+      "noModels": "Sin modelos",
+      "noModelsAvailable": "No hay modelos disponibles",
+      "reasoning": "Razonamiento",
+      "reasoningLevel": "Nivel de razonamiento",
+      "reasoningLevelValue": "Nivel de razonamiento: {level}",
+      "routeConfigured": "Configurado",
+      "routeDirect": "Directo",
+      "routeLocal": "Local",
+      "selectModel": "Selecciona modelo"
+    },
+    "noticeCard": {
+      "dismissNotification": "Descartar notificación"
+    },
+    "playbookPill": {
+      "openPlaybookTitle": "Abrir playbook {title}",
+      "removePlaybookTitle": "Quitar playbook {title}"
+    },
+    "preResponseWrapper": {
+      "assistantActivity": "Actividad del asistente",
+      "completedIn": "Completado en {steps, plural, one {# paso} other {# pasos}}{subagents, plural, =0 {} one { · # subagente} other { · # subagentes}}",
+      "working": "Trabajando"
+    },
+    "responseSelectionMenu": {
+      "addANoteAboutThisPassage": "Agrega una nota sobre este pasaje",
+      "addAnnotationToChat": "Agregar anotación al chat",
+      "annotateAndAsk": "Anotar y preguntar",
+      "ask": "Preguntar",
+      "askInSideChat": "Preguntar en el chat lateral",
+      "copy": "Copiar",
+      "noteAboutTheSelectedText": "Nota sobre el texto seleccionado",
+      "selectedText": "Texto seleccionado"
+    },
+    "textCard": {
+      "copied": "Copiado",
+      "copiedTitle": "Se copió {title}",
+      "copiedToClipboard": "Copiado al portapapeles",
+      "copy": "Copiar",
+      "copyTitle": "Copiar {title}",
+      "couldntCopySelectTheTextAnd": "No se pudo copiar. Selecciona el texto y cópialo manualmente."
+    },
+    "toast": {
+      "contactSupport": "Contactar soporte",
+      "notifications": "Notificaciones"
+    },
+    "trainingHeldNote": {
+      "label": "Borrador de pasante, pendiente de aprobación"
+    },
+    "workflowSlashCommand": {
+      "typeCommandInChat": "Escribe <code>{command}</code> en el chat para activar este flujo de trabajo."
+    }
+  },
   "versionCompare": {
     "added": "Agregado",
     "authorAi": "IA",
@@ -3399,7 +4391,7 @@
     "aNewerMessageWasSentAfter": "Se envió un mensaje más reciente después de este, así que Reintentar ya no aplica.",
     "acceptAll": "Aceptar todo",
     "accepted": "Aceptado.",
-    "accepting": "Aceptando...",
+    "accepting": "Aceptando…",
     "acercaDe": "Acerca de",
     "actionCompleteGoogleSignIn": "completar el inicio de sesión con Google",
     "actionGoToPassage": "ir a ese pasaje",
@@ -3639,9 +4631,9 @@
     "relativeDays": "{count} d",
     "relativeHours": "{count} h",
     "relativeMinutes": "{count} min",
-    "relativeMonths": "{count} m",
+    "relativeMonths": "{count, plural, one {# mes} other {# meses}}",
     "relativeNow": "ahora",
-    "relativeYears": "{count} a",
+    "relativeYears": "{count, plural, one {# año} other {# años}}",
     "removeDocumentFilename": "Quitar documento {filename}",
     "removeWorkflowTitle": "Quitar flujo de trabajo {title}",
     "replacement": "Reemplazo",
@@ -3655,11 +4647,11 @@
     "saved": "Guardado",
     "saving": "Guardando…",
     "scrollToBottom": "Ir al final",
-    "search": "Buscar...",
-    "searchChatHistory": "Buscar en el historial de chats...",
-    "searchPlaybooks": "Buscar playbooks...",
-    "searchQuickActions": "Buscar acciones rápidas...",
-    "searchWorkflows": "Buscar flujos de trabajo...",
+    "search": "Buscar…",
+    "searchChatHistory": "Buscar en el historial de chats…",
+    "searchPlaybooks": "Buscar playbooks…",
+    "searchQuickActions": "Buscar acciones rápidas…",
+    "searchWorkflows": "Buscar flujos de trabajo…",
     "sectionAssistant": "Asistente",
     "selectAProjectAndSucceededExecution": "Selecciona un proyecto y una ejecución exitosa. Cada acción aprobada crea una revisión de Word que puedes revisar.",
     "selectAllFilesInName": "Seleccionar todos los archivos de {name}",
@@ -3706,7 +4698,7 @@
     "theRevisionsInThisPassageChanged": "Las revisiones de este pasaje cambiaron después de que LiTT aplicó la edición. Revísalas directamente en Word.",
     "theSourceTextCouldNotBe": "No se encontró el texto de origen en el documento.",
     "theTrackedChangeIsNoLonger": "El cambio marcado ya no está disponible.",
-    "thinking": "Pensando...",
+    "thinking": "Pensando…",
     "thisChatHasChangedOpenThe": "Este chat cambió. Abre el chat original para revisar su respuesta.",
     "thisPassageCannotBeSearchedIn": "Este pasaje no se puede buscar en Word.",
     "thisPermanentlyDeletesEveryDeviceOnly": "Esto borra para siempre todos los chats de Word solo del dispositivo que se guardaron en esta cuenta en este dispositivo. Los chats en la nube no se afectan.",

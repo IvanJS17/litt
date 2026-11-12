@@ -10,8 +10,8 @@ vi.mock("@/app/lib/userFacingError", () => ({
     notifyError: (...args: unknown[]) => notifyError(...args),
 }));
 
-import { TRAINING_HELD_LABEL } from "@mike/ui";
-import { APPROVE_TRAINING_VERSION_LABEL, TrainingVersionStatus } from "./TrainingVersionStatus";
+
+import { TrainingVersionStatus } from "./TrainingVersionStatus";
 
 beforeEach(() => {
     approveTrainingVersion.mockReset();
@@ -28,7 +28,7 @@ describe("TrainingVersionStatus", () => {
 
     it("marks the draft and offers no approval to whoever may not approve", () => {
         render(<TrainingVersionStatus {...props} canApprove={false} />);
-        expect(screen.getByText(TRAINING_HELD_LABEL)).toBeInTheDocument();
+        expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
         expect(screen.queryByRole("button")).toBeNull();
     });
 
@@ -36,7 +36,7 @@ describe("TrainingVersionStatus", () => {
         const onApproved = vi.fn();
         approveTrainingVersion.mockResolvedValue({});
         render(<TrainingVersionStatus {...props} onApproved={onApproved} className="mt-1" />);
-        const button = screen.getByRole("button", { name: APPROVE_TRAINING_VERSION_LABEL });
+        const button = screen.getByRole("button", { name: "Approve this version" });
         expect(button).toHaveAttribute("type", "button");
         fireEvent.click(button);
         fireEvent.click(button);
@@ -48,7 +48,7 @@ describe("TrainingVersionStatus", () => {
         const error = new Error("No puedes aprobar esta versión.");
         approveTrainingVersion.mockRejectedValue(error);
         render(<TrainingVersionStatus {...props} />);
-        fireEvent.click(screen.getByRole("button", { name: APPROVE_TRAINING_VERSION_LABEL }));
+        fireEvent.click(screen.getByRole("button", { name: "Approve this version" }));
         await waitFor(() =>
             expect(notifyError).toHaveBeenCalledWith(error, expect.objectContaining({ action: "approve this version" })),
         );

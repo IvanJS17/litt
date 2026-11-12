@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useDocumentViewers } from "@/app/hooks/useDocumentViewers";
 import { useDocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 
@@ -202,6 +203,7 @@ function Divider({
 }
 
 export default function ProjectAssistantChatPage({ params }: Props) {
+    const t = useTranslations();
     const { id: projectId } = use(params);
     const router = useRouter();
 
@@ -551,7 +553,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         }
         const request = ++openRequest.current;
         const result = await resolvePanelDocumentVersionResult(
-            panelDocumentFromCitation(citation, showQuotes),
+            panelDocumentFromCitation(citation, showQuotes, t),
         );
         if (request !== openRequest.current) return;
         if (result.status !== "resolved") {

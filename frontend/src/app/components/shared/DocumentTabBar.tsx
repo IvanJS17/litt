@@ -18,6 +18,7 @@ import type { TabDropPosition } from "@/app/lib/reorderTabs";
 import { cn } from "@/app/lib/utils";
 import { CloseButton } from "@mike/ui";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 export interface DocumentTabItem {
     id: string;
@@ -55,15 +56,16 @@ export function DocumentTabBar({
     activeTabId,
     label,
     idPrefix,
-    emptyLabel = "Document Viewer",
+    emptyLabel,
     className,
     onActivate,
     onClose,
     onClosePanel,
     onAdd,
-    addLabel = "Add",
+    addLabel,
     onReorder,
 }: Props) {
+    const t = useTranslations();
     const dragType = `application/mike-${idPrefix}-tab`;
     const listRef = useRef<HTMLDivElement>(null);
     const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -153,7 +155,7 @@ export function DocumentTabBar({
             >
                 {tabs.length === 0 ? (
                     <span className="self-center px-2 text-xs text-muted-foreground">
-                        {emptyLabel}
+                        {emptyLabel ?? t("shared.documentTabBar.documentViewer")}
                     </span>
                 ) : (
                     tabs.map((tab, index) => {
@@ -345,7 +347,7 @@ export function DocumentTabBar({
                                                 onClose(tab.id);
                                             }}
                                             className="shrink-0 rounded-full p-0.5 text-gray-400 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                                            aria-label={`Close ${tab.title}`}
+                                            aria-label={t("shared.documentTabBar.closeTitle", { title: tab.title })}
                                         >
                                             <X
                                                 aria-hidden="true"
@@ -362,8 +364,8 @@ export function DocumentTabBar({
                     <button
                         type="button"
                         onClick={onAdd}
-                        aria-label={addLabel}
-                        title={addLabel}
+                        aria-label={addLabel ?? t("shared.documentTabBar.add")}
+                        title={addLabel ?? t("shared.documentTabBar.add")}
                         className={cn(
                             "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                             LIQUID_GLASS_HOVER_CLASS,
@@ -388,7 +390,7 @@ export function DocumentTabBar({
             {onClosePanel && (
                 <CloseButton
                     onClick={onClosePanel}
-                    label="Close panel"
+                    label={t("shared.documentTabBar.closePanel")}
                     className="mt-2 ml-2 mr-2 self-start"
                 />
             )}

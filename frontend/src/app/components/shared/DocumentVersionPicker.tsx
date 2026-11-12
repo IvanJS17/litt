@@ -12,6 +12,7 @@ import {
     TextButtonUI,
 } from "@mike/ui";
 import { VersionChip } from "./VersionChip";
+import { useTranslations } from "next-intl";
 
 export function DocumentVersionPicker({
     documentId,
@@ -26,6 +27,7 @@ export function DocumentVersionPicker({
     disabled?: boolean;
     onSelect: (version: DocumentVersion) => void;
 }) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     const [result, setResult] = useState<Awaited<
         ReturnType<typeof listDocumentVersions>
@@ -58,15 +60,15 @@ export function DocumentVersionPicker({
     const label = displayedNumber ? (
         <VersionChip n={displayedNumber} />
     ) : (
-        <span className="text-[10px]">Version</span>
+        <span className="text-[10px]">{t("shared.documentVersionPicker.version")}</span>
     );
     if (error)
         return (
             <TextButtonUI
                 size="xs"
                 className="h-auto p-0.5"
-                aria-label="Retry loading document versions"
-                title="Could not load versions. Click to retry."
+                aria-label={t("shared.documentVersionPicker.retryLoadingDocumentVersions")}
+                title={t("shared.documentVersionPicker.couldNotLoadVersionsClickTo")}
                 onClick={() => setRetry((value) => value + 1)}
             >
                 {label}
@@ -89,13 +91,13 @@ export function DocumentVersionPicker({
                     className="h-auto gap-0.5 p-0.5"
                     aria-label={
                         displayedNumber
-                            ? `Choose document version, currently V${displayedNumber}`
-                            : "Choose document version"
+                            ? t("shared.documentVersionPicker.chooseDocumentVersionCurrentlyVdisplayednumber", { displayedNumber })
+                            : t("shared.documentVersionPicker.chooseDocumentVersion")
                     }
                     title={
                         disabled
-                            ? "Save changes before switching versions"
-                            : "Choose document version"
+                            ? t("shared.documentVersionPicker.saveChangesBeforeSwitchingVersions")
+                            : t("shared.documentVersionPicker.chooseDocumentVersion")
                     }
                 >
                     {label}
@@ -119,7 +121,7 @@ export function DocumentVersionPicker({
                         >
                             {version.version_number
                                 ? `V${version.version_number}`
-                                : "Version"}
+                                : t("shared.documentVersionPicker.version")}
                             {version.filename && (
                                 <span className="max-w-48 truncate">
                                     {version.filename}
@@ -127,7 +129,7 @@ export function DocumentVersionPicker({
                             )}
                             {version.id === result?.current_version_id && (
                                 <span className="text-muted-foreground">
-                                    Current
+                                    {t("shared.documentVersionPicker.current")}
                                 </span>
                             )}
                         </DropdownRadioItem>

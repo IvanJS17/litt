@@ -51,6 +51,7 @@ import {
   uncertainDeliveryError,
 } from "@/app/lib/chatTurnFailure";
 import type { AssistantEvent, Message } from "@/app/components/shared/types";
+import { useTranslations } from "next-intl";
 
 interface UseAssistantChatOptions {
   initialMessages?: Message[];
@@ -73,6 +74,7 @@ export function useAssistantChat({
   onChatCreated,
   tracksCurrentChat = true,
 }: UseAssistantChatOptions = {}) {
+  const t = useTranslations();
   const router = useRouter();
   const {
     replaceChatId,
@@ -317,7 +319,7 @@ export function useAssistantChat({
    */
   const retryTurn = async (turn: TurnSnapshot): Promise<string | null> => {
     if (!mountedRef.current) {
-      notifyInfo("Open this chat and wait for its current answer before retrying.");
+      notifyInfo(t("assistant.useAssistantChat.openThisChatAndWaitFor"));
       return null;
     }
     const transcript = messagesRef.current;
@@ -332,7 +334,7 @@ export function useAssistantChat({
       // A newer turn owns the thread. Re-sending would abort a healthy
       // stream and answer a question the user has already moved past.
       notifyInfo(
-        "A newer message has replaced this one. Send it again if you still need an answer.",
+        t("assistant.useAssistantChat.aNewerMessageHasReplacedThis"),
       );
       return null;
     }
@@ -347,7 +349,7 @@ export function useAssistantChat({
       return null;
     }
     if (hasAssistantTurn(chatIdRef.current)) {
-      notifyInfo("Wait for this chat's current answer before retrying.");
+      notifyInfo(t("assistant.useAssistantChat.waitForThisChatsCurrentAnswer"));
       return null;
     }
     if (turn.recoveryChatId) return recoverServerTurn(turn, turn.recoveryChatId);
@@ -397,7 +399,7 @@ export function useAssistantChat({
       return serverChatId;
     } catch (error) {
       notifyError(error, {
-        action: "load this chat",
+        action: t("assistant.useAssistantChat.loadThisChat"),
         dedupeKey: "assistant-chat",
           support: true,
         onRetry: async () => {
@@ -651,7 +653,7 @@ export function useAssistantChat({
             notifyError(
               errorFrameFailure(frameMessage, safeToDisplay, { code, requestId, reportingOwner }),
               {
-                action: "get a response",
+                action: t("assistant.useAssistantChat.getAResponse"),
                 operation: turnOperation,
                 dedupeKey: "assistant-chat",
           support: true,
@@ -715,7 +717,7 @@ export function useAssistantChat({
           retrySnapshot.recoveryChatId = cursor.chatId;
         }
         const described = describeError(error, {
-          action: "get a response",
+          action: t("assistant.useAssistantChat.getAResponse"),
           fallback: TURN_FAILED_MESSAGE,
         });
         // LiTT training: the composer's view of «Tu turno primero» was out of
@@ -734,7 +736,7 @@ export function useAssistantChat({
           error: uncertain ? (failure as UserVisibleError).message : described.message,
         }));
         notifyError(failure, {
-          action: "get a response",
+          action: t("assistant.useAssistantChat.getAResponse"),
           operation: turnOperation,
           fallback: TURN_FAILED_MESSAGE,
           dedupeKey: "assistant-chat",

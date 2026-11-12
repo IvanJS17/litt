@@ -1,11 +1,9 @@
 "use client";
 
 import { Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { WarningPopup } from "../popups/WarningPopup";
-import {
-    PROJECT_ROLE_LABELS,
-    type ProjectRole,
-} from "@/app/lib/permissions";
+import { type ProjectRole } from "@/app/lib/permissions";
 
 /** Anyone the user could ask for access, as the API returns them. */
 export interface AccessContact {
@@ -35,13 +33,10 @@ interface Props {
     message?: string;
 }
 
-const ROLE_SUBJECT: Record<
-    NonNullable<Props["requiredRole"]>,
-    { title: string; subject: string }
-> = {
-    owner: { title: "Owner-only action", subject: "an owner" },
-    editor: { title: "Editors only", subject: "an editor" },
-};
+const ROLE_TITLE_KEY = {
+    owner: "shared.permissionDenied.ownerOnlyTitle",
+    editor: "shared.permissionDenied.editorsOnlyTitle",
+} as const;
 
 /**
  * Fold several rows' contact lists into one, keeping the server's ranking
@@ -97,15 +92,20 @@ export function PermissionDeniedPopup({
     contacts,
     message,
 }: Props) {
+    const t = useTranslations();
     if (!open) return null;
 
-    const subject = ROLE_SUBJECT[requiredRole];
-    const heading = title ?? subject.title;
+    const heading = title ?? t(ROLE_TITLE_KEY[requiredRole]);
     const body =
         message ??
         (action
-            ? `Only ${subject.subject} can ${action}.`
-            : `Only ${subject.subject} can perform this action.`);
+            ? t("shared.permissionDenied.onlyRoleCan", {
+                  role: requiredRole,
+                  action,
+              })
+            : t("shared.permissionDenied.onlyRoleCanPerform", {
+                  role: requiredRole,
+              }));
     const contact = pickContact(contacts);
 
     return (
@@ -118,14 +118,15 @@ export function PermissionDeniedPopup({
         >
             {contact && (
                 <p className="mt-1 text-xs text-gray-600">
-                    Ask{" "}
-                    <span className="text-gray-600">
-                        {contact.name
+                    {t.rich("shared.permissionDenied.askContact", {
+                        contact: contact.name
                             ? `${contact.name} (${contact.email})`
-                            : contact.email}
-                    </span>{" "}
-                    if you need {PROJECT_ROLE_LABELS[requiredRole].toLowerCase()}{" "}
-                    access.
+                            : contact.email,
+                        person: (chunks) => (
+                            <span className="text-gray-600">{chunks}</span>
+                        ),
+                        role: requiredRole,
+                    })}
                 </p>
             )}
         </WarningPopup>

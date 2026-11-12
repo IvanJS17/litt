@@ -2,6 +2,7 @@ import { LIQUID_GLASS_FLOAT_CLASS } from "@mike/ui";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 import { PAGE_HEADER_ROW_CLASS } from "@/app/components/shared/pageHeaderStyles";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 /** One per entry in AppSidebar's NAV_ITEMS. */
 const NAV_ROW_WIDTHS = ["w-20", "w-10", "w-16", "w-14", "w-24", "w-20", "w-18"];
@@ -17,10 +18,11 @@ const ON_GLASS = "bg-gray-200";
  * PageHeader; change it with them.
  */
 export function AppShellSkeleton() {
+    const t = useTranslations();
     return (
         <div
             role="status"
-            aria-label="Loading"
+            aria-label={t("shared.appShellSkeleton.loading")}
             data-slot="app-shell-skeleton"
             className="h-dvh flex flex-col bg-app-background"
         >

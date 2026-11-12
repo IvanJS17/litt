@@ -13,6 +13,7 @@ import {
     type SpreadsheetSession,
 } from "./SpreadsheetWorkbook";
 import { viewRoundingClass, type ViewRounding } from "./viewRounding";
+import { useTranslations } from "next-intl";
 
 type HighlightRange = { row: [number, number]; column: [number, number] };
 type WorkbookComponent = typeof import("@fortune-sheet/react").Workbook;
@@ -253,6 +254,7 @@ export function SpreadsheetView({
     rounded = true,
     active = true,
 }: Props) {
+    const t = useTranslations();
     const workbookRef = useRef<WorkbookInstance>(null);
     const [session, setSession] = useState<SpreadsheetSession | null>(null);
     // The frame element, used to reach Fortune-sheet's scrollbars for measuring
@@ -320,12 +322,12 @@ export function SpreadsheetView({
                     setSheets(exportJson.sheets as unknown as Sheet[]);
                     setWorkbookGeneration((generation) => generation + 1);
                 } else {
-                    setError("This spreadsheet could not be displayed.");
+                    setError(t("shared.spreadsheetView.thisSpreadsheetCouldNotBeDisplayed"));
                 }
             });
         } catch {
             if (!cancelled)
-                setError("This spreadsheet could not be displayed.");
+                setError(t("shared.spreadsheetView.thisSpreadsheetCouldNotBeDisplayed"));
         }
 
         return () => {
@@ -506,7 +508,7 @@ export function SpreadsheetView({
     const frameClass = `fortune-sheet-viewer relative flex flex-col flex-1 min-h-0 overflow-hidden ${viewRoundingClass(rounded)}`;
 
     const message =
-        error ?? (fetchError ? "Failed to load spreadsheet." : null);
+        error ?? (fetchError ? t("shared.spreadsheetView.failedToLoadSpreadsheet") : null);
     if (message) {
         return (
             <div className={frameClass}>

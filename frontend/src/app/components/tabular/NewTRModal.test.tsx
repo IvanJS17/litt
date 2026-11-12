@@ -12,7 +12,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { ToastViewportUI, clearToasts } from "@mike/ui";
 import { UPLOAD_LIMIT_MESSAGES } from "@mike/client";
-import { UNSUPPORTED_DOCUMENT_WARNING_MESSAGE } from "@/app/lib/documentUploadValidation";
+import { unsupportedDocumentWarningMessage } from "@/app/lib/documentUploadValidation";
 import type { Document } from "../shared/types";
 import { NewTRModal } from "./NewTRModal";
 
@@ -465,7 +465,7 @@ describe("NewTRModal", () => {
 
         await waitFor(() =>
             expect(screen.getByRole("alert")).toHaveTextContent(
-                UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+                unsupportedDocumentWarningMessage(),
             ),
         );
         expect(uploadProjectDocuments).not.toHaveBeenCalled();
@@ -517,7 +517,7 @@ describe("NewTRModal", () => {
         await waitFor(() => {
             const alert = screen.getByRole("alert");
             expect(alert).toHaveTextContent(
-                UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+                unsupportedDocumentWarningMessage(),
             );
             expect(alert).toHaveTextContent(
                 UPLOAD_LIMIT_MESSAGES.upload_file_too_large!,

@@ -15,10 +15,10 @@ import { findDocxQuote } from "./docxQuoteSelection";
 import "@docx-editor.dev/core/styles/editor.css";
 import styles from "./EigenpalDocxRenderer.module.css";
 import type { DocxRendererProps } from "./DocxRenderer.types";
+import { useTranslations } from "next-intl";
 
 // Use packaged, metric-compatible fonts; document text never goes to a conversion service.
 const fonts = packagedFonts();
-const editorLabels = { formattingBar: { commentsAndChanges: "Comments" } };
 const BODY_PART = "/word/document.xml";
 
 /**
@@ -35,6 +35,7 @@ function editRanges(revision: ReviewRevisionPlacement, ins?: string | null, del?
 }
 
 export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filename, author, onChange, onSave, onReady, onError }: DocxRendererProps) {
+    const t = useTranslations();
     const auth = useOptionalAuth();
     const profile = useOptionalUserProfile();
     const reviewAuthor = author?.trim() || profile?.profile?.displayName?.trim()
@@ -64,13 +65,13 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
             }}>
             {fontWarning && (
                 <div role="status" className="flex shrink-0 items-start gap-2 px-3 py-2 text-xs text-muted-foreground">
-                    <span className="min-w-0 flex-1">Some document fonts could not be loaded. Text may look different.</span>
-                    <TextButtonUI onClick={() => setFontWarning(false)}>Dismiss</TextButtonUI>
+                    <span className="min-w-0 flex-1">{t("shared.eigenpalDocxRenderer.someDocumentFontsCouldNotBe")}</span>
+                    <TextButtonUI onClick={() => setFontWarning(false)}>{t("shared.eigenpalDocxRenderer.dismiss")}</TextButtonUI>
                 </div>
             )}
             <DocxEditor
                 document={document}
-                i18n={editorLabels}
+                i18n={{ formattingBar: { commentsAndChanges: t("shared.eigenpalDocxRenderer.comments") } }}
                 fonts={fonts}
                 mode={toolbarVisible ? mode : "view"}
                 modules={docxModules}

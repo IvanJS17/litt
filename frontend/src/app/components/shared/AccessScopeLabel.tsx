@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import type { ResourceAccessScope } from "./types";
 
 interface AccessScopeLabelProps {
@@ -12,17 +13,18 @@ interface AccessScopeLabelProps {
 //   Public            every member of its organization can open it
 //   Private           its creator only (and, in an organization, its owners)
 //   Private (Shared)  not public, but shared with at least one other person
-const ACCESS_SCOPE_LABELS: Record<ResourceAccessScope, string> = {
-  organization: "Public",
-  private: "Private",
-  shared: "Private (Shared)",
-};
+const ACCESS_SCOPE_LABEL_KEYS = {
+  organization: "shared.accessScopeLabel.public",
+  private: "shared.accessScopeLabel.private",
+  shared: "shared.accessScopeLabel.privateShared",
+} as const;
 
 export function AccessScopeLabel({
   scope = "private",
   organizationName,
   directGrantCount,
 }: AccessScopeLabelProps) {
+  const t = useTranslations();
   const hasDirectGrantCount =
     scope === "shared" &&
     typeof directGrantCount === "number" &&
@@ -34,13 +36,13 @@ export function AccessScopeLabel({
   const description =
     scope === "organization"
       ? organizationName
-        ? `Shared with everyone in ${organizationName}`
-        : "Shared with everyone in the organisation"
+        ? t("shared.accessScopeLabel.sharedWithEveryoneIn", { organizationName })
+        : t("shared.accessScopeLabel.sharedWithEveryoneInTheOrganisation")
       : hasDirectGrantCount
-        ? `Shared with ${accessUserCount} ${accessUserCount === 1 ? "user" : "users"}`
+        ? t("shared.accessScopeLabel.sharedWithCountUsers", { count: accessUserCount ?? 0 })
         : scope === "shared"
-          ? "Shared with individuals"
-          : "Private";
+          ? t("shared.accessScopeLabel.sharedWithIndividuals")
+          : t("shared.accessScopeLabel.private");
 
   return (
     <span
@@ -48,7 +50,7 @@ export function AccessScopeLabel({
       className="inline-flex min-w-0 items-center text-xs text-gray-600"
       title={description}
     >
-      <span className="truncate">{ACCESS_SCOPE_LABELS[scope]}</span>
+      <span className="truncate">{t(ACCESS_SCOPE_LABEL_KEYS[scope])}</span>
     </span>
   );
 }

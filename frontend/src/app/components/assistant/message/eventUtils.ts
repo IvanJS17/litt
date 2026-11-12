@@ -1,3 +1,4 @@
+import type { AppTranslate } from "@/i18n/Translate";
 import type { AssistantEvent } from "../../shared/types";
 
 export function isRenderableEvent(event: AssistantEvent): boolean {
@@ -18,17 +19,20 @@ export function withDelegationEvents(events: AssistantEvent[]): AssistantEvent[]
     );
 }
 
-export function eventErrorMessage(event: AssistantEvent): string | null {
+export function eventErrorMessage(
+    event: AssistantEvent,
+    t: AppTranslate,
+): string | null {
     if (event.type === "error") {
         return event.safe_to_display
             ? event.message
-            : "Sorry, something went wrong.";
+            : t("assistant.eventUtils.sorrySomethingWentWrong");
     }
     if ("error" in event && typeof event.error === "string" && event.error) {
         // Web tool errors are written for the user by the server.
         return event.type === "web_search" || event.type === "web_read"
             ? event.error
-            : "Sorry, something went wrong.";
+            : t("assistant.eventUtils.sorrySomethingWentWrong");
     }
     return null;
 }
@@ -48,25 +52,32 @@ export function connectorToolLabel(
     return words ? words.charAt(0).toUpperCase() + words.slice(1) : toolName;
 }
 
-export function toolCallLabel(name: string): string {
-    if (name === "create_text_card") return "Preparing text...";
-    if (name === "ask_inputs") return "Asking for input...";
-    if (name === "generate_docx") return "Creating document...";
-    if (name === "generate_excel") return "Creating spreadsheet...";
-    if (name === "generate_ppt") return "Creating presentation...";
-    if (name === "edit_document") return "Editing document...";
-    if (name === "read_document") return "Reading document...";
-    if (name === "fetch_documents") return "Reading documents...";
-    if (name === "find_in_document") return "Searching document...";
-    if (name === "find_documents") return "Searching documents...";
-    if (name === "replicate_document") return "Copying document...";
-    if (name === "read_workflow") return "Reading workflow...";
-    if (name === "list_workflows") return "Loading workflows...";
-    if (name === "list_documents") return "Loading documents...";
-    if (name === "web_search") return "Searching the web...";
-    if (name === "read_webpage") return "Reading web page...";
-    if (name === "list_firm_criteria") return "Consulting firm criteria...";
-    if (name === "delegate") return "Starting a subagent...";
-    if (name.startsWith("mcp_")) return "Using connector...";
-    return name ? `Running ${name}...` : "Working...";
+const TOOL_CALL_LABEL_KEYS = {
+    create_text_card: "assistant.eventUtils.toolCreateTextCard",
+    ask_inputs: "assistant.eventUtils.toolAskInputs",
+    generate_docx: "assistant.eventUtils.toolGenerateDocx",
+    generate_excel: "assistant.eventUtils.toolGenerateExcel",
+    generate_ppt: "assistant.eventUtils.toolGeneratePpt",
+    edit_document: "assistant.eventUtils.toolEditDocument",
+    read_document: "assistant.eventUtils.toolReadDocument",
+    fetch_documents: "assistant.eventUtils.toolFetchDocuments",
+    find_in_document: "assistant.eventUtils.toolFindInDocument",
+    find_documents: "assistant.eventUtils.toolFindDocuments",
+    replicate_document: "assistant.eventUtils.toolReplicateDocument",
+    read_workflow: "assistant.eventUtils.toolReadWorkflow",
+    list_workflows: "assistant.eventUtils.toolListWorkflows",
+    list_documents: "assistant.eventUtils.toolListDocuments",
+    web_search: "assistant.eventUtils.toolWebSearch",
+    read_webpage: "assistant.eventUtils.toolReadWebpage",
+    list_firm_criteria: "assistant.eventUtils.toolListFirmCriteria",
+    delegate: "assistant.eventUtils.toolDelegate",
+} as const;
+
+export function toolCallLabel(name: string, t: AppTranslate): string {
+    if (Object.hasOwn(TOOL_CALL_LABEL_KEYS, name))
+        return t(TOOL_CALL_LABEL_KEYS[name as keyof typeof TOOL_CALL_LABEL_KEYS]);
+    if (name.startsWith("mcp_")) return t("assistant.eventUtils.toolConnector");
+    return name
+        ? t("assistant.eventUtils.toolRunning", { name })
+        : t("assistant.eventUtils.toolWorking");
 }

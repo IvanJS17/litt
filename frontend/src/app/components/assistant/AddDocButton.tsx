@@ -15,6 +15,7 @@ import {
     DropdownSeparator,
     DropdownTrigger,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 interface Props {
     onBrowseAll: () => void;
@@ -31,6 +32,7 @@ export function AddDocButton({
     onWorkflows,
     onPlaybooks,
 }: Props) {
+    const t = useTranslations();
     const openingDialog = useRef(false);
     return (
         <Dropdown>
@@ -38,8 +40,8 @@ export function AddDocButton({
                 <button
                     type="button"
                     className="flex h-7.5 items-center gap-1 rounded-lg px-2 text-sm text-gray-400 transition-colors hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
-                    title="Add to message"
-                    aria-label="Add to message"
+                    title={t("assistant.addDocButton.addToMessage")}
+                    aria-label={t("assistant.addDocButton.addToMessage")}
                 >
                     <PlusIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
                 </button>
@@ -59,14 +61,14 @@ export function AddDocButton({
             >
                 <DropdownItem onSelect={onLocalFiles}>
                     <Upload aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-                    Upload Documents
+                    {t("assistant.addDocButton.uploadDocuments")}
                 </DropdownItem>
                 <DropdownItem onSelect={() => {
                     openingDialog.current = true;
                     onBrowseAll();
                 }}>
                     <Cloud aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-                    Saved Documents
+                    {t("assistant.addDocButton.savedDocuments")}
                 </DropdownItem>
                 {(onWorkflows || onPlaybooks) && <DropdownSeparator />}
                 {onWorkflows && (
@@ -75,7 +77,7 @@ export function AddDocButton({
                         onWorkflows();
                     }}>
                         <Waypoints aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-                        Workflows
+                        {t("assistant.addDocButton.workflows")}
                     </DropdownItem>
                 )}
                 {onPlaybooks && (
@@ -84,7 +86,7 @@ export function AddDocButton({
                         onPlaybooks();
                     }}>
                         <ClipboardCheck aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-500" />
-                        Playbooks
+                        {t("assistant.addDocButton.playbooks")}
                     </DropdownItem>
                 )}
             </DropdownContent>

@@ -5,6 +5,7 @@ import type { DocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 import type { DocxCloseGuard } from "../shared/views/DocxRenderer.types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
 import { memo, useMemo } from "react";
+import { useTranslations } from "next-intl";
 import {
     DocumentContent,
     type DocumentContentMode,
@@ -76,6 +77,7 @@ export const ProjectDocumentPanels = memo(function ProjectDocumentPanels({
     onDownloadReady,
     onCloseGuardReady,
 }: Props) {
+    const t = useTranslations();
     const panels = useMemo(() => {
         const documentsById = new Map(documents.map((doc) => [doc.id, doc]));
         return tabs.map((tab) => {
@@ -104,7 +106,7 @@ export const ProjectDocumentPanels = memo(function ProjectDocumentPanels({
             const annotation = tab.annotation;
             const citedDocument =
                 annotation?.kind === "citation"
-                    ? panelDocumentFromCitation(annotation.citation)
+                    ? panelDocumentFromCitation(annotation.citation, true, t)
                     : undefined;
             const sourceDocument = citedDocument
                 ? {
@@ -134,7 +136,7 @@ export const ProjectDocumentPanels = memo(function ProjectDocumentPanels({
             };
             return { tab, panelDocument, refetchKey };
         });
-    }, [tabs, documents]);
+    }, [tabs, documents, t]);
     return (
         <div className="relative flex-1 min-h-0 overflow-hidden">
             {panels.map(({ tab, panelDocument, refetchKey }) => {

@@ -4,6 +4,7 @@ import { RESPONSE_GLASS_SURFACE } from "./messageStyles";
 import { resolveDocumentEdit } from "@/app/lib/mikeApi";
 import type { EditAnnotation } from "../../shared/types";
 import { applyOptimisticResolution } from "../EditCard";
+import { useTranslations } from "next-intl";
 
 /**
  * Card rendered above the per-edit EditCards when a message produced
@@ -49,6 +50,7 @@ function BulkEditActions({
         message: string;
     }) => void;
 }) {
+    const t = useTranslations();
     const [busy, setBusy] = useState<"accept" | "reject" | null>(null);
     const [progress, setProgress] = useState<{
         done: number;
@@ -115,8 +117,8 @@ function BulkEditActions({
                         versionId: annotation.version_id ?? null,
                         message:
                             verb === "accept"
-                                ? "Couldn't save one or more accepts."
-                                : "Couldn't save one or more rejects.",
+                                ? t("assistant.editCardsSection.couldntSaveOneOrMoreAccepts")
+                                : t("assistant.editCardsSection.couldntSaveOneOrMoreRejects"),
                     });
                 }
                 done++;
@@ -141,7 +143,7 @@ function BulkEditActions({
                 disabled={!!busy}
                 loading={busy === "accept"}
             >
-                {busy === "accept" ? "Accepting all..." : "Accept all"}
+                {busy === "accept" ? t("assistant.editCardsSection.acceptingAll") : t("assistant.editCardsSection.acceptAll")}
             </PillButtonUI>
             <PillButtonUI
                 tone="white"
@@ -150,7 +152,7 @@ function BulkEditActions({
                 disabled={!!busy}
                 loading={busy === "reject"}
             >
-                {busy === "reject" ? "Rejecting all..." : "Reject all"}
+                {busy === "reject" ? t("assistant.editCardsSection.rejectingAll") : t("assistant.editCardsSection.rejectAll")}
             </PillButtonUI>
             {progress && (
                 <span className="text-xs font-sans text-gray-500">
@@ -167,7 +169,7 @@ function BulkEditActions({
                     disabled={!!busy}
                     className="ml-auto"
                 >
-                    View
+                    {t("assistant.editCardsSection.view")}
                 </PillButtonUI>
             )}
         </div>

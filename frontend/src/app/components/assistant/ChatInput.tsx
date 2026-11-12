@@ -97,6 +97,8 @@ import {
     ChatCredentialPicker,
     useChatCredentialChoice,
 } from "./ChatCredentialPicker";
+import { useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
 
 /** What a composer holds before it is sent. */
 export interface ComposerDraft {
@@ -200,15 +202,19 @@ function placeholderFor({
     canSend,
     chatLoading,
     isLoading,
+    t,
 }: {
     canSend: boolean | null;
     chatLoading: boolean;
     isLoading: boolean;
+    t: AppTranslate;
 }): string {
-    if (canSend === null) return "Loading…";
-    if (!canSend) return "Viewing only — sending needs edit access";
-    if (!chatLoading) return "How can I help?";
-    return isLoading ? "A response is still arriving…" : "Loading this chat…";
+    if (canSend === null) return t("assistant.chatInput.loading");
+    if (!canSend) return t("assistant.chatInput.viewingOnlySendingNeedsEditAccess");
+    if (!chatLoading) return t("assistant.chatInput.howCanIHelp");
+    return isLoading
+        ? t("assistant.chatInput.aResponseIsStillArriving")
+        : t("assistant.chatInput.loadingThisChat");
 }
 
 /**
@@ -244,6 +250,7 @@ function ChatInputForChatImpl(
     }: Props,
     ref: ForwardedRef<ChatInputHandle>,
 ) {
+    const t = useTranslations();
     // A document attached to a chat outside a project belongs to the
     // workspace it is uploaded in.
     const workspace = useDocumentWorkspace();
@@ -535,7 +542,7 @@ function ChatInputForChatImpl(
             if (!composerOpen) {
                 if (canSend === false) {
                     setUploadWarning(
-                        "Only someone with edit access can add documents.",
+                        t("assistant.chatInput.onlySomeoneWithEditAccess"),
                     );
                 }
                 return;
@@ -634,7 +641,7 @@ function ChatInputForChatImpl(
                         ? failedUploadMessage(error.outcomes)
                         : userFacingApiError(
                               error,
-                              "Documents could not be uploaded. Please try again.",
+                              t("assistant.chatInput.documentsCouldNotBeUploaded"),
                           ),
                 );
             } finally {
@@ -964,7 +971,7 @@ function ChatInputForChatImpl(
                                             );
                                             setWorkflowModalOpen(true);
                                         }}
-                                        aria-label={`Open workflow ${selectedWorkflow.title}`}
+                                        aria-label={t("assistant.chatInput.openWorkflowTitle", { title: selectedWorkflow.title })}
                                         className="inline-flex min-w-0 items-center gap-1 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                     >
                                         <Waypoints className="h-2.5 w-2.5 shrink-0" />
@@ -1018,7 +1025,7 @@ function ChatInputForChatImpl(
                                 <DocumentPill
                                     key={upload.clientId}
                                     filename={upload.filename}
-                                    status="Uploading"
+                                    status={t("assistant.chatInput.uploading")}
                                     loading
                                 />
                             ))}
@@ -1097,6 +1104,7 @@ function ChatInputForChatImpl(
                                 canSend,
                                 chatLoading,
                                 isLoading,
+                                t,
                             })}
                             value={value}
                             onChange={(event) => updateInput(event.target)}
@@ -1188,7 +1196,7 @@ function ChatInputForChatImpl(
                             <button
                                 type="button"
                                 aria-label={
-                                    isLoading ? "Stop response" : "Send message"
+                                    isLoading ? t("assistant.chatInput.stopResponse") : t("assistant.chatInput.sendMessage")
                                 }
                                 className={cn(
                                     COMPOSER_SEND_BUTTON_CLASS,
@@ -1224,7 +1232,7 @@ function ChatInputForChatImpl(
                 accept={SUPPORTED_DOCUMENT_ACCEPT}
                 multiple
                 hidden
-                aria-label="Upload Documents"
+                aria-label={t("assistant.chatInput.uploadDocuments")}
                 disabled={!composerOpen}
                 onChange={(event) => {
                     const files = Array.from(event.currentTarget.files ?? []);
@@ -1248,8 +1256,8 @@ function ChatInputForChatImpl(
                 uploadStateId={`assistant-chat:${projectId ?? "standalone"}`}
                 breadcrumb={
                     selectedWorkflow
-                        ? ["Assistant", selectedWorkflow.title, "Add Documents"]
-                        : ["Assistant", "Add Documents"]
+                        ? [t("assistant.chatInput.assistant"), selectedWorkflow.title, t("assistant.chatInput.addDocuments")]
+                        : [t("assistant.chatInput.assistant"), t("assistant.chatInput.addDocuments")]
                 }
             />
             <AssistantWorkflowModal
@@ -1272,13 +1280,13 @@ function ChatInputForChatImpl(
                 onSelect={(playbook) =>
                     setSelectedPlaybook({
                         id: playbook.id,
-                        title: playbook.name || "Untitled playbook",
+                        title: playbook.name || t("assistant.chatInput.untitledPlaybook"),
                     })
                 }
                 breadcrumbs={
                     projectName
-                        ? ["Projects", projectName, "Assistant", "Add playbook"]
-                        : ["Assistant", "Add playbook"]
+                        ? [t("assistant.chatInput.projects"), projectName, t("assistant.chatInput.assistant"), t("assistant.chatInput.addPlaybook")]
+                        : [t("assistant.chatInput.assistant"), t("assistant.chatInput.addPlaybook")]
                 }
                 initialPlaybookId={playbookModalInitialId}
             />
@@ -1293,8 +1301,8 @@ function ChatInputForChatImpl(
             <WarningPopup
                 open={modelRequiredWarning}
                 onClose={() => setModelRequiredWarning(false)}
-                title="Select a model"
-                message="Choose a model before sending your message."
+                title={t("assistant.chatInput.selectAModel")}
+                message={t("assistant.chatInput.chooseAModelBeforeSendingYour")}
             />
             <UploadOverlay
                 open={isDraggingFiles}

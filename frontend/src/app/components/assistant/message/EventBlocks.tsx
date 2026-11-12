@@ -17,14 +17,15 @@ import { TrainingHeldNoteUI } from "@mike/ui";
 import type { AssistantEvent } from "../../shared/types";
 import { FileTypeIcon } from "../../shared/FileTypeIcon";
 import { RESPONSE_GLASS_SURFACE, withoutMarkdownNode } from "./messageStyles";
+import { useTranslations } from "next-intl";
 
-const THINKING_PHRASES = [
-    "Thinking...",
-    "Pondering...",
-    "Analyzing...",
-    "Reviewing...",
-    "Reasoning...",
-];
+const THINKING_PHRASE_KEYS = [
+    "assistant.eventBlocks.thinking",
+    "assistant.eventBlocks.pondering",
+    "assistant.eventBlocks.analyzing",
+    "assistant.eventBlocks.reviewing",
+    "assistant.eventBlocks.reasoning",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Event block primitives
@@ -78,13 +79,14 @@ export function EventBlock({
 
 export function ReasoningContent({
     text,
-    label = "Thought process",
+    label,
     streaming = false,
 }: {
     text: string;
     label?: string;
     streaming?: boolean;
 }) {
+    const t = useTranslations();
     const {richText, plainTail} = useMarkdownCheckpoint(text, streaming);
     const viewportRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -133,7 +135,7 @@ export function ReasoningContent({
             <div
                 ref={viewportRef}
                 role="region"
-                aria-label={label}
+                aria-label={label ?? t("assistant.eventBlocks.thoughtProcess")}
                 tabIndex={0}
                 className="max-h-36 overflow-y-auto overscroll-contain focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
@@ -181,13 +183,14 @@ export function ReasoningBlock({
     isStreaming: boolean;
     showConnector?: boolean;
 }) {
+    const t = useTranslations();
     const { isContentOpen, toggleContent } = useReasoningDisclosure(isStreaming);
     const [thinkingIndex, setThinkingIndex] = useState(0);
 
     useEffect(() => {
         if (!isStreaming) return;
         const interval = setInterval(() => {
-            setThinkingIndex((i) => (i + 1) % THINKING_PHRASES.length);
+            setThinkingIndex((i) => (i + 1) % THINKING_PHRASE_KEYS.length);
         }, 2000);
         return () => clearInterval(interval);
     }, [isStreaming]);
@@ -203,8 +206,8 @@ export function ReasoningBlock({
                 onToggle={toggleContent}
                 label={
                     isStreaming
-                        ? THINKING_PHRASES[thinkingIndex]
-                        : "Thought process"
+                        ? t(THINKING_PHRASE_KEYS[thinkingIndex])
+                        : t("assistant.eventBlocks.thoughtProcess")
                 }
             />
             {isContentOpen && <ReasoningContent text={text} streaming={isStreaming} />}
@@ -278,6 +281,7 @@ export function DocCreatedBlock({
     isStreaming?: boolean;
     onClick?: () => void;
 }) {
+    const t = useTranslations();
     return (
         <EventBlock
             showConnector={showConnector}
@@ -286,7 +290,7 @@ export function DocCreatedBlock({
         >
             <div className="flex min-w-0 items-center gap-1.5">
                 <EventLabel className="shrink-0">
-                    {isStreaming ? "Creating" : "Created"}
+                    {isStreaming ? t("assistant.eventBlocks.creating") : t("assistant.eventBlocks.created")}
                 </EventLabel>
                 {isStreaming || !onClick ? (
                     <span className="flex min-w-0 items-center gap-1.5">
@@ -345,7 +349,8 @@ export function DocReplicatedBlock({
         version_id: string;
     }) => void;
 }) {
-    const label = isStreaming ? "Replicating" : "Replicated";
+    const t = useTranslations();
+    const label = isStreaming ? t("assistant.eventBlocks.replicating") : t("assistant.eventBlocks.replicated");
     const suffix =
         !isStreaming && count > 1
             ? ` ${count} times`
@@ -417,6 +422,7 @@ export function DocDownloadBlock({
     /** LiTT training: a pasante's unapproved draft is opened, never downloaded. */
     trainingHeld?: boolean;
 }) {
+    const t = useTranslations();
     const extMatch = filename.match(/\.(\w+)$/);
     const rawBasename = extMatch
         ? filename.slice(0, -extMatch[0].length)
@@ -445,7 +451,7 @@ export function DocDownloadBlock({
         } catch (error) {
             // A 409 training_approval_required arrives here as the server's
             // own Spanish sentence (docs/training.md).
-            notifyError(error, { action: "download this document" });
+            notifyError(error, { action: t("assistant.eventBlocks.downloadThisDocument") });
         } finally {
             setBusy(false);
         }
@@ -485,7 +491,7 @@ export function DocDownloadBlock({
         <button
             type="button"
             onClick={handleDownload}
-            aria-label={`Download ${filename}`}
+            aria-label={t("assistant.eventBlocks.downloadFilename", { filename })}
             className="shrink-0 flex items-center bg-white/25 px-4 text-gray-500 transition-colors hover:bg-white/55 hover:text-gray-700 cursor-pointer @md:px-6"
         >
             <Download className="size-3 @md:size-[13px]" />
@@ -545,15 +551,16 @@ export function WorkflowAppliedBlock({
     showConnector?: boolean;
     onClick?: () => void;
 }) {
+    const t = useTranslations();
     return (
         <EventBlock showConnector={showConnector} dotColor="green">
             <div className="flex min-w-0 items-center gap-1.5">
-                <EventLabel className="shrink-0">Read</EventLabel>
+                <EventLabel className="shrink-0">{t("assistant.eventBlocks.read")}</EventLabel>
                 {onClick ? (
                     <button
                         type="button"
                         onClick={onClick}
-                        aria-label={`Open workflow ${title}`}
+                        aria-label={t("assistant.eventBlocks.openWorkflowTitle", { title })}
                         className="flex min-w-0 cursor-pointer items-center gap-1.5 text-left transition-colors hover:text-gray-700"
                     >
                         <WorkflowSkeuoIcon className="h-3.5 w-3.5 shrink-0" />
@@ -579,6 +586,7 @@ export function AskInputsBlock({
     response?: Extract<AssistantEvent, { type: "ask_inputs_response" }>;
     showConnector?: boolean;
 }) {
+    const t = useTranslations();
     const [isOpen, setIsOpen] = useState(!response);
     const responseById = new Map(
         response?.responses.map((item) => [item.id, item]) ?? [],
@@ -586,11 +594,11 @@ export function AskInputsBlock({
     const onlyApprovals = event.items.every((item) => item.kind === "approval");
     const label = onlyApprovals
         ? response
-            ? "Asked for approval"
-            : "Asking for approval"
+            ? t("assistant.eventBlocks.askedForApproval")
+            : t("assistant.eventBlocks.askingForApproval")
         : response
-          ? "Asked for input"
-          : "Asking for input";
+          ? t("assistant.eventBlocks.askedForInput")
+          : t("assistant.eventBlocks.askingForInput");
     return (
         <EventBlock
             showConnector={showConnector}
@@ -609,9 +617,9 @@ export function AskInputsBlock({
                             if (!itemResponse) return null;
                             if (itemResponse.kind === "approval")
                                 return itemResponse.decision === "approve"
-                                    ? "Approved"
-                                    : "Rejected";
-                            if (itemResponse.skipped) return "Skipped";
+                                    ? t("assistant.eventBlocks.approved")
+                                    : t("assistant.eventBlocks.rejected");
+                            if (itemResponse.skipped) return t("assistant.eventBlocks.skipped");
                             if (itemResponse.kind === "multi_choice") {
                                 return itemResponse.answers?.join(", ") ?? "";
                             }
@@ -621,22 +629,22 @@ export function AskInputsBlock({
                             const filenames = itemResponse.filenames;
                             return filenames.length
                                 ? filenames.join(", ")
-                                : "No documents attached";
+                                : t("assistant.eventBlocks.noDocumentsAttached");
                         })();
                         return (
                             <div key={item.id}>
                                 <p className="text-xs text-gray-500">
                                     {index + 1}.{" "}
                                     {item.kind === "documents"
-                                        ? "Documents"
+                                        ? t("assistant.eventBlocks.documents")
                                         : item.kind === "approval"
-                                          ? "Approval"
-                                          : "Question"}
+                                          ? t("assistant.eventBlocks.approval")
+                                          : t("assistant.eventBlocks.question")}
                                 </p>
                                 <p className="mt-0.5 [overflow-wrap:anywhere]">
                                     {item.kind === "documents"
                                         ? item.document_types.join(", ") ||
-                                          "Documents requested"
+                                          t("assistant.eventBlocks.documentsRequested")
                                         : item.kind === "approval"
                                           ? `${item.connector_name}: ${item.title}`
                                           : item.question}
@@ -668,7 +676,8 @@ export function DocEditBlock({
     hasError?: boolean;
     onClick?: () => void;
 }) {
-    const label = isStreaming ? "Editing" : hasError ? "Edit failed" : "Edited";
+    const t = useTranslations();
+    const label = isStreaming ? t("assistant.eventBlocks.editing") : hasError ? t("assistant.eventBlocks.editFailed") : t("assistant.eventBlocks.edited");
 
     return (
         <DocEditBlockUI

@@ -248,7 +248,7 @@ function MarkdownViewContent({
                 setConflict(true);
             } else {
                 notifyError(error, {
-                    action: "save this document",
+                    action: t("shared.markdownView.saveThisDocument"),
                     operation: "documents.edit",
                     onRetry: () => void save(),
                 });

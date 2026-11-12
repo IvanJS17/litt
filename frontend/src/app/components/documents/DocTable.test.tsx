@@ -465,7 +465,7 @@ describe("DocTable and the training lock (docs/training.md)", () => {
             ]}
             tableOperations={operations(vi.fn())}
         />);
-        expect(screen.getAllByText("Borrador de pasante, pendiente de aprobación")).toHaveLength(1);
+        expect(screen.getAllByText("Intern draft, pending approval")).toHaveLength(1);
 
         fireEvent.contextMenu(screen.getByText("Draft.pdf"), { clientX: 40, clientY: 40 });
         expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
@@ -501,7 +501,7 @@ describe("DocTable and the training lock (docs/training.md)", () => {
 
         expect(await screen.findByRole("alert")).toBeInTheDocument();
         await waitFor(() => expect(api.getDocument).toHaveBeenCalledWith("doc-2"));
-        expect(await screen.findByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+        expect(await screen.findByText("Intern draft, pending approval")).toBeInTheDocument();
     });
 
     it("shows any other download failure without refreshing", async () => {

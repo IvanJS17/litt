@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { approveTrainingVersion } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { TextButtonUI } from "@mike/ui";
 import { TrainingHeldNoteUI } from "@mike/ui";
-
-export const APPROVE_TRAINING_VERSION_LABEL = "Aprobar esta versión";
 
 /**
  * LiTT training (docs/training.md): the mark of a pasante's draft and, for
@@ -28,6 +27,7 @@ export function TrainingVersionStatus({
     onApproved: () => void;
     className?: string;
 }) {
+    const t = useTranslations();
     const [approving, setApproving] = useState(false);
     if (!held) return null;
 
@@ -39,7 +39,7 @@ export function TrainingVersionStatus({
             onApproved();
         } catch (error) {
             notifyError(error, {
-                action: "approve this version",
+                action: t("shared.trainingVersionStatus.approveAction"),
                 supportNote: `Document ${documentId}, version ${id}`,
             });
         } finally {
@@ -53,12 +53,12 @@ export function TrainingVersionStatus({
             {canApprove && versionId && (
                 <TextButtonUI
                     size="xs"
-                    aria-label={APPROVE_TRAINING_VERSION_LABEL}
+                    aria-label={t("training.review.approve")}
                     loading={approving}
                     onClick={() => void approve(versionId)}
                     className="text-foreground"
                 >
-                    {APPROVE_TRAINING_VERSION_LABEL}
+                    {t("training.review.approve")}
                 </TextButtonUI>
             )}
         </div>

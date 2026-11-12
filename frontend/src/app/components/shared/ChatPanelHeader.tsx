@@ -1,5 +1,7 @@
 "use client";
 
+import type { AppTranslate } from "@/i18n/Translate";
+import { formatNumericDateTime, type DateFormatter } from "@/app/lib/dateText";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Loader2, Plus, X } from "lucide-react";
 import type { Chat } from "@/app/components/shared/types";
@@ -16,6 +18,7 @@ import {
 import { cn } from "@/app/lib/utils";
 import { formatElapsedTime } from "@/app/lib/formatElapsedTime";
 import { chatActivityAt, sortChatsByActivity } from "@/app/lib/chatActivity";
+import { useFormatter, useTranslations } from "next-intl";
 
 const HEADER_PILL_CLASS = `flex shrink-0 items-center gap-1 rounded-full px-1 py-0.5 ${LIQUID_GLASS_SUBTLE_CLASS} backdrop-blur-xl`;
 const HEADER_PILL_BUTTON_CLASS = `flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${LIQUID_GLASS_HOVER_CLASS}`;
@@ -34,6 +37,8 @@ export function buildChatHistoryItems({
     query,
     now,
     responseStatuses = {},
+    t,
+    format,
 }: {
     chats: HistoryChat[];
     currentChatId: string;
@@ -42,19 +47,21 @@ export function buildChatHistoryItems({
     query: string;
     now: number;
     responseStatuses?: Record<string, "loading" | "complete">;
+    t: AppTranslate;
+    format: DateFormatter;
 }): ChatHistoryDropdownItemUI[] {
     return sortChatsByActivity(chats)
         .filter(
             (chat) =>
                 chat.id !== hiddenChatId &&
-                (chat.title ?? "New Chat")
+                (chat.title ?? t("shared.chatPanelHeader.newChat"))
                     .toLowerCase()
                     .includes(query.trim().toLowerCase()),
         )
         .map((chat) => {
-            const title = chat.title ?? "New Chat";
+            const title = chat.title ?? t("shared.chatPanelHeader.newChat");
             const activityAt = chatActivityAt(chat);
-            const elapsed = formatElapsedTime(activityAt, now);
+            const elapsed = formatElapsedTime(t, activityAt, now);
             const responseStatus = responseStatuses[chat.id];
             return {
                 id: chat.id,
@@ -81,7 +88,7 @@ export function buildChatHistoryItems({
                         ? {
                               label: elapsed,
                               dateTime: activityAt,
-                              description: `Updated ${new Date(activityAt).toLocaleString()}`,
+                              description: t("shared.chatPanelHeader.updatedAt", { date: formatNumericDateTime(format, activityAt) }),
                           }
                         : undefined,
             };
@@ -124,6 +131,8 @@ export function ChatPanelHeader({
     onClose,
     titleEdit,
 }: ChatPanelHeaderProps) {
+    const t = useTranslations();
+    const format = useFormatter();
     const [historyOpen, setHistoryOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [now, setNow] = useState(Date.now);
@@ -158,6 +167,8 @@ export function ChatPanelHeader({
         query,
         now,
         responseStatuses,
+        t,
+        format,
     });
 
     function loadChat(chatId: string) {
@@ -175,7 +186,7 @@ export function ChatPanelHeader({
                         <FormTextInput
                             ref={titleInputRef}
                             variant="minimal"
-                            aria-label="Chat title"
+                            aria-label={t("shared.chatPanelHeader.chatTitle")}
                             value={titleEdit.value}
                             onFocus={(event) => event.currentTarget.select()}
                             onChange={(event) =>
@@ -217,7 +228,7 @@ export function ChatPanelHeader({
                                     )}
                                 >
                                     <span className="min-w-0 truncate text-xs font-medium">
-                                        {currentTitle ?? "New Chat"}
+                                        {currentTitle ?? t("shared.chatPanelHeader.newChat")}
                                     </span>
                                     <ChevronDown
                                         className={cn(
@@ -232,8 +243,8 @@ export function ChatPanelHeader({
                             loading={loading}
                             emptyLabel={
                                 chats.length === 0
-                                    ? "No chats yet."
-                                    : "No matches."
+                                    ? t("shared.chatPanelHeader.noChatsYet")
+                                    : t("shared.chatPanelHeader.noMatches")
                             }
                             items={historyItems}
                             onSelect={loadChat}
@@ -250,7 +261,7 @@ export function ChatPanelHeader({
                                 type="button"
                                 onClick={onNewChat}
                                 disabled={newChatDisabled}
-                                aria-label="New chat"
+                                aria-label={t("shared.chatPanelHeader.newChat2")}
                                 className={cn(
                                     HEADER_PILL_BUTTON_CLASS,
                                     "disabled:cursor-not-allowed disabled:opacity-40",
@@ -267,8 +278,8 @@ export function ChatPanelHeader({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                aria-label="Close chat panel"
-                                title="Close chat panel"
+                                aria-label={t("shared.chatPanelHeader.closeChatPanel")}
+                                title={t("shared.chatPanelHeader.closeChatPanel")}
                                 className={HEADER_PILL_BUTTON_CLASS}
                             >
                                 <X aria-hidden="true" className="h-3.5 w-3.5" />
