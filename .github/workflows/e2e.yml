@@ -93,6 +93,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      # LiTT: the DOCX editor must not damage documents (layer 3). Runs the
+      # real editor on synthetic .docx files; catches regressions on editor bumps.
+      - name: DOCX editor round-trip
+        run: npx playwright test -c playwright.docx-roundtrip.config.ts
+
       - name: Verify and start deterministic model provider
         run: |
           node --test e2e/anthropic-stub.check.mjs
