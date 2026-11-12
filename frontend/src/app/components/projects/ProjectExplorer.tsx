@@ -42,6 +42,8 @@ import {
     type ProjectTreeItemKind,
 } from "@/app/lib/projectTreeMoves";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
+import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import type { DocumentConversionType } from "@mike/contracts";
 
 interface Props {
     projectName?: string | null;
@@ -52,6 +54,8 @@ interface Props {
     onAddToChat?: (doc: Document) => void;
     onDownloadDoc?: (doc: Document) => Promise<void>;
     onDownloadFolder?: (folder: ProjectFolder) => Promise<void>;
+    /** Starts the conversion dialog; the menu offers only the formats valid for the file's type. */
+    onConvertDoc?: (doc: Document, target: DocumentConversionType) => void;
     downloading?: boolean;
     addToChatDisabled?: boolean;
     onCreateFolder?: (parentFolderId: string | null, name: string) => Promise<void>;
@@ -106,6 +110,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
     onAddToChat,
     onDownloadDoc,
     onDownloadFolder,
+    onConvertDoc,
     downloading = false,
     addToChatDisabled = false,
     onCreateFolder,
@@ -576,10 +581,19 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                             setRenamingDocId(contextDocument.id);
                         } : undefined,
                         onDelete: onDeleteDoc ? () => onDeleteDoc(contextDocument.id) : undefined,
+                        convert:
+                            onConvertDoc &&
+                            !isTrainingHeld(contextDocument) &&
+                            conversionTargetsFor(contextDocument.file_type).length > 0
+                                ? {
+                                      targets: conversionTargetsFor(contextDocument.file_type),
+                                      onConvert: (target) => onConvertDoc(contextDocument, target),
+                                  }
+                                : undefined,
                         addToChatDisabled, downloading,
-                    }).map(({ label, icon: Icon, onSelect, disabled, variant }) => (
+                    }).map(({ id, label, icon: Icon, onSelect, disabled, variant }) => (
                         <DropdownItem
-                            key={label}
+                            key={id ?? label}
                             disabled={disabled}
                             variant={variant === "danger" ? "destructive" : "default"}
                             onSelect={onSelect}

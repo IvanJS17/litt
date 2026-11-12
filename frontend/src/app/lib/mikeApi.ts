@@ -3979,6 +3979,40 @@ export async function downloadDocumentsZip(
     return response.blob();
 }
 
+/**
+ * What converting a document would lose, before anything is created. 404
+ * without access, 403 `training_approval_required` for a trainee's draft,
+ * 400 `convert_not_supported` for a pair that does not exist.
+ */
+export async function previewDocumentConversion(
+    documentId: string,
+    target: import("@mike/contracts").DocumentConversionType,
+): Promise<import("@mike/contracts").DocumentConversionPreview> {
+    return apiRequest(
+        "documents.convert",
+        `/single-documents/${encodeURIComponent(documentId)}/convert/preview?target=${encodeURIComponent(target)}`,
+    );
+}
+
+/**
+ * Convert a document into a NEW one in the same project and folder (version 1,
+ * `source` 'converted'). The original does not change.
+ */
+export async function convertDocument(
+    documentId: string,
+    target: import("@mike/contracts").DocumentConversionType,
+): Promise<import("@mike/contracts").DocumentConversionResult> {
+    return apiRequest(
+        "documents.convert",
+        `/single-documents/${encodeURIComponent(documentId)}/convert`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ target }),
+        },
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Chat
 // ---------------------------------------------------------------------------

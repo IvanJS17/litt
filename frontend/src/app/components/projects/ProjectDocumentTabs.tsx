@@ -9,6 +9,8 @@ import { DocumentTabBar } from "@/app/components/shared/DocumentTabBar";
 import type { Document, PanelDocument } from "@/app/components/shared/types";
 import type { TabDropPosition } from "@/app/lib/reorderTabs";
 import type { DocumentPermissions } from "@/app/hooks/useDocumentPermissions";
+import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import type { DocumentConversionType } from "@mike/contracts";
 
 interface Props {
     tabs: ReadonlyArray<{
@@ -23,6 +25,8 @@ interface Props {
     onDownloadDoc?: (document: Document) => Promise<void>;
     onRenameDoc?: (documentId: string, filename: string) => Promise<void>;
     onDeleteDoc?: (documentId: string) => Promise<void>;
+    /** Starts the conversion dialog; the tab offers only the formats valid for its type. */
+    onConvertDoc?: (document: Document, target: DocumentConversionType) => void;
     documentPermissions?: (documentId: string) => DocumentPermissions;
     addToChatDisabled?: boolean;
     downloading?: boolean;
@@ -43,6 +47,7 @@ export function ProjectDocumentTabs({
     onDownloadDoc,
     onRenameDoc,
     onDeleteDoc,
+    onConvertDoc,
     documentPermissions,
     addToChatDisabled,
     downloading,
@@ -91,6 +96,17 @@ export function ProjectDocumentTabs({
                         onDownload:
                             document && onDownloadDoc && !isTrainingHeld(document)
                                 ? () => onDownloadDoc(document)
+                                : undefined,
+                        convert:
+                            document &&
+                            onConvertDoc &&
+                            !legalSource &&
+                            !isTrainingHeld(document) &&
+                            conversionTargetsFor(document.file_type).length > 0
+                                ? {
+                                      targets: conversionTargetsFor(document.file_type),
+                                      onConvert: (target) => onConvertDoc(document, target),
+                                  }
                                 : undefined,
                         onRename:
                             !legalSource && documentPermissions?.(tab.documentId).canEdit && onRenameDoc
