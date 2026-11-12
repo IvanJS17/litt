@@ -469,6 +469,8 @@
     "unsaved": "You have unsaved changes. If you leave now, you will lose them."
   },
   "playbooks": {
+    "compilingLabel": "Compiling",
+    "compilingStatus": "Compiling…",
     "draft": {
       "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
       "confirmMessage": "{unbacked, plural, one {# rule has} other {# rules have}} no backing and {unverified, plural, one {# legal reference is} other {# legal references are}} not verified. Once ready, it can be used in reviews and it can't go back to draft.",
@@ -554,7 +556,8 @@
       "unbacked": "Suggestion without backing, review",
       "unverified": "Not verified",
       "verified": "Verified in an attached document"
-    }
+    },
+    "savingStatus": "Saving…"
   },
   "projects": {
     "workspace": {

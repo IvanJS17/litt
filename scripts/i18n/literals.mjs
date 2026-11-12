@@ -150,7 +150,9 @@ export function findVisibleLiterals(sf) {
             inVisibleJsxExpression(n)
         ) {
             const value = literalText(n);
-            if (value != null && (/\s/.test(value.trim()) || /^[A-Z][a-z]+$/.test(value))) add(n, "jsxExpr", value);
+            // "Saving..." and "Saving…" are one word of text: test them without the trailing ellipsis.
+            const word = value?.trim().replace(/(\.{3}|…)$/, "");
+            if (value != null && (/\s/.test(word) || /^[A-Z][a-z]+$/.test(word))) add(n, "jsxExpr", value);
         }
         ts.forEachChild(n, visit);
     };

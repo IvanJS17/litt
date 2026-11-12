@@ -469,6 +469,8 @@
     "unsaved": "Tienes cambios sin guardar. Si sales ahora, los perderás."
   },
   "playbooks": {
+    "compilingLabel": "Compilando",
+    "compilingStatus": "Compilando…",
     "draft": {
       "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
       "confirmMessage": "{unbacked, plural, one {# regla no tiene} other {# reglas no tienen}} respaldo y {unverified, plural, one {# referencia legal no está verificada} other {# referencias legales no están verificadas}}. Ya listo, se puede usar en revisiones y no vuelve a borrador.",
@@ -554,7 +556,8 @@
       "unbacked": "Sugerencia sin respaldo, revisar",
       "unverified": "No verificado",
       "verified": "Verificado en un documento adjunto"
-    }
+    },
+    "savingStatus": "Guardando…"
   },
   "projects": {
     "workspace": {
