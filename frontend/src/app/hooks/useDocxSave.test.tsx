@@ -4,12 +4,17 @@ import { useDocxSave } from "./useDocxSave";
 import { listDocumentVersions, saveDocxVersion } from "@/app/lib/mikeApi";
 import { UploadBatchError } from "@mike/client";
 import { invalidateDocxBytes } from "./useFetchDocxBytes";
+import { notifyError } from "@/app/lib/userFacingError";
 
 vi.mock("@/app/lib/mikeApi", () => ({
     listDocumentVersions: vi.fn(), saveDocxVersion: vi.fn(),
     MikeApiError: class extends Error {},
 }));
 vi.mock("./useFetchDocxBytes", () => ({ invalidateDocxBytes: vi.fn() }));
+vi.mock("@/app/lib/userFacingError", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/lib/userFacingError")>()),
+    notifyError: vi.fn(),
+}));
 const original = new Uint8Array([1]).buffer;
 const edited = new Uint8Array([2]).buffer;
 let saves = 0;
@@ -53,7 +58,8 @@ it("serializes saves; an edit made during an upload stays dirty for the next exp
     expect(result.current.save()).toBe(pending);
     await act(async () => { finish(); await pending; });
     expect(saveDocxVersion).toHaveBeenCalledOnce();
-    expect(result.current.dirty).toBe(true);
+    // Unsaved, not stuck on "saving": the Save button is enabled again.
+    expect(result.current).toMatchObject({ dirty: true, status: "idle" });
     await act(() => result.current.save());
     expect(saveDocxVersion).toHaveBeenCalledTimes(2);
     expect(vi.mocked(saveDocxVersion).mock.calls[0][1]).toBe("v1");
@@ -169,4 +175,20 @@ it("adopts a different snapshot of an unpinned document and saves on top of the 
     await act(() => result.current.save());
     // The base was re-resolved, not carried over from the save before the new snapshot.
     expect(listDocumentVersions).toHaveBeenCalledTimes(2);
+});
+
+it("tells the user when the save made on unmount fails, since no viewer is left to show it", async () => {
+    vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("offline"));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
+    act(() => result.current.markChanged());
+    unmount();
+    await vi.waitFor(() => expect(notifyError).toHaveBeenCalledOnce());
+});
+
+it("ignores changes while editing is disabled", async () => {
+    const { result } = renderHook(() => useDocxSave({ ...options(), enabled: false }));
+    act(() => result.current.markChanged());
+    expect(result.current.dirty).toBe(false);
+    await act(() => result.current.save());
+    expect(saveDocxVersion).not.toHaveBeenCalled();
 });

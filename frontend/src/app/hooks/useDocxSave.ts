@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listDocumentVersions, saveDocxVersion } from "@/app/lib/mikeApi";
-import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
-import { UploadBatchError } from "@mike/client";
+import { errorCode, notifyError, userFacingApiError } from "@/app/lib/userFacingError";
+import { clientTranslator, UploadBatchError } from "@mike/client";
 import { invalidateDocxBytes } from "./useFetchDocxBytes";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -76,9 +76,14 @@ export function useDocxSave(options: Options) {
                     savedBytes.current = bytes;
                     snapshotRevision.current += 1;
                     invalidateDocxBytes(current.documentId);
-                    if (mounted.current && sequence.current === savingSequence) {
-                        setDirty(false);
-                        setStatus("saved");
+                    if (mounted.current) {
+                        if (sequence.current === savingSequence) {
+                            setDirty(false);
+                            setStatus("saved");
+                        } else {
+                            // Edited during the upload: those edits are unsaved, not "saving".
+                            setStatus("idle");
+                        }
                     }
                 } while (detachedSnapshot.current && sequence.current > savedSequence.current);
             } catch (reason) {
@@ -87,7 +92,10 @@ export function useDocxSave(options: Options) {
                     || (reason instanceof UploadBatchError
                         && reason.outcomes.some((outcome) => outcome.errorCode === "document_changed"));
                 conflicted.current = conflict;
-                if (mounted.current) {
+                if (!mounted.current) {
+                    // The viewer is gone (navigation): nothing on screen would show the failure.
+                    notifyError(reason, { action: clientTranslator()("shared.markdownView.saveThisDocument") });
+                } else {
                     setError(conflict
                         ? "This document changed elsewhere. Download your edits before reopening the latest version."
                         : userFacingApiError(reason, "Changes could not be saved. Your edits are still open. Press Cmd/Ctrl+S to retry, or download a copy."));
@@ -128,6 +136,7 @@ export function useDocxSave(options: Options) {
     }, []);
 
     const markChanged = useCallback(() => {
+        if (!latest.current.enabled) return;
         sequence.current += 1;
         snapshotRevision.current += 1;
         setDirty(true);

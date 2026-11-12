@@ -57,7 +57,9 @@ all formatting controls fit. The navigation pane has a 12px left inset.
 Edits are not saved on a timer: they mark the document "Unsaved changes". The
 **Save** button in the title row (enabled only with unsaved changes; "Saving…"
 while it uploads) and **Ctrl/Cmd+S** each write one new version on top of the
-open one. Closing a tab/panel or switching its version saves unsaved edits once. If saving
+open one. The version picker is disabled while there are unsaved edits (save or
+discard first). Closing a tab/panel saves unsaved edits once; if that save fails
+after the viewer is gone (for example after navigating away), a notice says so. If saving
 fails, the viewer stays mounted and asks whether to keep editing or discard
 unsaved changes. Conflicts require downloading a copy or explicitly discarding;
 closing does not retry a known conflict. Browser unload still warns about dirty
