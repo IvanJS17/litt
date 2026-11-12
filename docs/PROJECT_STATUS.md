@@ -9,6 +9,23 @@
 
 ## Executive status
 
+### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
+
+- The Word editor (`@docx-editor.dev` 2.33.0 → 2.35.0, as upstream) is on for
+  anyone with write permission; the `NEXT_PUBLIC_LITT_DOCX_EDITING` gate is
+  gone.
+- **Every save creates a new `user_edit` version** on top of the version the
+  edit was made on (same design as the Markdown editor); a stale base answers
+  409 `document_version_conflict` and writes nothing. No version an AI run, a
+  review or an approved artifact refers to is replaced, and an editor save
+  never approves. `document_version_replace` remains for the Word add-in, the
+  document table and workflow assets.
+- Evidence: a browser round trip over four synthetic `.docx`
+  (`npx playwright test -c playwright.docx-roundtrip.config.ts`) keeps text,
+  tables, numbering, comments, tracked changes, header/footer and
+  bold/italic; the editor makes no request outside the local origin (packaged
+  fonts, no CDN).
+
 ### Production and integration 2026-11-12
 
 - **Main:** `09dacab6` (merge of pull request #164). **Production:** runs
@@ -28,8 +45,7 @@
     modals and popups, playbooks, training, recovery).
   - #156 (follow-up notes, [`followups.md`](followups.md)) went out in the same
     deploy.
-- **Pending:** the minor reserves of phase 1 are closed in
-  `chore/i18n-phase1-close`; the OCR choice (local or LandingAI) is still the
+- **Pending:** the minor reserves of phase 1 were closed in #165; the OCR choice (local or LandingAI) is still the
   owner's decision. Technical follow-ups are in [`followups.md`](followups.md).
 
 ### Branch not integrated: layer 4, document conversions

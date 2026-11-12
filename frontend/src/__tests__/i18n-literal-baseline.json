@@ -207,7 +207,6 @@
     "frontend/src/app/components/shared/views/SpreadsheetWorkbook.tsx",
     "frontend/src/app/components/shared/views/commentThreads.ts",
     "frontend/src/app/components/shared/views/docxCommentEditing.ts",
-    "frontend/src/app/components/shared/views/docxEditingGate.ts",
     "frontend/src/app/components/shared/views/docxQuoteSelection.ts",
     "frontend/src/app/components/shared/views/docxReviewPane.ts",
     "frontend/src/app/components/shared/views/docxReviewTarget.ts",

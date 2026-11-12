@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TextButtonUI } from "@mike/ui";
 import { DocxEditor } from "@docx-editor.dev/react";
-import type { TextMatch } from "@docx-editor.dev/core";
 import type { Editor, ReviewPosition, ReviewRevisionPlacement } from "@docx-editor.dev/core/contracts/editor";
 import { packagedFonts } from "@docx-editor.dev/fonts";
 import { useOptionalAuth } from "@/app/contexts/AuthContext";
@@ -20,6 +19,9 @@ import { useTranslations } from "next-intl";
 // Use packaged, metric-compatible fonts; document text never goes to a conversion service.
 const fonts = packagedFonts();
 const BODY_PART = "/word/document.xml";
+const CITATION_HIGHLIGHT = "citation";
+// The PDF viewer's citation fill, so a quote looks the same in either format.
+const CITATION_HIGHLIGHT_COLOR = "var(--pdf-highlight-background)";
 
 /**
  * The ranges of a native review item that belong to one Mike edit. A native
@@ -49,7 +51,6 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
     const [fontWarning, setFontWarning] = useState(false);
     const activeRevision = useRef<string | null>(null);
     const revisionSelection = useRef<{ anchor: ReviewPosition; text: string } | null>(null);
-    const citationMatch = useRef<{ match: TextMatch; text: string } | null>(null);
     const unsubscribe = useRef<(() => void) | undefined>(undefined);
     const document = useMemo(() => new Uint8Array(bytes), [bytes]);
     useEffect(() => () => unsubscribe.current?.(), []);
@@ -125,7 +126,7 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
                                 if (!result.ok) return false;
                                 activeRevision.current = revision.key;
                                 revisionSelection.current = null;
-                                citationMatch.current = null;
+                                editor.clearHighlights(CITATION_HIGHLIGHT);
                                 return true;
                             }
                             // Only one review item can be active. A gap can split the edit
@@ -149,7 +150,7 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
                             activeRevision.current = null;
                             if (!editor.exec({ type: "setSelection", range: { anchor, head } }).ok) return false;
                             revisionSelection.current = { anchor, text: editor.query({ type: "selectedText" }) };
-                            citationMatch.current = null;
+                            editor.clearHighlights(CITATION_HIGHLIGHT);
                             return true;
                         },
                         clearRevisionHighlight: () => {
@@ -165,33 +166,23 @@ export default function DocxRenderer({ bytes, mode, toolbarVisible = true, filen
                                 editor.setActiveReviewItem(null);
                             }
                         },
+                        // Citations are painted, not selected. A native selection only
+                        // shows while the browser paints it for the focused element, so
+                        // a citation opened from the chat could arrive selected but
+                        // invisible, and selecting it also moved the reader's caret.
                         selectText: (text) => {
                             const match = findDocxQuote(editor, text);
-                            if (!match || !editor.selectMatch(match.start).ok) return false;
-                            if (match.end !== match.start) {
-                                const result = editor.exec({ type: "setSelection", range: {
-                                    anchor: { paragraphId: match.start.blockId, offset: match.start.start },
-                                    head: { paragraphId: match.end.blockId, offset: match.end.start + match.end.length },
-                                } });
-                                if (!result.ok) {
-                                    editor.selectMatch({ ...match.start, length: 0 });
-                                    citationMatch.current = null;
-                                    return false;
-                                }
-                                editor.scrollToBlock(match.start.blockId);
+                            const painted = match && editor.setHighlights(CITATION_HIGHLIGHT, match.ranges, {
+                                color: CITATION_HIGHLIGHT_COLOR,
+                            }).applied > 0;
+                            if (!match || !painted) {
+                                editor.clearHighlights(CITATION_HIGHLIGHT);
+                                return false;
                             }
-                            citationMatch.current = { match: match.start, text: editor.query({ type: "selectedText" }) };
+                            editor.scrollToBlock(match.start.blockId, { block: "center" });
                             return true;
                         },
-                        clearTextSelection: () => {
-                            const selection = citationMatch.current;
-                            citationMatch.current = null;
-                            // Leave a subsequent user selection alone. Collapse only
-                            // the citation range that this viewer selected.
-                            if (selection && editor.query({ type: "selectedText" }) === selection.text) {
-                                editor.selectMatch({ ...selection.match, length: 0 });
-                            }
-                        },
+                        clearTextSelection: () => editor.clearHighlights(CITATION_HIGHLIGHT),
                     });
                     else onError();
                 }}

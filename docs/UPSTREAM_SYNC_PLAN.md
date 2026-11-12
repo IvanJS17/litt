@@ -124,8 +124,8 @@ unless it breaks a LiTT invariant, in which case it is reverted or gated.
 - Dependency and toolchain updates; self-hosted fonts.
 - Chat turn lifecycle, streaming runs that survive refresh, answer rendering,
   citation highlights and two simultaneous chats.
-- DOCX viewer and editor. Before the final merge: license, egress and the
-  version, hash and audit contract are checked.
+- DOCX viewer and editor (2.35.0, on). License, egress and the version
+  contract are checked: every save creates a new version (ledger §16.3).
 - Organization settings, profile images and logos, audit with names.
 - BYOK provider matrix and model registry, with every upstream provider
   visible (owner decision of 2026-10-23). Route resolution stays fail-closed

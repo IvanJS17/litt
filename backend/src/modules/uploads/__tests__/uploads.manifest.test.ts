@@ -113,6 +113,24 @@ describe("parseUploadSessionRequest", () => {
     ).toThrow(UploadSessionValidationError);
   });
 
+  it("accepts an editor save: a base version and no PDF on a new version, and nothing else", () => {
+    const request = (destination: Record<string, unknown>) =>
+      parseUploadSessionRequest(
+        {
+          purpose: "document_version_create",
+          destination: { document_id: "33333333-3333-4333-8333-333333333333", ...destination },
+          files: documentRequest(1).files,
+        },
+        USER_ID,
+        SESSION_ID,
+      );
+    expect(
+      request({ base_version_id: "44444444-4444-4444-8444-444444444444", generate_pdf: false }).destination,
+    ).toMatchObject({ base_version_id: "44444444-4444-4444-8444-444444444444", generate_pdf: false });
+    expect(() => request({ base_version_id: "not-a-uuid" })).toThrow(UploadSessionValidationError);
+    expect(() => request({ source: "user_edit" })).toThrow(UploadSessionValidationError);
+  });
+
   it("keeps legacy workflow asset batches compatible while reserving one resource per file", () => {
     const result = parseUploadSessionRequest(
       {
