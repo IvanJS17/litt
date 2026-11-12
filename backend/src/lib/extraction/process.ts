@@ -1,11 +1,12 @@
 // Sequential requests reuse parser imports. No database or application boot.
 import { EXTRACTION_OPS, type ExtractionOp } from "./ops";
+import type { OcrFill } from "../ocr/pages";
 import { EXTRACTION_MAX_BINARY_BYTES, EXTRACTION_MAX_TEXT_BYTES, ExtractionLimitError, isAllocationFailure } from "./limits";
 
-process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType: string }) => {
+process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType: string; ocr?: OcrFill }) => {
   void (async () => {
     try {
-      const result = await EXTRACTION_OPS[request.op](request.bytes, request.fileType);
+      const result = await EXTRACTION_OPS[request.op](request.bytes, request.fileType, request.ocr);
       // Text results are measured as text; a counts object (docxInventory) as its JSON.
       // A binary result (docxCompare) is measured in bytes and has its own cap.
       if (result instanceof Uint8Array) {

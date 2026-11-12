@@ -12,6 +12,7 @@ export const STANDARD_FONT_DATA_URL = (() => {
 import { AppError } from "./appError";
 import { docxToPdf } from "./convert";
 import { orderTextItemLines } from "./pdfTextOrder";
+import { splitOcrPages, type OcrFill } from "./ocr/pages";
 
 type PdfTextItem = {
   str?: string;
@@ -337,15 +338,39 @@ async function readPdfPages(buf: ArrayBuffer): Promise<PdfReadResult> {
   }
 }
 
+/**
+ * Give the pages that have no text layer the text a scan reading produced for
+ * them. A page the reading failed on stays empty (so it still counts as
+ * unread); a page it read is read even when blank. Pages with their own text
+ * are never replaced.
+ */
+export function fillPagesFromOcr(pages: PdfPageText[], ocr: OcrFill): PdfPageText[] {
+  const failed = new Set(ocr.failedPages ?? []);
+  const perPage = splitOcrPages(ocr.markdown, pages.length);
+  // Page breaks that do not match the page count cannot say which page a
+  // passage is on: put the whole reading on the first page it covers.
+  let wholeGiven = false;
+  return pages.map((page, index) => {
+    if (!page.empty || failed.has(index + 1)) return page;
+    let body: string;
+    if (perPage) body = perPage[index];
+    else if (!wholeGiven) {
+      wholeGiven = true;
+      body = ocr.markdown.trim();
+    } else body = "";
+    return { text: `[Page ${index + 1}]\n${body}`, empty: false };
+  });
+}
+
 /** Strict extraction for persisted search: unreadable is not a successful blank. */
-export async function extractPdfTextForIndex(buf: ArrayBuffer): Promise<{ text: string; textlessPageCount: number }> {
+export async function extractPdfTextForIndex(buf: ArrayBuffer, ocr?: OcrFill): Promise<{ text: string; textlessPageCount: number }> {
   const read = await readPdfPages(buf);
   if (!read.pages) {
     throw new AppError("extraction.pdf_parse_failed", "document_text_pdf_unreadable", {
       cause: read.cause,
     });
   }
-  const { pages } = read;
+  const pages = ocr ? fillPagesFromOcr(read.pages, ocr) : read.pages;
   const textlessPageCount = pages.filter((page) => page.empty).length;
   return {
     text: textlessPageCount === pages.length ? "" : pages.map((page) => page.text).join("\n\n"),

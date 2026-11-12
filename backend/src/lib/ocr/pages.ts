@@ -13,6 +13,9 @@ export const OCR_MAX_BYTES = 50 * 1024 * 1024;
 
 export const OCR_PAGE_BREAK = "<!-- PAGE BREAK -->";
 
+/** A reading to merge into a PDF's own text: LandingAI's Markdown and the pages it failed. */
+export type OcrFill = { markdown: string; failedPages?: readonly number[] };
+
 /** An estimate, in US dollars, for reading `pages` pages. */
 export function estimateOcrCostUsd(pages: number): number {
     return Math.round(Math.max(0, pages) * OCR_USD_PER_PAGE * 100) / 100;

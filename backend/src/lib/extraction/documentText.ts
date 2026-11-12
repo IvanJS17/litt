@@ -1,14 +1,15 @@
 import { extractDocxBodyText } from "../docxTrackedChanges";
 import { extractPdfTextForIndex } from "../pdfText";
+import type { OcrFill } from "../ocr/pages";
 import { docxToPdf } from "../convert";
 import { extractPresentationText } from "../officeText";
 import { spreadsheetToLLMText } from "../spreadsheet";
 import { decodeMarkdownBytes, isMarkdownDocumentType, isSpreadsheetDocumentType, requiresLibreOfficeTextExtraction } from "../documentTypes";
 
 /** Complete text, using the same accepted DOCX view as the edit matcher. */
-export async function extractDocumentText(raw: ArrayBuffer, fileType: string) {
+export async function extractDocumentText(raw: ArrayBuffer, fileType: string, ocr?: OcrFill) {
   const type = fileType.toLowerCase();
-  if (type === "pdf") return extractPdfTextForIndex(raw);
+  if (type === "pdf") return extractPdfTextForIndex(raw, ocr);
   // A Markdown file is its own text: no conversion, no page count.
   if (isMarkdownDocumentType(type)) return { text: decodeMarkdownBytes(raw), textlessPageCount: null };
   if (requiresLibreOfficeTextExtraction(type)) {

@@ -6,12 +6,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import type { ExtractionOp, ExtractionOps } from "./ops";
+import type { OcrFill } from "../ocr/pages";
 import { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError, extractionMemoryMb, extractionTimeoutMs } from "./limits";
 
 export { EXTRACTION_MAX_BYTES, ExtractionBusyError, ExtractionLimitError } from "./limits";
 
 type Result<K extends ExtractionOp> = Awaited<ReturnType<ExtractionOps[K]>>;
-export type ExtractInSlot = <K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: { fileType?: string }) => Promise<Result<K>>;
+/** `ocr` is a read scan to merge into a PDF's text (documentText only). */
+export type ExtractOptions = { fileType?: string; ocr?: OcrFill };
+export type ExtractInSlot = <K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: ExtractOptions) => Promise<Result<K>>;
 type Reply = { ok: true; result: unknown } | { ok: false; limited: boolean; message: string };
 
 /** Hard OS memory boundary on Linux, including native buffers. Fail closed if
@@ -112,11 +115,11 @@ async function startParser(): Promise<Parser> {
   return p;
 }
 
-async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options: { fileType?: string } = {}): Promise<Result<K>> {
+async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options: ExtractOptions = {}): Promise<Result<K>> {
   if (bytes.byteLength > EXTRACTION_MAX_BYTES) throw new ExtractionLimitError("source exceeds 150 MB");
   if (process.env.EXTRACTION_ISOLATION === "off") {
     const { EXTRACTION_OPS } = await import("./ops.js");
-    return await EXTRACTION_OPS[op](bytes, options.fileType ?? "") as Result<K>;
+    return await EXTRACTION_OPS[op](bytes, options.fileType ?? "", options.ocr) as Result<K>;
   }
   if (parser && parser.memoryMb !== extractionMemoryMb()) await stopExtractionProcess();
   const p = parser ?? (parser = await startParser());
@@ -164,7 +167,7 @@ async function extractInChild<K extends ExtractionOp>(op: K, bytes: ArrayBuffer,
         } else reject(failure ?? new Error("extraction process exited without a result"));
       }, reject);
     };
-    const send = () => child.send({ op, bytes, fileType: options.fileType ?? "" }, (error) => {
+    const send = () => child.send({ op, bytes, fileType: options.fileType ?? "", ocr: options.ocr }, (error) => {
       if (error && !reply && !failure) onError(error);
     });
     child.stderr?.on("data", onDiagnostics);
@@ -221,7 +224,7 @@ export function withExtractionSlot<T>(
   return parserAdmission(options, () => work(extractInChild));
 }
 
-function queuedExtraction<K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: { fileType?: string }): Promise<Result<K>> {
+function queuedExtraction<K extends ExtractionOp>(op: K, bytes: ArrayBuffer, options?: ExtractOptions): Promise<Result<K>> {
   return withExtractionSlot<Result<K>>({ interactive: true }, (extract) => extract(op, bytes, options));
 }
 
@@ -248,7 +251,7 @@ export function withExtractionRequest<T>(work: (extract: ExtractInSlot) => Promi
 export function runIsolatedExtraction<K extends ExtractionOp>(
   op: K,
   loadSource: () => Promise<ArrayBuffer | null>,
-  options: { fileType?: string } = {},
+  options: ExtractOptions = {},
 ): Promise<Result<K>> {
   return withExtractionRequest<Result<K>>(async (extract): Promise<Result<K>> => {
     const source = await loadSource();

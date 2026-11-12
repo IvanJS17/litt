@@ -9679,6 +9679,32 @@ create table if not exists public.document_version_texts (
 alter table public.document_version_texts enable row level security;
 revoke all on public.document_version_texts from public, anon, authenticated;
 grant select,insert,update,delete on public.document_version_texts to service_role;
+
+-- Scan reading (layer 6, docs/document-ocr.md). What an owner's own LandingAI
+-- key read from a scanned PDF version, keyed to that exact version and byte
+-- revision. The reading is merged into document_version_texts (the index the
+-- assistant, the search and the Markdown conversion read), so this table is the
+-- source and the provenance: who asked, with which model, at what credit cost.
+-- It is not AI evidence. Server-only, like document_version_texts.
+create table if not exists public.document_version_ocr (
+  version_id uuid primary key references public.document_versions(id) on delete cascade,
+  source_revision uuid not null,
+  provider text not null default 'landingai' check (provider in ('landingai')),
+  status text not null default 'processing' check (status in ('processing','ready','failed')),
+  markdown text,
+  model text,
+  credits numeric,
+  page_count integer,
+  failed_pages integer[] not null default '{}',
+  error_code text,
+  requested_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint document_version_ocr_ready check ((status = 'ready') = (markdown is not null))
+);
+alter table public.document_version_ocr enable row level security;
+revoke all on public.document_version_ocr from public, anon, authenticated;
+grant select,insert,update,delete on public.document_version_ocr to service_role;
 create extension if not exists pg_trgm;
 -- Managed Supabase may install extensions outside public.
 do $$
@@ -20330,6 +20356,24 @@ alter table public.user_profiles
 -- document_versions source check now also accepts 'compared'); the migration
 -- file re-applies the same statement to upgraded databases.
 
+-- ---------------------------------------------------------------------------
+-- 20261112_30_litt_landingai_key.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-12
+--
+-- Scan reading key. The effect is applied in place above (the provider checks
+-- of user_api_keys and org_api_keys now accept 'landingai'); the migration file
+-- re-applies the same statements to upgraded databases.
+
+-- ---------------------------------------------------------------------------
+-- 20261112_40_litt_document_ocr.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-12
+--
+-- Scan reading. The effect is applied in place above (public.document_version_ocr,
+-- next to document_version_texts); the migration file re-applies the same
+-- statements to upgraded databases.
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -20591,5 +20635,6 @@ insert into public.schema_migrations (filename) values
   ('20261111_10_litt_markdown_versions.sql'),
   ('20261112_10_litt_converted_source.sql'),
   ('20261112_20_litt_compared_source.sql'),
-  ('20261112_30_litt_landingai_key.sql')
+  ('20261112_30_litt_landingai_key.sql'),
+  ('20261112_40_litt_document_ocr.sql')
 on conflict (filename) do nothing;
