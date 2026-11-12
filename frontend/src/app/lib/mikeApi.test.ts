@@ -35,6 +35,7 @@ import {
     compareDocumentVersions,
     previewDocumentConversion,
     convertDocument,
+    compareDocuments,
     copyDocumentsToWorkflowAssets,
     createChat,
     createQuickAction,
@@ -3316,6 +3317,13 @@ describe("thin endpoint wrappers", () => {
             url: "/single-documents/d%201/convert",
             method: "POST",
             body: { target: "pdf" },
+        },
+        {
+            name: "compareDocuments",
+            call: () => compareDocuments("d 1", "d&2"),
+            url: "/single-documents/d%201/compare",
+            method: "POST",
+            body: { against_document_id: "d&2" },
         },
         {
             name: "copyDocumentVersionFromDocument",
