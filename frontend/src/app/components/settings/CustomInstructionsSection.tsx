@@ -11,6 +11,7 @@ import {
   updateCustomInstructions,
 } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /** Mirrors CUSTOM_INSTRUCTIONS_MAX_LENGTH in the backend user module. */
 export const CUSTOM_INSTRUCTIONS_MAX_LENGTH = 8000;
@@ -25,6 +26,7 @@ function normalizeInstructions(value: string) {
 }
 
 export function CustomInstructionsSection() {
+  const t = useTranslations();
   const [persisted, setPersisted] = useState("");
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -82,7 +84,7 @@ export function CustomInstructionsSection() {
     >
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
         <SettingsHeading id="custom-instructions-heading">
-          Custom instructions
+          {t("settings.customInstructionsSection.customInstructions")}
         </SettingsHeading>
         {!loading && !loadError ? (
           <MemorySaveStatus
@@ -97,18 +99,18 @@ export function CustomInstructionsSection() {
         ) : null}
       </div>
       <SettingsDescription>
-        Tell LiTT how you would like it to respond in chats.
+        {t("settings.customInstructionsSection.tellLittHowYouWouldLike")}
       </SettingsDescription>
 
       {loading ? (
         <div
           className="h-96 animate-pulse rounded-xl bg-app-surface"
-          aria-label="Loading custom instructions"
+          aria-label={t("settings.customInstructionsSection.loadingCustomInstructions")}
         />
       ) : loadError ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-red-600" role="alert">
-            Could not load your custom instructions. Please try again.
+            {t("settings.customInstructionsSection.couldNotLoadYourCustomInstructions")}
           </p>
           <PillButtonUI
             tone="white"
@@ -119,13 +121,13 @@ export function CustomInstructionsSection() {
               setLoadVersion((current) => current + 1);
             }}
           >
-            Retry
+            {t("common.retry")}
           </PillButtonUI>
         </div>
       ) : (
         <>
           <textarea
-            aria-label="Custom instructions"
+            aria-label={t("settings.customInstructionsSection.customInstructions")}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             // The same flat surface as the settings cards above it. The ring
@@ -134,9 +136,8 @@ export function CustomInstructionsSection() {
           />
           {tooLong ? (
             <p className="text-xs text-red-600" role="alert">
-              Custom instructions must be{" "}
-              {CUSTOM_INSTRUCTIONS_MAX_LENGTH.toLocaleString()} characters or
-              fewer. Shorten them to save your changes.
+              {t("settings.customInstructionsSection.customInstructionsMustBe")}{" "}
+              {CUSTOM_INSTRUCTIONS_MAX_LENGTH.toLocaleString()} {t("settings.customInstructionsSection.charactersOrFewerShortenThemTo")}
             </p>
           ) : null}
         </>

@@ -25,6 +25,7 @@ import {
   type PracticeSetting,
   type ProfessionalTitle,
 } from "@/app/onboarding/options";
+import { useTranslations } from "next-intl";
 
 const COMMON_PRACTICE_AREAS = PRACTICE_AREA_OPTIONS.filter(
   (area) => area !== "Other",
@@ -214,14 +215,15 @@ export function PersonalisationFields({
     content: ReactNode,
   ) => ReactNode;
 }) {
+  const t = useTranslations();
   const groups: Record<PersonalisationFieldGroup, ReactNode> = {
     professionalTitle: (
       <ProfileDropdown
         id="professional-title"
-        label="Title"
+        label={t("settings.personalisationFields.title")}
         status={statusFor?.("professionalTitle")}
         value={form.professionalTitle}
-        placeholder="Select a title"
+        placeholder={t("settings.personalisationFields.selectATitle")}
         options={PROFESSIONAL_TITLE_OPTIONS.map((title) => ({
           value: title,
           label: title,
@@ -234,10 +236,10 @@ export function PersonalisationFields({
     practiceSetting: (
       <ProfileDropdown
         id="practice-setting"
-        label="Professional setting"
+        label={t("settings.personalisationFields.professionalSetting")}
         status={statusFor?.("practiceSetting")}
         value={form.practiceSetting}
-        placeholder="Select a professional setting"
+        placeholder={t("settings.personalisationFields.selectAProfessionalSetting")}
         options={PRACTICE_SETTING_OPTIONS}
         onChange={(value) =>
           form.setPracticeSetting(value ? (value as PracticeSetting) : null)
@@ -248,10 +250,10 @@ export function PersonalisationFields({
       <>
         <ProfileDropdown
           id="jurisdiction"
-          label="Jurisdiction of practice"
+          label={t("settings.personalisationFields.jurisdictionOfPractice")}
           status={statusFor?.("jurisdiction")}
           value={form.jurisdictionChoice || null}
-          placeholder="Select a country"
+          placeholder={t("settings.personalisationFields.selectACountry")}
           options={[
             ...COUNTRY_OPTIONS.map((country) => ({
               value: country,
@@ -268,7 +270,7 @@ export function PersonalisationFields({
         {form.jurisdictionChoice === OTHER_JURISDICTION_OPTION && (
           <div className="mt-4">
             <FieldLabelRow
-              label="Other jurisdiction"
+              label={t("settings.personalisationFields.otherJurisdiction")}
               htmlFor="other-jurisdiction"
               status={statusFor?.("otherJurisdiction")}
             />
@@ -279,7 +281,7 @@ export function PersonalisationFields({
                 form.setOtherJurisdiction(event.target.value)
               }
               maxLength={100}
-              placeholder="Enter your jurisdiction"
+              placeholder={t("settings.personalisationFields.enterYourJurisdiction")}
               className={`w-full ${authInputUIClassName}`}
             />
           </div>
@@ -289,7 +291,7 @@ export function PersonalisationFields({
     practiceAreas: (
       <div>
         <FieldLabelRow
-          label="Practice areas"
+          label={t("settings.personalisationFields.practiceAreas")}
           status={statusFor?.("practiceAreas")}
         />
         <Dropdown>
@@ -305,8 +307,8 @@ export function PersonalisationFields({
             >
               <span className="truncate">
                 {form.practiceAreas.length
-                  ? `${form.practiceAreas.length} selected`
-                  : "Select practice areas"}
+                  ? t("settings.personalisationFields.lengthSelected", { length: form.practiceAreas.length })
+                  : t("settings.personalisationFields.selectPracticeAreas")}
               </span>
               <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
             </button>
@@ -333,7 +335,7 @@ export function PersonalisationFields({
               }
               onSelect={(event) => event.preventDefault()}
             >
-              Other
+              {t("settings.personalisationFields.other")}
             </DropdownCheckboxItem>
           </DropdownContent>
         </Dropdown>
@@ -344,7 +346,7 @@ export function PersonalisationFields({
               <OptionPill
                 key={area}
                 onClick={() => form.toggleArea(area)}
-                aria-label={`Remove ${area}`}
+                aria-label={t("settings.personalisationFields.removeArea", { area })}
               >
                 {area}
                 <X className="h-3 w-3" />
@@ -365,7 +367,7 @@ export function PersonalisationFields({
         {form.otherSelected && (
           <div className="mt-4">
             <FieldLabelRow
-              label="Other practice area"
+              label={t("settings.personalisationFields.otherPracticeArea")}
               htmlFor="other-practice-area"
               status={statusFor?.("otherPracticeArea")}
             />
@@ -374,7 +376,7 @@ export function PersonalisationFields({
               value={form.otherArea}
               onChange={(event) => form.setOtherArea(event.target.value)}
               maxLength={100}
-              placeholder="Enter your practice area"
+              placeholder={t("settings.personalisationFields.enterYourPracticeArea")}
               className={`w-full ${authInputUIClassName}`}
             />
           </div>
@@ -417,6 +419,7 @@ function ProfileDropdown({
   onChange: (value: string) => void;
   maxHeight?: boolean;
 }) {
+  const t = useTranslations();
   return (
     <div>
       <FieldLabelRow label={label} htmlFor={id} status={status} />
@@ -454,7 +457,7 @@ function ProfileDropdown({
             }
           >
             <DropdownRadioItem value={NOT_SET_OPTION}>
-              Not set
+              {t("settings.personalisationFields.notSet")}
             </DropdownRadioItem>
             {options.map((option) => (
               <DropdownRadioItem key={option.value} value={option.value}>

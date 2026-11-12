@@ -13,6 +13,7 @@ import {
   type OrgMember,
   type OrgMemberHandover,
 } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 
 // Shared work is handed to one successor; unshared work is archived for
 // 30 days. Existing co-owned items stay with their remaining owners.
@@ -59,6 +60,7 @@ export function MemberDepartureDialog({
   onCancel: () => void;
   onDone: (result: MemberDepartureResult) => void;
 }) {
+  const t = useTranslations();
   const [handover, setHandover] = useState<OrgMemberHandover | null>(null);
   const [loadedMembers, setLoadedMembers] = useState<OrgMember[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -190,7 +192,7 @@ export function MemberDepartureDialog({
       size="sm"
       className="h-auto max-h-[calc(100vh-2rem)]"
       cancelAction={{
-        label: "Cancel",
+        label: t("common.cancel"),
         disabled: working,
         onClick: onCancel,
       }}
@@ -215,12 +217,12 @@ export function MemberDepartureDialog({
 
         {loadFailed ? (
           <p role="alert" className="text-sm text-red-600">
-            Could not check what would be transferred or archived. Close this and try again.
+            {t("organizations.memberDepartureDialog.couldNotCheckWhatWouldBe")}
           </p>
         ) : !ready ? (
           <div
             role="status"
-            aria-label="Checking what would be transferred or archived"
+            aria-label={t("organizations.memberDepartureDialog.checkingWhatWouldBeTransferredOr")}
             className="space-y-5"
           >
             <div className="space-y-2">
@@ -246,10 +248,10 @@ export function MemberDepartureDialog({
                   id="member-departure-transfer"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Transfer ownership
+                  {t("organizations.memberDepartureDialog.transferOwnership")}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {owedSummary} {owed === 1 ? "needs" : "need"} a new owner. Shared and public work will transfer together.
+                  {t("organizations.memberDepartureDialog.owedsummaryNeedANewOwnerShared", { owed, owedSummary })}
                 </p>
                 {titles.length === 0 ? null : titles.length === 1 ? (
                   <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
@@ -263,7 +265,7 @@ export function MemberDepartureDialog({
                           "list-none px-0 [&::-webkit-details-marker]:hidden",
                       })}
                     >
-                      View items
+                      {t("organizations.memberDepartureDialog.viewItems")}
                       <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
                     </summary>
                     <ul className="mt-2 space-y-1 text-xs text-gray-500">
@@ -281,17 +283,17 @@ export function MemberDepartureDialog({
                 {candidates.length > 0 ? (
                   <ModalSelect
                     id="member-departure-successor"
-                    aria-label="Hand over to"
+                    aria-label={t("organizations.memberDepartureDialog.handOverTo")}
                     value={selectedSuccessor}
                     onChange={setSuccessor}
                     options={candidates}
-                    placeholder="Choose a member"
+                    placeholder={t("organizations.memberDepartureDialog.chooseAMember")}
                     disabled={working}
                     wrapLabels
                   />
                 ) : (
                   <p role="alert" className="text-sm text-red-600">
-                    There is no other member to hand this to.
+                    {t("organizations.memberDepartureDialog.thereIsNoOtherMemberTo")}
                   </p>
                 )}
               </section>
@@ -306,13 +308,13 @@ export function MemberDepartureDialog({
                   id="member-departure-private-activity"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Private work retained for 30 days
+                  {t("organizations.memberDepartureDialog.privateWorkRetainedFor30Days")}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {archivedSummary} will be archived for 30 days.
+                  {t("organizations.memberDepartureDialog.archivedsummaryWillBeArchivedFor30", { archivedSummary })}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Only organization owners can recover, reassign or delete this work. Anything not recovered within 30 days will be permanently deleted, including its contents.
+                  {t("organizations.memberDepartureDialog.onlyOrganizationOwnersCanRecoverReassign")}
                 </p>
               </section>
             ) : null}

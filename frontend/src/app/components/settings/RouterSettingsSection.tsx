@@ -29,6 +29,7 @@ import {
   isSafeAccountModelId,
 } from "@/app/lib/accountModelIds";
 import { SettingsDescription } from "./SettingsText";
+import { useTranslations } from "next-intl";
 
 const COST_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -222,6 +223,7 @@ export function RouterSettingsSection({
   /** Omitted for the caller's own Model Selections. */
   store?: RouterModelsStore;
 } = {}) {
+  const t = useTranslations();
   const { profile, updateRouterModels } = useUserProfile();
   const source: Omit<RouterModelsStore, "workspace"> & { workspace?: string } | null =
     store ??
@@ -232,7 +234,7 @@ export function RouterSettingsSection({
           settings: profile.apiKeySettings,
           save: updateRouterModels,
           description:
-            "Add the models you want to use. Saved models appear in model selectors.",
+            t("settings.routerSettingsSection.addTheModelsYouWantTo"),
         }
       : null);
   if (!source) return null;
@@ -245,7 +247,7 @@ export function RouterSettingsSection({
 
   return (
     <section id="routers" className="scroll-mt-6 space-y-3">
-      <FieldLabel as="p">Model Selections</FieldLabel>
+      <FieldLabel as="p">{t("settings.routerSettingsSection.modelSelections")}</FieldLabel>
       <SettingsDescription>{source.description}</SettingsDescription>
       <div className="space-y-4">
         {visible.map((router) => (
@@ -281,6 +283,7 @@ function RouterModelsSetting({
   catalogWorkspace?: string;
   onSave: (models: string[]) => Promise<boolean>;
 }) {
+  const t = useTranslations();
   const [catalog, setCatalog] = useState<RouterCatalogModel[]>([]);
   const [input, setInput] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -309,7 +312,7 @@ function RouterModelsSetting({
         if (!cancelled) {
           setCatalog([]);
           setError(
-            `${label}'s model list could not be loaded. You can still type a model ID.`,
+            t("settings.routerSettingsSection.labelsModelListCouldNotBe", { label }),
           );
         }
       });
@@ -363,7 +366,7 @@ function RouterModelsSetting({
     setError(null);
     const ok = await onSave(next);
     setSaving(false);
-    if (!ok) setError(`${label} model preferences could not be saved.`);
+    if (!ok) setError(t("settings.routerSettingsSection.labelModelPreferencesCouldNotBe", { label }));
   };
 
   // Enter with no explicit highlight adds exactly what the user typed — and
@@ -439,7 +442,7 @@ function RouterModelsSetting({
             id={`${provider}-model-input`}
             ref={inputRef}
             type="text"
-            aria-label={`${label} models`}
+            aria-label={t("settings.routerSettingsSection.labelModels", { label })}
             // Without a catalog there is no list to control: a plain textbox.
             {...(loadCatalog
               ? {
@@ -504,7 +507,7 @@ function RouterModelsSetting({
             <button
               type="button"
               disabled={saving || catalog.length === 0}
-              aria-label={`Choose ${label} model`}
+              aria-label={t("settings.routerSettingsSection.chooseLabelModel", { label })}
               aria-controls={catalogId}
               aria-expanded={catalogOpen}
               aria-haspopup="listbox"
@@ -541,14 +544,14 @@ function RouterModelsSetting({
                             disagree with aria-activedescendant. */}
             {typedModelId && (
               <div className="px-3 py-2 text-xs text-gray-400">
-                Press Enter to add this model ID.
+                {t("settings.routerSettingsSection.pressEnterToAddThisModel")}
               </div>
             )}
             <div
               id={catalogId}
               role="listbox"
               aria-multiselectable="true"
-              aria-label={`${label} model catalog`}
+              aria-label={t("settings.routerSettingsSection.labelModelCatalog", { label })}
             >
               {visibleCatalog.map((model, index) => {
                 const selected = selection.includes(model.id);
@@ -590,7 +593,7 @@ function RouterModelsSetting({
             </div>
             {visibleCatalog.length === 0 && (
               <div className="px-3 py-2 text-xs text-gray-400">
-                No matching models.
+                {t("settings.routerSettingsSection.noMatchingModels")}
               </div>
             )}
           </DropdownSurface>
@@ -603,8 +606,8 @@ function RouterModelsSetting({
               key={model}
               surface="flat"
               disabled={saving}
-              aria-label={`Remove ${model}`}
-              title={`Remove ${model}`}
+              aria-label={t("settings.routerSettingsSection.removeModel", { model })}
+              title={t("settings.routerSettingsSection.removeModel", { model })}
               onClick={() =>
                 void save(selection.filter((item) => item !== model))
               }
@@ -616,7 +619,7 @@ function RouterModelsSetting({
         </div>
       )}
       <p className="text-xs text-gray-500">
-        Models are saved as you pick them.
+        {t("settings.routerSettingsSection.modelsAreSavedAsYouPick")}
       </p>
       {ROUTER_MODEL_ID[provider].hint && (
         <p className="text-xs text-gray-500">

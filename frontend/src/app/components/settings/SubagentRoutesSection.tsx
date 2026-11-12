@@ -23,6 +23,7 @@ import {
 } from "@/app/components/settings/SettingsText";
 import { SETTINGS_CONTROL_CLASS } from "@/app/components/settings/SettingsTextInput";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
+import { useTranslations } from "next-intl";
 
 /** Mirrors the backend's checks (lib/subagentRoutes.ts); the server has the last word. */
 const MAX_ROUTES = 8;
@@ -57,6 +58,7 @@ export function SubagentRoutesSection({
   /** Renders the model selector for the route being edited. */
   modelPicker: (value: string, onChange: (id: string) => void) => ReactNode;
 }) {
+  const t = useTranslations();
   const [saved, setSaved] = useState<SubagentRoutes | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -105,8 +107,7 @@ export function SubagentRoutesSection({
       <GlassCardUI>
         <SettingsRow layout="stacked">
           <SettingsDescription>
-            No se pudieron cargar las rutas de subagentes. Recarga la página para
-            intentarlo de nuevo.
+            {t("settings.subagentRoutesSection.noSePudieronCargarLasRutas")}
           </SettingsDescription>
         </SettingsRow>
       </GlassCardUI>
@@ -117,7 +118,7 @@ export function SubagentRoutesSection({
     return (
       <GlassCardUI>
         <SettingsRow layout="stacked">
-          <div className="w-full space-y-2" aria-label="Cargando rutas">
+          <div className="w-full space-y-2" aria-label={t("settings.subagentRoutesSection.cargandoRutas")}>
             <SkeletonLine className="h-3 w-24" />
             <SkeletonLine className="h-3 w-3/4" />
             <SkeletonLine className="h-3 w-1/2" />
@@ -206,10 +207,10 @@ export function SubagentRoutesSection({
   };
 
   const defaultChoices: { value: string | null; label: string }[] = [
-    { value: null, label: "Ninguna: usan el modelo de la conversación" },
+    { value: null, label: t("settings.subagentRoutesSection.ningunaUsanElModeloDeLa") },
     ...saved.routes.map((r) => ({
       value: r.name,
-      label: r.unavailable ? `${r.name} (no disponible)` : r.name,
+      label: r.unavailable ? t("settings.subagentRoutesSection.nameNoDisponible", { name: r.name }) : r.name,
     })),
   ];
 
@@ -217,12 +218,9 @@ export function SubagentRoutesSection({
     <GlassCardUI>
       <SettingsRow layout="stacked">
         <div className="space-y-1">
-          <SettingsLabel>Rutas</SettingsLabel>
+          <SettingsLabel>{t("settings.subagentRoutesSection.rutas")}</SettingsLabel>
           <SettingsDescription>
-            LiTT elige una ruta por su descripción; solo ve el nombre y la
-            descripción, nunca el modelo. Si una ruta pierde su llave o su
-            modelo deja de ofrecerse, el subagente no corre en otro modelo:
-            falla y te avisa.
+            {t("settings.subagentRoutesSection.littEligeUnaRutaPorSu")}
           </SettingsDescription>
         </div>
         {saved.routes.length > 0 ? (
@@ -242,7 +240,7 @@ export function SubagentRoutesSection({
                     type="button"
                     tone="white"
                     size="icon-xs"
-                    aria-label={`Editar la ruta ${route.name}`}
+                    aria-label={t("settings.subagentRoutesSection.editarLaRutaName", { name: route.name })}
                     disabled={saving}
                     onClick={() => openEditor(index)}
                   >
@@ -252,7 +250,7 @@ export function SubagentRoutesSection({
                     type="button"
                     tone="white"
                     size="icon-xs"
-                    aria-label={`Borrar la ruta ${route.name}`}
+                    aria-label={t("settings.subagentRoutesSection.borrarLaRutaName", { name: route.name })}
                     disabled={saving}
                     onClick={() => remove(index)}
                   >
@@ -264,7 +262,7 @@ export function SubagentRoutesSection({
           </ul>
         ) : (
           <SettingsDescription>
-            Sin rutas, los subagentes usan el modelo de la conversación.
+            {t("settings.subagentRoutesSection.sinRutasLosSubagentesUsanEl")}
           </SettingsDescription>
         )}
         {editing === null && saved.routes.length < MAX_ROUTES && (
@@ -276,7 +274,7 @@ export function SubagentRoutesSection({
             onClick={() => openEditor(-1)}
           >
             <Plus className="h-3 w-3" aria-hidden />
-            Agregar ruta
+            {t("settings.subagentRoutesSection.agregarRuta")}
           </PillButtonUI>
         )}
       </SettingsRow>
@@ -291,7 +289,7 @@ export function SubagentRoutesSection({
             }}
           >
             <label className="block space-y-1">
-              <SettingsLabel>Nombre</SettingsLabel>
+              <SettingsLabel>{t("settings.subagentRoutesSection.nombre")}</SettingsLabel>
               <input
                 className={SETTINGS_CONTROL_CLASS}
                 value={draft.name}
@@ -300,27 +298,27 @@ export function SubagentRoutesSection({
               />
             </label>
             <label className="block space-y-1">
-              <SettingsLabel>Descripción</SettingsLabel>
+              <SettingsLabel>{t("settings.subagentRoutesSection.descripcion")}</SettingsLabel>
               <input
                 className={SETTINGS_CONTROL_CLASS}
                 value={draft.description}
                 maxLength={MAX_DESCRIPTION}
-                placeholder="Para qué sirve, en una línea"
+                placeholder={t("settings.subagentRoutesSection.paraQueSirveEnUnaLinea")}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               />
             </label>
             <div className="space-y-1">
-              <SettingsLabel>Modelo</SettingsLabel>
+              <SettingsLabel>{t("settings.subagentRoutesSection.modelo")}</SettingsLabel>
               {modelPicker(draft.model, (model) => setDraft({ ...draft, model }))}
             </div>
             <label className="block space-y-1">
-              <SettingsLabel>Razonamiento</SettingsLabel>
+              <SettingsLabel>{t("settings.subagentRoutesSection.razonamiento")}</SettingsLabel>
               <select
                 className={SETTINGS_CONTROL_CLASS}
                 value={draft.reasoning}
                 onChange={(e) => setDraft({ ...draft, reasoning: e.target.value })}
               >
-                <option value="">Según la tarea</option>
+                <option value="">{t("settings.subagentRoutesSection.segunLaTarea")}</option>
                 {REASONING_LEVELS.map((level) => (
                   <option key={level} value={level}>
                     {REASONING_LABELS[level]}
@@ -335,7 +333,7 @@ export function SubagentRoutesSection({
             )}
             <div className="flex flex-wrap gap-2">
               <PillButtonUI type="submit" tone="black" size="sm" loading={saving}>
-                Guardar ruta
+                {t("settings.subagentRoutesSection.guardarRuta")}
               </PillButtonUI>
               <PillButtonUI
                 type="button"
@@ -344,7 +342,7 @@ export function SubagentRoutesSection({
                 disabled={saving}
                 onClick={() => setEditing(null)}
               >
-                Cancelar
+                {t("settings.subagentRoutesSection.cancelar")}
               </PillButtonUI>
             </div>
           </form>
@@ -353,12 +351,12 @@ export function SubagentRoutesSection({
 
       <SettingsRow layout="stacked">
         <div className="space-y-1">
-          <SettingsLabel>Ruta predeterminada</SettingsLabel>
+          <SettingsLabel>{t("settings.subagentRoutesSection.rutaPredeterminada")}</SettingsLabel>
           <SettingsDescription>
-            La que usa un subagente cuando LiTT no elige ninguna.
+            {t("settings.subagentRoutesSection.laQueUsaUnSubagenteCuando")}
           </SettingsDescription>
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Ruta predeterminada">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t("settings.subagentRoutesSection.rutaPredeterminada")}>
           {defaultChoices.map((choice) => {
             const selected = saved.default === choice.value;
             return (

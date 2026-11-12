@@ -17,6 +17,7 @@ import {
   type ResponseStyleField,
 } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 type OptionCopy = Omit<SettingsSelectOption, "value">;
 
@@ -141,6 +142,7 @@ const SETTINGS: {
 const FIELDS = Object.keys(RESPONSE_STYLE_OPTIONS) as ResponseStyleField[];
 
 export function ResponseStyleSection() {
+  const t = useTranslations();
   const [style, setStyle] = useState<ResponseStyle | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -198,15 +200,15 @@ export function ResponseStyleSection() {
 
   return (
     <section className="space-y-3" aria-labelledby="response-style-heading">
-      <SettingsHeading id="response-style-heading">Response style</SettingsHeading>
+      <SettingsHeading id="response-style-heading">{t("settings.responseStyleSection.responseStyle")}</SettingsHeading>
       <SettingsDescription>
-        Choose how LiTT shapes its answers in chats.
+        {t("settings.responseStyleSection.chooseHowLittShapesItsAnswers")}
       </SettingsDescription>
       <GlassCardUI>
         {loadError ? (
           <SettingsRow>
             <p className="text-sm text-red-600" role="alert">
-              Could not load your response style.
+              {t("settings.responseStyleSection.couldNotLoadYourResponseStyle")}
             </p>
             <PillButtonUI
               tone="white"
@@ -216,7 +218,7 @@ export function ResponseStyleSection() {
                 setLoadVersion((current) => current + 1);
               }}
             >
-              Retry
+              {t("common.retry")}
             </PillButtonUI>
           </SettingsRow>
         ) : (

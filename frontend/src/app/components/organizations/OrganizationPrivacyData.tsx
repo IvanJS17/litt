@@ -34,6 +34,7 @@ import {
   organizationSettingsHref,
   useOrganizationSettings,
 } from "./OrganizationSettingsShell";
+import { useTranslations } from "next-intl";
 
 // The Privacy & Data section of an organization's settings: the
 // organization-wide twin of a person's own Privacy & Data page. Each action
@@ -119,6 +120,7 @@ const POLICY_ROWS: {
  * this organization's workspace at all.
  */
 function MemberDataPolicySection() {
+  const t = useTranslations();
   const { orgId, org, setOrg } = useOrganizationSettings();
   const { refreshOrganizations } = useWorkspace();
   const [savingKey, setSavingKey] = useState<keyof OrgMemberDataPolicy | null>(
@@ -155,7 +157,7 @@ function MemberDataPolicySection() {
 
   return (
     <section aria-labelledby="org-privacy-members" className="space-y-3">
-      <SettingsHeading id="org-privacy-members">Members&apos; data</SettingsHeading>
+      <SettingsHeading id="org-privacy-members">{t("organizations.organizationPrivacyData.membersData")}</SettingsHeading>
       <GlassCardUI>
         {POLICY_ROWS.map((row) => (
           <SettingsRow key={row.key}>
@@ -185,8 +187,8 @@ function MemberDataPolicySection() {
           setPendingMfa(null);
           if (pending) void save(pending.next, pending.key);
         }}
-        title="Two-factor verification required"
-        message="This setting is sensitive. Enter a code from your authenticator app to continue."
+        title={t("organizations.organizationPrivacyData.twoFactorVerificationRequired")}
+        message={t("organizations.organizationPrivacyData.thisSettingIsSensitiveEnterA")}
       />
     </section>
   );
@@ -242,6 +244,7 @@ function OwnerSectionsSkeleton({
   orgName: string;
   owner: boolean;
 }) {
+  const t = useTranslations();
   return (
     <div
       aria-hidden="true"
@@ -251,7 +254,7 @@ function OwnerSectionsSkeleton({
     >
       <div className="space-y-3">
         <SettingsHeading>
-          <SkeletonText>Members&apos; data</SkeletonText>
+          <SkeletonText>{t("organizations.organizationPrivacyData.membersData")}</SkeletonText>
         </SettingsHeading>
         <GlassCardUI>
           {POLICY_ROWS.map((row) => (
@@ -274,13 +277,13 @@ function OwnerSectionsSkeleton({
       </div>
       <div className="space-y-3">
         <SettingsHeading>
-          <SkeletonText>Departed members</SkeletonText>
+          <SkeletonText>{t("organizations.organizationPrivacyData.departedMembers")}</SkeletonText>
         </SettingsHeading>
         <GlassCardUI>
           <SettingsRow>
             <div className="space-y-1">
               <SettingsLabel>
-                <SkeletonText>Work left by departed members</SkeletonText>
+                <SkeletonText>{t("organizations.organizationPrivacyData.workLeftByDepartedMembers")}</SkeletonText>
               </SettingsLabel>
               <SettingsDescription>
                 <SkeletonText>
@@ -303,6 +306,7 @@ const DEPARTED_DESCRIPTION =
   "Private, unshared work a member leaves behind is kept for 30 days, then permanently deleted. Reassign or delete it from the Members page.";
 
 export function OrganizationPrivacyData() {
+  const t = useTranslations();
   const router = useRouter();
   const { orgId, org } = useOrganizationSettings();
   // The name is already in the workspace's organization list; the skeleton
@@ -324,15 +328,15 @@ export function OrganizationPrivacyData() {
     return (
       <EmptyState
         icon={<OrganizationSkeuoIcon />}
-        title="Privacy & Data"
-        description="Only this organization's owners can manage its data."
+        title={t("organizations.organizationPrivacyData.privacyData")}
+        description={t("organizations.organizationPrivacyData.onlyThisOrganizationsOwnersCanManage")}
         action={
           <PillButtonUI
             tone="white"
             size="sm"
             onClick={() => router.push(organizationSettingsHref(orgId))}
           >
-            Back to General
+            {t("organizations.organizationPrivacyData.backToGeneral")}
           </PillButtonUI>
         }
       />
@@ -381,18 +385,18 @@ export function OrganizationPrivacyData() {
       {org && isOrgOwner(org.role) ? (
         <section aria-labelledby="org-privacy-departed" className="space-y-3">
           <SettingsHeading id="org-privacy-departed">
-            Departed members
+            {t("organizations.organizationPrivacyData.departedMembers")}
           </SettingsHeading>
           <GlassCardUI>
             <SettingsRow>
               <div className="space-y-1">
-                <SettingsLabel>Work left by departed members</SettingsLabel>
+                <SettingsLabel>{t("organizations.organizationPrivacyData.workLeftByDepartedMembers")}</SettingsLabel>
                 <SettingsDescription>{DEPARTED_DESCRIPTION}</SettingsDescription>
               </div>
               <PillButtonUI
                 tone="black"
                 size="sm"
-                aria-label="Review departed members"
+                aria-label={t("organizations.organizationPrivacyData.reviewDepartedMembers")}
                 onClick={() =>
                   router.push(
                     `${organizationSettingsHref(orgId, "members")}?view=departed`,
@@ -400,14 +404,14 @@ export function OrganizationPrivacyData() {
                 }
                 className="w-full shrink-0 sm:w-auto"
               >
-                Review
+                {t("organizations.organizationPrivacyData.review")}
               </PillButtonUI>
             </SettingsRow>
           </GlassCardUI>
         </section>
       ) : null}
       <section aria-labelledby="org-privacy-delete" className="space-y-3">
-        <SettingsHeading id="org-privacy-delete">Delete data</SettingsHeading>
+        <SettingsHeading id="org-privacy-delete">{t("organizations.organizationPrivacyData.deleteData")}</SettingsHeading>
         <GlassCardUI>
           {DELETE_ROWS.map((row) => (
             <SettingsRow key={row.kind}>
@@ -426,7 +430,7 @@ export function OrganizationPrivacyData() {
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                Delete
+                {t("common.delete")}
               </PillButtonUI>
             </SettingsRow>
           ))}
@@ -436,10 +440,10 @@ export function OrganizationPrivacyData() {
         open={pendingKind !== null}
         title={pendingRow?.title}
         message={pendingRow?.message}
-        confirmLabel="Delete"
+        confirmLabel={t("common.delete")}
         confirmVariant="danger"
         confirmStatus={deletingKind ? "loading" : "idle"}
-        cancelLabel="Cancel"
+        cancelLabel={t("common.cancel")}
         onCancel={() => {
           if (deletingKind) return;
           setPendingKind(null);
@@ -457,12 +461,12 @@ export function OrganizationPrivacyData() {
           setMfaKind(null);
           if (kind) void deleteData(kind);
         }}
-        title="Two-factor verification required"
-        message="This action is sensitive. Enter a code from your authenticator app to continue."
+        title={t("organizations.organizationPrivacyData.twoFactorVerificationRequired")}
+        message={t("organizations.organizationPrivacyData.thisActionIsSensitiveEnterA")}
       />
       <WarningPopup
         open={!!warningMessage}
-        title="Action failed"
+        title={t("organizations.organizationPrivacyData.actionFailed")}
         message={warningMessage}
         onClose={() => setWarningMessage(null)}
       />

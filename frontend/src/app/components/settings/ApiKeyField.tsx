@@ -19,6 +19,7 @@ import {
 } from "@/app/lib/userFacingError";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
 import { settingsGlassIconButtonClassName } from "@/app/(pages)/settings/settingsStyles";
+import { useTranslations } from "next-intl";
 
 // The backend never returns saved keys, so the mask is a fixed-length stand-in.
 const SAVED_KEY_MASK = "x".repeat(24);
@@ -81,6 +82,7 @@ export function ApiKeyField({
     removeAction: ApiKeyFieldAction | undefined,
   ) => ReactNode;
 }) {
+  const t = useTranslations();
   const settingInputId = useId();
   const settingErrorId = useId();
   const keyErrorId = useId();
@@ -210,7 +212,7 @@ export function ApiKeyField({
       }
       const ok = await onRemove();
       if (ok) {
-        notifySuccess(`${label} removed.`);
+        notifySuccess(t("settings.apiKeyField.labelRemoved", { label }));
       } else {
         notifyError(
           new UserVisibleError(
@@ -248,13 +250,13 @@ export function ApiKeyField({
   };
 
   const saveAction = {
-    label: isSaving ? "Saving..." : saved ? "Saved" : "Save",
+    label: isSaving ? t("settings.apiKeyField.saving") : saved ? "Saved" : "Save",
     onClick: handleSave,
     disabled: isSaving || !dirty || saved,
     settled: !isSaving && (hasSavedKey || hasEnvKey) && !dirty,
   };
   const removeAction = hasSavedKey ? {
-    label: "Remove",
+    label: t("settings.apiKeyField.remove"),
     onClick: handleRemove,
     disabled: isSaving,
   } : undefined;
@@ -302,7 +304,7 @@ export function ApiKeyField({
                 type="button"
                 onClick={() => setReveal((current) => !current)}
                 className={`absolute inset-y-1 right-1.5 flex items-center ${settingsGlassIconButtonClassName}`}
-                aria-label={reveal ? "Hide key" : "Show key"}
+                aria-label={reveal ? t("settings.apiKeyField.hideKey") : t("settings.apiKeyField.showKey")}
               >
                 {reveal ? (
                   <EyeOff className="h-4 w-4" />

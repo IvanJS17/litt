@@ -111,13 +111,13 @@ describe("SettingsPage Google email changes", () => {
         expect(state.updateOrganisation).not.toHaveBeenCalled();
     });
 
-    it("links the source of the running commit under Acerca de", () => {
+    it("links the source of the running commit under About", () => {
         const sha = "0123456789abcdef0123456789abcdef01234567";
         vi.stubEnv("LITT_SOURCE_COMMIT", sha);
         try {
             render(<SettingsPage />);
             expect(
-                screen.getByRole("heading", { name: "Acerca de" }),
+                screen.getByRole("heading", { name: "About" }),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole("link", { name: /^Source code/ }),

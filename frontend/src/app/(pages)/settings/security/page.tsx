@@ -38,6 +38,7 @@ import {
   type UserFacingError,
 } from "@/app/lib/userFacingError";
 import { authMessages } from "@/app/lib/authMessages";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this page's deltas, keyed by the `code` the
  *  `/api/auth/mfa/*` routes return. */
@@ -97,6 +98,7 @@ function VerificationCodeInput({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
+  const t = useTranslations();
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const digits = Array.from({ length: 6 }, (_, index) => value[index] ?? "");
 
@@ -142,7 +144,7 @@ function VerificationCodeInput({
     <div
       className="flex justify-center gap-2"
       role="group"
-      aria-label="Six digit verification code"
+      aria-label={t("settings.security.sixDigitVerificationCode")}
     >
       {digits.map((digit, index) => (
         <input
@@ -185,6 +187,7 @@ function MfaSettingsSkeleton() {
 }
 
 export default function SecurityPage() {
+  const t = useTranslations();
   const { profile, updateMfaOnLogin } = useUserProfile();
   const [loading, setLoading] = useState(true);
   const [factors, setFactors] = useState<MfaFactor[]>([]);
@@ -354,7 +357,7 @@ export default function SecurityPage() {
       setSetupModalOpen(false);
       setVerificationCode("");
       setSetupKeyCopied(false);
-      setStatus("MFA enabled.");
+      setStatus(t("settings.security.mfaEnabled"));
       await refreshMfaState();
     } catch (error) {
       failStatus(error, "verify that code");
@@ -423,7 +426,7 @@ export default function SecurityPage() {
     }
     setBusy(false);
 
-    setStatus("MFA disabled.");
+    setStatus(t("settings.security.mfaDisabled"));
     if (profile?.mfaOnLogin) {
       void updateMfaOnLogin(false);
     }
@@ -458,7 +461,7 @@ export default function SecurityPage() {
       if (!success) {
         // The profile context classified the failure and raised the toast
         // (message, Retry, support); this line is only the row's status.
-        setStatus("Not saved.");
+        setStatus(t("settings.security.notSaved"));
       }
     } catch (error) {
       if (isMfaRequiredError(error)) {
@@ -478,7 +481,7 @@ export default function SecurityPage() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="multi-factor-authentication">Multi-Factor Authentication</SettingsHeading>
+        <SettingsHeading id="multi-factor-authentication">{t("settings.security.multiFactorAuthentication")}</SettingsHeading>
         <GlassCardUI>
           {loading ? (
             <MfaSettingsSkeleton />
@@ -486,18 +489,18 @@ export default function SecurityPage() {
             <>
               <SettingsRow>
                 <div className="min-w-0 space-y-1">
-                  <SettingsLabel>Verification method</SettingsLabel>
+                  <SettingsLabel>{t("settings.security.verificationMethod")}</SettingsLabel>
                   <SettingsDescription>
                     {hasVerifiedFactor
                       ? sessionVerified
-                        ? "Authenticator app is saved on your account. Sensitive actions are unlocked for this session."
-                        : "Authenticator app is saved on your account. Sensitive actions require a verification code."
-                      : "Add an authenticator app to protect sensitive actions such as exporting data, deleting data, deleting your account, and changing API keys."}
+                        ? t("settings.security.authenticatorAppIsSavedOnYour")
+                        : t("settings.security.authenticatorAppIsSavedOnYour2")
+                      : t("settings.security.addAnAuthenticatorAppToProtect")}
                   </SettingsDescription>
                 </div>
                 {hasVerifiedFactor ? (
                   <span className="shrink-0 text-xs font-medium text-green-700">
-                    Enabled
+                    {t("settings.security.enabled")}
                   </span>
                 ) : !enrollment ? (
                   <PillButtonUI
@@ -508,7 +511,7 @@ export default function SecurityPage() {
                     loading={busy}
                     className="shrink-0"
                   >
-                    {busy ? "Starting..." : "Set up"}
+                    {busy ? t("settings.security.starting") : t("settings.security.setUp")}
                   </PillButtonUI>
                 ) : null}
               </SettingsRow>
@@ -517,17 +520,16 @@ export default function SecurityPage() {
                 <>
                   <SettingsRow>
                     <div className="space-y-1">
-                      <SettingsLabel>Login verification</SettingsLabel>
+                      <SettingsLabel>{t("settings.security.loginVerification")}</SettingsLabel>
                       <SettingsDescription>
-                        Ask for an authenticator code after each new login,
-                        instead of only before sensitive actions.
+                        {t("settings.security.askForAnAuthenticatorCodeAfter")}
                       </SettingsDescription>
                     </div>
                     <ToggleSwitchUI
                       checked={loginMfaEnabled}
                       disabled={savingLoginPreference}
                       aria-busy={savingLoginPreference}
-                      aria-label="Login verification"
+                      aria-label={t("settings.security.loginVerification")}
                       onCheckedChange={() => void handleLoginPreferenceToggle()}
                     />
                   </SettingsRow>
@@ -538,7 +540,7 @@ export default function SecurityPage() {
                       disabled={busy || !factors[0]?.id}
                       className="text-xs font-medium text-red-600 transition-colors hover:text-red-700 disabled:cursor-not-allowed disabled:text-red-300"
                     >
-                      Remove authenticator app
+                      {t("settings.security.removeAuthenticatorApp")}
                     </button>
                   </div>
                 </>
@@ -557,7 +559,7 @@ export default function SecurityPage() {
                   )}
                   className="ml-2 underline underline-offset-2"
                 >
-                  Contact support
+                  {t("settings.security.contactSupport")}
                 </a>
               )}
             </p>
@@ -570,7 +572,7 @@ export default function SecurityPage() {
         onClose={() => void closeSetupModal()}
         breadcrumbs={["Security", "Set up authenticator app"]}
         cancelAction={{
-          label: enrollment ? "Back" : "Cancel",
+          label: enrollment ? t("common.back") : t("common.cancel"),
           onClick: enrollment
             ? () => void returnToSetupInstructions()
             : () => void closeSetupModal(),
@@ -579,12 +581,12 @@ export default function SecurityPage() {
         primaryAction={
           enrollment
             ? {
-                label: busy ? "Verifying..." : "Verify",
+                label: busy ? t("settings.security.verifying") : t("settings.security.verify"),
                 onClick: () => void verifyEnrollment(),
                 disabled: busy || verificationCode.trim().length !== 6,
               }
             : {
-                label: busy ? "Starting..." : "Continue",
+                label: busy ? t("settings.security.starting") : t("common.continue"),
                 onClick: () => void startEnrollment(),
                 disabled: busy,
               }
@@ -600,48 +602,44 @@ export default function SecurityPage() {
           {!enrollment ? (
             <>
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Step 1
+                {t("settings.security.step1")}
               </p>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-700">
-                  Before you start
+                  {t("settings.security.beforeYouStart")}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Download an authenticator app such as Google Authenticator,
-                  Microsoft Authenticator, Authy, 1Password, or iCloud
-                  Passwords.
+                  {t("settings.security.downloadAnAuthenticatorAppSuchAs")}
                 </p>
               </div>
               <ol className="list-decimal space-y-1 pl-4 text-sm text-gray-500">
-                <li>Download and open your authenticator app.</li>
-                <li>Choose the option to add a new account.</li>
+                <li>{t("settings.security.downloadAndOpenYourAuthenticatorApp")}</li>
+                <li>{t("settings.security.chooseTheOptionToAddA")}</li>
               </ol>
             </>
           ) : (
             <>
               <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                Step 2
+                {t("settings.security.step2")}
               </p>
               <div className="space-y-1">
                 <p className="text-sm font-medium text-gray-700">
-                  Scan this code
+                  {t("settings.security.scanThisCode")}
                 </p>
                 <p className="text-sm text-gray-500">
-                  In your authenticator app, add a new account and scan the QR
-                  code. If you cannot scan it, enter the setup key below
-                  manually.
+                  {t("settings.security.inYourAuthenticatorAppAddA")}
                 </p>
               </div>
               <div className="min-w-0">
                 <div className="mb-1 flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-gray-500">Setup key</p>
+                  <p className="text-xs font-medium text-gray-500">{t("settings.security.setupKey")}</p>
                   <button
                     type="button"
                     onClick={() => void copySetupKey()}
                     className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 transition-colors hover:text-gray-950"
                   >
                     <Copy className="h-3 w-3" />
-                    {setupKeyCopied ? "Copied" : "Copy"}
+                    {setupKeyCopied ? t("settings.security.copied") : t("settings.security.copy")}
                   </button>
                 </div>
                 <p className="break-all text-xs text-gray-700">
@@ -652,7 +650,7 @@ export default function SecurityPage() {
                 <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-white p-2">
                   <img
                     src={enrollment.qrCode}
-                    alt="MFA QR code"
+                    alt={t("settings.security.mfaQrCode")}
                     className="h-full w-full"
                   />
                 </div>
@@ -685,8 +683,8 @@ export default function SecurityPage() {
           setPendingLoginPreference(null);
           if (enabled !== null) void saveLoginPreference(enabled);
         }}
-        title="Authenticator required"
-        message="Enter a code from your authenticator app to change login verification."
+        title={t("settings.security.authenticatorRequired")}
+        message={t("settings.security.enterACodeFromYourAuthenticator")}
       />
     </div>
   );

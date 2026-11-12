@@ -15,6 +15,7 @@ import {
     type SettingsSearchMatchKind,
     type SettingsSearchResult,
 } from "@/app/lib/settingsSearch";
+import { useTranslations } from "next-intl";
 
 const GROUP_LABEL: Record<SettingsSearchMatchKind, string> = {
     exact: "Matches",
@@ -53,6 +54,7 @@ export function SettingsSearch({
 }: {
     entries: readonly SettingsSearchEntry[];
 }) {
+    const t = useTranslations();
     const router = useRouter();
     const pathname = usePathname();
     const [query, setQuery] = useState("");
@@ -126,8 +128,8 @@ export function SettingsSearch({
                     setQuery(value);
                     setOpen(true);
                 }}
-                label="Search settings"
-                placeholder="Search settings"
+                label={t("settings.settingsSearch.searchSettings")}
+                placeholder={t("settings.settingsSearch.searchSettings")}
                 maxLength={200}
                 autoComplete="off"
                 aria-controls={showResults ? listId : undefined}
@@ -148,8 +150,8 @@ export function SettingsSearch({
             <span role="status" className="sr-only">
                 {showResults
                     ? results.length === 1
-                        ? "1 setting found"
-                        : `${results.length} settings found`
+                        ? t("settings.settingsSearch.n1SettingFound")
+                        : t("settings.settingsSearch.lengthSettingsFound", { length: results.length })
                     : ""}
             </span>
             {showResults ? (
@@ -168,7 +170,7 @@ export function SettingsSearch({
                     <div
                         ref={list}
                         role="group"
-                        aria-label="Settings search results"
+                        aria-label={t("settings.settingsSearch.settingsSearchResults")}
                         className={`max-h-80 overflow-y-auto overscroll-contain ${DROPDOWN_ROWS_CLASS}`}
                         onKeyDown={(event) => {
                             if (event.key === "Escape") {
@@ -209,7 +211,7 @@ export function SettingsSearch({
                     >
                         {groups.length === 0 ? (
                             <p className="px-3 py-4 text-center text-xs text-gray-500">
-                                No settings match &ldquo;{query.trim()}&rdquo;.
+                                {t("settings.settingsSearch.noSettingsMatch")}{query.trim()}{t("settings.settingsSearch.text")}
                             </p>
                         ) : (
                             groups.map((group, groupIndex) => (

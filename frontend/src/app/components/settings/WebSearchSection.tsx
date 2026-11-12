@@ -24,6 +24,7 @@ import {
   type WebSearchSettings,
 } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 const SEARCH_SERVICES: Record<
   WebSearchBackend,
@@ -95,6 +96,7 @@ function saveAction(field: Field, next: WebSearchSettings[Field]): string {
 }
 
 export function WebSearchSection() {
+  const t = useTranslations();
   const { profile, updateApiKey } = useUserProfile();
   const [settings, setSettings] = useState<WebSearchSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -173,7 +175,7 @@ export function WebSearchSection() {
     ...providerFamilies,
     {
       family: "other",
-      label: providerFamilies.length > 0 ? "Other models" : "All models",
+      label: providerFamilies.length > 0 ? t("settings.webSearchSection.otherModels") : t("settings.webSearchSection.allModels"),
       options: [...SEARCH_SERVICE_OPTIONS, OFF_OPTION],
     },
   ];
@@ -186,12 +188,12 @@ export function WebSearchSection() {
 
   return (
     <section className="space-y-3" aria-labelledby="web-search-heading">
-      <SettingsHeading id="web-search-heading">Web Search</SettingsHeading>
+      <SettingsHeading id="web-search-heading">{t("settings.webSearchSection.webSearch")}</SettingsHeading>
       <GlassCardUI>
         {loadError ? (
           <SettingsRow>
             <p className="text-sm text-red-600" role="alert">
-              Could not load your web search settings.
+              {t("settings.webSearchSection.couldNotLoadYourWebSearch")}
             </p>
             <PillButtonUI
               tone="white"
@@ -201,17 +203,16 @@ export function WebSearchSection() {
                 setLoadVersion((current) => current + 1);
               }}
             >
-              Retry
+              {t("common.retry")}
             </PillButtonUI>
           </SettingsRow>
         ) : (
           <>
             <SettingsRow>
               <div className="min-w-0 space-y-1">
-                <SettingsLabel>Enable web search</SettingsLabel>
+                <SettingsLabel>{t("settings.webSearchSection.enableWebSearch")}</SettingsLabel>
                 <SettingsDescription>
-                  Let LiTT search the web and read pages when an answer needs
-                  current or public information.
+                  {t("settings.webSearchSection.letLittSearchTheWebAnd")}
                 </SettingsDescription>
               </div>
               {settings ? (
@@ -219,7 +220,7 @@ export function WebSearchSection() {
                   checked={settings.enabled}
                   disabled={saving}
                   aria-busy={saving}
-                  aria-label="Enable web search"
+                  aria-label={t("settings.webSearchSection.enableWebSearch")}
                   onCheckedChange={(enabled) => void toggleWebSearch(enabled)}
                 />
               ) : (

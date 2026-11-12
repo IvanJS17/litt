@@ -10,8 +10,10 @@ import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { WebSearchSection } from "@/app/components/settings/WebSearchSection";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { useTranslations } from "next-intl";
 
 export default function FeaturesPage() {
+  const t = useTranslations();
   const {
     profile,
     updateQuickActionsVisible,
@@ -41,20 +43,20 @@ export default function FeaturesPage() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="assistant-features">Assistant</SettingsHeading>
+        <SettingsHeading id="assistant-features">{t("settings.features.assistant")}</SettingsHeading>
         <GlassCardUI>
           <SettingsRow>
             <div className="min-w-0 space-y-1">
-              <SettingsLabel>Quick actions</SettingsLabel>
+              <SettingsLabel>{t("settings.features.quickActions")}</SettingsLabel>
               <SettingsDescription>
-                Show the quick actions row on the assistant start screen.
+                {t("settings.features.showTheQuickActionsRowOn")}
               </SettingsDescription>
             </div>
             <ToggleSwitchUI
               checked={quickActionsVisible}
               disabled={savingQuickActions}
               aria-busy={savingQuickActions}
-              aria-label="Quick actions"
+              aria-label={t("settings.features.quickActions")}
               onCheckedChange={(checked) => {
                 void setQuickActionsVisible(checked);
               }}
@@ -62,17 +64,16 @@ export default function FeaturesPage() {
           </SettingsRow>
           <SettingsRow>
             <div className="min-w-0 space-y-1">
-              <SettingsLabel>Response details</SettingsLabel>
+              <SettingsLabel>{t("settings.features.responseDetails")}</SettingsLabel>
               <SettingsDescription>
-                Show the model, reasoning effort and token count under each
-                response and subagent.
+                {t("settings.features.showTheModelReasoningEffortAnd")}
               </SettingsDescription>
             </div>
             <ToggleSwitchUI
               checked={responseDetailsVisible}
               disabled={savingResponseDetails}
               aria-busy={savingResponseDetails}
-              aria-label="Response details"
+              aria-label={t("settings.features.responseDetails")}
               onCheckedChange={(checked) => {
                 void setResponseDetailsVisible(checked);
               }}

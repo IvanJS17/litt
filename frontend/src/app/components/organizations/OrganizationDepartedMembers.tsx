@@ -65,6 +65,7 @@ import { notifySuccess, userFacingApiError } from "@/app/lib/userFacingError";
 import { cn } from "@/app/lib/utils";
 import { DropdownItem } from "@mike/ui";
 import { useIdSet } from "@/app/hooks/useIdSet";
+import { useTranslations } from "next-intl";
 
 type Kind = OrgDepartureItem["kind"];
 
@@ -214,6 +215,7 @@ export function OrganizationDepartedMembers({
   search: string;
   renderToolbar: (actions?: ReactNode) => ReactNode;
 }) {
+  const t = useTranslations();
   const [list, setList] = useState<OrgDepartureList | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Every row starts closed: a departure opens into its types of work, and
@@ -367,7 +369,7 @@ export function OrganizationDepartedMembers({
         setFailure(
           `${count(result.unresolved, "item")} could not be deleted. Try again.`,
         );
-      else notifySuccess("Archived work deleted.");
+      else notifySuccess(t("organizations.organizationDepartedMembers.archivedWorkDeleted"));
       await load();
     } catch (error) {
       setDeleting(null);
@@ -391,7 +393,7 @@ export function OrganizationDepartedMembers({
           }}
         >
           <UserRoundCheck className="h-3.5 w-3.5" />
-          {onSelection ? "Reassign selected…" : "Reassign…"}
+          {onSelection ? t("organizations.organizationDepartedMembers.reassignSelected") : t("organizations.organizationDepartedMembers.reassign")}
         </DropdownItem>
         <DropdownItem
           variant="destructive"
@@ -401,7 +403,7 @@ export function OrganizationDepartedMembers({
           }}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {onSelection ? "Delete selected" : "Delete"}
+          {onSelection ? t("organizations.organizationDepartedMembers.deleteSelected") : t("common.delete")}
         </DropdownItem>
       </>
     );
@@ -412,12 +414,12 @@ export function OrganizationDepartedMembers({
       title={title}
       items={[
         {
-          label: "Reassign…",
+          label: t("organizations.organizationDepartedMembers.reassign"),
           icon: UserRoundCheck,
           onSelect: () => openReassign(target),
         },
         {
-          label: "Delete",
+          label: t("common.delete"),
           icon: Trash2,
           variant: "danger",
           onSelect: () => openDelete(target),
@@ -471,7 +473,7 @@ export function OrganizationDepartedMembers({
                 checkbox(visibleIds, "Select all archived work")
               )}
               <span className="mr-1">
-                Name
+                {t("organizations.organizationDepartedMembers.name")}
                 {list && !loadError ? (
                   <>
                     {" "}
@@ -482,10 +484,10 @@ export function OrganizationDepartedMembers({
                 ) : null}
               </span>
             </TableStickyCell>
-            <TableHeaderCell className="ml-auto w-64">Email</TableHeaderCell>
-            <TableHeaderCell className="w-56">Contents</TableHeaderCell>
-            <TableHeaderCell className="w-32">Left</TableHeaderCell>
-            <TableHeaderCell className="w-48">Deletes</TableHeaderCell>
+            <TableHeaderCell className="ml-auto w-64">{t("organizations.organizationDepartedMembers.email")}</TableHeaderCell>
+            <TableHeaderCell className="w-56">{t("organizations.organizationDepartedMembers.contents")}</TableHeaderCell>
+            <TableHeaderCell className="w-32">{t("organizations.organizationDepartedMembers.left")}</TableHeaderCell>
+            <TableHeaderCell className="w-48">{t("organizations.organizationDepartedMembers.deletes")}</TableHeaderCell>
             <TableHeaderCell className="w-10" />
           </TableHeaderRow>
         }
@@ -517,7 +519,7 @@ export function OrganizationDepartedMembers({
           <TableEmptyState>
             <EmptyState
               icon={<OrganizationSkeuoIcon />}
-              title="Departed members"
+              title={t("organizations.organizationDepartedMembers.departedMembers")}
               description={loadError}
               tone="error"
               action={
@@ -530,7 +532,7 @@ export function OrganizationDepartedMembers({
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   <Loader2 className="h-3.5 w-3.5" />
-                  Try again
+                  {t("organizations.organizationDepartedMembers.tryAgain")}
                 </button>
               }
             />
@@ -539,14 +541,14 @@ export function OrganizationDepartedMembers({
           <TableEmptyState>
             <EmptyState
               icon={<OrganizationSkeuoIcon />}
-              title="Departed members"
-              description="No work is waiting for a decision. Private work a member leaves behind is kept here for 30 days, then permanently deleted."
+              title={t("organizations.organizationDepartedMembers.departedMembers")}
+              description={t("organizations.organizationDepartedMembers.noWorkIsWaitingForA")}
             />
           </TableEmptyState>
         ) : departures.length === 0 ? (
           <TableEmptyState>
             <p className="text-sm text-gray-400">
-              No departed members or archived work match this search.
+              {t("organizations.organizationDepartedMembers.noDepartedMembersOrArchivedWork")}
             </p>
           </TableEmptyState>
         ) : (
@@ -560,8 +562,8 @@ export function OrganizationDepartedMembers({
               const target: Target = {
                 ids,
                 label: departure.member
-                  ? `everything ${name} left`
-                  : "everything this former member left",
+                  ? t("organizations.organizationDepartedMembers.everythingNameLeft", { name })
+                  : t("organizations.organizationDepartedMembers.everythingThisFormerMemberLeft"),
               };
               // A search opens what it found, so a match is never hidden
               // inside a closed row.
@@ -591,7 +593,7 @@ export function OrganizationDepartedMembers({
                         <button
                           type="button"
                           aria-label={
-                            open ? `Collapse ${name}` : `Expand ${name}`
+                            open ? t("organizations.organizationDepartedMembers.collapseName", { name }) : t("organizations.organizationDepartedMembers.expandName", { name })
                           }
                           onClick={() =>
                             toggleIn(setOpenDepartures, departure.key)
@@ -617,7 +619,7 @@ export function OrganizationDepartedMembers({
                   <TableCell className="ml-auto w-64">
                     {departure.member
                       ? departure.member.email || "—"
-                      : "Account deleted"}
+                      : t("organizations.organizationDepartedMembers.accountDeleted")}
                   </TableCell>
                   <TableCell className="w-56">
                     {count(departure.items.length, "item")}
@@ -682,8 +684,8 @@ export function OrganizationDepartedMembers({
                                   type="button"
                                   aria-label={
                                     groupOpen
-                                      ? `Collapse ${groupName}`
-                                      : `Expand ${groupName}`
+                                      ? t("organizations.organizationDepartedMembers.collapseGroupname", { groupName })
+                                      : t("organizations.organizationDepartedMembers.expandGroupname", { groupName })
                                   }
                                   onClick={() =>
                                     toggleIn(setOpenGroups, groupKey)
@@ -779,8 +781,7 @@ export function OrganizationDepartedMembers({
             })}
             {list.truncated ? (
               <p className="px-3 py-3 text-xs text-gray-400">
-                Only the work that is deleted soonest is listed. The rest
-                appears as this is reassigned or deleted.
+                {t("organizations.organizationDepartedMembers.onlyTheWorkThatIsDeleted")}
               </p>
             ) : null}
           </TableBody>
@@ -795,24 +796,23 @@ export function OrganizationDepartedMembers({
         breadcrumbs={["Organization", "Departed members", "Reassign"]}
         size="sm"
         cancelAction={{
-          label: "Cancel",
+          label: t("common.cancel"),
           disabled: working,
           onClick: () => setReassigning(null),
         }}
         primaryAction={{
-          label: working ? "Reassigning..." : "Reassign",
+          label: working ? t("organizations.organizationDepartedMembers.reassigning") : t("organizations.organizationDepartedMembers.reassign2"),
           disabled: working || !successor,
           onClick: () => void reassign(),
         }}
       >
         <div className="space-y-4 pb-4">
           <p className="text-sm text-gray-700 [overflow-wrap:anywhere]">
-            Choose who takes over {reassigning?.label}. Projects and workflows
-            keep their contents, and the work stays private to its new owner.
+            {t("organizations.organizationDepartedMembers.chooseWhoTakesOverLabelProjects", { label: reassigning?.label ?? "" })}
           </p>
           <ModalSelect
             id="departed-work-owner"
-            aria-label="Reassign to"
+            aria-label={t("organizations.organizationDepartedMembers.reassignTo")}
             value={successor}
             onChange={setSuccessor}
             wrapLabels
@@ -830,9 +830,9 @@ export function OrganizationDepartedMembers({
       </Modal>
       <ConfirmPopup
         open={deleting !== null}
-        title="Delete archived work?"
-        message={`Permanently delete ${deleting?.label ?? "this work"}, with its contents? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t("organizations.organizationDepartedMembers.deleteArchivedWork")}
+        message={`Permanently delete ${deleting?.label ?? t("organizations.organizationDepartedMembers.thisWork")}, with its contents? This cannot be undone.`}
+        confirmLabel={t("common.delete")}
         confirmVariant="danger"
         confirmStatus={working ? "loading" : "idle"}
         onCancel={() => {
@@ -855,8 +855,8 @@ export function OrganizationDepartedMembers({
         open={failure !== null || (loadError !== null && list !== null)}
         title={
           failure !== null
-            ? "Archived work not changed"
-            : "Archived work not refreshed"
+            ? t("organizations.organizationDepartedMembers.archivedWorkNotChanged")
+            : t("organizations.organizationDepartedMembers.archivedWorkNotRefreshed")
         }
         message={failure ?? loadError}
         onClose={() => {

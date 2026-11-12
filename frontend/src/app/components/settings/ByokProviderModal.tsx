@@ -18,6 +18,7 @@ import {
 } from "@/app/lib/cloudProviderSettings";
 import type { ApiKeyProvider, ApiKeySettings } from "@/app/lib/mikeApi";
 import { isRouterSlug } from "@mike/client";
+import { useTranslations } from "next-intl";
 
 export type ByokProvider = {
   provider: ApiKeyProvider;
@@ -137,6 +138,7 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
   store?: ProviderKeyStore;
   onClose: () => void;
 }) {
+  const t = useTranslations();
   const { profile, updateApiKey } = useUserProfile();
   const hasSavedKey = store
     ? store.hasSavedKey
@@ -194,7 +196,7 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
           // the primary button closes the dialog instead of sitting disabled.
           primaryAction={
             saveAction.settled
-              ? { label: "Done", onClick: onClose, disabled: false, variant: "blue" }
+              ? { label: t("settings.byokProviderModal.done"), onClick: onClose, disabled: false, variant: "blue" }
               : {
                   label: saveAction.label,
                   onClick: saveAction.onClick,
@@ -202,12 +204,12 @@ export function ByokProviderModal({ provider, enabledToggle, store, onClose }: {
                   variant: "blue",
                 }
           }
-          secondaryAction={removeAction ? { ...removeAction, label: "Clear", variant: "danger" } : undefined}
+          secondaryAction={removeAction ? { ...removeAction, label: t("settings.byokProviderModal.clear"), variant: "danger" } : undefined}
         >
           <div data-modal-scroll="vertical" className="min-h-0 min-w-0 space-y-6 overflow-y-auto pb-4">
             {enabledToggle && (
               <div className="flex items-center justify-between gap-3">
-                <p className="min-w-0 text-sm font-medium text-gray-700">Enabled</p>
+                <p className="min-w-0 text-sm font-medium text-gray-700">{t("settings.byokProviderModal.enabled")}</p>
                 <div className="shrink-0">{enabledToggle}</div>
               </div>
             )}

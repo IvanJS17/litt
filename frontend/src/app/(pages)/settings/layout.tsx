@@ -135,7 +135,7 @@ export default function SettingsLayout({
 
     return (
         <SettingsShell
-            title="Settings"
+            title={t("settings.layout.settings")}
             navLabel="Settings"
             search={<SettingsSearch entries={searchEntries} />}
             tabs={visibleTabs.map((tab) =>
@@ -146,9 +146,7 @@ export default function SettingsLayout({
                               <span className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-interactive px-1.5 text-xs font-semibold tabular-nums text-interactive-foreground">
                                   {invitationCount}{" "}
                                   <span className="sr-only">
-                                      {invitationCount === 1
-                                          ? "pending invitation"
-                                          : "pending invitations"}
+                                      {t("settings.layout.pendingInvitations", { invitationCount })}
                                   </span>
                               </span>
                           ),

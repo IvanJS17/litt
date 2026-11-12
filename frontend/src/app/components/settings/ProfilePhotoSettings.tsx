@@ -10,9 +10,11 @@ import { ORG_LOGO_ACCEPT, OrgLogoImageError, validateOrgLogoFile } from "@/app/l
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { SettingsRow } from "./SettingsRow";
 import { SettingsDescription, SettingsLabel } from "./SettingsText";
+import { useTranslations } from "next-intl";
 
 /** Lets the current user choose, crop, replace, or remove a profile photo and displays recoverable save errors. */
 export function ProfilePhotoSettings() {
+  const t = useTranslations();
   const { user } = useAuth();
   const { profile, loading, updateProfilePhoto } = useUserProfile();
   const input = useRef<HTMLInputElement>(null);
@@ -42,13 +44,13 @@ export function ProfilePhotoSettings() {
       <div className="flex min-w-0 items-center gap-3">
         <UserAvatar photo={profile?.profilePhoto} name={profile?.displayName} email={user?.email} className="h-11 w-11 text-base" />
         <div className="min-w-0 space-y-1">
-          <SettingsLabel>Profile photo</SettingsLabel>
-          <SettingsDescription>Shown beside your name when you share or work with others.</SettingsDescription>
+          <SettingsLabel>{t("settings.profilePhotoSettings.profilePhoto")}</SettingsLabel>
+          <SettingsDescription>{t("settings.profilePhotoSettings.shownBesideYourNameWhenYou")}</SettingsDescription>
           {error && !editing ? <p role="alert" className="text-xs text-red-600">{error}</p> : null}
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-3">
-        <input ref={input} type="file" accept={ORG_LOGO_ACCEPT} className="hidden" aria-label="Upload profile photo" onChange={(event) => {
+        <input ref={input} type="file" accept={ORG_LOGO_ACCEPT} className="hidden" aria-label={t("settings.profilePhotoSettings.uploadProfilePhoto")} onChange={(event) => {
           const picked = event.target.files?.[0];
           event.target.value = "";
           if (!picked) return;
@@ -66,7 +68,7 @@ export function ProfilePhotoSettings() {
           if (profile?.profilePhoto) setEditing(true);
           else input.current?.click();
         }}>
-          {profile?.profilePhoto ? "Edit" : "Upload photo"}
+          {profile?.profilePhoto ? t("settings.profilePhotoSettings.edit") : t("settings.profilePhotoSettings.uploadPhoto")}
         </PillButtonUI>
       </div>
       {editing ? <ImageCropModal

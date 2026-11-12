@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { GlassCardUI } from "@mike/ui";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 import { SettingsLabel } from "./SettingsText";
+import { useTranslations } from "next-intl";
 
 /**
  * One settings tile, shared by the connector lists (Installed and Discover)
@@ -31,6 +32,7 @@ export function ConnectorCard({
   onOpen?: () => void;
   action: ReactNode;
 }) {
+  const t = useTranslations();
   const body = (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex min-w-0 flex-[1_0_8rem] items-center gap-3">
@@ -73,7 +75,7 @@ export function ConnectorCard({
             className="cursor-pointer rounded-xl px-4 py-3 transition-colors hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             role="button"
             tabIndex={0}
-            aria-label={`Manage ${name}`}
+            aria-label={t("settings.connectorCard.manageName", { name })}
             onClick={onOpen}
             onKeyDown={(event) => {
               if (event.target !== event.currentTarget) return;

@@ -65,6 +65,7 @@ import { reportFault } from "@/app/lib/userFacingError";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { PillButtonUI, LIQUID_GLASS_SUBTLE_CLASS, ToggleSwitchUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 /** What the user was doing, for "Couldn't ..." and honest retry text. */
 const CONNECTOR_ACTION_LABELS = {
@@ -401,6 +402,7 @@ function WorkspaceConnectors({
   /** Whether the person has more than one workspace to tell apart. */
   multipleWorkspaces: boolean;
 }) {
+  const t = useTranslations();
   // Which workspace these connectors are saved for, said only to someone
   // with more than one, and only once that workspace has a name to show.
   const savedFor = !multipleWorkspaces
@@ -1359,23 +1361,23 @@ function WorkspaceConnectors({
           className={`${savedFor ? "mb-1" : "mb-4"} flex items-center justify-between gap-3`}
         >
           <SettingsHeading id="installed-connectors-heading">
-            Installed
+            {t("settings.connectors.installed")}
           </SettingsHeading>
           <PillButtonUI
             tone="white"
             size="xs"
             onClick={() => setAddOpen(true)}
-            aria-label="Add custom connector"
+            aria-label={t("settings.connectors.addCustomConnector")}
             className={`h-7 ${LIQUID_GLASS_SUBTLE_CLASS}`}
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            Custom
+            {t("settings.connectors.custom")}
           </PillButtonUI>
         </div>
         {savedFor && (
           <div className="mb-4">
             <SettingsDescription>
-              Saved for {savedFor}. Each workspace has its own connectors.
+              {t("settings.connectors.savedForSavedforEachWorkspaceHas", { savedFor })}
             </SettingsDescription>
           </div>
         )}
@@ -1435,7 +1437,7 @@ function WorkspaceConnectors({
             connectors.length === 0 &&
             installedGoogle.length === 0 && (
               <div className="@min-[32rem]:col-span-2">
-                <SettingsDescription>No connectors yet.</SettingsDescription>
+                <SettingsDescription>{t("settings.connectors.noConnectorsYet")}</SettingsDescription>
               </div>
             )}
         </div>
@@ -1443,14 +1445,14 @@ function WorkspaceConnectors({
       <section className="mt-6" aria-labelledby="discover-connectors-heading">
         <div className="mb-4">
           <SettingsHeading id="discover-connectors-heading">
-            Discover
+            {t("settings.connectors.discover")}
           </SettingsHeading>
         </div>
         {!initialLoading &&
           discoverGoogle.length === 0 &&
           discoverPresets.length === 0 && (
             <SettingsDescription>
-              Every available connector is installed.
+              {t("settings.connectors.everyAvailableConnectorIsInstalled")}
             </SettingsDescription>
           )}
         <div
@@ -1540,8 +1542,8 @@ function WorkspaceConnectors({
                   ? {
                       label:
                         clearedBearerTokenConnectorId === selectedConnector.id
-                          ? "Cleared"
-                          : "Clear",
+                          ? t("settings.connectors.cleared")
+                          : t("settings.connectors.clear"),
                       loading:
                         busyKey === `clear-token:${selectedConnector.id}`,
                       cleared:
@@ -1614,7 +1616,7 @@ function WorkspaceConnectors({
                 }
               >
                 <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                Add files from Google Drive
+                {t("settings.connectors.addFilesFromGoogleDrive")}
               </PillButtonUI>
               <p role="status" className="text-xs text-gray-500">
                 {drivePicker.message}
@@ -1659,7 +1661,7 @@ function WorkspaceConnectors({
       />
       <WarningPopup
         open={!!addError}
-        title="Could not add connector"
+        title={t("settings.connectors.couldNotAddConnector")}
         message={addError}
         onClose={() => {
           setAddError(null);
@@ -1672,13 +1674,13 @@ function WorkspaceConnectors({
       </WarningPopup>
       <WarningPopup
         open={!!detailError}
-        title="Connector update failed"
+        title={t("settings.connectors.connectorUpdateFailed")}
         message={detailError}
         onClose={() => setDetailError(null)}
       />
       <WarningPopup
         open={!!detailSetupNotice}
-        title="Administrator setup required"
+        title={t("settings.connectors.administratorSetupRequired")}
         message={detailSetupNotice}
         onClose={() => setDetailSetupNotice(null)}
       >
@@ -1709,6 +1711,7 @@ function ConnectorRow({
   onOpen: () => void;
   onEnabledChange: (enabled: boolean) => void;
 }) {
+  const t = useTranslations();
   return (
     <ConnectorCard
       name={name}
@@ -1720,7 +1723,7 @@ function ConnectorRow({
           checked={enabled}
           disabled={busy}
           aria-busy={busy}
-          aria-label={`${name} connector`}
+          aria-label={t("settings.connectors.nameConnector", { name })}
           onCheckedChange={onEnabledChange}
         />
       }
@@ -1757,6 +1760,7 @@ function DiscoverCard({
   onAdd: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations();
   return (
     <ConnectorCard
       name={name}
@@ -1770,11 +1774,11 @@ function DiscoverCard({
           loading={adding}
           aria-label={
             authorizing
-              ? `Cancel ${name} authorization`
-              : `Add ${name} connector`
+              ? t("settings.connectors.cancelNameAuthorization", { name })
+              : t("settings.connectors.addNameConnector", { name })
           }
         >
-          {authorizing ? "Cancel" : adding ? "Adding..." : "Add"}
+          {authorizing ? t("common.cancel") : adding ? t("settings.connectors.adding") : t("settings.connectors.add")}
         </PillButtonUI>
       }
     />

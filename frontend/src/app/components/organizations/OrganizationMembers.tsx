@@ -73,6 +73,7 @@ import { userFacingApiError } from "@/app/lib/userFacingError";
 import { OrganizationDepartedMembers } from "./OrganizationDepartedMembers";
 import { InviteOrganizationMemberModal } from "./OrganizationModals";
 import { useIdSet } from "@/app/hooks/useIdSet";
+import { useTranslations } from "next-intl";
 
 /** The roster's fixed order: who decides, who runs it, everybody else. */
 const ROLE_ORDER: Record<OrgRole, number> = { owner: 0, admin: 1, member: 2 };
@@ -153,6 +154,7 @@ export function OrganizationMembers({
   /** Opens on the Departed view, for a link that leads straight to it. */
   initialTab?: "all" | "departed";
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const { user } = useAuth();
   const { refreshOrganizations } = useWorkspace();
@@ -449,10 +451,10 @@ export function OrganizationMembers({
       >
         <Trash2 className="h-3.5 w-3.5" />
         {appliesToSelection
-          ? "Remove all selected"
+          ? t("organizations.organizationMembers.removeAllSelected")
           : member?.user_id === user?.id
-            ? "Leave organization"
-            : "Remove member"}
+            ? t("organizations.organizationMembers.leaveOrganization")
+            : t("organizations.organizationMembers.removeMember")}
       </DropdownItem>
     );
   }
@@ -468,11 +470,11 @@ export function OrganizationMembers({
         loading={loading}
         breadcrumbs={[
           {
-            label: "Organization",
+            label: t("organizations.organizationMembers.organization"),
             onClick: () => router.push(`/organizations/${orgId}/settings`),
-            title: "Back to Organization",
+            title: t("organizations.organizationMembers.backToOrganization"),
           },
-          { label: "Members", cursor: "text" },
+          { label: t("organizations.organizationMembers.members"), cursor: "text" },
         ]}
         actions={[
           {
@@ -485,13 +487,13 @@ export function OrganizationMembers({
               setSelectedMemberIds([]);
             },
             placeholder:
-              tab === "departed" ? "Search departed members…" : "Search members…",
+              tab === "departed" ? t("organizations.organizationMembers.searchDepartedMembers") : t("organizations.organizationMembers.searchMembers"),
           },
           {
             type: "new",
             title: isAdmin
-              ? "Add member"
-              : "Only organization admins can add members",
+              ? t("organizations.organizationMembers.addMember")
+              : t("organizations.organizationMembers.onlyOrganizationAdminsCanAddMembers"),
             disabled: !isAdmin,
             onClick: () => {
               setInviteOpen(true);
@@ -579,15 +581,15 @@ export function OrganizationMembers({
         open={pendingSelfRoleChange !== null}
         title={
           pendingSelfRoleChange?.role === "admin"
-            ? "Step down to admin?"
-            : "Give up owner access?"
+            ? t("organizations.organizationMembers.stepDownToAdmin")
+            : t("organizations.organizationMembers.giveUpOwnerAccess")
         }
         message={
           pendingSelfRoleChange?.role === "admin"
-            ? "You will stay an admin, but can no longer delete this organization or appoint and remove its admins and owners."
-            : "You will lose owner access to this organization and can no longer manage its people, settings or invitations."
+            ? t("organizations.organizationMembers.youWillStayAnAdminBut")
+            : t("organizations.organizationMembers.youWillLoseOwnerAccessTo")
         }
-        confirmLabel="Continue"
+        confirmLabel={t("common.continue")}
         confirmStatus={busyMemberId ? "loading" : "idle"}
         onCancel={() => {
           if (busyMemberId) return;
@@ -618,7 +620,7 @@ export function OrganizationMembers({
       ) : null}
       <WarningPopup
         open={actionError !== null}
-        title="Organization action failed"
+        title={t("organizations.organizationMembers.organizationActionFailed")}
         message={actionError}
         onClose={() => setActionError(null)}
       />
@@ -661,6 +663,7 @@ function PeopleTable({
   onRemove: (member: OrgMember) => void;
   renderActions: (member: OrgMember, close?: () => void) => ReactNode;
 }) {
+  const t = useTranslations();
   const selectedMemberIdSet = useIdSet(selectedMemberIds);
   const [sort, setSort] = useState<{
     key: "name" | "email" | "added";
@@ -765,13 +768,13 @@ function PeopleTable({
                 }}
                 onChange={toggleAllVisible}
                 className={TABLE_CHECKBOX_CLASS}
-                aria-label="Select all people"
+                aria-label={t("organizations.organizationMembers.selectAllPeople")}
               />
             )}
             {/* How many people the open tab and the search come to, drawn
                 or not. Plain text beside the column's name. */}
             <span className="mr-1">
-              Name
+              {t("organizations.organizationMembers.name")}
               {!loading && !error ? (
                 <>
                   {" "}
@@ -783,7 +786,7 @@ function PeopleTable({
             </span>
             {!loading ? (
               <TableSortFilter
-                label="Sort by name"
+                label={t("organizations.organizationMembers.sortByName")}
                 value={sort?.key === "name" ? sort.direction : null}
                 allLabel="Default order"
                 align="right"
@@ -792,10 +795,10 @@ function PeopleTable({
             ) : null}
           </TableStickyCell>
           <TableHeaderCell className="ml-auto w-64">
-            <span className="mr-1">Email</span>
+            <span className="mr-1">{t("organizations.organizationMembers.email")}</span>
             {!loading ? (
               <TableSortFilter
-                label="Sort by email"
+                label={t("organizations.organizationMembers.sortByEmail")}
                 value={sort?.key === "email" ? sort.direction : null}
                 allLabel="Default order"
                 onChange={(direction) => setSortFor("email", direction)}
@@ -803,13 +806,13 @@ function PeopleTable({
             ) : null}
           </TableHeaderCell>
           <TableHeaderCell className="w-32">
-            <span className="mr-1">Role</span>
+            <span className="mr-1">{t("organizations.organizationMembers.role")}</span>
           </TableHeaderCell>
           <TableHeaderCell className="w-36">
-            <span className="mr-1">Added</span>
+            <span className="mr-1">{t("organizations.organizationMembers.added")}</span>
             {!loading ? (
               <TableSortFilter
-                label="Sort by date added"
+                label={t("organizations.organizationMembers.sortByDateAdded")}
                 value={sort?.key === "added" ? sort.direction : null}
                 allLabel="Default order"
                 onChange={(direction) => setSortFor("added", direction)}
@@ -828,21 +831,21 @@ function PeopleTable({
         <TableEmptyState>
           <EmptyState
             icon={<OrganizationSkeuoIcon />}
-            title="People"
-            description="This organization has no members."
+            title={t("organizations.organizationMembers.people")}
+            description={t("organizations.organizationMembers.thisOrganizationHasNoMembers")}
           />
         </TableEmptyState>
       ) : visibleMembers.length === 0 ? (
         <TableEmptyState>
           <p className="text-sm text-gray-400">
             {search.trim()
-              ? "No people match this search."
+              ? t("organizations.organizationMembers.noPeopleMatchThisSearch")
               : `This organization has no ${
                   roleFilter === "owner"
                     ? "owners"
                     : roleFilter === "admin"
                       ? "admins"
-                      : "ordinary members"
+                      : t("organizations.organizationMembers.ordinaryMembers")
                 }.`}
           </p>
         </TableEmptyState>
@@ -879,7 +882,7 @@ function PeopleTable({
                   </span>
                   {member.user_id === currentUserId ? (
                     <span className="ml-1 text-[10px] text-gray-400">
-                      (You)
+                      {t("organizations.organizationMembers.you")}
                     </span>
                   ) : null}
                 </TablePrimaryCell>
@@ -901,13 +904,13 @@ function PeopleTable({
                 <TableCell className="flex w-10 justify-end overflow-visible">
                   {canRemove ? (
                     <HeaderActionsMenu
-                      title={`Actions for ${label}`}
+                      title={t("organizations.organizationMembers.actionsForLabel", { label })}
                       items={[
                         {
                           label:
                             member.user_id === currentUserId
-                              ? "Leave organization"
-                              : "Remove member",
+                              ? t("organizations.organizationMembers.leaveOrganization")
+                              : t("organizations.organizationMembers.removeMember"),
                           icon: Trash2,
                           variant: "danger",
                           onSelect: () => onRemove(member),
@@ -947,6 +950,7 @@ function OrganizationRoleTab({
   disabled: boolean;
   onChange: (role: OrgRole) => void;
 }) {
+  const t = useTranslations();
   const editable = assignableRoles.length > 1;
   const tone =
     role === "owner"
@@ -965,7 +969,7 @@ function OrganizationRoleTab({
       <DropdownTrigger asChild>
         <button
           type="button"
-          aria-label={`Change role for ${label}`}
+          aria-label={t("organizations.organizationMembers.changeRoleForLabel", { label })}
           disabled={disabled}
           className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait disabled:opacity-50`}
         >
@@ -1030,11 +1034,12 @@ function ErrorState({
   error: string;
   onRetry: () => Promise<void>;
 }) {
+  const t = useTranslations();
   return (
     <TableEmptyState>
       <EmptyState
         icon={<OrganizationSkeuoIcon />}
-        title="Organization"
+        title={t("organizations.organizationMembers.organization")}
         description={error}
         tone="error"
         action={
@@ -1044,7 +1049,7 @@ function ErrorState({
             className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <Loader2 className="h-3.5 w-3.5" />
-            Try again
+            {t("organizations.organizationMembers.tryAgain")}
           </button>
         }
       />

@@ -7,6 +7,7 @@ import {
     type McpConnectorFormDraft,
 } from "@/app/components/settings/McpConnectorForm";
 import type { McpConnectorSummary } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 
 export type NewCustomMcpDraft = McpConnectorFormDraft;
 
@@ -39,6 +40,7 @@ export function NewCustomMcpModal({
     onSubmit,
     onOpenConnector,
 }: NewCustomMcpModalProps) {
+    const t = useTranslations();
     const canSubmit =
         draft.name.trim().length > 0 &&
         draft.serverUrl.trim().length > 0 &&
@@ -54,13 +56,13 @@ export function NewCustomMcpModal({
             primaryAction={
                 step === "success" && result
                     ? {
-                          label: "View connector",
+                          label: t("settings.newCustomMcpModal.viewConnector"),
                           onClick: () => onOpenConnector(result.id),
                       }
                     : {
                           label:
                               step === "working"
-                                  ? "Connecting..."
+                                  ? t("settings.newCustomMcpModal.connecting")
                                   : step === "auth"
                                     ? "Authorizing..."
                                     : "Connect",
@@ -81,7 +83,7 @@ export function NewCustomMcpModal({
                 step === "working"
                     ? false
                     : {
-                          label: step === "success" ? "Done" : "Cancel",
+                          label: step === "success" ? t("settings.newCustomMcpModal.done") : t("common.cancel"),
                           onClick: onClose,
                       }
             }
@@ -92,7 +94,7 @@ export function NewCustomMcpModal({
                 <NewCustomMcpAuth
                     message={
                         authMessage ??
-                        "Complete authorization in the popup to finish connecting this MCP server."
+                        t("settings.newCustomMcpModal.completeAuthorizationInThePopupTo")
                     }
                 />
             ) : (
@@ -118,14 +120,15 @@ function NewCustomMcpSuccess({
 }: {
     connector: McpConnectorSummary;
 }) {
+    const t = useTranslations();
     return (
         <div className="flex h-full min-h-0 flex-1 flex-col gap-4 pb-4">
             <div className="flex items-start gap-3 rounded-xl border border-green-100/80 bg-green-50/80 px-3 py-3 text-green-800 shadow-[0_3px_9px_rgba(21,26,38,0.03),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-4px_9px_rgba(255,255,255,0.05)]">
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                 <p className="min-w-0 truncate text-sm font-medium">
-                    {connector.name} is connected.{" "}
+                    {t("settings.newCustomMcpModal.nameIsConnected", { name: connector.name })}{" "}
                     <span className="font-normal text-green-700">
-                        {connector.tools.length} tools discovered.
+                        {t("settings.newCustomMcpModal.lengthToolsDiscovered", { length: connector.tools.length })}
                     </span>
                 </p>
             </div>
@@ -147,7 +150,7 @@ function NewCustomMcpSuccess({
                                 )}
                             </div>
                             <span className="text-xs text-gray-400">
-                                {tool.enabled ? "Enabled" : "Disabled"}
+                                {tool.enabled ? t("settings.newCustomMcpModal.enabled") : t("settings.newCustomMcpModal.disabled")}
                             </span>
                         </div>
                     ))}
@@ -158,6 +161,7 @@ function NewCustomMcpSuccess({
 }
 
 function NewCustomMcpAuth({ message }: { message: string }) {
+    const t = useTranslations();
     return (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 pb-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/70 bg-white/75 text-gray-700 shadow-[0_3px_9px_rgba(21,26,38,0.03),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-4px_9px_rgba(255,255,255,0.05)]">
@@ -165,7 +169,7 @@ function NewCustomMcpAuth({ message }: { message: string }) {
             </div>
             <div className="max-w-sm space-y-1">
                 <h3 className="text-sm font-medium text-gray-700">
-                    Authentication required
+                    {t("settings.newCustomMcpModal.authenticationRequired")}
                 </h3>
                 <p className="text-sm text-gray-500">{message}</p>
             </div>

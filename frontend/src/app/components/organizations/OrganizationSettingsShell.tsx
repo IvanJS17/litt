@@ -23,6 +23,7 @@ import { getOrg, type Org } from "@/app/lib/mikeApi";
 import { isOrgAdmin, isOrgOwner } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 // An organization's settings area: the same frame as a person's settings,
 // with its sections down the side.
@@ -87,6 +88,7 @@ export function OrganizationSettingsProvider({
   orgId: string;
   children: ReactNode;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const { workspaceId, organizations } = useWorkspace();
   const [org, setOrg] = useState<Org | null>(null);
@@ -132,15 +134,15 @@ export function OrganizationSettingsProvider({
       <TableEmptyState>
         <EmptyState
           icon={<OrganizationSkeuoIcon />}
-          title="Organization"
-          description="These settings are not available."
+          title={t("organizations.organizationSettingsShell.organization")}
+          description={t("organizations.organizationSettingsShell.theseSettingsAreNotAvailable")}
           action={
             <PillButtonUI
               tone="white"
               size="sm"
               onClick={() => router.push("/settings/organizations")}
             >
-              Your organizations
+              {t("organizations.organizationSettingsShell.yourOrganizations")}
             </PillButtonUI>
           }
         />
@@ -156,7 +158,7 @@ export function OrganizationSettingsProvider({
       <TableEmptyState>
         <EmptyState
           icon={<OrganizationSkeuoIcon />}
-          title="Organization"
+          title={t("organizations.organizationSettingsShell.organization")}
           description={loadError}
           tone="error"
           action={
@@ -168,7 +170,7 @@ export function OrganizationSettingsProvider({
                 void reload();
               }}
             >
-              Try again
+              {t("organizations.organizationSettingsShell.tryAgain")}
             </PillButtonUI>
           }
         />
@@ -188,6 +190,7 @@ export function OrganizationSettingsFrame({
 }: {
   children: ReactNode;
 }) {
+  const t = useTranslations();
   const { orgId, org } = useOrganizationSettings();
   const canManage = org !== null && isOrgAdmin(org.role);
   const isOwner = org !== null && isOrgOwner(org.role);
@@ -195,13 +198,13 @@ export function OrganizationSettingsFrame({
     () => [
       {
         id: "general",
-        label: "General",
+        label: t("organizations.organizationSettingsShell.general"),
         href: organizationSettingsHref(orgId),
       },
       // A table page of its own; its header leads back here.
       {
         id: "members",
-        label: "Members",
+        label: t("organizations.organizationSettingsShell.members"),
         href: organizationSettingsHref(orgId, "members"),
       },
       // Not offered to a member, nor before the caller's role is known.
@@ -209,19 +212,19 @@ export function OrganizationSettingsFrame({
         ? [
             {
               id: "audit",
-              label: "Audit log",
+              label: t("organizations.organizationSettingsShell.auditLog"),
               href: organizationSettingsHref(orgId, "audit"),
             },
             {
               id: "providers",
               // Named as the same setting is in a person's own settings.
-              label: "Bring Your Own Keys",
+              label: t("organizations.organizationSettingsShell.bringYourOwnKeys"),
               href: organizationSettingsHref(orgId, "providers"),
             },
             // LiTT training: who mentors whom (never the stages).
             {
               id: "training",
-              label: "Formación",
+              label: t("organizations.organizationSettingsShell.formacion"),
               href: organizationSettingsHref(orgId, "training"),
             },
           ]
@@ -232,7 +235,7 @@ export function OrganizationSettingsFrame({
             {
               id: "privacy-data",
               // Named as the same page is in a person's own settings.
-              label: "Privacy & Data",
+              label: t("organizations.organizationSettingsShell.privacyData"),
               href: organizationSettingsHref(orgId, "privacy-data"),
             },
           ]
@@ -243,7 +246,7 @@ export function OrganizationSettingsFrame({
 
   return (
     <SettingsShell
-      title="Organization"
+      title={t("organizations.organizationSettingsShell.organization")}
       navLabel="Organization"
       tabs={tabs}
       rootHref={organizationSettingsHref(orgId)}

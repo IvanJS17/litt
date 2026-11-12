@@ -15,6 +15,7 @@ import { SettingsPersonalisationFields } from "@/app/components/settings/Setting
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import type { PersonalisationDetails } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 
 function fieldStatus(
   field: PersonalisationField,
@@ -40,6 +41,7 @@ function PersonalisationForm({
 }: {
   initial: ReturnType<typeof personalisationInitialValues>;
 }) {
+  const t = useTranslations();
   const { updatePersonalisation } = useUserProfile();
   const [pendingField, setPendingField] = useState<PersonalisationField | null>(
     null,
@@ -139,10 +141,9 @@ function PersonalisationForm({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="your-background">Your background</SettingsHeading>
+        <SettingsHeading id="your-background">{t("settings.personalisation.yourBackground")}</SettingsHeading>
         <SettingsDescription>
-          Tell LiTT about your role and practice so responses can be tailored to
-          your professional context.
+          {t("settings.personalisation.tellLittAboutYourRoleAnd")}
         </SettingsDescription>
         <GlassCardUI>
           <SettingsPersonalisationFields

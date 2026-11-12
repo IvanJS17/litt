@@ -21,12 +21,14 @@ import {
 } from "@/app/components/settings/SettingsText";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 export function DeletedOrganizations({
   onRestored,
 }: {
   onRestored: () => Promise<void>;
 }) {
+  const t = useTranslations();
   const { refreshOrganizations } = useWorkspace();
   const [orgs, setOrgs] = useState<DeletedOrganization[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -76,18 +78,18 @@ export function DeletedOrganizations({
       className="space-y-3"
     >
       <SettingsHeading id="deleted-organizations-heading">
-        Recently deleted
+        {t("organizations.deletedOrganizations.recentlyDeleted")}
       </SettingsHeading>
       <SettingsDescription>
-        Owners can restore an organization within 30 days of deletion.
+        {t("organizations.deletedOrganizations.ownersCanRestoreAnOrganizationWithin")}
       </SettingsDescription>
       {loadError ? (
         <PillButtonUI tone="white" size="sm" onClick={() => void load()}>
-          Retry deleted organizations
+          {t("organizations.deletedOrganizations.retryDeletedOrganizations")}
         </PillButtonUI>
       ) : orgs === null ? (
         <div
-          aria-label="Loading deleted organizations"
+          aria-label={t("organizations.deletedOrganizations.loadingDeletedOrganizations")}
           aria-busy="true"
           className="h-16 animate-pulse rounded-lg bg-gray-200"
         />
@@ -98,7 +100,7 @@ export function DeletedOrganizations({
               <div className="min-w-0 space-y-1 [overflow-wrap:anywhere]">
                 <SettingsLabel>{org.name}</SettingsLabel>
                 <SettingsDescription>
-                  Recover before {new Date(org.purge_after).toLocaleString()}.
+                  {t("organizations.deletedOrganizations.recoverBefore")} {new Date(org.purge_after).toLocaleString()}.
                 </SettingsDescription>
               </div>
               <PillButtonUI
@@ -106,10 +108,10 @@ export function DeletedOrganizations({
                 size="sm"
                 disabled={busy !== null}
                 loading={busy === org.id}
-                aria-label={`Restore ${org.name}`}
+                aria-label={t("organizations.deletedOrganizations.restoreName", { name: org.name })}
                 onClick={() => void restore(org.id)}
               >
-                Restore
+                {t("organizations.deletedOrganizations.restore")}
               </PillButtonUI>
             </SettingsRow>
           ))}
@@ -126,7 +128,7 @@ export function DeletedOrganizations({
       />
       <WarningPopup
         open={error !== null}
-        title="Restore failed"
+        title={t("organizations.deletedOrganizations.restoreFailed")}
         message={error}
         onClose={() => setError(null)}
       />

@@ -18,6 +18,7 @@ import { SettingsDescription } from "@/app/components/settings/SettingsText";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { isMfaRequiredError, type ApiKeyProvider } from "@/app/lib/mikeApi";
 import { reportFault } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /**
  * A provider is listed as saved once the user has saved their own key for it. It
@@ -59,6 +60,7 @@ export function PersonalProviderKeys({
     /** The sentence above the grids; `null` when the page says it already. */
     intro?: ReactNode;
 }) {
+    const t = useTranslations();
     const { profile, loading, updateApiKeyEnabled } = useUserProfile();
     const [busyProvider, setBusyProvider] = useState<ApiKeyProvider | null>(null);
     const [toggleError, setToggleError] = useState<string | null>(null);
@@ -124,11 +126,11 @@ export function PersonalProviderKeys({
                             tone="blue"
                             size="sm"
                             disabled={blocked}
-                            aria-label={`Add ${field.name}`}
+                            aria-label={t("settings.personalProviderKeys.addName", { name: field.name })}
                             aria-haspopup="dialog"
                             onClick={open}
                         >
-                            Add
+                            {t("settings.personalProviderKeys.add")}
                         </PillButtonUI>
                     )
                 }
@@ -197,7 +199,7 @@ export function PersonalProviderKeys({
             />
             <WarningPopup
                 open={toggleError !== null}
-                title="Provider update failed"
+                title={t("settings.personalProviderKeys.providerUpdateFailed")}
                 message={toggleError}
                 onClose={() => setToggleError(null)}
             />
