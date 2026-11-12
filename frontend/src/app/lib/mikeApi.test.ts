@@ -33,6 +33,8 @@ import {
     copyDocumentVersionFromDocument,
     saveMarkdownVersion,
     compareDocumentVersions,
+    previewDocumentConversion,
+    convertDocument,
     copyDocumentsToWorkflowAssets,
     createChat,
     createQuickAction,
@@ -3302,6 +3304,18 @@ describe("thin endpoint wrappers", () => {
             name: "compareDocumentVersions",
             call: () => compareDocumentVersions("d 1", "v 1", "v&2"),
             url: "/single-documents/d%201/versions/compare?base=v%201&head=v%262",
+        },
+        {
+            name: "previewDocumentConversion",
+            call: () => previewDocumentConversion("d 1", "md"),
+            url: "/single-documents/d%201/convert/preview?target=md",
+        },
+        {
+            name: "convertDocument",
+            call: () => convertDocument("d 1", "pdf"),
+            url: "/single-documents/d%201/convert",
+            method: "POST",
+            body: { target: "pdf" },
         },
         {
             name: "copyDocumentVersionFromDocument",

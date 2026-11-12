@@ -674,6 +674,58 @@
     "whatYouOpenedBelongsToThisWorkspace": "Lo que abriste pertenece a este espacio de trabajo."
   },
   "documents": {
+    "convert": {
+      "action": {
+        "docx": "Convertir a Word…",
+        "md": "Convertir a Markdown…",
+        "pdf": "Convertir a PDF…"
+      },
+      "actionConvert": "convertir este documento",
+      "actionPreview": "revisar qué se perdería en esta conversión",
+      "blocked": {
+        "pdf_without_text": "Este PDF no tiene texto, así que necesita OCR antes de convertirse."
+      },
+      "checking": "Revisando qué se perdería en esta conversión…",
+      "convertAndCreate": "Convertir y crear documento nuevo",
+      "converting": "Convirtiendo…",
+      "created": "Se creó «{filename}».",
+      "detected": {
+        "comments": "{count, plural, one {# comentario no pasará.} other {# comentarios no pasarán.}}",
+        "footnotes": "{count, plural, one {# nota al pie pasa a una lista al final.} other {# notas al pie pasan a una lista al final.}}",
+        "headersFooters": "{count, plural, one {# encabezado o pie no pasará.} other {# encabezados y pies no pasarán.}}",
+        "images": "{count, plural, one {# imagen se cambia por «[img]».} other {# imágenes se cambian por «[img]».}}",
+        "trackedChanges": "{count, plural, one {# cambio marcado: solo pasa el texto final.} other {# cambios marcados: solo pasa el texto final.}}",
+        "trackedChangesPdf": "{count, plural, one {# cambio marcado se verá como lo muestra LibreOffice.} other {# cambios marcados se verán como los muestra LibreOffice.}}"
+      },
+      "detectedTitle": "En este documento",
+      "heading": "Convertir «{filename}» a {target}.",
+      "loss": {
+        "docx_comments": "Los comentarios no pasan.",
+        "docx_footnotes_as_list": "Las notas al pie quedan como lista al final.",
+        "docx_formatting": "Se pierde el formato fino: sangrías, colores y fuentes.",
+        "docx_headers_footers": "Los encabezados y pies de página no pasan.",
+        "docx_images": "Las imágenes se cambian por «[img]».",
+        "docx_legal_numbering": "La numeración legal tipo 1.1.a queda como lista simple.",
+        "docx_merged_cells": "Las tablas con celdas combinadas pierden la combinación.",
+        "docx_tracked_changes": "Los cambios marcados no pasan; solo pasa el texto final.",
+        "md_formulas": "Las fórmulas no se convierten; quedan como texto.",
+        "md_house_style": "El resultado usa el estilo de LiTT (Times New Roman 11), no una plantilla tuya.",
+        "md_raw_html": "El HTML escrito dentro del Markdown se ignora.",
+        "pdf_fonts_and_breaks": "Pueden cambiar las fuentes y los saltos de página si falta una fuente.",
+        "pdf_layout_lost": "Se pierden tablas, columnas, títulos, numeración, imágenes y notas; queda texto corrido con títulos «## Página N».",
+        "pdf_tracked_changes_as_shown": "Los cambios marcados se ven como los muestra LibreOffice."
+      },
+      "lossesTitle": "Lo que no pasará al documento nuevo",
+      "newName": "El documento nuevo se llamará «{filename}».",
+      "originalUnchanged": "Tu documento original no cambia.",
+      "target": {
+        "docx": "Word",
+        "md": "Markdown",
+        "pdf": "PDF"
+      },
+      "textlessPages": "{count, plural, one {# página no tiene texto y no pasará.} other {# páginas no tienen texto y no pasarán.}}",
+      "title": "Convertir documento"
+    },
     "table": {
       "aFolderNamedFoldernameAlreadyExists": "Ya existe una carpeta llamada «{folderName}». Esta carpeta se subirá como «{suggestedName}».",
       "actions": {
@@ -829,6 +881,11 @@
       "chat_route_credential_required": "Elige qué llave usará esta conversación con el modelo seleccionado.",
       "chat_route_credential_unavailable": "La llave con la que empezó esta conversación ya no está disponible. Inicia una conversación nueva con una llave que puedas usar.",
       "chat_route_pinned": "Esta conversación usa el modelo con el que empezó. Inicia una conversación nueva para usar otro modelo.",
+      "convert_not_supported": "Este documento no se puede convertir a ese formato.",
+      "convert_pdf_without_text": "Este PDF no tiene texto, así que necesita OCR antes de convertirse.",
+      "convert_source_too_large": "Este documento es demasiado grande para convertirse.",
+      "convert_unavailable": "La conversión no está disponible por ahora. Inténtalo de nuevo en un momento.",
+      "convert_unreadable": "No se pudo leer este documento, así que no se puede convertir.",
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
       "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",

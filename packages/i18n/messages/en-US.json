@@ -674,6 +674,58 @@
     "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace."
   },
   "documents": {
+    "convert": {
+      "action": {
+        "docx": "Convert to Word…",
+        "md": "Convert to Markdown…",
+        "pdf": "Convert to PDF…"
+      },
+      "actionConvert": "convert this document",
+      "actionPreview": "check what this conversion would lose",
+      "blocked": {
+        "pdf_without_text": "This PDF has no text layer, so it needs OCR before it can be converted."
+      },
+      "checking": "Checking what this conversion would lose…",
+      "convertAndCreate": "Convert and create new document",
+      "converting": "Converting…",
+      "created": "Created “{filename}”.",
+      "detected": {
+        "comments": "{count, plural, one {# comment won’t carry over.} other {# comments won’t carry over.}}",
+        "footnotes": "{count, plural, one {# footnote moves to a list at the end.} other {# footnotes move to a list at the end.}}",
+        "headersFooters": "{count, plural, one {# header or footer won’t carry over.} other {# headers and footers won’t carry over.}}",
+        "images": "{count, plural, one {# image becomes “[img]”.} other {# images become “[img]”.}}",
+        "trackedChanges": "{count, plural, one {# tracked change: only the final text carries over.} other {# tracked changes: only the final text carries over.}}",
+        "trackedChangesPdf": "{count, plural, one {# tracked change will appear as LibreOffice shows it.} other {# tracked changes will appear as LibreOffice shows them.}}"
+      },
+      "detectedTitle": "In this document",
+      "heading": "Convert “{filename}” to {target}.",
+      "loss": {
+        "docx_comments": "Comments don’t carry over.",
+        "docx_footnotes_as_list": "Footnotes end up as a list at the end.",
+        "docx_formatting": "Fine formatting is lost: indents, colors and fonts.",
+        "docx_headers_footers": "Headers and footers don’t carry over.",
+        "docx_images": "Images are replaced by “[img]”.",
+        "docx_legal_numbering": "Legal numbering such as 1.1.a becomes a simple list.",
+        "docx_merged_cells": "Tables with merged cells lose the merge.",
+        "docx_tracked_changes": "Tracked changes don’t carry over; only the final text does.",
+        "md_formulas": "Formulas are not converted; they stay as typed text.",
+        "md_house_style": "The result uses LiTT’s style (Times New Roman 11), not a template of yours.",
+        "md_raw_html": "Raw HTML in the Markdown is ignored.",
+        "pdf_fonts_and_breaks": "Fonts and page breaks can change if a font is missing.",
+        "pdf_layout_lost": "Tables, columns, titles, numbering, images and notes are lost; the result is plain text with “## Page N” headings.",
+        "pdf_tracked_changes_as_shown": "Tracked changes appear as LibreOffice shows them."
+      },
+      "lossesTitle": "What won’t carry over",
+      "newName": "The new document will be named “{filename}”.",
+      "originalUnchanged": "Your original document doesn’t change.",
+      "target": {
+        "docx": "Word",
+        "md": "Markdown",
+        "pdf": "PDF"
+      },
+      "textlessPages": "{count, plural, one {# page has no text and won’t carry over.} other {# pages have no text and won’t carry over.}}",
+      "title": "Convert document"
+    },
     "table": {
       "aFolderNamedFoldernameAlreadyExists": "A folder named “{folderName}” already exists. This folder will be uploaded as “{suggestedName}”.",
       "actions": {
@@ -829,6 +881,11 @@
       "chat_route_credential_required": "Choose which key this conversation should use for the selected model.",
       "chat_route_credential_unavailable": "The key this conversation was started with is no longer available. Start a new conversation with a key you can use.",
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+      "convert_not_supported": "This document can’t be converted to that format.",
+      "convert_pdf_without_text": "This PDF has no text, so it needs OCR before it can be converted.",
+      "convert_source_too_large": "This document is too large to convert.",
+      "convert_unavailable": "Conversion isn’t available right now. Try again in a moment.",
+      "convert_unreadable": "This document couldn’t be read, so it can’t be converted.",
       "cookie_session_required": "Sign in again to continue.",
       "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "email_address_invalid": "Enter a valid email address.",

@@ -32,6 +32,7 @@ import {
     type DocTableFolder,
 } from "@/app/components/documents/DocTable";
 import { TabPillButtonUI } from "@mike/ui";
+import { useConvertDocument } from "@/app/hooks/useConvertDocument";
 import { ProjectSectionToolbar, useProjectWorkspace } from "./ProjectWorkspace";
 import { useTranslations } from "next-intl";
 
@@ -178,6 +179,8 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
         setProject(updated);
         setFolders(updated.folders ?? []);
     }, [projectId, setFolders, setProject]);
+    // A converted document is a new one beside the original: list it.
+    const conversion = useConvertDocument({ onConverted: refreshCollection });
     const operations = useMemo(
         () => ({
             uploadDocument: (file: File, targetFolderId?: string | null) =>
@@ -394,7 +397,9 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                 }
                 onOwnerOnlyAction={setOwnerOnlyAction}
                 canDo={canDo}
+                onConvertDoc={canDo("content.edit") ? conversion.start : undefined}
             />
+            {conversion.modal}
         </>
     );
 }

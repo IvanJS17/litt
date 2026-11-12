@@ -210,6 +210,15 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     review_stale: "conflict",
     memory_revision_conflict: "conflict",
     upload_target_busy: "conflict",
+    // Converting a document between Markdown, Word and PDF: a pair that does not
+    // exist (PDF to Word), a PDF with no text (it needs OCR), a file too large
+    // or unreadable. Retrying the same conversion cannot help; the converter
+    // being unavailable or busy can.
+    convert_not_supported: "validation",
+    convert_pdf_without_text: "validation",
+    convert_source_too_large: "payload_too_large",
+    convert_unreadable: "validation",
+    convert_unavailable: "unavailable",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
     access_inherited: "conflict",

@@ -1908,6 +1908,86 @@ export interface VersionCompare {
     head: VersionCompareSide;
 }
 
+/** A document type a conversion starts from or produces. */
+export type DocumentConversionType = "md" | "docx" | "pdf";
+
+/**
+ * What a conversion loses, as a fixed code per kind of loss. The client turns
+ * a code into a sentence in the person's language; it never compares text.
+ */
+export type DocumentConversionLoss =
+    | "md_raw_html"
+    | "md_formulas"
+    | "md_house_style"
+    | "docx_comments"
+    | "docx_tracked_changes"
+    | "docx_headers_footers"
+    | "docx_formatting"
+    | "docx_legal_numbering"
+    | "docx_images"
+    | "docx_merged_cells"
+    | "docx_footnotes_as_list"
+    | "pdf_fonts_and_breaks"
+    | "pdf_tracked_changes_as_shown"
+    | "pdf_layout_lost";
+
+/** What a Word file holds that a conversion changes; counted in the file itself. */
+export interface DocumentConversionDetected {
+    comments: number;
+    tracked_insertions: number;
+    tracked_deletions: number;
+    images: number;
+    /** Footnotes and endnotes. */
+    footnotes: number;
+    /** Header parts that carry text. */
+    headers: number;
+    /** Footer parts that carry text. */
+    footers: number;
+}
+
+/** Why a conversion that is valid in general cannot run on this document. */
+export type DocumentConversionBlocked = "pdf_without_text";
+
+/**
+ * GET /single-documents/:documentId/convert/preview?target=md|docx|pdf: the
+ * notice shown before converting. Nothing is created. 404 without access,
+ * 409 `training_approval_required` for a trainee's unapproved draft, 400
+ * `convert_not_supported` for a pair that does not exist (PDF → Word).
+ */
+export interface DocumentConversionPreview {
+    source_type: DocumentConversionType;
+    target: DocumentConversionType;
+    /** The fixed list of losses of this conversion. */
+    losses: DocumentConversionLoss[];
+    /** Counts from the Word file; null when the source is not a Word file. */
+    detected: DocumentConversionDetected | null;
+    /** Set when the conversion cannot run on this document (a PDF with no text). */
+    blocked: DocumentConversionBlocked | null;
+    /**
+     * PDF source: pages with no text, which will not carry over. 0 when all
+     * pages have text; null when the source is not a PDF or the count is unknown.
+     * When every page is textless `blocked` is set as well.
+     */
+    textless_page_count: number | null;
+    /** The name the new document would get. */
+    new_filename: string;
+}
+
+/**
+ * POST /single-documents/:documentId/convert, body `{ target }`: a NEW
+ * document in the same project and folder, version 1, `source` 'converted'.
+ * The original is not changed. 201 on success.
+ */
+export interface DocumentConversionResult {
+    document_id: string;
+    version_id: string;
+    filename: string;
+    file_type: DocumentConversionType;
+    size_bytes: number;
+    project_id: string | null;
+    folder_id: string | null;
+}
+
 /**
  * Interface language a user can choose (`uiLocale` in `GET`/`PATCH
  * /user/profile`, `locale` in `POST /auth/signup`). `null` in the profile

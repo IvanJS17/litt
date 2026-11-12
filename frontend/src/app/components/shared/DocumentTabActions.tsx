@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import {
     Download,
+    FileOutput,
     FileText,
     MessageSquarePlus,
     Pencil,
@@ -24,7 +25,9 @@ import {
     DropdownTrigger,
 } from "@mike/ui";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
+import { CONVERT_ACTION_KEYS } from "@/app/lib/documentConversion";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import type { DocumentConversionType } from "@mike/contracts";
 import type { HeaderActionsMenuItem } from "./HeaderActionsMenu";
 import { useTranslations } from "next-intl";
 
@@ -33,6 +36,15 @@ export interface DocumentActions {
     onDownload?: () => void | Promise<void>;
     onRename?: (filename: string) => Promise<void>;
     onDelete?: () => void | Promise<void>;
+    /**
+     * Convert into a new document. `targets` are only the formats valid for
+     * this document's type (conversionTargetsFor); the dialog that follows
+     * says what would be lost before anything is created.
+     */
+    convert?: {
+        targets: ReadonlyArray<DocumentConversionType>;
+        onConvert: (target: DocumentConversionType) => void;
+    };
     addToChatDisabled?: boolean;
     downloading?: boolean;
 }
@@ -69,6 +81,12 @@ export function documentContextMenuItems(
                   },
               ]
             : []),
+        ...(actions.convert?.targets.map((target) => ({
+            id: `convert-${target}`,
+            label: t(CONVERT_ACTION_KEYS[target]),
+            icon: FileOutput,
+            onSelect: () => actions.convert?.onConvert(target),
+        })) ?? []),
         ...(actions.onRename
             ? [{ label: t("shared.documentTabActions.rename"), icon: Pencil, onSelect: actions.onRename }]
             : []),

@@ -17,6 +17,7 @@
 //   documents.trackedEdits.ts — apply tracked-change edits as a new version
 //   documents.trainingApproval.ts — approve a pasante's sealed version
 //   documents.authorship.ts — estimated authorship of a version (training)
+//   documents.convert.ts   — convert between Markdown, Word and PDF as a new document
 //
 // Upload sessions own transport and destination authorization; version metadata
 // creation, activation, replacement, copying, and cleanup use this facade.
@@ -55,6 +56,11 @@ export {
     isVersionConflict,
     VERSION_CONFLICT_CODE,
 } from "./documents.markdown";
+
+export {
+    previewDocumentConversion,
+    convertDocument,
+} from "./documents.convert";
 
 export { renameDocument } from "./documents.rename";
 export { deleteCollectionDocuments } from "./documents.cleanup";

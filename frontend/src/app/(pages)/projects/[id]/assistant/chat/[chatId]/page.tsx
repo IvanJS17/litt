@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useDocumentViewers } from "@/app/hooks/useDocumentViewers";
+import { useConvertDocument } from "@/app/hooks/useConvertDocument";
 import { useDocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 
 import {
@@ -531,6 +532,20 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     const handleDocClick = (doc: Document) => {
         openTab(doc.id, doc.filename, undefined, null, doc.file_type);
     };
+
+    // A converted document is a new one beside the original: list it, then open it.
+    const conversion = useConvertDocument({
+        onConverted: async (result) => {
+            await refreshProject();
+            openTab(
+                result.document_id,
+                result.filename,
+                undefined,
+                null,
+                result.file_type,
+            );
+        },
+    });
 
     const handleCloseAnnotation = (documentId: string) => {
         openRequest.current += 1;
@@ -1636,6 +1651,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                 onDownloadFolder={
                                     explorerDownload.downloadFolder
                                 }
+                                onConvertDoc={canEditContent ? conversion.start : undefined}
                                 downloading={explorerDownload.downloading}
                                 onAddToChat={(document) =>
                                     addDocToChat(document)
@@ -1736,6 +1752,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         </p>
                     </div>
                 )}
+                {conversion.modal}
                 <ProjectDocumentTabs
                     onAddToChat={(document) =>
                         addDocToChat(document)
@@ -1745,6 +1762,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                     downloading={explorerDownload.downloading}
                     onRenameDoc={handleRenameDoc}
                     onDeleteDoc={requestDeleteDoc}
+                    onConvertDoc={canEditContent ? conversion.start : undefined}
                     documentPermissions={documentPermissions}
                     tabs={tabs}
                     documents={project?.documents ?? []}

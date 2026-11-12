@@ -41,7 +41,8 @@ infrastructure, and development workflow, including optional local integrations.
 | [Newsreader](https://github.com/productiontype/Newsreader) and [Departure Mono](https://github.com/rektdeckard/departure-mono) | The LiTT wordmark and monogram are outlined from these faces (SIL OFL 1.1); no font file ships. Licenses in `docs/brand/licencias/`. |
 | [Tiptap](https://github.com/ueberdosis/tiptap) and [ProseMirror](https://prosemirror.net/) | Rich-text editing in the web app and Word add-in. |
 | [react-markdown](https://github.com/remarkjs/react-markdown), [remark](https://github.com/remarkjs/remark), and [rehype](https://github.com/rehypejs/rehype) | Rendering Markdown, tables, and formatted assistant responses. |
-| [Marked](https://github.com/markedjs/marked) | Markdown parsing. |
+| [Marked](https://github.com/markedjs/marked) | Markdown parsing, in the web app and in the backend's Markdown → Word conversion. |
+| [Turndown](https://github.com/mixmark-io/turndown) and [turndown-plugin-gfm](https://github.com/mixmark-io/turndown-plugin-gfm) | Converting Word documents to Markdown (MIT). |
 | [KaTeX](https://katex.org/) | Mathematical notation. |
 | [DOMPurify](https://github.com/cure53/DOMPurify) | Sanitizing HTML content. |
 | [Recharts](https://recharts.org/) | Charts and data visualization. |

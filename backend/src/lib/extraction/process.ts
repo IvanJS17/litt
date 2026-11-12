@@ -6,7 +6,8 @@ process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType
   void (async () => {
     try {
       const result = await EXTRACTION_OPS[request.op](request.bytes, request.fileType);
-      const text = typeof result === "string" ? result : result.text;
+      // Text results are measured as text; a counts object (docxInventory) as its JSON.
+      const text = typeof result === "string" ? result : "text" in result ? result.text : JSON.stringify(result);
       // Bound IPC output before it can allocate a large string in the parent.
       if (Buffer.byteLength(text) > EXTRACTION_MAX_TEXT_BYTES) {
         throw new ExtractionLimitError("extracted text exceeds 16 MB");
