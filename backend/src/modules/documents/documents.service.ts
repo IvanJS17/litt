@@ -87,3 +87,12 @@ export { handleDocumentExtractText, markDocumentTextFailed, backfillDocumentText
 export { findDocumentText, readStoredDocumentText, storedDocumentTextCurrent } from "./documents.textSearch";
 
 export { getDocumentStatuses } from "./documents.status";
+
+export {
+    getScanReadingState,
+    requestScanReading,
+    queueScanReadingOnUpload,
+    handleDocumentOcr,
+    markDocumentOcrFailed,
+} from "./documents.ocr";
+export type { ScanReadingState } from "./documents.ocr";

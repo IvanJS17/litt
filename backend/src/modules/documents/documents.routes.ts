@@ -38,6 +38,8 @@ import {
     previewDocumentConversion,
     convertDocument,
     compareDocuments,
+    getScanReadingState,
+    requestScanReading,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -422,6 +424,46 @@ documentsRouter.post(
         });
         if (!result.ok) return void sendServiceFailure(res, result);
         res.status(201).json(result.data);
+    }),
+);
+
+// GET /single-documents/:documentId/ocr
+// Scan reading: whether pages without text can be read with the caller\'s own
+// LandingAI key, whether a reading is running or failed, and its estimated cost.
+// Same access as opening the document; the key itself is never returned.
+documentsRouter.get(
+    "/:documentId/ocr",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.ocr_state");
+        const result = await getScanReadingState(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
+        res.json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/ocr
+// Starts reading the document\'s scanned pages in the background (202). Edit
+// rights, as for converting; 409 training_approval_required for a version held
+// for training; 409 ocr_key_missing without a usable key; 400 ocr_not_supported
+// when there is nothing to read; 400 ocr_too_large over the size cap.
+documentsRouter.post(
+    "/:documentId/ocr",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.ocr_start");
+        const result = await requestScanReading(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.status(202).json(result.data);
     }),
 );
 
