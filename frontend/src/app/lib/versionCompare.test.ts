@@ -44,6 +44,8 @@ describe("compareBlocks", () => {
         expect(kinds.filter((k) => k === "context")).toHaveLength(CONTEXT_LINES * 2);
         const gaps = blocks.filter((b) => b.kind === "gap");
         expect(gaps.map((g) => g.kind === "gap" && g.count)).toEqual([6, 7]);
+        // A gap keeps the lines it folds, so it can be opened.
+        expect(gaps.map((g) => g.kind === "gap" && g.hidden.length)).toEqual([6, 7]);
     });
 
     it("shows a short unchanged run whole", () => {

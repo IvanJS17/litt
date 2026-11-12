@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/app/lib/utils";
 import type { DiffLine, DiffSegment, TextChange } from "@/app/lib/textDiff";
@@ -130,37 +131,22 @@ export function VersionDiff({
     const t = useTranslations("versionCompare");
     const sideBySide = mode === "side-by-side";
     const columns = sideBySide ? 4 : 3;
-    return (
-        <table className="w-full table-fixed border-collapse text-gray-900">
-            <caption className="sr-only">
-                {sideBySide ? t("sideBySide") : t("unified")}
-            </caption>
-            <colgroup>
-                {sideBySide ? (
-                    <>
-                        <col className="w-10" />
-                        <col />
-                        <col className="w-10" />
-                        <col />
-                    </>
-                ) : (
-                    <>
-                        <col className="w-10" />
-                        <col className="w-10" />
-                        <col />
-                    </>
-                )}
-            </colgroup>
-            {blocks.map((block) => {
+    const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
+    const renderBlock = (block: CompareBlock): React.ReactNode => {
                 if (block.kind === "gap") {
+                    if (open.has(block.key))
+                        return <Fragment key={block.key}>{block.hidden.map(renderBlock)}</Fragment>;
                     return (
                         <tbody key={block.key}>
                             <tr>
-                                <td
-                                    colSpan={columns}
-                                    className="bg-gray-50 px-2 py-1 text-center text-[11px] text-gray-500 dark:bg-gray-100"
-                                >
-                                    {t("hiddenLines", { count: block.count })}
+                                <td colSpan={columns} className="bg-gray-50 dark:bg-gray-100">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOpen((prev) => new Set(prev).add(block.key))}
+                                        className="w-full px-2 py-1 text-center text-[11px] text-gray-600 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                    >
+                                        {t("showHiddenLines", { count: block.count })}
+                                    </button>
                                 </td>
                             </tr>
                         </tbody>
@@ -252,7 +238,29 @@ export function VersionDiff({
                               ]}
                     </tbody>
                 );
-            })}
+    };
+    return (
+        <table className="w-full table-fixed border-collapse text-gray-900">
+            <caption className="sr-only">
+                {sideBySide ? t("sideBySide") : t("unified")}
+            </caption>
+            <colgroup>
+                {sideBySide ? (
+                    <>
+                        <col className="w-10" />
+                        <col />
+                        <col className="w-10" />
+                        <col />
+                    </>
+                ) : (
+                    <>
+                        <col className="w-10" />
+                        <col className="w-10" />
+                        <col />
+                    </>
+                )}
+            </colgroup>
+            {blocks.map((block) => renderBlock(block))}
         </table>
     );
 }

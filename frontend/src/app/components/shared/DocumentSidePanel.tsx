@@ -102,6 +102,17 @@ interface DocumentSidePanelProps {
     onScanRead?: (docId: string) => void;
 }
 
+/**
+ * No version picked means the document as it stands. A picked version is the
+ * current one only when the current version is known and it is that one.
+ */
+export function isCurrentVersion(
+    selectedVersionId: string | null | undefined,
+    currentVersionId: string | null | undefined,
+): boolean {
+    return selectedVersionId == null || selectedVersionId === currentVersionId;
+}
+
 export function DocumentSidePanel({
     doc,
     displayUrl,
@@ -312,8 +323,7 @@ export function DocumentSidePanel({
     const isSelectedCurrentPdf =
         !readOnly &&
         selectedFileType?.toLowerCase() === "pdf" &&
-        (selectedVersionId == null ||
-            selectedVersionId === (currentVersionId ?? selectedVersionId));
+        isCurrentVersion(selectedVersionId, currentVersionId);
     const selectedTextless =
         readTextless?.docId === doc.id && isSelectedCurrentPdf
             ? readTextless.count

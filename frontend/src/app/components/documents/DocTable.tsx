@@ -5113,6 +5113,7 @@ export function DocTable({
                     setViewingDocVersion(null);
                 }}
                 onLoadVersions={(docId) => loadDocumentVersions(docId)}
+                onScanRead={refreshTrainingStatus}
                 onSelectVersion={(versionId, label) => setViewingDocVersion({ id: versionId, label })}
                 onDownloadDocument={downloadDoc}
                 onDownloadVersion={downloadDocVersion}

@@ -12,7 +12,7 @@ export function versionAuthor(source: string | null | undefined): VersionAuthor 
 }
 
 export type CompareBlock =
-    | { kind: "gap"; key: string; count: number }
+    | { kind: "gap"; key: string; count: number; hidden: CompareBlock[] }
     | { kind: "context"; key: string; oldNo: number; newNo: number; text: string }
     | { kind: "change"; key: string; change: TextChange };
 
@@ -40,14 +40,19 @@ export function compareBlocks(
     };
     const blocks: CompareBlock[] = [];
     let hidden = 0;
+    // What the gap stands for, so the reader can open it.
+    let folded: CompareBlock[] = [];
     const flush = (key: string) => {
-        if (hidden > 0) blocks.push({ kind: "gap", key: `gap-${key}`, count: hidden });
+        if (hidden > 0)
+            blocks.push({ kind: "gap", key: `gap-${key}`, count: hidden, hidden: folded });
         hidden = 0;
+        folded = [];
     };
     items.forEach((item, index) => {
         if (item.kind === "change") {
             if (!shown(index)) {
                 hidden += linesIn(item);
+                folded.push({ kind: "change", key: `change-${item.index}`, change: item });
                 return;
             }
             flush(String(index));
@@ -62,16 +67,18 @@ export function compareBlocks(
                 keepAll ||
                 at < before ||
                 at >= item.lines.length - after;
-            if (!keep) {
-                hidden += 1;
-                return;
-            }
-            flush(`${index}-${at}`);
-            blocks.push({
+            const block: CompareBlock = {
                 kind: "context",
                 key: `ctx-${line.oldNo}-${line.newNo}`,
                 ...line,
-            });
+            };
+            if (!keep) {
+                hidden += 1;
+                folded.push(block);
+                return;
+            }
+            flush(`${index}-${at}`);
+            blocks.push(block);
         });
     });
     flush("end");

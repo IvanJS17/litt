@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createPortal } from "react-dom";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Document } from "@/app/components/shared/types";
 import type { DocumentVersion } from "@/app/lib/mikeApi";
-import { DocumentSidePanel } from "./DocumentSidePanel";
+import { DocumentSidePanel, isCurrentVersion } from "./DocumentSidePanel";
 
 // Stand in for a viewer whose context menu portals to document.body.
 vi.mock("@/app/components/shared/views/DocxView", () => ({
@@ -306,4 +306,19 @@ it("offers Compare only with two or more versions, and opens the comparison", as
     fireEvent.pointerDown(screen.getByRole("dialog", { name: "Compare versions" }));
     expect(props.onClose).not.toHaveBeenCalled();
     vi.restoreAllMocks();
+});
+
+describe("isCurrentVersion", () => {
+    it("treats no picked version as the current document", () => {
+        expect(isCurrentVersion(null, "v2")).toBe(true);
+        expect(isCurrentVersion(undefined, null)).toBe(true);
+    });
+    it("matches a picked version against the known current one", () => {
+        expect(isCurrentVersion("v2", "v2")).toBe(true);
+        expect(isCurrentVersion("v1", "v2")).toBe(false);
+    });
+    it("is not the current version when no current version is known", () => {
+        expect(isCurrentVersion("v1", null)).toBe(false);
+        expect(isCurrentVersion("v1", undefined)).toBe(false);
+    });
 });

@@ -183,6 +183,29 @@ it("tells the user when the save made on unmount fails, since no viewer is left 
     act(() => result.current.markChanged());
     unmount();
     await vi.waitFor(() => expect(notifyError).toHaveBeenCalledOnce());
+    expect(vi.mocked(notifyError).mock.calls[0][1]).toMatchObject({ operation: "documents.edit" });
+});
+
+it("shows no toast for a failed save while the viewer is mounted: it shows the error itself", async () => {
+    vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("offline"));
+    const { result } = renderHook(() => useDocxSave(options()));
+    act(() => result.current.markChanged());
+    await act(() => result.current.save());
+    expect(result.current.status).toBe("error");
+    expect(notifyError).not.toHaveBeenCalled();
+});
+
+it("saves edits made during an upload before a close, so the keep-or-discard popup is not raised", async () => {
+    let finish!: () => void;
+    vi.mocked(saveDocxVersion).mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ id: "v2", version_number: 2, source: "user_edit", created_at: "", filename: "Agreement.docx" }); }));
+    const { result } = renderHook(() => useDocxSave(options()));
+    act(() => result.current.markChanged());
+    await act(async () => { void result.current.save(); await vi.waitFor(() => expect(saveDocxVersion).toHaveBeenCalledOnce()); });
+    act(() => result.current.markChanged());
+    let closing!: Promise<boolean>;
+    act(() => { closing = result.current.prepareClose(); });
+    await act(async () => { finish(); expect(await closing).toBe(true); });
+    expect(saveDocxVersion).toHaveBeenCalledTimes(2);
 });
 
 it("ignores changes while editing is disabled", async () => {
