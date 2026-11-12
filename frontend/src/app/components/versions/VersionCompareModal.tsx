@@ -279,7 +279,7 @@ function CompareBody({
         content = <Message role="status">{t("noNumberChanges")}</Message>;
     } else {
         content = (
-            <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,3fr)_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_16rem] lg:grid-rows-[minmax(0,1fr)]">
+            <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,3fr)_minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1fr)_16rem] lg:grid-rows-[minmax(0,1fr)]">
                 {/* On a phone the diff takes the modal's height and the list scrolls beneath it. */}
                 <div className="min-h-0 overflow-auto rounded-lg bg-app-surface py-1">
                     <VersionDiff
