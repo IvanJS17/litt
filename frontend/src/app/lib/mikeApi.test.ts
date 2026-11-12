@@ -2916,10 +2916,10 @@ describe("thin endpoint wrappers", () => {
         },
         {
             name: "acceptTerms",
-            call: () => acceptTerms("2026-11-09"),
+            call: () => acceptTerms("2026-11-12"),
             url: "/user/terms-acceptance",
             method: "POST",
-            body: { version: "2026-11-09" },
+            body: { version: "2026-11-12" },
         },
         {
             name: "syncUserPasswordSet",

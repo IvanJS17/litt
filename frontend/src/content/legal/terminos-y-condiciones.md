@@ -1,8 +1,8 @@
 # Términos y Condiciones de LiTT (Beta)
 
-**Última actualización:** 9 de noviembre de 2026
+**Última actualización:** 12 de noviembre de 2026
 
-**Entrada en vigor:** 9 de noviembre de 2026
+**Entrada en vigor:** 12 de noviembre de 2026
 
 ## 1. Quiénes somos y qué regulan estos Términos
 
@@ -51,7 +51,11 @@ participes en la Beta.
   se use fuera del Servicio. Si trabajas por tu cuenta, eres tú.
 - **Proveedor de IA:** la empresa que ofrece el modelo de inteligencia artificial que el Usuario
   elige (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock, Azure o xAI).
-- **Llave propia:** la credencial del Usuario o del despacho ante su Proveedor de IA.
+- **Llave propia:** la credencial del Usuario o del despacho ante su Proveedor de IA o ante un
+  Servicio con llave propia.
+- **Servicio con llave propia:** el servicio de un tercero, distinto del Proveedor de IA, que el
+  Usuario o el despacho activa en LiTT con su Llave propia. Por ejemplo, la búsqueda web (Brave
+  Search, Tavily o DeepSeek) y la lectura de escaneados (LandingAI).
 - **Información de la Beta:** la información no pública sobre el Servicio que conoces por
   participar en la Beta (cláusula 8.6).
 - **Retroalimentación:** los comentarios, sugerencias, ideas y reportes de errores que nos das
@@ -116,7 +120,7 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
    También responde de lo que hagan en el Servicio las personas a las que da acceso, como si lo
    hiciera él mismo.
 
-## 6. Llaves propias y Proveedores de IA
+## 6. Llaves propias, Proveedores de IA y otros servicios de terceros
 
 1. **Tú eliges el proveedor.** LiTT no tiene un proveedor de IA propio. Cada Usuario o despacho
    conecta la Llave propia de su Proveedor de IA y elige el proveedor y el modelo de cada
@@ -145,6 +149,41 @@ con el consentimiento o la base legal para tratar los datos personales que inclu
 9. **Costos con tu proveedor.** Te recomendamos fijar un límite de gasto con tu Proveedor de IA.
    LiTT no responde por los cargos que te haga tu proveedor, tampoco por los que resulten de un
    error, una repetición o un uso no previsto del Servicio.
+10. **Otros servicios con tu llave.** Además de los Proveedores de IA, puedes activar en LiTT
+    otros Servicios con llave propia, como la búsqueda web o la lectura de escaneados. Son
+    opcionales, y los eliges y contratas tú o tu despacho; LiTT no tiene llave propia para ellos
+    ni los paga. Lo que estos Términos establecen para los Proveedores de IA y sus llaves en esta
+    cláusula 6 y en las cláusulas 9.4, 13.3, 15.6, 16.2.3, 16.4 y 17 se aplica también a esos
+    servicios y a sus llaves. En particular, cada servicio trata la información que recibe bajo
+    sus propios términos; te corresponde revisarlos y cumplirlos, incluidos los que regulan quién
+    puede usar tu llave; y LiTT no controla ni responde por sus actos, fallas, interrupciones,
+    cambios o cargos, ni por lo que hagan con esa información.
+11. **Búsqueda web.** Si activas la búsqueda web con un servicio de búsqueda, LiTT le envía las
+    consultas que formula el asistente a partir de tu conversación y las direcciones de las
+    páginas que debe leer. Esas consultas pueden incluir información de tu conversación. Si
+    eliges que la búsqueda la haga tu Proveedor de IA, se aplica lo previsto para él.
+12. **Lectura de escaneados.** La lectura de escaneados con LandingAI viene desactivada. Si la
+    activas:
+    1. cada vez que subas un PDF escaneado, LiTT envía el PDF completo a LandingAI, en Estados
+       Unidos, para extraer su texto con tu Llave propia, y guarda ese texto en LiTT para usarlo
+       en el asistente, la búsqueda y la conversión de documentos;
+    2. LandingAI te cobra el servicio directamente, conforme a sus tarifas;
+    3. lo que LandingAI haga con el documento depende de tu plan con ella. Según sus condiciones
+       publicadas, si no tienes la retención cero, LandingAI puede conservar los documentos y
+       usarlos para mejorar sus productos y entrenar sus modelos; con retención cero, los borra
+       al terminar y no los usa para entrenar. Verifica tu plan antes de activarla;
+    4. antes de enviar documentos con datos personales de terceros o con información protegida
+       por el secreto profesional, valora si necesitas la autorización de tu cliente y, si
+       LandingAI puede usarlos para sus propios fines, tu propio aviso de privacidad y el
+       consentimiento de sus titulares (cláusulas 8.4 y 9.2);
+    5. activarla es tu instrucción para que LiTT haga esos envíos. Si se activa en el espacio del
+       despacho, el despacho responde de esa decisión (cláusula 5.6); y
+    6. si la desactivas, LiTT deja de enviar documentos nuevos, y el texto ya extraído se conserva
+       en LiTT con su documento.
+
+    Si no la activas, LiTT no lee los PDF escaneados. Puedes subirlos ya pasados por OCR, con la
+    función de PDF buscable de tu escáner o con un programa de PDF. La lectura automática puede
+    tener errores: revisa el texto extraído contra el documento original.
 
 ## 7. La IA no sustituye el criterio profesional
 
