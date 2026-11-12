@@ -341,10 +341,10 @@ describe("who may convert", () => {
     expect(await run(fake.db as never, "docx")).toEqual(expect.objectContaining({ ok: false, kind: "error", error: failed }));
   });
 
-  it("answers 403 for a trainee's draft that is not approved, and converts it once approved", async () => {
+  it("answers 409 for a trainee's draft that is not approved, and converts it once approved", async () => {
     const bytes = Buffer.from("# borrador");
     const { fake } = seed({ fileType: "md", filename: "borrador.md", bytes, extra: { training_stage: "pasante" } });
-    const held = { ok: false, kind: "forbidden", code: "training_approval_required" };
+    const held = { ok: false, kind: "conflict", code: "training_approval_required" };
     expect(await preview(fake.db as never, "docx")).toMatchObject(held);
     expect(await run(fake.db as never, "docx")).toMatchObject(held);
     expect(mocks.uploadFile).not.toHaveBeenCalled();

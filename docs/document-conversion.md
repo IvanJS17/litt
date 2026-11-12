@@ -44,8 +44,8 @@ escaped.
 The rules of downloading, plus one:
 
 - Someone who cannot see the document and its project gets **404**.
-- A trainee's draft that is not approved for its current bytes gets **403**
-  `training_approval_required` (the document is not converted; it would leave
+- A trainee's draft that is not approved for its current bytes gets **409**
+  `training_approval_required` (as a download does; the document is not converted, it would leave
   the seal behind).
 - Creating the new document needs `content.edit` where the original lives; a
   viewer sees the notice but gets **403** on conversion.

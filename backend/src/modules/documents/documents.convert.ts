@@ -38,10 +38,6 @@ import { safeError } from "../../lib/safeError";
 import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import { deleteFile, downloadFile, uploadFile, versionStorageKey } from "../../lib/storage";
 import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
-import {
-    TRAINING_APPROVAL_REQUIRED_CODE,
-    TRAINING_APPROVAL_REQUIRED_MESSAGE,
-} from "../../lib/httpError";
 import { assertVersionReleasable } from "../../lib/trainingRelease";
 import { ensureDocumentAccess } from "./documents.access";
 import { createDocumentVersion } from "./documents.lifecycle";
@@ -188,8 +184,8 @@ type Source = {
 
 /**
  * Open the document the way a download does, then check the pair. 404 for a
- * document the caller cannot see; 403 for a trainee's unapproved draft (a
- * conversion is a copy that leaves the draft's seal behind).
+ * document the caller cannot see; 409 training_approval_required, as a download answers, for a
+ * trainee's unapproved draft (a conversion is a copy that leaves the draft's seal behind).
  */
 async function openSource(
     db: Db,
@@ -209,11 +205,7 @@ async function openSource(
     if (!version) return failure("not_found", "No file available");
 
     const releasable = await assertVersionReleasable(db, version);
-    if (!releasable.ok) {
-        if (releasable.kind === "conflict")
-            return failure("forbidden", TRAINING_APPROVAL_REQUIRED_MESSAGE, TRAINING_APPROVAL_REQUIRED_CODE);
-        return releasable;
-    }
+    if (!releasable.ok) return releasable;
 
     const doc = access.doc as DocRow;
     const sourceType = sourceTypeOf(version.file_type);

@@ -42,9 +42,9 @@ describe("GET /single-documents/:documentId/convert/preview", () => {
   it.each([
     ["404 without access", { ok: false, kind: "not_found", detail: "Document not found" }, 404, { detail: "Document not found" }],
     [
-      "403 for a trainee's unapproved draft",
-      { ok: false, kind: "forbidden", detail: "draft", code: "training_approval_required" },
-      403,
+      "409 for a trainee's unapproved draft",
+      { ok: false, kind: "conflict", detail: "draft", code: "training_approval_required" },
+      409,
       { code: "training_approval_required", detail: "draft" },
     ],
     [

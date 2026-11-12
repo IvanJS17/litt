@@ -3997,7 +3997,7 @@ export async function downloadDocumentsZip(
 
 /**
  * What converting a document would lose, before anything is created. 404
- * without access, 403 `training_approval_required` for a trainee's draft,
+ * without access, 409 `training_approval_required` for a trainee's draft,
  * 400 `convert_not_supported` for a pair that does not exist.
  */
 export async function previewDocumentConversion(

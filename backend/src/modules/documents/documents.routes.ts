@@ -386,7 +386,7 @@ documentsRouter.post(
 
 // GET /single-documents/:documentId/convert/preview?target=md|docx|pdf
 // What converting would lose, before anything is created. Same access as a
-// download: 404 without access, 403 training_approval_required for a trainee's
+// download: 404 without access, 409 training_approval_required for a trainee's
 // unapproved draft, 400 convert_not_supported for a pair that does not exist.
 documentsRouter.get(
     "/:documentId/convert/preview",
