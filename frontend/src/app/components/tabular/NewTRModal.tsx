@@ -607,7 +607,7 @@ function NewTRModalForWorkspace({
                           label: creating ? t("tabular.creating") : t("tabular.create"),
                           type: "submit",
                           form: formId,
-                          name: t("tabular.modalaction"),
+                          name: "modalAction",
                           value: "create-review",
                           disabled:
                               !title.trim() ||

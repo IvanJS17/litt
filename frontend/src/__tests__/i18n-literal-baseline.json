@@ -319,6 +319,7 @@
     "frontend/src/app/components/playbooks/playbookRules.ts": 1,
     "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
     "frontend/src/app/components/shared/ChatPanelHeader.tsx": 1,
+    "frontend/src/app/components/tabular/NewTRModal.tsx": 1,
     "frontend/src/app/components/tabular/columnPresets.ts": 13,
     "frontend/src/app/components/workflows/workflowZipExport.ts": 1,
     "word-addin/src/taskpane/api/mikeApi.ts": 2,
