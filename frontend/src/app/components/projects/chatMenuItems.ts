@@ -1,5 +1,10 @@
+import type { HeaderActionsMenuItem } from "@/app/components/shared/HeaderActionsMenu";
+
 /** Ids of the project chat header menu entries. Labels are translated, so visibility is decided by id. */
 export type ChatMenuItemId = "openSideChat" | "closeSideChat" | "rename" | "memory" | "delete";
+
+/** A project chat header menu entry: a header menu item that always carries its id. */
+export type ChatMenuItem = HeaderActionsMenuItem & { id: ChatMenuItemId };
 
 /** Whether the project chat header menu shows the entry `id`. */
 export function isChatMenuItemVisible(

@@ -63,7 +63,7 @@ const requestBody = (call: number) =>
     ) as { chat_id?: string; messages: { role: string; content: string }[] };
 
 const retryAction = (toast?: ToastRecord) =>
-    toast?.actions?.find((action) => action.label === "Retry");
+    toast?.actions?.find((action) => action.id === "retry");
 
 let errorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -507,7 +507,7 @@ it.each([undefined, "chat-existing"])("does not repost an uncertain delivery bef
     expect(toast?.actions?.map(a => a.label)).toContain(chatId ? "Check chat" : "Refresh history");
     if (chatId) {
         fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ chat: {id:chatId}, messages: [], active_turn: null }), {status:200}));
-        await act(async () => { await toast?.actions?.find(a => a.label === "Check chat")?.onClick(); });
+        await act(async () => { await toast?.actions?.find(a => a.id === "checkHistory")?.onClick(); });
         expect(fetchMock.mock.calls.filter(c => c[1]?.method === "POST")).toHaveLength(1);
     }
 });

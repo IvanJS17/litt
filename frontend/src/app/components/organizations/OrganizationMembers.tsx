@@ -72,7 +72,8 @@ import { userFacingApiError } from "@/app/lib/userFacingError";
 import { OrganizationDepartedMembers } from "./OrganizationDepartedMembers";
 import { InviteOrganizationMemberModal } from "./OrganizationModals";
 import { useIdSet } from "@/app/hooks/useIdSet";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import { formatShortDate, type DateFormatter } from "@/app/lib/dateText";
 import type { SettingsKey, Translate } from "@/i18n/Translate";
 import { orgRoleLabel } from "./orgRoleText";
 
@@ -121,15 +122,11 @@ const OWNER_TABS: { id: RosterTab; label: SettingsKey }[] = [
   { id: "departed", label: "organizations.organizationMembers.tabDeparted" },
 ];
 
-function formatDate(value?: string | null) {
+function formatDate(format: DateFormatter, value?: string | null) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return formatShortDate(format, date);
 }
 
 /**
@@ -670,6 +667,7 @@ function PeopleTable({
   renderActions: (member: OrgMember, close?: () => void) => ReactNode;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const selectedMemberIdSet = useIdSet(selectedMemberIds);
   const [sort, setSort] = useState<{
     key: "name" | "email" | "added";
@@ -901,7 +899,7 @@ function PeopleTable({
                   />
                 </TableCell>
                 <TableCell className="w-36">
-                  {formatDate(member.created_at)}
+                  {formatDate(format, member.created_at)}
                 </TableCell>
                 <TableCell className="flex w-10 justify-end overflow-visible">
                   {canRemove ? (

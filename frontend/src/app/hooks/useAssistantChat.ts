@@ -678,7 +678,7 @@ export function useAssistantChat({
           replaceChatId(
             sendChatId,
             finalChatId,
-            message.content.trim().slice(0, 120) || "New Chat",
+            message.content.trim().slice(0, 120) || t("assistant.chatView.newChat"),
           );
         }
         setCurrentChatId(finalChatId);
@@ -743,6 +743,7 @@ export function useAssistantChat({
           support: true,
           onRetry: uncertain ? undefined : async () => { await retryTurn(retrySnapshot); },
           actions: uncertain ? [{
+            id: "checkHistory",
             label: checkHistoryLabel(Boolean(retrySnapshot.chatId)),
             onClick: async () => {
               if (retrySnapshot.chatId) await retryTurn(retrySnapshot);

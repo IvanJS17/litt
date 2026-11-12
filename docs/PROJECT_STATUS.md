@@ -3,11 +3,34 @@
 > Canonical operational status for this fork. Kanban cards are execution receipts,
 > not the project roadmap or source of truth.
 
-**Last reconciled:** 2026-11-11<br>
+**Last reconciled:** 2026-11-12<br>
 **Repository:** `IvanJS17/litt` (standalone since 2026-10-23; previously the GitHub fork `IvanJS17/mike`)<br>
 **Upstream:** `Open-Legal-Products/mike`
 
 ## Executive status
+
+### Production and integration 2026-11-12
+
+- **Main:** `09dacab6` (merge of pull request #164). **Production:** runs
+  `09dacab6`, deployed on 2026-11-12. It supersedes the 2026-11-11 section
+  below, whose `3752c539` deploy is no longer current.
+- **Interface languages, phase 1, complete and in production:** the whole web
+  app and the Word add-in render in **es-MX** (and en-US) from one catalog
+  ([`i18n.md`](i18n.md)). Integrated and deployed (#157 to #164):
+  - #157 and #160: `scripts/i18n/translate.mjs` becomes a model-free
+    export/apply tool for the catalog translation.
+  - #158: accounts, authentication and entry screens.
+  - #159: documents.
+  - #161: settings and organizations.
+  - #162: the Word add-in.
+  - #163: the assistant, the shared components and `@mike/ui`.
+  - #164: the remaining web screens (projects, tabular reviews, workflows,
+    modals and popups, playbooks, training, recovery).
+  - #156 (follow-up notes, [`followups.md`](followups.md)) went out in the same
+    deploy.
+- **Pending:** the minor reserves of phase 1 are closed in
+  `chore/i18n-phase1-close`; the OCR choice (local or LandingAI) is still the
+  owner's decision. Technical follow-ups are in [`followups.md`](followups.md).
 
 ### Production and integration 2026-11-11
 
