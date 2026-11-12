@@ -619,12 +619,12 @@ export function PlaybookTable({
                     />
                     <span className="min-w-0 truncate text-gray-500" title={name}>
                       <span className="sr-only">
-                        {draft ? `${t("intake.draftingLabel")} ` : "Compiling "}
+                        {draft ? `${t("intake.draftingLabel")} ` : `${t("compilingLabel")} `}
                       </span>
                       {name}
                     </span>
                     <span className="ml-2 shrink-0 text-xs text-gray-400" aria-hidden="true">
-                      {draft ? t("intake.drafting") : "Compiling…"}
+                      {draft ? t("intake.drafting") : t("compilingStatus")}
                     </span>
                   </TableCell>
                   <TableCell role="cell" className={CREATOR_COLUMN}>

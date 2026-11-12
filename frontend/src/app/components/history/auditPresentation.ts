@@ -1,4 +1,26 @@
+import { clientTranslator } from "@mike/client";
+import type { Messages } from "@litt/i18n";
 import type { AuditEvent, OrgPrivateContentKind } from "@/app/lib/mikeApi";
+
+type Leaves<T, P extends string> = T extends string
+  ? P
+  : { [K in keyof T & string]: Leaves<T[K], `${P}.${K}`> }[keyof T & string];
+
+/** Every catalog key this file reads. */
+export type AuditKey = Leaves<Messages["history"]["audit"], "history.audit"> | "history.system";
+
+/**
+ * A message translator, as `useTranslations()` returns it. Text shown while
+ * rendering takes the component's own `t`; a caller outside React (a test)
+ * gets the configured client translator.
+ */
+export type AuditTranslate = (
+  key: AuditKey,
+  values?: Record<string, string | number | Date>,
+) => string;
+
+const clientT = (): AuditTranslate => clientTranslator() as unknown as AuditTranslate;
+
 
 export interface AuditPrivateAccess {
   kind: OrgPrivateContentKind;
@@ -25,77 +47,115 @@ export function auditPrivateAccess(
   return access as unknown as AuditPrivateAccess;
 }
 
-export const ACTION_LABELS: Record<string, string> = {
-  "org.private_content.permission_changed":
-    "Private content permission changed",
-  "org.private_content.opened": "Private content accessed",
-  "org.private_content.closed": "Private content access ended",
-  "org.api_key.saved": "Provider key saved",
-  "org.api_key.removed": "Provider key removed",
-  "org.api_key.enabled": "Provider key enabled",
-  "org.api_key.disabled": "Provider key disabled",
-  "org.personal_api_keys.allowed": "Personal keys allowed",
-  "org.personal_api_keys.blocked": "Personal keys blocked",
-  "org.member_exports.allowed": "Member exports allowed",
-  "org.member_exports.blocked": "Member exports turned off",
-  "org.member_deletes.allowed": "Member data deletion allowed",
-  "org.member_deletes.blocked": "Member data deletion turned off",
-  "org.created": "Organization created",
-  "org.deleted": "Organization deleted",
-  "org.restored": "Organization restored",
-  "org.purged": "Organization permanently deleted",
-  "org.invite.created": "Invitation sent",
-  "org.invite.accepted": "Invitation accepted",
-  "org.invite.declined": "Invitation declined",
-  "org.invite.cancelled": "Invitation cancelled",
-  "org.invite.resent": "Invitation resent",
-  "org.member.role_changed": "Member role changed",
-  "org.logo.updated": "Logo updated",
-  "org.logo.removed": "Logo removed",
-  "org.router_models.updated": "Models updated",
-  "org.departure.item.transferred": "Departed work transferred",
-  "org.departure.item.archived": "Departed work archived",
-  "org.departure.item.recovered": "Departed work recovered",
-  "org.departure.item.deleted": "Departed work deleted",
-  "org.departure.item.expired": "Departed work expired",
-  "org.departure.member.departed": "Member departed",
-  "org.departure.member.projects_succeeded": "Member's matter projects passed on",
-  "org.member.removed": "Member removed",
-  "org.member.left": "Member left",
-  "org.data.deleted": "Organization data deleted",
-  "chat.message": "Chat message sent",
-  "document.uploaded": "Document uploaded",
-  "document.generated": "Document generated",
-  "document.edited": "Document edited",
-  "workflow.applied": "Workflow applied",
-  "tabular.created": "Review created",
-  "tabular.generated": "Review run completed",
-  "playbook.created": "Playbook created",
-  "playbook.imported": "Playbook imported",
-  "playbook.replaced": "Playbook replaced",
-  "playbook.deleted": "Playbook deleted",
-  "playbook.run": "Playbook review run",
-  "playbook.run.deleted": "Playbook run deleted",
-  // LiTT playbooks with a starting point (new text in Spanish, open question 3).
-  "playbook.marked_ready": "Playbook marcado como listo",
-  "playbook.model_marked": "Playbook marcado como modelo",
-  "playbook.model_unmarked": "Marca de modelo retirada",
-  "export.chats": "Chats exported",
-  "export.account": "Account data exported",
-  "export.tabular": "Review exported",
-  "export.memory": "Memory exported",
-};
 
-export const SURFACE_LABELS: Record<string, string> = {
-  assistant: "Assistant",
-  project: "Project",
-  word: "Word",
-  tabular: "Tabular",
-  playbooks: "Playbooks",
-  workflows: "Workflows",
-  account: "Account",
-  organization: "Organization",
-};
+const ACTION_KEYS = {
+  "org.private_content.permission_changed": "privateContentPermissionChanged",
+  "org.private_content.opened": "privateContentAccessed",
+  "org.private_content.closed": "privateContentAccessEnded",
+  "org.api_key.saved": "providerKeySaved",
+  "org.api_key.removed": "providerKeyRemoved",
+  "org.api_key.enabled": "providerKeyEnabled",
+  "org.api_key.disabled": "providerKeyDisabled",
+  "org.personal_api_keys.allowed": "personalKeysAllowed",
+  "org.personal_api_keys.blocked": "personalKeysBlocked",
+  "org.member_exports.allowed": "memberExportsAllowed",
+  "org.member_exports.blocked": "memberExportsTurnedOff",
+  "org.member_deletes.allowed": "memberDataDeletionAllowed",
+  "org.member_deletes.blocked": "memberDataDeletionTurnedOff",
+  "org.created": "organizationCreated",
+  "org.deleted": "organizationDeleted",
+  "org.restored": "organizationRestored",
+  "org.purged": "organizationPermanentlyDeleted",
+  "org.invite.created": "invitationSent",
+  "org.invite.accepted": "invitationAccepted",
+  "org.invite.declined": "invitationDeclined",
+  "org.invite.cancelled": "invitationCancelled",
+  "org.invite.resent": "invitationResent",
+  "org.member.role_changed": "memberRoleChanged",
+  "org.logo.updated": "logoUpdated",
+  "org.logo.removed": "logoRemoved",
+  "org.router_models.updated": "modelsUpdated",
+  "org.departure.item.transferred": "departedWorkTransferred",
+  "org.departure.item.archived": "departedWorkArchived",
+  "org.departure.item.recovered": "departedWorkRecovered",
+  "org.departure.item.deleted": "departedWorkDeleted",
+  "org.departure.item.expired": "departedWorkExpired",
+  "org.departure.member.departed": "memberDeparted",
+  "org.departure.member.projects_succeeded": "membersMatterProjectsPassedOn",
+  "org.member.removed": "memberRemoved",
+  "org.member.left": "memberLeft",
+  "org.data.deleted": "organizationDataDeleted",
+  "chat.message": "chatMessageSent",
+  "document.uploaded": "documentUploaded",
+  "document.generated": "documentGenerated",
+  "document.edited": "documentEdited",
+  "workflow.applied": "workflowApplied",
+  "tabular.created": "reviewCreated",
+  "tabular.generated": "reviewRunCompleted",
+  "playbook.created": "playbookCreated",
+  "playbook.imported": "playbookImported",
+  "playbook.replaced": "playbookReplaced",
+  "playbook.deleted": "playbookDeleted",
+  "playbook.run": "playbookReviewRun",
+  "playbook.run.deleted": "playbookRunDeleted",
+  "playbook.marked_ready": "playbookMarkedAsReady",
+  "playbook.model_marked": "playbookMarkedAsModel",
+  "playbook.model_unmarked": "modelMarkRemoved",
+  "export.chats": "chatsExported",
+  "export.account": "accountDataExported",
+  "export.tabular": "reviewExported",
+  "export.memory": "memoryExported",
+} as const;
+
+const OPERATION_KEYS = {
+  "chat.message": "chatMessage",
+  "document.uploaded": "documentUpload",
+  "document.generated": "documentGeneration",
+  "document.edited": "documentEdit",
+  "workflow.applied": "workflowApplication",
+  "tabular.created": "reviewCreation",
+  "tabular.generated": "reviewRun",
+  "playbook.created": "playbookCreation",
+  "playbook.imported": "playbookImport",
+  "playbook.replaced": "playbookReplacement",
+  "playbook.deleted": "playbookDeletion",
+  "playbook.run": "playbookReview",
+  "playbook.run.deleted": "playbookRunDeletion",
+  "export.chats": "chatExport",
+  "export.account": "accountExport",
+  "export.tabular": "reviewExport",
+  "export.memory": "memoryExport",
+} as const;
+
+const SURFACE_KEYS = {
+  assistant: "assistant",
+  project: "project",
+  word: "word",
+  tabular: "tabular",
+  playbooks: "playbooks",
+  workflows: "workflows",
+  account: "account",
+  organization: "organization",
+} as const;
+
+/** The label of each action the audit log knows, by its recorded name. */
+export function auditActionLabels(t: AuditTranslate = clientT()): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(ACTION_KEYS).map(([action, key]) => [action, t(`history.audit.action.${key}`)]),
+  );
+}
+
+/** The label of each application (surface) the audit log knows. */
+export function auditSurfaceLabels(t: AuditTranslate = clientT()): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(SURFACE_KEYS).map(([surface, key]) => [surface, t(`history.audit.surface.${key}`)]),
+  );
+}
+
+export function auditSurfaceLabel(surface: string, t: AuditTranslate = clientT()): string {
+  const key = SURFACE_KEYS[surface as keyof typeof SURFACE_KEYS];
+  return key ? t(`history.audit.surface.${key}`) : auditLabel(surface);
+}
 
 export function auditLabel(value: string): string {
   return value
@@ -103,30 +163,32 @@ export function auditLabel(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function auditAction(event: AuditEvent): string {
-  const label = ACTION_LABELS[event.action] ?? auditLabel(event.action);
+const STATUS_KEYS = {
+  completed: "completed",
+  cancelled: "cancelled",
+  failed: "failed",
+} as const;
+
+/** The label of a status the audit log records. */
+export function auditStatusLabel(status: string, t: AuditTranslate = clientT()): string {
+  const key = STATUS_KEYS[status as keyof typeof STATUS_KEYS];
+  return key ? t(`history.audit.status.${key}`) : auditLabel(status);
+}
+
+const ROLE_KEYS = { owner: "owner", admin: "admin", member: "member" } as const;
+
+function roleLabel(role: string, t: AuditTranslate): string {
+  const key = ROLE_KEYS[role as keyof typeof ROLE_KEYS];
+  return key ? t(`history.audit.role.${key}`) : auditLabel(role);
+}
+
+export function auditAction(event: AuditEvent, t: AuditTranslate = clientT()): string {
+  const actionKey = ACTION_KEYS[event.action as keyof typeof ACTION_KEYS];
+  const label = actionKey ? t(`history.audit.action.${actionKey}`) : auditLabel(event.action);
   // Failed or cancelled operations must not read as successful changes.
   if (event.status === "completed") return label;
-  const operations: Record<string, string> = {
-    "chat.message": "Chat message",
-    "document.uploaded": "Document upload",
-    "document.generated": "Document generation",
-    "document.edited": "Document edit",
-    "workflow.applied": "Workflow application",
-    "tabular.created": "Review creation",
-    "tabular.generated": "Review run",
-    "playbook.created": "Playbook creation",
-    "playbook.imported": "Playbook import",
-    "playbook.replaced": "Playbook replacement",
-    "playbook.deleted": "Playbook deletion",
-    "playbook.run": "Playbook review",
-    "playbook.run.deleted": "Playbook run deletion",
-    "export.chats": "Chat export",
-    "export.account": "Account export",
-    "export.tabular": "Review export",
-    "export.memory": "Memory export",
-  };
-  return operations[event.action] ?? label;
+  const operationKey = OPERATION_KEYS[event.action as keyof typeof OPERATION_KEYS];
+  return operationKey ? t(`history.audit.operation.${operationKey}`) : label;
 }
 
 function detailText(event: AuditEvent, key: string): string | null {
@@ -134,50 +196,85 @@ function detailText(event: AuditEvent, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-const DELETED_USER = "Deleted user";
-
-export function auditActor(event: AuditEvent): string {
-  if (event.user_deleted) return DELETED_USER;
+export function auditActor(event: AuditEvent, t: AuditTranslate = clientT()): string {
+  if (event.user_deleted) return t("history.audit.deletedUser");
   return (
     event.user_display_name ||
     event.user_email ||
     (event.action === "org.purged" ||
     event.action === "org.departure.item.expired"
-      ? "System"
-      : "Unknown user")
+      ? t("history.system")
+      : t("history.audit.unknownUser"))
   );
 }
 
-export function auditSubject(event: AuditEvent) {
+const SUBJECT_KEYS = {
+  item: "item",
+  recipient: "recipient",
+  member: "member",
+  provider: "provider",
+  organization: "organization",
+  document: "document",
+  chat: "chat",
+  workflow: "workflow",
+  review: "review",
+  playbookRun: "playbookRun",
+  playbook: "playbook",
+  chats: "chats",
+  account: "account",
+  memory: "memory",
+  project: "project",
+  tabular_review: "tabularReview",
+} as const;
+
+type SubjectCode = keyof typeof SUBJECT_KEYS;
+
+/** The kind of thing an event acted on, as a code, not as text. */
+function subjectCode(event: AuditEvent): SubjectCode | { kind: string } {
   const action = event.action;
-  let type = "Item";
-  if (action.startsWith("org.invite.")) type = "Recipient";
-  else if (action === "org.private_content.permission_changed") type = "Member";
-  else if (action.startsWith("org.private_content."))
-    type = auditLabel(detailText(event, "kind") ?? "item");
-  else if (
-    action.startsWith("org.member.") ||
-    action === "org.departure.member.departed"
-  )
-    type = "Member";
-  else if (
-    action.startsWith("org.api_key.") ||
-    action === "org.router_models.updated"
-  )
-    type = "Provider";
-  else if (action.startsWith("org.departure.item."))
-    type = auditLabel(detailText(event, "kind") ?? "item");
-  else if (action.startsWith("org.")) type = "Organization";
-  else if (action.startsWith("document.")) type = "Document";
-  else if (action.startsWith("chat.")) type = "Chat";
-  else if (action.startsWith("workflow.")) type = "Workflow";
-  else if (action.startsWith("tabular.") || action === "export.tabular")
-    type = "Review";
-  else if (action.startsWith("playbook.run")) type = "Playbook run";
-  else if (action.startsWith("playbook.")) type = "Playbook";
-  else if (action === "export.chats") type = "Chats";
-  else if (action === "export.account") type = "Account";
-  else if (action === "export.memory") type = "Memory";
+  const kind = (): SubjectCode | { kind: string } => {
+    const recorded = detailText(event, "kind") ?? "item";
+    return recorded in SUBJECT_KEYS ? (recorded as SubjectCode) : { kind: recorded };
+  };
+  if (action.startsWith("org.invite.")) return "recipient";
+  if (action === "org.private_content.permission_changed") return "member";
+  if (action.startsWith("org.private_content.")) return kind();
+  if (action.startsWith("org.member.") || action === "org.departure.member.departed")
+    return "member";
+  if (action.startsWith("org.api_key.") || action === "org.router_models.updated")
+    return "provider";
+  if (action.startsWith("org.departure.item.")) return kind();
+  if (action.startsWith("org.")) return "organization";
+  if (action.startsWith("document.")) return "document";
+  if (action.startsWith("chat.")) return "chat";
+  if (action.startsWith("workflow.")) return "workflow";
+  if (action.startsWith("tabular.") || action === "export.tabular") return "review";
+  if (action.startsWith("playbook.run")) return "playbookRun";
+  if (action.startsWith("playbook.")) return "playbook";
+  if (action === "export.chats") return "chats";
+  if (action === "export.account") return "account";
+  if (action === "export.memory") return "memory";
+  return "item";
+}
+
+/** The kind of thing the event acted on, as a code that no language changes. */
+export function auditSubjectKind(event: AuditEvent): string {
+  const code = subjectCode(event);
+  return typeof code === "string" ? code : code.kind;
+}
+
+/** Whether the event's subject is a person (a member or an invited recipient). */
+export function auditSubjectIsPerson(event: AuditEvent): boolean {
+  const code = subjectCode(event);
+  return code === "member" || code === "recipient";
+}
+
+export function auditSubject(event: AuditEvent, t: AuditTranslate = clientT()) {
+  const code = subjectCode(event);
+  const type =
+    typeof code === "string"
+      ? t(`history.audit.subject.${SUBJECT_KEYS[code]}`)
+      : auditLabel(code.kind);
 
   const title = event.title?.trim();
   // Some older member events stored a UUID in title. Keep identifiers in
@@ -188,20 +285,19 @@ export function auditSubject(event: AuditEvent) {
     title && !isId
       ? title
       : (detailText(event, "target_email") ??
-        (type === "Provider" ? detailText(event, "provider") : null));
-  const isPerson = ["Member", "Recipient"].includes(type);
+        (code === "provider" ? detailText(event, "provider") : null));
+  const isPerson = auditSubjectIsPerson(event);
   // An erased account is never named by an address an older row recorded.
   const name = isPerson
     ? event.affected_user_deleted
-      ? DELETED_USER
+      ? t("history.audit.deletedUser")
       : event.affected_user_display_name?.trim() || recordedName
     : recordedName;
   const context = [
     detailText(event, "organization_name") ?? detailText(event, "org_name"),
     detailText(event, "project_name"),
   ].filter((value): value is string => Boolean(value));
-  if (!context.length && event.surface)
-    context.push(SURFACE_LABELS[event.surface] ?? auditLabel(event.surface));
+  if (!context.length && event.surface) context.push(auditSurfaceLabel(event.surface, t));
   return {
     type,
     name: name ?? "-",
@@ -211,15 +307,15 @@ export function auditSubject(event: AuditEvent) {
 
 /** Retain the recorded email for identity tooltips and stable monogram colors. */
 export function auditSubjectEmail(event: AuditEvent): string | null {
-  if (!["Member", "Recipient"].includes(auditSubject(event).type)) return null;
+  if (!auditSubjectIsPerson(event)) return null;
   if (event.affected_user_deleted) return null;
   const email = (detailText(event, "target_email") ?? event.title)?.trim();
   return email && /^[^\s@]+@[^\s@]+$/.test(email) ? email : null;
 }
 
-export function auditTimestamp(value: string, exact = false): string {
+export function auditTimestamp(value: string, exact = false, t: AuditTranslate = clientT()): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  if (Number.isNaN(date.getTime())) return t("history.audit.dateUnavailable");
   return date.toLocaleString(undefined, {
     day: "numeric",
     month: "short",
@@ -232,7 +328,7 @@ export function auditTimestamp(value: string, exact = false): string {
 
 export type AuditDetailField = { label: string; value: string };
 
-export function auditDetailFields(event: AuditEvent): AuditDetailField[] {
+export function auditDetailFields(event: AuditEvent, t: AuditTranslate = clientT()): AuditDetailField[] {
   const fields: AuditDetailField[] = [];
   const detail = event.detail ?? {};
   const add = (label: string, value: unknown) => {
@@ -241,94 +337,113 @@ export function auditDetailFields(event: AuditEvent): AuditDetailField[] {
     else if (typeof value === "number" && Number.isFinite(value))
       fields.push({ label, value: String(value) });
     else if (typeof value === "boolean")
-      fields.push({ label, value: value ? "Yes" : "No" });
+      fields.push({ label, value: value ? t("history.audit.yes") : t("history.audit.no") });
   };
   const role = detailText(event, "role");
   const previous = detailText(event, "previous_role");
   if (event.action === "org.member.role_changed") {
     if (previous && role)
       add(
-        event.status === "completed" ? "Role" : "Requested role change",
-        `${auditLabel(previous)} → ${auditLabel(role)}`,
+        event.status === "completed"
+          ? t("history.audit.field.role")
+          : t("history.audit.field.requestedRoleChange"),
+        `${roleLabel(previous, t)} → ${roleLabel(role, t)}`,
       );
-    else if (role) add("Role", auditLabel(role));
-    else if (previous) add("Previous role", auditLabel(previous));
+    else if (role) add(t("history.audit.field.role"), roleLabel(role, t));
+    else if (previous) add(t("history.audit.field.previousRole"), roleLabel(previous, t));
   } else if (event.action.startsWith("org.invite.") && role)
-    add("Invited role", auditLabel(role));
-  else if (previous) add("Previous role", auditLabel(previous));
+    add(t("history.audit.field.invitedRole"), roleLabel(role, t));
+  else if (previous) add(t("history.audit.field.previousRole"), roleLabel(previous, t));
   if (
     event.action.startsWith("org.departure.") ||
     event.action.startsWith("org.member.")
   ) {
-    add("Items transferred", detail.transferred);
-    add("Items archived", detail.archived);
+    add(t("history.audit.field.itemsTransferred"), detail.transferred);
+    add(t("history.audit.field.itemsArchived"), detail.archived);
   }
   if (event.action === "org.router_models.updated")
-    add("Models available", detail.model_count);
+    add(t("history.audit.field.modelsAvailable"), detail.model_count);
   if (
     event.action.startsWith("org.api_key.") ||
     event.action === "org.private_content.permission_changed"
   )
-    add("Enabled", detail.enabled);
-  if (event.action === "org.private_content.opened") add("Access", "Read-only");
+    add(t("history.audit.field.enabled"), detail.enabled);
+  if (event.action === "org.private_content.opened")
+    add(t("history.audit.field.access"), t("history.audit.readOnly"));
   const purgeAfter = detailText(event, "purge_after");
   if (purgeAfter && !Number.isNaN(new Date(purgeAfter).getTime()))
-    add("Scheduled deletion", auditTimestamp(purgeAfter, true));
+    add(t("history.audit.field.scheduledDeletion"), auditTimestamp(purgeAfter, true, t));
   if (event.action.startsWith("export.")) {
-    add("Format", detail.format);
-    add("Documents exported", detail.document_count);
-    add("Chats exported", detail.chat_count);
+    add(t("history.audit.field.format"), detail.format);
+    add(t("history.audit.field.documentsExported"), detail.document_count);
+    add(t("history.audit.field.chatsExported"), detail.chat_count);
   }
   return fields;
 }
 
-export function auditSummary(event: AuditEvent, personal: boolean): string {
-  const actor = personal ? "You" : auditActor(event);
-  const subject = auditSubject(event);
+export function auditSummary(
+  event: AuditEvent,
+  personal: boolean,
+  t: AuditTranslate = clientT(),
+): string {
+  const actor = personal ? "" : auditActor(event, t);
+  const self = personal ? "yes" : "no";
+  const subject = auditSubject(event, t);
+  const action = auditAction(event, t);
   if (event.status !== "completed")
-    return `${auditAction(event)} ${event.status === "failed" ? "failed" : event.status === "cancelled" ? "was cancelled" : `is ${event.status}`}.`;
+    return event.status === "failed"
+      ? t("history.audit.summary.failed", { action })
+      : event.status === "cancelled"
+        ? t("history.audit.summary.cancelled", { action })
+        : t("history.audit.summary.otherStatus", { action, status: event.status });
   const name =
-    subject.name === "-" ? `the ${subject.type.toLowerCase()}` : subject.name;
+    subject.name === "-"
+      ? t("history.audit.summary.unnamed", { type: subject.type.toLowerCase() })
+      : subject.name;
   if (event.action === "org.member.role_changed")
-    return `${actor} changed the organization role for ${name}.`;
-  if (
-    event.action === "org.invite.created" ||
-    event.action === "org.invite.resent"
-  )
-    return `${actor} ${event.action.endsWith("resent") ? "resent an invitation to" : "invited"} ${name}.`;
-  if (event.action === "document.uploaded") return `${actor} uploaded ${name}.`;
-  if (event.action === "document.edited") return `${actor} edited ${name}.`;
+    return t("history.audit.summary.roleChanged", { self, actor, name });
+  if (event.action === "org.invite.created")
+    return t("history.audit.summary.invited", { self, actor, name });
+  if (event.action === "org.invite.resent")
+    return t("history.audit.summary.resentInvitation", { self, actor, name });
+  if (event.action === "document.uploaded")
+    return t("history.audit.summary.uploaded", { self, actor, name });
+  if (event.action === "document.edited")
+    return t("history.audit.summary.edited", { self, actor, name });
   if (event.action === "document.generated")
-    return `${actor} generated ${name}.`;
-  return `${auditAction(event)} by ${personal ? "you" : actor}`;
+    return t("history.audit.summary.generated", { self, actor, name });
+  return personal
+    ? t("history.audit.summary.byYou", { action })
+    : t("history.audit.summary.byActor", { action, actor });
 }
 
 export function auditDestination(
   event: AuditEvent,
+  t: AuditTranslate = clientT(),
 ): { href: string; label: string } | null {
   if (event.review_id)
     return {
       href: `/tabular-reviews/${encodeURIComponent(event.review_id)}`,
-      label: "Open review",
+      label: t("history.audit.openReview"),
     };
   if (event.chat_id && event.surface !== "word")
     return {
       href: event.project_id
         ? `/projects/${encodeURIComponent(event.project_id)}/assistant/chat/${encodeURIComponent(event.chat_id)}`
         : `/assistant/chat/${encodeURIComponent(event.chat_id)}`,
-      label: "Open chat",
+      label: t("history.audit.openChat"),
     };
   if (event.project_id)
     return {
       href: `/projects/${encodeURIComponent(event.project_id)}`,
-      label: "Open project",
+      label: t("history.audit.openProject"),
     };
   const access = auditPrivateAccess(event);
   if (access && ["project", "chat", "tabular_review"].includes(access.kind)) {
     const target = {
-      project: { path: "/projects/", label: "Open project" },
-      chat: { path: "/assistant/chat/", label: "Open chat" },
-      tabular_review: { path: "/tabular-reviews/", label: "Open review" },
+      project: { path: "/projects/", label: t("history.audit.openProject") },
+      chat: { path: "/assistant/chat/", label: t("history.audit.openChat") },
+      tabular_review: { path: "/tabular-reviews/", label: t("history.audit.openReview") },
     }[access.kind as "project" | "chat" | "tabular_review"];
     return {
       href: `${target.path}${encodeURIComponent(access.item_id)}`,

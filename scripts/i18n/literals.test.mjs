@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadTypeScript, ts } from "./literals.mjs";
+import { loadTypeScript, ts, visibleLiterals } from "./literals.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -53,5 +53,21 @@ describe("loadTypeScript", () => {
         expect(result.status).toBe(1);
         expect(result.stderr).toMatch(/^extract: TypeScript not found: .*`npm ci --prefix frontend`\n$/);
         expect(result.stderr).not.toContain("    at ");
+    });
+});
+
+describe("visibleLiterals: a lone word with a trailing ellipsis", () => {
+    const literals = (expr) =>
+        visibleLiterals("Demo.tsx", `export const Demo = ({ busy }: { busy: boolean }) => <button>{${expr}}</button>;`);
+
+    it("flags \"Saving...\" and \"Saving\u2026\" like \"Saving\"", () => {
+        expect(literals('busy ? "Saving..." : "Save"')).toEqual(["Saving...", "Save"]);
+        expect(literals('busy ? "Saving\u2026" : "Save"')).toEqual(["Saving\u2026", "Save"]);
+        expect(literals('busy ? "Saving" : "Save"')).toEqual(["Saving", "Save"]);
+    });
+
+    it("still skips a bare ellipsis and technical tokens", () => {
+        expect(literals('busy ? "..." : "\u2026"')).toEqual([]);
+        expect(literals('busy ? "saving..." : "SAVE_NOW"')).toEqual([]);
     });
 });

@@ -1236,7 +1236,7 @@ function PlaybooksWorkspace() {
                                 />
                               )}
                               {autosave.status === "saving"
-                                ? "Saving…"
+                                ? t("savingStatus")
                                 : autosave.status === "error"
                                   ? "Couldn’t save"
                                   : "Saved"}

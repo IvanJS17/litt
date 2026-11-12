@@ -9,12 +9,13 @@ import {
 } from "@/app/components/shared/AppSidebarSkeuoIcons";
 import { ClosedProjectSvgIcon } from "@/app/components/shared/FolderSvgIcon";
 import type { AuditEvent } from "@/app/lib/mikeApi";
-import { auditSubject, auditSubjectEmail } from "./auditPresentation";
+import { auditSubject, auditSubjectEmail, auditSubjectKind } from "./auditPresentation";
 
 export function HistorySubjectIcon({ event, avatarSize }: { event: AuditEvent; avatarSize?: UserAvatarSize }) {
-  const { type, name } = auditSubject(event);
+  const type = auditSubjectKind(event);
+  const { name } = auditSubject(event);
   const className = "h-4 w-4 shrink-0";
-  if (type === "Document")
+  if (type === "document")
     return (
       <FileTypeIcon
         fileType={
@@ -25,17 +26,17 @@ export function HistorySubjectIcon({ event, avatarSize }: { event: AuditEvent; a
         className={className}
       />
     );
-  if (type === "Chat" || type === "Chats")
+  if (type === "chat" || type === "chats")
     return <ChatSkeuoIcon className={className} />;
-  if (type === "Organization")
+  if (type === "organization")
     return <OrganizationSkeuoIcon className={className} />;
-  if (type === "Review" || type === "Tabular Review")
+  if (type === "review" || type === "tabular_review")
     return <TabularReviewSkeuoIcon className={className} />;
-  if (type === "Workflow") return <WorkflowSkeuoIcon className={className} />;
-  if (type === "Project") return <ClosedProjectSvgIcon className={className} />;
+  if (type === "workflow") return <WorkflowSkeuoIcon className={className} />;
+  if (type === "project") return <ClosedProjectSvgIcon className={className} />;
   // Recipients without an authorized roster photo use the same monogram as
   // new share recipients. Never look up photos by an arbitrary event email.
-  if (type === "Member" || type === "Recipient")
+  if (type === "member" || type === "recipient")
     return (
       <UserAvatar
         size={avatarSize}
@@ -44,6 +45,6 @@ export function HistorySubjectIcon({ event, avatarSize }: { event: AuditEvent; a
       />
     );
   const Icon =
-    type === "Account" ? UserRound : type === "Provider" ? KeyRound : FileText;
+    type === "account" ? UserRound : type === "provider" ? KeyRound : FileText;
   return <Icon aria-hidden="true" className={className} />;
 }

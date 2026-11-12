@@ -26,6 +26,7 @@ import {
   presetDirectory,
   presetTemplateUrl,
 } from "./presetTemplates";
+import { useTranslations } from "next-intl";
 
 const PRESETS_BY_ID = new Map(
   PRESET_TEMPLATES.map((preset) => [preset.id, preset]),
@@ -60,6 +61,7 @@ export function PresetTemplatesPage({
   /** The Templates folder the presets were opened from; copies land there. */
   folderId?: string | null;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   // Presets are added to the active workspace's template library.
   const workspace = useWorkspaceParam();
@@ -123,7 +125,7 @@ export function PresetTemplatesPage({
         setError(
           userFacingApiError(
             caught,
-            "Could not add this preset. Please try again.",
+            t("library.presetNotAdded"),
           ),
         );
       } finally {
@@ -135,7 +137,7 @@ export function PresetTemplatesPage({
         }
       }
     },
-    [folderId, importStatus, setDocumentsForKind, templatesLoaded, workspace],
+    [folderId, importStatus, setDocumentsForKind, t, templatesLoaded, workspace],
   );
 
   const catalog = useMemo<DocTableCatalog>(
@@ -147,9 +149,9 @@ export function PresetTemplatesPage({
       canPreview: canUsePreset,
       canAdd: canUsePreset,
       addLabel: (count, status) => {
-        if (status === "pending") return "Import…";
-        if (status === "complete") return "Imported";
-        return count > 1 ? `Import ${count}` : "Import";
+        if (status === "pending") return t("library.importing");
+        if (status === "complete") return t("library.imported");
+        return count > 1 ? t("library.importCount", { count }) : t("library.import");
       },
       addStatus: (documents) => {
         if (documents.some((doc) => importStatus[doc.id] === "pending")) return "pending";
@@ -159,7 +161,7 @@ export function PresetTemplatesPage({
       addDisabled: Object.values(importStatus).includes("pending"),
       onAdd: (documents) => void handleAdd(documents),
     }),
-    [handleAdd, importStatus],
+    [handleAdd, importStatus, t],
   );
 
   const handleFolderBackActionChange = useCallback(
@@ -178,12 +180,12 @@ export function PresetTemplatesPage({
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         breadcrumbs={[
-          { label: "Library", onClick: () => router.push("/library") },
+          { label: t("library.library"), onClick: () => router.push("/library") },
           {
-            label: "Templates",
+            label: t("library.templates"),
             onClick: () => router.push("/library/templates"),
           },
-          { label: "Presets" },
+          { label: t("library.presets") },
           ...folderBreadcrumbs,
         ]}
         actions={[
@@ -191,7 +193,7 @@ export function PresetTemplatesPage({
             type: "search",
             value: search,
             onChange: setSearch,
-            placeholder: "Search presets...",
+            placeholder: t("library.searchPresets"),
           },
         ]}
       />
@@ -204,7 +206,7 @@ export function PresetTemplatesPage({
               className="pl-2"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              Back
+              {t("common.back")}
             </TabPillButtonUI>
           }
           actions={
@@ -225,7 +227,7 @@ export function PresetTemplatesPage({
           loading={false}
           search={search}
           operations={CATALOG_OPERATIONS}
-          emptyStateTitle="Presets"
+          emptyStateTitle={t("library.presets")}
           onSelectionActionsChange={setSelectionActions}
           onFolderViewBackActionChange={handleFolderBackActionChange}
           onFolderViewChange={handleFolderViewChange}

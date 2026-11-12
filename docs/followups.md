@@ -169,6 +169,21 @@ removed the `lawReferences`/`lawNamedAt` logic) are not listed.
   locale. Unify them. (#102) **(unverified)**
 - Race: a profile GET already in flight can re-apply the old language after the user
   changes it. (#102) **(unverified)**
+- Zone 2 (documents, library, memory, history) leaves for PR 4 (`shared`): the
+  `Document*` panels and menus in `components/shared` (`DocumentSidePanel`,
+  `DocumentVersionPicker`, `DocumentUploadMenu`, `DocumentTitleRow`,
+  `DocumentTabActions`, `DocumentTabBar`, `DocumentPill`), `FileDirectory`,
+  `PermissionDeniedPopup` and `ProjectPageParts.formatDate`. Until the popup is
+  moved, the Spanish `action` phrases `DocTable` hands it ("agregar documentos")
+  sit inside its English frame "Only an editor can …".
+- `failedUploadMessage` (`mikeApi`) and `UNSUPPORTED_DOCUMENT_WARNING_MESSAGE`
+  (`@mike/client`) still produce English upload sentences that `DocTable` shows.
+- Audit dates (`auditTimestamp`, `formatRangeDate`) still use
+  `toLocale…String(undefined)` (the browser's language, the browser's time zone),
+  not `useFormatter()` in `America/Mexico_City` as `docs/i18n.md` asks.
+- The literal detector skips lone lowercase words in a ternary
+  (`n === 1 ? "folder" : "folders"`) and the `supportNote` diagnostics (English
+  on purpose: they go to support). Only a hand review finds the first kind.
 
 ## i18n structure and tests
 

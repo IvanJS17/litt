@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getDocumentFileUrl } from "@/app/lib/mikeApi";
 import { authenticatedFetch } from "@/app/lib/authEvents";
+import { useTranslations } from "next-intl";
 
 export interface FetchDocxResult {
     bytes: ArrayBuffer | null;
@@ -41,6 +42,7 @@ export function useFetchDocxBytes(
     sourceUrl?: string | null,
     cacheBytes = true,
 ): FetchDocxResult {
+    const t = useTranslations();
     const initialKey =
         cacheBytes && documentId
             ? cacheKey(documentId, versionId, refetchKey, sourceUrl)
@@ -99,7 +101,7 @@ export function useFetchDocxBytes(
             .catch(() => {
                 if (cancelled) return;
                 setError(
-                    "This document could not be loaded. Please try again.",
+                    t("documents.viewers.thisDocumentCouldNotBeLoaded"),
                 );
             })
             .finally(() => {
@@ -113,7 +115,7 @@ export function useFetchDocxBytes(
             cancelled = true;
             if (!cacheBytes) controller.abort();
         };
-    }, [documentId, versionId, refetchKey, sourceUrl, cacheBytes]);
+    }, [documentId, versionId, refetchKey, sourceUrl, cacheBytes, t]);
 
     return { bytes, loading, error };
 }
