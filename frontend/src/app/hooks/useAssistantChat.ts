@@ -678,7 +678,7 @@ export function useAssistantChat({
           replaceChatId(
             sendChatId,
             finalChatId,
-            message.content.trim().slice(0, 120) || "New Chat",
+            message.content.trim().slice(0, 120) || t("assistant.chatView.newChat"),
           );
         }
         setCurrentChatId(finalChatId);

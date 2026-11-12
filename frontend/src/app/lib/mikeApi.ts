@@ -1,3 +1,4 @@
+import type { Locale } from "@litt/i18n";
 import type { Operation } from "@/app/lib/errorReporting";
 import { settleWithConcurrency } from "@mike/client";
 import type {
@@ -929,6 +930,8 @@ export interface UserProfile extends RouterProfileLists {
     darkMode: boolean;
     projectMemoryDefault: boolean;
     apiKeyStatus: ApiKeyStatus;
+    /** The interface language saved on the profile; null follows the device. */
+    uiLocale?: Locale | null;
 }
 
 /** Uploads a cropped profile-photo data URL, or removes the current photo when passed null. */
@@ -1057,6 +1060,7 @@ export async function updateUserProfile(payload: {
     responseDetailsVisible?: boolean;
     darkMode?: boolean;
     projectMemoryDefault?: boolean;
+    uiLocale?: Locale | null;
 } & Partial<RouterProfileLists>): Promise<UserProfile> {
     return apiRequest<UserProfile>("settings.profile", "/user/profile", {
         method: "PATCH",
