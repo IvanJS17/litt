@@ -94,7 +94,10 @@ export function useDocxSave(options: Options) {
                 conflicted.current = conflict;
                 if (!mounted.current) {
                     // The viewer is gone (navigation): nothing on screen would show the failure.
-                    notifyError(reason, { action: clientTranslator()("shared.markdownView.saveThisDocument") });
+                    notifyError(reason, {
+                        action: clientTranslator()("shared.markdownView.saveThisDocument"),
+                        operation: "documents.edit",
+                    });
                 } else {
                     setError(conflict
                         ? "This document changed elsewhere. Download your edits before reopening the latest version."
@@ -172,7 +175,11 @@ export function useDocxSave(options: Options) {
 
     const hasUnsavedChanges = useCallback(() => sequence.current !== savedSequence.current, []);
     const prepareClose = useCallback(async () => {
-        if (!conflicted.current) await save();
+        if (!conflicted.current) {
+            await save();
+            // Closing during an upload: edits made meanwhile need their own save.
+            if (!failed.current && hasUnsavedChanges()) await save();
+        }
         return !hasUnsavedChanges();
     }, [save, hasUnsavedChanges]);
     const discard = useCallback(() => { discarded.current = true; }, []);
