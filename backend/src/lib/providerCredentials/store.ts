@@ -24,6 +24,7 @@ import {
     normalizeVertexLocation,
 } from "../llm/cloudProviders";
 import { WEB_SEARCH_BACKENDS } from "../webSearch";
+import { OCR_PROVIDERS } from "../ocr/provider";
 
 export const OWNER_TABLE = {
     user: { table: "user_api_keys", column: "user_id" },
@@ -64,6 +65,7 @@ const PROVIDERS: ApiKeyProvider[] = [
     "xai",
     "custom",
     ...WEB_SEARCH_BACKENDS,
+    ...OCR_PROVIDERS,
 ];
 
 const SETTINGS_PROVIDERS: readonly SettingsApiKeyProvider[] = [
@@ -161,6 +163,10 @@ export function envApiKey(provider: ApiKeyProvider): string | null {
             return process.env.TAVILY_API_KEY?.trim() || null;
         case "deepseek":
             return process.env.DEEPSEEK_SEARCH_API_KEY?.trim() || null;
+        // Scan reading (LandingAI) is bring-your-own-key only: the platform
+        // never holds a key of its own, so the environment is never consulted.
+        case "landingai":
+            return null;
         default:
             return null;
     }
@@ -317,6 +323,7 @@ function envApiKeyStatus(): ApiKeyStatus {
         brave: false,
         tavily: false,
         deepseek: false,
+        landingai: false,
         sources: {
             claude: null,
             gemini: null,
@@ -335,6 +342,7 @@ function envApiKeyStatus(): ApiKeyStatus {
             brave: null,
             tavily: null,
             deepseek: null,
+            landingai: null,
         },
         settings: {},
         enabled: {},
@@ -405,6 +413,7 @@ export function envApiKeys(): UserApiKeys {
         brave: envApiKey("brave"),
         tavily: envApiKey("tavily"),
         deepseek: envApiKey("deepseek"),
+        landingai: envApiKey("landingai"),
     };
     const envBedrock = envBedrockCredentials();
     const envAzure = envAzureCredentials();

@@ -17051,10 +17051,10 @@ create trigger assign_org_api_key_credential_ref
 
 alter table public.user_api_keys drop constraint if exists user_api_keys_provider_check;
 alter table public.user_api_keys add constraint user_api_keys_provider_check
-  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek'));
+  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek', 'landingai'));
 alter table public.org_api_keys drop constraint if exists org_api_keys_provider_check;
 alter table public.org_api_keys add constraint org_api_keys_provider_check
-  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek'));
+  check (provider in ('claude', 'gemini', 'openai', 'mistral', 'openrouter', 'vercel', 'opencode-go', 'opencode-zen', 'bedrock', 'azure', 'azure-foundry', 'vertex', 'xai', 'custom', 'brave', 'tavily', 'deepseek', 'landingai'));
 
 alter table public.chats add column if not exists model_provider text;
 alter table public.chats add column if not exists credential_ref text;
@@ -20590,5 +20590,6 @@ insert into public.schema_migrations (filename) values
   ('20261109_30_litt_terms_acceptance.sql'),
   ('20261111_10_litt_markdown_versions.sql'),
   ('20261112_10_litt_converted_source.sql'),
-  ('20261112_20_litt_compared_source.sql')
+  ('20261112_20_litt_compared_source.sql'),
+  ('20261112_30_litt_landingai_key.sql')
 on conflict (filename) do nothing;

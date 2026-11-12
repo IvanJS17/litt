@@ -374,3 +374,40 @@ describe("getEffectiveApiKeyStatus", () => {
         expect(JSON.stringify(status.settings)).not.toContain("us-east-1");
     });
 });
+
+describe("the scan-reading (LandingAI) key", () => {
+    it("is never taken from the environment", async () => {
+        process.env.LANDINGAI_API_KEY = "env-landing";
+        const { db } = memoryDb();
+        const keys = await getUserApiKeys(USER, db);
+        expect(keys.landingai).toBeNull();
+        const status = await getApiKeyStatusFor(userKeyOwner(USER), db);
+        expect(status.landingai).toBe(false);
+        expect(status.sources.landingai).toBeNull();
+        delete process.env.LANDINGAI_API_KEY;
+    });
+
+    it("resolves like a search key: the firm's first, the member's when allowed", async () => {
+        const { db } = firm(true);
+        await saveApiKeyFor(userKeyOwner(USER), "landingai", "my-landing", db);
+        await expect(getEffectiveApiKeys(USER, ORG, db)).resolves.toMatchObject({
+            landingai: "my-landing",
+        });
+        await saveApiKeyFor(orgKeyOwner(ORG), "landingai", "org-landing", db);
+        await expect(getEffectiveApiKeys(USER, ORG, db)).resolves.toMatchObject({
+            landingai: "org-landing",
+        });
+        await expect(getEffectiveApiKeys(USER, null, db)).resolves.toMatchObject({
+            landingai: "my-landing",
+        });
+    });
+
+    it("never uses a member's key inside a firm that forbids personal keys", async () => {
+        const { db } = firm(false);
+        await saveApiKeyFor(userKeyOwner(USER), "landingai", "my-landing", db);
+        const keys = await getEffectiveApiKeys(USER, ORG, db);
+        expect(keys.landingai).toBeNull();
+        const status = await getEffectiveApiKeyStatus(USER, ORG, db);
+        expect(status.landingai).toBe(false);
+    });
+});
