@@ -3511,7 +3511,8 @@
       "saved": "Guardado",
       "saving": "Guardando…",
       "stopEditing": "Dejar de editar",
-      "thisFileCouldNotBeDownloaded": "No se pudo descargar este archivo. Inténtalo de nuevo."
+      "thisFileCouldNotBeDownloaded": "No se pudo descargar este archivo. Inténtalo de nuevo.",
+      "unsaved": "Cambios sin guardar"
     },
     "documentUploadMenu": {
       "savedDocuments": "Documentos guardados",
