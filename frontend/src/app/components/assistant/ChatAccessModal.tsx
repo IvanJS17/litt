@@ -60,7 +60,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
                 },
             });
         },
-        [refreshAccess],
+        [refreshAccess, t],
     );
 
     /**
@@ -102,7 +102,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
             }
             return people;
         },
-        [canManage, reportAccessFailure],
+        [canManage, reportAccessFailure, t],
     );
 
     return (

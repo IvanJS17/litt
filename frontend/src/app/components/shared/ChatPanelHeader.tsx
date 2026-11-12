@@ -61,7 +61,7 @@ export function buildChatHistoryItems({
         .map((chat) => {
             const title = chat.title ?? t("shared.chatPanelHeader.newChat");
             const activityAt = chatActivityAt(chat);
-            const elapsed = formatElapsedTime(activityAt, now);
+            const elapsed = formatElapsedTime(t, activityAt, now);
             const responseStatus = responseStatuses[chat.id];
             return {
                 id: chat.id,

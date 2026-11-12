@@ -2976,6 +2976,12 @@
       "tryAgain": "Try again",
       "unknownUser": "Unknown user"
     },
+    "relative": {
+      "days": "{count}d",
+      "hours": "{count}h",
+      "minutes": "{count}m",
+      "now": "now"
+    },
     "rowActions": {
       "activate": "Activate",
       "clearResults": "Clear results",
@@ -4625,9 +4631,9 @@
     "relativeDays": "{count}d",
     "relativeHours": "{count}h",
     "relativeMinutes": "{count}m",
-    "relativeMonths": "{count}mo",
+    "relativeMonths": "{count, plural, one {#mo} other {#mo}}",
     "relativeNow": "now",
-    "relativeYears": "{count}y",
+    "relativeYears": "{count, plural, one {#y} other {#y}}",
     "removeDocumentFilename": "Remove document {filename}",
     "removeWorkflowTitle": "Remove workflow {title}",
     "replacement": "Replacement",

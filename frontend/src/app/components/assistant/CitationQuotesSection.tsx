@@ -101,7 +101,7 @@ export function CitationQuotesSection({
     const quotes = useMemo(
         () =>
             document ? documentQuoteItems(document, t) : (suppliedQuotes ?? []),
-        [document, suppliedQuotes],
+        [document, suppliedQuotes, t],
     );
     const requestedIndex =
         suppliedCurrentIndex ??

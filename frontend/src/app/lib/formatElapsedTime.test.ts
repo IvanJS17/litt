@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
 import { formatElapsedTime } from "./formatElapsedTime";
 
 describe("formatElapsedTime", () => {
+    const t = sourceTranslator as unknown as AppTranslate;
     const now = Date.parse("2026-09-15T12:00:00Z");
 
     it.each([
@@ -17,14 +20,14 @@ describe("formatElapsedTime", () => {
         [-60_000, "now"],
     ])("formats an elapsed duration of %i ms as %s", (elapsed, expected) => {
         expect(
-            formatElapsedTime(new Date(now - elapsed).toISOString(), now),
+            formatElapsedTime(t, new Date(now - elapsed).toISOString(), now),
         ).toBe(expected);
     });
 
     it.each([null, undefined, "", "invalid"])(
         "omits unavailable timestamps (%s)",
         (timestamp) => {
-            expect(formatElapsedTime(timestamp, now)).toBeNull();
+            expect(formatElapsedTime(t, timestamp, now)).toBeNull();
         },
     );
 });

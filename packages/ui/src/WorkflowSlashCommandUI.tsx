@@ -56,7 +56,7 @@ export function WorkflowSlashCommandUI({ title }: { title: string }) {
                     ),
                 })
             ) : (
-                <span aria-hidden="true">&nbsp;</span>
+                <span aria-hidden="true">{"\u00a0"}</span>
             )}
         </p>
     );
