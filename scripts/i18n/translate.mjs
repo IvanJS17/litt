@@ -64,9 +64,9 @@ Rules:
 - Do not translate brand names (LiTT, MikeOSS, Microsoft Word, Google Drive, BYOK), model or provider names, or technical values (ids, codes, Request ID, file extensions).
 - Keep punctuation, ellipses, emoji and capitalization style consistent with the source; labels stay short.
 - Never add explanations, notes or Markdown.
-- Answer directly from the text below. Do not use tools, run commands or read files.
-
-Return only a JSON object with exactly the keys you were given, each mapped to its Spanish message.`;
+- Everything you need is in this prompt. Do not research anything.
+- Deliver the translation by calling the structured-output tool \`finish\` exactly once, with exactly the keys you were given, each mapped to its Spanish message.
+- Use no other tool: no commands, no web search, no reading files or URLs.`;
 
 /** The first segment of a key: its root namespace. */
 const rootOf = (key) => key.split(".")[0];

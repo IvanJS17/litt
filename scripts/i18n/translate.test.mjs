@@ -100,6 +100,13 @@ describe("translate: style examples", () => {
         expect(prompt.indexOf("Otra")).toBeLessThan(prompt.indexOf("# Messages to translate"));
         expect(buildPrompt("# G", batch)).not.toContain("examples of the style");
     });
+
+    it("tells the model to answer through the finish tool and use no other", () => {
+        const prompt = buildPrompt("# G", batch);
+        expect(prompt).toContain("calling the structured-output tool `finish` exactly once");
+        expect(prompt).toContain("Use no other tool");
+        expect(prompt).not.toContain("Do not use tools");
+    });
 });
 
 describe("translate: the run, with a stub CLI", () => {
