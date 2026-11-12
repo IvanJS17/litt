@@ -129,7 +129,7 @@ export function convertedFilename(
     }
 }
 
-type DocRow = {
+export type DocRow = {
     id: string;
     user_id: string | null;
     project_id: string | null;
@@ -142,7 +142,7 @@ type DocRow = {
 };
 
 /** The names already used by the documents in the folder the new one will land in. */
-async function namesInContainer(db: Db, doc: DocRow, userId: string): Promise<Set<string>> {
+export async function namesInContainer(db: Db, doc: DocRow, userId: string): Promise<Set<string>> {
     const build = () => {
         let query = db
             .from("documents")
@@ -426,6 +426,35 @@ export async function convertDocument(
     if (!converted.ok) return converted;
     const { bytes: output, fileType } = converted.data;
 
+    return storeDerivedDocument(db, {
+        doc,
+        userId: args.userId,
+        filename,
+        bytes: output,
+        fileType,
+        source: "converted",
+    });
+}
+
+/**
+ * Store `bytes` as a NEW document next to `doc` (same project and folder, or
+ * the same library folder), version 1, with the given `source`. On a failure
+ * after the file was stored, the stored file and the half-made document are
+ * removed. Shared by the conversion and the comparison.
+ */
+export async function storeDerivedDocument(
+    db: Db,
+    args: {
+        doc: DocRow;
+        userId: string;
+        filename: string;
+        bytes: Buffer;
+        fileType: DocumentConversionType;
+        source: "converted" | "compared";
+    },
+): Promise<ServiceResult<DocumentConversionResult>> {
+    const { doc, filename, bytes: output, fileType, source } = args;
+    const label = source === "compared" ? "compare" : "convert";
     const documentId = randomUUID();
     const key = versionStorageKey(args.userId, documentId, randomUUID().replace(/-/g, ""), filename);
     try {
@@ -436,11 +465,11 @@ export async function convertDocument(
         );
     } catch (error) {
         return internalFailure(
-            new AppError("storage.write_failed", "[documents/convert] storage write failed", { cause: error }),
+            new AppError("storage.write_failed", `[documents/${label}] storage write failed`, { cause: error }),
         );
     }
     const discard = async () => {
-        await deleteFile(key).catch((err) => logError("document-convert", safeError(err)));
+        await deleteFile(key).catch((err) => logError(`document-${label}`, safeError(err)));
     };
 
     const { error: insertError } = await db.from("documents").insert({
@@ -463,7 +492,7 @@ export async function convertDocument(
         document_id: documentId,
         storage_path: key,
         pdf_storage_path: null,
-        source: "converted",
+        source,
         version_number: 1,
         filename,
         file_type: fileType,
@@ -474,10 +503,10 @@ export async function convertDocument(
     });
     if (versionError || !created) {
         const removed = await deleteDocumentAndVersionFiles(db, documentId);
-        if (removed.error) logError("document-convert", safeError(removed.error));
+        if (removed.error) logError(`document-${label}`, safeError(removed.error));
         await discard();
         return internalFailure(
-            new AppError("db.rpc_failed", "[documents/convert] version insert failed", {
+            new AppError("db.rpc_failed", `[documents/${label}] version insert failed`, {
                 cause: versionError ?? new Error("version_insert_returned_no_data"),
             }),
         );

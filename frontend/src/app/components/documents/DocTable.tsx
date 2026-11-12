@@ -1,6 +1,7 @@
 "use client";
 
 import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import { canCompareFileType } from "@/app/lib/documentCompare";
 import type { DocumentConversionType } from "@mike/contracts";
 import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { useDocumentConversionPolling } from "@/app/hooks/useDocumentConversionPolling";
@@ -305,6 +306,8 @@ interface DocTableProps {
      * personal library).
      */
     onConvertDoc?: (doc: Document, target: DocumentConversionType) => void;
+    /** Starts "Compare with…" for a Word document; the entry shows for .docx only. */
+    onCompareDoc?: (doc: Document) => void;
 }
 
 export interface DocTableCatalog {
@@ -475,6 +478,7 @@ export function DocTable({
     catalog,
     showCreator = false,
     onConvertDoc,
+    onCompareDoc,
 }: DocTableProps) {
     const t = useTranslations();
     const format = useFormatter();
@@ -2648,12 +2652,17 @@ export function DocTable({
     /** The "Convert to…" entries of a document's menu; none for a draft the firm holds back. */
     function convertActions(doc: Document) {
         const targets = conversionTargetsFor(doc.file_type);
-        return onConvertDoc && !isTrainingHeld(doc) && targets.length > 0
-            ? {
-                  convertTargets: targets,
-                  onConvert: (target: DocumentConversionType) => onConvertDoc(doc, target),
-              }
-            : {};
+        return {
+            ...(onConvertDoc && !isTrainingHeld(doc) && targets.length > 0
+                ? {
+                      convertTargets: targets,
+                      onConvert: (target: DocumentConversionType) => onConvertDoc(doc, target),
+                  }
+                : {}),
+            ...(onCompareDoc && !isTrainingHeld(doc) && canCompareFileType(doc.file_type)
+                ? { onCompare: () => onCompareDoc(doc) }
+                : {}),
+        };
     }
 
     function catalogDocumentActions(doc: Document) {

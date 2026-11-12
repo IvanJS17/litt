@@ -63,6 +63,18 @@
   person's conversion. Tabular review and the assistant still read plain text
   with offsets (`documentText`, `extractDocxBodyText`), unchanged.
 
+### Branch not integrated: layer 5, document comparison
+
+- **`feat/capa5-redline`** (stacked on `feat/capa4-conversions`; no pull request yet; not
+  integrated): compare two Word documents of a project into a **new** Word
+  document with tracked changes; both originals do not change. Details in
+  [`document-compare.md`](document-compare.md). Not in production. New
+  dependency `docxodus` 15.1.0 (MIT, WebAssembly, runs in the isolated parser).
+  Migration `20261112_20_litt_compared_source.sql` (adds `compared` to
+  `document_versions_source_check`) is not applied anywhere.
+- Known limitations (see the doc): moved clauses read as noise, and a comment
+  anchored on changed text can be duplicated; the result has not been opened in Word.
+
 ### Production and integration 2026-11-11
 
 - **Main:** `3752c539` (merge of pull request #155). **Production:** runs

@@ -37,6 +37,7 @@ import {
     compareVersionTexts,
     previewDocumentConversion,
     convertDocument,
+    compareDocuments,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -418,6 +419,28 @@ documentsRouter.post(
             userId: res.locals.userId as string,
             userEmail: res.locals.userEmail as string | undefined,
             target: req.body?.target,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.status(201).json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/compare
+// Body { against_document_id }. Compares the current version of :documentId (the
+// original) with that of the other document (the negotiated one) and creates a NEW
+// Word document with the differences as tracked changes (version 1, source
+// 'compared'). Neither source changes. Same access as a download for BOTH
+// documents; edit rights where the original lives; both in the same project.
+documentsRouter.post(
+    "/:documentId/compare",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.compare");
+        const result = await compareDocuments(createServerSupabase(), {
+            documentId: req.params.documentId,
+            againstDocumentId: req.body?.against_document_id,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
         });
         if (!result.ok) return void sendServiceFailure(res, result);
         res.status(201).json(result.data);

@@ -1989,6 +1989,19 @@ export interface DocumentConversionResult {
 }
 
 /**
+ * POST /single-documents/:documentId/compare, body `{ against_document_id }`:
+ * compares the current version of :documentId (the original) with that of the
+ * other document (the negotiated one) into a NEW Word document with the
+ * differences as tracked changes, in the original's folder, version 1,
+ * `source` 'compared'. Neither source changes. 201 on success. 404 without
+ * access to either, 409 `training_approval_required`, 403 without edit rights
+ * on the original, 400 `compare_not_supported` (not both Word, not the same
+ * project, the same document), `compare_unreadable`, `compare_source_too_large`;
+ * 503 `compare_unavailable`.
+ */
+export type DocumentCompareResult = DocumentConversionResult;
+
+/**
  * Interface language a user can choose (`uiLocale` in `GET`/`PATCH
  * /user/profile`, `locale` in `POST /auth/signup`). `null` in the profile
  * means automatic: the client negotiates from the browser or Word language

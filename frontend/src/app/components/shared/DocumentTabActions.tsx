@@ -14,6 +14,7 @@ import {
     Download,
     FileOutput,
     FileText,
+    GitCompare,
     MessageSquarePlus,
     Pencil,
     Trash2,
@@ -45,6 +46,8 @@ export interface DocumentActions {
         targets: ReadonlyArray<DocumentConversionType>;
         onConvert: (target: DocumentConversionType) => void;
     };
+    /** Compare with another Word file of the project (Word files only). */
+    compare?: { onCompare: () => void };
     addToChatDisabled?: boolean;
     downloading?: boolean;
 }
@@ -87,6 +90,16 @@ export function documentContextMenuItems(
             icon: FileOutput,
             onSelect: () => actions.convert?.onConvert(target),
         })) ?? []),
+        ...(actions.compare
+            ? [
+                  {
+                      id: "compare",
+                      label: t("documents.compare.action"),
+                      icon: GitCompare,
+                      onSelect: () => actions.compare?.onCompare(),
+                  },
+              ]
+            : []),
         ...(actions.onRename
             ? [{ label: t("shared.documentTabActions.rename"), icon: Pencil, onSelect: actions.onRename }]
             : []),

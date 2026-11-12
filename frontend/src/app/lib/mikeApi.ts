@@ -4029,6 +4029,26 @@ export async function convertDocument(
     );
 }
 
+/**
+ * Compare the document (the original) with another Word file of the project
+ * (the negotiated one) into a NEW Word document with tracked changes (version
+ * 1, `source` 'compared'). Neither source changes.
+ */
+export async function compareDocuments(
+    documentId: string,
+    againstDocumentId: string,
+): Promise<import("@mike/contracts").DocumentCompareResult> {
+    return apiRequest(
+        "documents.compare",
+        `/single-documents/${encodeURIComponent(documentId)}/compare`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ against_document_id: againstDocumentId }),
+        },
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Chat
 // ---------------------------------------------------------------------------

@@ -121,3 +121,62 @@ describe("documentContextMenuItems", () => {
         expect(items.map((item) => item.label)).toEqual(["Convertir a Word…", "Convertir a PDF…", "Convertir a Markdown…"]);
     });
 });
+
+describe("Compare with… in the tab and explorer menus", () => {
+    it("shows only for Word, never for a held draft, and starts for the right document", () => {
+        const onCompareDoc = vi.fn();
+        const tabs = (id: string) =>
+            render(
+                <ProjectDocumentTabs
+                    tabs={files.map((file) => ({ documentId: file.id, filename: file.filename }))}
+                    documents={files}
+                    activeTabId={id}
+                    onActivate={vi.fn()}
+                    onClose={vi.fn()}
+                    onReorder={vi.fn()}
+                    onCompareDoc={onCompareDoc}
+                    onAddToChat={vi.fn()}
+                />,
+            );
+        const { unmount } = tabs("word");
+        fireEvent.contextMenu(screen.getByRole("tab", { name: /Contrato\.docx/ }), { clientX: 10, clientY: 10 });
+        fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Compare with…" }));
+        expect(onCompareDoc).toHaveBeenCalledWith(files[0]);
+        unmount();
+        for (const name of [/Notas\.md/, /Escritura\.pdf/, /Cuentas\.xlsx/, /Borrador\.docx/]) {
+            const view = tabs("word");
+            fireEvent.contextMenu(screen.getByRole("tab", { name }), { clientX: 10, clientY: 10 });
+            expect(labels(screen.getByRole("menu")).filter((label) => label?.startsWith("Compare"))).toEqual([]);
+            view.unmount();
+        }
+    });
+
+    it("is absent in the tab menu when the owner supplies no comparison", () => {
+        render(
+            <ProjectDocumentTabs tabs={[{ documentId: "word", filename: "Contrato.docx" }]} documents={files} activeTabId="word" onActivate={vi.fn()} onClose={vi.fn()} onReorder={vi.fn()} onAddToChat={vi.fn()} />,
+        );
+        fireEvent.contextMenu(screen.getByRole("tab", { name: "Contrato.docx" }), { clientX: 10, clientY: 10 });
+        expect(labels(screen.getByRole("menu")).filter((label) => label?.startsWith("Compare"))).toEqual([]);
+    });
+
+    it("offers it in the explorer for Word only", () => {
+        const onCompareDoc = vi.fn();
+        render(<ProjectExplorer documents={[files[0], files[1], files[4]]} onDocClick={vi.fn()} onCompareDoc={onCompareDoc} />);
+        fireEvent.contextMenu(screen.getByText("Notas.md"));
+        expect(screen.queryByRole("menuitem", { name: /Compare/ })).toBeNull();
+        cleanupMenu();
+        fireEvent.contextMenu(screen.getByText("Borrador.docx"));
+        expect(screen.queryByRole("menuitem", { name: /Compare/ })).toBeNull();
+        cleanupMenu();
+        fireEvent.contextMenu(screen.getByText("Contrato.docx"));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Compare with…" }));
+        expect(onCompareDoc).toHaveBeenCalledWith(files[0]);
+    });
+
+    it("names the entry in both languages and gives it an id", () => {
+        const en = documentContextMenuItems(createTranslator({ locale: "en-US", messages: enUS as never }) as never, { compare: { onCompare: vi.fn() } });
+        const es = documentContextMenuItems(createTranslator({ locale: "es-MX", messages: esMX as never }) as never, { compare: { onCompare: vi.fn() } });
+        expect(en.map((item) => [item.id, item.label])).toEqual([["compare", "Compare with…"]]);
+        expect(es.map((item) => item.label)).toEqual(["Comparar con…"]);
+    });
+});

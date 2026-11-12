@@ -674,6 +674,22 @@
     "whatYouOpenedBelongsToThisWorkspace": "Lo que abriste pertenece a este espacio de trabajo."
   },
   "documents": {
+    "compare": {
+      "action": "Comparar con…",
+      "actionCompare": "comparar estos documentos",
+      "compareAndCreate": "Comparar y crear documento",
+      "comparing": "Comparando…",
+      "created": "Se creó «{filename}» con el control de cambios.",
+      "heading": "Compara «{filename}» (el original) con otro archivo de Word (la versión negociada).",
+      "noCandidates": "No hay otro archivo de Word en este proyecto para comparar.",
+      "notice": {
+        "moves": "Los cambios de formato se marcan; las cláusulas que se movieron pueden verse como borradas y escritas de nuevo.",
+        "newDocument": "Se crea un documento de Word nuevo con las diferencias como control de cambios."
+      },
+      "originalsUnchanged": "Tus documentos originales no cambian.",
+      "pickLegend": "Comparar con",
+      "title": "Comparar documentos"
+    },
     "convert": {
       "action": {
         "docx": "Convertir a Word…",
@@ -881,6 +897,10 @@
       "chat_route_credential_required": "Elige qué llave usará esta conversación con el modelo seleccionado.",
       "chat_route_credential_unavailable": "La llave con la que empezó esta conversación ya no está disponible. Inicia una conversación nueva con una llave que puedas usar.",
       "chat_route_pinned": "Esta conversación usa el modelo con el que empezó. Inicia una conversación nueva para usar otro modelo.",
+      "compare_not_supported": "No se pueden comparar estos documentos. Ambos deben ser archivos de Word (.docx) del mismo proyecto.",
+      "compare_source_too_large": "Uno de los documentos es demasiado grande para compararlo.",
+      "compare_unavailable": "La comparación no está disponible por ahora. Inténtalo de nuevo en un momento.",
+      "compare_unreadable": "No se pudo leer uno de los documentos, así que no se pueden comparar.",
       "convert_not_supported": "Este documento no se puede convertir a ese formato.",
       "convert_pdf_without_text": "Este PDF no tiene texto, así que necesita OCR antes de convertirse.",
       "convert_source_too_large": "Este documento es demasiado grande para convertirse.",

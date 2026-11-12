@@ -33,6 +33,7 @@ import {
 } from "@/app/components/documents/DocTable";
 import { TabPillButtonUI } from "@mike/ui";
 import { useConvertDocument } from "@/app/hooks/useConvertDocument";
+import { useCompareDocument } from "@/app/hooks/useCompareDocument";
 import { ProjectSectionToolbar, useProjectWorkspace } from "./ProjectWorkspace";
 import { useTranslations } from "next-intl";
 
@@ -181,6 +182,11 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
     }, [projectId, setFolders, setProject]);
     // A converted document is a new one beside the original: list it.
     const conversion = useConvertDocument({ onConverted: refreshCollection });
+    // A comparison is a new Word document beside the original: list it.
+    const comparison = useCompareDocument({
+        documents: project?.documents ?? [],
+        onCompared: refreshCollection,
+    });
     const operations = useMemo(
         () => ({
             uploadDocument: (file: File, targetFolderId?: string | null) =>
@@ -398,8 +404,10 @@ export function ProjectDocumentsView({ projectId, folderId = null }: Props) {
                 onOwnerOnlyAction={setOwnerOnlyAction}
                 canDo={canDo}
                 onConvertDoc={canDo("content.edit") ? conversion.start : undefined}
+                onCompareDoc={canDo("content.edit") ? comparison.start : undefined}
             />
             {conversion.modal}
+            {comparison.modal}
         </>
     );
 }

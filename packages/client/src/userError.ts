@@ -219,6 +219,12 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     convert_source_too_large: "payload_too_large",
     convert_unreadable: "validation",
     convert_unavailable: "unavailable",
+    // Comparing two Word documents: not both Word or not the same project, a file
+    // too large or unreadable cannot be fixed by retrying; the engine being busy can.
+    compare_not_supported: "validation",
+    compare_source_too_large: "payload_too_large",
+    compare_unreadable: "validation",
+    compare_unavailable: "unavailable",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
     access_inherited: "conflict",
