@@ -109,9 +109,10 @@ connection (checked in the prototype with `--network none`).
   not reproduce it: `docxCompare.test.ts` pins 1 comment in, 1 out, and would
   show a duplicate.
 - **Not checked in Microsoft Word.** The result opens with python-docx and
-  LibreOffice. Inside moved blocks the prototype's engine output writes `w:t`
-  where Word's own files use `w:delText`; accept/reject give the right text in
-  both readers, but opening in Word is still to be confirmed.
+  LibreOffice. In the first synthetic pair, all 8 `w:moveFrom` blocks (and one
+  `w:del`) carry their text as `w:t`, where Word's own files use `w:delText`;
+  accept/reject give the right text in both readers, but opening it in Word is
+  still to be confirmed.
 - **Documents that already carry tracked changes** are compared as the engine
   decides (it documents comparing them accepted); this was not verified here.
 - Only one-page synthetic contracts and one real 6,200-word contract (owner's
