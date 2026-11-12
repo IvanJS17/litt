@@ -3,6 +3,7 @@
 // isolated.ts). Keep imports parser-only: this module is all the parser process loads.
 
 import { extractDocxBodyText } from "../docxTrackedChanges";
+import { docxToMarkdown } from "../docxMarkdown";
 import { extractPresentationText } from "../officeText";
 import { extractLegacyOfficeText, extractPdfTextForModel } from "../pdfText";
 import { spreadsheetToLLMText } from "../spreadsheet";
@@ -22,6 +23,8 @@ export const EXTRACTION_OPS = {
   /** Tabular review source markdown. */
   documentMarkdown: (bytes: ArrayBuffer, fileType: string) =>
     extractDocumentMarkdown(bytes, fileType),
+  /** A person's Word → Markdown conversion. Unlike documentMarkdown it throws on an unreadable file. */
+  docxMarkdown: (bytes: ArrayBuffer) => docxToMarkdown(bytes),
   /** read_document views, one per file type. */
   pdfForModel: (bytes: ArrayBuffer) => extractPdfTextForModel(bytes),
   // The same accepted view the edit_document matcher anchors against, with

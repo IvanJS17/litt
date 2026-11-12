@@ -35,6 +35,8 @@ import {
     getDocumentAuthorship,
     saveMarkdownEdit,
     compareVersionTexts,
+    previewDocumentConversion,
+    convertDocument,
 } from "./documents.service";
 
 export const documentsRouter = Router();
@@ -376,6 +378,46 @@ documentsRouter.post(
             userEmail: res.locals.userEmail as string | undefined,
             text: req.body?.text,
             baseVersionId: req.body?.base_version_id,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.status(201).json(result.data);
+    }),
+);
+
+// GET /single-documents/:documentId/convert/preview?target=md|docx|pdf
+// What converting would lose, before anything is created. Same access as a
+// download: 404 without access, 403 training_approval_required for a trainee's
+// unapproved draft, 400 convert_not_supported for a pair that does not exist.
+documentsRouter.get(
+    "/:documentId/convert/preview",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.convert_preview");
+        const result = await previewDocumentConversion(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+            target: req.query.target,
+        });
+        if (!result.ok) return void sendServiceFailure(res, result);
+        res.setHeader("Cache-Control", "no-store");
+        res.json(result.data);
+    }),
+);
+
+// POST /single-documents/:documentId/convert
+// Body { target }. Creates a NEW document (version 1, source 'converted') in
+// the original's project and folder; the original is not changed.
+documentsRouter.post(
+    "/:documentId/convert",
+    requireAuth,
+    asyncRoute(async (req, res) => {
+        setOperation("documents.convert");
+        const result = await convertDocument(createServerSupabase(), {
+            documentId: req.params.documentId,
+            userId: res.locals.userId as string,
+            userEmail: res.locals.userEmail as string | undefined,
+            target: req.body?.target,
         });
         if (!result.ok) return void sendServiceFailure(res, result);
         res.status(201).json(result.data);

@@ -12503,7 +12503,8 @@ alter table public.document_versions
     'user_reject'::text,
     'generated'::text,
     'ai_review_report'::text,
-    'user_edit'::text
+    'user_edit'::text,
+    'converted'::text
   ]));
 
 create table if not exists public.ai_document_version_pages (
@@ -20310,6 +20311,15 @@ alter table public.user_profiles
 -- a base_version_id); the migration
 -- file re-applies the same statements to upgraded databases.
 
+-- ---------------------------------------------------------------------------
+-- 20261112_10_litt_converted_source.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-12
+--
+-- Converted documents. The effect is applied in place above (the
+-- document_versions source check now also accepts 'converted'); the migration
+-- file re-applies the same statement to upgraded databases.
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -20568,5 +20578,6 @@ insert into public.schema_migrations (filename) values
   ('20261109_10_litt_training_gym.sql'),
   ('20261109_20_litt_platform_invitations.sql'),
   ('20261109_30_litt_terms_acceptance.sql'),
-  ('20261111_10_litt_markdown_versions.sql')
+  ('20261111_10_litt_markdown_versions.sql'),
+  ('20261112_10_litt_converted_source.sql')
 on conflict (filename) do nothing;
