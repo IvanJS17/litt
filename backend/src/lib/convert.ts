@@ -246,6 +246,7 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
   }
   const convert = await getConvert();
   const normalized = await normalizeDocxZipPaths(buffer);
+  const startedAt = Date.now();
   try {
     return await convert(normalized, ".pdf", undefined);
   } catch (error) {
@@ -254,9 +255,13 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
     // missing or unexecutable, the same condition officeFileToPdf names.
     const code = (error as { code?: unknown } | null)?.code;
     if (code === "ENOENT" || code === "EACCES") throw converterUnavailable(error);
-    // execFile reports its own deadline as killed + SIGKILL.
+    // execFile reports its own deadline as killed + SIGKILL. libreoffice-convert
+    // 1.9.1 drops that error when stderr mentions "error" (which a killed
+    // soffice often prints) and throws a plain one, so a failure that came
+    // after the deadline is also the deadline.
     const killed = error as { killed?: unknown; signal?: unknown } | null;
-    if (killed?.killed === true && killed.signal === "SIGKILL") {
+    const pastDeadline = Date.now() - startedAt >= uploadConversionTimeoutMs();
+    if ((killed?.killed === true && killed.signal === "SIGKILL") || pastDeadline) {
       throw new ConversionError(
         "conversion.timeout",
         `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`,

@@ -126,6 +126,19 @@ describe("docxToPdf deadline", () => {
   });
 });
 
+describe("docxToPdf deadline when soffice mentions an error", () => {
+  it("is still a conversion.timeout, not conversion.failed", async () => {
+    // libreoffice-convert swallows execFile's timeout error when stderr has "error".
+    await writeFile(join(directory, "soffice"), '#!/bin/sh\necho "error: wedged" >&2\nexec sleep 30\n');
+    const { docxToPdf } = await import("../convert.js");
+    const failure = await docxToPdf(Buffer.from("not a real docx")).catch((error) => error);
+    expect(diagnosticErrorTags(failure)).toEqual({
+      error_kind: "conversion.timeout",
+      failure_code: "conversion_timeout",
+    });
+  });
+});
+
 describe("officeFileToPdf deadline", () => {
   it("kills the whole process group, not only the direct child", async () => {
     const pidFile = join(directory, "grandchild.pid");
