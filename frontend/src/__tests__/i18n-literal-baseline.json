@@ -216,6 +216,7 @@
     "frontend/src/app/components/versions",
     "frontend/src/app/error.tsx",
     "frontend/src/app/forgot-password/page.tsx",
+    "frontend/src/app/hooks/useAssistantChat.ts",
     "frontend/src/app/hooks/useDocumentViewers.tsx",
     "frontend/src/app/hooks/useFetchDocxBytes.ts",
     "frontend/src/app/hooks/useFetchSingleDoc.ts",

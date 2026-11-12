@@ -388,6 +388,13 @@
     "uploadOverlay": {
       "dropFilesHereToAdd": "⟦por traducir⟧ Drop files here to add to chat"
     },
+    "useAssistantChat": {
+      "aNewerMessageHasReplacedThis": "⟦por traducir⟧ A newer message has replaced this one. Send it again if you still need an answer.",
+      "getAResponse": "obtener una respuesta",
+      "loadThisChat": "⟦por traducir⟧ load this chat",
+      "openThisChatAndWaitFor": "⟦por traducir⟧ Open this chat and wait for its current answer before retrying.",
+      "waitForThisChatsCurrentAnswer": "⟦por traducir⟧ Wait for this chat's current answer before retrying."
+    },
     "useResolvedPanelDocument": {
       "couldNotLoadShortly": "⟦por traducir⟧ Could not load this document. Please try again shortly.",
       "couldNotLoadThisDocument": "⟦por traducir⟧ Could not load this document.",

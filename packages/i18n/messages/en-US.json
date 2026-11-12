@@ -388,6 +388,13 @@
     "uploadOverlay": {
       "dropFilesHereToAdd": "Drop files here to add to chat"
     },
+    "useAssistantChat": {
+      "aNewerMessageHasReplacedThis": "A newer message has replaced this one. Send it again if you still need an answer.",
+      "getAResponse": "get a response",
+      "loadThisChat": "load this chat",
+      "openThisChatAndWaitFor": "Open this chat and wait for its current answer before retrying.",
+      "waitForThisChatsCurrentAnswer": "Wait for this chat's current answer before retrying."
+    },
     "useResolvedPanelDocument": {
       "couldNotLoadShortly": "Could not load this document. Please try again shortly.",
       "couldNotLoadThisDocument": "Could not load this document.",

@@ -340,6 +340,8 @@ export function AskInputPopup({
         });
     };
 
+    // This text goes to the model as the user's turn: it stays English in every
+    // interface language, like the prompts and tool results around it.
     const buildContent = (response: AskInputsResponse) => {
         const itemsById = new Map(event.items.map((item) => [item.id, item]));
         const lines = response.responses.map((item, index) => {
