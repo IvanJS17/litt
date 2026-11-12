@@ -559,7 +559,7 @@
       "saving": "Guardando…",
       "skip": "Omitir",
       "stepAddKey": "Agrega una llave de API de al menos un proveedor para empezar a usar LiTT. Tu llave también funciona en una organización para cualquier proveedor que no haya configurado, a menos que sus propietarios lo desactiven. Puedes agregar o cambiar llaves más tarde en Ajustes.",
-      "stepDeployment": "Esta instalación ya ofrece modelos, así que puedes terminar ahora. Una llave que agregues aquí reemplaza la de la instalación para tu espacio de trabajo Personal.",
+      "stepDeployment": "La plataforma ya ofrece modelos, así que puedes terminar ahora. Una llave que agregues aquí reemplaza la de la plataforma para tu espacio de trabajo Personal.",
       "stepJoined": "Te uniste a {name} y sus modelos están disponibles ahí, así que puedes terminar ahora. {ownKeys, select, allowed {Tus llaves propias funcionan en tu espacio de trabajo Personal y, en {name}, para cualquier proveedor que no haya configurado.} other {{name} solo funciona con sus llaves propias, así que las llaves que agregues aquí son para tu espacio de trabajo Personal.}}",
       "stepKeySaved": "Tu llave se guardó. Agrega más proveedores ahora o cámbialos más tarde en Ajustes.",
       "stepOf": "Paso {step} de {total}",
