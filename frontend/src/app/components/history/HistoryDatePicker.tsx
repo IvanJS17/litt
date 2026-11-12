@@ -33,6 +33,7 @@ import {
   TextButtonUI,
 } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 export function localDateValue(date: Date): string {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -65,6 +66,7 @@ export function HistoryDatePicker({
   errorId?: string;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const selected = parseHistoryDate(value);
   const earliest = min ? parseHistoryDate(min) : undefined;
@@ -81,7 +83,7 @@ export function HistoryDatePicker({
             <FormTextInput
               id={id}
               type="text"
-              placeholder="YYYY-MM-DD"
+              placeholder={t("history.yyyyMmDd")}
               maxLength={10}
               className="h-8 min-w-0 rounded-lg pl-2.5 pr-9 text-xs"
               required
@@ -94,7 +96,7 @@ export function HistoryDatePicker({
             <PopoverTrigger asChild>
               <TextButtonUI
                 size="icon-xs"
-                aria-label={`${label} calendar`}
+                aria-label={t("history.labelCalendar", { label })}
                 disabled={disabled}
                 className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2"
               >
@@ -108,7 +110,7 @@ export function HistoryDatePicker({
           align="start"
           className="rounded-2xl"
           collisionPadding={16}
-          aria-label={`${label} calendar`}
+          aria-label={t("history.labelCalendar", { label })}
           onOpenAutoFocus={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.stopPropagation()}
         >

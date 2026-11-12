@@ -26,6 +26,7 @@ import {
   presetDirectory,
   presetTemplateUrl,
 } from "./presetTemplates";
+import { useTranslations } from "next-intl";
 
 const PRESETS_BY_ID = new Map(
   PRESET_TEMPLATES.map((preset) => [preset.id, preset]),
@@ -60,6 +61,7 @@ export function PresetTemplatesPage({
   /** The Templates folder the presets were opened from; copies land there. */
   folderId?: string | null;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   // Presets are added to the active workspace's template library.
   const workspace = useWorkspaceParam();
@@ -178,12 +180,12 @@ export function PresetTemplatesPage({
     <div className="flex h-full min-h-0 flex-col">
       <PageHeader
         breadcrumbs={[
-          { label: "Library", onClick: () => router.push("/library") },
+          { label: t("library.library"), onClick: () => router.push("/library") },
           {
-            label: "Templates",
+            label: t("library.templates"),
             onClick: () => router.push("/library/templates"),
           },
-          { label: "Presets" },
+          { label: t("library.presets") },
           ...folderBreadcrumbs,
         ]}
         actions={[
@@ -191,7 +193,7 @@ export function PresetTemplatesPage({
             type: "search",
             value: search,
             onChange: setSearch,
-            placeholder: "Search presets...",
+            placeholder: t("library.searchPresets"),
           },
         ]}
       />
@@ -204,7 +206,7 @@ export function PresetTemplatesPage({
               className="pl-2"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              Back
+              {t("library.back")}
             </TabPillButtonUI>
           }
           actions={

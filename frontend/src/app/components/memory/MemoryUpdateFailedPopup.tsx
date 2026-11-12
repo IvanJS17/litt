@@ -3,6 +3,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import type { MemoryCurrent } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 
 const DISMISSAL_PREFIX = "mike:memory-update-failure-dismissed:";
 const DISMISSAL_EVENT = "mike:memory-update-failure-dismissed";
@@ -24,6 +25,7 @@ export function MemoryUpdateFailedPopup({
   /** Stable per-file key, such as `app` or `project:<id>`. */
   scopeKey: string;
 }) {
+  const t = useTranslations();
   const storageKey = `${DISMISSAL_PREFIX}${scopeKey}`;
   const currentFailureId = failureId(memory);
   const [sessionDismissedFailureId, setSessionDismissedFailureId] = useState<
@@ -75,7 +77,7 @@ export function MemoryUpdateFailedPopup({
         currentFailureId !== sessionDismissedFailureId
       }
       onClose={dismiss}
-      message="The latest automatic update failed. Existing memory is unchanged."
+      message={t("memory.theLatestAutomaticUpdateFailedExisting")}
     />
   );
 }

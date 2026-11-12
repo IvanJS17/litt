@@ -3,6 +3,7 @@
 import { PillButtonUI } from "@mike/ui";
 import type { MemoryAutosaveStatus } from "./useMemoryAutosave";
 import type { MemoryCurrent } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
 
 export function memoryActivityLabel(memory: MemoryCurrent) {
   if (memory.status === "scheduled") return "Memory review scheduled";
@@ -19,24 +20,24 @@ export function MemoryConflictNotice({
   onReload: () => void;
   onKeepDraft: () => void;
 }) {
+  const t = useTranslations();
   return (
     <div
       className="rounded-xl bg-warning-surface px-4 py-3 text-sm text-warning"
       role="alert"
     >
       <p className="font-medium">
-        {project ? "Project memory" : "Memory"} changed while you were editing
+        {project ? t("memory.projectMemory") : t("memory.memory")} {t("memory.changedWhileYouWereEditing")}
       </p>
       <p className="mt-1 text-xs text-warning">
-        Reload what is saved now, or keep your draft and let it save over the
-        change.
+        {t("memory.reloadWhatIsSavedNowOr")}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <PillButtonUI tone="white" size="sm" onClick={onReload}>
-          Reload latest
+          {t("memory.reloadLatest")}
         </PillButtonUI>
         <PillButtonUI tone="black" size="sm" onClick={onKeepDraft}>
-          Keep my draft
+          {t("memory.keepMyDraft")}
         </PillButtonUI>
       </div>
     </div>
@@ -54,6 +55,7 @@ export function MemorySaveStatus({
   onRetry: () => void;
   compact?: boolean;
 }) {
+  const t = useTranslations();
   if (error) {
     return (
       <span
@@ -67,7 +69,7 @@ export function MemorySaveStatus({
           className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
           onClick={onRetry}
         >
-          Retry
+          {t("memory.retry")}
         </button>
       </span>
     );
@@ -75,7 +77,7 @@ export function MemorySaveStatus({
   if (status === "idle") return null;
   return (
     <span className="text-xs text-gray-500" role="status" aria-live="polite">
-      {status === "saving" ? "Saving…" : "Saved"}
+      {status === "saving" ? t("memory.saving") : t("memory.saved")}
     </span>
   );
 }

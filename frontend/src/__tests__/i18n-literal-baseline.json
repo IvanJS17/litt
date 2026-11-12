@@ -11,6 +11,10 @@
     "frontend/src/app/components/auth/GoogleAuthButton.tsx",
     "frontend/src/app/components/auth/OnboardingInvitations.tsx",
     "frontend/src/app/components/auth/SsoAuthButton.tsx",
+    "frontend/src/app/components/documents/DocTable.tsx",
+    "frontend/src/app/components/history",
+    "frontend/src/app/components/library",
+    "frontend/src/app/components/memory",
     "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
     "frontend/src/app/components/playbooks/PlaybookCorrections.tsx",
     "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",
@@ -34,6 +38,9 @@
     "frontend/src/app/components/versions",
     "frontend/src/app/error.tsx",
     "frontend/src/app/forgot-password/page.tsx",
+    "frontend/src/app/hooks/useDocumentViewers.tsx",
+    "frontend/src/app/hooks/useFetchDocxBytes.ts",
+    "frontend/src/app/hooks/useFetchSingleDoc.ts",
     "frontend/src/app/hooks/useTrainingText.ts",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",
     "frontend/src/app/layout.tsx",
@@ -71,6 +78,11 @@
     "word-addin/src/taskpane/i18n/useTrainingText.ts"
   ],
   "allowed": {
+    "frontend/src/app/components/documents/DocTable.tsx": 6,
+    "frontend/src/app/components/history/AuditHistory.tsx": 13,
+    "frontend/src/app/components/history/auditPresentation.ts": 6,
+    "frontend/src/app/components/library/LibraryWorkspace.tsx": 3,
+    "frontend/src/app/components/memory/UserMemoryPage.tsx": 3,
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
     "frontend/src/app/onboarding/options.ts": 3

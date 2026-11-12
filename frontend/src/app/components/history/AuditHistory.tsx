@@ -91,6 +91,7 @@ import {
   DropdownSurface,
   DropdownTrigger,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 const STATUS_DOT_STYLES: Record<string, string> = {
   completed: "bg-green-400/80",
@@ -193,6 +194,7 @@ export function AuditHistory({
   orgId?: string;
   onBack?: () => void;
 }) {
+  const t = useTranslations();
   const title = orgId ? "Audit log" : "My Activity";
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -393,7 +395,7 @@ export function AuditHistory({
             }}
           >
             <X className="h-3.5 w-3.5" />
-            Deselect rows
+            {t("history.deselectRows")}
           </DropdownItem>
         )}
         {single && (
@@ -405,7 +407,7 @@ export function AuditHistory({
             }}
           >
             <Eye className="h-3.5 w-3.5" />
-            View details
+            {t("history.viewDetails")}
           </DropdownItem>
         )}
         {single?.document_id && !privateAccess && (
@@ -417,7 +419,7 @@ export function AuditHistory({
             }}
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            Open document
+            {t("history.openDocument")}
           </DropdownItem>
         )}
         {destination && (
@@ -443,17 +445,17 @@ export function AuditHistory({
           ) : (
             <Download className="h-3.5 w-3.5" />
           )}
-          {selection ? "Export selected" : "Export this entry"}
+          {selection ? t("history.exportSelected") : t("history.exportThisEntry")}
         </DropdownItem>
       </>
     );
   };
   const createdHeader = (
     <>
-      <span className="mr-1">Date &amp; time</span>
+      <span className="mr-1">{t("history.dateTime")}</span>
       {!initialLoading && (
         <TableSortFilter
-          label="Sort by date and time"
+          label={t("history.sortByDateAndTime")}
           value={sortValue("created_at")}
           onChange={(direction) => setSortDirection("created_at", direction)}
           widthClassName="w-52"
@@ -468,7 +470,7 @@ export function AuditHistory({
         shrink
         breadcrumbs={[
           {
-            label: orgId ? "Organization" : "Settings",
+            label: orgId ? t("history.organization") : t("history.settings"),
             onClick: onBack,
           },
           { label: title },
@@ -478,7 +480,7 @@ export function AuditHistory({
             type: "search",
             value: search,
             onChange: setSearch,
-            placeholder: orgId ? "Search audit log…" : "Search my activity…",
+            placeholder: orgId ? t("history.searchAuditLog") : t("history.searchMyActivity"),
           },
           {
             type: "custom",
@@ -487,8 +489,8 @@ export function AuditHistory({
                 <DropdownTrigger asChild>
                   <HeaderButtonUI
                     iconOnly
-                    aria-label={`${title} actions`}
-                    title={`${title} actions`}
+                    aria-label={t("history.titleActions", { title })}
+                    title={t("history.titleActions", { title })}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </HeaderButtonUI>
@@ -501,7 +503,7 @@ export function AuditHistory({
                     }}
                   >
                     <Download className="h-4 w-4" />
-                    Export
+                    {t("history.export")}
                   </DropdownItem>
                 </DropdownContent>
               </Dropdown>
@@ -530,7 +532,7 @@ export function AuditHistory({
               <input
                 type="checkbox"
                 className={TABLE_CHECKBOX_CLASS}
-                aria-label="Select all loaded entries"
+                aria-label={t("history.selectAllLoadedEntries")}
                 checked={allSelected}
                 disabled={!events.length}
                 ref={(input) => {
@@ -550,7 +552,7 @@ export function AuditHistory({
             </TableStickyCell>
             {orgId && (
               <TableHeaderCell className="w-64 pr-4">
-                <span className="mr-1">Performed by</span>
+                <span className="mr-1">{t("history.performedBy")}</span>
                 {!initialLoading && (
                   <HistoryActorFilter
                     key={orgId}
@@ -562,10 +564,10 @@ export function AuditHistory({
               </TableHeaderCell>
             )}
             <TableHeaderCell className="w-48 pr-4">
-              <span className="mr-1">Action</span>
+              <span className="mr-1">{t("history.action")}</span>
               {!initialLoading && (
                 <TableFilters
-                  label="Filter by action"
+                  label={t("history.filterByAction")}
                   value={action}
                   allLabel="All actions"
                   options={ACTION_OPTIONS}
@@ -575,10 +577,10 @@ export function AuditHistory({
               )}
             </TableHeaderCell>
             <TableHeaderCell className="w-64 pr-6">
-              <span className="mr-1">Affected</span>
+              <span className="mr-1">{t("history.affected")}</span>
               {!initialLoading && (
                 <TableSortFilter
-                  label="Sort by affected"
+                  label={t("history.sortByAffected")}
                   value={sortValue("title")}
                   onChange={(direction) => setSortDirection("title", direction)}
                   widthClassName="w-52"
@@ -586,10 +588,10 @@ export function AuditHistory({
               )}
             </TableHeaderCell>
             <TableHeaderCell className="w-32 pr-4">
-              <span className="mr-1">Application</span>
+              <span className="mr-1">{t("history.application")}</span>
               {!initialLoading && (
                 <TableFilters
-                  label="Filter by application"
+                  label={t("history.filterByApplication")}
                   value={surface}
                   allLabel="All applications"
                   options={SURFACE_OPTIONS}
@@ -598,10 +600,10 @@ export function AuditHistory({
               )}
             </TableHeaderCell>
             <TableHeaderCell className="ml-auto w-28">
-              <span className="mr-1">Status</span>
+              <span className="mr-1">{t("history.status")}</span>
               {!initialLoading && (
                 <TableFilters
-                  label="Filter by status"
+                  label={t("history.filterByStatus")}
                   value={status}
                   allLabel="All statuses"
                   options={STATUS_OPTIONS}
@@ -610,7 +612,7 @@ export function AuditHistory({
               )}
             </TableHeaderCell>
             <TableHeaderCell className="w-10">
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{t("history.actions")}</span>
             </TableHeaderCell>
           </TableHeaderRow>
         }
@@ -621,17 +623,17 @@ export function AuditHistory({
           <TableBody className="flex">
             <TableEmptyState>
               <p className="font-serif text-2xl font-medium text-gray-900">
-                {title} unavailable
+                {t("history.titleUnavailable", { title })}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                {orgId ? "The audit log could not be loaded." : "Your activity could not be loaded."}
+                {orgId ? t("history.theAuditLogCouldNotBe") : t("history.yourActivityCouldNotBeLoaded")}
               </p>
               <PillButtonUI
                 tone="white"
                 className="mt-4"
                 onClick={() => void load(1, false)}
               >
-                Try again
+                {t("history.tryAgain")}
               </PillButtonUI>
             </TableEmptyState>
           </TableBody>
@@ -643,10 +645,10 @@ export function AuditHistory({
                 className="mb-4 h-14 w-14"
               />
               <p className="font-serif text-2xl font-medium text-gray-900">
-                {orgId ? "No audit events yet" : "No activity yet"}
+                {orgId ? t("history.noAuditEventsYet") : t("history.noActivityYet")}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                {orgId ? "Actions taken in this organization appear here." : "Actions appear here as you use the app."}
+                {orgId ? t("history.actionsTakenInThisOrganizationAppear") : t("history.actionsAppearHereAsYouUse")}
               </p>
             </TableEmptyState>
           </TableBody>
@@ -713,7 +715,7 @@ export function AuditHistory({
                         .join(" · ")}
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        {actor !== "System" && (
+                        {actor !== t("history.system") && (
                           <UserAvatar
                             size="sm"
                             photo={event.user_profile_photo}
@@ -787,7 +789,7 @@ export function AuditHistory({
       </TableScrollArea>
       <WarningPopup
         open={Boolean(actionError)}
-        title="Export unavailable"
+        title={t("history.exportUnavailable")}
         message={actionError}
         onClose={() => setActionError(null)}
       />
@@ -837,6 +839,7 @@ function HistoryExportModal({
   onClose: () => void;
   onExport: (range: { from: string; to: string }) => void;
 }) {
+  const t = useTranslations();
   const [range, setRange] = useState({ from, to });
   const validRange = !dateRangeError(range);
 
@@ -850,9 +853,9 @@ function HistoryExportModal({
         title,
         title === "My Activity" ? "Export My Activity" : "Export audit log",
       ]}
-      cancelAction={{ label: "Cancel", onClick: onClose }}
+      cancelAction={{ label: t("history.cancel"), onClick: onClose }}
       primaryAction={{
-        label: exporting ? "Exporting…" : "Export CSV",
+        label: exporting ? t("history.exporting") : t("history.exportCsv"),
         icon: exporting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
@@ -867,7 +870,7 @@ function HistoryExportModal({
         className="min-h-0 overflow-y-auto pb-5"
       >
         <p className="mb-4 text-sm text-gray-500">
-          Current search and filters apply. Up to 2,000 events per export.
+          {t("history.currentSearchAndFiltersApplyUp")}
         </p>
         <fieldset disabled={exporting}>
           <HistoryDateRangeFields
@@ -878,8 +881,8 @@ function HistoryExportModal({
         </fieldset>
         {error && (
           <p role="alert" className="mt-3 text-sm text-red-600">
-            {organization ? "The audit log could not be exported." : "Your activity could not be exported."}{" "}
-            Please try again.
+            {organization ? t("history.theAuditLogCouldNotBe2") : t("history.yourActivityCouldNotBeExported")}{" "}
+            {t("history.pleaseTryAgain")}
           </p>
         )}
       </div>
@@ -900,6 +903,7 @@ function HistoryDateRangeFields({
   onPresetSelect?: (range: HistoryDateRange) => void;
   customAction?: ReactNode;
 }) {
+  const t = useTranslations();
   const id = useId();
   const [preset, setPreset] = useState(() => matchingDatePreset(range));
   const error = dateRangeError(range);
@@ -908,7 +912,7 @@ function HistoryDateRangeFields({
   return (
     <div className="space-y-3 [&_label]:mb-1.5 [&_label]:text-xs">
       <div>
-        <FieldLabel htmlFor={`${id}-preset`}>Date range</FieldLabel>
+        <FieldLabel htmlFor={`${id}-preset`}>{t("history.dateRange")}</FieldLabel>
         <ModalSelect
           variant="flat"
           className="h-8 rounded-lg px-2.5 text-xs"
@@ -935,7 +939,7 @@ function HistoryDateRangeFields({
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
           <HistoryDatePicker
             id={`${id}-from`}
-            label="From"
+            label={t("history.from")}
             disabled={disabled}
             value={range.from}
             max={range.to && range.to < today ? range.to : today}
@@ -944,7 +948,7 @@ function HistoryDateRangeFields({
           />
           <HistoryDatePicker
             id={`${id}-to`}
-            label="To"
+            label={t("history.to")}
             disabled={disabled}
             value={range.to}
             min={range.from || undefined}
@@ -973,6 +977,7 @@ function DateRangeDropdown({
   to: string;
   onChange: (range: { from: string; to: string }) => void;
 }) {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [draftRange, setDraftRange] = useState({ from, to });
   const hasChanges = draftRange.from !== from || draftRange.to !== to;
@@ -1008,7 +1013,7 @@ function DateRangeDropdown({
       <PopoverContent
         asChild
         align="start"
-        aria-label="Filter by date range"
+        aria-label={t("history.filterByDateRange")}
         collisionPadding={16}
         className="w-80 max-w-[calc(100vw-2rem)] rounded-2xl"
       >
@@ -1027,7 +1032,7 @@ function DateRangeDropdown({
                   disabled={!hasChanges || Boolean(dateRangeError(draftRange))}
                   onClick={handleConfirm}
                 >
-                  Apply
+                  {t("history.apply")}
                 </PillButtonUI>
               </div>
             }

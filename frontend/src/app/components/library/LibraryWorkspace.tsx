@@ -56,6 +56,7 @@ import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { notifyError } from "@/app/lib/userFacingError";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
 import { documentCountsByFolder } from "./documentCountsByFolder";
+import { useTranslations } from "next-intl";
 
 type LibraryViewCollection = {
     documents: Document[];
@@ -557,6 +558,7 @@ export function LibraryCollectionPage({
     kind: LibraryKind;
     folderId?: string | null;
 }) {
+    const t = useTranslations();
     const router = useRouter();
     const identity = useWorkspaceIdentity();
     const scoped = useScopedLibrary();
@@ -703,8 +705,8 @@ export function LibraryCollectionPage({
         );
     }, [collectionRootPath, folderId, router]);
     const presetsEmptyStateAction = useMemo(
-        () => ({ label: "Presets", onClick: openPresets }),
-        [openPresets],
+        () => ({ label: t("library.presets"), onClick: openPresets }),
+        [openPresets, t],
     );
 
     const setDocuments: Dispatch<SetStateAction<Document[]>> = useCallback(
@@ -1009,7 +1011,7 @@ export function LibraryCollectionPage({
             <PageHeader
                 breadcrumbs={[
                     {
-                        label: "Library",
+                        label: t("library.library"),
                         onClick: () => router.push("/library"),
                     },
                     {
@@ -1031,10 +1033,10 @@ export function LibraryCollectionPage({
                                 type: "custom",
                                 render: (
                                     <HeaderActionsMenu
-                                        title="More actions"
+                                        title={t("library.moreActions")}
                                         items={[
                                             {
-                                                label: "Add preset templates",
+                                                label: t("library.addPresetTemplates"),
                                                 icon: BookOpen,
                                                 onSelect: openPresets,
                                             },
@@ -1074,7 +1076,7 @@ export function LibraryCollectionPage({
                         folderBackAction ? (
                             <TabPillButtonUI onClick={folderBackAction} className="pl-2">
                                 <ChevronLeft className="h-3.5 w-3.5" />
-                                Back
+                                {t("library.back")}
                             </TabPillButtonUI>
                         ) : undefined
                     }
@@ -1088,7 +1090,7 @@ export function LibraryCollectionPage({
                                 disabled={!createFolderAction || loading}
                             >
                                 <Plus className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Folder</span>
+                                <span className="hidden sm:inline">{t("library.folder")}</span>
                             </TabPillButtonUI>
                         </>
                     }

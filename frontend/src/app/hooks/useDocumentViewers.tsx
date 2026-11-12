@@ -4,9 +4,11 @@ import { useCallback, useRef, useState } from "react";
 import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { downloadDocumentFile } from "@/app/lib/downloadDocument";
 import type { DocxCloseGuard } from "@/app/components/shared/views/DocxRenderer.types";
+import { useTranslations } from "next-intl";
 
 /** Share live editor downloads and protect closing/replacing dirty viewers. */
 export function useDocumentViewers() {
+    const t = useTranslations();
     const downloads = useRef(new Map<string, () => Promise<void>>());
     const guards = useRef(new Map<string, DocxCloseGuard>());
     const busy = useRef(false);
@@ -43,11 +45,11 @@ export function useDocumentViewers() {
     }, []);
     const confirmation = <ConfirmPopup
         open={!!pending}
-        title="Discard unsaved changes?"
-        message="Your changes could not be saved. Keep the document open to retry or download a copy, or discard the unsaved changes."
-        confirmLabel="Discard changes"
+        title={t("documents.viewers.discardUnsavedChanges")}
+        message={t("documents.viewers.yourChangesCouldNotBeSaved")}
+        confirmLabel={t("documents.viewers.discardChanges")}
         confirmVariant="danger"
-        cancelLabel="Keep editing"
+        cancelLabel={t("documents.viewers.keepEditing")}
         onCancel={() => { setPending(null); busy.current = false; }}
         onConfirm={() => {
             pending?.guards.forEach((guard) => guard.discard());

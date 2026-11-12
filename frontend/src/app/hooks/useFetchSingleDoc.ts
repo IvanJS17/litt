@@ -5,6 +5,7 @@ import { API_BASE } from "@/app/lib/mikeApi";
 import { authenticatedFetch } from "@/app/lib/authEvents";
 import { reportNetworkFailure } from "@/app/lib/errorReporting";
 import { isNetworkError, reportFlowFailure } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /**
  * PdfView's loader. /display returns PDF bytes (a stored or on-demand PDF
@@ -52,6 +53,7 @@ export function useFetchSingleDoc(
     displayUrl?: string | null,
     refetchKey?: number | string,
 ) {
+    const t = useTranslations();
     const [result, setResult] = useState<DocResult>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,7 @@ export function useFetchSingleDoc(
                 // The message stays generic; the event carries the identity
                 // (a 5xx with its request id, or the transport failure).
                 reportDocumentLoadFailure(error, url);
-                setError("Failed to load document.");
+                setError(t("documents.viewers.failedToLoadDocument"));
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -118,7 +120,7 @@ export function useFetchSingleDoc(
             cancelled = true;
             controller.abort();
         };
-    }, [displayUrl, documentId, versionId, refetchKey]);
+    }, [displayUrl, documentId, versionId, refetchKey, t]);
 
     return { result, loading, error };
 }
