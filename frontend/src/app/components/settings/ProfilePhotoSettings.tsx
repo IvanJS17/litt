@@ -56,7 +56,7 @@ export function ProfilePhotoSettings() {
           if (!picked) return;
           setError(null);
           try {
-            validateOrgLogoFile(picked);
+            validateOrgLogoFile(picked, t);
             setFile(picked);
             setEditing(true);
           } catch (cause) {

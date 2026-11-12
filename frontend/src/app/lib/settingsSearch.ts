@@ -16,6 +16,9 @@
  * instant and need no key or network.
  */
 
+import { sourceTranslator } from "@mike/client";
+import type { Translate } from "@/i18n/Translate";
+
 export type SettingsSearchEntry = {
     /** Stable id, also the React key. */
     id: string;
@@ -31,6 +34,8 @@ export type SettingsSearchEntry = {
     keywords: readonly string[];
     /** Where it is, with a hash for the section heading when there is one. */
     href: string;
+    /** The same entry in English, searched too when the text above is in another language. */
+    source?: SettingsSearchEntry;
 };
 
 export type SettingsSearchMatchKind = "exact" | "related";
@@ -41,308 +46,305 @@ export type SettingsSearchResult = {
     score: number;
 };
 
-export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
-    // Account
-    {
-        id: "account-profile",
-        tabId: "account",
-        tab: "Account",
-        title: "Profile",
-        description: "Your display name and profile photo.",
-        keywords: ["name", "display name", "photo", "picture", "avatar", "upload photo", "username", "nickname"],
-        href: "/settings#profile",
-    },
-    {
-        id: "account-email",
-        tabId: "account",
-        tab: "Account",
-        title: "Email",
-        description: "The email address you sign in with, and how to change it.",
-        keywords: ["email address", "change email", "update email", "login email", "sign in", "mail"],
-        href: "/settings#email",
-    },
-    {
-        id: "account-plan",
-        tabId: "account",
-        tab: "Account",
-        title: "Usage Plan",
-        description: "The plan your account is on.",
-        keywords: ["plan", "subscription", "billing", "free", "pro", "tier", "upgrade", "pricing", "usage"],
-        href: "/settings#usage-plan",
-    },
-    {
-        id: "account-delete",
-        tabId: "account",
-        tab: "Account",
-        title: "Delete account",
-        description: "Permanently delete your account and everything you keep outside your firm's matters. You can download your data first.",
-        keywords: ["danger zone", "remove account", "close account", "deactivate", "cancel account", "erase", "erasure", "borrar cuenta", "eliminar cuenta", "borrado de cuenta", "darse de baja"],
-        href: "/settings#danger-zone",
-    },
-    // LiTT: the AGPL-3.0 §13 source offer for the running version.
-    {
-        id: "account-source-code",
-        tabId: "account",
-        tab: "Account",
-        title: "Código fuente",
-        description: "LiTT es software libre bajo la licencia AGPL-3.0: el código de la versión exacta que estás usando.",
-        keywords: ["acerca de", "about", "source code", "source", "codigo", "agpl", "license", "licencia", "open source", "software libre", "github", "version", "commit"],
-        href: "/settings#acerca-de",
-    },
+/** A message with a keyword list: the words are separated by "|". */
+function keywordList(text: string): string[] {
+    return text
+        .split("|")
+        .map((word) => word.trim())
+        .filter(Boolean);
+}
 
-    // Personalisation
-    {
-        id: "personalisation-background",
-        tabId: "personalisation",
-        tab: "Personalisation",
-        title: "Your background",
-        description: "Your title, professional setting, jurisdiction and practice areas, so responses fit your context.",
-        keywords: ["role", "job title", "profession", "jurisdiction", "country", "practice area", "practice areas", "law firm", "in-house", "lawyer", "solicitor", "attorney", "context", "personalization", "profile", "about me"],
-        href: "/settings/personalisation#your-background",
-    },
-    {
-        id: "personalisation-response-style",
-        tabId: "personalisation",
-        tab: "Personalisation",
-        title: "Response style",
-        description: "How LiTT shapes its answers: verbosity, tone and language.",
-        keywords: ["verbosity", "concise", "detailed", "tone", "language", "formal", "casual", "length", "short answers", "long answers", "writing style", "output style", "translate", "locale"],
-        href: "/settings/personalisation#response-style-heading",
-    },
+function buildEntries(t: Translate): SettingsSearchEntry[] {
+    return [
+        {
+            id: "account-profile",
+            tabId: "account",
+            tab: t("settings.layout.tab.account"),
+            title: t("settings.searchIndex.accountProfile.title"),
+            description: t("settings.searchIndex.accountProfile.description"),
+            keywords: keywordList(t("settings.searchIndex.accountProfile.keywords")),
+            href: "/settings#profile",
+        },
+        {
+            id: "account-email",
+            tabId: "account",
+            tab: t("settings.layout.tab.account"),
+            title: t("settings.searchIndex.accountEmail.title"),
+            description: t("settings.searchIndex.accountEmail.description"),
+            keywords: keywordList(t("settings.searchIndex.accountEmail.keywords")),
+            href: "/settings#email",
+        },
+        {
+            id: "account-plan",
+            tabId: "account",
+            tab: t("settings.layout.tab.account"),
+            title: t("settings.searchIndex.accountPlan.title"),
+            description: t("settings.searchIndex.accountPlan.description"),
+            keywords: keywordList(t("settings.searchIndex.accountPlan.keywords")),
+            href: "/settings#usage-plan",
+        },
+        {
+            id: "account-delete",
+            tabId: "account",
+            tab: t("settings.layout.tab.account"),
+            title: t("settings.searchIndex.accountDelete.title"),
+            description: t("settings.searchIndex.accountDelete.description"),
+            keywords: keywordList(t("settings.searchIndex.accountDelete.keywords")),
+            href: "/settings#danger-zone",
+        },
+        {
+            id: "account-source-code",
+            tabId: "account",
+            tab: t("settings.layout.tab.account"),
+            title: t("settings.searchIndex.accountSourceCode.title"),
+            description: t("settings.searchIndex.accountSourceCode.description"),
+            keywords: keywordList(t("settings.searchIndex.accountSourceCode.keywords")),
+            href: "/settings#acerca-de",
+        },
+        {
+            id: "personalisation-background",
+            tabId: "personalisation",
+            tab: t("settings.layout.tab.personalisation"),
+            title: t("settings.searchIndex.personalisationBackground.title"),
+            description: t("settings.searchIndex.personalisationBackground.description"),
+            keywords: keywordList(t("settings.searchIndex.personalisationBackground.keywords")),
+            href: "/settings/personalisation#your-background",
+        },
+        {
+            id: "personalisation-response-style",
+            tabId: "personalisation",
+            tab: t("settings.layout.tab.personalisation"),
+            title: t("settings.searchIndex.personalisationResponseStyle.title"),
+            description: t("settings.searchIndex.personalisationResponseStyle.description"),
+            keywords: keywordList(t("settings.searchIndex.personalisationResponseStyle.keywords")),
+            href: "/settings/personalisation#response-style-heading",
+        },
+        {
+            id: "memory",
+            tabId: "memory",
+            tab: t("settings.layout.tab.memory"),
+            title: t("settings.searchIndex.memory.title"),
+            description: t("settings.searchIndex.memory.description"),
+            keywords: keywordList(t("settings.searchIndex.memory.keywords")),
+            href: "/settings/memory#app-memory-settings-heading",
+        },
+        {
+            id: "memory-file",
+            tabId: "memory",
+            tab: t("settings.layout.tab.memory"),
+            title: t("settings.searchIndex.memoryFile.title"),
+            description: t("settings.searchIndex.memoryFile.description"),
+            keywords: keywordList(t("settings.searchIndex.memoryFile.keywords")),
+            href: "/settings/memory#app-memory-file-heading",
+        },
+        {
+            id: "appearance-dark-mode",
+            tabId: "appearance",
+            tab: t("settings.layout.tab.appearance"),
+            title: t("settings.searchIndex.appearanceDarkMode.title"),
+            description: t("settings.searchIndex.appearanceDarkMode.description"),
+            keywords: keywordList(t("settings.searchIndex.appearanceDarkMode.keywords")),
+            href: "/settings/appearance#appearance",
+        },
+        {
+            id: "features-quick-actions",
+            tabId: "features",
+            tab: t("settings.layout.tab.features"),
+            title: t("settings.searchIndex.featuresQuickActions.title"),
+            description: t("settings.searchIndex.featuresQuickActions.description"),
+            keywords: keywordList(t("settings.searchIndex.featuresQuickActions.keywords")),
+            href: "/settings/features#assistant-features",
+        },
+        {
+            id: "features-response-details",
+            tabId: "features",
+            tab: t("settings.layout.tab.features"),
+            title: t("settings.searchIndex.featuresResponseDetails.title"),
+            description: t("settings.searchIndex.featuresResponseDetails.description"),
+            keywords: keywordList(t("settings.searchIndex.featuresResponseDetails.keywords")),
+            href: "/settings/features#assistant-features",
+        },
+        {
+            id: "privacy-export",
+            tabId: "privacy-data",
+            tab: t("settings.layout.tab.privacyData"),
+            title: t("settings.searchIndex.privacyExport.title"),
+            description: t("settings.searchIndex.privacyExport.description"),
+            keywords: keywordList(t("settings.searchIndex.privacyExport.keywords")),
+            href: "/settings/privacy-data#export-data",
+        },
+        {
+            id: "privacy-delete",
+            tabId: "privacy-data",
+            tab: t("settings.layout.tab.privacyData"),
+            title: t("settings.searchIndex.privacyDelete.title"),
+            description: t("settings.searchIndex.privacyDelete.description"),
+            keywords: keywordList(t("settings.searchIndex.privacyDelete.keywords")),
+            href: "/settings/privacy-data#delete-data",
+        },
+        {
+            id: "my-activity",
+            tabId: "my-activity",
+            tab: t("settings.layout.tab.myActivity"),
+            title: t("settings.searchIndex.myActivity.title"),
+            description: t("settings.searchIndex.myActivity.description"),
+            keywords: keywordList(t("settings.searchIndex.myActivity.keywords")),
+            href: "/settings/my-activity",
+        },
+        {
+            id: "security-mfa",
+            tabId: "security",
+            tab: t("settings.layout.tab.security"),
+            title: t("settings.searchIndex.securityMfa.title"),
+            description: t("settings.searchIndex.securityMfa.description"),
+            keywords: keywordList(t("settings.searchIndex.securityMfa.keywords")),
+            href: "/settings/security#multi-factor-authentication",
+        },
+        {
+            id: "security-password",
+            tabId: "security",
+            tab: t("settings.layout.tab.security"),
+            title: t("settings.searchIndex.securityPassword.title"),
+            description: t("settings.searchIndex.securityPassword.description"),
+            keywords: keywordList(t("settings.searchIndex.securityPassword.keywords")),
+            href: "/settings/security#password",
+        },
+        {
+            id: "models-chat-title",
+            tabId: "models",
+            tab: t("settings.layout.tab.models"),
+            title: t("settings.searchIndex.modelsChatTitle.title"),
+            description: t("settings.searchIndex.modelsChatTitle.description"),
+            keywords: keywordList(t("settings.searchIndex.modelsChatTitle.keywords")),
+            href: "/settings/models#model-preferences",
+        },
+        {
+            id: "models-tabular",
+            tabId: "models",
+            tab: t("settings.layout.tab.models"),
+            title: t("settings.searchIndex.modelsTabular.title"),
+            description: t("settings.searchIndex.modelsTabular.description"),
+            keywords: keywordList(t("settings.searchIndex.modelsTabular.keywords")),
+            href: "/settings/models#model-preferences",
+        },
+        {
+            id: "models-memory",
+            tabId: "models",
+            tab: t("settings.layout.tab.models"),
+            title: t("settings.searchIndex.modelsMemory.title"),
+            description: t("settings.searchIndex.modelsMemory.description"),
+            keywords: keywordList(t("settings.searchIndex.modelsMemory.keywords")),
+            href: "/settings/models#model-preferences",
+        },
+        {
+            id: "models-subagents",
+            tabId: "models",
+            tab: t("settings.layout.tab.models"),
+            title: t("settings.searchIndex.modelsSubagents.title"),
+            description: t("settings.searchIndex.modelsSubagents.description"),
+            keywords: keywordList(t("settings.searchIndex.modelsSubagents.keywords")),
+            href: "/settings/models#subagents-heading",
+        },
+        {
+            id: "byok",
+            tabId: "byok",
+            tab: t("settings.layout.tab.byok"),
+            title: t("settings.searchIndex.byok.title"),
+            description: t("settings.searchIndex.byok.description"),
+            keywords: keywordList(t("settings.searchIndex.byok.keywords")),
+            href: "/settings/byok",
+        },
+        {
+            id: "connectors-installed",
+            tabId: "connectors",
+            tab: t("settings.layout.tab.connectors"),
+            title: t("settings.searchIndex.connectorsInstalled.title"),
+            description: t("settings.searchIndex.connectorsInstalled.description"),
+            keywords: keywordList(t("settings.searchIndex.connectorsInstalled.keywords")),
+            href: "/settings/connectors#installed-connectors-heading",
+        },
+        {
+            id: "connectors-discover",
+            tabId: "connectors",
+            tab: t("settings.layout.tab.connectors"),
+            title: t("settings.searchIndex.connectorsDiscover.title"),
+            description: t("settings.searchIndex.connectorsDiscover.description"),
+            keywords: keywordList(t("settings.searchIndex.connectorsDiscover.keywords")),
+            href: "/settings/connectors#discover-connectors-heading",
+        },
+        {
+            id: "training",
+            tabId: "training",
+            tab: t("settings.layout.tab.training"),
+            title: t("settings.searchIndex.training.title"),
+            description: t("settings.searchIndex.training.description"),
+            keywords: keywordList(t("settings.searchIndex.training.keywords")),
+            href: "/settings/training#mi-formacion",
+        },
+        {
+            id: "training-pupils",
+            tabId: "training",
+            tab: t("settings.layout.tab.training"),
+            title: t("settings.searchIndex.trainingPupils.title"),
+            description: t("settings.searchIndex.trainingPupils.description"),
+            keywords: keywordList(t("settings.searchIndex.trainingPupils.keywords")),
+            href: "/settings/training#mis-pupilos",
+        },
+        {
+            id: "training-mentor-panel",
+            tabId: "training",
+            tab: t("settings.layout.tab.training"),
+            title: t("settings.searchIndex.trainingMentorPanel.title"),
+            description: t("settings.searchIndex.trainingMentorPanel.description"),
+            keywords: keywordList(t("settings.searchIndex.trainingMentorPanel.keywords")),
+            href: "/settings/training/mentor#panel-del-mentor",
+        },
+        {
+            id: "firm-criteria",
+            tabId: "firm-criteria",
+            tab: t("settings.searchIndex.tabFirmCriteria"),
+            title: t("settings.searchIndex.firmCriteria.title"),
+            description: t("settings.searchIndex.firmCriteria.description"),
+            keywords: keywordList(t("settings.searchIndex.firmCriteria.keywords")),
+            href: "/settings/firm-criteria#criterios-del-despacho",
+        },
+        {
+            id: "organizations",
+            tabId: "organizations",
+            tab: t("settings.layout.tab.organizations"),
+            title: t("settings.searchIndex.organizations.title"),
+            description: t("settings.searchIndex.organizations.description"),
+            keywords: keywordList(t("settings.searchIndex.organizations.keywords")),
+            href: "/settings/organizations#my-organizations-heading",
+        },
+        {
+            id: "organizations-invitations",
+            tabId: "organizations",
+            tab: t("settings.layout.tab.organizations"),
+            title: t("settings.searchIndex.organizationsInvitations.title"),
+            description: t("settings.searchIndex.organizationsInvitations.description"),
+            keywords: keywordList(t("settings.searchIndex.organizationsInvitations.keywords")),
+            href: "/settings/organizations#my-invitations-heading",
+        },
+    ];
+}
 
-    // Memory
-    {
-        id: "memory",
-        tabId: "memory",
-        tab: "Memory",
-        title: "Memory",
-        description: "Whether LiTT remembers durable information from your conversations.",
-        keywords: ["remember", "forget", "memories", "recall", "context", "history", "learn", "retain", "memorise", "memorize"],
-        href: "/settings/memory#app-memory-settings-heading",
-    },
-    {
-        id: "memory-file",
-        tabId: "memory",
-        tab: "Memory",
-        title: "Memory file",
-        description: "Read and edit what LiTT has remembered about you.",
-        keywords: ["edit memory", "memory notes", "what litt knows", "saved facts", "clear memory", "memory contents"],
-        href: "/settings/memory#app-memory-file-heading",
-    },
+/** The index in English, the source catalog: always searched, whatever the language. */
+export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
+    buildEntries(sourceTranslator as unknown as Translate);
 
-    // Appearance
-    {
-        id: "appearance-dark-mode",
-        tabId: "appearance",
-        tab: "Appearance",
-        title: "Dark mode",
-        description: "Use a darker color palette throughout LiTT.",
-        keywords: ["theme", "dark", "light mode", "night mode", "colour", "color", "palette", "display", "look", "contrast", "black background"],
-        href: "/settings/appearance#appearance",
-    },
+/**
+ * The index in the interface language, `t`'s. Each entry also carries its
+ * English text (`source`) so that a search finds an English term in Spanish
+ * and the other way round.
+ */
+export function localizedSettingsEntries(t: Translate): SettingsSearchEntry[] {
+    return buildEntries(t).map((entry, at) => ({
+        ...entry,
+        source: SETTINGS_SEARCH_ENTRIES[at],
+    }));
+}
 
-    // Features
-    {
-        id: "features-quick-actions",
-        tabId: "features",
-        tab: "Features",
-        title: "Quick actions",
-        description: "Show the quick actions row on the assistant start screen.",
-        keywords: ["shortcuts", "start screen", "home screen", "suggestions", "prompt suggestions", "assistant", "buttons"],
-        href: "/settings/features#assistant-features",
-    },
-    {
-        id: "features-response-details",
-        tabId: "features",
-        tab: "Features",
-        title: "Response details",
-        description: "Show the model, reasoning effort and token count under each response and subagent.",
-        keywords: ["token count", "tokens", "usage", "model name", "reasoning effort", "metadata", "debug", "stats", "show model", "cost"],
-        href: "/settings/features#assistant-features",
-    },
-
-    // Privacy & Data
-    {
-        id: "privacy-export",
-        tabId: "privacy-data",
-        tab: "Privacy & Data",
-        title: "Export data",
-        description: "Download your chats, tabular reviews, account JSON and memory, for example before deleting your account.",
-        keywords: ["download", "backup", "export chats", "export reviews", "json", "take my data", "data portability", "gdpr", "archive", "copy of my data", "privacy", "descargar datos", "descarga de datos", "exportar", "privacidad", "respaldo"],
-        href: "/settings/privacy-data#export-data",
-    },
-    {
-        id: "privacy-delete",
-        tabId: "privacy-data",
-        tab: "Privacy & Data",
-        title: "Delete data",
-        description: "Delete all your chats, tabular reviews, projects or memory.",
-        keywords: ["delete chats", "delete all chats", "clear history", "delete projects", "delete reviews", "delete memory", "wipe", "erase", "purge", "remove data", "clear everything", "gdpr"],
-        href: "/settings/privacy-data#delete-data",
-    },
-
-    // My Activity
-    {
-        id: "my-activity",
-        tabId: "my-activity",
-        tab: "My Activity",
-        title: "My Activity",
-        description: "A log of what you have done in LiTT.",
-        keywords: ["activity log", "audit", "audit log", "history", "events", "recent actions", "what did i do", "timeline", "sessions"],
-        href: "/settings/my-activity",
-    },
-
-    // Security
-    {
-        id: "security-mfa",
-        tabId: "security",
-        tab: "Security",
-        title: "Multi-Factor Authentication",
-        description: "Add an authenticator app to protect sensitive actions, and ask for a code on every login.",
-        keywords: ["mfa", "2fa", "two factor", "two-factor", "two step", "authenticator", "authenticator app", "totp", "verification code", "login verification", "one time code", "otp", "google authenticator", "authy", "secure account", "protect account"],
-        href: "/settings/security#multi-factor-authentication",
-    },
-    {
-        id: "security-password",
-        tabId: "security",
-        tab: "Security",
-        title: "Password",
-        description: "Set a password or send yourself a password-reset link.",
-        keywords: ["change password", "reset password", "forgot password", "new password", "passcode", "credentials", "login", "sign in"],
-        href: "/settings/security#password",
-    },
-
-    // Model Preferences
-    {
-        id: "models-chat-title",
-        tabId: "models",
-        tab: "Model Preferences",
-        title: "Chat title generation",
-        description: "Which model names your chats.",
-        keywords: ["chat titles", "conversation name", "auto title", "naming", "cheap model", "low cost model"],
-        href: "/settings/models#model-preferences",
-    },
-    {
-        id: "models-tabular",
-        tabId: "models",
-        tab: "Model Preferences",
-        title: "Tabular review model",
-        description: "The model preselected when you create a tabular review.",
-        keywords: ["tabular", "review model", "table review", "spreadsheet", "extraction model", "default model"],
-        href: "/settings/models#model-preferences",
-    },
-    {
-        id: "models-memory",
-        tabId: "models",
-        tab: "Model Preferences",
-        title: "Memory curation model",
-        description: "The model that decides what is worth remembering after a conversation.",
-        keywords: ["memory model", "curation", "remember", "default model"],
-        href: "/settings/models#model-preferences",
-    },
-    {
-        id: "models-subagents",
-        tabId: "models",
-        tab: "Model Preferences",
-        title: "Subagentes",
-        description: "The model routes LiTT's subagents may run on; each result names the route and model it used.",
-        keywords: ["subagent", "subagents", "sub-agent", "subagente", "agents", "agentes", "route", "routes", "model route", "rutas", "ruta de modelo", "reasoning", "reasoning effort", "thinking", "delegate", "parallel", "worker model", "effort level"],
-        href: "/settings/models#subagents-heading",
-    },
-
-    // Bring Your Own Keys
-    {
-        id: "byok",
-        tabId: "byok",
-        tab: "Bring Your Own Keys",
-        title: "Bring Your Own Keys",
-        description: "Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",
-        keywords: ["byok", "api key", "api keys", "key", "keys", "token", "secret", "credentials", "provider", "providers", "model provider", "anthropic", "claude", "openai", "chatgpt", "gpt", "gemini", "google", "mistral", "xai", "grok", "bedrock", "aws", "azure", "vertex", "openrouter", "vercel", "ai gateway", "custom endpoint", "base url", "own model", "connect model", "llm", "llave", "clave api", "conectar modelo", "add key", "add provider", "enable provider", "disable provider", "no models", "missing key"],
-        href: "/settings/byok",
-    },
-
-    // Connectors
-    {
-        id: "connectors-installed",
-        tabId: "connectors",
-        tab: "Connectors",
-        title: "Installed connectors",
-        description: "The data sources and tools connected to this workspace.",
-        keywords: ["connector", "integration", "integrations", "mcp", "mcp server", "plugin", "plugins", "tools", "data source", "connected apps", "remove connector", "disconnect"],
-        href: "/settings/connectors#installed-connectors-heading",
-    },
-    {
-        id: "connectors-discover",
-        tabId: "connectors",
-        tab: "Connectors",
-        title: "Discover connectors",
-        description: "Connect Google Drive, Gmail, Calendar, or a custom MCP server.",
-        keywords: ["google drive", "gmail", "google calendar", "calendar", "drive", "add connector", "custom connector", "mcp", "oauth", "connect google", "link account", "integration"],
-        href: "/settings/connectors#discover-connectors-heading",
-    },
-
-    // LiTT training
-    {
-        id: "training",
-        tabId: "training",
-        tab: "Formación",
-        title: "Mi formación",
-        description: "Tu mentor y tus etapas como pasante: tu turno primero, notas y aprobación de tus borradores.",
-        keywords: ["formacion", "training", "mentor", "mentora", "pasante", "intern", "trainee", "etapa", "etapas", "stage", "tu turno primero", "notas", "sello", "aprobacion", "approval", "supervisor"],
-        href: "/settings/training#mi-formacion",
-    },
-    {
-        id: "training-pupils",
-        tabId: "training",
-        tab: "Formación",
-        title: "Mis pupilos",
-        description: "Los pasantes que supervisas como mentor y la etapa de cada uno.",
-        keywords: ["pupilo", "pupilos", "pupils", "mentor", "pasantes", "supervisar", "supervise", "aprobar", "approve", "etapa"],
-        href: "/settings/training#mis-pupilos",
-    },
-    {
-        id: "training-mentor-panel",
-        tabId: "training",
-        tab: "Formación",
-        title: "Panel del mentor",
-        description: "Supervisa a cada pupilo: resúmenes de su trabajo, defensa oral, pase de urgencia y promoción.",
-        keywords: ["mentor panel", "panel", "supervision", "supervisión", "resumen", "review", "defensa oral", "oral defense", "pase de urgencia", "urgency pass", "promocion", "promoción", "promotion", "pupilos"],
-        href: "/settings/training/mentor#panel-del-mentor",
-    },
-
-    {
-        id: "firm-criteria",
-        tabId: "firm-criteria",
-        tab: "Criterios del despacho",
-        title: "Criterios del despacho",
-        description: "Posturas y votos particulares que escriben las personas de tu despacho, con su nombre, y que el asistente puede consultar para quien está en formación.",
-        keywords: ["criterios", "criterio", "firm criteria", "criteria", "voto particular", "dissenting opinion", "postura", "posturas", "despacho", "firm", "socio", "partner", "formacion", "training"],
-        href: "/settings/firm-criteria#criterios-del-despacho",
-    },
-
-    // Organizations
-    {
-        id: "organizations",
-        tabId: "organizations",
-        tab: "Organizations",
-        title: "My organizations",
-        description: "The organizations you belong to, and each one's settings.",
-        keywords: ["organisation", "organization", "org", "team", "workspace", "company", "firm", "members", "admin", "switch organization", "leave organization", "create organization"],
-        href: "/settings/organizations#my-organizations-heading",
-    },
-    {
-        id: "organizations-invitations",
-        tabId: "organizations",
-        tab: "Organizations",
-        title: "Invitations",
-        description: "Organizations that have invited you to join.",
-        keywords: ["invite", "invitation", "invited", "join", "join team", "pending invitations", "accept invitation", "decline"],
-        href: "/settings/organizations#my-invitations-heading",
-    },
-];
-
-// Words that carry no meaning on their own; a query of only these matches
-// nothing rather than everything.
 const STOP_WORDS = new Set([
     "a", "an", "the", "and", "or", "of", "to", "for", "in", "on", "my", "me",
     "i", "is", "it", "do", "how", "can", "where", "find", "change", "set",
@@ -433,15 +435,25 @@ function index(entry: SettingsSearchEntry): IndexedEntry {
     addWords(vocabulary, entry.tab, NAME_WEIGHT);
     for (const keyword of entry.keywords) addWords(vocabulary, keyword, KEYWORD_WEIGHT);
     addWords(vocabulary, entry.description, DESCRIPTION_WEIGHT);
-    return {
-        entry,
-        names: [
-            indexName(entry.title, 2),
-            indexName(entry.tab, 1.5),
-            ...entry.keywords.map((keyword) => indexName(keyword, 1)),
-        ],
-        vocabulary,
-    };
+    const names = [
+        indexName(entry.title, 2),
+        indexName(entry.tab, 1.5),
+        ...entry.keywords.map((keyword) => indexName(keyword, 1)),
+    ];
+    // The English text counts too, a little below the interface language's.
+    const source = entry.source;
+    if (source) {
+        addWords(vocabulary, source.title, NAME_WEIGHT);
+        addWords(vocabulary, source.tab, NAME_WEIGHT);
+        for (const keyword of source.keywords) addWords(vocabulary, keyword, KEYWORD_WEIGHT);
+        addWords(vocabulary, source.description, DESCRIPTION_WEIGHT);
+        names.push(
+            indexName(source.title, 1.9),
+            indexName(source.tab, 1.4),
+            ...source.keywords.map((keyword) => indexName(keyword, 0.9)),
+        );
+    }
+    return { entry, names, vocabulary };
 }
 
 const indexCache = new WeakMap<readonly SettingsSearchEntry[], Index>();

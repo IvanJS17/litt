@@ -1,4 +1,5 @@
 /// <reference types="office-js" />
+import { clientTranslator } from "@mike/client";
 import { useEffect, useState } from "react";
 import { createSecureUuid } from "./secureUuid";
 import { clearWordEditAnchorRegistry } from "./wordEditAnchors";
@@ -113,7 +114,7 @@ export function useWordDocumentIdentity(): {
         if (!cancelled) {
           setError(
             reportFault(reason, {
-              fallback: "Could not identify this Word document.",
+              fallback: clientTranslator()("word.app.unidentifiedDocument"),
               operation: "word.document_read",
             }).message
           );

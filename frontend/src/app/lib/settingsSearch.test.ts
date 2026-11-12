@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
     SETTINGS_SEARCH_ENTRIES,
+    localizedSettingsEntries,
     searchSettings,
     type SettingsSearchResult,
 } from "./settingsSearch";
+import type { Translate } from "@/i18n/Translate";
 
 function ids(results: SettingsSearchResult[]) {
     return results.map((result) => result.entry.id);
@@ -145,5 +147,40 @@ describe("searchSettings", () => {
                 expect(text, entry.id).not.toMatch(/\bmike\b|courtlistener/i);
             }
         });
+    });
+});
+
+describe("settings search in the interface language", () => {
+    async function translate(locale: "es-MX" | "en-US") {
+        const { createTranslator } = await import("use-intl");
+        const { loadMessages } = await import("@litt/i18n");
+        return createTranslator({
+            locale,
+            messages: await loadMessages(locale),
+        }) as unknown as Translate;
+    }
+
+    it("shows the labels of the active language", async () => {
+        const entries = localizedSettingsEntries(await translate("es-MX"));
+        const pupils = entries.find((entry) => entry.id === "training-pupils");
+        expect(pupils?.title).toBe("Mis pupilos");
+        expect(pupils?.source?.title).toBe("My mentees");
+    });
+
+    it("finds an entry by its English source text while the interface is in Spanish", async () => {
+        const entries = localizedSettingsEntries(await translate("es-MX"));
+        const ids = (query: string) => searchSettings(query, entries).map((result) => result.entry.id);
+        expect(ids("pupilos")).toContain("training-pupils");
+        expect(ids("mentees")).toContain("training-pupils");
+    });
+
+    it("finds a Spanish keyword while the interface is in English", async () => {
+        const entries = localizedSettingsEntries(await translate("en-US"));
+        const ids = searchSettings("pupilos", entries).map((result) => result.entry.id);
+        expect(ids).toContain("training-pupils");
+    });
+
+    it("keeps the English index as the source", () => {
+        expect(SETTINGS_SEARCH_ENTRIES.find((entry) => entry.id === "account-profile")?.title).toBe("Profile");
     });
 });

@@ -5,6 +5,7 @@ import { LittMonogramPixel } from "@mike/ui";
 import type { QuickAction } from "../../types";
 import { useQuickActions } from "../../lib/quickActionStore";
 import { quickActionDisplayName } from "../../lib/quickActions";
+import { useTranslations } from "use-intl";
 
 // The «L.» pixel monogram at one of its native sizes; it is never scaled.
 const ICON_SIZE = 32;
@@ -15,6 +16,7 @@ export function InitialView({
 }: {
   onSelect: (action: QuickAction) => void;
 }): React.ReactElement {
+  const t = useTranslations();
   const [name, setName] = useState<string | null>(null);
   const [shown, setShown] = useState(false);
   const quickActions = useQuickActions();
@@ -65,7 +67,7 @@ export function InitialView({
               className="min-w-0 text-left font-serif text-3xl font-light text-gray-900 transition-opacity duration-700 ease-in-out [overflow-wrap:anywhere] motion-reduce:transition-none"
               style={{ opacity: shown ? 1 : 0 }}
             >
-              Hi, {name}
+              {t("word.hiName", { name })}
             </h1>
           </div>
         )}
@@ -79,7 +81,7 @@ export function InitialView({
             draggable={false}
             className="h-3.5 w-3.5 shrink-0 object-contain"
           />
-          Quick actions
+          {t("word.quickActions")}
         </span>
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">

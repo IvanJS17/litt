@@ -9,6 +9,7 @@ import {
 } from "@mike/ui";
 
 import { cn } from "../lib/utils";
+import { useTranslations } from "use-intl";
 
 /** Lines the composer grows to before its text scrolls. */
 const COMPOSER_MAX_LINES = 6;
@@ -55,7 +56,7 @@ export function ChatInput({
     onSubmit,
     isLoading = false,
     onCancel,
-    placeholder = "How can I help?",
+    placeholder,
     disabled = false,
     leftSlot,
     rightSlot,
@@ -65,6 +66,7 @@ export function ChatInput({
     onKeyDown,
     combobox,
 }: ChatInputProps) {
+    const t = useTranslations();
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const inputAreaRef = React.useRef<HTMLDivElement>(null);
 
@@ -161,7 +163,7 @@ export function ChatInput({
                     aria-controls={combobox?.controls}
                     aria-expanded={combobox?.expanded}
                     aria-activedescendant={combobox?.activeDescendant}
-                    placeholder={placeholder}
+                    placeholder={placeholder ?? t("word.howCanIHelp")}
                     disabled={disabled}
                     className="max-h-48 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60"
                 />
@@ -178,7 +180,8 @@ export function ChatInput({
                             isLoading ? onCancel?.() : canSend && onSubmit()
                         }
                         disabled={!isLoading && !canSend}
-                        aria-label={isLoading ? "Stop response" : "Send message"}
+                        data-testid="chat-send"
+                        aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(
                             COMPOSER_SEND_BUTTON_CLASS,
                             "h-8 w-8 shrink-0 rounded-[11px]",

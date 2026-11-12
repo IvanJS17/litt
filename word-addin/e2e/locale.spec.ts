@@ -95,8 +95,8 @@ test.describe("signed in", () => {
     });
     await addin.gotoTaskpane({ token: TOKEN, displayLanguage: "en-US" });
     await addin.expectAuthedShell();
-    await page.getByRole("button", { name: "Open menu" }).click();
-    await page.getByRole("menuitem", { name: "Settings" }).click();
+    await page.getByTestId("header-menu").click();
+    await page.getByTestId("header-section-settings").click();
     await expect(page.getByText("Ajustes", { exact: true })).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Idioma de la interfaz" }),

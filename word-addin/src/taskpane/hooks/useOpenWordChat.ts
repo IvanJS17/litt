@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCloudWordChat } from "../api/mikeApi";
 import { getLocalWordChat } from "../lib/localWordChats";
@@ -96,7 +97,7 @@ export function useOpenWordChat(
       if (!requestIsCurrent()) return;
       setOpenError(
         reportFault(reason, {
-          fallback: "Failed to open this chat.",
+          fallback: clientTranslator()("word.openChatFailed"),
           operation: "word_chat.turn",
         }).message,
       );

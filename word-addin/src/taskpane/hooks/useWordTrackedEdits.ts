@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { clientTranslator } from "@mike/client";
 import {
   isReported,
   reportWordFailure,
@@ -82,10 +83,10 @@ function editFailureState(result: {
   // Checked before `status`: an unverified apply is an "error" status whose
   // wording and (absent) actions differ from every other failure.
   if (result.reason === "unverified") {
-    return { status: "unverified", error: UNVERIFIED_APPLY_MESSAGE };
+    return { status: "unverified", error: unverifiedApplyMessage() };
   }
   if (result.reason === "already-applied") {
-    return { status: "already-applied", error: ALREADY_APPLIED_MESSAGE };
+    return { status: "already-applied", error: alreadyAppliedMessage() };
   }
   if (result.status === "error") {
     return { status: "error", error: result.error };
@@ -96,13 +97,13 @@ function editFailureState(result: {
   if (result.status === "not-found") {
     return {
       status: "skipped",
-      error: "Skipped — the source text could not be found in the document.",
+      error: clientTranslator()("word.skippedTheSourceTextCouldNot"),
     };
   }
   if (result.reason === "unsearchable") {
     return {
       status: "unsearchable",
-      error: "Skipped — this passage cannot be safely located in the document.",
+      error: clientTranslator()("word.skippedThisPassageCannotBeSafely"),
     };
   }
   if (result.reason === "pre-existing-revisions") {
@@ -129,8 +130,8 @@ import { getEditKey, parseEditKey } from "../lib/wordTrackedEditKeys";
 import { groupWordEditAnchorPassIds } from "../lib/wordEditAnchors";
 import { reportFault } from "../lib/notify";
 import {
-  ALREADY_APPLIED_MESSAGE,
-  UNVERIFIED_APPLY_MESSAGE,
+  alreadyAppliedMessage,
+  unverifiedApplyMessage,
 } from "../lib/editApplyOutcome";
 
 export function useWordTrackedEdits({
@@ -524,7 +525,7 @@ export function useWordTrackedEdits({
         }
         reportEscapedWordFailure(error, "word.edit_apply");
         const message = reportFault(error, {
-          fallback: "Word couldn't check whether this change can be applied.",
+          fallback: clientTranslator()("word.wordCouldnTCheckWhetherThis2"),
           operation: "word.edit_apply",
         }).message;
         patchEditStates(new Map(proposedDescriptors.map(({ cardKey }) => [cardKey, {
@@ -663,7 +664,7 @@ export function useWordTrackedEdits({
           ]);
           const result = report.edits[0];
           if (!result) {
-            throw new Error("Word did not return an edit result.");
+            throw new Error(clientTranslator()("word.wordDidNotReturnAnEdit"));
           }
           warning = report.warning ?? warning;
           if (result.handle) handles.push(result.handle);
@@ -684,7 +685,7 @@ export function useWordTrackedEdits({
           }
         }
         if (!first || !last) {
-          throw new Error("Word did not return an edit result.");
+          throw new Error(clientTranslator()("word.wordDidNotReturnAnEdit"));
         }
 
         const appliedCount = handles.length;
@@ -699,7 +700,7 @@ export function useWordTrackedEdits({
           replaceAll &&
           appliedCount > 0 &&
           (last.status !== "applied" || remainingAfterLast > 0)
-            ? `Applied ${appliedCount} of ${matchesFound} occurrences; the rest couldn’t be applied.`
+            ? clientTranslator()("word.appliedSomeOccurrences", { applied: appliedCount, found: matchesFound })
             : undefined;
 
         // Checked on the LAST pass, before the applied branch: a replace-all
@@ -713,14 +714,14 @@ export function useWordTrackedEdits({
             matches: matchesFound,
             appliedMatches: appliedCount,
             busy: false,
-            error: UNVERIFIED_APPLY_MESSAGE,
+            error: unverifiedApplyMessage(),
           });
           void updatePersistedEdit(key, {
             apply_status: "failed",
             matched_occurrences: matchesFound,
             applied_occurrences: appliedCount,
             error_code: "unverified",
-            error_message: UNVERIFIED_APPLY_MESSAGE,
+            error_message: unverifiedApplyMessage(),
           });
           return;
         }
@@ -774,14 +775,14 @@ export function useWordTrackedEdits({
             status: "already-applied",
             matches: matchesFound,
             busy: false,
-            error: ALREADY_APPLIED_MESSAGE,
+            error: alreadyAppliedMessage(),
           });
           void updatePersistedEdit(key, {
             apply_status: "applied",
             matched_occurrences: matchesFound,
             applied_occurrences: 0,
             error_code: "already-applied",
-            error_message: ALREADY_APPLIED_MESSAGE,
+            error_message: alreadyAppliedMessage(),
           });
           return;
         }
@@ -822,7 +823,7 @@ export function useWordTrackedEdits({
         }
         reportEscapedWordFailure(error, "word.edit_apply");
         const message = reportFault(error, {
-          fallback: "Word couldn't apply this change.",
+          fallback: clientTranslator()("word.wordCouldnTApplyThisChange2"),
           operation: "word.edit_apply",
         }).message;
         setEditRuntimeState(key, {
@@ -923,7 +924,7 @@ export function useWordTrackedEdits({
           }
           reportEscapedWordFailure(error, "word.edit_apply");
           const message = reportFault(error, {
-            fallback: "Word couldn't check whether this change can be applied.",
+            fallback: clientTranslator()("word.wordCouldnTCheckWhetherThis2"),
             operation: "word.edit_apply",
           }).message;
           setEditRuntimeState(key, {
@@ -1052,7 +1053,7 @@ export function useWordTrackedEdits({
               index,
               status: "error",
               reason: "unverified",
-              error: UNVERIFIED_APPLY_MESSAGE,
+              error: unverifiedApplyMessage(),
             };
           case "error":
             return {
@@ -1067,7 +1068,7 @@ export function useWordTrackedEdits({
             return {
               index,
               status: "error",
-              error: "Word did not report a result for this change.",
+              error: clientTranslator()("word.wordDidNotReportAResult"),
             };
         }
       });
@@ -1224,7 +1225,7 @@ export function useWordTrackedEdits({
               busy: false,
               busyAction: undefined,
               error:
-                "Skipped — the source text could not be found in the document.",
+                clientTranslator()("word.skippedTheSourceTextCouldNot"),
             });
             void updatePersistedEdit(key, {
               apply_status: "failed",
@@ -1232,7 +1233,7 @@ export function useWordTrackedEdits({
               applied_occurrences: 0,
               error_code: "not-found",
               error_message:
-                "The source text could not be found in the document.",
+                clientTranslator()("word.theSourceTextCouldNotBe"),
             });
             return;
           }
@@ -1255,7 +1256,7 @@ export function useWordTrackedEdits({
               result.status === "revealed"
                 ? undefined
                 : (result.error ??
-                  "Word couldn’t scroll to this proposed change."),
+                  clientTranslator()("word.wordCouldnTScrollToThis3")),
           });
         } finally {
           resolvingEditKeysRef.current.delete(key);
@@ -1283,7 +1284,7 @@ export function useWordTrackedEdits({
           status: "historical",
           busy: false,
           viewError:
-            "Word no longer reports a pending revision for this change.",
+            clientTranslator()("word.wordNoLongerReportsAPending"),
         });
         return;
       }
@@ -1292,7 +1293,7 @@ export function useWordTrackedEdits({
           result.status === "revealed"
             ? undefined
             : (result.error ??
-              "Word couldn’t scroll to this change. Find it in Word’s Review tab."),
+              clientTranslator()("word.wordCouldnTScrollToThis")),
       });
     },
     [setEditRuntimeState, updatePersistedEdit],
@@ -1351,7 +1352,7 @@ export function useWordTrackedEdits({
                 status: "error",
                 busy: false,
                 error:
-                  result.error ?? "The tracked change is no longer available.",
+                  result.error ?? clientTranslator()("word.theTrackedChangeIsNoLonger"),
               });
             }
           }
@@ -1391,7 +1392,7 @@ export function useWordTrackedEdits({
             busy: false,
             error:
               results.find((result) => result.error)?.error ??
-              "Some of this edit’s tracked changes are no longer available. Review them from Word’s Review tab.",
+              clientTranslator()("word.someOfThisEditSTracked"),
           });
         }
       } catch (error) {
@@ -1409,7 +1410,7 @@ export function useWordTrackedEdits({
           status: "error",
           busy: false,
           error: reportFault(error, {
-            fallback: "Word couldn't update the tracked change.",
+            fallback: clientTranslator()("word.wordCouldnTUpdateTheTracked"),
             operation: "word.edit_resolve",
           }).message,
         });
@@ -1502,7 +1503,7 @@ export function useWordTrackedEdits({
               busy: false,
               error:
                 cardResults.find((result) => result.error)?.error ??
-                "The tracked change is no longer available.",
+                clientTranslator()("word.theTrackedChangeIsNoLonger"),
             });
           }
         }
@@ -1520,7 +1521,7 @@ export function useWordTrackedEdits({
           return;
         }
         const message = reportFault(error, {
-          fallback: "Word couldn't update the tracked changes.",
+          fallback: clientTranslator()("word.wordCouldnTUpdateTheTracked2"),
           operation: "word.edit_resolve",
         }).message;
         patchEditStates(new Map(entries.map((entry) => [entry.key, {

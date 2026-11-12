@@ -1,13 +1,15 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useMemo, useState } from "react";
 import type { Playbook } from "../../types";
 import { listPlaybooks } from "../../api/mikeApi";
 import { Modal } from "../primitives/Modal";
 import { PickerList } from "../primitives/PickerList";
 import { reportFault } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 /** What a playbook is called in the picker and on its pill. */
 export function playbookTitle(playbook: Pick<Playbook, "name">): string {
-  return playbook.name.trim() || "Untitled playbook";
+  return playbook.name.trim() || clientTranslator()("word.untitledPlaybook");
 }
 
 interface PlaybookModalProps {
@@ -28,6 +30,7 @@ export function PlaybookModal({
   onSelect,
   initialPlaybookId,
 }: PlaybookModalProps): React.ReactElement | null {
+  const t = useTranslations();
   const [playbooks, setPlaybooks] = useState<Playbook[]>([]);
   const [selectedId, setSelectedId] = useState(initialPlaybookId ?? "");
   const [search, setSearch] = useState("");
@@ -52,7 +55,7 @@ export function PlaybookModal({
         setPlaybooks([]);
         setError(
           reportFault(reason, {
-            fallback: "LiTT couldn't load your playbooks. Try again.",
+            fallback: clientTranslator()("word.loadPlaybooksFailed"),
             operation: "playbooks.review",
           }).message,
         );
@@ -85,9 +88,9 @@ export function PlaybookModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Add playbook"
+      title={t("word.addPlaybook")}
       primaryAction={{
-        label: "Use",
+        label: t("word.use"),
         disabled: !selected,
         onClick: () => {
           if (!selected) return;
@@ -103,9 +106,9 @@ export function PlaybookModal({
         loading={loading}
         error={error}
         selectedId={selectedId}
-        searchPlaceholder="Search playbooks..."
-        loadingLabel="Loading playbooks…"
-        emptyMessage="No playbooks found"
+        searchPlaceholder={t("word.searchPlaybooks")}
+        loadingLabel={t("word.loadingPlaybooks")}
+        emptyMessage={t("word.noPlaybooksFound")}
         onSelect={(id) => setSelectedId(id === selectedId ? "" : id)}
       />
     </Modal>

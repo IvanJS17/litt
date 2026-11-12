@@ -9,6 +9,7 @@ import {
 } from "@mike/ui";
 import desktopIcon from "@icons/desktop.svg";
 import cloudIcon from "@icons/cloud.svg";
+import { useTranslations } from "use-intl";
 
 interface DocumentSourceMenuProps {
   attachedCount: number;
@@ -29,14 +30,15 @@ export function DocumentSourceMenu({
   onWorkflows,
   onPlaybooks,
 }: DocumentSourceMenuProps): React.ReactElement {
+  const t = useTranslations();
   return (
     <Dropdown>
       <DropdownTrigger asChild>
         <ComposerButton
           disabled={disabled || uploading}
           active={attachedCount > 0}
-          aria-label="Add documents"
-          title="Add documents"
+          aria-label={t("word.addDocuments2")}
+          title={t("word.addDocuments2")}
         >
           {uploading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -62,7 +64,7 @@ export function DocumentSourceMenu({
             draggable={false}
             className="h-4 w-4 shrink-0 object-contain"
           />
-          Desktop Files
+          {t("word.desktopFiles")}
         </DropdownItem>
         <DropdownItem onSelect={onWebFiles}>
           <img
@@ -72,18 +74,18 @@ export function DocumentSourceMenu({
             draggable={false}
             className="h-4 w-4 shrink-0 object-contain"
           />
-          Web files
+          {t("word.webFiles")}
         </DropdownItem>
         <DropdownItem onSelect={onWorkflows}>
           <Waypoints className="h-4 w-4 shrink-0 text-gray-500" />
-          Workflows
+          {t("word.workflows")}
         </DropdownItem>
         <DropdownItem onSelect={onPlaybooks}>
           <ClipboardCheck
             aria-hidden="true"
             className="h-4 w-4 shrink-0 text-gray-500"
           />
-          Playbooks
+          {t("word.playbooks")}
         </DropdownItem>
       </DropdownContent>
     </Dropdown>

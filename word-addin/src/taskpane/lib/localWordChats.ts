@@ -1,11 +1,12 @@
+import { clientTranslator } from "@mike/client";
 import type { Chat, Message, WordDocumentEdit } from "../types";
 import type { PersistedWordEditPatch } from "./wordChatTypes";
 import { notifyWordChatHistoryChanged } from "./wordChatHistoryEvents";
 import { UserVisibleError } from "./notify";
 
 /** Shown when this pane's code is older than the device-only chat database. */
-export const OUTDATED_ADDIN_MESSAGE =
-  "A newer version of LiTT updated this device's chats. Close and reopen the add-in to load them.";
+export const outdatedAddinMessage = (): string =>
+  clientTranslator()("word.addinOutdated");
 
 const DATABASE_NAME = "mike-word-addin";
 // Keep the released version: an existing pane opens version 4 explicitly,
@@ -129,7 +130,7 @@ function openDatabase(readPreviewVersion = false): Promise<IDBDatabase> {
       const database = request.result;
       if (database.version > READABLE_PREVIEW_VERSION) {
         database.close();
-        reject(new UserVisibleError(OUTDATED_ADDIN_MESSAGE));
+        reject(new UserVisibleError(outdatedAddinMessage()));
         return;
       }
       // A newer add-in build (another pane, another tab) upgrading the

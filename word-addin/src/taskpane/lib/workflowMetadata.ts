@@ -1,6 +1,10 @@
 export const DEFAULT_WORKFLOW_LANGUAGE = "English";
 export const DEFAULT_WORKFLOW_PRACTICE = "General Transactions";
 export const DEFAULT_WORKFLOW_JURISDICTION = "General";
+/** Stored option values (not labels): compare against these, never against t(). */
+export const WORKFLOW_OTHER_OPTION = "Other";
+export const WORKFLOW_US_JURISDICTION = "United States";
+export const WORKFLOW_CANADA_JURISDICTION = "Canada";
 
 export const WORKFLOW_LANGUAGE_OPTIONS = [
   "English",

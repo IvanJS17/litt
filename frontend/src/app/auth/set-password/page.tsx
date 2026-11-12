@@ -15,10 +15,9 @@ import {
     authInputUIClassName,
 } from "@mike/ui";
 import {
+    MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     isPasswordTooLong,
-    maximumPasswordMessage,
-    minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
 import { authMessages, PASSWORD_LENGTH_MESSAGE } from "@/app/lib/authMessages";
 import {
@@ -89,11 +88,11 @@ function SetPasswordContent() {
         event.preventDefault();
         setError(null);
         if (password.length < MIN_PASSWORD_LENGTH) {
-            setError(`${minimumPasswordMessage}.`);
+            setError(t("auth.errors.passwordTooShort", { min: MIN_PASSWORD_LENGTH }));
             return;
         }
         if (isPasswordTooLong(password)) {
-            setError(maximumPasswordMessage);
+            setError(t("auth.errors.passwordTooLong", { max: MAX_PASSWORD_LENGTH }));
             return;
         }
         if (password !== confirmPassword) {

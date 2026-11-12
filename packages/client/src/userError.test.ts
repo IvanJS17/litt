@@ -370,7 +370,7 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
 });
 
 describe("describeError for an invitation the API refuses by code", () => {
-    it("classifies a person who already belongs as a conflict, a bad address as validation", () => {
+    it("classifies a person who already belongs and a bad address as validation, never as retryable", () => {
         const member = describeError(
             new FakeApiError({
                 message: "That person is already a member of this organization",
@@ -378,7 +378,8 @@ describe("describeError for an invitation the API refuses by code", () => {
                 code: "invitation_already_member",
             }),
         );
-        expect(member.kind).toBe("conflict");
+        expect(member.kind).toBe("validation");
+        expect(member.retryable).toBe(false);
         expect(member.code).toBe("invitation_already_member");
         expect(member.message).toBe("That person is already a member of this organization");
 

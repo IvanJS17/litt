@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { createRedlineStreamProjector } from "../lib/redline";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -55,7 +56,7 @@ import {
   notifyInfo,
 } from "../lib/notify";
 import {
-  TURN_OUTCOME_UNKNOWN_MESSAGE,
+  turnOutcomeUnknownMessage,
   failedTurnRecovery,
 } from "../lib/wordTurnRecovery";
 
@@ -328,7 +329,7 @@ export function useWordAssistantChat({
             console.error("Failed to read the current Word document", error);
             if (requestIsCurrent()) {
               setRequestError(
-                "LiTT couldn't read this Word document. Try again.",
+                clientTranslator()("word.littCouldnTReadThisWord"),
               );
             }
             return;
@@ -882,7 +883,7 @@ export function useWordAssistantChat({
                   onStreamText,
                 );
               } else {
-                throw new Error("This response is no longer available.");
+                throw new Error(clientTranslator()("word.thisResponseIsNoLongerAvailable"));
               }
               break;
             } catch (error) {
@@ -969,7 +970,7 @@ export function useWordAssistantChat({
           if (
             !controller.signal.aborted &&
             isTrainingRefusalCode(
-              describeError(error, { action: "get a response" }).code,
+              describeError(error, { action: clientTranslator()("word.getAResponse") }).code,
             )
           ) {
             markTrainingStageStale();
@@ -1044,8 +1045,8 @@ export function useWordAssistantChat({
           // a stream failure carries provider and stack wording. The toast
           // carries what the bubble cannot: the actions on the failure.
           const failureCopy = {
-            action: "get a response",
-            fallback: "LiTT couldn't finish that answer. Try again.",
+            action: clientTranslator()("word.getAResponse"),
+            fallback: clientTranslator()("word.littCouldnTFinishThatAnswer"),
           };
           const recovery = failedTurnRecovery({
             wasSend: input.kind === "send",
@@ -1057,7 +1058,7 @@ export function useWordAssistantChat({
           });
           const failure =
             recovery.kind === "uncertain"
-              ? new UserVisibleError(TURN_OUTCOME_UNKNOWN_MESSAGE, {
+              ? new UserVisibleError(turnOutcomeUnknownMessage(), {
                   cause: error,
                 })
               : error;
@@ -1088,8 +1089,8 @@ export function useWordAssistantChat({
                       generation === sessionGenerationRef.current;
                     notifyInfo(
                       sameChat
-                        ? "A newer message was sent after this one, so Retry no longer applies to it."
-                        : "This chat has changed. Open the original chat to check its answer.",
+                        ? clientTranslator()("word.aNewerMessageWasSentAfter")
+                        : clientTranslator()("word.thisChatHasChangedOpenThe"),
                     );
                     return;
                   }

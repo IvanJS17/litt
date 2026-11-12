@@ -16,8 +16,8 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-    ALREADY_APPLIED_MESSAGE,
-    UNVERIFIED_APPLY_MESSAGE,
+    alreadyAppliedMessage,
+    unverifiedApplyMessage,
     classifyApplyFailure,
     MAX_APPLIED_EDIT_IDS,
     isEditAlreadyApplied,
@@ -68,7 +68,7 @@ describe("classifyApplyFailure", () => {
         ).toEqual({
             status: "error",
             reason: "unverified",
-            message: UNVERIFIED_APPLY_MESSAGE,
+            message: unverifiedApplyMessage(),
         });
     });
 
@@ -87,16 +87,16 @@ describe("classifyApplyFailure", () => {
             mutationApplied: false,
         });
         expect(outcome).toHaveProperty("message");
-        expect(UNVERIFIED_APPLY_MESSAGE).toBe(
+        expect(unverifiedApplyMessage()).toBe(
             "LiTT couldn't confirm whether this change was applied — check the document before retrying.",
         );
-        expect(UNVERIFIED_APPLY_MESSAGE).not.toContain("couldn't apply");
+        expect(unverifiedApplyMessage()).not.toContain("couldn't apply");
     });
 });
 
 describe("messages", () => {
     it("says an already-applied edit is already in the document", () => {
-        expect(ALREADY_APPLIED_MESSAGE).toBe(
+        expect(alreadyAppliedMessage()).toBe(
             "This change was already applied to the document.",
         );
     });

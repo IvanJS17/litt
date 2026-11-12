@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useRef, useState } from "react";
 import { GlassCardUI } from "@mike/ui";
 import { PillButtonUI } from "@mike/ui";
@@ -24,6 +25,7 @@ import {
   applyApprovedRedlineAction,
   type ApprovedRedlineDocumentIdentity,
 } from "../../hooks/useWordDoc";
+import { useTranslations } from "use-intl";
 
 const canonical = canonicalApprovedRedlineJson;
 const fail = (
@@ -55,20 +57,20 @@ function safeMessage(error: unknown): string {
   if (error instanceof ApprovedRedlineValidationError) {
     switch (error.code) {
       case "document-identity":
-        return "Cannot apply: Word document identity changed or is unavailable. Reopen the original saved document and reload the approved review.";
+        return clientTranslator()("word.cannotApplyIdentity");
       case "superseded":
-        return "Cannot apply: the review or bundle is no longer the approved revision. Obtain the current approved review and reload.";
+        return clientTranslator()("word.cannotApplySuperseded");
       case "scope-mismatch":
-        return "Cannot apply: project, matter, execution, or document scope does not match. Select the correct project and review.";
+        return clientTranslator()("word.cannotApplyScope");
       case "source-mismatch":
-        return "Cannot apply: the document version or file hash does not match. Open the reviewed source document and reload.";
+        return clientTranslator()("word.cannotApplySource");
       case "tampered":
-        return "Cannot apply: the approved bundle failed its integrity check. Obtain a fresh approved bundle and reload.";
+        return clientTranslator()("word.cannotApplyTampered");
       default:
-        return "Cannot apply: redline targets are missing, ambiguous, overlapping, or invalid. Request a new review of the current document.";
+        return clientTranslator()("word.cannotApplyTargets");
     }
   }
-  return "Could not verify or apply approved redlines. Check access and the saved Word document, then reopen the panel to load a fresh review.";
+  return clientTranslator()("word.cannotVerifyRedlines");
 }
 
 type Loaded = {
@@ -86,6 +88,7 @@ export function ApprovedRedlinePanel({
 }: {
   wordDocumentId: string;
 }): React.ReactElement {
+  const t = useTranslations();
   const [projects, setProjects] = useState<Project[]>([]);
   const [project, setProject] = useState("");
   const [executions, setExecutions] = useState<AiExecutionSummary[]>([]);
@@ -266,7 +269,7 @@ export function ApprovedRedlinePanel({
     } catch (reason) {
       if (ticket === generation.current)
         setError(
-          `${safeMessage(reason)} Apply stopped; prior Word revisions remain reviewable. No retries are available in this session.`,
+          clientTranslator()("word.applyStopped", { message: safeMessage(reason) }),
         );
     } finally {
       applyLock.current = false;
@@ -276,13 +279,12 @@ export function ApprovedRedlinePanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-      <PageTitle>Approved redlines</PageTitle>
+      <PageTitle>{t("word.approvedRedlines")}</PageTitle>
       <p className="text-sm text-muted-foreground">
-        Select a project and succeeded execution. Each approved action creates a
-        reviewable Word revision.
+        {t("word.selectAProjectAndSucceededExecution")}
       </p>
       <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor="approved-redline-project">Project</label>
+        <label htmlFor="approved-redline-project">{t("word.project")}</label>
         <select
           id="approved-redline-project"
           className={selectClass}
@@ -290,7 +292,7 @@ export function ApprovedRedlinePanel({
           disabled={applying || (!!loaded && !!error)}
           onChange={(event) => void selectProject(event.target.value)}
         >
-          <option value="">Select project</option>
+          <option value="">{t("word.selectProject")}</option>
           {projects.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -299,7 +301,7 @@ export function ApprovedRedlinePanel({
         </select>
       </div>
       <div className="flex flex-col gap-1 text-sm">
-        <label htmlFor="approved-redline-execution">Execution</label>
+        <label htmlFor="approved-redline-execution">{t("word.execution")}</label>
         <select
           id="approved-redline-execution"
           className={selectClass}
@@ -312,7 +314,7 @@ export function ApprovedRedlinePanel({
           }
           onChange={(event) => void selectExecution(event.target.value)}
         >
-          <option value="">Select succeeded execution</option>
+          <option value="">{t("word.selectSucceededExecution")}</option>
           {executions.map((item) => (
             <option key={item.id} value={item.id}>
               {item.id} — {item.created_at}
@@ -320,9 +322,9 @@ export function ApprovedRedlinePanel({
           ))}
         </select>
       </div>
-      {busy && <Spinner label="Checking approved redlines…" />}
+      {busy && <Spinner label={t("word.checkingApprovedRedlines")} />}
       {!busy && project && !executions.length && !error && (
-        <p className="text-sm">No succeeded executions available.</p>
+        <p className="text-sm">{t("word.noSucceededExecutionsAvailable")}</p>
       )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
@@ -332,31 +334,31 @@ export function ApprovedRedlinePanel({
       {loaded?.actions.map((action, index) => (
         <article
           key={action.action_id}
-          aria-label={`Redline ${action.action_id}`}
+          aria-label={t("word.redlineActionId", { action_id: action.action_id })}
         >
           <GlassCardUI>
             <div className="flex flex-col gap-2 p-3">
               <p className="text-xs text-muted-foreground">
-                Page {action.page} · {action.action_id}
+                {t("word.pagePageActionId", { page: action.page, action_id: action.action_id })}
               </p>
-              <p className="text-xs">Original</p>
+              <p className="text-xs">{t("word.original")}</p>
               <p className="whitespace-pre-wrap break-words font-serif">
                 {action.original}
               </p>
-              <p className="text-xs">Replacement</p>
+              <p className="text-xs">{t("word.replacement")}</p>
               <p className="whitespace-pre-wrap break-words font-serif">
                 {action.replacement}
               </p>
               <p role="status" className="text-sm">
                 {index < completed
-                  ? "Applied"
+                  ? t("word.applied")
                   : error
-                    ? "Halted"
+                    ? t("word.halted")
                     : applying && index === completed
-                      ? "Applying…"
+                      ? t("word.applying")
                       : index === completed
-                        ? "Ready"
-                        : "Pending — apply the preceding action first"}
+                        ? t("word.ready")
+                        : t("word.pendingApplyThePrecedingActionFirst")}
               </p>
               {!error && index >= completed && (
                 <PillButtonUI
@@ -365,7 +367,7 @@ export function ApprovedRedlinePanel({
                   disabled={applying || index !== completed}
                   onClick={() => void apply(index)}
                 >
-                  Apply {action.action_id}
+                  {t("word.applyActionId", { action_id: action.action_id })}
                 </PillButtonUI>
               )}
             </div>

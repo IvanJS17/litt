@@ -43,6 +43,7 @@ import type {
   EditRuntimeState,
   WordAssistantMessage as WordAssistantTurn,
 } from "../../lib/wordChatTypes";
+import { useTranslations } from "use-intl";
 
 interface AssistantMessageProps {
   message: WordAssistantTurn;
@@ -123,6 +124,7 @@ function AssistantMessageImpl({
   onAcceptAndApplyEdit,
   onLocateCitation,
 }: AssistantMessageProps): React.ReactElement {
+  const t = useTranslations();
   // Citation chips render as reserved-fragment links; one delegated handler
   // on each prose block routes their clicks to Word instead of navigation.
   const handleCitationClick = React.useCallback(
@@ -306,12 +308,12 @@ function AssistantMessageImpl({
     const groupBusyLabel = (action: "accept" | "reject") => (
       <>
         <LoaderCircle aria-hidden="true" className="h-3 w-3 animate-spin" />
-        <span>{action === "accept" ? "Accepting..." : "Rejecting..."}</span>
+        <span>{action === "accept" ? t("word.accepting") : t("word.rejecting")}</span>
       </>
     );
     return (
       <EditCardsSection
-        summary={`${rows.length} tracked ${rows.length === 1 ? "change" : "changes"}`}
+        summary={t("word.trackedChangeCount", { count: rows.length })}
         actions={
           pendingCount > 0 ? (
             <>
@@ -327,7 +329,7 @@ function AssistantMessageImpl({
               >
                 {groupBusyAction === "accept"
                   ? groupBusyLabel("accept")
-                  : "Accept all"}
+                  : t("word.acceptAll")}
               </PillButton>
               <PillButton
                 tone="white"
@@ -341,7 +343,7 @@ function AssistantMessageImpl({
               >
                 {groupBusyAction === "reject"
                   ? groupBusyLabel("reject")
-                  : "Reject all"}
+                  : t("word.rejectAll")}
               </PillButton>
             </>
           ) : undefined
@@ -465,7 +467,7 @@ function AssistantMessageImpl({
                         isStreaming
                         dotColor="gray"
                       >
-                        Thinking...
+                        {t("word.thinking")}
                       </EventBlock>
                     );
                   }

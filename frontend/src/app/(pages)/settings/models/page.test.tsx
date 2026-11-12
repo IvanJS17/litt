@@ -82,7 +82,7 @@ describe("model preferences page legacy ids", () => {
     it("offers subagent routes only the models with a connected key", () => {
         render(<ModelPreferencesPage />);
 
-        const subagents = screen.getByRole("region", { name: "Subagentes" });
+        const subagents = screen.getByRole("region", { name: "Subagents" });
         const offered = within(subagents).getByTestId("route-models").textContent ?? "";
         expect(offered).toContain("gpt-6.1-sol");
         expect(offered).toContain("gemini-3.8-flash");

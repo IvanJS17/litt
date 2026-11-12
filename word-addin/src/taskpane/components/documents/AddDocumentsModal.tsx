@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, Loader2, Search, Upload, X } from "lucide-react";
 import type { Document, LibraryFolder, Project } from "../../types";
@@ -26,6 +27,7 @@ import {
 import { reportFault } from "../../lib/notify";
 
 import { buildDirectoryIndex } from "../../lib/directoryIndex";
+import { useTranslations } from "use-intl";
 
 type DirectoryTab = "files" | "templates" | "projects";
 
@@ -36,11 +38,15 @@ interface AddDocumentsModalProps {
   initialSelectedDocuments?: Document[];
 }
 
-const TABS: { value: DirectoryTab; label: string }[] = [
-  { value: "files", label: "Files" },
-  { value: "templates", label: "Templates" },
-  { value: "projects", label: "Projects" },
-];
+function directoryTabs(
+  t: ReturnType<typeof useTranslations>,
+): { value: DirectoryTab; label: string }[] {
+  return [
+    { value: "files", label: t("word.tabFiles") },
+    { value: "templates", label: t("word.tabTemplates") },
+    { value: "projects", label: t("word.tabProjects") },
+  ];
+}
 
 const DIRECTORY_GRID_CLASS =
   "grid grid-cols-[14px_14px_minmax(0,1fr)] items-center gap-1.5";
@@ -62,6 +68,7 @@ function DirectoryLoadMoreRow({
   loading: boolean;
   onLoadMore: () => void;
 }): React.ReactElement | null {
+  const t = useTranslations();
   const rowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,7 +99,7 @@ function DirectoryLoadMoreRow({
         className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-900 disabled:opacity-60"
       >
         {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-        {loading ? "Loading…" : "Load more"}
+        {loading ? t("word.loading") : t("word.loadMore")}
       </button>
     </div>
   );
@@ -104,6 +111,7 @@ export function AddDocumentsModal({
   onSelect,
   initialSelectedDocuments = [],
 }: AddDocumentsModalProps): React.ReactElement | null {
+  const t = useTranslations();
   const [activeTab, setActiveTab] = useState<DirectoryTab>("files");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [libraryFolders, setLibraryFolders] = useState<LibraryFolder[]>([]);
@@ -220,7 +228,7 @@ export function AddDocumentsModal({
         if (cancelled) return;
         setError(
           reportFault(reason, {
-            fallback: "Failed to load documents.",
+            fallback: clientTranslator()("word.loadDocumentsFailed"),
             operation: "documents.directory",
           }).message,
         );
@@ -311,7 +319,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load project documents.",
+          fallback: clientTranslator()("word.loadProjectDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -359,7 +367,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load projects.",
+          fallback: clientTranslator()("word.loadProjectsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -424,7 +432,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Documents could not be uploaded. Please try again.",
+          fallback: clientTranslator()("word.documentsUploadFailedPlease"),
           operation: "documents.upload",
         }).message,
       );
@@ -531,7 +539,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load folder documents.",
+          fallback: clientTranslator()("word.loadFolderDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -560,7 +568,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load documents.",
+          fallback: clientTranslator()("word.loadDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -629,7 +637,7 @@ export function AddDocumentsModal({
               role="checkbox"
               aria-checked={someSelected ? "mixed" : allSelected}
               aria-disabled={!treeLoaded || summary.count === 0}
-              aria-label={`Select all files in ${folder.name}`}
+              aria-label={t("word.selectAllFilesInName", { name: folder.name })}
               onClick={(event) => {
                 event.stopPropagation();
                 if (!treeLoaded || summary.count === 0) return;
@@ -680,7 +688,7 @@ export function AddDocumentsModal({
                     className="py-1 text-xs text-gray-400"
                     style={{ paddingLeft: 40 + depth * 16 }}
                   >
-                    Empty
+                    {t("word.empty")}
                   </p>
                 )}
             </div>
@@ -722,7 +730,7 @@ export function AddDocumentsModal({
               role="checkbox"
               aria-checked={someSelected ? "mixed" : allSelected}
               aria-disabled={!treeLoaded || summary.count === 0}
-              aria-label={`Select all files in ${folder.name}`}
+              aria-label={t("word.selectAllFilesInName", { name: folder.name })}
               onClick={(event) => {
                 event.stopPropagation();
                 if (!treeLoaded || summary.count === 0) return;
@@ -771,7 +779,7 @@ export function AddDocumentsModal({
                     className="py-1 text-xs text-gray-400"
                     style={{ paddingLeft: 40 + depth * 16 }}
                   >
-                    Empty
+                    {t("word.empty")}
                   </p>
                 )}
             </div>
@@ -785,9 +793,9 @@ export function AddDocumentsModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Add Documents"
+      title={t("word.addDocuments")}
       secondaryAction={{
-        label: uploadingFilenames.length > 0 ? "Uploading…" : "Upload",
+        label: uploadingFilenames.length > 0 ? t("word.uploading") : t("word.upload"),
         icon:
           uploadingFilenames.length > 0 ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -798,7 +806,7 @@ export function AddDocumentsModal({
         disabled: uploadingFilenames.length > 0,
       }}
       primaryAction={{
-        label: "Confirm",
+        label: t("word.confirm"),
         disabled:
           selectedDocuments.length === 0 || uploadingFilenames.length > 0,
         onClick: () => {
@@ -813,7 +821,7 @@ export function AddDocumentsModal({
         accept={SUPPORTED_DOCUMENT_ACCEPT}
         multiple
         className="hidden"
-        aria-label="Upload documents"
+        aria-label={t("word.uploadDocuments")}
         onChange={(event) => void handleUpload(event)}
       />
 
@@ -831,7 +839,7 @@ export function AddDocumentsModal({
               setError(null);
             }}
             className="shrink-0 rounded p-0.5 text-gray-600 hover:bg-gray-100"
-            aria-label="Dismiss warning"
+            aria-label={t("word.dismissWarning")}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -843,7 +851,7 @@ export function AddDocumentsModal({
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search..."
+          placeholder={t("word.search")}
           autoFocus
           className="min-w-0 flex-1 border-0 bg-transparent text-xs text-gray-800 outline-none placeholder:text-gray-400"
         />
@@ -855,7 +863,7 @@ export function AddDocumentsModal({
           data-modal-scroll="horizontal"
           className="flex min-w-0 items-center gap-1 overflow-x-auto"
         >
-          {TABS.map((tab) => (
+          {directoryTabs(t).map((tab) => (
             <TabPillButtonUI
               key={tab.value}
               active={activeTab === tab.value}
@@ -868,7 +876,7 @@ export function AddDocumentsModal({
         </div>
         {selectedDocuments.length > 0 && (
           <span className="shrink-0 text-[11px] text-gray-400">
-            {selectedDocuments.length} selected
+            {t("word.lengthSelected", { length: selectedDocuments.length })}
           </span>
         )}
       </div>
@@ -877,12 +885,12 @@ export function AddDocumentsModal({
         <div data-modal-scroll="vertical" className="min-h-0 flex-1 overflow-y-auto pb-3">
           {loading ? (
             <div className="flex h-full items-center justify-center">
-              <Spinner label="Loading documents…" />
+              <Spinner label={t("word.loadingDocuments")} />
             </div>
           ) : activeTab === "projects" ? (
             filteredProjects.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">
-                {query ? "No matches found" : "No projects yet"}
+                {query ? t("word.noMatchesFound") : t("word.noProjectsYet")}
               </p>
             ) : (
               <div className="space-y-px">
@@ -920,7 +928,7 @@ export function AddDocumentsModal({
                           aria-disabled={
                             !projectSelectionReady || items.length === 0
                           }
-                          aria-label={`Select all files in ${project.name}`}
+                          aria-label={t("word.selectAllFilesInName", { name: project.name })}
                           onClick={(event) => {
                             event.stopPropagation();
                             if (!projectSelectionReady || items.length === 0)
@@ -987,7 +995,7 @@ export function AddDocumentsModal({
                               rootItems.length === 0 &&
                               (index?.children.get(null) ?? []).length === 0 && (
                                 <p className="py-2 pl-9 text-xs text-gray-400">
-                                  No documents
+                                  {t("word.noDocuments")}
                                 </p>
                               )}
                           </div>
@@ -1036,7 +1044,7 @@ export function AddDocumentsModal({
                 libraryFolders.length === 0 &&
                 uploadingFilenames.length === 0 && (
                   <p className="py-8 text-center text-sm text-gray-400">
-                    {query ? "No matches found" : `No ${activeTab} yet`}
+                    {query ? t("word.noMatchesFound") : t("word.noActivetabYet", { activeTab })}
                   </p>
                 )}
             </>

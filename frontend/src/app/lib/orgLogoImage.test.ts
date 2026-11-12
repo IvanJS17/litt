@@ -10,6 +10,10 @@ import {
     renderOrgLogo,
     validateOrgLogoFile,
 } from "./orgLogoImage";
+import { sourceTranslator } from "@mike/client";
+import type { Translate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as Translate;
 
 const file = (type: string, size = 10) =>
     new File([new Uint8Array(size)], "logo", { type });
@@ -20,13 +24,13 @@ afterEach(() => {
 
 describe("validateOrgLogoFile", () => {
     it.each(["image/png", "image/jpeg", "image/webp"])("accepts %s", (type) => {
-        expect(() => validateOrgLogoFile(file(type))).not.toThrow();
+        expect(() => validateOrgLogoFile(file(type), t)).not.toThrow();
     });
 
     it.each(["image/svg+xml", "image/gif", "application/pdf", ""])(
         "refuses %p",
         (type) => {
-            expect(() => validateOrgLogoFile(file(type))).toThrow(
+            expect(() => validateOrgLogoFile(file(type), t)).toThrow(
                 "Choose a PNG, JPEG or WebP image.",
             );
         },
@@ -35,12 +39,12 @@ describe("validateOrgLogoFile", () => {
     it("refuses a file over the size limit, and accepts one at it", () => {
         const atLimit = file("image/png");
         Object.defineProperty(atLimit, "size", { value: 10 * 1024 * 1024 });
-        expect(() => validateOrgLogoFile(atLimit)).not.toThrow();
+        expect(() => validateOrgLogoFile(atLimit, t)).not.toThrow();
 
         const over = file("image/png");
         Object.defineProperty(over, "size", { value: 10 * 1024 * 1024 + 1 });
-        expect(() => validateOrgLogoFile(over)).toThrow(OrgLogoImageError);
-        expect(() => validateOrgLogoFile(over)).toThrow(
+        expect(() => validateOrgLogoFile(over, t)).toThrow(OrgLogoImageError);
+        expect(() => validateOrgLogoFile(over, t)).toThrow(
             "Choose an image under 10 MB.",
         );
     });
@@ -140,7 +144,7 @@ describe("renderOrgLogo", () => {
         const image = {} as CanvasImageSource;
         const frame = initialOrgLogoFrame(800, 200);
 
-        expect(renderOrgLogo(image, frame)).toBe("data:image/png;base64,AAAA");
+        expect(renderOrgLogo(image, frame, t)).toBe("data:image/png;base64,AAAA");
 
         expect([canvas.width, canvas.height]).toEqual([
             ORG_LOGO_OUTPUT_SIDE,
@@ -156,7 +160,7 @@ describe("renderOrgLogo", () => {
             getContext: () => null,
         } as never);
         expect(() =>
-            renderOrgLogo({} as CanvasImageSource, initialOrgLogoFrame(10, 10)),
+            renderOrgLogo({} as CanvasImageSource, initialOrgLogoFrame(10, 10), t),
         ).toThrow(OrgLogoImageError);
     });
 });

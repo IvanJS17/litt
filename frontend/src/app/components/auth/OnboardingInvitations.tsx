@@ -11,7 +11,8 @@ import {
     listMyOrgInvitations,
     type OrgInvitation,
 } from "@/app/lib/mikeApi";
-import { ORG_ROLE_LABELS, type OrgRole } from "@/app/lib/permissions";
+import { type OrgRole } from "@/app/lib/permissions";
+import { orgRoleLabel } from "@/app/components/organizations/orgRoleText";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
 import { useTranslations } from "next-intl";
@@ -101,13 +102,13 @@ export function OnboardingInvitations({
                 </div>
             ) : null}
             {invitations?.map((invitation) => {
-                const name = invitation.org_name || "Organization";
+                const name = invitation.org_name || t("auth.onboarding.organizationFallback");
                 const joinedRole = joined[invitation.id];
                 return (
                     <ConnectorCard key={invitation.id} kind="invitation" name={name}
                         icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                         detail={<>
-                            <span className="block [overflow-wrap:anywhere]">{joinedRole ? t("auth.onboarding.joinedAs") : t("auth.onboarding.invitedAs")} {ORG_ROLE_LABELS[joinedRole ?? invitation.role]}</span>
+                            <span className="block [overflow-wrap:anywhere]">{joinedRole ? t("auth.onboarding.joinedAs") : t("auth.onboarding.invitedAs")} {orgRoleLabel(t, joinedRole ?? invitation.role)}</span>
                             {invitation.invited_by_email ? <span className="block [overflow-wrap:anywhere]">{t("auth.onboarding.fromInvitedByEmail", { invited_by_email: invitation.invited_by_email })}</span> : null}
                         </>}
                         action={joinedRole ? (

@@ -20,6 +20,7 @@
     "frontend/src/app/components/auth/GoogleAuthButton.tsx",
     "frontend/src/app/components/auth/OnboardingInvitations.tsx",
     "frontend/src/app/components/auth/SsoAuthButton.tsx",
+    "frontend/src/app/components/auth/passwordPolicy.ts",
     "frontend/src/app/components/documents/DocTable.tsx",
     "frontend/src/app/components/history",
     "frontend/src/app/components/library",
@@ -87,6 +88,8 @@
     "frontend/src/app/layout.tsx",
     "frontend/src/app/lib/authMessages.ts",
     "frontend/src/app/lib/localeActions.ts",
+    "frontend/src/app/lib/orgLogoImage.ts",
+    "frontend/src/app/lib/settingsSearch.ts",
     "frontend/src/app/lib/userFacingError.ts",
     "frontend/src/app/login/page.tsx",
     "frontend/src/app/login/sso/page.tsx",
@@ -114,6 +117,7 @@
     "packages/ui/src/trainingReply.ts",
     "packages/ui/src/trainingText.ts",
     "packages/ui/src/useTrainingBacking.ts",
+    "word-addin/src",
     "word-addin/src/taskpane/components/assistant/BackingPanel.tsx",
     "word-addin/src/taskpane/hooks/useWordTrainingBacking.ts",
     "word-addin/src/taskpane/i18n/useTrainingText.ts"
@@ -121,6 +125,8 @@
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
-    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1
+    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
+    "word-addin/src/taskpane/api/mikeApi.ts": 2,
+    "word-addin/src/taskpane/hooks/useWordAssistantChat.ts": 5
   }
 }

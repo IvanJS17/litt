@@ -9,6 +9,7 @@ import {
 } from "@mike/ui";
 import { parseExcerpts, type MessageExcerpt } from "@mike/client";
 import { useTrainingText } from "../../i18n/useTrainingText";
+import { useTranslations } from "use-intl";
 
 const COLLAPSED_CONTENT_HEIGHT = 144;
 
@@ -32,6 +33,7 @@ function UserMessageImpl({
   /** LiTT training: the private note beside this message, if any. */
   trainingNote?: TrainingNoteView;
 }): React.ReactElement {
+  const t = useTranslations();
   const trainingText = useTrainingText();
   const contentRef = useRef<HTMLParagraphElement>(null);
   const [canExpand, setCanExpand] = useState(false);
@@ -101,7 +103,7 @@ function UserMessageImpl({
               <button
                 type="button"
                 aria-label={
-                  expanded ? "Collapse user message" : "Expand user message"
+                  expanded ? t("word.collapseUserMessage") : t("word.expandUserMessage")
                 }
                 aria-expanded={expanded}
                 onClick={() => setExpanded((current) => !current)}

@@ -7,6 +7,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
+import { useTranslations } from "next-intl";
 import { Modal } from "@/app/components/modals/Modal";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import {
@@ -102,6 +103,7 @@ export function ImageCropModal({
   onSave: (dataUrl: string) => void;
   onRemove?: () => void;
 }) {
+  const t = useTranslations();
   // Decode the upload into pixels before displaying it. The raw file never
   // becomes a DOM URL, so markup cannot be interpreted as preview content.
   const source = file ?? imageUrl ?? null;
@@ -129,7 +131,7 @@ export function ImageCropModal({
           const bytes = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0));
           picked = new File([bytes], "saved-image", { type: match[1] });
         } else picked = source;
-        validateOrgLogoFile(picked);
+        validateOrgLogoFile(picked, t);
         const image = await createImageBitmap(picked);
         if (cancelled) {
           image.close();
@@ -152,7 +154,7 @@ export function ImageCropModal({
       cancelled = true;
       bitmap?.close();
     };
-  }, [source]);
+  }, [source, t]);
 
   const isPhoto = variant === "photo";
   const previewSide = isPhoto ? 20 : SIDEBAR_SIDE;
@@ -237,7 +239,7 @@ export function ImageCropModal({
           if (!frame || !image || !changed || busy) return;
           try {
             setSaveError(false);
-            onSave(renderOrgLogo(image, frame));
+            onSave(renderOrgLogo(image, frame, t));
           } catch {
             setSaveError(true);
           }

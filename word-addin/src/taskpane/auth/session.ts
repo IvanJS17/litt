@@ -1,4 +1,5 @@
 /// <reference types="office-js" />
+import { clientTranslator } from "@mike/client";
 import { networkFailure } from "../lib/networkError";
 import { responseError } from "../api/client";
 import { reportNetworkFailure } from "../lib/errorReporting";
@@ -164,8 +165,8 @@ export function initialize(): void {
     .catch((error: unknown) => {
       _user = null;
       _error = reportFault(error, {
-        action: "sign in",
-        fallback: "LiTT couldn't sign you in. Try again.",
+        action: clientTranslator()("word.actionSignIn"),
+        fallback: clientTranslator()("word.signInFailed"),
         operation: "word.session",
       }).message;
     })
@@ -204,11 +205,11 @@ export async function signIn(email: string, password: string): Promise<void> {
     if (generation !== _sessionGeneration) return;
     _user = null;
     _error = reportFault(error, {
-      action: "sign in",
-      fallback: "LiTT couldn't sign you in. Try again.",
+      action: clientTranslator()("word.actionSignIn"),
+      fallback: clientTranslator()("word.signInFailed"),
       operation: "word.session",
       codeMessages: {
-        invalid_credentials: "That email and password don't match an account.",
+        invalid_credentials: clientTranslator()("word.invalidCredentials"),
       },
     }).message;
   } finally {
@@ -255,7 +256,10 @@ export async function signInWithGoogle(): Promise<void> {
         { height: 60, width: 45, displayInIframe: false },
         (result) => {
           if (result.status !== Office.AsyncResultStatus.Succeeded) {
-            fail(result.error?.message ?? "Unable to open Google sign-in.");
+            fail(
+              result.error?.message ??
+                clientTranslator()("word.oauth.unableToOpen"),
+            );
             return;
           }
           const dialog = result.value;
@@ -273,13 +277,13 @@ export async function signInWithGoogle(): Promise<void> {
               if (settled || !("message" in event)) return;
               if (event.origin && event.origin !== expectedOrigin) {
                 close();
-                fail("Google sign-in returned from an unexpected origin.");
+                fail(clientTranslator()("word.googleUnexpectedOrigin"));
                 return;
               }
               const message = parseGoogleOAuthDialogMessage(event.message);
               if (!message || message.requestId !== requestId) {
                 close();
-                fail("Google sign-in returned an invalid response.");
+                fail(clientTranslator()("word.googleInvalidResponse"));
                 return;
               }
               if (message.status === "error") {
@@ -301,8 +305,10 @@ export async function signInWithGoogle(): Promise<void> {
                 .catch((error: unknown) => {
                   if (generation === _sessionGeneration) {
                     _error = reportFault(error, {
-                      action: "complete Google sign-in",
-                      fallback: "LiTT couldn't complete Google sign-in.",
+                      action: clientTranslator()(
+                        "word.actionCompleteGoogleSignIn",
+                      ),
+                      fallback: clientTranslator()("word.googleCompleteFailed"),
                       operation: "word.session",
                     }).message;
                   }
@@ -321,8 +327,10 @@ export async function signInWithGoogle(): Promise<void> {
               if (!("error" in event)) return;
               fail(
                 event.error === 12006
-                  ? "Google sign-in was cancelled."
-                  : `Google sign-in closed unexpectedly (Office error ${event.error}).`,
+                  ? clientTranslator()("word.googleCancelled")
+                  : clientTranslator()("word.googleClosedUnexpectedly", {
+                      code: event.error,
+                    }),
               );
             },
           );
@@ -333,7 +341,7 @@ export async function signInWithGoogle(): Promise<void> {
       // to a URL..."), which means nothing to a user.
       fail(
         reportFault(error, {
-          fallback: "LiTT couldn't open Google sign-in. Try again.",
+          fallback: clientTranslator()("word.googleOpenFailed"),
           operation: "word.session",
         }).message,
       );
@@ -371,8 +379,8 @@ export async function signOut(): Promise<void> {
     // The pane stays signed in, so the failure is a toast whose Retry signs
     // out again, not the sign-in screen's error state.
     notifyError(error, {
-      action: "sign out",
-      fallback: "LiTT couldn't sign you out. Try again.",
+      action: clientTranslator()("word.actionSignOut"),
+      fallback: clientTranslator()("word.signOutFailed"),
       dedupeKey: "sign-out",
       operation: "word.session",
       onRetry: signOut,

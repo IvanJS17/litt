@@ -134,7 +134,7 @@ describe("OrganizationLogoModal", () => {
       zoom: 1,
       centerX: 400,
       centerY: 100,
-    });
+    }, expect.any(Function));
     expect(onSave).toHaveBeenCalledExactlyOnceWith(RENDERED);
   });
 
@@ -306,6 +306,6 @@ describe("OrganizationLogoModal", () => {
     expect(document.querySelector("canvas")).toBeNull();
     const next = await loadImage(100, 400, 1);
     await userEvent.click(save());
-    expect(mocks.renderOrgLogo).toHaveBeenCalledWith(next, expect.objectContaining({ imageWidth: 100, imageHeight: 400 }));
+    expect(mocks.renderOrgLogo).toHaveBeenCalledWith(next, expect.objectContaining({ imageWidth: 100, imageHeight: 400 }), expect.any(Function));
   });
 });

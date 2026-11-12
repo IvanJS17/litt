@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Workflow } from "../../types";
 import { Spinner } from "../../../shared/ui/spinner";
@@ -9,6 +10,7 @@ import { WorkflowList } from "./WorkflowList";
 import { PageTitle } from "../primitives/PageTitle";
 import { WorkflowAssets } from "./WorkflowAssets";
 import { reportFault, notifyError } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 const WorkflowPromptEditor = lazy(() =>
   import("./WorkflowPromptEditor").then((module) => ({
@@ -34,6 +36,7 @@ export function WorkflowPicker({
   selectedWorkflow,
   onSelectedWorkflowChange,
 }: WorkflowPickerProps): React.ReactElement {
+  const t = useTranslations();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [fetchLoading, setFetchLoading] = useState(true);
   // The failure itself is reported by the toast below, which carries Retry.
@@ -97,7 +100,7 @@ export function WorkflowPicker({
         if (cancelled) return;
         setFetchFailed(true);
         notifyError(reason, {
-          action: "load your workflows",
+          action: clientTranslator()("word.actionLoadWorkflows"),
           dedupeKey: "workflow-list",
           page: "Workflows",
           operation: "workflows.run",
@@ -204,7 +207,7 @@ export function WorkflowPicker({
           setSaveError(
             reportFault(reason, {
               fallback:
-                "LiTT couldn't save these instructions. Try again.",
+                clientTranslator()("word.saveInstructionsFailed"),
               operation: "workflows.run",
             }).message
           );
@@ -230,7 +233,7 @@ export function WorkflowPicker({
           data-testid="workflows-page-title"
           className="mb-3 px-1"
         >
-          Workflows
+          {t("word.workflows")}
         </PageTitle>
         <WorkflowList
           workflows={workflows}
@@ -239,7 +242,7 @@ export function WorkflowPicker({
           onSelect={openWorkflow}
           loading={fetchLoading}
           loadFailed={fetchFailed}
-          emptyMessage="No workflows found."
+          emptyMessage={t("word.noWorkflowsFound")}
         />
       </div>
     );
@@ -262,9 +265,9 @@ export function WorkflowPicker({
         >
           {saveError ??
             (saveStatus === "saving"
-              ? "Saving…"
+              ? t("word.saving")
               : saveStatus === "saved"
-                ? "Saved"
+                ? t("word.saved")
                 : "")}
         </span>
       </div>
@@ -281,7 +284,7 @@ export function WorkflowPicker({
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <Spinner label="Loading editor…" />
+                  <Spinner label={t("word.loadingEditor")} />
                 </div>
               }
             >

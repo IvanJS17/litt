@@ -33,6 +33,7 @@ import settingsIcon from "@icons/settings.svg";
 import signOutIcon from "@icons/sign-out.svg";
 import { ChatHistoryDropdown } from "../history/ChatHistoryDropdown";
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
+import { useTranslations } from "use-intl";
 
 export type AddinSection =
   | "approved-redline"
@@ -64,21 +65,23 @@ interface FloatingHeaderProps {
   currentChatId?: string | null;
 }
 
-const SECTIONS = [
-  { value: "chat" as const, label: "Assistant", icon: chatIcon },
+function sections(t: ReturnType<typeof useTranslations>) {
+  return [
+  { value: "chat" as const, label: t("word.sectionAssistant"), icon: chatIcon },
   {
     value: "history" as const,
-    label: "Chat History",
+    label: t("word.chatHistory2"),
     icon: chatHistoryIcon,
   },
   {
     value: "actions" as const,
-    label: "Quick Actions",
+    label: t("word.quickActions2"),
     icon: quickActionsIcon,
   },
-  { value: "workflows" as const, label: "Workflows", icon: workflowIcon },
-  { value: "settings" as const, label: "Settings", icon: settingsIcon },
+  { value: "workflows" as const, label: t("word.workflows"), icon: workflowIcon },
+  { value: "settings" as const, label: t("word.settings.title"), icon: settingsIcon },
 ];
+}
 
 export function FloatingHeader({
   section,
@@ -100,6 +103,7 @@ export function FloatingHeader({
   wordChatOwnerId,
   currentChatId,
 }: FloatingHeaderProps): React.ReactElement {
+  const t = useTranslations();
   const [menuOpen, setMenuOpen] = useState(false);
   const [workflowActionsOpen, setWorkflowActionsOpen] = useState(false);
 
@@ -133,8 +137,9 @@ export function FloatingHeader({
           <LiquidActionRow className="pointer-events-auto">
             <DropdownTrigger asChild>
               <LiquidIconButton
-                aria-label={menuOpen ? "Close menu" : "Open menu"}
-                title={menuOpen ? "Close menu" : "Menu"}
+                data-testid="header-menu"
+                aria-label={menuOpen ? t("word.closeMenu") : t("word.openMenu")}
+                title={menuOpen ? t("word.closeMenu") : t("word.menu")}
               >
                 {menuOpen ? (
                   <X className="h-4 w-4" />
@@ -145,10 +150,11 @@ export function FloatingHeader({
             </DropdownTrigger>
           </LiquidActionRow>
           <DropdownContent align="start" sideOffset={8} className="min-w-44">
-            {SECTIONS.map((item) => {
+            {sections(t).map((item) => {
               return (
                 <DropdownItem
                   key={item.value}
+                  data-testid={`header-section-${item.value}`}
                   onSelect={() => onSectionChange(item.value)}
                   selected={section === item.value}
                 >
@@ -168,7 +174,7 @@ export function FloatingHeader({
               selected={section === "approved-redline"}
             >
               <FileCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="min-w-0 flex-1">Approved redlines</span>
+              <span className="min-w-0 flex-1">{t("word.approvedRedlines")}</span>
             </DropdownItem>
             <DropdownSeparator />
             <DropdownItem onSelect={onSignOut}>
@@ -179,7 +185,7 @@ export function FloatingHeader({
                 draggable={false}
                 className="h-4 w-4 shrink-0 object-contain"
               />
-              <span className="min-w-0 flex-1">Sign out</span>
+              <span className="min-w-0 flex-1">{t("word.signOut")}</span>
             </DropdownItem>
           </DropdownContent>
         </Dropdown>
@@ -190,11 +196,11 @@ export function FloatingHeader({
           >
             <LiquidTextButton
               onClick={onWorkflowBack}
-              aria-label="Back to workflows"
-              title="Back to workflows"
+              aria-label={t("word.backToWorkflows")}
+              title={t("word.backToWorkflows")}
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              Workflows
+              {t("word.workflows")}
             </LiquidTextButton>
           </LiquidActionRow>
         )}
@@ -206,8 +212,8 @@ export function FloatingHeader({
             <HeaderButtonUI
               iconOnly
               onClick={onNewChat}
-              aria-label="New chat"
-              title="New chat"
+              aria-label={t("word.newChat")}
+              title={t("word.newChat")}
             >
               <Plus className="h-4 w-4" />
             </HeaderButtonUI>
@@ -229,8 +235,8 @@ export function FloatingHeader({
             <DropdownTrigger asChild>
               <HeaderButtonUI
                 iconOnly
-                aria-label="Workflow actions"
-                title="Workflow actions"
+                aria-label={t("word.workflowActions")}
+                title={t("word.workflowActions")}
               >
                 <Ellipsis className="h-4 w-4" />
               </HeaderButtonUI>
@@ -238,7 +244,7 @@ export function FloatingHeader({
             <DropdownContent align="end" sideOffset={8} className="min-w-40">
               <DropdownItem onSelect={() => onOpenWorkflowDetails?.()}>
                 <Pencil className="h-3.5 w-3.5" />
-                <span>Edit details</span>
+                <span>{t("word.editDetails")}</span>
               </DropdownItem>
               <DropdownItem
                 disabled={!canDeleteWorkflow}
@@ -246,13 +252,13 @@ export function FloatingHeader({
                 className="text-red-600"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                <span>Delete</span>
+                <span>{t("word.delete")}</span>
               </DropdownItem>
             </DropdownContent>
           </Dropdown>
           <LiquidTextButton onClick={onUseWorkflow}>
             <Check className="h-3.5 w-3.5" />
-            Use
+            {t("word.use")}
           </LiquidTextButton>
         </HeaderButtonsUI>
       ) : section === "history" ? (
@@ -260,8 +266,8 @@ export function FloatingHeader({
           <HeaderButtonUI
             iconOnly
             onClick={onNewChat}
-            aria-label="New chat"
-            title="New chat"
+            aria-label={t("word.newChat")}
+            title={t("word.newChat")}
           >
             <Plus className="h-4 w-4" />
           </HeaderButtonUI>
@@ -271,8 +277,8 @@ export function FloatingHeader({
           <HeaderButtonUI
             iconOnly
             onClick={onNewWorkflow}
-            aria-label="New workflow"
-            title="New workflow"
+            aria-label={t("word.newWorkflow")}
+            title={t("word.newWorkflow")}
           >
             <Plus className="h-4 w-4" />
           </HeaderButtonUI>
@@ -282,8 +288,8 @@ export function FloatingHeader({
           <HeaderButtonUI
             iconOnly
             onClick={onNewQuickAction}
-            aria-label="New quick action"
-            title="New quick action"
+            aria-label={t("word.newQuickAction2")}
+            title={t("word.newQuickAction2")}
           >
             <Plus className="h-4 w-4" />
           </HeaderButtonUI>

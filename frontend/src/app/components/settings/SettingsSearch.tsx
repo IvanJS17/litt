@@ -10,6 +10,7 @@ import {
     DropdownSurface,
 } from "@mike/ui";
 import {
+    localizedSettingsEntries,
     searchSettings,
     type SettingsSearchEntry,
     type SettingsSearchMatchKind,
@@ -65,9 +66,14 @@ export function SettingsSearch({
     const cancelSectionFocus = useRef<(() => void) | null>(null);
     const sectionPath = useRef<string | null>(null);
     const listId = useId();
+    // The visible entries in the interface language, with their English text.
+    const localized = useMemo(() => {
+        const text = new Map(localizedSettingsEntries(t).map((entry) => [entry.id, entry]));
+        return entries.flatMap((entry) => text.get(entry.id) ?? []);
+    }, [entries, t]);
     const results = useMemo(
-        () => searchSettings(query, entries),
-        [query, entries],
+        () => searchSettings(query, localized),
+        [query, localized],
     );
     const showResults = open && query.trim().length > 0;
 

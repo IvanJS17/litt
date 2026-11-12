@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import type { Workflow } from "../../types";
 import { PickerList } from "../primitives/PickerList";
+import { useTranslations } from "use-intl";
 
 interface WorkflowListProps {
   workflows: Workflow[];
@@ -21,9 +22,10 @@ interface WorkflowListProps {
 export function WorkflowList({
   workflows,
   onSelect,
-  emptyMessage = "No assistant workflows found",
+  emptyMessage,
   ...listProps
 }: WorkflowListProps): React.ReactElement {
+  const t = useTranslations();
   const items = useMemo(
     () =>
       workflows.map((workflow) => ({
@@ -40,9 +42,9 @@ export function WorkflowList({
     <PickerList
       {...listProps}
       items={items}
-      emptyMessage={emptyMessage}
-      searchPlaceholder="Search workflows..."
-      loadingLabel="Loading workflows…"
+      emptyMessage={emptyMessage ?? t("word.noAssistantWorkflowsFound")}
+      searchPlaceholder={t("word.searchWorkflows")}
+      loadingLabel={t("word.loadingWorkflows")}
       onSelect={(id) => {
         const workflow = workflows.find((item) => item.id === id);
         if (workflow) onSelect(workflow);

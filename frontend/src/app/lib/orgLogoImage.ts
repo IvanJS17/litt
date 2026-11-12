@@ -7,6 +7,8 @@
 // a few kilobytes, and nothing but pixels is sent: no metadata, and no format
 // the server does not take.
 
+import type { Translate } from "@/i18n/Translate";
+
 /** The types a logo may be picked from. SVG is not one: see the server. */
 export const ORG_LOGO_ACCEPT = "image/png,image/jpeg,image/webp";
 
@@ -25,13 +27,14 @@ export class OrgLogoImageError extends Error {}
 
 /**
  * Whether a picked file can be a logo at all, before it is opened. Throws an
- * OrgLogoImageError whose message can be shown as it is.
+ * OrgLogoImageError whose message, in the interface language, can be shown
+ * as it is.
  */
-export function validateOrgLogoFile(file: File): void {
+export function validateOrgLogoFile(file: File, t: Translate): void {
     if (!ACCEPTED_TYPES.includes(file.type))
-        throw new OrgLogoImageError("Choose a PNG, JPEG or WebP image.");
+        throw new OrgLogoImageError(t("organizations.logoImage.chooseType"));
     if (file.size > ORG_LOGO_MAX_FILE_BYTES)
-        throw new OrgLogoImageError("Choose an image under 10 MB.");
+        throw new OrgLogoImageError(t("organizations.logoImage.chooseSize"));
 }
 
 /** How the picture is framed: its size, how far it is zoomed, and where. */
@@ -118,13 +121,14 @@ export function orgLogoPlacement(frame: OrgLogoFrame, side: number) {
 export function renderOrgLogo(
     image: CanvasImageSource,
     frame: OrgLogoFrame,
+    t: Translate,
 ): string {
     const canvas = document.createElement("canvas");
     canvas.width = ORG_LOGO_OUTPUT_SIDE;
     canvas.height = ORG_LOGO_OUTPUT_SIDE;
     const context = canvas.getContext("2d");
     if (!context)
-        throw new OrgLogoImageError("That image could not be prepared.");
+        throw new OrgLogoImageError(t("organizations.logoImage.couldNotPrepare"));
     const placement = orgLogoPlacement(frame, ORG_LOGO_OUTPUT_SIDE);
     // Whatever the picture does not cover stays transparent.
     context.clearRect(0, 0, ORG_LOGO_OUTPUT_SIDE, ORG_LOGO_OUTPUT_SIDE);

@@ -9,16 +9,18 @@
  *
  * Pure so the exact sentence can be asserted without Word or a browser.
  */
+import { clientLocale, clientTranslator } from "@mike/client";
 
 /** A hidden Word bookmark that could not be deleted. */
-export const BOOKMARK_CLEANUP_FAILURE = "a leftover marker could not be removed";
+export const bookmarkCleanupFailure = (): string =>
+  clientTranslator()("word.cleanupBookmarkLeft");
 
 /** The document-settings entry backing the card's "View" link. */
-export const ANCHOR_CLEANUP_FAILURE =
-  "its saved View link could not be cleared";
+export const anchorCleanupFailure = (): string =>
+  clientTranslator()("word.cleanupAnchorLeft");
 
 /** In-memory Word proxies that could not be untracked. */
-export const PROXY_CLEANUP_FAILURE = BOOKMARK_CLEANUP_FAILURE;
+export const proxyCleanupFailure = bookmarkCleanupFailure;
 
 /**
  * One sentence for everything cleanup left behind, or `undefined` when it
@@ -32,9 +34,9 @@ export function cleanupSentence(
     ...new Set(failures.map((failure) => failure.trim()).filter(Boolean)),
   ];
   if (unique.length === 0) return undefined;
-  const list =
-    unique.length === 1
-      ? unique[0]
-      : `${unique.slice(0, -1).join(", ")} and ${unique[unique.length - 1]}`;
-  return `The change was applied, but ${list}. It is safe to ignore.`;
+  const list = new Intl.ListFormat(clientLocale(), {
+    style: "long",
+    type: "conjunction",
+  }).format(unique);
+  return clientTranslator()("word.cleanupSentence", { list });
 }

@@ -11,7 +11,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import {
-    LOCAL_SAVE_FAILED_MESSAGE,
+    localSaveFailedMessage,
     saveWordMessageOrNotify,
 } from "../../../word-addin/src/taskpane/lib/localWordChatSaves";
 
@@ -62,7 +62,7 @@ describe("saveWordMessageOrNotify", () => {
         expect(options.action).toBe("save this conversation on this device");
         expect(options.dedupeKey).toBe("local-word-chat-save:chat-1");
         // The storage layer's own wording never reaches the screen.
-        expect(error.message).toBe(LOCAL_SAVE_FAILED_MESSAGE);
+        expect(error.message).toBe(localSaveFailedMessage());
         expect(error.message).not.toContain("QuotaExceededError");
         // Declared retryable so notifyError actually renders the Retry: an
         // IndexedDB failure classifies as "unknown", which is not retryable

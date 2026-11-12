@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, {
   forwardRef,
   useEffect,
@@ -85,11 +86,12 @@ import {
   WORD_WORKFLOW_SLASH_MENU_ID,
   WorkflowSlashMenu,
 } from "./WorkflowSlashMenu";
+import { useTranslations } from "use-intl";
 
 /** The approach field of the training composer; «Responder» focuses it. */
 const TRAINING_ATTEMPT_ID = "word-training-attempt";
 
-const SELECT_MODEL_MESSAGE = "Select a model before sending your message.";
+const selectModelMessage = (): string => clientTranslator()("word.selectModelBeforeSending");
 
 /** Where a model warning leads: the picker, or the web app's API keys. */
 type ModelErrorAction = "choose-model" | "api-keys";
@@ -185,6 +187,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
     },
     ref,
   ): React.ReactElement {
+    const t = useTranslations();
     const [input, setInput] = useState("");
     const [attachedDocuments, setAttachedDocuments] = useState<Document[]>([]);
     const [excerpts, setExcerpts] = useState<MessageExcerpt[]>([]);
@@ -395,7 +398,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           // indistinguishable from "you have no workflows", so say so.
           setSlashWorkflows([]);
           notifyError(reason, {
-            action: "load your workflows",
+            action: clientTranslator()("word.actionLoadWorkflows"),
             dedupeKey: "slash-workflows",
             page: "Assistant",
             operation: "word_chat.turn",
@@ -433,7 +436,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             // cannot serve), but the toggle will look wrong until this
             // succeeds, so the user is told rather than left guessing.
             notifyError(error, {
-              action: "load your models",
+              action: clientTranslator()("word.actionLoadModels"),
               dedupeKey: "model-preflight",
               page: "Assistant",
               operation: "word_chat.turn",
@@ -521,7 +524,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
 
       setUploadingLocalFiles(true);
       setDocumentUploadError(
-        unsupported.length > 0 ? "Unsupported files were skipped." : null,
+        unsupported.length > 0 ? clientTranslator()("word.unsupportedFilesSkipped") : null,
       );
       // Documents that finished are kept even when the batch as a whole did
       // not: attach them as they land, and again from whatever accounting the
@@ -577,7 +580,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         } else {
           setDocumentUploadError(
             reportFault(reason, {
-              fallback: "Documents could not be uploaded. Try again.",
+              fallback: clientTranslator()("word.documentsUploadFailed"),
               operation: "documents.upload",
             }).message,
           );
@@ -633,8 +636,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       if (!model) {
         setModelError(
           hasModels === false
-            ? noModelsError(keyStatus, routerSelections, SELECT_MODEL_MESSAGE)
-            : { message: SELECT_MODEL_MESSAGE, action: "choose-model" },
+            ? noModelsError(keyStatus, routerSelections, selectModelMessage())
+            : { message: selectModelMessage(), action: "choose-model" },
         );
         return;
       }
@@ -736,7 +739,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             accept={SUPPORTED_DOCUMENT_ACCEPT}
             multiple
             className="hidden"
-            aria-label="Upload desktop files"
+            aria-label={t("word.uploadDesktopFiles")}
             onChange={(event) => void handleLocalFiles(event)}
           />
           {composerError && (
@@ -759,8 +762,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                       className="rounded font-medium text-gray-900 underline underline-offset-2 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     >
                       {composerErrorAction === "choose-model"
-                        ? "Choose model"
-                        : "Open Bring Your Own Keys"}
+                        ? t("word.chooseModel")
+                        : t("word.openBringYourOwnKeys")}
                     </button>
                   </>
                 )}
@@ -772,7 +775,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                   setDocumentUploadError(null);
                   setModelError(null);
                 }}
-                aria-label="Dismiss error"
+                aria-label={t("word.dismissError")}
                 className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-900/5 hover:text-gray-700"
               >
                 <X className="h-3.5 w-3.5" />
@@ -879,7 +882,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
               isLoading={isResponseLoading}
               onCancel={onCancel}
               disabled={false}
-              placeholder="How can I help?"
+              placeholder={t("word.howCanIHelp")}
               canSubmitEmpty={hasAnnotatedExcerpt}
               attachments={
                 selectedWorkflow ||
@@ -896,7 +899,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                         <button
                           type="button"
                           onClick={() => onSelectedWorkflowChange(null)}
-                          aria-label={`Remove workflow ${selectedWorkflow.title}`}
+                          aria-label={t("word.removeWorkflowTitle", { title: selectedWorkflow.title })}
                           className="ml-0.5 rounded-full p-0.5 text-white/60 transition-colors hover:bg-white/20 hover:text-white"
                         >
                           <X className="h-2.5 w-2.5" />
@@ -932,7 +935,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
                               current.filter((item) => item.id !== document.id),
                             )
                           }
-                          aria-label={`Remove document ${document.filename}`}
+                          aria-label={t("word.removeDocumentFilename", { filename: document.filename })}
                           className="ml-0.5 rounded-full p-0.5 text-gray-400 transition-colors hover:bg-gray-900/5 hover:text-gray-700"
                         >
                           <X className="h-2.5 w-2.5" />

@@ -1,3 +1,4 @@
+import { useTranslations } from "use-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ModelToggleUI,
@@ -101,6 +102,7 @@ export function ModelToggle({
     }
   }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel]);
 
+  const t = useTranslations();
   return (
     <ModelToggleUI
       value={value}
@@ -108,14 +110,14 @@ export function ModelToggle({
       models={models}
       selectedLabel={
         keyStatusLoading
-          ? (selected?.label ?? "Select model")
+          ? (selected?.label ?? t("word.selectModel2"))
           : (selected?.label ??
-            (models.length > 0 ? "Select model" : "No Models"))
+            (models.length > 0 ? t("word.selectModel2") : t("word.noModels")))
       }
       selectedAvailable={selected !== undefined}
       loading={keyStatusLoading}
       compact={compact}
-      emptyLabel="No Models"
+      emptyLabel={t("word.noModels")}
       onEmptyClick={onNoModelsClick}
       reasoningLevel={normalizedReasoningLevel}
       onReasoningChange={onReasoningChange}

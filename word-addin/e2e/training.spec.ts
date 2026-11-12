@@ -702,8 +702,8 @@ test("the consulted criteria read in Spanish and say so when the firm wrote none
   });
   await addin.gotoTaskpane();
   await addin.expectAuthedShell();
-  await page.getByPlaceholder("How can I help?").fill("¿Hay mora?");
-  await page.getByRole("button", { name: "Send" }).click();
+  await page.getByTestId("chat-input").locator("textarea").fill("¿Hay mora?");
+  await page.getByTestId("chat-send").click();
 
   const panel = page.getByTestId("firm-criteria-consulted");
   await expect(panel).toBeVisible();

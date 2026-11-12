@@ -106,8 +106,8 @@ describe("the language selector in Settings", () => {
         expect(updateUiLocale).toHaveBeenCalledExactlyOnceWith("es-MX");
         expect(await screen.findByText("Ajustes")).toBeVisible();
         expect(screen.getByRole("combobox", { name: "Idioma de la interfaz" })).toHaveValue("es-MX");
-        // Page state survives: the other settings are still on screen.
-        expect(screen.getByRole("heading", { name: /Save chats in the cloud/ })).toBeVisible();
+        // Page state survives: the other settings are still on screen, now in Spanish.
+        expect(screen.getByRole("heading", { name: /Guardar chats en la nube/ })).toBeVisible();
         expect(clientLocale()).toBe("es-MX");
         expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("es-MX");
     });

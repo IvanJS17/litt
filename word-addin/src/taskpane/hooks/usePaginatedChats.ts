@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Chat } from "../types";
 import { listCloudWordChats } from "../api/mikeApi";
@@ -107,9 +108,9 @@ export function usePaginatedChats(
         if (cancelled) return;
         setError(
           timedOut
-            ? "Chat history took too long to load."
+            ? clientTranslator()("word.chatHistoryTimeout")
             : reportFault(reason, {
-                fallback: "LiTT couldn't load your chat history. Try again.",
+                fallback: clientTranslator()("word.loadChatHistoryFailed"),
                 operation: "word_chat.turn",
               }).message,
         );
