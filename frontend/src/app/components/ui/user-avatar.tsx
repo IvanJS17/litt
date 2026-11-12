@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 // Dark enough for white initials in either theme. Never use a random colour:
 // normalized email identifies the same person across every roster and session.
@@ -37,13 +38,14 @@ export function UserAvatar({ photo, name, email, size = "md", className }: {
   size?: UserAvatarSize;
   className?: string;
 }) {
+  const t = useTranslations();
   const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
   const source = photo && /^data:image\/(png|jpeg|webp);base64,/.test(photo) && photo !== failedPhoto
     ? photo : null;
   return (
     <span
       role="img"
-      aria-label={name?.trim() || email?.trim() || "User"}
+      aria-label={name?.trim() || email?.trim() || t("ui.user")}
       data-slot="user-avatar"
       className={cn("inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full font-serif font-medium text-white", size === "sm" ? "h-4 w-4 text-[8px]" : "h-5 w-5 text-[10px]", avatarColour(email, name), className)}
     >

@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useTranslations } from "next-intl";
 
 const DIVIDER_WIDTH = 6;
 
@@ -16,7 +17,7 @@ export function PlaybookPanels({
   sidebar,
   children,
   variant = "sidebar",
-  resizeLabel = "Resize rules panel",
+  resizeLabel: resizeLabelProp,
 }: {
   /**
    * The adjustable pane. When null the main content fills the row, and stays
@@ -28,6 +29,8 @@ export function PlaybookPanels({
   variant?: "sidebar" | "trailing";
   resizeLabel?: string;
 }) {
+  const t = useTranslations();
+  const resizeLabel = resizeLabelProp ?? t("playbooks.resizeRulesPanel");
   const isTrailing = variant === "trailing";
   const hasPane = sidebar != null;
   const minWidth = isTrailing ? 320 : 160;
@@ -116,7 +119,7 @@ export function PlaybookPanels({
             aria-valuenow={Math.round(width)}
             aria-valuetext={`${Math.round(width)} pixels`}
             tabIndex={0}
-            title="Drag to resize, or use the left and right arrow keys"
+            title={t("playbooks.dragToResizeOrUseThe")}
             onPointerDown={(event) => {
               if (event.button !== 0) return;
               event.preventDefault();

@@ -3,16 +3,12 @@
 import { Plus, Upload } from "lucide-react";
 import { TableToolbar } from "@/app/components/shared/TableToolbar";
 import { TabPillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 // A playbook's details are edited from a dialog, as in other features.
 export const PLAYBOOK_VIEWS = ["rules", "references", "runs", "corrections"] as const;
 export type PlaybookView = (typeof PLAYBOOK_VIEWS)[number];
 
-const VIEWS: { id: Exclude<PlaybookView, "corrections">; label: string }[] = [
-  { id: "rules", label: "Rules" },
-  { id: "references", label: "References" },
-  { id: "runs", label: "Runs" },
-];
 
 export function PlaybookToolbar({
   disabled,
@@ -42,17 +38,23 @@ export function PlaybookToolbar({
    */
   correctionsLabel?: string;
 }) {
+  const t = useTranslations();
+  const views: { id: Exclude<PlaybookView, "corrections">; label: string }[] = [
+    { id: "rules", label: t("playbooks.rules") },
+    { id: "references", label: t("playbooks.references") },
+    { id: "runs", label: t("playbooks.runs") },
+  ];
   return (
-    <nav aria-label="Playbook toolbar" className="shrink-0">
+    <nav aria-label={t("playbooks.playbookToolbar")} className="shrink-0">
       <TableToolbar
         leading={
           <div className="flex w-full flex-wrap items-center justify-between gap-1.5">
             <div
               role="group"
-              aria-label="Playbook view"
+              aria-label={t("playbooks.playbookView")}
               className="flex flex-wrap items-center gap-1.5"
             >
-              {VIEWS.map((entry) => (
+              {views.map((entry) => (
                 <TabPillButtonUI
                   key={entry.id}
                   active={view === entry.id}
@@ -76,13 +78,13 @@ export function PlaybookToolbar({
                 onClick={onAddRule}
               >
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
-                New rule
+                {t("playbooks.newRule")}
               </TabPillButtonUI>
             )}
             {view === "runs" && (
               <TabPillButtonUI disabled={disabled || runDisabled} onClick={onNewRun}>
                 <Plus aria-hidden="true" className="h-3.5 w-3.5" />
-                New run
+                {t("playbooks.newRun")}
               </TabPillButtonUI>
             )}
             {view === "references" && (
@@ -91,7 +93,7 @@ export function PlaybookToolbar({
                 onClick={onUpload}
               >
                 <Upload aria-hidden="true" className="h-3.5 w-3.5" />
-                Upload
+                {t("playbooks.upload")}
               </TabPillButtonUI>
             )}
           </div>

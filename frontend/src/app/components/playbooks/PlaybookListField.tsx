@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ChevronDown } from "lucide-react";
 import { FieldLabel, FormTextInput } from "@/app/components/ui/form-field";
 import {
@@ -40,6 +41,7 @@ export function PlaybookListField({
   options?: readonly PlaybookListOption[];
   disabled?: boolean;
 }) {
+  const t = useTranslations();
   const id = useId();
   const fieldRef = useRef<HTMLDivElement>(null);
   const [menuWidth, setMenuWidth] = useState<number>();
@@ -88,8 +90,8 @@ export function PlaybookListField({
                 type="button"
                 size="icon-xs"
                 disabled={disabled}
-                aria-label={`Choose ${label.toLowerCase()}`}
-                title={`Choose ${label.toLowerCase()}`}
+                aria-label={t("playbooks.chooseLabel", { label: label.toLowerCase() })}
+                title={t("playbooks.chooseLabel", { label: label.toLowerCase() })}
                 className="absolute right-2 top-1/2 h-6 -translate-y-1/2"
               >
                 <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />

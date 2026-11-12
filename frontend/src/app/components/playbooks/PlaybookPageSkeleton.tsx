@@ -10,6 +10,7 @@ import {
   PLAYBOOK_SIDE_HEADER_CLASS,
   PLAYBOOK_SIDE_LIST_CLASS,
 } from "./playbookPaneStyles";
+import { useTranslations } from "next-intl";
 
 function PillSkeleton({ className }: { className: string }) {
   return (
@@ -25,11 +26,12 @@ function PillSkeleton({ className }: { className: string }) {
  * the toolbar, the rule list, and the rule editor.
  */
 export function PlaybookPageSkeleton() {
+  const t = useTranslations();
   return (
     <div
       role="status"
       aria-busy="true"
-      aria-label="Loading playbook"
+      aria-label={t("playbooks.loadingPlaybook")}
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="shrink-0">

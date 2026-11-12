@@ -13,6 +13,7 @@ import { preloadSidebarIcons } from "@/app/components/shared/AppSidebarSkeuoIcon
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { HeaderButtonUI, HeaderButtonsUI } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 /**
  * The project workspace (explorer, documents and chat). "New chat" renders
@@ -26,6 +27,7 @@ export default function MikeLayout({
 }: {
     children: React.ReactNode;
 }) {
+    const t = useTranslations();
     preloadSidebarIcons();
     // While this boundary hydrates, useAuth answers the server's loading
     // state even if the session already settled (see useOptionalAuth).
@@ -175,8 +177,8 @@ export default function MikeLayout({
                                             <HeaderButtonUI
                                                 iconOnly
                                                 onClick={handleSidebarToggle}
-                                                title="Open sidebar"
-                                                aria-label="Open sidebar"
+                                                title={t("common.openSidebar")}
+                                                aria-label={t("common.openSidebar")}
                                             >
                                                 <PanelLeft className="h-4 w-4" />
                                             </HeaderButtonUI>

@@ -198,7 +198,7 @@ export function PlaybooksWorkspaceLayout() {
 }
 
 function PlaybooksWorkspace() {
-  const t = useTranslations("playbooks");
+  const t = useTranslations();
   const tCorrections = useTranslations("training.criterion.corrections");
   const { workspaceId, activeOrganization } = useWorkspace();
   const router = useRouter();
@@ -235,7 +235,7 @@ function PlaybooksWorkspace() {
       ...ollamaModels.map((model) => ({
         ...model,
         label: modelDisplayName(model.id),
-        source: "Local",
+        source: t("playbooks.local"),
       })),
     ],
     [ollamaModels],
@@ -438,7 +438,7 @@ function PlaybooksWorkspace() {
     } catch (error) {
       reportFault(error, { operation: "playbooks.save" });
       setSharesError(
-        userFacingApiError(error, "The change was saved, but this list could not be reloaded. Reopen People to see the current one."),
+        userFacingApiError(error, t("playbooks.theChangeWasSavedBut")),
       );
     }
   }, []);
@@ -494,7 +494,7 @@ function PlaybooksWorkspace() {
         if (!current) return;
         setAllRunsError(
           reportFault(err, {
-            action: "load the runs",
+            action: t("playbooks.loadTheRuns"),
             operation: "playbooks.review",
           }).message,
         );
@@ -560,7 +560,7 @@ function PlaybooksWorkspace() {
       setRunDeleteTargets(null);
     } catch (err) {
       notifyError(err, {
-        action: "delete the run",
+        action: t("playbooks.deleteTheRun"),
         operation: "playbooks.review",
       });
     } finally {
@@ -601,7 +601,7 @@ function PlaybooksWorkspace() {
     } catch (err) {
       setError(
         reportFault(err, {
-          action: "load playbooks",
+          action: t("playbooks.loadPlaybooks"),
           operation: "playbooks.save",
         }).message,
       );
@@ -679,7 +679,7 @@ function PlaybooksWorkspace() {
       return true;
     } catch (err) {
       notifyError(err, {
-        action: "create the playbook",
+        action: t("playbooks.createThePlaybook"),
         operation: "playbooks.save",
       });
       return false;
@@ -727,13 +727,13 @@ function PlaybooksWorkspace() {
       setIntakeOpen(false);
       showToast({
         tone: "info",
-        title: t("intake.startedTitle"),
-        message: t("intake.startedMessage"),
+        title: t("playbooks.intake.startedTitle"),
+        message: t("playbooks.intake.startedMessage"),
       });
       return true;
     } catch (err) {
       notifyError(err, {
-        action: t("intake.submitAction"),
+        action: t("playbooks.intake.submitAction"),
         operation: "playbooks.import",
       });
       return false;
@@ -750,7 +750,7 @@ function PlaybooksWorkspace() {
       return true;
     } catch (err) {
       notifyError(err, {
-        action: t("draft.markReadyAction"),
+        action: t("playbooks.draft.markReadyAction"),
         operation: "playbooks.save",
       });
       return false;
@@ -769,7 +769,7 @@ function PlaybooksWorkspace() {
       );
     } catch (err) {
       notifyError(err, {
-        action: t("model.markAction"),
+        action: t("playbooks.model.markAction"),
         operation: "playbooks.save",
       });
     } finally {
@@ -787,12 +787,12 @@ function PlaybooksWorkspace() {
       openPlaybook(copy.id);
       showToast({
         tone: "success",
-        title: t("model.copiedTitle"),
-        message: t("model.copied", { name: source.name }),
+        title: t("playbooks.model.copiedTitle"),
+        message: t("playbooks.model.copied", { name: source.name }),
       });
     } catch (err) {
       notifyError(err, {
-        action: t("model.copyAction"),
+        action: t("playbooks.model.copyAction"),
         operation: "playbooks.save",
       });
     } finally {
@@ -870,7 +870,7 @@ function PlaybooksWorkspace() {
     if (attempt.status === "failed") {
       const message =
         attempt.error ??
-        "The playbook could not be imported. Please try again.";
+        t("playbooks.thePlaybookCouldNotBe");
       if (followed) {
         // Back to the form, with the chosen file still there to retry.
         setFollowedImportId(null);
@@ -878,7 +878,7 @@ function PlaybooksWorkspace() {
       } else {
         showToast({
           tone: "error",
-          title: `${attempt.name || attempt.filename} wasn’t imported`,
+          title: t("playbooks.nameWasntImported", { name: attempt.name || attempt.filename }),
           message,
         });
       }
@@ -890,7 +890,7 @@ function PlaybooksWorkspace() {
       saved = await getPlaybook(attempt.playbookId);
     } catch (err) {
       notifyError(err, {
-        action: "open the imported playbook",
+        action: t("playbooks.openTheImportedPlaybook"),
         operation: "playbooks.import",
       });
       if (followed) closeImport();
@@ -904,11 +904,11 @@ function PlaybooksWorkspace() {
     }
     showToast({
       tone: "success",
-      title: "New playbook ready",
-      message: `${saved.name} has been compiled. Open to view.`,
+      title: t("playbooks.newPlaybookReady"),
+      message: t("playbooks.nameHasBeenCompiledOpenTo", { name: saved.name }),
       durationMs: 10_000,
       actions: [
-        { label: "Open", tone: "blue", onClick: () => openPlaybook(saved.id) },
+        { label: t("playbooks.open"), tone: "blue", onClick: () => openPlaybook(saved.id) },
       ],
     });
   };
@@ -918,12 +918,12 @@ function PlaybooksWorkspace() {
     if (attempt.status === "failed") {
       showToast({
         tone: "error",
-        title: t("intake.failedTitle"),
-        message: attempt.error ?? t("intake.failedMessage"),
+        title: t("playbooks.intake.failedTitle"),
+        message: attempt.error ?? t("playbooks.intake.failedMessage"),
         durationMs: 10_000,
         actions: [
           {
-            label: t("intake.backToQuestions"),
+            label: t("playbooks.intake.backToQuestions"),
             tone: "blue",
             onClick: () => setIntakeOpen(true),
           },
@@ -937,7 +937,7 @@ function PlaybooksWorkspace() {
       saved = await getPlaybook(attempt.playbookId);
     } catch (err) {
       notifyError(err, {
-        action: t("intake.openAction"),
+        action: t("playbooks.intake.openAction"),
         operation: "playbooks.import",
       });
       return;
@@ -946,11 +946,11 @@ function PlaybooksWorkspace() {
     setIntakeKey((key) => key + 1);
     showToast({
       tone: "success",
-      title: t("intake.readyTitle"),
-      message: t("intake.readyMessage", { name: saved.name }),
+      title: t("playbooks.intake.readyTitle"),
+      message: t("playbooks.intake.readyMessage", { name: saved.name }),
       durationMs: 10_000,
       actions: [
-        { label: t("intake.open"), tone: "blue", onClick: () => openPlaybook(saved.id) },
+        { label: t("playbooks.intake.open"), tone: "blue", onClick: () => openPlaybook(saved.id) },
       ],
     });
   }
@@ -1055,7 +1055,7 @@ function PlaybooksWorkspace() {
       setDeleteTargetId(null);
     } catch (err) {
       notifyError(err, {
-        action: "delete the playbook",
+        action: t("playbooks.deleteThePlaybook"),
         operation: "playbooks.save",
       });
     } finally {
@@ -1074,7 +1074,7 @@ function PlaybooksWorkspace() {
     );
     setReviewError(
       supported.length < candidates.length
-        ? "Some files weren’t added. Choose PDF, DOCX, or TXT documents."
+        ? t("playbooks.someFilesWerenTAdded")
         : null,
     );
     setReviewDocuments((current) => {
@@ -1100,7 +1100,7 @@ function PlaybooksWorkspace() {
       PLAYBOOK_IMPORT_FILE.test(item.name),
     );
     if (supported) setImportSource(supported);
-    setImportError(supported ? null : "Choose a Word (.docx) or PDF playbook.");
+    setImportError(supported ? null : t("playbooks.chooseAWordDocxOr"));
   }
 
   async function review() {
@@ -1170,7 +1170,7 @@ function PlaybooksWorkspace() {
         } catch (err) {
           failed = true;
           const error = reportFault(err, {
-            action: "review the document",
+            action: t("playbooks.reviewTheDocument"),
             operation: "playbooks.review",
           }).message;
           setReviewDocuments((items) =>
@@ -1199,13 +1199,13 @@ function PlaybooksWorkspace() {
         breadcrumbs={
           linkedPlaybookLoading
             ? [
-                { label: "Playbooks", onClick: () => openPlaybook(null) },
+                { label: t("playbooks.intake.breadcrumb"), onClick: () => openPlaybook(null) },
                 { loading: true, skeletonClassName: "w-40" },
               ]
             : selected
               ? [
                   {
-                    label: "Playbooks",
+                    label: t("playbooks.intake.breadcrumb"),
                     onClick: () => void backToList(),
                   },
                   {
@@ -1213,7 +1213,7 @@ function PlaybooksWorkspace() {
                     title: content?.name || selected.name,
                   },
                 ]
-              : [{ label: "Playbooks" }]
+              : [{ label: t("playbooks.intake.breadcrumb") }]
         }
         actionGroups={
           linkedPlaybookLoading
@@ -1236,10 +1236,10 @@ function PlaybooksWorkspace() {
                                 />
                               )}
                               {autosave.status === "saving"
-                                ? t("savingStatus")
+                                ? t("playbooks.savingStatus")
                                 : autosave.status === "error"
-                                  ? "Couldn’t save"
-                                  : "Saved"}
+                                  ? t("playbooks.couldnTSave")
+                                  : t("playbooks.saved")}
                             </span>
                           ),
                         },
@@ -1248,7 +1248,7 @@ function PlaybooksWorkspace() {
                   [
                     {
                       onClick: () => openAccess(selected),
-                      title: "Playbook people",
+                      title: t("playbooks.playbookPeople"),
                       iconOnly: true,
                       icon: <Users aria-hidden="true" className="h-4 w-4" />,
                     },
@@ -1259,7 +1259,7 @@ function PlaybooksWorkspace() {
                           <DropdownTrigger asChild>
                             <HeaderButtonUI
                               iconOnly
-                              aria-label="Playbook actions"
+                              aria-label={t("playbooks.playbookActions")}
                               disabled={!!busy}
                             >
                               <MoreHorizontal
@@ -1273,7 +1273,7 @@ function PlaybooksWorkspace() {
                               onSelect={() => setDetailsTargetId(selected.id)}
                             >
                               <Pencil aria-hidden="true" className="h-4 w-4" />
-                              {canEdit ? "Edit details" : "View details"}
+                              {canEdit ? t("playbooks.editDetails") : t("playbooks.viewDetails")}
                             </DropdownItem>
                             {canEdit && (
                               <DropdownItem
@@ -1281,7 +1281,7 @@ function PlaybooksWorkspace() {
                                 onSelect={() => void toggleModel()}
                               >
                                 <Star aria-hidden="true" className="h-4 w-4" />
-                                {selected.isModel ? t("model.unmark") : t("model.mark")}
+                                {selected.isModel ? t("playbooks.model.unmark") : t("playbooks.model.mark")}
                               </DropdownItem>
                             )}
                             {canEdit && (
@@ -1292,7 +1292,7 @@ function PlaybooksWorkspace() {
                                   aria-hidden="true"
                                   className="h-4 w-4"
                                 />
-                                Replace from file
+                                {t("playbooks.replaceFromFile")}
                               </DropdownItem>
                             )}
                             {canManageAccess && (
@@ -1304,7 +1304,7 @@ function PlaybooksWorkspace() {
                                   aria-hidden="true"
                                   className="h-4 w-4"
                                 />
-                                Delete playbook
+                                {t("playbooks.deletePlaybook")}
                               </DropdownItem>
                             )}
                           </DropdownContent>
@@ -1323,7 +1323,7 @@ function PlaybooksWorkspace() {
                                 aria-hidden="true"
                                 className="h-3.5 w-3.5"
                               />
-                              Use
+                              {t("playbooks.use")}
                             </HeaderButtonUI>
                           </DropdownTrigger>
                           <DropdownContent align="end" className="w-52">
@@ -1332,7 +1332,7 @@ function PlaybooksWorkspace() {
                                 aria-hidden="true"
                                 className="h-4 w-4"
                               />
-                              Run playbook
+                              {t("playbooks.runPlaybook")}
                             </DropdownItem>
                             <DropdownItem
                               disabled={isDraft}
@@ -1342,7 +1342,7 @@ function PlaybooksWorkspace() {
                                 aria-hidden="true"
                                 className="h-4 w-4"
                               />
-                              Use in assistant
+                              {t("playbooks.useInAssistant")}
                             </DropdownItem>
                           </DropdownContent>
                         </Dropdown>
@@ -1357,7 +1357,7 @@ function PlaybooksWorkspace() {
                       value: search,
                       onChange: setSearch,
                       placeholder:
-                        tab === "runs" ? "Search runs…" : "Search playbooks…",
+                        tab === "runs" ? t("playbooks.searchRuns") : t("playbooks.searchPlaybooks2"),
                     },
                     {
                       type: "custom",
@@ -1481,16 +1481,16 @@ function PlaybooksWorkspace() {
             items={
               isOrganization
                 ? [
-                    { id: "all", label: "All" },
-                    { id: "mine", label: "Private" },
-                    { id: "shared", label: "Public" },
-                    { id: "runs", label: "Runs" },
+                    { id: "all", label: t("playbooks.all") },
+                    { id: "mine", label: t("playbooks.private") },
+                    { id: "shared", label: t("playbooks.public") },
+                    { id: "runs", label: t("playbooks.runs") },
                   ]
                 : [
-                    { id: "all", label: "All" },
-                    { id: "mine", label: "My playbooks" },
-                    { id: "shared", label: "Shared with me" },
-                    { id: "runs", label: "Runs" },
+                    { id: "all", label: t("playbooks.all") },
+                    { id: "mine", label: t("playbooks.myPlaybooks") },
+                    { id: "shared", label: t("playbooks.sharedWithMe") },
+                    { id: "runs", label: t("playbooks.runs") },
                   ]
             }
             active={tab}
@@ -1633,9 +1633,9 @@ function PlaybooksWorkspace() {
           currentUserEmail={user?.email ?? null}
           currentUserId={user?.id ?? null}
           breadcrumb={[
-            "Playbooks",
-            accessPlaybook.name || "Untitled playbook",
-            "Access",
+            t("playbooks.intake.breadcrumb"),
+            accessPlaybook.name || t("playbooks.untitledPlaybook"),
+            t("playbooks.access"),
           ]}
           access={{
             grants: shares.map((share) => ({
@@ -1643,7 +1643,7 @@ function PlaybooksWorkspace() {
               role: share.role,
             })),
             orgId: accessPlaybook.orgId,
-            ownerLabel: "Playbook owners",
+            ownerLabel: t("playbooks.playbookOwners"),
             resourceNoun: "playbook",
             canManage: accessPlaybook.canManageAccess,
             visibility: accessPlaybook.visibility,
@@ -1670,7 +1670,7 @@ function PlaybooksWorkspace() {
       <AddDocumentsModal
         open={savedFilesOpen}
         onClose={() => setSavedFilesOpen(false)}
-        breadcrumb={["Playbooks", "Add documents"]}
+        breadcrumb={[t("playbooks.intake.breadcrumb"), t("playbooks.addDocuments")]}
         uploadStateId="playbook-review"
         onSelect={(documents) => {
           setSavedFilesOpen(false);
@@ -1681,9 +1681,9 @@ function PlaybooksWorkspace() {
         open={importPickerOpen}
         onClose={() => setImportPickerOpen(false)}
         breadcrumb={[
-          "Playbooks",
-          importTargetId ? "Replace from file" : "Import playbook",
-          "Add document",
+          t("playbooks.intake.breadcrumb"),
+          importTargetId ? "Replace from file" : t("playbooks.importPlaybook"),
+          t("playbooks.addDocument"),
         ]}
         uploadStateId="playbook-import"
         onSelect={(documents) => {
@@ -1694,13 +1694,13 @@ function PlaybooksWorkspace() {
       />
       <ConfirmPopup
         open={!!runDeleteTargets}
-        title={runDeleteTargets?.length === 1 ? "Delete run?" : "Delete runs?"}
+        title={runDeleteTargets?.length === 1 ? t("playbooks.deleteRun") : t("playbooks.deleteRuns")}
         message={
           runDeleteTargets?.length === 1
-            ? `The run of “${runDeleteTargets[0].documentName || "Untitled document"}” and its findings will be deleted. Tracked changes it made stay on the document.`
-            : `${runDeleteTargets?.length ?? 0} selected runs and their findings will be deleted. Tracked changes they made stay on their documents.`
+            ? t("playbooks.runOfNameWillBeDeleted", { name: runDeleteTargets[0].documentName || t("playbooks.untitledDocument") })
+            : t("playbooks.selectedRunsWillBeDeleted", { count: runDeleteTargets?.length ?? 0 })
         }
-        confirmLabel="Delete"
+        confirmLabel={t("playbooks.delete")}
         confirmVariant="danger"
         confirmStatus={busy === "delete-runs" ? "loading" : "idle"}
         onConfirm={() => void removeRuns()}
@@ -1711,14 +1711,14 @@ function PlaybooksWorkspace() {
       <ConfirmPopup
         open={deleteOpen}
         title={
-          deleteTargets.length === 1 ? "Delete playbook?" : "Delete playbooks?"
+          deleteTargets.length === 1 ? t("playbooks.deletePlaybook2") : t("playbooks.deletePlaybooks")
         }
         message={
           deleteTargets.length === 1
-            ? `“${deleteTargets[0].name}” and its rules will be deleted.`
-            : `${deleteTargets.length} selected playbooks and their rules will be deleted.`
+            ? t("playbooks.playbookNameAndItsRulesWillBeDeleted", { name: deleteTargets[0].name })
+            : t("playbooks.lengthSelectedPlaybooksAndTheirRules", { length: deleteTargets.length })
         }
-        confirmLabel="Delete"
+        confirmLabel={t("playbooks.delete")}
         confirmVariant="danger"
         confirmStatus={busy === "delete" ? "loading" : "idle"}
         onConfirm={() => void remove()}
@@ -1737,22 +1737,22 @@ function PlaybooksWorkspace() {
         size="sm"
         className="h-auto max-h-[calc(100vh-2rem)]"
         breadcrumbs={[
-          "Playbooks",
-          importTargetId ? "Replace from file" : "Import playbook",
+          t("playbooks.intake.breadcrumb"),
+          importTargetId ? "Replace from file" : t("playbooks.importPlaybook"),
         ]}
         // While compiling, the dialog shows only the progress screen, and
         // closing it leaves the import compiling.
         primaryAction={
           compiling
             ? {
-                label: "Close",
+                label: t("playbooks.close"),
                 variant: "primary",
                 onClick: closeImport,
                 // The upload must finish before there is an import to leave.
                 disabled: busy === "import",
               }
             : {
-                label: "Compile",
+                label: t("playbooks.compile"),
                 icon: <WandSparkles className="h-4 w-4" />,
                 variant: "blue",
                 disabled: !importSource || !model || !!busy,
@@ -1760,7 +1760,7 @@ function PlaybooksWorkspace() {
               }
         }
         cancelAction={
-          compiling ? false : { label: "Cancel", onClick: closeImport }
+          compiling ? false : { label: t("playbooks.cancel"), onClick: closeImport }
         }
       >
         {compiling ? (
@@ -1773,11 +1773,10 @@ function PlaybooksWorkspace() {
               className="h-6 w-6 animate-spin text-gray-400 motion-reduce:animate-none"
             />
             <p className="mt-4 text-sm font-medium text-gray-900">
-              Compiling your playbook
+              {t("playbooks.compilingYourPlaybook")}
             </p>
             <p className="mt-1 max-w-xs text-xs text-gray-500">
-              This can take a few minutes. You can close this window and
-              we’ll let you know when it’s ready.
+              {t("playbooks.thisCanTakeAFewMinutes")}
             </p>
           </div>
         ) : (
@@ -1797,7 +1796,7 @@ function PlaybooksWorkspace() {
             {!importTargetId && (
               <div>
                 <ModalFieldLabel htmlFor="playbook-import-name">
-                  Playbook name (optional)
+                  {t("playbooks.playbookNameOptional")}
                 </ModalFieldLabel>
                 <ModalTextInput
                   id="playbook-import-name"
@@ -1811,7 +1810,7 @@ function PlaybooksWorkspace() {
                 id="playbook-import-document-label"
                 className="mb-2 block text-xs font-medium text-gray-700"
               >
-                Add document
+                {t("playbooks.addDocument")}
               </p>
               <PlaybookReviewDocuments
                 documents={importSource ? [importSource] : []}
@@ -1820,13 +1819,13 @@ function PlaybooksWorkspace() {
                 onAddDocuments={() => setImportPickerOpen(true)}
                 onRemove={() => setImportSource(null)}
                 labelledBy="playbook-import-document-label"
-                emptyPrompt="Drag and drop a Word or PDF playbook here, or click to choose a saved file or upload one."
-                addMorePrompt="Drop another file here, or click to choose a different one."
+                emptyPrompt={t("playbooks.dragAndDropAWord")}
+                addMorePrompt={t("playbooks.dropAnotherFileHereOr")}
               />
             </div>
             <div>
               <ModalFieldLabel htmlFor="playbook-import-model">
-                Compilation model
+                {t("playbooks.compilationModel")}
               </ModalFieldLabel>
               {models.length > 0 ? (
                 <ModalSelect
@@ -1841,18 +1840,18 @@ function PlaybooksWorkspace() {
                 />
               ) : (
                 <p className="text-sm text-warning">
-                  No compilation model is available.{" "}
+                  {t("playbooks.noCompilationModelIsAvailable")}{" "}
                   <a href="/account/api-keys" className="underline">
-                    Configure an API key
+                    {t("playbooks.configureAnApiKey")}
                   </a>{" "}
-                  or enable a local model.
+                  {t("playbooks.orEnableALocalModel")}
                 </p>
               )}
             </div>
             <p className="text-xs text-gray-500">
               {importTargetId
-                ? "The compiled rules replace the current ones; completed reviews keep the rules they used. You can still edit the rules by hand afterwards."
-                : "You can edit the rules by hand once the playbook is created."}
+                ? t("playbooks.theCompiledRulesReplaceThe")
+                : t("playbooks.youCanEditTheRules")}
             </p>
           </div>
         )}

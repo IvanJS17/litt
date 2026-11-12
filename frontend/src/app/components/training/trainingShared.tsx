@@ -1,22 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { OrgMember, TrainingStage } from "@/app/lib/mikeApi";
+import type { OrgMember } from "@/app/lib/mikeApi";
 import { PRACTICE_OPTIONS } from "@/app/components/workflows/practices";
 
 // LiTT training (docs/training.md): labels and identity shared by the
 // training settings pages.
-
-export const STAGE_LABEL: Record<TrainingStage, string> = {
-    pasante: "Pasante",
-    junior: "Junior",
-};
-
-/** A stored (normalized) practice area, as the user picked it. */
-export function practiceLabel(practice: string | null): string {
-    if (practice === null) return "Todas las materias";
-    return practiceOptionLabel(practice);
-}
 
 /** A stored (normalized) practice area as the option it came from, or as stored. */
 export function practiceOptionLabel(practice: string): string {

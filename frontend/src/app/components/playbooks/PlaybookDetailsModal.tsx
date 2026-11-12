@@ -13,6 +13,7 @@ import {
   trimPlaybookDetails,
   type PlaybookDetails,
 } from "./PlaybookDetailsFields";
+import { useTranslations } from "next-intl";
 
 /**
  * A playbook's editable details. Changes apply when Update is pressed, as in
@@ -41,6 +42,7 @@ export function PlaybookDetailsModal({
   ) => Promise<boolean>;
   onPeople: () => void;
 }) {
+  const t = useTranslations();
   const saved = playbookDetailsOf(content);
   const [details, setDetails] = useState(saved);
   const [visibility, setVisibility] = useState(playbook.visibility);
@@ -84,22 +86,22 @@ export function PlaybookDetailsModal({
       onClose={() => {
         if (!saving) onClose();
       }}
-      breadcrumbs={["Playbooks", playbook.name || "Untitled playbook", "Details"]}
+      breadcrumbs={[t("playbooks.intake.breadcrumb"), playbook.name || t("playbooks.untitledPlaybook"), t("playbooks.details")]}
       secondaryAction={{
-        label: "People",
+        label: t("playbooks.people"),
         icon: <Users className="h-4 w-4" />,
         onClick: onPeople,
         disabled: saving,
       }}
       footerStatus={
         updated && !hasChanges ? (
-          <span className="text-sm text-gray-400">Updated</span>
+          <span className="text-sm text-gray-400">{t("playbooks.updated")}</span>
         ) : null
       }
       primaryAction={
         canEdit
           ? {
-              label: saving ? "Updating…" : "Update",
+              label: saving ? t("playbooks.updating") : t("playbooks.update"),
               onClick: () => void save(),
               disabled: saving || !hasChanges || !trimmed.name,
             }

@@ -13,6 +13,8 @@ import {
   type MatterDriveFolderRole,
   type MatterDriveFolderSettings,
 } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
 
 const FOLDER_ID_PATTERN = /^[A-Za-z0-9_-]{1,256}$/;
 const ROLES: ReadonlySet<MatterDriveFolderRole> = new Set([
@@ -24,10 +26,6 @@ const ROLES: ReadonlySet<MatterDriveFolderRole> = new Set([
   "workspace_admin",
 ]);
 
-const INVALID_RESPONSE = "La respuesta del servidor no es válida.";
-const LOAD_ERROR = "La configuración de Drive no está disponible.";
-const SAVE_ERROR = "No se pudo guardar la configuración de Drive.";
-const MFA_ERROR = "Se requiere verificar MFA antes de guardar cambios.";
 
 function isMatterDriveFolderSettings(
   value: unknown,
@@ -52,28 +50,28 @@ function isMatterDriveFolderSettings(
   );
 }
 
-function safeErrorMessage(error: unknown, fallback: string) {
-  if (isMfaRequiredError(error)) return MFA_ERROR;
+function safeErrorMessage(error: unknown, fallback: string, t: NsTranslate<"recovery">) {
+  if (isMfaRequiredError(error)) return t("recovery.mfaRequiredToSave");
   if (errorCode(error) === "invalid_drive_folder_id") {
-    return "El ID de carpeta no es válido.";
+    return t("recovery.folderIdNotValid");
   }
   return fallback;
 }
 
-function roleLabel(role: MatterDriveFolderRole) {
+function roleLabel(role: MatterDriveFolderRole, t: NsTranslate<"recovery">) {
   switch (role) {
     case "matter_owner":
-      return "Propietario del asunto";
+      return t("recovery.roleMatterOwner");
     case "org_owner":
-      return "Propietario de la organización";
+      return t("recovery.roleOrgOwner");
     case "workspace_admin":
-      return "Administrador del espacio de trabajo";
+      return t("recovery.roleWorkspaceAdmin");
     case "technical_operator":
-      return "Operador técnico";
+      return t("recovery.roleTechnicalOperator");
     case "editor":
-      return "Editor";
+      return t("recovery.roleEditor");
     case "viewer":
-      return "Visualizador";
+      return t("recovery.roleViewer");
   }
 }
 
@@ -86,6 +84,7 @@ export function MatterDriveSettings({
   projectId,
   matterId,
 }: MatterDriveSettingsProps) {
+  const t = useTranslations();
   const [settings, setSettings] = useState<MatterDriveFolderSettings | null>(
     null,
   );
@@ -115,7 +114,7 @@ export function MatterDriveSettings({
       .then((result) => {
         if (!active || requestGeneration !== generation.current) return;
         if (!isMatterDriveFolderSettings(result, projectId, matterId)) {
-          setLoadError(INVALID_RESPONSE);
+          setLoadError(t("recovery.invalidServerResponse"));
           return;
         }
         setSettings(result);
@@ -123,7 +122,7 @@ export function MatterDriveSettings({
       })
       .catch((error: unknown) => {
         if (!active || requestGeneration !== generation.current) return;
-        setLoadError(safeErrorMessage(error, LOAD_ERROR));
+        setLoadError(safeErrorMessage(error, t("recovery.driveSettingsUnavailable"), t));
       })
       .finally(() => {
         if (!active || requestGeneration !== generation.current) return;
@@ -159,16 +158,16 @@ export function MatterDriveSettings({
         result.drive_folder_id !== driveFolderId
       ) {
         setSettings(null);
-        setLoadError(INVALID_RESPONSE);
+        setLoadError(t("recovery.invalidServerResponse"));
         return;
       }
       setSettings(result);
       setDraft(result.drive_folder_id ?? "");
-      setSuccess("Guardado correctamente");
+      setSuccess(t("recovery.savedSuccessfully"));
     } catch (error: unknown) {
       if (!isCurrent(requestGeneration)) return;
       setSettings(null);
-      setLoadError(safeErrorMessage(error, SAVE_ERROR));
+      setLoadError(safeErrorMessage(error, t("recovery.couldNotSaveDriveSettings"), t));
     } finally {
       if (isCurrent(requestGeneration)) {
         busyRef.current = false;
@@ -200,13 +199,12 @@ export function MatterDriveSettings({
     <main className="min-h-full px-4 py-6 md:px-8">
       <div className="mx-auto max-w-2xl">
         <header className="mb-5">
-          <p className="mb-1 text-xs text-gray-500">Asunto</p>
+          <p className="mb-1 text-xs text-gray-500">{t("recovery.asunto")}</p>
           <h1 className="font-serif text-2xl text-gray-900">
-            Configuración de carpeta de Google Drive
+            {t("recovery.configuracionDeCarpetaDeGoogleDrive")}
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Referencia de carpeta de este asunto para futuras operaciones
-            autorizadas.
+            {t("recovery.referenciaDeCarpetaDeEsteAsunto")}
           </p>
         </header>
 
@@ -217,7 +215,7 @@ export function MatterDriveSettings({
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              <span>Cargando configuración…</span>
+              <span>{t("recovery.cargandoConfiguracion")}</span>
             </div>
           ) : loadError ? (
             <div className="space-y-3" role="alert">
@@ -227,7 +225,7 @@ export function MatterDriveSettings({
                 size="sm"
                 onClick={() => setReloadToken((value) => value + 1)}
               >
-                Reintentar
+                {t("recovery.reintentar")}
               </PillButton>
             </div>
           ) : settings ? (
@@ -236,27 +234,27 @@ export function MatterDriveSettings({
                 <div>
                   <h2 className="text-sm font-medium text-gray-900">
                     {settings.drive_folder_id
-                      ? "Carpeta configurada"
-                      : "Sin carpeta configurada"}
+                      ? t("recovery.carpetaConfigurada")
+                      : t("recovery.sinCarpetaConfigurada")}
                   </h2>
                   <p className="mt-1 text-xs text-gray-600">
-                    Rol: {roleLabel(settings.role)}
+                    {t("recovery.rol")} {roleLabel(settings.role, t)}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Configuración guardada en el servidor
+                    {t("recovery.configuracionGuardadaEnElServidor")}
                   </p>
                 </div>
                 <p className="text-xs text-gray-600">
                   {canEdit
-                    ? "Puede editar"
-                    : "No puede cambiar esta configuración"}
+                    ? t("recovery.puedeEditar")
+                    : t("recovery.noPuedeCambiarEstaConfiguracion")}
                 </p>
               </div>
 
               <div className="space-y-4">
                 <div>
                   <FieldLabel htmlFor="matter-drive-folder-id">
-                    ID de carpeta de Google Drive
+                    {t("recovery.idDeCarpetaDeGoogleDrive")}
                   </FieldLabel>
                   <FormTextInput
                     id="matter-drive-folder-id"
@@ -267,7 +265,7 @@ export function MatterDriveSettings({
                       setActionError(null);
                       setSuccess(null);
                     }}
-                    placeholder="Ej. 1AbC_def-234"
+                    placeholder={t("recovery.ej1abcDef234")}
                     aria-describedby="matter-drive-folder-help"
                   />
                   <p
@@ -275,8 +273,8 @@ export function MatterDriveSettings({
                     className="mt-2 text-xs text-gray-500"
                   >
                     {canEdit
-                      ? "Usa el ID exacto (letras, números, guion y guion bajo). No se aceptan URLs."
-                      : "Referencia guardada para este asunto."}
+                      ? t("recovery.usaElIdExactoLetrasNumeros")
+                      : t("recovery.referenciaGuardadaParaEsteAsunto")}
                   </p>
                 </div>
 
@@ -299,7 +297,7 @@ export function MatterDriveSettings({
                       onClick={handleSave}
                       disabled={busy}
                     >
-                      {busy ? "Guardando…" : "Guardar"}
+                      {busy ? t("recovery.guardando") : t("recovery.guardar")}
                     </PillButton>
                     <PillButton
                       tone="white"
@@ -307,16 +305,14 @@ export function MatterDriveSettings({
                       onClick={handleClear}
                       disabled={busy || settings.drive_folder_id === null}
                     >
-                      Limpiar configuración
+                      {t("recovery.limpiarConfiguracion")}
                     </PillButton>
                   </div>
                 )}
               </div>
 
               <p className="mt-5 border-t border-gray-200/70 pt-4 text-sm leading-5 text-gray-600">
-                Esta configuración solo guarda la referencia de la carpeta.
-                Guardar no publica documentos. No comprueba la conexión con
-                Google Drive ni elimina ninguna carpeta o archivo al quitarla.
+                {t("recovery.estaConfiguracionSoloGuardaLaReferencia")}
               </p>
             </>
           ) : null}

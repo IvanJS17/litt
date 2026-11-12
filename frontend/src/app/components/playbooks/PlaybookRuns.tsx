@@ -45,15 +45,28 @@ import {
   PLAYBOOK_SIDE_LIST_CLASS,
   PLAYBOOK_SIDE_TITLE_CLASS,
 } from "./playbookPaneStyles";
+import { useFormatter, useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
+import type { DateFormatter } from "@/app/lib/dateText";
 
-const STATUS_LABEL: Record<string, string> = {
-  unacceptable: "Unacceptable",
-  missing_required: "Missing",
-  needs_review: "Needs review",
-  acceptable: "Acceptable",
-  not_applicable: "Not applicable",
-  outside_scope: "Outside scope",
-};
+function statusLabel(status: string, t: NsTranslate<"playbooks">): string {
+  switch (status) {
+    case "unacceptable":
+      return t("playbooks.unacceptable");
+    case "missing_required":
+      return t("playbooks.missing");
+    case "needs_review":
+      return t("playbooks.needsReview");
+    case "acceptable":
+      return t("playbooks.acceptable");
+    case "not_applicable":
+      return t("playbooks.notApplicable");
+    case "outside_scope":
+      return t("playbooks.outsideScope");
+    default:
+      return status;
+  }
+}
 
 const STATUS_TONE: Record<string, string> = {
   unacceptable: "text-red-600",
@@ -67,39 +80,36 @@ const STATUS_TONE: Record<string, string> = {
 // Findings grouped from most to least urgent; the dots match the playbook's
 // position colours.
 const FINDING_GROUPS: {
-  title: string;
+  id: "issues" | "needsReview" | "acceptable" | "notApplicable";
   dot: string;
   statuses: PlaybookFinding["status"][];
 }[] = [
   {
-    title: "Issues",
+    id: "issues",
     dot: "bg-red-500",
     statuses: ["unacceptable", "missing_required"],
   },
-  { title: "Needs review", dot: "bg-warning-fill", statuses: ["needs_review"] },
-  { title: "Acceptable", dot: "bg-emerald-500", statuses: ["acceptable"] },
+  { id: "needsReview", dot: "bg-warning-fill", statuses: ["needs_review"] },
+  { id: "acceptable", dot: "bg-emerald-500", statuses: ["acceptable"] },
   {
-    title: "Not applicable",
+    id: "notApplicable",
     dot: "bg-gray-400",
     statuses: ["not_applicable", "outside_scope"],
   },
 ];
 
-export function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+export function formatDateTime(format: DateFormatter, iso: string) {
+  return format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" });
 }
 
-export function runTitle(run: PlaybookRun) {
-  return run.documentName || "Untitled document";
+export function runTitle(run: PlaybookRun, t: NsTranslate<"playbooks">) {
+  return run.documentName || t("playbooks.untitledDocument");
 }
 
 /** "2 issues · 1 to review", or the run's state when it has no findings. */
-export function runOutcome(run: PlaybookRun) {
-  if (run.error || run.status === "failed") return "Failed";
-  if (run.status !== "completed") return "In progress";
+export function runOutcome(run: PlaybookRun, t: NsTranslate<"playbooks">) {
+  if (run.error || run.status === "failed") return t("playbooks.failed");
+  if (run.status !== "completed") return t("playbooks.inProgress");
   const issues = run.findings.filter(
     (finding) =>
       finding.status === "unacceptable" ||
@@ -109,10 +119,10 @@ export function runOutcome(run: PlaybookRun) {
     (finding) => finding.status === "needs_review",
   ).length;
   const parts = [
-    issues ? `${issues} ${issues === 1 ? "issue" : "issues"}` : null,
-    toReview ? `${toReview} to review` : null,
+    issues ? t("playbooks.issueCount", { count: issues }) : null,
+    toReview ? t("playbooks.toReviewCount", { count: toReview }) : null,
   ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "No issues";
+  return parts.length ? parts.join(" · ") : t("playbooks.noIssues");
 }
 
 /**
@@ -144,6 +154,8 @@ export function PlaybookRuns({
   /** Choosing a run leaves the new-run form; what it holds is kept. */
   onCloseNewRun: () => void;
 }) {
+  const t = useTranslations();
+  const format = useFormatter();
   const [runs, setRuns] = useState<PlaybookRun[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -175,7 +187,7 @@ export function PlaybookRuns({
         if (!current) return;
         setError(
           reportFault(err, {
-            action: "load the runs",
+            action: t("playbooks.loadTheRuns"),
             operation: "playbooks.review",
           }).message,
         );
@@ -292,7 +304,7 @@ export function PlaybookRuns({
     showDocument && selected ? (
       <section
         ref={documentPane}
-        aria-label="Reviewed document"
+        aria-label={t("playbooks.reviewedDocument")}
         className={`flex min-h-[24rem] min-w-0 flex-col overflow-hidden @[41rem]/run-layout:min-h-0 ${EDITOR_SURFACE_CLASS}`}
       >
         <div
@@ -304,15 +316,15 @@ export function PlaybookRuns({
           />
           <h2
             className={`min-w-0 flex-1 truncate ${PLAYBOOK_SIDE_TITLE_CLASS}`}
-            title={runTitle(selected)}
+            title={runTitle(selected, t)}
           >
-            {runTitle(selected)}
+            {runTitle(selected, t)}
           </h2>
           <TextButtonUI
             size="icon-xs"
             className="-my-0.5 h-6 shrink-0"
-            aria-label="Close document"
-            title="Close document"
+            aria-label={t("playbooks.closeDocument")}
+            title={t("playbooks.closeDocument")}
             onClick={() => setDocumentOpen(false)}
           >
             <X aria-hidden="true" className="h-3.5 w-3.5" />
@@ -343,7 +355,7 @@ export function PlaybookRuns({
     ) : null;
   const resultsPanel = (
     <section
-      aria-label="Run results"
+      aria-label={t("playbooks.runResults")}
       className={`@container flex min-h-[24rem] min-w-0 flex-1 flex-col overflow-hidden @[48rem]:min-h-0 @[41rem]/run-layout:min-h-0 ${EDITOR_SURFACE_CLASS}`}
     >
       {selected ? (
@@ -354,7 +366,7 @@ export function PlaybookRuns({
             {/* The selected row, and the document pane when open, name the
                 document; the heading says what the pane holds. */}
             <h2 className={`min-w-0 flex-1 ${PLAYBOOK_PANE_TITLE_CLASS}`}>
-              Run results
+              {t("playbooks.runResults")}
             </h2>
             {selected.documentId && (
               <TextButtonUI
@@ -364,7 +376,7 @@ export function PlaybookRuns({
                 onClick={() => setDocumentOpen((open) => !open)}
               >
                 <Eye aria-hidden="true" className="h-3.5 w-3.5" />
-                View document
+                {t("playbooks.viewDocument")}
               </TextButtonUI>
             )}
           </div>
@@ -383,11 +395,10 @@ export function PlaybookRuns({
                     className="h-5 w-5 animate-spin text-interactive motion-reduce:animate-none"
                   />
                   <p className="text-sm text-gray-900">
-                    Reviewing {runTitle(selected)}…
+                    {t("playbooks.reviewing")} {runTitle(selected, t)}…
                   </p>
                   <p className="max-w-xs text-xs text-gray-500">
-                    The review keeps running if you leave this page. Its
-                    findings appear here when it finishes.
+                    {t("playbooks.theReviewKeepsRunningIfYou")}
                   </p>
                 </div>
               </div>
@@ -413,13 +424,13 @@ export function PlaybookRuns({
             className={`flex min-h-0 flex-1 items-center justify-center ${PLAYBOOK_PANE_EMPTY_CLASS}`}
           >
             <EmptyState
-              title="No runs yet"
-              description="Run this playbook on a contract to see your findings here."
+              title={t("playbooks.noRunsYet")}
+              description={t("playbooks.runThisPlaybookOnAContract")}
               action={
                 canRun && (
                   <PillButtonUI tone="black" onClick={onNewRun}>
                     <Plus aria-hidden="true" className="h-3.5 w-3.5" />
-                    New run
+                    {t("playbooks.newRun")}
                   </PillButtonUI>
                 )
               }
@@ -433,22 +444,22 @@ export function PlaybookRuns({
 
   return (
     <PlaybookPanels
-      resizeLabel="Resize runs panel"
+      resizeLabel={t("playbooks.resizeRunsPanel")}
       sidebar={
         <section
-          aria-label="Your runs"
+          aria-label={t("playbooks.yourRuns")}
           className={`flex min-h-0 min-w-0 flex-col ${EDITOR_SURFACE_CLASS}`}
         >
           <div
             className={`flex items-center justify-between gap-2 ${PLAYBOOK_SIDE_HEADER_CLASS}`}
           >
             {/* Runs are listed per person: another member's are not shown. */}
-            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>Your runs</h2>
+            <h2 className={PLAYBOOK_SIDE_TITLE_CLASS}>{t("playbooks.yourRuns")}</h2>
             <TextButtonUI
               size="icon-xs"
               className="-my-0.5 h-6"
-              aria-label="New run"
-              title="New run"
+              aria-label={t("playbooks.newRun")}
+              title={t("playbooks.newRun")}
               disabled={!canRun}
               onClick={onNewRun}
             >
@@ -476,11 +487,11 @@ export function PlaybookRuns({
                   }}
                   className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
-                  Try again
+                  {t("playbooks.tryAgain")}
                 </button>
               </p>
             ) : all.length === 0 ? (
-              <p className="px-2 py-1.5 text-xs text-gray-500">None yet.</p>
+              <p className="px-2 py-1.5 text-xs text-gray-500">{t("playbooks.noneYet")}</p>
             ) : (
               all.map((run) => {
                 // The form, while open, takes the place of any run.
@@ -492,7 +503,7 @@ export function PlaybookRuns({
                     type="button"
                     aria-pressed={active}
                     // The date tells repeat reviews of one document apart.
-                    title={`${runTitle(run)} · ${formatDateTime(run.startedAt)}`}
+                    title={`${runTitle(run, t)} · ${formatDateTime(format, run.startedAt)}`}
                     onClick={() => {
                       setSelectedId(run.id);
                       onCloseNewRun();
@@ -510,9 +521,9 @@ export function PlaybookRuns({
                         className="h-3.5 w-3.5"
                       />
                     )}
-                    <span className="min-w-0 truncate">{runTitle(run)}</span>
+                    <span className="min-w-0 truncate">{runTitle(run, t)}</span>
                     {run.status === "running" && (
-                      <span className="sr-only">, running</span>
+                      <span className="sr-only">{t("playbooks.running")}</span>
                     )}
                   </button>
                 );
@@ -529,7 +540,7 @@ export function PlaybookRuns({
         // mounted and scrolled where they were.
         <PlaybookPanels
           variant="trailing"
-          resizeLabel="Resize document panel"
+          resizeLabel={t("playbooks.resizeDocumentPanel")}
           sidebar={documentPanel}
         >
           {resultsPanel}
@@ -547,6 +558,8 @@ type EditHandlers = {
 
 /** What was reviewed, how, and when: at the top of a run's results. */
 function RunDetails({ run }: { run: PlaybookRun }) {
+  const t = useTranslations();
+  const format = useFormatter();
   const headingId = useId();
   return (
     // The same grey card as the new run's document area.
@@ -555,43 +568,43 @@ function RunDetails({ run }: { run: PlaybookRun }) {
       className="space-y-2 rounded-xl bg-gray-100 px-4 py-3"
     >
       <h3 id={headingId} className="text-sm font-medium text-gray-900">
-        Run details
+        {t("playbooks.runDetails")}
       </h3>
       <dl className="flex flex-wrap gap-x-8 gap-y-2">
         <div className="min-w-0">
-          <dt className="text-xs text-gray-500">Document</dt>
+          <dt className="text-xs text-gray-500">{t("playbooks.document")}</dt>
           <dd className="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-gray-900">
             <FileTypeIcon
               fileType={run.documentName ?? ""}
               className="h-3.5 w-3.5 shrink-0"
             />
             <span className="min-w-0 [overflow-wrap:anywhere]">
-              {runTitle(run)}
+              {runTitle(run, t)}
             </span>
           </dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs text-gray-500">Model</dt>
+          <dt className="text-xs text-gray-500">{t("playbooks.model2")}</dt>
           <dd className="mt-0.5 text-sm text-gray-900">
             {modelDisplayName(run.model)}
           </dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs text-gray-500">Scope</dt>
+          <dt className="text-xs text-gray-500">{t("playbooks.scope")}</dt>
           <dd className="mt-0.5 text-sm text-gray-900">
-            {run.reviewScope === "issues" ? "Issues only" : "Full review"}
+            {run.reviewScope === "issues" ? t("playbooks.issuesOnly") : t("playbooks.fullReview")}
           </dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs text-gray-500">Posture</dt>
+          <dt className="text-xs text-gray-500">{t("playbooks.posture")}</dt>
           <dd className="mt-0.5 text-sm text-gray-900">
-            {run.reviewMode === "permissive" ? "Permissive" : "Strict"}
+            {run.reviewMode === "permissive" ? t("playbooks.permissive") : t("playbooks.strict")}
           </dd>
         </div>
         <div className="min-w-0">
-          <dt className="text-xs text-gray-500">Started</dt>
+          <dt className="text-xs text-gray-500">{t("playbooks.started")}</dt>
           <dd className="mt-0.5 text-sm text-gray-900">
-            <time dateTime={run.startedAt}>{formatDateTime(run.startedAt)}</time>
+            <time dateTime={run.startedAt}>{formatDateTime(format, run.startedAt)}</time>
           </dd>
         </div>
       </dl>
@@ -617,6 +630,7 @@ function RunResults({
   issuesOnly: boolean;
   onIssuesOnlyChange: (issuesOnly: boolean) => void;
 } & EditHandlers) {
+  const t = useTranslations();
   const summaryId = useId();
   const findingsId = useId();
   const settings = <RunDetails run={run} />;
@@ -636,8 +650,15 @@ function RunResults({
   const shown = filtering
     ? run.findings.filter((finding) => ISSUE_STATUSES.has(finding.status))
     : run.findings;
+  const groupTitles = {
+    issues: t("playbooks.issues"),
+    needsReview: t("playbooks.needsReview"),
+    acceptable: t("playbooks.acceptable"),
+    notApplicable: t("playbooks.notApplicable"),
+  };
   const groups = FINDING_GROUPS.map((group) => ({
     ...group,
+    title: groupTitles[group.id],
     findings: shown.filter((finding) =>
       group.statuses.includes(finding.status),
     ),
@@ -648,35 +669,32 @@ function RunResults({
       {run.summary && (
         <section aria-labelledby={summaryId} className="space-y-1.5">
           <h3 id={summaryId} className="text-sm font-medium text-gray-900">
-            Summary of results
+            {t("playbooks.summaryOfResults")}
           </h3>
           <p className="text-sm leading-relaxed text-gray-700">{run.summary}</p>
         </section>
       )}
       {run.documentName && !isWordSource && (
         <p className="text-xs text-gray-500">
-          This review used extracted text from{" "}
-          <span className="font-medium">{run.documentName}</span>. For a
-          formatting-preserving Word redline, provide the original DOCX in
-          Assistant; if it is unavailable, LiTT can create a text-reconstructed
-          DOCX and will warn that formatting may differ.
+          {t("playbooks.thisReviewUsedExtractedTextFrom")}{" "}
+          <span className="font-medium">{run.documentName}</span>{t("playbooks.forAFormattingPreservingWordRedline")}
         </p>
       )}
       <section aria-labelledby={findingsId} className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           <h3 id={findingsId} className="text-sm font-medium text-gray-900">
-            Findings
+            {t("playbooks.findings")}
           </h3>
           {canFilter && (
-            <div role="group" aria-label="Findings to show">
+            <div role="group" aria-label={t("playbooks.findingsToShow")}>
               <ModalSegmentedToggle
                 size="sm"
                 surface="flat"
                 value={issuesOnly ? "issues" : "all"}
                 onChange={(value) => onIssuesOnlyChange(value === "issues")}
                 options={[
-                  { value: "all", label: "All findings" },
-                  { value: "issues", label: "Issues only" },
+                  { value: "all", label: t("playbooks.allFindings") },
+                  { value: "issues", label: t("playbooks.issuesOnly") },
                 ]}
               />
             </div>
@@ -685,8 +703,8 @@ function RunResults({
         {groups.length === 0 && run.status === "completed" && (
           <p className="text-sm text-gray-500">
             {filtering || run.reviewScope === "issues"
-              ? "No issues found."
-              : "No findings."}
+              ? t("playbooks.noIssuesFound")
+              : t("playbooks.noFindings")}
           </p>
         )}
         {groups.map((group) => (
@@ -749,6 +767,7 @@ function FindingPart({
 
 /** The contract language with the recommended edits marked in place. */
 function Redline({ before, after }: { before: string; after: string }) {
+  const t = useTranslations();
   const segments = useMemo(() => diffWords(before, after), [before, after]);
   return (
     <p className="whitespace-pre-wrap rounded-lg bg-gray-100 px-3 py-2 text-xs leading-relaxed text-gray-800 [overflow-wrap:anywhere]">
@@ -758,7 +777,7 @@ function Redline({ before, after }: { before: string; after: string }) {
             key={index}
             className="rounded-sm bg-red-50 text-red-700 decoration-red-400"
           >
-            <span className="sr-only">Removed: </span>
+            <span className="sr-only">{t("playbooks.removed")} </span>
             {segment.text}
           </del>
         ) : segment.type === "added" ? (
@@ -766,7 +785,7 @@ function Redline({ before, after }: { before: string; after: string }) {
             key={index}
             className="rounded-sm bg-emerald-50 text-emerald-700 no-underline"
           >
-            <span className="sr-only">Added: </span>
+            <span className="sr-only">{t("playbooks.added")} </span>
             {segment.text}
           </ins>
         ) : (
@@ -783,6 +802,7 @@ function FindingCard({
   onViewEdit,
   onEditResolved,
 }: { finding: PlaybookFinding } & EditHandlers) {
+  const t = useTranslations();
   const missing = finding.status === "missing_required";
   return (
     <article
@@ -793,18 +813,18 @@ function FindingCard({
           {finding.ruleName}
         </h4>
         <span className={`shrink-0 text-xs ${STATUS_TONE[finding.status]}`}>
-          {STATUS_LABEL[finding.status] ?? finding.status}
+          {statusLabel(finding.status, t)}
         </span>
       </div>
       {finding.location && (
-        <FindingPart label="Where">
+        <FindingPart label={t("playbooks.where")}>
           <p className="text-sm text-gray-700 [overflow-wrap:anywhere]">
             {finding.location}
           </p>
         </FindingPart>
       )}
       {finding.analysis && (
-        <FindingPart label="Assessment">
+        <FindingPart label={t("playbooks.assessment")}>
           <p className="text-sm leading-relaxed text-gray-700">
             {finding.analysis}
           </p>
@@ -812,7 +832,7 @@ function FindingCard({
       )}
       {/* With a suggestion, the diff shows the contract language too. */}
       {finding.quote && !finding.suggestedText && (
-        <FindingPart label="Contract language">
+        <FindingPart label={t("playbooks.contractLanguage")}>
           <TextSlabUI className="text-xs text-gray-600">
             <blockquote>{finding.quote}</blockquote>
           </TextSlabUI>
@@ -821,7 +841,7 @@ function FindingCard({
       {finding.edit ? (
         // The change is in the document as a tracked change: decide it here.
         <FindingPart
-          label={missing ? "Recommended clause to add" : "Recommended change"}
+          label={missing ? t("playbooks.recommendedClauseToAdd") : t("playbooks.recommendedChange")}
         >
           <EditCard
             annotation={finding.edit}
@@ -835,8 +855,8 @@ function FindingCard({
           <FindingPart
             label={
               missing || !finding.quote
-                ? "Recommended clause to add"
-                : "Recommended changes"
+                ? t("playbooks.recommendedClauseToAdd")
+                : t("playbooks.recommendedChanges")
             }
           >
             <Redline
