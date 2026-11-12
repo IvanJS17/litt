@@ -148,6 +148,7 @@ describe("Word → Markdown", () => {
         losses: CONVERSION_LOSSES["docx>md"],
         detected: { comments: 1, tracked_insertions: 1, tracked_deletions: 1, images: 1, footnotes: 1, headers: 1, footers: 1 },
         blocked: null,
+        textless_page_count: null,
         new_filename: "Contrato (de Word).md",
       },
     });
@@ -211,6 +212,16 @@ describe("Word → Markdown", () => {
     expect(await run(fake.db as never, "md")).toMatchObject({ ok: false, kind, code });
     expect(mocks.uploadFile).not.toHaveBeenCalled();
     expect(fake.tables.documents).toHaveLength(1);
+  });
+
+  it.each([
+    ["a package over the parser budget", new ExtractionLimitError("big"), "validation", "convert_source_too_large"],
+    ["a parser with no free slot", new ExtractionBusyError(), "unavailable", "convert_unavailable"],
+    ["a package that cannot be read", new Error("boom"), "validation", "convert_unreadable"],
+  ])("answers the preview of %s with a controlled error", async (_label, error, kind, code) => {
+    const { fake } = seed({ fileType: "docx", filename: "x.docx", bytes: await buildRichDocx() });
+    mocks.extraction.fail = error;
+    expect(await preview(fake.db as never, "md")).toMatchObject({ ok: false, kind, code });
   });
 
   it("refuses a Word file with no text", async () => {
@@ -315,10 +326,17 @@ describe("PDF → Markdown", () => {
 
   it("knows from the measured pages that a PDF is a scan, before reading it", async () => {
     const { fake } = seed({ fileType: "pdf", filename: "escaneo.pdf", bytes: textPdf("x"), extra: { page_count: 3, textless_page_count: 3 } });
-    expect(await preview(fake.db as never, "md")).toMatchObject({ ok: true, data: { blocked: "pdf_without_text" } });
+    expect(await preview(fake.db as never, "md")).toMatchObject({ ok: true, data: { blocked: "pdf_without_text", textless_page_count: 3 } });
     expect(await run(fake.db as never, "md")).toMatchObject({ ok: false, code: "convert_pdf_without_text" });
     const mixed = seed({ fileType: "pdf", filename: "mixto.pdf", bytes: textPdf("x"), extra: { page_count: 3, textless_page_count: 1 } });
-    expect(await preview(mixed.fake.db as never, "md")).toMatchObject({ ok: true, data: { blocked: null } });
+    expect(await preview(mixed.fake.db as never, "md")).toMatchObject({ ok: true, data: { blocked: null, textless_page_count: 1 } });
+  });
+
+  it("counts the pages without text of a mixed PDF, and none for other sources", async () => {
+    const mixed = seed({ fileType: "pdf", filename: "mixto.pdf", bytes: textPdf("x"), extra: { page_count: 10, textless_page_count: 3 } });
+    expect(await preview(mixed.fake.db as never, "md")).toMatchObject({ ok: true, data: { blocked: null, textless_page_count: 3 } });
+    const word = seed({ fileType: "docx", filename: "a.docx", bytes: await buildRichDocx() });
+    expect(await preview(word.fake.db as never, "md")).toMatchObject({ ok: true, data: { textless_page_count: null } });
   });
 
   it("does not offer PDF → Word", async () => {

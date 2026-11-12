@@ -19,6 +19,7 @@ const WORD_TO_MD: DocumentConversionPreview = {
     losses: ["docx_comments", "docx_tracked_changes", "docx_images", "docx_formatting"],
     detected: { comments: 12, tracked_insertions: 3, tracked_deletions: 2, images: 2, footnotes: 0, headers: 0, footers: 1 },
     blocked: null,
+    textless_page_count: null,
     new_filename: "Contrato (de Word).md",
 };
 const CREATED = { document_id: "new", version_id: "v", filename: "Contrato (de Word).md", file_type: "md", size_bytes: 3, project_id: "p", folder_id: null };
@@ -44,7 +45,7 @@ describe("ConvertDocumentModal", () => {
 
         expect(await screen.findByText("12 comments won’t carry over.")).toBeInTheDocument();
         expect(screen.getByText("5 tracked changes: only the final text carries over.")).toBeInTheDocument();
-        expect(screen.getByText("2 images become “[imagen]”.")).toBeInTheDocument();
+        expect(screen.getByText("2 images become “[img]”.")).toBeInTheDocument();
         expect(screen.getByText("1 header or footer won’t carry over.")).toBeInTheDocument();
         // Nothing was counted for footnotes: no line.
         expect(screen.queryByText(/footnote/)).toBeNull();
@@ -113,7 +114,7 @@ describe("ConvertDocumentModal", () => {
         expect(onConverted).toHaveBeenCalledWith(CREATED);
     });
 
-    it("closes with an error notice when the notice cannot be fetched, and retries on request", async () => {
+    it("closes with an error notice when the notice cannot be fetched, with no retry that would do nothing", async () => {
         const failure = new Error("403");
         mocks.preview.mockRejectedValueOnce(failure);
         const onClose = vi.fn();
@@ -122,7 +123,20 @@ describe("ConvertDocumentModal", () => {
         const [error, options] = mocks.notify.mock.calls[0];
         expect(error).toBe(failure);
         expect(options.action).toBe("check what this conversion would lose");
-        expect(typeof options.onRetry).toBe("function");
+        expect(options.onRetry).toBeUndefined();
+    });
+
+    it("says how many pages of a mixed PDF have no text and keeps the conversion available", async () => {
+        mocks.preview.mockResolvedValue({ ...WORD_TO_MD, source_type: "pdf", detected: null, losses: ["pdf_layout_lost"], textless_page_count: 3 });
+        render(<ConvertDocumentModal request={{ ...request, filename: "Mixto.pdf" }} onClose={vi.fn()} onConverted={vi.fn()} />);
+        expect(await screen.findByRole("alert")).toHaveTextContent("3 pages have no text and won’t carry over.");
+        expect(screen.getByRole("button", { name: "Convert and create new document" })).toBeEnabled();
+    });
+
+    it("says it in the singular for one page", async () => {
+        mocks.preview.mockResolvedValue({ ...WORD_TO_MD, source_type: "pdf", detected: null, losses: ["pdf_layout_lost"], textless_page_count: 1 });
+        render(<ConvertDocumentModal request={{ ...request, filename: "Mixto.pdf" }} onClose={vi.fn()} onConverted={vi.fn()} />);
+        expect(await screen.findByRole("alert")).toHaveTextContent("1 page has no text and won’t carry over.");
     });
 
     it("does not offer to convert a PDF with no text, and says why", async () => {

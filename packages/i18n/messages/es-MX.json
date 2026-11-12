@@ -693,7 +693,7 @@
         "comments": "{count, plural, one {# comentario no pasará.} other {# comentarios no pasarán.}}",
         "footnotes": "{count, plural, one {# nota al pie pasa a una lista al final.} other {# notas al pie pasan a una lista al final.}}",
         "headersFooters": "{count, plural, one {# encabezado o pie no pasará.} other {# encabezados y pies no pasarán.}}",
-        "images": "{count, plural, one {# imagen se cambia por «[imagen]».} other {# imágenes se cambian por «[imagen]».}}",
+        "images": "{count, plural, one {# imagen se cambia por «[img]».} other {# imágenes se cambian por «[img]».}}",
         "trackedChanges": "{count, plural, one {# cambio marcado: solo pasa el texto final.} other {# cambios marcados: solo pasa el texto final.}}",
         "trackedChangesPdf": "{count, plural, one {# cambio marcado se verá como lo muestra LibreOffice.} other {# cambios marcados se verán como los muestra LibreOffice.}}"
       },
@@ -704,7 +704,7 @@
         "docx_footnotes_as_list": "Las notas al pie quedan como lista al final.",
         "docx_formatting": "Se pierde el formato fino: sangrías, colores y fuentes.",
         "docx_headers_footers": "Los encabezados y pies de página no pasan.",
-        "docx_images": "Las imágenes se cambian por «[imagen]».",
+        "docx_images": "Las imágenes se cambian por «[img]».",
         "docx_legal_numbering": "La numeración legal tipo 1.1.a queda como lista simple.",
         "docx_merged_cells": "Las tablas con celdas combinadas pierden la combinación.",
         "docx_tracked_changes": "Los cambios marcados no pasan; solo pasa el texto final.",
@@ -717,13 +717,13 @@
       },
       "lossesTitle": "Lo que no pasará al documento nuevo",
       "newName": "El documento nuevo se llamará «{filename}».",
-      "open": "Abrir",
       "originalUnchanged": "Tu documento original no cambia.",
       "target": {
         "docx": "Word",
         "md": "Markdown",
         "pdf": "PDF"
       },
+      "textlessPages": "{count, plural, one {# página no tiene texto y no pasará.} other {# páginas no tienen texto y no pasarán.}}",
       "title": "Convertir documento"
     },
     "table": {

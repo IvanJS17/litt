@@ -85,7 +85,7 @@ function inlineRuns(tokens: Token[] | undefined, marks: Marks = {}): ParagraphCh
             }
             case "image":
                 // A picture is not embedded: its description stays.
-                out.push(run((token as Tokens.Image).text || "[imagen]", marks));
+                out.push(run((token as Tokens.Image).text || "[img]", marks));
                 break;
             case "html":
                 break;

@@ -693,7 +693,7 @@
         "comments": "{count, plural, one {# comment won’t carry over.} other {# comments won’t carry over.}}",
         "footnotes": "{count, plural, one {# footnote moves to a list at the end.} other {# footnotes move to a list at the end.}}",
         "headersFooters": "{count, plural, one {# header or footer won’t carry over.} other {# headers and footers won’t carry over.}}",
-        "images": "{count, plural, one {# image becomes “[imagen]”.} other {# images become “[imagen]”.}}",
+        "images": "{count, plural, one {# image becomes “[img]”.} other {# images become “[img]”.}}",
         "trackedChanges": "{count, plural, one {# tracked change: only the final text carries over.} other {# tracked changes: only the final text carries over.}}",
         "trackedChangesPdf": "{count, plural, one {# tracked change will appear as LibreOffice shows it.} other {# tracked changes will appear as LibreOffice shows them.}}"
       },
@@ -704,7 +704,7 @@
         "docx_footnotes_as_list": "Footnotes end up as a list at the end.",
         "docx_formatting": "Fine formatting is lost: indents, colors and fonts.",
         "docx_headers_footers": "Headers and footers don’t carry over.",
-        "docx_images": "Images are replaced by “[imagen]”.",
+        "docx_images": "Images are replaced by “[img]”.",
         "docx_legal_numbering": "Legal numbering such as 1.1.a becomes a simple list.",
         "docx_merged_cells": "Tables with merged cells lose the merge.",
         "docx_tracked_changes": "Tracked changes don’t carry over; only the final text does.",
@@ -717,13 +717,13 @@
       },
       "lossesTitle": "What won’t carry over",
       "newName": "The new document will be named “{filename}”.",
-      "open": "Open",
       "originalUnchanged": "Your original document doesn’t change.",
       "target": {
         "docx": "Word",
         "md": "Markdown",
         "pdf": "PDF"
       },
+      "textlessPages": "{count, plural, one {# page has no text and won’t carry over.} other {# pages have no text and won’t carry over.}}",
       "title": "Convert document"
     },
     "table": {

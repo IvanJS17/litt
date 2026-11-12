@@ -13,7 +13,7 @@ const CREATED = { document_id: "new", version_id: "v", filename: "Notas (de Mark
 
 beforeEach(() => {
     vi.clearAllMocks();
-    mocks.preview.mockResolvedValue({ source_type: "md", target: "docx", losses: ["md_raw_html"], detected: null, blocked: null, new_filename: CREATED.filename });
+    mocks.preview.mockResolvedValue({ source_type: "md", target: "docx", losses: ["md_raw_html"], detected: null, blocked: null, textless_page_count: null, new_filename: CREATED.filename });
     mocks.convert.mockResolvedValue(CREATED);
 });
 

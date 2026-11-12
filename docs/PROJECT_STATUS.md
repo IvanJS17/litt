@@ -53,13 +53,15 @@
 
 ### Branch not integrated: layer 4, document conversions
 
-- **`feat/capa4-conversions`** (from `cce8eec4`, no pull request yet): convert a
+- **`feat/capa4-conversions`** (pull request #168, base main `1a9691de`; not integrated): convert a
   document between Markdown, Word and PDF into a **new** document; the original
   does not change. Details in [`document-conversion.md`](document-conversion.md).
   Not in production. Migration `20261112_10_litt_converted_source.sql` (adds
   `converted` to `document_versions_source_check`) is not applied anywhere.
-- Word → Markdown now has one converter (mammoth + turndown), shared with text
-  extraction for tabular review and the assistant.
+- Word → Markdown now has one converter (`docxToMarkdown`, mammoth + turndown):
+  it replaced the regex conversion of `extractDocxMarkdown` and serves the
+  person's conversion. Tabular review and the assistant still read plain text
+  with offsets (`documentText`, `extractDocxBodyText`), unchanged.
 
 ### Production and integration 2026-11-11
 

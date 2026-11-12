@@ -119,7 +119,10 @@ async function getConvert() {
       buf: Buffer,
       ext: string,
       filter: undefined,
-      options: { sofficeBinaryPaths?: string[] },
+      options: {
+        sofficeBinaryPaths?: string[];
+        execOptions?: { timeout?: number; killSignal?: NodeJS.Signals };
+      },
       callback?: (err: Error | null, result: Buffer) => void,
     ) => Promise<Buffer> | void;
     _convert = (buf, ext, filter) =>
@@ -129,7 +132,15 @@ async function getConvert() {
             buf,
             ext,
             filter,
-            { sofficeBinaryPaths: resolveSofficeBinaryPaths() },
+            {
+              sofficeBinaryPaths: resolveSofficeBinaryPaths(),
+              // The library runs soffice with execFile: without these a
+              // wedged soffice holds the caller forever.
+              execOptions: {
+                timeout: uploadConversionTimeoutMs(),
+                killSignal: "SIGKILL",
+              },
+            },
             (err, result) => {
               if (err) reject(err);
               else resolve(result);
@@ -195,6 +206,15 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
     // missing or unexecutable, the same condition officeFileToPdf names.
     const code = (error as { code?: unknown } | null)?.code;
     if (code === "ENOENT" || code === "EACCES") throw converterUnavailable(error);
+    // execFile reports its own deadline as killed + SIGKILL.
+    const killed = error as { killed?: unknown; signal?: unknown } | null;
+    if (killed?.killed === true && killed.signal === "SIGKILL") {
+      throw new ConversionError(
+        "conversion.timeout",
+        `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`,
+        { cause: error },
+      );
+    }
     throw new ConversionError(
       "conversion.failed",
       "LibreOffice conversion failed",

@@ -25,7 +25,6 @@ import type {
 } from "@mike/contracts";
 import { AppError } from "../../lib/appError";
 import { ConversionError, docxToPdf } from "../../lib/convert";
-import { inspectDocx } from "../../lib/docxInventory";
 import { contentSha256, loadActiveVersion, type ActiveVersion } from "../../lib/documentVersions";
 import { contentTypeForDocumentType, isMarkdownDocumentType } from "../../lib/documentTypes";
 import { ExtractionBusyError, ExtractionLimitError, runIsolatedExtraction } from "../../lib/extraction/isolated";
@@ -247,9 +246,10 @@ export async function previewDocumentConversion(
         const bytes = await readSource(version, "docx");
         if (!bytes.ok) return bytes;
         try {
-            detected = await inspectDocx(bytes.data);
-        } catch {
-            return failure("validation", "The Word file could not be read.", CONVERT_UNREADABLE_CODE);
+            // Unzipping a Word package is bounded only inside the parser process.
+            detected = await runIsolatedExtraction("docxInventory", async () => bytes.data, { fileType: "docx" });
+        } catch (error) {
+            return conversionFailure(error);
         }
     }
     const textless = version.textless_page_count;
@@ -275,6 +275,7 @@ export async function previewDocumentConversion(
         losses: [...CONVERSION_LOSSES[pair]],
         detected,
         blocked: withoutText ? "pdf_without_text" : null,
+        textless_page_count: sourceType === "pdf" ? textless : null,
         new_filename: newFilename,
     });
 }

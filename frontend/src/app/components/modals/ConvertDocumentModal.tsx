@@ -62,22 +62,20 @@ function ConvertDocumentDialog({
     useEffect(() => {
         closed.current = false;
         let current = true;
-        const load = () => {
-            previewDocumentConversion(documentId, target).then(
-                (notice) => {
-                    if (current) setPreview(notice);
-                },
-                (error) => {
-                    if (!current) return;
-                    notifyError(error, {
-                        action: t("documents.convert.actionPreview"),
-                        onRetry: load,
-                    });
-                    onClose();
-                },
-            );
-        };
-        load();
+        // The dialog closes on failure, so there is nothing to retry in place:
+        // opening the menu entry again loads the notice again.
+        previewDocumentConversion(documentId, target).then(
+            (notice) => {
+                if (current) setPreview(notice);
+            },
+            (error) => {
+                if (!current) return;
+                notifyError(error, {
+                    action: t("documents.convert.actionPreview"),
+                });
+                onClose();
+            },
+        );
         return () => {
             current = false;
             closed.current = true;
@@ -148,6 +146,13 @@ function ConvertDocumentDialog({
                         {preview.blocked === "pdf_without_text" && (
                             <p role="alert" className="text-red-700">
                                 {t("documents.convert.blocked.pdf_without_text")}
+                            </p>
+                        )}
+                        {!preview.blocked && !!preview.textless_page_count && (
+                            <p role="alert" className="font-medium text-gray-900">
+                                {t("documents.convert.textlessPages", {
+                                    count: preview.textless_page_count,
+                                })}
                             </p>
                         )}
                         {lines.length > 0 && (

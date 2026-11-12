@@ -109,6 +109,7 @@ beforeEach(() => {
         losses: [],
         detected: { comments: 0, tracked_insertions: 0, tracked_deletions: 0, images: 0, footnotes: 0, headers: 0, footers: 0 },
         blocked: null,
+        textless_page_count: null,
         new_filename: "Notas (de Markdown).docx",
     };
     mocks.preview.mockResolvedValue(preview);

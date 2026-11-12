@@ -11,7 +11,7 @@ and confirmed.
 |---|---|---|---|
 | Markdown | Word | `marked` (read) + `docx` (write) | Raw HTML and formulas are ignored. The result uses LiTT's style (Times New Roman 11), not a template. Links other than `http(s)` and `mailto` keep their text and lose the link. |
 | Markdown | PDF | Markdown → Word, then LibreOffice | The same, and fonts and page breaks can change if a font is missing. |
-| Word | Markdown | `mammoth` (HTML) + `turndown` with `turndown-plugin-gfm` | Comments, tracked changes (the final text stays), headers and footers, fine formatting, legal numbering such as 1.1.a (a plain list), pictures (`[imagen]`), merged cells. Footnotes end as a list. |
+| Word | Markdown | `mammoth` (HTML) + `turndown` with `turndown-plugin-gfm` | Comments, tracked changes (the final text stays), headers and footers, fine formatting, legal numbering such as 1.1.a (a plain list), pictures (`[img]`), merged cells. Footnotes end as a list. |
 | Word | PDF | The version's stored PDF, else LibreOffice | Fonts and page breaks can change; tracked changes appear as LibreOffice shows them. |
 | PDF | Markdown | The text layer (`pdfjs-dist`) | Tables, columns, titles, numbering, images and notes: the result is plain text under `## Página N` headings. A PDF with no text needs OCR and is refused (`convert_pdf_without_text`). |
 
@@ -20,8 +20,11 @@ Word file would mislead. Do PDF → Markdown, then Markdown → Word. Pandoc is 
 used.
 
 **One Word → Markdown converter.** `backend/src/lib/docxMarkdown.ts`
-(`docxToMarkdown`) serves the person's conversion and the text extraction that
-tabular review and the assistant read (`extractDocxMarkdown`). It runs inside
+(`docxToMarkdown`) serves the person's conversion and `extractDocxMarkdown`
+(the `documentMarkdown` op), where it replaced a regex conversion. Tabular
+review and the assistant do not use it: they read plain text with offsets (the
+`documentText` op, `extractDocxBodyText`), which citations depend on, and that
+path is unchanged. The converter runs inside
 the isolated extraction process (`docxMarkdown` op), so its imports stay
 parser-only: turndown needs only its DOM library (`@mixmark-io/domino`), which
 does no I/O. Its output never carries raw HTML, and a `<` typed in a document is
@@ -58,14 +61,18 @@ The rules of downloading, plus one:
   fixed list of losses for the pair (`losses`, codes the client turns into
   sentences), the counts found in the `.docx` itself (`detected`: comments,
   tracked insertions and deletions, images, footnotes, headers, footers, counted
-  with `jszip`), `blocked` (`pdf_without_text`) and the name the new document
+  with `jszip`), `blocked` (`pdf_without_text`), `textless_page_count` (pages of a PDF with no text, which do not carry over) and the name the new document
   would get.
 - `POST /single-documents/:id/convert` with `{ "target": "md" }` creates the
   document (201). Types are in `@mike/contracts`
   (`DocumentConversionPreview`, `DocumentConversionResult`).
 
-Source size is capped (25 MB; 5 MB for Markdown, which is parsed in-process) and
-Markdown → Word and LibreOffice are bounded by `uploadConversionTimeoutMs`.
+Source size is capped (25 MB; 5 MB for Markdown, which is parsed in-process).
+Unzipping a Word package (the preview counts, op `docxInventory`) and the Word
+and PDF → Markdown conversions run in the isolated parser process, bounded by
+its size, time and memory limits. Markdown → Word is abandoned after
+`uploadConversionTimeoutMs`, and `docxToPdf` passes the same timeout to
+LibreOffice (`execOptions.timeout`, `SIGKILL`), so every caller is bounded.
 Codes the client acts on: `convert_not_supported`, `convert_pdf_without_text`,
 `convert_source_too_large`, `convert_unreadable`, `convert_unavailable`
 (`CODE_KINDS`).
@@ -76,5 +83,6 @@ The document menu (explorer rows and project tabs) shows one entry per valid
 target: «Convertir a Word…», «Convertir a PDF…», «Convertir a Markdown…». It
 opens a dialog that lists what this document loses, says «Tu documento original
 no cambia» and offers «Convertir y crear documento nuevo» or «Cancelar». On
-success the new document opens beside the original. Texts are in the
+success the document lists refresh; the project assistant chat also opens the
+new document in a tab. Texts are in the
 `documents.convert.*` and `errors.code.convert_*` catalog keys.

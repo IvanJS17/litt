@@ -1,7 +1,9 @@
 // The one Word → Markdown converter: mammoth reads the .docx into HTML and
 // turndown (+ GFM tables) writes Markdown. It serves the person's "Convert to
-// Markdown" and the text extraction behind tabular review and the assistant,
-// so there is no second, hand-written conversion to drift from this one.
+// Markdown" and `extractDocxMarkdown` (the documentMarkdown op), where it
+// replaced a hand-written regex conversion. Tabular review and the assistant
+// do NOT use it: they read plain text with offsets (the documentText op,
+// `extractDocxBodyText`), which citations depend on.
 //
 // Parser-only imports: the extraction worker loads this module.
 
@@ -10,7 +12,7 @@ import { gfm } from "turndown-plugin-gfm";
 import { normalizeDocxZipPaths } from "./convert";
 
 /** What replaces a picture: Markdown here carries text, not embedded images. */
-export const IMAGE_PLACEHOLDER = "[imagen]";
+export const IMAGE_PLACEHOLDER = "[img]";
 
 const SAFE_LINK = /^(?:https?:|mailto:|#)/i;
 
@@ -118,7 +120,7 @@ function createService(): TurndownService {
  *
  * What does not survive: comments, the deleted side of tracked changes (the
  * final text stays), headers and footers, fine formatting, legal numbering
- * (it becomes a plain list) and pictures ("[imagen]").
+ * (it becomes a plain list) and pictures ("[img]").
  */
 export async function docxToMarkdown(buf: ArrayBuffer | Buffer): Promise<string> {
     const mammoth = await import("mammoth");

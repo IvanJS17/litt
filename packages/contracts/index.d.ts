@@ -1951,7 +1951,7 @@ export type DocumentConversionBlocked = "pdf_without_text";
 /**
  * GET /single-documents/:documentId/convert/preview?target=md|docx|pdf: the
  * notice shown before converting. Nothing is created. 404 without access,
- * 403 `training_approval_required` for a trainee's unapproved draft, 400
+ * 409 `training_approval_required` for a trainee's unapproved draft, 400
  * `convert_not_supported` for a pair that does not exist (PDF → Word).
  */
 export interface DocumentConversionPreview {
@@ -1963,6 +1963,12 @@ export interface DocumentConversionPreview {
     detected: DocumentConversionDetected | null;
     /** Set when the conversion cannot run on this document (a PDF with no text). */
     blocked: DocumentConversionBlocked | null;
+    /**
+     * PDF source: pages with no text, which will not carry over. 0 when all
+     * pages have text; null when the source is not a PDF or the count is unknown.
+     * When every page is textless `blocked` is set as well.
+     */
+    textless_page_count: number | null;
     /** The name the new document would get. */
     new_filename: string;
 }

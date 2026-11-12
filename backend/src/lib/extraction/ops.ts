@@ -4,6 +4,7 @@
 
 import { extractDocxBodyText } from "../docxTrackedChanges";
 import { docxToMarkdown } from "../docxMarkdown";
+import { inspectDocx } from "../docxInventory";
 import { extractPresentationText } from "../officeText";
 import { extractLegacyOfficeText, extractPdfTextForModel } from "../pdfText";
 import { spreadsheetToLLMText } from "../spreadsheet";
@@ -25,6 +26,8 @@ export const EXTRACTION_OPS = {
     extractDocumentMarkdown(bytes, fileType),
   /** A person's Word → Markdown conversion. Unlike documentMarkdown it throws on an unreadable file. */
   docxMarkdown: (bytes: ArrayBuffer) => docxToMarkdown(bytes),
+  /** What a conversion would lose from a Word file. Unzips the package, so it runs here, bounded by the parser's size, time and memory limits. */
+  docxInventory: (bytes: ArrayBuffer) => inspectDocx(bytes),
   /** read_document views, one per file type. */
   pdfForModel: (bytes: ArrayBuffer) => extractPdfTextForModel(bytes),
   // The same accepted view the edit_document matcher anchors against, with

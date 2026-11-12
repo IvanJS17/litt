@@ -111,3 +111,17 @@ it("reports a clean soffice exit that wrote no PDF as a failed conversion", asyn
   expect(failure.message).toContain("source file could not be loaded");
   expect(failure.cause).toMatchObject({ code: "ENOENT" });
 });
+
+describe("docxToPdf deadline", () => {
+  it("cuts a LibreOffice that never finishes, with a ConversionError", async () => {
+    const { docxToPdf, ConversionError } = await import("../convert.js");
+    const startedAt = Date.now();
+    const failure = await docxToPdf(Buffer.from("not a real docx")).catch((error) => error);
+    expect(failure).toBeInstanceOf(ConversionError);
+    expect(diagnosticErrorTags(failure)).toEqual({
+      error_kind: "conversion.timeout",
+      failure_code: "conversion_timeout",
+    });
+    expect(Date.now() - startedAt).toBeLessThan(10_000);
+  });
+});
