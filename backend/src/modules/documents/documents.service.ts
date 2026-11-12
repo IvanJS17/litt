@@ -18,6 +18,7 @@
 //   documents.trainingApproval.ts — approve a pasante's sealed version
 //   documents.authorship.ts — estimated authorship of a version (training)
 //   documents.convert.ts   — convert between Markdown, Word and PDF as a new document
+//   documents.compare.ts   — compare two Word files into a new one with tracked changes
 //
 // Upload sessions own transport and destination authorization; version metadata
 // creation, activation, replacement, copying, and cleanup use this facade.
@@ -61,6 +62,8 @@ export {
     previewDocumentConversion,
     convertDocument,
 } from "./documents.convert";
+
+export { compareDocuments } from "./documents.compare";
 
 export { renameDocument } from "./documents.rename";
 export { deleteCollectionDocuments } from "./documents.cleanup";
