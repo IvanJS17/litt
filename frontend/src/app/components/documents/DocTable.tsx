@@ -5113,4 +5113,3 @@ function hasFilenameExtensionChange(previous: string, next: string) {
         previousExtension.toLowerCase()
     );
 }
-
