@@ -4,11 +4,9 @@ import { useId } from "react";
 import type { ContentVisibility } from "@/app/components/shared/types";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { ModalSegmentedToggle } from "./ModalSegmentedToggle";
+import { useTranslations } from "next-intl";
+import { thisResource } from "./resourceNoun";
 
-const OPTIONS: { value: ContentVisibility; label: string }[] = [
-    { value: "private", label: "Private" },
-    { value: "organization", label: "Public" },
-];
 
 /**
  * The "Organisational Access" choice for an organization's project or
@@ -37,11 +35,15 @@ export function AccessVisibilityField({
     resourceNoun: "project" | "workflow" | "playbook";
     disabled?: boolean;
 }) {
+    const t = useTranslations();
     const labelId = useId();
     const descriptionId = useId();
-    const organizationLabel = organizationName || "the organisation";
-    const publicAbility =
-        resourceNoun === "playbook" ? "view and run" : "open and edit";
+    const organization = organizationName || t("modals.thisOrganisation");
+    const resource = thisResource(t, resourceNoun);
+    const options: { value: ContentVisibility; label: string }[] = [
+        { value: "private", label: t("modals.visibilityPrivate") },
+        { value: "organization", label: t("modals.visibilityPublic") },
+    ];
 
     return (
         <div
@@ -51,7 +53,7 @@ export function AccessVisibilityField({
             aria-describedby={descriptionId}
         >
             <FieldLabel as="p" id={labelId}>
-                Organisational Access
+                {t("modals.organisationalAccess")}
             </FieldLabel>
             {/* The choice, and beside it what the choice means. The text takes
                 the room the toggle leaves and wraps within it; where there is
@@ -60,7 +62,7 @@ export function AccessVisibilityField({
                 <ModalSegmentedToggle
                     value={visibility}
                     onChange={onChange}
-                    options={OPTIONS}
+                    options={options}
                     disabled={disabled}
                     className="shrink-0"
                 />
@@ -70,8 +72,10 @@ export function AccessVisibilityField({
                     className="min-w-0 flex-[1_1_8rem] text-xs leading-4 text-gray-500"
                 >
                     {visibility === "organization"
-                        ? `Everyone in ${organizationLabel} can ${publicAbility} this ${resourceNoun}.`
-                        : `Only the people you share this ${resourceNoun} with can open it.`}
+                        ? resourceNoun === "playbook"
+                            ? t("modals.everyoneCanViewAndRun", { organization, resource })
+                            : t("modals.everyoneCanOpenAndEdit", { organization, resource })
+                        : t("modals.onlyThePeopleYouShare", { resource })}
                 </p>
             </div>
         </div>

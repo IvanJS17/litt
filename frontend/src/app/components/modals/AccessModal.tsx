@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type {
     AccessAssignmentRole,
     OrgMember,
@@ -84,6 +85,7 @@ export function AccessModal({
     breadcrumb,
     access,
 }: Props) {
+    const t = useTranslations();
     const [busy, setBusy] = useState(false);
     const [pendingEmail, setPendingEmail] = useState<string | null>(null);
     const [newRole, setNewRole] = useState<ProjectRole>("editor");
@@ -113,7 +115,7 @@ export function AccessModal({
           : "direct";
     const canManage = access.canManage;
     const grantsError = access.grantsUnavailable
-        ? "The list of people with access couldn't be loaded, so it may be incomplete. Retry from the notification, or reopen this dialog."
+        ? t("modals.accessListUnavailable")
         : null;
     const orgId = access.orgId ?? null;
     const resourceId = resource?.id ?? null;
@@ -152,7 +154,7 @@ export function AccessModal({
                     setError(
                         userFacingApiError(
                             cause,
-                            "Could not load access details.",
+                            t("modals.couldNotLoadAccessDetails"),
                         ),
                     );
                     setLoadedRosterKey(rosterKey);
@@ -259,11 +261,11 @@ export function AccessModal({
     const currentEmail = currentUserEmail?.trim().toLowerCase() ?? null;
 
     function validateEmail(email: string) {
-        if (recipientEmails.includes(email)) return `${email} already has access.`;
+        if (recipientEmails.includes(email)) return t("modals.emailAlreadyHasAccess", { email });
         if (ownerEmail && email === ownerEmail)
-            return `${email} created this and is already an owner.`;
+            return t("modals.emailCreatedThisAndIsAlreadyAnOwner", { email });
         if (currentEmail && email === currentEmail)
-            return "You cannot share this with yourself.";
+            return t("modals.youCannotShareThisWithYourself");
         return null;
     }
 
@@ -280,7 +282,7 @@ export function AccessModal({
             // A refused grant used to escape as an unhandled rejection with no
             // message; the sibling changeRole/remove paths already report.
             setError(
-                userFacingApiError(cause, "Could not add this user. Try again."),
+                userFacingApiError(cause, t("modals.couldNotAddThisUser")),
             );
         } finally {
             setBusy(false);
@@ -298,7 +300,7 @@ export function AccessModal({
         try {
             await access.onGrant(row.email, role);
         } catch (cause) {
-            setError(userFacingApiError(cause, "Could not change that role."));
+            setError(userFacingApiError(cause, t("modals.couldNotChangeThatRole")));
         } finally {
             setBusy(false);
             setPendingEmail(null);
@@ -313,7 +315,7 @@ export function AccessModal({
         try {
             await access.onRevoke(row.email);
         } catch (cause) {
-            setError(userFacingApiError(cause, "Could not remove access."));
+            setError(userFacingApiError(cause, t("modals.couldNotRemoveAccess")));
         } finally {
             setBusy(false);
             setPendingEmail(null);
@@ -405,7 +407,7 @@ export function AccessModal({
                 onClose={onClose}
                 breadcrumbs={[
                     ...breadcrumb.slice(0, -1),
-                    "People",
+                    t("modals.people"),
                 ]}
             >
                 <div className="flex min-h-0 flex-1 flex-col pb-5">
@@ -442,7 +444,7 @@ export function AccessModal({
         <Modal
             open={open}
             onClose={onClose}
-            breadcrumbs={[...breadcrumb.slice(0, -1), "Access"]}
+            breadcrumbs={[...breadcrumb.slice(0, -1), t("modals.access")]}
         >
             <div className="flex min-h-0 flex-1 flex-col pb-5">
                 <AccessEditor

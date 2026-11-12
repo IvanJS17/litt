@@ -5,6 +5,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Trash2 } from "lucide-react";
 import { PillButtonUI, CloseButton, LIQUID_GLASS_FLOAT_CLASS } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 type ConfirmStatus = "idle" | "loading" | "complete";
 
@@ -26,15 +27,18 @@ export function ConfirmPopup({
   open,
   title,
   message,
-  confirmLabel = "Confirm",
+  confirmLabel: confirmLabelProp,
   confirmVariant = "default",
   confirmStatus = "idle",
-  cancelLabel = "Cancel",
+  cancelLabel: cancelLabelProp,
   onConfirm,
   onCancel,
   confirmDisabled = false,
   className,
 }: ConfirmPopupProps) {
+  const t = useTranslations();
+  const confirmLabel = confirmLabelProp ?? t("popups.confirm");
+  const cancelLabel = cancelLabelProp ?? t("popups.cancel");
   const titleId = useId();
 
   /**
@@ -141,7 +145,7 @@ export function ConfirmPopup({
         role="dialog"
         tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
-        aria-label={title ? undefined : "Confirm action"}
+        aria-label={title ? undefined : t("popups.confirmAction")}
         className={cn(
           `pointer-events-auto relative w-[min(92vw,520px)] rounded-2xl p-2.5 pl-3 text-sm ${LIQUID_GLASS_FLOAT_CLASS}`,
           className,
@@ -149,7 +153,7 @@ export function ConfirmPopup({
       >
         <CloseButton
           onClick={onCancel}
-          label="Close confirmation"
+          label={t("popups.closeConfirmation")}
           size="sm"
           className="absolute right-2.5 top-2.5"
         />

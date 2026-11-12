@@ -4,6 +4,12 @@ type Leaves<T, P extends string> = T extends string
     ? P
     : { [K in keyof T & string]: Leaves<T[K], `${P}.${K}`> }[keyof T & string];
 
+/** A translator limited to one namespace's keys, for helpers that take `t`. */
+export type NsTranslate<N extends keyof Messages & string> = (
+    key: Leaves<Messages[N], N>,
+    values?: Record<string, string | number | Date>,
+) => string;
+
 /** Every catalog key the Settings and Organizations screens read. */
 export type SettingsKey =
     | Leaves<Messages["settings"], "settings">

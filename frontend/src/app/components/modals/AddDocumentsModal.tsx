@@ -29,6 +29,7 @@ import {
     settleBulkRequests,
     type BulkRequestOutcome,
 } from "@/app/lib/bulkRequests";
+import { useTranslations } from "next-intl";
 
 interface Props {
     open: boolean;
@@ -76,6 +77,7 @@ function AddDocumentsModalForWorkspace({
     disabledDocumentIds,
     uploadStateId,
 }: Props) {
+    const t = useTranslations();
     // A document uploaded on its own belongs to the workspace it is
     // uploaded in.
     const workspace = useDocumentWorkspace();
@@ -374,7 +376,7 @@ function AddDocumentsModalForWorkspace({
                     ? failedUploadMessage(err.outcomes)
                     : userFacingApiError(
                           err,
-                          "Documents could not be uploaded. Please try again.",
+                          t("modals.documentsCouldNotBeUploaded"),
                       ),
             );
         } finally {
@@ -433,7 +435,7 @@ function AddDocumentsModalForWorkspace({
             keepMounted={keepMounted}
             breadcrumbs={breadcrumb}
             secondaryAction={{
-                label: uploading ? "Uploading…" : "Upload",
+                label: uploading ? t("modals.uploading") : t("modals.upload"),
                 icon: uploading ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
@@ -443,7 +445,7 @@ function AddDocumentsModalForWorkspace({
                 disabled: uploading,
             }}
             primaryAction={{
-                label: uploading ? "Saving…" : "Confirm",
+                label: uploading ? t("modals.saving") : t("modals.confirm"),
                 onClick: handleConfirm,
                 disabled: selectedDocuments.length === 0 || uploading,
             }}
@@ -468,7 +470,7 @@ function AddDocumentsModalForWorkspace({
                         type="button"
                         onClick={() => setUploadWarning(null)}
                         className="shrink-0 rounded p-0.5 text-black hover:bg-gray-100"
-                        aria-label="Dismiss warning"
+                        aria-label={t("modals.dismissWarning")}
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>

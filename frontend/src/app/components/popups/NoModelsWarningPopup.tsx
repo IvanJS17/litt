@@ -10,6 +10,7 @@ import {
     type NoModelsReason,
 } from "@mike/client";
 import { WarningPopup } from "./WarningPopup";
+import { useTranslations } from "next-intl";
 
 export function NoModelsWarningPopup({
     reason,
@@ -30,6 +31,7 @@ function VisibleNoModelsWarning({
     reason: NoModelsReason;
     onClose: () => void;
 }) {
+    const t = useTranslations();
     const router = useRouter();
     const { activeOrganization } = useWorkspace();
     // When the fix is the organization's to make, an owner or admin is sent
@@ -47,7 +49,7 @@ function VisibleNoModelsWarning({
         <WarningPopup
             open
             onClose={onClose}
-            title="No models available"
+            title={t("popups.noModelsAvailable")}
             message={NO_MODELS_MESSAGES[reason]}
             icon={
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600" />
@@ -55,7 +57,7 @@ function VisibleNoModelsWarning({
             primaryAction={
                 settingsHref
                     ? {
-                          label: "Open Organization",
+                          label: t("popups.openOrganization"),
                           onClick: () => {
                               onClose();
                               router.push(settingsHref);
@@ -64,7 +66,7 @@ function VisibleNoModelsWarning({
                     : organizationFix
                       ? undefined
                       : {
-                            label: "Open Bring Your Own Keys",
+                            label: t("popups.openBringYourOwnKeys"),
                             onClick: () => {
                                 onClose();
                                 router.push("/settings/byok");

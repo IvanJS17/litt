@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { WarningPopup } from "../popups/WarningPopup";
+import { useTranslations } from "next-intl";
 
 interface Props {
     open: boolean;
@@ -19,12 +20,13 @@ export function ApiKeyMissingPopup({
     message,
     title,
 }: Props) {
+    const t = useTranslations();
     const router = useRouter();
     if (!open) return null;
 
     const body =
         message ??
-        "You haven't enabled any models yet. Add an API key in settings to get started.";
+        t("popups.youHaventEnabledAnyModelsYet");
 
     const handleGoToSettings = () => {
         onClose();
@@ -35,13 +37,13 @@ export function ApiKeyMissingPopup({
         <WarningPopup
             open={open}
             onClose={onClose}
-            title={title ?? "API key required"}
+            title={title ?? t("popups.apiKeyRequired")}
             message={body}
             icon={
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600" />
             }
             primaryAction={{
-                label: "Go to settings",
+                label: t("popups.goToSettings"),
                 onClick: handleGoToSettings,
             }}
         />

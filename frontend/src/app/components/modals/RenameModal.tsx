@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 import { FieldLabel, FormTextInput } from "../ui/form-field";
+import { useTranslations } from "next-intl";
 
 interface RenameModalProps {
     open: boolean;
@@ -25,11 +26,13 @@ function RenameModalForm({
     open,
     breadcrumbs,
     initialValue,
-    label = "Name",
+    label: labelProp,
     saving = false,
     onClose,
     onSave,
 }: RenameModalProps) {
+    const t = useTranslations();
+    const label = labelProp ?? t("modals.name");
     const [draft, setDraft] = useState(initialValue);
     const formId = "rename-modal-form";
     const trimmed = draft.trim();
@@ -41,9 +44,9 @@ function RenameModalForm({
             size="sm"
             className="h-auto"
             breadcrumbs={breadcrumbs}
-            cancelAction={{ label: "Cancel", onClick: onClose, disabled: saving }}
+            cancelAction={{ label: t("modals.cancel"), onClick: onClose, disabled: saving }}
             primaryAction={{
-                label: saving ? "Saving..." : "Save",
+                label: saving ? t("modals.saving2") : t("modals.save"),
                 type: "submit",
                 form: formId,
                 disabled: !trimmed || saving,

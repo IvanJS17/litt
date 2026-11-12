@@ -16,6 +16,7 @@ import {
     type OrganizationAccessAssignment,
     type AccessRow,
 } from "./AccessEditor";
+import { useTranslations } from "next-intl";
 
 export interface PendingDirectGrant {
     email: string;
@@ -46,7 +47,7 @@ export function CreateAccessStep({
     onOrgOverridesChange,
     inheritedFromProject = false,
     inheritedProjectId = null,
-    ownerLabel = "Project owners",
+    ownerLabel: ownerLabelProp,
     resourceNoun,
     visibility = "private",
 }: {
@@ -71,6 +72,7 @@ export function CreateAccessStep({
      */
     visibility?: ContentVisibility;
 }) {
+    const t = useTranslations();
     const [memberState, setMemberState] = useState<{
         orgId: string;
         members: OrgMember[];
@@ -93,7 +95,7 @@ export function CreateAccessStep({
                     setMemberState({
                         orgId,
                         members: [],
-                        error: "Could not load organization members.",
+                        error: t("modals.couldNotLoadOrganizationMembers"),
                     });
                 }
             });
@@ -149,7 +151,7 @@ export function CreateAccessStep({
                     setProjectPeopleState({
                         projectId: inheritedProjectId,
                         rows: [],
-                        error: "Could not load the project's members.",
+                        error: t("modals.couldNotLoadTheProjectsMembers"),
                     });
                 }
             });
@@ -245,9 +247,9 @@ export function CreateAccessStep({
 
     function validateDirectEmail(email: string) {
         if (currentEmail && email === currentEmail)
-            return "You are already the owner.";
+            return t("modals.youAreAlreadyTheOwner");
         if (directGrants.some((grant) => grant.email === email))
-            return `${email} already has access.`;
+            return t("modals.emailAlreadyHasAccess", { email });
         return null;
     }
 
@@ -291,7 +293,7 @@ export function CreateAccessStep({
                 members={organizationMembers}
                 assignments={organizationAssignments}
                 organizationName={organizationName}
-                ownerLabel={ownerLabel}
+                ownerLabel={ownerLabelProp}
                 resourceNoun={resourceNoun}
                 loading={loading}
                 error={loadError}

@@ -8,8 +8,6 @@ import type { UserLookupResult } from "@/app/lib/mikeApi";
 import type { AccessAssignmentRole } from "@/app/lib/mikeApi";
 import type { ContentVisibility } from "@/app/components/shared/types";
 import {
-    PROJECT_ROLE_DESCRIPTIONS,
-    PROJECT_ROLE_LABELS,
     PROJECT_ROLES,
     type ProjectRole,
 } from "@/app/lib/permissions";
@@ -24,6 +22,9 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_MODAL_ROW_HOVER_CLASS,
 } from "@mike/ui";
+import { useTranslations } from "next-intl";
+import type { NsTranslate } from "@/i18n/Translate";
+import { theResource, thisResource } from "./resourceNoun";
 
 export type AccessScope = "direct" | "project";
 
@@ -42,8 +43,34 @@ export type OrganizationAccessAssignment = AccessRow;
 const INPUT_GROUP_ROLE_TRIGGER_CLASS =
     "flex h-10 shrink-0 items-center gap-1.5 px-3 text-xs shadow-none transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus data-[state=open]:opacity-80 [&[data-state=open]>svg]:rotate-180 disabled:cursor-not-allowed disabled:opacity-50";
 
-export function accessRoleLabel(role: AccessAssignmentRole): string {
-    return role === "deny" ? "Deny" : PROJECT_ROLE_LABELS[role];
+export function accessRoleLabel(
+    role: AccessAssignmentRole,
+    t: NsTranslate<"modals">,
+): string {
+    switch (role) {
+        case "deny":
+            return t("modals.roles.deny");
+        case "owner":
+            return t("modals.roles.owner");
+        case "editor":
+            return t("modals.roles.editor");
+        default:
+            return t("modals.roles.viewer");
+    }
+}
+
+function accessRoleDescription(
+    role: ProjectRole,
+    t: NsTranslate<"modals">,
+): string {
+    switch (role) {
+        case "owner":
+            return t("modals.roleDescriptions.owner");
+        case "editor":
+            return t("modals.roleDescriptions.editor");
+        default:
+            return t("modals.roleDescriptions.viewer");
+    }
 }
 
 function accessRoleTone(role: AccessAssignmentRole): string {
@@ -93,21 +120,22 @@ function AccessRolePill({
     onChange: (role: AccessAssignmentRole) => void;
     options: AccessAssignmentRole[];
 }) {
+    const t = useTranslations();
     const tone = accessRoleTone(role);
     const className = `inline-flex h-6 items-center justify-self-start justify-center gap-1 rounded-full px-2 text-left text-[11px] font-medium ${tone}`;
 
-    if (!editable) return <span className={className}>{accessRoleLabel(role)}</span>;
+    if (!editable) return <span className={className}>{accessRoleLabel(role, t)}</span>;
 
     return (
         <Dropdown>
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    aria-label={`Role for ${label}`}
+                    aria-label={t("modals.roleForLabel", { label })}
                     disabled={disabled}
                     className={`${className} transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-wait disabled:opacity-50`}
                 >
-                    <span>{accessRoleLabel(role)}</span>
+                    <span>{accessRoleLabel(role, t)}</span>
                     {loading ? (
                         <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
                     ) : (
@@ -126,7 +154,7 @@ function AccessRolePill({
                         onSelect={() => onChange(option)}
                         className={`flex items-center justify-between ${accessRoleMenuTone(option)}`}
                     >
-                        <span>{accessRoleLabel(option)}</span>
+                        <span>{accessRoleLabel(option, t)}</span>
                         {role === option ? (
                             <Check className="h-3.5 w-3.5 text-gray-300" />
                         ) : null}
@@ -146,12 +174,13 @@ function RemoveActionDropdown({
     disabled?: boolean;
     onRemove: () => void;
 }) {
+    const t = useTranslations();
     return (
         <Dropdown>
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    aria-label={`Actions for ${label}`}
+                    aria-label={t("modals.actionsForLabel", { label })}
                     disabled={disabled}
                     className="flex h-6 w-6 items-center justify-center rounded-full text-xs text-gray-500 hover:bg-gray-200/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-50"
                 >
@@ -166,7 +195,7 @@ function RemoveActionDropdown({
                     onSelect={onRemove}
                     className="text-red-500 hover:!bg-red-500/10 focus:!bg-red-500/10 data-[highlighted]:!bg-red-500/10"
                 >
-                    Remove
+                    {t("modals.remove")}
                 </DropdownItem>
             </DropdownContent>
         </Dropdown>
@@ -226,6 +255,7 @@ function OrganizationMemberPicker({
     disabled: boolean;
     onSelect: (member: AccessRow) => void;
 }) {
+    const t = useTranslations();
     const [query, setQuery] = useState("");
     const [focused, setFocused] = useState(false);
     const normalizedQuery = query.trim().toLowerCase();
@@ -281,7 +311,7 @@ function OrganizationMemberPicker({
             {showResults ? (
                 <div
                     role="listbox"
-                    aria-label={`${label} matches`}
+                    aria-label={t("modals.labelMatches", { label })}
                     className={`absolute left-0 right-0 top-full z-[260] mt-1 max-h-48 overflow-y-auto rounded-xl p-1 ${LIQUID_GLASS_FLOAT_CLASS}`}
                 >
                     {matches.length > 0 ? (
@@ -317,7 +347,7 @@ function OrganizationMemberPicker({
                         })
                     ) : (
                         <p className="px-3 py-2 text-xs text-gray-400">
-                            No matching organization members.
+                            {t("modals.noMatchingOrganizationMembers")}
                         </p>
                     )}
                 </div>
@@ -361,6 +391,7 @@ function OrganizationAssignmentList({
      */
     ownerRoleImplied?: boolean;
 }) {
+    const t = useTranslations();
     const WITH_ROLE = "grid-cols-[minmax(0,1fr)_5rem_1.5rem] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5rem_1.5rem]";
     const WITHOUT_ROLE = "grid-cols-[minmax(0,1fr)_1.5rem] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_1.5rem]";
     return (
@@ -368,7 +399,7 @@ function OrganizationAssignmentList({
             {loading ? (
                 <div className="flex min-h-26 items-center justify-center gap-2 text-xs text-gray-400">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Loading organization members…
+                    {t("modals.loadingOrganizationMembers")}
                 </div>
             ) : assignments.length === 0 ? (
                 <div className="flex min-h-26 items-center justify-center text-xs text-gray-400">
@@ -463,7 +494,7 @@ export function OrganizationAccessEditor({
     members,
     assignments,
     organizationName,
-    ownerLabel = "Project owners",
+    ownerLabel: ownerLabelProp,
     resourceNoun: resourceNounProp,
     loading = false,
     disabled = false,
@@ -517,6 +548,7 @@ export function OrganizationAccessEditor({
         assignment: OrganizationAccessAssignment,
     ) => Promise<unknown> | unknown;
 }) {
+    const t = useTranslations();
     const isPublic = visibility === "organization";
     // A public item everyone can already edit: what is left to give is
     // ownership. Otherwise people are added as Editors, public or not.
@@ -586,19 +618,15 @@ export function OrganizationAccessEditor({
             ...current,
             expanded: !current.expanded,
         }));
-    const resourceNoun =
-        resourceNounProp ??
-        (ownerLabel.toLowerCase().startsWith("workflow")
-            ? "workflow"
-            : "project");
-    const organizationLabel = organizationName || "the organisation";
+    const ownerLabel = ownerLabelProp ?? t("modals.projectOwners");
+    const organization = organizationName || t("modals.thisOrganisation");
     const peopleDescription = isPublic
-        ? `Everyone in ${organizationLabel} can already open and run this ${resourceNoun}. Add members who should edit or own it; they are added as Editors, and you can change a person's role in the list below.`
-        : `Share this ${resourceNoun} with members of ${organizationLabel}. They are added as Editors; change a person's role in the list below. It cannot be shared outside the organisation.`;
+        ? t("modals.peopleDescriptionPublic", { organization, resource: thisResource(t, resourceNounProp) })
+        : t("modals.peopleDescriptionPrivate", { organization, resource: thisResource(t, resourceNounProp) });
     // Everyone can already open and edit a public item, so the only standing
     // left to hand out is ownership of it.
-    const ownerDescription = `Add ${organizationLabel} members as owners with rights to manage access, settings and delete the ${resourceNoun}. Everyone in ${organizationLabel} can already open and edit it.`;
-    const denyDescription = `Deny ${organizationLabel} members from accessing this ${resourceNoun}, although it is open to everyone else.`;
+    const ownerDescription = t("modals.ownerDescription", { organization, resource: theResource(t, resourceNounProp) });
+    const denyDescription = t("modals.denyDescription", { organization, resource: thisResource(t, resourceNounProp) });
     // A wall only means something on a public item; on a private one, not
     // being added is the wall. An existing list is still shown, so that
     // making the item public again is not a surprise.
@@ -614,7 +642,7 @@ export function OrganizationAccessEditor({
                     <OrganizationMemberPicker
                         id="organization-owner-picker"
                         label={ownerLabel}
-                        placeholder="Search members…"
+                        placeholder={t("modals.searchMembers")}
                         description={ownerDescription}
                         members={availableMembers}
                         disabled={disabled || loading}
@@ -626,8 +654,8 @@ export function OrganizationAccessEditor({
                     // be seen beside the person it belongs to.
                     <OrganizationMemberPicker
                         id="organization-people-picker"
-                        label="People"
-                        placeholder="Search members…"
+                        label={t("modals.people")}
+                        placeholder={t("modals.searchMembers")}
                         description={peopleDescription}
                         members={availableMembers}
                         disabled={disabled || loading}
@@ -636,15 +664,15 @@ export function OrganizationAccessEditor({
                 )}
                 <OrganizationAssignmentList
                     label={
-                        pickOwners ? `${ownerLabel} list` : "People with access"
+                        pickOwners ? t("modals.ownerlabelList", { ownerLabel }) : t("modals.peopleWithAccess")
                     }
                     assignments={sharedAssignments}
                     emptyMessage={
                         pickOwners
-                            ? "No additional Owners added."
+                            ? t("modals.noAdditionalOwnersAdded")
                             : isPublic
-                              ? "Nobody has been given more than view access."
-                              : "Not shared with anyone yet."
+                              ? t("modals.nobodyHasBeenGivenMoreThan")
+                              : t("modals.notSharedWithAnyoneYet")
                     }
                     loading={loading}
                     disabled={disabled}
@@ -676,8 +704,8 @@ export function OrganizationAccessEditor({
                             >
                                 <span>
                                     {denyCount > 0
-                                        ? `Deny list (${denyCount})`
-                                        : "Deny list"}
+                                        ? t("modals.denyListDenycount", { denyCount })
+                                        : t("modals.denyList")}
                                 </span>
                                 <ChevronDown
                                     aria-hidden="true"
@@ -697,17 +725,17 @@ export function OrganizationAccessEditor({
                         >
                             <OrganizationMemberPicker
                                 id="organization-deny-picker"
-                                label="Deny list"
+                                label={t("modals.denyList")}
                                 showLabel={false}
-                                placeholder="Search members…"
+                                placeholder={t("modals.searchMembers")}
                                 members={availableMembers}
                                 disabled={disabled || loading}
                                 onSelect={(member) => onAssign(member, "deny")}
                             />
                             <OrganizationAssignmentList
-                                label="Deny list entries"
+                                label={t("modals.denyListEntries")}
                                 assignments={deniedAssignments}
-                                emptyMessage="No members denied."
+                                emptyMessage={t("modals.noMembersDenied")}
                                 loading={loading}
                                 disabled={disabled}
                                 onRemove={onRemove}
@@ -762,6 +790,7 @@ export function AccessEditor({
     onRemove?: (row: AccessRow) => Promise<unknown> | unknown;
     error?: string | null;
 }) {
+    const t = useTranslations();
     const roleOptions = PROJECT_ROLES;
     const normalizedCurrentEmail = currentUserEmail?.trim().toLowerCase();
     const normalizedCurrentUserId = currentUserId?.trim() || null;
@@ -773,7 +802,7 @@ export function AccessEditor({
                     <InfoLabelTooltip
                         label={
                             <h2 className="text-sm font-medium text-gray-700">
-                                Share Access
+                                {t("modals.shareAccess")}
                             </h2>
                         }
                         tooltipId="access-role-rights"
@@ -781,7 +810,7 @@ export function AccessEditor({
                     >
                         <div>
                             <p className="mb-2 text-xs font-medium text-gray-700">
-                                Roles and rights
+                                {t("modals.rolesAndRights")}
                             </p>
                             <dl className="space-y-2">
                                 {PROJECT_ROLES.map((role) => (
@@ -792,10 +821,10 @@ export function AccessEditor({
                                         <dt
                                             className={`font-medium ${accessRoleTextTone(role)}`}
                                         >
-                                            {accessRoleLabel(role)}
+                                            {accessRoleLabel(role, t)}
                                         </dt>
                                         <dd className="leading-4 text-gray-500">
-                                            {PROJECT_ROLE_DESCRIPTIONS[role]}
+                                            {accessRoleDescription(role, t)}
                                         </dd>
                                     </div>
                                 ))}
@@ -806,20 +835,20 @@ export function AccessEditor({
                         onAdd={onAdd}
                         validateEmail={validateEmail}
                         busy={busy}
-                        placeholder="Add by email..."
+                        placeholder={t("modals.addByEmail")}
                         autoFocus
-                        submitLabel="Add"
+                        submitLabel={t("modals.add")}
                         submitVariant="attached"
                         inputEndControl={
                             <Dropdown>
                                 <DropdownTrigger asChild>
                                     <button
                                         type="button"
-                                        aria-label={`Role for the new recipient: ${accessRoleLabel(newRole)}`}
+                                        aria-label={t("modals.roleForTheNewRecipient", { role: accessRoleLabel(newRole, t) })}
                                         disabled={busy}
                                         className={`${INPUT_GROUP_ROLE_TRIGGER_CLASS} bg-transparent ${accessRoleTextTone(newRole)}`}
                                     >
-                                        <span>{accessRoleLabel(newRole)}</span>
+                                        <span>{accessRoleLabel(newRole, t)}</span>
                                         <ChevronDown className="h-3 w-3 shrink-0 text-gray-300" />
                                     </button>
                                 </DropdownTrigger>
@@ -834,7 +863,7 @@ export function AccessEditor({
                                             onSelect={() => onNewRoleChange(role)}
                                             className={`flex items-center justify-between ${accessRoleMenuTone(role)}`}
                                         >
-                                            <span>{accessRoleLabel(role)}</span>
+                                            <span>{accessRoleLabel(role, t)}</span>
                                             {newRole === role ? (
                                                 <Check className="h-3.5 w-3.5 text-gray-300" />
                                             ) : null}
@@ -860,18 +889,17 @@ export function AccessEditor({
             <section className="flex min-h-0 flex-1 flex-col">
                 {scope === "project" ? (
                     <p className="mb-3 text-xs text-gray-500">
-                        Access is inherited from the project and must be changed
-                        from the project&apos;s Access panel.
+                        {t("modals.accessIsInheritedFromTheProject")}
                     </p>
                 ) : null}
 
                 <div className="mb-1 hidden sm:grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5rem_1.5rem] gap-3 px-2 text-xs font-medium text-gray-500">
                     <div className="flex items-center gap-2">
-                        <span>Name</span>
+                        <span>{t("modals.name")}</span>
                         {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                     </div>
-                    <span className="justify-self-start text-left">Email</span>
-                    <span className="justify-self-start text-left">Role</span>
+                    <span className="justify-self-start text-left">{t("modals.email")}</span>
+                    <span className="justify-self-start text-left">{t("modals.role")}</span>
                     <span aria-hidden="true" />
                 </div>
 
@@ -898,7 +926,7 @@ export function AccessEditor({
                     // underneath it reads as a contradiction.
                     scope === "project" ? null : (
                         <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-gray-400">
-                            No one has access yet.
+                            {t("modals.noOneHasAccessYet")}
                         </div>
                     )
                 ) : (
@@ -920,7 +948,7 @@ export function AccessEditor({
                                     email.toLowerCase() ===
                                         normalizedCurrentEmail);
                             const name = isYou
-                                ? "You"
+                                ? t("modals.you")
                                 : entry.display_name?.trim() || "—";
                             const isPending = pendingEmail === email;
                             return (
