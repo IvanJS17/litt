@@ -32,7 +32,7 @@ const args = { documentId: "d1", userId: "u1", userEmail: "a@example.test" };
 const scanned = { id: "v1", file_type: "pdf", text_revision: "r1", textless_page_count: 3, page_count: 10, size_bytes: 1000, storage_path: "p", content_sha256: null };
 const okResult = { ok: true as const, data: undefined };
 const allowed = { ok: true, doc: { id: "d1", org_id: "o1" }, isCreator: true, projectRole: "owner" };
-const row = (patch: Record<string, unknown> = {}) => ({ version_id: "v1", source_revision: "r1", status: "processing", markdown: null, failed_pages: [], credits: null, page_count: null, error_code: null, ...patch });
+const row = (patch: Record<string, unknown> = {}) => ({ version_id: "v1", source_revision: "r1", status: "processing", pages: null, failed_pages: [], credits: null, page_count: null, error_code: null, ...patch });
 const job = { id: "j", kind: "document.ocr", status: "running", attempts: 1, max_attempts: 2, payload: { documentId: "d1", versionId: "v1", revision: "r1", userId: "u1", userEmail: "a@example.test", authorization: { orgId: "o1", epoch: 3 } } } as unknown as DbJob;
 
 beforeEach(() => {
@@ -56,7 +56,7 @@ describe("scan reading state", () => {
   it("reports a running reading and hides the button; a reading of other bytes counts as none", async () => {
     let fake = scriptedDb([{ table: "document_version_ocr", data: row() }]);
     expect(await getScanReadingState(fake.db, args)).toMatchObject({ data: { status: "processing", needs_reading: false } });
-    fake = scriptedDb([{ table: "document_version_ocr", data: row({ source_revision: "old", status: "ready", markdown: "x" }) }]);
+    fake = scriptedDb([{ table: "document_version_ocr", data: row({ source_revision: "old", status: "ready", pages: [{ page: 1, text: "x" }] }) }]);
     expect(await getScanReadingState(fake.db, args)).toMatchObject({ data: { status: "none" } });
   });
   it("shows a failure code and says no key when none is saved", async () => {
@@ -142,7 +142,7 @@ describe("reading on upload", () => {
 
 describe("the job", () => {
   const versionRow = { id: "v1", document_id: "d1", storage_path: "p", file_type: "pdf", content_sha256: null, text_revision: "r1" };
-  const read = { markdown: "# Hola", pageCount: 3, failedPages: [2], credits: 1.5, model: "dpt-3-pro-20260710" };
+  const read = { pages: [{ page: 1, text: "# Hola" }], pageCount: 3, failedPages: [2], credits: 1.5, model: "dpt-3-pro-20260710" };
   const head = () => [
     { table: "document_versions", data: versionRow },
     { table: "documents", data: { id: "d1", org_id: "o1", archived_at: null } },
@@ -159,12 +159,12 @@ describe("the job", () => {
     await handleDocumentOcr(fake.db, job);
     expect(mocks.assertStamp).toHaveBeenCalledWith(fake.db, "o1", { orgId: "o1", epoch: 3 });
     expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything());
-    expect(fake.calls[3].payload).toMatchObject({ status: "ready", markdown: "# Hola", credits: 1.5, page_count: 3, failed_pages: [2], model: "dpt-3-pro-20260710" });
+    expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 1, text: "# Hola" }], credits: 1.5, page_count: 3, failed_pages: [2], model: "dpt-3-pro-20260710" });
     expect(fake.calls[4].payload).toEqual({ textless_page_count: 1 });
     fake.done();
   });
   it("on a retry after the reading was saved, only merges: it never pays twice", async () => {
-    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row({ status: "ready", markdown: "x" }) }, { table: "document_versions", op: "update" }]);
+    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row({ status: "ready", pages: [{ page: 1, text: "x" }] }) }, { table: "document_versions", op: "update" }]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.parse).not.toHaveBeenCalled();
     expect(mocks.publish).toHaveBeenCalled();

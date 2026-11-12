@@ -11,7 +11,8 @@ create table if not exists public.document_version_ocr (
   source_revision uuid not null,
   provider text not null default 'landingai' check (provider in ('landingai')),
   status text not null default 'processing' check (status in ('processing','ready','failed')),
-  markdown text,
+  -- [{page, text}], by real PDF page number; the text of the pages LandingAI read.
+  pages jsonb,
   model text,
   credits numeric,
   page_count integer,
@@ -20,7 +21,7 @@ create table if not exists public.document_version_ocr (
   requested_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint document_version_ocr_ready check ((status = 'ready') = (markdown is not null))
+  constraint document_version_ocr_ready check ((status = 'ready') = (pages is not null))
 );
 alter table public.document_version_ocr enable row level security;
 revoke all on public.document_version_ocr from public, anon, authenticated;

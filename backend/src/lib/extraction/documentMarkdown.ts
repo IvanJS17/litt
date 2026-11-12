@@ -13,7 +13,7 @@ import {
 import { extractPresentationText } from "../officeText";
 import { loadPdfjs } from "../pdfjs";
 import { spreadsheetToLLMText } from "../spreadsheet";
-import { splitOcrPages, type OcrFill } from "../ocr/pages";
+import { ocrPageText, type OcrFill } from "../ocr/pages";
 
 /**
  * Route a document buffer to the right text extractor for its file type:
@@ -58,7 +58,6 @@ export async function extractPdfMarkdown(buf: ArrayBuffer, ocr?: OcrFill): Promi
             .promise;
         const pages: string[] = [];
         // A scan reading stands in for the pages that have no text layer.
-        const read = ocr ? splitOcrPages(ocr.markdown, pdf.numPages) : null;
         const failed = new Set(ocr?.failedPages ?? []);
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
@@ -68,7 +67,7 @@ export async function extractPdfMarkdown(buf: ArrayBuffer, ocr?: OcrFill): Promi
                 .map((it) => it.str)
                 .join(" ")
                 .trim();
-            const scanned = !text && read && !failed.has(i) ? read[i - 1] : "";
+            const scanned = !text && ocr && !failed.has(i) ? (ocrPageText(ocr, i) ?? "") : "";
             if (text || scanned) pages.push(`## Page ${i}\n\n${text || scanned}`);
         }
         return pages.join("\n\n");

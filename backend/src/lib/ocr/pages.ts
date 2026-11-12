@@ -14,7 +14,13 @@ export const OCR_MAX_BYTES = 50 * 1024 * 1024;
 export const OCR_PAGE_BREAK = "<!-- PAGE BREAK -->";
 
 /** A reading to merge into a PDF's own text: LandingAI's Markdown and the pages it failed. */
-export type OcrFill = { markdown: string; failedPages?: readonly number[] };
+export type OcrPage = { page: number; text: string };
+export type OcrFill = { pages: readonly OcrPage[]; failedPages?: readonly number[] };
+
+/** The text of a page number in a reading, or null when the reading has no such page. */
+export function ocrPageText(fill: OcrFill, page: number): string | null {
+    return fill.pages.find((entry) => entry.page === page)?.text ?? null;
+}
 
 /** An estimate, in US dollars, for reading `pages` pages. */
 export function estimateOcrCostUsd(pages: number): number {
@@ -31,4 +37,31 @@ export function splitOcrPages(markdown: string, pageCount: number): string[] | n
     const parts = markdown.split(OCR_PAGE_BREAK).map((part) => part.trim());
     if (parts.length === pageCount + 1 && parts[pageCount] === "") parts.pop();
     return parts.length === pageCount ? parts : null;
+}
+
+/**
+ * LandingAI's Markdown by real PDF page number. Uses the page nodes of
+ * `structure` (their `grounding.page` and `grounding.range`, in Unicode code
+ * points over the Markdown) and, when those are absent, the page-break marker.
+ * Null when neither lines up, so a passage is never put on a guessed page.
+ */
+export function readOcrPages(markdown: string, structure: unknown, pageCount: number): OcrPage[] | null {
+    const clean = (text: string) => text.replaceAll(OCR_PAGE_BREAK, "").trim();
+    const children = (structure as { children?: unknown } | null)?.children;
+    if (Array.isArray(children)) {
+        const points = Array.from(markdown);
+        const pages: OcrPage[] = [];
+        for (const node of children) {
+            const n = node as { type?: unknown; grounding?: { page?: unknown; range?: { start?: unknown; end?: unknown } } };
+            const page = n?.grounding?.page;
+            const start = n?.grounding?.range?.start;
+            const end = n?.grounding?.range?.end;
+            if (n?.type !== "page" || !Number.isInteger(page) || !Number.isInteger(start) || !Number.isInteger(end)) continue;
+            if ((start as number) < 0 || (end as number) < (start as number) || (end as number) > points.length) continue;
+            pages.push({ page: page as number, text: clean(points.slice(start as number, end as number).join("")) });
+        }
+        if (pages.length > 0) return pages;
+    }
+    const split = splitOcrPages(markdown, pageCount);
+    return split ? split.map((text, index) => ({ page: index + 1, text })) : null;
 }

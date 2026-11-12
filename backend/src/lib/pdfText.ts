@@ -12,7 +12,7 @@ export const STANDARD_FONT_DATA_URL = (() => {
 import { AppError } from "./appError";
 import { docxToPdf } from "./convert";
 import { orderTextItemLines } from "./pdfTextOrder";
-import { splitOcrPages, type OcrFill } from "./ocr/pages";
+import { ocrPageText, type OcrFill } from "./ocr/pages";
 
 type PdfTextItem = {
   str?: string;
@@ -346,19 +346,13 @@ async function readPdfPages(buf: ArrayBuffer): Promise<PdfReadResult> {
  */
 export function fillPagesFromOcr(pages: PdfPageText[], ocr: OcrFill): PdfPageText[] {
   const failed = new Set(ocr.failedPages ?? []);
-  const perPage = splitOcrPages(ocr.markdown, pages.length);
-  // Page breaks that do not match the page count cannot say which page a
-  // passage is on: put the whole reading on the first page it covers.
-  let wholeGiven = false;
   return pages.map((page, index) => {
-    if (!page.empty || failed.has(index + 1)) return page;
-    let body: string;
-    if (perPage) body = perPage[index];
-    else if (!wholeGiven) {
-      wholeGiven = true;
-      body = ocr.markdown.trim();
-    } else body = "";
-    return { text: `[Page ${index + 1}]\n${body}`, empty: false };
+    const number = index + 1;
+    if (!page.empty || failed.has(number)) return page;
+    const body = ocrPageText(ocr, number);
+    // A page the reading has nothing for stays unread.
+    if (body === null) return page;
+    return { text: `[Page ${number}]\n${body}`, empty: false };
   });
 }
 

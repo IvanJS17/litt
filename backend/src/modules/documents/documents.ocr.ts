@@ -131,7 +131,7 @@ async function queueReading(
     source_revision: revision,
     provider: "landingai",
     status: "processing",
-    markdown: null,
+    pages: null,
     model: null,
     credits: null,
     page_count: null,
@@ -266,7 +266,7 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
       const result = await parsePdfWithLandingAi(key, raw);
       const saved = await finishRow(db, versionId, revision, {
         status: "ready",
-        markdown: result.markdown.replaceAll("\0", ""),
+        pages: result.pages.map((p) => ({ page: p.page, text: p.text.replaceAll("\0", "") })),
         model: result.model || LANDINGAI_MODEL,
         credits: result.credits,
         page_count: result.pageCount || null,

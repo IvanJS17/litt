@@ -16,10 +16,9 @@ vi.mock("../../pdfjs", () => ({
 }));
 vi.mock("../../convert", () => ({ docxToPdf: vi.fn(), normalizeDocxZipPaths: async (b: Buffer) => b }));
 import { extractPdfMarkdown } from "../documentMarkdown";
-import { OCR_PAGE_BREAK } from "../../ocr/pages";
 
 const reading = (parts: string[], failedPages: number[] = []) => ({
-  markdown: parts.join(`\n\n${OCR_PAGE_BREAK}\n\n`),
+  pages: parts.map((text, index) => ({ page: index + 1, text })),
   failedPages,
 });
 

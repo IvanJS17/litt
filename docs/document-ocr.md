@@ -52,8 +52,9 @@ one row per version:
 |---|---|
 | `version_id` (pk) | The exact version. A new version has no row, so it needs its own reading. |
 | `source_revision` | The `text_revision` of the bytes that were read. A reading of other bytes is ignored. |
-| `status` | `processing`, `ready` or `failed`; `markdown` is set exactly when `ready`. |
-| `markdown`, `page_count`, `failed_pages` | LandingAI's result. |
+| `status` | `processing`, `ready` or `failed`; `pages` is set exactly when `ready`. |
+| `pages` | `[{page, text}]`: the text LandingAI read, by **real PDF page number** (from `structure` page nodes: `grounding.page` and `grounding.range` over the Markdown; the `<!-- PAGE BREAK -->` marker if `structure` is absent; a reading that cannot be placed on real pages is rejected, never guessed). No `structure` and no boxes are kept. |
+| `page_count`, `failed_pages` | LandingAI's page count and the pages it failed on. |
 | `provider`, `model`, `credits` | Provenance: `landingai`, the model snapshot, credits charged. |
 | `requested_by` | Who asked (provenance only; it is **not** AI evidence). |
 
@@ -64,7 +65,7 @@ the server reads it.
 `document_version_texts` already feeds the assistant (`loadVersionTextState`),
 the search (`find_document_text`) and tabular review. The extractor
 (`extractAndPublishText`) merges a `ready` reading of the exact revision into
-the PDF's own pages (`fillPagesFromOcr`) and publishes the combined text with the
+the PDF's own pages (`fillPagesFromOcr`): pdf.js text stays on pages that have it, LandingAI text goes only on the scanned pages, each under its own `[Page N]` marker, so the assistant cites "page N" as with a text PDF, and the warning clears only for the pages read and publishes the combined text with the
 remaining textless count. Any re-extraction (revision change, extractor bump,
 backfill) repeats the merge, so the reading survives it. The conversion to
 Markdown (`extractPdfMarkdown`) merges the same way. After publishing, the job
@@ -88,7 +89,7 @@ too-large and not-supported end the job as `failed` without retrying.
 ### LandingAI client (`lib/ocr/landingai.ts`)
 
 REST v2 Parse Jobs with `fetch`; no new dependency (the official JS SDK was not
-needed for three calls). Host `https://api.ade.landing.ai`, the United States
+needed for three calls). Host `https://api.ade.landing.ai` (Gen2 / DPT-3; `api.va.landing.ai` is Gen1 and is not used), the United States
 region the legal text names; the EU region (`api.ade.eu-west-1.landing.ai`) and
 EU keys are **not** supported. `POST /v2/parse/jobs` (multipart: `document`,
 `model=dpt-3-pro-latest`, `service_tier=standard`, `options`), then
@@ -120,8 +121,8 @@ All are in `CODE_KINDS` and `errors.code` (en-US and es-MX).
 
 ## Cost, limits and privacy
 
-- About **US$0.01 per page** (measured: 5.5 credits for 7 pages at the standard
-  tier; 1 credit = US$0.01). The whole PDF is sent, so the estimate is
+- About **US$0.01 per page** (measured: 5.5 credits for 7 pages and 36.9 credits for 34 pages, about
+  1.1 credits per page, at the standard tier; 1 credit = US$0.01). The whole PDF is sent (only the scanned pages are kept), so the estimate is
   `page_count * 0.01`, shown before a manual reading.
 - Up to 50 pages is read on upload; more needs the button. 50 MiB per PDF.
 - The whole PDF goes to LandingAI in the United States. Without LandingAI's zero

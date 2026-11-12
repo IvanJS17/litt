@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { LANDINGAI_HOST, OcrError, parsePdfWithLandingAi } from "../landingai";
-import { estimateOcrCostUsd, splitOcrPages, OCR_PAGE_BREAK } from "../pages";
+import { estimateOcrCostUsd, splitOcrPages, readOcrPages, OCR_PAGE_BREAK } from "../pages";
 
 // The real LandingAI API is never called: fetch is a mock.
 const SECRET = "synthetic-key-0001";
@@ -14,9 +14,16 @@ const completed = (extra: Record<string, unknown> = {}) =>
         job_id: JOB,
         status: "completed",
         result: {
-            markdown: "# Hola",
+            markdown: "uno\n\n<!-- PAGE BREAK -->\n\ndos\n\n<!-- PAGE BREAK -->\n\ntres",
+            structure: {
+                type: "document",
+                children: [
+                    { type: "page", grounding: { page: 1, range: { start: 0, end: 3 } } },
+                    { type: "page", grounding: { page: 3, range: { start: 52, end: 56 } } },
+                ],
+            },
             metadata: {
-                page_count: 7,
+                page_count: 3,
                 model_version: "dpt-3-pro-20260710",
                 failed_pages: [],
                 billing: { service_tier: "standard", total_credits: 5.5 },
@@ -47,8 +54,11 @@ describe("parsePdfWithLandingAi", () => {
             .mockResolvedValueOnce(completed());
         const result = await parsePdfWithLandingAi(SECRET, pdf, deps(fetchMock));
         expect(result).toEqual({
-            markdown: "# Hola",
-            pageCount: 7,
+            pages: [
+                { page: 1, text: "uno" },
+                { page: 3, text: "tres" },
+            ],
+            pageCount: 3,
             failedPages: [],
             credits: 5.5,
             model: "dpt-3-pro-20260710",
@@ -73,7 +83,7 @@ describe("parsePdfWithLandingAi", () => {
                 new Response(
                     JSON.stringify({
                         status: "completed",
-                        result: { markdown: "x", metadata: { page_count: 3, failed_pages: [2, "x", 0] } },
+                        result: { markdown: "a\n\n<!-- PAGE BREAK -->\n\nb\n\n<!-- PAGE BREAK -->\n\nc", metadata: { page_count: 3, failed_pages: [2, "x", 0] } },
                     }),
                     { status: 206 },
                 ),
@@ -81,6 +91,8 @@ describe("parsePdfWithLandingAi", () => {
         const result = await parsePdfWithLandingAi(SECRET, pdf, deps(fetchMock));
         expect(result.failedPages).toEqual([2]);
         expect(result.credits).toBe(0);
+        // No structure: the page-break marker still gives each passage its real page.
+        expect(result.pages).toEqual([{ page: 1, text: "a" }, { page: 2, text: "b" }, { page: 3, text: "c" }]);
     });
 
     it.each([
@@ -144,6 +156,14 @@ describe("parsePdfWithLandingAi", () => {
         ).toBe("ocr_unavailable");
     });
 
+    it("refuses a reading it cannot place on real pages", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(json(202, { job_id: JOB }))
+            .mockResolvedValueOnce(json(200, { status: "completed", result: { markdown: "sin saltos\n\n<!-- PAGE BREAK -->\n\nmás", metadata: { page_count: 5 } } }));
+        expect(await codeOf(parsePdfWithLandingAi(SECRET, pdf, deps(fetchMock)))).toBe("ocr_unavailable");
+    });
+
     it("gives up when the total time passes", async () => {
         const fetchMock = vi
             .fn()
@@ -195,5 +215,17 @@ describe("page helpers", () => {
         expect(splitOcrPages("solo una", 1)).toEqual(["solo una"]);
         expect(splitOcrPages(md, 2)).toBeNull();
         expect(splitOcrPages(md, 0)).toBeNull();
+    });
+
+    it("reads pages by their structure ranges in code points, ignoring malformed nodes", () => {
+        const md = "😀 uno\n\n<!-- PAGE BREAK -->\n\ndos";
+        const structure = { children: [
+            { type: "page", grounding: { page: 1, range: { start: 0, end: 5 } } },
+            { type: "page", grounding: { page: 2, range: { start: 6, end: 9999 } } },
+            { type: "block", grounding: { page: 2, range: { start: 0, end: 1 } } },
+        ] };
+        expect(readOcrPages(md, structure, 2)).toEqual([{ page: 1, text: "😀 uno" }]);
+        expect(readOcrPages("solo", { children: [] }, 1)).toEqual([{ page: 1, text: "solo" }]);
+        expect(readOcrPages("a", null, 2)).toBeNull();
     });
 });

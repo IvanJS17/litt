@@ -9,7 +9,7 @@
 // document nor LandingAI's response text appears in a message or a log: every
 // failure is a static code the interface already knows (OcrError.code).
 import { AppError } from "../appError";
-import { OCR_MAX_BYTES } from "./pages";
+import { OCR_MAX_BYTES, readOcrPages, type OcrPage } from "./pages";
 
 /** US region. An EU key (ade.eu-west-1.landing.ai) does not work here. */
 export const LANDINGAI_HOST = "https://api.ade.landing.ai";
@@ -43,7 +43,8 @@ export class OcrError extends AppError {
 }
 
 export type OcrResult = {
-    markdown: string;
+    /** The text of each page, by real PDF page number. */
+    pages: OcrPage[];
     pageCount: number;
     /** 1-indexed pages LandingAI could not read; the rest of the result is good. */
     failedPages: number[];
@@ -172,8 +173,12 @@ function readResult(body: Record<string, unknown>): OcrResult {
     const billing = isRecord(metadata.billing) ? metadata.billing : {};
     const pageCount = Number(metadata.page_count);
     const credits = Number(billing.total_credits);
+    const pages = readOcrPages(result.markdown, result.structure, Number.isInteger(pageCount) ? pageCount : 0);
+    // Without a reliable page for every passage the reading is not usable: the
+    // assistant must be able to cite "page N" as it does with a text PDF.
+    if (!pages) throw new OcrError("ocr_unavailable");
     return {
-        markdown: result.markdown,
+        pages,
         pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 0,
         failedPages: Array.isArray(metadata.failed_pages)
             ? metadata.failed_pages.filter((page): page is number => Number.isInteger(page) && page > 0)
