@@ -5,19 +5,18 @@ import { authenticatedFetch } from "@/app/lib/authEvents";
 import type { DocxRendererProps } from "./DocxRenderer.types";
 import { useDocumentViewers } from "@/app/hooks/useDocumentViewers";
 import { DocxView } from "./DocxView";
-import { createHash, webcrypto } from "node:crypto";
 
 const exportDocx = vi.hoisted(() => vi.fn());
 const activateRevision = vi.hoisted(() => vi.fn());
 const clearRevisionHighlight = vi.hoisted(() => vi.fn());
 const selectText = vi.hoisted(() => vi.fn());
 const clearTextSelection = vi.hoisted(() => vi.fn());
-const replaceVersion = vi.hoisted(() => vi.fn());
+const saveVersion = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/lib/authEvents", () => ({ authenticatedFetch: vi.fn() }));
 vi.mock("@/app/lib/mikeApi", () => ({
     getDocumentFileUrl: (id: string) => "/api/document/" + id,
-    replaceDocumentVersionFile: replaceVersion,
+    saveDocxVersion: saveVersion,
     listDocumentVersions: vi.fn().mockResolvedValue({ current_version_id: "v1", versions: [] }),
     MikeApiError: class extends Error {},
 }));
@@ -49,13 +48,8 @@ function MockRenderer({ bytes, mode, toolbarVisible = true, onChange, onReady, o
 
 const originalScrollTo = HTMLElement.prototype.scrollTo;
 beforeEach(() => {
-    // These cases exercise upstream editing and autosave, which LiTT keeps
-    // behind docxEditingGate; they run as an operator who turned it on.
-    vi.stubEnv("NEXT_PUBLIC_LITT_DOCX_EDITING", "enabled");
-    // jsdom ArrayBuffers belong to a different realm than Node's WebCrypto.
-    vi.stubGlobal("crypto", { subtle: { digest: (algorithm: string, bytes: ArrayBuffer) =>
-        webcrypto.subtle.digest(algorithm, Buffer.from(new Uint8Array(bytes))) } });
-    replaceVersion.mockReset().mockResolvedValue({ id: "v1" });
+    let savedCount = 1;
+    saveVersion.mockReset().mockImplementation(async () => ({ id: `v${++savedCount}` }));
     exportDocx.mockReset().mockResolvedValue(new Uint8Array([42]).buffer);
     activateRevision.mockReset().mockReturnValue(false);
     clearRevisionHighlight.mockReset();
@@ -240,7 +234,7 @@ it("keeps edits after a failed export and downloads the edited bytes on retry", 
     expect(downloaded.defaultPrevented).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Save document" }));
     await waitFor(() => expect(onSaveStateChange).toHaveBeenLastCalledWith("export", expect.objectContaining({ status: "saved", dirty: false })));
-    expect(replaceVersion).toHaveBeenCalledOnce();
+    expect(saveVersion).toHaveBeenCalledOnce();
     const saved = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(saved);
     expect(saved.defaultPrevented).toBe(false);
@@ -304,9 +298,9 @@ it("reveals unpainted edits by revision ID before attempting a text fallback", a
     await waitFor(() => expect(selectText).toHaveBeenCalledWith("Repeated edit"));
 });
 
-it("adopts a server refresh after saving and uses the refreshed content hash for the next save", async () => {
+it("adopts a different snapshot after saving and resolves the base of the next save again", async () => {
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="clean-refresh" versionId="v1" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView documentId="clean-refresh" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -320,15 +314,15 @@ it("adopts a server refresh after saving and uses the refreshed content hash for
     exportDocx.mockResolvedValue(new Uint8Array([43]).buffer);
     fireEvent.click(screen.getByRole("button", { name: "Change document" }));
     fireEvent.click(screen.getByRole("button", { name: "Save document" }));
-    await waitFor(() => expect(replaceVersion).toHaveBeenCalledTimes(2));
-    expect(replaceVersion.mock.calls[1][4]).toEqual({
-        expectedContentSha256: createHash("sha256").update(new Uint8Array([3])).digest("hex"), generatePdf: false,
-    });
+    await waitFor(() => expect(saveVersion).toHaveBeenCalledTimes(2));
+    // The snapshot is somebody else's version: the base is looked up again, not the one our save created.
+    expect(saveVersion.mock.calls[0][1]).toBe("v1");
+    expect(saveVersion.mock.calls[1][1]).toBe("v1");
 });
 
-it("retains the live editor and save baseline when a refresh contains its own saved bytes", async () => {
+it("retains the live editor and the saved version as base when a refresh contains its own saved bytes", async () => {
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="own-save-refresh" versionId="v1" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView documentId="own-save-refresh" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -343,15 +337,14 @@ it("retains the live editor and save baseline when a refresh contains its own sa
     exportDocx.mockResolvedValue(new Uint8Array([43]).buffer);
     fireEvent.click(screen.getByRole("button", { name: "Change document" }));
     fireEvent.click(screen.getByRole("button", { name: "Save document" }));
-    await waitFor(() => expect(replaceVersion).toHaveBeenCalledTimes(2));
-    expect(replaceVersion.mock.calls[1][4]).toEqual({
-        expectedContentSha256: createHash("sha256").update(new Uint8Array([42])).digest("hex"), generatePdf: false,
-    });
+    await waitFor(() => expect(saveVersion).toHaveBeenCalledTimes(2));
+    // The next save builds on the version the previous save created.
+    expect(saveVersion.mock.calls[1][1]).toBe("v2");
 });
 
 it("does not replay a snapshot received during a save after that save completes", async () => {
     let finish!: () => void;
-    replaceVersion.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ id: "v1" }); }));
+    saveVersion.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ id: "v1" }); }));
     const saveState = vi.fn();
     const view = (refetchKey: number) => <DocxView documentId="inflight-refresh" versionId="v1" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
@@ -359,7 +352,7 @@ it("does not replay a snapshot received during a save after that save completes"
     const originalEditor = await editorReady("Document revision 1");
     fireEvent.click(screen.getByRole("button", { name: "Change document" }));
     fireEvent.click(screen.getByRole("button", { name: "Save document" }));
-    await waitFor(() => expect(replaceVersion).toHaveBeenCalledOnce());
+    await waitFor(() => expect(saveVersion).toHaveBeenCalledOnce());
     vi.mocked(authenticatedFetch).mockResolvedValue(new Response(new Uint8Array([2])));
     await act(async () => { rerender(view(1)); await new Promise((resolve) => setTimeout(resolve, 0)); });
     expect(authenticatedFetch).toHaveBeenCalledTimes(2);
@@ -400,7 +393,7 @@ function ClosableViewer() {
 }
 
 it("keeps the actual editor mounted after failed saves until discard is confirmed", async () => {
-    replaceVersion.mockRejectedValue(new Error("network"));
+    saveVersion.mockRejectedValue(new Error("network"));
     render(<ClosableViewer />);
     const editor = await editorReady();
     fireEvent.click(screen.getByRole("button", { name: "Change document" }));
@@ -408,14 +401,14 @@ it("keeps the actual editor mounted after failed saves until discard is confirme
     await screen.findByText(/Changes could not be saved/);
     fireEvent.click(screen.getByRole("button", { name: "Close draft" }));
     await screen.findByRole("button", { name: "Keep editing" });
-    expect(replaceVersion).toHaveBeenCalledTimes(2);
+    expect(saveVersion).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId("renderer-scroll")).toBe(editor);
     fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
     expect(screen.getByTestId("renderer-scroll")).toBe(editor);
     fireEvent.click(screen.getByRole("button", { name: "Close draft" }));
     fireEvent.click(await screen.findByRole("button", { name: "Discard changes" }));
     expect(screen.queryByTestId("renderer-scroll")).toBeNull();
-    expect(replaceVersion).toHaveBeenCalledTimes(3);
+    expect(saveVersion).toHaveBeenCalledTimes(3);
 });
 
 it("blocks both editing controls and saves when document permission is denied", async () => {
@@ -427,5 +420,5 @@ it("blocks both editing controls and saves when document permission is denied", 
     fireEvent.click(screen.getByRole("button", { name: "Save document" }));
     await act(() => new Promise(resolve => setTimeout(resolve, 0)));
     expect(exportDocx).not.toHaveBeenCalled();
-    expect(replaceVersion).not.toHaveBeenCalled();
+    expect(saveVersion).not.toHaveBeenCalled();
 });

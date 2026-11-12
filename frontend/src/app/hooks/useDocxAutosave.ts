@@ -1,18 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { listDocumentVersions, replaceDocumentVersionFile } from "@/app/lib/mikeApi";
-import { userFacingApiError } from "@/app/lib/userFacingError";
+import { listDocumentVersions, saveDocxVersion } from "@/app/lib/mikeApi";
+import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { UploadBatchError } from "@mike/client";
 import { invalidateDocxBytes } from "./useFetchDocxBytes";
 
 export const DOCX_AUTOSAVE_DELAY = 1500;
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-async function sha256(bytes: ArrayBuffer) {
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
 
 interface Options {
     documentId: string;
@@ -23,7 +18,13 @@ interface Options {
     exportDocx: () => Promise<ArrayBuffer> | undefined;
 }
 
-/** Serialize saves, retain edits made during upload, and stop automatic retries on failure. */
+/**
+ * Serialize saves, retain edits made during upload, and stop automatic retries
+ * on failure. Every save creates a NEW version on top of the one the edit was
+ * made on (saveDocxVersion); the returned version is the base of the next
+ * save, so a version an AI run, a review or an approval refers to is never
+ * overwritten.
+ */
 export function useDocxAutosave(options: Options) {
     const latest = useRef(options);
     useEffect(() => { latest.current = options; });
@@ -31,7 +32,6 @@ export function useDocxAutosave(options: Options) {
     const savedSequence = useRef(0);
     const snapshotRevision = useRef(0);
     const savedBytes = useRef<ArrayBuffer | null>(null);
-    const expectedHash = useRef<Promise<string> | null>(null);
     const targetVersion = useRef<string | null>(null);
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const pending = useRef<Promise<void> | null>(null);
@@ -64,7 +64,6 @@ export function useDocxAutosave(options: Options) {
                     if (!exported || !current.bytes) throw new Error("Editor is not ready");
                     // Start serialization before awaiting network work, including on unmount.
                     const bytes = await exported;
-                    expectedHash.current ??= sha256(current.bytes);
                     targetVersion.current ??= current.versionId ?? null;
                     if (!targetVersion.current) {
                         targetVersion.current = (await listDocumentVersions(current.documentId)).current_version_id;
@@ -72,12 +71,8 @@ export function useDocxAutosave(options: Options) {
                     if (!targetVersion.current) throw new Error("Missing document version");
                     const name = current.filename || "document.docx";
                     const file = new File([bytes], /\.docx$/i.test(name) ? name : `${name}.docx`, { type: DOCX_MIME });
-                    const nextHash = await sha256(bytes);
-                    await replaceDocumentVersionFile(current.documentId, targetVersion.current, file, undefined, {
-                        expectedContentSha256: await expectedHash.current,
-                        generatePdf: false,
-                    });
-                    expectedHash.current = Promise.resolve(nextHash);
+                    const saved = await saveDocxVersion(current.documentId, targetVersion.current, file);
+                    targetVersion.current = saved.id;
                     savedSequence.current = savingSequence;
                     conflicted.current = false;
                     savedBytes.current = bytes;
@@ -90,8 +85,9 @@ export function useDocxAutosave(options: Options) {
                 } while ((mounted.current || detachedSnapshot.current) && sequence.current > savedSequence.current);
             } catch (reason) {
                 failed.current = true;
-                const conflict = reason instanceof UploadBatchError
-                    && reason.outcomes.some((outcome) => outcome.errorCode === "document_changed");
+                const conflict = errorCode(reason) === "document_version_conflict"
+                    || (reason instanceof UploadBatchError
+                        && reason.outcomes.some((outcome) => outcome.errorCode === "document_changed"));
                 conflicted.current = conflict;
                 if (mounted.current) {
                     setError(conflict
@@ -113,6 +109,10 @@ export function useDocxAutosave(options: Options) {
     const captureSnapshotRevision = useCallback(() => snapshotRevision.current, []);
     const adoptSnapshot = useCallback((bytes: ArrayBuffer, revision: number): boolean => {
         if (revision !== snapshotRevision.current || pending.current || sequence.current !== savedSequence.current) return false;
+        // A pinned version stays as it was; our saves live in newer versions.
+        // Its bytes would put the editor back before the edits already saved.
+        const pinned = latest.current.versionId;
+        if (pinned && targetVersion.current && targetVersion.current !== pinned) return false;
         const baseline = savedBytes.current ?? latest.current.bytes;
         if (baseline) {
             const previous = new Uint8Array(baseline);
@@ -120,7 +120,7 @@ export function useDocxAutosave(options: Options) {
             // A refresh of our own save must retain the editor and its undo stack.
             if (previous.length === next.length && previous.every((byte, index) => byte === next[index])) return false;
         }
-        expectedHash.current = null;
+        targetVersion.current = null;
         conflicted.current = false;
         savedBytes.current = bytes;
         snapshotRevision.current += 1;

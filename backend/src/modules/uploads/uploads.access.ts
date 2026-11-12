@@ -18,6 +18,7 @@ import {
   resolveStandaloneOrgId,
 } from "../../lib/access";
 import type { Db } from "../../lib/supabase";
+import { VERSION_CONFLICT_CODE } from "../documents/documents.service";
 import type { ParsedUploadSessionRequest } from "./uploads.manifest";
 import {
   failure,
@@ -147,7 +148,7 @@ export async function validateDestinationAccess(
     const documentId = destination.document_id as string;
     const { data: document, error } = await db
       .from("documents")
-      .select("id, user_id, project_id, org_id, workflow_id")
+      .select("id, user_id, project_id, org_id, workflow_id, current_version_id")
       .eq("id", documentId)
       .maybeSingle();
     if (error) return internalFailure(error);
@@ -175,7 +176,22 @@ export async function validateDestinationAccess(
       return failure(403, {
         detail: "You do not have permission to replace this version.",
       });
-    if (manifest.purpose === "document_version_create") return { ok: true };
+    if (manifest.purpose === "document_version_create") {
+      const baseVersionId = destination.base_version_id as string | undefined;
+      if (!baseVersionId) return { ok: true };
+      // An editor save: only a DOCX, and only on top of the current version.
+      if (manifest.files[0].file_type !== "docx")
+        return failure(400, {
+          detail: "Only Word documents can be saved from the editor.",
+        });
+      if (document.current_version_id !== baseVersionId)
+        return failure(409, {
+          detail:
+            "This document changed since you opened it. Reload it to continue.",
+          code: VERSION_CONFLICT_CODE,
+        });
+      return { ok: true };
+    }
 
     const { data: version, error: versionError } = await db
       .from("document_versions")

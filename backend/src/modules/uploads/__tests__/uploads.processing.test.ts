@@ -639,6 +639,80 @@ describe("upload processing", () => {
     expect(db.rpc).toHaveBeenCalledWith("create_document_version", expect.objectContaining({ p_document_id: "55555555-5555-4555-8555-555555555555" }));
   });
 
+  describe("an editor save: a new user_edit version on top of its base", () => {
+    const documentId = "55555555-5555-4555-8555-555555555555";
+    const baseVersionId = "77777777-7777-4777-8777-777777777777";
+    const docxBytes = Buffer.from([1, 2, 3, 4]);
+    const docxFile = {
+      ...baseFile,
+      filename: "edited.docx",
+      file_type: "docx",
+      content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      expected_size_bytes: docxBytes.length,
+    };
+    const editSession = {
+      ...baseSession,
+      purpose: "document_version_create" as const,
+      destination: { document_id: documentId, base_version_id: baseVersionId, generate_pdf: false },
+    };
+    const versionDb = () => fakeDb({
+      document_versions: [
+        { data: null, error: null },
+        { data: { version_number: 2 }, error: null },
+        { data: { id: baseFile.resource_id }, error: null },
+      ],
+    });
+
+    it("creates a NEW version with source user_edit, tied to its base, without touching any other version or building a PDF", async () => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = versionDb();
+      await processUploadFile(db as never, editSession, docxFile);
+      const [name, args] = db.rpc.mock.calls[0] as [string, { p_version: Record<string, unknown> }];
+      expect(name).toBe("create_document_version");
+      expect(args.p_version).toMatchObject({
+        source: "user_edit",
+        base_version_id: baseVersionId,
+        pdf_storage_path: null,
+        content_sha256: createHash("sha256").update(docxBytes).digest("hex"),
+      });
+      expect(mocks.officeFileToPdf).not.toHaveBeenCalled();
+    });
+
+    it("writes only a new version (RPC): no version row is updated, replaced or deleted, so the base keeps its file and SHA", async () => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = scriptedDb([{ data: null }, { data: { version_number: 2 } }, { data: { id: baseFile.resource_id } }]);
+      await processUploadFile(db as never, editSession, docxFile);
+      expect(db.rpc).toHaveBeenCalledOnce();
+      expect(db.calls.filter((call) => call.operation && call.operation !== "select")).toEqual([]);
+      expect(mocks.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it("an ordinary upload is a user_upload with no base", async () => {
+      const db = versionDb();
+      await processUploadFile(db as never, { ...baseSession, purpose: "document_version_create", destination: { document_id: documentId } }, baseFile);
+      const args = db.rpc.mock.calls[0]![1] as { p_version: Record<string, unknown> };
+      expect(args.p_version).toMatchObject({ source: "user_upload" });
+      expect(args.p_version).not.toHaveProperty("base_version_id");
+    });
+
+    it("refuses with document_changed when the document moved on, and records the bytes it wrote for cleanup", async () => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = versionDb();
+      db.rpc.mockResolvedValueOnce({ data: null, error: { message: "document_version_conflict" } });
+      await expect(processUploadFile(db as never, editSession, docxFile)).rejects.toMatchObject({
+        message: "document_changed",
+        orphanedKeys: [expect.stringMatching(/\.docx$/)],
+      });
+    });
+
+    it("an unrelated database failure is not reported as a conflict", async () => {
+      mocks.createFileReadStream.mockImplementation(() => Readable.from([docxBytes]));
+      const db = versionDb();
+      db.rpc.mockResolvedValueOnce({ data: null, error: { message: "boom" } });
+      await expect(processUploadFile(db as never, editSession, docxFile)).rejects.toMatchObject({ message: "boom" });
+    });
+  });
+
   it("replaces a document version; its trigger owns obsolete-object cleanup", async () => {
     const versionId = "55555555-5555-4555-8555-555555555555";
     const updatedVersion = {

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const accessMocks = vi.hoisted(() => ({
   checkProjectAccess: vi.fn(),
+  can: vi.fn(),
   checkWorkflowAccess: vi.fn(),
+  creatorScopedAllowed: vi.fn(),
   ensureDocAccess: vi.fn(),
   resolveStandaloneOrgId: vi.fn(),
 }));
@@ -110,6 +112,54 @@ describe("upload destination authorization", () => {
       }) as never,
     );
     expect(rejection(outcome).status).toBe(404);
+  });
+
+  describe("an editor save (base_version_id)", () => {
+    const documentId = "55555555-5555-4555-8555-555555555555";
+    const baseVersionId = "77777777-7777-4777-8777-777777777777";
+    const docx = { ...file, filename: "edited.docx", file_type: "docx" };
+    const request = (over: { base?: string; file?: typeof file } = {}) => ({
+      purpose: "document_version_create" as const,
+      destination: { document_id: documentId, base_version_id: over.base ?? baseVersionId },
+      expected_total_bytes: 4,
+      files: [over.file ?? docx],
+    });
+    const check = (current: string | null, over: Parameters<typeof request>[0] = {}) => {
+      accessMocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "owner" });
+      accessMocks.can.mockReturnValue(true);
+      return validateDestinationAccess(
+        request(over),
+        "11111111-1111-4111-8111-111111111111",
+        "user@example.com",
+        dbWith({ documents: { id: documentId, user_id: "x", project_id: null, current_version_id: current } }) as never,
+      );
+    };
+
+    it("is accepted on top of the current version", async () => {
+      expect((await check(baseVersionId)).ok).toBe(true);
+    });
+
+    it("is refused with 409 document_version_conflict when the document has a newer version", async () => {
+      const outcome = rejection(await check("99999999-9999-4999-8999-999999999999"));
+      expect(outcome.status).toBe(409);
+      expect(outcome.body).toMatchObject({ code: "document_version_conflict" });
+    });
+
+    it("is refused for anything that is not a Word document", async () => {
+      expect(rejection(await check(baseVersionId, { file })).status).toBe(400);
+    });
+
+    it("a plain new version needs no base", async () => {
+      accessMocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "owner" });
+      accessMocks.can.mockReturnValue(true);
+      const outcome = await validateDestinationAccess(
+        { ...request(), destination: { document_id: documentId } },
+        "11111111-1111-4111-8111-111111111111",
+        "user@example.com",
+        dbWith({ documents: { id: documentId, user_id: "x", project_id: null } }) as never,
+      );
+      expect(outcome.ok).toBe(true);
+    });
   });
 
   it("rejects a workflow that is neither owned nor editable", async () => {
