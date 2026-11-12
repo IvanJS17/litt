@@ -3,6 +3,7 @@
 // isolated.ts). Keep imports parser-only: this module is all the parser process loads.
 
 import { extractDocxBodyText } from "../docxTrackedChanges";
+import { compareDocx } from "../docxCompare";
 import { docxToMarkdown } from "../docxMarkdown";
 import { inspectDocx } from "../docxInventory";
 import { extractPresentationText } from "../officeText";
@@ -26,6 +27,8 @@ export const EXTRACTION_OPS = {
     extractDocumentMarkdown(bytes, fileType),
   /** A person's Word → Markdown conversion. Unlike documentMarkdown it throws on an unreadable file. */
   docxMarkdown: (bytes: ArrayBuffer) => docxToMarkdown(bytes),
+  /** A person's comparison of two Word files: one packed buffer in (see packComparePair), the redlined .docx out. Loads the WASM engine, so it runs here, bounded by the parser's limits. */
+  docxCompare: (bytes: ArrayBuffer) => compareDocx(bytes),
   /** What a conversion would lose from a Word file. Unzips the package, so it runs here, bounded by the parser's size, time and memory limits. */
   docxInventory: (bytes: ArrayBuffer) => inspectDocx(bytes),
   /** read_document views, one per file type. */

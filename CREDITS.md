@@ -43,6 +43,7 @@ infrastructure, and development workflow, including optional local integrations.
 | [react-markdown](https://github.com/remarkjs/react-markdown), [remark](https://github.com/remarkjs/remark), and [rehype](https://github.com/rehypejs/rehype) | Rendering Markdown, tables, and formatted assistant responses. |
 | [Marked](https://github.com/markedjs/marked) | Markdown parsing, in the web app and in the backend's Markdown → Word conversion. |
 | [Turndown](https://github.com/mixmark-io/turndown) and [turndown-plugin-gfm](https://github.com/mixmark-io/turndown-plugin-gfm) | Converting Word documents to Markdown (MIT). |
+| [Docxodus](https://github.com/JSv4/Docxodus) (`docxodus` on npm) | Comparing two Word documents into a third with tracked changes (MIT; a .NET engine compiled to WebAssembly, run offline in the isolated parser process). |
 | [KaTeX](https://katex.org/) | Mathematical notation. |
 | [DOMPurify](https://github.com/cure53/DOMPurify) | Sanitizing HTML content. |
 | [Recharts](https://recharts.org/) | Charts and data visualization. |

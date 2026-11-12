@@ -1,6 +1,8 @@
 /** Limits are deliberately independent of parsers and queue transports. */
 export const EXTRACTION_MAX_BYTES = 150 * 1024 * 1024;
 export const EXTRACTION_MAX_TEXT_BYTES = 16 * 1024 * 1024;
+/** A file the parser returns (a compared .docx), not text. */
+export const EXTRACTION_MAX_BINARY_BYTES = 64 * 1024 * 1024;
 
 function positiveNumber(name: string, fallback: number): number {
   const value = Number(process.env[name]);
