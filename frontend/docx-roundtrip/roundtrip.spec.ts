@@ -19,6 +19,8 @@ test.beforeEach(async ({ page }) => {
 test.afterAll(() => {
     const foreign = requests.filter((url) => !/^(http:\/\/localhost|http:\/\/127\.0\.0\.1|data:|blob:)/.test(url));
     expect(foreign, `requests outside the local origin: ${foreign.join(", ")}`).toEqual([]);
+    // The fonts the documents use were served by the app itself (packaged files), not looked up elsewhere.
+    expect(requests.some((url) => /\.(ttf|woff2?)(\?|$)/.test(url)), "no packaged font file was requested").toBe(true);
 });
 
 for (const fixture of FIXTURES) {
