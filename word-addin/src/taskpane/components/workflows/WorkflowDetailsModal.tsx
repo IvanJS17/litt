@@ -229,7 +229,7 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomLanguage("");
                 }}
               />
-              {language === t("word.other") && (
+              {language === "Other" && (
                 <ModalTextInput
                   value={customLanguage}
                   onChange={(event) => setCustomLanguage(event.target.value)}
@@ -254,7 +254,7 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomPractice("");
                 }}
               />
-              {practice === t("word.other") && (
+              {practice === "Other" && (
                 <ModalTextInput
                   value={customPractice}
                   onChange={(event) => setCustomPractice(event.target.value)}
@@ -279,7 +279,7 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomJurisdiction("");
                 }}
               />
-              {jurisdiction === t("word.other") && (
+              {jurisdiction === "Other" && (
                 <ModalTextInput
                   value={customJurisdiction}
                   onChange={(event) =>

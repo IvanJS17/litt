@@ -260,7 +260,7 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomLanguage("");
               }}
             />
-            {language === t("word.other") && (
+            {language === "Other" && (
               <ModalTextInput
                 value={customLanguage}
                 onChange={(event) => setCustomLanguage(event.target.value)}
@@ -283,7 +283,7 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomPractice("");
               }}
             />
-            {practice === t("word.other") && (
+            {practice === "Other" && (
               <ModalTextInput
                 value={customPractice}
                 onChange={(event) => setCustomPractice(event.target.value)}
@@ -307,8 +307,8 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomJurisdiction("");
               }}
             />
-            {(jurisdiction === t("word.unitedStates") ||
-              jurisdiction === t("word.canada")) && (
+            {(jurisdiction === "United States" ||
+              jurisdiction === "Canada") && (
               <ModalSelect
                 id="new-workflow-jurisdiction-region"
                 value={jurisdictionRegion}
@@ -319,14 +319,14 @@ export function NewWorkflowModal({
                 }
                 onChange={setJurisdictionRegion}
                 placeholder={
-                  jurisdiction === t("word.unitedStates")
+                  jurisdiction === "United States"
                     ? t("word.selectState")
                     : t("word.selectProvince")
                 }
                 className="mt-2"
               />
             )}
-            {jurisdiction === t("word.other") && (
+            {jurisdiction === "Other" && (
               <ModalTextInput
                 value={customJurisdiction}
                 onChange={(event) => setCustomJurisdiction(event.target.value)}
