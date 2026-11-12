@@ -18,20 +18,21 @@ import {
 } from "@/app/lib/mikeApi";
 import {
   INVITABLE_ORG_ROLES,
-  ORG_ROLE_DESCRIPTIONS,
-  ORG_ROLE_LABELS,
   canManageOrgRole,
   type InvitableOrgRole,
 } from "@/app/lib/permissions";
 import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
+import { orgRoleDescription, orgRoleLabel } from "./orgRoleText";
+import {
+  invitationIssueReason,
+  invitationIssueText,
+  type InvitationIssueReason,
+} from "./invitationIssues";
 
 function friendlyError(error: unknown, fallback: string) {
   return userFacingApiError(error, fallback);
 }
-
-const OWNER_ONLY_INVITATION =
-  "Only an organization owner can change an admin invitation";
 
 /**
  * A refresh runs *after* its mutation has already succeeded, so a failing
@@ -55,10 +56,6 @@ async function refreshQuietly(
   }
 }
 
-/** Appended to a success notice whose follow-up refresh did not land. */
-const STALE_LIST_NOTICE =
-  "The list below may be out of date — reload to see the current one.";
-
 export function CreateOrganizationModal({
   open,
   onClose,
@@ -74,6 +71,9 @@ export function CreateOrganizationModal({
   const [createdOrg, setCreatedOrg] = useState<Org | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which invitations did not go out after the organization was created, and
+  // why: one line per address.
+  const [invitationIssues, setInvitationIssues] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -81,6 +81,7 @@ export function CreateOrganizationModal({
     setMemberEmails([]);
     setCreatedOrg(null);
     setError(null);
+    setInvitationIssues([]);
   }, [open]);
 
   const trimmedName = name.trim();
@@ -99,13 +100,30 @@ export function CreateOrganizationModal({
         onCreated(org);
         return;
       }
-      const invitations = await settleBulkRequests(memberEmails, (email) =>
-        createOrgInvitation(org.id, email, "member"),
-      );
-      if (invitations.failed.length > 0) {
+      // Each address keeps its own reason: the request that refused it, or
+      // an invitation that exists but whose email did not go out.
+      const reasons = new Map<string, InvitationIssueReason>();
+      await settleBulkRequests(memberEmails, async (email) => {
+        try {
+          const invitation = await createOrgInvitation(org.id, email, "member");
+          if (invitation?.email_sent === false) reasons.set(email, "email_not_sent");
+          return invitation;
+        } catch (failure) {
+          reasons.set(email, invitationIssueReason(failure));
+          throw failure;
+        }
+      });
+      if (reasons.size > 0) {
         setCreatedOrg(org);
+        setInvitationIssues(
+          memberEmails
+            .filter((email) => reasons.has(email))
+            .map((email) =>
+              invitationIssueText(t, email, reasons.get(email) ?? "other"),
+            ),
+        );
         setError(
-          "Organization created, but some invitations could not be sent. You can add them later.",
+          t("organizations.organizationModals.organizationCreatedButSomeInvitationsCould"),
         );
         return;
       }
@@ -114,7 +132,7 @@ export function CreateOrganizationModal({
       setError(
         errorCode(err) === "org_creation_restricted"
           ? t("access.noOrgInvite")
-          : friendlyError(err, "Could not create the organization."),
+          : friendlyError(err, t("organizations.organizationModals.couldNotCreateTheOrganization")),
       );
     } finally {
       setCreating(false);
@@ -132,13 +150,16 @@ export function CreateOrganizationModal({
           if (creating) return;
           onClose();
         }}
-        breadcrumbs={["Organizations", "New organization"]}
+        breadcrumbs={[
+          t("settings.layout.tab.organizations"),
+          t("organizations.organizationModals.newOrganization"),
+        ]}
         primaryAction={{
           label: createdOrg
-            ? "Open organization"
+            ? t("organizations.organizationModals.openOrganization")
             : creating
-              ? "Creating..."
-              : "Create",
+              ? t("organizations.organizationModals.creating")
+              : t("organizations.organizationModals.create"),
           icon: creating ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : undefined,
@@ -149,13 +170,13 @@ export function CreateOrganizationModal({
         <div className="space-y-5 py-1">
           <div>
             <FieldLabel htmlFor="new-organization-name">
-              Organization name
+              {t("organizations.organizationModals.organizationName")}
             </FieldLabel>
             <FormTextInput
               id="new-organization-name"
               autoFocus
               value={name}
-              placeholder="e.g. Elite Law LLP"
+              placeholder={t("organizations.organizationModals.eGEliteLawLlp")}
               disabled={creating || createdOrg !== null}
               onChange={(event) => {
                 setName(event.target.value);
@@ -169,20 +190,20 @@ export function CreateOrganizationModal({
               }}
             />
             <p className="mt-2 text-xs text-gray-400">
-              You will become the first administrator.
+              {t("organizations.organizationModals.youWillBecomeTheFirstAdministrator")}
             </p>
           </div>
 
           <div>
-            <FieldLabel as="p">Invite members</FieldLabel>
+            <FieldLabel as="p">{t("organizations.organizationModals.inviteMembers")}</FieldLabel>
             <AddUserInput
               requireExistingUser={false}
               busy={creating || createdOrg !== null}
-              placeholder="Add member by email…"
-              submitLabel="Add member"
+              placeholder={t("organizations.organizationModals.addMemberByEmail")}
+              submitLabel={t("organizations.organizationModals.addMember")}
               validateEmail={(email) =>
                 memberEmails.includes(email)
-                  ? "This email has already been added."
+                  ? t("organizations.organizationModals.thisEmailHasAlreadyBeenAdded")
                   : null
               }
               onAdd={(user) => {
@@ -201,7 +222,7 @@ export function CreateOrganizationModal({
                     <span className="min-w-0 flex-1 truncate">{email}</span>
                     <button
                       type="button"
-                      aria-label={`Remove ${email}`}
+                      aria-label={t("organizations.organizationModals.removeEmail", { email })}
                       disabled={creating || createdOrg !== null}
                       onClick={() =>
                         setMemberEmails((current) =>
@@ -217,8 +238,7 @@ export function CreateOrganizationModal({
               </div>
             ) : null}
             <p className="mt-2 text-xs text-gray-400">
-              Members receive an invitation. You can also add people later from
-              the organization page.
+              {t("organizations.organizationModals.membersReceiveAnInvitationYouCan")}
             </p>
           </div>
         </div>
@@ -227,10 +247,23 @@ export function CreateOrganizationModal({
         open={open && error !== null}
         title={
           createdOrg
-            ? "Some invitations were not sent"
-            : "Organization not created"
+            ? t("organizations.organizationModals.someInvitationsWereNotSent")
+            : t("organizations.organizationModals.organizationNotCreated")
         }
-        message={error}
+        message={
+          error !== null && invitationIssues.length > 0 ? (
+            <>
+              {error}
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                {invitationIssues.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            error
+          )
+        }
         onClose={() => setError(null)}
       />
     </>
@@ -279,7 +312,12 @@ export function InviteOrganizationMemberModal({
     try {
       sent = Boolean((await createOrgInvitation(org.id, email, role)).email_sent);
     } catch (err) {
-      setError(friendlyError(err, "Could not send the invitation."));
+      const reason = invitationIssueReason(err);
+      setError(
+        reason === "other"
+          ? friendlyError(err, t("organizations.organizationModals.couldNotSendTheInvitation"))
+          : invitationIssueText(t, email, reason),
+      );
       return false;
     }
     const sentNotice = t(sent ? "access.invite.sent" : "access.invite.notSent");
@@ -288,7 +326,7 @@ export function InviteOrganizationMemberModal({
     // behind this modal could not be re-read, say that rather than let the
     // unchanged list quietly contradict the notice.
     if (!(await refreshQuietly(onChanged)))
-      setNotice(`${sentNotice}. ${STALE_LIST_NOTICE}`);
+      setNotice(t("organizations.organizationModals.staleAfterInvite", { notice: sentNotice }));
     return true;
   }
 
@@ -304,20 +342,25 @@ export function InviteOrganizationMemberModal({
     try {
       if (action === "resend") {
         await resendOrgInvitation(org.id, invitation.id);
-        successNotice = `Invitation resent to ${invitation.email}.`;
+        successNotice = t("organizations.organizationModals.invitationResentTo", { email: invitation.email });
       } else {
         await cancelOrgInvitation(org.id, invitation.id);
-        successNotice = `Invitation to ${invitation.email} cancelled.`;
+        successNotice = t("organizations.organizationModals.invitationToCancelled", { email: invitation.email });
       }
       setNotice(successNotice);
       changed = true;
     } catch (err) {
-      setError(friendlyError(err, `Could not ${action} the invitation.`));
+      setError(friendlyError(
+          err,
+          action === "resend"
+            ? t("organizations.organizationModals.couldNotResendTheInvitation")
+            : t("organizations.organizationModals.couldNotCancelTheInvitation"),
+        ));
     } finally {
       setBusyId(null);
     }
     if (changed && !(await refreshQuietly(onChanged)) && successNotice)
-      setNotice(`${successNotice} ${STALE_LIST_NOTICE}`);
+      setNotice(t("organizations.organizationModals.staleAfterAction", { notice: successNotice }));
   }
 
   return (
@@ -325,7 +368,11 @@ export function InviteOrganizationMemberModal({
       <Modal
         open={open}
         onClose={onClose}
-        breadcrumbs={["Organizations", org.name, "Add member"]}
+        breadcrumbs={[
+          t("settings.layout.tab.organizations"),
+          org.name,
+          t("organizations.organizationModals.addMemberBreadcrumb"),
+        ]}
         size="md"
         footerStatus={
           notice ? (
@@ -338,40 +385,40 @@ export function InviteOrganizationMemberModal({
           <div>
             {invitableRoles.length > 1 ? (
               <>
-                <FieldLabel htmlFor="organization-invite-role">Role</FieldLabel>
+                <FieldLabel htmlFor="organization-invite-role">{t("organizations.organizationModals.role")}</FieldLabel>
                 <ModalSelect
                   id="organization-invite-role"
                   value={role}
                   options={invitableRoles.map((candidate) => ({
                     value: candidate,
-                    label: ORG_ROLE_LABELS[candidate],
+                    label: orgRoleLabel(t, candidate),
                   }))}
                   onChange={(value) => setRole(value as InvitableOrgRole)}
                 />
               </>
             ) : (
               <>
-                <FieldLabel as="p">Role</FieldLabel>
+                <FieldLabel as="p">{t("organizations.organizationModals.role")}</FieldLabel>
                 <p className="text-sm text-gray-700">
-                  {ORG_ROLE_LABELS[role]}
+                  {orgRoleLabel(t, role)}
                 </p>
               </>
             )}
             <p className="mt-2 text-xs text-gray-400">
-              {ORG_ROLE_DESCRIPTIONS[role]}
+              {orgRoleDescription(t, role)}
               {invitableRoles.length > 1
                 ? null
-                : " Only an organization owner can invite admins."}
+                : t("organizations.organizationModals.onlyAnOrganizationOwnerCanInvite")}
             </p>
           </div>
 
           <div>
-            <FieldLabel as="p">Email address</FieldLabel>
+            <FieldLabel as="p">{t("organizations.organizationModals.emailAddress")}</FieldLabel>
             <AddUserInput
               autoFocus
               requireExistingUser={false}
-              placeholder="Invite by email…"
-              submitLabel="Send invitation"
+              placeholder={t("organizations.organizationModals.inviteByEmail")}
+              submitLabel={t("organizations.organizationModals.sendInvitation")}
               onAdd={(user) => invite(user.email)}
             />
           </div>
@@ -379,7 +426,7 @@ export function InviteOrganizationMemberModal({
           {pending.length > 0 ? (
             <div className="min-h-0 border-t border-white/60 pt-4">
               <p className="mb-2 text-xs font-medium text-gray-600">
-                Pending invitations
+                {t("organizations.organizationModals.pendingInvitations")}
               </p>
               <div className="max-h-48 space-y-1 overflow-y-auto">
                 {pending.map((invitation) => {
@@ -399,16 +446,16 @@ export function InviteOrganizationMemberModal({
                           {invitation.email}
                         </p>
                         <p className="text-[10px] text-gray-400">
-                          {ORG_ROLE_LABELS[invitation.role]} ·{" "}
+                          {orgRoleLabel(t, invitation.role)} ·{" "}
                           {invitation.status === "expired"
-                            ? "Expired"
-                            : "Pending"}
+                            ? t("organizations.organizationModals.expired")
+                            : t("organizations.organizationModals.pending")}
                         </p>
                       </div>
                       <button
                         type="button"
-                        aria-label={`Resend invitation to ${invitation.email}`}
-                        title={canManage ? undefined : OWNER_ONLY_INVITATION}
+                        aria-label={t("organizations.organizationModals.resendInvitationToEmail", { email: invitation.email })}
+                        title={canManage ? undefined : t("organizations.organizationModals.onlyAnOwnerCanChangeAnAdminInvitation")}
                         disabled={!canManage || busyId === invitation.id}
                         onClick={() =>
                           void runInvitationAction(invitation, "resend")
@@ -419,8 +466,8 @@ export function InviteOrganizationMemberModal({
                       </button>
                       <button
                         type="button"
-                        aria-label={`Cancel invitation to ${invitation.email}`}
-                        title={canManage ? undefined : OWNER_ONLY_INVITATION}
+                        aria-label={t("organizations.organizationModals.cancelInvitationToEmail", { email: invitation.email })}
+                        title={canManage ? undefined : t("organizations.organizationModals.onlyAnOwnerCanChangeAnAdminInvitation")}
                         disabled={!canManage || busyId === invitation.id}
                         onClick={() =>
                           void runInvitationAction(invitation, "cancel")
@@ -439,7 +486,7 @@ export function InviteOrganizationMemberModal({
       </Modal>
       <WarningPopup
         open={open && error !== null}
-        title="Invitation action failed"
+        title={t("organizations.organizationModals.invitationActionFailed")}
         message={error}
         onClose={() => setError(null)}
       />

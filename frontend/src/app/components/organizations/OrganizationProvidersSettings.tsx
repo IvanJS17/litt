@@ -10,6 +10,7 @@ import {
   organizationSettingsHref,
   useOrganizationSettings,
 } from "./OrganizationSettingsShell";
+import { useTranslations } from "next-intl";
 
 /**
  * The Bring Your Own Keys section of an organization's settings: its owners'
@@ -18,6 +19,7 @@ import {
  * server would refuse.
  */
 export function OrganizationProvidersSettings() {
+  const t = useTranslations();
   const router = useRouter();
   const { orgId, org } = useOrganizationSettings();
 
@@ -25,15 +27,15 @@ export function OrganizationProvidersSettings() {
     return (
       <EmptyState
         icon={<OrganizationSkeuoIcon />}
-        title="Bring Your Own Keys"
-        description="Only this organization's owners and admins can manage its keys."
+        title={t("organizations.organizationProvidersSettings.bringYourOwnKeys")}
+        description={t("organizations.organizationProvidersSettings.onlyThisOrganizationsOwnersAndAdmins")}
         action={
           <PillButtonUI
             tone="white"
             size="sm"
             onClick={() => router.push(organizationSettingsHref(orgId))}
           >
-            Back to General
+            {t("organizations.organizationProvidersSettings.backToGeneral")}
           </PillButtonUI>
         }
       />
@@ -44,7 +46,7 @@ export function OrganizationProvidersSettings() {
   return (
     <OrganizationProviderKeys
       orgId={orgId}
-      orgName={org?.name ?? "Organization"}
+      orgName={org?.name ?? t("organizations.organizationProvidersSettings.organization")}
     />
   );
 }

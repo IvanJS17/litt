@@ -13,6 +13,8 @@ import {
   type OrgMember,
   type OrgMemberHandover,
 } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
 
 // Shared work is handed to one successor; unshared work is archived for
 // 30 days. Existing co-owned items stay with their remaining owners.
@@ -30,16 +32,22 @@ export interface MemberDepartureResult {
   error: unknown | null;
 }
 
-const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+const COUNT_KEYS = {
+  project: "organizations.memberDepartureDialog.count.project",
+  workflow: "organizations.memberDepartureDialog.count.workflow",
+  sharedChat: "organizations.memberDepartureDialog.count.sharedChat",
+  sharedTabularReview: "organizations.memberDepartureDialog.count.sharedTabularReview",
+  document: "organizations.memberDepartureDialog.count.document",
+  privateProject: "organizations.memberDepartureDialog.count.privateProject",
+  privateWorkflow: "organizations.memberDepartureDialog.count.privateWorkflow",
+  privateChat: "organizations.memberDepartureDialog.count.privateChat",
+  tabularReview: "organizations.memberDepartureDialog.count.tabularReview",
+} as const satisfies Record<string, SettingsKey>;
 
-function joinCounts(parts: string[]): string {
-  return parts.length <= 1
-    ? (parts[0] ?? "")
-    : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
-}
-
-const nameOf = (member: DepartingMember) =>
-  member.display_name?.trim() || member.email || "This member";
+const nameOf = (t: Translate, member: DepartingMember) =>
+  member.display_name?.trim() ||
+  member.email ||
+  t("organizations.memberDepartureDialog.thisMember");
 
 export function MemberDepartureDialog({
   orgId,
@@ -59,6 +67,7 @@ export function MemberDepartureDialog({
   onCancel: () => void;
   onDone: (result: MemberDepartureResult) => void;
 }) {
+  const t = useTranslations();
   const [handover, setHandover] = useState<OrgMemberHandover | null>(null);
   const [loadedMembers, setLoadedMembers] = useState<OrgMember[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -102,11 +111,11 @@ export function MemberDepartureDialog({
           const name = member.display_name?.trim();
           return {
             value: member.user_id,
-            label: name || member.email || "Unnamed member",
+            label: name || member.email || t("organizations.memberDepartureDialog.unnamedMember"),
             suffix: name && member.email ? `(${member.email})` : undefined,
           };
         }),
-    [roster, departing],
+    [roster, departing, t],
   );
 
   const projects = handover?.projects ?? [];
@@ -127,29 +136,35 @@ export function MemberDepartureDialog({
     .map((item) => item.title.trim()).filter(Boolean);
 
   const several = departing.length > 1;
-  const who = leaving
-    ? "You"
-    : several
-      ? "These members"
-      : nameOf(departing[0] ?? { user_id: "" });
+  const countOf = (kind: keyof typeof COUNT_KEYS, n: number) =>
+    t(COUNT_KEYS[kind], { count: n });
+  const joinCounts = (parts: string[]) =>
+    parts.length <= 1
+      ? (parts[0] ?? "")
+      : t("organizations.memberDepartureDialog.listAnd", {
+          rest: parts.slice(0, -1).join(", "),
+          last: parts[parts.length - 1],
+        });
   const lead = leaving
-    ? "You will lose access to this organization's shared resources."
+    ? t("organizations.memberDepartureDialog.lead.leaving")
     : several
-      ? `${departing.length} selected members will lose access to this organization.`
-      : `${who} will lose organization access.`;
+      ? t("organizations.memberDepartureDialog.lead.several", { count: departing.length })
+      : t("organizations.memberDepartureDialog.lead.one", {
+          who: nameOf(t, departing[0] ?? { user_id: "" }),
+        });
   const owedSummary = joinCounts([
-    ...(projects.length ? [count(projects.length, "project")] : []),
-    ...(workflows.length ? [count(workflows.length, "workflow")] : []),
-    ...(sharedChats ? [count(sharedChats, "shared chat")] : []),
-    ...(sharedReviews ? [count(sharedReviews, "shared tabular review")] : []),
-    ...(sharedDocuments ? [count(sharedDocuments, "document")] : []),
+    ...(projects.length ? [countOf("project", projects.length)] : []),
+    ...(workflows.length ? [countOf("workflow", workflows.length)] : []),
+    ...(sharedChats ? [countOf("sharedChat", sharedChats)] : []),
+    ...(sharedReviews ? [countOf("sharedTabularReview", sharedReviews)] : []),
+    ...(sharedDocuments ? [countOf("document", sharedDocuments)] : []),
   ]);
   const archivedSummary = joinCounts([
-    ...(privateProjects ? [count(privateProjects, "private project")] : []),
-    ...(privateWorkflows ? [count(privateWorkflows, "private workflow")] : []),
-    ...(chats ? [count(chats, "private chat")] : []),
-    ...(reviews ? [count(reviews, "tabular review")] : []),
-    ...(documents ? [count(documents, "document")] : []),
+    ...(privateProjects ? [countOf("privateProject", privateProjects)] : []),
+    ...(privateWorkflows ? [countOf("privateWorkflow", privateWorkflows)] : []),
+    ...(chats ? [countOf("privateChat", chats)] : []),
+    ...(reviews ? [countOf("tabularReview", reviews)] : []),
+    ...(documents ? [countOf("document", documents)] : []),
   ]);
 
   const ready = handover !== null && roster !== null && !loadFailed;
@@ -186,22 +201,26 @@ export function MemberDepartureDialog({
       onClose={() => {
         if (!working) onCancel();
       }}
-      breadcrumbs={["Organization", "Members", leaving ? "Leave" : "Remove"]}
+      breadcrumbs={[
+        t("organizations.organizationSettingsShell.organization"),
+        t("organizations.organizationSettingsShell.members"),
+        leaving ? t("organizations.memberDepartureDialog.breadcrumb.leave") : t("organizations.memberDepartureDialog.breadcrumb.remove"),
+      ]}
       size="sm"
       className="h-auto max-h-[calc(100vh-2rem)]"
       cancelAction={{
-        label: "Cancel",
+        label: t("common.cancel"),
         disabled: working,
         onClick: onCancel,
       }}
       primaryAction={{
         label: working
           ? leaving
-            ? "Leaving..."
-            : "Removing..."
+            ? t("organizations.memberDepartureDialog.leaving")
+            : t("organizations.memberDepartureDialog.removing")
           : leaving
-            ? "Leave"
-            : "Remove",
+            ? t("organizations.memberDepartureDialog.breadcrumb.leave")
+            : t("organizations.memberDepartureDialog.breadcrumb.remove"),
         variant: "danger",
         disabled: !canConfirm,
         onClick: () => void confirm(),
@@ -215,12 +234,12 @@ export function MemberDepartureDialog({
 
         {loadFailed ? (
           <p role="alert" className="text-sm text-red-600">
-            Could not check what would be transferred or archived. Close this and try again.
+            {t("organizations.memberDepartureDialog.couldNotCheckWhatWouldBe")}
           </p>
         ) : !ready ? (
           <div
             role="status"
-            aria-label="Checking what would be transferred or archived"
+            aria-label={t("organizations.memberDepartureDialog.checkingWhatWouldBeTransferredOr")}
             className="space-y-5"
           >
             <div className="space-y-2">
@@ -246,10 +265,10 @@ export function MemberDepartureDialog({
                   id="member-departure-transfer"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Transfer ownership
+                  {t("organizations.memberDepartureDialog.transferOwnership")}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {owedSummary} {owed === 1 ? "needs" : "need"} a new owner. Shared and public work will transfer together.
+                  {t("organizations.memberDepartureDialog.owedsummaryNeedANewOwnerShared", { owed, owedSummary })}
                 </p>
                 {titles.length === 0 ? null : titles.length === 1 ? (
                   <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
@@ -263,7 +282,7 @@ export function MemberDepartureDialog({
                           "list-none px-0 [&::-webkit-details-marker]:hidden",
                       })}
                     >
-                      View items
+                      {t("organizations.memberDepartureDialog.viewItems")}
                       <ChevronDown className="h-3.5 w-3.5 transition-transform group-open/items:rotate-180" />
                     </summary>
                     <ul className="mt-2 space-y-1 text-xs text-gray-500">
@@ -281,17 +300,17 @@ export function MemberDepartureDialog({
                 {candidates.length > 0 ? (
                   <ModalSelect
                     id="member-departure-successor"
-                    aria-label="Hand over to"
+                    aria-label={t("organizations.memberDepartureDialog.handOverTo")}
                     value={selectedSuccessor}
                     onChange={setSuccessor}
                     options={candidates}
-                    placeholder="Choose a member"
+                    placeholder={t("organizations.memberDepartureDialog.chooseAMember")}
                     disabled={working}
                     wrapLabels
                   />
                 ) : (
                   <p role="alert" className="text-sm text-red-600">
-                    There is no other member to hand this to.
+                    {t("organizations.memberDepartureDialog.thereIsNoOtherMemberTo")}
                   </p>
                 )}
               </section>
@@ -306,13 +325,13 @@ export function MemberDepartureDialog({
                   id="member-departure-private-activity"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Private work retained for 30 days
+                  {t("organizations.memberDepartureDialog.privateWorkRetainedFor30Days")}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {archivedSummary} will be archived for 30 days.
+                  {t("organizations.memberDepartureDialog.archivedsummaryWillBeArchivedFor30", { archivedSummary })}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Only organization owners can recover, reassign or delete this work. Anything not recovered within 30 days will be permanently deleted, including its contents.
+                  {t("organizations.memberDepartureDialog.onlyOrganizationOwnersCanRecoverReassign")}
                 </p>
               </section>
             ) : null}

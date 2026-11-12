@@ -17,6 +17,8 @@ import {
   type ResponseStyleField,
 } from "@/app/lib/mikeApi";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 
 type OptionCopy = Omit<SettingsSelectOption, "value">;
 
@@ -24,18 +26,19 @@ type ResponseLanguage = ResponseStyle["language"];
 
 /** Every language reads the same way, so only its name is written out. */
 function languageOptions(
+  t: Translate,
   names: Record<Exclude<ResponseLanguage, "auto">, string>,
 ): Record<ResponseLanguage, OptionCopy> {
   const options = {
     auto: {
-      label: "Automatic",
-      description: "LiTT replies in the language you write in.",
+      label: t("settings.responseStyleSection.automatic"),
+      description: t("settings.responseStyleSection.littRepliesInTheLanguageYouWriteIn"),
     },
   } as Record<ResponseLanguage, OptionCopy>;
   for (const [code, name] of Object.entries(names)) {
     options[code as ResponseLanguage] = {
       label: name,
-      description: `LiTT replies in ${name}.`,
+      description: t("settings.responseStyleSection.littRepliesInName", { name }),
     };
   }
   return options;
@@ -43,104 +46,110 @@ function languageOptions(
 
 // Typed per field, so adding an option to RESPONSE_STYLE_OPTIONS without its
 // copy here fails the typecheck.
-const SETTINGS: {
+type StyleSettings = {
   [Field in ResponseStyleField]: {
     label: string;
     options: Record<ResponseStyle[Field], OptionCopy>;
   };
-} = {
+};
+
+function responseStyleSettings(t: Translate): StyleSettings {
+  return {
   verbosity: {
-    label: "Verbosity",
+    label: t("settings.responseStyleSection.verbosity"),
     options: {
       concise: {
-        label: "Concise",
-        description: "Short, direct answers that lead with the conclusion.",
+        label: t("settings.responseStyleSection.concise"),
+        description: t("settings.responseStyleSection.shortDirectAnswersThatLeadWith"),
       },
       balanced: {
-        label: "Balanced",
-        description: "Enough explanation to follow the reasoning.",
+        label: t("settings.responseStyleSection.balanced"),
+        description: t("settings.responseStyleSection.enoughExplanationToFollowTheReasoning"),
       },
       detailed: {
-        label: "Detailed",
-        description: "Fuller reasoning, exceptions, and practical next steps.",
+        label: t("settings.responseStyleSection.detailed"),
+        description: t("settings.responseStyleSection.fullerReasoningExceptionsAndPracticalNext"),
       },
     },
   },
   formatting: {
-    label: "Headers and Lists",
+    label: t("settings.responseStyleSection.headersAndLists"),
     options: {
       balanced: {
-        label: "Balanced",
-        description: "LiTT picks the layout that suits each answer.",
+        label: t("settings.responseStyleSection.balanced"),
+        description: t("settings.responseStyleSection.littPicksTheLayoutThatSuits"),
       },
       less: {
-        label: "Less",
-        description: "Mostly prose, with headings and lists only when needed.",
+        label: t("settings.responseStyleSection.less"),
+        description: t("settings.responseStyleSection.mostlyProseWithHeadingsAndLists"),
       },
       more: {
-        label: "More",
-        description: "Headings, bullet points, and tables for easy scanning.",
+        label: t("settings.responseStyleSection.more"),
+        description: t("settings.responseStyleSection.headingsBulletPointsAndTablesFor"),
       },
     },
   },
   tone: {
-    label: "Tone",
+    label: t("settings.responseStyleSection.tone"),
     options: {
       formal: {
-        label: "Formal and Legal",
-        description: "A precise, client-ready legal register.",
+        label: t("settings.responseStyleSection.formalAndLegal"),
+        description: t("settings.responseStyleSection.aPreciseClientReadyLegalRegister"),
       },
       balanced: {
-        label: "Balanced",
-        description: "LiTT's usual professional tone.",
+        label: t("settings.responseStyleSection.balanced"),
+        description: t("settings.responseStyleSection.littsUsualProfessionalTone"),
       },
       plain: {
-        label: "Plain and Simple",
+        label: t("settings.responseStyleSection.plainAndSimple"),
         description:
-          "Short sentences and everyday words, with legal terms explained.",
+          t("settings.responseStyleSection.shortSentencesAndEverydayWordsWith"),
       },
     },
   },
   language: {
-    label: "Language",
-    options: languageOptions({
-      "en-US": "English (US)",
-      "en-GB": "English (UK)",
-      ar: "Arabic",
-      "zh-Hans": "Chinese (Simplified)",
-      "zh-Hant": "Chinese (Traditional)",
-      cs: "Czech",
-      da: "Danish",
-      nl: "Dutch",
-      fi: "Finnish",
-      fr: "French",
-      de: "German",
-      el: "Greek",
-      he: "Hebrew",
-      hi: "Hindi",
-      id: "Indonesian",
-      it: "Italian",
-      ja: "Japanese",
-      ko: "Korean",
-      ms: "Malay",
-      nb: "Norwegian",
-      pl: "Polish",
-      "pt-BR": "Portuguese (Brazil)",
-      "pt-PT": "Portuguese (Portugal)",
-      ru: "Russian",
-      es: "Spanish",
-      sv: "Swedish",
-      th: "Thai",
-      tr: "Turkish",
-      uk: "Ukrainian",
-      vi: "Vietnamese",
+    label: t("common.language.label"),
+    options: languageOptions(t, {
+      "en-US": t("settings.responseStyleSection.englishUs"),
+      "en-GB": t("settings.responseStyleSection.englishUk"),
+      ar: t("settings.responseStyleSection.arabic"),
+      "zh-Hans": t("settings.responseStyleSection.chineseSimplified"),
+      "zh-Hant": t("settings.responseStyleSection.chineseTraditional"),
+      cs: t("settings.responseStyleSection.czech"),
+      da: t("settings.responseStyleSection.danish"),
+      nl: t("settings.responseStyleSection.dutch"),
+      fi: t("settings.responseStyleSection.finnish"),
+      fr: t("settings.responseStyleSection.french"),
+      de: t("settings.responseStyleSection.german"),
+      el: t("settings.responseStyleSection.greek"),
+      he: t("settings.responseStyleSection.hebrew"),
+      hi: t("settings.responseStyleSection.hindi"),
+      id: t("settings.responseStyleSection.indonesian"),
+      it: t("settings.responseStyleSection.italian"),
+      ja: t("settings.responseStyleSection.japanese"),
+      ko: t("settings.responseStyleSection.korean"),
+      ms: t("settings.responseStyleSection.malay"),
+      nb: t("settings.responseStyleSection.norwegian"),
+      pl: t("settings.responseStyleSection.polish"),
+      "pt-BR": t("settings.responseStyleSection.portugueseBrazil"),
+      "pt-PT": t("settings.responseStyleSection.portuguesePortugal"),
+      ru: t("settings.responseStyleSection.russian"),
+      es: t("settings.responseStyleSection.spanish"),
+      sv: t("settings.responseStyleSection.swedish"),
+      th: t("settings.responseStyleSection.thai"),
+      tr: t("settings.responseStyleSection.turkish"),
+      uk: t("settings.responseStyleSection.ukrainian"),
+      vi: t("settings.responseStyleSection.vietnamese"),
     }),
   },
-};
+  };
+}
 
 const FIELDS = Object.keys(RESPONSE_STYLE_OPTIONS) as ResponseStyleField[];
 
 export function ResponseStyleSection() {
+  const t = useTranslations();
+  const SETTINGS = responseStyleSettings(t);
   const [style, setStyle] = useState<ResponseStyle | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
@@ -190,7 +199,7 @@ export function ResponseStyleSection() {
         ...current,
         [field]: userFacingApiError(
           error,
-          "This setting could not be saved. Please try again.",
+          t("settings.responseStyleSection.thisSettingCouldNotBeSaved"),
         ),
       }));
     }
@@ -198,15 +207,15 @@ export function ResponseStyleSection() {
 
   return (
     <section className="space-y-3" aria-labelledby="response-style-heading">
-      <SettingsHeading id="response-style-heading">Response style</SettingsHeading>
+      <SettingsHeading id="response-style-heading">{t("settings.responseStyleSection.responseStyle")}</SettingsHeading>
       <SettingsDescription>
-        Choose how LiTT shapes its answers in chats.
+        {t("settings.responseStyleSection.chooseHowLittShapesItsAnswers")}
       </SettingsDescription>
       <GlassCardUI>
         {loadError ? (
           <SettingsRow>
             <p className="text-sm text-red-600" role="alert">
-              Could not load your response style.
+              {t("settings.responseStyleSection.couldNotLoadYourResponseStyle")}
             </p>
             <PillButtonUI
               tone="white"
@@ -216,7 +225,7 @@ export function ResponseStyleSection() {
                 setLoadVersion((current) => current + 1);
               }}
             >
-              Retry
+              {t("common.retry")}
             </PillButtonUI>
           </SettingsRow>
         ) : (

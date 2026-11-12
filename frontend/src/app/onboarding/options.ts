@@ -1,3 +1,4 @@
+import type { SettingsKey } from "@/i18n/Translate";
 import type {
     PracticeSetting,
     ProfessionalTitle,
@@ -305,10 +306,10 @@ export const PRACTICE_AREA_OPTIONS = [
 ] as const;
 
 export const PRACTICE_SETTING_OPTIONS = [
-    { value: "private_practice", label: "Private practice" },
-    { value: "in_house", label: "In-house" },
-    { value: "not_practising", label: "Not a practising attorney" },
-] as const satisfies readonly { value: PracticeSetting; label: string }[];
+    { value: "private_practice", labelKey: "settings.personalisationFields.practiceSetting.privatePractice" },
+    { value: "in_house", labelKey: "settings.personalisationFields.practiceSetting.inHouse" },
+    { value: "not_practising", labelKey: "settings.personalisationFields.practiceSetting.notPractising" },
+] as const satisfies readonly { value: PracticeSetting; labelKey: SettingsKey }[];
 
 export type { PracticeSetting } from "@/app/lib/mikeApi";
 

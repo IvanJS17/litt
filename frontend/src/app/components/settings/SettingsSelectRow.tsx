@@ -15,6 +15,7 @@ import {
   SettingsLabel,
 } from "@/app/components/settings/SettingsText";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 export type SettingsSelectOption = {
   value: string;
@@ -41,6 +42,7 @@ export function SettingsSelectRow({
   error?: string | null;
   onChange: (value: string) => void;
 }) {
+  const t = useTranslations();
   const selected = options.find((option) => option.value === value);
   return (
     <SettingsRow>
@@ -73,7 +75,7 @@ export function SettingsSelectRow({
               authInputUIClassName,
             )}
           >
-            <span className="truncate">{selected?.label ?? "Loading..."}</span>
+            <span className="truncate">{selected?.label ?? t("settings.settingsSelectRow.loading")}</span>
             <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
           </button>
         </DropdownTrigger>

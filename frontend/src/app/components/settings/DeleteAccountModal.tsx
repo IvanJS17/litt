@@ -13,6 +13,7 @@ import {
 import { isMfaRequiredError } from "@/app/lib/mikeApi";
 import { notifyError } from "@/app/lib/userFacingError";
 import { saveUserExport } from "@/app/lib/userExportDownload";
+import { useTranslations } from "next-intl";
 
 /**
  * "Delete my account", before anything is deleted: offer the personal data
@@ -32,6 +33,7 @@ export function DeleteAccountModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations();
   const [step, setStep] = useState<"download" | "confirm">("download");
   const [typed, setTyped] = useState("");
   const [downloading, setDownloading] = useState(false);
@@ -73,7 +75,7 @@ export function DeleteAccountModal({
         return;
       }
       notifyError(error, {
-        action: "download your data",
+        action: t("settings.deleteAccountModal.actions.downloadYourData"),
         onRetry: () => void download(),
       });
     } finally {
@@ -86,15 +88,15 @@ export function DeleteAccountModal({
       <Modal
         open={open}
         onClose={close}
-        breadcrumbs={["Account", "Delete account"]}
+        breadcrumbs={[t("settings.layout.tab.account"), t("settings.deleteAccountModal.deleteAccount")]}
         size="sm"
         className="h-auto"
-        cancelAction={{ label: "Cancel", onClick: close, disabled: deleting }}
+        cancelAction={{ label: t("common.cancel"), onClick: close, disabled: deleting }}
         primaryAction={
           step === "download"
-            ? { label: "Continue", onClick: () => setStep("confirm") }
+            ? { label: t("common.continue"), onClick: () => setStep("confirm") }
             : {
-                label: "Delete my account",
+                label: t("settings.deleteAccountModal.deleteMyAccount"),
                 variant: "danger",
                 disabled: !matches || deleting,
                 onClick: onConfirm,
@@ -104,8 +106,7 @@ export function DeleteAccountModal({
         {step === "download" ? (
           <div className="space-y-4 pb-5 text-sm leading-relaxed text-gray-600">
             <p>
-              Before you delete your account, you can download a copy of your
-              personal data.
+              {t("settings.deleteAccountModal.beforeYouDeleteYourAccountYou")}
             </p>
             <PillButtonUI
               tone="white"
@@ -115,21 +116,17 @@ export function DeleteAccountModal({
               disabled={downloading}
             >
               <Download className="h-4 w-4 shrink-0" aria-hidden />
-              Download my data
+              {t("settings.deleteAccountModal.downloadMyData")}
             </PillButtonUI>
           </div>
         ) : (
           <div className="space-y-4 pb-5 text-sm leading-relaxed text-gray-600">
             <p>
-              Your personal documents, chats, memory, preferences, connections,
-              AI keys and profile are deleted now. Work you created in your
-              firm&rsquo;s matters, audit history and AI evidence stay with the
-              firm and will show &ldquo;Deleted user&rdquo;. Backups are deleted
-              within 30 days.
+              {t("settings.deleteAccountModal.yourPersonalDocumentsChatsMemoryPreferences")}
             </p>
             <div className="space-y-1">
               <FieldLabel htmlFor="delete-account-email">
-                Type your email to confirm
+                {t("settings.deleteAccountModal.typeYourEmailToConfirm")}
               </FieldLabel>
               <SettingsTextInput
                 id="delete-account-email"
@@ -150,8 +147,8 @@ export function DeleteAccountModal({
           setMfaOpen(false);
           void download();
         }}
-        title="Two-factor verification required"
-        message="Downloading your data is sensitive. Enter a code from your authenticator app to continue."
+        title={t("settings.deleteAccountModal.twoFactorVerificationRequired")}
+        message={t("settings.deleteAccountModal.downloadingYourDataIsSensitiveEnter")}
       />
     </>
   );

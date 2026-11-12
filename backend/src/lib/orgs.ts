@@ -109,13 +109,15 @@ function isLastOwnerViolation(error: DbError): boolean {
 
 export type OrgResult<T> =
     | ({ ok: true } & T)
-    | { ok: false; kind: "validation"; detail: string }
+    // `code` is a stable name for a refusal the client explains in its own
+    // words (see CODE_KINDS in packages/client); `detail` stays the English text.
+    | { ok: false; kind: "validation"; detail: string; code?: string }
     | { ok: false; kind: "forbidden" }
     // An admin asked for something only an owner may do. Separate from
     // `forbidden` so the refusal can name the role that would be allowed.
     | { ok: false; kind: "owner_required" }
     | { ok: false; kind: "not_found" }
-    | { ok: false; kind: "conflict"; detail: string }
+    | { ok: false; kind: "conflict"; detail: string; code?: string }
     | { ok: false; kind: "last_owner" }
     // The member alone owns projects or workflows, and nobody was named to
     // take them over. The counts let the client say what is waiting.
@@ -922,6 +924,7 @@ export async function createInvitation(
         return {
             ok: false,
             kind: "validation",
+            code: "invitation_email_invalid",
             detail: "A valid email address is required",
         };
     const actorEmail = normalizeEmail(params.actorEmail);
@@ -929,6 +932,7 @@ export async function createInvitation(
         return {
             ok: false,
             kind: "validation",
+            code: "invitation_already_member",
             detail: "You are already a member of this organization",
         };
 
@@ -974,6 +978,7 @@ export async function createInvitation(
             return {
                 ok: false,
                 kind: "conflict",
+                code: "invitation_already_member",
                 detail: "That person is already a member of this organization",
             };
     }

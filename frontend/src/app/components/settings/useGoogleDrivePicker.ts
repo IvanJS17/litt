@@ -7,6 +7,7 @@ import {
 } from "@/app/lib/mikeApi";
 import { openGoogleDrivePicker } from "@/app/lib/googlePicker";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /**
  * "Add files from Google Drive": fetch a short-lived token, open Google's
@@ -20,6 +21,7 @@ import { userFacingApiError } from "@/app/lib/userFacingError";
  * action; every other failure becomes the status message.
  */
 export function useGoogleDrivePicker(workspace?: string) {
+  const t = useTranslations();
   const [message, setMessage] = useState<string | null>(null);
 
   const addFiles = useCallback(async () => {
@@ -30,19 +32,19 @@ export function useGoogleDrivePicker(workspace?: string) {
       );
       setMessage(
         picked.length
-          ? `Added ${picked.length} ${picked.length === 1 ? "file" : "files"}. LiTT can now search and read them.`
-          : "No files added.",
+          ? t("settings.useGoogleDrivePicker.addedFiles", { count: picked.length })
+          : t("settings.useGoogleDrivePicker.noFilesAdded"),
       );
     } catch (error) {
       if (isMfaRequiredError(error)) throw error;
       setMessage(
         userFacingApiError(
           error,
-          "Google Drive could not be opened. Try again.",
+          t("settings.useGoogleDrivePicker.couldNotBeOpened"),
         ),
       );
     }
-  }, [workspace]);
+  }, [workspace, t]);
 
   return { addFiles, message };
 }

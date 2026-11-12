@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useOrganizationInvitationCount } from "@/app/hooks/useOrganizationInvitationCount";
 import { usePlatformMe } from "@/app/hooks/usePlatformMe";
@@ -15,45 +16,47 @@ import {
 import { SettingsSearch } from "@/app/components/settings/SettingsSearch";
 import { SETTINGS_SEARCH_ENTRIES } from "@/app/lib/settingsSearch";
 
-const TABS: SettingsShellTab[] = [
-    { id: "account", label: "Account", href: "/settings" },
+function settingsTabs(t: Translate): SettingsShellTab[] {
+    return [
+    { id: "account", label: t("settings.layout.tab.account"), href: "/settings" },
     {
         id: "personalisation",
-        label: "Personalisation",
+        label: t("settings.layout.tab.personalisation"),
         href: "/settings/personalisation",
     },
-    { id: "memory", label: "Memory", href: "/settings/memory" },
-    { id: "appearance", label: "Appearance", href: "/settings/appearance" },
-    { id: "features", label: "Features", href: "/settings/features" },
+    { id: "memory", label: t("settings.layout.tab.memory"), href: "/settings/memory" },
+    { id: "appearance", label: t("settings.layout.tab.appearance"), href: "/settings/appearance" },
+    { id: "features", label: t("settings.layout.tab.features"), href: "/settings/features" },
     {
         id: "privacy-data",
-        label: "Privacy & Data",
+        label: t("settings.layout.tab.privacyData"),
         href: "/settings/privacy-data",
     },
     {
         id: "my-activity",
-        label: "My Activity",
+        label: t("settings.layout.tab.myActivity"),
         href: "/settings/my-activity",
     },
-    { id: "security", label: "Security", href: "/settings/security" },
-    { id: "models", label: "Model Preferences", href: "/settings/models" },
+    { id: "security", label: t("settings.layout.tab.security"), href: "/settings/security" },
+    { id: "models", label: t("settings.layout.tab.models"), href: "/settings/models" },
     {
         id: "byok",
-        label: "Bring Your Own Keys",
+        label: t("settings.layout.tab.byok"),
         href: "/settings/byok",
     },
-    { id: "connectors", label: "Connectors", href: "/settings/connectors" },
+    { id: "connectors", label: t("settings.layout.tab.connectors"), href: "/settings/connectors" },
     // LiTT training: a pupil's mentor and stages, and a mentor's pupils.
-    { id: "training", label: "Formación", href: "/settings/training" },
+    { id: "training", label: t("settings.layout.tab.training"), href: "/settings/training" },
     // The organizations the person belongs to, and their invitations. Each
     // organization's own settings are a separate area, opened from here or
     // from the account menu.
     {
         id: "organizations",
-        label: "Organizations",
+        label: t("settings.layout.tab.organizations"),
         href: "/settings/organizations",
     },
-];
+    ];
+}
 
 export default function SettingsLayout({
     children,
@@ -75,7 +78,7 @@ export default function SettingsLayout({
     const isPlatformAdmin = usePlatformMe(user?.id)?.admin === true;
     const visibleTabs = useMemo(
         () =>
-            TABS.filter(
+            settingsTabs(t).filter(
                 (tab) => !(hidePrivacyData && tab.id === "privacy-data"),
             ).flatMap((tab) =>
                 // LiTT training: the firm's written criteria sit beside Formación.
@@ -135,8 +138,8 @@ export default function SettingsLayout({
 
     return (
         <SettingsShell
-            title="Settings"
-            navLabel="Settings"
+            title={t("settings.layout.settings")}
+            navLabel={t("settings.layout.settings")}
             search={<SettingsSearch entries={searchEntries} />}
             tabs={visibleTabs.map((tab) =>
                 tab.id === "organizations" && invitationCount > 0
@@ -146,9 +149,7 @@ export default function SettingsLayout({
                               <span className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-interactive px-1.5 text-xs font-semibold tabular-nums text-interactive-foreground">
                                   {invitationCount}{" "}
                                   <span className="sr-only">
-                                      {invitationCount === 1
-                                          ? "pending invitation"
-                                          : "pending invitations"}
+                                      {t("settings.layout.pendingInvitations", { invitationCount })}
                                   </span>
                               </span>
                           ),

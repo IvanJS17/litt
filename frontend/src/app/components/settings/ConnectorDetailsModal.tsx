@@ -5,6 +5,7 @@ import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { Modal } from "@/app/components/modals/Modal";
 import { LIQUID_GLASS_FLAT_CLASS, TabPillButtonUI, ToggleSwitchUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 export type ConnectorToolView = {
     id: string;
@@ -66,6 +67,7 @@ export function ConnectorDetailsModal({
     onReadOnly: (enabled: boolean) => void;
     onRequireWriteApproval?: (enabled: boolean) => void;
 }) {
+    const t = useTranslations();
     // The picked section is stored against the connector it was picked for, so
     // opening a different connector falls back to "details" without an effect
     // resetting state after the first render.
@@ -94,12 +96,12 @@ export function ConnectorDetailsModal({
         <Modal
             open={!!connector}
             onClose={onClose}
-            breadcrumbs={["Connectors", connector?.name ?? "Connector"]}
+            breadcrumbs={[t("settings.layout.tab.connectors"), connector?.name ?? t("settings.connectorDetailsModal.connector")]}
             size="lg"
             secondaryAction={
                 connector
                     ? {
-                          label: "Delete",
+                          label: t("common.delete"),
                           variant: "danger",
                           onClick: onDelete,
                           disabled: busyKey !== null,
@@ -119,7 +121,7 @@ export function ConnectorDetailsModal({
                                     active={section === tab}
                                     onClick={() => setSection(tab)}
                                 >
-                                    {tab === "details" ? "Details" : "Tools"}
+                                    {tab === "details" ? t("settings.connectorDetailsModal.details") : t("settings.connectorDetailsModal.tools")}
                                 </TabPillButtonUI>
                             ))}
                         </div>
@@ -131,7 +133,7 @@ export function ConnectorDetailsModal({
                             {connector.accountEmail && (
                                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                                     <p className="text-sm font-medium text-gray-700">
-                                        Account
+                                        {t("settings.connectorDetailsModal.account")}
                                     </p>
                                     <p className="min-w-0 text-sm text-gray-500 [overflow-wrap:anywhere]">
                                         {connector.accountEmail}
@@ -142,10 +144,10 @@ export function ConnectorDetailsModal({
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <p id={`read-only-${connector.id}`} className="text-sm font-medium text-gray-700">
-                                        Read-only
+                                        {t("settings.connectorDetailsModal.readOnly")}
                                     </p>
                                     <p id={`read-only-description-${connector.id}`} className="mt-0.5 text-xs text-gray-500">
-                                        Disable all write tools. Turn off to restore your individual tool settings.
+                                        {t("settings.connectorDetailsModal.disableAllWriteToolsTurnOff")}
                                     </p>
                                 </div>
                                 <ToggleSwitchUI
@@ -167,13 +169,12 @@ export function ConnectorDetailsModal({
                                                 id={`write-approval-${connector.id}`}
                                                 className="text-sm font-medium text-gray-700"
                                             >
-                                                Ask for permission for write
-                                                actions
+                                                {t("settings.connectorDetailsModal.askForPermissionForWriteActions")}
                                             </p>
                                             <p className="mt-0.5 text-xs text-gray-500">
                                                 {hasWriteTools || toolsLoading
-                                                    ? "LiTT asks you in the chat before running an action that changes data."
-                                                    : "This connector has no write actions right now."}
+                                                    ? t("settings.connectorDetailsModal.littAsksYouInTheChat")
+                                                    : t("settings.connectorDetailsModal.thisConnectorHasNoWriteActions")}
                                             </p>
                                         </div>
                                         <ToggleSwitchUI
@@ -196,8 +197,7 @@ export function ConnectorDetailsModal({
                             <div className="flex min-h-0 flex-1 flex-col">
                                 <div className="flex items-baseline justify-between gap-2">
                                     <FieldLabel as="p">
-                                        {toolCount}{" "}
-                                        {toolCount === 1 ? "Tool" : "Tools"}
+                                        {t("settings.connectorDetailsModal.toolcountTools", { toolCount })}
                                     </FieldLabel>
                                     <div className="mb-2 flex items-center gap-3">
                                         {reconnecting && onCancelReconnect && (
@@ -206,7 +206,7 @@ export function ConnectorDetailsModal({
                                                 onClick={onCancelReconnect}
                                                 className="rounded text-xs font-medium text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                             >
-                                                Cancel
+                                                {t("common.cancel")}
                                             </button>
                                         )}
                                         <button
@@ -221,7 +221,7 @@ export function ConnectorDetailsModal({
                                             ) : (
                                                 <RefreshCw className="h-3.5 w-3.5" />
                                             )}
-                                            Refresh
+                                            {t("settings.connectorDetailsModal.refresh")}
                                         </button>
                                     </div>
                                 </div>
@@ -276,6 +276,7 @@ function ToolList({
     busyKey: string | null;
     onToolEnabled: (toolId: string, enabled: boolean) => void;
 }) {
+    const t = useTranslations();
     const [expandedToolId, setExpandedToolId] = useState<string | null>(null);
 
     if (tools.length === 0) {
@@ -283,7 +284,7 @@ function ToolList({
             <div
                 className={`min-h-0 flex-1 rounded-lg px-3 py-3 text-sm text-gray-500 ${LIQUID_GLASS_FLAT_CLASS}`}
             >
-                No tools discovered yet.
+                {t("settings.connectorDetailsModal.noToolsDiscoveredYet")}
             </div>
         );
     }
@@ -306,7 +307,7 @@ function ToolList({
                                     }
                                     className="inline-flex h-5 w-5 items-center justify-center rounded text-gray-400 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                     aria-expanded={isExpanded}
-                                    aria-label={`${isExpanded ? "Collapse" : "Expand"} ${tool.title}`}
+                                    aria-label={t(isExpanded ? "settings.connectorDetailsModal.collapseTool" : "settings.connectorDetailsModal.expandTool", { title: tool.title })}
                                 >
                                     <ChevronDown
                                         className={`h-3.5 w-3.5 transition-transform ${
@@ -318,7 +319,7 @@ function ToolList({
                                     {tool.title}
                                     {tool.write && (
                                         <span className="ml-2 text-xs font-normal text-gray-500">
-                                            Write
+                                            {t("settings.connectorDetailsModal.write")}
                                         </span>
                                     )}
                                 </p>
@@ -326,7 +327,7 @@ function ToolList({
                                     checked={tool.enabled && !(readOnly && tool.write)}
                                     disabled={busyKey !== null || (readOnly && tool.write)}
                                     aria-busy={busy}
-                                    aria-label={`${tool.title} enabled`}
+                                    aria-label={t("settings.connectorDetailsModal.titleEnabled", { title: tool.title })}
                                     onCheckedChange={(enabled) =>
                                         onToolEnabled(tool.id, enabled)
                                     }

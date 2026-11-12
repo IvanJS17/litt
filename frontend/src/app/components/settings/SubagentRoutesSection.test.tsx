@@ -31,7 +31,7 @@ const saved = {
 
 /** A plain select stands in for the page's model dropdown. */
 const modelPicker = (value: string, onChange: (id: string) => void) => (
-  <select aria-label="Modelo" value={value} onChange={(e) => onChange(e.target.value)}>
+  <select aria-label="Model" value={value} onChange={(e) => onChange(e.target.value)}>
     <option value="">Elige un modelo</option>
     {models.map((m) => (
       <option key={m.id} value={m.id}>
@@ -57,19 +57,19 @@ describe("SubagentRoutesSection", () => {
     const route = await screen.findByRole("listitem");
     expect(within(route).getByText("rapida")).toBeInTheDocument();
     expect(within(route).getByText("Extrae datos.")).toBeInTheDocument();
-    expect(within(route).getByText("Gemini · Gemini 3.8 Flash · razonamiento según la tarea")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ninguna: usan el modelo de la conversación/ })).toBeInTheDocument();
+    expect(within(route).getByText("Gemini · Gemini 3.8 Flash · reasoning depends on the task")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /None: they use the conversation model/ })).toBeInTheDocument();
   });
 
   it("adds a route and saves the whole list", async () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Agregar ruta" }));
-    await user.type(screen.getByLabelText("Nombre"), "profunda");
-    await user.type(screen.getByLabelText("Descripción"), "Análisis jurídico cuidadoso.");
-    await user.selectOptions(screen.getByLabelText("Modelo"), "claude-opus-5-5");
-    await user.click(screen.getByRole("button", { name: "Guardar ruta" }));
+    await user.click(await screen.findByRole("button", { name: "Add route" }));
+    await user.type(screen.getByLabelText("Name"), "profunda");
+    await user.type(screen.getByLabelText("Description"), "Análisis jurídico cuidadoso.");
+    await user.selectOptions(screen.getByLabelText("Model"), "claude-opus-5-5");
+    await user.click(screen.getByRole("button", { name: "Save route" }));
 
     await waitFor(() =>
       expect(updateSubagentRoutes).toHaveBeenCalledWith({
@@ -80,20 +80,20 @@ describe("SubagentRoutesSection", () => {
         default: null,
       }),
     );
-    expect(await screen.findByText("Anthropic · Claude Opus 5.5 · razonamiento según la tarea")).toBeInTheDocument();
+    expect(await screen.findByText("Anthropic · Claude Opus 5.5 · reasoning depends on the task")).toBeInTheDocument();
   });
 
   it("refuses a name outside lowercase letters, digits and hyphens before saving", async () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Agregar ruta" }));
-    await user.type(screen.getByLabelText("Nombre"), "Profunda");
-    await user.type(screen.getByLabelText("Descripción"), "Algo.");
-    await user.selectOptions(screen.getByLabelText("Modelo"), "claude-opus-5-5");
-    await user.click(screen.getByRole("button", { name: "Guardar ruta" }));
+    await user.click(await screen.findByRole("button", { name: "Add route" }));
+    await user.type(screen.getByLabelText("Name"), "Profunda");
+    await user.type(screen.getByLabelText("Description"), "Algo.");
+    await user.selectOptions(screen.getByLabelText("Model"), "claude-opus-5-5");
+    await user.click(screen.getByRole("button", { name: "Save route" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("minúsculas");
+    expect(screen.getByRole("alert")).toHaveTextContent("lowercase");
     expect(updateSubagentRoutes).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe("SubagentRoutesSection", () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Borrar la ruta rapida" }));
+    await user.click(await screen.findByRole("button", { name: "Delete route rapida" }));
 
     await waitFor(() =>
       expect(updateSubagentRoutes).toHaveBeenCalledWith({ routes: [], default: null }),
@@ -121,15 +121,15 @@ describe("SubagentRoutesSection", () => {
     const route = await screen.findByRole("listitem");
     expect(
       within(route).getByText(
-        "retired-model-1 · no disponible: el modelo ya no se ofrece; edítala o bórrala · razonamiento según la tarea",
+        "retired-model-1 · unavailable: the model is no longer offered; edit or delete it · reasoning depends on the task",
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "vieja (no disponible)", pressed: true }),
+      screen.getByRole("button", { name: "vieja (unavailable)", pressed: true }),
     ).toBeInTheDocument();
   });
 
-  it("names the reasoning level in Spanish, in the list and in the editor", async () => {
+  it("names the reasoning level, in the list and in the editor", async () => {
     vi.mocked(getSubagentRoutes).mockResolvedValue({
       routes: [{ ...saved.routes[0], reasoning: "xhigh" }],
       default: null,
@@ -138,13 +138,13 @@ describe("SubagentRoutesSection", () => {
     renderSection();
 
     expect(
-      await screen.findByText("Gemini · Gemini 3.8 Flash · razonamiento muy alto"),
+      await screen.findByText("Gemini · Gemini 3.8 Flash · reasoning very high"),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Editar la ruta rapida" }));
-    const options = within(screen.getByLabelText("Razonamiento"))
+    await user.click(screen.getByRole("button", { name: "Edit route rapida" }));
+    const options = within(screen.getByLabelText("Reasoning"))
       .getAllByRole("option")
       .map((o) => o.textContent);
-    expect(options).toEqual(["Según la tarea", "Ninguno", "Bajo", "Medio", "Alto", "Muy alto", "Máximo"]);
+    expect(options).toEqual(["Depends on the task", "None", "Low", "Medium", "High", "Very high", "Maximum"]);
   });
 
   it("reports a failed load through the shared error popup", async () => {
@@ -158,7 +158,7 @@ describe("SubagentRoutesSection", () => {
         expect.objectContaining({ action: "load the subagent routes" }),
       ),
     );
-    expect(screen.getByText(/No se pudieron cargar las rutas de subagentes/)).toBeInTheDocument();
+    expect(screen.getByText(/Subagent routes couldn't be loaded/)).toBeInTheDocument();
   });
 
   it("keeps the saved routes and reports the failure when a save fails", async () => {
@@ -166,7 +166,7 @@ describe("SubagentRoutesSection", () => {
     const user = userEvent.setup();
     renderSection();
 
-    await user.click(await screen.findByRole("button", { name: "Borrar la ruta rapida" }));
+    await user.click(await screen.findByRole("button", { name: "Delete route rapida" }));
 
     await waitFor(() => expect(notifyError).toHaveBeenCalled());
     expect(within(screen.getByRole("listitem")).getByText("rapida")).toBeInTheDocument();

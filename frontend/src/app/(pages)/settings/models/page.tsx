@@ -40,8 +40,10 @@ import { SETTINGS_CONTROL_CLASS } from "@/app/components/settings/SettingsTextIn
 import { useOllamaModels } from "@/app/hooks/useOllamaModels";
 import { useConfiguredModels } from "@/app/hooks/useConfiguredModels";
 import { SubagentRoutesSection } from "@/app/components/settings/SubagentRoutesSection";
+import { useTranslations } from "next-intl";
 
 export default function ModelPreferencesPage() {
+  const t = useTranslations();
   const { profile, updateModelPreference } = useUserProfile();
   const ollamaModels = useOllamaModels();
   const configuredModels = useConfiguredModels();
@@ -106,14 +108,13 @@ export default function ModelPreferencesPage() {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="model-preferences">Model Preferences</SettingsHeading>
+        <SettingsHeading id="model-preferences">{t("settings.models.modelPreferences")}</SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <div className="space-y-1">
-              <SettingsLabel>Chat title generation</SettingsLabel>
+              <SettingsLabel>{t("settings.models.chatTitleGeneration")}</SettingsLabel>
               <SettingsDescription>
-                By default, titles use a low cost model from the chat
-                provider. Choose a model here to override that.
+                {t("settings.models.byDefaultTitlesUseALow")}
               </SettingsDescription>
             </div>
             <ModelPreferenceDropdown
@@ -128,16 +129,15 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "titleModel"}
               isSaved={savedField === "titleModel"}
-              emptyOptionLabel="Automatic — same provider as chat"
+              emptyOptionLabel={t("settings.models.automaticSameProviderAsChat")}
               onChange={(id) => handlePreferenceChange("titleModel", id)}
             />
           </SettingsRow>
           <SettingsRow layout="stacked">
             <div className="space-y-1">
-              <SettingsLabel>Tabular review model</SettingsLabel>
+              <SettingsLabel>{t("settings.models.tabularReviewModel")}</SettingsLabel>
               <SettingsDescription>
-                Preselected when creating a review. Each review stores its own
-                model and can be changed separately.
+                {t("settings.models.preselectedWhenCreatingAReviewEach")}
               </SettingsDescription>
             </div>
             <ModelPreferenceDropdown
@@ -152,17 +152,15 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "tabularModel"}
               isSaved={savedField === "tabularModel"}
-              emptyOptionLabel="No default model"
+              emptyOptionLabel={t("settings.models.noDefaultModel")}
               onChange={(id) => handlePreferenceChange("tabularModel", id)}
             />
           </SettingsRow>
           <SettingsRow layout="stacked">
             <div className="space-y-1">
-              <SettingsLabel>Memory curation model</SettingsLabel>
+              <SettingsLabel>{t("settings.models.memoryCurationModel")}</SettingsLabel>
               <SettingsDescription>
-                Used after conversations to identify durable information worth
-                keeping. By default, memory uses the model selected for the
-                chat.
+                {t("settings.models.usedAfterConversationsToIdentifyDurable")}
               </SettingsDescription>
             </div>
             <ModelPreferenceDropdown
@@ -179,7 +177,7 @@ export default function ModelPreferencesPage() {
               apiKeys={profile?.apiKeys}
               isSaving={savingField === "memoryCuratorModel"}
               isSaved={savedField === "memoryCuratorModel"}
-              emptyOptionLabel="Automatic — use chat model"
+              emptyOptionLabel={t("settings.models.automaticUseChatModel")}
               onChange={(id) =>
                 handlePreferenceChange("memoryCuratorModel", id)
               }
@@ -189,11 +187,9 @@ export default function ModelPreferencesPage() {
       </section>
 
       <section className="space-y-3" aria-labelledby="subagents-heading">
-        <SettingsHeading id="subagents-heading">Subagentes</SettingsHeading>
+        <SettingsHeading id="subagents-heading">{t("settings.models.subagentes")}</SettingsHeading>
         <SettingsDescription>
-          LiTT puede pasar partes de una tarea a subagentes que trabajan por
-          separado y le reportan. Configura las rutas de modelo que pueden
-          usar; cada resultado indica la ruta y el modelo con que corrió.
+          {t("settings.models.littPuedePasarPartesDeUna")}
         </SettingsDescription>
         <SubagentRoutesSection
           models={subagentModelOptions}
@@ -202,7 +198,7 @@ export default function ModelPreferencesPage() {
               value={value}
               options={subagentModelOptions}
               apiKeys={profile?.apiKeys}
-              emptyOptionLabel="Elige un modelo"
+              emptyOptionLabel={t("settings.models.chooseAModel")}
               onChange={onChange}
             />
           )}
@@ -229,6 +225,7 @@ function ModelPreferenceDropdown({
   isSaved?: boolean;
   emptyOptionLabel: string;
 }) {
+  const t = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const availableOptions = options.filter((model) => {
     if (model.source === "Configured") return true;
@@ -252,7 +249,7 @@ function ModelPreferenceDropdown({
     <Dropdown onOpenChange={setIsOpen}>
       <PreferenceTrigger
         label={
-          !value ? emptyOptionLabel : (selected?.label ?? "Select a model")
+          !value ? emptyOptionLabel : (selected?.label ?? t("settings.models.selectAModel"))
         }
         isOpen={isOpen}
         isSaving={isSaving}

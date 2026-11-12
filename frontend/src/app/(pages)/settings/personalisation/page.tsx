@@ -15,14 +15,17 @@ import { SettingsPersonalisationFields } from "@/app/components/settings/Setting
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import type { PersonalisationDetails } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
+import type { Translate } from "@/i18n/Translate";
 
 function fieldStatus(
+  t: Translate,
   field: PersonalisationField,
   savingField: PersonalisationField | null,
   savedField: PersonalisationField | null,
 ) {
-  if (savingField === field) return "Saving...";
-  if (savedField === field) return "Saved";
+  if (savingField === field) return t("settings.home.saving");
+  if (savedField === field) return t("settings.home.saved");
   return null;
 }
 
@@ -40,6 +43,7 @@ function PersonalisationForm({
 }: {
   initial: ReturnType<typeof personalisationInitialValues>;
 }) {
+  const t = useTranslations();
   const { updatePersonalisation } = useUserProfile();
   const [pendingField, setPendingField] = useState<PersonalisationField | null>(
     null,
@@ -139,16 +143,15 @@ function PersonalisationForm({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <SettingsHeading id="your-background">Your background</SettingsHeading>
+        <SettingsHeading id="your-background">{t("settings.personalisation.yourBackground")}</SettingsHeading>
         <SettingsDescription>
-          Tell LiTT about your role and practice so responses can be tailored to
-          your professional context.
+          {t("settings.personalisation.tellLittAboutYourRoleAnd")}
         </SettingsDescription>
         <GlassCardUI>
           <SettingsPersonalisationFields
             form={form}
-            practiceAreasAriaLabel="Practice areas"
-            statusFor={(field) => fieldStatus(field, savingField, savedField)}
+            practiceAreasAriaLabel={t("settings.personalisation.practiceAreas")}
+            statusFor={(field) => fieldStatus(t, field, savingField, savedField)}
           />
 
           {form.validationError && (

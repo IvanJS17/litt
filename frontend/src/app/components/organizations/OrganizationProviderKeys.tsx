@@ -13,6 +13,7 @@ import {
 import {
   MODEL_API_KEY_FIELDS,
   ModelProviderIcon,
+  byokProvider,
   type ModelApiKeyField,
 } from "@/app/components/settings/modelProviders";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
@@ -32,6 +33,7 @@ import {
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import type { RouterSlug } from "@mike/client";
 import { GlassCardUI, PillButtonUI, ToggleSwitchUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 // An organization's model providers: the keys its work runs on, the models
 // each may run, and whether a member's own key may stand in where it has
@@ -47,9 +49,6 @@ type PendingMfa =
   | { kind: "policy"; allowed: boolean }
   | { kind: "models"; provider: RouterSlug; models: string[] };
 
-const LOAD_ERROR = "The organization's model providers could not be loaded.";
-const UPDATE_ERROR = "The provider could not be updated. Please try again.";
-const POLICY_ERROR = "The setting could not be updated. Please try again.";
 
 export function OrganizationProviderKeys({
   orgId,
@@ -58,6 +57,7 @@ export function OrganizationProviderKeys({
   orgId: string;
   orgName: string;
 }) {
+  const t = useTranslations();
   const { refreshOrgApiKeys } = useWorkspace();
   const [settings, setSettings] = useState<OrgApiKeySettings | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -72,9 +72,9 @@ export function OrganizationProviderKeys({
     try {
       setSettings(await getOrgApiKeys(orgId));
     } catch (error) {
-      setLoadError(userFacingApiError(error, LOAD_ERROR));
+      setLoadError(userFacingApiError(error, t("organizations.organizationProviderKeys.loadError")));
     }
-  }, [orgId]);
+  }, [orgId, t]);
 
   useEffect(() => {
     void load();
@@ -107,7 +107,7 @@ export function OrganizationProviderKeys({
     } catch (error) {
       if (isMfaRequiredError(error))
         setPendingMfa({ kind: "toggle", provider, enabled });
-      else setActionError(userFacingApiError(error, UPDATE_ERROR));
+      else setActionError(userFacingApiError(error, t("organizations.organizationProviderKeys.updateError")));
     } finally {
       setBusy(null);
     }
@@ -119,7 +119,7 @@ export function OrganizationProviderKeys({
       applied(await setOrgPersonalApiKeysAllowed(orgId, allowed));
     } catch (error) {
       if (isMfaRequiredError(error)) setPendingMfa({ kind: "policy", allowed });
-      else setActionError(userFacingApiError(error, POLICY_ERROR));
+      else setActionError(userFacingApiError(error, t("organizations.organizationProviderKeys.policyError")));
     } finally {
       setBusy(null);
     }
@@ -194,20 +194,20 @@ export function OrganizationProviderKeys({
           ) : !canManage ? (
             // Read-only: say what the switch would say, as plain text.
             <span className="text-sm text-gray-500">
-              {isEnabled(field.provider) ? "On" : "Off"}
+              {isEnabled(field.provider) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
             </span>
           ) : saved ? (
-            renderToggle(field, `${field.name} provider`)
+            renderToggle(field, t("organizations.organizationProviderKeys.nameProvider", { name: field.name }))
           ) : (
             <PillButtonUI
               tone="blue"
               size="sm"
               disabled={blocked}
-              aria-label={`Add ${field.name}`}
+              aria-label={t("organizations.organizationProviderKeys.addName", { name: field.name })}
               aria-haspopup="dialog"
               onClick={open}
             >
-              Add
+              {t("organizations.organizationProviderKeys.add")}
             </PillButtonUI>
           )
         }
@@ -220,7 +220,7 @@ export function OrganizationProviderKeys({
       <div className="space-y-3" role="alert">
         <SettingsDescription>{loadError}</SettingsDescription>
         <PillButtonUI tone="white" size="sm" onClick={() => void load()}>
-          Try again
+          {t("organizations.organizationProviderKeys.tryAgain")}
         </PillButtonUI>
       </div>
     );
@@ -241,15 +241,15 @@ export function OrganizationProviderKeys({
           className="space-y-3"
         >
           <SettingsHeading id="org-providers-saved">
-            Organization Providers
+            {t("organizations.organizationProviderKeys.organizationProviders")}
           </SettingsHeading>
           {loading ? (
             <span className="block h-5 w-56 max-w-full animate-pulse rounded bg-gray-200" />
           ) : savedFields.length === 0 ? (
             <SettingsDescription>
               {canManage
-                ? "No providers yet. Add an API key to one of the providers below."
-                : "This organization has not set up a model provider yet."}
+                ? t("organizations.organizationProviderKeys.noProvidersYetAddAnApi")
+                : t("organizations.organizationProviderKeys.thisOrganizationHasNotSetUp")}
             </SettingsDescription>
           ) : (
             <div className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2">
@@ -267,11 +267,11 @@ export function OrganizationProviderKeys({
             className="space-y-3"
           >
             <SettingsHeading id="org-providers-available">
-              Available Providers
+              {t("organizations.organizationProviderKeys.availableProviders")}
             </SettingsHeading>
             {availableFields.length === 0 ? (
               <SettingsDescription>
-                Every provider has a key saved.
+                {t("organizations.organizationProviderKeys.everyProviderHasAKeySaved")}
               </SettingsDescription>
             ) : (
               <div
@@ -286,16 +286,16 @@ export function OrganizationProviderKeys({
 
         <section aria-labelledby="org-providers-personal" className="space-y-3">
           <SettingsHeading id="org-providers-personal">
-            Members&rsquo; Own Keys
+            {t("organizations.organizationProviderKeys.membersOwnKeys")}
           </SettingsHeading>
           <GlassCardUI>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
               <div className="min-w-0 flex-[1_1_16rem] space-y-1">
-                <SettingsLabel>Allow members&rsquo; own keys</SettingsLabel>
+                <SettingsLabel>{t("organizations.organizationProviderKeys.allowMembersOwnKeys")}</SettingsLabel>
                 <SettingsDescription>
                   {allowPersonal
-                    ? "A member's own key is used for a provider the organization has not set up."
-                    : "A member's own keys are never used for work in this organization."}
+                    ? t("organizations.organizationProviderKeys.aMembersOwnKeyIsUsed")
+                    : t("organizations.organizationProviderKeys.aMembersOwnKeysAreNever")}
                 </SettingsDescription>
               </div>
               <div className="ml-auto flex shrink-0 items-center">
@@ -306,14 +306,14 @@ export function OrganizationProviderKeys({
                     checked={allowPersonal}
                     disabled={busy !== null || pendingMfa !== null}
                     aria-busy={busy === "policy"}
-                    aria-label="Allow members' own keys"
+                    aria-label={t("organizations.organizationProviderKeys.allowMembersOwnKeys2")}
                     onCheckedChange={(allowed) =>
                       void setPersonalKeysAllowed(allowed)
                     }
                   />
                 ) : (
                   <span className="text-sm text-gray-500">
-                    {allowPersonal ? "On" : "Off"}
+                    {allowPersonal ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
                   </span>
                 )}
               </div>
@@ -324,7 +324,7 @@ export function OrganizationProviderKeys({
 
       {canManage ? (
         <ByokProviderModal
-          provider={selected}
+          provider={selected ? byokProvider(t, selected) : null}
           store={{
             hasSavedKey: selected ? hasOrgKey(selected.provider) : false,
             settings: settings?.keys.settings,
@@ -337,12 +337,12 @@ export function OrganizationProviderKeys({
               save: saveModels,
               workspace: orgId,
               description:
-                "Add the models this organization's key may run. Members see them in model selectors.",
+                t("organizations.organizationProviderKeys.addTheModelsThisOrganizationsKey"),
             },
           }}
           enabledToggle={
             selected && hasOrgKey(selected.provider)
-              ? renderToggle(selected, `Use ${selected.name}`)
+              ? renderToggle(selected, t("organizations.organizationProviderKeys.useName", { name: selected.name }))
               : undefined
           }
           onClose={() => setSelectedProvider(null)}
@@ -374,7 +374,7 @@ export function OrganizationProviderKeys({
       />
       <WarningPopup
         open={actionError !== null}
-        title="Provider update failed"
+        title={t("organizations.organizationProviderKeys.providerUpdateFailed")}
         message={actionError}
         onClose={() => setActionError(null)}
       />

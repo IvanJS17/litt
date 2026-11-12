@@ -65,33 +65,48 @@ import { notifySuccess, userFacingApiError } from "@/app/lib/userFacingError";
 import { cn } from "@/app/lib/utils";
 import { DropdownItem } from "@mike/ui";
 import { useIdSet } from "@/app/hooks/useIdSet";
+import { useFormatter, useTranslations } from "next-intl";
+import type { SettingsKey, Translate } from "@/i18n/Translate";
 
 type Kind = OrgDepartureItem["kind"];
 
 /** The types of work, in the order a departure lists them. */
-const KIND_GROUPS: { kind: Kind; label: string; one: string; many: string }[] =
-  [
-    { kind: "project", label: "Projects", one: "project", many: "projects" },
-    {
-      kind: "workflow",
-      label: "Workflows",
-      one: "workflow",
-      many: "workflows",
-    },
-    { kind: "chat", label: "Chats", one: "chat", many: "chats" },
-    {
-      kind: "tabular_review",
-      label: "Tabular reviews",
-      one: "tabular review",
-      many: "tabular reviews",
-    },
-    {
-      kind: "document",
-      label: "Library files",
-      one: "library file",
-      many: "library files",
-    },
-  ];
+const KIND_GROUPS: { kind: Kind }[] = [
+  { kind: "project" },
+  { kind: "workflow" },
+  { kind: "chat" },
+  { kind: "tabular_review" },
+  { kind: "document" },
+];
+
+/** The catalog messages each type of work reads. */
+const KIND_KEYS = {
+  project: {
+    label: "organizations.organizationDepartedMembers.kind.project.label",
+    owned: "organizations.organizationDepartedMembers.kind.project.owned",
+    ownedName: "organizations.organizationDepartedMembers.kind.project.ownedName",
+  },
+  workflow: {
+    label: "organizations.organizationDepartedMembers.kind.workflow.label",
+    owned: "organizations.organizationDepartedMembers.kind.workflow.owned",
+    ownedName: "organizations.organizationDepartedMembers.kind.workflow.ownedName",
+  },
+  chat: {
+    label: "organizations.organizationDepartedMembers.kind.chat.label",
+    owned: "organizations.organizationDepartedMembers.kind.chat.owned",
+    ownedName: "organizations.organizationDepartedMembers.kind.chat.ownedName",
+  },
+  tabular_review: {
+    label: "organizations.organizationDepartedMembers.kind.tabularReview.label",
+    owned: "organizations.organizationDepartedMembers.kind.tabularReview.owned",
+    ownedName: "organizations.organizationDepartedMembers.kind.tabularReview.ownedName",
+  },
+  document: {
+    label: "organizations.organizationDepartedMembers.kind.document.label",
+    owned: "organizations.organizationDepartedMembers.kind.document.owned",
+    ownedName: "organizations.organizationDepartedMembers.kind.document.ownedName",
+  },
+} as const satisfies Record<Kind, Record<string, SettingsKey>>;
 
 /** A deadline this close is drawn in the warning colour. */
 const SOON_DAYS = 7;
@@ -103,49 +118,48 @@ interface Target {
   label: string;
 }
 
-const count = (n: number, one: string, many = `${one}s`) =>
-  `${n} ${n === 1 ? one : many}`;
+type DateFormatter = (value: string) => string;
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-/** The date, and how far off it is. */
-function deadline(expiresAt: string, now: number) {
+function deadline(t: Translate, formatDate: DateFormatter, expiresAt: string, now: number) {
   const days = Math.ceil((new Date(expiresAt).getTime() - now) / DAY_MS);
   const distance =
-    days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+    days <= 0
+      ? t("organizations.organizationDepartedMembers.deadline.today")
+      : days === 1
+        ? t("organizations.organizationDepartedMembers.deadline.tomorrow")
+        : t("organizations.organizationDepartedMembers.deadline.inDays", { days });
   return {
-    text: `${formatDate(expiresAt)} · ${distance}`,
+    text: t("organizations.organizationDepartedMembers.deadline.line", {
+      date: formatDate(expiresAt),
+      distance,
+    }),
     soon: days <= SOON_DAYS,
   };
 }
 
 /** What a project or workflow holds; nothing for the other kinds. */
-function contentsLabel(item: OrgDepartureItem) {
+function contentsLabel(t: Translate, item: OrgDepartureItem) {
   if (!item.contents) return "";
   const parts = [
-    item.contents.documents > 0 && count(item.contents.documents, "document"),
-    item.contents.chats > 0 && count(item.contents.chats, "chat"),
+    item.contents.documents > 0 &&
+      t("organizations.organizationDepartedMembers.itemContents.documents", { count: item.contents.documents }),
+    item.contents.chats > 0 &&
+      t("organizations.organizationDepartedMembers.itemContents.chats", { count: item.contents.chats }),
     item.contents.tabular_reviews > 0 &&
-      count(item.contents.tabular_reviews, "review"),
+      t("organizations.organizationDepartedMembers.itemContents.reviews", { count: item.contents.tabular_reviews }),
   ].filter(Boolean);
   if (parts.length) return parts.join(", ");
   // A workflow with no files of its own still has its steps.
-  return item.kind === "project" ? "Empty" : "";
+  return item.kind === "project"
+    ? t("organizations.organizationDepartedMembers.itemContents.empty")
+    : "";
 }
 
 /** A deleted account leaves no name behind. */
-const departedName = (departure: OrgDeparture) =>
+const departedName = (t: Translate, departure: OrgDeparture) =>
   departure.member?.display_name ||
   departure.member?.email ||
-  "Former member";
+  t("organizations.organizationDepartedMembers.formerMember");
 
 const ICON_CLASS = "mr-2 h-4 w-4 shrink-0";
 
@@ -214,6 +228,13 @@ export function OrganizationDepartedMembers({
   search: string;
   renderToolbar: (actions?: ReactNode) => ReactNode;
 }) {
+  const t = useTranslations();
+  const format = useFormatter();
+  const formatDate: DateFormatter = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return format.dateTime(date, { day: "numeric", month: "short", year: "numeric" });
+  };
   const [list, setList] = useState<OrgDepartureList | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Every row starts closed: a departure opens into its types of work, and
@@ -243,10 +264,10 @@ export function OrganizationDepartedMembers({
     } catch (error) {
       if (ticket !== requestRef.current) return;
       setLoadError(
-        userFacingApiError(error, "Could not load departed members."),
+        userFacingApiError(error, t("organizations.organizationDepartedMembers.couldNotLoadDepartedMembers")),
       );
     }
-  }, [orgId]);
+  }, [orgId, t]);
 
   useEffect(() => {
     void load();
@@ -311,7 +332,7 @@ export function OrganizationDepartedMembers({
     return selected.length > target.ids.length && isSelected(target.ids)
       ? {
           ids: selected,
-          label: `the ${count(selected.length, "selected item")}`,
+          label: t("organizations.organizationDepartedMembers.selectedItems", { count: selected.length }),
         }
       : target;
   }
@@ -343,15 +364,17 @@ export function OrganizationDepartedMembers({
       setSelectedIds([]);
       if (result.unresolved > 0)
         setFailure(
-          `${count(result.unresolved, "item")} could not be reassigned: the recovery period has ended, or the member is no longer in the organization.`,
+          t("organizations.organizationDepartedMembers.unresolvedReassign", { count: result.unresolved }),
         );
       else
         notifySuccess(
-          `Reassigned to ${owner?.display_name || owner?.email || "the selected member"}.`,
+          t("organizations.organizationDepartedMembers.reassignedTo", {
+            name: owner?.display_name || owner?.email || t("organizations.organizationDepartedMembers.theSelectedMember"),
+          }),
         );
       await load();
     } catch (error) {
-      setFailure(userFacingApiError(error, "Could not reassign this work."));
+      setFailure(userFacingApiError(error, t("organizations.organizationDepartedMembers.couldNotReassignThisWork")));
     } finally {
       setWorking(false);
     }
@@ -365,14 +388,14 @@ export function OrganizationDepartedMembers({
       setSelectedIds([]);
       if (result.unresolved > 0)
         setFailure(
-          `${count(result.unresolved, "item")} could not be deleted. Try again.`,
+          t("organizations.organizationDepartedMembers.unresolvedDelete", { count: result.unresolved }),
         );
-      else notifySuccess("Archived work deleted.");
+      else notifySuccess(t("organizations.organizationDepartedMembers.archivedWorkDeleted"));
       await load();
     } catch (error) {
       setDeleting(null);
       if (isMfaRequiredError(error)) setMfaTarget(target);
-      else setFailure(userFacingApiError(error, "Could not delete this work."));
+      else setFailure(userFacingApiError(error, t("organizations.organizationDepartedMembers.couldNotDeleteThisWork")));
     } finally {
       setWorking(false);
     }
@@ -391,7 +414,7 @@ export function OrganizationDepartedMembers({
           }}
         >
           <UserRoundCheck className="h-3.5 w-3.5" />
-          {onSelection ? "Reassign selected…" : "Reassign…"}
+          {onSelection ? t("organizations.organizationDepartedMembers.reassignSelected") : t("organizations.organizationDepartedMembers.reassign")}
         </DropdownItem>
         <DropdownItem
           variant="destructive"
@@ -401,7 +424,7 @@ export function OrganizationDepartedMembers({
           }}
         >
           <Trash2 className="h-3.5 w-3.5" />
-          {onSelection ? "Delete selected" : "Delete"}
+          {onSelection ? t("organizations.organizationDepartedMembers.deleteSelected") : t("common.delete")}
         </DropdownItem>
       </>
     );
@@ -412,12 +435,12 @@ export function OrganizationDepartedMembers({
       title={title}
       items={[
         {
-          label: "Reassign…",
+          label: t("organizations.organizationDepartedMembers.reassign"),
           icon: UserRoundCheck,
           onSelect: () => openReassign(target),
         },
         {
-          label: "Delete",
+          label: t("common.delete"),
           icon: Trash2,
           variant: "danger",
           onSelect: () => openDelete(target),
@@ -452,7 +475,7 @@ export function OrganizationDepartedMembers({
               renderMenuItems(
                 {
                   ids: selected,
-                  label: `the ${count(selected.length, "selected item")}`,
+                  label: t("organizations.organizationDepartedMembers.selectedItems", { count: selected.length }),
                 },
                 close,
               )
@@ -468,10 +491,10 @@ export function OrganizationDepartedMembers({
               {loading ? (
                 <SkeletonCheckbox />
               ) : (
-                checkbox(visibleIds, "Select all archived work")
+                checkbox(visibleIds, t("organizations.organizationDepartedMembers.selectAllArchivedWork"))
               )}
               <span className="mr-1">
-                Name
+                {t("organizations.organizationDepartedMembers.name")}
                 {list && !loadError ? (
                   <>
                     {" "}
@@ -482,10 +505,10 @@ export function OrganizationDepartedMembers({
                 ) : null}
               </span>
             </TableStickyCell>
-            <TableHeaderCell className="ml-auto w-64">Email</TableHeaderCell>
-            <TableHeaderCell className="w-56">Contents</TableHeaderCell>
-            <TableHeaderCell className="w-32">Left</TableHeaderCell>
-            <TableHeaderCell className="w-48">Deletes</TableHeaderCell>
+            <TableHeaderCell className="ml-auto w-64">{t("organizations.organizationDepartedMembers.email")}</TableHeaderCell>
+            <TableHeaderCell className="w-56">{t("organizations.organizationDepartedMembers.contents")}</TableHeaderCell>
+            <TableHeaderCell className="w-32">{t("organizations.organizationDepartedMembers.left")}</TableHeaderCell>
+            <TableHeaderCell className="w-48">{t("organizations.organizationDepartedMembers.deletes")}</TableHeaderCell>
             <TableHeaderCell className="w-10" />
           </TableHeaderRow>
         }
@@ -517,7 +540,7 @@ export function OrganizationDepartedMembers({
           <TableEmptyState>
             <EmptyState
               icon={<OrganizationSkeuoIcon />}
-              title="Departed members"
+              title={t("organizations.organizationDepartedMembers.departedMembers")}
               description={loadError}
               tone="error"
               action={
@@ -530,7 +553,7 @@ export function OrganizationDepartedMembers({
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   <Loader2 className="h-3.5 w-3.5" />
-                  Try again
+                  {t("organizations.organizationDepartedMembers.tryAgain")}
                 </button>
               }
             />
@@ -539,34 +562,35 @@ export function OrganizationDepartedMembers({
           <TableEmptyState>
             <EmptyState
               icon={<OrganizationSkeuoIcon />}
-              title="Departed members"
-              description="No work is waiting for a decision. Private work a member leaves behind is kept here for 30 days, then permanently deleted."
+              title={t("organizations.organizationDepartedMembers.departedMembers")}
+              description={t("organizations.organizationDepartedMembers.noWorkIsWaitingForA")}
             />
           </TableEmptyState>
         ) : departures.length === 0 ? (
           <TableEmptyState>
             <p className="text-sm text-gray-400">
-              No departed members or archived work match this search.
+              {t("organizations.organizationDepartedMembers.noDepartedMembersOrArchivedWork")}
             </p>
           </TableEmptyState>
         ) : (
           <TableBody>
             {departures.map((departure) => {
-              const name = departedName(departure);
-              const possessive = departure.member
-                ? `${name}'s`
-                : "this former member's";
+              const name = departedName(t, departure);
+              const possessive = {
+                named: departure.member ? "yes" : "no",
+                name,
+              };
               const ids = departure.items.map((item) => item.id);
               const target: Target = {
                 ids,
                 label: departure.member
-                  ? `everything ${name} left`
-                  : "everything this former member left",
+                  ? t("organizations.organizationDepartedMembers.everythingNameLeft", { name })
+                  : t("organizations.organizationDepartedMembers.everythingThisFormerMemberLeft"),
               };
               // A search opens what it found, so a match is never hidden
               // inside a closed row.
               const open = !!query || openDepartures.has(departure.key);
-              const due = deadline(departure.expires_at, now);
+              const due = deadline(t, formatDate, departure.expires_at, now);
               const everySelected = isSelected(ids);
               return [
                 <TableRow
@@ -584,14 +608,14 @@ export function OrganizationDepartedMembers({
                     onSelectionChange={() => toggle(ids)}
                     selectionIndicator={checkbox(
                       ids,
-                      `Select everything ${name} left`,
+                      t("organizations.organizationDepartedMembers.selectEverythingNameLeft", { name }),
                     )}
                     label={
                       <span className="flex min-w-0 items-center">
                         <button
                           type="button"
                           aria-label={
-                            open ? `Collapse ${name}` : `Expand ${name}`
+                            open ? t("organizations.organizationDepartedMembers.collapseName", { name }) : t("organizations.organizationDepartedMembers.expandName", { name })
                           }
                           onClick={() =>
                             toggleIn(setOpenDepartures, departure.key)
@@ -617,10 +641,10 @@ export function OrganizationDepartedMembers({
                   <TableCell className="ml-auto w-64">
                     {departure.member
                       ? departure.member.email || "—"
-                      : "Account deleted"}
+                      : t("organizations.organizationDepartedMembers.accountDeleted")}
                   </TableCell>
                   <TableCell className="w-56">
-                    {count(departure.items.length, "item")}
+                    {t("organizations.organizationDepartedMembers.itemCount", { count: departure.items.length })}
                   </TableCell>
                   <TableCell className="w-32">
                     {formatDate(departure.departed_at)}
@@ -631,7 +655,7 @@ export function OrganizationDepartedMembers({
                     {due.text}
                   </TableCell>
                   <TableCell className="flex w-10 justify-end overflow-visible">
-                    {rowMenu(target, `Actions for ${name}`)}
+                    {rowMenu(target, t("organizations.organizationDepartedMembers.actionsFor", { name }))}
                   </TableCell>
                 </TableRow>,
                 ...(open
@@ -644,11 +668,11 @@ export function OrganizationDepartedMembers({
                       const groupIds = items.map((item) => item.id);
                       const groupTarget: Target = {
                         ids: groupIds,
-                        label: `${possessive} ${count(items.length, group.one, group.many)}`,
+                        label: t(KIND_KEYS[group.kind].owned, { ...possessive, count: items.length }),
                       };
                       const groupOpen = !!query || openGroups.has(groupKey);
                       const groupSelected = isSelected(groupIds);
-                      const groupName = `${possessive} ${group.many}`;
+                      const groupName = t(KIND_KEYS[group.kind].ownedName, possessive);
                       return [
                         <TableRow
                           key={groupKey}
@@ -669,7 +693,7 @@ export function OrganizationDepartedMembers({
                             onSelectionChange={() => toggle(groupIds)}
                             selectionIndicator={checkbox(
                               groupIds,
-                              `Select ${groupName}`,
+                              t("organizations.organizationDepartedMembers.selectName", { name: groupName }),
                             )}
                             label={
                               <span
@@ -682,8 +706,8 @@ export function OrganizationDepartedMembers({
                                   type="button"
                                   aria-label={
                                     groupOpen
-                                      ? `Collapse ${groupName}`
-                                      : `Expand ${groupName}`
+                                      ? t("organizations.organizationDepartedMembers.collapseGroupname", { groupName })
+                                      : t("organizations.organizationDepartedMembers.expandGroupname", { groupName })
                                   }
                                   onClick={() =>
                                     toggleIn(setOpenGroups, groupKey)
@@ -698,7 +722,7 @@ export function OrganizationDepartedMembers({
                                 </button>
                                 <KindIcon kind={group.kind} open={groupOpen} />
                                 <span className="truncate text-xs text-gray-700">
-                                  {group.label}{" "}
+                                  {t(KIND_KEYS[group.kind].label)}{" "}
                                   <span className="text-gray-400">
                                     ({items.length})
                                   </span>
@@ -711,7 +735,7 @@ export function OrganizationDepartedMembers({
                           <TableCell className="w-32" />
                           <TableCell className="w-48" />
                           <TableCell className="flex w-10 justify-end overflow-visible">
-                            {rowMenu(groupTarget, `Actions for ${groupName}`)}
+                            {rowMenu(groupTarget, t("organizations.organizationDepartedMembers.actionsFor", { name: groupName }))}
                           </TableCell>
                         </TableRow>,
                         ...(groupOpen
@@ -754,18 +778,18 @@ export function OrganizationDepartedMembers({
                                     }
                                     selected={itemSelected}
                                     onSelectionChange={() => toggle([item.id])}
-                                    checkboxTitle={`Select ${item.title}`}
+                                    checkboxTitle={t("organizations.organizationDepartedMembers.selectName", { name: item.title })}
                                   />
                                   <TableCell className="ml-auto w-64" />
                                   <TableCell className="w-56">
-                                    {contentsLabel(item)}
+                                    {contentsLabel(t, item)}
                                   </TableCell>
                                   <TableCell className="w-32" />
                                   <TableCell className="w-48" />
                                   <TableCell className="flex w-10 justify-end overflow-visible">
                                     {rowMenu(
                                       itemTarget,
-                                      `Actions for ${item.title}`,
+                                      t("organizations.organizationDepartedMembers.actionsFor", { name: item.title }),
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -779,8 +803,7 @@ export function OrganizationDepartedMembers({
             })}
             {list.truncated ? (
               <p className="px-3 py-3 text-xs text-gray-400">
-                Only the work that is deleted soonest is listed. The rest
-                appears as this is reassigned or deleted.
+                {t("organizations.organizationDepartedMembers.onlyTheWorkThatIsDeleted")}
               </p>
             ) : null}
           </TableBody>
@@ -792,34 +815,37 @@ export function OrganizationDepartedMembers({
         onClose={() => {
           if (!working) setReassigning(null);
         }}
-        breadcrumbs={["Organization", "Departed members", "Reassign"]}
+        breadcrumbs={[
+          t("organizations.organizationSettingsShell.organization"),
+          t("organizations.organizationDepartedMembers.breadcrumb.departedMembers"),
+          t("organizations.organizationDepartedMembers.breadcrumb.reassign"),
+        ]}
         size="sm"
         cancelAction={{
-          label: "Cancel",
+          label: t("common.cancel"),
           disabled: working,
           onClick: () => setReassigning(null),
         }}
         primaryAction={{
-          label: working ? "Reassigning..." : "Reassign",
+          label: working ? t("organizations.organizationDepartedMembers.reassigning") : t("organizations.organizationDepartedMembers.reassign2"),
           disabled: working || !successor,
           onClick: () => void reassign(),
         }}
       >
         <div className="space-y-4 pb-4">
           <p className="text-sm text-gray-700 [overflow-wrap:anywhere]">
-            Choose who takes over {reassigning?.label}. Projects and workflows
-            keep their contents, and the work stays private to its new owner.
+            {t("organizations.organizationDepartedMembers.chooseWhoTakesOverLabelProjects", { label: reassigning?.label ?? "" })}
           </p>
           <ModalSelect
             id="departed-work-owner"
-            aria-label="Reassign to"
+            aria-label={t("organizations.organizationDepartedMembers.reassignTo")}
             value={successor}
             onChange={setSuccessor}
             wrapLabels
             disabled={working}
             options={members.map((member) => ({
               value: member.user_id,
-              label: member.display_name || member.email || "Unnamed member",
+              label: member.display_name || member.email || t("organizations.memberDepartureDialog.unnamedMember"),
               suffix:
                 member.display_name && member.email
                   ? `(${member.email})`
@@ -830,9 +856,9 @@ export function OrganizationDepartedMembers({
       </Modal>
       <ConfirmPopup
         open={deleting !== null}
-        title="Delete archived work?"
-        message={`Permanently delete ${deleting?.label ?? "this work"}, with its contents? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t("organizations.organizationDepartedMembers.deleteArchivedWork")}
+        message={t("organizations.organizationDepartedMembers.confirmDelete", { label: deleting?.label ?? t("organizations.organizationDepartedMembers.thisWork") })}
+        confirmLabel={t("common.delete")}
         confirmVariant="danger"
         confirmStatus={working ? "loading" : "idle"}
         onCancel={() => {
@@ -855,8 +881,8 @@ export function OrganizationDepartedMembers({
         open={failure !== null || (loadError !== null && list !== null)}
         title={
           failure !== null
-            ? "Archived work not changed"
-            : "Archived work not refreshed"
+            ? t("organizations.organizationDepartedMembers.archivedWorkNotChanged")
+            : t("organizations.organizationDepartedMembers.archivedWorkNotRefreshed")
         }
         message={failure ?? loadError}
         onClose={() => {

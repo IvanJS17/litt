@@ -25,7 +25,9 @@ export function sendOrgFailure(
 ) {
     switch (result.kind) {
         case "validation":
-            return void res.status(400).json({ detail: result.detail });
+            return void res
+                .status(400)
+                .json({ detail: result.detail, ...(result.code && { code: result.code }) });
         case "forbidden":
             return void res.status(403).json({
                 detail: "Only an organization admin can do that.",
@@ -39,7 +41,9 @@ export function sendOrgFailure(
                 .status(404)
                 .json({ detail: "Organization not found" });
         case "conflict":
-            return void res.status(409).json({ detail: result.detail });
+            return void res
+                .status(409)
+                .json({ detail: result.detail, ...(result.code && { code: result.code }) });
         case "last_owner":
             return void res.status(409).json({
                 detail: "An organization must keep at least one owner.",

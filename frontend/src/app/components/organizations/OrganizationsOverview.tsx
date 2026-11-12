@@ -20,7 +20,7 @@ import {
   type Org,
   type OrgInvitation,
 } from "@/app/lib/mikeApi";
-import { ORG_ROLE_LABELS } from "@/app/lib/permissions";
+import { orgRoleLabel } from "./orgRoleText";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LIQUID_GLASS_SUBTLE_CLASS, PillButtonUI } from "@mike/ui";
 import { DeletedOrganizations } from "./DeletedOrganizations";
@@ -76,7 +76,7 @@ export function OrganizationsOverview() {
       // two halves of one screen answered the same kind of failure
       // differently — and the more useful answer was the one discarded.
       setLoadError(
-        userFacingApiError(orgsResult.reason, "Could not load organizations."),
+        userFacingApiError(orgsResult.reason, t("organizations.organizationsOverview.couldNotLoadOrganizations")),
       );
       setOrgs([]);
     }
@@ -89,11 +89,11 @@ export function OrganizationsOverview() {
       setInvitationsError(
         userFacingApiError(
           invitationsResult.reason,
-          "Could not load your invitations.",
+          t("organizations.organizationsOverview.couldNotLoadYourInvitations"),
         ),
       );
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -107,7 +107,7 @@ export function OrganizationsOverview() {
       else await declineOrgInvitation(invitation.id);
     } catch (error) {
       setInvitationError(
-        userFacingApiError(error, "Could not answer that invitation."),
+        userFacingApiError(error, t("organizations.organizationsOverview.couldNotAnswerThatInvitation")),
       );
     } finally {
       setAnsweringId(null);
@@ -142,19 +142,19 @@ export function OrganizationsOverview() {
       <section aria-labelledby="my-organizations-heading">
         <div className="mb-4 flex items-center justify-between gap-3">
           <SettingsHeading id="my-organizations-heading">
-            Organizations
+            {t("organizations.organizationsOverview.organizations")}
           </SettingsHeading>
           {canCreateOrg ? (
             <PillButtonUI
               tone="white"
               size="xs"
               onClick={() => setCreateOpen(true)}
-              aria-label="New organization"
+              aria-label={t("organizations.organizationsOverview.newOrganization")}
               aria-haspopup="dialog"
               className={`h-7 ${LIQUID_GLASS_SUBTLE_CLASS}`}
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              New
+              {t("organizations.organizationsOverview.new")}
             </PillButtonUI>
           ) : (
             <SettingsDescription>{t("access.noOrgInvite")}</SettingsDescription>
@@ -181,14 +181,13 @@ export function OrganizationsOverview() {
                 <SettingsDescription>{loadError}</SettingsDescription>
               </div>
               <PillButtonUI tone="white" size="sm" onClick={() => void load()}>
-                Try again
+                {t("organizations.organizationsOverview.tryAgain")}
               </PillButtonUI>
             </div>
           </GlassCardUI>
         ) : listedOrgs.length === 0 ? (
           <SettingsDescription>
-            No organizations yet. Create one to share projects and
-            workflows with your team.
+            {t("organizations.organizationsOverview.noOrganizationsYetCreateOneTo")}
           </SettingsDescription>
         ) : (
           <div className={CARD_GRID_CLASS}>
@@ -200,9 +199,7 @@ export function OrganizationsOverview() {
                   key={org.id}
                   kind="organization"
                   name={org.name}
-                  detail={`${ORG_ROLE_LABELS[org.role]} · ${members} ${
-                    members === 1 ? "member" : "members"
-                  }`}
+                  detail={t("organizations.organizationsOverview.roleAndMembers", { role: orgRoleLabel(t, org.role), count: members })}
                   icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                   // Only the workspace the person is in opens its settings;
                   // every other organization is switched to first.
@@ -211,21 +208,21 @@ export function OrganizationsOverview() {
                       <PillButtonUI
                         tone="blue"
                         size="sm"
-                        aria-label={`Manage ${org.name}`}
+                        aria-label={t("organizations.organizationsOverview.manageName", { name: org.name })}
                         onClick={() =>
                           router.push(organizationSettingsHref(org.id))
                         }
                       >
-                        Manage
+                        {t("organizations.organizationsOverview.manage")}
                       </PillButtonUI>
                     ) : (
                       <PillButtonUI
                         tone="black"
                         size="sm"
-                        aria-label={`Switch to ${org.name}`}
+                        aria-label={t("organizations.organizationsOverview.switchToName", { name: org.name })}
                         onClick={() => setWorkspace(org.id)}
                       >
-                        Switch
+                        {t("organizations.organizationsOverview.switch")}
                       </PillButtonUI>
                     )
                   }
@@ -242,7 +239,7 @@ export function OrganizationsOverview() {
         <section aria-labelledby="my-invitations-heading">
           <div className="mb-4">
             <SettingsHeading id="my-invitations-heading">
-              Invitations
+              {t("organizations.organizationsOverview.invitations")}
             </SettingsHeading>
           </div>
           {invitationsError ? (
@@ -259,21 +256,21 @@ export function OrganizationsOverview() {
                   size="sm"
                   onClick={() => void load()}
                 >
-                  Try again
+                  {t("organizations.organizationsOverview.tryAgain")}
                 </PillButtonUI>
               </div>
             </GlassCardUI>
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {invitations.map((invitation) => {
-                const name = invitation.org_name ?? "An organization";
+                const name = invitation.org_name ?? t("organizations.organizationsOverview.anOrganization");
                 const answering = answeringId === invitation.id;
                 return (
                   <ConnectorCard
                     key={invitation.id}
                     kind="invitation"
                     name={name}
-                    detail={`Invited you as ${ORG_ROLE_LABELS[invitation.role]}`}
+                    detail={t("organizations.organizationsOverview.invitedYouAs", { role: orgRoleLabel(t, invitation.role) })}
                     icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                     action={
                       <span className="flex items-center gap-2">
@@ -281,20 +278,20 @@ export function OrganizationsOverview() {
                           tone="white"
                           size="sm"
                           disabled={answering}
-                          aria-label={`Decline ${name}`}
+                          aria-label={t("organizations.organizationsOverview.declineName", { name })}
                           onClick={() => void answer(invitation, false)}
                         >
-                          Decline
+                          {t("organizations.organizationsOverview.decline")}
                         </PillButtonUI>
                         <PillButtonUI
                           tone="blue"
                           size="sm"
                           disabled={answering}
                           loading={answering}
-                          aria-label={`Accept ${name}`}
+                          aria-label={t("organizations.organizationsOverview.acceptName", { name })}
                           onClick={() => void answer(invitation, true)}
                         >
-                          Accept
+                          {t("organizations.organizationsOverview.accept")}
                         </PillButtonUI>
                       </span>
                     }
@@ -327,7 +324,7 @@ export function OrganizationsOverview() {
       />
       <WarningPopup
         open={invitationError !== null}
-        title="Invitation not updated"
+        title={t("organizations.organizationsOverview.invitationNotUpdated")}
         message={invitationError}
         onClose={() => setInvitationError(null)}
       />

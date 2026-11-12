@@ -37,7 +37,6 @@ import {
   validateOrgLogoFile,
 } from "@/app/lib/orgLogoImage";
 import {
-  ORG_ROLE_LABELS,
   isOrgAdmin,
   isOrgOwner,
 } from "@/app/lib/permissions";
@@ -45,6 +44,8 @@ import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, LittMonogramPixel, PillButtonUI } from "@mike/ui";
 import { OrganizationLogoModal } from "./OrganizationLogoModal";
 import { useOrganizationSettings } from "./OrganizationSettingsShell";
+import { useTranslations } from "next-intl";
+import { orgRoleLabel } from "./orgRoleText";
 
 // The General section of an organization's settings. Everyone in the
 // organization sees it: its name, their own role and the way out. Renaming
@@ -57,6 +58,7 @@ const AFTER_DEPARTURE = "/settings/organizations";
 type Pending = "leave" | "delete";
 
 export function OrganizationGeneralSettings() {
+  const t = useTranslations();
   const router = useRouter();
   const { user } = useAuth();
   const { refreshOrganizations } = useWorkspace();
@@ -98,11 +100,11 @@ export function OrganizationGeneralSettings() {
       validateOrgLogoFile(file);
     } catch (error) {
       setFailure({
-        title: "Logo not updated",
+        title: t("organizations.organizationGeneralSettings.logoNotUpdated"),
         message:
           error instanceof OrgLogoImageError
             ? error.message
-            : "That image cannot be used.",
+            : t("organizations.organizationGeneralSettings.thatImageCannotBeUsed"),
       });
       return;
     }
@@ -123,8 +125,8 @@ export function OrganizationGeneralSettings() {
     } catch (error) {
       // The dialog stays up, with the framing intact, to try again.
       setFailure({
-        title: "Logo not updated",
-        message: userFacingApiError(error, "The logo could not be saved."),
+        title: t("organizations.organizationGeneralSettings.logoNotUpdated"),
+        message: userFacingApiError(error, t("organizations.organizationGeneralSettings.theLogoCouldNotBeSaved")),
       });
     } finally {
       setLogoBusy(null);
@@ -142,8 +144,8 @@ export function OrganizationGeneralSettings() {
       void refreshOrganizations();
     } catch (error) {
       setFailure({
-        title: "Logo not removed",
-        message: userFacingApiError(error, "The logo could not be removed."),
+        title: t("organizations.organizationGeneralSettings.logoNotRemoved"),
+        message: userFacingApiError(error, t("organizations.organizationGeneralSettings.theLogoCouldNotBeRemoved")),
       });
     } finally {
       setLogoBusy(null);
@@ -172,7 +174,7 @@ export function OrganizationGeneralSettings() {
       void refreshOrganizations();
     } catch (error) {
       setNameStatus({
-        error: userFacingApiError(error, "Could not rename the organization."),
+        error: userFacingApiError(error, t("organizations.organizationGeneralSettings.couldNotRenameTheOrganization")),
       });
     }
   }
@@ -183,10 +185,10 @@ export function OrganizationGeneralSettings() {
     setPending(null);
     if (!user?.id || !result.removedUserIds.includes(user.id)) {
       setFailure({
-        title: "Could not leave the organization",
+        title: t("organizations.organizationGeneralSettings.couldNotLeaveTheOrganization"),
         message: userFacingApiError(
           result.error,
-          "You could not be removed from the organization.",
+          t("organizations.organizationGeneralSettings.youCouldNotBeRemoved"),
         ),
       });
       return;
@@ -219,10 +221,10 @@ export function OrganizationGeneralSettings() {
         return;
       }
       setFailure({
-        title: "Organization not deleted",
+        title: t("organizations.organizationGeneralSettings.organizationNotDeleted"),
         message: userFacingApiError(
           error,
-          "Could not delete the organization.",
+          t("organizations.organizationGeneralSettings.couldNotDeleteTheOrganization"),
         ),
       });
       return;
@@ -236,9 +238,9 @@ export function OrganizationGeneralSettings() {
 
   const statusText =
     nameStatus === "saving"
-      ? "Saving..."
+      ? t("settings.home.saving")
       : nameStatus === "saved"
-        ? "Saved"
+        ? t("settings.home.saved")
         : typeof nameStatus === "object"
           ? nameStatus.error
           : "";
@@ -246,7 +248,7 @@ export function OrganizationGeneralSettings() {
   return (
     <div className="space-y-8">
       <section aria-labelledby="org-general-details" className="space-y-3">
-        <SettingsHeading id="org-general-details">General</SettingsHeading>
+        <SettingsHeading id="org-general-details">{t("organizations.organizationGeneralSettings.general")}</SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             {!org ? (
@@ -258,7 +260,7 @@ export function OrganizationGeneralSettings() {
               <div>
                 <div className="flex items-start justify-between gap-3">
                   <FieldLabel htmlFor="organization-name">
-                    Organization name
+                    {t("organizations.organizationGeneralSettings.organizationName")}
                   </FieldLabel>
                   <span
                     className={`text-xs ${typeof nameStatus === "object" ? "text-red-600" : "text-gray-400"}`}
@@ -287,7 +289,7 @@ export function OrganizationGeneralSettings() {
               </div>
             ) : (
               <div className="space-y-1">
-                <SettingsLabel>Organization name</SettingsLabel>
+                <SettingsLabel>{t("organizations.organizationGeneralSettings.organizationName")}</SettingsLabel>
                 <p className="text-sm break-words text-gray-500">{org.name}</p>
               </div>
             )}
@@ -303,7 +305,7 @@ export function OrganizationGeneralSettings() {
                     // eslint-disable-next-line @next/next/no-img-element -- a small inline data URL, not an optimizable remote image
                     <img
                       src={logo}
-                      alt="Current logo"
+                      alt={t("organizations.organizationGeneralSettings.currentLogo")}
                       className="h-8 w-8 rounded-[5px] object-contain"
                     />
                   ) : logo === undefined ? (
@@ -313,9 +315,9 @@ export function OrganizationGeneralSettings() {
                   )}
                 </span>
                 <div className="min-w-0 space-y-1">
-                  <SettingsLabel>Logo</SettingsLabel>
+                  <SettingsLabel>{t("organizations.organizationGeneralSettings.logo")}</SettingsLabel>
                   <SettingsDescription>
-                    Shown at the top of the sidebar. PNG, JPEG or WebP.
+                    {t("organizations.organizationGeneralSettings.shownAtTheTopOfThe")}
                   </SettingsDescription>
                 </div>
               </div>
@@ -325,20 +327,20 @@ export function OrganizationGeneralSettings() {
                   size="sm"
                   disabled={logoBusy !== null}
                   loading={logoBusy === "upload"}
-                  aria-label={hasLogo ? "Edit logo" : "Upload logo"}
+                  aria-label={hasLogo ? t("organizations.organizationGeneralSettings.editLogo") : t("organizations.organizationGeneralSettings.uploadLogo")}
                   onClick={() => {
                     if (hasLogo) setLogoEditing(true);
                     else logoInputRef.current?.click();
                   }}
                 >
                   {!hasLogo && <Upload aria-hidden className="h-4 w-4 shrink-0" />}
-                  {hasLogo ? "Edit" : "Upload"}
+                  {hasLogo ? t("organizations.organizationGeneralSettings.edit") : t("organizations.organizationGeneralSettings.upload")}
                 </PillButtonUI>
                 <input
                   ref={logoInputRef}
                   type="file"
                   accept={ORG_LOGO_ACCEPT}
-                  aria-label="Logo image"
+                  aria-label={t("organizations.organizationGeneralSettings.logoImage")}
                   className="hidden"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -356,15 +358,15 @@ export function OrganizationGeneralSettings() {
 
       <section aria-labelledby="org-general-membership" className="space-y-3">
         <SettingsHeading id="org-general-membership">
-          Your Membership
+          {t("organizations.organizationGeneralSettings.yourMembership")}
         </SettingsHeading>
         <GlassCardUI>
           <SettingsRow layout="stacked">
             <div className="space-y-1">
-              <SettingsLabel>Your role</SettingsLabel>
+              <SettingsLabel>{t("organizations.organizationGeneralSettings.yourRole")}</SettingsLabel>
               {org ? (
                 <p className="text-sm text-gray-500">
-                  {ORG_ROLE_LABELS[org.role]}
+                  {orgRoleLabel(t, org.role)}
                 </p>
               ) : (
                 <span className="block h-5 w-20 animate-pulse rounded bg-gray-200" />
@@ -373,10 +375,9 @@ export function OrganizationGeneralSettings() {
           </SettingsRow>
           <SettingsRow>
             <div className="space-y-1">
-              <SettingsLabel>Leave organization</SettingsLabel>
+              <SettingsLabel>{t("organizations.organizationGeneralSettings.leaveOrganization")}</SettingsLabel>
               <SettingsDescription>
-                You will lose access to everything shared with you in this
-                organization.
+                {t("organizations.organizationGeneralSettings.youWillLoseAccessToEverything")}
               </SettingsDescription>
             </div>
             <PillButtonUI
@@ -388,7 +389,7 @@ export function OrganizationGeneralSettings() {
               className="w-full shrink-0 sm:w-auto"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              Leave
+              {t("organizations.organizationGeneralSettings.leave")}
             </PillButtonUI>
           </SettingsRow>
         </GlassCardUI>
@@ -397,15 +398,14 @@ export function OrganizationGeneralSettings() {
       {canDelete ? (
         <section aria-labelledby="org-general-delete" className="space-y-3">
           <SettingsHeading id="org-general-delete" tone="danger">
-            Delete Organization
+            {t("organizations.organizationGeneralSettings.deleteOrganization")}
           </SettingsHeading>
           <GlassCardUI>
             <SettingsRow>
               <div className="space-y-1">
-                <SettingsLabel>Delete this organization</SettingsLabel>
+                <SettingsLabel>{t("organizations.organizationGeneralSettings.deleteThisOrganization")}</SettingsLabel>
                 <SettingsDescription>
-                  Remove access for all members. Owners can restore the
-                  organization for 30 days before its content is permanently deleted.
+                  {t("organizations.organizationGeneralSettings.removeAccessForAllMembersOwners")}
                 </SettingsDescription>
               </div>
               <PillButtonUI
@@ -417,7 +417,7 @@ export function OrganizationGeneralSettings() {
                 className="w-full shrink-0 sm:w-auto"
               >
                 <Trash2 className="h-4 w-4 shrink-0" />
-                Delete
+                {t("common.delete")}
               </PillButtonUI>
             </SettingsRow>
           </GlassCardUI>
@@ -447,9 +447,9 @@ export function OrganizationGeneralSettings() {
       ) : null}
       <ConfirmPopup
         open={pending === "delete"}
-        title={`Delete ${org?.name ?? "this organization"}?`}
-        message="This removes access to the organization for all members. Its content and memberships are kept for 30 days. An owner can restore it from Settings → Organizations during that period. After 30 days, it is permanently deleted."
-        confirmLabel="Delete"
+        title={t("organizations.organizationGeneralSettings.deleteName", { name: org?.name ?? t("organizations.organizationGeneralSettings.thisOrganization") })}
+        message={t("organizations.organizationGeneralSettings.thisRemovesAccessToTheOrganization")}
+        confirmLabel={t("common.delete")}
         confirmVariant="danger"
         confirmStatus={working ? "loading" : "idle"}
         onCancel={() => {
@@ -465,12 +465,12 @@ export function OrganizationGeneralSettings() {
           setMfaPending(false);
           void confirm("delete");
         }}
-        title="Two-factor verification required"
-        message="This action is sensitive. Enter a code from your authenticator app to continue."
+        title={t("organizations.organizationGeneralSettings.twoFactorVerificationRequired")}
+        message={t("organizations.organizationGeneralSettings.thisActionIsSensitiveEnterA")}
       />
       <WarningPopup
         open={failure !== null}
-        title={failure?.title ?? "Organization not updated"}
+        title={failure?.title ?? t("organizations.organizationGeneralSettings.organizationNotUpdated")}
         message={failure?.message ?? null}
         onClose={() => setFailure(null)}
       />

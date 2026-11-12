@@ -19,6 +19,7 @@ import {
 } from "@/app/lib/userFacingError";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
 import { settingsGlassIconButtonClassName } from "@/app/(pages)/settings/settingsStyles";
+import { useTranslations } from "next-intl";
 
 // The backend never returns saved keys, so the mask is a fixed-length stand-in.
 const SAVED_KEY_MASK = "x".repeat(24);
@@ -52,7 +53,7 @@ export function ApiKeyField({
   description,
   hasSavedKey,
   hasEnvKey = false,
-  keyLabel = "API key",
+  keyLabel,
   validateKey,
   setting,
   onSave,
@@ -81,6 +82,7 @@ export function ApiKeyField({
     removeAction: ApiKeyFieldAction | undefined,
   ) => ReactNode;
 }) {
+  const t = useTranslations();
   const settingInputId = useId();
   const settingErrorId = useId();
   const keyErrorId = useId();
@@ -134,9 +136,9 @@ export function ApiKeyField({
     }
     notifyInfo(
       valueRef.current.trim().length > 0
-        ? `Your ${label} has changed since that attempt. Press Save to store the key now in the field.`
-        : `The ${label} field is empty, so there is nothing to retry. Enter the key again and press Save.`,
-      "Nothing was sent",
+        ? t("settings.apiKeyField.yourLabelHasChanged", { label })
+        : t("settings.apiKeyField.theLabelFieldIsEmpty", { label }),
+      t("settings.apiKeyField.nothingWasSent"),
     );
   };
 
@@ -175,11 +177,11 @@ export function ApiKeyField({
         // The caller reports failure as `false`, with no error to classify.
         notifyError(
           new UserVisibleError(
-            `LiTT couldn't save your ${label}. The key was not changed.`,
+            t("settings.apiKeyField.couldntSave", { label }),
             { retryable: true },
           ),
           {
-            action: `save your ${label}`,
+            action: t("settings.apiKeyField.saveYourLabel", { label }),
             onRetry: () => retrySave(attempted, attemptedSetting),
           },
         );
@@ -192,7 +194,7 @@ export function ApiKeyField({
         // shown as written, with no Retry (the same value would be refused
         // again); a transient failure offers one.
         notifyError(error, {
-          action: `save your ${label}`,
+          action: t("settings.apiKeyField.saveYourLabel", { label }),
           onRetry: () => retrySave(attempted, attemptedSetting),
         });
       }
@@ -210,15 +212,15 @@ export function ApiKeyField({
       }
       const ok = await onRemove();
       if (ok) {
-        notifySuccess(`${label} removed.`);
+        notifySuccess(t("settings.apiKeyField.labelRemoved", { label }));
       } else {
         notifyError(
           new UserVisibleError(
-            `LiTT couldn't remove your ${label}. The key is still saved.`,
+            t("settings.apiKeyField.couldntRemove", { label }),
             { retryable: true },
           ),
           {
-            action: `remove your ${label}`,
+            action: t("settings.apiKeyField.removeYourLabel", { label }),
             onRetry: () => void handleRemove(),
           },
         );
@@ -228,7 +230,7 @@ export function ApiKeyField({
         setPendingMfaAction("remove");
       } else {
         notifyError(error, {
-          action: `remove your ${label}`,
+          action: t("settings.apiKeyField.removeYourLabel", { label }),
           onRetry: () => void handleRemove(),
         });
       }
@@ -248,13 +250,13 @@ export function ApiKeyField({
   };
 
   const saveAction = {
-    label: isSaving ? "Saving..." : saved ? "Saved" : "Save",
+    label: isSaving ? t("settings.apiKeyField.saving") : saved ? t("settings.home.saved") : t("common.save"),
     onClick: handleSave,
     disabled: isSaving || !dirty || saved,
     settled: !isSaving && (hasSavedKey || hasEnvKey) && !dirty,
   };
   const removeAction = hasSavedKey ? {
-    label: "Remove",
+    label: t("settings.apiKeyField.remove"),
     onClick: handleRemove,
     disabled: isSaving,
   } : undefined;
@@ -276,7 +278,7 @@ export function ApiKeyField({
       <div className={variant === "modal" ? "space-y-4" : "space-y-2"}>
         <div>
           {variant === "modal" && (
-            <FieldLabel htmlFor={`${settingInputId}-key`}>{keyLabel}</FieldLabel>
+            <FieldLabel htmlFor={`${settingInputId}-key`}>{keyLabel ?? t("settings.apiKeyField.apiKey")}</FieldLabel>
           )}
           <div className="relative flex-1">
             <Input
@@ -302,7 +304,7 @@ export function ApiKeyField({
                 type="button"
                 onClick={() => setReveal((current) => !current)}
                 className={`absolute inset-y-1 right-1.5 flex items-center ${settingsGlassIconButtonClassName}`}
-                aria-label={reveal ? "Hide key" : "Show key"}
+                aria-label={reveal ? t("settings.apiKeyField.hideKey") : t("settings.apiKeyField.showKey")}
               >
                 {reveal ? (
                   <EyeOff className="h-4 w-4" />

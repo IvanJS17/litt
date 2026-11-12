@@ -10,8 +10,10 @@ import {
 import { GlassCardUI, ToggleSwitchUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
+import { useTranslations } from "next-intl";
 
 export default function AppearancePage() {
+  const t = useTranslations();
   const { profile, updateDarkMode } = useUserProfile();
   const [savingDarkMode, setSavingDarkMode] = useState(false);
   const [darkModeError, setDarkModeError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export default function AppearancePage() {
       setDarkModeError(
         userFacingApiError(
           toggleError,
-          "Could not update the appearance setting.",
+          t("settings.appearance.couldNotUpdateTheAppearanceSetting"),
         ),
       );
     } finally {
@@ -38,13 +40,13 @@ export default function AppearancePage() {
 
   return (
     <section className="space-y-3">
-      <SettingsHeading id="appearance">Appearance</SettingsHeading>
+      <SettingsHeading id="appearance">{t("settings.appearance.appearance")}</SettingsHeading>
       <GlassCardUI>
         <SettingsRow>
           <div className="min-w-0 space-y-1">
-            <SettingsLabel>Dark mode</SettingsLabel>
+            <SettingsLabel>{t("settings.appearance.darkMode")}</SettingsLabel>
             <SettingsDescription>
-              Use a darker color palette throughout LiTT.
+              {t("settings.appearance.useADarkerColorPaletteThroughout")}
             </SettingsDescription>
             {darkModeError && (
               <p role="alert" className="text-xs text-red-600">
@@ -56,7 +58,7 @@ export default function AppearancePage() {
             checked={profile.darkMode === true}
             disabled={savingDarkMode}
             aria-busy={savingDarkMode}
-            aria-label="Dark mode"
+            aria-label={t("settings.appearance.darkMode")}
             onCheckedChange={(checked) => void handleDarkModeToggle(checked)}
           />
         </SettingsRow>

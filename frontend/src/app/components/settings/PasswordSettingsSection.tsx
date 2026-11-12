@@ -5,11 +5,10 @@ import { authInputUIClassName, InputUI, PillButtonUI, GlassCardUI } from "@mike/
 import {
   MIN_PASSWORD_LENGTH,
   isPasswordTooLong,
-  maximumPasswordMessage,
-  minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
 import {
-  PASSWORD_LENGTH_MESSAGE,
+  authSentence,
+  authSentenceText,
   authMessages,
 } from "@/app/lib/authMessages";
 import { Modal } from "@/app/components/modals/Modal";
@@ -26,16 +25,20 @@ import { SettingsHeading } from "./SettingsHeading";
 import { SettingsRow } from "./SettingsRow";
 import { SettingsDescription, SettingsLabel } from "./SettingsText";
 import { FieldLabel } from "@/app/components/ui/form-field";
+import { useTranslations } from "next-intl";
+import { clientTranslator } from "@mike/client";
 
 /** The shared auth table with this section's deltas, keyed by the `code`
  *  GoTrue returns from `PATCH /api/auth/password`. */
 const PASSWORD_ERROR_MESSAGES = authMessages({
-  validation_failed: PASSWORD_LENGTH_MESSAGE,
-  invalid_request: PASSWORD_LENGTH_MESSAGE,
-  reauthentication_needed: "Log in again before setting a password.",
+  validation_failed: authSentence("passwordLength"),
+  invalid_request: authSentence("passwordLength"),
+  reauthentication_needed: () =>
+    clientTranslator()("settings.passwordSettingsSection.reauthenticateBeforeSettingAPassword"),
 });
 
 export function PasswordSettingsSection() {
+  const t = useTranslations();
   const { user, setPassword } = useAuth();
   const { profile, syncPasswordSet } = useUserProfile();
   const [setPasswordOpen, setSetPasswordOpen] = useState(false);
@@ -53,15 +56,15 @@ export function PasswordSettingsSection() {
   async function addPassword() {
     setPasswordSetError(null);
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setPasswordSetError(localPasswordError(`${minimumPasswordMessage}.`));
+      setPasswordSetError(localPasswordError(authSentenceText("passwordTooShort")));
       return;
     }
     if (isPasswordTooLong(password)) {
-      setPasswordSetError(localPasswordError(maximumPasswordMessage));
+      setPasswordSetError(localPasswordError(authSentenceText("passwordTooLong")));
       return;
     }
     if (password !== confirmPassword) {
-      setPasswordSetError(localPasswordError("The two passwords don't match."));
+      setPasswordSetError(localPasswordError(t("settings.passwordSettingsSection.theTwoPasswordsDontMatch")));
       return;
     }
 
@@ -71,21 +74,21 @@ export function PasswordSettingsSection() {
       const synced = await syncPasswordSet();
       if (!synced) {
         throw new UserVisibleError(
-          "Your password was set, but its account status could not be refreshed. Reload the page and try again.",
+          t("settings.passwordSettingsSection.passwordSetButNotRefreshed"),
         );
       }
       setPasswordValue("");
       setConfirmPassword("");
       setSetPasswordOpen(false);
-      setPasswordStatus("Password added to your account.");
+      setPasswordStatus(t("settings.passwordSettingsSection.passwordAddedToYourAccount"));
     } catch (error) {
       // GoTrue's own wording ("Password should be at least 6 characters")
       // contradicts Mike's policy, so the code decides the text instead.
       setPasswordSetError(
         describeError(error, {
-          action: "set your password",
+          action: t("settings.passwordSettingsSection.actions.setYourPassword"),
           codeMessages: PASSWORD_ERROR_MESSAGES,
-          fallback: "Unable to set your password. Try again.",
+          fallback: t("settings.passwordSettingsSection.unableToSetYourPasswordTryAgain"),
         }),
       );
     } finally {
@@ -99,14 +102,13 @@ export function PasswordSettingsSection() {
     setPasswordStatus(null);
     try {
       await requestPasswordReset(user.email);
-      setPasswordStatus(`Password-reset instructions sent to ${user.email}.`);
+      setPasswordStatus(t("settings.passwordSettingsSection.passwordResetInstructionsSent", { email: user.email }));
     } catch (error) {
       setPasswordStatus(
         describeError(error, {
-          action: "send the reset email",
+          action: t("settings.passwordSettingsSection.actions.sendTheResetEmail"),
           codeMessages: PASSWORD_ERROR_MESSAGES,
-          fallback:
-            "Unable to send a password-reset email right now. Try again.",
+          fallback: t("settings.passwordSettingsSection.unableToSendAResetEmail"),
         }).message,
       );
     } finally {
@@ -117,7 +119,7 @@ export function PasswordSettingsSection() {
   /** A failure the form found itself; the text is already user-facing. */
   function localPasswordError(message: string): UserFacingError {
     return describeError(new UserVisibleError(message, { kind: "validation" }), {
-      action: "set your password",
+      action: t("settings.passwordSettingsSection.actions.setYourPassword"),
     });
   }
 
@@ -131,17 +133,17 @@ export function PasswordSettingsSection() {
 
   return (
     <section className="space-y-3">
-      <SettingsHeading id="password">Password</SettingsHeading>
+      <SettingsHeading id="password">{t("settings.passwordSettingsSection.password")}</SettingsHeading>
       <GlassCardUI>
         <SettingsRow>
           <div className="min-w-0 space-y-1">
             <SettingsLabel>
-              {needsInitialPassword ? "Set password" : "Reset password"}
+              {needsInitialPassword ? t("settings.passwordSettingsSection.setPassword") : t("settings.passwordSettingsSection.resetPassword")}
             </SettingsLabel>
             <SettingsDescription>
               {needsInitialPassword
-                ? "Add a password to sign in with your email and change your account email."
-                : `Send a secure password-reset link to ${user?.email}.`}
+                ? t("settings.passwordSettingsSection.addAPasswordToSignIn")
+                : t("settings.passwordSettingsSection.sendASecurePasswordResetLink", { email: user?.email ?? "" })}
             </SettingsDescription>
             {passwordStatus && (
               <p className="text-xs text-gray-500">{passwordStatus}</p>
@@ -159,10 +161,10 @@ export function PasswordSettingsSection() {
             className="shrink-0"
           >
             {needsInitialPassword
-              ? "Set password"
+              ? t("settings.passwordSettingsSection.setPassword")
               : passwordResetSending
-                ? "Sending..."
-                : "Send reset email"}
+                ? t("settings.passwordSettingsSection.sending")
+                : t("settings.passwordSettingsSection.sendResetEmail")}
           </PillButtonUI>
         </SettingsRow>
       </GlassCardUI>
@@ -170,26 +172,26 @@ export function PasswordSettingsSection() {
       <Modal
         open={setPasswordOpen}
         onClose={closeSetPassword}
-        breadcrumbs={["Security", "Set password"]}
+        breadcrumbs={[t("settings.layout.tab.security"), t("settings.passwordSettingsSection.setPassword")]}
         size="sm"
         className="h-auto"
         cancelAction={{
-          label: "Cancel",
+          label: t("common.cancel"),
           onClick: closeSetPassword,
           disabled: passwordSaving,
         }}
         primaryAction={{
-          label: passwordSaving ? "Setting..." : "Set password",
+          label: passwordSaving ? t("settings.passwordSettingsSection.setting") : t("settings.passwordSettingsSection.setPassword"),
           onClick: () => void addPassword(),
           disabled: passwordSaving || !password || !confirmPassword,
         }}
       >
         <div className="space-y-4 pb-5">
           <p className="text-sm text-gray-500">
-            Use at least {MIN_PASSWORD_LENGTH} characters.
+            {t("settings.passwordSettingsSection.useAtLeastMinPasswordLength", { MIN_PASSWORD_LENGTH })}
           </p>
           <div>
-            <FieldLabel htmlFor="new-account-password">Password</FieldLabel>
+            <FieldLabel htmlFor="new-account-password">{t("settings.passwordSettingsSection.password")}</FieldLabel>
             <InputUI
               id="new-account-password"
               type="password"
@@ -201,7 +203,7 @@ export function PasswordSettingsSection() {
           </div>
           <div>
             <FieldLabel htmlFor="confirm-account-password">
-              Confirm password
+              {t("settings.passwordSettingsSection.confirmPassword")}
             </FieldLabel>
             <InputUI
               id="confirm-account-password"
@@ -219,11 +221,11 @@ export function PasswordSettingsSection() {
                 <a
                   href={supportMailtoFor(
                     passwordSetError,
-                    "Failed to set an account password.",
+                    t("settings.passwordSettingsSection.failedToSetAnAccountPassword"),
                   )}
                   className="ml-2 underline underline-offset-2"
                 >
-                  Contact support
+                  {t("settings.passwordSettingsSection.contactSupport")}
                 </a>
               )}
             </p>
