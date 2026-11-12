@@ -9701,7 +9701,7 @@ create table if not exists public.document_version_ocr (
   requested_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint document_version_ocr_ready check ((status = 'ready') = (pages is not null))
+  constraint document_version_ocr_ready check (status <> 'ready' or pages is not null)
 );
 alter table public.document_version_ocr enable row level security;
 revoke all on public.document_version_ocr from public, anon, authenticated;
@@ -20375,6 +20375,15 @@ alter table public.user_profiles
 -- next to document_version_texts); the migration file re-applies the same
 -- statements to upgraded databases.
 
+-- ---------------------------------------------------------------------------
+-- 20261112_50_litt_ocr_keep_reading.sql
+-- ---------------------------------------------------------------------------
+-- Migration date: 2026-11-12
+--
+-- Scan reading kept while it is read again. The effect is applied in place
+-- above (the document_version_ocr_ready check); the migration file re-applies
+-- the same statements to upgraded databases.
+
 -- ===== end of LiTT extension =====
 
 insert into public.schema_migrations (filename) values
@@ -20637,5 +20646,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_10_litt_converted_source.sql'),
   ('20261112_20_litt_compared_source.sql'),
   ('20261112_30_litt_landingai_key.sql'),
-  ('20261112_40_litt_document_ocr.sql')
+  ('20261112_40_litt_document_ocr.sql'),
+  ('20261112_50_litt_ocr_keep_reading.sql')
 on conflict (filename) do nothing;

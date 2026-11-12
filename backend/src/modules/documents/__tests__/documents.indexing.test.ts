@@ -112,6 +112,15 @@ describe("version text extraction", () => {
     expect(mocks.pdf).toHaveBeenLastCalledWith(expect.anything(), { pages: [{ page: 1, text: "Texto leído" }], failedPages: [] });
     expect(fake.calls[5].args).toMatchObject({ p_text: "read", p_textless_pages: 0 }); fake.done();
   });
+  it("keeps a previous reading in force while a new one is running or failed", async () => {
+    mocks.pdf.mockResolvedValue({ text: "read", textlessPageCount: 0 });
+    for (const status of ["processing", "failed"]) {
+      const kept = { version_id: "v1", source_revision: "r1", status, pages: [{ page: 1, text: "viejo" }], failed_pages: [], credits: 1, page_count: 2, error_code: null };
+      const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: kept }, { rpc: "publish_document_text", data: true }, { table: "document_version_ocr", data: kept }]);
+      await handleDocumentExtractText(fake.db, job);
+      expect(mocks.pdf).toHaveBeenLastCalledWith(expect.anything(), { pages: [{ page: 1, text: "viejo" }], failedPages: [] }); fake.done();
+    }
+  });
   it("ignores a reading made for other bytes or still running", async () => {
     mocks.pdf.mockResolvedValue({ text: "", textlessPageCount: 2 });
     for (const row of [{ status: "ready", source_revision: "old", pages: [{ page: 1, text: "x" }] }, { status: "processing", source_revision: "r1", pages: null }]) {

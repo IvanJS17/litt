@@ -18,7 +18,7 @@ import { downloadFile } from "../../lib/storage";
 import { assertVersionReleasable } from "../../lib/trainingRelease";
 import { ensureDocumentAccess } from "./documents.access";
 import { extractAndPublishText } from "./documents.indexing";
-import { loadScanRow } from "./documents.ocr.state";
+import { loadScanRow, type ScanRow } from "./documents.ocr.state";
 import type { Db } from "./documents.shared";
 
 export const OCR_KEY_MISSING_CODE = "ocr_key_missing";
@@ -117,44 +117,63 @@ export async function getScanReadingState(
   }
 }
 
-/** Mark the version as being read and queue the job. Key and permission were already checked. */
+/**
+ * Mark the version as being read and queue the job. Key and permission were
+ * already checked. A reading already saved for these same bytes stays in
+ * place (and in force) until the new one finishes; if the job cannot be
+ * queued the row is failed, never left "processing" with nothing to run.
+ */
 async function queueReading(
   db: Db,
   target: Target,
   actor: { userId: string; userEmail: string | undefined },
+  previous: ScanRow | null,
 ): Promise<void> {
   const { version, doc } = target;
   const revision = version.text_revision;
   if (!revision) throw new Error("document_version_without_revision");
-  const { error } = await db.from("document_version_ocr").upsert({
-    version_id: version.id,
-    source_revision: revision,
-    provider: "landingai",
-    status: "processing",
-    pages: null,
-    model: null,
-    credits: null,
-    page_count: null,
-    failed_pages: [],
-    error_code: null,
-    requested_by: actor.userId,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "version_id" });
-  if (error) throw error;
-  await enqueueDbJob(db, {
-    kind: DOCUMENT_OCR_JOB,
-    // No key and no document content: the job resolves the key again when it runs.
-    payload: {
-      documentId: doc.id,
-      versionId: version.id,
-      revision,
-      userId: actor.userId,
-      userEmail: actor.userEmail ?? null,
-      authorization: await readAuthorizationStamp(db, doc.org_id),
-    },
-    dedupeKey: `document.ocr:${version.id}:${revision}`,
-    maxAttempts: OCR_MAX_ATTEMPTS,
-  });
+  const now = new Date().toISOString();
+  if (previous?.source_revision === revision) {
+    const { error } = await db.from("document_version_ocr")
+      .update({ status: "processing", error_code: null, requested_by: actor.userId, updated_at: now })
+      .eq("version_id", version.id).eq("source_revision", revision);
+    if (error) throw error;
+  } else {
+    const { error } = await db.from("document_version_ocr").upsert({
+      version_id: version.id,
+      source_revision: revision,
+      provider: "landingai",
+      status: "processing",
+      pages: null,
+      model: null,
+      credits: null,
+      page_count: null,
+      failed_pages: [],
+      error_code: null,
+      requested_by: actor.userId,
+      updated_at: now,
+    }, { onConflict: "version_id" });
+    if (error) throw error;
+  }
+  try {
+    await enqueueDbJob(db, {
+      kind: DOCUMENT_OCR_JOB,
+      // No key and no document content: the job resolves the key again when it runs.
+      payload: {
+        documentId: doc.id,
+        versionId: version.id,
+        revision,
+        userId: actor.userId,
+        userEmail: actor.userEmail ?? null,
+        authorization: await readAuthorizationStamp(db, doc.org_id),
+      },
+      dedupeKey: `document.ocr:${version.id}:${revision}`,
+      maxAttempts: OCR_MAX_ATTEMPTS,
+    });
+  } catch (error) {
+    await finishRow(db, version.id, revision, { status: "failed", error_code: "ocr_unavailable" }).catch(() => false);
+    throw error;
+  }
 }
 
 /** POST: a person asks for the reading, usually after seeing the estimated cost. */
@@ -182,7 +201,7 @@ export async function requestScanReading(
       );
     const current = await loadScanRow(db, target.version.id);
     const running = current?.status === "processing" && current.source_revision === target.version.text_revision;
-    if (!running) await queueReading(db, target, args);
+    if (!running) await queueReading(db, target, args, current);
     return ok(await describeState(db, args.userId, target));
   } catch (error) {
     return internalFailure(error);
@@ -209,7 +228,7 @@ export async function queueScanReadingOnUpload(
     if (!releasable.ok) return;
     const orgId = (doc as { org_id: string | null }).org_id ?? null;
     if ((await resolveScanKey(db, args.userId, orgId)) === null) return;
-    await queueReading(db, { doc: { id: args.documentId, org_id: orgId }, version, canEdit: true }, args);
+    await queueReading(db, { doc: { id: args.documentId, org_id: orgId }, version, canEdit: true }, args, await loadScanRow(db, version.id));
   } catch (error) {
     reportError(error, { level: "warning", tags: { component: "documents", stage: "ocr-queue" } });
   }

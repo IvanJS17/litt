@@ -5,7 +5,7 @@ import type { DbJob } from "../../../lib/dbq/types";
 // LandingAI is never called: its client is a mock. Nothing here touches a real key.
 const mocks = vi.hoisted(() => ({
   access: vi.fn(), active: vi.fn(), key: vi.fn(), released: vi.fn(), enqueue: vi.fn(),
-  stamp: vi.fn(), assertStamp: vi.fn(), download: vi.fn(), parse: vi.fn(), publish: vi.fn(),
+  stamp: vi.fn(), assertStamp: vi.fn(), download: vi.fn(), parse: vi.fn(), publish: vi.fn(), extract: vi.fn(),
 }));
 vi.mock("../documents.access", () => ({ ensureDocumentAccess: mocks.access }));
 vi.mock("../../../lib/documentVersions", () => ({ loadActiveVersion: mocks.active }));
@@ -17,7 +17,7 @@ vi.mock("../../../lib/storage", () => ({ downloadFile: mocks.download }));
 vi.mock("../documents.indexing", () => ({ extractAndPublishText: mocks.publish }));
 vi.mock("../../../lib/extraction/isolated", async () => {
   class ExtractionBusyError extends Error {}
-  return { ExtractionBusyError, withBackgroundExtraction: (_: unknown, work: (e: unknown) => unknown) => work(vi.fn()) };
+  return { ExtractionBusyError, withBackgroundExtraction: (_: unknown, work: (e: unknown) => unknown) => work(mocks.extract) };
 });
 vi.mock("../../../lib/ocr/landingai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/ocr/landingai")>()),
@@ -44,6 +44,8 @@ beforeEach(() => {
   mocks.stamp.mockResolvedValue({ orgId: "o1", epoch: 3 });
   mocks.download.mockResolvedValue(new ArrayBuffer(8));
   mocks.publish.mockResolvedValue({ textlessPageCount: 0 });
+  // Pages 2, 5 and 9 of a 10-page PDF have no text layer.
+  mocks.extract.mockResolvedValue({ pages: [2, 5, 9], total: 10 });
 });
 
 describe("scan reading state", () => {
@@ -96,6 +98,31 @@ describe("requesting a reading", () => {
     expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true });
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
+  it("reading again keeps the previous reading until the new one finishes", async () => {
+    const previous = row({ status: "ready", pages: [{ page: 2, text: "viejo" }], credits: 1, page_count: 10, failed_pages: [5] });
+    const fake = scriptedDb([
+      { table: "document_version_ocr", data: previous },
+      { table: "document_version_ocr", op: "update" },
+      { table: "document_version_ocr", data: row({ ...previous, status: "processing" }) },
+    ]);
+    expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true, data: { status: "processing" } });
+    expect(fake.calls[1].payload).toMatchObject({ status: "processing", error_code: null });
+    expect(fake.calls[1].payload).not.toHaveProperty("pages");
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    fake.done();
+  });
+  it("does not leave the version processing when the job cannot be queued", async () => {
+    mocks.enqueue.mockRejectedValue(new Error("queue down"));
+    const fake = scriptedDb([
+      { table: "document_version_ocr", data: null },
+      { table: "document_version_ocr", op: "upsert" },
+      { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
+    ]);
+    expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: false });
+    expect(fake.calls[2].payload).toMatchObject({ status: "failed", error_code: "ocr_unavailable" });
+    expect(fake.calls[2].filters).toContainEqual(["eq", "status", "processing"]);
+    fake.done();
+  });
   it.each([
     ["needs edit rights", () => mocks.access.mockResolvedValue({ ...allowed, projectRole: "viewer" }), "forbidden", undefined],
     ["is refused for a version held for training", () => mocks.released.mockResolvedValue({ ok: false, kind: "conflict", detail: "held", code: "training_approval_required" }), "conflict", "training_approval_required"],
@@ -114,6 +141,7 @@ describe("reading on upload", () => {
   const upload = { documentId: "d1", versionId: "v1", userId: "u1", userEmail: undefined };
   const steps = () => [
     { table: "documents", data: { id: "d1", org_id: null } },
+    { table: "document_version_ocr", data: null },
     { table: "document_version_ocr", op: "upsert" },
   ];
   it("starts by itself for 50 pages or fewer when a key is available", async () => {
