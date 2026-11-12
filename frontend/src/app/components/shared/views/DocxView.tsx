@@ -11,7 +11,6 @@ import type { DocxCloseGuard, DocxMode, DocxSaveState, DocxSurface } from "./Doc
 import type { CitationQuote } from "../types";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { viewRoundingClass, type ViewRounding } from "./viewRounding";
-import { docxEditingEnabled } from "./docxEditingGate";
 import { useTranslations } from "next-intl";
 
 const DocxRenderer = lazy(() => import("./EigenpalDocxRenderer"));
@@ -93,11 +92,10 @@ function DocxViewContent(props: Props) {
         documentId, versionId, displayUrl, refetchKey, cacheBytes = true,
         warning, onWarningDismiss, onDownloadReady, onSaveStateChange, rounded = true,
     } = props;
-    // LiTT: editing stays off until the version gate is proven (docxEditingGate).
-    const canEdit = docxEditingEnabled() && props.canEdit !== false;
-    const [initialMode] = useState<DocxMode>(
-        docxEditingEnabled() ? props.defaultMode ?? "view" : "view",
-    );
+    // Whoever may write decides: callers pass `canEdit` from the document's
+    // permission. Every save creates a new version (useDocxAutosave).
+    const canEdit = props.canEdit !== false;
+    const [initialMode] = useState<DocxMode>(props.defaultMode ?? "view");
     const [downloading, setDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
     const fetched = useFetchDocxBytes(documentId, versionId, refetchKey, displayUrl, cacheBytes);

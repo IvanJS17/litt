@@ -48,9 +48,6 @@ function MockRenderer({ bytes, mode, toolbarVisible = true, onChange, onReady, o
 
 const originalScrollTo = HTMLElement.prototype.scrollTo;
 beforeEach(() => {
-    // These cases exercise upstream editing and autosave, which LiTT keeps
-    // behind docxEditingGate; they run as an operator who turned it on.
-    vi.stubEnv("NEXT_PUBLIC_LITT_DOCX_EDITING", "enabled");
     let savedCount = 1;
     saveVersion.mockReset().mockImplementation(async () => ({ id: `v${++savedCount}` }));
     exportDocx.mockReset().mockResolvedValue(new Uint8Array([42]).buffer);
