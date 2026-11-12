@@ -16,6 +16,8 @@
   account deletion, shared-work transfer and owner-only recovery
 - [MCP connectors](connectors.md) — hosted presets, custom servers, OAuth,
   redirect URIs, and Slack/Google deployment setup
+- [Document conversion](document-conversion.md) — Markdown, Word and PDF into a
+  new document: what converts, what is lost, permissions, routes
 - [Scoped memory](memory.md) — app and project Markdown memory, permissions,
   asynchronous learning, deletion, and operations
 - [Google Workspace](google-workspace.md) — Drive, Gmail, and Calendar

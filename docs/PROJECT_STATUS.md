@@ -32,6 +32,16 @@
   `chore/i18n-phase1-close`; the OCR choice (local or LandingAI) is still the
   owner's decision. Technical follow-ups are in [`followups.md`](followups.md).
 
+### Branch not integrated: layer 4, document conversions
+
+- **`feat/capa4-conversions`** (from `cce8eec4`, no pull request yet): convert a
+  document between Markdown, Word and PDF into a **new** document; the original
+  does not change. Details in [`document-conversion.md`](document-conversion.md).
+  Not in production. Migration `20261112_10_litt_converted_source.sql` (adds
+  `converted` to `document_versions_source_check`) is not applied anywhere.
+- Word → Markdown now has one converter (mammoth + turndown), shared with text
+  extraction for tabular review and the assistant.
+
 ### Production and integration 2026-11-11
 
 - **Main:** `3752c539` (merge of pull request #155). **Production:** runs
