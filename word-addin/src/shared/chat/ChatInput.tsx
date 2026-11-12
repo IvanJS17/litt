@@ -9,6 +9,7 @@ import {
 } from "@mike/ui";
 
 import { cn } from "../lib/utils";
+import { useTranslations } from "use-intl";
 
 /** Lines the composer grows to before its text scrolls. */
 const COMPOSER_MAX_LINES = 6;
@@ -65,6 +66,7 @@ export function ChatInput({
     onKeyDown,
     combobox,
 }: ChatInputProps) {
+    const t = useTranslations();
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
     const inputAreaRef = React.useRef<HTMLDivElement>(null);
 
@@ -178,7 +180,7 @@ export function ChatInput({
                             isLoading ? onCancel?.() : canSend && onSubmit()
                         }
                         disabled={!isLoading && !canSend}
-                        aria-label={isLoading ? "Stop response" : "Send message"}
+                        aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(
                             COMPOSER_SEND_BUTTON_CLASS,
                             "h-8 w-8 shrink-0 rounded-[11px]",

@@ -7,6 +7,7 @@ import {
   DropdownItem,
   DropdownTrigger,
 } from "@mike/ui";
+import { useTranslations } from "use-intl";
 
 interface ApplyModeOption {
   mode: WordEditApplyMode;
@@ -41,6 +42,7 @@ export function EditApplyModeMenu({
   mode: WordEditApplyMode;
   onModeChange: (mode: WordEditApplyMode) => void;
 }): React.ReactElement {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const active = mode === "direct" ? DIRECT_OPTION : REVIEW_OPTION;
 
@@ -49,8 +51,8 @@ export function EditApplyModeMenu({
       <DropdownTrigger asChild>
         <button
           type="button"
-          aria-label="Choose how edits are applied"
-          title="Choose how edits are applied"
+          aria-label={t("word.chooseHowEditsAreApplied")}
+          title={t("word.chooseHowEditsAreApplied")}
           data-testid="edit-apply-toggle"
           className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-1.5 text-sm text-gray-400 transition-colors hover:text-gray-700 ${
             open ? "text-gray-700" : ""

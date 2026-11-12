@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Search } from "lucide-react";
 import { Spinner } from "../../../shared/ui/spinner";
+import { useTranslations } from "use-intl";
 
 export interface PickerListItem {
   id: string;
@@ -50,6 +51,7 @@ export function PickerList({
   loadFailed = false,
   selectedId,
 }: PickerListProps): React.ReactElement {
+  const t = useTranslations();
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return items;
@@ -81,7 +83,7 @@ export function PickerList({
           <p className="py-8 text-center text-sm text-destructive">{error}</p>
         ) : filtered.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">
-            {search ? "No matches found" : emptyMessage}
+            {search ? t("word.noMatchesFound") : emptyMessage}
           </p>
         ) : (
           <div className="space-y-px">

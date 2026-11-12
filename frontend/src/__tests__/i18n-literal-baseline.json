@@ -114,6 +114,7 @@
     "packages/ui/src/trainingReply.ts",
     "packages/ui/src/trainingText.ts",
     "packages/ui/src/useTrainingBacking.ts",
+    "word-addin/src",
     "word-addin/src/taskpane/components/assistant/BackingPanel.tsx",
     "word-addin/src/taskpane/hooks/useWordTrainingBacking.ts",
     "word-addin/src/taskpane/i18n/useTrainingText.ts"
@@ -121,6 +122,14 @@
   "allowed": {
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
-    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1
+    "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
+    "word-addin/src/shared/chat/Markdown.tsx": 3,
+    "word-addin/src/taskpane/api/mikeApi.ts": 8,
+    "word-addin/src/taskpane/components/approved-redline/ApprovedRedlinePanel.tsx": 1,
+    "word-addin/src/taskpane/components/assistant/EditApplyModeMenu.tsx": 4,
+    "word-addin/src/taskpane/components/documents/AddDocumentsModal.tsx": 3,
+    "word-addin/src/taskpane/components/shell/FloatingHeader.tsx": 5,
+    "word-addin/src/taskpane/hooks/useWordDoc.ts": 4,
+    "word-addin/src/taskpane/hooks/useWordTrackedEdits.ts": 2
   }
 }

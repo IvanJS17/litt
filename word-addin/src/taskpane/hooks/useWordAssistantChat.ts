@@ -58,6 +58,7 @@ import {
   TURN_OUTCOME_UNKNOWN_MESSAGE,
   failedTurnRecovery,
 } from "../lib/wordTurnRecovery";
+import { useTranslations } from "use-intl";
 
 /**
  * What one run of the turn pipeline was asked to do. Sending and resuming
@@ -190,6 +191,7 @@ export function useWordAssistantChat({
   editApplyMode,
   editController,
 }: UseWordAssistantChatOptions): WordAssistantChatController {
+  const t = useTranslations();
   const [messages, setMessages] = useState<WordChatMessage[]>([]);
   const [isResponseLoading, setIsResponseLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -566,7 +568,7 @@ export function useWordAssistantChat({
             // even read) the document either.
             if (!sendIsCurrent()) {
               await respond({
-                error: "The chat session changed; the tool did not run.",
+                error: t("word.theChatSessionChangedTheTool"),
               });
               return;
             }
@@ -584,7 +586,7 @@ export function useWordAssistantChat({
               // here means a protocol mismatch — refuse the whole call rather
               // than applying a subset the two sides would count differently.
               if (edits.length === 0 || edits.some((edit) => edit === null)) {
-                await respond({ error: "No valid edits in tool input." });
+                await respond({ error: t("word.noValidEditsInToolInput") });
                 return;
               }
               // The backend assigns the ordinals because it also persists the
@@ -674,13 +676,13 @@ export function useWordAssistantChat({
                     : {
                         index,
                         status: "error" as const,
-                        error: "Word did not return an edit result.",
+                        error: t("word.wordDidNotReturnAnEdit"),
                       };
                 }),
               });
               return;
             }
-            await respond({ error: `Unknown client tool: ${call.name}` });
+            await respond({ error: t("word.unknownClientToolName", { name: call.name }) });
           } catch (error) {
             // This text goes back to the model as a tool result, not to the
             // screen, so the raw message is the useful thing to send.
@@ -688,7 +690,7 @@ export function useWordAssistantChat({
               error:
                 error instanceof Error
                   ? error.message
-                  : "The Word add-in failed to execute the tool.",
+                  : t("word.theWordAddInFailedTo"),
             });
           }
         };

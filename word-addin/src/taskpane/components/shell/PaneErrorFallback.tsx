@@ -1,5 +1,6 @@
 import React from "react";
 import { PillButtonUI as PillButton } from "@mike/ui";
+import { useTranslations } from "use-intl";
 
 /**
  * What the pane shows when a render error escapes every component. This only
@@ -10,18 +11,18 @@ export function PaneErrorFallback({
 }: {
   resetError: () => void;
 }): React.ReactElement {
+  const t = useTranslations();
   return (
     <div
       role="alert"
       className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center"
     >
-      <p className="text-sm font-medium text-foreground">Something went wrong</p>
+      <p className="text-sm font-medium text-foreground">{t("word.somethingWentWrong")}</p>
       <p className="text-xs text-muted-foreground">
-        The add-in hit an unexpected error. Try again, and reload the pane if
-        it keeps happening.
+        {t("word.theAddInHitAnUnexpected")}
       </p>
       <PillButton type="button" tone="black" size="normal" onClick={resetError}>
-        Try again
+        {t("word.tryAgain")}
       </PillButton>
     </div>
   );

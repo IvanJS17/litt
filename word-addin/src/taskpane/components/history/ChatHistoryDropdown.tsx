@@ -8,6 +8,7 @@ import { useOpenWordChat } from "../../hooks/useOpenWordChat";
 import { usePaginatedChats } from "../../hooks/usePaginatedChats";
 import type { WordChatStorageMode } from "../../lib/wordChatSettings";
 import type { WordChatOpenHandler } from "../../lib/wordChatTypes";
+import { useTranslations } from "use-intl";
 
 const PAGE_SIZE = 10;
 
@@ -32,6 +33,7 @@ export function ChatHistoryDropdown({
   storageMode,
   currentChatId,
 }: ChatHistoryDropdownProps): React.ReactElement {
+  const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   // The header is mounted with the Assistant page, so this preloads the first
@@ -82,7 +84,7 @@ export function ChatHistoryDropdown({
         setOpen(next);
       }}
       trigger={
-        <LiquidIconButton aria-label="Chat history" title="Chat history">
+        <LiquidIconButton aria-label={t("word.chatHistory")} title={t("word.chatHistory")}>
           <History
             data-testid="chat-history-trigger-icon"
             className="h-4 w-4"

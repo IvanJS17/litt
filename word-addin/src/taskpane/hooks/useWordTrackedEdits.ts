@@ -132,6 +132,7 @@ import {
   ALREADY_APPLIED_MESSAGE,
   UNVERIFIED_APPLY_MESSAGE,
 } from "../lib/editApplyOutcome";
+import { useTranslations } from "use-intl";
 
 export function useWordTrackedEdits({
   sessionKey,
@@ -146,6 +147,7 @@ export function useWordTrackedEdits({
   onPersistEdit?: PersistWordDocumentEdit;
   onUpdatePersistedEdit?: UpdatePersistedWordDocumentEdit;
 }): WordTrackedEditsController {
+  const t = useTranslations();
   const [editStateByKey, setEditStateByKey] = useState<
     Record<string, EditRuntimeState>
   >({});
@@ -1067,7 +1069,7 @@ export function useWordTrackedEdits({
             return {
               index,
               status: "error",
-              error: "Word did not report a result for this change.",
+              error: t("word.wordDidNotReportAResult"),
             };
         }
       });
@@ -1224,7 +1226,7 @@ export function useWordTrackedEdits({
               busy: false,
               busyAction: undefined,
               error:
-                "Skipped — the source text could not be found in the document.",
+                t("word.skippedTheSourceTextCouldNot"),
             });
             void updatePersistedEdit(key, {
               apply_status: "failed",

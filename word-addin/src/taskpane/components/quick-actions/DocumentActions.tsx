@@ -25,6 +25,7 @@ import {
 } from "../primitives/ModalForm";
 import { PageTitle } from "../primitives/PageTitle";
 import { reportFault, notifyError } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 interface DocumentActionsProps {
   createOpen: boolean;
@@ -35,6 +36,7 @@ export function DocumentActions({
   createOpen,
   onCreateClose,
 }: DocumentActionsProps): React.ReactElement {
+  const t = useTranslations();
   const [search, setSearch] = useState("");
   const [selectedAction, setSelectedAction] = useState<QuickAction | null>(
     null,
@@ -183,7 +185,7 @@ export function DocumentActions({
       className="flex h-full min-h-0 flex-col overflow-hidden p-3 @sm:p-4"
     >
       <PageTitle data-testid="quick-actions-page-title" className="mb-3 px-1">
-        Quick Actions
+        {t("word.quickActions2")}
       </PageTitle>
 
       <label className="flex h-9 shrink-0 items-center gap-2 rounded-xl border border-white/70 bg-white/70 px-3 text-gray-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_7px_rgba(21,26,38,0.05)]">
@@ -191,7 +193,7 @@ export function DocumentActions({
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search quick actions..."
+          placeholder={t("word.searchQuickActions")}
           className="min-w-0 flex-1 border-0 bg-transparent text-xs text-gray-800 outline-none placeholder:text-gray-400"
         />
       </label>
@@ -199,7 +201,7 @@ export function DocumentActions({
       <div className="mt-2 min-h-0 flex-1 overflow-y-auto rounded-sm pb-3">
         {filteredActions.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">
-            No quick actions found.
+            {t("word.noQuickActionsFound")}
           </p>
         ) : (
           <div className="space-y-px">
@@ -220,7 +222,7 @@ export function DocumentActions({
                       : "shrink-0 text-xs text-gray-400"
                   }
                 >
-                  {action.enabled ? "Active" : "Inactive"}
+                  {action.enabled ? t("word.active") : t("word.inactive")}
                 </span>
               </button>
             ))}
@@ -239,10 +241,10 @@ export function DocumentActions({
         title={
           selectedAction
             ? quickActionDisplayName(selectedAction)
-            : "Quick action"
+            : t("word.quickAction")
         }
         primaryAction={{
-          label: saving ? "Saving…" : "Save",
+          label: saving ? t("word.saving") : t("word.save"),
           disabled:
             saving || !selectedHasChanges || !selectedAction?.name?.trim(),
           onClick: () =>
@@ -297,9 +299,9 @@ export function DocumentActions({
           if (!creating) onCreateClose();
         }}
         parentLabel="Quick Actions"
-        title="New Quick Action"
+        title={t("word.newQuickAction")}
         primaryAction={{
-          label: creating ? "Creating…" : "Create",
+          label: creating ? t("word.creating") : t("word.create"),
           disabled: creating || !workflowId || !name.trim(),
           onClick: () => void createAction(),
         }}
@@ -353,45 +355,46 @@ function QuickActionForm({
   onEnabledChange?: (value: boolean) => void;
   error: string | null;
 }) {
+  const t = useTranslations();
   return (
     <div data-modal-scroll="vertical" className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto pb-5">
       <div>
-        <ModalFieldLabel htmlFor="quick-action-name">Name</ModalFieldLabel>
+        <ModalFieldLabel htmlFor="quick-action-name">{t("word.name")}</ModalFieldLabel>
         <ModalTextInput
           id="quick-action-name"
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
-          placeholder="Quick action name"
+          placeholder={t("word.quickActionName")}
           variant="minimal"
           autoFocus
         />
       </div>
       <div>
         <ModalFieldLabel htmlFor="quick-action-workflow">
-          Workflow used
+          {t("word.workflowUsed")}
         </ModalFieldLabel>
         <ModalSelect
           id="quick-action-workflow"
           value={workflowId}
-          placeholder="Select an assistant workflow"
+          placeholder={t("word.selectAnAssistantWorkflow")}
           options={workflowOptions}
           onChange={onWorkflowChange}
         />
       </div>
       <div>
-        <ModalFieldLabel htmlFor="quick-action-prompt">Prompt</ModalFieldLabel>
+        <ModalFieldLabel htmlFor="quick-action-prompt">{t("word.prompt")}</ModalFieldLabel>
         <ModalTextArea
           id="quick-action-prompt"
           value={prompt}
           onChange={(event) => onPromptChange(event.target.value)}
           className="h-28 min-h-28"
-          placeholder="Prompt placed in the Assistant composer"
+          placeholder={t("word.promptPlacedInTheAssistantComposer")}
         />
       </div>
       {enabled !== undefined && onEnabledChange && (
         <ToggleRow
-          label="Active"
-          caption="Show this action in the Assistant initial view."
+          label={t("word.active")}
+          caption={t("word.showThisActionInTheAssistant")}
           checked={enabled}
           onChange={onEnabledChange}
         />

@@ -109,15 +109,14 @@ export function SettingsPage({
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="text-sm font-medium text-gray-900">
-                  Save chats in the cloud
+                  {t("word.saveChatsInTheCloud")}
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-gray-500">
-                  Cloud chats are linked to this Word document and available on
-                  your other devices.
+                  {t("word.cloudChatsAreLinkedToThis")}
                 </p>
               </div>
               <ToggleSwitchUI
-                aria-label="Save chats in the cloud"
+                aria-label={t("word.saveChatsInTheCloud")}
                 checked={storageMode === "cloud"}
                 disabled={saving}
                 onCheckedChange={(checked) => void updateMode(checked)}
@@ -138,11 +137,10 @@ export function SettingsPage({
           <div className="flex items-center justify-between gap-4 p-4">
             <div className="min-w-0">
               <h2 className="text-sm font-medium text-gray-900">
-                Device-only chats
+                {t("word.deviceOnlyChats")}
               </h2>
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                Local chats remain readable in this device profile after
-                sign-out until you delete them.
+                {t("word.localChatsRemainReadableInThis")}
               </p>
             </div>
             <PillButton
@@ -151,7 +149,7 @@ export function SettingsPage({
               className="shrink-0"
             >
               <Trash2 className="h-3.5 w-3.5" />
-              Delete
+              {t("word.delete")}
             </PillButton>
           </div>
         </GlassCardUI>
@@ -161,10 +159,9 @@ export function SettingsPage({
         <GlassCardUI>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4">
             <div className="min-w-0">
-              <h2 className="text-sm font-medium text-gray-900">Acerca de</h2>
+              <h2 className="text-sm font-medium text-gray-900">{t("word.acercaDe")}</h2>
               <p className="mt-1 text-xs leading-5 text-gray-500">
-                LiTT es software libre bajo la licencia AGPL-3.0. Consulta el
-                código de la versión exacta que estás usando.
+                {t("word.littEsSoftwareLibreBajoLa")}
               </p>
             </div>
             <SourceCodeLinkUI
@@ -179,9 +176,9 @@ export function SettingsPage({
       <Modal
         open={clearConfirmOpen}
         onClose={() => !clearing && setClearConfirmOpen(false)}
-        title="Delete device-only chats?"
+        title={t("word.deleteDeviceOnlyChats")}
         primaryAction={{
-          label: clearing ? "Deleting…" : "Delete chats",
+          label: clearing ? t("word.deleting") : t("word.deleteChats"),
           tone: "danger",
           disabled: clearing,
           onClick: () => {
@@ -202,15 +199,14 @@ export function SettingsPage({
           },
         }}
         secondaryAction={{
-          label: "Cancel",
+          label: t("word.cancel"),
           disabled: clearing,
           onClick: () => setClearConfirmOpen(false),
         }}
         className="h-auto max-h-[calc(100vh-2rem)]"
       >
         <p className="pb-5 text-sm leading-6 text-gray-600">
-          This permanently deletes every device-only Word chat saved for this
-          account on this device. Cloud chats are not affected.
+          {t("word.thisPermanentlyDeletesEveryDeviceOnly")}
         </p>
       </Modal>
     </div>

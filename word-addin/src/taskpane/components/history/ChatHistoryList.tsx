@@ -9,6 +9,7 @@ import {
 import { cn } from "../../../shared/lib/utils";
 import type { WordChatOpenHandler } from "../../lib/wordChatTypes";
 import { useOpenWordChat } from "../../hooks/useOpenWordChat";
+import { useTranslations } from "use-intl";
 
 interface ChatHistoryListProps {
   pageSize: number;
@@ -102,6 +103,7 @@ export function ChatHistoryListView({
   ownerId,
   storageMode,
 }: ChatHistoryListViewProps): React.ReactElement {
+  const t = useTranslations();
   const { chats, loading, loadingMore, error, hasMore, loadMore, retry } =
     pagination;
   const { openChat, loadingChatId, openError } = useOpenWordChat(
@@ -148,16 +150,16 @@ export function ChatHistoryListView({
             onClick={retry}
             className="rounded-md bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200"
           >
-            Retry
+            {t("word.retry")}
           </button>
         </div>
       ) : loading ? (
         <div className="flex min-h-32 items-center justify-center">
-          <Spinner label="Loading chats…" />
+          <Spinner label={t("word.loadingChats")} />
         </div>
       ) : filteredChats.length === 0 ? (
         <p className="py-8 text-center text-sm text-gray-400">
-          {search ? "No matches found" : "No chats saved for this document"}
+          {search ? t("word.noMatchesFound") : t("word.noChatsSavedForThisDocument")}
         </p>
       ) : (
         <div className="space-y-px">
@@ -189,12 +191,12 @@ export function ChatHistoryListView({
           ))}
           {loadingMore && (
             <div className="flex justify-center py-3">
-              <Spinner label="Loading more chats…" />
+              <Spinner label={t("word.loadingMoreChats")} />
             </div>
           )}
           {!hasMore && chats.length > pageSize && (
             <p className="py-3 text-center text-[10px] text-gray-400">
-              All chats loaded
+              {t("word.allChatsLoaded")}
             </p>
           )}
         </div>

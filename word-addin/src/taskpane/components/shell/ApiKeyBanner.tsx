@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { KeyRound, X } from "lucide-react";
 import { getApiKeyStatus, type ApiKeyStatus } from "../../api/mikeApi";
 import { WEB_APP_URL, openExternalUrl } from "../../lib/openExternalUrl";
+import { useTranslations } from "use-intl";
 
 const DISMISS_KEY = "apiKeyBannerDismissed";
 
@@ -31,6 +32,7 @@ function isDismissed(): boolean {
  * already cover that). Dismissible for the session, like the web banner.
  */
 export function ApiKeyBanner(): React.ReactElement | null {
+  const t = useTranslations();
   const [missingKey, setMissingKey] = useState(false);
   const [dismissed, setDismissed] = useState(isDismissed);
 
@@ -69,15 +71,15 @@ export function ApiKeyBanner(): React.ReactElement | null {
       <div className="flex items-start gap-2">
         <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
         <p className="min-w-0 flex-1">
-          <span className="font-medium">No AI provider key is set up.</span>{" "}
+          <span className="font-medium">{t("word.noAiProviderKeyIsSet")}</span>{" "}
           <span className="text-warning">
-            Chat and actions will fail until you add one.
+            {t("word.chatAndActionsWillFailUntil")}
           </span>
         </p>
         <button
           type="button"
           onClick={handleDismiss}
-          aria-label="Dismiss"
+          aria-label={t("word.dismiss")}
           className="shrink-0 rounded p-0.5 text-warning transition-colors hover:bg-warning-border"
         >
           <X className="h-3.5 w-3.5" />
@@ -88,7 +90,7 @@ export function ApiKeyBanner(): React.ReactElement | null {
         onClick={openApiKeysPage}
         className="mt-1.5 ml-[22px] rounded-md bg-warning-fill px-2 py-1 text-[11px] font-medium text-warning-fill-foreground transition-colors hover:bg-warning-fill-hover"
       >
-        Set up API keys
+        {t("word.setUpApiKeys")}
       </button>
     </div>
   );

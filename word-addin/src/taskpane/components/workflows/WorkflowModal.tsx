@@ -4,6 +4,7 @@ import { listWorkflows } from "../../api/mikeApi";
 import { Modal } from "../primitives/Modal";
 import { WorkflowList } from "./WorkflowList";
 import { reportFault } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 interface WorkflowModalProps {
   open: boolean;
@@ -18,6 +19,7 @@ export function WorkflowModal({
   onSelect,
   initialWorkflowId,
 }: WorkflowModalProps): React.ReactElement | null {
+  const t = useTranslations();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedId, setSelectedId] = useState(initialWorkflowId ?? "");
   const [search, setSearch] = useState("");
@@ -62,9 +64,9 @@ export function WorkflowModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Add workflow"
+      title={t("word.addWorkflow")}
       primaryAction={{
-        label: "Use",
+        label: t("word.use"),
         disabled: !selected || !(selected.skill_md ?? "").trim(),
         onClick: () => {
           if (!selected || !(selected.skill_md ?? "").trim()) return;

@@ -17,6 +17,7 @@ import {
   WORKFLOW_PRACTICE_OPTIONS,
 } from "../../lib/workflowMetadata";
 import { reportFault } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 function valueOrOther(
   value: string,
@@ -46,6 +47,7 @@ export function WorkflowDetailsModal({
   deleteConfirmOpen,
   onDeleteConfirmOpenChange,
 }: WorkflowDetailsModalProps): React.ReactElement | null {
+  const t = useTranslations();
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState(DEFAULT_WORKFLOW_LANGUAGE);
   const [customLanguage, setCustomLanguage] = useState("");
@@ -184,12 +186,12 @@ export function WorkflowDetailsModal({
         open={open}
         onClose={onClose}
         parentLabel="Workflows"
-        title="View and Edit details"
+        title={t("word.viewAndEditDetails")}
         primaryAction={
           readOnly
             ? undefined
             : {
-                label: saving ? "Saving…" : "Save",
+                label: saving ? t("word.saving") : t("word.save"),
                 onClick: () => void handleSave(),
                 disabled: !title.trim() || saving || !hasChanges,
               }
@@ -199,13 +201,13 @@ export function WorkflowDetailsModal({
           <div className="space-y-6">
             <div>
               <ModalFieldLabel htmlFor="workflow-details-title">
-                Title
+                {t("word.title")}
               </ModalFieldLabel>
               <ModalTextInput
                 id="workflow-details-title"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="Add workflow name"
+                placeholder={t("word.addWorkflowName")}
                 variant="minimal"
                 disabled={readOnly}
               />
@@ -214,7 +216,7 @@ export function WorkflowDetailsModal({
 
             <div>
               <ModalFieldLabel htmlFor="workflow-details-language">
-                Language
+                {t("word.language2")}
               </ModalFieldLabel>
               <ModalSelect
                 id="workflow-details-language"
@@ -226,11 +228,11 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomLanguage("");
                 }}
               />
-              {language === "Other" && (
+              {language === t("word.other") && (
                 <ModalTextInput
                   value={customLanguage}
                   onChange={(event) => setCustomLanguage(event.target.value)}
-                  placeholder="Enter language…"
+                  placeholder={t("word.enterLanguage")}
                   disabled={readOnly}
                   className="mt-2"
                 />
@@ -239,7 +241,7 @@ export function WorkflowDetailsModal({
 
             <div>
               <ModalFieldLabel htmlFor="workflow-details-practice">
-                Practice area
+                {t("word.practiceArea")}
               </ModalFieldLabel>
               <ModalSelect
                 id="workflow-details-practice"
@@ -251,11 +253,11 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomPractice("");
                 }}
               />
-              {practice === "Other" && (
+              {practice === t("word.other") && (
                 <ModalTextInput
                   value={customPractice}
                   onChange={(event) => setCustomPractice(event.target.value)}
-                  placeholder="Enter practice area…"
+                  placeholder={t("word.enterPracticeArea")}
                   disabled={readOnly}
                   className="mt-2"
                 />
@@ -264,7 +266,7 @@ export function WorkflowDetailsModal({
 
             <div>
               <ModalFieldLabel htmlFor="workflow-details-jurisdiction">
-                Jurisdiction
+                {t("word.jurisdiction")}
               </ModalFieldLabel>
               <ModalSelect
                 id="workflow-details-jurisdiction"
@@ -276,13 +278,13 @@ export function WorkflowDetailsModal({
                   if (value !== "Other") setCustomJurisdiction("");
                 }}
               />
-              {jurisdiction === "Other" && (
+              {jurisdiction === t("word.other") && (
                 <ModalTextInput
                   value={customJurisdiction}
                   onChange={(event) =>
                     setCustomJurisdiction(event.target.value)
                   }
-                  placeholder="Enter jurisdiction…"
+                  placeholder={t("word.enterJurisdiction")}
                   disabled={readOnly}
                   className="mt-2"
                 />
@@ -302,15 +304,15 @@ export function WorkflowDetailsModal({
         open={deleteConfirmOpen}
         onClose={() => !deleting && onDeleteConfirmOpenChange(false)}
         parentLabel="Workflows"
-        title="Delete workflow?"
+        title={t("word.deleteWorkflow")}
         primaryAction={{
-          label: deleting ? "Deleting…" : "Delete",
+          label: deleting ? t("word.deleting") : t("word.delete"),
           tone: "danger",
           disabled: deleting,
           onClick: () => void handleDelete(),
         }}
         secondaryAction={{
-          label: "Cancel",
+          label: t("word.cancel"),
           disabled: deleting,
           onClick: () => onDeleteConfirmOpenChange(false),
         }}
@@ -318,8 +320,8 @@ export function WorkflowDetailsModal({
         <div className="pb-5 text-sm leading-6 text-gray-600">
           <p>
             {workflow.is_default
-              ? "Deleting this default workflow also permanently deletes its corresponding Quick Action. It will not be recreated automatically."
-              : "This workflow will be permanently deleted."}
+              ? t("word.deletingThisDefaultWorkflowAlsoPermanently")
+              : t("word.thisWorkflowWillBePermanentlyDeleted")}
           </p>
           {deleteError && (
             <p role="alert" className="mt-3 text-red-500">

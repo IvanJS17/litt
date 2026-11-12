@@ -18,6 +18,7 @@ import {
   WORKFLOW_PRACTICE_OPTIONS,
 } from "../../lib/workflowMetadata";
 import { reportFault } from "../../lib/notify";
+import { useTranslations } from "use-intl";
 
 const US_STATE_OPTIONS = [
   "Alabama",
@@ -100,6 +101,7 @@ export function NewWorkflowModal({
   onClose,
   onCreated,
 }: NewWorkflowModalProps): React.ReactElement | null {
+  const t = useTranslations();
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState(DEFAULT_WORKFLOW_LANGUAGE);
   const [customLanguage, setCustomLanguage] = useState("");
@@ -194,7 +196,7 @@ export function NewWorkflowModal({
     if (!/\.(?:md|markdown)$/i.test(file.name)) {
       setImportedMarkdown("");
       setImportedFileName(null);
-      setError("Choose a .md or .markdown file.");
+      setError(t("word.chooseAMdOrMarkdownFile"));
       event.target.value = "";
       return;
     }
@@ -205,7 +207,7 @@ export function NewWorkflowModal({
     } catch {
       setImportedMarkdown("");
       setImportedFileName(null);
-      setError("Could not read that Markdown file.");
+      setError(t("word.couldNotReadThatMarkdownFile"));
     }
   };
 
@@ -214,9 +216,9 @@ export function NewWorkflowModal({
       open={open}
       onClose={close}
       parentLabel="Workflows"
-      title="New workflow"
+      title={t("word.newWorkflow")}
       primaryAction={{
-        label: creating ? "Creating…" : "Create workflow",
+        label: creating ? t("word.creating") : t("word.createWorkflow"),
         onClick: () => void create(),
         disabled: !title.trim() || creating,
       }}
@@ -231,13 +233,13 @@ export function NewWorkflowModal({
         <div className="space-y-6">
           <div>
             <ModalFieldLabel htmlFor="new-workflow-title">
-              Title
+              {t("word.title")}
             </ModalFieldLabel>
             <ModalTextInput
               id="new-workflow-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Add workflow name"
+              placeholder={t("word.addWorkflowName")}
               variant="minimal"
               autoFocus
             />
@@ -246,7 +248,7 @@ export function NewWorkflowModal({
 
           <div>
             <ModalFieldLabel htmlFor="new-workflow-language">
-              Language
+              {t("word.language2")}
             </ModalFieldLabel>
             <ModalSelect
               id="new-workflow-language"
@@ -257,11 +259,11 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomLanguage("");
               }}
             />
-            {language === "Other" && (
+            {language === t("word.other") && (
               <ModalTextInput
                 value={customLanguage}
                 onChange={(event) => setCustomLanguage(event.target.value)}
-                placeholder="Enter language…"
+                placeholder={t("word.enterLanguage")}
                 className="mt-2"
               />
             )}
@@ -269,7 +271,7 @@ export function NewWorkflowModal({
 
           <div>
             <ModalFieldLabel htmlFor="new-workflow-practice">
-              Practice area
+              {t("word.practiceArea")}
             </ModalFieldLabel>
             <ModalSelect
               id="new-workflow-practice"
@@ -280,11 +282,11 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomPractice("");
               }}
             />
-            {practice === "Other" && (
+            {practice === t("word.other") && (
               <ModalTextInput
                 value={customPractice}
                 onChange={(event) => setCustomPractice(event.target.value)}
-                placeholder="Enter practice area…"
+                placeholder={t("word.enterPracticeArea")}
                 className="mt-2"
               />
             )}
@@ -292,7 +294,7 @@ export function NewWorkflowModal({
 
           <div>
             <ModalFieldLabel htmlFor="new-workflow-jurisdiction">
-              Jurisdiction
+              {t("word.jurisdiction")}
             </ModalFieldLabel>
             <ModalSelect
               id="new-workflow-jurisdiction"
@@ -304,8 +306,8 @@ export function NewWorkflowModal({
                 if (value !== "Other") setCustomJurisdiction("");
               }}
             />
-            {(jurisdiction === "United States" ||
-              jurisdiction === "Canada") && (
+            {(jurisdiction === t("word.unitedStates") ||
+              jurisdiction === t("word.canada")) && (
               <ModalSelect
                 id="new-workflow-jurisdiction-region"
                 value={jurisdictionRegion}
@@ -316,18 +318,18 @@ export function NewWorkflowModal({
                 }
                 onChange={setJurisdictionRegion}
                 placeholder={
-                  jurisdiction === "United States"
-                    ? "Select state…"
-                    : "Select province…"
+                  jurisdiction === t("word.unitedStates")
+                    ? t("word.selectState")
+                    : t("word.selectProvince")
                 }
                 className="mt-2"
               />
             )}
-            {jurisdiction === "Other" && (
+            {jurisdiction === t("word.other") && (
               <ModalTextInput
                 value={customJurisdiction}
                 onChange={(event) => setCustomJurisdiction(event.target.value)}
-                placeholder="Enter jurisdiction…"
+                placeholder={t("word.enterJurisdiction")}
                 className="mt-2"
               />
             )}
@@ -335,7 +337,7 @@ export function NewWorkflowModal({
 
           {importedFileName && (
             <p className="text-xs text-gray-500">
-              The imported Markdown will become the workflow instructions.
+              {t("word.theImportedMarkdownWillBecomeThe")}
             </p>
           )}
           {error && (

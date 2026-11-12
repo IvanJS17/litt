@@ -36,6 +36,7 @@ import {
   PROXY_CLEANUP_FAILURE,
   cleanupSentence,
 } from "../lib/trackedEditCleanup";
+import { useTranslations } from "use-intl";
 
 interface PersistedRedlineEdit extends RedlineEdit {
   /** Stable `${assistantMessageId}:edit-${blockIndex}` identity. */
@@ -3071,6 +3072,7 @@ export function releaseTrackedEdits(
  * where Office.js has already initialised (i.e. inside Office.onReady).
  */
 export function useWordDoc() {
+  const t = useTranslations();
   /** Read the plain text of the entire document body. */
   /**
    * Read the active document as structure-annotated markdown: heading
@@ -3147,7 +3149,7 @@ export function useWordDoc() {
             original.includes("^") ||
             original.length > MAX_SEARCH_CHARS
           ) {
-            return { error: "This passage cannot be searched in Word." };
+            return { error: t("word.thisPassageCannotBeSearchedIn") };
           }
           const replaceAll = edit.occurrence === "all";
           // Same candidate order as the apply path: verbatim first, then
@@ -3169,11 +3171,11 @@ export function useWordDoc() {
             }
           }
           if (matches.items.length === 0) {
-            return { error: "The passage is no longer in the document." };
+            return { error: t("word.thePassageIsNoLongerIn") };
           }
           if (!replaceAll && matches.items.length > 1) {
             return {
-              error: `Found ${matches.items.length} exact matches; nothing was accepted.`,
+              error: t("word.foundLengthExactMatchesNothingWas", { length: matches.items.length }),
             };
           }
           const collections = matches.items.map((match) => {
