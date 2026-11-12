@@ -40,7 +40,7 @@ describe("failure text in es-MX", () => {
 
     it("composes the action into the title", () => {
         expect(describeError(apiError(403, null, ""), { action: "guardar el documento." }).title).toBe(
-            "No se pudo guardar el documento",
+            "No fue posible guardar el documento",
         );
     });
 

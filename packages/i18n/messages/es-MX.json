@@ -518,8 +518,8 @@
       "validation_failed": "Parte de la información que diste no es válida.",
       "workflow_open_source_disabled": "Publicar flujos de trabajo fuera de LiTT no está disponible."
     },
-    "couldnt": "No se pudo {action}",
-    "couldntTryAgain": "No se pudo {action}. Inténtalo de nuevo.",
+    "couldnt": "No fue posible {action}",
+    "couldntTryAgain": "No fue posible {action}. Inténtalo de nuevo.",
     "message": {
       "aborted": "Se canceló la solicitud.",
       "conflict": "Esto cambió en otro lugar. Actualiza e inténtalo de nuevo.",
@@ -1537,7 +1537,7 @@
       "authorizationCancelledNotRemoved": "Se canceló la autorización, pero no se pudo quitar el conector incompleto. Quítalo de Instalados e inténtalo de nuevo.",
       "cancelNameAuthorization": "Cancelar autorización de {name}",
       "clear": "Limpiar",
-      "cleared": "Borrado",
+      "cleared": "Token borrado",
       "completeAuthorizationInThePopup": "Completa la autorización en la ventana emergente para terminar de conectar este servidor MCP.",
       "connectorUpdateFailed": "Falló la actualización del conector",
       "couldNotAddConnector": "No se pudo agregar el conector",
@@ -1728,7 +1728,7 @@
     "personalisation": {
       "practiceAreas": "Áreas de práctica",
       "tellLittAboutYourRoleAnd": "Cuéntale a LiTT sobre tu rol y tu práctica para que las respuestas se adapten a tu contexto profesional.",
-      "yourBackground": "Tu trayectoria"
+      "yourBackground": "Tu perfil profesional"
     },
     "personalisationFields": {
       "enterYourJurisdiction": "Escribe tu jurisdicción",
@@ -1743,7 +1743,7 @@
       "otherPracticeArea": "Otra área de práctica",
       "practiceAreas": "Áreas de práctica",
       "practiceSetting": {
-        "inHouse": "En plantilla",
+        "inHouse": "En una empresa (área jurídica interna)",
         "notPractising": "No ejerces como abogado",
         "privatePractice": "Práctica privada"
       },
@@ -1879,7 +1879,7 @@
       "tone": "Tono",
       "turkish": "Turco",
       "ukrainian": "Ucraniano",
-      "verbosity": "Extensión",
+      "verbosity": "Nivel de detalle",
       "vietnamese": "Vietnamita"
     },
     "routerSettingsSection": {

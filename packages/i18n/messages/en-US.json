@@ -1668,7 +1668,7 @@
       "noDefaultModel": "No default model",
       "preselectedWhenCreatingAReviewEach": "Preselected when creating a review. Each review stores its own model and can be changed separately.",
       "selectAModel": "Select a model",
-      "subagentes": "Subagentes",
+      "subagentes": "Subagents",
       "tabularReviewModel": "Tabular review model",
       "usedAfterConversationsToIdentifyDurable": "Used after conversations to identify durable information worth keeping. By default, memory uses the model selected for the chat."
     },
