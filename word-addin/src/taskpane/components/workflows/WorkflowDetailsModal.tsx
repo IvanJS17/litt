@@ -15,6 +15,7 @@ import {
   DEFAULT_WORKFLOW_PRACTICE,
   WORKFLOW_JURISDICTION_OPTIONS,
   WORKFLOW_LANGUAGE_OPTIONS,
+  WORKFLOW_OTHER_OPTION,
   WORKFLOW_PRACTICE_OPTIONS,
 } from "../../lib/workflowMetadata";
 import { reportFault } from "../../lib/notify";
@@ -26,7 +27,7 @@ function valueOrOther(
 ): { selected: string; custom: string } {
   return options.includes(value)
     ? { selected: value, custom: "" }
-    : { selected: "Other", custom: value };
+    : { selected: WORKFLOW_OTHER_OPTION, custom: value };
 }
 
 interface WorkflowDetailsModalProps {
@@ -109,11 +110,11 @@ export function WorkflowDetailsModal({
 
   const readOnly = workflow.is_system || workflow.allow_edit === false;
   const effectiveLanguage =
-    language === "Other" ? customLanguage.trim() : language;
+    language === WORKFLOW_OTHER_OPTION ? customLanguage.trim() : language;
   const effectivePractice =
-    practice === "Other" ? customPractice.trim() : practice;
+    practice === WORKFLOW_OTHER_OPTION ? customPractice.trim() : practice;
   const effectiveJurisdiction =
-    jurisdiction === "Other" ? customJurisdiction : jurisdiction;
+    jurisdiction === WORKFLOW_OTHER_OPTION ? customJurisdiction : jurisdiction;
   const jurisdictions = effectiveJurisdiction
     .split(",")
     .map((value) => value.trim())
@@ -226,10 +227,10 @@ export function WorkflowDetailsModal({
                 disabled={readOnly}
                 onChange={(value) => {
                   setLanguage(value);
-                  if (value !== "Other") setCustomLanguage("");
+                  if (value !== WORKFLOW_OTHER_OPTION) setCustomLanguage("");
                 }}
               />
-              {language === "Other" && (
+              {language === WORKFLOW_OTHER_OPTION && (
                 <ModalTextInput
                   value={customLanguage}
                   onChange={(event) => setCustomLanguage(event.target.value)}
@@ -251,10 +252,10 @@ export function WorkflowDetailsModal({
                 disabled={readOnly}
                 onChange={(value) => {
                   setPractice(value);
-                  if (value !== "Other") setCustomPractice("");
+                  if (value !== WORKFLOW_OTHER_OPTION) setCustomPractice("");
                 }}
               />
-              {practice === "Other" && (
+              {practice === WORKFLOW_OTHER_OPTION && (
                 <ModalTextInput
                   value={customPractice}
                   onChange={(event) => setCustomPractice(event.target.value)}
@@ -276,10 +277,10 @@ export function WorkflowDetailsModal({
                 disabled={readOnly}
                 onChange={(value) => {
                   setJurisdiction(value);
-                  if (value !== "Other") setCustomJurisdiction("");
+                  if (value !== WORKFLOW_OTHER_OPTION) setCustomJurisdiction("");
                 }}
               />
-              {jurisdiction === "Other" && (
+              {jurisdiction === WORKFLOW_OTHER_OPTION && (
                 <ModalTextInput
                   value={customJurisdiction}
                   onChange={(event) =>
