@@ -1,5 +1,6 @@
 import { settleWithConcurrency } from "./settleWithConcurrency";
 import { createSecureUuid } from "./secureUuid";
+import { clientTranslator } from "./locale";
 
 export type UploadSessionPurpose =
     | "document_create"
@@ -83,13 +84,22 @@ const MAX_UPLOAD_SESSION_BYTES = 2 * 1024 * 1024 * 1024;
  * the copy below, so a limit change cannot leave a stale number in the UI.
  */
 export const UPLOAD_LIMIT_MESSAGES: Record<string, string> = {
-    too_many_files: `You can upload at most ${MAX_UPLOAD_SESSION_FILES} files at a time.`,
-    upload_file_too_large: `Each uploaded file must be ${Math.round(
-        MAX_UPLOAD_FILE_BYTES / (1024 * 1024),
-    )} MB or smaller.`,
-    upload_batch_too_large: `An upload batch must be ${Math.round(
-        MAX_UPLOAD_SESSION_BYTES / (1024 * 1024 * 1024),
-    )} GB or smaller.`,
+    // Getters: the text follows the language the app speaks when it is read.
+    get too_many_files() {
+        return clientTranslator()("documents.upload.tooManyFiles", {
+            count: MAX_UPLOAD_SESSION_FILES,
+        });
+    },
+    get upload_file_too_large() {
+        return clientTranslator()("documents.upload.fileTooLarge", {
+            size: Math.round(MAX_UPLOAD_FILE_BYTES / (1024 * 1024)),
+        });
+    },
+    get upload_batch_too_large() {
+        return clientTranslator()("documents.upload.batchTooLarge", {
+            size: Math.round(MAX_UPLOAD_SESSION_BYTES / (1024 * 1024 * 1024)),
+        });
+    },
 };
 
 /**
@@ -102,13 +112,15 @@ const UPLOAD_FILE_CONTENT_MESSAGES: Record<
     (filenames: string[]) => string
 > = {
     invalid_pdf_file: (filenames) =>
-        filenames.length === 1
-            ? `${filenames[0]} is not a valid PDF file.`
-            : `${filenames.join(", ")} are not valid PDF files.`,
+        clientTranslator()("documents.upload.invalidPdf", {
+            count: filenames.length,
+            names: filenames.join(", "),
+        }),
     invalid_markdown_file: (filenames) =>
-        filenames.length === 1
-            ? `${filenames[0]} is not a valid UTF-8 text file.`
-            : `${filenames.join(", ")} are not valid UTF-8 text files.`,
+        clientTranslator()("documents.upload.invalidMarkdown", {
+            count: filenames.length,
+            names: filenames.join(", "),
+        }),
 };
 
 /**
@@ -137,8 +149,10 @@ export function uploadOutcomeNeedsRetry(
  */
 export function failedUploadMessage<T>(
     outcomes: UploadOutcome<T>[],
-    fallback = "Documents could not be uploaded. Please try again.",
+    fallback?: string,
 ): string {
+    const t = clientTranslator();
+    fallback ??= t("word.documentsUploadFailedPlease");
     const failures = outcomes.filter((outcome) => outcome.status === "error");
     if (failures.length === 0) return fallback;
     const codes = new Set(failures.map((outcome) => outcome.errorCode));
@@ -151,9 +165,9 @@ export function failedUploadMessage<T>(
         if (contentMessage) return contentMessage(filenames);
     }
     if (filenames.length === 1) {
-        return `${filenames[0]} could not be uploaded. Please try again.`;
+        return t("word.fileUploadFailed", { name: filenames[0] });
     }
-    return `${filenames.join(", ")} could not be uploaded. Please try again.`;
+    return t("documents.upload.filesFailed", { names: filenames.join(", ") });
 }
 
 /**

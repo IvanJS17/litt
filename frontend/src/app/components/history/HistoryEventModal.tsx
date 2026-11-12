@@ -37,7 +37,8 @@ import {
   auditSurfaceLabels,
   auditTimestamp,
 } from "./auditPresentation";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import type { DateFormatter } from "@/app/lib/dateText";
 
 const DocumentContent = lazy(() =>
   import("@/app/components/shared/DocumentContent").then((module) => ({
@@ -61,6 +62,7 @@ export function HistoryEventModal({
   onAccessChange?: (hasAccess: boolean) => void;
 }) {
   const t = useTranslations();
+  const format = useFormatter();
   const router = useRouter();
   const privateAccess = personal ? null : auditPrivateAccess(event);
   const documentId =
@@ -223,14 +225,14 @@ export function HistoryEventModal({
           subject.name
         ),
     },
-    ...auditDetailFields(event, t).filter(
+    ...auditDetailFields(event, t, format).filter(
       (field) => !privateAccess || field.label !== t("history.audit.field.access"),
     ),
     ...(subject.context &&
     subject.context !== (surfaceLabels[event.surface ?? ""] ?? event.surface)
       ? [{ label: t("history.location"), value: subject.context }]
       : []),
-    { label: t("history.when"), value: auditTimestamp(event.created_at, true, t) },
+    { label: t("history.when"), value: auditTimestamp(event.created_at, true, t, format) },
     { label: t("history.status"), value: auditStatusLabel(event.status, t) },
     ...(privateAccess
       ? [{ label: t("history.access"), value: t("history.readOnlyLogged") }]
@@ -324,7 +326,7 @@ export function HistoryEventModal({
             className="min-h-0 overflow-y-auto pb-5"
           >
             <h2 className="font-serif text-2xl text-gray-900 [overflow-wrap:anywhere]">
-              {auditAction(event)}
+              {auditAction(event, t)}
             </h2>
             <div className="mt-4 rounded-xl bg-gray-100 p-4">
               <table

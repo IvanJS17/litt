@@ -5,6 +5,7 @@ import { Loader2, X } from "lucide-react";
 import { FileTypeIcon } from "@/app/components/shared/FileTypeIcon";
 import { LIQUID_GLASS_FLAT_CLASS } from "@/app/components/ui/liquid-surface";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 /**
  * A document attached to something about to be sent, as a removable pill:
@@ -38,6 +39,7 @@ export function DocumentPill({
   onRemove?: () => void;
   removeDisabled?: boolean;
 }) {
+  const t = useTranslations();
   const label = (
     <>
       {icon ?? (
@@ -64,7 +66,7 @@ export function DocumentPill({
         <button
           type="button"
           onClick={onOpen}
-          aria-label={`Open ${filename}`}
+          aria-label={t("shared.documentPill.openFilename", { filename })}
           className="inline-flex min-w-0 items-center gap-1 py-0.5 pl-2 transition-colors hover:text-gray-950"
         >
           {label}
@@ -84,7 +86,7 @@ export function DocumentPill({
           type="button"
           onClick={onRemove}
           disabled={removeDisabled}
-          aria-label={`Remove ${filename}`}
+          aria-label={t("shared.documentPill.removeFilename", { filename })}
           className="mx-1 rounded-full p-0.5 text-gray-400 transition-colors hover:bg-gray-900/5 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-40"
         >
           <X className="h-2.5 w-2.5" />

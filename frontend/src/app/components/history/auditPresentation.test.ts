@@ -1,17 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { loadMessages } from "@litt/i18n";
-import { configureClientLocale } from "@mike/client";
+import { clientLocale, clientTranslator, configureClientLocale } from "@mike/client";
+import { createFormatter } from "use-intl";
 import type { AuditEvent } from "@/app/lib/mikeApi";
-import {
-  auditAction,
-  auditActor,
-  auditDestination,
-  auditDetailFields,
-  auditSubject,
-  auditSubjectEmail,
-  auditSummary,
-  auditTimestamp,
-} from "./auditPresentation";
+import * as audit from "./auditPresentation";
+import { auditSubjectEmail } from "./auditPresentation";
+
+// The presentation helpers take the component's `t` and formatter. A test has
+// no component, so it hands them the client translator at the moment of the
+// call (a test may switch language half way) and a formatter for that locale.
+const t = ((key: string, values?: Record<string, unknown>) =>
+  (clientTranslator() as unknown as (k: string, v?: unknown) => string)(
+    key,
+    values,
+  )) as audit.AuditTranslate;
+const format = () =>
+  createFormatter({ locale: clientLocale(), timeZone: "America/Mexico_City" });
+const auditAction = (e: AuditEvent) => audit.auditAction(e, t);
+const auditActor = (e: AuditEvent) => audit.auditActor(e, t);
+const auditDestination = (e: AuditEvent) => audit.auditDestination(e, t);
+const auditDetailFields = (e: AuditEvent) =>
+  audit.auditDetailFields(e, t, format());
+const auditSubject = (e: AuditEvent) => audit.auditSubject(e, t);
+const auditSummary = (e: AuditEvent, personal: boolean) =>
+  audit.auditSummary(e, personal, t);
+const auditTimestamp = (value: string, exact: boolean) =>
+  audit.auditTimestamp(value, exact, t, format());
 
 const event: AuditEvent = {
   id: "event",
@@ -199,7 +213,8 @@ describe("audit event presentation", () => {
       }),
     ).toBe("Deleted user");
     expect(auditTimestamp(event.created_at, true)).toBe(
-      new Date(event.created_at).toLocaleString(undefined, {
+      new Date(event.created_at).toLocaleString("en-US", {
+        timeZone: "America/Mexico_City",
         day: "numeric",
         month: "short",
         year: "numeric",

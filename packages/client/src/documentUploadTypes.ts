@@ -1,3 +1,5 @@
+import { clientTranslator } from "./locale";
+
 // The one list of document types a person can upload. The web app and the
 // Word add-in both read it; the server keeps its own authoritative copy in
 // backend/src/lib/documentTypes.ts (a test keeps the two in step).
@@ -20,8 +22,9 @@ export const SUPPORTED_DOCUMENT_ACCEPT = SUPPORTED_DOCUMENT_EXTENSIONS.map(
 ).join(",");
 
 /** Says which types are accepted, so a refusal tells the person what to pick. */
-export const UNSUPPORTED_DOCUMENT_WARNING_MESSAGE =
-  "Unsupported file type. Only PDF, Word, Excel, PowerPoint, and Markdown (.md) files can be uploaded.";
+export function unsupportedDocumentWarningMessage(): string {
+  return clientTranslator()("documents.upload.unsupportedType");
+}
 
 const SUPPORTED_EXTENSION_SET: ReadonlySet<string> = new Set(
   SUPPORTED_DOCUMENT_EXTENSIONS,

@@ -20,3 +20,16 @@ export type Translate = (
     key: SettingsKey,
     values?: Record<string, string | number | Date>,
 ) => string;
+
+/** Every catalog key the shared panels, the assistant and the documents read. */
+export type AppKey =
+    | SettingsKey
+    | Leaves<Messages["shared"], "shared">
+    | Leaves<Messages["documents"], "documents">
+    | Leaves<Messages["history"], "history">;
+
+/** `Translate` for helpers outside Settings: same shape, more namespaces. */
+export type AppTranslate = (
+    key: AppKey,
+    values?: Record<string, string | number | Date>,
+) => string;

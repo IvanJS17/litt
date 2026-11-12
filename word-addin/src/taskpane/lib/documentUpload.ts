@@ -1,11 +1,11 @@
 import {
   SUPPORTED_DOCUMENT_ACCEPT,
-  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+  unsupportedDocumentWarningMessage,
   hasSupportedDocumentExtension,
 } from "@mike/client";
 
 // The list itself lives in @mike/client, shared with the web app.
-export { SUPPORTED_DOCUMENT_ACCEPT, UNSUPPORTED_DOCUMENT_WARNING_MESSAGE };
+export { SUPPORTED_DOCUMENT_ACCEPT, unsupportedDocumentWarningMessage };
 
 export function partitionSupportedDocumentFiles(files: File[]): {
   supported: File[];

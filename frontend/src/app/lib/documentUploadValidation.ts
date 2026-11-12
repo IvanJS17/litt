@@ -1,11 +1,11 @@
 import {
     SUPPORTED_DOCUMENT_ACCEPT,
-    UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+    unsupportedDocumentWarningMessage,
     hasSupportedDocumentExtension,
 } from "@mike/client";
 
 // The list itself lives in @mike/client, shared with the Word add-in.
-export { SUPPORTED_DOCUMENT_ACCEPT, UNSUPPORTED_DOCUMENT_WARNING_MESSAGE };
+export { SUPPORTED_DOCUMENT_ACCEPT, unsupportedDocumentWarningMessage };
 
 export function isSupportedDocumentFile(file: File): boolean {
     return hasSupportedDocumentExtension(file.name);
@@ -25,7 +25,7 @@ export function partitionSupportedDocumentFiles(files: File[]) {
 
 export function formatUnsupportedDocumentWarning(files: File[]): string | null {
     if (files.length === 0) return null;
-    return UNSUPPORTED_DOCUMENT_WARNING_MESSAGE;
+    return unsupportedDocumentWarningMessage();
 }
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatter } from "next-intl";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Loader2 } from "lucide-react";
 import { can, roleFrom } from "@/app/lib/permissions";
@@ -134,6 +135,7 @@ export function ReviewsListTable({
     loading?: boolean;
     renderToolbar?: (actions: ReactNode) => ReactNode;
 }) {
+    const format = useFormatter();
     const selectedReviewIdSet = useIdSet(selectedReviewIds);
     function clearSelection() {
         setSelectedReviewIds([]);
@@ -464,7 +466,7 @@ export function ReviewsListTable({
                                 )}
                                 <TableCell className="w-32">
                                     {review.created_at ? (
-                                        formatDate(review.created_at)
+                                        formatDate(format, review.created_at)
                                     ) : (
                                         <span className="text-gray-300">—</span>
                                     )}
@@ -472,6 +474,7 @@ export function ReviewsListTable({
                                 <TableCell className="w-32">
                                     {review.updated_at || review.created_at ? (
                                         formatDate(
+                                            format,
                                             review.updated_at ||
                                                 review.created_at,
                                         )

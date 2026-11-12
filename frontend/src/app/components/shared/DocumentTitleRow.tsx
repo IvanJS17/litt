@@ -22,6 +22,8 @@ import {
 } from "@/app/hooks/useTrainingVersionStatus";
 import { TrainingVersionStatus } from "./TrainingVersionStatus";
 import { DocumentAuthorshipPanel } from "./DocumentAuthorshipPanel";
+import { useFormatter, useTranslations } from "next-intl";
+import type { DateFormatter } from "@/app/lib/dateText";
 
 type ExternalSourceLink = {
     href: string;
@@ -52,6 +54,8 @@ export function DocumentTitleRow({
     /** Tells a host with its own download (a tab menu) whether to offer it. */
     onTrainingReleaseChange?: (release: TrainingRelease) => void;
 }) {
+    const t = useTranslations();
+    const format = useFormatter();
     const isFile =
         document.type === "docx" ||
         document.type === "pdf" ||
@@ -131,14 +135,14 @@ export function DocumentTitleRow({
                     {onToggleToolbar && (
                         <TextButtonUI
                             size="icon-xs"
-                            aria-label="Edit"
+                            aria-label={t("shared.documentTitleRow.edit")}
                             aria-expanded={toolbarVisible}
                             aria-pressed={toolbarVisible}
                             className={toolbarVisible ? "text-foreground" : undefined}
                             title={
                                 toolbarVisible
-                                    ? "Stop editing"
-                                    : "Enable editing"
+                                    ? t("shared.documentTitleRow.stopEditing")
+                                    : t("shared.documentTitleRow.enableEditing")
                             }
                             onClick={onToggleToolbar}
                         >
@@ -195,7 +199,7 @@ export function DocumentTitleRow({
                 <div className="mt-1 flex w-full flex-wrap items-center gap-x-3 gap-y-1 font-serif text-sm text-gray-600">
                     {document.metadata.map((item, index) => (
                         <span key={`${item.label}:${item.value}:${index}`}>
-                            {item.label}: {formatMetadataValue(item)}
+                            {item.label}: {formatMetadataValue(format, item)}
                         </span>
                     ))}
                 </div>
@@ -214,6 +218,7 @@ const SAVED_VISIBLE_MS = 1000;
  * so status changes are still announced.
  */
 function DocxSaveStatus({ state }: { state: DocxSaveState }) {
+    const t = useTranslations();
     const [expired, setExpired] = useState<DocxSaveState | null>(null);
     const saved = !state.error && !state.dirty && state.status === "saved";
     useEffect(() => {
@@ -222,11 +227,11 @@ function DocxSaveStatus({ state }: { state: DocxSaveState }) {
         return () => clearTimeout(timer);
     }, [saved, state]);
     const label = state.error
-        ? "Not saved"
+        ? t("shared.documentTitleRow.notSaved")
         : state.dirty || state.status === "saving"
-          ? "Saving…"
+          ? t("shared.documentTitleRow.saving")
           : saved && expired !== state
-            ? "Saved"
+            ? t("shared.documentTitleRow.saved")
             : null;
     return (
         <span
@@ -243,19 +248,23 @@ function DocxSaveStatus({ state }: { state: DocxSaveState }) {
 // Source actions
 // ---------------------------------------------------------------------------
 
-function formatMetadataValue(item: PanelDocument["metadata"][number]): string {
+function formatMetadataValue(
+    format: DateFormatter,
+    item: PanelDocument["metadata"][number],
+): string {
     if (item.format !== "date") return item.value;
     const value = item.value;
     const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
         ? new Date(`${value}T00:00:00Z`)
         : new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat("en-US", {
+    // A calendar date with no time: the same day for everyone.
+    return format.dateTime(date, {
         month: "long",
         day: "numeric",
         year: "numeric",
         timeZone: "UTC",
-    }).format(date);
+    });
 }
 
 function UrlDownloadButton({
@@ -263,14 +272,15 @@ function UrlDownloadButton({
 }: {
     href: string;
 }) {
+    const t = useTranslations();
     return (
         <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             download
-            aria-label="Download"
-            title="Download"
+            aria-label={t("shared.documentTitleRow.download")}
+            title={t("shared.documentTitleRow.download")}
             className={textButtonUIClassName({
                 size: "icon-xs",
             })}
@@ -319,6 +329,7 @@ function DownloadButton({
     isReloading?: boolean;
     onDownload?: () => Promise<void> | undefined;
 }) {
+    const t = useTranslations();
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -337,7 +348,7 @@ function DownloadButton({
             setError(
                 userFacingApiError(
                     cause,
-                    "This file could not be downloaded. Please try again.",
+                    t("shared.documentTitleRow.thisFileCouldNotBeDownloaded"),
                 ),
             );
         } finally {
@@ -350,14 +361,14 @@ function DownloadButton({
         <>
             <WarningPopup
                 open={!!error}
-                title="Download failed"
+                title={t("shared.documentTitleRow.downloadFailed")}
                 message={error}
                 onClose={() => setError(null)}
             />
             <TextButtonUI
                 size="icon-xs"
-                aria-label="Download"
-                title="Download"
+                aria-label={t("shared.documentTitleRow.download")}
+                title={t("shared.documentTitleRow.download")}
                 onClick={handleClick}
                 loading={!!spinning}
             >

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     SUPPORTED_DOCUMENT_ACCEPT,
-    UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+    unsupportedDocumentWarningMessage,
     combineUploadWarnings,
     formatUnsupportedDocumentWarning,
     isSupportedDocumentFile,
@@ -26,7 +26,7 @@ describe("isSupportedDocumentFile", () => {
     it("accepts Markdown and says so when it refuses another type", () => {
         expect(SUPPORTED_DOCUMENT_ACCEPT.split(",")).toContain(".md");
         expect(isSupportedDocumentFile(file("notes.MD"))).toBe(true);
-        expect(UNSUPPORTED_DOCUMENT_WARNING_MESSAGE).toMatch(/Markdown \(\.md\)/);
+        expect(unsupportedDocumentWarningMessage()).toMatch(/Markdown \(\.md\)/);
     });
 
     it("is case-insensitive on the extension", () => {
@@ -89,7 +89,7 @@ describe("formatUnsupportedDocumentWarning", () => {
 
     it("returns the shared warning message when files were rejected", () => {
         expect(formatUnsupportedDocumentWarning([file("x.txt")])).toBe(
-            UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+            unsupportedDocumentWarningMessage(),
         );
     });
 });

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
+import { formatNumericDateTime, formatShortDateTime } from "@/app/lib/dateText";
 import { createPortal } from "react-dom";
 import {
     AlertCircle,
@@ -118,10 +120,11 @@ export function DocumentSidePanel({
     onOwnerOnlyAction,
     onDelete,
     onAdd,
-    addLabel = "Add",
+    addLabel,
     onTrainingApproved,
 }: DocumentSidePanelProps) {
     const t = useTranslations();
+    const format = useFormatter();
     const [mounted, setMounted] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
@@ -328,18 +331,18 @@ export function DocumentSidePanel({
         if (!selectedVersionId) return;
         const trimmed = nameDraft.trim();
         if (!trimmed) {
-            setNameError("Name is required.");
+            setNameError(t("shared.documentSidePanel.nameIsRequired"));
             return;
         }
         if (hasExtensionChange(selectedFilename, trimmed)) {
             notifyError(
                 new UserVisibleError(
                     selectedExtension
-                        ? `File extensions cannot be changed here. Keep ${selectedExtension} at the end of the name.`
-                        : "File extensions cannot be changed here.",
+                        ? t("shared.documentSidePanel.fileExtensionsCannotBeChangedKeep", { extension: selectedExtension })
+                        : t("shared.documentSidePanel.fileExtensionsCannotBeChanged"),
                     { kind: "validation" },
                 ),
-                { action: "rename this version" },
+                { action: t("shared.documentSidePanel.renameThisVersion") },
             );
             return;
         }
@@ -357,8 +360,8 @@ export function DocumentSidePanel({
         } catch (err) {
             setNameError(
                 reportFault(err, {
-                    action: "rename this version",
-                    fallback: "Could not save the new name. Try again.",
+                    action: t("shared.documentSidePanel.renameThisVersion"),
+                    fallback: t("shared.documentSidePanel.couldNotSaveTheNewName"),
                     operation: "documents.edit",
                 }).message,
             );
@@ -378,9 +381,9 @@ export function DocumentSidePanel({
         } catch (err) {
             setUploadError(
                 reportFault(err, {
-                    action: "upload a new version",
+                    action: t("shared.documentSidePanel.uploadANewVersion"),
                     fallback:
-                        "The new version could not be uploaded. Try again.",
+                        t("shared.documentSidePanel.theNewVersionCouldNotBe"),
                     operation: "documents.upload",
                 }).message,
             );
@@ -391,7 +394,7 @@ export function DocumentSidePanel({
 
     async function handleDeleteVersion(versionIdToDelete: string) {
         if (!canDelete) {
-            onOwnerOnlyAction?.("delete this document version");
+            onOwnerOnlyAction?.(t("shared.documentSidePanel.deleteThisDocumentVersion"));
             return;
         }
         setDeletingVersionId(versionIdToDelete);
@@ -399,7 +402,7 @@ export function DocumentSidePanel({
             await onDeleteVersion(documentId, versionIdToDelete);
         } catch (err) {
             notifyError(err, {
-                action: "delete this version",
+                action: t("shared.documentSidePanel.deleteThisVersion"),
                 operation: "documents.edit",
                 onRetry: () => void handleDeleteVersion(versionIdToDelete),
                 supportNote: `Document: ${selectedFilename}`,
@@ -444,8 +447,8 @@ export function DocumentSidePanel({
         } catch (err) {
             setUploadError(
                 reportFault(err, {
-                    action: "replace this version",
-                    fallback: "This version could not be replaced. Try again.",
+                    action: t("shared.documentSidePanel.replaceThisVersion"),
+                    fallback: t("shared.documentSidePanel.thisVersionCouldNotBeReplaced"),
                     operation: "documents.upload",
                 }).message,
             );
@@ -469,7 +472,7 @@ export function DocumentSidePanel({
         } catch (err) {
             setDeleteDocumentStatus("idle");
             notifyError(err, {
-                action: "delete this document",
+                action: t("shared.documentSidePanel.deleteThisDocument"),
                 operation: "documents.edit",
                 onRetry: requestDeleteDocument,
                 supportNote: `Document: ${selectedFilename}`,
@@ -481,7 +484,7 @@ export function DocumentSidePanel({
 
     function requestDeleteDocument() {
         if (!canDelete) {
-            onOwnerOnlyAction?.("delete this document");
+            onOwnerOnlyAction?.(t("shared.documentSidePanel.deleteThisDocument"));
             return;
         }
         // Always ask: a delete has no undo, whether it takes one version or
@@ -567,7 +570,7 @@ export function DocumentSidePanel({
             <div
                 onMouseDown={handlePanelResizeMouseDown}
                 className="absolute inset-y-0 left-0 z-20 hidden w-1 cursor-col-resize bg-transparent transition-colors hover:bg-interactive/60 active:bg-interactive md:block"
-                title="Resize document view"
+                title={t("shared.documentSidePanel.resizeDocumentView")}
             />
             <div className="flex shrink-0 justify-end px-3 py-2 md:absolute md:right-3 md:top-3 md:z-20 md:p-0">
                 <div className="flex shrink-0 items-center gap-1.5">
@@ -582,7 +585,7 @@ export function DocumentSidePanel({
                                     : "text-gray-500 hover:text-gray-800",
                             )}
                         >
-                            Document
+                            {t("shared.documentSidePanel.document")}
                         </button>
                         <button
                             type="button"
@@ -594,10 +597,10 @@ export function DocumentSidePanel({
                                     : "text-gray-500 hover:text-gray-800",
                             )}
                         >
-                            Details
+                            {t("shared.documentSidePanel.details")}
                         </button>
                     </div>
-                    <CloseButton onClick={onClose} label="Close panel" />
+                    <CloseButton onClick={onClose} label={t("shared.documentSidePanel.closePanel")} />
                 </div>
             </div>
 
@@ -678,7 +681,7 @@ export function DocumentSidePanel({
                         "relative z-10 hidden w-1.5 -translate-x-1/2 cursor-col-resize transition-colors md:row-span-2 md:block",
                         "bg-transparent hover:bg-interactive/60 active:bg-interactive",
                     )}
-                    title="Resize document panel"
+                    title={t("shared.documentSidePanel.resizeDocumentPanel")}
                 />
 
                 <aside
@@ -689,7 +692,7 @@ export function DocumentSidePanel({
                 >
                     <div className="mb-4 shrink-0">
                         <div className="mb-3 text-xs font-medium text-gray-900">
-                            Name
+                            {t("shared.documentSidePanel.name")}
                         </div>
                         {editingName ? (
                             <div className="space-y-1.5">
@@ -718,7 +721,7 @@ export function DocumentSidePanel({
                                         onClick={() => void handleSaveName()}
                                         disabled={savingName}
                                         className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/65 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Save name"
+                                        title={t("shared.documentSidePanel.saveName")}
                                     >
                                         {savingName ? (
                                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -747,7 +750,7 @@ export function DocumentSidePanel({
                                             setNameError(null);
                                         }}
                                         className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-white/65 hover:text-gray-900"
-                                        title="Edit name"
+                                        title={t("shared.documentSidePanel.editName")}
                                     >
                                         <Pencil className="h-3.5 w-3.5" />
                                     </button>
@@ -757,16 +760,16 @@ export function DocumentSidePanel({
                     </div>
 
                     <div className="mb-3 shrink-0 text-xs font-medium text-gray-900">
-                        Document Data
+                        {t("shared.documentSidePanel.documentData")}
                     </div>
                     <div className="shrink-0 rounded-xl py-2">
                         <div className="space-y-1.5">
                             <DataRow
-                                label="Type"
+                                label={t("shared.documentSidePanel.type")}
                                 value={selectedFileType ?? "—"}
                             />
                             <DataRow
-                                label="Size"
+                                label={t("shared.documentSidePanel.size")}
                                 value={
                                     selectedSizeBytes != null
                                         ? formatBytes(selectedSizeBytes)
@@ -774,24 +777,24 @@ export function DocumentSidePanel({
                                 }
                             />
                             <DataRow
-                                label="Version"
+                                label={t("shared.documentSidePanel.version")}
                                 value={
                                     selectedVersionNumber != null
                                         ? String(selectedVersionNumber)
                                         : "—"
                                 }
                             />
-                            <DataRow label="Uploaded by" value={ownerLabel} />
+                            <DataRow label={t("shared.documentSidePanel.uploadedBy")} value={ownerLabel} />
                             <DataRow
-                                label="Uploaded"
+                                label={t("shared.documentSidePanel.uploaded")}
                                 value={
                                     selectedUploadedAt
-                                        ? formatDateTime(selectedUploadedAt)
+                                        ? formatShortDateTime(format, selectedUploadedAt)
                                         : "—"
                                 }
                             />
                             <DataRow
-                                label="Pages"
+                                label={t("shared.documentSidePanel.pages")}
                                 value={
                                     selectedPageCount != null
                                         ? String(selectedPageCount)
@@ -823,7 +826,7 @@ export function DocumentSidePanel({
                     {!readOnly && (
                         <>
                             <div className="mb-2 mt-4 flex shrink-0 items-center justify-between gap-2 text-xs font-medium text-gray-900">
-                                Versions
+                                {t("shared.documentSidePanel.versions")}
                                 {activeVersionCount >= 2 && (
                                     <TextButtonUI
                                         size="sm"
@@ -852,16 +855,16 @@ export function DocumentSidePanel({
                                 </div>
                             ) : orderedVersions.length === 0 ? (
                                 <div className="py-2 text-xs text-gray-400">
-                                    No version history.
+                                    {t("shared.documentSidePanel.noVersionHistory")}
                                 </div>
                             ) : (
                                     <div className="space-y-1.5">
                                         {uploading && <VersionUploadSkeleton />}
                                         {orderedVersions.map((version) => {
                                             const title =
-                                                versionTitleFor(version);
+                                                versionTitleFor(t, version);
                                             const filename =
-                                                versionFilenameFor(version);
+                                                versionFilenameFor(t, version);
                                             const selected =
                                                 selectedVersionId ===
                                                 version.id;
@@ -939,9 +942,10 @@ export function DocumentSidePanel({
                                                 <div className="flex min-w-0 items-center gap-2">
                                                     <div className="min-w-0 flex-1 truncate text-[11px] text-gray-400">
                                                         {version.created_at
-                                                            ? new Date(
+                                                            ? formatNumericDateTime(
+                                                                  format,
                                                                   version.created_at,
-                                                              ).toLocaleString()
+                                                              )
                                                             : "—"}
                                                     </div>
                                                         <div
@@ -955,7 +959,7 @@ export function DocumentSidePanel({
                                                     >
                                                         {deleted ? (
                                                             <span className="text-[11px] font-medium text-gray-800">
-                                                                Deleted
+                                                                {t("shared.documentSidePanel.deleted")}
                                                             </span>
                                                         ) : (
                                                             <>
@@ -976,8 +980,8 @@ export function DocumentSidePanel({
                                                                             null
                                                                     }
                                                                     className="inline-flex h-5 w-5 items-center justify-center rounded-full text-interactive transition-colors hover:bg-interactive-soft hover:text-interactive-hover disabled:cursor-not-allowed disabled:opacity-40"
-                                                                    aria-label={`Replace ${title}`}
-                                                                    title="Replace version file"
+                                                                    aria-label={t("shared.documentSidePanel.replaceTitle", { title })}
+                                                                    title={t("shared.documentSidePanel.replaceVersionFile")}
                                                                 >
                                                                     {versionReplacing ? (
                                                                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -999,8 +1003,8 @@ export function DocumentSidePanel({
                                                                         );
                                                                     }}
                                                                     className="inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
-                                                                    aria-label={`Download ${title}`}
-                                                                    title="Download version"
+                                                                    aria-label={t("shared.documentSidePanel.downloadTitle", { title })}
+                                                                    title={t("shared.documentSidePanel.downloadVersion")}
                                                                 >
                                                                     <Download className="h-3 w-3" />
                                                                 </button>
@@ -1027,11 +1031,11 @@ export function DocumentSidePanel({
                                                                         !canDelete &&
                                                                             "cursor-not-allowed opacity-40 hover:bg-transparent hover:text-red-500",
                                                                     )}
-                                                                    aria-label={`Delete ${title}`}
+                                                                    aria-label={t("shared.documentSidePanel.deleteTitle", { title })}
                                                                     title={
                                                                         canDelete
-                                                                            ? "Delete version"
-                                                                            : "Only the person who uploaded this document can delete its versions"
+                                                                            ? t("shared.documentSidePanel.deleteVersion")
+                                                                            : t("shared.documentSidePanel.onlyThePersonWhoUploadedThis")
                                                                     }
                                                                 >
                                                                     {versionDeleting ? (
@@ -1084,7 +1088,7 @@ export function DocumentSidePanel({
                                     className={onAdd ? undefined : "ml-auto"}
                                 >
                                     <Download className="h-3.5 w-3.5 shrink-0" />
-                                    Download
+                                    {t("shared.documentSidePanel.download")}
                                 </PillButtonUI>
                                 )}
                                 {onAdd && (
@@ -1094,7 +1098,7 @@ export function DocumentSidePanel({
                                         onClick={() => onAdd(doc)}
                                     >
                                         <Plus className="h-3.5 w-3.5 shrink-0" />
-                                        {addLabel}
+                                        {addLabel ?? t("shared.documentSidePanel.add")}
                                     </PillButtonUI>
                                 )}
                             </>
@@ -1126,12 +1130,12 @@ export function DocumentSidePanel({
                             )}
                             title={
                                 canDelete
-                                    ? "Delete document"
-                                    : "Only the person who uploaded this document can delete it"
+                                    ? t("shared.documentSidePanel.deleteDocument")
+                                    : t("shared.documentSidePanel.onlyThePersonWhoUploadedThis2")
                             }
                         >
                             <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                            Delete
+                            {t("shared.documentSidePanel.delete")}
                         </PillButtonUI>
                                 <PillButtonUI
                                     tone="blue"
@@ -1143,7 +1147,7 @@ export function DocumentSidePanel({
                                     loading={uploading}
                                 >
                                     <Upload className="h-3.5 w-3.5 shrink-0" />
-                                    Upload new version
+                                    {t("shared.documentSidePanel.uploadNewVersion")}
                                 </PillButtonUI>
                             </>
                         )}
@@ -1159,11 +1163,16 @@ export function DocumentSidePanel({
             />
             <ConfirmPopup
                 open={replaceConfirmOpen}
-                title="Replace version?"
-                message={`This will wipe ${versionTitleFor(replaceTargetVersion)} and replace it with ${replaceFile?.name ?? "the selected file"}. Save as a new version instead if you want to keep both copies.`}
-                confirmLabel="Replace"
+                title={t("shared.documentSidePanel.replaceVersion")}
+                message={t("shared.documentSidePanel.thisWillWipeVersionAndReplaceIt", {
+                    version: versionTitleFor(t, replaceTargetVersion),
+                    file:
+                        replaceFile?.name ??
+                        t("shared.documentSidePanel.theSelectedFile"),
+                })}
+                confirmLabel={t("shared.documentSidePanel.replace")}
                 confirmStatus={replacingVersionId != null ? "loading" : "idle"}
-                cancelLabel="Cancel"
+                cancelLabel={t("shared.documentSidePanel.cancel")}
                 onCancel={() => {
                     if (replacingVersionId != null) return;
                     setReplaceConfirmOpen(false);
@@ -1174,13 +1183,13 @@ export function DocumentSidePanel({
             />
             <ConfirmPopup
                 open={confirmDeleteDocumentOpen}
-                title="Delete document?"
+                title={t("shared.documentSidePanel.deleteDocument2")}
                 message={
                     versions.length > 1
-                        ? `${selectedFilename} has ${versions.length} versions. Deleting this document will delete all of its versions. This can't be undone.`
-                        : `${selectedFilename} will be permanently deleted. This can't be undone.`
+                        ? t("shared.documentSidePanel.selectedfilenameHasLengthVersionsDeletingThis", { selectedFilename, length: versions.length })
+                        : t("shared.documentSidePanel.selectedfilenameWillBePermanentlyDeletedThis", { selectedFilename })
                 }
-                confirmLabel="Delete"
+                confirmLabel={t("shared.documentSidePanel.delete")}
                 confirmVariant="danger"
                 confirmStatus={
                     deleteDocumentStatus === "deleting"
@@ -1189,7 +1198,7 @@ export function DocumentSidePanel({
                           ? "complete"
                           : "idle"
                 }
-                cancelLabel="Cancel"
+                cancelLabel={t("shared.documentSidePanel.cancel")}
                 onCancel={() => {
                     if (deleteDocumentStatus === "deleting") return;
                     setConfirmDeleteDocumentOpen(false);
@@ -1253,20 +1262,28 @@ function clampPanelWidth(width: number, dataColumnWidth: number) {
     return Math.min(maxWidth, Math.max(minWidth, width));
 }
 
-function versionTitleFor(version: DocumentVersion | null) {
-    if (!version) return "this version";
+function versionTitleFor(
+    t: AppTranslate,
+    version: DocumentVersion | null,
+) {
+    if (!version) return t("shared.documentSidePanel.thisVersion");
     if (
         typeof version.version_number === "number" &&
         version.version_number >= 1
     ) {
-        return `Version ${version.version_number}`;
+        return t("shared.documentSidePanel.versionNumber", {
+            number: version.version_number,
+        });
     }
-    return "Version";
+    return t("shared.documentSidePanel.version");
 }
 
-function versionFilenameFor(version: DocumentVersion) {
+function versionFilenameFor(
+    t: AppTranslate,
+    version: DocumentVersion,
+) {
     if (version.filename?.trim()) return version.filename.trim();
-    return version.source === "upload" ? "Original" : "—";
+    return version.source === "upload" ? t("shared.documentSidePanel.original") : "—";
 }
 
 function fileTypeForVersion(version: DocumentVersion, fallback: string | null) {
@@ -1291,14 +1308,4 @@ function hasExtensionChange(previous: string, next: string) {
         filenameExtension(next)?.toLowerCase() !==
         previousExtension.toLowerCase()
     );
-}
-
-function formatDateTime(iso: string) {
-    return new Date(iso).toLocaleString(undefined, {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
 }

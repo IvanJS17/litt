@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
 import { indexFolderDirectory } from "../shared/folderDirectoryIndex";
 import { isProjectItemDrag } from "@/app/lib/projectDragTypes";
@@ -116,6 +117,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
     onMoveFolder,
     uploadingDocuments = [],
 }: Props, ref) {
+    const t = useTranslations();
     const directory = useMemo(() => indexFolderDirectory(
         folders, documents, document => document.folder_id ?? null,
     ), [folders, documents]);
@@ -565,7 +567,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                     onClose={() => setContextMenu(null)}
                     className="w-44"
                 >
-                    {contextDocument && documentContextMenuItems({
+                    {contextDocument && documentContextMenuItems(t, {
                         onOpen: () => onDocClick(contextDocument),
                         onAddToChat: onAddToChat ? () => onAddToChat(contextDocument) : undefined,
                         onDownload: onDownloadDoc && !isTrainingHeld(contextDocument) ? () => onDownloadDoc(contextDocument) : undefined,

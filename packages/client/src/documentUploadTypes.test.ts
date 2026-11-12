@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   SUPPORTED_DOCUMENT_ACCEPT,
   SUPPORTED_DOCUMENT_EXTENSIONS,
-  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+  unsupportedDocumentWarningMessage,
   hasSupportedDocumentExtension,
 } from "./documentUploadTypes";
 
@@ -30,6 +30,6 @@ describe("document upload types", () => {
     expect(hasSupportedDocumentExtension("v1.2.final.pdf")).toBe(true);
     expect(hasSupportedDocumentExtension("report.pdf.exe")).toBe(false);
     expect(hasSupportedDocumentExtension("")).toBe(false);
-    expect(UNSUPPORTED_DOCUMENT_WARNING_MESSAGE).toContain("Markdown (.md)");
+    expect(unsupportedDocumentWarningMessage()).toContain("Markdown (.md)");
   });
 });

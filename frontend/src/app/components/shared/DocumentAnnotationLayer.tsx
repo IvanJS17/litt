@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 
 /** Shared panel header above the viewer toolbar. The annotation (citation
  * quotes or a tracked change) is never clipped here: its quoted or changed
@@ -13,6 +14,7 @@ export function DocumentAnnotationLayer({
     title?: ReactNode;
     annotation?: ReactNode;
 }) {
+    const t = useTranslations();
     return (
         <div
             data-document-annotation-host
@@ -24,7 +26,7 @@ export function DocumentAnnotationLayer({
             >
                 {title}
                 {annotation && (
-                    <div role="region" aria-label="Document annotation">
+                    <div role="region" aria-label={t("shared.documentAnnotationLayer.documentAnnotation")}>
                         {annotation}
                     </div>
                 )}

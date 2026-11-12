@@ -59,7 +59,7 @@ import type { Document, Workflow } from "../../types";
 import {
   partitionSupportedDocumentFiles,
   SUPPORTED_DOCUMENT_ACCEPT,
-  UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+  unsupportedDocumentWarningMessage,
 } from "../../lib/documentUpload";
 import { EditApplyModeMenu } from "./EditApplyModeMenu";
 import type { WordEditApplyMode } from "../../lib/wordChatSettings";
@@ -517,7 +517,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       const { supported, unsupported } = partitionSupportedDocumentFiles(files);
       if (supported.length === 0) {
         setDocumentUploadError(
-          UNSUPPORTED_DOCUMENT_WARNING_MESSAGE,
+          unsupportedDocumentWarningMessage(),
         );
         return;
       }
