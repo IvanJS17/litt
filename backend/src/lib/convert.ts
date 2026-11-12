@@ -157,12 +157,54 @@ async function getConvert() {
   return _convert;
 }
 
+/** Inflated-size caps for the rewrite below. It runs in the caller's process. */
+const MAX_PART_BYTES = 64 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 160 * 1024 * 1024;
+
+type ByteStream = {
+  on(event: "data", cb: (chunk: Uint8Array) => void): ByteStream;
+  on(event: "end", cb: () => void): ByteStream;
+  on(event: "error", cb: (error: Error) => void): ByteStream;
+  pause(): ByteStream;
+  resume(): ByteStream;
+};
+
+/**
+ * Inflate one entry, stopping as soon as `limit` bytes come out. A zip header
+ * can declare any size, so the count is on the bytes that actually inflate;
+ * null means the entry went over and was abandoned.
+ */
+function inflateWithin(entry: JSZip.JSZipObject, limit: number): Promise<Buffer | null> {
+  return new Promise((resolve, reject) => {
+    const stream = (entry as unknown as { internalStream(type: "uint8array"): ByteStream })
+      .internalStream("uint8array");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    stream
+      .on("data", (chunk) => {
+        size += chunk.length;
+        if (size > limit) {
+          stream.pause();
+          chunks.length = 0;
+          resolve(null);
+        } else chunks.push(chunk);
+      })
+      .on("error", reject)
+      .on("end", () => resolve(Buffer.concat(chunks)))
+      .resume();
+  });
+}
+
 /**
  * Some older Windows/Word archives store .docx entries with backslash
- * separators (e.g. `word\document.xml`). Mammoth and LibreOffice both look
+ * separators (e.g. `word\\document.xml`). Mammoth and LibreOffice both look
  * up entries by exact string and miss those files, producing empty output
  * or conversion failures. Rewrite any such entries to the canonical
  * forward-slash form before handing the buffer off.
+ *
+ * The rewrite inflates every entry in this process, so it is capped per part
+ * and in total on the bytes that really inflate (a header can lie). Over a
+ * cap the original is returned untouched, as for an unreadable zip.
  */
 export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   let zip: JSZip;
@@ -171,21 +213,21 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   } catch {
     return buffer;
   }
-  const renames: [string, string][] = [];
-  zip.forEach((relativePath) => {
-    if (relativePath.includes("\\")) {
-      renames.push([relativePath, relativePath.replace(/\\/g, "/")]);
+  if (!Object.keys(zip.files).some((name) => name.includes("\\"))) return buffer;
+  const rebuilt = new JSZip();
+  let total = 0;
+  for (const [name, entry] of Object.entries(zip.files)) {
+    const target = name.replace(/\\/g, "/");
+    if (entry.dir) {
+      rebuilt.folder(target);
+      continue;
     }
-  });
-  if (renames.length === 0) return buffer;
-  for (const [oldPath, newPath] of renames) {
-    const entry = zip.file(oldPath);
-    if (!entry) continue;
-    const content = await entry.async("nodebuffer");
-    zip.remove(oldPath);
-    zip.file(newPath, content);
+    const content = await inflateWithin(entry, Math.min(MAX_PART_BYTES, MAX_TOTAL_BYTES - total));
+    if (!content) return buffer;
+    total += content.length;
+    rebuilt.file(target, content);
   }
-  return zip.generateAsync({ type: "nodebuffer" });
+  return rebuilt.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
 /**
