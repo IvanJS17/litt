@@ -385,7 +385,9 @@
       "waitingForYourApproval": "Esperando tu aprobación"
     },
     "turnFailure": {
+      "checkChat": "Revisar el chat",
       "littCouldntFinishThisAnswer": "LiTT no pudo terminar esta respuesta. Inténtalo de nuevo.",
+      "refreshHistory": "Actualizar el historial",
       "theAnswerMayStillBeRunning": "La respuesta podría seguir en curso. Revisa el historial del chat antes de volver a enviar la pregunta.",
       "theAnswerStoppedBeforeItFinished": "La respuesta se detuvo antes de terminar.",
       "thisChatHasChanged": "Este chat cambió. Vuelve a enviar el mensaje desde el chat al que pertenece."
@@ -5729,6 +5731,9 @@
     "autoGeneratePrompt": "Generar prompt automáticamente",
     "back": "Atrás",
     "backToWorkflows": "Volver a flujos de trabajo",
+    "breadcrumbAttachDocuments": "Adjuntar documentos",
+    "breadcrumbNewChat": "Nuevo chat",
+    "breadcrumbNewReview": "Nueva revisión",
     "cancel": "Cancelar",
     "chooseAMdOrMarkdown": "Elige un archivo .md o .markdown.",
     "close": "Cerrar",

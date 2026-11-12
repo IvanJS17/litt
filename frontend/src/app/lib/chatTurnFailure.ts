@@ -72,7 +72,8 @@ export function isUncertainDelivery(
  * so a chat the request may have created shows up.
  */
 export function checkHistoryLabel(chatKnown: boolean): string {
-    return chatKnown ? "Check chat" : "Refresh history";
+    const t = clientTranslator();
+    return chatKnown ? t("assistant.turnFailure.checkChat") : t("assistant.turnFailure.refreshHistory");
 }
 
 export function uncertainDeliveryError(cause: unknown): UserVisibleError {

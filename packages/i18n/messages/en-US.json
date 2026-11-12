@@ -385,7 +385,9 @@
       "waitingForYourApproval": "Waiting for your approval"
     },
     "turnFailure": {
+      "checkChat": "Check chat",
       "littCouldntFinishThisAnswer": "LiTT couldn't finish this answer. Try again.",
+      "refreshHistory": "Refresh history",
       "theAnswerMayStillBeRunning": "The answer may still be running. Check chat history before sending the question again.",
       "theAnswerStoppedBeforeItFinished": "The answer stopped before it finished.",
       "thisChatHasChanged": "This chat has changed. Send the message again from the chat it belongs to."
@@ -5729,6 +5731,9 @@
     "autoGeneratePrompt": "Auto-Generate Prompt",
     "back": "Back",
     "backToWorkflows": "Back to Workflows",
+    "breadcrumbAttachDocuments": "Attach Documents",
+    "breadcrumbNewChat": "New Chat",
+    "breadcrumbNewReview": "New Review",
     "cancel": "Cancel",
     "chooseAMdOrMarkdown": "Choose a .md or .markdown file.",
     "close": "Close",

@@ -1,5 +1,6 @@
 "use client";
 
+import { isChatMenuItemVisible } from "./chatMenuItems";
 import {
     Fragment,
     useCallback,
@@ -750,6 +751,7 @@ export function ProjectChatPanel({
                                     ...(onOpenSideChat
                                         ? [
                                               {
+                                                  id: "openSideChat" as const,
                                                   label: t("projects.openSideChat"),
                                                   icon: MessageSquare,
                                                   onSelect: onOpenSideChat,
@@ -759,6 +761,7 @@ export function ProjectChatPanel({
                                     ...(onCloseSideChat
                                         ? [
                                               {
+                                                  id: "closeSideChat" as const,
                                                   label: t("projects.closeSideChat"),
                                                   icon: X,
                                                   onSelect: onCloseSideChat,
@@ -766,6 +769,7 @@ export function ProjectChatPanel({
                                           ]
                                         : []),
                                     {
+                                        id: "rename" as const,
                                         label: t("projects.rename"),
                                         icon: Pencil,
                                         onSelect: () => void handleRenameChat(),
@@ -775,12 +779,14 @@ export function ProjectChatPanel({
                                             !canRenameChat,
                                     },
                                     {
+                                        id: "memory" as const,
                                         label: t("projects.memory"),
                                         icon: Brain,
                                         onSelect: onOpenMemory,
                                         disabled: !project,
                                     },
                                     {
+                                        id: "delete" as const,
                                         label: deletingChat
                                             ? t("projects.deleting")
                                             : t("projects.delete"),
@@ -793,12 +799,10 @@ export function ProjectChatPanel({
                                             !canDeleteChat,
                                         variant: "danger" as const,
                                     },
-                                ].filter((item) => {
-                                    if (item.label === "Rename") return !!activeChatId && canRenameChat;
-                                    if (item.label === "Delete" || item.label === "Deleting...") return !!activeChatId && canDeleteChat;
-                                    return !!activeChatId || item.label === "Memory" ||
-                                        item.label === "Open side chat" || item.label === "Close side chat";
-                                })}
+                                ].filter((item) =>
+                                    // Decide by id: labels are translated.
+                                    isChatMenuItemVisible(item.id, { activeChatId, canRenameChat, canDeleteChat }),
+                                )}
                             />
                         }
                     />

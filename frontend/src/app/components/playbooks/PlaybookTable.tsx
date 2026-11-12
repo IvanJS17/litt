@@ -258,15 +258,18 @@ export function PlaybookTable({
 
   const options = useMemo(() => {
     const creators = new Map<string, string>();
-    for (const playbook of playbooks)
+    const own = new Set<string>();
+    for (const playbook of playbooks) {
       creators.set(playbook.userId, creatorLabel(playbook, tAll));
+      if (playbook.isCreator) own.add(playbook.userId);
+    }
     return {
       creator: [...creators]
         .map(([value, label]) => ({ value, label }))
         .sort((a, b) =>
-          a.label === "Me"
+          own.has(a.value)
             ? -1
-            : b.label === "Me"
+            : own.has(b.value)
               ? 1
               : a.label.localeCompare(b.label),
         ),
