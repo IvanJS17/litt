@@ -136,6 +136,12 @@ async function getConvert() {
               sofficeBinaryPaths: resolveSofficeBinaryPaths(),
               // The library runs soffice with execFile: without these a
               // wedged soffice holds the caller forever.
+              // Not a process group kill: libreoffice-convert does not expose
+              // the child or let a launcher be put in front of soffice, and
+              // execFile's timeout signals only the direct child. A descendant
+              // that outlives it is reaped when the parser process group is
+              // killed (isolated.ts killParser) for the callers running there;
+              // officeFileToPdf, the upload-worker path, kills its group.
               execOptions: {
                 timeout: uploadConversionTimeoutMs(),
                 killSignal: "SIGKILL",
@@ -299,14 +305,21 @@ export async function officeFileToPdf(
           outputDirectory,
           inputPath,
         ],
-        { stdio: ["ignore", "ignore", "pipe"] },
+        // Its own process group, so the deadline reaches soffice.bin and any
+        // other descendant, not only this direct child.
+        { stdio: ["ignore", "ignore", "pipe"], detached: process.platform !== "win32" },
       );
       let timedOut = false;
       // LibreOffice can wedge on a malformed document and never exit, which
       // would hold this worker slot for the life of the process.
       const deadline = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        try {
+          if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
+          else child.kill("SIGKILL");
+        } catch {
+          child.kill("SIGKILL");
+        }
       }, timeoutMs);
       deadline.unref();
       child.stderr.on("data", (chunk) => {
