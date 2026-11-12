@@ -24,6 +24,11 @@ import {
 import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
 import { settleBulkRequests } from "@/app/lib/bulkRequests";
 import { orgRoleDescription, orgRoleLabel } from "./orgRoleText";
+import {
+  invitationIssueReason,
+  invitationIssueText,
+  type InvitationIssueReason,
+} from "./invitationIssues";
 
 function friendlyError(error: unknown, fallback: string) {
   return userFacingApiError(error, fallback);
@@ -66,6 +71,9 @@ export function CreateOrganizationModal({
   const [createdOrg, setCreatedOrg] = useState<Org | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which invitations did not go out after the organization was created, and
+  // why: one line per address.
+  const [invitationIssues, setInvitationIssues] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,6 +81,7 @@ export function CreateOrganizationModal({
     setMemberEmails([]);
     setCreatedOrg(null);
     setError(null);
+    setInvitationIssues([]);
   }, [open]);
 
   const trimmedName = name.trim();
@@ -91,11 +100,28 @@ export function CreateOrganizationModal({
         onCreated(org);
         return;
       }
-      const invitations = await settleBulkRequests(memberEmails, (email) =>
-        createOrgInvitation(org.id, email, "member"),
-      );
-      if (invitations.failed.length > 0) {
+      // Each address keeps its own reason: the request that refused it, or
+      // an invitation that exists but whose email did not go out.
+      const reasons = new Map<string, InvitationIssueReason>();
+      await settleBulkRequests(memberEmails, async (email) => {
+        try {
+          const invitation = await createOrgInvitation(org.id, email, "member");
+          if (invitation?.email_sent === false) reasons.set(email, "email_not_sent");
+          return invitation;
+        } catch (failure) {
+          reasons.set(email, invitationIssueReason(failure));
+          throw failure;
+        }
+      });
+      if (reasons.size > 0) {
         setCreatedOrg(org);
+        setInvitationIssues(
+          memberEmails
+            .filter((email) => reasons.has(email))
+            .map((email) =>
+              invitationIssueText(t, email, reasons.get(email) ?? "other"),
+            ),
+        );
         setError(
           t("organizations.organizationModals.organizationCreatedButSomeInvitationsCould"),
         );
@@ -224,7 +250,20 @@ export function CreateOrganizationModal({
             ? t("organizations.organizationModals.someInvitationsWereNotSent")
             : t("organizations.organizationModals.organizationNotCreated")
         }
-        message={error}
+        message={
+          error !== null && invitationIssues.length > 0 ? (
+            <>
+              {error}
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                {invitationIssues.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            error
+          )
+        }
         onClose={() => setError(null)}
       />
     </>
@@ -273,7 +312,12 @@ export function InviteOrganizationMemberModal({
     try {
       sent = Boolean((await createOrgInvitation(org.id, email, role)).email_sent);
     } catch (err) {
-      setError(friendlyError(err, t("organizations.organizationModals.couldNotSendTheInvitation")));
+      const reason = invitationIssueReason(err);
+      setError(
+        reason === "other"
+          ? friendlyError(err, t("organizations.organizationModals.couldNotSendTheInvitation"))
+          : invitationIssueText(t, email, reason),
+      );
       return false;
     }
     const sentNotice = t(sent ? "access.invite.sent" : "access.invite.notSent");

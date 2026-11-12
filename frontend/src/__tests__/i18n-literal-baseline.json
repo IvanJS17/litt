@@ -35,6 +35,8 @@
     "frontend/src/app/components/organizations/OrganizationProvidersSettings.tsx",
     "frontend/src/app/components/organizations/OrganizationSettingsShell.tsx",
     "frontend/src/app/components/organizations/OrganizationsOverview.tsx",
+    "frontend/src/app/components/organizations/invitationIssues.ts",
+    "frontend/src/app/components/organizations/orgRoleText.ts",
     "frontend/src/app/components/playbooks/NewPlaybookMenu.tsx",
     "frontend/src/app/components/playbooks/PlaybookCorrections.tsx",
     "frontend/src/app/components/playbooks/PlaybookDraftBanner.tsx",

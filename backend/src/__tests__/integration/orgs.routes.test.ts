@@ -773,6 +773,21 @@ describe("organization invitations", () => {
         expect(res.status).toBe(400);
     });
 
+    // The web app explains each refused address in its own words, so the
+    // refusal carries a stable `code` beside the English `detail`.
+    it("names the refusal of a malformed address and of a person already in the organization", async () => {
+        const malformed = await invite("not-an-email");
+        expect(malformed.body).toMatchObject({ code: "invitation_email_invalid" });
+
+        const member = await invite("member@firm.example");
+        expect(member.status).toBe(409);
+        expect(member.body).toEqual({
+            code: "invitation_already_member",
+            detail: "That person is already a member of this organization",
+        });
+        expect(tables.org_invitations ?? []).toHaveLength(0);
+    });
+
     // 'owner' is a tier this product removed. Answering a request for it with
     // a quiet 'member' invitation and a 201 would tell the caller their
     // choice was honoured when it was replaced, so the retired names get the

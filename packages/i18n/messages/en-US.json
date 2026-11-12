@@ -455,6 +455,8 @@
       "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
       "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
       "invalid_json": "The request couldn't be read. Reload the page and try again.",
+      "invitation_already_member": "That person is already a member of this organization.",
+      "invitation_email_invalid": "Enter a valid email address.",
       "matter_has_owner": "This matter already has an owner.",
       "matter_owner_target_invalid": "Choose a current member of the organization.",
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
@@ -941,6 +943,12 @@
       "restoreFailed": "Restore failed",
       "restoreName": "Restore {name}",
       "retryDeletedOrganizations": "Retry deleted organizations"
+    },
+    "invitationIssue": {
+      "alreadyMember": "{email} is already a member of this organization.",
+      "emailNotSent": "The invitation to {email} was created, but the email could not be sent.",
+      "invalidEmail": "{email} is not a valid email address.",
+      "other": "{email} could not be invited. Try again."
     },
     "memberDepartureDialog": {
       "archivedsummaryWillBeArchivedFor30": "{archivedSummary} will be archived for 30 days.",

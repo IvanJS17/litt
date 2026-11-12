@@ -455,6 +455,8 @@
       "firm_criteria_limit_reached": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
       "firm_criteria_rule_not_found": "Esa regla no está en un playbook de tu despacho que puedas abrir.",
       "invalid_json": "No se pudo leer la solicitud. Recarga la página e inténtalo de nuevo.",
+      "invitation_already_member": "⟦por traducir⟧ That person is already a member of this organization.",
+      "invitation_email_invalid": "⟦por traducir⟧ Enter a valid email address.",
       "matter_has_owner": "Este asunto ya tiene propietario.",
       "matter_owner_target_invalid": "Elige a un miembro actual de la organización.",
       "member_data_action_disabled": "Los propietarios de esta organización no permiten que los miembros hagan esto.",
@@ -941,6 +943,12 @@
       "restoreFailed": "⟦por traducir⟧ Restore failed",
       "restoreName": "⟦por traducir⟧ Restore {name}",
       "retryDeletedOrganizations": "⟦por traducir⟧ Retry deleted organizations"
+    },
+    "invitationIssue": {
+      "alreadyMember": "⟦por traducir⟧ {email} is already a member of this organization.",
+      "emailNotSent": "⟦por traducir⟧ The invitation to {email} was created, but the email could not be sent.",
+      "invalidEmail": "⟦por traducir⟧ {email} is not a valid email address.",
+      "other": "⟦por traducir⟧ {email} could not be invited. Try again."
     },
     "memberDepartureDialog": {
       "archivedsummaryWillBeArchivedFor30": "⟦por traducir⟧ {archivedSummary} will be archived for 30 days.",

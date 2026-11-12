@@ -1158,7 +1158,11 @@ describe("org invitations", () => {
                 email: "not-an-email",
                 role: "member",
             }),
-        ).resolves.toMatchObject({ ok: false, kind: "validation" });
+        ).resolves.toMatchObject({
+            ok: false,
+            kind: "validation",
+            code: "invitation_email_invalid",
+        });
         await expect(
             createInvitation(db, {
                 actorId: "owner1",
@@ -1167,7 +1171,11 @@ describe("org invitations", () => {
                 email: "Owner@Acme.example",
                 role: "member",
             }),
-        ).resolves.toMatchObject({ ok: false, kind: "validation" });
+        ).resolves.toMatchObject({
+            ok: false,
+            kind: "validation",
+            code: "invitation_already_member",
+        });
     });
 
     it("refuses a duplicate while one is still live, and an existing member", async () => {
@@ -1194,7 +1202,11 @@ describe("org invitations", () => {
                 email: "member@acme.example",
                 role: "member",
             }),
-        ).resolves.toMatchObject({ ok: false, kind: "conflict" });
+        ).resolves.toMatchObject({
+            ok: false,
+            kind: "conflict",
+            code: "invitation_already_member",
+        });
     });
 
     it("re-opens an expired invitation in place rather than stacking rows", async () => {

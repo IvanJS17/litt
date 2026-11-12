@@ -368,3 +368,28 @@ describe("describeError for the fixed chat route and custom endpoints", () => {
         expect(described).toMatchObject({ kind: "validation", message, retryable: false });
     });
 });
+
+describe("describeError for an invitation the API refuses by code", () => {
+    it("classifies a person who already belongs as a conflict, a bad address as validation", () => {
+        const member = describeError(
+            new FakeApiError({
+                message: "That person is already a member of this organization",
+                status: 409,
+                code: "invitation_already_member",
+            }),
+        );
+        expect(member.kind).toBe("conflict");
+        expect(member.code).toBe("invitation_already_member");
+        expect(member.message).toBe("That person is already a member of this organization");
+
+        const address = describeError(
+            new FakeApiError({
+                message: "A valid email address is required",
+                status: 400,
+                code: "invitation_email_invalid",
+            }),
+        );
+        expect(address.kind).toBe("validation");
+        expect(address.retryable).toBe(false);
+    });
+});

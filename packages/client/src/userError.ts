@@ -181,6 +181,10 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     model_unavailable: "validation",
     model_required: "validation",
     chat_route_credential_required: "validation",
+    // Inviting someone to an organization: the address is not usable, or the
+    // person already belongs (the actor included).
+    invitation_email_invalid: "validation",
+    invitation_already_member: "conflict",
     // Invite-only beta: an invitation is needed to register or to create an
     // organization; only platform administrators manage invitations.
     signup_invite_only: "forbidden",
