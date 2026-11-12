@@ -743,6 +743,7 @@ export function useAssistantChat({
           support: true,
           onRetry: uncertain ? undefined : async () => { await retryTurn(retrySnapshot); },
           actions: uncertain ? [{
+            id: "checkHistory",
             label: checkHistoryLabel(Boolean(retrySnapshot.chatId)),
             onClick: async () => {
               if (retrySnapshot.chatId) await retryTurn(retrySnapshot);
