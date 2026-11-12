@@ -222,3 +222,22 @@ Also: the plural guard covers only «times», «veces» and «marked turns» (#1
 - PR #114 (bulk review designer) left four documentation, UI and test reservations
   (W1–W4). They were recorded in the review thread, not in this file; re-raise them
   there or open a card. (#114)
+
+## Scan reading (layer 6)
+
+- The wording in `settings.scanReading.*`, the Terms and the Privacy Notice is
+  the **final** legal text (socium-legal, task t_c639f00f), not a draft. Its own
+  open points: whether a firm key shared by several members meets LandingAI's
+  terms (2(c)(vi), 2(d)), and confirming that production holds no platform keys
+  for AI or search (the Privacy Notice says LiTT has none).
+- The whole PDF is sent and billed, even the pages that have text. Sending only
+  the pages without a text layer (`options.pages`) would cut the cost; it needs
+  the list of empty pages, not just their count.
+- EU region (`api.ade.eu-west-1.landing.ai`) is not supported; the legal text
+  says "Estados Unidos".
+- `read_document`'s fallback path (text index not ready) extracts from the bytes
+  and does not include the reading.
+- A reading of other bytes of the same version (replace file) is ignored, not
+  deleted; it is replaced by the next reading or removed with the version.
+- Not run here: the real LandingAI API, the migrations against a database
+  (`backend/src/__tests__/sql`), and the browser flow.

@@ -13,7 +13,7 @@ and confirmed.
 | Markdown | PDF | Markdown → Word, then LibreOffice | The same, and fonts and page breaks can change if a font is missing. |
 | Word | Markdown | `mammoth` (HTML) + `turndown` with `turndown-plugin-gfm` | Comments, tracked changes (the final text stays), headers and footers, fine formatting, legal numbering such as 1.1.a (a plain list), pictures (`[img]`), merged cells. Footnotes end as a list. |
 | Word | PDF | The version's stored PDF, else LibreOffice | Fonts and page breaks can change; tracked changes appear as LibreOffice shows them. |
-| PDF | Markdown | The text layer (`pdfjs-dist`) | Tables, columns, titles, numbering, images and notes: the result is plain text under `## Página N` headings. A PDF with no text needs OCR and is refused (`convert_pdf_without_text`). |
+| PDF | Markdown | The text layer (`pdfjs-dist`) | Tables, columns, titles, numbering, images and notes: the result is plain text under `## Página N` headings. A PDF with no text needs OCR and is refused (`convert_pdf_without_text`) unless it was read with LandingAI ([`document-ocr.md`](document-ocr.md)), whose text then stands in for the pages with no text layer. |
 
 PDF → Word does not exist: a PDF keeps no paragraphs, tables or styles, so the
 Word file would mislead. Do PDF → Markdown, then Markdown → Word. Pandoc is not
