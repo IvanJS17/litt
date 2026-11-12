@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getPanelDocument } from "@/app/lib/mikeApi";
-import type { PanelDocument } from "../shared/types";
+import { CASE_TITLE_FALLBACK, type PanelDocument } from "../shared/types";
+import type { AppTranslate } from "@/i18n/Translate";
+import { useTranslations } from "next-intl";
 
 function mergePanelDocuments(
     summary: PanelDocument,
@@ -11,7 +13,7 @@ function mergePanelDocuments(
     return {
         ...loaded,
         title:
-            summary.title && summary.title !== "Case"
+            summary.title && summary.title !== CASE_TITLE_FALLBACK
                 ? summary.title
                 : loaded.title,
         metadata: summary.metadata.length ? summary.metadata : loaded.metadata,
@@ -20,7 +22,7 @@ function mergePanelDocuments(
     };
 }
 
-function friendlyDocumentError(message: string): string {
+function friendlyDocumentError(message: string, t: AppTranslate): string {
     try {
         const parsed = JSON.parse(message) as { detail?: unknown };
         if (typeof parsed.detail === "string") message = parsed.detail;
@@ -30,10 +32,10 @@ function friendlyDocumentError(message: string): string {
     if (message.includes("429") || /rate limit|throttled/i.test(message)) {
         const wait = message.match(/available in\s+(\d+)\s+seconds/i)?.[1];
         return wait
-            ? `This source is temporarily rate limited. Please try again in about ${wait} seconds.`
-            : "This source is temporarily rate limited. Please try again shortly.";
+            ? t("assistant.useResolvedPanelDocument.rateLimitedWait", { seconds: Number(wait) })
+            : t("assistant.useResolvedPanelDocument.rateLimited");
     }
-    return "Could not load this document. Please try again shortly.";
+    return t("assistant.useResolvedPanelDocument.couldNotLoadShortly");
 }
 
 export function useResolvedPanelDocument(document: PanelDocument): {
@@ -42,6 +44,7 @@ export function useResolvedPanelDocument(document: PanelDocument): {
     error: string | null;
     retry: () => void;
 } {
+    const t = useTranslations();
     const documentId = document.document_id;
     const needsHydration =
         document.type === "case" && !document.subdocuments?.length;
@@ -80,8 +83,8 @@ export function useResolvedPanelDocument(document: PanelDocument): {
                         loading: false,
                         error:
                             reason instanceof Error
-                                ? friendlyDocumentError(reason.message)
-                                : "Could not load this document.",
+                                ? friendlyDocumentError(reason.message, t)
+                                : t("assistant.useResolvedPanelDocument.couldNotLoadThisDocument"),
                     });
             });
         return () => {

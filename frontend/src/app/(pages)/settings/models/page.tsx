@@ -11,7 +11,7 @@ import {
   DropdownSeparator,
   DropdownTrigger,
   REASONING_LEVELS,
-  REASONING_LEVEL_LABELS,
+  REASONING_LEVEL_LABEL_KEYS,
   orderedModelGroups,
   GlassCardUI,
 } from "@mike/ui";
@@ -352,13 +352,14 @@ function ReasoningPreferenceDropdown({
   isSaved?: boolean;
   emptyOptionLabel: string;
 }) {
+  const t = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
   const selected = REASONING_LEVELS.find((level) => level === value);
 
   return (
     <Dropdown onOpenChange={setIsOpen}>
       <PreferenceTrigger
-        label={selected ? REASONING_LEVEL_LABELS[selected] : emptyOptionLabel}
+        label={selected ? t(REASONING_LEVEL_LABEL_KEYS[selected]) : emptyOptionLabel}
         isOpen={isOpen}
         isSaving={isSaving}
         isSaved={isSaved}
@@ -381,7 +382,7 @@ function ReasoningPreferenceDropdown({
             className="cursor-pointer"
             onSelect={() => onChange(level)}
           >
-            <span className="flex-1">{REASONING_LEVEL_LABELS[level]}</span>
+            <span className="flex-1">{t(REASONING_LEVEL_LABEL_KEYS[level])}</span>
             {level === selected && (
               <Check className="h-3.5 w-3.5 text-gray-600 ml-1" />
             )}

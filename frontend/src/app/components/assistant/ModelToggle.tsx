@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import {
   ModelToggleUI,
@@ -86,6 +87,7 @@ export function ModelToggle({
   onReasoningChange,
   locked = false,
 }: Props) {
+  const t = useTranslations();
   const ollamaModels = useOllamaModels();
   const configuredModels = useConfiguredModels();
   const models = mergeConfiguredModelOptions(configuredModels, [
@@ -121,9 +123,11 @@ export function ModelToggle({
     }
   }, [normalizedReasoningLevel, onReasoningChange, reasoningLevel]);
   const selectedLabel = apiKeysLoading
-    ? (models.find((model) => model.id === value)?.label ?? "Select model")
+    ? (models.find((model) => model.id === value)?.label ?? t("assistant.modelToggle.selectModel"))
     : (selected?.label ??
-      (availableModels.length > 0 ? "Select model" : "No Models"));
+      (availableModels.length > 0
+        ? t("assistant.modelToggle.selectModel")
+        : t("assistant.modelToggle.noModels")));
   // In an organization workspace the keys and model lists are its admins'
   // to set, so an empty picker says who can fix it.
   const { workspaceId, orgApiKeys } = useWorkspace();
@@ -145,7 +149,7 @@ export function ModelToggle({
       modalInput={modalInput}
       toolbar={toolbar}
       triggerClassName={triggerClassName}
-      emptyLabel="No Models"
+      emptyLabel={t("assistant.modelToggle.noModels")}
       onEmptyClick={
         onNoModelsClick ? () => onNoModelsClick(emptyReason) : undefined
       }

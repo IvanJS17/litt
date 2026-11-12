@@ -11,6 +11,7 @@ import {
     LIQUID_GLASS_SUBTLE_CLASS,
     LIQUID_GLASS_TRANSLUCENT_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 type AskInputsEvent = Extract<AssistantEvent, { type: "ask_inputs" }>;
 type AskInputItem = AskInputsEvent["items"][number];
@@ -44,6 +45,7 @@ export function AskInputPopup({
     ) => void | string | null | Promise<void | string | null>;
     onDismiss?: () => void;
 }) {
+    const t = useTranslations();
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [multiAnswers, setMultiAnswers] = useState<Record<string, string[]>>(
         {},
@@ -427,7 +429,7 @@ export function AskInputPopup({
 
     return (
         <>
-            {submitFailed && <p role="alert" className="px-3 py-2 text-sm text-red-600">Could not send these inputs. Please try again.</p>}
+            {submitFailed && <p role="alert" className="px-3 py-2 text-sm text-red-600">{t("assistant.askInputPopup.couldNotSendTheseInputsPlease")}</p>}
             <div
                 className={`w-full overflow-hidden rounded-[18px] pb-3 font-serif md:rounded-[22px] ${LIQUID_GLASS_TRANSLUCENT_CLASS}`}
             >
@@ -435,7 +437,7 @@ export function AskInputPopup({
                     <div className="flex min-w-0 items-center">
                         <div className="text-sm text-gray-500">
                             {submitted ? (
-                                isSubmitting ? "Sending inputs…" : "Inputs sent"
+                                isSubmitting ? t("assistant.askInputPopup.sendingInputs") : t("assistant.askInputPopup.inputsSent")
                             ) : (
                                 <div className="flex flex-wrap gap-x-1.5 gap-y-1">
                                     {event.items.map((item) => {
@@ -444,10 +446,10 @@ export function AskInputPopup({
                                         const isResolved = itemResolved(item);
                                         const label =
                                             item.kind === "documents"
-                                                ? "Documents"
+                                                ? t("assistant.askInputPopup.tabDocuments")
                                                 : item.kind === "approval"
-                                                  ? "Approval"
-                                                  : "Question";
+                                                  ? t("assistant.askInputPopup.approval")
+                                                  : t("assistant.askInputPopup.question");
                                         return (
                                             <TabPillButtonUI
                                                 key={item.id}
@@ -474,7 +476,7 @@ export function AskInputPopup({
                     {!submitted && (
                         <CloseButton
                             onClick={dismiss}
-                            label="Dismiss"
+                            label={t("assistant.askInputPopup.dismiss")}
                             size="md"
                         />
                     )}
@@ -490,8 +492,7 @@ export function AskInputPopup({
                                             <DocumentPrompt />
                                         ) : activeItem.kind === "approval" ? (
                                             <p className="text-sm text-gray-800">
-                                                LiTT wants to run this action.
-                                                Approve it to run it now.
+                                                {t("assistant.askInputPopup.littWantsToRunThisAction")}
                                             </p>
                                         ) : (
                                             <p className="text-sm text-gray-800">
@@ -668,7 +669,7 @@ export function AskInputPopup({
                                         }
                                         className="font-sans"
                                     >
-                                        Reject
+                                        {t("assistant.askInputPopup.reject")}
                                     </PillButtonUI>
                                     <PillButtonUI
                                         tone="black"
@@ -685,11 +686,11 @@ export function AskInputPopup({
                                         {answers[activeItem.id] ===
                                         "approve" ? (
                                             <>
-                                                Approved
+                                                {t("assistant.askInputPopup.approved")}
                                                 <Check className="h-3 w-3" />
                                             </>
                                         ) : (
-                                            "Approve"
+                                            t("assistant.askInputPopup.approve")
                                         )}
                                     </PillButtonUI>
                                 </div>
@@ -707,8 +708,8 @@ export function AskInputPopup({
                                         className="px-1 font-sans text-[10px] text-gray-500 transition-colors hover:text-gray-800"
                                     >
                                         {skipped.has(activeItem.id)
-                                            ? "Unskip"
-                                            : "Skip"}
+                                            ? t("assistant.askInputPopup.unskip")
+                                            : t("assistant.askInputPopup.skip")}
                                     </button>
                                     <PillButtonUI
                                         tone="black"
@@ -726,11 +727,11 @@ export function AskInputPopup({
                                     >
                                         {confirmed.has(activeItem.id) ? (
                                             <>
-                                                Confirmed
+                                                {t("assistant.askInputPopup.confirmed")}
                                                 <Check className="h-3 w-3" />
                                             </>
                                         ) : (
-                                            "Confirm"
+                                            t("assistant.askInputPopup.confirm")
                                         )}
                                     </PillButtonUI>
                                 </div>
@@ -760,7 +761,7 @@ export function AskInputPopup({
                         selected.filter((doc) => !existing.has(doc.id)),
                     );
                 }}
-                breadcrumb={["Assistant", "Add Documents"]}
+                breadcrumb={[t("assistant.askInputPopup.assistant"), t("assistant.askInputPopup.addDocuments")]}
                 uploadStateId="assistant-ask-input"
                 initialSelectedDocuments={
                     docSelectorTarget
@@ -783,6 +784,7 @@ function OpenTextInput({
     disabled?: boolean;
     onChange: (value: string) => void;
 }) {
+    const t = useTranslations();
     return (
         <div className="mt-2">
             <textarea
@@ -796,7 +798,7 @@ function OpenTextInput({
                 onChange={(event) =>
                     onChange(event.target.value.slice(0, OPEN_TEXT_MAX_LENGTH))
                 }
-                placeholder="Type your answer..."
+                placeholder={t("assistant.askInputPopup.typeYourAnswer")}
                 className="min-h-28 w-full resize-y rounded-lg bg-gray-100/70 px-3 py-2 text-sm leading-5 text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:bg-gray-200/70 disabled:cursor-default disabled:opacity-60"
             />
             <p
@@ -829,6 +831,7 @@ function OptionInput({
     onOtherOpen: () => void;
     onOtherValue: (value: string) => void;
 }) {
+    const t = useTranslations();
     return (
         <div className="mt-2 grid gap-1.5">
             {item.options.map((option, idx) => {
@@ -880,7 +883,7 @@ function OptionInput({
                             <span className="min-w-0 flex-1 flex items-start gap-2">
                                 <textarea
                                     name={`other-${item.id}`}
-                                    aria-label={item.other_label || "Other"}
+                                    aria-label={item.other_label || t("assistant.askInputPopup.other")}
                                     aria-describedby={`other-${item.id}-limit`}
                                     maxLength={MAX_CHOICE_LENGTH}
                                     rows={1}
@@ -898,7 +901,7 @@ function OptionInput({
                                         e.target.style.height = "auto";
                                         e.target.style.height = `${e.target.scrollHeight}px`;
                                     }}
-                                    placeholder="Type your answer..."
+                                    placeholder={t("assistant.askInputPopup.typeYourAnswer")}
                                     className="flex-1 resize-none overflow-hidden bg-transparent text-sm leading-5 text-gray-600 outline-none placeholder:text-gray-400"
                                 />
                                 <span id={`other-${item.id}-limit`} className="mt-0.5 shrink-0 font-sans text-[10px] text-gray-400">
@@ -907,7 +910,7 @@ function OptionInput({
                             </span>
                         ) : (
                             <span className="min-w-0 flex-1 text-sm text-gray-700">
-                                {item.other_label || "Other"}
+                                {item.other_label || t("assistant.askInputPopup.other")}
                             </span>
                         )}
                         {otherOpen && (
@@ -921,9 +924,10 @@ function OptionInput({
 }
 
 function DocumentPrompt() {
+    const t = useTranslations();
     return (
         <p className="mt-0.5 text-sm text-gray-800">
-            Add the following documents if available:
+            {t("assistant.askInputPopup.addTheFollowingDocumentsIfAvailable")}
         </p>
     );
 }
@@ -941,8 +945,9 @@ function DocumentInput({
     onOpenSelector: (typeIndex: number) => void;
     onRemoveDoc: (typeIndex: number, docId: string) => void;
 }) {
+    const t = useTranslations();
     const documentTypes = item.document_types ?? [];
-    const rows = documentTypes.length > 0 ? documentTypes : ["Documents"];
+    const rows = documentTypes.length > 0 ? documentTypes : [t("assistant.askInputPopup.tabDocuments")];
     return (
         <div className="mt-2 grid gap-1.5">
             {rows.map((documentType, idx) => {
@@ -1020,8 +1025,8 @@ function DocumentInput({
                             </span>
                             <span className="mt-0.5 shrink-0 whitespace-nowrap font-sans text-[10px] text-gray-500">
                                 {docs.length > 0
-                                    ? `${docs.length} file${docs.length === 1 ? "" : "s"} added`
-                                    : "+ Add"}
+                                    ? t("assistant.askInputPopup.lengthFilesAdded", { length: docs.length })
+                                    : t("assistant.askInputPopup.add")}
                             </span>
                         </span>
                     </div>

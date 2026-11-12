@@ -9,6 +9,10 @@ import {
   citationVerificationState,
   CitationVerificationBadge,
 } from "./citationVerification";
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as AppTranslate;
 
 function documentCitation(verified?: boolean): DocumentCitation {
   return {
@@ -38,14 +42,14 @@ describe("citation verification presentation", () => {
   it("leaves verified document citations in their original gray style", () => {
     const citation = documentCitation(true);
     expect(citationVerificationState(citation)).toBe("verified");
-    expect(citationVerificationAriaLabel(citation)).toBe("Citation 1");
+    expect(citationVerificationAriaLabel(citation, t)).toBe("Citation 1");
     expect(citationVerificationPillClassName(citation)).toBe("");
   });
 
   it("uses the red error style for unverified citations", () => {
     const citation = documentCitation(false);
     expect(citationVerificationState(citation)).toBe("unverified");
-    expect(citationVerificationAriaLabel(citation)).toBe(
+    expect(citationVerificationAriaLabel(citation, t)).toBe(
       "Citation 1. Could not verify quote",
     );
     expect(citationVerificationPillClassName(citation)).toContain(
@@ -65,18 +69,18 @@ describe("citation verification presentation", () => {
   it("leaves citations neutral while verification is not yet available", () => {
     const citation = documentCitation();
     expect(citationVerificationState(citation)).toBe("verified");
-    expect(citationVerificationAriaLabel(citation)).toBe("Citation 1");
+    expect(citationVerificationAriaLabel(citation, t)).toBe("Citation 1");
     expect(citationVerificationPillClassName(citation)).toBe("");
   });
 
   it("applies source verification semantics to case citations", () => {
     expect(citationVerificationState(caseCitation)).toBe("verified");
-    expect(citationVerificationAriaLabel(caseCitation)).toBe("Citation 2");
+    expect(citationVerificationAriaLabel(caseCitation, t)).toBe("Citation 2");
     expect(citationVerificationPillClassName(caseCitation)).toBe("");
 
     const unverifiedCase = { ...caseCitation, verified: false };
     expect(citationVerificationState(unverifiedCase)).toBe("unverified");
-    expect(citationVerificationAriaLabel(unverifiedCase)).toBe(
+    expect(citationVerificationAriaLabel(unverifiedCase, t)).toBe(
       "Citation 2. Could not verify quote",
     );
   });

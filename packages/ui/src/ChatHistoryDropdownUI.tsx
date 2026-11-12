@@ -15,6 +15,7 @@ import {
     DropdownItem,
     DropdownTrigger,
 } from "./dropdown";
+import { useTranslations } from "use-intl";
 
 /** One chat in the history menu. */
 export type ChatHistoryDropdownItemUI = {
@@ -109,10 +110,10 @@ export function ChatHistoryDropdownUI({
     disabled = false,
     query,
     onQueryChange,
-    searchLabel = "Search chats",
-    searchPlaceholder = "Search chats…",
+    searchLabel,
+    searchPlaceholder,
     loading = false,
-    loadingLabel = "Loading chats…",
+    loadingLabel,
     error,
     onRetry,
     notice,
@@ -124,6 +125,7 @@ export function ChatHistoryDropdownUI({
     modal = true,
     listProps,
 }: ChatHistoryDropdownUIProps): ReactElement {
+    const t = useTranslations();
     const searchInputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -156,8 +158,8 @@ export function ChatHistoryDropdownUI({
                     <input
                         ref={searchInputRef}
                         type="search"
-                        aria-label={searchLabel}
-                        placeholder={searchPlaceholder}
+                        aria-label={searchLabel ?? t("ui.chatHistoryDropdown.searchChats")}
+                        placeholder={searchPlaceholder ?? t("ui.chatHistoryDropdown.searchChatsPlaceholder")}
                         data-dropdown-input="flush"
                         value={query}
                         onChange={(event) => onQueryChange(event.target.value)}
@@ -211,13 +213,13 @@ export function ChatHistoryDropdownUI({
                                     onClick={onRetry}
                                     className="rounded-md text-xs font-medium text-gray-700 underline-offset-2 transition-colors hover:text-gray-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                                 >
-                                    Retry
+                                    {t("ui.chatHistoryDropdown.retry")}
                                 </button>
                             )}
                         </div>
                     ) : loading ? (
                         <p role="status" className={STATUS_TEXT_CLASS}>
-                            {loadingLabel}
+                            {loadingLabel ?? t("ui.chatHistoryDropdown.loadingChats")}
                         </p>
                     ) : items.length === 0 ? (
                         <p className={STATUS_TEXT_CLASS}>{emptyLabel}</p>
@@ -256,7 +258,7 @@ export function ChatHistoryDropdownUI({
                                     {item.pending && (
                                         <Loader2
                                             role="status"
-                                            aria-label={`Opening ${item.title}`}
+                                            aria-label={t("ui.chatHistoryDropdown.openingTitle", { title: item.title })}
                                             className="h-3.5 w-3.5 shrink-0 animate-spin text-gray-400 motion-reduce:animate-none"
                                         />
                                     )}
@@ -264,7 +266,7 @@ export function ChatHistoryDropdownUI({
                             ))}
                             {loadingMore && (
                                 <p role="status" className={STATUS_TEXT_CLASS}>
-                                    Loading more chats…
+                                    {t("ui.chatHistoryDropdown.loadingMoreChats")}
                                 </p>
                             )}
                             {footer && (

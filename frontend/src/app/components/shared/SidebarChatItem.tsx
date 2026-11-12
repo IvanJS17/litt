@@ -36,6 +36,7 @@ import {
     SIDEBAR_TITLE_SLIDE_CLASS,
     useSidebarTitleSlide,
 } from "./useSidebarTitleSlide";
+import { useTranslations } from "next-intl";
 
 interface Props {
     chat: Chat;
@@ -55,6 +56,7 @@ export function SidebarChatItem({
     responseStatus,
     onOpenInSideChat,
 }: Props) {
+    const t = useTranslations();
     const { renameChat, deleteChat } = useChatHistoryContext();
     const router = useRouter();
     const [leaveOpen, setLeaveOpen] = useState(false);
@@ -73,7 +75,7 @@ export function SidebarChatItem({
     const canLeave = chat.can_leave === true && chat.project_id === null && role !== "owner";
     // One label for the row's tooltip and its accessible name, so the
     // "Shared" marker rendered beside the title is part of both.
-    const chatTitle = chat.title ?? "Untitled chat";
+    const chatTitle = chat.title ?? t("shared.sidebarChatItem.untitledChat");
     const rowLabel = [
         projectName ? `${projectName}: ${chatTitle}` : chatTitle,
         chat.is_owner === false ? "(Shared)" : null,
@@ -104,7 +106,7 @@ export function SidebarChatItem({
             setRenameError(
                 userFacingApiError(
                     error,
-                    "The chat could not be renamed. Please try again.",
+                    t("shared.sidebarChatItem.theChatCouldNotBeRenamed"),
                 ),
             );
         } finally {
@@ -131,7 +133,7 @@ export function SidebarChatItem({
                     {responseStatus === "loading" ? (
                         <Loader2
                             role="status"
-                            aria-label={`${chatTitle} response loading`}
+                            aria-label={t("shared.sidebarChatItem.chattitleResponseLoading", { chatTitle })}
                             className="h-3.5 w-3.5 animate-spin text-interactive motion-reduce:animate-none"
                         />
                     ) : (
@@ -175,7 +177,7 @@ export function SidebarChatItem({
                         {projectName && (
                             <span className="text-gray-400 font-normal">{projectName}: </span>
                         )}
-                        {chat.title ?? "Untitled chat"}
+                        {chat.title ?? t("shared.sidebarChatItem.untitledChat")}
                     </span>
                 </button>
 
@@ -192,7 +194,7 @@ export function SidebarChatItem({
                     would be a claim we cannot make. */}
                 {chat.is_owner === false && (
                     <span className="mx-1 shrink-0 text-xs text-gray-400 font-normal">
-                        Shared
+                        {t("shared.sidebarChatItem.shared")}
                     </span>
                 )}
 
@@ -200,7 +202,7 @@ export function SidebarChatItem({
                     <DropdownTrigger asChild>
                         <button
                             type="button"
-                            aria-label={`Actions for ${chat.title ?? "Untitled chat"}`}
+                            aria-label={t("shared.sidebarChatItem.actionsFor", { title: chat.title ?? t("shared.sidebarChatItem.untitledChat") })}
                             className={`flex h-6 w-0 shrink-0 items-center justify-center overflow-hidden rounded-md bg-transparent text-gray-500 opacity-0 transition-opacity hover:text-gray-900 ${
                                 actionsRevealed
                                     ? "w-6 opacity-100"
@@ -218,32 +220,32 @@ export function SidebarChatItem({
                                 className="max-md:hidden"
                             >
                                 <MessageSquare aria-hidden="true" className="mr-2 h-4 w-4" />
-                                Open in side chat
+                                {t("shared.sidebarChatItem.openInSideChat")}
                             </DropdownItem>
                         )}
                         {canShare && <DropdownItem onSelect={() => setShareOpen(true)}>
                             <Users className="mr-2 h-4 w-4" />
-                            Share
+                            {t("shared.sidebarChatItem.share")}
                         </DropdownItem>}
                         {canRename && <DropdownItem onSelect={() => setRenameOpen(true)}>
                             <Pencil className="mr-2 h-4 w-4" />
-                            Rename
+                            {t("shared.sidebarChatItem.rename")}
                         </DropdownItem>}
                         {canDelete && <DropdownItem
                             onSelect={() => {
                                 deleteChat(chat.id).catch((error) => {
                                     setDeleteError(userFacingApiError(error,
-                                        "The chat could not be deleted. Please try again."));
+                                        t("shared.sidebarChatItem.theChatCouldNotBeDeleted")));
                                 });
                             }}
                             className="text-red-600 focus:text-red-600"
                         >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
+                            {t("shared.sidebarChatItem.delete")}
                         </DropdownItem>}
                         {canLeave && <DropdownItem onSelect={() => setLeaveOpen(true)}>
                             <LogOut className="mr-2 h-4 w-4" />
-                            Leave
+                            {t("shared.sidebarChatItem.leave")}
                         </DropdownItem>}
                     </DropdownContent>
                 </Dropdown>}
@@ -263,9 +265,9 @@ export function SidebarChatItem({
             />}
             <RenameModal
                 open={renameOpen}
-                breadcrumbs={["Assistant", "Rename Chat"]}
-                label="Chat title"
-                initialValue={chat.title?.trim() || "Untitled chat"}
+                breadcrumbs={[t("shared.sidebarChatItem.assistant"), t("shared.sidebarChatItem.renameChat")]}
+                label={t("shared.sidebarChatItem.chatTitle")}
+                initialValue={chat.title?.trim() || t("shared.sidebarChatItem.untitledChat")}
                 saving={renaming}
                 onClose={() => {
                     if (!renaming) setRenameOpen(false);
@@ -274,13 +276,13 @@ export function SidebarChatItem({
             />
             <WarningPopup
                 open={!!deleteError}
-                title="Chat not deleted"
+                title={t("shared.sidebarChatItem.chatNotDeleted")}
                 message={deleteError}
                 onClose={() => setDeleteError(null)}
             />
             <WarningPopup
                 open={!!renameError}
-                title="Chat not renamed"
+                title={t("shared.sidebarChatItem.chatNotRenamed")}
                 message={renameError}
                 onClose={() => setRenameError(null)}
             />

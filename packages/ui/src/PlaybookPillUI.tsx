@@ -2,6 +2,7 @@
 
 import type { ReactElement } from "react";
 import { ClipboardCheck, X } from "lucide-react";
+import { useTranslations } from "use-intl";
 
 /**
  * The pill for a playbook attached to a chat message, shared by the web and
@@ -17,6 +18,7 @@ export function PlaybookPillUI({
     onOpen?: () => void;
     onRemove?: () => void;
 }): ReactElement {
+    const t = useTranslations();
     const name = (
         <>
             <ClipboardCheck aria-hidden="true" className="h-2.5 w-2.5 shrink-0" />
@@ -35,7 +37,7 @@ export function PlaybookPillUI({
                 <button
                     type="button"
                     onClick={onOpen}
-                    aria-label={`Open playbook ${title}`}
+                    aria-label={t("ui.playbookPill.openPlaybookTitle", { title })}
                     className="inline-flex min-w-0 items-center gap-1 rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 >
                     {name}
@@ -47,7 +49,7 @@ export function PlaybookPillUI({
                 <button
                     type="button"
                     onClick={onRemove}
-                    aria-label={`Remove playbook ${title}`}
+                    aria-label={t("ui.playbookPill.removePlaybookTitle", { title })}
                     className="ml-0.5 rounded-full p-0.5 text-white/60 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 >
                     <X aria-hidden="true" className="h-2.5 w-2.5" />

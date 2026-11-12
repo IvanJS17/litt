@@ -24,7 +24,8 @@ class scanning with one `@source` entry each.
 ## Rules
 
 - Framework-light: React, `lucide-react`, `clsx`, `tailwind-merge`, the Radix
-  dropdown, `@mike/client`, and `@mike/contracts` for wire types
+  dropdown, `use-intl` (`useTranslations` only: the web app's `next-intl`
+  provider and the add-in's `LocaleProvider` both supply it), `@mike/client`, and `@mike/contracts` for wire types
   (`import type` only). Nothing from `frontend/src/app/` or
   `word-addin/src/`.
 - Cross-target primitives use the `XxxUI.tsx` convention; `dropdown.tsx` is the

@@ -8,6 +8,7 @@ import { useEditorSnapshot } from "@docx-editor.dev/react";
 import { TextButtonUI, PillButtonUI } from "@mike/ui";
 import { FORM_CONTROL_GLASS_CLASS } from "@/app/components/ui/form-field";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 export function DocxCommentReply({
     editor,
@@ -20,6 +21,7 @@ export function DocxCommentReply({
     author?: string;
     onClose: () => void;
 }) {
+    const t = useTranslations();
     useEditorSnapshot(editor);
     const [draft, setDraft] = useState("");
     const [error, setError] = useState<string | null>(null);
@@ -45,11 +47,11 @@ export function DocxCommentReply({
             if (result.ok) onClose();
             else
                 setError(
-                    "Your reply could not be added. Your draft is kept; please try again.",
+                    t("shared.docxCommentReply.yourReplyCouldNotBeAdded"),
                 );
         } catch {
             setError(
-                "Your reply could not be added. Your draft is kept; please try again.",
+                t("shared.docxCommentReply.yourReplyCouldNotBeAdded"),
             );
         }
     };
@@ -73,7 +75,7 @@ export function DocxCommentReply({
             }}
         >
             <label htmlFor={id} className="block font-medium">
-                Reply to comment
+                {t("shared.docxCommentReply.replyToComment")}
             </label>
             <textarea
                 id={id}
@@ -85,7 +87,7 @@ export function DocxCommentReply({
                     FORM_CONTROL_GLASS_CLASS,
                     "keyboard-focus-ring min-h-24 resize-y py-2 text-xs",
                 )}
-                placeholder="Write a reply…"
+                placeholder={t("shared.docxCommentReply.writeAReply")}
             />
             {error && (
                 <p role="alert" className="text-destructive">
@@ -93,14 +95,14 @@ export function DocxCommentReply({
                 </p>
             )}
             <div className="flex justify-end gap-2">
-                <TextButtonUI onClick={onClose}>Cancel</TextButtonUI>
+                <TextButtonUI onClick={onClose}>{t("shared.docxCommentReply.cancel")}</TextButtonUI>
                 <PillButtonUI
                     type="submit"
                     size="xs"
                     tone="black"
                     disabled={disabled}
                 >
-                    Reply
+                    {t("shared.docxCommentReply.reply")}
                 </PillButtonUI>
             </div>
         </form>

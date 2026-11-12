@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { LIQUID_GLASS_FLAT_CLASS } from "./LiquidGlassUI";
 import { TextButtonUI } from "./TextButtonUI";
+import { useTranslations } from "use-intl";
 
 /** Literal copy-ready text; never interpret markup as HTML or Markdown. */
 export function TextCardUI({ title, text }: { title: string; text: string }) {
+  const t = useTranslations();
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   useEffect(() => {
@@ -39,8 +41,8 @@ export function TextCardUI({ title, text }: { title: string; text: string }) {
           size="icon-xs"
           className="-mr-1.5 h-6 text-gray-800 hover:text-gray-950"
           onClick={() => void copy()}
-          aria-label={copied ? `Copied ${title}` : `Copy ${title}`}
-          title={copied ? "Copied" : "Copy"}
+          aria-label={copied ? t("ui.textCard.copiedTitle", { title }) : t("ui.textCard.copyTitle", { title })}
+          title={copied ? t("ui.textCard.copied") : t("ui.textCard.copy")}
         >
           {copied ? (
             <Check aria-hidden="true" className="h-3 w-3 text-green-600" />
@@ -56,11 +58,11 @@ export function TextCardUI({ title, text }: { title: string; text: string }) {
         {text}
       </div>
       <span role="status" className="sr-only">
-        {copied ? "Copied to clipboard" : ""}
+        {copied ? t("ui.textCard.copiedToClipboard") : ""}
       </span>
       {copyError && (
         <p role="alert" className="px-3 pb-3 text-xs text-gray-600">
-          Couldn’t copy. Select the text and copy it manually.
+          {t("ui.textCard.couldntCopySelectTheTextAnd")}
         </p>
       )}
     </section>

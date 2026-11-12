@@ -1,5 +1,6 @@
 "use client";
 
+import type { AppTranslate } from "@/i18n/Translate";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
@@ -21,6 +22,7 @@ import {
     LIQUID_GLASS_SELECTED_CLASS,
 } from "@/app/components/ui/liquid-surface";
 import { sortByNewest } from "@/app/lib/sortByNewest";
+import { useTranslations } from "next-intl";
 
 /** How many more of a project's chats and reviews each "See more" shows. */
 export const PROJECT_RECENT_ITEM_PAGE_SIZE = 5;
@@ -45,13 +47,14 @@ export function mergeProjectRecentItems(
     projectId: string,
     chats: Chat[],
     reviews: TabularReview[],
+    t: AppTranslate,
 ): ProjectRecentItem[] {
     const items = [
         ...chats.map(
             (chat): ProjectRecentItem => ({
                 kind: "chat",
                 id: chat.id,
-                title: chat.title?.trim() || "Untitled chat",
+                title: chat.title?.trim() || t("shared.sidebarProjectItem.untitledChat"),
                 href: `/projects/${projectId}/assistant/chat/${chat.id}`,
                 activityAt: chat.updated_at ?? chat.created_at,
             }),
@@ -60,7 +63,7 @@ export function mergeProjectRecentItems(
             (review): ProjectRecentItem => ({
                 kind: "review",
                 id: review.id,
-                title: review.title?.trim() || "Untitled review",
+                title: review.title?.trim() || t("shared.sidebarProjectItem.untitledReview"),
                 href: `/projects/${projectId}/tabular-reviews/${review.id}`,
                 activityAt: review.updated_at ?? review.created_at,
             }),
@@ -137,6 +140,7 @@ export function SidebarProjectItem({
     onExpandedChange,
     onOpenProject,
 }: Props) {
+    const t = useTranslations();
     const projectPath = `/projects/${project.id}`;
     const isActive =
         pathname === projectPath || pathname.startsWith(`${projectPath}/`);
@@ -176,9 +180,9 @@ export function SidebarProjectItem({
     const items = useMemo(
         () =>
             data
-                ? mergeProjectRecentItems(project.id, data.chats, data.reviews)
+                ? mergeProjectRecentItems(project.id, data.chats, data.reviews, t)
                 : null,
-        [data, project.id],
+        [data, project.id, t],
     );
     const visibleItems = items?.slice(0, visibleCount) ?? [];
     const canSeeMore =
@@ -239,7 +243,7 @@ export function SidebarProjectItem({
                 }}
                 className="font-medium text-gray-700 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
             >
-                Retry
+                {t("shared.sidebarProjectItem.retry")}
             </button>
         </li>
     );
@@ -292,7 +296,7 @@ export function SidebarProjectItem({
                     onClick={() => onExpandedChange(!expanded)}
                     aria-expanded={expanded}
                     aria-controls={expanded ? listId : undefined}
-                    aria-label={`${expanded ? "Hide" : "Show"} recent chats and reviews in ${project.name}`}
+                    aria-label={t("shared.sidebarProjectItem.toggleRecent", { expanded: String(expanded), name: project.name })}
                     className={cn(
                         "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 transition-opacity hover:text-gray-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                         expanded || isActive
@@ -336,12 +340,12 @@ export function SidebarProjectItem({
                         // request failed and the other came back empty.
                         retryRow(
                             loadError && data !== null
-                                ? "Could not refresh items."
-                                : "Could not load items.",
+                                ? t("shared.sidebarProjectItem.couldNotRefreshItems")
+                                : t("shared.sidebarProjectItem.couldNotLoadItems"),
                         )
                     ) : items && items.length === 0 ? (
                         <li className="flex min-h-7 items-center pl-2 pr-2 text-xs text-gray-500">
-                            No chats or reviews yet
+                            {t("shared.sidebarProjectItem.noChatsOrReviewsYet")}
                         </li>
                     ) : (
                         <>
@@ -358,7 +362,7 @@ export function SidebarProjectItem({
                                         <Link
                                             href={item.href}
                                             title={item.title}
-                                            aria-label={`${item.kind === "chat" ? "Chat" : "Tabular review"}: ${item.title}`}
+                                            aria-label={`${item.kind === "chat" ? t("shared.sidebarProjectItem.chat") : t("shared.sidebarProjectItem.tabularReview")}: ${item.title}`}
                                             aria-current={
                                                 itemActive ? "page" : undefined
                                             }
@@ -387,9 +391,9 @@ export function SidebarProjectItem({
                             {/* A refresh that failed keeps the items it
                                 had; a partial load shows what did load. */}
                             {loadError
-                                ? retryRow("Could not refresh items.")
+                                ? retryRow(t("shared.sidebarProjectItem.couldNotRefreshItems"))
                                 : data?.incomplete &&
-                                  retryRow("Some items could not be loaded.")}
+                                  retryRow(t("shared.sidebarProjectItem.someItemsCouldNotBeLoaded"))}
                             {canSeeMore && (
                                 <li>
                                     <button
@@ -399,7 +403,7 @@ export function SidebarProjectItem({
                                         aria-controls={listId}
                                         className="flex h-7 w-full items-center rounded-md pl-2 pr-2 text-left text-xs text-gray-500 transition-colors hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-default"
                                     >
-                                        {loadingMore ? "Loading..." : "See more"}
+                                        {loadingMore ? t("shared.sidebarProjectItem.loading") : t("shared.sidebarProjectItem.seeMore")}
                                     </button>
                                 </li>
                             )}

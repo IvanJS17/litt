@@ -17,6 +17,7 @@ import {
     SIDEBAR_TITLE_SLIDE_CLASS,
     useSidebarTitleSlide,
 } from "./useSidebarTitleSlide";
+import { useTranslations } from "next-intl";
 
 /** A playbook run in History: "Playbook: document", opening the run. */
 export function SidebarPlaybookRunItem({
@@ -30,15 +31,16 @@ export function SidebarPlaybookRunItem({
     status?: "loading" | "complete";
     onOpen: () => void;
 }) {
+    const t = useTranslations();
     const { titleRef, titleStyle, slideHandlers } = useSidebarTitleSlide();
-    const documentName = run.documentName?.trim() || "Untitled document";
-    const playbookName = run.playbookName.trim() || "Untitled playbook";
+    const documentName = run.documentName?.trim() || t("shared.sidebarPlaybookRunItem.untitledDocument");
+    const playbookName = run.playbookName.trim() || t("shared.sidebarPlaybookRunItem.untitledPlaybook");
     const fullTitle = `${playbookName}: ${documentName}`;
     return (
         <Link
             href={playbookRunPath(run)}
             title={fullTitle}
-            aria-label={`Playbook run: ${fullTitle}${status === "loading" ? " (Running)" : status === "complete" ? " (Complete)" : ""}`}
+            aria-label={t("shared.sidebarPlaybookRunItem.playbookRunStatus", { title: fullTitle, status: status ?? "idle" })}
             onClick={onOpen}
             aria-current={isActive ? "page" : undefined}
             {...slideHandlers}
@@ -53,7 +55,7 @@ export function SidebarPlaybookRunItem({
                 {status === "loading" ? (
                     <Loader2
                         role="status"
-                        aria-label={`${documentName} review running`}
+                        aria-label={t("shared.sidebarPlaybookRunItem.documentnameReviewRunning", { documentName })}
                         className="h-3.5 w-3.5 animate-spin text-interactive motion-reduce:animate-none"
                     />
                 ) : status === "complete" ? (

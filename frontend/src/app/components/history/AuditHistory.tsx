@@ -78,6 +78,7 @@ import {
   auditActor,
   auditSubject,
   auditSubjectEmail,
+  auditActorIsSystem,
   auditTimestamp,
   auditDestination,
   auditPrivateAccess,
@@ -737,7 +738,7 @@ export function AuditHistory({
                         .join(" · ")}
                     >
                       <span className="flex min-w-0 items-center gap-2">
-                        {actor !== t("history.system") && (
+                        {!auditActorIsSystem(event) && (
                           <UserAvatar
                             size="sm"
                             photo={event.user_profile_photo}

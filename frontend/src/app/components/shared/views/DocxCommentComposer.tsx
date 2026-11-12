@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from "@/app/components/ui/popover";
 import { openReviewPane } from "./docxReviewPane";
+import { useTranslations } from "next-intl";
 
 /** Mike-owned comment UI, using only the public open-source Editor contract. */
 export function DocxCommentComposer({
@@ -30,6 +31,7 @@ export function DocxCommentComposer({
   /** Page surface; the composer opens below the selected text painted in it. */
   surface?: HTMLElement | null;
 }) {
+  const t = useTranslations();
   useEditorSnapshot(editor);
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -68,9 +70,9 @@ export function DocxCommentComposer({
   const editable = snapshot.editable && snapshot.editingMode !== "viewing";
   const hasAuthor = !!author?.trim();
   const unavailable = !editable
-    ? "This document is read-only."
+    ? t("shared.docxCommentComposer.thisDocumentIsReadOnly")
     : !hasAuthor
-      ? "An author name is required to add comments."
+      ? t("shared.docxCommentComposer.anAuthorNameIsRequired")
       : null;
 
   useEffect(
@@ -102,12 +104,12 @@ export function DocxCommentComposer({
     // when a selected page is virtualized, even though the range is valid.
     const range = editor.query({ type: "selection" });
     if (!range || editor.snapshot().selectionCollapsed) {
-      setError("Select text in the document, then choose New comment.");
+      setError(t("shared.docxCommentComposer.selectTextInTheDocumentThen"));
       return;
     }
     const retained = editor.retainSelection();
     if (!retained) {
-      setError("Select the passage again, then choose New comment.");
+      setError(t("shared.docxCommentComposer.selectThePassageAgainThenChoose"));
       return;
     }
     pin.current = retained;
@@ -124,7 +126,7 @@ export function DocxCommentComposer({
       JSON.stringify(editor.query({ type: "selection" }))
     ) {
       setError(
-        "The selected passage changed. Your draft is still here; cancel and select the passage again before adding the comment.",
+        t("shared.docxCommentComposer.theSelectedPassageChangedYourDraft"),
       );
       return;
     }
@@ -134,7 +136,7 @@ export function DocxCommentComposer({
       const result = editor.addComment(draft.trim(), author);
       if (!result.ok) {
         setError(
-          "This comment could not be added. Your draft is still here; try again or cancel to choose another passage.",
+          t("shared.docxCommentComposer.thisCommentCouldNotBeAdded"),
         );
         return;
       }
@@ -143,11 +145,11 @@ export function DocxCommentComposer({
       setComposing(false);
       setError(null);
       setAnchorBox(null);
-      setStatus("Comment added.");
+      setStatus(t("shared.docxCommentComposer.commentAdded"));
       openReviewPane(editor);
     } catch {
       setError(
-        "This comment could not be added. Your draft is still here; please try again.",
+        t("shared.docxCommentComposer.thisCommentCouldNotBeAdded2"),
       );
     }
   };
@@ -170,8 +172,8 @@ export function DocxCommentComposer({
                 <TextButtonUI
                   ref={button}
                   size="icon-xs"
-                  aria-label="New comment"
-                  title={unavailable ?? "New comment"}
+                  aria-label={t("shared.docxCommentComposer.newComment")}
+                  title={unavailable ?? t("shared.docxCommentComposer.newComment")}
                   disabled={!composing && !!unavailable}
                   className="h-6"
                   onPointerDown={(event) => event.preventDefault()}
@@ -195,7 +197,7 @@ export function DocxCommentComposer({
                             the trigger, which would reorder the toolbar. */}
               <PopoverAnchor virtualRef={anchor} />
               <PopoverContent
-                aria-label="New comment"
+                aria-label={t("shared.docxCommentComposer.newComment")}
                 align={composing && anchorBox ? "start" : "end"}
                 // The selection anchor moves with page scroll and zoom.
                 updatePositionStrategy={
@@ -222,7 +224,7 @@ export function DocxCommentComposer({
                     }}
                   >
                     <label htmlFor={id} className="block font-medium">
-                      New comment
+                      {t("shared.docxCommentComposer.newComment")}
                     </label>
                     <textarea
                       id={id}
@@ -230,7 +232,7 @@ export function DocxCommentComposer({
                       rows={3}
                       value={draft}
                       className="keyboard-focus-ring w-full min-h-24 max-h-48 resize-y rounded-xl bg-[var(--dropdown-input-background)] px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2"
-                      placeholder="Write a comment…"
+                      placeholder={t("shared.docxCommentComposer.writeAComment")}
                       onChange={(event) => setDraft(event.target.value)}
                       onKeyDown={(event) => {
                         if (
@@ -244,19 +246,18 @@ export function DocxCommentComposer({
                     />
                     {!editable && (
                       <p className="text-muted-foreground">
-                        This document is read-only. Your draft is kept until you
-                        cancel.
+                        {t("shared.docxCommentComposer.thisDocumentIsReadOnlyYour")}
                       </p>
                     )}
                     <div className="flex items-center justify-end gap-2">
-                      <TextButtonUI onClick={dismiss}>Cancel</TextButtonUI>
+                      <TextButtonUI onClick={dismiss}>{t("shared.docxCommentComposer.cancel")}</TextButtonUI>
                       <PillButtonUI
                         type="submit"
                         tone="black"
                         size="xs"
                         disabled={!draft.trim() || !editable || !hasAuthor}
                       >
-                        Add comment
+                        {t("shared.docxCommentComposer.addComment")}
                       </PillButtonUI>
                     </div>
                   </form>

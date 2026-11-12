@@ -194,13 +194,27 @@ function detailText(event: AuditEvent, key: string): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
+/**
+ * Whether the system, not a person, did it. Ask this and never compare an
+ * actor's shown name with the translated "System": the name follows the
+ * language, the event does not.
+ */
+export function auditActorIsSystem(event: AuditEvent): boolean {
+  return (
+    !event.user_deleted &&
+    !event.user_display_name &&
+    !event.user_email &&
+    (event.action === "org.purged" ||
+      event.action === "org.departure.item.expired")
+  );
+}
+
 export function auditActor(event: AuditEvent, t: AuditTranslate): string {
   if (event.user_deleted) return t("history.audit.deletedUser");
   return (
     event.user_display_name ||
     event.user_email ||
-    (event.action === "org.purged" ||
-    event.action === "org.departure.item.expired"
+    (auditActorIsSystem(event)
       ? t("history.system")
       : t("history.audit.unknownUser"))
   );
@@ -329,7 +343,8 @@ export function auditTimestamp(
   });
 }
 
-export type AuditDetailField = { label: string; value: string };
+/** `id` names a field for code that has to find it; `label` is only for reading. */
+export type AuditDetailField = { label: string; value: string; id?: "access" };
 
 export function auditDetailFields(
   event: AuditEvent,
@@ -338,9 +353,9 @@ export function auditDetailFields(
 ): AuditDetailField[] {
   const fields: AuditDetailField[] = [];
   const detail = event.detail ?? {};
-  const add = (label: string, value: unknown) => {
+  const add = (label: string, value: unknown, id?: AuditDetailField["id"]) => {
     if (typeof value === "string" && value.trim())
-      fields.push({ label, value });
+      fields.push({ label, value, id });
     else if (typeof value === "number" && Number.isFinite(value))
       fields.push({ label, value: String(value) });
     else if (typeof value === "boolean")
@@ -376,7 +391,7 @@ export function auditDetailFields(
   )
     add(t("history.audit.field.enabled"), detail.enabled);
   if (event.action === "org.private_content.opened")
-    add(t("history.audit.field.access"), t("history.audit.readOnly"));
+    add(t("history.audit.field.access"), t("history.audit.readOnly"), "access");
   const purgeAfter = detailText(event, "purge_after");
   if (purgeAfter && !Number.isNaN(new Date(purgeAfter).getTime()))
     add(t("history.audit.field.scheduledDeletion"), auditTimestamp(purgeAfter, true, t, format));

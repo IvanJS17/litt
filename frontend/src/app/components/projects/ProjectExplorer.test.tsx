@@ -89,7 +89,7 @@ describe("ProjectExplorer actions", () => {
     it("marks a held document in plain text and offers no download for it", () => {
         const document = { id: "doc-1", filename: "Draft.docx", file_type: "docx", folder_id: null, training_held: true } as Document;
         render(<ProjectExplorer documents={[document]} onDocClick={vi.fn()} onDownloadDoc={vi.fn()} />);
-        expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+        expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
         fireEvent.contextMenu(screen.getByText("Draft.docx"));
         expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();
     });

@@ -12,6 +12,11 @@ import {
   mergeProjectRecentItems,
 } from "./SidebarProjectItem";
 
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as AppTranslate;
+
 vi.mock("next/image", () => ({
   default: ({ className }: { className?: string }) => (
     <span aria-hidden="true" className={className} />
@@ -82,6 +87,7 @@ describe("mergeProjectRecentItems", () => {
         chat("c2", null, "2026-10-04T00:00:00Z"),
       ],
       [review("r1", "Lease review", "2026-10-03T00:00:00Z")],
+      t,
     );
 
     expect(items.map((item) => [item.kind, item.title, item.href])).toEqual([

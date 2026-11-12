@@ -6,27 +6,33 @@ import { EventChevron, EventDisclosureButton, EventLabel } from "./EventDisclosu
 import { isRenderableEvent, toolCallLabel } from "./eventUtils";
 import { subagentDetailsText } from "./responseDetails";
 import { modelDisplayName } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+import { useFormatter, useTranslations } from "next-intl";
 
 export type DelegationEvent = Extract<AssistantEvent, { type: "delegation" }>;
 
 type RenderSteps = (steps: AssistantEvent[], connectsToNextRow: boolean) => ReactNode;
 
-const subagents = (count: number) => (count === 1 ? "subagent" : "subagents");
-
 /**
  * "Started 2 subagents", "Resumed a subagent", "Started 1 and resumed 1
  * subagents": what Mike did, on its own line above the subagents' pills.
  */
-function startedLabel(delegations: DelegationEvent[]): string {
+function startedLabel(t: AppTranslate, delegations: DelegationEvent[]): string {
     const resumed = delegations.filter((d) => d.continued_from).length;
     const started = delegations.length - resumed;
     if (started && resumed) {
-        return `Started ${started} and resumed ${resumed} ${subagents(delegations.length)}`;
+        return t("assistant.subagentGroup.startedAndResumed", {
+            started,
+            resumed,
+            total: delegations.length,
+        });
     }
-    const verb = resumed ? "Resumed" : "Started";
-    return delegations.length === 1
-        ? `${verb} a subagent`
-        : `${verb} ${delegations.length} subagents`;
+    return t(
+        resumed
+            ? "assistant.subagentGroup.resumedCount"
+            : "assistant.subagentGroup.startedCount",
+        { count: delegations.length },
+    );
 }
 
 function stepCount(event: DelegationEvent): number {
@@ -34,38 +40,66 @@ function stepCount(event: DelegationEvent): number {
 }
 
 /** A subagent's status line: how it is doing or how it ended. */
-function subagentStatus(event: DelegationEvent): { text: string; failed: boolean } {
+function subagentStatus(
+    t: AppTranslate,
+    event: DelegationEvent,
+): { text: string; failed: boolean } {
     const count = stepCount(event);
-    const steps = count > 0 ? `${count} ${count === 1 ? "step" : "steps"}` : null;
+    const steps =
+        count > 0 ? t("assistant.subagentGroup.stepsCount", { count }) : null;
     const line = (...parts: Array<string | null | false | undefined>) => ({
         text: parts.filter(Boolean).join(" · "),
         failed: false,
     });
-    const resumed = !!event.continued_from && "Resumed";
+    const resumed =
+        !!event.continued_from && t("assistant.subagentGroup.statusResumed");
     if (event.isStreaming) {
-        return line(resumed || "Running", toolCallLabel(event.activity ?? ""));
+        return line(
+            resumed || t("assistant.subagentGroup.statusRunning"),
+            toolCallLabel(event.activity ?? "", t),
+        );
     }
     switch (event.status) {
         case "completed":
             // Worded like the timeline's own "Completed in N steps".
-            return line(resumed, steps ? `Completed in ${steps}` : "Completed");
+            return line(
+                resumed,
+                steps
+                    ? t("assistant.subagentGroup.completedIn", { steps })
+                    : t("assistant.subagentGroup.statusCompleted"),
+            );
         case "incomplete":
-            return line(resumed, "Stopped at its limit", !!event.brief && "partial brief", steps);
+            return line(
+                resumed,
+                t("assistant.subagentGroup.stoppedAtItsLimit"),
+                !!event.brief && t("assistant.subagentGroup.partialBrief"),
+                steps,
+            );
         case "needs_input":
             return line(
                 resumed,
-                event.approval_ids?.length ? "Waiting for your approval" : "Asked LiTT a question",
+                event.approval_ids?.length
+                    ? t("assistant.subagentGroup.waitingForYourApproval")
+                    : t("assistant.subagentGroup.askedLittAQuestion"),
                 steps,
             );
         case "failed":
             // LiTT: a route that could not run says why; nothing ran on another model.
             if (event.route_unavailable) {
-                return { text: `Couldn't start: ${event.route_unavailable}`, failed: true };
+                return {
+                    text: t("assistant.subagentGroup.couldNotStart", {
+                        reason: event.route_unavailable,
+                    }),
+                    failed: true,
+                };
             }
-            return { ...line(resumed, "Couldn't finish"), failed: true };
+            return {
+                ...line(resumed, t("assistant.subagentGroup.couldNotFinish")),
+                failed: true,
+            };
         case "cancelled":
         default:
-            return line(resumed, "Stopped", steps);
+            return line(resumed, t("assistant.subagentGroup.statusStopped"), steps);
     }
 }
 
@@ -123,7 +157,8 @@ function SubagentPill({
     detailsId: string;
     onSelect: () => void;
 }) {
-    const status = subagentStatus(event);
+    const t = useTranslations();
+    const status = subagentStatus(t, event);
     return (
         <TabPillButtonUI
             surface="flat"
@@ -147,7 +182,7 @@ function SubagentPill({
                     <MikeIcon size={14} tint={tint} spin={!!event.isStreaming} error={status.failed} />
                 </span>
                 <span className="min-w-0 [overflow-wrap:anywhere]">
-                    {event.title || "Subagent"}
+                    {event.title || t("assistant.subagentGroup.subagent")}
                     {/* Points down while this pill's details are open. Inline
                         and one line tall, so it follows the title's last word
                         and centres on that line; the svg's own margin and
@@ -175,18 +210,20 @@ function SubagentDetails({
     showDetails: boolean;
     renderSteps: RenderSteps;
 }) {
-    const status = subagentStatus(event);
+    const t = useTranslations();
+    const format = useFormatter();
+    const status = subagentStatus(t, event);
     const streaming = !!event.isStreaming;
     const hasSteps = !streaming && stepCount(event) > 0;
     const hasBrief = !streaming && !!event.brief;
     const hasQuestion = !streaming && !!event.question;
-    const details = showDetails ? subagentDetailsText(event) : "";
+    const details = showDetails ? subagentDetailsText({ t, format }, event) : "";
 
     return (
         <div
             id={id}
             role="region"
-            aria-label={event.title || "Subagent"}
+            aria-label={event.title || t("assistant.subagentGroup.subagent")}
             // Flat light grey, no border or shadow: a recessed area for the
             // subagent's work rather than another raised card.
             className="mt-2 flex flex-col gap-4 rounded-xl bg-gray-100/70 px-3 py-2"
@@ -204,13 +241,13 @@ function SubagentDetails({
             {/* LiTT: which of the user's routes and which model it ran on. */}
             {event.model && (
                 <p className="-mt-3 font-serif text-sm text-gray-500 [overflow-wrap:anywhere]">
-                    {[event.route && `Route ${event.route}`, modelDisplayName(event.model)]
+                    {[event.route && t("assistant.subagentGroup.route", { route: event.route }), modelDisplayName(event.model)]
                         .filter(Boolean)
                         .join(" · ")}
                 </p>
             )}
             <DetailDisclosureRow
-                label="Task from LiTT"
+                label={t("assistant.subagentGroup.taskFromLitt")}
                 showConnector={streaming || hasSteps || hasBrief || hasQuestion}
             >
                 <p className="mt-2 whitespace-pre-wrap text-gray-600 [overflow-wrap:anywhere]">
@@ -219,9 +256,9 @@ function SubagentDetails({
             </DetailDisclosureRow>
             {streaming ? (
                 <EventBlock isStreaming>
-                    <EventLabel>{toolCallLabel(event.activity ?? "")}</EventLabel>
+                    <EventLabel>{toolCallLabel(event.activity ?? "", t)}</EventLabel>
                     <p className="mt-0.5 text-xs text-gray-400">
-                        Steps appear when the subagent finishes.
+                        {t("assistant.subagentGroup.stepsAppearWhenTheSubagentFinishes")}
                     </p>
                 </EventBlock>
             ) : (
@@ -231,17 +268,17 @@ function SubagentDetails({
                 <DetailDisclosureRow
                     label={
                         event.status === "incomplete"
-                            ? "Returned a partial brief to LiTT"
-                            : "Returned a brief to LiTT"
+                            ? t("assistant.subagentGroup.returnedAPartialBriefToLitt")
+                            : t("assistant.subagentGroup.returnedABriefToLitt")
                     }
                     showConnector={hasQuestion}
                 >
-                    <ReasoningContent text={event.brief!} label="Brief" />
+                    <ReasoningContent text={event.brief!} label={t("assistant.subagentGroup.brief")} />
                 </DetailDisclosureRow>
             )}
             {hasQuestion && (
                 <EventBlock dotColor="gray">
-                    <EventLabel>Asked LiTT</EventLabel>
+                    <EventLabel>{t("assistant.subagentGroup.askedLitt")}</EventLabel>
                     <p className="mt-0.5 whitespace-pre-wrap text-gray-800 [overflow-wrap:anywhere]">
                         {event.question}
                     </p>
@@ -280,6 +317,7 @@ export function SubagentGroup({
     showConnectorAfter: boolean;
     renderSteps: RenderSteps;
 }) {
+    const t = useTranslations();
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const detailsId = useId();
     const selected = delegations.find((d) => d.delegation_id === selectedId);
@@ -291,8 +329,8 @@ export function SubagentGroup({
             {/* The pills sit in this step's content column, so Mike's line
                 runs beside them to "finished" once every subagent is done. */}
             <EventBlock dotColor="green" showConnector={!running}>
-                <EventLabel>{startedLabel(delegations)}</EventLabel>
-                <div role="group" aria-label="Subagents" className="mt-3 flex flex-wrap gap-1.5">
+                <EventLabel>{startedLabel(t, delegations)}</EventLabel>
+                <div role="group" aria-label={t("assistant.subagentGroup.subagents")} className="mt-3 flex flex-wrap gap-1.5">
                     {delegations.map((event) => (
                         <SubagentPill
                             key={event.delegation_id}
@@ -324,7 +362,7 @@ export function SubagentGroup({
                     showConnector={showConnectorAfter}
                 >
                     <EventLabel>
-                        {count === 1 ? "Subagent finished" : `${count} subagents finished`}
+                        {count === 1 ? t("assistant.subagentGroup.subagentFinished") : t("assistant.subagentGroup.countSubagentsFinished", { count })}
                     </EventLabel>
                 </EventBlock>
             )}

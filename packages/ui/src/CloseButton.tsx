@@ -1,3 +1,4 @@
+import { useTranslations } from "use-intl";
 import { X } from "lucide-react";
 import { PillButtonUI } from "./PillButtonUI";
 
@@ -13,7 +14,7 @@ const sizeClasses: Record<CloseButtonSize, { button: string; icon: string }> = {
 /** The small white ✕ that dismisses a side panel, modal or other surface. */
 export function CloseButton({
     onClick,
-    label = "Close",
+    label,
     size = "sm",
     className,
 }: {
@@ -22,14 +23,15 @@ export function CloseButton({
     size?: CloseButtonSize;
     className?: string;
 }) {
+    const t = useTranslations();
     const classes = sizeClasses[size];
     return (
         <PillButtonUI
             tone="white"
             size="icon-xs"
             onClick={onClick}
-            aria-label={label}
-            title={label}
+            aria-label={label ?? t("ui.closeButton.close")}
+            title={label ?? t("ui.closeButton.close")}
             className={`${classes.button} shrink-0 ${className ?? ""}`}
         >
             <X aria-hidden="true" className={classes.icon} />

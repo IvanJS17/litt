@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "use-intl";
 export { TextCardUI } from "./TextCardUI";
 
 type EventDotColor = "green" | "gray" | "red";
@@ -61,6 +62,7 @@ export function DocReadBlockUI({
     showConnector?: boolean;
     isStreaming?: boolean;
 }) {
+    const t = useTranslations();
     const file = filename ? (
         <>
             {fileIcon}
@@ -81,7 +83,7 @@ export function DocReadBlockUI({
         >
             <div className="flex min-w-0 items-center gap-1.5">
                 <span className="shrink-0 font-medium">
-                    {isStreaming ? "Reading" : "Read"}
+                    {isStreaming ? t("ui.documentEventBlocks.reading") : t("ui.documentEventBlocks.read")}
                 </span>
                 {!isStreaming && onClick ? (
                     <button
@@ -116,6 +118,7 @@ export function DocFindBlockUI({
     showConnector?: boolean;
     onClick?: () => void;
 }) {
+    const t = useTranslations();
     const matchSuffix = isStreaming
         ? ""
         : ` (${totalMatches} ${totalMatches === 1 ? "match" : "matches"})`;
@@ -127,11 +130,11 @@ export function DocFindBlockUI({
             dotColor={totalMatches > 0 ? "green" : "gray"}
         >
             <span className="font-medium">
-                {isStreaming ? "Finding" : "Found"}
+                {isStreaming ? t("ui.documentEventBlocks.finding") : t("ui.documentEventBlocks.found")}
             </span>{" "}
             <span>
-                &ldquo;{query}&rdquo;{matchSuffix}
-                <span className="ml-1 text-gray-400">in </span>
+                {t("ui.documentEventBlocks.queryMatchsuffix", { query, matchSuffix })}
+                <span className="ml-1 text-gray-400">{t("ui.documentEventBlocks.in")} </span>
                 {!isStreaming && onClick ? (
                     <button
                         type="button"

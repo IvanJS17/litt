@@ -34,7 +34,7 @@ it("offers the download only once the version is known to be released", () => {
     set("unknown");
     const { rerender } = render(<DocumentTitleRow document={doc} isReloading={false} compactActions />);
     expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
-    expect(screen.queryByText("Borrador de pasante, pendiente de aprobación")).toBeNull();
+    expect(screen.queryByText("Intern draft, pending approval")).toBeNull();
     expect(useTrainingVersionStatus).toHaveBeenCalledWith("doc-1", "v2", true);
 
     set("released");
@@ -45,9 +45,9 @@ it("offers the download only once the version is known to be released", () => {
 it("marks a pasante draft, hides its download and shows Aprobar to an approver", () => {
     set("held", true);
     render(<DocumentTitleRow document={doc} isReloading={false} compactActions />);
-    expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+    expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Aprobar esta versión" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve this version" })).toBeInTheDocument();
 });
 
 it("asks nothing for a legal source", () => {

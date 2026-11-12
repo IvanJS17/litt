@@ -28,6 +28,7 @@ import {
     LIQUID_GLASS_HOVER_CLASS,
     TABLE_SURFACE_CLASS,
 } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 export const CLOSE_ROW_ACTIONS_EVENT = "mike:close-row-actions";
 
@@ -221,14 +222,10 @@ export function TableFilters<T extends string>({
     );
 }
 
-const SORT_OPTIONS: TableFilterOption<TableSortDirection>[] = [
-    { value: "asc", label: "Ascending" },
-    { value: "desc", label: "Descending" },
-];
 
 /** Ascending/descending sort menu for a column header. */
 export function TableSortFilter({
-    allLabel = "Default Order",
+    allLabel,
     widthClassName = "w-40",
     ...props
 }: {
@@ -239,12 +236,17 @@ export function TableSortFilter({
     widthClassName?: string;
     align?: "left" | "right";
 }) {
+    const t = useTranslations();
+    const sortOptions: TableFilterOption<TableSortDirection>[] = [
+        { value: "asc", label: t("shared.tablePrimitive.ascending") },
+        { value: "desc", label: t("shared.tablePrimitive.descending") },
+    ];
     return (
         <TableFilters
             {...props}
-            allLabel={allLabel}
+            allLabel={allLabel ?? t("shared.tablePrimitive.defaultOrder")}
             widthClassName={widthClassName}
-            options={SORT_OPTIONS}
+            options={sortOptions}
         />
     );
 }
@@ -513,6 +515,7 @@ export function TablePrimaryCell({
     onEditCommit?: () => void;
     onEditCancel?: () => void;
 }) {
+    const t = useTranslations();
     const content =
         label !== undefined ? (
             editing ? (
@@ -557,7 +560,7 @@ export function TablePrimaryCell({
                         aria-label={
                             checkboxTitle ??
                             (typeof label === "string"
-                                ? `Select ${label}`
+                                ? t("shared.tablePrimitive.selectLabel", { label })
                                 : undefined)
                         }
                     />

@@ -40,6 +40,7 @@ import {
     type ToastAction,
     type ToastRecord,
 } from "@mike/client";
+import { useTranslations } from "use-intl";
 export {
     showToast,
     dismissToast,
@@ -102,6 +103,7 @@ export function toastHasActions(toast: ToastRecord): boolean {
 
 /** A toast's "Contact support" link and action buttons, for a card's action row. */
 export function ToastActionsUI({ toast }: { toast: ToastRecord }): ReactElement {
+    const t = useTranslations();
     const runAction = async (action: ToastAction) => {
         if (!action.keepOpen) dismissToast(toast.id);
         await action.onClick();
@@ -121,7 +123,7 @@ export function ToastActionsUI({ toast }: { toast: ToastRecord }): ReactElement 
                         noticeActionEmphasis(0, count),
                     )}
                 >
-                    {toast.supportLabel ?? "Contact support"}
+                    {toast.supportLabel ?? t("ui.toast.contactSupport")}
                 </a>
             )}
             {toast.actions?.map((action, index) => (
@@ -146,6 +148,7 @@ export function useToasts(): readonly ToastRecord[] {
 }
 
 function ToastItemUI({ toast }: { toast: ToastRecord }) {
+    const t = useTranslations();
     const pausedRef = useRef(false);
     const hoveredRef = useRef(false);
     const focusedRef = useRef(false);
@@ -202,7 +205,7 @@ function ToastItemUI({ toast }: { toast: ToastRecord }) {
             title={toast.title}
             message={toast.message}
             onDismiss={() => dismissToast(toast.id)}
-            dismissLabel="Dismiss notification"
+            dismissLabel={t("ui.noticeCard.dismissNotification")}
             // The item owns the live semantics: `alert` is implicitly
             // assertive, `status` polite. The viewport around it is a plain
             // region, because a live region nested in a live region is
@@ -253,6 +256,7 @@ export function ToastViewportUI({
     showErrors = true,
     className,
 }: ToastViewportUIProps) {
+    const t = useTranslations();
     const toasts = useToasts();
     const items = showErrors
         ? toasts
@@ -264,7 +268,7 @@ export function ToastViewportUI({
             // through its own role, and `aria-label` needs a role to be
             // exposed at all.
             role="region"
-            aria-label="Notifications"
+            aria-label={t("ui.toast.notifications")}
             className={twMerge(
                 clsx(
                     "pointer-events-none fixed left-1/2 top-5 z-[260] flex w-[min(92vw,520px)] -translate-x-1/2 flex-col gap-2 px-4",

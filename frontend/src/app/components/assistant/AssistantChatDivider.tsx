@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/utils";
+import { useTranslations } from "next-intl";
 
 const KEYBOARD_STEP_PX = 24;
 const MIN_CHAT_WIDTH = 320;
@@ -35,6 +36,7 @@ export function AssistantChatDivider({
 }: {
     onResize: (dx: number) => void;
 }) {
+    const t = useTranslations();
     const [dragging, setDragging] = useState(false);
     const lastX = useRef(0);
     const onResizeRef = useRef(onResize);
@@ -65,7 +67,7 @@ export function AssistantChatDivider({
         <div
             role="separator"
             aria-orientation="vertical"
-            aria-label="Resize chats"
+            aria-label={t("assistant.assistantChatDivider.resizeChats")}
             tabIndex={0}
             onMouseDown={(event) => {
                 event.preventDefault();

@@ -1,6 +1,7 @@
 "use client";
 
-import { isTrainingHeld, TRAINING_HELD_LABEL } from "@mike/ui";
+import { useTranslations } from "next-intl";
+import { isTrainingHeld, TRAINING_HELD_LABEL_KEY } from "@mike/ui";
 import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
 import caseLaw from "../../../../public/icons/legal-sources/case-law.svg";
 import legislation from "../../../../public/icons/legal-sources/legislation.svg";
@@ -48,6 +49,7 @@ export function ProjectDocumentTabs({
     onClose,
     onReorder,
 }: Props) {
+    const t = useTranslations();
     return (
         <DocumentTabBar
             label="Project documents"
@@ -80,7 +82,7 @@ export function ProjectDocumentTabs({
                         tab.sourceDocument?.version_number ??
                         document?.active_version_number ??
                         document?.latest_version_number,
-                    note: isTrainingHeld(document) ? TRAINING_HELD_LABEL : undefined,
+                    note: isTrainingHeld(document) ? t(TRAINING_HELD_LABEL_KEY) : undefined,
                     actions: {
                         onAddToChat:
                             document && onAddToChat

@@ -5,6 +5,7 @@ import { ModalUI } from "./ModalUI";
 import { TextSlabUI } from "./TextSlabUI";
 import { excerptLabel } from "./ExcerptPillUI";
 import type { MessageExcerpt } from "@mike/client";
+import { useTranslations } from "use-intl";
 
 const LABEL_CLASS = "mb-2 text-sm font-medium text-gray-700";
 
@@ -20,20 +21,21 @@ export function ExcerptModalUI({
     excerpt: MessageExcerpt | null;
     onClose: () => void;
 }): ReactElement {
-    const title = excerpt ? excerptLabel(excerpt) : "Excerpt";
+    const t = useTranslations();
+    const title = excerpt ? excerptLabel(excerpt, t) : t("ui.excerptPill.excerpt");
     return (
         <ModalUI
             open={!!excerpt}
             onClose={onClose}
             size="sm"
             className="h-auto"
-            breadcrumbs={["Assistant", title]}
+            breadcrumbs={[t("ui.excerptModal.assistant"), title]}
             ariaLabel={title}
         >
             {excerpt && (
                 <div className="flex flex-col gap-4 pb-5">
                     <div>
-                        <p className={LABEL_CLASS}>Excerpt</p>
+                        <p className={LABEL_CLASS}>{t("ui.excerptModal.excerpt")}</p>
                         {/* Long passages scroll inside the slab; focusable so
                             the scroll is reachable by keyboard. */}
                         <TextSlabUI
@@ -47,7 +49,7 @@ export function ExcerptModalUI({
                     </div>
                     {excerpt.note && (
                         <div>
-                            <p className={LABEL_CLASS}>Annotation</p>
+                            <p className={LABEL_CLASS}>{t("ui.excerptModal.annotation")}</p>
                             <p className="break-words text-sm text-gray-900">
                                 {excerpt.note}
                             </p>

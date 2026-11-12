@@ -7,7 +7,7 @@ import { TextCardUI } from "@mike/ui";
 import { memo, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WebSource } from "@mike/contracts";
 import { Check, Copy, Download } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import type {
     AssistantEvent,
     Citation,
@@ -162,6 +162,7 @@ function AssistantMessageImpl({
     resolvedEditStatuses,
 }: Props) {
     const t = useTranslations();
+    const format = useFormatter();
     const contentDivRef = useRef<HTMLDivElement | null>(null);
     const [isCopied, setIsCopied] = useState(false);
     // Per-document override of the download URL, set as Accept/Reject resolves
@@ -202,7 +203,7 @@ function AssistantMessageImpl({
     ) as Extract<AssistantEvent, { type: "error" }> | undefined;
     const effectiveErrorMessage =
         errorMessage ??
-        (errorEvent ? eventErrorMessage(errorEvent) : null) ??
+        (errorEvent ? eventErrorMessage(errorEvent, t) : null) ??
         null;
     const hasError = isError || !!effectiveErrorMessage;
     const status: StatusState = hasError
@@ -321,7 +322,7 @@ function AssistantMessageImpl({
                 html = clone.innerHTML;
                 plainText = clone.textContent || "";
             }
-            const appendix = buildCitationAppendix(citations);
+            const appendix = buildCitationAppendix(citations, t);
             html += appendix.html;
             plainText += appendix.text;
             const item = new ClipboardItem({
@@ -335,9 +336,9 @@ function AssistantMessageImpl({
             // A clipboard refusal is a browser permission the user controls,
             // so support cannot help and a retry needs a fresh click.
             notifyError(err, {
-                action: "copy this answer",
+                action: t("assistant.assistantMessage.copyThisAnswer"),
                 fallback:
-                    "LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
+                    t("assistant.assistantMessage.littCouldnTWriteTo"),
                 support: false,
             });
         }
@@ -457,7 +458,7 @@ function AssistantMessageImpl({
                     isStreaming
                 >
                     <span className="font-medium">
-                        {toolCallLabel(event.name)}
+                        {toolCallLabel(event.name, t)}
                     </span>
                 </EventBlock>
             );
@@ -469,7 +470,7 @@ function AssistantMessageImpl({
                     showConnector={showConnector}
                     isStreaming
                 >
-                    <span>Thinking...</span>
+                    <span>{t("assistant.assistantMessage.thinking")}</span>
                 </EventBlock>
             );
         }
@@ -477,7 +478,7 @@ function AssistantMessageImpl({
             const isError = event.status === "error";
             const label = event.connector_name
                 ? `${event.connector_name}: ${connectorToolLabel(event.tool_name, event.tool_title)}`
-                : toolCallLabel(event.openai_tool_name);
+                : toolCallLabel(event.openai_tool_name, t);
             return (
                 <EventBlock
                     key={globalIdx}
@@ -491,7 +492,7 @@ function AssistantMessageImpl({
                             className="h-3.5 w-3.5 shrink-0"
                         />
                         <span className="min-w-0 break-words">
-                            {event.isStreaming ? "Using connector..." : label}
+                            {event.isStreaming ? t("assistant.assistantMessage.usingConnector") : label}
                         </span>
                     </span>
                     {isError && event.error && (
@@ -1062,7 +1063,7 @@ function AssistantMessageImpl({
                         <button
                             type="button"
                             aria-label={
-                                isCopied ? "Response copied" : "Copy response"
+                                isCopied ? t("assistant.assistantMessage.responseCopied") : t("assistant.assistantMessage.copyResponse")
                             }
                             className="-ml-1.5 p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                             onClick={handleCopy}
@@ -1087,7 +1088,7 @@ function AssistantMessageImpl({
                     )}
                     {!isStreaming && answerDetails?.type === "response_details" && (
                         <span className="ml-auto min-w-0 text-right font-serif text-sm text-gray-400 [overflow-wrap:anywhere]">
-                            {responseDetailsText(answerDetails, subagentUsage(events ?? []))}
+                            {responseDetailsText({ t, format }, answerDetails, subagentUsage(events ?? []))}
                         </span>
                     )}
                 </div>

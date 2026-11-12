@@ -246,9 +246,9 @@ describe("a held document's tab", () => {
                 onDownloadDoc={vi.fn()}
             />,
         );
-        expect(screen.getByText("Borrador de pasante, pendiente de aprobación")).toBeInTheDocument();
+        expect(screen.getByText("Intern draft, pending approval")).toBeInTheDocument();
         const tab = screen.getByRole("tab", {
-            name: "First.docx, Borrador de pasante, pendiente de aprobación",
+            name: "First.docx, Intern draft, pending approval",
         });
         fireEvent.contextMenu(tab, { clientX: 10, clientY: 10 });
         expect(screen.queryByRole("menuitem", { name: "Download" })).toBeNull();

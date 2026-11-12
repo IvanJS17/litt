@@ -1,3 +1,4 @@
+import { useTranslations } from "use-intl";
 import { twMerge } from "tailwind-merge";
 
 // LiTT training (docs/training.md): the mark of a pasante's version that is
@@ -6,7 +7,8 @@ import { twMerge } from "tailwind-merge";
 // pill: it is a status, not a control. Rendered by the web app and the Word
 // add-in.
 
-export const TRAINING_HELD_LABEL = "Borrador de pasante, pendiente de aprobación";
+/** The catalog key of the held-draft mark; read it with the caller's `t`. */
+export const TRAINING_HELD_LABEL_KEY = "ui.trainingHeldNote.label" as const;
 
 /** Whether a document or version may not leave LiTT yet. */
 export function isTrainingHeld(item: { training_held?: boolean } | null | undefined): boolean {
@@ -14,9 +16,10 @@ export function isTrainingHeld(item: { training_held?: boolean } | null | undefi
 }
 
 export function TrainingHeldNoteUI({ className }: { className?: string }) {
+  const t = useTranslations();
   return (
     <span className={twMerge("min-w-0 break-words text-xs text-muted-foreground", className)}>
-      {TRAINING_HELD_LABEL}
+      {t(TRAINING_HELD_LABEL_KEY)}
     </span>
   );
 }

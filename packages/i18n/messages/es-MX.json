@@ -57,6 +57,362 @@
     "yourAccountHasBeenDeleted": "Tu cuenta se eliminó",
     "yourAccountStaysLockedAndNobody": "Tu cuenta sigue bloqueada y nadie puede iniciar sesión en ella. Contacta a soporte para completar la eliminación."
   },
+  "assistant": {
+    "addDocButton": {
+      "addToMessage": "⟦por traducir⟧ Add to message",
+      "playbooks": "Playbooks",
+      "savedDocuments": "⟦por traducir⟧ Saved Documents",
+      "uploadDocuments": "⟦por traducir⟧ Upload Documents",
+      "workflows": "Flujos de trabajo"
+    },
+    "askInputPopup": {
+      "add": "⟦por traducir⟧ + Add",
+      "addDocuments": "Agregar documentos",
+      "addTheFollowingDocumentsIfAvailable": "⟦por traducir⟧ Add the following documents if available:",
+      "approval": "⟦por traducir⟧ Approval",
+      "approve": "Aprobar",
+      "approved": "Aprobada",
+      "assistant": "Asistente",
+      "confirm": "Confirmar",
+      "confirmed": "⟦por traducir⟧ Confirmed",
+      "couldNotSendTheseInputsPlease": "⟦por traducir⟧ Could not send these inputs. Please try again.",
+      "dismiss": "Descartar",
+      "inputsSent": "⟦por traducir⟧ Inputs sent",
+      "lengthFilesAdded": "⟦por traducir⟧ {length, plural, one {# file added} other {# files added}}",
+      "littWantsToRunThisAction": "⟦por traducir⟧ LiTT wants to run this action. Approve it to run it now.",
+      "other": "⟦por traducir⟧ Other",
+      "question": "Pregunta",
+      "reject": "Rechazar",
+      "sendingInputs": "⟦por traducir⟧ Sending inputs…",
+      "skip": "Omitir",
+      "tabDocuments": "Documentos",
+      "typeYourAnswer": "⟦por traducir⟧ Type your answer...",
+      "unskip": "⟦por traducir⟧ Unskip"
+    },
+    "assistantChatDivider": {
+      "resizeChats": "⟦por traducir⟧ Resize chats"
+    },
+    "assistantDocumentPanelHost": {
+      "assistant": "Asistente",
+      "chatActionFailed": "⟦por traducir⟧ Chat action failed",
+      "deleteFailed": "⟦por traducir⟧ Delete failed",
+      "deleteFile": "⟦por traducir⟧ Delete file?",
+      "deleteFile2": "⟦por traducir⟧ Delete file",
+      "deleteTitleAndItsVersions": "⟦por traducir⟧ Delete “{title}” and its versions? This cannot be undone.",
+      "openDocuments": "⟦por traducir⟧ Open Documents",
+      "thisFile": "⟦por traducir⟧ this file",
+      "thisFileCouldNotBe": "No se pudo borrar este archivo. Inténtalo de nuevo.",
+      "youDoNotHavePermissionTo": "⟦por traducir⟧ You do not have permission to delete this file."
+    },
+    "assistantMessage": {
+      "copyResponse": "⟦por traducir⟧ Copy response",
+      "copyThisAnswer": "⟦por traducir⟧ copy this answer",
+      "littCouldnTWriteTo": "⟦por traducir⟧ LiTT couldn't write to the clipboard. Check your browser's clipboard permission, then try again.",
+      "responseCopied": "⟦por traducir⟧ Response copied",
+      "thinking": "Pensando...",
+      "usingConnector": "⟦por traducir⟧ Using connector..."
+    },
+    "assistantSidePanel": {
+      "assistantDocuments": "⟦por traducir⟧ Assistant documents",
+      "openDocuments": "⟦por traducir⟧ Open Documents"
+    },
+    "assistantWorkflowModal": {
+      "addWorkflow": "Agregar flujo de trabajo",
+      "assistant": "Asistente",
+      "projects": "Proyectos",
+      "use": "Usar"
+    },
+    "caseView": {
+      "noContentWasReturnedForThis": "⟦por traducir⟧ No content was returned for this document.",
+      "noDocumentTextReturned": "⟦por traducir⟧ No document text returned.",
+      "tryAgain": "⟦por traducir⟧ Try again"
+    },
+    "chatAccessModal": {
+      "access": "Acceso",
+      "assistant": "Asistente",
+      "loadWhoThisChatIs": "⟦por traducir⟧ load who this chat is shared with",
+      "owners": "Propietarios",
+      "refreshWhoThisChatIs": "⟦por traducir⟧ refresh who this chat is shared with",
+      "sharingDetailsCouldNotBe": "⟦por traducir⟧ Sharing details could not be loaded, so access cannot be changed here.",
+      "untitledChat": "Chat sin título"
+    },
+    "chatCredentialPicker": {
+      "chooseAKey": "Elige una llave",
+      "deploymentKey": "Llave de la instalación",
+      "key": "Llave",
+      "keyForThisConversationLabel": "⟦por traducir⟧ Key for this conversation: {label}",
+      "noKey": "⟦por traducir⟧ No key",
+      "noKeyIsAvailableForThis": "⟦por traducir⟧ No key is available for this model. Add one in Settings or choose another model.",
+      "operatorEndpoint": "Endpoint del operador",
+      "organizationKey": "Llave de la organización",
+      "theConversationKeepsThisKeyAnd": "⟦por traducir⟧ The conversation keeps this key, and its model, once it starts.",
+      "yourKey": "Tu llave"
+    },
+    "chatInput": {
+      "aResponseIsStillArriving": "⟦por traducir⟧ A response is still arriving…",
+      "addDocuments": "Agregar documentos",
+      "addPlaybook": "Agregar playbook",
+      "assistant": "Asistente",
+      "chooseAModelBeforeSendingYour": "⟦por traducir⟧ Choose a model before sending your message.",
+      "documentsCouldNotBeUploaded": "No se pudieron subir los documentos. Inténtalo de nuevo.",
+      "howCanIHelp": "¿En qué te ayudo?",
+      "loading": "Cargando…",
+      "loadingThisChat": "⟦por traducir⟧ Loading this chat…",
+      "onlySomeoneWithEditAccess": "⟦por traducir⟧ Only someone with edit access can add documents.",
+      "openWorkflowTitle": "⟦por traducir⟧ Open workflow {title}",
+      "projects": "Proyectos",
+      "selectAModel": "Selecciona un modelo",
+      "sendMessage": "Enviar mensaje",
+      "stopResponse": "Detener respuesta",
+      "untitledPlaybook": "Playbook sin título",
+      "uploadDocuments": "⟦por traducir⟧ Upload Documents",
+      "uploading": "Subiendo",
+      "viewingOnlySendingNeedsEditAccess": "⟦por traducir⟧ Viewing only — sending needs edit access"
+    },
+    "chatView": {
+      "apiKeyRejected": "⟦por traducir⟧ API key rejected",
+      "assistant": "Asistente",
+      "chatActionFailed": "⟦por traducir⟧ Chat action failed",
+      "chatActions": "⟦por traducir⟧ Chat actions",
+      "chatHistory": "Historial del chat",
+      "chatNotDeleted": "⟦por traducir⟧ Chat not deleted",
+      "chatNotRenamed": "⟦por traducir⟧ Chat not renamed",
+      "chatTitle": "⟦por traducir⟧ Chat title",
+      "closeSideChat": "⟦por traducir⟧ Close side chat",
+      "closeSidePanel": "⟦por traducir⟧ Close side panel",
+      "delete": "⟦por traducir⟧ Delete",
+      "deleteThisChat": "⟦por traducir⟧ delete this chat",
+      "documentNotShared": "⟦por traducir⟧ Document not shared",
+      "documentUnavailable": "Documento no disponible",
+      "editQuickActions": "⟦por traducir⟧ Edit quick actions",
+      "leave": "Salir",
+      "loadChat": "⟦por traducir⟧ Load chat",
+      "newChat": "Chat nuevo",
+      "openSideChat": "⟦por traducir⟧ Open side chat",
+      "openSidePanel": "⟦por traducir⟧ Open side panel",
+      "openThisDocument": "⟦por traducir⟧ open this document",
+      "providerApiKeyWasRejected": "⟦por traducir⟧ The {provider} API key was rejected. If it is your own key, check it in Settings; otherwise contact your administrator.",
+      "rename": "⟦por traducir⟧ Rename",
+      "renameChat": "⟦por traducir⟧ Rename Chat",
+      "renameThisChat": "⟦por traducir⟧ rename this chat",
+      "scrollToBottom": "Ir al final",
+      "share": "⟦por traducir⟧ Share",
+      "shareThisChat": "⟦por traducir⟧ share this chat",
+      "thatApiKeyWasRejected": "⟦por traducir⟧ That API key was rejected. If it is your own key, check it in Settings; otherwise contact your administrator.",
+      "theChatCouldNotBe": "⟦por traducir⟧ The chat could not be renamed. Please try again.",
+      "theChatCouldNotBe2": "⟦por traducir⟧ The chat could not be deleted. Please try again.",
+      "thePersonWhoSharedThisChat": "⟦por traducir⟧ The person who shared this chat has not shared its documents.",
+      "thisDocumentCouldNotBeOpened": "Este documento no se pudo abrir. Inténtalo de nuevo.",
+      "thisDocumentIsNoLongerAvailable": "Este documento ya no está disponible.",
+      "untitledChat": "Chat sin título",
+      "untitledPlaybook": "Playbook sin título"
+    },
+    "citationQuotesSection": {
+      "cellTarget": "⟦por traducir⟧ {range, select, true {cells} other {cell}} {cell}",
+      "citation": "⟦por traducir⟧ Citation",
+      "cite": "⟦por traducir⟧ Cite",
+      "close": "Cerrar",
+      "closeCitation": "⟦por traducir⟧ Close citation",
+      "copied": "Copiado",
+      "copyQuoteAndCitation": "⟦por traducir⟧ Copy Quote and Citation",
+      "noRelevantQuotes": "⟦por traducir⟧ No relevant quotes.",
+      "pageNumber": "⟦por traducir⟧ Page {page}",
+      "quotes": "⟦por traducir⟧ Quotes",
+      "text": "⟦por traducir⟧ “",
+      "text2": "⟦por traducir⟧ ”",
+      "view": "Ver"
+    },
+    "citationSources": {
+      "citations": "⟦por traducir⟧ Citations"
+    },
+    "citationVerification": {
+      "citationRef": "⟦por traducir⟧ Citation {ref}{unverified, select, true {. Could not verify quote} other {}}",
+      "couldNotVerifyQuote": "⟦por traducir⟧ Could not verify quote",
+      "quoteCouldNotBeMatched": "⟦por traducir⟧ Quote could not be matched to the source text.",
+      "quoteNotFoundInDocument": "⟦por traducir⟧ Quote not found in document",
+      "theLanguageModelProducedAQuote": "⟦por traducir⟧ The language model produced a quote that could not be found in the source document. Treat it as hallucinated and double-check the related section of the assistant response against the document before relying on it."
+    },
+    "docSearchBlock": {
+      "scopeForQuery": "⟦por traducir⟧ {scope} for “{query}”",
+      "searchFailedIn": "⟦por traducir⟧ Search failed in",
+      "searched": "⟦por traducir⟧ Searched",
+      "searching": "⟦por traducir⟧ Searching"
+    },
+    "editCard": {
+      "couldntSaveAcceptReverted": "⟦por traducir⟧ Couldn't save accept — reverted.",
+      "couldntSaveRejectReverted": "⟦por traducir⟧ Couldn't save reject — reverted."
+    },
+    "editCardsSection": {
+      "acceptAll": "Aceptar todo",
+      "acceptingAll": "⟦por traducir⟧ Accepting all...",
+      "couldntSaveOneOrMoreAccepts": "⟦por traducir⟧ Couldn't save one or more accepts.",
+      "couldntSaveOneOrMoreRejects": "⟦por traducir⟧ Couldn't save one or more rejects.",
+      "rejectAll": "Rechazar todo",
+      "rejectingAll": "⟦por traducir⟧ Rejecting all...",
+      "view": "Ver"
+    },
+    "eventBlocks": {
+      "analyzing": "⟦por traducir⟧ Analyzing...",
+      "approval": "⟦por traducir⟧ Approval",
+      "approved": "Aprobada",
+      "askedForApproval": "⟦por traducir⟧ Asked for approval",
+      "askedForInput": "⟦por traducir⟧ Asked for input",
+      "askingForApproval": "⟦por traducir⟧ Asking for approval",
+      "askingForInput": "⟦por traducir⟧ Asking for input",
+      "created": "Creado",
+      "creating": "⟦por traducir⟧ Creating",
+      "documents": "Documentos",
+      "documentsRequested": "⟦por traducir⟧ Documents requested",
+      "downloadFilename": "⟦por traducir⟧ Download {filename}",
+      "downloadThisDocument": "descargar este documento",
+      "editFailed": "⟦por traducir⟧ Edit failed",
+      "edited": "⟦por traducir⟧ Edited",
+      "editing": "⟦por traducir⟧ Editing",
+      "noDocumentsAttached": "⟦por traducir⟧ No documents attached",
+      "openWorkflowTitle": "⟦por traducir⟧ Open workflow {title}",
+      "pondering": "⟦por traducir⟧ Pondering...",
+      "question": "Pregunta",
+      "read": "⟦por traducir⟧ Read",
+      "reasoning": "⟦por traducir⟧ Reasoning...",
+      "rejected": "⟦por traducir⟧ Rejected",
+      "replicated": "⟦por traducir⟧ Replicated",
+      "replicating": "⟦por traducir⟧ Replicating",
+      "reviewing": "⟦por traducir⟧ Reviewing...",
+      "skipped": "⟦por traducir⟧ Skipped",
+      "thinking": "Pensando...",
+      "thoughtProcess": "Proceso de razonamiento"
+    },
+    "eventUtils": {
+      "sorrySomethingWentWrong": "⟦por traducir⟧ Sorry, something went wrong.",
+      "toolAskInputs": "⟦por traducir⟧ Asking for input...",
+      "toolConnector": "⟦por traducir⟧ Using connector...",
+      "toolCreateTextCard": "⟦por traducir⟧ Preparing text...",
+      "toolDelegate": "⟦por traducir⟧ Starting a subagent...",
+      "toolEditDocument": "⟦por traducir⟧ Editing document...",
+      "toolFetchDocuments": "⟦por traducir⟧ Reading documents...",
+      "toolFindDocuments": "⟦por traducir⟧ Searching documents...",
+      "toolFindInDocument": "⟦por traducir⟧ Searching document...",
+      "toolGenerateDocx": "⟦por traducir⟧ Creating document...",
+      "toolGenerateExcel": "⟦por traducir⟧ Creating spreadsheet...",
+      "toolGeneratePpt": "⟦por traducir⟧ Creating presentation...",
+      "toolListDocuments": "⟦por traducir⟧ Loading documents...",
+      "toolListFirmCriteria": "⟦por traducir⟧ Consulting firm criteria...",
+      "toolListWorkflows": "⟦por traducir⟧ Loading workflows...",
+      "toolReadDocument": "⟦por traducir⟧ Reading document...",
+      "toolReadWebpage": "⟦por traducir⟧ Reading web page...",
+      "toolReadWorkflow": "⟦por traducir⟧ Reading workflow...",
+      "toolReplicateDocument": "⟦por traducir⟧ Copying document...",
+      "toolRunning": "⟦por traducir⟧ Running {name}...",
+      "toolWebSearch": "⟦por traducir⟧ Searching the web...",
+      "toolWorking": "⟦por traducir⟧ Working..."
+    },
+    "initialView": {
+      "aiCanMakeMistakesAnswersAre": "⟦por traducir⟧ AI can make mistakes. Answers are not legal advice.",
+      "configureQuickActions": "⟦por traducir⟧ Configure quick actions",
+      "hiUsername": "⟦por traducir⟧ Hi, {username}",
+      "quickActions": "Acciones rápidas"
+    },
+    "leaveChatPopup": {
+      "chatNotLeft": "⟦por traducir⟧ Chat not left",
+      "leave": "Salir",
+      "leaveChat": "⟦por traducir⟧ Leave chat?",
+      "theChatCouldNotBe": "⟦por traducir⟧ The chat could not be left. Please try again.",
+      "yourSharedAccessWillBeRemoved": "⟦por traducir⟧ Your shared access will be removed. An owner can share this chat with you again."
+    },
+    "modelToggle": {
+      "noModels": "Sin modelos",
+      "selectModel": "Selecciona modelo"
+    },
+    "quickActionsModal": {
+      "active": "Activo",
+      "add": "Agregar",
+      "askForSourceDocumentsBeforeLaunching": "⟦por traducir⟧ Ask for source documents before launching this workflow.",
+      "assistant": "Asistente",
+      "back": "Atrás",
+      "couldNotCreateQuickAction": "No se pudo crear la acción rápida.",
+      "couldNotLoadAssistantWorkflows": "⟦por traducir⟧ Could not load assistant workflows.",
+      "couldNotSaveQuickAction": "⟦por traducir⟧ Could not save quick action.",
+      "create": "Crear",
+      "creating": "Creando…",
+      "inactive": "Inactivo",
+      "name": "Nombre",
+      "newQuickAction": "Nueva acción rápida",
+      "noQuickActionsFound": "No se encontraron acciones rápidas.",
+      "prompt": "Prompt",
+      "promptPlacedInTheAssistantComposer": "Prompt colocado en el redactor del Asistente",
+      "quickAction": "⟦por traducir⟧ Quick Action",
+      "quickActionName": "Nombre de la acción rápida",
+      "quickActions": "Acciones rápidas",
+      "requestDocumentUpload": "⟦por traducir⟧ Request document upload",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "searchQuickActions": "Buscar acciones rápidas...",
+      "selectAnAssistantWorkflow": "Selecciona un flujo de trabajo del asistente",
+      "showThisActionInTheAssistant": "Muestra esta acción en la vista inicial del Asistente.",
+      "workflowUsed": "Flujo de trabajo usado"
+    },
+    "responseDetails": {
+      "budgetAllocated": "⟦por traducir⟧  ({count} budget allocated)",
+      "mainAndSubagents": "⟦por traducir⟧ Main: {main}. Subagents total: {total} tokens.",
+      "noReasoning": "⟦por traducir⟧ No reasoning",
+      "tokens": "⟦por traducir⟧ : {count} tokens"
+    },
+    "subagentGroup": {
+      "askedLitt": "⟦por traducir⟧ Asked LiTT",
+      "askedLittAQuestion": "⟦por traducir⟧ Asked LiTT a question",
+      "brief": "⟦por traducir⟧ Brief",
+      "completedIn": "⟦por traducir⟧ Completed in {steps}",
+      "couldNotFinish": "⟦por traducir⟧ Couldn't finish",
+      "couldNotStart": "⟦por traducir⟧ Couldn't start: {reason}",
+      "countSubagentsFinished": "⟦por traducir⟧ {count} subagents finished",
+      "partialBrief": "⟦por traducir⟧ partial brief",
+      "resumedCount": "⟦por traducir⟧ Resumed {count, plural, one {a subagent} other {# subagents}}",
+      "returnedABriefToLitt": "⟦por traducir⟧ Returned a brief to LiTT",
+      "returnedAPartialBriefToLitt": "⟦por traducir⟧ Returned a partial brief to LiTT",
+      "route": "⟦por traducir⟧ Route {route}",
+      "startedAndResumed": "⟦por traducir⟧ Started {started} and resumed {resumed} {total, plural, one {subagent} other {subagents}}",
+      "startedCount": "⟦por traducir⟧ Started {count, plural, one {a subagent} other {# subagents}}",
+      "statusCompleted": "Completado",
+      "statusResumed": "⟦por traducir⟧ Resumed",
+      "statusRunning": "⟦por traducir⟧ Running",
+      "statusStopped": "⟦por traducir⟧ Stopped",
+      "stepsAppearWhenTheSubagentFinishes": "⟦por traducir⟧ Steps appear when the subagent finishes.",
+      "stepsCount": "⟦por traducir⟧ {count, plural, one {# step} other {# steps}}",
+      "stoppedAtItsLimit": "⟦por traducir⟧ Stopped at its limit",
+      "subagent": "⟦por traducir⟧ Subagent",
+      "subagentFinished": "⟦por traducir⟧ Subagent finished",
+      "subagents": "Subagentes",
+      "taskFromLitt": "⟦por traducir⟧ Task from LiTT",
+      "waitingForYourApproval": "⟦por traducir⟧ Waiting for your approval"
+    },
+    "uploadOverlay": {
+      "dropFilesHereToAdd": "⟦por traducir⟧ Drop files here to add to chat"
+    },
+    "useResolvedPanelDocument": {
+      "couldNotLoadShortly": "⟦por traducir⟧ Could not load this document. Please try again shortly.",
+      "couldNotLoadThisDocument": "⟦por traducir⟧ Could not load this document.",
+      "rateLimited": "⟦por traducir⟧ This source is temporarily rate limited. Please try again shortly.",
+      "rateLimitedWait": "⟦por traducir⟧ This source is temporarily rate limited. Please try again in about {seconds, plural, one {# second} other {# seconds}}."
+    },
+    "userMessage": {
+      "openFilename": "⟦por traducir⟧ Open {filename}",
+      "openPlaybookTitle": "⟦por traducir⟧ Open playbook {title}",
+      "openWorkflowTitle": "⟦por traducir⟧ Open workflow {title}"
+    },
+    "webActivityBlock": {
+      "read": "⟦por traducir⟧ Read",
+      "readFailed": "⟦por traducir⟧ Read failed",
+      "reading": "En lectura",
+      "searchedTheWeb": "⟦por traducir⟧ Searched the web{hasQuery, select, true { for “{query}”} other {}}",
+      "searchingTheWeb": "⟦por traducir⟧ Searching the web{hasQuery, select, true { for “{query}”} other {}}",
+      "sources": "⟦por traducir⟧ Sources",
+      "webSearchFailed": "⟦por traducir⟧ Web search failed for “{query}”",
+      "webSearchUnavailable": "⟦por traducir⟧ Web search unavailable"
+    },
+    "workflowSlashMenu": {
+      "workflowCommands": "Comandos del flujo de trabajo"
+    }
+  },
   "assistantExport": {
     "defaultName": "respuesta",
     "downloadMarkdown": "Descargar .md",
@@ -2266,6 +2622,108 @@
     }
   },
   "shared": {
+    "accessScopeLabel": {
+      "private": "⟦por traducir⟧ Private",
+      "privateShared": "⟦por traducir⟧ Private (Shared)",
+      "public": "⟦por traducir⟧ Public",
+      "sharedWithCountUsers": "⟦por traducir⟧ Shared with {count, plural, one {# user} other {# users}}",
+      "sharedWithEveryoneIn": "⟦por traducir⟧ Shared with everyone in {organizationName}",
+      "sharedWithEveryoneInTheOrganisation": "⟦por traducir⟧ Shared with everyone in the organisation",
+      "sharedWithIndividuals": "⟦por traducir⟧ Shared with individuals"
+    },
+    "addUserInput": {
+      "add": "Agregar",
+      "addByEmail": "⟦por traducir⟧ Add by email...",
+      "addUser": "⟦por traducir⟧ Add user",
+      "couldNotAddThisUser": "⟦por traducir⟧ Could not add this user. Try again.",
+      "emailDoesNotBelongToA": "⟦por traducir⟧ {email} does not belong to a LiTT user.",
+      "enterAValidEmail": "⟦por traducir⟧ Enter a valid email."
+    },
+    "appShellSkeleton": {
+      "loading": "⟦por traducir⟧ Loading"
+    },
+    "appSidebar": {
+      "accountMenu": "⟦por traducir⟧ Account menu",
+      "closeSidebar": "⟦por traducir⟧ Close sidebar",
+      "history": "⟦por traducir⟧ History",
+      "loadMoreProjects": "⟦por traducir⟧ load more projects",
+      "loadYourRecentProjects": "⟦por traducir⟧ load your recent projects",
+      "loadingWorkspace": "⟦por traducir⟧ Loading workspace",
+      "navAssistant": "Asistente",
+      "navIde": "⟦por traducir⟧ IDE",
+      "navLibrary": "Biblioteca",
+      "navPlaybooks": "Playbooks",
+      "navProjects": "Proyectos",
+      "navTabularReview": "Revisión tabular",
+      "navWorkflows": "Flujos de trabajo",
+      "noHistoryYet": "⟦por traducir⟧ No history yet",
+      "noProjectsYet": "Aún no hay proyectos",
+      "openSidebar": "⟦por traducir⟧ Open sidebar",
+      "organization": "Organización",
+      "recentProjects": "⟦por traducir⟧ Recent Projects",
+      "settings": "⟦por traducir⟧ Settings",
+      "signOut": "Cerrar sesión",
+      "signOutAction": "cerrar sesión",
+      "someHistoryCouldNotBeLoaded": "⟦por traducir⟧ Some history could not be loaded. Try again",
+      "tabularReviewStatus": "⟦por traducir⟧ Tabular review: {title}{status, select, loading { (Running)} complete { (Complete)} other {}}",
+      "titleReviewRunning": "⟦por traducir⟧ {title} review running",
+      "untitledReview": "Revisión sin título",
+      "workspace": "⟦por traducir⟧ Workspace"
+    },
+    "chatPanelHeader": {
+      "chatTitle": "⟦por traducir⟧ Chat title",
+      "closeChatPanel": "⟦por traducir⟧ Close chat panel",
+      "newChat": "⟦por traducir⟧ New Chat",
+      "newChat2": "Chat nuevo",
+      "noChatsYet": "⟦por traducir⟧ No chats yet.",
+      "noMatches": "⟦por traducir⟧ No matches.",
+      "updatedAt": "⟦por traducir⟧ Updated {date}"
+    },
+    "connectorActionCard": {
+      "argAddLabels": "⟦por traducir⟧ Add labels",
+      "argAttendees": "⟦por traducir⟧ Attendees",
+      "argBcc": "⟦por traducir⟧ Bcc",
+      "argCalendar": "⟦por traducir⟧ Calendar",
+      "argCc": "⟦por traducir⟧ Cc",
+      "argDate": "⟦por traducir⟧ Date",
+      "argDateAndTime": "⟦por traducir⟧ Date and time",
+      "argDescription": "Descripción",
+      "argDestinationFolder": "⟦por traducir⟧ Destination folder",
+      "argDraft": "Borrador",
+      "argEmail": "⟦por traducir⟧ Email",
+      "argEndExclusiveForAll": "⟦por traducir⟧ End (exclusive for all-day events)",
+      "argEvent": "⟦por traducir⟧ Event",
+      "argFile": "⟦por traducir⟧ File",
+      "argFileType": "⟦por traducir⟧ File type",
+      "argLocation": "Ubicación",
+      "argMessage": "Mensaje",
+      "argName": "Nombre",
+      "argNewContents": "⟦por traducir⟧ New contents",
+      "argRemoveLabels": "⟦por traducir⟧ Remove labels",
+      "argStart": "Empezar",
+      "argSubject": "Asunto",
+      "argTimeZone": "⟦por traducir⟧ Time zone",
+      "argTitle": "Título",
+      "argTo": "Hasta",
+      "currentItemBeforeThisChange": "⟦por traducir⟧ Current item before this change",
+      "deletesTheDraft": "⟦por traducir⟧ This deletes the draft. Review its contents before approving.",
+      "googleNotifiesAttendees": "⟦por traducir⟧ Google will notify attendees of this change. Deleting an event sends cancellation notices.",
+      "movesToTrash": "⟦por traducir⟧ This moves the item to Google Drive Trash. Trashing a folder affects its contents.",
+      "movingMayChangeAccess": "⟦por traducir⟧ Moving this item may change access inherited from its folder.",
+      "replacesFileContents": "⟦por traducir⟧ This replaces all file contents with the text shown below. Existing Google Doc formatting is replaced.",
+      "requestedBySubagentRequestedBy": "⟦por traducir⟧ Requested by subagent: {requested_by}",
+      "thisActionTakesNoDetails": "⟦por traducir⟧ This action takes no details.",
+      "titleOnConnectorName": "⟦por traducir⟧ {title} on {connector_name}"
+    },
+    "crashScreen": {
+      "back": "Atrás",
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "documentTitle": "⟦por traducir⟧ Something went wrong – LiTT",
+      "errorReferenceDigest": "⟦por traducir⟧ Error reference: {digest}",
+      "somethingWentWrong": "Algo salió mal",
+      "thisPageDidntLoadTryAgain": "⟦por traducir⟧ This page didn't load. Try again, and contact support if it keeps happening.",
+      "tryAgain": "⟦por traducir⟧ Try again"
+    },
     "documentAnnotationLayer": {
       "documentAnnotation": "⟦por traducir⟧ Document annotation"
     },
@@ -2373,6 +2831,82 @@
       "saveChangesBeforeSwitchingVersions": "⟦por traducir⟧ Save changes before switching versions",
       "version": "Versión"
     },
+    "docxCommentCard": {
+      "actionsForBy": "⟦por traducir⟧ Actions for {kind, select, comment {comment} other {reply}} by {author}",
+      "commentBy": "⟦por traducir⟧ Comment by {author}",
+      "delete": "⟦por traducir⟧ Delete",
+      "edit": "Editar",
+      "emptyComment": "⟦por traducir⟧ Empty comment",
+      "moreActions": "Más acciones",
+      "reply": "Responder",
+      "resolved": "⟦por traducir⟧ Resolved",
+      "thisCommentCouldNotBeDeleted": "⟦por traducir⟧ This comment could not be deleted. Please try again.",
+      "thisCommentCouldNotBeShown": "⟦por traducir⟧ This comment could not be shown in the document.",
+      "unknownAuthor": "⟦por traducir⟧ Unknown author"
+    },
+    "docxCommentComposer": {
+      "addComment": "⟦por traducir⟧ Add comment",
+      "anAuthorNameIsRequired": "⟦por traducir⟧ An author name is required to add comments.",
+      "cancel": "Cancelar",
+      "commentAdded": "⟦por traducir⟧ Comment added.",
+      "newComment": "⟦por traducir⟧ New comment",
+      "selectTextInTheDocumentThen": "⟦por traducir⟧ Select text in the document, then choose New comment.",
+      "selectThePassageAgainThenChoose": "⟦por traducir⟧ Select the passage again, then choose New comment.",
+      "theSelectedPassageChangedYourDraft": "⟦por traducir⟧ The selected passage changed. Your draft is still here; cancel and select the passage again before adding the comment.",
+      "thisCommentCouldNotBeAdded": "⟦por traducir⟧ This comment could not be added. Your draft is still here; try again or cancel to choose another passage.",
+      "thisCommentCouldNotBeAdded2": "⟦por traducir⟧ This comment could not be added. Your draft is still here; please try again.",
+      "thisDocumentIsReadOnly": "⟦por traducir⟧ This document is read-only.",
+      "thisDocumentIsReadOnlyYour": "⟦por traducir⟧ This document is read-only. Your draft is kept until you cancel.",
+      "writeAComment": "⟦por traducir⟧ Write a comment…"
+    },
+    "docxCommentEdit": {
+      "cancel": "Cancelar",
+      "editComment": "⟦por traducir⟧ Edit comment",
+      "save": "Guardar",
+      "yourEditCouldNotBeSaved": "⟦por traducir⟧ Your edit could not be saved. Your draft is kept; please try again."
+    },
+    "docxCommentReply": {
+      "cancel": "Cancelar",
+      "reply": "Responder",
+      "replyToComment": "⟦por traducir⟧ Reply to comment",
+      "writeAReply": "⟦por traducir⟧ Write a reply…",
+      "yourReplyCouldNotBeAdded": "⟦por traducir⟧ Your reply could not be added. Your draft is kept; please try again."
+    },
+    "docxNavigationMenu": {
+      "more": "Más",
+      "navigationPane": "⟦por traducir⟧ Navigation pane"
+    },
+    "docxReviewActions": {
+      "acceptTrackedChange": "⟦por traducir⟧ Accept tracked change",
+      "deleteComment": "⟦por traducir⟧ Delete comment",
+      "editComment": "⟦por traducir⟧ Edit comment",
+      "rejectTrackedChange": "⟦por traducir⟧ Reject tracked change",
+      "replyToComment": "⟦por traducir⟧ Reply to comment",
+      "thisActionCouldNotBeApplied": "⟦por traducir⟧ This action could not be applied. Please try again.",
+      "unableToUpdateDocument": "⟦por traducir⟧ Unable to update document",
+      "viewComment": "⟦por traducir⟧ View comment"
+    },
+    "docxReviewPanel": {
+      "closeComments": "⟦por traducir⟧ Close comments",
+      "comments": "⟦por traducir⟧ Comments",
+      "documentComments": "⟦por traducir⟧ Document comments",
+      "noComments": "⟦por traducir⟧ No comments."
+    },
+    "docxSaveErrorPopup": {
+      "changesNotSaved": "⟦por traducir⟧ Changes not saved"
+    },
+    "docxView": {
+      "dismissWarning": "Descartar advertencia",
+      "downloadFailed": "⟦por traducir⟧ Download failed",
+      "loadingDocument": "Cargando documento",
+      "thisDocumentCouldNotBeDisplayed": "⟦por traducir⟧ This document could not be displayed. Please download it to view it.",
+      "thisDocumentCouldNotBeDownloaded": "⟦por traducir⟧ This document could not be downloaded. Your edits are still open; please try again."
+    },
+    "eigenpalDocxRenderer": {
+      "comments": "⟦por traducir⟧ Comments",
+      "dismiss": "Descartar",
+      "someDocumentFontsCouldNotBe": "⟦por traducir⟧ Some document fonts could not be loaded. Text may look different."
+    },
     "fileDirectory": {
       "collapse": "Contraer",
       "created": "Creado",
@@ -2397,12 +2931,140 @@
       "uploading": "Subiendo",
       "version": "Versión"
     },
+    "headerActionsMenu": {
+      "actions": "Acciones"
+    },
+    "markdownView": {
+      "saveThisDocument": "⟦por traducir⟧ save this document"
+    },
+    "pageHeader": {
+      "back": "Atrás",
+      "clearSearch": "⟦por traducir⟧ Clear search",
+      "search": "⟦por traducir⟧ Search…",
+      "showCollapsedBreadcrumbs": "⟦por traducir⟧ Show collapsed breadcrumbs",
+      "showPath": "⟦por traducir⟧ Show path"
+    },
+    "pdfView": {
+      "failedToLoadDocument": "No se pudo cargar el documento."
+    },
     "permissionDenied": {
       "askContact": "⟦por traducir⟧ Ask <person>{contact}</person> if you need {role, select, owner {owner} other {editor}} access.",
       "editorsOnlyTitle": "⟦por traducir⟧ Editors only",
       "onlyRoleCan": "⟦por traducir⟧ Only {role, select, owner {an owner} other {an editor}} can {action}.",
       "onlyRoleCanPerform": "⟦por traducir⟧ Only {role, select, owner {an owner} other {an editor}} can perform this action.",
       "ownerOnlyTitle": "⟦por traducir⟧ Owner-only action"
+    },
+    "personFilter": {
+      "allPeople": "⟦por traducir⟧ All people",
+      "couldNotLoadPeople": "⟦por traducir⟧ Could not load people.",
+      "filterByPerson": "⟦por traducir⟧ Filter by person",
+      "loadMorePeople": "⟦por traducir⟧ Load more people",
+      "loadingPeople": "⟦por traducir⟧ Loading people",
+      "loadingPeople2": "⟦por traducir⟧ Loading people…",
+      "noPeopleFound": "⟦por traducir⟧ No people found.",
+      "people": "Personas",
+      "performedBy": "⟦por traducir⟧ Performed by {name}",
+      "searchNameOrEmail": "⟦por traducir⟧ Search name or email",
+      "searchPeople": "⟦por traducir⟧ Search people",
+      "tryAgain": "⟦por traducir⟧ Try again",
+      "unknownUser": "Usuario desconocido"
+    },
+    "rowActions": {
+      "activate": "⟦por traducir⟧ Activate",
+      "clearResults": "⟦por traducir⟧ Clear results",
+      "deactivate": "⟦por traducir⟧ Deactivate",
+      "delete": "⟦por traducir⟧ Delete",
+      "deleteThisItem": "⟦por traducir⟧ delete this item",
+      "deselectRows": "Deseleccionar filas",
+      "download": "Descargar",
+      "editCmNo": "⟦por traducir⟧ Edit CM No.",
+      "editDetails": "Editar detalles",
+      "newSubfolder": "Nueva subcarpeta",
+      "openRowActions": "⟦por traducir⟧ Open row actions",
+      "removeFromSubfolder": "⟦por traducir⟧ Remove from subfolder",
+      "rename": "⟦por traducir⟧ Rename",
+      "showAllVersions": "⟦por traducir⟧ Show all versions",
+      "uploadNewVersion": "Subir nueva versión",
+      "view": "Ver"
+    },
+    "selectionActionsMenu": {
+      "actions": "Acciones"
+    },
+    "sidebarChatItem": {
+      "actionsFor": "⟦por traducir⟧ Actions for {title}",
+      "assistant": "Asistente",
+      "chatNotDeleted": "⟦por traducir⟧ Chat not deleted",
+      "chatNotRenamed": "⟦por traducir⟧ Chat not renamed",
+      "chatTitle": "⟦por traducir⟧ Chat title",
+      "chattitleResponseLoading": "⟦por traducir⟧ {chatTitle} response loading",
+      "delete": "⟦por traducir⟧ Delete",
+      "leave": "Salir",
+      "openInSideChat": "⟦por traducir⟧ Open in side chat",
+      "rename": "⟦por traducir⟧ Rename",
+      "renameChat": "⟦por traducir⟧ Rename Chat",
+      "share": "⟦por traducir⟧ Share",
+      "shared": "Compartido",
+      "theChatCouldNotBeDeleted": "⟦por traducir⟧ The chat could not be deleted. Please try again.",
+      "theChatCouldNotBeRenamed": "⟦por traducir⟧ The chat could not be renamed. Please try again.",
+      "untitledChat": "Chat sin título"
+    },
+    "sidebarPlaybookRunItem": {
+      "documentnameReviewRunning": "⟦por traducir⟧ {documentName} review running",
+      "playbookRunStatus": "⟦por traducir⟧ Playbook run: {title}{status, select, loading { (Running)} complete { (Complete)} other {}}",
+      "untitledDocument": "⟦por traducir⟧ Untitled document",
+      "untitledPlaybook": "Playbook sin título"
+    },
+    "sidebarProjectItem": {
+      "chat": "Chat",
+      "couldNotLoadItems": "⟦por traducir⟧ Could not load items.",
+      "couldNotRefreshItems": "⟦por traducir⟧ Could not refresh items.",
+      "hide": "⟦por traducir⟧ Hide",
+      "loading": "Cargando...",
+      "noChatsOrReviewsYet": "⟦por traducir⟧ No chats or reviews yet",
+      "retry": "Reintentar",
+      "seeMore": "⟦por traducir⟧ See more",
+      "show": "⟦por traducir⟧ Show",
+      "someItemsCouldNotBeLoaded": "⟦por traducir⟧ Some items could not be loaded.",
+      "tabularReview": "Revisión tabular",
+      "toggleRecent": "⟦por traducir⟧ {expanded, select, true {Hide} other {Show}} recent chats and reviews in {name}",
+      "untitledChat": "Chat sin título",
+      "untitledReview": "Revisión sin título"
+    },
+    "spreadsheetView": {
+      "failedToLoadSpreadsheet": "⟦por traducir⟧ Failed to load spreadsheet.",
+      "thisSpreadsheetCouldNotBeDisplayed": "⟦por traducir⟧ This spreadsheet could not be displayed."
+    },
+    "tableLoadMoreRow": {
+      "loadMore": "Cargar más",
+      "loading": "Cargando…",
+      "retryLoading": "⟦por traducir⟧ Retry loading"
+    },
+    "tablePrimitive": {
+      "ascending": "⟦por traducir⟧ Ascending",
+      "defaultOrder": "Orden predeterminado",
+      "descending": "⟦por traducir⟧ Descending",
+      "selectLabel": "Seleccionar {label}"
+    },
+    "tableToolbar": {
+      "toolbarActions": "⟦por traducir⟧ Toolbar actions"
+    },
+    "trainingVersionStatus": {
+      "approveAction": "⟦por traducir⟧ approve this version",
+      "approveThisVersion": "⟦por traducir⟧ approve this version"
+    },
+    "types": {
+      "caseNumber": "⟦por traducir⟧ Case {id}",
+      "date": "⟦por traducir⟧ Date",
+      "download": "Descargar",
+      "link": "⟦por traducir⟧ Link",
+      "page": "⟦por traducir⟧ Page {page}",
+      "pages": "⟦por traducir⟧ Pages {pages}"
+    },
+    "useDirectoryData": {
+      "loadMoreProjectFiles": "⟦por traducir⟧ load more project files",
+      "loadMoreProjects": "⟦por traducir⟧ load more projects",
+      "openTheFolder": "abrir la carpeta",
+      "openTheProjectFolder": "⟦por traducir⟧ open the project folder"
     }
   },
   "support": {
@@ -3548,6 +4210,125 @@
       "regenerate": "Regenerar",
       "untitled": "Trabajo sin título",
       "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso."
+    }
+  },
+  "ui": {
+    "chatHistoryDropdown": {
+      "loadingChats": "Cargando chats…",
+      "loadingMoreChats": "Cargando más chats…",
+      "openingTitle": "⟦por traducir⟧ Opening {title}",
+      "retry": "Reintentar",
+      "searchChats": "⟦por traducir⟧ Search chats",
+      "searchChatsPlaceholder": "⟦por traducir⟧ Search chats…"
+    },
+    "closeButton": {
+      "close": "Cerrar"
+    },
+    "documentEventBlocks": {
+      "finding": "⟦por traducir⟧ Finding",
+      "found": "Encontrados",
+      "in": "⟦por traducir⟧ in",
+      "queryMatchsuffix": "⟦por traducir⟧ “{query}”{matchSuffix}",
+      "read": "⟦por traducir⟧ Read",
+      "reading": "En lectura"
+    },
+    "editCard": {
+      "accept": "Aceptar",
+      "acceptApply": "⟦por traducir⟧ Accept & apply",
+      "accepted": "⟦por traducir⟧ Accepted",
+      "accepting": "Aceptando...",
+      "acceptingApplying": "⟦por traducir⟧ Accepting & applying...",
+      "apply": "Aplicar",
+      "applying": "⟦por traducir⟧ Applying...",
+      "close": "Cerrar",
+      "closeTrackedChange": "⟦por traducir⟧ Close tracked change",
+      "editActions": "⟦por traducir⟧ Edit actions",
+      "inLocationhint": "⟦por traducir⟧ In: “{locationHint}”",
+      "reject": "Rechazar",
+      "rejected": "⟦por traducir⟧ Rejected",
+      "rejecting": "Rechazando…",
+      "thisChangeHasBeenResolvedAnd": "⟦por traducir⟧ This change has been resolved and is no longer in the document.",
+      "trackedChangeChangenumber": "⟦por traducir⟧ Tracked change {changeNumber}",
+      "view": "Ver"
+    },
+    "editCardsSection": {
+      "collapseEdits": "⟦por traducir⟧ Collapse edits",
+      "expandEdits": "⟦por traducir⟧ Expand edits",
+      "trackedChangeActions": "Acciones de control de cambios"
+    },
+    "excerptModal": {
+      "annotation": "⟦por traducir⟧ Annotation",
+      "assistant": "Asistente",
+      "excerpt": "⟦por traducir⟧ Excerpt"
+    },
+    "excerptPill": {
+      "annotatedExcerpt": "⟦por traducir⟧ Annotated Excerpt",
+      "excerpt": "⟦por traducir⟧ Excerpt",
+      "removeExcerptPreview": "⟦por traducir⟧ Remove excerpt: {preview}",
+      "viewExcerptPreview": "⟦por traducir⟧ View excerpt: {preview}"
+    },
+    "modelToggle": {
+      "apiKeyMissingForSelectedModel": "⟦por traducir⟧ API key missing for selected model",
+      "checkingApiKeys": "⟦por traducir⟧ Checking API keys",
+      "chooseModel": "Elige modelo",
+      "chooseModelLabel": "⟦por traducir⟧ Choose model — {label}",
+      "configureModels": "⟦por traducir⟧ Configure models",
+      "levelHigh": "Alto",
+      "levelLow": "Bajo",
+      "levelMax": "⟦por traducir⟧ Max",
+      "levelMedium": "Medio",
+      "levelNone": "Ninguno",
+      "levelXhigh": "⟦por traducir⟧ XHigh",
+      "noApiKeyConfigured": "⟦por traducir⟧ No API key configured",
+      "noModels": "Sin modelos",
+      "noModelsAvailable": "⟦por traducir⟧ No models available",
+      "reasoning": "Razonamiento",
+      "reasoningLevel": "⟦por traducir⟧ Reasoning level",
+      "reasoningLevelValue": "⟦por traducir⟧ Reasoning level: {level}",
+      "routeConfigured": "⟦por traducir⟧ Configured",
+      "routeDirect": "⟦por traducir⟧ Direct",
+      "routeLocal": "⟦por traducir⟧ Local",
+      "selectModel": "Selecciona modelo"
+    },
+    "noticeCard": {
+      "dismissNotification": "⟦por traducir⟧ Dismiss notification"
+    },
+    "playbookPill": {
+      "openPlaybookTitle": "⟦por traducir⟧ Open playbook {title}",
+      "removePlaybookTitle": "⟦por traducir⟧ Remove playbook {title}"
+    },
+    "preResponseWrapper": {
+      "assistantActivity": "⟦por traducir⟧ Assistant activity",
+      "completedIn": "⟦por traducir⟧ Completed in {steps, plural, one {# step} other {# steps}}{subagents, plural, =0 {} one { · # subagent} other { · # subagents}}",
+      "working": "⟦por traducir⟧ Working"
+    },
+    "responseSelectionMenu": {
+      "addANoteAboutThisPassage": "⟦por traducir⟧ Add a note about this passage",
+      "addAnnotationToChat": "⟦por traducir⟧ Add annotation to chat",
+      "annotateAndAsk": "⟦por traducir⟧ Annotate and ask",
+      "ask": "⟦por traducir⟧ Ask",
+      "askInSideChat": "⟦por traducir⟧ Ask in side chat",
+      "copy": "Copiar",
+      "noteAboutTheSelectedText": "⟦por traducir⟧ Note about the selected text",
+      "selectedText": "⟦por traducir⟧ Selected text"
+    },
+    "textCard": {
+      "copied": "Copiado",
+      "copiedTitle": "⟦por traducir⟧ Copied {title}",
+      "copiedToClipboard": "⟦por traducir⟧ Copied to clipboard",
+      "copy": "Copiar",
+      "copyTitle": "⟦por traducir⟧ Copy {title}",
+      "couldntCopySelectTheTextAnd": "⟦por traducir⟧ Couldn’t copy. Select the text and copy it manually."
+    },
+    "toast": {
+      "contactSupport": "⟦por traducir⟧ Contact support",
+      "notifications": "⟦por traducir⟧ Notifications"
+    },
+    "trainingHeldNote": {
+      "label": "Borrador de pasante, pendiente de aprobación"
+    },
+    "workflowSlashCommand": {
+      "typeCommandInChat": "⟦por traducir⟧ Type <code>{command}</code> in chat to activate this workflow."
     }
   },
   "versionCompare": {

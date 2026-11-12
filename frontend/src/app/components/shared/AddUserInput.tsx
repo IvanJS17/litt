@@ -9,6 +9,7 @@ import {
 import { PillButtonUI, LIQUID_GLASS_SUBTLE_CLASS } from "@mike/ui";
 import { cn } from "@/app/lib/utils";
 import { userFacingApiError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,14 +44,15 @@ export function AddUserInput({
     onAdd,
     validateEmail,
     busy = false,
-    placeholder = "Add by email...",
+    placeholder,
     autoFocus = false,
-    submitLabel = "Add user",
+    submitLabel,
     submitVariant = "pill",
     inputEndControl,
     className,
     requireExistingUser = true,
 }: AddUserInputProps) {
+    const t = useTranslations();
     const [input, setInput] = useState("");
     const [checking, setChecking] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -63,7 +65,7 @@ export function AddUserInput({
         const email = trimmedEmail;
         if (!email || busy || checking) return;
         if (!EMAIL_RE.test(email)) {
-            setError("Enter a valid email.");
+            setError(t("shared.addUserInput.enterAValidEmail"));
             return;
         }
 
@@ -80,7 +82,7 @@ export function AddUserInput({
                 ? await lookupUserByEmail(email)
                 : { exists: false, email, display_name: null };
             if (requireExistingUser && !user.exists) {
-                setError(`${email} does not belong to a LiTT user.`);
+                setError(t("shared.addUserInput.emailDoesNotBelongToA", { email }));
                 return;
             }
 
@@ -90,7 +92,7 @@ export function AddUserInput({
             setError(
                 userFacingApiError(
                     err,
-                    "Could not add this user. Try again.",
+                    t("shared.addUserInput.couldNotAddThisUser"),
                 ),
             );
         } finally {
@@ -135,7 +137,7 @@ export function AddUserInput({
                         setError(null);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder={placeholder}
+                    placeholder={placeholder ?? t("shared.addUserInput.addByEmail")}
                     className={cn(
                         "min-w-0 flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400",
                         attachedSubmit && "h-10 py-2",
@@ -149,13 +151,13 @@ export function AddUserInput({
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => void commitUser()}
                         disabled={!showAddButton || busy || checking}
-                        title={submitLabel}
+                        title={submitLabel ?? t("shared.addUserInput.addUser")}
                         className="flex h-10 shrink-0 items-center justify-center gap-1.5 self-stretch pl-3 pr-4 text-xs font-medium text-interactive transition-colors hover:bg-interactive-soft hover:text-interactive-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-transparent disabled:text-gray-300"
                     >
                         {(busy || checking) && (
                             <Loader2 className="h-3 w-3 animate-spin" />
                         )}
-                        Add
+                        {t("shared.addUserInput.add")}
                     </button>
                 ) : showAddButton ? (
                     <PillButtonUI
@@ -166,10 +168,10 @@ export function AddUserInput({
                         onClick={() => void commitUser()}
                         disabled={busy || checking}
                         loading={busy || checking}
-                        title={submitLabel}
+                        title={submitLabel ?? t("shared.addUserInput.addUser")}
                         className="shrink-0"
                     >
-                        Add
+                        {t("shared.addUserInput.add")}
                     </PillButtonUI>
                 ) : null}
             </div>

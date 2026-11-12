@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DocumentSearchEvent } from "@mike/contracts";
 import { EventBlock } from "./EventBlocks";
 import { EventDisclosureButton } from "./EventDisclosure";
+import { useTranslations } from "next-intl";
 
 /** A document search uses the timeline's disclosure and reveals only its match count. */
 export function DocSearchBlock({ event, isStreaming, showConnector }: {
@@ -9,6 +10,7 @@ export function DocSearchBlock({ event, isStreaming, showConnector }: {
     isStreaming?: boolean;
     showConnector?: boolean;
 }) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     const scope = new Map([
         ["project", "project documents"], ["library", "the document library"],
@@ -23,8 +25,8 @@ export function DocSearchBlock({ event, isStreaming, showConnector }: {
                 open={open}
                 onToggle={() => setOpen(value => !value)}
                 label={<span className="[overflow-wrap:anywhere]">
-                    {isStreaming ? "Searching" : event.error ? "Search failed in" : "Searched"}{" "}
-                    {scope} for &ldquo;{event.query}&rdquo;
+                    {isStreaming ? t("assistant.docSearchBlock.searching") : event.error ? t("assistant.docSearchBlock.searchFailedIn") : t("assistant.docSearchBlock.searched")}{" "}
+                    {t("assistant.docSearchBlock.scopeForQuery", { scope, query: event.query })}
                 </span>}
                 isStreaming={isStreaming}
             />

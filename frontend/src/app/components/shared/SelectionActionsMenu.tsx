@@ -5,6 +5,7 @@ import { cn } from "@/app/lib/utils";
 import { ROW_ACTION_MENU_CLASS } from "./RowActions";
 import { ChevronDown } from "lucide-react";
 import { Dropdown, DropdownContent, DropdownTrigger, TabPillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 function SelectionMenuContent({
     renderItems,
@@ -33,6 +34,7 @@ export function SelectionActionsMenu({
     /** Applied to the trigger, for responsive visibility. */
     className?: string;
 }) {
+    const t = useTranslations();
     const actionChosenRef = useRef(false);
     return (
         <Dropdown
@@ -45,7 +47,7 @@ export function SelectionActionsMenu({
                     data-icon-position="right"
                     className={cn("pl-3 pr-2", className)}
                 >
-                    Actions
+                    {t("shared.selectionActionsMenu.actions")}
                     <ChevronDown className="h-3.5 w-3.5" />
                 </TabPillButtonUI>
             </DropdownTrigger>

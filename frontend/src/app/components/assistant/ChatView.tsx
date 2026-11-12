@@ -94,6 +94,7 @@ import {
     composerFadeBackground,
     useComposerInset,
 } from "@/app/hooks/useComposerInset";
+import { useTranslations } from "next-intl";
 
 interface Props {
     chatId?: string | null;
@@ -231,6 +232,7 @@ export function AssistantChatColumn({
     incomingExcerpt,
     onIncomingExcerptAdded,
 }: ColumnProps) {
+    const t = useTranslations();
     const router = useRouter();
     const {
         tabs,
@@ -370,20 +372,20 @@ export function AssistantChatColumn({
                 !activeChat?.project_id && activeChatRole !== "owner";
             if (status === "denied" && sharedStandaloneChat) {
                 setActionGate({
-                    action: "open this document",
+                    action: t("assistant.chatView.openThisDocument"),
                     requiredRole: "editor",
-                    title: "Document not shared",
+                    title: t("assistant.chatView.documentNotShared"),
                     message:
-                        "The person who shared this chat has not shared its documents.",
+                        t("assistant.chatView.thePersonWhoSharedThisChat"),
                 });
                 return;
             }
             setActionError({
-                title: "Document unavailable",
+                title: t("assistant.chatView.documentUnavailable"),
                 message:
                     status === "denied"
-                        ? "This document is no longer available."
-                        : "This document could not be opened. Please try again.",
+                        ? t("assistant.chatView.thisDocumentIsNoLongerAvailable")
+                        : t("assistant.chatView.thisDocumentCouldNotBeOpened"),
             });
         },
         [activeChat?.project_id, activeChatRole],
@@ -397,7 +399,7 @@ export function AssistantChatColumn({
         async (citation: Citation, options?: { showQuotes?: boolean }) => {
             const showQuotes = options?.showQuotes ?? true;
             const resolution = await resolvePanelDocumentVersionResult(
-                panelDocumentFromCitation(citation, showQuotes),
+                panelDocumentFromCitation(citation, showQuotes, t),
             );
             if (resolution.status !== "resolved") {
                 reportUnresolvedDocument(resolution.status);
@@ -419,7 +421,7 @@ export function AssistantChatColumn({
                 citation,
             });
         },
-        [reportUnresolvedDocument, upsertTab],
+        [reportUnresolvedDocument, upsertTab, t],
     );
 
     /**
@@ -710,7 +712,7 @@ export function AssistantChatColumn({
         if (!activeChat) return;
         if (!can(activeChatRole, "access.manage")) {
             setActionGate({
-                action: "share this chat",
+                action: t("assistant.chatView.shareThisChat"),
                 requiredRole: "owner",
             });
             return;
@@ -722,7 +724,7 @@ export function AssistantChatColumn({
         if (!activeChat) return;
         if (!can(activeChatRole, "access.manage")) {
             setActionGate({
-                action: "rename this chat",
+                action: t("assistant.chatView.renameThisChat"),
                 requiredRole: "owner",
             });
             return;
@@ -739,10 +741,10 @@ export function AssistantChatColumn({
         } catch (error) {
             setRenameOpen(false);
             setActionError({
-                title: "Chat not renamed",
+                title: t("assistant.chatView.chatNotRenamed"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be renamed. Please try again.",
+                    t("assistant.chatView.theChatCouldNotBe"),
                 ),
             });
         } finally {
@@ -754,7 +756,7 @@ export function AssistantChatColumn({
         if (!activeChat) return;
         if (!can(activeChatRole, "container.delete")) {
             setActionGate({
-                action: "delete this chat",
+                action: t("assistant.chatView.deleteThisChat"),
                 requiredRole: "owner",
             });
             return;
@@ -765,10 +767,10 @@ export function AssistantChatColumn({
             else router.push("/assistant");
         } catch (error) {
             setActionError({
-                title: "Chat not deleted",
+                title: t("assistant.chatView.chatNotDeleted"),
                 message: userFacingApiError(
                     error,
-                    "The chat could not be deleted. Please try again.",
+                    t("assistant.chatView.theChatCouldNotBe2"),
                 ),
             });
         }
@@ -776,26 +778,26 @@ export function AssistantChatColumn({
 
     const chatActionItems: HeaderActionsMenuItem[] = can(activeChatRole, "access.manage") ? [
         {
-            label: "Share",
+            label: t("assistant.chatView.share"),
             icon: Users,
             onSelect: handleShareChat,
             disabled: !activeChat,
         },
         {
-            label: "Rename",
+            label: t("assistant.chatView.rename"),
             icon: Pencil,
             onSelect: () => void handleRenameChat(),
             disabled: !activeChat,
         },
         {
-            label: "Delete",
+            label: t("assistant.chatView.delete"),
             icon: Trash2,
             onSelect: () => void handleDeleteChat(),
             disabled: !activeChat,
             variant: "danger",
         },
     ] : canLeaveChat ? [{
-        label: "Leave",
+        label: t("assistant.chatView.leave"),
         icon: LogOut,
         onSelect: () => setLeaveChatId(permissionChat?.id ?? null),
     }] : [];
@@ -820,8 +822,8 @@ export function AssistantChatColumn({
                     historyMenu(
                         <button
                             type="button"
-                            aria-label="Chat history"
-                            title="Chat history"
+                            aria-label={t("assistant.chatView.chatHistory")}
+                            title={t("assistant.chatView.chatHistory")}
                             className={headerButtonClassName({
                                 iconOnly: true,
                             })}
@@ -832,8 +834,8 @@ export function AssistantChatColumn({
                 ) : (
                     <HeaderButtonUI
                         iconOnly
-                        aria-label="New chat"
-                        title="New chat"
+                        aria-label={t("assistant.chatView.newChat")}
+                        title={t("assistant.chatView.newChat")}
                         onClick={onNewChat}
                     >
                         <Plus className="h-4 w-4" />
@@ -848,7 +850,7 @@ export function AssistantChatColumn({
                     className="relative inline-flex"
                 >
                 <HeaderActionsMenu
-                    title="Chat actions"
+                    title={t("assistant.chatView.chatActions")}
                     // One header menu at a time: opening another closes it.
                     modal={false}
                     onCloseAutoFocus={(event) => {
@@ -863,7 +865,7 @@ export function AssistantChatColumn({
                         ...(onLoadChat && !isNewChat
                             ? [
                                   {
-                                      label: "Load chat",
+                                      label: t("assistant.chatView.loadChat"),
                                       icon: History,
                                       onSelect: () => {
                                           loadChatRequestedRef.current = slot;
@@ -873,8 +875,8 @@ export function AssistantChatColumn({
                             : []),
                         {
                             label: panelVisible
-                                ? "Close side panel"
-                                : "Open side panel",
+                                ? t("assistant.chatView.closeSidePanel")
+                                : t("assistant.chatView.openSidePanel"),
                             icon: panelVisible ? PanelRightClose : PanelRightOpen,
                             onSelect: panelVisible ? closePanel : showPanel,
                         },
@@ -882,7 +884,7 @@ export function AssistantChatColumn({
                         ...(onOpenSideChat && !mobile
                             ? [
                                   {
-                                      label: "Open side chat",
+                                      label: t("assistant.chatView.openSideChat"),
                                       icon: MessageSquare,
                                       onSelect: onOpenSideChat,
                                   },
@@ -891,14 +893,14 @@ export function AssistantChatColumn({
                         ...(onCloseSideChat
                             ? [
                                   {
-                                      label: "Close side chat",
+                                      label: t("assistant.chatView.closeSideChat"),
                                       icon: X,
                                       onSelect: onCloseSideChat,
                                   },
                               ]
                             : []),
                         {
-                            label: "Edit quick actions",
+                            label: t("assistant.chatView.editQuickActions"),
                             icon: Zap,
                             onSelect: () => setQuickActionsModalOpen(true),
                         },
@@ -985,7 +987,7 @@ export function AssistantChatColumn({
             (playbook) =>
                 input.attachPlaybook({
                     id: playbook.id,
-                    title: playbook.name || "Untitled playbook",
+                    title: playbook.name || t("assistant.chatView.untitledPlaybook"),
                 }),
             (error) => notifyError(error, { action: "attach the playbook" }),
         );
@@ -1263,7 +1265,7 @@ export function AssistantChatColumn({
                                     {showScrollButton && (
                                         <button
                                             type="button"
-                                            aria-label="Scroll to bottom"
+                                            aria-label={t("assistant.chatView.scrollToBottom")}
                                             onClick={scrollToBottom}
                                             className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-all md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
                                         >
@@ -1355,12 +1357,14 @@ export function AssistantChatColumn({
 
             <ApiKeyMissingPopup
                 open={rejectedApiKey !== null}
-                title="API key rejected"
-                message={`${
+                title={t("assistant.chatView.apiKeyRejected")}
+                message={
                     rejectedKeyProvider
-                        ? `The ${providerLabel(rejectedKeyProvider)} API key`
-                        : "That API key"
-                } was rejected. If it is your own key, check it in Settings; otherwise contact your administrator.`}
+                        ? t("assistant.chatView.providerApiKeyWasRejected", {
+                              provider: providerLabel(rejectedKeyProvider),
+                          })
+                        : t("assistant.chatView.thatApiKeyWasRejected")
+                }
                 onClose={() => onDismissInvalidApiKey?.()}
             />
             {leaveChatId && leaveChatId === permissionChat?.id && <LeaveChatPopup
@@ -1374,9 +1378,9 @@ export function AssistantChatColumn({
             />}
             <RenameModal
                 open={renameOpen}
-                breadcrumbs={["Assistant", "Rename Chat"]}
-                label="Chat title"
-                initialValue={activeChat?.title?.trim() || "Untitled chat"}
+                breadcrumbs={[t("assistant.chatView.assistant"), t("assistant.chatView.renameChat")]}
+                label={t("assistant.chatView.chatTitle")}
+                initialValue={activeChat?.title?.trim() || t("assistant.chatView.untitledChat")}
                 saving={renaming}
                 onClose={() => {
                     if (!renaming) setRenameOpen(false);
@@ -1385,7 +1389,7 @@ export function AssistantChatColumn({
             />
             <WarningPopup
                 open={!!actionError}
-                title={actionError?.title ?? "Chat action failed"}
+                title={actionError?.title ?? t("assistant.chatView.chatActionFailed")}
                 message={actionError?.message ?? null}
                 onClose={() => setActionError(null)}
             />

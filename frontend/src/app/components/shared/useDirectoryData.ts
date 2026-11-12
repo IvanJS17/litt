@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getProjectDirectoryLevel,
@@ -59,6 +60,7 @@ export function useDirectoryData(
     enabled: boolean,
     initialTab: DirectoryTab = "files",
 ) {
+  const t = useTranslations();
   // Every tab shows one workspace: that of the item the picker was opened
   // from, or the active one. A chat or review takes documents from its own
   // workspace only, so nothing from another is offered.
@@ -290,7 +292,7 @@ export function useDirectoryData(
           // A folder that stays empty after the spinner looks like an empty
           // folder, so the failure has to be said out loud.
           notifyError(error, {
-            action: "open the folder",
+            action: t("shared.useDirectoryData.openTheFolder"),
             dedupeKey: `directory-folder:${tab}:${folderId}`,
             onRetry: () =>
               retryRef.current?.loadFolderChildren(tab, folderId),
@@ -400,7 +402,7 @@ export function useDirectoryData(
       setProjectsHasMore(rows.length > DIRECTORY_PAGE_SIZE);
     } catch (error) {
       notifyError(error, {
-        action: "load more projects",
+        action: t("shared.useDirectoryData.loadMoreProjects"),
         dedupeKey: "directory-more-projects",
         onRetry: () => retryRef.current?.loadMoreProjects(),
       });
@@ -445,7 +447,7 @@ export function useDirectoryData(
           }));
         } catch (error) {
           notifyError(error, {
-            action: "open the project folder",
+            action: t("shared.useDirectoryData.openTheProjectFolder"),
             dedupeKey: `directory-project-level:${levelKey}`,
             onRetry: () =>
               retryRef.current?.loadProjectLevel(projectId, parentFolderId),
@@ -505,7 +507,7 @@ export function useDirectoryData(
           }));
         } catch (error) {
           notifyError(error, {
-            action: "load more project files",
+            action: t("shared.useDirectoryData.loadMoreProjectFiles"),
             dedupeKey: `directory-project-more:${levelKey}`,
             onRetry: () =>
               retryRef.current?.loadMoreProjectDocuments(

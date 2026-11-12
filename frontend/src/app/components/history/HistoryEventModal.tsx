@@ -26,6 +26,7 @@ import {
   auditAction,
     auditActor,
   auditDestination,
+  auditActorIsSystem,
   auditDetailFields,
     auditPrivateAccess,
   auditSubject,
@@ -195,7 +196,7 @@ export function HistoryEventModal({
             label: t("history.performedBy"),
             value: (
               <span className="flex max-w-full items-center justify-end gap-2">
-                {auditActor(event, t) !== t("history.system") && (
+                {!auditActorIsSystem(event) && (
                   <UserAvatar
                     photo={event.user_profile_photo}
                     name={event.user_display_name}
@@ -226,7 +227,7 @@ export function HistoryEventModal({
         ),
     },
     ...auditDetailFields(event, t, format).filter(
-      (field) => !privateAccess || field.label !== t("history.audit.field.access"),
+      (field) => !privateAccess || field.id !== "access",
     ),
     ...(subject.context &&
     subject.context !== (surfaceLabels[event.surface ?? ""] ?? event.surface)

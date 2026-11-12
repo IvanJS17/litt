@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { AccessModal } from "@/app/components/modals/AccessModal";
 import { useAuth } from "@/app/contexts/AuthContext";
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export function ChatAccessModal({ open, chat, onClose }: Props) {
+    const t = useTranslations();
     const { user } = useAuth();
     const [accessState, setAccessState] = useState<{
         chatId: string;
@@ -46,7 +48,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
             setAccessError(
                 userFacingApiError(
                     error,
-                    "Sharing details could not be loaded, so access cannot be changed here.",
+                    t("assistant.chatAccessModal.sharingDetailsCouldNotBe"),
                 ),
             );
             notifyError(error, {
@@ -94,7 +96,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
             } catch (cause) {
                 reportAccessFailure(
                     cause,
-                    "load who this chat is shared with",
+                    t("assistant.chatAccessModal.loadWhoThisChatIs"),
                     chatId,
                 );
             }
@@ -119,9 +121,9 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
             // the owner able to aim Remove at themselves.
             currentUserId={user?.id ?? null}
             breadcrumb={[
-                "Assistant",
-                chat.title?.trim() || "Untitled chat",
-                "Access",
+                t("assistant.chatAccessModal.assistant"),
+                chat.title?.trim() || t("assistant.chatAccessModal.untitledChat"),
+                t("assistant.chatAccessModal.access"),
             ]}
             access={{
                 grants: access?.grants ?? [],
@@ -130,7 +132,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
                     access?.inherited_from_project_id ??
                     chat.project_id ??
                     null,
-                ownerLabel: "Owners",
+                ownerLabel: t("assistant.chatAccessModal.owners"),
                 resourceNoun: "chat",
                 // Role-derived, so the Share Access label and input are there
                 // the moment the modal opens: the roster below carries its own
@@ -148,7 +150,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
                     await refreshAccess().catch((error) =>
                         reportAccessFailure(
                             error,
-                            "refresh who this chat is shared with",
+                            t("assistant.chatAccessModal.refreshWhoThisChatIs"),
                             chat.id,
                         ),
                     );
@@ -158,7 +160,7 @@ export function ChatAccessModal({ open, chat, onClose }: Props) {
                     await refreshAccess().catch((error) =>
                         reportAccessFailure(
                             error,
-                            "refresh who this chat is shared with",
+                            t("assistant.chatAccessModal.refreshWhoThisChatIs"),
                             chat.id,
                         ),
                     );

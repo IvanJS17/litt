@@ -1,3 +1,4 @@
+import type { AppTranslate } from "@/i18n/Translate";
 import type {
   AssistantEvent as WireAssistantEvent,
   TrainingConfidenceLevel,
@@ -448,9 +449,17 @@ function legacyCaseSubdocumentId(clusterId: number, opinionId: number): string {
   return `case:${clusterId}:opinion:${opinionId}`;
 }
 
+/**
+ * The title a case citation gets when it names no case. It is stored data and
+ * `mergePanelDocuments` compares against it, so it stays one English value;
+ * the sidebar shows the real title once the case loads.
+ */
+export const CASE_TITLE_FALLBACK = "Case";
+
 export function panelDocumentFromCitation(
   citation: Citation,
-  includeQuotes = true,
+  includeQuotes: boolean,
+  t: AppTranslate,
 ): PanelDocument {
   if (citation.document) {
     if (!includeQuotes) return { ...citation.document, quotes: [] };
@@ -480,10 +489,10 @@ export function panelDocumentFromCitation(
       .join(", ");
     return {
       document_id: `case:${citation.cluster_id}`,
-      title: title || "Case",
+      title: title || CASE_TITLE_FALLBACK,
       type: "case",
       metadata: citation.dateFiled
-        ? [{ label: "Date", value: citation.dateFiled, format: "date" }]
+        ? [{ label: t("shared.types.date"), value: citation.dateFiled, format: "date" }]
         : [],
       actions: [
         ...(citation.pdfUrl
@@ -491,7 +500,7 @@ export function panelDocumentFromCitation(
               {
                 type: "download" as const,
                 url: citation.pdfUrl,
-                label: "Download",
+                label: t("shared.types.download"),
               },
             ]
           : []),
@@ -500,8 +509,8 @@ export function panelDocumentFromCitation(
               {
                 type: "link" as const,
                 url: citation.url,
-                label: "Link",
-                title: "Link",
+                label: t("shared.types.link"),
+                title: t("shared.types.link"),
               },
             ]
           : []),
@@ -600,9 +609,9 @@ function getDocumentCitationQuotes(a: Citation): DocumentCitationQuote[] {
  * Spreadsheets have no meaningful page locator, so this returns "" for them —
  * callers join with `.filter(Boolean)` so the locator is simply omitted.
  */
-export function formatCitationPage(a: Citation): string {
+export function formatCitationPage(a: Citation, t: AppTranslate): string {
   if (a.kind === "case") {
-    return a.citation || a.case_name || `Case ${a.cluster_id}`;
+    return a.citation || a.case_name || t("shared.types.caseNumber", { id: a.cluster_id });
   }
   const quotes = getDocumentCitationQuotes(a);
   // Spreadsheets are located by cell, e.g. "Sheet1!B7" (or several).
@@ -617,9 +626,9 @@ export function formatCitationPage(a: Citation): string {
   const pages = Array.from(
     new Set(quotes.map((q) => String(q.page)).filter(Boolean)),
   );
-  if (pages.length > 1) return `Pages ${pages.join(", ")}`;
-  if (pages.length === 1) return `Page ${pages[0]}`;
-  return `Page ${a.page}`;
+  if (pages.length > 1) return t("shared.types.pages", { pages: pages.join(", ") });
+  if (pages.length === 1) return t("shared.types.page", { page: pages[0] });
+  return t("shared.types.page", { page: a.page });
 }
 
 /**

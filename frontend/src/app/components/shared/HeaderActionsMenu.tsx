@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { MoreHorizontal, type LucideIcon } from "lucide-react";
 import {
     Dropdown,
@@ -20,7 +21,7 @@ export type HeaderActionsMenuItem = {
 
 export function HeaderActionsMenu({
     items,
-    title = "Actions",
+    title,
     triggerClassName,
     onCloseAutoFocus,
     modal = true,
@@ -38,6 +39,8 @@ export function HeaderActionsMenu({
      */
     modal?: boolean;
 }) {
+    const t = useTranslations();
+    const label = title ?? t("shared.headerActionsMenu.actions");
     return (
         <Dropdown modal={modal}>
             <DropdownTrigger asChild>
@@ -49,8 +52,8 @@ export function HeaderActionsMenu({
                         "hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                         triggerClassName,
                     )}
-                    aria-label={title}
-                    title={title}
+                    aria-label={label}
+                    title={label}
                 >
                     <MoreHorizontal className="h-4 w-4" />
                 </button>

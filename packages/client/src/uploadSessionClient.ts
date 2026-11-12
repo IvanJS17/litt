@@ -165,7 +165,7 @@ export function failedUploadMessage<T>(
         if (contentMessage) return contentMessage(filenames);
     }
     if (filenames.length === 1) {
-        return t("word.fileUploadFailed", { name: filenames[0] });
+        return t("word.fileUploadFailed", { name: filenames[0] ?? "" });
     }
     return t("documents.upload.filesFailed", { names: filenames.join(", ") });
 }

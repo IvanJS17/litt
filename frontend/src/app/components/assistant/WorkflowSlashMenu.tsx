@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { Workflow } from "../shared/types";
 import { workflowSlashCommand } from "./workflowSlashCommands";
 import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 export const WORKFLOW_SLASH_MENU_ID = "workflow-slash-menu";
 
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function WorkflowSlashMenu({ workflows, activeIndex, onSelect }: Props) {
+    const t = useTranslations();
     const activeOptionRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
@@ -26,7 +28,7 @@ export function WorkflowSlashMenu({ workflows, activeIndex, onSelect }: Props) {
         <div
             id={WORKFLOW_SLASH_MENU_ID}
             role="listbox"
-            aria-label="Workflow commands"
+            aria-label={t("assistant.workflowSlashMenu.workflowCommands")}
             className={`absolute bottom-full left-0 mb-1.5 grid max-h-64 w-full gap-1 overflow-y-auto rounded-[18px] p-1 overscroll-contain md:rounded-[22px] ${LIQUID_GLASS_TRANSLUCENT_CLASS}`}
         >
             {workflows.map((workflow, index) => {

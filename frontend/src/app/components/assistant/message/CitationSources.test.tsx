@@ -2,6 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { Citation, DocumentCitation } from "../../shared/types";
 import { citationTooltip, CitationsBlock } from "./CitationSources";
+import { sourceTranslator } from "@mike/client";
+import type { AppTranslate } from "@/i18n/Translate";
+
+const t = sourceTranslator as unknown as AppTranslate;
 
 function documentCitation(ref: number, verified?: boolean): DocumentCitation {
   return {
@@ -43,10 +47,10 @@ describe("CitationsBlock verification states", () => {
   });
 
   it("includes only unverified warnings in citation tooltips", () => {
-    expect(citationTooltip(documentCitation(3, false))).toContain(
+    expect(citationTooltip(documentCitation(3, false), t)).toContain(
       "Quote could not be matched to the source text.",
     );
-    expect(citationTooltip(documentCitation(3, true))).not.toContain("matched");
+    expect(citationTooltip(documentCitation(3, true), t)).not.toContain("matched");
   });
 
   it("leaves case citations outside document verification styling", () => {

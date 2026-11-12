@@ -25,7 +25,9 @@ export type Translate = (
 export type AppKey =
     | SettingsKey
     | Leaves<Messages["shared"], "shared">
+    | Leaves<Messages["assistant"], "assistant">
     | Leaves<Messages["documents"], "documents">
+    | Leaves<Messages["ui"], "ui">
     | Leaves<Messages["history"], "history">;
 
 /** `Translate` for helpers outside Settings: same shape, more namespaces. */

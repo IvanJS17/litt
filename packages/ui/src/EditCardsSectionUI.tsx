@@ -2,6 +2,7 @@
 
 import { Children, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "use-intl";
 
 export interface EditCardsSectionUIProps {
     summary: string;
@@ -20,11 +21,12 @@ export interface EditCardsSectionUIProps {
 export function EditCardsSectionUI({
     summary,
     actions,
-    actionsLabel = "Tracked change actions",
+    actionsLabel,
     children,
     className = "",
     defaultOpen = true,
 }: EditCardsSectionUIProps) {
+    const t = useTranslations();
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     if (Children.count(children) === 1) {
@@ -40,7 +42,7 @@ export function EditCardsSectionUI({
                 <button
                     type="button"
                     onClick={() => setIsOpen((value) => !value)}
-                    aria-label={isOpen ? "Collapse edits" : "Expand edits"}
+                    aria-label={isOpen ? t("ui.editCardsSection.collapseEdits") : t("ui.editCardsSection.expandEdits")}
                     aria-expanded={isOpen}
                     className="shrink-0 text-gray-500 transition-colors hover:text-gray-700"
                 >
@@ -55,7 +57,7 @@ export function EditCardsSectionUI({
                 <div
                     className="flex flex-wrap items-center gap-2 px-3 pt-3"
                     role="group"
-                    aria-label={actionsLabel}
+                    aria-label={actionsLabel ?? t("ui.editCardsSection.trackedChangeActions")}
                 >
                     {actions}
                 </div>

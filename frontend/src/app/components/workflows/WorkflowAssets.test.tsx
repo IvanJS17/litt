@@ -95,7 +95,7 @@ describe("WorkflowAssets", () => {
         ]);
         render(<WorkflowAssets workflowId="workflow-1" readOnly={false} />);
         expect(
-            await screen.findByText("Borrador de pasante, pendiente de aprobación"),
+            await screen.findByText("Intern draft, pending approval"),
         ).toBeVisible();
     });
 

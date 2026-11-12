@@ -30,6 +30,7 @@ import {
 } from "@mike/ui";
 import { notifyError } from "@/app/lib/userFacingError";
 import { LIQUID_GLASS_HOVER_CLASS } from "@/app/components/ui/liquid-surface";
+import { useTranslations } from "next-intl";
 
 export { CLOSE_ROW_ACTIONS_EVENT, closeRowActionMenus };
 
@@ -105,25 +106,26 @@ export function RowActionMenuItems({
     onEditDetails,
     onRename,
     onUpdateCmNumber,
-    viewLabel = "View",
-    editDetailsLabel = "Edit details",
-    newSubfolderLabel = "New subfolder",
-    renameLabel = "Rename",
-    uploadNewVersionLabel = "Upload new version",
-    deleteLabel = "Delete",
+    viewLabel,
+    editDetailsLabel,
+    newSubfolderLabel,
+    renameLabel,
+    uploadNewVersionLabel,
+    deleteLabel,
     onClose,
 }: RowActionMenuItemsProps) {
+    const t = useTranslations();
     const run = (action: () => void) => () => {
         onClose?.();
         action();
     };
 
     // "Delete" alone would make the title "Couldn't delete"; callers that
-    // name the row ("Delete review") already read as an action.
-    const deleteAction =
-        deleteLabel.trim().toLowerCase() === "delete"
-            ? "delete this item"
-            : deleteLabel.trim().toLowerCase();
+    // name the row ("Delete review") already read as an action. Whether the
+    // caller named it is known from the prop, never from the label's text.
+    const deleteAction = deleteLabel
+        ? deleteLabel.trim().toLowerCase()
+        : t("shared.rowActions.deleteThisItem");
 
     async function runDelete() {
         if (!onDelete) return;
@@ -142,13 +144,13 @@ export function RowActionMenuItems({
             {onDeselect && (
                 <DropdownItem onSelect={run(onDeselect)}>
                     <X className="h-3.5 w-3.5" />
-                    Deselect rows
+                    {t("shared.rowActions.deselectRows")}
                 </DropdownItem>
             )}
             {onView && (
                 <DropdownItem onSelect={run(onView)}>
                     <Eye className="h-3.5 w-3.5" />
-                    {viewLabel}
+                    {viewLabel ?? t("shared.rowActions.view")}
                 </DropdownItem>
             )}
             {onAdd && (
@@ -180,67 +182,67 @@ export function RowActionMenuItems({
                     onSelect={run(onNewSubfolder)}
                 >
                     <SubfolderSvgIcon className="h-3.5 w-3.5 shrink-0" />
-                    {newSubfolderLabel}
+                    {newSubfolderLabel ?? t("shared.rowActions.newSubfolder")}
                 </DropdownItem>
             )}
             {onRename && (
                 <DropdownItem onSelect={run(onRename)}>
                     <Pencil className="h-3.5 w-3.5" />
-                    {renameLabel}
+                    {renameLabel ?? t("shared.rowActions.rename")}
                 </DropdownItem>
             )}
             {onEditDetails && (
                 <DropdownItem onSelect={run(onEditDetails)}>
                     <Pencil className="h-3.5 w-3.5" />
-                    {editDetailsLabel}
+                    {editDetailsLabel ?? t("shared.rowActions.editDetails")}
                 </DropdownItem>
             )}
             {onUpdateCmNumber && (
                 <DropdownItem onSelect={run(onUpdateCmNumber)}>
                     <Hash className="h-3.5 w-3.5" />
-                    Edit CM No.
+                    {t("shared.rowActions.editCmNo")}
                 </DropdownItem>
             )}
             {onDownload && (
                 <DropdownItem onSelect={run(onDownload)}>
                     <Download className="h-3.5 w-3.5" />
-                    Download
+                    {t("shared.rowActions.download")}
                 </DropdownItem>
             )}
             {onShowAllVersions && (
                 <DropdownItem onSelect={run(onShowAllVersions)}>
                     <History className="h-3.5 w-3.5" />
-                    Show all versions
+                    {t("shared.rowActions.showAllVersions")}
                 </DropdownItem>
             )}
             {onUploadNewVersion && (
                 <DropdownItem onSelect={run(onUploadNewVersion)}>
                     <Upload className="h-3.5 w-3.5" />
-                    {uploadNewVersionLabel}
+                    {uploadNewVersionLabel ?? t("shared.rowActions.uploadNewVersion")}
                 </DropdownItem>
             )}
             {onRemoveFromFolder && (
                 <DropdownItem onSelect={run(onRemoveFromFolder)}>
                     <FolderMinus className="h-3.5 w-3.5" />
-                    Remove from subfolder
+                    {t("shared.rowActions.removeFromSubfolder")}
                 </DropdownItem>
             )}
             {onClearResults && (
                 <DropdownItem disabled={clearResultsDisabled} onSelect={run(onClearResults)}>
                     <Eraser className="h-3.5 w-3.5" />
-                    Clear results
+                    {t("shared.rowActions.clearResults")}
                 </DropdownItem>
             )}
             {onUnhide && (
                 <DropdownItem onSelect={run(onUnhide)}>
                     <Eye className="h-3.5 w-3.5" />
-                    Activate
+                    {t("shared.rowActions.activate")}
                 </DropdownItem>
             )}
             {onHide && (
                 <DropdownItem onSelect={run(onHide)}>
                     <EyeOff className="h-3.5 w-3.5" />
-                    Deactivate
+                    {t("shared.rowActions.deactivate")}
                 </DropdownItem>
             )}
             {onDelete && (
@@ -250,7 +252,7 @@ export function RowActionMenuItems({
                     onSelect={run(() => { void runDelete(); })}
                 >
                     <Trash2 className="h-3.5 w-3.5" />
-                    {deleteLabel}
+                    {deleteLabel ?? t("shared.rowActions.delete")}
                 </DropdownItem>
             )}
         </>
@@ -272,13 +274,14 @@ function CustomRowActionItems({
 
 export function RowActions({
     renderItems,
-    ariaLabel = "Open row actions",
+    ariaLabel,
     ...props
 }: Props & {
     /** Reuse these items in selection and right-click menus as well. */
     renderItems?: (onActionChosen: () => void) => ReactNode;
     ariaLabel?: string;
 }) {
+    const t = useTranslations();
     const [open, setOpen] = useState(false);
     // An action often opens something that takes focus itself (an inline
     // rename field, a modal). Returning focus to the button afterwards would
@@ -304,7 +307,7 @@ export function RowActions({
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    aria-label={ariaLabel}
+                    aria-label={ariaLabel ?? t("shared.rowActions.openRowActions")}
                     // The row itself is clickable; opening its menu must not
                     // also activate the row.
                     onClick={(event) => event.stopPropagation()}

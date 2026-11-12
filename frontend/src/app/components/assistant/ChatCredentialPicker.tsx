@@ -16,16 +16,21 @@ import {
     type ChatCredentialOptions,
     type ChatCredentialSource,
 } from "@/app/lib/mikeApi";
+import { useTranslations } from "next-intl";
+import type { AppTranslate } from "@/i18n/Translate";
 
-const SOURCE_LABELS: Record<ChatCredentialSource, string> = {
-    personal: "Your key",
-    organization: "Organization key",
-    deployment: "Deployment key",
-    operator: "Operator endpoint",
-};
+const SOURCE_LABEL_KEYS = {
+    personal: "assistant.chatCredentialPicker.yourKey",
+    organization: "assistant.chatCredentialPicker.organizationKey",
+    deployment: "assistant.chatCredentialPicker.deploymentKey",
+    operator: "assistant.chatCredentialPicker.operatorEndpoint",
+} as const satisfies Record<ChatCredentialSource, string>;
 
-export function credentialSourceLabel(source: ChatCredentialSource): string {
-    return SOURCE_LABELS[source];
+export function credentialSourceLabel(
+    source: ChatCredentialSource,
+    t: AppTranslate,
+): string {
+    return t(SOURCE_LABEL_KEYS[source]);
 }
 
 /**
@@ -92,19 +97,20 @@ export function ChatCredentialPicker({
     onChange: (ref: string) => void;
     compact?: boolean;
 }) {
+    const t = useTranslations();
     const offered = options?.options ?? [];
     const selected = offered.find((option) => option.credential_ref === value);
     const label = selected
-        ? credentialSourceLabel(selected.source)
+        ? credentialSourceLabel(selected.source, t)
         : offered.length > 0
-          ? "Choose a key"
-          : "No key";
+          ? t("assistant.chatCredentialPicker.chooseAKey")
+          : t("assistant.chatCredentialPicker.noKey");
     return (
         <Dropdown>
             <DropdownTrigger asChild>
                 <button
                     type="button"
-                    aria-label={`Key for this conversation: ${label}`}
+                    aria-label={t("assistant.chatCredentialPicker.keyForThisConversationLabel", { label })}
                     className={textButtonUIClassName({
                         size: compact ? "icon-xs" : "xs",
                         className: "h-7.5",
@@ -118,15 +124,13 @@ export function ChatCredentialPicker({
                 </button>
             </DropdownTrigger>
             <DropdownContent align="end" className="w-64">
-                <DropdownLabel>Key</DropdownLabel>
+                <DropdownLabel>{t("assistant.chatCredentialPicker.key")}</DropdownLabel>
                 <p className="px-3 pb-1 text-xs text-muted-foreground">
-                    The conversation keeps this key, and its model, once it
-                    starts.
+                    {t("assistant.chatCredentialPicker.theConversationKeepsThisKeyAnd")}
                 </p>
                 {offered.length === 0 ? (
                     <p className="px-2 py-1.5 text-xs text-muted-foreground">
-                        No key is available for this model. Add one in
-                        Settings or choose another model.
+                        {t("assistant.chatCredentialPicker.noKeyIsAvailableForThis")}
                     </p>
                 ) : (
                     <DropdownRadioGroup
@@ -139,7 +143,7 @@ export function ChatCredentialPicker({
                                 value={option.credential_ref}
                                 className="cursor-pointer"
                             >
-                                {credentialSourceLabel(option.source)}
+                                {credentialSourceLabel(option.source, t)}
                             </DropdownRadioItem>
                         ))}
                     </DropdownRadioGroup>

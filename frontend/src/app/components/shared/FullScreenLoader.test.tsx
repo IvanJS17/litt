@@ -1,7 +1,18 @@
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { expect, it, vi } from "vitest";
+import enUS from "../../../../../packages/i18n/messages/en-US.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { FullScreenLoader } from "./FullScreenLoader";
+
+// The loader is a server component in the app; a test has no request config,
+// so the server render gets the same en-US provider the client render does.
+const serverRender = (ui: React.ReactNode) =>
+    renderToString(
+        <IntlClientProvider locale="en-US" messages={enUS}>
+            {ui}
+        </IntlClientProvider>,
+    );
 
 const nav = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname }));
@@ -20,7 +31,7 @@ it.each([
     expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
     expect(container.querySelector(SIDEBAR)).not.toBeNull();
     // Server and client paint the same loader for the same path.
-    expect(renderToString(<FullScreenLoader />)).toBe(container.innerHTML);
+    expect(serverRender(<FullScreenLoader />)).toBe(container.innerHTML);
 });
 
 it.each(["/signup/check-email", "/onboarding/profile", "/verify-mfa"])(
