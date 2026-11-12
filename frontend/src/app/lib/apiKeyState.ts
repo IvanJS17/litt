@@ -17,6 +17,7 @@ export const API_KEY_PROVIDERS: readonly ApiKeyProvider[] = [
     "brave",
     "tavily",
     "deepseek",
+    "landingai",
 ];
 
 /**

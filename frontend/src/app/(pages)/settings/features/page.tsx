@@ -8,6 +8,7 @@ import {
 import { GlassCardUI, ToggleSwitchUI } from "@mike/ui";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import { SettingsRow } from "@/app/components/settings/SettingsRow";
+import { ScanReadingSection } from "@/app/components/settings/ScanReadingSection";
 import { WebSearchSection } from "@/app/components/settings/WebSearchSection";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useTranslations } from "next-intl";
@@ -83,6 +84,7 @@ export default function FeaturesPage() {
       </section>
 
       <WebSearchSection />
+      <ScanReadingSection />
     </div>
   );
 }

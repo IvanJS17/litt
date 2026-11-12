@@ -5,6 +5,7 @@ import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPop
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { ByokProviderModal } from "@/app/components/settings/ByokProviderModal";
 import { ConnectorCard } from "@/app/components/settings/ConnectorCard";
+import { ScanReadingCard } from "@/app/components/settings/ScanReadingCard";
 import { SettingsHeading } from "@/app/components/settings/SettingsHeading";
 import {
   SettingsDescription,
@@ -320,6 +321,17 @@ export function OrganizationProviderKeys({
             </div>
           </GlassCardUI>
         </section>
+
+        <ScanReadingCard
+          loading={loading}
+          canManage={canManage}
+          hasSavedKey={hasOrgKey("landingai")}
+          enabled={hasOrgKey("landingai") && isEnabled("landingai")}
+          busy={busy !== null || pendingMfa !== null}
+          onToggle={(enabled) => void toggleProvider("landingai", enabled)}
+          onSaveKey={(value) => saveKey("landingai", value)}
+          onRemoveKey={() => saveKey("landingai", null)}
+        />
       </div>
 
       {canManage ? (

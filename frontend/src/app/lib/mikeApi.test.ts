@@ -36,6 +36,8 @@ import {
     previewDocumentConversion,
     convertDocument,
     compareDocuments,
+    getScanReading,
+    startScanReading,
     copyDocumentsToWorkflowAssets,
     createChat,
     createQuickAction,
@@ -3317,6 +3319,17 @@ describe("thin endpoint wrappers", () => {
             url: "/single-documents/d%201/convert",
             method: "POST",
             body: { target: "pdf" },
+        },
+        {
+            name: "getScanReading",
+            call: () => getScanReading("d 1"),
+            url: "/single-documents/d%201/ocr",
+        },
+        {
+            name: "startScanReading",
+            call: () => startScanReading("d 1"),
+            url: "/single-documents/d%201/ocr",
+            method: "POST",
         },
         {
             name: "compareDocuments",

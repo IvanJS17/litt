@@ -1251,7 +1251,8 @@ export type ApiKeyProvider =
     | "vertex"
     | "xai"
     | "custom"
-    | WebSearchBackend;
+    | WebSearchBackend
+    | "landingai";
 /**
  * Whose key a provider runs on: the person's own, their organization's, or
  * the deployment's. "org" only ever appears in an organization's status.
@@ -4046,6 +4047,45 @@ export async function compareDocuments(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ against_document_id: againstDocumentId }),
         },
+    );
+}
+
+/**
+ * Scan reading (docs/document-ocr.md) for the current version of a PDF.
+ * `status` is the machine state; `error_code` is an `ocr_*` code the
+ * interface turns into a sentence. Never compare translated labels.
+ */
+export interface ScanReadingState {
+    applicable: boolean;
+    status: "none" | "processing" | "ready" | "failed";
+    error_code: string | null;
+    key_available: boolean;
+    can_edit: boolean;
+    needs_reading: boolean;
+    page_count: number | null;
+    textless_page_count: number | null;
+    auto_max_pages: number;
+    estimated_cost_usd: number | null;
+    credits: number | null;
+}
+
+export async function getScanReading(
+    documentId: string,
+    signal?: AbortSignal,
+): Promise<ScanReadingState> {
+    return apiRequest(
+        "documents.ocr_state",
+        `/single-documents/${encodeURIComponent(documentId)}/ocr`,
+        { signal },
+    );
+}
+
+/** Start reading a document's scanned pages (202). 409 `ocr_key_missing` without a usable key. */
+export async function startScanReading(documentId: string): Promise<ScanReadingState> {
+    return apiRequest(
+        "documents.ocr_start",
+        `/single-documents/${encodeURIComponent(documentId)}/ocr`,
+        { method: "POST" },
     );
 }
 
