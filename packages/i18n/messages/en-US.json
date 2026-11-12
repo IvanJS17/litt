@@ -674,6 +674,22 @@
     "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace."
   },
   "documents": {
+    "compare": {
+      "action": "Compare with…",
+      "actionCompare": "compare these documents",
+      "compareAndCreate": "Compare and create document",
+      "comparing": "Comparing…",
+      "created": "Created “{filename}” with the tracked changes.",
+      "heading": "Compare “{filename}” (the original) with another Word file (the negotiated version).",
+      "noCandidates": "There is no other Word file in this project to compare with.",
+      "notice": {
+        "moves": "Formatting changes are marked; clauses that were moved may show as deleted and written again.",
+        "newDocument": "A new Word document is created with the differences as tracked changes."
+      },
+      "originalsUnchanged": "Your original documents don’t change.",
+      "pickLegend": "Compare with",
+      "title": "Compare documents"
+    },
     "convert": {
       "action": {
         "docx": "Convert to Word…",
@@ -881,6 +897,10 @@
       "chat_route_credential_required": "Choose which key this conversation should use for the selected model.",
       "chat_route_credential_unavailable": "The key this conversation was started with is no longer available. Start a new conversation with a key you can use.",
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
+      "compare_not_supported": "These documents can’t be compared. Both must be Word (.docx) files in the same project.",
+      "compare_source_too_large": "One of the documents is too large to compare.",
+      "compare_unavailable": "Comparing isn’t available right now. Try again in a moment.",
+      "compare_unreadable": "One of the documents couldn’t be read, so they can’t be compared.",
       "convert_not_supported": "This document can’t be converted to that format.",
       "convert_pdf_without_text": "This PDF has no text, so it needs OCR before it can be converted.",
       "convert_source_too_large": "This document is too large to convert.",

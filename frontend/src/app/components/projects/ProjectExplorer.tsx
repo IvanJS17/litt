@@ -43,6 +43,7 @@ import {
 } from "@/app/lib/projectTreeMoves";
 import { useLatestRef } from "@/app/hooks/useLatestRef";
 import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import { canCompareFileType } from "@/app/lib/documentCompare";
 import type { DocumentConversionType } from "@mike/contracts";
 
 interface Props {
@@ -56,6 +57,8 @@ interface Props {
     onDownloadFolder?: (folder: ProjectFolder) => Promise<void>;
     /** Starts the conversion dialog; the menu offers only the formats valid for the file's type. */
     onConvertDoc?: (doc: Document, target: DocumentConversionType) => void;
+    /** Starts "Compare with…"; the menu offers it for Word files only. */
+    onCompareDoc?: (doc: Document) => void;
     downloading?: boolean;
     addToChatDisabled?: boolean;
     onCreateFolder?: (parentFolderId: string | null, name: string) => Promise<void>;
@@ -111,6 +114,7 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
     onDownloadDoc,
     onDownloadFolder,
     onConvertDoc,
+    onCompareDoc,
     downloading = false,
     addToChatDisabled = false,
     onCreateFolder,
@@ -589,6 +593,12 @@ export const ProjectExplorer = forwardRef<ProjectExplorerHandle, Props>(function
                                       targets: conversionTargetsFor(contextDocument.file_type),
                                       onConvert: (target) => onConvertDoc(contextDocument, target),
                                   }
+                                : undefined,
+                        compare:
+                            onCompareDoc &&
+                            !isTrainingHeld(contextDocument) &&
+                            canCompareFileType(contextDocument.file_type)
+                                ? { onCompare: () => onCompareDoc(contextDocument) }
                                 : undefined,
                         addToChatDisabled, downloading,
                     }).map(({ id, label, icon: Icon, onSelect, disabled, variant }) => (

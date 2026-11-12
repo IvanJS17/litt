@@ -10,6 +10,7 @@ import type { Document, PanelDocument } from "@/app/components/shared/types";
 import type { TabDropPosition } from "@/app/lib/reorderTabs";
 import type { DocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 import { conversionTargetsFor } from "@/app/lib/documentConversion";
+import { canCompareFileType } from "@/app/lib/documentCompare";
 import type { DocumentConversionType } from "@mike/contracts";
 
 interface Props {
@@ -27,6 +28,8 @@ interface Props {
     onDeleteDoc?: (documentId: string) => Promise<void>;
     /** Starts the conversion dialog; the tab offers only the formats valid for its type. */
     onConvertDoc?: (document: Document, target: DocumentConversionType) => void;
+    /** Starts "Compare with…"; the tab offers it for Word files only. */
+    onCompareDoc?: (document: Document) => void;
     documentPermissions?: (documentId: string) => DocumentPermissions;
     addToChatDisabled?: boolean;
     downloading?: boolean;
@@ -48,6 +51,7 @@ export function ProjectDocumentTabs({
     onRenameDoc,
     onDeleteDoc,
     onConvertDoc,
+    onCompareDoc,
     documentPermissions,
     addToChatDisabled,
     downloading,
@@ -107,6 +111,14 @@ export function ProjectDocumentTabs({
                                       targets: conversionTargetsFor(document.file_type),
                                       onConvert: (target) => onConvertDoc(document, target),
                                   }
+                                : undefined,
+                        compare:
+                            document &&
+                            onCompareDoc &&
+                            !legalSource &&
+                            !isTrainingHeld(document) &&
+                            canCompareFileType(document.file_type)
+                                ? { onCompare: () => onCompareDoc(document) }
                                 : undefined,
                         onRename:
                             !legalSource && documentPermissions?.(tab.documentId).canEdit && onRenameDoc

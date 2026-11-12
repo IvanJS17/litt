@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useDocumentViewers } from "@/app/hooks/useDocumentViewers";
 import { useConvertDocument } from "@/app/hooks/useConvertDocument";
+import { useCompareDocument } from "@/app/hooks/useCompareDocument";
 import { useDocumentPermissions } from "@/app/hooks/useDocumentPermissions";
 
 import {
@@ -536,6 +537,20 @@ export default function ProjectAssistantChatPage({ params }: Props) {
     // A converted document is a new one beside the original: list it, then open it.
     const conversion = useConvertDocument({
         onConverted: async (result) => {
+            await refreshProject();
+            openTab(
+                result.document_id,
+                result.filename,
+                undefined,
+                null,
+                result.file_type,
+            );
+        },
+    });
+
+    const comparison = useCompareDocument({
+        documents: project?.documents ?? [],
+        onCompared: async (result) => {
             await refreshProject();
             openTab(
                 result.document_id,
@@ -1652,6 +1667,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                     explorerDownload.downloadFolder
                                 }
                                 onConvertDoc={canEditContent ? conversion.start : undefined}
+                    onCompareDoc={canEditContent ? comparison.start : undefined}
                                 downloading={explorerDownload.downloading}
                                 onAddToChat={(document) =>
                                     addDocToChat(document)
@@ -1753,6 +1769,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                     </div>
                 )}
                 {conversion.modal}
+                {comparison.modal}
                 <ProjectDocumentTabs
                     onAddToChat={(document) =>
                         addDocToChat(document)
@@ -1763,6 +1780,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                     onRenameDoc={handleRenameDoc}
                     onDeleteDoc={requestDeleteDoc}
                     onConvertDoc={canEditContent ? conversion.start : undefined}
+                    onCompareDoc={canEditContent ? comparison.start : undefined}
                     documentPermissions={documentPermissions}
                     tabs={tabs}
                     documents={project?.documents ?? []}

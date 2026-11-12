@@ -18,6 +18,8 @@
   redirect URIs, and Slack/Google deployment setup
 - [Document conversion](document-conversion.md) — Markdown, Word and PDF into a
   new document: what converts, what is lost, permissions, routes
+- [Document comparison](document-compare.md) — two Word files of a project into a
+  new one with tracked changes: permissions, route, limits, known limitations
 - [Scoped memory](memory.md) — app and project Markdown memory, permissions,
   asynchronous learning, deletion, and operations
 - [Google Workspace](google-workspace.md) — Drive, Gmail, and Calendar

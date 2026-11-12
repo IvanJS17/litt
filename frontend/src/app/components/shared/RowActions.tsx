@@ -9,6 +9,7 @@ import {
     Eraser,
     FileOutput,
     FolderMinus,
+    GitCompare,
     Hash,
     History,
     Loader2,
@@ -58,6 +59,8 @@ interface Props {
      */
     convertTargets?: ReadonlyArray<DocumentConversionType>;
     onConvert?: (target: DocumentConversionType) => void;
+    /** "Compare with…" (Word files only): opens the picker and the notice. */
+    onCompare?: () => void;
     onClearResults?: () => void;
     clearResultsDisabled?: boolean;
     onRemoveFromFolder?: () => void;
@@ -105,6 +108,7 @@ export function RowActionMenuItems({
     onDownload,
     convertTargets,
     onConvert,
+    onCompare,
     onClearResults,
     clearResultsDisabled,
     onRemoveFromFolder,
@@ -232,6 +236,12 @@ export function RowActionMenuItems({
                         {t(CONVERT_ACTION_KEYS[target])}
                     </DropdownItem>
                 ))}
+            {onCompare && (
+                <DropdownItem id="compare" onSelect={run(onCompare)}>
+                    <GitCompare className="h-3.5 w-3.5" />
+                    {t("documents.compare.action")}
+                </DropdownItem>
+            )}
             {onShowAllVersions && (
                 <DropdownItem onSelect={run(onShowAllVersions)}>
                     <History className="h-3.5 w-3.5" />
