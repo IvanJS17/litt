@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { CloseButton } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 /** Text-link styling for an action inside the inline error. */
 const ACTION_CLASS =
@@ -34,6 +35,7 @@ export function AuthFormError({
     supportHref,
     onDismiss,
 }: AuthFormErrorProps) {
+    const t = useTranslations();
     return (
         <div
             role="alert"
@@ -67,7 +69,7 @@ export function AuthFormError({
                         ) : null}
                         {supportHref ? (
                             <a href={supportHref} className={ACTION_CLASS}>
-                                Contact support
+                                {t("auth.form.contactSupport")}
                             </a>
                         ) : null}
                     </div>
@@ -76,7 +78,7 @@ export function AuthFormError({
             {onDismiss ? (
                 <CloseButton
                     onClick={onDismiss}
-                    label="Dismiss warning"
+                    label={t("auth.form.dismissWarning")}
                     size="sm"
                     className="absolute right-2 top-2"
                 />

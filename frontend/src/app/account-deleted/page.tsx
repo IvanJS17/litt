@@ -9,6 +9,7 @@ import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { getAccountDeletionReceipt } from "@/app/lib/mikeApi";
 import { ACCOUNT_DELETION_TOKEN_KEY } from "@/app/lib/accountDeletion";
 import { notifyError } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 const POLL_MS = process.env.NODE_ENV === "test" ? 10 : 2000;
 
@@ -38,6 +39,7 @@ const subscribeToNothing = () => () => {};
  * local session — happens only after the receipt has been shown.
  */
 export default function AccountDeletedPage() {
+  const t = useTranslations();
   const router = useRouter();
   const { signOut } = useAuth();
   // undefined while prerendering; the stored token (or null) in the browser.
@@ -62,7 +64,7 @@ export default function AccountDeletedPage() {
       } catch (error) {
         if (cancelled) return;
         notifyError(error, {
-          action: "load your deletion receipt",
+          action: t("accountDeleted.loadReceiptAction"),
           onRetry: () => void poll(),
           dedupeKey: "account-deletion-receipt",
         });
@@ -73,7 +75,7 @@ export default function AccountDeletedPage() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [token]);
+  }, [t, token]);
 
   const finish = async () => {
     sessionStorage.removeItem(ACCOUNT_DELETION_TOKEN_KEY);
@@ -96,34 +98,32 @@ export default function AccountDeletedPage() {
           <div className="space-y-5">
             {token === null ? (
               <p className="text-sm text-gray-600">
-                There is no account deletion to show in this tab.
+                {t("accountDeleted.thereIsNoAccountDeletionTo")}
               </p>
             ) : !receipt ||
               receipt.status === "pending" ||
               receipt.status === "running" ? (
               <div role="status" className="space-y-2">
-                <h2 className={TITLE_CLASS}>Deleting your account&hellip;</h2>
+                <h2 className={TITLE_CLASS}>{t("accountDeleted.deletingYourAccount")}</h2>
                 <p className="text-sm text-gray-600">
-                  This can take a few minutes. Keep this page open to see your
-                  receipt.
+                  {t("accountDeleted.thisCanTakeAFewMinutes")}
                 </p>
               </div>
             ) : receipt.status === "failed" ? (
               <div role="alert" className="space-y-2">
                 <h2 className={TITLE_CLASS}>
-                  Your account could not be fully deleted
+                  {t("accountDeleted.yourAccountCouldNotBeFully")}
                 </h2>
                 <p className="text-sm text-gray-600">
-                  Your account stays locked and nobody can sign in to it.
-                  Contact support to finish the deletion.
+                  {t("accountDeleted.yourAccountStaysLockedAndNobody")}
                 </p>
               </div>
             ) : (
               <div className="space-y-4 text-sm text-gray-600">
-                <h2 className={TITLE_CLASS}>Your account has been deleted</h2>
-                <p>Finished on {formatDate(receipt.completed_at)}.</p>
+                <h2 className={TITLE_CLASS}>{t("accountDeleted.yourAccountHasBeenDeleted")}</h2>
+                <p>{t("accountDeleted.finishedOn")} {formatDate(receipt.completed_at)}.</p>
                 <section className="space-y-1">
-                  <h3 className="font-medium text-gray-900">Deleted</h3>
+                  <h3 className="font-medium text-gray-900">{t("accountDeleted.deleted")}</h3>
                   <ul className="list-disc space-y-1 pl-5">
                     {receipt.deleted.map((item) => (
                       <li key={item}>{item}</li>
@@ -131,7 +131,7 @@ export default function AccountDeletedPage() {
                   </ul>
                 </section>
                 <section className="space-y-1">
-                  <h3 className="font-medium text-gray-900">Kept, and why</h3>
+                  <h3 className="font-medium text-gray-900">{t("accountDeleted.keptAndWhy")}</h3>
                   <ul className="list-disc space-y-1 pl-5">
                     {receipt.retained.map((entry) => (
                       <li key={entry.item}>
@@ -141,7 +141,7 @@ export default function AccountDeletedPage() {
                   </ul>
                 </section>
                 <p>
-                  The last backup copy of your data is deleted by{" "}
+                  {t("accountDeleted.theLastBackupCopyOfYour")}{" "}
                   <strong className="font-medium text-gray-900">
                     {formatDate(receipt.backups_expire_on)}
                   </strong>
@@ -157,7 +157,7 @@ export default function AccountDeletedPage() {
                 size="normal"
                 onClick={() => void finish()}
               >
-                {token === null ? "Go to LiTT" : "Finish and sign out"}
+                {token === null ? t("accountDeleted.goToLitt") : t("accountDeleted.finishAndSignOut")}
               </PillButtonUI>
             )}
           </div>

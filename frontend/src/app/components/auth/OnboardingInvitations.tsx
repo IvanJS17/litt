@@ -14,6 +14,7 @@ import {
 import { ORG_ROLE_LABELS, type OrgRole } from "@/app/lib/permissions";
 import { userFacingApiError } from "@/app/lib/userFacingError";
 import { GlassCardUI, PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 /** The authenticated endpoint only exposes invitations for a verified email. */
 export function OnboardingInvitations({
@@ -25,6 +26,7 @@ export function OnboardingInvitations({
     disabled: boolean;
     onBusyChange: (busy: boolean) => void;
 }) {
+    const t = useTranslations();
     const [invitations, setInvitations] = useState<OrgInvitation[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [answerError, setAnswerError] = useState<string | null>(null);
@@ -41,12 +43,12 @@ export function OnboardingInvitations({
         void listMyOrgInvitations().then((items) => {
             if (!cancelled) setInvitations(items);
         }, (error) => {
-            if (!cancelled) setLoadError(userFacingApiError(error, "Could not load your invitations."));
+            if (!cancelled) setLoadError(userFacingApiError(error, t("auth.onboarding.loadInvitationsFailed")));
         }).finally(() => {
             if (!cancelled) onBusyChange(false);
         });
         return () => { cancelled = true; mounted.current = false; };
-    }, [attempt, onBusyChange, userId]);
+    }, [attempt, onBusyChange, t, userId]);
 
     function reload() {
         setInvitations(null);
@@ -69,7 +71,7 @@ export function OnboardingInvitations({
             setJoined((current) => ({ ...current, [invitation.id]: accepted.role }));
             notifyOrganizationInvitationsChanged();
         } catch (error) {
-            if (mounted.current) setAnswerError(userFacingApiError(error, "Could not accept this invitation. Please try again."));
+            if (mounted.current) setAnswerError(userFacingApiError(error, t("auth.onboarding.acceptInvitationFailed")));
         } finally {
             accepting.current = false;
             if (mounted.current) { setAnsweringId(null); onBusyChange(false); }
@@ -77,13 +79,13 @@ export function OnboardingInvitations({
     }
 
     return (
-        <section aria-label="Organization invitations" className="space-y-3">
+        <section aria-label={t("auth.onboarding.organizationInvitations")} className="space-y-3">
             {invitations?.length === 0 && !loadError ? (
-                <p role="status" className="text-sm text-gray-500">You have no pending invitations. You can join an organization later from Settings.</p>
+                <p role="status" className="text-sm text-gray-500">{t("auth.onboarding.youHaveNoPendingInvitationsYou")}</p>
             ) : null}
             {invitations === null && !loadError ? (
                 <GlassCardUI>
-                    <div role="status" aria-label="Checking your invitations" className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <div role="status" aria-label={t("auth.onboarding.checkingYourInvitations")} className="flex flex-wrap items-center gap-3 px-4 py-3">
                         <SkeletonLine className="h-9 w-9 shrink-0" />
                         <div className="min-w-0 flex-1 space-y-2"><SkeletonLine className="w-32 max-w-full" /><SkeletonLine className="w-24 max-w-full" /></div>
                         <SkeletonLine className="h-7 w-16" />
@@ -94,7 +96,7 @@ export function OnboardingInvitations({
                 <div className="space-y-2">
                     <p role="alert" className="text-sm text-red-600">{loadError || answerError}</p>
                     <PillButtonUI type="button" tone="white" size="sm" disabled={disabled || answeringId !== null} onClick={reload}>
-                        {loadError ? "Try again" : "Refresh invitations"}
+                        {loadError ? t("auth.onboarding.tryAgain") : t("auth.onboarding.refreshInvitations")}
                     </PillButtonUI>
                 </div>
             ) : null}
@@ -105,21 +107,21 @@ export function OnboardingInvitations({
                     <ConnectorCard key={invitation.id} kind="invitation" name={name}
                         icon={<OrganizationSkeuoIcon className="h-6 w-6" />}
                         detail={<>
-                            <span className="block [overflow-wrap:anywhere]">{joinedRole ? "Joined as" : "Invited as"} {ORG_ROLE_LABELS[joinedRole ?? invitation.role]}</span>
-                            {invitation.invited_by_email ? <span className="block [overflow-wrap:anywhere]">From {invitation.invited_by_email}</span> : null}
+                            <span className="block [overflow-wrap:anywhere]">{joinedRole ? t("auth.onboarding.joinedAs") : t("auth.onboarding.invitedAs")} {ORG_ROLE_LABELS[joinedRole ?? invitation.role]}</span>
+                            {invitation.invited_by_email ? <span className="block [overflow-wrap:anywhere]">{t("auth.onboarding.fromInvitedByEmail", { invited_by_email: invitation.invited_by_email })}</span> : null}
                         </>}
                         action={joinedRole ? (
-                            <span role="status" className="text-xs font-medium text-gray-500">Joined</span>
+                            <span role="status" className="text-xs font-medium text-gray-500">{t("auth.onboarding.joined")}</span>
                         ) : (
-                            <PillButtonUI type="button" tone="blue" size="sm" aria-label={`Accept ${name}`}
+                            <PillButtonUI type="button" tone="blue" size="sm" aria-label={t("auth.onboarding.acceptName", { name })}
                                 disabled={disabled || answeringId !== null}
-                                loading={answeringId === invitation.id} onClick={() => void accept(invitation)}>Accept</PillButtonUI>
+                                loading={answeringId === invitation.id} onClick={() => void accept(invitation)}>{t("auth.onboarding.accept")}</PillButtonUI>
                         )}
                     />
                 );
             })}
             {Object.keys(joined).length > 0 ? (
-                <p role="status" className="text-xs text-gray-500">Invitation accepted. Finish setup to open your organization workspace.</p>
+                <p role="status" className="text-xs text-gray-500">{t("auth.onboarding.invitationAcceptedFinishSetupToOpen")}</p>
             ) : null}
         </section>
     );

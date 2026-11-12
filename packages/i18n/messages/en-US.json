@@ -1,5 +1,77 @@
 {
+  "access": {
+    "beta": {
+      "cancel": "Cancel invitation",
+      "cancelBody": "{email} will no longer be able to sign up or create a firm with this invitation.",
+      "cancelTitle": "Cancel this invitation?",
+      "colEmail": "Email",
+      "colExpires": "Expires",
+      "colStatus": "Status",
+      "emailLabel": "Invitee's email",
+      "empty": "There are no invitations yet.",
+      "heading": "Beta invitations",
+      "hint": "The invited person will be able to create a firm and be its owner.",
+      "invite": "Invite",
+      "inviting": "Inviting...",
+      "keep": "Keep",
+      "loadError": "We couldn't load the invitations.",
+      "status": {
+        "cancelled": "Cancelled",
+        "expired": "Expired",
+        "pending": "Pending",
+        "used": "Used"
+      },
+      "tab": "Beta invitations"
+    },
+    "invite": {
+      "notSent": "We couldn't send the email. Tell them to sign in to LiTT with that email",
+      "sent": "We emailed them the invitation"
+    },
+    "noOrgInvite": "Ask your firm for an invitation",
+    "setPassword": {
+      "confirm": "Confirm your password",
+      "invalid": "This invitation link is invalid or has expired. Ask to be invited again.",
+      "invalidTitle": "Invitation unavailable",
+      "mismatch": "The passwords don't match.",
+      "password": "Password",
+      "saving": "Saving...",
+      "submit": "Save password",
+      "subtitle": "Use at least {min} characters. You'll then continue setting up your account.",
+      "title": "Create your password",
+      "toLogin": "Go to log in",
+      "verifying": "Checking your invitation..."
+    }
+  },
+  "accountDeleted": {
+    "deleted": "Deleted",
+    "deletingYourAccount": "Deleting your account…",
+    "finishAndSignOut": "Finish and sign out",
+    "finishedOn": "Finished on",
+    "goToLitt": "Go to LiTT",
+    "keptAndWhy": "Kept, and why",
+    "loadReceiptAction": "load your deletion receipt",
+    "theLastBackupCopyOfYour": "The last backup copy of your data is deleted by",
+    "thereIsNoAccountDeletionTo": "There is no account deletion to show in this tab.",
+    "thisCanTakeAFewMinutes": "This can take a few minutes. Keep this page open to see your receipt.",
+    "yourAccountCouldNotBeFully": "Your account could not be fully deleted",
+    "yourAccountHasBeenDeleted": "Your account has been deleted",
+    "yourAccountStaysLockedAndNobody": "Your account stays locked and nobody can sign in to it. Contact support to finish the deletion."
+  },
+  "assistantExport": {
+    "defaultName": "response",
+    "downloadMarkdown": "Download .md",
+    "downloaded": "Response downloaded"
+  },
   "auth": {
+    "callback": {
+      "confirmAction": "confirm your request",
+      "confirmingYourRequest": "Confirming your request",
+      "contactSupport": "Contact support",
+      "linkInvalid": "This confirmation link is invalid or has expired.",
+      "returnToLogin": "Return to login",
+      "thisShouldOnlyTakeAMoment": "This should only take a moment.",
+      "unableToConfirm": "Unable to confirm"
+    },
     "checkEmail": {
       "checkYourEmail": "Check your email",
       "confirmationSent": "We sent a confirmation link to your email address. Confirm your address before logging in.",
@@ -46,28 +118,128 @@
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols."
     },
-    "login": {
+    "forgotPassword": {
+      "checkYourEmail": "Check your email",
+      "contactSupport": "Contact support",
       "email": "Email",
+      "enterYourAccountEmailAndWe": "Enter your account email and we will send you a secure reset link.",
+      "ifAnAccountExistsFor": "If an account exists for",
+      "resetYourPassword": "Reset your password",
+      "retry": "Retry",
+      "returnToLogin": "Return to login",
+      "sendAction": "send the reset link",
+      "sendFailed": "LiTT couldn't send the reset link. Try again in a moment.",
+      "sendResetLink": "Send reset link",
+      "sendingResetLink": "Sending reset link...",
+      "weSentAPasswordResetLink": ", we sent a password-reset link. The link expires and can only be used once."
+    },
+    "form": {
+      "contactSupport": "Contact support",
+      "continueWithGoogle": "Continue with Google",
+      "continueWithSso": "Continue with SSO",
+      "dismissWarning": "Dismiss warning",
+      "googleAction": "continue with Google",
+      "googleDisabled": "Google sign-in is turned off for this workspace. Use your email and password instead.",
+      "googleFailed": "Unable to continue with Google. Try again, or log in with your email and password."
+    },
+    "login": {
+      "checkSessionAction": "check your session",
+      "email": "Email",
+      "enterCredentials": "Enter your email address and password.",
       "forgotPassword": "Forgot password?",
       "logIn": "Log in",
+      "logInAction": "log in",
+      "logInFailed": "Unable to log in right now. Try again.",
       "loggingIn": "Logging in...",
       "noAccount": "Don't have an account?",
       "password": "Password",
+      "requestTimeout": "The login request timed out. Try again.",
+      "restoreAction": "restore your session",
+      "restoreFailed": "Unable to restore your session. Try again.",
       "retry": "Retry",
       "retrying": "Retrying...",
-      "signUp": "Sign up"
+      "signUp": "Sign up",
+      "signupDisabled": "This account can't be used to log in."
+    },
+    "onboarding": {
+      "accept": "Accept",
+      "acceptInvitationFailed": "Could not accept this invitation. Please try again.",
+      "acceptName": "Accept {name}",
+      "addTheDetailsWeShouldUse": "Add the details we should use across LiTT.",
+      "back": "Back",
+      "checkingYourInvitations": "Checking your invitations",
+      "connectAModel": "Connect a model",
+      "continue": "Continue",
+      "finish": "Finish",
+      "finishing": "Finishing...",
+      "fromInvitedByEmail": "From {invited_by_email}",
+      "invitationAcceptedFinishSetupToOpen": "Invitation accepted. Finish setup to open your organization workspace.",
+      "invitedAs": "Invited as",
+      "joined": "Joined",
+      "joinedAs": "Joined as",
+      "loadInvitationsFailed": "Could not load your invitations.",
+      "name": "Name",
+      "optionallyAddYourProfessionalSettingPrimary": "Optionally add your professional setting, primary jurisdiction, and the areas you work in.",
+      "organisation": "Organisation",
+      "organizationInvitations": "Organization invitations",
+      "pleaseTryAgain": "Please try again.",
+      "refreshInvitations": "Refresh invitations",
+      "saveDetailsAction": "save your details",
+      "saveDetailsFailed": "Unable to save your details. Try again.",
+      "saving": "Saving...",
+      "skip": "Skip",
+      "stepAddKey": "Add an API key for at least one provider to start using LiTT. Your key also works in an organization for any provider it has not set up, unless its owners turn that off. You can add or change keys later in Settings.",
+      "stepDeployment": "This deployment already provides models, so you can finish now. A key you add here replaces the deployment's for your Personal workspace.",
+      "stepJoined": "You joined {name}, and its models are available there, so you can finish now. {ownKeys, select, allowed {Your own keys work in your Personal workspace and, in {name}, for any provider it has not set up.} other {{name} runs on its own keys only, so keys you add here are for your Personal workspace.}}",
+      "stepKeySaved": "Your key is saved. Add more providers now, or change them later in Settings.",
+      "stepOf": "Step {step} of {total}",
+      "tellUsAboutYou": "Tell us about you",
+      "tryAgain": "Try again",
+      "unableToFinishSetup": "Unable to finish setup",
+      "youHaveNoPendingInvitationsYou": "You have no pending invitations. You can join an organization later from Settings.",
+      "yourLegalPractice": "Your legal practice"
+    },
+    "resetPassword": {
+      "checkLinkAction": "check your reset link",
+      "chooseANewPassword": "Choose a new password",
+      "confirmNewPassword": "Confirm new password",
+      "contactSupport": "Contact support",
+      "linkExpired": "This password-reset link has expired. Request a new one.",
+      "linkInvalidRequestNew": "This password-reset link is invalid or has expired. Request a new one.",
+      "logIn": "Log in",
+      "newPassword": "New password",
+      "passwordUpdated": "Password updated",
+      "passwordsDoNotMatch": "Passwords do not match.",
+      "reauthenticate": "Log in again before changing your password.",
+      "requestAnotherLink": "Request another link",
+      "resetLinkUnavailable": "Reset link unavailable",
+      "thisPasswordResetLinkIsInvalid": "This password-reset link is invalid or has expired.",
+      "thisShouldOnlyTakeAMoment": "This should only take a moment.",
+      "updateAction": "update your password",
+      "updateFailed": "Unable to update your password. Try again.",
+      "updatePassword": "Update password",
+      "updatingPassword": "Updating password...",
+      "useAtLeastMinPasswordLength": "Use at least {MIN_PASSWORD_LENGTH} characters.",
+      "verifyingYourResetLink": "Verifying your reset link...",
+      "yourPasswordHasBeenChangedLog": "Your password has been changed. Log in again with your new password."
     },
     "signup": {
       "accountCreated": "Account created!",
+      "checkCredentials": "Check your email address and password and try again.",
       "confirmPassword": "Confirm password",
       "continue": "Continue",
+      "createAction": "create your account",
+      "createFailed": "Unable to create your account right now. Try again.",
       "creatingAccount": "Creating account...",
       "email": "Email",
+      "emailRateLimit": "Too many signup emails have been requested. Wait a few minutes and try again.",
       "haveAccount": "Have an account?",
       "logIn": "Log in",
       "password": "Password",
       "passwordPlaceholder": "Min. {min} characters",
+      "passwordsDontMatch": "The two passwords don't match.",
       "redirecting": "Redirecting you to finish setting up your account...",
+      "requestTimeout": "The signup request timed out. Try again.",
       "signUp": "Sign up"
     },
     "sso": {
@@ -77,7 +249,31 @@
       "email": "Email",
       "retry": "Retry",
       "ssoLogin": "SSO login",
-      "tooManyAttempts": "Too many attempts. Wait a moment and try again."
+      "startAction": "start single sign-on",
+      "startFailed": "Unable to start single sign-on. Try again.",
+      "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
+      "validCompanyEmail": "Enter a valid company email address."
+    },
+    "verifyMfa": {
+      "authenticatorApp": "Authenticator app",
+      "cancel": "Cancel",
+      "codeInvalid": "That code is invalid or expired.",
+      "contactSupport": "Contact support",
+      "enterSixDigitCode": "Enter the six-digit code from your authenticator app.",
+      "enterTheSixDigitCodeFrom": "Enter the six-digit code from your authenticator app to continue.",
+      "factorNotRegistered": "This authenticator is no longer registered. Contact support to regain access.",
+      "loadAction": "load your authenticator",
+      "loadFailed": "Unable to load authenticator verification. Try again.",
+      "loadingAuthenticator": "Loading authenticator...",
+      "noVerifiedAuthenticator": "No verified authenticator is registered for this account. Contact support to regain access.",
+      "noVerifiedAuthenticatorFactorIsAvailable": "No verified authenticator factor is available for this session.",
+      "signOutAction": "sign out",
+      "signOutFailed": "Unable to sign out. Try again.",
+      "verify": "Verify",
+      "verifyCodeAction": "verify that code",
+      "verifyIdentityAction": "verify your identity",
+      "verifyYourIdentity": "Verify your identity",
+      "verifying": "Verifying..."
     }
   },
   "common": {
@@ -106,94 +302,6 @@
       "label": "Source code"
     }
   },
-  "playbooks": {
-    "newMenu": {
-      "trigger": "New playbook",
-      "models": "Models",
-      "withQuestions": "With questions",
-      "import": "Import from file",
-      "blank": "Start from scratch"
-    },
-    "intake": {
-      "breadcrumb": "Playbooks",
-      "title": "New playbook with questions",
-      "intro": "Answer what you know about this client; every question is optional. The model writes a draft and shows where each rule comes from.",
-      "name": "Playbook name (optional)",
-      "model": "Drafting model",
-      "noModel": "No model is available. <link>Configure an API key</link> or enable a local model.",
-      "question": "Question {number}",
-      "attachments": "Preferred clauses (question 8)",
-      "attachPrompt": "Drag and drop .docx or .pdf files here, or click to choose saved files or upload them.",
-      "attachMorePrompt": "Drop more files here, or click to add more.",
-      "tooManyAttachments": "You can attach up to {max, plural, one {# document} other {# documents}}.",
-      "wrongType": "Attach .docx or .pdf files.",
-      "tooLong": "Your answers add up to more than {max, number} characters. Shorten them.",
-      "noAnswers": "You haven't answered any question. Every rule of the draft will be general practice suggested by the AI, marked as without backing.",
-      "submit": "Write draft",
-      "submitting": "Sending…",
-      "loading": "Loading the questions…",
-      "loadFailed": "The questions couldn't be loaded.",
-      "loadAction": "load the questions",
-      "discardTitle": "Discard your answers?",
-      "discardMessage": "What you wrote and the files you attached will be lost.",
-      "discard": "Discard",
-      "startedTitle": "Writing your draft",
-      "startedMessage": "This can take a few minutes. We'll let you know when it's ready.",
-      "readyTitle": "Draft ready to review",
-      "readyMessage": "{name} is a draft: review its rules and mark it as ready before using it.",
-      "open": "Open",
-      "failedTitle": "The draft wasn't written",
-      "failedMessage": "The draft couldn't be written. Please try again.",
-      "backToQuestions": "Back to the questions",
-      "drafting": "Drafting…",
-      "draftingLabel": "Drafting",
-      "untitled": "Draft playbook",
-      "questions": {
-        "q1": "Who do you represent, and who is the usual counterparty?",
-        "q2": "The client's industry and size, and the regulation of its sector (financial, health, personal data, government…).",
-        "q3": "Type of document: lease, services, NDA, purchase, supply, employment…",
-        "q4": "Jurisdiction and governing law; whether it accepts arbitration, and where.",
-        "q5": "Risk appetite: conservative, balanced or flexible.",
-        "q6": "Red lines: what this client never accepts.",
-        "q7": "What it can give up in a negotiation.",
-        "q8": "The client's preferred clauses or wording; you can attach them.",
-        "q9": "Background: past disputes, the relationship with the counterparty, and what went wrong before.",
-        "q10": "Language, currency and signing format."
-      },
-      "q8Help": "You can attach up to {max, plural, one {# .docx or .pdf document} other {# .docx or .pdf documents}}.",
-      "submitAction": "write the draft",
-      "openAction": "open the draft"
-    },
-    "draft": {
-      "label": "Draft",
-      "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
-      "markReady": "Mark as ready",
-      "confirmTitle": "Mark as ready?",
-      "confirmMessage": "{unbacked, plural, one {# rule has} other {# rules have}} no backing and {unverified, plural, one {# legal reference is} other {# legal references are}} not verified. Once ready, it can be used in reviews and it can't go back to draft.",
-      "markReadyAction": "mark the playbook as ready"
-    },
-    "model": {
-      "label": "Model",
-      "mark": "Mark as model",
-      "unmark": "Remove model mark",
-      "markAction": "change the model mark",
-      "copyAction": "copy the model",
-      "copied": "Your copy of {name} is a draft. Review its rules and mark it as ready.",
-      "copiedTitle": "Copy created"
-    },
-    "origin": {
-      "answer": "Origin: answer to {count, plural, one {question} other {questions}} {questions}",
-      "clause": "Origin: attached clause {name}",
-      "clauseUnnamed": "Origin: attached clause",
-      "aiGeneral": "Origin: general practice suggested by the AI",
-      "unbacked": "Suggestion without backing, review",
-      "unverified": "Not verified",
-      "verified": "Verified in an attached document",
-      "answerLabel": "Answer to question {number}",
-      "quoteLabel": "Fragment of the attached document",
-      "legalRefs": "Legal references"
-    }
-  },
   "errors": {
     "code": {
       "access_inherited": "Access to this item comes from its project. Change it in the project.",
@@ -204,6 +312,7 @@
       "chat_route_credential_unavailable": "The key this conversation was started with is no longer available. Start a new conversation with a key you can use.",
       "chat_route_pinned": "This conversation is fixed to the model it was started with. Start a new conversation to use a different model.",
       "cookie_session_required": "Sign in again to continue.",
+      "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "email_address_invalid": "Enter a valid email address.",
       "firm_criteria_limit_reached": "Your firm holds as many criteria as it can. Remove one to write another.",
       "firm_criteria_rule_not_found": "That rule is not in a playbook of your firm that you can open.",
@@ -213,12 +322,9 @@
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
       "memory_revision_conflict": "Memory changed since it was loaded. Review what is saved now and try again.",
       "mfa_verification_required": "Finish two-factor verification to continue.",
-      "signup_invite_only": "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
       "org_creation_restricted": "Creating an organization needs an invitation.",
       "platform_admin_required": "Only platform administrators can do this.",
       "platform_invitation_pending": "This email already has a pending invitation.",
-      "terms_version_mismatch": "These are not the current Terms. Reload the page and try again.",
-      "document_version_conflict": "This document changed since you opened it. Reload it to continue.",
       "playbook_change_decided": "This change has already been decided. Reload the proposed changes.",
       "playbook_change_stale": "The rule changed after this change was proposed. Reload the proposed changes.",
       "playbook_changes_pending": "This playbook has proposed changes that haven't been decided. Accept or reject each one first.",
@@ -231,6 +337,8 @@
       "review_running": "This tabular review is already running.",
       "review_stale": "A newer version of this tabular review is available.",
       "session_expired": "Your session has expired. Sign in again to continue.",
+      "signup_invite_only": "LiTT is in closed beta: you need an invitation. If you've been invited, check your email; if not, ask the firm and sign up with that same email.",
+      "terms_version_mismatch": "These are not the current Terms. Reload the page and try again.",
       "training_approval_required": "This version is a trainee's draft: it needs approval before it leaves LiTT.",
       "training_confidence_required": "Mark how sure you are of your approach before asking. If you don't see the scale, reload the page.",
       "training_copy_needs_organization": "This file is a trainee's draft and can only be copied to an organization's workflow, where someone can approve it.",
@@ -248,7 +356,6 @@
       "training_pass_pupil_no_access": "Your pupil can't open this matter. Give them access before granting the pass.",
       "training_promotion_not_proposed": "LiTT no longer proposes this promotion. Reload to see the current evidence.",
       "training_pupil_has_mentor": "This member already has a mentor. An owner or admin can move them.",
-      "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
       "training_reading_document_unavailable": "This document is no longer available to read.",
       "training_reading_findings_recorded": "You already sent what you found; it cannot change.",
       "training_reading_no_document": "There is no document to propose yet. Work on a matter and come back.",
@@ -258,6 +365,7 @@
       "training_retake_not_due": "That topic isn't due to be retaken right now.",
       "training_retake_not_open": "This retake isn't waiting for an answer.",
       "training_retake_source_gone": "The notes this question came from no longer exist, so it can't be judged. This retake was closed; you can ask for a new one.",
+      "training_review_audit_stale": "The review was regenerated after you began this audit. Draw a new sample.",
       "training_review_in_progress": "This is already being generated.",
       "training_review_key_required": "Add a key for your model in Settings → Bring your own keys to generate reviews, questions and retakes.",
       "untrusted_origin": "The request origin is not allowed.",
@@ -287,6 +395,12 @@
       "validation": "Some of the information provided isn't valid."
     },
     "networkAt": "LiTT couldn't reach the server at {origin}. Check your connection and that the server is running, then try again.",
+    "page": {
+      "goHome": "Go home",
+      "home": "Home",
+      "pageNotFound": "Page not found",
+      "thePageYoureLookingForDoesnt": "The page you're looking for doesn't exist or may have been moved."
+    },
     "signIn": "Sign in",
     "support": {
       "diagnostics": "--- Details for support (please keep) ---",
@@ -319,6 +433,129 @@
       "upstream_unavailable": "The server is temporarily unreachable. Please try again shortly."
     }
   },
+  "legal": {
+    "checkbox": "I have read and accept the Terms and Conditions and the Privacy Notice",
+    "intro": "To keep using LiTT, read and accept the <terms>Terms and Conditions</terms> and the <privacy>Privacy Notice</privacy>.",
+    "notice": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Notice</privacy>.",
+    "onlySpanish": "Available in Spanish only.",
+    "saving": "Saving...",
+    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
+    "simplifiedTitle": "Simplified privacy notice",
+    "submit": "Accept and continue",
+    "title": "Terms and Privacy Notice"
+  },
+  "markdownDocument": {
+    "cancel": "Cancel",
+    "conflict": "Someone saved another version; reload to see the changes.",
+    "copyFailed": "Your browser did not allow copying. Select the text and copy it by hand.",
+    "copyText": "Copy my text",
+    "discard": "Discard changes",
+    "discardTitle": "Discard unsaved changes?",
+    "edit": "Edit",
+    "editorLabel": "Markdown editor",
+    "keepEditing": "Keep editing",
+    "loadError": "This Markdown file could not be loaded.",
+    "loadingLabel": "Loading document",
+    "modeLabel": "Editing mode",
+    "modeRich": "Formatted",
+    "modeText": "Text",
+    "reload": "Reload",
+    "richUnavailable": "The formatted editor would change this Markdown when saving (tables or syntax it does not keep). Keep editing in Text mode.",
+    "save": "Save",
+    "saving": "Saving…",
+    "sourceLabel": "Markdown source",
+    "textCopied": "Text copied",
+    "tooLarge": "This document is too large to save from the editor (the limit is 50 MB). Copy your text and split it, or upload it as a new version instead.",
+    "unsaved": "You have unsaved changes. If you leave now, you will lose them."
+  },
+  "playbooks": {
+    "draft": {
+      "banner": "Draft: it can't be used in reviews until an editor marks it as ready.",
+      "confirmMessage": "{unbacked, plural, one {# rule has} other {# rules have}} no backing and {unverified, plural, one {# legal reference is} other {# legal references are}} not verified. Once ready, it can be used in reviews and it can't go back to draft.",
+      "confirmTitle": "Mark as ready?",
+      "label": "Draft",
+      "markReady": "Mark as ready",
+      "markReadyAction": "mark the playbook as ready"
+    },
+    "intake": {
+      "attachMorePrompt": "Drop more files here, or click to add more.",
+      "attachPrompt": "Drag and drop .docx or .pdf files here, or click to choose saved files or upload them.",
+      "attachments": "Preferred clauses (question 8)",
+      "backToQuestions": "Back to the questions",
+      "breadcrumb": "Playbooks",
+      "discard": "Discard",
+      "discardMessage": "What you wrote and the files you attached will be lost.",
+      "discardTitle": "Discard your answers?",
+      "drafting": "Drafting…",
+      "draftingLabel": "Drafting",
+      "failedMessage": "The draft couldn't be written. Please try again.",
+      "failedTitle": "The draft wasn't written",
+      "intro": "Answer what you know about this client; every question is optional. The model writes a draft and shows where each rule comes from.",
+      "loadAction": "load the questions",
+      "loadFailed": "The questions couldn't be loaded.",
+      "loading": "Loading the questions…",
+      "model": "Drafting model",
+      "name": "Playbook name (optional)",
+      "noAnswers": "You haven't answered any question. Every rule of the draft will be general practice suggested by the AI, marked as without backing.",
+      "noModel": "No model is available. <link>Configure an API key</link> or enable a local model.",
+      "open": "Open",
+      "openAction": "open the draft",
+      "q8Help": "You can attach up to {max, plural, one {# .docx or .pdf document} other {# .docx or .pdf documents}}.",
+      "question": "Question {number}",
+      "questions": {
+        "q1": "Who do you represent, and who is the usual counterparty?",
+        "q10": "Language, currency and signing format.",
+        "q2": "The client's industry and size, and the regulation of its sector (financial, health, personal data, government…).",
+        "q3": "Type of document: lease, services, NDA, purchase, supply, employment…",
+        "q4": "Jurisdiction and governing law; whether it accepts arbitration, and where.",
+        "q5": "Risk appetite: conservative, balanced or flexible.",
+        "q6": "Red lines: what this client never accepts.",
+        "q7": "What it can give up in a negotiation.",
+        "q8": "The client's preferred clauses or wording; you can attach them.",
+        "q9": "Background: past disputes, the relationship with the counterparty, and what went wrong before."
+      },
+      "readyMessage": "{name} is a draft: review its rules and mark it as ready before using it.",
+      "readyTitle": "Draft ready to review",
+      "startedMessage": "This can take a few minutes. We'll let you know when it's ready.",
+      "startedTitle": "Writing your draft",
+      "submit": "Write draft",
+      "submitAction": "write the draft",
+      "submitting": "Sending…",
+      "title": "New playbook with questions",
+      "tooLong": "Your answers add up to more than {max, number} characters. Shorten them.",
+      "tooManyAttachments": "You can attach up to {max, plural, one {# document} other {# documents}}.",
+      "untitled": "Draft playbook",
+      "wrongType": "Attach .docx or .pdf files."
+    },
+    "model": {
+      "copied": "Your copy of {name} is a draft. Review its rules and mark it as ready.",
+      "copiedTitle": "Copy created",
+      "copyAction": "copy the model",
+      "label": "Model",
+      "mark": "Mark as model",
+      "markAction": "change the model mark",
+      "unmark": "Remove model mark"
+    },
+    "newMenu": {
+      "blank": "Start from scratch",
+      "import": "Import from file",
+      "models": "Models",
+      "trigger": "New playbook",
+      "withQuestions": "With questions"
+    },
+    "origin": {
+      "aiGeneral": "Origin: general practice suggested by the AI",
+      "answer": "Origin: answer to {count, plural, one {question} other {questions}} {questions}",
+      "answerLabel": "Answer to question {number}",
+      "clause": "Origin: attached clause {name}",
+      "clauseUnnamed": "Origin: attached clause",
+      "legalRefs": "Legal references",
+      "quoteLabel": "Fragment of the attached document",
+      "unbacked": "Suggestion without backing, review",
+      "unverified": "Not verified",
+      "verified": "Verified in an attached document"
+    }
+  },
   "projects": {
     "workspace": {
       "view": {
@@ -329,403 +566,177 @@
       }
     }
   },
+  "support": {
+    "askAQuestionAboutUsingLitt": "Ask a question about using LiTT",
+    "backToHome": "Back to Home",
+    "bugReport": "Bug Report",
+    "emailSupportDirectly": "Email support directly",
+    "featureRequest": "Feature Request",
+    "generalFeedbackOrOtherInquiries": "General feedback or other inquiries",
+    "ifTheBugIsInA": "If the bug is in a chat, mouseover the chat in the sidebar, click the dots, then click share and paste the link here.",
+    "linkToIssueOptional": "Link to issue (optional)",
+    "message": "Message",
+    "other": "Other",
+    "pleaseDescribeYourQuestionIssueOr": "Please describe your question, issue, or suggestion in detail...",
+    "question": "Question",
+    "reportSomethingThatIsntWorking": "Report something that isn't working",
+    "requestFailed": "Support request failed",
+    "sendAction": "send your message",
+    "sendFailed": "LiTT couldn't send your message. Try again, or email us directly.",
+    "sending": "Sending...",
+    "subject": "Subject",
+    "submit": "Submit",
+    "suggestANewFeatureOrImprovement": "Suggest a new feature or improvement",
+    "support": "Support",
+    "thankYouForHelpingUsImprove": "Thank you for helping us improve.",
+    "weWillGetInTouchWith": "We will get in touch with you soon via email.",
+    "wellRespondTo": "We'll respond to:",
+    "whatCanWeHelpYouWith": "What can we help you with?"
+  },
   "training": {
-    "stage": {
-      "pasante": "Intern",
-      "junior": "Junior",
-      "abogado": "Lawyer"
-    },
     "allPractices": "All practice areas",
-    "member": "Member",
-    "surface": {
-      "chat": "Chat",
-      "word": "Word",
-      "tabular": "Tabular review"
-    },
     "credentialSource": {
-      "personal": "Your key",
-      "organization": "Organization key",
       "deployment": "Deployment key",
-      "operator": "Operator endpoint"
-    },
-    "loadFailed": "This could not be loaded.",
-    "notes": {
-      "optional": "Note (optional)",
-      "max": "Up to {max} characters."
-    },
-    "mentorPanel": {
-      "title": "Mentor panel",
-      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils, and only you and each pupil see their data.",
-      "open": "Open the mentor panel",
-      "back": "Back to Training",
-      "allPupils": "All pupils",
-      "notMentor": "You are not a mentor in any organization. An owner or an admin of the organization designates mentors.",
-      "noPupils": "You have no pupils here yet. Add them in Training, under My pupils.",
-      "pendingReview": "{count, plural, =0 {No work waiting for review} one {# work waiting for review} other {# works waiting for review}}",
-      "passInForce": "Urgency pass in force until {end, date, medium} {end, time, short}",
-      "lastWork": "Last work: {date, date, medium} {date, time, short}",
-      "noWork": "No work yet",
-      "supervise": "Supervise",
-      "superviseName": "Supervise {name}",
-      "tabsLabel": "Supervision sections",
-      "tabs": {
-        "works": "Works",
-        "defenses": "Oral defense",
-        "passes": "Urgency pass",
-        "promotion": "Promotion",
-        "criterion": "Criterion",
-        "gym": "Gym"
-      },
-      "actions": {
-        "load": "load your pupils"
-      }
-    },
-    "review": {
-      "proposed": "What they proposed",
-      "aiCorrected": "What the AI corrected",
-      "doubts": "Where they hesitated",
-      "unverified": "What was left unverified",
-      "inferred": "inferred",
-      "approve": "Approve this version",
-      "approveName": "Approve this version: {text}",
-      "approved": "Approved",
-      "none": "Nothing.",
-      "generatedWith": "Generated with {model} on {date, date, medium} {date, time, short}",
-      "reviewedOn": "Reviewed on {date, date, medium} {date, time, short}",
-      "notReviewed": "Not reviewed yet",
-      "pending": "Generating the review…",
-      "failed": "The review could not be generated. You can try again."
-    },
-    "works": {
-      "intro": "Each work is a conversation with turn notes. The review shows four things; what was left unverified is computed, not generated.",
-      "empty": "This pupil has no work with turn notes yet.",
-      "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access.",
-      "untitled": "Untitled work",
-      "meta": "{surface} · {notes, plural, one {# note} other {# notes}} · {date, date, medium} {date, time, short}",
-      "noReview": "No review yet.",
-      "newWork": "There is new work since this review.",
-      "heldDrafts": "{count, plural, one {# sealed draft still waits for approval. Approve it with the button in its row above, or from its document.} other {# sealed drafts still wait for approval. Approve each with the button in its row above, or from its document.}}",
-      "generate": "Generate review",
-      "regenerate": "Regenerate",
-      "approveTitle": "Approve this version?",
-      "approveMessage": "You approve the pupil's draft as it is now. If its content changes, it needs a new approval.",
-      "approve": "Approve",
-      "markReviewed": "Mark as reviewed",
-      "keyRequired": "To generate reviews and defense questions you need an AI key you can use in this organization. There is no fallback to another key. You can still record a defense without AI.",
-      "key": "Key",
-      "chooseKey": "Choose a key",
-      "codes": {
-        "inProgress": "A review of this work is already being generated. Wait a moment and reload.",
-        "credentialUnavailable": "The key this review used is no longer available to you. Choose another key and try again.",
-        "keyRequired": "You need an AI key you can use in this organization."
-      },
-      "actions": {
-        "load": "load the works",
-        "generate": "generate the review",
-        "markReviewed": "mark the work as reviewed",
-        "approve": "approve the version"
-      }
-    },
-    "defenses": {
-      "intro": "Five questions on the pupil's own reasoning, one of them a change of facts. The outcome is recorded once; to correct it, hold a new defense.",
-      "newTitle": "New defense",
-      "work": "Work",
-      "noWork": "No particular work",
-      "practice": "Practice area",
-      "practiceFromWork": "The practice area of the work's matter",
-      "otherPractice": "Other practice area",
-      "practiceName": "Practice area name",
-      "create": "Create defense",
-      "empty": "No defenses yet.",
-      "createdOn": "Created on {date, date, medium} {date, time, short}",
-      "scheduled": "Scheduled; no outcome yet.",
-      "generateQuestions": "Generate questions",
-      "questionsPending": "Generating the questions…",
-      "questionsFailed": "The questions could not be generated. You can try again, or record the outcome without them.",
-      "changeOfFacts": "Change of facts",
-      "question": "Question {number}",
-      "listenFor": "Listen for: {text}",
-      "recordTitle": "Record the outcome",
-      "outcomeLabel": "Outcome",
-      "reasonLabel": "Reason",
-      "chooseReason": "Choose a reason",
-      "outcome": {
-        "approved": "Approved",
-        "not_approved": "Not approved"
-      },
-      "reason": {
-        "razonamiento_solido": "Sound reasoning",
-        "razonamiento_incompleto": "Incomplete reasoning",
-        "cambio_de_hechos_no_resuelto": "Did not resolve the change of facts",
-        "sin_sustento": "No support",
-        "otro": "Other"
-      },
-      "record": "Record outcome",
-      "confirmTitle": "Record this outcome?",
-      "confirmMessage": "{outcome}: {reason}. It is recorded once and cannot be changed; to correct it, hold a new defense.",
-      "result": "{outcome} on {date, date, medium} {date, time, short} · {reason}",
-      "codes": {
-        "alreadyRecorded": "This defense already has an outcome. Reload to see it."
-      },
-      "actions": {
-        "load": "load the defenses",
-        "create": "create the defense",
-        "generate": "generate the questions",
-        "record": "record the outcome"
-      }
-    },
-    "passes": {
-      "intro": "A pass lifts “Your turn first” for this pupil in one matter, for a limited time. Their drafts stay sealed until approved, and the pass does not apply in Word.",
-      "newTitle": "New pass",
-      "project": "Matter",
-      "chooseProject": "Choose a matter",
-      "noProjects": "You have no matters in this organization",
-      "noGrantableProjects": "The pupil cannot open any of your matters in this organization",
-      "duration": "Duration",
-      "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
-      "hours": "{hours, plural, one {# hour} other {# hours}}",
-      "reasonLabel": "Reason",
-      "reason": {
-        "plazo": "Deadline",
-        "audiencia": "Hearing",
-        "cliente_urgente": "Urgent client",
-        "otro": "Other"
-      },
-      "grant": "Grant pass",
-      "empty": "No passes yet.",
-      "inForce": "In force until {end, date, medium} {end, time, short}",
-      "ended": "Ended on {end, date, medium} {end, time, short}",
-      "revoked": "Revoked on {date, date, medium} {date, time, short}",
-      "unknownProject": "A matter you cannot see",
-      "revoke": "Revoke",
-      "revokeName": "Revoke the pass in {project}",
-      "confirmTitle": "Revoke this pass?",
-      "confirmMessage": "From the next turn, the pupil writes their own approach again in {project}.",
-      "codes": {
-        "duplicate": "This pupil already has a pass in force in that matter ending at the same time.",
-        "limit": "This pupil already has the most passes in force allowed. Revoke one first.",
-        "pupilNoAccess": "The pupil cannot open that matter, so the pass would not apply.",
-        "invalid": "Check the matter, the duration and the reason."
-      },
-      "actions": {
-        "load": "load the passes",
-        "grant": "grant the pass",
-        "revoke": "revoke the pass"
-      }
-    },
-    "promotion": {
-      "intro": "LiTT proposes; you decide. A proposal rests on this pupil's approved defenses and reviewed works since their stage last changed. The rest of the evidence is shown to you, not required.",
-      "empty": "This pupil has no stage to promote.",
-      "move": "{practice}: {from} → {to}",
-      "defenses": "Approved defenses: {count} of {required}",
-      "works": "Reviewed works: {count} of {required}",
-      "versions": "Approved drafts: {count}",
-      "proposed": "LiTT proposes this promotion.",
-      "notYet": "Not proposed yet.",
-      "blocked": {
-        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it.",
-        "not_approved_after": "A defense was not approved after the last approved one.",
-        "overconfident": "When they marked “Sure”, fewer than 3 of every 4 times coincided with the AI's answer. This blocks only the proposal."
-      },
-      "accept": "Accept proposal",
-      "confirmTitle": "Accept this promotion?",
-      "confirmMessage": "{practice}: from {from} to {to}. You can change the stage again later in Training.",
-      "codes": {
-        "notProposed": "This proposal no longer holds. Reload to see the current evidence."
-      },
-      "actions": {
-        "load": "load the promotion",
-        "accept": "accept the promotion"
-      },
-      "decideWithout": "You can change the stage without LiTT's proposal, whenever you want, in Training. The proposal is a reading of the evidence, not a condition.",
-      "audits": "Evaluated review audits: {count} ({adequate} adequate, {needsWork} need work)",
-      "readings": "Full readings handed in: {count}",
-      "calibration": {
-        "few": "Confidence calibration: not enough data yet ({count} of {required, plural, one {# marked turn} other {# marked turns}}). It does not block the proposal.",
-        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure, plural, one {# time} other {# times}}, among {count, plural, one {# marked turn} other {# marked turns}}. Coincidence is measured against the AI's answer, according to the AI's contrast.",
-        "needSure": "At least {required} “Sure” turns are needed to weigh them."
-      },
-      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}.",
-      "gym": "Gym: {attempts, plural, one {# attempt submitted} other {# attempts submitted}}, {found} of {errors} errors found, {hints, plural, one {# hint} other {# hints}}"
-    },
-    "mentorSeesMe": {
-      "title": "What my mentor sees of me",
-      "intro": "The same reviews, defenses and passes your mentor sees here. Nothing more, nothing less.",
-      "reviews": "Reviews of your work",
-      "noReviews": "No reviews yet.",
-      "defenses": "Oral defenses",
-      "noDefenses": "No defenses yet.",
-      "scheduled": "A defense is scheduled. You will see its questions and note once the outcome is recorded.",
-      "passes": "Urgency passes",
-      "noPasses": "No passes yet.",
-      "actions": {
-        "load": "load what your mentor sees"
-      }
+      "operator": "Operator endpoint",
+      "organization": "Organization key",
+      "personal": "Your key"
     },
     "criterion": {
-      "turn": {
-        "attemptLabel": "Your approach (2–3 lines)",
-        "attemptPlaceholder": "Before asking, write how you would solve it.",
-        "attemptReady": "Ready. After the answer you'll see a contrast with your approach.",
-        "attemptTooLong": "{length}/{max} characters. {excess, plural, one {# character over the limit} other {# characters over the limit}}.",
-        "attemptTooShort": "{length}/{min} characters. {missing, plural, one {# character to go} other {# characters to go}}. After the answer you'll see a contrast with your approach.",
-        "confidenceHelp": "One mark for the whole approach. Only you and your mentor see it.",
-        "confidenceLegend": "How sure are you of your approach?",
-        "confidenceLevels": {
-          "doubt": "I doubt it",
-          "fairlySure": "Fairly sure",
-          "guess": "Almost a guess",
-          "sure": "Sure"
-        },
-        "confidenceRequired": "Mark how sure you are before sending.",
-        "foundations": {
-          "solid": "solid",
-          "weak": "weak",
-          "wrong": "wrong"
-        },
-        "noteAttemptHeading": "Your approach",
-        "noteCloseHeading": "How the round went",
-        "noteConfidence": "Your mark: {level}",
-        "noteContrastFailed": "The contrast couldn't be generated",
-        "noteContrastHeading": "Contrast with your approach",
-        "noteContrastPending": "Generating contrast…",
-        "noteNotDelivered": "Not delivered",
-        "noteFoundation": "Basis: {basis}",
-        "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
-        "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",
-        "noteModeHint": "Hint {step} of 3",
-        "notePrivacy": "Private: only you and your mentor see this",
-        "noteQuestionHeading": "A question about your basis",
-        "noteRegion": "Private training notes",
-        "noteReply": "Reply",
-        "noteReplyLabel": "Reply to the question about your basis",
-        "noteRightForWrongReason": "Your conclusion matches, but its basis doesn't: right for the wrong reason.",
-        "noteVerdictHeading": "Match with the answer, per the AI contrast:",
-        "noteVerdictHeadingByMentor": "Match with the answer, per your mentor:",
-        "passLater": "Urgency pass in force until {end, date, long}, {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
-        "passToday": "Urgency pass in force until {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
-        "verdicts": {
-          "coincide": "Matches",
-          "noCoincide": "Doesn't match",
-          "parcial": "Partly matches"
-        }
-      },
-      "map": {
-        "title": "My criterion",
-        "intro": "How often your approach matched the AI's answer, by topic, and how often your own confidence matched. It counts coincidences with the AI's answer, never whether you were right. Only you and your mentor see it.",
+      "audit": {
         "actions": {
-          "load": "load your criterion",
-          "start": "generate the retake",
-          "answer": "send your answer"
+          "finish": "finish the audit",
+          "load": "load the audit",
+          "mark": "save your mark",
+          "start": "start the audit"
         },
-        "topics": {
-          "title": "By topic",
-          "empty": "You have no topics yet. They appear as you work with your approach first.",
-          "state": {
-            "strong": "Matching often",
-            "middle": "Mixed",
-            "weak": "Worth strengthening",
-            "few_data": "Not enough data yet"
-          },
-          "window": "Matched {hits} of the last {size, plural, one {# time} other {# times}}",
-          "events": "{count, plural, one {# time worked} other {# times worked}}",
-          "last": "last on {date, date, medium}",
-          "due": "Ready to retake"
-        },
-        "calibration": {
-          "title": "Your confidence",
-          "intro": "When you mark a level, how many times your approach matched the AI's answer.",
-          "empty": "You haven't marked your confidence on turns that count yet.",
-          "none": "No turns marked at this level",
-          "line": "When you mark it, it matched {coincided} of {marked, plural, one {# time} other {# times}}",
-          "partial": "{count, plural, one {# partly} other {# partly}}",
-          "fewData": "not enough data yet"
-        },
-        "hints": {
-          "title": "Hints",
-          "mine": {
-            "none": "You haven't asked for hints.",
-            "some": "{count, plural, one {You asked for # hint} other {You asked for # hints}}; the highest was step {level}."
-          },
-          "mentor": {
-            "none": "This pupil hasn't asked for hints.",
-            "some": "{count, plural, one {They asked for # hint} other {They asked for # hints}}; the highest was step {level}."
-          }
-        },
-        "retakes": {
-          "title": "Retakes",
-          "none": "When a weak topic has gone 14 days without work, you can retake it here with one new question.",
-          "noneMentor": "This pupil has no retakes.",
-          "start": "Retake this topic",
-          "startName": "Retake “{topic}”",
-          "generating": "Generating the question…",
-          "refresh": "Refresh",
-          "status": {
-            "pending": "Generating",
-            "open": "Waiting for your answer",
-            "answered": "Answered",
-            "failed": "The question couldn't be generated",
-            "closed": "The retake was closed because your notes are no longer there",
-            "closedMentor": "The retake was closed because the pupil's notes are no longer there"
-          },
-          "started": "started on {date, date, medium}",
-          "question": "Question",
+        "backToReview": "Back to the review",
+        "cell": {
           "answer": "Answer",
-          "contrast": "Contrast with what you wrote before (inferred by the AI)",
-          "verdict": "Match with what you wrote before, according to the AI contrast: {verdict}",
-          "answerLabel": "Your answer",
-          "tooShort": "{length}/{min} characters. Write at least {min} characters.",
-          "count": "{length}/{max} characters.",
-          "send": "Send answer",
-          "once": "You can send it once. The AI contrasts it with what you wrote before; it is not a grade."
+          "markLegend": "How is this answer?",
+          "mentorMark": "Your mentor marked this answer as {mark}.",
+          "noPassage": "This answer cites no passage.",
+          "note": "Your note (optional)",
+          "page": "page {page}",
+          "passages": "Cited passages",
+          "reasoning": "Reasoning",
+          "title": "{row} · {column}",
+          "withheld": "You cannot read the documents behind this answer, so it is not shown."
         },
         "codes": {
-          "notDue": "This topic isn't ready to retake yet.",
-          "inProgress": "You already have a retake in progress. Finish it first.",
-          "notOpen": "This retake is no longer waiting for an answer.",
-          "keyRequired": "You need an AI key you can use in this organization to make a retake.",
-          "credentialUnavailable": "The key this retake used is no longer available to you. Choose another key and try again."
+          "stale": "The review was regenerated after you began this audit. Draw a new sample."
+        },
+        "design": {
+          "clean": "No notes: every question has a name, a clear instruction and an answer format.",
+          "column": "Column {number}",
+          "instruction": "Instruction: {text}",
+          "intro": "LiTT checks them with fixed rules, not with a model. These are notes, never blocks.",
+          "noInstruction": "No instruction",
+          "title": "Your questions"
+        },
+        "evaluation": {
+          "adequate": "Adequate",
+          "needs_work": "To improve",
+          "title": "What your mentor said"
+        },
+        "intro": "Check this review's questions, then audit a sample of its answers by hand. It is for your learning: nothing is blocked and no model is used here.",
+        "lint": {
+          "duplicate_name": "{column} has the same name as {other}.",
+          "empty_instruction": "{column} has no instruction.",
+          "empty_name": "{column} has no name.",
+          "no_format": "{column} has no answer format. Pick one so the answers can be compared.",
+          "short_instruction": "The instruction of {column} is very short. Say what to look for and where."
+        },
+        "markWord": {
+          "correct": "correct",
+          "incomplete": "incomplete",
+          "incorrect": "incorrect"
+        },
+        "marks": {
+          "correct": "Correct",
+          "incomplete": "Incomplete",
+          "incorrect": "Incorrect"
         },
         "mentor": {
-          "title": "Map and calibration",
-          "intro": "How often this pupil's approach matched the AI's answer, by topic, how their confidence matched, the hints they asked for and their retakes. Counts of this pupil only: no score, ranking or comparison.",
-          "withoutAccess": "{count, plural, one {# note is from work in a matter you can't open, so it isn't counted here.} other {# notes are from work in matters you can't open, so they aren't counted here.}}",
-          "retakesWithoutAccess": "{count, plural, one {# retake is about work in a matter you can't open, so it isn't listed here.} other {# retakes are about work in matters you can't open, so they aren't listed here.}}",
           "actions": {
-            "load": "load the pupil's map"
-          }
+            "evaluate": "save the evaluation",
+            "load": "load the bulk reviews"
+          },
+          "clearMark": "Remove my mark",
+          "codes": {
+            "stale": "The review was regenerated after this audit, so it can no longer be evaluated."
+          },
+          "empty": "This pupil has no audits yet.",
+          "evaluate": "Your evaluation",
+          "evaluatedOn": "Evaluated on {date, date, medium}",
+          "intro": "The questions each pupil designed and the sample they audited by hand. You see a review only if you can open its matter. Your evaluation blocks nothing: it is evidence.",
+          "keepMark": "Keep their mark",
+          "noteLabel": "Note for the pupil (optional)",
+          "personMark": "Their mark: {mark}",
+          "save": "Save evaluation",
+          "started": "Started on {date, date, medium}",
+          "status": {
+            "complete": "Finished",
+            "open": "In progress",
+            "stale": "Expired: the review was regenerated"
+          },
+          "title": "Bulk reviews",
+          "unmarked": "Not marked yet",
+          "untitled": "Untitled review",
+          "waiting": "You can evaluate it once the pupil finishes the audit.",
+          "withheld": "You cannot read the documents behind this answer, so it is not shown.",
+          "withoutAccess": "{count, plural, one {# audit is on a review in a matter you cannot open.} other {# audits are on reviews in matters you cannot open.}} The owner of the matter can give you access.",
+          "yourMark": "Your mark"
+        },
+        "menu": "Audit questions",
+        "notApplies": "This audit is for people at the junior stage who work in a matter. You have no audit to do on this review.",
+        "pageTitle": "Audit your review",
+        "result": {
+          "column": "{column}: {marked} marked, {incorrect} incorrect, {incomplete} incomplete.",
+          "done": "You finished this audit on {date, date, medium}.",
+          "title": "Your result"
+        },
+        "sample": {
+          "finish": "Finish the audit",
+          "intro": "{count, plural, one {LiTT drew # answer} other {LiTT drew # answers}}, spread across the columns. You do not choose them. Read the cited passage and mark each one.",
+          "notReady": "Generate the review first: there are no finished answers to audit yet.",
+          "progress": "You marked {done} of {total}.",
+          "stale": "The review was regenerated after you began this audit, so it expired. Draw a new sample to audit again.",
+          "start": "Start the audit",
+          "startAnother": "Draw a new sample",
+          "title": "Audit by hand"
         }
       },
-      "modes": {
-        "closeButton": "Close the round",
-        "closeExplain": "See which objections you held, which you conceded and which you left undefended.",
-        "closeMessage": "I'm closing the round with the counterparty's lawyer.",
-        "counterpartButton": "Test it against the counterparty's lawyer",
-        "counterpartExplain": "The AI plays the other side and objects to your approach; it doesn't answer its own objections.",
-        "counterpartFull": "This round already had three turns. Close it to see the contrast.",
-        "counterpartStatus": "Turn {step} of 3 in this round.",
-        "hintButton": "Ask for a hint",
-        "hintExplain": "A hint points the way and never gives the answer. It starts from your approach and your question.",
-        "hintNext": "Next: hint {level} of 3, {name}.",
-        "hintsDone": "You already asked for all three hints in this conversation. Send your question to see the answer.",
-        "needsQuestion": "Write your question first.",
-        "region": "Help for this turn",
-        "rungState": {
-          "next": "next",
-          "pending": "pending",
-          "used": "used"
+      "authorship": {
+        "ai": "From the assistant",
+        "baseline": {
+          "file": "This version started from an uploaded file. LiTT doesn't know who wrote a file, so that text is undetermined.",
+          "unknown": "LiTT has no record of the text this version started from (or the file the assistant generated has been replaced), so it only places text from accepted assistant edits. The rest is undetermined."
         },
-        "rungs": {
-          "focus": "Focus",
-          "review": "What to review",
-          "where": "Where to look"
+        "edits": "Assistant edits: {accepted, plural, one {# accepted} other {# accepted}}, {rejected, plural, one {# rejected} other {# rejected}}, {pending, plural, one {# pending} other {# pending}}.",
+        "estimateNote": "Estimate, rounded to the nearest 5%.",
+        "hide": "Hide estimated authorship",
+        "loadFailed": "Couldn't load the estimated authorship.",
+        "loadFailedAction": "load the estimated authorship",
+        "pending": "{count, plural, one {# assistant edit is still pending, so its text is} other {# assistant edits are still pending, so their text is}} undetermined until someone accepts or rejects {count, plural, one {it} other {them}}.",
+        "person": "Written by a person",
+        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated and nobody has replaced. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
+        "share": "{percent}%",
+        "show": "Show estimated authorship",
+        "status": {
+          "empty": "Undetermined: this version has no text to analyze.",
+          "textFailed": "Undetermined: LiTT couldn't read the text of this version.",
+          "textPending": "Undetermined: LiTT hasn't finished reading the text of this version. Try again in a moment.",
+          "tooLarge": "Undetermined: this version is too long to estimate."
         },
-        "rungsLabel": "Rungs of the hint ladder"
+        "textless": "{count, plural, one {# page has} other {# pages have}} no text LiTT can read (probably scanned), so {count, plural, one {it isn't} other {they aren't}} counted.",
+        "title": "Estimated authorship",
+        "undetermined": "Undetermined",
+        "words": "{count, plural, one {# word} other {# words}} analyzed."
       },
       "backing": {
         "actions": {
-          "save": "save your mark on this conclusion",
-          "load": "load the accountability checks"
+          "load": "load the accountability checks",
+          "save": "save your mark on this conclusion"
         },
         "citationRef": "Citation {ref}",
         "failed": "The conclusions of this answer couldn't be checked.",
@@ -773,248 +784,6 @@
         "title": "Your conclusions and their sources",
         "unverifiedReferences": "Not verified: {references}. Confirm it in the official source.",
         "verified": "I verified it"
-      },
-      "audit": {
-        "pageTitle": "Audit your review",
-        "intro": "Check this review's questions, then audit a sample of its answers by hand. It is for your learning: nothing is blocked and no model is used here.",
-        "backToReview": "Back to the review",
-        "notApplies": "This audit is for people at the junior stage who work in a matter. You have no audit to do on this review.",
-        "menu": "Audit questions",
-        "design": {
-          "title": "Your questions",
-          "intro": "LiTT checks them with fixed rules, not with a model. These are notes, never blocks.",
-          "clean": "No notes: every question has a name, a clear instruction and an answer format.",
-          "column": "Column {number}",
-          "instruction": "Instruction: {text}",
-          "noInstruction": "No instruction"
-        },
-        "lint": {
-          "empty_name": "{column} has no name.",
-          "duplicate_name": "{column} has the same name as {other}.",
-          "empty_instruction": "{column} has no instruction.",
-          "short_instruction": "The instruction of {column} is very short. Say what to look for and where.",
-          "no_format": "{column} has no answer format. Pick one so the answers can be compared."
-        },
-        "sample": {
-          "title": "Audit by hand",
-          "intro": "{count, plural, one {LiTT drew # answer} other {LiTT drew # answers}}, spread across the columns. You do not choose them. Read the cited passage and mark each one.",
-          "notReady": "Generate the review first: there are no finished answers to audit yet.",
-          "start": "Start the audit",
-          "stale": "The review was regenerated after you began this audit, so it expired. Draw a new sample to audit again.",
-          "startAnother": "Draw a new sample",
-          "progress": "You marked {done} of {total}.",
-          "finish": "Finish the audit"
-        },
-        "cell": {
-          "title": "{row} · {column}",
-          "answer": "Answer",
-          "reasoning": "Reasoning",
-          "passages": "Cited passages",
-          "page": "page {page}",
-          "noPassage": "This answer cites no passage.",
-          "withheld": "You cannot read the documents behind this answer, so it is not shown.",
-          "markLegend": "How is this answer?",
-          "note": "Your note (optional)",
-          "mentorMark": "Your mentor marked this answer as {mark}."
-        },
-        "marks": {
-          "correct": "Correct",
-          "incomplete": "Incomplete",
-          "incorrect": "Incorrect"
-        },
-        "markWord": {
-          "correct": "correct",
-          "incomplete": "incomplete",
-          "incorrect": "incorrect"
-        },
-        "result": {
-          "title": "Your result",
-          "column": "{column}: {marked} marked, {incorrect} incorrect, {incomplete} incomplete.",
-          "done": "You finished this audit on {date, date, medium}."
-        },
-        "evaluation": {
-          "title": "What your mentor said",
-          "adequate": "Adequate",
-          "needs_work": "To improve"
-        },
-        "mentor": {
-          "title": "Bulk reviews",
-          "intro": "The questions each pupil designed and the sample they audited by hand. You see a review only if you can open its matter. Your evaluation blocks nothing: it is evidence.",
-          "empty": "This pupil has no audits yet.",
-          "withoutAccess": "{count, plural, one {# audit is on a review in a matter you cannot open.} other {# audits are on reviews in matters you cannot open.}} The owner of the matter can give you access.",
-          "untitled": "Untitled review",
-          "status": {
-            "open": "In progress",
-            "complete": "Finished",
-            "stale": "Expired: the review was regenerated"
-          },
-          "started": "Started on {date, date, medium}",
-          "personMark": "Their mark: {mark}",
-          "unmarked": "Not marked yet",
-          "yourMark": "Your mark",
-          "keepMark": "Keep their mark",
-          "clearMark": "Remove my mark",
-          "withheld": "You cannot read the documents behind this answer, so it is not shown.",
-          "evaluate": "Your evaluation",
-          "noteLabel": "Note for the pupil (optional)",
-          "save": "Save evaluation",
-          "waiting": "You can evaluate it once the pupil finishes the audit.",
-          "evaluatedOn": "Evaluated on {date, date, medium}",
-          "codes": {
-            "stale": "The review was regenerated after this audit, so it can no longer be evaluated."
-          },
-          "actions": {
-            "load": "load the bulk reviews",
-            "evaluate": "save the evaluation"
-          }
-        },
-        "actions": {
-          "load": "load the audit",
-          "start": "start the audit",
-          "mark": "save your mark",
-          "finish": "finish the audit"
-        },
-        "codes": {
-          "stale": "The review was regenerated after you began this audit. Draw a new sample."
-        }
-      },
-      "reading": {
-        "title": "Full reading",
-        "intro": "Once a month you read one whole document without the assistant and write what you found. Then LiTT compares it with what the machine found in the same text.",
-        "status": {
-          "assigned": "Reading",
-          "submitted": "Sent, not compared",
-          "comparing": "Comparing",
-          "compared": "Compared",
-          "failed": "Comparison failed"
-        },
-        "notice": {
-          "due": "A full reading is due.",
-          "open": "You have a full reading in progress.",
-          "next": "Your next full reading is from {date, date, medium}.",
-          "start": "Start the reading",
-          "continue": "Continue the reading",
-          "history": "Your full readings",
-          "item": "{date, date, medium}: {status}",
-          "view": "View",
-          "viewName": "View the reading of {date, date, medium}"
-        },
-        "page": {
-          "back": "Back to Training",
-          "title": "Full reading",
-          "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
-          "documentHeading": "Document",
-          "documentUnavailable": "This document is no longer available to read.",
-          "changeDocument": "Change the document",
-          "changeUsed": "You already changed the document once.",
-          "changeHint": "You can change it only once.",
-          "findingsLabel": "What you found",
-          "findingsHelp": "Write one finding per line: risks, missing data, deadlines, amounts or parties that do not add up.",
-          "findingsCount": "{count} of {max} characters",
-          "findingsMin": "Write at least {min} characters.",
-          "send": "Send what I found",
-          "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
-          "sentOn": "Sent on {date, date, medium}",
-          "compare": "Compare with the machine",
-          "comparing": "The machine is reading the document and comparing. This can take a minute.",
-          "failed": "The comparison failed. Nothing you wrote changed; you can try again.",
-          "retry": "Try again",
-          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
-          "check": "Check again"
-        },
-        "result": {
-          "both": "Matched",
-          "onlyYou": "Only you saw",
-          "onlyMachine": "Only the machine saw",
-          "none": "Nothing here.",
-          "you": "You wrote",
-          "machine": "The machine found",
-          "passage": "Passage in the document",
-          "inferred": "inferred",
-          "howItWorks": "The machine's findings count only if their quote is in the document. The AI proposes which of yours and of the machine's say the same thing; check it.",
-          "discarded": "{count, plural, one {# machine finding was left out because its quote is not in the document.} other {# machine findings were left out because their quote is not in the document.}}",
-          "noMachine": "The machine found nothing it could quote from the document."
-        },
-        "mentor": {
-          "title": "Full readings",
-          "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
-          "empty": "No full readings yet.",
-          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in matters you cannot open.}}",
-          "notSent": "Not sent yet",
-          "sentOn": "Sent on {date, date, medium}",
-          "started": "Started on {date, date, medium}",
-          "model": "Compared with {model}"
-        },
-        "codes": {
-          "notDue": "No full reading is due for you right now.",
-          "noDocument": "There is no document to propose yet. Work on a matter and come back.",
-          "swapUsed": "You already changed the document once.",
-          "findingsRecorded": "You already sent what you found; it cannot change.",
-          "documentUnavailable": "This document is no longer available to read."
-        },
-        "actions": {
-          "load": "load the full reading",
-          "start": "start the full reading",
-          "swap": "change the document",
-          "send": "send what you found",
-          "compare": "compare your reading"
-        }
-      },
-      "corrections": {
-        "tab": "Corrections",
-        "title": "Turn corrections into rules",
-        "intro": "Add what you corrected in your pupil's work. LiTT proposes general rules for this playbook; nothing changes until you accept each one.",
-        "privacy": "Rules are written without names, amounts or dates. Your name is shown as their source; your pupil's is not.",
-        "pupil": "Pupil",
-        "pupilPlaceholder": "Choose a pupil",
-        "model": "Model",
-        "correction": "Correction {number}",
-        "before": "Text as it was (optional)",
-        "after": "Corrected text",
-        "comment": "Your comment (optional)",
-        "remove": "Remove correction {number}",
-        "add": "Add correction",
-        "limit": "Up to {max} corrections at a time.",
-        "send": "Propose rules",
-        "sending": "Sending…",
-        "sendAction": "send the corrections",
-        "running": "Preparing the proposed rules…",
-        "failed": "The proposed rules could not be prepared.",
-        "noChanges": "These corrections didn't produce any change.",
-        "pendingTitle": "Proposed changes",
-        "pendingEmpty": "No changes are waiting for a decision.",
-        "pendingBlocked": "Decide every proposed change before sending more corrections.",
-        "loading": "Loading the proposed changes…",
-        "loadAction": "load the proposed changes",
-        "op": {
-          "add_rule": "New rule",
-          "modify_rule": "Change to a rule",
-          "remove_rule": "Remove a rule"
-        },
-        "source": "Correction by {name}",
-        "sourceUnnamed": "From a correction",
-        "origin": "Origin: correction by {name}",
-        "originUnnamed": "Origin: correction",
-        "why": "Why",
-        "beforeRule": "Before",
-        "afterRule": "After",
-        "none": "None",
-        "accept": "Accept",
-        "reject": "Reject",
-        "accepted": "Change accepted.",
-        "rejected": "Change rejected.",
-        "acceptAction": "accept the change",
-        "rejectAction": "reject the change",
-        "fields": {
-          "name": "Name",
-          "concept": "Concept",
-          "guidance": "Guidance",
-          "standard": "Standard position",
-          "fallbacks": "Fallback positions",
-          "unacceptable": "Unacceptable positions",
-          "conditions": "Conditions",
-          "actions": "Actions"
-        }
       },
       "contrast": {
         "actions": {
@@ -1099,34 +868,148 @@
           "unavailable": "The criteria contrast isn't available right now. Subagents may be turned off on this server."
         }
       },
-      "authorship": {
-        "ai": "From the assistant",
-        "baseline": {
-          "file": "This version started from an uploaded file. LiTT doesn't know who wrote a file, so that text is undetermined.",
-          "unknown": "LiTT has no record of the text this version started from (or the file the assistant generated has been replaced), so it only places text from accepted assistant edits. The rest is undetermined."
+      "corrections": {
+        "accept": "Accept",
+        "acceptAction": "accept the change",
+        "accepted": "Change accepted.",
+        "add": "Add correction",
+        "after": "Corrected text",
+        "afterRule": "After",
+        "before": "Text as it was (optional)",
+        "beforeRule": "Before",
+        "comment": "Your comment (optional)",
+        "correction": "Correction {number}",
+        "failed": "The proposed rules could not be prepared.",
+        "fields": {
+          "actions": "Actions",
+          "concept": "Concept",
+          "conditions": "Conditions",
+          "fallbacks": "Fallback positions",
+          "guidance": "Guidance",
+          "name": "Name",
+          "standard": "Standard position",
+          "unacceptable": "Unacceptable positions"
         },
-        "edits": "Assistant edits: {accepted, plural, one {# accepted} other {# accepted}}, {rejected, plural, one {# rejected} other {# rejected}}, {pending, plural, one {# pending} other {# pending}}.",
-        "estimateNote": "Estimate, rounded to the nearest 5%.",
-        "hide": "Hide estimated authorship",
-        "loadFailed": "Couldn't load the estimated authorship.",
-        "loadFailedAction": "load the estimated authorship",
-        "pending": "{count, plural, one {# assistant edit is still pending, so its text is} other {# assistant edits are still pending, so their text is}} undetermined until someone accepts or rejects {count, plural, one {it} other {them}}.",
-        "person": "Written by a person",
-        "rule": "This is an estimate from what LiTT recorded, not an AI detector. A sentence counts as the assistant's only if it appears word for word in an assistant edit that someone accepted, or in text the assistant generated and nobody has replaced. A sentence someone rewrites counts as written by a person. What LiTT can't place is shown as undetermined.",
-        "share": "{percent}%",
-        "show": "Show estimated authorship",
-        "status": {
-          "empty": "Undetermined: this version has no text to analyze.",
-          "textFailed": "Undetermined: LiTT couldn't read the text of this version.",
-          "textPending": "Undetermined: LiTT hasn't finished reading the text of this version. Try again in a moment.",
-          "tooLarge": "Undetermined: this version is too long to estimate."
+        "intro": "Add what you corrected in your pupil's work. LiTT proposes general rules for this playbook; nothing changes until you accept each one.",
+        "limit": "Up to {max} corrections at a time.",
+        "loadAction": "load the proposed changes",
+        "loading": "Loading the proposed changes…",
+        "model": "Model",
+        "noChanges": "These corrections didn't produce any change.",
+        "none": "None",
+        "op": {
+          "add_rule": "New rule",
+          "modify_rule": "Change to a rule",
+          "remove_rule": "Remove a rule"
         },
-        "textless": "{count, plural, one {# page has} other {# pages have}} no text LiTT can read (probably scanned), so {count, plural, one {it isn't} other {they aren't}} counted.",
-        "title": "Estimated authorship",
-        "undetermined": "Undetermined",
-        "words": "{count, plural, one {# word} other {# words}} analyzed."
+        "origin": "Origin: correction by {name}",
+        "originUnnamed": "Origin: correction",
+        "pendingBlocked": "Decide every proposed change before sending more corrections.",
+        "pendingEmpty": "No changes are waiting for a decision.",
+        "pendingTitle": "Proposed changes",
+        "privacy": "Rules are written without names, amounts or dates. Your name is shown as their source; your pupil's is not.",
+        "pupil": "Pupil",
+        "pupilPlaceholder": "Choose a pupil",
+        "reject": "Reject",
+        "rejectAction": "reject the change",
+        "rejected": "Change rejected.",
+        "remove": "Remove correction {number}",
+        "running": "Preparing the proposed rules…",
+        "send": "Propose rules",
+        "sendAction": "send the corrections",
+        "sending": "Sending…",
+        "source": "Correction by {name}",
+        "sourceUnnamed": "From a correction",
+        "tab": "Corrections",
+        "title": "Turn corrections into rules",
+        "why": "Why"
       },
-      "promotion": {},
+      "map": {
+        "actions": {
+          "answer": "send your answer",
+          "load": "load your criterion",
+          "start": "generate the retake"
+        },
+        "calibration": {
+          "empty": "You haven't marked your confidence on turns that count yet.",
+          "fewData": "not enough data yet",
+          "intro": "When you mark a level, how many times your approach matched the AI's answer.",
+          "line": "When you mark it, it matched {coincided} of {marked, plural, one {# time} other {# times}}",
+          "none": "No turns marked at this level",
+          "partial": "{count, plural, one {# partly} other {# partly}}",
+          "title": "Your confidence"
+        },
+        "codes": {
+          "credentialUnavailable": "The key this retake used is no longer available to you. Choose another key and try again.",
+          "inProgress": "You already have a retake in progress. Finish it first.",
+          "keyRequired": "You need an AI key you can use in this organization to make a retake.",
+          "notDue": "This topic isn't ready to retake yet.",
+          "notOpen": "This retake is no longer waiting for an answer."
+        },
+        "hints": {
+          "mentor": {
+            "none": "This pupil hasn't asked for hints.",
+            "some": "{count, plural, one {They asked for # hint} other {They asked for # hints}}; the highest was step {level}."
+          },
+          "mine": {
+            "none": "You haven't asked for hints.",
+            "some": "{count, plural, one {You asked for # hint} other {You asked for # hints}}; the highest was step {level}."
+          },
+          "title": "Hints"
+        },
+        "intro": "How often your approach matched the AI's answer, by topic, and how often your own confidence matched. It counts coincidences with the AI's answer, never whether you were right. Only you and your mentor see it.",
+        "mentor": {
+          "actions": {
+            "load": "load the pupil's map"
+          },
+          "intro": "How often this pupil's approach matched the AI's answer, by topic, how their confidence matched, the hints they asked for and their retakes. Counts of this pupil only: no score, ranking or comparison.",
+          "retakesWithoutAccess": "{count, plural, one {# retake is about work in a matter you can't open, so it isn't listed here.} other {# retakes are about work in matters you can't open, so they aren't listed here.}}",
+          "title": "Map and calibration",
+          "withoutAccess": "{count, plural, one {# note is from work in a matter you can't open, so it isn't counted here.} other {# notes are from work in matters you can't open, so they aren't counted here.}}"
+        },
+        "retakes": {
+          "answer": "Answer",
+          "answerLabel": "Your answer",
+          "contrast": "Contrast with what you wrote before (inferred by the AI)",
+          "count": "{length}/{max} characters.",
+          "generating": "Generating the question…",
+          "none": "When a weak topic has gone 14 days without work, you can retake it here with one new question.",
+          "noneMentor": "This pupil has no retakes.",
+          "once": "You can send it once. The AI contrasts it with what you wrote before; it is not a grade.",
+          "question": "Question",
+          "refresh": "Refresh",
+          "send": "Send answer",
+          "start": "Retake this topic",
+          "startName": "Retake “{topic}”",
+          "started": "started on {date, date, medium}",
+          "status": {
+            "answered": "Answered",
+            "closed": "The retake was closed because your notes are no longer there",
+            "closedMentor": "The retake was closed because the pupil's notes are no longer there",
+            "failed": "The question couldn't be generated",
+            "open": "Waiting for your answer",
+            "pending": "Generating"
+          },
+          "title": "Retakes",
+          "tooShort": "{length}/{min} characters. Write at least {min} characters.",
+          "verdict": "Match with what you wrote before, according to the AI contrast: {verdict}"
+        },
+        "title": "My criterion",
+        "topics": {
+          "due": "Ready to retake",
+          "empty": "You have no topics yet. They appear as you work with your approach first.",
+          "events": "{count, plural, one {# time worked} other {# times worked}}",
+          "last": "last on {date, date, medium}",
+          "state": {
+            "few_data": "Not enough data yet",
+            "middle": "Mixed",
+            "strong": "Matching often",
+            "weak": "Worth strengthening"
+          },
+          "title": "By topic",
+          "window": "Matched {hits} of the last {size, plural, one {# time} other {# times}}"
+        }
+      },
       "methodology": {
         "annex": {
           "headers": {
@@ -1256,197 +1139,621 @@
           "person": "Given by the person",
           "personUnverified": "Not found in your message (unverified)"
         }
+      },
+      "modes": {
+        "closeButton": "Close the round",
+        "closeExplain": "See which objections you held, which you conceded and which you left undefended.",
+        "closeMessage": "I'm closing the round with the counterparty's lawyer.",
+        "counterpartButton": "Test it against the counterparty's lawyer",
+        "counterpartExplain": "The AI plays the other side and objects to your approach; it doesn't answer its own objections.",
+        "counterpartFull": "This round already had three turns. Close it to see the contrast.",
+        "counterpartStatus": "Turn {step} of 3 in this round.",
+        "hintButton": "Ask for a hint",
+        "hintExplain": "A hint points the way and never gives the answer. It starts from your approach and your question.",
+        "hintNext": "Next: hint {level} of 3, {name}.",
+        "hintsDone": "You already asked for all three hints in this conversation. Send your question to see the answer.",
+        "needsQuestion": "Write your question first.",
+        "region": "Help for this turn",
+        "rungState": {
+          "next": "next",
+          "pending": "pending",
+          "used": "used"
+        },
+        "rungs": {
+          "focus": "Focus",
+          "review": "What to review",
+          "where": "Where to look"
+        },
+        "rungsLabel": "Rungs of the hint ladder"
+      },
+      "promotion": {},
+      "reading": {
+        "actions": {
+          "compare": "compare your reading",
+          "load": "load the full reading",
+          "send": "send what you found",
+          "start": "start the full reading",
+          "swap": "change the document"
+        },
+        "codes": {
+          "documentUnavailable": "This document is no longer available to read.",
+          "findingsRecorded": "You already sent what you found; it cannot change.",
+          "noDocument": "There is no document to propose yet. Work on a matter and come back.",
+          "notDue": "No full reading is due for you right now.",
+          "swapUsed": "You already changed the document once."
+        },
+        "intro": "Once a month you read one whole document without the assistant and write what you found. Then LiTT compares it with what the machine found in the same text.",
+        "mentor": {
+          "empty": "No full readings yet.",
+          "hidden": "{count, plural, one {# reading is in a matter you cannot open.} other {# readings are in matters you cannot open.}}",
+          "intro": "Each month a junior reads one whole document without the assistant and writes what they found before seeing the machine's findings. It is evidence, not a promotion requirement.",
+          "model": "Compared with {model}",
+          "notSent": "Not sent yet",
+          "sentOn": "Sent on {date, date, medium}",
+          "started": "Started on {date, date, medium}",
+          "title": "Full readings"
+        },
+        "notice": {
+          "continue": "Continue the reading",
+          "due": "A full reading is due.",
+          "history": "Your full readings",
+          "item": "{date, date, medium}: {status}",
+          "next": "Your next full reading is from {date, date, medium}.",
+          "open": "You have a full reading in progress.",
+          "start": "Start the reading",
+          "view": "View",
+          "viewName": "View the reading of {date, date, medium}"
+        },
+        "page": {
+          "back": "Back to Training",
+          "changeDocument": "Change the document",
+          "changeHint": "You can change it only once.",
+          "changeUsed": "You already changed the document once.",
+          "check": "Check again",
+          "compare": "Compare with the machine",
+          "comparing": "The machine is reading the document and comparing. This can take a minute.",
+          "documentHeading": "Document",
+          "documentUnavailable": "This document is no longer available to read.",
+          "failed": "The comparison failed. Nothing you wrote changed; you can try again.",
+          "findingsCount": "{count} of {max} characters",
+          "findingsHelp": "Write one finding per line: risks, missing data, deadlines, amounts or parties that do not add up.",
+          "findingsLabel": "What you found",
+          "findingsMin": "Write at least {min} characters.",
+          "noAssistant": "This page has no assistant on purpose. Read the document yourself and write what you found. LiTT cannot check that you read without help: it is your own statement.",
+          "noKey": "To compare you need a key for your model. Add it in Settings, under Bring Your Own Keys (BYOK).",
+          "retry": "Try again",
+          "send": "Send what I found",
+          "sendHint": "After sending, you cannot change it. Then you can compare it with what the machine found.",
+          "sentOn": "Sent on {date, date, medium}",
+          "title": "Full reading"
+        },
+        "result": {
+          "both": "Matched",
+          "discarded": "{count, plural, one {# machine finding was left out because its quote is not in the document.} other {# machine findings were left out because their quote is not in the document.}}",
+          "howItWorks": "The machine's findings count only if their quote is in the document. The AI proposes which of yours and of the machine's say the same thing; check it.",
+          "inferred": "inferred",
+          "machine": "The machine found",
+          "noMachine": "The machine found nothing it could quote from the document.",
+          "none": "Nothing here.",
+          "onlyMachine": "Only the machine saw",
+          "onlyYou": "Only you saw",
+          "passage": "Passage in the document",
+          "you": "You wrote"
+        },
+        "status": {
+          "assigned": "Reading",
+          "compared": "Compared",
+          "comparing": "Comparing",
+          "failed": "Comparison failed",
+          "submitted": "Sent, not compared"
+        },
+        "title": "Full reading"
+      },
+      "turn": {
+        "attemptLabel": "Your approach (2–3 lines)",
+        "attemptPlaceholder": "Before asking, write how you would solve it.",
+        "attemptReady": "Ready. After the answer you'll see a contrast with your approach.",
+        "attemptTooLong": "{length}/{max} characters. {excess, plural, one {# character over the limit} other {# characters over the limit}}.",
+        "attemptTooShort": "{length}/{min} characters. {missing, plural, one {# character to go} other {# characters to go}}. After the answer you'll see a contrast with your approach.",
+        "confidenceHelp": "One mark for the whole approach. Only you and your mentor see it.",
+        "confidenceLegend": "How sure are you of your approach?",
+        "confidenceLevels": {
+          "doubt": "I doubt it",
+          "fairlySure": "Fairly sure",
+          "guess": "Almost a guess",
+          "sure": "Sure"
+        },
+        "confidenceRequired": "Mark how sure you are before sending.",
+        "foundations": {
+          "solid": "solid",
+          "weak": "weak",
+          "wrong": "wrong"
+        },
+        "noteAttemptHeading": "Your approach",
+        "noteCloseHeading": "How the round went",
+        "noteConfidence": "Your mark: {level}",
+        "noteContrastFailed": "The contrast couldn't be generated",
+        "noteContrastHeading": "Contrast with your approach",
+        "noteContrastPending": "Generating contrast…",
+        "noteFoundation": "Basis: {basis}",
+        "noteModeCounterpart": "Round with the counterparty's lawyer, turn {step} of 3",
+        "noteModeCounterpartClose": "Close of the round with the counterparty's lawyer",
+        "noteModeHint": "Hint {step} of 3",
+        "noteNotDelivered": "Not delivered",
+        "notePrivacy": "Private: only you and your mentor see this",
+        "noteQuestionHeading": "A question about your basis",
+        "noteRegion": "Private training notes",
+        "noteReply": "Reply",
+        "noteReplyLabel": "Reply to the question about your basis",
+        "noteRightForWrongReason": "Your conclusion matches, but its basis doesn't: right for the wrong reason.",
+        "noteVerdictHeading": "Match with the answer, per the AI contrast:",
+        "noteVerdictHeadingByMentor": "Match with the answer, per your mentor:",
+        "passLater": "Urgency pass in force until {end, date, long}, {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "passToday": "Urgency pass in force until {end, time, short}. Your mentor granted it for this matter; what you produce still needs approval before it leaves.",
+        "verdicts": {
+          "coincide": "Matches",
+          "noCoincide": "Doesn't match",
+          "parcial": "Partly matches"
+        }
       }
+    },
+    "defenses": {
+      "actions": {
+        "create": "create the defense",
+        "generate": "generate the questions",
+        "load": "load the defenses",
+        "record": "record the outcome"
+      },
+      "changeOfFacts": "Change of facts",
+      "chooseReason": "Choose a reason",
+      "codes": {
+        "alreadyRecorded": "This defense already has an outcome. Reload to see it."
+      },
+      "confirmMessage": "{outcome}: {reason}. It is recorded once and cannot be changed; to correct it, hold a new defense.",
+      "confirmTitle": "Record this outcome?",
+      "create": "Create defense",
+      "createdOn": "Created on {date, date, medium} {date, time, short}",
+      "empty": "No defenses yet.",
+      "generateQuestions": "Generate questions",
+      "intro": "Five questions on the pupil's own reasoning, one of them a change of facts. The outcome is recorded once; to correct it, hold a new defense.",
+      "listenFor": "Listen for: {text}",
+      "newTitle": "New defense",
+      "noWork": "No particular work",
+      "otherPractice": "Other practice area",
+      "outcome": {
+        "approved": "Approved",
+        "not_approved": "Not approved"
+      },
+      "outcomeLabel": "Outcome",
+      "practice": "Practice area",
+      "practiceFromWork": "The practice area of the work's matter",
+      "practiceName": "Practice area name",
+      "question": "Question {number}",
+      "questionsFailed": "The questions could not be generated. You can try again, or record the outcome without them.",
+      "questionsPending": "Generating the questions…",
+      "reason": {
+        "cambio_de_hechos_no_resuelto": "Did not resolve the change of facts",
+        "otro": "Other",
+        "razonamiento_incompleto": "Incomplete reasoning",
+        "razonamiento_solido": "Sound reasoning",
+        "sin_sustento": "No support"
+      },
+      "reasonLabel": "Reason",
+      "record": "Record outcome",
+      "recordTitle": "Record the outcome",
+      "result": "{outcome} on {date, date, medium} {date, time, short} · {reason}",
+      "scheduled": "Scheduled; no outcome yet.",
+      "work": "Work"
     },
     "firmCriteria": {
       "consulted": {
-        "summary": "{count, plural, one {# criterion consulted} other {# criteria consulted}}",
-        "note": "These are positions that people of your firm wrote. They are not law, and LiTT does not check them.",
-        "empty": "Your firm has not written a criterion on this subject.",
-        "failed": "The firm's criteria could not be consulted.",
-        "more": "More criteria match than are shown here.",
-        "kind": {
-          "criterio": "Criterion",
-          "voto_particular": "Dissenting opinion"
-        },
         "byline": "According to {author} · {date, date, medium}",
         "bylineDeleted": "According to a deleted user · {date, date, medium}",
-        "practice": "Practice area: {practice}",
-        "rule": "Disagrees with a playbook rule"
-      },
-      "settings": {
-        "tab": "Firm criteria",
-        "title": "Firm criteria",
-        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
-        "noOrganizations": "You do not belong to any firm yet.",
-        "loadFailed": "The firm's criteria could not be loaded.",
-        "empty": "Your firm has not written any criteria yet.",
-        "readOnly": "While you are in training you read your firm's criteria, but you do not write them.",
-        "count": "{count, plural, one {# criterion} other {# criteria}}",
-        "write": "Write a criterion",
-        "edit": "Edit",
-        "editName": "Edit the criterion “{topic}”",
-        "remove": "Remove",
-        "removeName": "Remove the criterion “{topic}”",
-        "confirmRemove": "Remove this criterion? This cannot be undone.",
-        "confirmRemoveYes": "Yes, remove it",
-        "cancel": "Cancel",
-        "removed": "The criterion was removed.",
-        "saved": "The criterion was saved.",
-        "mine": "Yours",
-        "kindLabel": "Type",
+        "empty": "Your firm has not written a criterion on this subject.",
+        "failed": "The firm's criteria could not be consulted.",
         "kind": {
           "criterio": "Criterion",
           "voto_particular": "Dissenting opinion"
         },
-        "topicLabel": "Topic",
-        "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
-        "practiceLabel": "Practice area",
-        "practiceAny": "Any practice area",
-        "positionLabel": "Position",
-        "positionHelp": "Write your position as you would sign it. It will be shown with your name and the date.",
-        "positionCount": "{count} of {max} characters",
-        "playbookLabel": "Playbook",
-        "playbookPlaceholder": "Choose a playbook",
-        "noPlaybooks": "There are no playbooks to disagree with yet.",
-        "ruleLabel": "Rule",
-        "rulePlaceholder": "Choose a rule",
-        "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
-        "save": "Save",
-        "saving": "Saving…",
-        "rule": "Disagrees with the rule “{rule}” of “{playbook}”",
-        "ruleUnknown": "Disagrees with a rule of a playbook you cannot open",
+        "more": "More criteria match than are shown here.",
+        "note": "These are positions that people of your firm wrote. They are not law, and LiTT does not check them.",
+        "practice": "Practice area: {practice}",
+        "rule": "Disagrees with a playbook rule",
+        "summary": "{count, plural, one {# criterion consulted} other {# criteria consulted}}"
+      },
+      "settings": {
         "author": "By {author} · {date, date, medium}",
         "authorDeleted": "By a deleted user · {date, date, medium}",
+        "cancel": "Cancel",
         "changed": "changed {date, date, medium}",
+        "confirmRemove": "Remove this criterion? This cannot be undone.",
+        "confirmRemoveYes": "Yes, remove it",
+        "count": "{count, plural, one {# criterion} other {# criteria}}",
+        "edit": "Edit",
+        "editName": "Edit the criterion “{topic}”",
+        "empty": "Your firm has not written any criteria yet.",
+        "intro": "Positions that people of your firm wrote under their name. When someone in training asks LiTT a question, the assistant can consult them and say who wrote each one. They are not law, and LiTT does not check them.",
+        "kind": {
+          "criterio": "Criterion",
+          "voto_particular": "Dissenting opinion"
+        },
+        "kindLabel": "Type",
         "limit": "Your firm holds as many criteria as it can. Remove one to write another.",
-        "loadingLabel": "Loading the firm's criteria"
+        "loadFailed": "The firm's criteria could not be loaded.",
+        "loadingLabel": "Loading the firm's criteria",
+        "mine": "Yours",
+        "noOrganizations": "You do not belong to any firm yet.",
+        "noPlaybooks": "There are no playbooks to disagree with yet.",
+        "playbookLabel": "Playbook",
+        "playbookPlaceholder": "Choose a playbook",
+        "positionCount": "{count} of {max} characters",
+        "positionHelp": "Write your position as you would sign it. It will be shown with your name and the date.",
+        "positionLabel": "Position",
+        "practiceAny": "Any practice area",
+        "practiceLabel": "Practice area",
+        "readOnly": "While you are in training you read your firm's criteria, but you do not write them.",
+        "remove": "Remove",
+        "removeName": "Remove the criterion “{topic}”",
+        "removed": "The criterion was removed.",
+        "rule": "Disagrees with the rule “{rule}” of “{playbook}”",
+        "ruleLabel": "Rule",
+        "rulePlaceholder": "Choose a rule",
+        "ruleUnknown": "Disagrees with a rule of a playbook you cannot open",
+        "save": "Save",
+        "saved": "The criterion was saved.",
+        "saving": "Saving…",
+        "tab": "Firm criteria",
+        "title": "Firm criteria",
+        "topicHelp": "A few words, for example “Limitation of bills of exchange”.",
+        "topicLabel": "Topic",
+        "voteHelp": "A dissenting opinion names the playbook rule you disagree with. It does not change the rule.",
+        "write": "Write a criterion"
       }
     },
     "gym": {
-      "notice": "Fictitious practice case",
+      "codes": {
+        "closed": "This attempt's time is up. What you had saved was submitted.",
+        "noHint": "There are no hints left for the paragraphs you have not marked.",
+        "open": "This case already has an unsubmitted attempt with this pupil."
+      },
+      "form": {
+        "addError": "Add error",
+        "cancel": "Cancel",
+        "draftButton": "AI draft",
+        "draftCount": "Number of errors (1 to 5)",
+        "draftHelp": "Fills the form without saving. Review and edit it before saving.",
+        "draftTitle": "AI draft",
+        "draftTopic": "Topic",
+        "duplicate": "Each paragraph takes only one error.",
+        "errorKind": "Kind of error {number}",
+        "errorParagraph": "Paragraph of error {number}",
+        "errors": "Seeded errors",
+        "explanation": "Explanation of error {number}",
+        "fictitious": "I confirm this is fictitious data",
+        "hint": "Optional hint of error {number}",
+        "minutes": "Minutes (1 to 240)",
+        "noErrors": "There are no errors yet.",
+        "paragraphs": "Paragraphs",
+        "paragraphsHelp": "Separate paragraphs with a blank line.",
+        "practice": "Practice area",
+        "preview": "Numbered view",
+        "removeError": "Remove error {number}",
+        "save": "Save case",
+        "title": "Title"
+      },
       "kinds": {
-        "superseded_thesis": "Superseded thesis",
-        "repealed_article": "Repealed article",
-        "wrong_jurisdiction": "Wrong jurisdiction",
         "invented_citation": "Invented citation",
-        "other": "Other"
+        "other": "Other",
+        "repealed_article": "Repealed article",
+        "superseded_thesis": "Superseded thesis",
+        "wrong_jurisdiction": "Wrong jurisdiction"
+      },
+      "mentor": {
+        "actions": {
+          "assign": "assign the case",
+          "delete": "delete the case",
+          "draft": "ask for the draft",
+          "load": "load the gym",
+          "save": "save the case"
+        },
+        "another": "Give another attempt",
+        "anotherName": "Give another attempt: {title}",
+        "assign": "Assign to this pupil",
+        "assignName": "Assign to this pupil: {title}",
+        "assignedOpen": "There is an unsubmitted attempt of this case.",
+        "attemptLine": "{status} · {found} of {total} found · {hints, plural, one {# hint} other {# hints}}",
+        "attemptLineOpen": "{status} · {hints, plural, one {# hint} other {# hints}}",
+        "attemptsTitle": "This pupil's attempts",
+        "caseLine": "{practice} · {minutes} · {errors}",
+        "casesIntro": "Only you see your cases. Assigning one creates an attempt with a copy, so editing or deleting it changes nothing already done.",
+        "casesTitle": "My cases",
+        "delete": "Delete",
+        "deleteMessage": "Attempts already assigned keep their copy.",
+        "deleteName": "Delete {title}",
+        "deleteTitle": "Delete this case?",
+        "detail": "View details",
+        "edit": "Edit",
+        "editName": "Edit {title}",
+        "errorsCount": "{count, plural, one {# seeded error} other {# seeded errors}}",
+        "newCase": "New case",
+        "noAttempts": "This pupil has no attempts yet.",
+        "noCases": "You have no cases yet."
+      },
+      "minutes": "{count, plural, one {# minute} other {# minutes}}",
+      "notice": "Fictitious practice case",
+      "paragraph": "Paragraph {number}",
+      "pupil": {
+        "actions": {
+          "hint": "ask for a hint",
+          "load": "load your gym attempts",
+          "open": "open the attempt",
+          "save": "save your findings",
+          "submit": "submit the attempt"
+        },
+        "back": "Back to my attempts",
+        "confirmMessage": "You will not be able to change your findings and you will see the result.",
+        "confirmTitle": "Submit this attempt?",
+        "continue": "Continue",
+        "empty": "Your mentor has not assigned you any case yet.",
+        "expired": "Time is up. What you had saved was submitted.",
+        "hint": "Ask for a hint",
+        "hints": "Hints",
+        "intro": "Fictitious practice cases your mentor assigns you. Each attempt has a time limit kept by the server.",
+        "kind": "Kind of error",
+        "mark": "Mark",
+        "markName": "Mark paragraph {number}",
+        "note": "Note (optional)",
+        "noteName": "Note for paragraph {number}",
+        "paragraphs": "Paragraphs",
+        "start": "Start",
+        "startName": "{action}: {title}",
+        "submit": "Submit",
+        "timeLeft": "Time left: {time}",
+        "title": "Gym",
+        "unmark": "Remove",
+        "unmarkName": "Remove the mark on paragraph {number}",
+        "viewResult": "View result"
+      },
+      "result": {
+        "extra": "Findings where there was no error",
+        "extraNote": "There was no seeded error here.",
+        "found": "Found",
+        "hints": "{count, plural, =0 {You used no hints} one {Hints used: #} other {Hints used: #}}",
+        "kindDiff": "different type",
+        "kindOk": "right type",
+        "mentorHints": "Hints used: {count}",
+        "missed": "Missed",
+        "none": "None",
+        "note": "Note: {note}",
+        "summary": "Found: {found} of {total} seeded errors.",
+        "title": "Result"
       },
       "status": {
         "assigned": "Assigned",
         "in_progress": "In progress",
         "submitted": "Submitted"
-      },
-      "paragraph": "Paragraph {number}",
-      "minutes": "{count, plural, one {# minute} other {# minutes}}",
-      "codes": {
-        "open": "This case already has an unsubmitted attempt with this pupil.",
-        "closed": "This attempt's time is up. What you had saved was submitted.",
-        "noHint": "There are no hints left for the paragraphs you have not marked."
-      },
-      "result": {
-        "title": "Result",
-        "summary": "Found: {found} of {total} seeded errors.",
-        "found": "Found",
-        "kindOk": "right type",
-        "kindDiff": "different type",
-        "missed": "Missed",
-        "extra": "Findings where there was no error",
-        "extraNote": "There was no seeded error here.",
-        "none": "None",
-        "hints": "{count, plural, =0 {You used no hints} one {Hints used: #} other {Hints used: #}}",
-        "mentorHints": "Hints used: {count}",
-        "note": "Note: {note}"
-      },
-      "pupil": {
-        "title": "Gym",
-        "intro": "Fictitious practice cases your mentor assigns you. Each attempt has a time limit kept by the server.",
-        "empty": "Your mentor has not assigned you any case yet.",
-        "start": "Start",
-        "continue": "Continue",
-        "viewResult": "View result",
-        "startName": "{action}: {title}",
-        "back": "Back to my attempts",
-        "actions": {
-          "load": "load your gym attempts",
-          "open": "open the attempt",
-          "save": "save your findings",
-          "hint": "ask for a hint",
-          "submit": "submit the attempt"
-        },
-        "timeLeft": "Time left: {time}",
-        "paragraphs": "Paragraphs",
-        "mark": "Mark",
-        "unmark": "Remove",
-        "markName": "Mark paragraph {number}",
-        "unmarkName": "Remove the mark on paragraph {number}",
-        "kind": "Kind of error",
-        "note": "Note (optional)",
-        "noteName": "Note for paragraph {number}",
-        "hint": "Ask for a hint",
-        "hints": "Hints",
-        "submit": "Submit",
-        "confirmTitle": "Submit this attempt?",
-        "confirmMessage": "You will not be able to change your findings and you will see the result.",
-        "expired": "Time is up. What you had saved was submitted."
-      },
-      "mentor": {
-        "casesTitle": "My cases",
-        "casesIntro": "Only you see your cases. Assigning one creates an attempt with a copy, so editing or deleting it changes nothing already done.",
-        "noCases": "You have no cases yet.",
-        "newCase": "New case",
-        "edit": "Edit",
-        "editName": "Edit {title}",
-        "delete": "Delete",
-        "deleteName": "Delete {title}",
-        "assign": "Assign to this pupil",
-        "assignName": "Assign to this pupil: {title}",
-        "assignedOpen": "There is an unsubmitted attempt of this case.",
-        "caseLine": "{practice} · {minutes} · {errors}",
-        "errorsCount": "{count, plural, one {# seeded error} other {# seeded errors}}",
-        "deleteTitle": "Delete this case?",
-        "deleteMessage": "Attempts already assigned keep their copy.",
-        "attemptsTitle": "This pupil's attempts",
-        "noAttempts": "This pupil has no attempts yet.",
-        "attemptLine": "{status} · {found} of {total} found · {hints, plural, one {# hint} other {# hints}}",
-        "attemptLineOpen": "{status} · {hints, plural, one {# hint} other {# hints}}",
-        "detail": "View details",
-        "another": "Give another attempt",
-        "anotherName": "Give another attempt: {title}",
-        "actions": {
-          "load": "load the gym",
-          "save": "save the case",
-          "delete": "delete the case",
-          "assign": "assign the case",
-          "draft": "ask for the draft"
-        }
-      },
-      "form": {
-        "title": "Title",
-        "practice": "Practice area",
-        "minutes": "Minutes (1 to 240)",
-        "paragraphs": "Paragraphs",
-        "paragraphsHelp": "Separate paragraphs with a blank line.",
-        "preview": "Numbered view",
-        "errors": "Seeded errors",
-        "noErrors": "There are no errors yet.",
-        "addError": "Add error",
-        "removeError": "Remove error {number}",
-        "errorParagraph": "Paragraph of error {number}",
-        "errorKind": "Kind of error {number}",
-        "explanation": "Explanation of error {number}",
-        "hint": "Optional hint of error {number}",
-        "duplicate": "Each paragraph takes only one error.",
-        "fictitious": "I confirm this is fictitious data",
-        "save": "Save case",
-        "cancel": "Cancel",
-        "draftTitle": "AI draft",
-        "draftTopic": "Topic",
-        "draftCount": "Number of errors (1 to 5)",
-        "draftButton": "AI draft",
-        "draftHelp": "Fills the form without saving. Review and edit it before saving."
       }
+    },
+    "loadFailed": "This could not be loaded.",
+    "member": "Member",
+    "mentorPanel": {
+      "actions": {
+        "load": "load your pupils"
+      },
+      "allPupils": "All pupils",
+      "back": "Back to Training",
+      "intro": "Supervise one pupil at a time. Nothing here compares or ranks your pupils, and only you and each pupil see their data.",
+      "lastWork": "Last work: {date, date, medium} {date, time, short}",
+      "noPupils": "You have no pupils here yet. Add them in Training, under My pupils.",
+      "noWork": "No work yet",
+      "notMentor": "You are not a mentor in any organization. An owner or an admin of the organization designates mentors.",
+      "open": "Open the mentor panel",
+      "passInForce": "Urgency pass in force until {end, date, medium} {end, time, short}",
+      "pendingReview": "{count, plural, =0 {No work waiting for review} one {# work waiting for review} other {# works waiting for review}}",
+      "supervise": "Supervise",
+      "superviseName": "Supervise {name}",
+      "tabs": {
+        "criterion": "Criterion",
+        "defenses": "Oral defense",
+        "gym": "Gym",
+        "passes": "Urgency pass",
+        "promotion": "Promotion",
+        "works": "Works"
+      },
+      "tabsLabel": "Supervision sections",
+      "title": "Mentor panel"
+    },
+    "mentorSeesMe": {
+      "actions": {
+        "load": "load what your mentor sees"
+      },
+      "defenses": "Oral defenses",
+      "intro": "The same reviews, defenses and passes your mentor sees here. Nothing more, nothing less.",
+      "noDefenses": "No defenses yet.",
+      "noPasses": "No passes yet.",
+      "noReviews": "No reviews yet.",
+      "passes": "Urgency passes",
+      "reviews": "Reviews of your work",
+      "scheduled": "A defense is scheduled. You will see its questions and note once the outcome is recorded.",
+      "title": "What my mentor sees of me"
+    },
+    "notes": {
+      "max": "Up to {max} characters.",
+      "optional": "Note (optional)"
+    },
+    "passes": {
+      "actions": {
+        "grant": "grant the pass",
+        "load": "load the passes",
+        "revoke": "revoke the pass"
+      },
+      "chooseProject": "Choose a matter",
+      "codes": {
+        "duplicate": "This pupil already has a pass in force in that matter ending at the same time.",
+        "invalid": "Check the matter, the duration and the reason.",
+        "limit": "This pupil already has the most passes in force allowed. Revoke one first.",
+        "pupilNoAccess": "The pupil cannot open that matter, so the pass would not apply."
+      },
+      "confirmMessage": "From the next turn, the pupil writes their own approach again in {project}.",
+      "confirmTitle": "Revoke this pass?",
+      "duration": "Duration",
+      "empty": "No passes yet.",
+      "ended": "Ended on {end, date, medium} {end, time, short}",
+      "grant": "Grant pass",
+      "hours": "{hours, plural, one {# hour} other {# hours}}",
+      "inForce": "In force until {end, date, medium} {end, time, short}",
+      "intro": "A pass lifts “Your turn first” for this pupil in one matter, for a limited time. Their drafts stay sealed until approved, and the pass does not apply in Word.",
+      "minutes": "{minutes, plural, one {# minute} other {# minutes}}",
+      "newTitle": "New pass",
+      "noGrantableProjects": "The pupil cannot open any of your matters in this organization",
+      "noProjects": "You have no matters in this organization",
+      "project": "Matter",
+      "reason": {
+        "audiencia": "Hearing",
+        "cliente_urgente": "Urgent client",
+        "otro": "Other",
+        "plazo": "Deadline"
+      },
+      "reasonLabel": "Reason",
+      "revoke": "Revoke",
+      "revokeName": "Revoke the pass in {project}",
+      "revoked": "Revoked on {date, date, medium} {date, time, short}",
+      "unknownProject": "A matter you cannot see"
+    },
+    "promotion": {
+      "accept": "Accept proposal",
+      "actions": {
+        "accept": "accept the promotion",
+        "load": "load the promotion"
+      },
+      "audits": "Evaluated review audits: {count} ({adequate} adequate, {needsWork} need work)",
+      "blocked": {
+        "general_stage_remains": "Their stage for every practice area would still apply, so removing this one would not make them a lawyer in it.",
+        "not_approved_after": "A defense was not approved after the last approved one.",
+        "overconfident": "When they marked “Sure”, fewer than 3 of every 4 times coincided with the AI's answer. This blocks only the proposal."
+      },
+      "calibration": {
+        "few": "Confidence calibration: not enough data yet ({count} of {required, plural, one {# marked turn} other {# marked turns}}). It does not block the proposal.",
+        "needSure": "At least {required} “Sure” turns are needed to weigh them.",
+        "sure": "Confidence calibration: when they marked “Sure”, it coincided {coincided} of {sure, plural, one {# time} other {# times}}, among {count, plural, one {# marked turn} other {# marked turns}}. Coincidence is measured against the AI's answer, according to the AI's contrast."
+      },
+      "codes": {
+        "notProposed": "This proposal no longer holds. Reload to see the current evidence."
+      },
+      "confirmMessage": "{practice}: from {from} to {to}. You can change the stage again later in Training.",
+      "confirmTitle": "Accept this promotion?",
+      "decideWithout": "You can change the stage without LiTT's proposal, whenever you want, in Training. The proposal is a reading of the evidence, not a condition.",
+      "defenses": "Approved defenses: {count} of {required}",
+      "empty": "This pupil has no stage to promote.",
+      "gym": "Gym: {attempts, plural, one {# attempt submitted} other {# attempts submitted}}, {found} of {errors} errors found, {hints, plural, one {# hint} other {# hints}}",
+      "intro": "LiTT proposes; you decide. A proposal rests on this pupil's approved defenses and reviewed works since their stage last changed. The rest of the evidence is shown to you, not required.",
+      "move": "{practice}: {from} → {to}",
+      "notYet": "Not proposed yet.",
+      "proposed": "LiTT proposes this promotion.",
+      "readings": "Full readings handed in: {count}",
+      "versions": "Approved drafts: {count}",
+      "withoutAccess": "Evidence in matters you cannot open is only counted, not shown. Marked turns: {turns}. Audits: {audits}. Readings: {readings}.",
+      "works": "Reviewed works: {count} of {required}"
+    },
+    "review": {
+      "aiCorrected": "What the AI corrected",
+      "approve": "Approve this version",
+      "approveName": "Approve this version: {text}",
+      "approved": "Approved",
+      "doubts": "Where they hesitated",
+      "failed": "The review could not be generated. You can try again.",
+      "generatedWith": "Generated with {model} on {date, date, medium} {date, time, short}",
+      "inferred": "inferred",
+      "none": "Nothing.",
+      "notReviewed": "Not reviewed yet",
+      "pending": "Generating the review…",
+      "proposed": "What they proposed",
+      "reviewedOn": "Reviewed on {date, date, medium} {date, time, short}",
+      "unverified": "What was left unverified"
+    },
+    "stage": {
+      "abogado": "Lawyer",
+      "junior": "Junior",
+      "pasante": "Intern"
+    },
+    "surface": {
+      "chat": "Chat",
+      "tabular": "Tabular review",
+      "word": "Word"
+    },
+    "works": {
+      "actions": {
+        "approve": "approve the version",
+        "generate": "generate the review",
+        "load": "load the works",
+        "markReviewed": "mark the work as reviewed"
+      },
+      "approve": "Approve",
+      "approveMessage": "You approve the pupil's draft as it is now. If its content changes, it needs a new approval.",
+      "approveTitle": "Approve this version?",
+      "chooseKey": "Choose a key",
+      "codes": {
+        "credentialUnavailable": "The key this review used is no longer available to you. Choose another key and try again.",
+        "inProgress": "A review of this work is already being generated. Wait a moment and reload.",
+        "keyRequired": "You need an AI key you can use in this organization."
+      },
+      "empty": "This pupil has no work with turn notes yet.",
+      "generate": "Generate review",
+      "heldDrafts": "{count, plural, one {# sealed draft still waits for approval. Approve it with the button in its row above, or from its document.} other {# sealed drafts still wait for approval. Approve each with the button in its row above, or from its document.}}",
+      "intro": "Each work is a conversation with turn notes. The review shows four things; what was left unverified is computed, not generated.",
+      "key": "Key",
+      "keyRequired": "To generate reviews and defense questions you need an AI key you can use in this organization. There is no fallback to another key. You can still record a defense without AI.",
+      "markReviewed": "Mark as reviewed",
+      "meta": "{surface} · {notes, plural, one {# note} other {# notes}} · {date, date, medium} {date, time, short}",
+      "newWork": "There is new work since this review.",
+      "noReview": "No review yet.",
+      "regenerate": "Regenerate",
+      "untitled": "Untitled work",
+      "withoutAccess": "{count, plural, one {# work is in a matter you cannot open.} other {# works are in matters you cannot open.}} The owner of the matter can give you access."
     }
+  },
+  "versionCompare": {
+    "added": "Added",
+    "authorAi": "AI",
+    "authorOf": "Made by: {author}",
+    "authorPerson": "Person",
+    "base": "Base version",
+    "blankChange": "(blank lines)",
+    "changeList": "List of changes",
+    "changeOf": "Change {current} of {total}",
+    "compare": "Compare",
+    "downloadBase": "Download base version",
+    "downloadHead": "Download revised version",
+    "goToChange": "Go to change {number}: {summary}",
+    "hasNumbers": "Contains numbers",
+    "head": "Revised version",
+    "hiddenLines": "{count, plural, one {# line not shown} other {# lines not shown}}",
+    "identical": "There are no text differences between these two versions.",
+    "lineNumberNew": "Revised line {number}",
+    "lineNumberOld": "Base line {number}",
+    "loadingLabel": "Loading comparison",
+    "next": "Next change",
+    "noChanges": "No changes",
+    "noNumberChanges": "No changes with numbers",
+    "noText": "This version doesn't have text to compare yet.",
+    "numbersOnly": "Only changes with numbers",
+    "numbersOnlyHint": "A change counts when a changed fragment contains a digit (0-9).",
+    "paragraph": "Paragraph {number}",
+    "previous": "Previous change",
+    "removed": "Removed",
+    "retry": "Try again",
+    "sameVersion": "Pick two different versions to compare.",
+    "sectionNone": "Before the first heading",
+    "sideBySide": "Side by side",
+    "textNotFormat": "Compares the text, not the formatting.",
+    "textlessPages": "{count, plural, one {# page of this version is scanned and has no text, so it cannot be compared.} other {# pages of this version are scanned and have no text, so they cannot be compared.}}",
+    "title": "Compare versions",
+    "tooLarge": "Document too large to compare here.",
+    "tooLargeHint": "Download both versions and compare them in your own program.",
+    "unified": "Unified",
+    "versionOption": "Version {number} · {author} · {name}",
+    "versionOptionNoNumber": "{author} · {name}",
+    "viewMode": "Comparison view"
   },
   "word": {
     "app": {
@@ -1454,14 +1761,14 @@
       "unidentifiedDocument": "Could not identify this Word document."
     },
     "language": {
-      "label": "Interface language",
       "description": "Choose the language LiTT uses in Word. It is saved in your profile, so it also applies in the web app.",
-      "saveFailed": "LiTT couldn't save the language. Try again.",
-      "title": "Language",
+      "label": "Interface language",
       "names": {
         "en-US": "English",
         "es-MX": "Español (México)"
-      }
+      },
+      "saveFailed": "LiTT couldn't save the language. Try again.",
+      "title": "Language"
     },
     "login": {
       "continueWithGoogle": "Continue with Google",
@@ -1491,131 +1798,5 @@
     "settings": {
       "title": "Settings"
     }
-  },
-  "access": {
-    "noOrgInvite": "Ask your firm for an invitation",
-    "invite": {
-      "sent": "We emailed them the invitation",
-      "notSent": "We couldn't send the email. Tell them to sign in to LiTT with that email"
-    },
-    "setPassword": {
-      "title": "Create your password",
-      "subtitle": "Use at least {min} characters. You'll then continue setting up your account.",
-      "password": "Password",
-      "confirm": "Confirm your password",
-      "mismatch": "The passwords don't match.",
-      "submit": "Save password",
-      "saving": "Saving...",
-      "verifying": "Checking your invitation...",
-      "invalidTitle": "Invitation unavailable",
-      "invalid": "This invitation link is invalid or has expired. Ask to be invited again.",
-      "toLogin": "Go to log in"
-    },
-    "beta": {
-      "tab": "Beta invitations",
-      "heading": "Beta invitations",
-      "hint": "The invited person will be able to create a firm and be its owner.",
-      "emailLabel": "Invitee's email",
-      "invite": "Invite",
-      "inviting": "Inviting...",
-      "empty": "There are no invitations yet.",
-      "loadError": "We couldn't load the invitations.",
-      "colEmail": "Email",
-      "colStatus": "Status",
-      "colExpires": "Expires",
-      "status": {
-        "pending": "Pending",
-        "used": "Used",
-        "cancelled": "Cancelled",
-        "expired": "Expired"
-      },
-      "cancel": "Cancel invitation",
-      "cancelTitle": "Cancel this invitation?",
-      "cancelBody": "{email} will no longer be able to sign up or create a firm with this invitation.",
-      "keep": "Keep"
-    }
-  },
-  "legal": {
-    "notice": "By continuing you accept the <terms>Terms</terms> and the <privacy>Privacy Notice</privacy>.",
-    "onlySpanish": "Available in Spanish only.",
-    "title": "Terms and Privacy Notice",
-    "intro": "To keep using LiTT, read and accept the <terms>Terms and Conditions</terms> and the <privacy>Privacy Notice</privacy>.",
-    "checkbox": "I have read and accept the Terms and Conditions and the Privacy Notice",
-    "submit": "Accept and continue",
-    "saving": "Saving...",
-    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
-    "simplifiedTitle": "Simplified privacy notice"
-  },
-  "markdownDocument": {
-    "edit": "Edit",
-    "save": "Save",
-    "saving": "Saving…",
-    "cancel": "Cancel",
-    "modeLabel": "Editing mode",
-    "modeRich": "Formatted",
-    "modeText": "Text",
-    "editorLabel": "Markdown editor",
-    "sourceLabel": "Markdown source",
-    "loadError": "This Markdown file could not be loaded.",
-    "loadingLabel": "Loading document",
-    "conflict": "Someone saved another version; reload to see the changes.",
-    "copyText": "Copy my text",
-    "textCopied": "Text copied",
-    "copyFailed": "Your browser did not allow copying. Select the text and copy it by hand.",
-    "reload": "Reload",
-    "richUnavailable": "The formatted editor would change this Markdown when saving (tables or syntax it does not keep). Keep editing in Text mode.",
-    "tooLarge": "This document is too large to save from the editor (the limit is 50 MB). Copy your text and split it, or upload it as a new version instead.",
-    "unsaved": "You have unsaved changes. If you leave now, you will lose them.",
-    "discardTitle": "Discard unsaved changes?",
-    "discard": "Discard changes",
-    "keepEditing": "Keep editing"
-  },
-  "assistantExport": {
-    "downloadMarkdown": "Download .md",
-    "downloaded": "Response downloaded",
-    "defaultName": "response"
-  },
-  "versionCompare": {
-    "compare": "Compare",
-    "title": "Compare versions",
-    "textNotFormat": "Compares the text, not the formatting.",
-    "base": "Base version",
-    "head": "Revised version",
-    "versionOption": "Version {number} · {author} · {name}",
-    "versionOptionNoNumber": "{author} · {name}",
-    "authorAi": "AI",
-    "authorPerson": "Person",
-    "authorOf": "Made by: {author}",
-    "viewMode": "Comparison view",
-    "sideBySide": "Side by side",
-    "unified": "Unified",
-    "numbersOnly": "Only changes with numbers",
-    "numbersOnlyHint": "A change counts when a changed fragment contains a digit (0-9).",
-    "previous": "Previous change",
-    "next": "Next change",
-    "changeOf": "Change {current} of {total}",
-    "noChanges": "No changes",
-    "noNumberChanges": "No changes with numbers",
-    "identical": "There are no text differences between these two versions.",
-    "changeList": "List of changes",
-    "sectionNone": "Before the first heading",
-    "paragraph": "Paragraph {number}",
-    "goToChange": "Go to change {number}: {summary}",
-    "blankChange": "(blank lines)",
-    "added": "Added",
-    "removed": "Removed",
-    "hasNumbers": "Contains numbers",
-    "lineNumberOld": "Base line {number}",
-    "lineNumberNew": "Revised line {number}",
-    "hiddenLines": "{count, plural, one {# line not shown} other {# lines not shown}}",
-    "noText": "This version doesn't have text to compare yet.",
-    "tooLarge": "Document too large to compare here.",
-    "tooLargeHint": "Download both versions and compare them in your own program.",
-    "downloadBase": "Download base version",
-    "downloadHead": "Download revised version",
-    "sameVersion": "Pick two different versions to compare.",
-    "retry": "Try again",
-    "loadingLabel": "Loading comparison",
-    "textlessPages": "{count, plural, one {# page of this version is scanned and has no text, so it cannot be compared.} other {# pages of this version are scanned and have no text, so they cannot be compared.}}"
   }
 }

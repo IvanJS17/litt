@@ -35,9 +35,14 @@ export const test = base.extend<object, WorkerFixtures>({
             );
             if (!fs.existsSync(file)) {
                 await ensureUser(e2eAccount.email, e2eAccount.password);
+                /* A page opened from `browser` does not inherit the config's
+                   `use` options, so pass the pinned English locale along
+                   with baseURL; otherwise the app falls back to es-MX and
+                   the onboarding helper cannot find its English buttons. */
                 const page = await browser.newPage({
                     storageState: undefined,
                     baseURL: workerInfo.project.use.baseURL,
+                    locale: workerInfo.project.use.locale,
                 });
                 await page.goto("/login");
                 await expect(page).toHaveURL(/\/login/);

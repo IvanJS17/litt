@@ -7,14 +7,7 @@ import {
     describeError,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
-
-const GOOGLE_ERROR_MESSAGES = {
-    provider_disabled:
-        "Google sign-in is turned off for this workspace. Use your email and password instead.",
-    oauth_provider_not_supported:
-        "Google sign-in is turned off for this workspace. Use your email and password instead.",
-    over_request_rate_limit: "Too many attempts. Wait a moment and try again.",
-} as const;
+import { useTranslations } from "next-intl";
 
 interface GoogleAuthButtonProps {
     /** Receives a classified failure, or `null` when the error is cleared. */
@@ -28,6 +21,7 @@ export function GoogleAuthButton({
     disabled = false,
     onLoadingChange,
 }: GoogleAuthButtonProps) {
+    const t = useTranslations();
     const [loading, setLoading] = useState(false);
 
     const handleGoogleAuth = async () => {
@@ -43,10 +37,13 @@ export function GoogleAuthButton({
             // never shown; the caller renders the classified text instead.
             onError(
                 describeError(error, {
-                    action: "continue with Google",
-                    codeMessages: GOOGLE_ERROR_MESSAGES,
-                    fallback:
-                        "Unable to continue with Google. Try again, or log in with your email and password.",
+                    action: t("auth.form.googleAction"),
+                    codeMessages: {
+                        provider_disabled: t("auth.form.googleDisabled"),
+                        oauth_provider_not_supported: t("auth.form.googleDisabled"),
+                        over_request_rate_limit: t("auth.errors.tooManyAttempts"),
+                    },
+                    fallback: t("auth.form.googleFailed"),
                 }),
             );
             setLoading(false);
@@ -65,7 +62,7 @@ export function GoogleAuthButton({
             onClick={() => void handleGoogleAuth()}
         >
             <GoogleIconUI className="h-4 w-4" />
-            {loading ? "Continuing…" : "Continue with Google"}
+            {loading ? t("auth.sso.continuing") : t("auth.form.continueWithGoogle")}
         </PillButtonUI>
     );
 }

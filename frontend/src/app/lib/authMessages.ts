@@ -122,7 +122,7 @@ export type AuthErrorCode = keyof typeof AUTH_ERROR_SENTENCES;
  * sentences are read in the configured locale at the moment of use.
  */
 function liveTable(
-    fixed: Readonly<Record<string, string>> = {},
+    fixed: Readonly<Record<string, AuthOverride>> = {},
 ): Readonly<Record<string, string>> {
     const table: Record<string, string> = {};
     for (const [code, sentence] of Object.entries(AUTH_ERROR_SENTENCES)) {
@@ -132,8 +132,29 @@ function liveTable(
             get: () => say(clientTranslator(), sentence),
         });
     }
-    return Object.freeze(Object.assign(table, fixed));
+    for (const [code, override] of Object.entries(fixed)) {
+        if (typeof override === "function") {
+            Object.defineProperty(table, code, {
+                enumerable: true,
+                get: override,
+            });
+        } else {
+            Object.defineProperty(table, code, {
+                enumerable: true,
+                value: override,
+            });
+        }
+    }
+    return Object.freeze(table);
 }
+
+/**
+ * A screen's own wording for a code: the text itself, or a function that
+ * reads it from the catalog. A table built at module scope must use the
+ * function form, because the locale is not known until the app configures it;
+ * the function runs each time the sentence is read.
+ */
+export type AuthOverride = string | (() => string);
 
 /** The shared table, in the configured locale. */
 export const AUTH_ERROR_MESSAGES = liveTable() as Readonly<Record<AuthErrorCode, string>>;
@@ -143,9 +164,19 @@ export const AUTH_ERROR_MESSAGES = liveTable() as Readonly<Record<AuthErrorCode,
  * loosely on purpose: a screen may add a code only its own route emits.
  */
 export function authMessages(
-    overrides: Readonly<Record<string, string>> = {},
+    overrides: Readonly<Record<string, AuthOverride>> = {},
 ): Readonly<Record<string, string>> {
     return liveTable(overrides);
+}
+
+/** The shared sentence in the configured locale, read now. */
+export function authSentenceText(sentence: AuthSentence): string {
+    return say(clientTranslator(), sentence);
+}
+
+/** The shared sentence as an override: read when the table is used. */
+export function authSentence(sentence: AuthSentence): () => string {
+    return () => authSentenceText(sentence);
 }
 
 // Sentences screens reuse as their own overrides. They are the source

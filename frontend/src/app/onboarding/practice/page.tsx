@@ -12,6 +12,7 @@ import { PillButtonUI } from "@mike/ui";
 import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
+import { useTranslations } from "next-intl";
 
 export default function OnboardingPracticePage() {
     const router = useRouter();
@@ -39,6 +40,7 @@ function PracticeDetailsForm({
 }: {
     initial: ReturnType<typeof personalisationInitialValues>;
 }) {
+    const t = useTranslations();
     const router = useRouter();
     const { updatePersonalisation } = useUserProfile();
     const form = usePersonalisationFields(initial);
@@ -86,9 +88,9 @@ function PracticeDetailsForm({
 
     return (
         <OnboardingShell
-            step="Step 2 of 4"
-            title="Your legal practice"
-            description="Optionally add your professional setting, primary jurisdiction, and the areas you work in."
+            step={t("auth.onboarding.stepOf", { step: 2, total: 4 })}
+            title={t("auth.onboarding.yourLegalPractice")}
+            description={t("auth.onboarding.optionallyAddYourProfessionalSettingPrimary")}
         >
             <form onSubmit={handleSubmit}>
                 <PersonalisationFields
@@ -119,7 +121,7 @@ function PracticeDetailsForm({
                         disabled={submitting}
                         onClick={() => router.push("/onboarding/profile")}
                     >
-                        Back
+                        {t("auth.onboarding.back")}
                     </PillButtonUI>
                     <div className="flex items-center gap-4">
                         <button
@@ -128,7 +130,7 @@ function PracticeDetailsForm({
                             onClick={() => router.push("/onboarding/invitations")}
                             className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-950 disabled:cursor-not-allowed disabled:text-gray-300"
                         >
-                            Skip
+                            {t("auth.onboarding.skip")}
                         </button>
                         <PillButtonUI
                             type="submit"
@@ -136,7 +138,7 @@ function PracticeDetailsForm({
                             size="normal"
                             disabled={submitting}
                         >
-                            {submitting ? "Saving..." : "Continue"}
+                            {submitting ? t("auth.onboarding.saving") : t("auth.onboarding.continue")}
                         </PillButtonUI>
                     </div>
                 </div>

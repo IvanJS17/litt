@@ -12,10 +12,12 @@ import {
     supportMailtoFor,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 type FeedbackType = "bug" | "feature" | "question" | "other";
 
 export default function SupportPage() {
+    const t = useTranslations();
     const router = useRouter();
     const { user, isAuthenticated, authLoading } = useAuth();
 
@@ -39,23 +41,23 @@ export default function SupportPage() {
     }[] = [
         {
             value: "bug",
-            label: "Bug Report",
-            description: "Report something that isn't working",
+            label: t("support.bugReport"),
+            description: t("support.reportSomethingThatIsntWorking"),
         },
         {
             value: "feature",
-            label: "Feature Request",
-            description: "Suggest a new feature or improvement",
+            label: t("support.featureRequest"),
+            description: t("support.suggestANewFeatureOrImprovement"),
         },
         {
             value: "question",
-            label: "Question",
-            description: "Ask a question about using LiTT",
+            label: t("support.question"),
+            description: t("support.askAQuestionAboutUsingLitt"),
         },
         {
             value: "other",
-            label: "Other",
-            description: "General feedback or other inquiries",
+            label: t("support.other"),
+            description: t("support.generalFeedbackOrOtherInquiries"),
         },
     ];
 
@@ -88,7 +90,7 @@ export default function SupportPage() {
                     new Error(
                         typeof body.detail === "string"
                             ? body.detail
-                            : "Support request failed",
+                            : t("support.requestFailed"),
                     ),
                     {
                         status: response.status,
@@ -104,9 +106,8 @@ export default function SupportPage() {
             console.error("Error submitting feedback:", err);
             setError(
                 describeError(err, {
-                    action: "send your message",
-                    fallback:
-                        "LiTT couldn't send your message. Try again, or email us directly.",
+                    action: t("support.sendAction"),
+                    fallback: t("support.sendFailed"),
                 }),
             );
         } finally {
@@ -124,16 +125,16 @@ export default function SupportPage() {
                         </div>
                     </div>
                     <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-                        Thank you for helping us improve.
+                        {t("support.thankYouForHelpingUsImprove")}
                     </h2>
                     <p className="text-gray-600 mb-6">
-                        We will get in touch with you soon via email.
+                        {t("support.weWillGetInTouchWith")}
                     </p>
                     <button
                         onClick={() => router.push("/")}
                         className="px-4 py-2 bg-interactive text-interactive-foreground rounded-lg hover:bg-interactive-hover transition-colors font-medium text-sm"
                     >
-                        Back to Home
+                        {t("support.backToHome")}
                     </button>
                 </div>
             </div>
@@ -147,7 +148,7 @@ export default function SupportPage() {
                 <div className="flex-shrink-0 pt-6 md:pt-10 pb-0">
                     <div className="mb-5">
                         <h1 className="text-4xl font-medium font-eb-garamond text-gray-900 mb-3">
-                            Support
+                            {t("support.support")}
                         </h1>
                     </div>
                 </div>
@@ -159,7 +160,7 @@ export default function SupportPage() {
                             {/* Feedback Type Selection */}
                             <div>
                                 <FieldLabel as="p">
-                                    What can we help you with?
+                                    {t("support.whatCanWeHelpYouWith")}
                                 </FieldLabel>
                                 <div className="grid grid-cols-2 gap-3">
                                     {feedbackTypes.map((type) => (
@@ -196,7 +197,7 @@ export default function SupportPage() {
                             {feedbackType === "bug" && (
                                 <div>
                                     <FieldLabel htmlFor="link">
-                                        Link to issue (optional)
+                                        {t("support.linkToIssueOptional")}
                                     </FieldLabel>
                                     <input
                                         type="url"
@@ -209,10 +210,7 @@ export default function SupportPage() {
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-all"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">
-                                        If the bug is in a chat, mouseover the
-                                        chat in the sidebar, click the dots,
-                                        then click share and paste the link
-                                        here.
+                                        {t("support.ifTheBugIsInA")}
                                     </p>
                                 </div>
                             )}
@@ -220,7 +218,7 @@ export default function SupportPage() {
                             {/* Subject */}
                             <div>
                                 <FieldLabel htmlFor="subject">
-                                    Subject
+                                    {t("support.subject")}
                                 </FieldLabel>
                                 <input
                                     type="text"
@@ -235,13 +233,13 @@ export default function SupportPage() {
                             {/* Message */}
                             <div>
                                 <FieldLabel htmlFor="message">
-                                    Message
+                                    {t("support.message")}
                                 </FieldLabel>
                                 <textarea
                                     id="message"
                                     value={message}
                                     onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Please describe your question, issue, or suggestion in detail..."
+                                    placeholder={t("support.pleaseDescribeYourQuestionIssueOr")}
                                     rows={5}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-focus focus:border-focus outline-none transition-all resize-none"
                                     required
@@ -251,7 +249,7 @@ export default function SupportPage() {
                             {/* Email Display (if logged in) */}
                             {user?.email && (
                                 <div className="text-sm text-gray-500">
-                                    We&apos;ll respond to:{" "}
+                                    {t("support.wellRespondTo")}{" "}
                                     <span className="font-medium">
                                         {user.email}
                                     </span>
@@ -275,7 +273,7 @@ export default function SupportPage() {
                                             className: "ml-2 px-0",
                                         })}
                                     >
-                                        Email support directly
+                                        {t("support.emailSupportDirectly")}
                                     </a>
                                 </div>
                             )}
@@ -293,12 +291,12 @@ export default function SupportPage() {
                                 {isSubmitting ? (
                                     <>
                                         <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        <span>Sending...</span>
+                                        <span>{t("support.sending")}</span>
                                     </>
                                 ) : (
                                     <>
                                         <Send className="h-4 w-4" />
-                                        <span>Submit</span>
+                                        <span>{t("support.submit")}</span>
                                     </>
                                 )}
                             </button>

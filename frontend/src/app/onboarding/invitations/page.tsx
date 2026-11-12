@@ -8,6 +8,7 @@ import { FullScreenLoader } from "@/app/components/shared/FullScreenLoader";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { PillButtonUI } from "@mike/ui";
+import { useTranslations } from "next-intl";
 
 export default function OnboardingInvitationsPage() {
     const router = useRouter();
@@ -26,13 +27,14 @@ export default function OnboardingInvitationsPage() {
 }
 
 function InvitationStep({ userId }: { userId: string }) {
+    const t = useTranslations();
     const router = useRouter();
     const [invitationsBusy, setInvitationsBusy] = useState(true);
 
     return (
         <OnboardingShell
-            step="Step 3 of 4"
-            title="Organization invitations"
+            step={t("auth.onboarding.stepOf", { step: 3, total: 4 })}
+            title={t("auth.onboarding.organizationInvitations")}
         >
             <OnboardingInvitations
                 userId={userId}
@@ -47,7 +49,7 @@ function InvitationStep({ userId }: { userId: string }) {
                     disabled={invitationsBusy}
                     onClick={() => router.push("/onboarding/practice")}
                 >
-                    Back
+                    {t("auth.onboarding.back")}
                 </PillButtonUI>
                 <PillButtonUI
                     type="button"
@@ -56,7 +58,7 @@ function InvitationStep({ userId }: { userId: string }) {
                     disabled={invitationsBusy}
                     onClick={() => router.push("/onboarding/models")}
                 >
-                    Continue
+                    {t("auth.onboarding.continue")}
                 </PillButtonUI>
             </div>
         </OnboardingShell>

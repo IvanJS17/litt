@@ -1,5 +1,77 @@
 {
+  "access": {
+    "beta": {
+      "cancel": "Cancelar invitación",
+      "cancelBody": "{email} ya no podrá registrarse ni crear un despacho con esta invitación.",
+      "cancelTitle": "¿Cancelar la invitación?",
+      "colEmail": "Correo",
+      "colExpires": "Vence",
+      "colStatus": "Estado",
+      "emailLabel": "Correo de la persona invitada",
+      "empty": "Todavía no hay invitaciones.",
+      "heading": "Invitaciones a la beta",
+      "hint": "La persona invitada podrá crear un despacho y ser su dueña.",
+      "invite": "Invitar",
+      "inviting": "Invitando...",
+      "keep": "Conservar",
+      "loadError": "No pudimos cargar las invitaciones.",
+      "status": {
+        "cancelled": "Cancelada",
+        "expired": "Vencida",
+        "pending": "Pendiente",
+        "used": "Usada"
+      },
+      "tab": "Invitaciones a la beta"
+    },
+    "invite": {
+      "notSent": "No pudimos enviar el correo. Avísale que entre a LiTT con ese correo",
+      "sent": "Le enviamos un correo con la invitación"
+    },
+    "noOrgInvite": "Pide una invitación a tu despacho",
+    "setPassword": {
+      "confirm": "Confirma tu contraseña",
+      "invalid": "Este enlace de invitación no es válido o expiró. Pide que te inviten de nuevo.",
+      "invalidTitle": "Invitación no disponible",
+      "mismatch": "Las contraseñas no coinciden.",
+      "password": "Contraseña",
+      "saving": "Guardando...",
+      "submit": "Guardar contraseña",
+      "subtitle": "Usa al menos {min} caracteres. Después seguirás con la configuración de tu cuenta.",
+      "title": "Crea tu contraseña",
+      "toLogin": "Ir a iniciar sesión",
+      "verifying": "Verificando tu invitación..."
+    }
+  },
+  "accountDeleted": {
+    "deleted": "Eliminado",
+    "deletingYourAccount": "Eliminando tu cuenta…",
+    "finishAndSignOut": "Finalizar y cerrar sesión",
+    "finishedOn": "Terminó el",
+    "goToLitt": "Ir a LiTT",
+    "keptAndWhy": "Conservado, y por qué",
+    "loadReceiptAction": "cargar tu comprobante de eliminación",
+    "theLastBackupCopyOfYour": "La última copia de seguridad de tus datos se elimina a más tardar el",
+    "thereIsNoAccountDeletionTo": "No hay ninguna eliminación de cuenta que mostrar en esta pestaña.",
+    "thisCanTakeAFewMinutes": "Esto puede tardar unos minutos. Mantén esta página abierta para ver tu comprobante.",
+    "yourAccountCouldNotBeFully": "Tu cuenta no se pudo eliminar por completo",
+    "yourAccountHasBeenDeleted": "Tu cuenta se eliminó",
+    "yourAccountStaysLockedAndNobody": "Tu cuenta sigue bloqueada y nadie puede iniciar sesión en ella. Contacta a soporte para completar la eliminación."
+  },
+  "assistantExport": {
+    "defaultName": "respuesta",
+    "downloadMarkdown": "Descargar .md",
+    "downloaded": "Respuesta descargada"
+  },
   "auth": {
+    "callback": {
+      "confirmAction": "confirmar tu solicitud",
+      "confirmingYourRequest": "Confirmando tu solicitud",
+      "contactSupport": "Contacta a soporte",
+      "linkInvalid": "Este enlace de confirmación no es válido o expiró.",
+      "returnToLogin": "Volver al inicio de sesión",
+      "thisShouldOnlyTakeAMoment": "Esto solo debería tardar un momento.",
+      "unableToConfirm": "No se pudo confirmar"
+    },
     "checkEmail": {
       "checkYourEmail": "Revisa tu correo",
       "confirmationSent": "Enviamos un enlace de confirmación a tu correo electrónico. Confirma tu dirección antes de iniciar sesión.",
@@ -46,38 +118,162 @@
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos."
     },
+    "forgotPassword": {
+      "checkYourEmail": "Revisa tu correo",
+      "contactSupport": "Contacta a soporte",
+      "email": "Correo",
+      "enterYourAccountEmailAndWe": "Escribe el correo de tu cuenta y te enviaremos un enlace seguro de restablecimiento.",
+      "ifAnAccountExistsFor": "Si existe una cuenta para",
+      "resetYourPassword": "Restablece tu contraseña",
+      "retry": "Reintentar",
+      "returnToLogin": "Volver al inicio de sesión",
+      "sendAction": "enviar el enlace de restablecimiento",
+      "sendFailed": "LiTT no pudo enviar el enlace de restablecimiento. Inténtalo de nuevo en un momento.",
+      "sendResetLink": "Enviar enlace de restablecimiento",
+      "sendingResetLink": "Enviando enlace de restablecimiento...",
+      "weSentAPasswordResetLink": ", enviamos un enlace de restablecimiento de contraseña. El enlace expira y solo se puede usar una vez."
+    },
+    "form": {
+      "contactSupport": "Contacta a soporte",
+      "continueWithGoogle": "Continuar con Google",
+      "continueWithSso": "Continuar con SSO",
+      "dismissWarning": "Descartar advertencia",
+      "googleAction": "continuar con Google",
+      "googleDisabled": "El inicio de sesión con Google está desactivado para este espacio de trabajo. Usa tu correo y contraseña.",
+      "googleFailed": "No se pudo continuar con Google. Inténtalo de nuevo o inicia sesión con tu correo y contraseña."
+    },
     "login": {
+      "checkSessionAction": "revisar tu sesión",
       "email": "Correo electrónico",
+      "enterCredentials": "Escribe tu correo y contraseña.",
       "forgotPassword": "¿Olvidaste tu contraseña?",
       "logIn": "Iniciar sesión",
+      "logInAction": "iniciar sesión",
+      "logInFailed": "No se pudo iniciar sesión en este momento. Inténtalo de nuevo.",
       "loggingIn": "Iniciando sesión...",
       "noAccount": "¿No tienes una cuenta?",
       "password": "Contraseña",
+      "requestTimeout": "Se agotó el tiempo de la solicitud de inicio de sesión. Inténtalo de nuevo.",
+      "restoreAction": "restaurar tu sesión",
+      "restoreFailed": "No se pudo restaurar tu sesión. Inténtalo de nuevo.",
       "retry": "Reintentar",
       "retrying": "Reintentando...",
-      "signUp": "Regístrate"
+      "signUp": "Regístrate",
+      "signupDisabled": "Esta cuenta no se puede usar para iniciar sesión."
+    },
+    "onboarding": {
+      "accept": "Aceptar",
+      "acceptInvitationFailed": "No se pudo aceptar esta invitación. Inténtalo de nuevo.",
+      "acceptName": "Aceptar {name}",
+      "addTheDetailsWeShouldUse": "Agrega los detalles que debemos usar en todo LiTT.",
+      "back": "Atrás",
+      "checkingYourInvitations": "Revisando tus invitaciones",
+      "connectAModel": "Conecta un modelo",
+      "continue": "Continuar",
+      "finish": "Finalizar",
+      "finishing": "Terminando...",
+      "fromInvitedByEmail": "De {invited_by_email}",
+      "invitationAcceptedFinishSetupToOpen": "Invitación aceptada. Completa la configuración para abrir el espacio de trabajo de tu organización.",
+      "invitedAs": "Te invitaron como",
+      "joined": "Te uniste",
+      "joinedAs": "Te uniste como",
+      "loadInvitationsFailed": "No se pudieron cargar tus invitaciones.",
+      "name": "Nombre",
+      "optionallyAddYourProfessionalSettingPrimary": "Si quieres, agrega tu ámbito profesional, tu jurisdicción principal y las áreas en las que trabajas.",
+      "organisation": "Organización",
+      "organizationInvitations": "Invitaciones a organizaciones",
+      "pleaseTryAgain": "Inténtalo de nuevo.",
+      "refreshInvitations": "Actualizar invitaciones",
+      "saveDetailsAction": "guardar tus datos",
+      "saveDetailsFailed": "No se pudieron guardar tus datos. Inténtalo de nuevo.",
+      "saving": "Guardando...",
+      "skip": "Omitir",
+      "stepAddKey": "Agrega una llave de API de al menos un proveedor para empezar a usar LiTT. Tu llave también funciona en una organización para cualquier proveedor que no haya configurado, a menos que sus propietarios lo desactiven. Puedes agregar o cambiar llaves más tarde en Ajustes.",
+      "stepDeployment": "Esta instalación ya ofrece modelos, así que puedes terminar ahora. Una llave que agregues aquí reemplaza la de la instalación para tu espacio de trabajo Personal.",
+      "stepJoined": "Te uniste a {name} y sus modelos están disponibles ahí, así que puedes terminar ahora. {ownKeys, select, allowed {Tus llaves propias funcionan en tu espacio de trabajo Personal y, en {name}, para cualquier proveedor que no haya configurado.} other {{name} solo funciona con sus llaves propias, así que las llaves que agregues aquí son para tu espacio de trabajo Personal.}}",
+      "stepKeySaved": "Tu llave se guardó. Agrega más proveedores ahora o cámbialos más tarde en Ajustes.",
+      "stepOf": "Paso {step} de {total}",
+      "tellUsAboutYou": "Cuéntanos sobre ti",
+      "tryAgain": "Inténtalo de nuevo",
+      "unableToFinishSetup": "No se pudo completar la configuración",
+      "youHaveNoPendingInvitationsYou": "No tienes invitaciones pendientes. Puedes unirte a una organización más tarde desde Ajustes.",
+      "yourLegalPractice": "Tu práctica legal"
+    },
+    "resetPassword": {
+      "checkLinkAction": "revisar tu enlace de restablecimiento",
+      "chooseANewPassword": "Elige una nueva contraseña",
+      "confirmNewPassword": "Confirma tu nueva contraseña",
+      "contactSupport": "Contacta a soporte",
+      "linkExpired": "Este enlace para restablecer tu contraseña expiró. Pide uno nuevo.",
+      "linkInvalidRequestNew": "Este enlace para restablecer tu contraseña no es válido o expiró. Pide uno nuevo.",
+      "logIn": "Iniciar sesión",
+      "newPassword": "Nueva contraseña",
+      "passwordUpdated": "Contraseña actualizada",
+      "passwordsDoNotMatch": "Las contraseñas no coinciden.",
+      "reauthenticate": "Vuelve a iniciar sesión antes de cambiar tu contraseña.",
+      "requestAnotherLink": "Pedir otro enlace",
+      "resetLinkUnavailable": "Enlace de restablecimiento no disponible",
+      "thisPasswordResetLinkIsInvalid": "Este enlace para restablecer tu contraseña no es válido o expiró.",
+      "thisShouldOnlyTakeAMoment": "Esto solo debería tardar un momento.",
+      "updateAction": "actualizar tu contraseña",
+      "updateFailed": "No se pudo actualizar tu contraseña. Inténtalo de nuevo.",
+      "updatePassword": "Actualizar contraseña",
+      "updatingPassword": "Actualizando contraseña...",
+      "useAtLeastMinPasswordLength": "Usa al menos {MIN_PASSWORD_LENGTH} caracteres.",
+      "verifyingYourResetLink": "Verificando tu enlace para restablecer la contraseña...",
+      "yourPasswordHasBeenChangedLog": "Se cambió tu contraseña. Vuelve a iniciar sesión con tu nueva contraseña."
     },
     "signup": {
       "accountCreated": "¡Cuenta creada!",
+      "checkCredentials": "Revisa tu correo y contraseña e inténtalo de nuevo.",
       "confirmPassword": "Confirma tu contraseña",
       "continue": "Continuar",
+      "createAction": "crear tu cuenta",
+      "createFailed": "No se pudo crear tu cuenta en este momento. Inténtalo de nuevo.",
       "creatingAccount": "Creando cuenta...",
       "email": "Correo electrónico",
+      "emailRateLimit": "Se solicitaron demasiados correos de registro. Espera unos minutos e inténtalo de nuevo.",
       "haveAccount": "¿Ya tienes una cuenta?",
       "logIn": "Inicia sesión",
       "password": "Contraseña",
       "passwordPlaceholder": "Mínimo {min} caracteres",
+      "passwordsDontMatch": "Las dos contraseñas no coinciden.",
       "redirecting": "Te estamos redirigiendo para terminar de configurar tu cuenta...",
+      "requestTimeout": "Se agotó el tiempo de la solicitud de registro. Inténtalo de nuevo.",
       "signUp": "Crea tu cuenta"
     },
     "sso": {
       "backToLogin": "Volver al inicio de sesión",
       "continue": "Continuar",
       "continuing": "Continuando…",
-      "email": "Correo electrónico",
+      "email": "Correo",
       "retry": "Reintentar",
       "ssoLogin": "Inicio de sesión con SSO",
-      "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+      "startAction": "iniciar sesión con SSO",
+      "startFailed": "No se pudo iniciar sesión con SSO. Inténtalo de nuevo.",
+      "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+      "validCompanyEmail": "Escribe un correo corporativo válido."
+    },
+    "verifyMfa": {
+      "authenticatorApp": "App de autenticación",
+      "cancel": "Cancelar",
+      "codeInvalid": "Ese código no es válido o expiró.",
+      "contactSupport": "Contacta a soporte",
+      "enterSixDigitCode": "Escribe el código de seis dígitos de tu app de autenticación.",
+      "enterTheSixDigitCodeFrom": "Escribe el código de seis dígitos de tu app de autenticación para continuar.",
+      "factorNotRegistered": "Este autenticador ya no está registrado. Contacta a soporte para recuperar el acceso.",
+      "loadAction": "cargar tu autenticador",
+      "loadFailed": "No se pudo cargar la verificación del autenticador. Inténtalo de nuevo.",
+      "loadingAuthenticator": "Cargando autenticador...",
+      "noVerifiedAuthenticator": "No hay ningún autenticador verificado registrado para esta cuenta. Contacta a soporte para recuperar el acceso.",
+      "noVerifiedAuthenticatorFactorIsAvailable": "No hay ningún factor de autenticación verificado disponible para esta sesión.",
+      "signOutAction": "cerrar sesión",
+      "signOutFailed": "No se pudo cerrar sesión. Inténtalo de nuevo.",
+      "verify": "Verificar",
+      "verifyCodeAction": "verificar ese código",
+      "verifyIdentityAction": "verificar tu identidad",
+      "verifyYourIdentity": "Verifica tu identidad",
+      "verifying": "Verificando..."
     }
   },
   "common": {
@@ -106,94 +302,6 @@
       "label": "Código fuente"
     }
   },
-  "playbooks": {
-    "newMenu": {
-      "trigger": "Nuevo playbook",
-      "models": "Modelos",
-      "withQuestions": "Con preguntas",
-      "import": "Importar archivo",
-      "blank": "Desde cero"
-    },
-    "intake": {
-      "breadcrumb": "Playbooks",
-      "title": "Nuevo playbook con preguntas",
-      "intro": "Responde lo que sepas de este cliente; todas las preguntas son opcionales. El modelo redacta un borrador y muestra de dónde sale cada regla.",
-      "name": "Nombre del playbook (opcional)",
-      "model": "Modelo de redacción",
-      "noModel": "No hay ningún modelo disponible. <link>Configura una llave de API</link> o activa un modelo local.",
-      "question": "Pregunta {number}",
-      "attachments": "Cláusulas preferidas (pregunta 8)",
-      "attachPrompt": "Arrastra aquí archivos .docx o .pdf, o haz clic para elegir archivos guardados o subirlos.",
-      "attachMorePrompt": "Suelta más archivos aquí, o haz clic para agregar más.",
-      "tooManyAttachments": "Puedes adjuntar hasta {max, plural, one {# documento} other {# documentos}}.",
-      "wrongType": "Adjunta archivos .docx o .pdf.",
-      "tooLong": "Tus respuestas suman más de {max, number} caracteres. Acórtalas.",
-      "noAnswers": "No respondiste ninguna pregunta. Todas las reglas del borrador serán práctica general sugerida por la IA, marcadas como sin respaldo.",
-      "submit": "Redactar borrador",
-      "submitting": "Enviando…",
-      "loading": "Cargando las preguntas…",
-      "loadFailed": "No se pudieron cargar las preguntas.",
-      "loadAction": "cargar las preguntas",
-      "discardTitle": "¿Descartar tus respuestas?",
-      "discardMessage": "Se perderá lo que escribiste y los archivos que adjuntaste.",
-      "discard": "Descartar",
-      "startedTitle": "Redactando tu borrador",
-      "startedMessage": "Puede tardar unos minutos. Te avisamos cuando esté listo.",
-      "readyTitle": "Borrador listo para revisar",
-      "readyMessage": "{name} es un borrador: revisa sus reglas y márcalo como listo antes de usarlo.",
-      "open": "Abrir",
-      "failedTitle": "No se redactó el borrador",
-      "failedMessage": "No se pudo redactar el borrador. Inténtalo de nuevo.",
-      "backToQuestions": "Volver a las preguntas",
-      "drafting": "Redactando…",
-      "draftingLabel": "Redactando",
-      "untitled": "Playbook en borrador",
-      "questions": {
-        "q1": "¿A quién representas y quién es la contraparte típica?",
-        "q2": "Giro y tamaño del cliente, y regulación de su sector (financiero, salud, datos personales, gobierno…).",
-        "q3": "Tipo de documento: arrendamiento, servicios, NDA, compraventa, suministro, laboral…",
-        "q4": "Jurisdicción y ley aplicable; si acepta arbitraje y en qué sede.",
-        "q5": "Apetito de riesgo: conservador, equilibrado o flexible.",
-        "q6": "Líneas rojas: lo que este cliente nunca acepta.",
-        "q7": "Lo que sí puede ceder en una negociación.",
-        "q8": "Cláusulas o redacciones preferidas del cliente; se pueden adjuntar.",
-        "q9": "Antecedentes: conflictos pasados, relación con la contraparte y lo que salió mal antes.",
-        "q10": "Idioma, moneda y formato de firma."
-      },
-      "q8Help": "Puedes adjuntar hasta {max, plural, one {# documento .docx o .pdf} other {# documentos .docx o .pdf}}.",
-      "submitAction": "redactar el borrador",
-      "openAction": "abrir el borrador"
-    },
-    "draft": {
-      "label": "Borrador",
-      "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
-      "markReady": "Marcar como listo",
-      "confirmTitle": "¿Marcar como listo?",
-      "confirmMessage": "{unbacked, plural, one {# regla no tiene} other {# reglas no tienen}} respaldo y {unverified, plural, one {# referencia legal no está verificada} other {# referencias legales no están verificadas}}. Ya listo, se puede usar en revisiones y no vuelve a borrador.",
-      "markReadyAction": "marcar el playbook como listo"
-    },
-    "model": {
-      "label": "Modelo",
-      "mark": "Marcar como modelo",
-      "unmark": "Quitar marca de modelo",
-      "markAction": "cambiar la marca de modelo",
-      "copyAction": "copiar el modelo",
-      "copied": "Tu copia de {name} es un borrador. Revisa sus reglas y márcala como lista.",
-      "copiedTitle": "Copia creada"
-    },
-    "origin": {
-      "answer": "Origen: respuesta a la {count, plural, one {pregunta} other {preguntas}} {questions}",
-      "clause": "Origen: cláusula adjunta {name}",
-      "clauseUnnamed": "Origen: cláusula adjunta",
-      "aiGeneral": "Origen: práctica general sugerida por la IA",
-      "unbacked": "Sugerencia sin respaldo, revisar",
-      "unverified": "No verificado",
-      "verified": "Verificado en un documento adjunto",
-      "answerLabel": "Respuesta a la pregunta {number}",
-      "quoteLabel": "Fragmento del documento adjunto",
-      "legalRefs": "Referencias legales"
-    }
-  },
   "errors": {
     "code": {
       "access_inherited": "El acceso a este elemento viene de su proyecto. Cámbialo en el proyecto.",
@@ -204,6 +312,7 @@
       "chat_route_credential_unavailable": "La llave con la que empezó esta conversación ya no está disponible. Inicia una conversación nueva con una llave que puedas usar.",
       "chat_route_pinned": "Esta conversación usa el modelo con el que empezó. Inicia una conversación nueva para usar otro modelo.",
       "cookie_session_required": "Vuelve a iniciar sesión para continuar.",
+      "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "email_address_invalid": "Escribe un correo electrónico válido.",
       "firm_criteria_limit_reached": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
       "firm_criteria_rule_not_found": "Esa regla no está en un playbook de tu despacho que puedas abrir.",
@@ -213,12 +322,9 @@
       "member_data_action_disabled": "Los propietarios de esta organización no permiten que los miembros hagan esto.",
       "memory_revision_conflict": "La memoria cambió desde que se cargó. Revisa lo que está guardado ahora e inténtalo de nuevo.",
       "mfa_verification_required": "Completa la verificación en dos pasos para continuar.",
-      "signup_invite_only": "LiTT está en beta cerrada: necesitas una invitación. Si ya te invitaron, revisa tu correo; si no, pídela al despacho y regístrate con ese mismo correo.",
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
-      "terms_version_mismatch": "Esos no son los Términos vigentes. Recarga la página e inténtalo de nuevo.",
-      "document_version_conflict": "Este documento cambió desde que lo abriste. Recárgalo para continuar.",
       "playbook_change_decided": "Este cambio ya se decidió. Recarga los cambios propuestos.",
       "playbook_change_stale": "La regla cambió después de que se propuso este cambio. Recarga los cambios propuestos.",
       "playbook_changes_pending": "Este playbook tiene cambios propuestos sin decidir. Acepta o rechaza cada uno primero.",
@@ -231,6 +337,8 @@
       "review_running": "Esta revisión tabular ya se está ejecutando.",
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
+      "signup_invite_only": "LiTT está en beta cerrada: necesitas una invitación. Si ya te invitaron, revisa tu correo; si no, pídela al despacho y regístrate con ese mismo correo.",
+      "terms_version_mismatch": "Esos no son los Términos vigentes. Recarga la página e inténtalo de nuevo.",
       "training_approval_required": "Esta versión es un borrador de pasante: necesita aprobación antes de salir de LiTT.",
       "training_confidence_required": "Marca qué tan seguro estás de tu planteamiento antes de preguntar. Si no ves la escala, recarga la página.",
       "training_copy_needs_organization": "Este archivo es un borrador de pasante y solo puede copiarse a un flujo de trabajo de una organización, donde alguien pueda aprobarlo.",
@@ -248,7 +356,6 @@
       "training_pass_pupil_no_access": "Tu pupilo no puede abrir este asunto; dale acceso antes de concederle el pase.",
       "training_promotion_not_proposed": "LiTT ya no propone esta promoción. Recarga para ver la evidencia actual.",
       "training_pupil_has_mentor": "Este miembro ya tiene mentor. Un propietario o administrador puede cambiarlo.",
-      "training_review_audit_stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva.",
       "training_reading_document_unavailable": "Este documento ya no está disponible para leerlo.",
       "training_reading_findings_recorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
       "training_reading_no_document": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
@@ -258,6 +365,7 @@
       "training_retake_not_due": "Ese tema no toca retomarlo por ahora.",
       "training_retake_not_open": "Esta retoma no está esperando una respuesta.",
       "training_retake_source_gone": "Las notas de las que salió esta pregunta ya no existen, así que no se puede evaluar. La retoma se cerró; puedes pedir una nueva.",
+      "training_review_audit_stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva.",
       "training_review_in_progress": "Esto ya se está generando.",
       "training_review_key_required": "Agrega una llave para tu modelo en Ajustes → Llaves propias (BYOK) para generar revisiones, preguntas y retomas.",
       "untrusted_origin": "El origen de la solicitud no está permitido.",
@@ -287,6 +395,12 @@
       "validation": "Parte de la información que diste no es válida."
     },
     "networkAt": "LiTT no pudo comunicarse con el servidor en {origin}. Revisa tu conexión y que el servidor esté funcionando, y vuelve a intentarlo.",
+    "page": {
+      "goHome": "Ir al inicio",
+      "home": "Inicio",
+      "pageNotFound": "Página no encontrada",
+      "thePageYoureLookingForDoesnt": "La página que buscas no existe o tal vez fue movida."
+    },
     "signIn": "Iniciar sesión",
     "support": {
       "diagnostics": "--- Datos para soporte (no los borres) ---",
@@ -319,6 +433,129 @@
       "upstream_unavailable": "No se puede contactar al servidor por el momento. Inténtalo de nuevo en unos minutos."
     }
   },
+  "legal": {
+    "checkbox": "Leí y acepto los Términos y condiciones y el Aviso de privacidad",
+    "intro": "Para seguir usando LiTT, lee y acepta los <terms>Términos y condiciones</terms> y el <privacy>Aviso de privacidad</privacy>.",
+    "notice": "Al continuar aceptas los <terms>Términos</terms> y el <privacy>Aviso de privacidad</privacy>.",
+    "onlySpanish": "Disponible solo en español.",
+    "saving": "Guardando...",
+    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
+    "simplifiedTitle": "Aviso de privacidad simplificado",
+    "submit": "Aceptar y continuar",
+    "title": "Términos y Aviso de privacidad"
+  },
+  "markdownDocument": {
+    "cancel": "Cancelar",
+    "conflict": "Alguien guardó otra versión; recarga para ver los cambios.",
+    "copyFailed": "Tu navegador no permitió copiar. Selecciona el texto y cópialo a mano.",
+    "copyText": "Copiar mi texto",
+    "discard": "Descartar cambios",
+    "discardTitle": "¿Descartar los cambios sin guardar?",
+    "edit": "Editar",
+    "editorLabel": "Editor de Markdown",
+    "keepEditing": "Seguir editando",
+    "loadError": "No se pudo cargar este archivo Markdown.",
+    "loadingLabel": "Cargando documento",
+    "modeLabel": "Modo de edición",
+    "modeRich": "Con formato",
+    "modeText": "Texto",
+    "reload": "Recargar",
+    "richUnavailable": "El editor con formato cambiaría este Markdown al guardarlo (tablas o sintaxis que no conserva). Sigue editando en modo Texto.",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "sourceLabel": "Markdown fuente",
+    "textCopied": "Texto copiado",
+    "tooLarge": "Este documento es demasiado grande para guardarse desde el editor (el límite es de 50 MB). Copia tu texto y divídelo, o súbelo como una versión nueva.",
+    "unsaved": "Tienes cambios sin guardar. Si sales ahora, los perderás."
+  },
+  "playbooks": {
+    "draft": {
+      "banner": "Borrador: no se puede usar en revisiones hasta que un editor lo marque como listo.",
+      "confirmMessage": "{unbacked, plural, one {# regla no tiene} other {# reglas no tienen}} respaldo y {unverified, plural, one {# referencia legal no está verificada} other {# referencias legales no están verificadas}}. Ya listo, se puede usar en revisiones y no vuelve a borrador.",
+      "confirmTitle": "¿Marcar como listo?",
+      "label": "Borrador",
+      "markReady": "Marcar como listo",
+      "markReadyAction": "marcar el playbook como listo"
+    },
+    "intake": {
+      "attachMorePrompt": "Suelta más archivos aquí, o haz clic para agregar más.",
+      "attachPrompt": "Arrastra aquí archivos .docx o .pdf, o haz clic para elegir archivos guardados o subirlos.",
+      "attachments": "Cláusulas preferidas (pregunta 8)",
+      "backToQuestions": "Volver a las preguntas",
+      "breadcrumb": "Playbooks",
+      "discard": "Descartar",
+      "discardMessage": "Se perderá lo que escribiste y los archivos que adjuntaste.",
+      "discardTitle": "¿Descartar tus respuestas?",
+      "drafting": "Redactando…",
+      "draftingLabel": "Redactando",
+      "failedMessage": "No se pudo redactar el borrador. Inténtalo de nuevo.",
+      "failedTitle": "No se redactó el borrador",
+      "intro": "Responde lo que sepas de este cliente; todas las preguntas son opcionales. El modelo redacta un borrador y muestra de dónde sale cada regla.",
+      "loadAction": "cargar las preguntas",
+      "loadFailed": "No se pudieron cargar las preguntas.",
+      "loading": "Cargando las preguntas…",
+      "model": "Modelo de redacción",
+      "name": "Nombre del playbook (opcional)",
+      "noAnswers": "No respondiste ninguna pregunta. Todas las reglas del borrador serán práctica general sugerida por la IA, marcadas como sin respaldo.",
+      "noModel": "No hay ningún modelo disponible. <link>Configura una llave de API</link> o activa un modelo local.",
+      "open": "Abrir",
+      "openAction": "abrir el borrador",
+      "q8Help": "Puedes adjuntar hasta {max, plural, one {# documento .docx o .pdf} other {# documentos .docx o .pdf}}.",
+      "question": "Pregunta {number}",
+      "questions": {
+        "q1": "¿A quién representas y quién es la contraparte típica?",
+        "q10": "Idioma, moneda y formato de firma.",
+        "q2": "Giro y tamaño del cliente, y regulación de su sector (financiero, salud, datos personales, gobierno…).",
+        "q3": "Tipo de documento: arrendamiento, servicios, NDA, compraventa, suministro, laboral…",
+        "q4": "Jurisdicción y ley aplicable; si acepta arbitraje y en qué sede.",
+        "q5": "Apetito de riesgo: conservador, equilibrado o flexible.",
+        "q6": "Líneas rojas: lo que este cliente nunca acepta.",
+        "q7": "Lo que sí puede ceder en una negociación.",
+        "q8": "Cláusulas o redacciones preferidas del cliente; se pueden adjuntar.",
+        "q9": "Antecedentes: conflictos pasados, relación con la contraparte y lo que salió mal antes."
+      },
+      "readyMessage": "{name} es un borrador: revisa sus reglas y márcalo como listo antes de usarlo.",
+      "readyTitle": "Borrador listo para revisar",
+      "startedMessage": "Puede tardar unos minutos. Te avisamos cuando esté listo.",
+      "startedTitle": "Redactando tu borrador",
+      "submit": "Redactar borrador",
+      "submitAction": "redactar el borrador",
+      "submitting": "Enviando…",
+      "title": "Nuevo playbook con preguntas",
+      "tooLong": "Tus respuestas suman más de {max, number} caracteres. Acórtalas.",
+      "tooManyAttachments": "Puedes adjuntar hasta {max, plural, one {# documento} other {# documentos}}.",
+      "untitled": "Playbook en borrador",
+      "wrongType": "Adjunta archivos .docx o .pdf."
+    },
+    "model": {
+      "copied": "Tu copia de {name} es un borrador. Revisa sus reglas y márcala como lista.",
+      "copiedTitle": "Copia creada",
+      "copyAction": "copiar el modelo",
+      "label": "Modelo",
+      "mark": "Marcar como modelo",
+      "markAction": "cambiar la marca de modelo",
+      "unmark": "Quitar marca de modelo"
+    },
+    "newMenu": {
+      "blank": "Desde cero",
+      "import": "Importar archivo",
+      "models": "Modelos",
+      "trigger": "Nuevo playbook",
+      "withQuestions": "Con preguntas"
+    },
+    "origin": {
+      "aiGeneral": "Origen: práctica general sugerida por la IA",
+      "answer": "Origen: respuesta a la {count, plural, one {pregunta} other {preguntas}} {questions}",
+      "answerLabel": "Respuesta a la pregunta {number}",
+      "clause": "Origen: cláusula adjunta {name}",
+      "clauseUnnamed": "Origen: cláusula adjunta",
+      "legalRefs": "Referencias legales",
+      "quoteLabel": "Fragmento del documento adjunto",
+      "unbacked": "Sugerencia sin respaldo, revisar",
+      "unverified": "No verificado",
+      "verified": "Verificado en un documento adjunto"
+    }
+  },
   "projects": {
     "workspace": {
       "view": {
@@ -329,403 +566,177 @@
       }
     }
   },
+  "support": {
+    "askAQuestionAboutUsingLitt": "Haz una pregunta sobre el uso de LiTT",
+    "backToHome": "Volver al inicio",
+    "bugReport": "Reporte de error",
+    "emailSupportDirectly": "Envía un correo directamente a soporte",
+    "featureRequest": "Solicitud de función",
+    "generalFeedbackOrOtherInquiries": "Comentarios generales u otras consultas",
+    "ifTheBugIsInA": "Si el error está en un chat, pasa el cursor sobre el chat en la barra lateral, haz clic en los puntos, luego haz clic en compartir y pega el enlace aquí.",
+    "linkToIssueOptional": "Enlace al problema (opcional)",
+    "message": "Mensaje",
+    "other": "Otro",
+    "pleaseDescribeYourQuestionIssueOr": "Describe tu pregunta, problema o sugerencia en detalle...",
+    "question": "Pregunta",
+    "reportSomethingThatIsntWorking": "Reporta algo que no funciona",
+    "requestFailed": "Falló la solicitud de soporte",
+    "sendAction": "enviar tu mensaje",
+    "sendFailed": "LiTT no pudo enviar tu mensaje. Inténtalo de nuevo o envíanos un correo directamente.",
+    "sending": "Enviando...",
+    "subject": "Asunto",
+    "submit": "Enviar",
+    "suggestANewFeatureOrImprovement": "Sugiere una nueva función o mejora",
+    "support": "Soporte",
+    "thankYouForHelpingUsImprove": "Gracias por ayudarnos a mejorar.",
+    "weWillGetInTouchWith": "Nos pondremos en contacto contigo pronto por correo.",
+    "wellRespondTo": "Responderemos a:",
+    "whatCanWeHelpYouWith": "¿En qué te podemos ayudar?"
+  },
   "training": {
-    "stage": {
-      "pasante": "Pasante",
-      "junior": "Junior",
-      "abogado": "Abogado"
-    },
     "allPractices": "Todas las materias",
-    "member": "Miembro",
-    "surface": {
-      "chat": "Chat",
-      "word": "Word",
-      "tabular": "Revisión tabular"
-    },
     "credentialSource": {
-      "personal": "Tu llave",
-      "organization": "Llave de la organización",
       "deployment": "Llave de la instalación",
-      "operator": "Endpoint del operador"
-    },
-    "loadFailed": "No se pudo cargar.",
-    "notes": {
-      "optional": "Nota (opcional)",
-      "max": "Hasta {max} caracteres."
-    },
-    "mentorPanel": {
-      "title": "Panel del mentor",
-      "intro": "Supervisa a un pupilo a la vez. Aquí nada compara ni ordena a tus pupilos, y solo tú y cada pupilo ven sus datos.",
-      "open": "Abrir el panel del mentor",
-      "back": "Volver a Formación",
-      "allPupils": "Todos los pupilos",
-      "notMentor": "No eres mentor en ninguna organización. El dueño o un administrador de la organización designa a los mentores.",
-      "noPupils": "Todavía no tienes pupilos aquí. Agrégalos en Formación, en Mis pupilos.",
-      "pendingReview": "{count, plural, =0 {Ningún trabajo pendiente de revisión} one {# trabajo pendiente de revisión} other {# trabajos pendientes de revisión}}",
-      "passInForce": "Pase de urgencia vigente hasta el {end, date, medium} {end, time, short}",
-      "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
-      "noWork": "Sin trabajos todavía",
-      "supervise": "Supervisar",
-      "superviseName": "Supervisar a {name}",
-      "tabsLabel": "Secciones de la supervisión",
-      "tabs": {
-        "works": "Trabajos",
-        "defenses": "Defensa oral",
-        "passes": "Pase de urgencia",
-        "promotion": "Promoción",
-        "criterion": "Criterio",
-        "gym": "Gimnasio"
-      },
-      "actions": {
-        "load": "cargar tus pupilos"
-      }
-    },
-    "review": {
-      "proposed": "Qué propuso",
-      "aiCorrected": "Qué corrigió la IA",
-      "doubts": "Dónde dudó",
-      "unverified": "Qué quedó sin verificar",
-      "inferred": "inferido",
-      "approve": "Aprobar esta versión",
-      "approveName": "Aprobar esta versión: {text}",
-      "approved": "Aprobada",
-      "none": "Nada.",
-      "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
-      "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
-      "notReviewed": "Sin revisar todavía",
-      "pending": "Generando el resumen…",
-      "failed": "No se pudo generar el resumen. Puedes intentarlo de nuevo."
-    },
-    "works": {
-      "intro": "Cada trabajo es una conversación con notas de turno. El resumen muestra cuatro datos; lo que quedó sin verificar se calcula, no se genera.",
-      "empty": "Este pupilo todavía no tiene trabajos con notas de turno.",
-      "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
-      "untitled": "Trabajo sin título",
-      "meta": "{surface} · {notes, plural, one {# nota} other {# notas}} · {date, date, medium} {date, time, short}",
-      "noReview": "Todavía no hay resumen.",
-      "newWork": "Hay trabajo nuevo desde este resumen.",
-      "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación. Apruébalo con el botón de su fila de arriba o desde su documento.} other {# borradores sellados siguen pendientes de aprobación. Apruébalos con el botón de su fila de arriba o desde cada documento.}}",
-      "generate": "Generar resumen",
-      "regenerate": "Regenerar",
-      "approveTitle": "¿Aprobar esta versión?",
-      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
-      "approve": "Aprobar",
-      "markReviewed": "Marcar como revisado",
-      "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
-      "key": "Llave",
-      "chooseKey": "Elige una llave",
-      "codes": {
-        "inProgress": "Ya se está generando un resumen de este trabajo. Espera un momento y vuelve a cargar.",
-        "credentialUnavailable": "La llave que usó este resumen ya no está disponible para ti. Elige otra llave y vuelve a intentarlo.",
-        "keyRequired": "Necesitas una llave de IA que puedas usar en esta organización."
-      },
-      "actions": {
-        "load": "cargar los trabajos",
-        "generate": "generar el resumen",
-        "markReviewed": "marcar el trabajo como revisado",
-        "approve": "aprobar la versión"
-      }
-    },
-    "defenses": {
-      "intro": "Cinco preguntas sobre el razonamiento del propio pupilo; una es un cambio de hechos. El resultado se registra una vez; para corregirlo, haz una defensa nueva.",
-      "newTitle": "Nueva defensa",
-      "work": "Trabajo",
-      "noWork": "Sin trabajo en particular",
-      "practice": "Materia",
-      "practiceFromWork": "La materia del asunto del trabajo",
-      "otherPractice": "Otra materia",
-      "practiceName": "Nombre de la materia",
-      "create": "Crear defensa",
-      "empty": "Todavía no hay defensas.",
-      "createdOn": "Creada el {date, date, medium} {date, time, short}",
-      "scheduled": "Programada; todavía sin resultado.",
-      "generateQuestions": "Generar preguntas",
-      "questionsPending": "Generando las preguntas…",
-      "questionsFailed": "No se pudieron generar las preguntas. Puedes intentarlo de nuevo o registrar el resultado sin ellas.",
-      "changeOfFacts": "Cambio de hechos",
-      "question": "Pregunta {number}",
-      "listenFor": "Qué escuchar: {text}",
-      "recordTitle": "Registrar el resultado",
-      "outcomeLabel": "Resultado",
-      "reasonLabel": "Motivo",
-      "chooseReason": "Elige un motivo",
-      "outcome": {
-        "approved": "Aprobada",
-        "not_approved": "No aprobada"
-      },
-      "reason": {
-        "razonamiento_solido": "Razonamiento sólido",
-        "razonamiento_incompleto": "Razonamiento incompleto",
-        "cambio_de_hechos_no_resuelto": "No resolvió el cambio de hechos",
-        "sin_sustento": "Sin sustento",
-        "otro": "Otro"
-      },
-      "record": "Registrar resultado",
-      "confirmTitle": "¿Registrar este resultado?",
-      "confirmMessage": "{outcome}: {reason}. Se registra una vez y no se puede cambiar; para corregirlo, haz una defensa nueva.",
-      "result": "{outcome} el {date, date, medium} {date, time, short} · {reason}",
-      "codes": {
-        "alreadyRecorded": "Esta defensa ya tiene resultado. Vuelve a cargar para verlo."
-      },
-      "actions": {
-        "load": "cargar las defensas",
-        "create": "crear la defensa",
-        "generate": "generar las preguntas",
-        "record": "registrar el resultado"
-      }
-    },
-    "passes": {
-      "intro": "Un pase quita «Tu turno primero» a este pupilo en un asunto, por tiempo limitado. Sus borradores siguen sellados hasta que se aprueben, y el pase no aplica en Word.",
-      "newTitle": "Nuevo pase",
-      "project": "Asunto",
-      "chooseProject": "Elige un asunto",
-      "noProjects": "No tienes asuntos en esta organización",
-      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en esta organización",
-      "duration": "Duración",
-      "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
-      "hours": "{hours, plural, one {# hora} other {# horas}}",
-      "reasonLabel": "Motivo",
-      "reason": {
-        "plazo": "Plazo",
-        "audiencia": "Audiencia",
-        "cliente_urgente": "Cliente urgente",
-        "otro": "Otro"
-      },
-      "grant": "Conceder pase",
-      "empty": "Todavía no hay pases.",
-      "inForce": "Vigente hasta el {end, date, medium} {end, time, short}",
-      "ended": "Terminó el {end, date, medium} {end, time, short}",
-      "revoked": "Revocado el {date, date, medium} {date, time, short}",
-      "unknownProject": "Un asunto que no ves",
-      "revoke": "Revocar",
-      "revokeName": "Revocar el pase en {project}",
-      "confirmTitle": "¿Revocar este pase?",
-      "confirmMessage": "Desde el siguiente turno, el pupilo vuelve a escribir su planteamiento en {project}.",
-      "codes": {
-        "duplicate": "Este pupilo ya tiene un pase vigente en ese asunto que termina a la misma hora.",
-        "limit": "Este pupilo ya tiene el máximo de pases vigentes. Revoca uno primero.",
-        "pupilNoAccess": "El pupilo no puede abrir ese asunto, así que el pase no aplicaría.",
-        "invalid": "Revisa el asunto, la duración y el motivo."
-      },
-      "actions": {
-        "load": "cargar los pases",
-        "grant": "conceder el pase",
-        "revoke": "revocar el pase"
-      }
-    },
-    "promotion": {
-      "intro": "LiTT propone; tú decides. Una propuesta se apoya en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa. El resto de la evidencia se te muestra, pero no es requisito.",
-      "empty": "Este pupilo no tiene etapa que promover.",
-      "move": "{practice}: {from} → {to}",
-      "defenses": "Defensas aprobadas: {count} de {required}",
-      "works": "Trabajos revisados: {count} de {required}",
-      "versions": "Borradores aprobados: {count}",
-      "proposed": "LiTT propone esta promoción.",
-      "notYet": "Todavía no se propone.",
-      "blocked": {
-        "general_stage_remains": "Seguiría aplicando su etapa para todas las materias, así que quitar esta no lo haría abogado en esta materia.",
-        "not_approved_after": "Hubo una defensa no aprobada después de la última aprobada.",
-        "overconfident": "Cuando marcó «Seguro», menos de 3 de cada 4 veces coincidió con la respuesta de la IA. Esto bloquea solo la propuesta."
-      },
-      "accept": "Aceptar propuesta",
-      "confirmTitle": "¿Aceptar esta promoción?",
-      "confirmMessage": "{practice}: de {from} a {to}. Después puedes volver a cambiar la etapa en Formación.",
-      "codes": {
-        "notProposed": "Esta propuesta ya no está vigente. Vuelve a cargar para ver la evidencia actual."
-      },
-      "actions": {
-        "load": "cargar la promoción",
-        "accept": "aceptar la promoción"
-      },
-      "decideWithout": "Puedes cambiar la etapa sin la propuesta de LiTT, cuando quieras, en Formación. La propuesta es una lectura de la evidencia, no una condición.",
-      "audits": "Auditorías de revisiones evaluadas: {count} ({adequate} adecuadas, {needsWork} por mejorar)",
-      "readings": "Lecturas completas entregadas: {count}",
-      "calibration": {
-        "few": "Calibración de la confianza: aún hay pocos datos ({count} de {required, plural, one {# turno marcado} other {# turnos marcados}}). No bloquea la propuesta.",
-        "sure": "Calibración de la confianza: cuando marcó «Seguro», coincidió {coincided} de {sure, plural, one {# vez} other {# veces}}, entre {count, plural, one {# turno marcado} other {# turnos marcados}}. La coincidencia se mide contra la respuesta de la IA, según el contraste de la IA.",
-        "needSure": "Se necesitan al menos {required} turnos «Seguro» para valorarlos."
-      },
-      "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}.",
-      "gym": "Gimnasio: {attempts, plural, one {# intento entregado} other {# intentos entregados}}, {found} de {errors} errores encontrados, {hints, plural, one {# pista} other {# pistas}}"
-    },
-    "mentorSeesMe": {
-      "title": "Lo que mi mentor ve de mí",
-      "intro": "Los mismos resúmenes, defensas y pases que tu mentor ve aquí. Ni más ni menos.",
-      "reviews": "Resúmenes de tu trabajo",
-      "noReviews": "Todavía no hay resúmenes.",
-      "defenses": "Defensas orales",
-      "noDefenses": "Todavía no hay defensas.",
-      "scheduled": "Hay una defensa programada. Verás sus preguntas y la nota cuando se registre el resultado.",
-      "passes": "Pases de urgencia",
-      "noPasses": "Todavía no hay pases.",
-      "actions": {
-        "load": "cargar lo que ve tu mentor"
-      }
+      "operator": "Endpoint del operador",
+      "organization": "Llave de la organización",
+      "personal": "Tu llave"
     },
     "criterion": {
-      "turn": {
-        "attemptLabel": "Tu planteamiento (2–3 líneas)",
-        "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
-        "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
-        "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
-        "attemptTooShort": "{length}/{min} caracteres. {missing, plural, one {Falta # carácter} other {Faltan # caracteres}}. Después de la respuesta verás un contraste con tu planteamiento.",
-        "confidenceHelp": "Una marca para todo el planteamiento. Solo tú y tu mentor la ven.",
-        "confidenceLegend": "¿Qué tan seguro estás de tu planteamiento?",
-        "confidenceLevels": {
-          "doubt": "Dudo",
-          "fairlySure": "Bastante seguro",
-          "guess": "Casi adivino",
-          "sure": "Seguro"
-        },
-        "confidenceRequired": "Marca qué tan seguro estás antes de enviar.",
-        "foundations": {
-          "solid": "sólido",
-          "weak": "débil",
-          "wrong": "equivocado"
-        },
-        "noteAttemptHeading": "Tu planteamiento",
-        "noteCloseHeading": "Cómo salió la ronda",
-        "noteConfidence": "Tu marca: {level}",
-        "noteContrastFailed": "No se pudo generar el contraste",
-        "noteContrastHeading": "Contraste con tu planteamiento",
-        "noteContrastPending": "Generando contraste…",
-        "noteNotDelivered": "No entregada",
-        "noteFoundation": "Fundamento: {basis}",
-        "noteModeCounterpart": "Ronda con el abogado de la contraparte, turno {step} de 3",
-        "noteModeCounterpartClose": "Cierre de la ronda con el abogado de la contraparte",
-        "noteModeHint": "Pista {step} de 3",
-        "notePrivacy": "Privado: solo tú y tu mentor lo ven",
-        "noteQuestionHeading": "Una pregunta sobre tu fundamento",
-        "noteRegion": "Notas privadas de formación",
-        "noteReply": "Responder",
-        "noteReplyLabel": "Responder a la pregunta sobre tu fundamento",
-        "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
-        "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
-        "noteVerdictHeadingByMentor": "Coincidencia con la respuesta, según tu mentor:",
-        "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
-        "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
-        "verdicts": {
-          "coincide": "Coincide",
-          "noCoincide": "No coincide",
-          "parcial": "Coincide en parte"
-        }
-      },
-      "map": {
-        "title": "Mi criterio",
-        "intro": "Con qué frecuencia tu planteamiento coincidió con la respuesta de la IA, por tema, y qué tan bien coincidió tu propia seguridad. Cuenta coincidencias con la respuesta de la IA, nunca si tuviste la razón. Solo tú y tu mentor lo ven.",
+      "audit": {
         "actions": {
-          "load": "cargar tu criterio",
-          "start": "generar la retoma",
-          "answer": "enviar tu respuesta"
+          "finish": "terminar la auditoría",
+          "load": "cargar la auditoría",
+          "mark": "guardar tu marca",
+          "start": "empezar la auditoría"
         },
-        "topics": {
-          "title": "Por tema",
-          "empty": "Todavía no tienes temas. Aparecen conforme trabajas con tu planteamiento primero.",
-          "state": {
-            "strong": "Coincide seguido",
-            "middle": "Intermedio",
-            "weak": "Por reforzar",
-            "few_data": "Aún pocos datos"
-          },
-          "window": "Coincidió {hits} de las últimas {size, plural, one {# vez} other {# veces}}",
-          "events": "{count, plural, one {# vez trabajado} other {# veces trabajado}}",
-          "last": "última el {date, date, medium}",
-          "due": "Listo para retomar"
-        },
-        "calibration": {
-          "title": "Tu seguridad",
-          "intro": "Cuando marcas un nivel, cuántas veces tu planteamiento coincidió con la respuesta de la IA.",
-          "empty": "Todavía no has marcado tu seguridad en turnos que cuenten.",
-          "none": "Sin turnos marcados en este nivel",
-          "line": "Cuando lo marcas, coincidió {coincided} de {marked, plural, one {# vez} other {# veces}}",
-          "partial": "{count, plural, one {# en parte} other {# en parte}}",
-          "fewData": "aún pocos datos"
-        },
-        "hints": {
-          "title": "Pistas",
-          "mine": {
-            "none": "No has pedido pistas.",
-            "some": "{count, plural, one {Pediste # pista} other {Pediste # pistas}}; la más alta fue el escalón {level}."
-          },
-          "mentor": {
-            "none": "Este pupilo no ha pedido pistas.",
-            "some": "{count, plural, one {Pidió # pista} other {Pidió # pistas}}; la más alta fue el escalón {level}."
-          }
-        },
-        "retakes": {
-          "title": "Retomas",
-          "none": "Cuando un tema débil lleva 14 días sin trabajarse, puedes retomarlo aquí con una pregunta nueva.",
-          "noneMentor": "Este pupilo no tiene retomas.",
-          "start": "Retomar este tema",
-          "startName": "Retomar «{topic}»",
-          "generating": "Generando la pregunta…",
-          "refresh": "Actualizar",
-          "status": {
-            "pending": "Generando",
-            "open": "Esperando tu respuesta",
-            "answered": "Respondida",
-            "failed": "No se pudo generar la pregunta",
-            "closed": "La retoma se cerró porque ya no están tus notas",
-            "closedMentor": "La retoma se cerró porque ya no están sus notas"
-          },
-          "started": "empezó el {date, date, medium}",
-          "question": "Pregunta",
+        "backToReview": "Volver a la revisión",
+        "cell": {
           "answer": "Respuesta",
-          "contrast": "Contraste con lo que escribiste antes (inferido por la IA)",
-          "verdict": "Coincidencia con lo que escribiste antes, según el contraste de la IA: {verdict}",
-          "answerLabel": "Tu respuesta",
-          "tooShort": "{length}/{min} caracteres. Escribe al menos {min} caracteres.",
-          "count": "{length}/{max} caracteres.",
-          "send": "Enviar respuesta",
-          "once": "Solo puedes enviarla una vez. La IA la contrasta con lo que escribiste antes; no es una calificación."
+          "markLegend": "¿Cómo está esta respuesta?",
+          "mentorMark": "Tu mentor marcó esta respuesta como {mark}.",
+          "noPassage": "Esta respuesta no cita ningún pasaje.",
+          "note": "Tu nota (opcional)",
+          "page": "página {page}",
+          "passages": "Pasajes citados",
+          "reasoning": "Razonamiento",
+          "title": "{row} · {column}",
+          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra."
         },
         "codes": {
-          "notDue": "Este tema todavía no está listo para retomarse.",
-          "inProgress": "Ya tienes una retoma en curso. Termínala primero.",
-          "notOpen": "Esta retoma ya no espera una respuesta.",
-          "keyRequired": "Para hacer una retoma necesitas una llave de IA que puedas usar en esta organización.",
-          "credentialUnavailable": "La llave con la que se hizo esta retoma ya no está disponible para ti. Elige otra llave e inténtalo de nuevo."
+          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva."
+        },
+        "design": {
+          "clean": "Sin observaciones: cada pregunta tiene nombre, una instrucción clara y un formato de respuesta.",
+          "column": "Columna {number}",
+          "instruction": "Instrucción: {text}",
+          "intro": "LiTT las revisa con reglas fijas, no con un modelo. Son observaciones, nunca bloqueos.",
+          "noInstruction": "Sin instrucción",
+          "title": "Tus preguntas"
+        },
+        "evaluation": {
+          "adequate": "Adecuado",
+          "needs_work": "Por mejorar",
+          "title": "Lo que dijo tu mentor"
+        },
+        "intro": "Revisa las preguntas de esta revisión y luego audita a mano una muestra de sus respuestas. Es para tu aprendizaje: no bloquea nada y aquí no se usa ningún modelo.",
+        "lint": {
+          "duplicate_name": "{column} tiene el mismo nombre que {other}.",
+          "empty_instruction": "{column} no tiene instrucción.",
+          "empty_name": "{column} no tiene nombre.",
+          "no_format": "{column} no tiene formato de respuesta. Elige uno para que las respuestas se puedan comparar.",
+          "short_instruction": "La instrucción de {column} es muy corta. Di qué buscar y dónde."
+        },
+        "markWord": {
+          "correct": "correcta",
+          "incomplete": "incompleta",
+          "incorrect": "incorrecta"
+        },
+        "marks": {
+          "correct": "Correcta",
+          "incomplete": "Incompleta",
+          "incorrect": "Incorrecta"
         },
         "mentor": {
-          "title": "Mapa y calibración",
-          "intro": "Con qué frecuencia el planteamiento de este pupilo coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este pupilo: sin puntajes, rankings ni comparaciones.",
-          "withoutAccess": "{count, plural, one {# nota es de un trabajo en un asunto que no puedes abrir, por eso no se cuenta aquí.} other {# notas son de trabajos en asuntos que no puedes abrir, por eso no se cuentan aquí.}}",
-          "retakesWithoutAccess": "{count, plural, one {# retoma es de un trabajo en un asunto que no puedes abrir, por eso no se lista aquí.} other {# retomas son de trabajos en asuntos que no puedes abrir, por eso no se listan aquí.}}",
           "actions": {
-            "load": "cargar el mapa del pupilo"
-          }
+            "evaluate": "guardar la evaluación",
+            "load": "cargar las revisiones masivas"
+          },
+          "clearMark": "Quitar mi marca",
+          "codes": {
+            "stale": "La revisión se volvió a generar después de esta auditoría, así que ya no se puede evaluar."
+          },
+          "empty": "Este pupilo todavía no tiene auditorías.",
+          "evaluate": "Tu evaluación",
+          "evaluatedOn": "Evaluada el {date, date, medium}",
+          "intro": "Las preguntas que diseñó cada pupilo y la muestra que auditó a mano. Solo ves una revisión si puedes abrir su asunto. Tu evaluación no bloquea nada: es evidencia.",
+          "keepMark": "Dejar su marca",
+          "noteLabel": "Nota para el pupilo (opcional)",
+          "personMark": "Su marca: {mark}",
+          "save": "Guardar evaluación",
+          "started": "Empezó el {date, date, medium}",
+          "status": {
+            "complete": "Terminada",
+            "open": "En curso",
+            "stale": "Vencida: la revisión se volvió a generar"
+          },
+          "title": "Revisiones masivas",
+          "unmarked": "Sin marcar todavía",
+          "untitled": "Revisión sin título",
+          "waiting": "Podrás evaluarla cuando el pupilo termine la auditoría.",
+          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
+          "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
+          "yourMark": "Tu marca"
+        },
+        "menu": "Auditar preguntas",
+        "notApplies": "Esta auditoría es para personas en etapa junior que trabajan en un asunto. No tienes una auditoría que hacer en esta revisión.",
+        "pageTitle": "Audita tu revisión",
+        "result": {
+          "column": "{column}: marcadas {marked}, incorrectas {incorrect}, incompletas {incomplete}.",
+          "done": "Terminaste esta auditoría el {date, date, medium}.",
+          "title": "Tu resultado"
+        },
+        "sample": {
+          "finish": "Terminar la auditoría",
+          "intro": "{count, plural, one {LiTT eligió # respuesta} other {LiTT eligió # respuestas}}, repartidas entre las columnas. Tú no las escoges. Lee el pasaje citado y marca cada una.",
+          "notReady": "Primero genera la revisión: todavía no hay respuestas terminadas que auditar.",
+          "progress": "Marcaste {done} de {total}.",
+          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría, así que venció. Elige una muestra nueva para auditar otra vez.",
+          "start": "Empezar la auditoría",
+          "startAnother": "Elegir una muestra nueva",
+          "title": "Auditoría a mano"
         }
       },
-      "modes": {
-        "closeButton": "Cerrar la ronda",
-        "closeExplain": "Mira qué objeciones sostuviste, cuáles concediste y cuáles quedaron sin defender.",
-        "closeMessage": "Cierro la ronda con el abogado de la contraparte.",
-        "counterpartButton": "Probar con el abogado de la contraparte",
-        "counterpartExplain": "La IA hace de la otra parte y objeta tu planteamiento; no responde a sus propias objeciones.",
-        "counterpartFull": "La ronda ya tuvo tres turnos. Ciérrala para ver el contraste.",
-        "counterpartStatus": "Turno {step} de 3 de esta ronda.",
-        "hintButton": "Pedir una pista",
-        "hintExplain": "Una pista te orienta y nunca da la respuesta. Parte de tu planteamiento y de tu pregunta.",
-        "hintNext": "Sigue: pista {level} de 3, {name}.",
-        "hintsDone": "Ya pediste las tres pistas de esta conversación. Envía tu consulta para ver la respuesta.",
-        "needsQuestion": "Escribe primero tu pregunta.",
-        "region": "Ayudas para este turno",
-        "rungState": {
-          "next": "siguiente",
-          "pending": "pendiente",
-          "used": "usada"
+      "authorship": {
+        "ai": "De la IA",
+        "baseline": {
+          "file": "Esta versión partió de un archivo subido. LiTT no sabe quién escribió un archivo, así que ese texto queda no determinado.",
+          "unknown": "LiTT no tiene registro del texto del que partió esta versión (o el archivo que generó la IA ya fue reemplazado), así que solo ubica el texto de las ediciones de la IA que se aceptaron. Lo demás queda no determinado."
         },
-        "rungs": {
-          "focus": "Enfoque",
-          "review": "Qué revisar",
-          "where": "Dónde buscar"
+        "edits": "Ediciones de la IA: {accepted, plural, one {# aceptada} other {# aceptadas}}, {rejected, plural, one {# rechazada} other {# rechazadas}}, {pending, plural, one {# pendiente} other {# pendientes}}.",
+        "estimateNote": "Estimación, redondeada a múltiplos de 5 %.",
+        "hide": "Ocultar autoría estimada",
+        "loadFailed": "No se pudo cargar la autoría estimada.",
+        "loadFailedAction": "cargar la autoría estimada",
+        "pending": "{count, plural, one {Hay # edición de la IA pendiente, así que su texto queda} other {Hay # ediciones de la IA pendientes, así que su texto queda}} no determinado hasta que alguien {count, plural, one {la acepte o la rechace} other {las acepte o las rechace}}.",
+        "person": "Escrito por una persona",
+        "rule": "Es una estimación con lo que LiTT registró, no un detector de IA. Una oración cuenta como de la IA solo si aparece palabra por palabra en una edición de la IA que alguien aceptó, o en texto que la IA generó y que nadie ha reemplazado. Una oración que alguien reescribe cuenta como escrita por una persona. Lo que LiTT no puede ubicar se muestra como no determinado.",
+        "share": "{percent} %",
+        "show": "Ver autoría estimada",
+        "status": {
+          "empty": "No determinado: esta versión no tiene texto que analizar.",
+          "textFailed": "No determinado: LiTT no pudo leer el texto de esta versión.",
+          "textPending": "No determinado: LiTT aún no termina de leer el texto de esta versión. Intenta de nuevo en un momento.",
+          "tooLarge": "No determinado: esta versión es demasiado larga para estimarla."
         },
-        "rungsLabel": "Escalones de la pista"
+        "textless": "{count, plural, one {# página no tiene} other {# páginas no tienen}} texto que LiTT pueda leer (probablemente {count, plural, one {está escaneada} other {están escaneadas}}), así que no {count, plural, one {se cuenta} other {se cuentan}}.",
+        "title": "Autoría estimada",
+        "undetermined": "No determinado",
+        "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
       },
       "backing": {
         "actions": {
-          "save": "guardar tu marca en esta conclusión",
-          "load": "cargar las revisiones de rendición de cuentas"
+          "load": "cargar las revisiones de rendición de cuentas",
+          "save": "guardar tu marca en esta conclusión"
         },
         "citationRef": "Cita {ref}",
         "failed": "No se pudieron revisar las conclusiones de esta respuesta.",
@@ -773,248 +784,6 @@
         "title": "Tus conclusiones y su fuente",
         "unverifiedReferences": "Sin verificar: {references}. Confírmalo en la fuente oficial.",
         "verified": "Lo verifiqué"
-      },
-      "audit": {
-        "pageTitle": "Audita tu revisión",
-        "intro": "Revisa las preguntas de esta revisión y luego audita a mano una muestra de sus respuestas. Es para tu aprendizaje: no bloquea nada y aquí no se usa ningún modelo.",
-        "backToReview": "Volver a la revisión",
-        "notApplies": "Esta auditoría es para personas en etapa junior que trabajan en un asunto. No tienes una auditoría que hacer en esta revisión.",
-        "menu": "Auditar preguntas",
-        "design": {
-          "title": "Tus preguntas",
-          "intro": "LiTT las revisa con reglas fijas, no con un modelo. Son observaciones, nunca bloqueos.",
-          "clean": "Sin observaciones: cada pregunta tiene nombre, una instrucción clara y un formato de respuesta.",
-          "column": "Columna {number}",
-          "instruction": "Instrucción: {text}",
-          "noInstruction": "Sin instrucción"
-        },
-        "lint": {
-          "empty_name": "{column} no tiene nombre.",
-          "duplicate_name": "{column} tiene el mismo nombre que {other}.",
-          "empty_instruction": "{column} no tiene instrucción.",
-          "short_instruction": "La instrucción de {column} es muy corta. Di qué buscar y dónde.",
-          "no_format": "{column} no tiene formato de respuesta. Elige uno para que las respuestas se puedan comparar."
-        },
-        "sample": {
-          "title": "Auditoría a mano",
-          "intro": "{count, plural, one {LiTT eligió # respuesta} other {LiTT eligió # respuestas}}, repartidas entre las columnas. Tú no las escoges. Lee el pasaje citado y marca cada una.",
-          "notReady": "Primero genera la revisión: todavía no hay respuestas terminadas que auditar.",
-          "start": "Empezar la auditoría",
-          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría, así que venció. Elige una muestra nueva para auditar otra vez.",
-          "startAnother": "Elegir una muestra nueva",
-          "progress": "Marcaste {done} de {total}.",
-          "finish": "Terminar la auditoría"
-        },
-        "cell": {
-          "title": "{row} · {column}",
-          "answer": "Respuesta",
-          "reasoning": "Razonamiento",
-          "passages": "Pasajes citados",
-          "page": "página {page}",
-          "noPassage": "Esta respuesta no cita ningún pasaje.",
-          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
-          "markLegend": "¿Cómo está esta respuesta?",
-          "note": "Tu nota (opcional)",
-          "mentorMark": "Tu mentor marcó esta respuesta como {mark}."
-        },
-        "marks": {
-          "correct": "Correcta",
-          "incomplete": "Incompleta",
-          "incorrect": "Incorrecta"
-        },
-        "markWord": {
-          "correct": "correcta",
-          "incomplete": "incompleta",
-          "incorrect": "incorrecta"
-        },
-        "result": {
-          "title": "Tu resultado",
-          "column": "{column}: marcadas {marked}, incorrectas {incorrect}, incompletas {incomplete}.",
-          "done": "Terminaste esta auditoría el {date, date, medium}."
-        },
-        "evaluation": {
-          "title": "Lo que dijo tu mentor",
-          "adequate": "Adecuado",
-          "needs_work": "Por mejorar"
-        },
-        "mentor": {
-          "title": "Revisiones masivas",
-          "intro": "Las preguntas que diseñó cada pupilo y la muestra que auditó a mano. Solo ves una revisión si puedes abrir su asunto. Tu evaluación no bloquea nada: es evidencia.",
-          "empty": "Este pupilo todavía no tiene auditorías.",
-          "withoutAccess": "{count, plural, one {# auditoría es de una revisión en un asunto que no puedes abrir.} other {# auditorías son de revisiones en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso.",
-          "untitled": "Revisión sin título",
-          "status": {
-            "open": "En curso",
-            "complete": "Terminada",
-            "stale": "Vencida: la revisión se volvió a generar"
-          },
-          "started": "Empezó el {date, date, medium}",
-          "personMark": "Su marca: {mark}",
-          "unmarked": "Sin marcar todavía",
-          "yourMark": "Tu marca",
-          "keepMark": "Dejar su marca",
-          "clearMark": "Quitar mi marca",
-          "withheld": "No puedes leer los documentos de esta respuesta, así que no se muestra.",
-          "evaluate": "Tu evaluación",
-          "noteLabel": "Nota para el pupilo (opcional)",
-          "save": "Guardar evaluación",
-          "waiting": "Podrás evaluarla cuando el pupilo termine la auditoría.",
-          "evaluatedOn": "Evaluada el {date, date, medium}",
-          "codes": {
-            "stale": "La revisión se volvió a generar después de esta auditoría, así que ya no se puede evaluar."
-          },
-          "actions": {
-            "load": "cargar las revisiones masivas",
-            "evaluate": "guardar la evaluación"
-          }
-        },
-        "actions": {
-          "load": "cargar la auditoría",
-          "start": "empezar la auditoría",
-          "mark": "guardar tu marca",
-          "finish": "terminar la auditoría"
-        },
-        "codes": {
-          "stale": "La revisión se volvió a generar después de que empezaste esta auditoría. Elige una muestra nueva."
-        }
-      },
-      "reading": {
-        "title": "Lectura completa",
-        "intro": "Una vez al mes lees un documento completo sin el asistente y escribes lo que encontraste. Después LiTT lo compara con lo que la máquina encontró en el mismo texto.",
-        "status": {
-          "assigned": "En lectura",
-          "submitted": "Enviada, sin comparar",
-          "comparing": "Comparando",
-          "compared": "Comparada",
-          "failed": "La comparación falló"
-        },
-        "notice": {
-          "due": "Te toca una lectura completa.",
-          "open": "Tienes una lectura completa en curso.",
-          "next": "Tu próxima lectura completa es a partir del {date, date, medium}.",
-          "start": "Empezar la lectura",
-          "continue": "Continuar la lectura",
-          "history": "Tus lecturas completas",
-          "item": "{date, date, medium}: {status}",
-          "view": "Ver",
-          "viewName": "Ver la lectura del {date, date, medium}"
-        },
-        "page": {
-          "back": "Volver a Formación",
-          "title": "Lectura completa",
-          "noAssistant": "Esta página no tiene asistente a propósito. Lee tú el documento y escribe lo que encontraste. LiTT no puede comprobar que leíste sin ayuda: es una declaración tuya.",
-          "documentHeading": "Documento",
-          "documentUnavailable": "Este documento ya no está disponible para leerlo.",
-          "changeDocument": "Cambiar el documento",
-          "changeUsed": "Ya cambiaste el documento una vez.",
-          "changeHint": "Puedes cambiarlo una sola vez.",
-          "findingsLabel": "Lo que encontraste",
-          "findingsHelp": "Escribe un hallazgo por línea: riesgos, datos que faltan, plazos, montos o partes que no cuadran.",
-          "findingsCount": "{count} de {max} caracteres",
-          "findingsMin": "Escribe al menos {min} caracteres.",
-          "send": "Enviar lo que encontré",
-          "sendHint": "Después de enviarlo no podrás cambiarlo. Luego podrás compararlo con lo que encontró la máquina.",
-          "sentOn": "Enviado el {date, date, medium}",
-          "compare": "Comparar con la máquina",
-          "comparing": "La máquina está leyendo el documento y comparando. Puede tardar un minuto.",
-          "failed": "La comparación falló. Nada de lo que escribiste cambió; puedes intentarlo de nuevo.",
-          "retry": "Intentar de nuevo",
-          "noKey": "Para comparar necesitas una llave para tu modelo. Agrégala en Ajustes, en Llaves propias (BYOK).",
-          "check": "Revisar de nuevo"
-        },
-        "result": {
-          "both": "Coincidieron",
-          "onlyYou": "Solo lo viste tú",
-          "onlyMachine": "Solo lo vio la máquina",
-          "none": "Nada aquí.",
-          "you": "Tú escribiste",
-          "machine": "La máquina encontró",
-          "passage": "Pasaje del documento",
-          "inferred": "inferido",
-          "howItWorks": "Los hallazgos de la máquina cuentan solo si su cita está en el documento. La IA propone cuáles de los tuyos y de la máquina dicen lo mismo; revísalo.",
-          "discarded": "{count, plural, one {Se dejó fuera # hallazgo de la máquina porque su cita no está en el documento.} other {Se dejaron fuera # hallazgos de la máquina porque su cita no está en el documento.}}",
-          "noMachine": "La máquina no encontró nada que pudiera citar del documento."
-        },
-        "mentor": {
-          "title": "Lecturas completas",
-          "intro": "Cada mes un junior lee un documento completo sin el asistente y escribe lo que encontró antes de ver lo que encontró la máquina. Es evidencia, no un requisito de promoción.",
-          "empty": "Todavía no hay lecturas completas.",
-          "hidden": "{count, plural, one {# lectura está en un asunto que no puedes abrir.} other {# lecturas están en asuntos que no puedes abrir.}}",
-          "notSent": "Aún sin enviar",
-          "sentOn": "Enviada el {date, date, medium}",
-          "started": "Iniciada el {date, date, medium}",
-          "model": "Comparada con {model}"
-        },
-        "codes": {
-          "notDue": "No te toca una lectura completa por ahora.",
-          "noDocument": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
-          "swapUsed": "Ya cambiaste el documento una vez.",
-          "findingsRecorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
-          "documentUnavailable": "Este documento ya no está disponible para leerlo."
-        },
-        "actions": {
-          "load": "cargar la lectura completa",
-          "start": "empezar la lectura completa",
-          "swap": "cambiar el documento",
-          "send": "enviar lo que encontraste",
-          "compare": "comparar tu lectura"
-        }
-      },
-      "corrections": {
-        "tab": "Correcciones",
-        "title": "Convierte correcciones en reglas",
-        "intro": "Agrega lo que corregiste en el trabajo de tu pasante. LiTT propone reglas generales para este playbook; nada cambia hasta que aceptes cada una.",
-        "privacy": "Las reglas se redactan sin nombres, montos ni fechas. Se muestra tu nombre como su fuente; el de tu pasante, no.",
-        "pupil": "Pasante",
-        "pupilPlaceholder": "Elige a un pasante",
-        "model": "Modelo",
-        "correction": "Corrección {number}",
-        "before": "Texto original (opcional)",
-        "after": "Texto corregido",
-        "comment": "Tu comentario (opcional)",
-        "remove": "Quitar la corrección {number}",
-        "add": "Agregar corrección",
-        "limit": "Hasta {max} correcciones a la vez.",
-        "send": "Proponer reglas",
-        "sending": "Enviando…",
-        "sendAction": "enviar las correcciones",
-        "running": "Preparando las reglas propuestas…",
-        "failed": "No se pudieron preparar las reglas propuestas.",
-        "noChanges": "Estas correcciones no produjeron ningún cambio.",
-        "pendingTitle": "Cambios propuestos",
-        "pendingEmpty": "No hay cambios esperando una decisión.",
-        "pendingBlocked": "Decide cada cambio propuesto antes de enviar más correcciones.",
-        "loading": "Cargando los cambios propuestos…",
-        "loadAction": "cargar los cambios propuestos",
-        "op": {
-          "add_rule": "Regla nueva",
-          "modify_rule": "Cambio a una regla",
-          "remove_rule": "Quitar una regla"
-        },
-        "source": "Corrección de {name}",
-        "sourceUnnamed": "De una corrección",
-        "origin": "Origen: corrección de {name}",
-        "originUnnamed": "Origen: corrección",
-        "why": "Por qué",
-        "beforeRule": "Antes",
-        "afterRule": "Después",
-        "none": "Ninguno",
-        "accept": "Aceptar",
-        "reject": "Rechazar",
-        "accepted": "Cambio aceptado.",
-        "rejected": "Cambio rechazado.",
-        "acceptAction": "aceptar el cambio",
-        "rejectAction": "rechazar el cambio",
-        "fields": {
-          "name": "Nombre",
-          "concept": "Concepto",
-          "guidance": "Orientación",
-          "standard": "Posición estándar",
-          "fallbacks": "Posiciones alternativas",
-          "unacceptable": "Posiciones inaceptables",
-          "conditions": "Condiciones",
-          "actions": "Acciones"
-        }
       },
       "contrast": {
         "actions": {
@@ -1099,34 +868,148 @@
           "unavailable": "El contraste de criterios no está disponible por ahora. Puede que los subagentes estén apagados en este servidor."
         }
       },
-      "authorship": {
-        "ai": "De la IA",
-        "baseline": {
-          "file": "Esta versión partió de un archivo subido. LiTT no sabe quién escribió un archivo, así que ese texto queda no determinado.",
-          "unknown": "LiTT no tiene registro del texto del que partió esta versión (o el archivo que generó la IA ya fue reemplazado), así que solo ubica el texto de las ediciones de la IA que se aceptaron. Lo demás queda no determinado."
+      "corrections": {
+        "accept": "Aceptar",
+        "acceptAction": "aceptar el cambio",
+        "accepted": "Cambio aceptado.",
+        "add": "Agregar corrección",
+        "after": "Texto corregido",
+        "afterRule": "Después",
+        "before": "Texto original (opcional)",
+        "beforeRule": "Antes",
+        "comment": "Tu comentario (opcional)",
+        "correction": "Corrección {number}",
+        "failed": "No se pudieron preparar las reglas propuestas.",
+        "fields": {
+          "actions": "Acciones",
+          "concept": "Concepto",
+          "conditions": "Condiciones",
+          "fallbacks": "Posiciones alternativas",
+          "guidance": "Orientación",
+          "name": "Nombre",
+          "standard": "Posición estándar",
+          "unacceptable": "Posiciones inaceptables"
         },
-        "edits": "Ediciones de la IA: {accepted, plural, one {# aceptada} other {# aceptadas}}, {rejected, plural, one {# rechazada} other {# rechazadas}}, {pending, plural, one {# pendiente} other {# pendientes}}.",
-        "estimateNote": "Estimación, redondeada a múltiplos de 5 %.",
-        "hide": "Ocultar autoría estimada",
-        "loadFailed": "No se pudo cargar la autoría estimada.",
-        "loadFailedAction": "cargar la autoría estimada",
-        "pending": "{count, plural, one {Hay # edición de la IA pendiente, así que su texto queda} other {Hay # ediciones de la IA pendientes, así que su texto queda}} no determinado hasta que alguien {count, plural, one {la acepte o la rechace} other {las acepte o las rechace}}.",
-        "person": "Escrito por una persona",
-        "rule": "Es una estimación con lo que LiTT registró, no un detector de IA. Una oración cuenta como de la IA solo si aparece palabra por palabra en una edición de la IA que alguien aceptó, o en texto que la IA generó y que nadie ha reemplazado. Una oración que alguien reescribe cuenta como escrita por una persona. Lo que LiTT no puede ubicar se muestra como no determinado.",
-        "share": "{percent} %",
-        "show": "Ver autoría estimada",
-        "status": {
-          "empty": "No determinado: esta versión no tiene texto que analizar.",
-          "textFailed": "No determinado: LiTT no pudo leer el texto de esta versión.",
-          "textPending": "No determinado: LiTT aún no termina de leer el texto de esta versión. Intenta de nuevo en un momento.",
-          "tooLarge": "No determinado: esta versión es demasiado larga para estimarla."
+        "intro": "Agrega lo que corregiste en el trabajo de tu pasante. LiTT propone reglas generales para este playbook; nada cambia hasta que aceptes cada una.",
+        "limit": "Hasta {max} correcciones a la vez.",
+        "loadAction": "cargar los cambios propuestos",
+        "loading": "Cargando los cambios propuestos…",
+        "model": "Modelo",
+        "noChanges": "Estas correcciones no produjeron ningún cambio.",
+        "none": "Ninguno",
+        "op": {
+          "add_rule": "Regla nueva",
+          "modify_rule": "Cambio a una regla",
+          "remove_rule": "Quitar una regla"
         },
-        "textless": "{count, plural, one {# página no tiene} other {# páginas no tienen}} texto que LiTT pueda leer (probablemente {count, plural, one {está escaneada} other {están escaneadas}}), así que no {count, plural, one {se cuenta} other {se cuentan}}.",
-        "title": "Autoría estimada",
-        "undetermined": "No determinado",
-        "words": "{count, plural, one {# palabra analizada} other {# palabras analizadas}}."
+        "origin": "Origen: corrección de {name}",
+        "originUnnamed": "Origen: corrección",
+        "pendingBlocked": "Decide cada cambio propuesto antes de enviar más correcciones.",
+        "pendingEmpty": "No hay cambios esperando una decisión.",
+        "pendingTitle": "Cambios propuestos",
+        "privacy": "Las reglas se redactan sin nombres, montos ni fechas. Se muestra tu nombre como su fuente; el de tu pasante, no.",
+        "pupil": "Pasante",
+        "pupilPlaceholder": "Elige a un pasante",
+        "reject": "Rechazar",
+        "rejectAction": "rechazar el cambio",
+        "rejected": "Cambio rechazado.",
+        "remove": "Quitar la corrección {number}",
+        "running": "Preparando las reglas propuestas…",
+        "send": "Proponer reglas",
+        "sendAction": "enviar las correcciones",
+        "sending": "Enviando…",
+        "source": "Corrección de {name}",
+        "sourceUnnamed": "De una corrección",
+        "tab": "Correcciones",
+        "title": "Convierte correcciones en reglas",
+        "why": "Por qué"
       },
-      "promotion": {},
+      "map": {
+        "actions": {
+          "answer": "enviar tu respuesta",
+          "load": "cargar tu criterio",
+          "start": "generar la retoma"
+        },
+        "calibration": {
+          "empty": "Todavía no has marcado tu seguridad en turnos que cuenten.",
+          "fewData": "aún pocos datos",
+          "intro": "Cuando marcas un nivel, cuántas veces tu planteamiento coincidió con la respuesta de la IA.",
+          "line": "Cuando lo marcas, coincidió {coincided} de {marked, plural, one {# vez} other {# veces}}",
+          "none": "Sin turnos marcados en este nivel",
+          "partial": "{count, plural, one {# en parte} other {# en parte}}",
+          "title": "Tu seguridad"
+        },
+        "codes": {
+          "credentialUnavailable": "La llave con la que se hizo esta retoma ya no está disponible para ti. Elige otra llave e inténtalo de nuevo.",
+          "inProgress": "Ya tienes una retoma en curso. Termínala primero.",
+          "keyRequired": "Para hacer una retoma necesitas una llave de IA que puedas usar en esta organización.",
+          "notDue": "Este tema todavía no está listo para retomarse.",
+          "notOpen": "Esta retoma ya no espera una respuesta."
+        },
+        "hints": {
+          "mentor": {
+            "none": "Este pupilo no ha pedido pistas.",
+            "some": "{count, plural, one {Pidió # pista} other {Pidió # pistas}}; la más alta fue el escalón {level}."
+          },
+          "mine": {
+            "none": "No has pedido pistas.",
+            "some": "{count, plural, one {Pediste # pista} other {Pediste # pistas}}; la más alta fue el escalón {level}."
+          },
+          "title": "Pistas"
+        },
+        "intro": "Con qué frecuencia tu planteamiento coincidió con la respuesta de la IA, por tema, y qué tan bien coincidió tu propia seguridad. Cuenta coincidencias con la respuesta de la IA, nunca si tuviste la razón. Solo tú y tu mentor lo ven.",
+        "mentor": {
+          "actions": {
+            "load": "cargar el mapa del pupilo"
+          },
+          "intro": "Con qué frecuencia el planteamiento de este pupilo coincidió con la respuesta de la IA, por tema, cómo coincidió su seguridad, las pistas que pidió y sus retomas. Son conteos de este pupilo: sin puntajes, rankings ni comparaciones.",
+          "retakesWithoutAccess": "{count, plural, one {# retoma es de un trabajo en un asunto que no puedes abrir, por eso no se lista aquí.} other {# retomas son de trabajos en asuntos que no puedes abrir, por eso no se listan aquí.}}",
+          "title": "Mapa y calibración",
+          "withoutAccess": "{count, plural, one {# nota es de un trabajo en un asunto que no puedes abrir, por eso no se cuenta aquí.} other {# notas son de trabajos en asuntos que no puedes abrir, por eso no se cuentan aquí.}}"
+        },
+        "retakes": {
+          "answer": "Respuesta",
+          "answerLabel": "Tu respuesta",
+          "contrast": "Contraste con lo que escribiste antes (inferido por la IA)",
+          "count": "{length}/{max} caracteres.",
+          "generating": "Generando la pregunta…",
+          "none": "Cuando un tema débil lleva 14 días sin trabajarse, puedes retomarlo aquí con una pregunta nueva.",
+          "noneMentor": "Este pupilo no tiene retomas.",
+          "once": "Solo puedes enviarla una vez. La IA la contrasta con lo que escribiste antes; no es una calificación.",
+          "question": "Pregunta",
+          "refresh": "Actualizar",
+          "send": "Enviar respuesta",
+          "start": "Retomar este tema",
+          "startName": "Retomar «{topic}»",
+          "started": "empezó el {date, date, medium}",
+          "status": {
+            "answered": "Respondida",
+            "closed": "La retoma se cerró porque ya no están tus notas",
+            "closedMentor": "La retoma se cerró porque ya no están sus notas",
+            "failed": "No se pudo generar la pregunta",
+            "open": "Esperando tu respuesta",
+            "pending": "Generando"
+          },
+          "title": "Retomas",
+          "tooShort": "{length}/{min} caracteres. Escribe al menos {min} caracteres.",
+          "verdict": "Coincidencia con lo que escribiste antes, según el contraste de la IA: {verdict}"
+        },
+        "title": "Mi criterio",
+        "topics": {
+          "due": "Listo para retomar",
+          "empty": "Todavía no tienes temas. Aparecen conforme trabajas con tu planteamiento primero.",
+          "events": "{count, plural, one {# vez trabajado} other {# veces trabajado}}",
+          "last": "última el {date, date, medium}",
+          "state": {
+            "few_data": "Aún pocos datos",
+            "middle": "Intermedio",
+            "strong": "Coincide seguido",
+            "weak": "Por reforzar"
+          },
+          "title": "Por tema",
+          "window": "Coincidió {hits} de las últimas {size, plural, one {# vez} other {# veces}}"
+        }
+      },
       "methodology": {
         "annex": {
           "headers": {
@@ -1256,197 +1139,621 @@
           "person": "Dato dado por la persona",
           "personUnverified": "No encontrado en tu mensaje (sin verificar)"
         }
+      },
+      "modes": {
+        "closeButton": "Cerrar la ronda",
+        "closeExplain": "Mira qué objeciones sostuviste, cuáles concediste y cuáles quedaron sin defender.",
+        "closeMessage": "Cierro la ronda con el abogado de la contraparte.",
+        "counterpartButton": "Probar con el abogado de la contraparte",
+        "counterpartExplain": "La IA hace de la otra parte y objeta tu planteamiento; no responde a sus propias objeciones.",
+        "counterpartFull": "La ronda ya tuvo tres turnos. Ciérrala para ver el contraste.",
+        "counterpartStatus": "Turno {step} de 3 de esta ronda.",
+        "hintButton": "Pedir una pista",
+        "hintExplain": "Una pista te orienta y nunca da la respuesta. Parte de tu planteamiento y de tu pregunta.",
+        "hintNext": "Sigue: pista {level} de 3, {name}.",
+        "hintsDone": "Ya pediste las tres pistas de esta conversación. Envía tu consulta para ver la respuesta.",
+        "needsQuestion": "Escribe primero tu pregunta.",
+        "region": "Ayudas para este turno",
+        "rungState": {
+          "next": "siguiente",
+          "pending": "pendiente",
+          "used": "usada"
+        },
+        "rungs": {
+          "focus": "Enfoque",
+          "review": "Qué revisar",
+          "where": "Dónde buscar"
+        },
+        "rungsLabel": "Escalones de la pista"
+      },
+      "promotion": {},
+      "reading": {
+        "actions": {
+          "compare": "comparar tu lectura",
+          "load": "cargar la lectura completa",
+          "send": "enviar lo que encontraste",
+          "start": "empezar la lectura completa",
+          "swap": "cambiar el documento"
+        },
+        "codes": {
+          "documentUnavailable": "Este documento ya no está disponible para leerlo.",
+          "findingsRecorded": "Ya enviaste lo que encontraste; no se puede cambiar.",
+          "noDocument": "Todavía no hay un documento que proponerte. Trabaja en un asunto y vuelve.",
+          "notDue": "No te toca una lectura completa por ahora.",
+          "swapUsed": "Ya cambiaste el documento una vez."
+        },
+        "intro": "Una vez al mes lees un documento completo sin el asistente y escribes lo que encontraste. Después LiTT lo compara con lo que la máquina encontró en el mismo texto.",
+        "mentor": {
+          "empty": "Todavía no hay lecturas completas.",
+          "hidden": "{count, plural, one {# lectura está en un asunto que no puedes abrir.} other {# lecturas están en asuntos que no puedes abrir.}}",
+          "intro": "Cada mes un junior lee un documento completo sin el asistente y escribe lo que encontró antes de ver lo que encontró la máquina. Es evidencia, no un requisito de promoción.",
+          "model": "Comparada con {model}",
+          "notSent": "Aún sin enviar",
+          "sentOn": "Enviada el {date, date, medium}",
+          "started": "Iniciada el {date, date, medium}",
+          "title": "Lecturas completas"
+        },
+        "notice": {
+          "continue": "Continuar la lectura",
+          "due": "Te toca una lectura completa.",
+          "history": "Tus lecturas completas",
+          "item": "{date, date, medium}: {status}",
+          "next": "Tu próxima lectura completa es a partir del {date, date, medium}.",
+          "open": "Tienes una lectura completa en curso.",
+          "start": "Empezar la lectura",
+          "view": "Ver",
+          "viewName": "Ver la lectura del {date, date, medium}"
+        },
+        "page": {
+          "back": "Volver a Formación",
+          "changeDocument": "Cambiar el documento",
+          "changeHint": "Puedes cambiarlo una sola vez.",
+          "changeUsed": "Ya cambiaste el documento una vez.",
+          "check": "Revisar de nuevo",
+          "compare": "Comparar con la máquina",
+          "comparing": "La máquina está leyendo el documento y comparando. Puede tardar un minuto.",
+          "documentHeading": "Documento",
+          "documentUnavailable": "Este documento ya no está disponible para leerlo.",
+          "failed": "La comparación falló. Nada de lo que escribiste cambió; puedes intentarlo de nuevo.",
+          "findingsCount": "{count} de {max} caracteres",
+          "findingsHelp": "Escribe un hallazgo por línea: riesgos, datos que faltan, plazos, montos o partes que no cuadran.",
+          "findingsLabel": "Lo que encontraste",
+          "findingsMin": "Escribe al menos {min} caracteres.",
+          "noAssistant": "Esta página no tiene asistente a propósito. Lee tú el documento y escribe lo que encontraste. LiTT no puede comprobar que leíste sin ayuda: es una declaración tuya.",
+          "noKey": "Para comparar necesitas una llave para tu modelo. Agrégala en Ajustes, en Llaves propias (BYOK).",
+          "retry": "Intentar de nuevo",
+          "send": "Enviar lo que encontré",
+          "sendHint": "Después de enviarlo no podrás cambiarlo. Luego podrás compararlo con lo que encontró la máquina.",
+          "sentOn": "Enviado el {date, date, medium}",
+          "title": "Lectura completa"
+        },
+        "result": {
+          "both": "Coincidieron",
+          "discarded": "{count, plural, one {Se dejó fuera # hallazgo de la máquina porque su cita no está en el documento.} other {Se dejaron fuera # hallazgos de la máquina porque su cita no está en el documento.}}",
+          "howItWorks": "Los hallazgos de la máquina cuentan solo si su cita está en el documento. La IA propone cuáles de los tuyos y de la máquina dicen lo mismo; revísalo.",
+          "inferred": "inferido",
+          "machine": "La máquina encontró",
+          "noMachine": "La máquina no encontró nada que pudiera citar del documento.",
+          "none": "Nada aquí.",
+          "onlyMachine": "Solo lo vio la máquina",
+          "onlyYou": "Solo lo viste tú",
+          "passage": "Pasaje del documento",
+          "you": "Tú escribiste"
+        },
+        "status": {
+          "assigned": "En lectura",
+          "compared": "Comparada",
+          "comparing": "Comparando",
+          "failed": "La comparación falló",
+          "submitted": "Enviada, sin comparar"
+        },
+        "title": "Lectura completa"
+      },
+      "turn": {
+        "attemptLabel": "Tu planteamiento (2–3 líneas)",
+        "attemptPlaceholder": "Antes de preguntar, escribe cómo lo resolverías tú.",
+        "attemptReady": "Listo. Después de la respuesta verás un contraste con tu planteamiento.",
+        "attemptTooLong": "{length}/{max} caracteres. {excess, plural, one {Sobra # carácter} other {Sobran # caracteres}}.",
+        "attemptTooShort": "{length}/{min} caracteres. {missing, plural, one {Falta # carácter} other {Faltan # caracteres}}. Después de la respuesta verás un contraste con tu planteamiento.",
+        "confidenceHelp": "Una marca para todo el planteamiento. Solo tú y tu mentor la ven.",
+        "confidenceLegend": "¿Qué tan seguro estás de tu planteamiento?",
+        "confidenceLevels": {
+          "doubt": "Dudo",
+          "fairlySure": "Bastante seguro",
+          "guess": "Casi adivino",
+          "sure": "Seguro"
+        },
+        "confidenceRequired": "Marca qué tan seguro estás antes de enviar.",
+        "foundations": {
+          "solid": "sólido",
+          "weak": "débil",
+          "wrong": "equivocado"
+        },
+        "noteAttemptHeading": "Tu planteamiento",
+        "noteCloseHeading": "Cómo salió la ronda",
+        "noteConfidence": "Tu marca: {level}",
+        "noteContrastFailed": "No se pudo generar el contraste",
+        "noteContrastHeading": "Contraste con tu planteamiento",
+        "noteContrastPending": "Generando contraste…",
+        "noteFoundation": "Fundamento: {basis}",
+        "noteModeCounterpart": "Ronda con el abogado de la contraparte, turno {step} de 3",
+        "noteModeCounterpartClose": "Cierre de la ronda con el abogado de la contraparte",
+        "noteModeHint": "Pista {step} de 3",
+        "noteNotDelivered": "No entregada",
+        "notePrivacy": "Privado: solo tú y tu mentor lo ven",
+        "noteQuestionHeading": "Una pregunta sobre tu fundamento",
+        "noteRegion": "Notas privadas de formación",
+        "noteReply": "Responder",
+        "noteReplyLabel": "Responder a la pregunta sobre tu fundamento",
+        "noteRightForWrongReason": "Tu conclusión coincide, pero su fundamento no: acertaste por la razón equivocada.",
+        "noteVerdictHeading": "Coincidencia con la respuesta, según el contraste de la IA:",
+        "noteVerdictHeadingByMentor": "Coincidencia con la respuesta, según tu mentor:",
+        "passLater": "Pase de urgencia vigente hasta el {end, date, long}, a las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "passToday": "Pase de urgencia vigente hasta las {end, time, short}. Tu mentor lo concedió para este asunto; lo que produzcas sigue necesitando aprobación antes de salir.",
+        "verdicts": {
+          "coincide": "Coincide",
+          "noCoincide": "No coincide",
+          "parcial": "Coincide en parte"
+        }
       }
+    },
+    "defenses": {
+      "actions": {
+        "create": "crear la defensa",
+        "generate": "generar las preguntas",
+        "load": "cargar las defensas",
+        "record": "registrar el resultado"
+      },
+      "changeOfFacts": "Cambio de hechos",
+      "chooseReason": "Elige un motivo",
+      "codes": {
+        "alreadyRecorded": "Esta defensa ya tiene resultado. Vuelve a cargar para verlo."
+      },
+      "confirmMessage": "{outcome}: {reason}. Se registra una vez y no se puede cambiar; para corregirlo, haz una defensa nueva.",
+      "confirmTitle": "¿Registrar este resultado?",
+      "create": "Crear defensa",
+      "createdOn": "Creada el {date, date, medium} {date, time, short}",
+      "empty": "Todavía no hay defensas.",
+      "generateQuestions": "Generar preguntas",
+      "intro": "Cinco preguntas sobre el razonamiento del propio pupilo; una es un cambio de hechos. El resultado se registra una vez; para corregirlo, haz una defensa nueva.",
+      "listenFor": "Qué escuchar: {text}",
+      "newTitle": "Nueva defensa",
+      "noWork": "Sin trabajo en particular",
+      "otherPractice": "Otra materia",
+      "outcome": {
+        "approved": "Aprobada",
+        "not_approved": "No aprobada"
+      },
+      "outcomeLabel": "Resultado",
+      "practice": "Materia",
+      "practiceFromWork": "La materia del asunto del trabajo",
+      "practiceName": "Nombre de la materia",
+      "question": "Pregunta {number}",
+      "questionsFailed": "No se pudieron generar las preguntas. Puedes intentarlo de nuevo o registrar el resultado sin ellas.",
+      "questionsPending": "Generando las preguntas…",
+      "reason": {
+        "cambio_de_hechos_no_resuelto": "No resolvió el cambio de hechos",
+        "otro": "Otro",
+        "razonamiento_incompleto": "Razonamiento incompleto",
+        "razonamiento_solido": "Razonamiento sólido",
+        "sin_sustento": "Sin sustento"
+      },
+      "reasonLabel": "Motivo",
+      "record": "Registrar resultado",
+      "recordTitle": "Registrar el resultado",
+      "result": "{outcome} el {date, date, medium} {date, time, short} · {reason}",
+      "scheduled": "Programada; todavía sin resultado.",
+      "work": "Trabajo"
     },
     "firmCriteria": {
       "consulted": {
-        "summary": "{count, plural, one {# criterio consultado} other {# criterios consultados}}",
-        "note": "Son posturas que escribieron personas de tu despacho. No son derecho vigente y LiTT no las verifica.",
-        "empty": "Tu despacho no ha escrito un criterio sobre este tema.",
-        "failed": "No se pudieron consultar los criterios del despacho.",
-        "more": "Hay más criterios que coinciden de los que se muestran aquí.",
-        "kind": {
-          "criterio": "Criterio",
-          "voto_particular": "Voto particular"
-        },
         "byline": "Según {author} · {date, date, medium}",
         "bylineDeleted": "Según un usuario eliminado · {date, date, medium}",
-        "practice": "Materia: {practice}",
-        "rule": "Discrepa de una regla de un playbook"
-      },
-      "settings": {
-        "tab": "Criterios del despacho",
-        "title": "Criterios del despacho",
-        "intro": "Posturas que personas de tu despacho escribieron con su nombre. Cuando alguien en formación le hace una pregunta a LiTT, el asistente puede consultarlas y decir quién escribió cada una. No son derecho vigente y LiTT no las verifica.",
-        "noOrganizations": "Todavía no perteneces a ningún despacho.",
-        "loadFailed": "No se pudieron cargar los criterios del despacho.",
-        "empty": "Tu despacho todavía no ha escrito criterios.",
-        "readOnly": "Mientras estás en formación lees los criterios de tu despacho, pero no los escribes.",
-        "count": "{count, plural, one {# criterio} other {# criterios}}",
-        "write": "Escribir un criterio",
-        "edit": "Editar",
-        "editName": "Editar el criterio «{topic}»",
-        "remove": "Quitar",
-        "removeName": "Quitar el criterio «{topic}»",
-        "confirmRemove": "¿Quieres quitar este criterio? No se puede deshacer.",
-        "confirmRemoveYes": "Sí, quitarlo",
-        "cancel": "Cancelar",
-        "removed": "Se quitó el criterio.",
-        "saved": "Se guardó el criterio.",
-        "mine": "Tuyo",
-        "kindLabel": "Tipo",
+        "empty": "Tu despacho no ha escrito un criterio sobre este tema.",
+        "failed": "No se pudieron consultar los criterios del despacho.",
         "kind": {
           "criterio": "Criterio",
           "voto_particular": "Voto particular"
         },
-        "topicLabel": "Tema",
-        "topicHelp": "Unas palabras, por ejemplo «Prescripción cambiaria».",
-        "practiceLabel": "Materia",
-        "practiceAny": "Cualquier materia",
-        "positionLabel": "Postura",
-        "positionHelp": "Escribe tu postura como la firmarías. Se mostrará con tu nombre y la fecha.",
-        "positionCount": "{count} de {max} caracteres",
-        "playbookLabel": "Playbook",
-        "playbookPlaceholder": "Elige un playbook",
-        "noPlaybooks": "Todavía no hay playbooks de los que discrepar.",
-        "ruleLabel": "Regla",
-        "rulePlaceholder": "Elige una regla",
-        "voteHelp": "Un voto particular nombra la regla del playbook de la que discrepas. No cambia la regla.",
-        "save": "Guardar",
-        "saving": "Guardando…",
-        "rule": "Discrepa de la regla «{rule}» de «{playbook}»",
-        "ruleUnknown": "Discrepa de una regla de un playbook que no puedes abrir",
+        "more": "Hay más criterios que coinciden de los que se muestran aquí.",
+        "note": "Son posturas que escribieron personas de tu despacho. No son derecho vigente y LiTT no las verifica.",
+        "practice": "Materia: {practice}",
+        "rule": "Discrepa de una regla de un playbook",
+        "summary": "{count, plural, one {# criterio consultado} other {# criterios consultados}}"
+      },
+      "settings": {
         "author": "De {author} · {date, date, medium}",
         "authorDeleted": "De un usuario eliminado · {date, date, medium}",
+        "cancel": "Cancelar",
         "changed": "cambiado el {date, date, medium}",
+        "confirmRemove": "¿Quieres quitar este criterio? No se puede deshacer.",
+        "confirmRemoveYes": "Sí, quitarlo",
+        "count": "{count, plural, one {# criterio} other {# criterios}}",
+        "edit": "Editar",
+        "editName": "Editar el criterio «{topic}»",
+        "empty": "Tu despacho todavía no ha escrito criterios.",
+        "intro": "Posturas que personas de tu despacho escribieron con su nombre. Cuando alguien en formación le hace una pregunta a LiTT, el asistente puede consultarlas y decir quién escribió cada una. No son derecho vigente y LiTT no las verifica.",
+        "kind": {
+          "criterio": "Criterio",
+          "voto_particular": "Voto particular"
+        },
+        "kindLabel": "Tipo",
         "limit": "Tu despacho tiene todos los criterios que puede guardar. Quita uno para escribir otro.",
-        "loadingLabel": "Cargando los criterios del despacho"
+        "loadFailed": "No se pudieron cargar los criterios del despacho.",
+        "loadingLabel": "Cargando los criterios del despacho",
+        "mine": "Tuyo",
+        "noOrganizations": "Todavía no perteneces a ningún despacho.",
+        "noPlaybooks": "Todavía no hay playbooks de los que discrepar.",
+        "playbookLabel": "Playbook",
+        "playbookPlaceholder": "Elige un playbook",
+        "positionCount": "{count} de {max} caracteres",
+        "positionHelp": "Escribe tu postura como la firmarías. Se mostrará con tu nombre y la fecha.",
+        "positionLabel": "Postura",
+        "practiceAny": "Cualquier materia",
+        "practiceLabel": "Materia",
+        "readOnly": "Mientras estás en formación lees los criterios de tu despacho, pero no los escribes.",
+        "remove": "Quitar",
+        "removeName": "Quitar el criterio «{topic}»",
+        "removed": "Se quitó el criterio.",
+        "rule": "Discrepa de la regla «{rule}» de «{playbook}»",
+        "ruleLabel": "Regla",
+        "rulePlaceholder": "Elige una regla",
+        "ruleUnknown": "Discrepa de una regla de un playbook que no puedes abrir",
+        "save": "Guardar",
+        "saved": "Se guardó el criterio.",
+        "saving": "Guardando…",
+        "tab": "Criterios del despacho",
+        "title": "Criterios del despacho",
+        "topicHelp": "Unas palabras, por ejemplo «Prescripción cambiaria».",
+        "topicLabel": "Tema",
+        "voteHelp": "Un voto particular nombra la regla del playbook de la que discrepas. No cambia la regla.",
+        "write": "Escribir un criterio"
       }
     },
     "gym": {
-      "notice": "Caso ficticio de práctica",
+      "codes": {
+        "closed": "El tiempo de este intento ya terminó. Se entregó lo que tenías guardado.",
+        "noHint": "No quedan pistas para los párrafos que no has marcado.",
+        "open": "Este caso ya tiene un intento sin entregar con este pupilo."
+      },
+      "form": {
+        "addError": "Agregar error",
+        "cancel": "Cancelar",
+        "draftButton": "Borrador con IA",
+        "draftCount": "Cantidad de errores (1 a 5)",
+        "draftHelp": "Llena el formulario sin guardar. Revísalo y edítalo antes de guardar.",
+        "draftTitle": "Borrador con IA",
+        "draftTopic": "Tema",
+        "duplicate": "Cada párrafo admite un solo error.",
+        "errorKind": "Tipo del error {number}",
+        "errorParagraph": "Párrafo del error {number}",
+        "errors": "Errores sembrados",
+        "explanation": "Explicación del error {number}",
+        "fictitious": "Confirmo que son datos ficticios",
+        "hint": "Pista opcional del error {number}",
+        "minutes": "Minutos (1 a 240)",
+        "noErrors": "Todavía no hay errores.",
+        "paragraphs": "Párrafos",
+        "paragraphsHelp": "Separa los párrafos con una línea en blanco.",
+        "practice": "Materia",
+        "preview": "Vista numerada",
+        "removeError": "Quitar el error {number}",
+        "save": "Guardar caso",
+        "title": "Título"
+      },
       "kinds": {
-        "superseded_thesis": "Tesis superada",
-        "repealed_article": "Artículo derogado",
-        "wrong_jurisdiction": "Competencia confundida",
         "invented_citation": "Cita inventada",
-        "other": "Otro"
+        "other": "Otro",
+        "repealed_article": "Artículo derogado",
+        "superseded_thesis": "Tesis superada",
+        "wrong_jurisdiction": "Competencia confundida"
+      },
+      "mentor": {
+        "actions": {
+          "assign": "asignar el caso",
+          "delete": "borrar el caso",
+          "draft": "pedir el borrador",
+          "load": "cargar el gimnasio",
+          "save": "guardar el caso"
+        },
+        "another": "Dar otro intento",
+        "anotherName": "Dar otro intento: {title}",
+        "assign": "Asignar a este pupilo",
+        "assignName": "Asignar a este pupilo: {title}",
+        "assignedOpen": "Hay un intento sin entregar de este caso.",
+        "attemptLine": "{status} · {found} de {total} encontrados · {hints, plural, one {# pista} other {# pistas}}",
+        "attemptLineOpen": "{status} · {hints, plural, one {# pista} other {# pistas}}",
+        "attemptsTitle": "Intentos de este pupilo",
+        "caseLine": "{practice} · {minutes} · {errors}",
+        "casesIntro": "Solo tú ves tus casos. Asignar uno crea un intento con una copia, así que editarlo o borrarlo no cambia lo ya hecho.",
+        "casesTitle": "Mis casos",
+        "delete": "Borrar",
+        "deleteMessage": "Los intentos ya asignados conservan su copia.",
+        "deleteName": "Borrar {title}",
+        "deleteTitle": "¿Borrar este caso?",
+        "detail": "Ver el detalle",
+        "edit": "Editar",
+        "editName": "Editar {title}",
+        "errorsCount": "{count, plural, one {# error sembrado} other {# errores sembrados}}",
+        "newCase": "Nuevo caso",
+        "noAttempts": "Este pupilo todavía no tiene intentos.",
+        "noCases": "Todavía no tienes casos."
+      },
+      "minutes": "{count, plural, one {# minuto} other {# minutos}}",
+      "notice": "Caso ficticio de práctica",
+      "paragraph": "Párrafo {number}",
+      "pupil": {
+        "actions": {
+          "hint": "pedir una pista",
+          "load": "cargar tus intentos del gimnasio",
+          "open": "abrir el intento",
+          "save": "guardar tus hallazgos",
+          "submit": "entregar el intento"
+        },
+        "back": "Volver a mis intentos",
+        "confirmMessage": "Ya no podrás cambiar tus hallazgos y verás el resultado.",
+        "confirmTitle": "¿Entregar este intento?",
+        "continue": "Continuar",
+        "empty": "Tu mentor todavía no te asigna ningún caso.",
+        "expired": "Se acabó el tiempo. Se entregó lo que tenías guardado.",
+        "hint": "Pedir pista",
+        "hints": "Pistas",
+        "intro": "Casos ficticios de práctica que tu mentor te asigna. Cada intento tiene un tiempo límite que lleva el servidor.",
+        "kind": "Tipo de error",
+        "mark": "Marcar",
+        "markName": "Marcar el párrafo {number}",
+        "note": "Nota (opcional)",
+        "noteName": "Nota del párrafo {number}",
+        "paragraphs": "Párrafos",
+        "start": "Empezar",
+        "startName": "{action}: {title}",
+        "submit": "Entregar",
+        "timeLeft": "Tiempo restante: {time}",
+        "title": "Gimnasio",
+        "unmark": "Quitar",
+        "unmarkName": "Quitar la marca del párrafo {number}",
+        "viewResult": "Ver resultado"
+      },
+      "result": {
+        "extra": "Hallazgos donde no había error",
+        "extraNote": "Aquí no había error sembrado.",
+        "found": "Encontrados",
+        "hints": "{count, plural, =0 {No usaste pistas} one {Pistas usadas: #} other {Pistas usadas: #}}",
+        "kindDiff": "tipo distinto",
+        "kindOk": "tipo correcto",
+        "mentorHints": "Pistas usadas: {count}",
+        "missed": "Escapados",
+        "none": "Ninguno",
+        "note": "Nota: {note}",
+        "summary": "Encontrados: {found} de {total} errores sembrados.",
+        "title": "Resultado"
       },
       "status": {
         "assigned": "Asignado",
         "in_progress": "En curso",
         "submitted": "Entregado"
-      },
-      "paragraph": "Párrafo {number}",
-      "minutes": "{count, plural, one {# minuto} other {# minutos}}",
-      "codes": {
-        "open": "Este caso ya tiene un intento sin entregar con este pupilo.",
-        "closed": "El tiempo de este intento ya terminó. Se entregó lo que tenías guardado.",
-        "noHint": "No quedan pistas para los párrafos que no has marcado."
-      },
-      "result": {
-        "title": "Resultado",
-        "summary": "Encontrados: {found} de {total} errores sembrados.",
-        "found": "Encontrados",
-        "kindOk": "tipo correcto",
-        "kindDiff": "tipo distinto",
-        "missed": "Escapados",
-        "extra": "Hallazgos donde no había error",
-        "extraNote": "Aquí no había error sembrado.",
-        "none": "Ninguno",
-        "hints": "{count, plural, =0 {No usaste pistas} one {Pistas usadas: #} other {Pistas usadas: #}}",
-        "mentorHints": "Pistas usadas: {count}",
-        "note": "Nota: {note}"
-      },
-      "pupil": {
-        "title": "Gimnasio",
-        "intro": "Casos ficticios de práctica que tu mentor te asigna. Cada intento tiene un tiempo límite que lleva el servidor.",
-        "empty": "Tu mentor todavía no te asigna ningún caso.",
-        "start": "Empezar",
-        "continue": "Continuar",
-        "viewResult": "Ver resultado",
-        "startName": "{action}: {title}",
-        "back": "Volver a mis intentos",
-        "actions": {
-          "load": "cargar tus intentos del gimnasio",
-          "open": "abrir el intento",
-          "save": "guardar tus hallazgos",
-          "hint": "pedir una pista",
-          "submit": "entregar el intento"
-        },
-        "timeLeft": "Tiempo restante: {time}",
-        "paragraphs": "Párrafos",
-        "mark": "Marcar",
-        "unmark": "Quitar",
-        "markName": "Marcar el párrafo {number}",
-        "unmarkName": "Quitar la marca del párrafo {number}",
-        "kind": "Tipo de error",
-        "note": "Nota (opcional)",
-        "noteName": "Nota del párrafo {number}",
-        "hint": "Pedir pista",
-        "hints": "Pistas",
-        "submit": "Entregar",
-        "confirmTitle": "¿Entregar este intento?",
-        "confirmMessage": "Ya no podrás cambiar tus hallazgos y verás el resultado.",
-        "expired": "Se acabó el tiempo. Se entregó lo que tenías guardado."
-      },
-      "mentor": {
-        "casesTitle": "Mis casos",
-        "casesIntro": "Solo tú ves tus casos. Asignar uno crea un intento con una copia, así que editarlo o borrarlo no cambia lo ya hecho.",
-        "noCases": "Todavía no tienes casos.",
-        "newCase": "Nuevo caso",
-        "edit": "Editar",
-        "editName": "Editar {title}",
-        "delete": "Borrar",
-        "deleteName": "Borrar {title}",
-        "assign": "Asignar a este pupilo",
-        "assignName": "Asignar a este pupilo: {title}",
-        "assignedOpen": "Hay un intento sin entregar de este caso.",
-        "caseLine": "{practice} · {minutes} · {errors}",
-        "errorsCount": "{count, plural, one {# error sembrado} other {# errores sembrados}}",
-        "deleteTitle": "¿Borrar este caso?",
-        "deleteMessage": "Los intentos ya asignados conservan su copia.",
-        "attemptsTitle": "Intentos de este pupilo",
-        "noAttempts": "Este pupilo todavía no tiene intentos.",
-        "attemptLine": "{status} · {found} de {total} encontrados · {hints, plural, one {# pista} other {# pistas}}",
-        "attemptLineOpen": "{status} · {hints, plural, one {# pista} other {# pistas}}",
-        "detail": "Ver el detalle",
-        "another": "Dar otro intento",
-        "anotherName": "Dar otro intento: {title}",
-        "actions": {
-          "load": "cargar el gimnasio",
-          "save": "guardar el caso",
-          "delete": "borrar el caso",
-          "assign": "asignar el caso",
-          "draft": "pedir el borrador"
-        }
-      },
-      "form": {
-        "title": "Título",
-        "practice": "Materia",
-        "minutes": "Minutos (1 a 240)",
-        "paragraphs": "Párrafos",
-        "paragraphsHelp": "Separa los párrafos con una línea en blanco.",
-        "preview": "Vista numerada",
-        "errors": "Errores sembrados",
-        "noErrors": "Todavía no hay errores.",
-        "addError": "Agregar error",
-        "removeError": "Quitar el error {number}",
-        "errorParagraph": "Párrafo del error {number}",
-        "errorKind": "Tipo del error {number}",
-        "explanation": "Explicación del error {number}",
-        "hint": "Pista opcional del error {number}",
-        "duplicate": "Cada párrafo admite un solo error.",
-        "fictitious": "Confirmo que son datos ficticios",
-        "save": "Guardar caso",
-        "cancel": "Cancelar",
-        "draftTitle": "Borrador con IA",
-        "draftTopic": "Tema",
-        "draftCount": "Cantidad de errores (1 a 5)",
-        "draftButton": "Borrador con IA",
-        "draftHelp": "Llena el formulario sin guardar. Revísalo y edítalo antes de guardar."
       }
+    },
+    "loadFailed": "No se pudo cargar.",
+    "member": "Miembro",
+    "mentorPanel": {
+      "actions": {
+        "load": "cargar tus pupilos"
+      },
+      "allPupils": "Todos los pupilos",
+      "back": "Volver a Formación",
+      "intro": "Supervisa a un pupilo a la vez. Aquí nada compara ni ordena a tus pupilos, y solo tú y cada pupilo ven sus datos.",
+      "lastWork": "Último trabajo: {date, date, medium} {date, time, short}",
+      "noPupils": "Todavía no tienes pupilos aquí. Agrégalos en Formación, en Mis pupilos.",
+      "noWork": "Sin trabajos todavía",
+      "notMentor": "No eres mentor en ninguna organización. El dueño o un administrador de la organización designa a los mentores.",
+      "open": "Abrir el panel del mentor",
+      "passInForce": "Pase de urgencia vigente hasta el {end, date, medium} {end, time, short}",
+      "pendingReview": "{count, plural, =0 {Ningún trabajo pendiente de revisión} one {# trabajo pendiente de revisión} other {# trabajos pendientes de revisión}}",
+      "supervise": "Supervisar",
+      "superviseName": "Supervisar a {name}",
+      "tabs": {
+        "criterion": "Criterio",
+        "defenses": "Defensa oral",
+        "gym": "Gimnasio",
+        "passes": "Pase de urgencia",
+        "promotion": "Promoción",
+        "works": "Trabajos"
+      },
+      "tabsLabel": "Secciones de la supervisión",
+      "title": "Panel del mentor"
+    },
+    "mentorSeesMe": {
+      "actions": {
+        "load": "cargar lo que ve tu mentor"
+      },
+      "defenses": "Defensas orales",
+      "intro": "Los mismos resúmenes, defensas y pases que tu mentor ve aquí. Ni más ni menos.",
+      "noDefenses": "Todavía no hay defensas.",
+      "noPasses": "Todavía no hay pases.",
+      "noReviews": "Todavía no hay resúmenes.",
+      "passes": "Pases de urgencia",
+      "reviews": "Resúmenes de tu trabajo",
+      "scheduled": "Hay una defensa programada. Verás sus preguntas y la nota cuando se registre el resultado.",
+      "title": "Lo que mi mentor ve de mí"
+    },
+    "notes": {
+      "max": "Hasta {max} caracteres.",
+      "optional": "Nota (opcional)"
+    },
+    "passes": {
+      "actions": {
+        "grant": "conceder el pase",
+        "load": "cargar los pases",
+        "revoke": "revocar el pase"
+      },
+      "chooseProject": "Elige un asunto",
+      "codes": {
+        "duplicate": "Este pupilo ya tiene un pase vigente en ese asunto que termina a la misma hora.",
+        "invalid": "Revisa el asunto, la duración y el motivo.",
+        "limit": "Este pupilo ya tiene el máximo de pases vigentes. Revoca uno primero.",
+        "pupilNoAccess": "El pupilo no puede abrir ese asunto, así que el pase no aplicaría."
+      },
+      "confirmMessage": "Desde el siguiente turno, el pupilo vuelve a escribir su planteamiento en {project}.",
+      "confirmTitle": "¿Revocar este pase?",
+      "duration": "Duración",
+      "empty": "Todavía no hay pases.",
+      "ended": "Terminó el {end, date, medium} {end, time, short}",
+      "grant": "Conceder pase",
+      "hours": "{hours, plural, one {# hora} other {# horas}}",
+      "inForce": "Vigente hasta el {end, date, medium} {end, time, short}",
+      "intro": "Un pase quita «Tu turno primero» a este pupilo en un asunto, por tiempo limitado. Sus borradores siguen sellados hasta que se aprueben, y el pase no aplica en Word.",
+      "minutes": "{minutes, plural, one {# minuto} other {# minutos}}",
+      "newTitle": "Nuevo pase",
+      "noGrantableProjects": "Tu pupilo no puede abrir ninguno de tus asuntos en esta organización",
+      "noProjects": "No tienes asuntos en esta organización",
+      "project": "Asunto",
+      "reason": {
+        "audiencia": "Audiencia",
+        "cliente_urgente": "Cliente urgente",
+        "otro": "Otro",
+        "plazo": "Plazo"
+      },
+      "reasonLabel": "Motivo",
+      "revoke": "Revocar",
+      "revokeName": "Revocar el pase en {project}",
+      "revoked": "Revocado el {date, date, medium} {date, time, short}",
+      "unknownProject": "Un asunto que no ves"
+    },
+    "promotion": {
+      "accept": "Aceptar propuesta",
+      "actions": {
+        "accept": "aceptar la promoción",
+        "load": "cargar la promoción"
+      },
+      "audits": "Auditorías de revisiones evaluadas: {count} ({adequate} adecuadas, {needsWork} por mejorar)",
+      "blocked": {
+        "general_stage_remains": "Seguiría aplicando su etapa para todas las materias, así que quitar esta no lo haría abogado en esta materia.",
+        "not_approved_after": "Hubo una defensa no aprobada después de la última aprobada.",
+        "overconfident": "Cuando marcó «Seguro», menos de 3 de cada 4 veces coincidió con la respuesta de la IA. Esto bloquea solo la propuesta."
+      },
+      "calibration": {
+        "few": "Calibración de la confianza: aún hay pocos datos ({count} de {required, plural, one {# turno marcado} other {# turnos marcados}}). No bloquea la propuesta.",
+        "needSure": "Se necesitan al menos {required} turnos «Seguro» para valorarlos.",
+        "sure": "Calibración de la confianza: cuando marcó «Seguro», coincidió {coincided} de {sure, plural, one {# vez} other {# veces}}, entre {count, plural, one {# turno marcado} other {# turnos marcados}}. La coincidencia se mide contra la respuesta de la IA, según el contraste de la IA."
+      },
+      "codes": {
+        "notProposed": "Esta propuesta ya no está vigente. Vuelve a cargar para ver la evidencia actual."
+      },
+      "confirmMessage": "{practice}: de {from} a {to}. Después puedes volver a cambiar la etapa en Formación.",
+      "confirmTitle": "¿Aceptar esta promoción?",
+      "decideWithout": "Puedes cambiar la etapa sin la propuesta de LiTT, cuando quieras, en Formación. La propuesta es una lectura de la evidencia, no una condición.",
+      "defenses": "Defensas aprobadas: {count} de {required}",
+      "empty": "Este pupilo no tiene etapa que promover.",
+      "gym": "Gimnasio: {attempts, plural, one {# intento entregado} other {# intentos entregados}}, {found} de {errors} errores encontrados, {hints, plural, one {# pista} other {# pistas}}",
+      "intro": "LiTT propone; tú decides. Una propuesta se apoya en las defensas aprobadas y los trabajos revisados de este pupilo desde el último cambio de su etapa. El resto de la evidencia se te muestra, pero no es requisito.",
+      "move": "{practice}: {from} → {to}",
+      "notYet": "Todavía no se propone.",
+      "proposed": "LiTT propone esta promoción.",
+      "readings": "Lecturas completas entregadas: {count}",
+      "versions": "Borradores aprobados: {count}",
+      "withoutAccess": "La evidencia en asuntos que no puedes abrir solo se cuenta, no se muestra. Turnos marcados: {turns}. Auditorías: {audits}. Lecturas: {readings}.",
+      "works": "Trabajos revisados: {count} de {required}"
+    },
+    "review": {
+      "aiCorrected": "Qué corrigió la IA",
+      "approve": "Aprobar esta versión",
+      "approveName": "Aprobar esta versión: {text}",
+      "approved": "Aprobada",
+      "doubts": "Dónde dudó",
+      "failed": "No se pudo generar el resumen. Puedes intentarlo de nuevo.",
+      "generatedWith": "Generado con {model} el {date, date, medium} {date, time, short}",
+      "inferred": "inferido",
+      "none": "Nada.",
+      "notReviewed": "Sin revisar todavía",
+      "pending": "Generando el resumen…",
+      "proposed": "Qué propuso",
+      "reviewedOn": "Revisado el {date, date, medium} {date, time, short}",
+      "unverified": "Qué quedó sin verificar"
+    },
+    "stage": {
+      "abogado": "Abogado",
+      "junior": "Junior",
+      "pasante": "Pasante"
+    },
+    "surface": {
+      "chat": "Chat",
+      "tabular": "Revisión tabular",
+      "word": "Word"
+    },
+    "works": {
+      "actions": {
+        "approve": "aprobar la versión",
+        "generate": "generar el resumen",
+        "load": "cargar los trabajos",
+        "markReviewed": "marcar el trabajo como revisado"
+      },
+      "approve": "Aprobar",
+      "approveMessage": "Aprobarás el borrador del pupilo tal como está ahora. Si su contenido cambia, necesitará una nueva aprobación.",
+      "approveTitle": "¿Aprobar esta versión?",
+      "chooseKey": "Elige una llave",
+      "codes": {
+        "credentialUnavailable": "La llave que usó este resumen ya no está disponible para ti. Elige otra llave y vuelve a intentarlo.",
+        "inProgress": "Ya se está generando un resumen de este trabajo. Espera un momento y vuelve a cargar.",
+        "keyRequired": "Necesitas una llave de IA que puedas usar en esta organización."
+      },
+      "empty": "Este pupilo todavía no tiene trabajos con notas de turno.",
+      "generate": "Generar resumen",
+      "heldDrafts": "{count, plural, one {# borrador sellado sigue pendiente de aprobación. Apruébalo con el botón de su fila de arriba o desde su documento.} other {# borradores sellados siguen pendientes de aprobación. Apruébalos con el botón de su fila de arriba o desde cada documento.}}",
+      "intro": "Cada trabajo es una conversación con notas de turno. El resumen muestra cuatro datos; lo que quedó sin verificar se calcula, no se genera.",
+      "key": "Llave",
+      "keyRequired": "Para generar resúmenes y preguntas de defensa necesitas una llave de IA que puedas usar en esta organización. No se usa otra llave en su lugar. Aun así puedes registrar una defensa sin IA.",
+      "markReviewed": "Marcar como revisado",
+      "meta": "{surface} · {notes, plural, one {# nota} other {# notas}} · {date, date, medium} {date, time, short}",
+      "newWork": "Hay trabajo nuevo desde este resumen.",
+      "noReview": "Todavía no hay resumen.",
+      "regenerate": "Regenerar",
+      "untitled": "Trabajo sin título",
+      "withoutAccess": "{count, plural, one {# trabajo está en un asunto que no puedes abrir.} other {# trabajos están en asuntos que no puedes abrir.}} El dueño del asunto puede darte acceso."
     }
+  },
+  "versionCompare": {
+    "added": "Agregado",
+    "authorAi": "IA",
+    "authorOf": "Hecha por: {author}",
+    "authorPerson": "Persona",
+    "base": "Versión base",
+    "blankChange": "(líneas en blanco)",
+    "changeList": "Lista de cambios",
+    "changeOf": "Cambio {current} de {total}",
+    "compare": "Comparar",
+    "downloadBase": "Descargar la versión base",
+    "downloadHead": "Descargar la versión revisada",
+    "goToChange": "Ir al cambio {number}: {summary}",
+    "hasNumbers": "Contiene números",
+    "head": "Versión revisada",
+    "hiddenLines": "{count, plural, one {# línea sin mostrar} other {# líneas sin mostrar}}",
+    "identical": "No hay diferencias de texto entre estas dos versiones.",
+    "lineNumberNew": "Línea {number} de la revisada",
+    "lineNumberOld": "Línea {number} de la base",
+    "loadingLabel": "Cargando la comparación",
+    "next": "Cambio siguiente",
+    "noChanges": "Sin cambios",
+    "noNumberChanges": "Sin cambios con números",
+    "noText": "Esta versión todavía no tiene texto para comparar.",
+    "numbersOnly": "Solo cambios con números",
+    "numbersOnlyHint": "Un cambio cuenta cuando un fragmento cambiado contiene un dígito (0-9).",
+    "paragraph": "Párrafo {number}",
+    "previous": "Cambio anterior",
+    "removed": "Quitado",
+    "retry": "Intentar de nuevo",
+    "sameVersion": "Elige dos versiones distintas para comparar.",
+    "sectionNone": "Antes del primer título",
+    "sideBySide": "Lado a lado",
+    "textNotFormat": "Compara el texto, no el formato.",
+    "textlessPages": "{count, plural, one {# página de esta versión está escaneada y no tiene texto, así que no se puede comparar.} other {# páginas de esta versión están escaneadas y no tienen texto, así que no se pueden comparar.}}",
+    "title": "Comparar versiones",
+    "tooLarge": "Documento demasiado grande para comparar aquí.",
+    "tooLargeHint": "Descarga las dos versiones y compáralas en tu propio programa.",
+    "unified": "Unificada",
+    "versionOption": "Versión {number} · {author} · {name}",
+    "versionOptionNoNumber": "{author} · {name}",
+    "viewMode": "Vista de la comparación"
   },
   "word": {
     "app": {
@@ -1454,14 +1761,14 @@
       "unidentifiedDocument": "No se pudo identificar este documento de Word."
     },
     "language": {
+      "description": "Elige el idioma que LiTT usa en Word. Se guarda en tu perfil, así que también se aplica en la app web.",
       "label": "Idioma de la interfaz",
-      "description": "Elige el idioma que LiTT usa en Word. Se guarda en tu perfil, así que también se aplica en la aplicación web.",
-      "saveFailed": "LiTT no pudo guardar el idioma. Inténtalo de nuevo.",
-      "title": "Idioma",
       "names": {
         "en-US": "English",
         "es-MX": "Español (México)"
-      }
+      },
+      "saveFailed": "LiTT no pudo guardar el idioma. Inténtalo de nuevo.",
+      "title": "Idioma"
     },
     "login": {
       "continueWithGoogle": "Continuar con Google",
@@ -1491,131 +1798,5 @@
     "settings": {
       "title": "Ajustes"
     }
-  },
-  "access": {
-    "noOrgInvite": "Pide una invitación a tu despacho",
-    "invite": {
-      "sent": "Le enviamos un correo con la invitación",
-      "notSent": "No pudimos enviar el correo. Avísale que entre a LiTT con ese correo"
-    },
-    "setPassword": {
-      "title": "Crea tu contraseña",
-      "subtitle": "Usa al menos {min} caracteres. Después seguirás con la configuración de tu cuenta.",
-      "password": "Contraseña",
-      "confirm": "Confirma tu contraseña",
-      "mismatch": "Las contraseñas no coinciden.",
-      "submit": "Guardar contraseña",
-      "saving": "Guardando...",
-      "verifying": "Verificando tu invitación...",
-      "invalidTitle": "Invitación no disponible",
-      "invalid": "Este enlace de invitación no es válido o expiró. Pide que te inviten de nuevo.",
-      "toLogin": "Ir a iniciar sesión"
-    },
-    "beta": {
-      "tab": "Invitaciones a la beta",
-      "heading": "Invitaciones a la beta",
-      "hint": "La persona invitada podrá crear un despacho y ser su dueña.",
-      "emailLabel": "Correo de la persona invitada",
-      "invite": "Invitar",
-      "inviting": "Invitando...",
-      "empty": "Todavía no hay invitaciones.",
-      "loadError": "No pudimos cargar las invitaciones.",
-      "colEmail": "Correo",
-      "colStatus": "Estado",
-      "colExpires": "Vence",
-      "status": {
-        "pending": "Pendiente",
-        "used": "Usada",
-        "cancelled": "Cancelada",
-        "expired": "Vencida"
-      },
-      "cancel": "Cancelar invitación",
-      "cancelTitle": "¿Cancelar la invitación?",
-      "cancelBody": "{email} ya no podrá registrarse ni crear un despacho con esta invitación.",
-      "keep": "Conservar"
-    }
-  },
-  "legal": {
-    "notice": "Al continuar aceptas los <terms>Términos</terms> y el <privacy>Aviso de privacidad</privacy>.",
-    "onlySpanish": "Disponible solo en español.",
-    "title": "Términos y Aviso de privacidad",
-    "intro": "Para seguir usando LiTT, lee y acepta los <terms>Términos y condiciones</terms> y el <privacy>Aviso de privacidad</privacy>.",
-    "checkbox": "Leí y acepto los Términos y condiciones y el Aviso de privacidad",
-    "submit": "Aceptar y continuar",
-    "saving": "Guardando...",
-    "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
-    "simplifiedTitle": "Aviso de privacidad simplificado"
-  },
-  "markdownDocument": {
-    "edit": "Editar",
-    "save": "Guardar",
-    "saving": "Guardando…",
-    "cancel": "Cancelar",
-    "modeLabel": "Modo de edición",
-    "modeRich": "Con formato",
-    "modeText": "Texto",
-    "editorLabel": "Editor de Markdown",
-    "sourceLabel": "Markdown fuente",
-    "loadError": "No se pudo cargar este archivo Markdown.",
-    "loadingLabel": "Cargando documento",
-    "conflict": "Alguien guardó otra versión; recarga para ver los cambios.",
-    "copyText": "Copiar mi texto",
-    "textCopied": "Texto copiado",
-    "copyFailed": "Tu navegador no permitió copiar. Selecciona el texto y cópialo a mano.",
-    "reload": "Recargar",
-    "richUnavailable": "El editor con formato cambiaría este Markdown al guardarlo (tablas o sintaxis que no conserva). Sigue editando en modo Texto.",
-    "tooLarge": "Este documento es demasiado grande para guardarse desde el editor (el límite es de 50 MB). Copia tu texto y divídelo, o súbelo como una versión nueva.",
-    "unsaved": "Tienes cambios sin guardar. Si sales ahora, los perderás.",
-    "discardTitle": "¿Descartar los cambios sin guardar?",
-    "discard": "Descartar cambios",
-    "keepEditing": "Seguir editando"
-  },
-  "assistantExport": {
-    "downloadMarkdown": "Descargar .md",
-    "downloaded": "Respuesta descargada",
-    "defaultName": "respuesta"
-  },
-  "versionCompare": {
-    "compare": "Comparar",
-    "title": "Comparar versiones",
-    "textNotFormat": "Compara el texto, no el formato.",
-    "base": "Versión base",
-    "head": "Versión revisada",
-    "versionOption": "Versión {number} · {author} · {name}",
-    "versionOptionNoNumber": "{author} · {name}",
-    "authorAi": "IA",
-    "authorPerson": "Persona",
-    "authorOf": "Hecha por: {author}",
-    "viewMode": "Vista de la comparación",
-    "sideBySide": "Lado a lado",
-    "unified": "Unificada",
-    "numbersOnly": "Solo cambios con números",
-    "numbersOnlyHint": "Un cambio cuenta cuando un fragmento cambiado contiene un dígito (0-9).",
-    "previous": "Cambio anterior",
-    "next": "Cambio siguiente",
-    "changeOf": "Cambio {current} de {total}",
-    "noChanges": "Sin cambios",
-    "noNumberChanges": "Sin cambios con números",
-    "identical": "No hay diferencias de texto entre estas dos versiones.",
-    "changeList": "Lista de cambios",
-    "sectionNone": "Antes del primer título",
-    "paragraph": "Párrafo {number}",
-    "goToChange": "Ir al cambio {number}: {summary}",
-    "blankChange": "(líneas en blanco)",
-    "added": "Agregado",
-    "removed": "Quitado",
-    "hasNumbers": "Contiene números",
-    "lineNumberOld": "Línea {number} de la base",
-    "lineNumberNew": "Línea {number} de la revisada",
-    "hiddenLines": "{count, plural, one {# línea sin mostrar} other {# líneas sin mostrar}}",
-    "noText": "Esta versión todavía no tiene texto para comparar.",
-    "tooLarge": "Documento demasiado grande para comparar aquí.",
-    "tooLargeHint": "Descarga las dos versiones y compáralas en tu propio programa.",
-    "downloadBase": "Descargar la versión base",
-    "downloadHead": "Descargar la versión revisada",
-    "sameVersion": "Elige dos versiones distintas para comparar.",
-    "retry": "Intentar de nuevo",
-    "loadingLabel": "Cargando la comparación",
-    "textlessPages": "{count, plural, one {# página de esta versión está escaneada y no tiene texto, así que no se puede comparar.} other {# páginas de esta versión están escaneadas y no tienen texto, así que no se pueden comparar.}}"
   }
 }

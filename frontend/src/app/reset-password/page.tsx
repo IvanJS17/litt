@@ -13,15 +13,12 @@ import {
     authInputUIClassName,
 } from "@mike/ui";
 import {
+    MAX_PASSWORD_LENGTH,
     MIN_PASSWORD_LENGTH,
     isPasswordTooLong,
-    maximumPasswordMessage,
-    minimumPasswordMessage,
 } from "@/app/components/auth/passwordPolicy";
-import {
-    PASSWORD_LENGTH_MESSAGE,
-    authMessages,
-} from "@/app/lib/authMessages";
+import { authMessages, authSentence } from "@/app/lib/authMessages";
+import { clientTranslator } from "@mike/client";
 import { getAuthSession, updateAuthPassword } from "@/app/lib/authApi";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import {
@@ -29,22 +26,22 @@ import {
     supportMailtoFor,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: here every session-
  *  shaped failure is really "your reset link is no longer usable". */
 const RESET_ERROR_MESSAGES = authMessages({
-    validation_failed: PASSWORD_LENGTH_MESSAGE,
-    invalid_request: PASSWORD_LENGTH_MESSAGE,
-    otp_expired: "This password-reset link has expired. Request a new one.",
-    session_expired: "This password-reset link has expired. Request a new one.",
-    session_not_found:
-        "This password-reset link is invalid or has expired. Request a new one.",
-    cookie_session_required:
-        "This password-reset link is invalid or has expired. Request a new one.",
-    reauthentication_needed: "Log in again before changing your password.",
+    validation_failed: authSentence("passwordLength"),
+    invalid_request: authSentence("passwordLength"),
+    otp_expired: () => clientTranslator()("auth.resetPassword.linkExpired"),
+    session_expired: () => clientTranslator()("auth.resetPassword.linkExpired"),
+    session_not_found: () => clientTranslator()("auth.resetPassword.linkInvalidRequestNew"),
+    cookie_session_required: () => clientTranslator()("auth.resetPassword.linkInvalidRequestNew"),
+    reauthentication_needed: () => clientTranslator()("auth.resetPassword.reauthenticate"),
 });
 
 function ResetPasswordContent() {
+    const t = useTranslations();
     const searchParams = useSearchParams();
     const [ready, setReady] = useState(false);
     const [password, setPassword] = useState("");
@@ -61,7 +58,7 @@ function ResetPasswordContent() {
     const isUnavailablePreview = preview === "reset-unavailable";
     const displayedReady = isUnavailablePreview || ready;
     const displayedError = isUnavailablePreview
-        ? "This password-reset link is invalid or has expired."
+        ? t("auth.resetPassword.thisPasswordResetLinkIsInvalid")
         : error;
     const resetUnavailable =
         displayedReady && !!displayedError && !password && !confirmPassword;
@@ -76,7 +73,7 @@ function ResetPasswordContent() {
                 if (cancelled) return;
                 if (!session) {
                     setError(
-                        "This password-reset link is invalid or has expired.",
+                        t("auth.resetPassword.thisPasswordResetLinkIsInvalid"),
                     );
                 }
                 setReady(true);
@@ -87,15 +84,14 @@ function ResetPasswordContent() {
                 // not, and telling the user to request a new link then would
                 // send them round a loop that cannot work.
                 const described = describeError(caught, {
-                    action: "check your reset link",
-                    fallback:
-                        "This password-reset link is invalid or has expired.",
+                    action: t("auth.resetPassword.checkLinkAction"),
+                    fallback: t("auth.resetPassword.thisPasswordResetLinkIsInvalid"),
                 });
                 setError(
                     described.kind === "unauthenticated" ||
                         described.kind === "not_found" ||
                         described.kind === "validation"
-                        ? "This password-reset link is invalid or has expired."
+                        ? t("auth.resetPassword.thisPasswordResetLinkIsInvalid")
                         : described.message,
                 );
                 setReady(true);
@@ -103,22 +99,28 @@ function ResetPasswordContent() {
         return () => {
             cancelled = true;
         };
-    }, [isUnavailablePreview, isVerifyingPreview]);
+    }, [isUnavailablePreview, isVerifyingPreview, t]);
 
     async function handleSubmit(event: React.FormEvent) {
         event.preventDefault();
         setError(null);
         setFailure(null);
         if (password.length < MIN_PASSWORD_LENGTH) {
-            setError(`${minimumPasswordMessage}.`);
+            setError(
+                t("auth.errors.passwordTooShort", {
+                    min: MIN_PASSWORD_LENGTH,
+                }),
+            );
             return;
         }
         if (isPasswordTooLong(password)) {
-            setError(maximumPasswordMessage);
+            setError(
+                t("auth.errors.passwordTooLong", { max: MAX_PASSWORD_LENGTH }),
+            );
             return;
         }
         if (password !== confirmPassword) {
-            setError("Passwords do not match.");
+            setError(t("auth.resetPassword.passwordsDoNotMatch"));
             return;
         }
 
@@ -128,9 +130,9 @@ function ResetPasswordContent() {
             setSuccess(true);
         } catch (caught) {
             const described = describeError(caught, {
-                action: "update your password",
+                action: t("auth.resetPassword.updateAction"),
                 codeMessages: RESET_ERROR_MESSAGES,
-                fallback: "Unable to update your password. Try again.",
+                fallback: t("auth.resetPassword.updateFailed"),
             });
             setFailure(described);
             setError(described.message);
@@ -147,20 +149,19 @@ function ResetPasswordContent() {
                         <div>
                             <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                             <h1 className="mt-4 font-serif text-2xl font-medium text-gray-950">
-                                Verifying your reset link...
+                                {t("auth.resetPassword.verifyingYourResetLink")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                This should only take a moment.
+                                {t("auth.resetPassword.thisShouldOnlyTakeAMoment")}
                             </p>
                         </div>
                     ) : success ? (
                         <div>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Password updated
+                                {t("auth.resetPassword.passwordUpdated")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
-                                Your password has been changed. Log in again
-                                with your new password.
+                                {t("auth.resetPassword.yourPasswordHasBeenChangedLog")}
                             </p>
                             <Link
                                 href="/login"
@@ -170,13 +171,13 @@ function ResetPasswordContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Log in
+                                {t("auth.resetPassword.logIn")}
                             </Link>
                         </div>
                     ) : resetUnavailable ? (
                         <div>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Reset link unavailable
+                                {t("auth.resetPassword.resetLinkUnavailable")}
                             </h1>
                             <p className="mt-3 text-sm leading-relaxed text-gray-600">
                                 {displayedError}
@@ -189,16 +190,16 @@ function ResetPasswordContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Request another link
+                                {t("auth.resetPassword.requestAnotherLink")}
                             </Link>
                         </div>
                     ) : (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Choose a new password
+                                {t("auth.resetPassword.chooseANewPassword")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                Use at least {MIN_PASSWORD_LENGTH} characters.
+                                {t("auth.resetPassword.useAtLeastMinPasswordLength", { MIN_PASSWORD_LENGTH })}
                             </p>
                             <form
                                 onSubmit={handleSubmit}
@@ -206,7 +207,7 @@ function ResetPasswordContent() {
                             >
                                 <div>
                                     <FieldLabel htmlFor="password">
-                                        New password
+                                        {t("auth.resetPassword.newPassword")}
                                     </FieldLabel>
                                     <InputUI
                                         id="password"
@@ -222,7 +223,7 @@ function ResetPasswordContent() {
                                 </div>
                                 <div>
                                     <FieldLabel htmlFor="confirmPassword">
-                                        Confirm new password
+                                        {t("auth.resetPassword.confirmNewPassword")}
                                     </FieldLabel>
                                     <InputUI
                                         id="confirmPassword"
@@ -252,7 +253,7 @@ function ResetPasswordContent() {
                                                 )}
                                                 className="ml-2 underline underline-offset-2"
                                             >
-                                                Contact support
+                                                {t("auth.resetPassword.contactSupport")}
                                             </a>
                                         )}
                                     </div>
@@ -267,8 +268,8 @@ function ResetPasswordContent() {
                                     className="w-full"
                                 >
                                     {loading
-                                        ? "Updating password..."
-                                        : "Update password"}
+                                        ? t("auth.resetPassword.updatingPassword")
+                                        : t("auth.resetPassword.updatePassword")}
                                 </PillButtonUI>
                             </form>
                         </>

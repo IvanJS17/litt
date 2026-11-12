@@ -15,12 +15,17 @@ import { reportFault,
     supportMailtoFor,
     type UserFacingError,
 } from "@/app/lib/userFacingError";
-import { LINK_SPENT_MESSAGE, authMessages } from "@/app/lib/authMessages";
+import {
+    authMessages,
+    authSentence,
+    authSentenceText,
+} from "@/app/lib/authMessages";
+import { useTranslations } from "next-intl";
 
 /** The shared auth table with this screen's deltas: on the callback route
  *  every spent one-time code is the same spent confirmation link. */
 const CALLBACK_ERROR_MESSAGES = authMessages({
-    otp_expired: LINK_SPENT_MESSAGE,
+    otp_expired: authSentence("linkSpent"),
 });
 
 /**
@@ -35,7 +40,7 @@ function describeCallbackError(
     const described = reportFault(error, {
         action,
         codeMessages: CALLBACK_ERROR_MESSAGES,
-        fallback: LINK_SPENT_MESSAGE,
+        fallback: authSentenceText("linkSpent"),
         operation: "auth.session",
     });
     const linkIsSpent =
@@ -44,11 +49,12 @@ function describeCallbackError(
         described.status < 500 &&
         described.kind !== "rate_limited";
     return linkIsSpent && !described.code
-        ? { ...described, message: LINK_SPENT_MESSAGE }
+        ? { ...described, message: authSentenceText("linkSpent") }
         : described;
 }
 
 function AuthCallbackContent() {
+    const t = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { refreshSession } = useAuth();
@@ -57,7 +63,7 @@ function AuthCallbackContent() {
         process.env.NODE_ENV !== "production" &&
         searchParams.get("preview") === "confirmation-error";
     const displayedMessage = isErrorPreview
-        ? "This confirmation link is invalid or has expired."
+        ? t("auth.callback.linkInvalid")
         : (error?.message ?? null);
 
     useEffect(() => {
@@ -77,7 +83,7 @@ function AuthCallbackContent() {
                         new UserVisibleError(providerError, {
                             kind: "validation",
                         }),
-                        { action: "confirm your request" },
+                        { action: t("auth.callback.confirmAction") },
                     ),
                 );
                 return;
@@ -90,7 +96,10 @@ function AuthCallbackContent() {
                     await refreshSession();
                 } catch (caught) {
                     setError(
-                        describeCallbackError(caught, "confirm your request"),
+                        describeCallbackError(
+                            caught,
+                            t("auth.callback.confirmAction"),
+                        ),
                     );
                     return;
                 }
@@ -100,17 +109,20 @@ function AuthCallbackContent() {
                     session = await getAuthSession();
                 } catch (caught) {
                     setError(
-                        describeCallbackError(caught, "confirm your request"),
+                        describeCallbackError(
+                            caught,
+                            t("auth.callback.confirmAction"),
+                        ),
                     );
                     return;
                 }
                 if (!session) {
                     setError(
                         describeError(
-                            new UserVisibleError(LINK_SPENT_MESSAGE, {
+                            new UserVisibleError(authSentenceText("linkSpent"), {
                                 kind: "validation",
                             }),
-                            { action: "confirm your request" },
+                            { action: t("auth.callback.confirmAction") },
                         ),
                     );
                     return;
@@ -126,7 +138,7 @@ function AuthCallbackContent() {
         return () => {
             cancelled = true;
         };
-    }, [isErrorPreview, refreshSession, router, searchParams]);
+    }, [isErrorPreview, refreshSession, router, searchParams, t]);
 
     return (
         <AuthPageShell>
@@ -135,7 +147,7 @@ function AuthCallbackContent() {
                     {displayedMessage ? (
                         <>
                             <h1 className="text-2xl font-medium font-serif text-gray-950">
-                                Unable to confirm
+                                {t("auth.callback.unableToConfirm")}
                             </h1>
                             <p
                                 role="alert"
@@ -152,7 +164,7 @@ function AuthCallbackContent() {
                                         )}
                                         className="font-medium underline underline-offset-2"
                                     >
-                                        Contact support
+                                        {t("auth.callback.contactSupport")}
                                     </a>
                                 </p>
                             )}
@@ -164,17 +176,17 @@ function AuthCallbackContent() {
                                     className: "mt-6",
                                 })}
                             >
-                                Return to login
+                                {t("auth.callback.returnToLogin")}
                             </Link>
                         </>
                     ) : (
                         <>
                             <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
                             <h1 className="mt-4 text-2xl font-medium font-serif text-gray-950">
-                                Confirming your request
+                                {t("auth.callback.confirmingYourRequest")}
                             </h1>
                             <p className="mt-2 text-sm text-gray-500">
-                                This should only take a moment.
+                                {t("auth.callback.thisShouldOnlyTakeAMoment")}
                             </p>
                         </>
                     )}
