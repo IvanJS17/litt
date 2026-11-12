@@ -718,15 +718,15 @@
         "byActor": "{action} by {actor}",
         "byYou": "{action} by you",
         "cancelled": "{action} was cancelled.",
-        "edited": "{actor} edited {name}.",
+        "edited": "{self, select, yes {You edited {name}.} other {{actor} edited {name}.}}",
         "failed": "{action} failed.",
-        "generated": "{actor} generated {name}.",
-        "invited": "{actor} invited {name}.",
+        "generated": "{self, select, yes {You generated {name}.} other {{actor} generated {name}.}}",
+        "invited": "{self, select, yes {You invited {name}.} other {{actor} invited {name}.}}",
         "otherStatus": "{action} is {status}.",
-        "resentInvitation": "{actor} resent an invitation to {name}.",
-        "roleChanged": "{actor} changed the organization role for {name}.",
+        "resentInvitation": "{self, select, yes {You resent an invitation to {name}.} other {{actor} resent an invitation to {name}.}}",
+        "roleChanged": "{self, select, yes {You changed the organization role for {name}.} other {{actor} changed the organization role for {name}.}}",
         "unnamed": "the {type}",
-        "uploaded": "{actor} uploaded {name}."
+        "uploaded": "{self, select, yes {You uploaded {name}.} other {{actor} uploaded {name}.}}"
       },
       "surface": {
         "account": "Account",
@@ -739,8 +739,7 @@
         "workflows": "Workflows"
       },
       "unknownUser": "Unknown user",
-      "yes": "Yes",
-      "you": "You"
+      "yes": "Yes"
     },
     "auditLog": "Audit log",
     "back": "Back",

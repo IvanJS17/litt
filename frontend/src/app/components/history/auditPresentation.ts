@@ -386,7 +386,8 @@ export function auditSummary(
   personal: boolean,
   t: AuditTranslate = clientT(),
 ): string {
-  const actor = personal ? t("history.audit.you") : auditActor(event, t);
+  const actor = personal ? "" : auditActor(event, t);
+  const self = personal ? "yes" : "no";
   const subject = auditSubject(event, t);
   const action = auditAction(event, t);
   if (event.status !== "completed")
@@ -400,17 +401,17 @@ export function auditSummary(
       ? t("history.audit.summary.unnamed", { type: subject.type.toLowerCase() })
       : subject.name;
   if (event.action === "org.member.role_changed")
-    return t("history.audit.summary.roleChanged", { actor, name });
+    return t("history.audit.summary.roleChanged", { self, actor, name });
   if (event.action === "org.invite.created")
-    return t("history.audit.summary.invited", { actor, name });
+    return t("history.audit.summary.invited", { self, actor, name });
   if (event.action === "org.invite.resent")
-    return t("history.audit.summary.resentInvitation", { actor, name });
+    return t("history.audit.summary.resentInvitation", { self, actor, name });
   if (event.action === "document.uploaded")
-    return t("history.audit.summary.uploaded", { actor, name });
+    return t("history.audit.summary.uploaded", { self, actor, name });
   if (event.action === "document.edited")
-    return t("history.audit.summary.edited", { actor, name });
+    return t("history.audit.summary.edited", { self, actor, name });
   if (event.action === "document.generated")
-    return t("history.audit.summary.generated", { actor, name });
+    return t("history.audit.summary.generated", { self, actor, name });
   return personal
     ? t("history.audit.summary.byYou", { action })
     : t("history.audit.summary.byActor", { action, actor });
