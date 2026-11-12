@@ -72,5 +72,7 @@
     "../packages/client/src/**/*.ts",
     "../packages/i18n/src/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  // The DOCX round-trip spec runs with the root Playwright install
+  // (playwright.docx-roundtrip.config.ts); e2e.yml type-checks it there.
+  "exclude": ["node_modules", "docx-roundtrip/roundtrip.spec.ts"]
 }

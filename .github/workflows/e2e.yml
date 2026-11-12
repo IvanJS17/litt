@@ -89,6 +89,7 @@ jobs:
           npx tsc --ignoreConfig --noEmit --module nodenext
           --moduleResolution nodenext --target es2022 --skipLibCheck
           --esModuleInterop --types node e2e/*.ts playwright.config.ts
+          frontend/docx-roundtrip/roundtrip.spec.ts playwright.docx-roundtrip.config.ts
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium

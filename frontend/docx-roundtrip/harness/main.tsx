@@ -6,13 +6,8 @@ import type { Editor } from "@docx-editor.dev/core/contracts/editor";
 import { packagedFonts } from "@docx-editor.dev/fonts";
 import "@docx-editor.dev/core/styles/editor.css";
 import { docxModules } from "../../src/app/lib/docxReviewModule";
+import "./contract";
 
-type Harness = {
-    load(bytes: number[]): Promise<{ parseError: unknown }>;
-    save(): Promise<number[]>;
-    replaceText(find: string, text: string): boolean;
-};
-declare global { interface Window { harness: Harness } }
 
 const fonts = packagedFonts();
 const root = createRoot(document.getElementById("root")!);

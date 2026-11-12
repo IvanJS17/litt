@@ -6,6 +6,7 @@
 import { expect, test } from "@playwright/test";
 import { FIXTURES } from "./fixtures";
 import { summarize, type DocxSummary } from "./summary";
+import "./harness/contract";
 
 test.describe.configure({ mode: "serial" });
 
