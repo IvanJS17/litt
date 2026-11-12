@@ -99,7 +99,8 @@ async function describeState(db: Db, userId: string, target: Target): Promise<Sc
     page_count: pages,
     textless_page_count: textless,
     auto_max_pages: OCR_AUTO_MAX_PAGES,
-    estimated_cost_usd: pages ? estimateOcrCostUsd(pages) : null,
+    // Only the pages without a text layer are sent and billed.
+    estimated_cost_usd: textless ? estimateOcrCostUsd(textless) : null,
     credits: credits !== null && Number.isFinite(credits) ? credits : null,
   };
 }
@@ -281,8 +282,15 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
     }
     const raw = await downloadFile(version.storage_path);
     if (!raw) throw new Error("ocr_source_unavailable");
+    // Only the pages without a text layer are sent (and billed); a PDF that
+    // is scanned throughout goes whole, without the page selection.
+    const scanned = await scannedPages(raw);
+    if (scanned.pages.length === 0) {
+      await finishRow(db, versionId, revision, { status: "failed", error_code: OCR_NOT_SUPPORTED_CODE });
+      return;
+    }
     try {
-      const result = await parsePdfWithLandingAi(key, raw);
+      const result = await parsePdfWithLandingAi(key, raw, scanned.pages.length < scanned.total ? { pages: scanned.pages } : {});
       const saved = await finishRow(db, versionId, revision, {
         status: "ready",
         pages: result.pages.map((p) => ({ page: p.page, text: p.text.replaceAll("\0", "") })),
@@ -302,6 +310,16 @@ export async function handleDocumentOcr(db: Db, job: DbJob): Promise<void> {
     }
   }
   await publishReading(db, { versionId, revision, storage_path: version.storage_path, content_sha256: version.content_sha256 ?? null });
+}
+
+async function scannedPages(raw: ArrayBuffer): Promise<{ pages: number[]; total: number }> {
+  try {
+    return await withBackgroundExtraction({ waitMs: 60_000 }, (extract) => extract("pdfTextlessPages", raw, { fileType: "pdf" }));
+  } catch (error) {
+    if (error instanceof ExtractionBusyError)
+      throw new DbJobDeferredError(new Date(Date.now() + 30_000).toISOString(), "document_extraction_busy");
+    throw error;
+  }
 }
 
 /** Merge the saved reading into the version's text and clear the scanned-page warning for what it read. */

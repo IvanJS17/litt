@@ -75,6 +75,20 @@ describe("parsePdfWithLandingAi", () => {
         expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
+    it("asks LandingAI for only the requested pages and places the reading on them", async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValueOnce(json(202, { job_id: JOB, status: "pending" }))
+            .mockResolvedValueOnce(
+                // No structure: the markers separate just the two requested pages (2 and 5 of 6).
+                json(200, { status: "completed", result: { markdown: "dos\n\n<!-- PAGE BREAK -->\n\ncinco", metadata: { page_count: 6 } } }),
+            );
+        const result = await parsePdfWithLandingAi(SECRET, pdf, { ...deps(fetchMock), pages: [2, 5] });
+        const form = (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as FormData;
+        expect(JSON.parse(String(form.get("options")))).toEqual({ atomic_grounding: false, pages: [2, 5] });
+        expect(result.pages).toEqual([{ page: 2, text: "dos" }, { page: 5, text: "cinco" }]);
+    });
+
     it("keeps the pages LandingAI failed on a partial (206) result", async () => {
         const fetchMock = vi
             .fn()

@@ -49,10 +49,10 @@ beforeEach(() => {
 });
 
 describe("scan reading state", () => {
-  it("offers the reading when pages lack text and a key is available, with the estimated cost", async () => {
+  it("offers the reading when pages lack text and a key is available, with the cost of the scanned pages only", async () => {
     const fake = scriptedDb([{ table: "document_version_ocr", data: null }]);
     const result = await getScanReadingState(fake.db, args);
-    expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.1, auto_max_pages: 50, can_edit: true } });
+    expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.03, auto_max_pages: 50, can_edit: true } });
     fake.done();
   });
   it("reports a running reading and hides the button; a reading of other bytes counts as none", async () => {
@@ -186,10 +186,26 @@ describe("the job", () => {
     ]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.assertStamp).toHaveBeenCalledWith(fake.db, "o1", { orgId: "o1", epoch: 3 });
-    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything());
+    expect(mocks.extract).toHaveBeenCalledWith("pdfTextlessPages", expect.anything(), { fileType: "pdf" });
+    // Only the scanned pages are sent.
+    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), { pages: [2, 5, 9] });
     expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 1, text: "# Hola" }], credits: 1.5, page_count: 3, failed_pages: [2], model: "dpt-3-pro-20260710" });
     expect(fake.calls[4].payload).toEqual({ textless_page_count: 1 });
     fake.done();
+  });
+  it("sends a PDF scanned throughout whole, without a page selection", async () => {
+    mocks.extract.mockResolvedValue({ pages: [1, 2, 3], total: 3 });
+    mocks.parse.mockResolvedValue(read);
+    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }, { table: "document_versions", op: "update" }]);
+    await handleDocumentOcr(fake.db, job);
+    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), {});
+  });
+  it("does not call LandingAI when no page lacks text", async () => {
+    mocks.extract.mockResolvedValue({ pages: [], total: 3 });
+    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
+    await handleDocumentOcr(fake.db, job);
+    expect(mocks.parse).not.toHaveBeenCalled();
+    expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: "ocr_not_supported" });
   });
   it("on a retry after the reading was saved, only merges: it never pays twice", async () => {
     const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row({ status: "ready", pages: [{ page: 1, text: "x" }] }) }, { table: "document_versions", op: "update" }]);

@@ -356,6 +356,16 @@ export function fillPagesFromOcr(pages: PdfPageText[], ocr: OcrFill): PdfPageTex
   });
 }
 
+/** The 1-indexed pages with no text layer, and how many pages the PDF has: what a scan reading would send. */
+export async function findTextlessPdfPages(buf: ArrayBuffer): Promise<{ pages: number[]; total: number }> {
+  const read = await readPdfPages(buf);
+  if (!read.pages) {
+    throw new AppError("extraction.pdf_parse_failed", "document_text_pdf_unreadable", { cause: read.cause });
+  }
+  const pages = read.pages.flatMap((page, index) => (page.empty ? [index + 1] : []));
+  return { pages, total: read.pages.length };
+}
+
 /** Strict extraction for persisted search: unreadable is not a successful blank. */
 export async function extractPdfTextForIndex(buf: ArrayBuffer, ocr?: OcrFill): Promise<{ text: string; textlessPageCount: number }> {
   const read = await readPdfPages(buf);
