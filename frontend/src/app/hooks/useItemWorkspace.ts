@@ -6,7 +6,7 @@ import {
     PERSONAL_WORKSPACE_LABEL,
     useWorkspace,
 } from "@/app/contexts/WorkspaceContext";
-import { showToast } from "@mike/client";
+import { clientTranslator, showToast } from "@mike/client";
 
 /** One notice for a switch, however many things on the page ask for it. */
 export const WORKSPACE_SWITCH_TOAST_KEY = "workspace-switch";
@@ -21,7 +21,7 @@ export const WORKSPACE_SWITCH_TOAST_MS = 2500;
 export function notifyWorkspaceSwitched(name: string, reason?: string): void {
     showToast({
         tone: "info",
-        title: `Switched to ${name}`,
+        title: clientTranslator()("common.switchedToName", { name }),
         message: reason,
         durationMs: WORKSPACE_SWITCH_TOAST_MS,
         dedupeKey: WORKSPACE_SWITCH_TOAST_KEY,
@@ -80,7 +80,7 @@ export function useItemWorkspace(
         setWorkspace(target);
         notifyWorkspaceSwitched(
             name,
-            "What you opened belongs to this workspace.",
+            clientTranslator()("common.whatYouOpenedBelongsToThisWorkspace"),
         );
     }, [itemId, orgId, workspaceId, organizations, setWorkspace]);
 }

@@ -102,7 +102,7 @@ export function buildCitationAppendix(citations: Citation[], t: AppTranslate) {
         const sourceKey = citationSourceKey(annotation);
         const label =
             sourceKey === previousSourceKey
-                ? "Id."
+                ? t("assistant.citationSources.id")
                 : citationSourceLabel(annotation, t);
         previousSourceKey = sourceKey;
         return {
@@ -113,7 +113,7 @@ export function buildCitationAppendix(citations: Citation[], t: AppTranslate) {
     });
     const textLines = [
         "",
-        "Citations",
+        t("assistant.citationSources.citations"),
         ...entries.map((entry) => {
             const quote = entry.quote ? ` "${entry.quote}"` : "";
             return `${entry.number} ${ensureTerminalPeriod(entry.label)}${quote}`;
@@ -121,7 +121,7 @@ export function buildCitationAppendix(citations: Citation[], t: AppTranslate) {
     ];
     const html = [
         `<section class="copied-citations">`,
-        `<h3>Citations</h3>`,
+        `<h3>${escapeHtmlText(t("assistant.citationSources.citations"))}</h3>`,
         ...entries.map((entry) => {
             const label = escapeHtmlText(ensureTerminalPeriod(entry.label));
             const quote = entry.quote

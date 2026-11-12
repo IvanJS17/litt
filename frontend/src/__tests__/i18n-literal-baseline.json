@@ -234,6 +234,7 @@
     "frontend/src/app/hooks/useDocumentViewers.tsx",
     "frontend/src/app/hooks/useFetchDocxBytes.ts",
     "frontend/src/app/hooks/useFetchSingleDoc.ts",
+    "frontend/src/app/hooks/useItemWorkspace.ts",
     "frontend/src/app/hooks/useTrainingText.ts",
     "frontend/src/app/hooks/useWebTrainingBacking.ts",
     "frontend/src/app/layout.tsx",

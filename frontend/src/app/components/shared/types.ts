@@ -454,6 +454,7 @@ function legacyCaseSubdocumentId(clusterId: number, opinionId: number): string {
  * `mergePanelDocuments` compares against it, so it stays one English value;
  * the sidebar shows the real title once the case loads.
  */
+// The sidebar shows `shared.types.caseTitle` in its place (AssistantSidePanel).
 export const CASE_TITLE_FALLBACK = "Case";
 
 export function panelDocumentFromCitation(

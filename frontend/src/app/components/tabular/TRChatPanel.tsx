@@ -53,9 +53,9 @@ import { chatRequestError } from "@/app/lib/assistantTurnStream";
 import { restoreOptimisticallyDeletedRows } from "@/app/lib/optimisticRows";
 import { notifyError, notifyInfo } from "@/app/lib/userFacingError";
 import {
-    CHAT_CHANGED_MESSAGE,
-    TURN_INTERRUPTED_MESSAGE,
-    TURN_MAY_BE_RUNNING_MESSAGE,
+    chatChangedMessage,
+    turnInterruptedMessage,
+    turnMayBeRunningMessage,
     checkHistoryLabel,
     errorFrameFailure,
     isUncertainDelivery,
@@ -1297,7 +1297,7 @@ export function TRChatPanel({
         // attempt created; it refuses once the panel has moved on.
         const retryThisTurn = async () => {
             if (!turnStillCurrent(gen, cursor.chatId)) {
-                notifyInfo(CHAT_CHANGED_MESSAGE);
+                notifyInfo(chatChangedMessage());
                 return;
             }
             await handleSubmit(message, {
@@ -1863,8 +1863,8 @@ export function TRChatPanel({
                             ? {}
                             : {
                                   error: uncertain
-                                      ? TURN_MAY_BE_RUNNING_MESSAGE
-                                      : TURN_INTERRUPTED_MESSAGE,
+                                      ? turnMayBeRunningMessage()
+                                      : turnInterruptedMessage(),
                               }),
                     };
                 }
@@ -1899,7 +1899,7 @@ export function TRChatPanel({
                 serverChatId && serverTurnId
                     ? async () => {
                           if (!turnStillCurrent(gen, serverChatId)) {
-                              notifyInfo(CHAT_CHANGED_MESSAGE);
+                              notifyInfo(chatChangedMessage());
                               return;
                           }
                           await recoverTurn(gen, serverChatId, serverTurnId);
@@ -1907,7 +1907,7 @@ export function TRChatPanel({
                     : args.settings.retry;
             notifyError(err, {
                 action: t("tabular.finishThisAnswer"),
-                fallback: `${TURN_INTERRUPTED_MESSAGE} Anything already shown is kept.`,
+                fallback: `${turnInterruptedMessage()} Anything already shown is kept.`,
                 dedupeKey: `tr-chat-stream:${reviewId}`,
                 onRetry: retry,
             });

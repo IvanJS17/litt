@@ -43,8 +43,8 @@ import {
   notifyInfo,
 } from "@/app/lib/userFacingError";
 import {
-  CHAT_CHANGED_MESSAGE,
-  TURN_FAILED_MESSAGE,
+  chatChangedMessage,
+  turnFailedMessage,
   checkHistoryLabel,
   errorFrameFailure,
   isUncertainDelivery,
@@ -327,7 +327,7 @@ export function useAssistantChat({
     // The host swaps threads by writing straight through the setters, so the
     // hook can be showing another chat entirely by the time this fires.
     if (turn.threadKey !== threadKeyFor(chatIdRef.current)) {
-      notifyInfo(CHAT_CHANGED_MESSAGE);
+      notifyInfo(chatChangedMessage());
       return null;
     }
     if (turn.turnId !== requestGenerationRef.current) {
@@ -345,7 +345,7 @@ export function useAssistantChat({
     ) {
       // Same chat id, different transcript: the thread was reloaded or
       // rewritten under the toast.
-      notifyInfo(CHAT_CHANGED_MESSAGE);
+      notifyInfo(chatChangedMessage());
       return null;
     }
     if (hasAssistantTurn(chatIdRef.current)) {
@@ -718,7 +718,7 @@ export function useAssistantChat({
         }
         const described = describeError(error, {
           action: t("assistant.useAssistantChat.getAResponse"),
-          fallback: TURN_FAILED_MESSAGE,
+          fallback: turnFailedMessage(),
         });
         // LiTT training: the composer's view of «Tu turno primero» was out of
         // date (an urgency pass ended mid-session); read it again.
@@ -738,7 +738,7 @@ export function useAssistantChat({
         notifyError(failure, {
           action: t("assistant.useAssistantChat.getAResponse"),
           operation: turnOperation,
-          fallback: TURN_FAILED_MESSAGE,
+          fallback: turnFailedMessage(),
           dedupeKey: "assistant-chat",
           support: true,
           onRetry: uncertain ? undefined : async () => { await retryTurn(retrySnapshot); },

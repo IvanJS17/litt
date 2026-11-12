@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { UserVisibleError, describeError } from "@/app/lib/userFacingError";
 
 // What a chat surface says, and offers, when a turn fails. The assistant chat
@@ -6,18 +7,16 @@ import { UserVisibleError, describeError } from "@/app/lib/userFacingError";
 // here once instead of drifting apart in each.
 
 /** A turn the server failed; re-sending it is honest. */
-export const TURN_FAILED_MESSAGE = "LiTT couldn't finish this answer. Try again.";
+export const turnFailedMessage = () => clientTranslator()("assistant.turnFailure.littCouldntFinishThisAnswer");
 
 /** The bubble line for an answer whose stream broke part-way. */
-export const TURN_INTERRUPTED_MESSAGE = "The answer stopped before it finished.";
+export const turnInterruptedMessage = () => clientTranslator()("assistant.turnFailure.theAnswerStoppedBeforeItFinished");
 
 /** The request may have reached the server; re-sending could ask twice. */
-export const TURN_MAY_BE_RUNNING_MESSAGE =
-    "The answer may still be running. Check chat history before sending the question again.";
+export const turnMayBeRunningMessage = () => clientTranslator()("assistant.turnFailure.theAnswerMayStillBeRunning");
 
 /** A Retry raised for one thread fired after the view moved to another. */
-export const CHAT_CHANGED_MESSAGE =
-    "This chat has changed. Send the message again from the chat it belongs to.";
+export const chatChangedMessage = () => clientTranslator()("assistant.turnFailure.thisChatHasChanged");
 
 /**
  * The failure a server `error` frame stands for. `safe_to_display` marks text
@@ -34,7 +33,7 @@ export function errorFrameFailure(
         safeToDisplay && typeof message === "string" && message.trim()
             ? message.trim()
             : null;
-    const failure = new UserVisibleError(verbatim ?? TURN_FAILED_MESSAGE, {
+    const failure = new UserVisibleError(verbatim ?? turnFailedMessage(), {
         kind: "server",
         retryable: !verbatim,
     });
@@ -77,5 +76,5 @@ export function checkHistoryLabel(chatKnown: boolean): string {
 }
 
 export function uncertainDeliveryError(cause: unknown): UserVisibleError {
-    return new UserVisibleError(TURN_MAY_BE_RUNNING_MESSAGE, { cause });
+    return new UserVisibleError(turnMayBeRunningMessage(), { cause });
 }

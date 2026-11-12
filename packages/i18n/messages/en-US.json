@@ -223,7 +223,8 @@
       "view": "View"
     },
     "citationSources": {
-      "citations": "Citations"
+      "citations": "Citations",
+      "id": "Id."
     },
     "citationVerification": {
       "citationRef": "Citation {ref}{unverified, select, true {. Could not verify quote} other {}}",
@@ -384,6 +385,12 @@
       "subagents": "Subagents",
       "taskFromLitt": "Task from LiTT",
       "waitingForYourApproval": "Waiting for your approval"
+    },
+    "turnFailure": {
+      "littCouldntFinishThisAnswer": "LiTT couldn't finish this answer. Try again.",
+      "theAnswerMayStillBeRunning": "The answer may still be running. Check chat history before sending the question again.",
+      "theAnswerStoppedBeforeItFinished": "The answer stopped before it finished.",
+      "thisChatHasChanged": "This chat has changed. Send the message again from the chat it belongs to."
     },
     "uploadOverlay": {
       "dropFilesHereToAdd": "Drop files here to add to chat"
@@ -665,7 +672,9 @@
     "sourceCode": {
       "description": "of this version (opens in a new tab)",
       "label": "Source code"
-    }
+    },
+    "switchedToName": "Switched to {name}",
+    "whatYouOpenedBelongsToThisWorkspace": "What you opened belongs to this workspace."
   },
   "documents": {
     "table": {
@@ -3762,6 +3771,7 @@
     },
     "types": {
       "caseNumber": "Case {id}",
+      "caseTitle": "Case",
       "date": "Date",
       "download": "Download",
       "link": "Link",

@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import type { LiveAssistantTurn, AssistantTurnHandle } from "./assistantTurnTypes";
 export type { LiveAssistantTurn, AssistantTurnHandle } from "./assistantTurnTypes";
 import type {
@@ -240,7 +241,7 @@ export function resumeAssistantTurn(
       sink.endStreamingAfterFailure();
       handle.update((message) => ({
         ...message,
-        error: "Sorry, something went wrong.",
+        error: clientTranslator()("assistant.eventUtils.sorrySomethingWentWrong"),
       }));
     })
     .finally(() => handle.finish());

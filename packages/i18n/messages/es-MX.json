@@ -223,7 +223,8 @@
       "view": "Ver"
     },
     "citationSources": {
-      "citations": "Citas"
+      "citations": "Citas",
+      "id": "⟦por traducir⟧ Id."
     },
     "citationVerification": {
       "citationRef": "Cita {ref}{unverified, select, true {. No se pudo verificar la cita textual} other {}}",
@@ -384,6 +385,12 @@
       "subagents": "Subagentes",
       "taskFromLitt": "Tarea de LiTT",
       "waitingForYourApproval": "Esperando tu aprobación"
+    },
+    "turnFailure": {
+      "littCouldntFinishThisAnswer": "⟦por traducir⟧ LiTT couldn't finish this answer. Try again.",
+      "theAnswerMayStillBeRunning": "⟦por traducir⟧ The answer may still be running. Check chat history before sending the question again.",
+      "theAnswerStoppedBeforeItFinished": "⟦por traducir⟧ The answer stopped before it finished.",
+      "thisChatHasChanged": "⟦por traducir⟧ This chat has changed. Send the message again from the chat it belongs to."
     },
     "uploadOverlay": {
       "dropFilesHereToAdd": "Suelta los archivos aquí para agregarlos al chat"
@@ -665,7 +672,9 @@
     "sourceCode": {
       "description": "de esta versión (se abre en una pestaña nueva)",
       "label": "Código fuente"
-    }
+    },
+    "switchedToName": "⟦por traducir⟧ Switched to {name}",
+    "whatYouOpenedBelongsToThisWorkspace": "⟦por traducir⟧ What you opened belongs to this workspace."
   },
   "documents": {
     "table": {
@@ -3762,6 +3771,7 @@
     },
     "types": {
       "caseNumber": "Caso {id}",
+      "caseTitle": "⟦por traducir⟧ Case",
       "date": "Fecha",
       "download": "Descargar",
       "link": "Enlace",

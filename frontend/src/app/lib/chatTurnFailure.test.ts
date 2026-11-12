@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MikeApiError } from "@/app/lib/mikeApi";
 import {
-    TURN_FAILED_MESSAGE,
+    turnFailedMessage,
     errorFrameFailure,
     isUncertainDelivery,
 } from "./chatTurnFailure";
@@ -27,7 +27,7 @@ describe("errorFrameFailure", () => {
 
     it("replaces internal text and stays retryable", () => {
         const failure = errorFrameFailure("provider exploded: stack", false);
-        expect(failure.message).toBe(TURN_FAILED_MESSAGE);
+        expect(failure.message).toBe(turnFailedMessage());
         expect(failure.retryable).toBe(true);
     });
 
@@ -37,7 +37,7 @@ describe("errorFrameFailure", () => {
             requestId: "req-1",
         });
         expect(failure).toMatchObject({ code: "internal_error", requestId: "req-1" });
-        expect(failure.message).toBe(TURN_FAILED_MESSAGE);
+        expect(failure.message).toBe(turnFailedMessage());
         // Absent or malformed fields leave the error without them.
         const bare = errorFrameFailure("x", false, { code: 7, requestId: "" });
         expect("code" in bare).toBe(false);
