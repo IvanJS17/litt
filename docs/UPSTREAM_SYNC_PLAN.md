@@ -125,7 +125,9 @@ unless it breaks a LiTT invariant, in which case it is reverted or gated.
 - Chat turn lifecycle, streaming runs that survive refresh, answer rendering,
   citation highlights and two simultaneous chats.
 - DOCX viewer and editor (2.35.0, on). License, egress and the version
-  contract are checked: every save creates a new version (ledger §16.3).
+  contract are checked: every save creates a new version (ledger §16.3), and
+  the editor saves with a **Save** button (no timer). `document_version_replace`
+  is used by the document table and workflow assets, not by the Word add-in.
 - Organization settings, profile images and logos, audit with names.
 - BYOK provider matrix and model registry, with every upstream provider
   visible (owner decision of 2026-10-23). Route resolution stays fail-closed

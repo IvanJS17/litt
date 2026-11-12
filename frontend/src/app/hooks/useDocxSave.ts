@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listDocumentVersions, saveDocxVersion } from "@/app/lib/mikeApi";
-import { errorCode, userFacingApiError } from "@/app/lib/userFacingError";
-import { UploadBatchError } from "@mike/client";
+import { errorCode, notifyError, userFacingApiError } from "@/app/lib/userFacingError";
+import { clientTranslator, UploadBatchError } from "@mike/client";
 import { invalidateDocxBytes } from "./useFetchDocxBytes";
 
-export const DOCX_AUTOSAVE_DELAY = 1500;
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 interface Options {
@@ -19,13 +18,14 @@ interface Options {
 }
 
 /**
- * Serialize saves, retain edits made during upload, and stop automatic retries
- * on failure. Every save creates a NEW version on top of the one the edit was
+ * Save on request only (the Save button, Cmd/Ctrl+S, closing the tab): an edit
+ * just marks the document dirty. Saves are serialized and edits made during an
+ * upload stay dirty for the next explicit save. Every save creates a NEW version on top of the one the edit was
  * made on (saveDocxVersion); the returned version is the base of the next
  * save, so a version an AI run, a review or an approval refers to is never
  * overwritten.
  */
-export function useDocxAutosave(options: Options) {
+export function useDocxSave(options: Options) {
     const latest = useRef(options);
     useEffect(() => { latest.current = options; });
     const sequence = useRef(0);
@@ -33,7 +33,6 @@ export function useDocxAutosave(options: Options) {
     const snapshotRevision = useRef(0);
     const savedBytes = useRef<ArrayBuffer | null>(null);
     const targetVersion = useRef<string | null>(null);
-    const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const pending = useRef<Promise<void> | null>(null);
     const mounted = useRef(true);
     const failed = useRef(false);
@@ -42,11 +41,10 @@ export function useDocxAutosave(options: Options) {
     const conflicted = useRef(false);
     const detachedSnapshot = useRef<{ bytes: Promise<ArrayBuffer>; sequence: number } | null>(null);
     const [dirty, setDirty] = useState(false);
-    const [status, setStatus] = useState<"idle" | "pending" | "saving" | "saved" | "error">("idle");
+    const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [error, setError] = useState<string | null>(null);
 
     const save = useCallback((): Promise<void> => {
-        clearTimeout(timer.current);
         if (pending.current) return pending.current;
         if (discarded.current || !latest.current.enabled || sequence.current === savedSequence.current) return Promise.resolve();
         failed.current = false;
@@ -78,18 +76,26 @@ export function useDocxAutosave(options: Options) {
                     savedBytes.current = bytes;
                     snapshotRevision.current += 1;
                     invalidateDocxBytes(current.documentId);
-                    if (mounted.current && sequence.current === savingSequence) {
-                        setDirty(false);
-                        setStatus("saved");
+                    if (mounted.current) {
+                        if (sequence.current === savingSequence) {
+                            setDirty(false);
+                            setStatus("saved");
+                        } else {
+                            // Edited during the upload: those edits are unsaved, not "saving".
+                            setStatus("idle");
+                        }
                     }
-                } while ((mounted.current || detachedSnapshot.current) && sequence.current > savedSequence.current);
+                } while (detachedSnapshot.current && sequence.current > savedSequence.current);
             } catch (reason) {
                 failed.current = true;
                 const conflict = errorCode(reason) === "document_version_conflict"
                     || (reason instanceof UploadBatchError
                         && reason.outcomes.some((outcome) => outcome.errorCode === "document_changed"));
                 conflicted.current = conflict;
-                if (mounted.current) {
+                if (!mounted.current) {
+                    // The viewer is gone (navigation): nothing on screen would show the failure.
+                    notifyError(reason, { action: clientTranslator()("shared.markdownView.saveThisDocument") });
+                } else {
                     setError(conflict
                         ? "This document changed elsewhere. Download your edits before reopening the latest version."
                         : userFacingApiError(reason, "Changes could not be saved. Your edits are still open. Press Cmd/Ctrl+S to retry, or download a copy."));
@@ -130,20 +136,17 @@ export function useDocxAutosave(options: Options) {
     }, []);
 
     const markChanged = useCallback(() => {
+        if (!latest.current.enabled) return;
         sequence.current += 1;
         snapshotRevision.current += 1;
         setDirty(true);
-        if (!latest.current.enabled || failed.current) return;
-        if (!pending.current) setStatus("pending");
-        clearTimeout(timer.current);
-        timer.current = setTimeout(() => { void save(); }, DOCX_AUTOSAVE_DELAY);
-    }, [save]);
+        if (!failed.current && !pending.current) setStatus("idle");
+    }, []);
 
     useLayoutEffect(() => {
         mounted.current = true;
         return () => {
             mounted.current = false;
-            clearTimeout(timer.current);
             // Closing is the last chance to keep unsaved edits, so retry even
             // after a failed save; only a conflict is left for the user.
             if (conflicted.current || discarded.current) return;
@@ -172,6 +175,6 @@ export function useDocxAutosave(options: Options) {
         if (!conflicted.current) await save();
         return !hasUnsavedChanges();
     }, [save, hasUnsavedChanges]);
-    const discard = useCallback(() => { discarded.current = true; clearTimeout(timer.current); }, []);
+    const discard = useCallback(() => { discarded.current = true; }, []);
     return { dirty, status, error, markChanged, save, adoptSnapshot, captureSnapshotRevision, hasUnsavedChanges, prepareClose, discard };
 }

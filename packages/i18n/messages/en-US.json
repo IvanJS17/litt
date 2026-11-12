@@ -3511,7 +3511,8 @@
       "saved": "Saved",
       "saving": "Saving…",
       "stopEditing": "Stop editing",
-      "thisFileCouldNotBeDownloaded": "This file could not be downloaded. Please try again."
+      "thisFileCouldNotBeDownloaded": "This file could not be downloaded. Please try again.",
+      "unsaved": "Unsaved changes"
     },
     "documentUploadMenu": {
       "savedDocuments": "Saved Documents",

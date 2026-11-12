@@ -5,7 +5,7 @@ import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { useTranslations } from "next-intl";
 
 /**
- * Autosave failure warning. Dismissing it hides this failure only: a retry
+ * Save failure warning. Dismissing it hides this failure only: a retry
  * clears the error while it saves, so a later failure shows the popup again.
  */
 export function DocxSaveErrorPopup({ error }: { error: string | null }) {

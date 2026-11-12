@@ -1,15 +1,20 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { DOCX_AUTOSAVE_DELAY, useDocxAutosave } from "./useDocxAutosave";
+import { useDocxSave } from "./useDocxSave";
 import { listDocumentVersions, saveDocxVersion } from "@/app/lib/mikeApi";
 import { UploadBatchError } from "@mike/client";
 import { invalidateDocxBytes } from "./useFetchDocxBytes";
+import { notifyError } from "@/app/lib/userFacingError";
 
 vi.mock("@/app/lib/mikeApi", () => ({
     listDocumentVersions: vi.fn(), saveDocxVersion: vi.fn(),
     MikeApiError: class extends Error {},
 }));
 vi.mock("./useFetchDocxBytes", () => ({ invalidateDocxBytes: vi.fn() }));
+vi.mock("@/app/lib/userFacingError", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/lib/userFacingError")>()),
+    notifyError: vi.fn(),
+}));
 const original = new Uint8Array([1]).buffer;
 const edited = new Uint8Array([2]).buffer;
 let saves = 0;
@@ -25,23 +30,25 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-it("debounces edits, saves a NEW version on top of the open one, and evicts cached bytes", async () => {
-    const { result } = renderHook(() => useDocxAutosave(options()));
+it("never saves on its own, however long it waits; one explicit save makes one NEW version and evicts cached bytes", async () => {
+    const { result } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
-    await act(() => vi.advanceTimersByTimeAsync(1000));
     act(() => result.current.markChanged());
-    await act(() => vi.advanceTimersByTimeAsync(1000));
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
     expect(saveDocxVersion).not.toHaveBeenCalled();
-    await act(async () => { await vi.advanceTimersByTimeAsync(DOCX_AUTOSAVE_DELAY); await result.current.save(); });
+    expect(result.current).toMatchObject({ dirty: true, status: "idle" });
+    await act(() => result.current.save());
     expect(saveDocxVersion).toHaveBeenCalledExactlyOnceWith("doc", "v1", expect.objectContaining({ name: "Agreement.docx", size: 1 }));
     expect(result.current).toMatchObject({ dirty: false, status: "saved", error: null });
     expect(invalidateDocxBytes).toHaveBeenCalledWith("doc");
+    await act(() => result.current.save());
+    expect(saveDocxVersion).toHaveBeenCalledOnce();
 });
 
-it("serializes saves and builds the next save on the version the previous one created", async () => {
+it("serializes saves; an edit made during an upload stays dirty for the next explicit save, built on the new version", async () => {
     let finish!: () => void;
     vi.mocked(saveDocxVersion).mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ id: "v2", version_number: 2, source: "user_edit", created_at: "", filename: "Agreement.docx" }); }));
-    const { result } = renderHook(() => useDocxAutosave(options()));
+    const { result } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     let pending!: Promise<void>;
     await act(async () => { pending = result.current.save(); await vi.waitFor(() => expect(saveDocxVersion).toHaveBeenCalledOnce()); });
@@ -50,6 +57,10 @@ it("serializes saves and builds the next save on the version the previous one cr
     expect(result.current.dirty).toBe(true);
     expect(result.current.save()).toBe(pending);
     await act(async () => { finish(); await pending; });
+    expect(saveDocxVersion).toHaveBeenCalledOnce();
+    // Unsaved, not stuck on "saving": the Save button is enabled again.
+    expect(result.current).toMatchObject({ dirty: true, status: "idle" });
+    await act(() => result.current.save());
     expect(saveDocxVersion).toHaveBeenCalledTimes(2);
     expect(vi.mocked(saveDocxVersion).mock.calls[0][1]).toBe("v1");
     expect(vi.mocked(saveDocxVersion).mock.calls[1][1]).toBe("v2");
@@ -58,7 +69,7 @@ it("serializes saves and builds the next save on the version the previous one cr
 
 it("retains dirty state on conflict and does not retry automatically", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(new UploadBatchError("internal details", [{ clientId: "a", filename: "a.docx", status: "error", result: null, errorCode: "document_changed" }]));
-    const { result } = renderHook(() => useDocxAutosave(options()));
+    const { result } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     expect(result.current.error).toMatch(/changed elsewhere/);
@@ -72,7 +83,7 @@ it("retains dirty state on conflict and does not retry automatically", async () 
 
 it("keeps a failed save retryable and resolves an unpinned version before writing", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("private storage detail"));
-    const { result } = renderHook(() => useDocxAutosave({ ...options(), versionId: null }));
+    const { result } = renderHook(() => useDocxSave({ ...options(), versionId: null }));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     expect(result.current.error).toMatch(/could not be saved/);
@@ -84,7 +95,7 @@ it("keeps a failed save retryable and resolves an unpinned version before writin
 });
 
 it("does not upload local previews or unchanged documents", async () => {
-    const { result } = renderHook(() => useDocxAutosave({ ...options(), enabled: false }));
+    const { result } = renderHook(() => useDocxSave({ ...options(), enabled: false }));
     await act(() => result.current.save());
     act(() => result.current.markChanged());
     await act(() => vi.advanceTimersByTimeAsync(10_000));
@@ -93,7 +104,7 @@ it("does not upload local previews or unchanged documents", async () => {
 });
 
 it("flushes a pending edit when its viewer unmounts", async () => {
-    const { result, unmount } = renderHook(() => useDocxAutosave(options()));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     unmount();
     await vi.waitFor(() => expect(saveDocxVersion).toHaveBeenCalledOnce());
@@ -101,7 +112,7 @@ it("flushes a pending edit when its viewer unmounts", async () => {
 
 it("retries a failed save when its viewer closes, so the edits are not dropped", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("network"));
-    const { result, unmount } = renderHook(() => useDocxAutosave(options()));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     expect(result.current.status).toBe("error");
@@ -111,7 +122,7 @@ it("retries a failed save when its viewer closes, so the edits are not dropped",
 
 it("does not retry a conflicting save when its viewer closes", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(new UploadBatchError("internal details", [{ clientId: "a", filename: "a.docx", status: "error", result: null, errorCode: "document_changed" }]));
-    const { result, unmount } = renderHook(() => useDocxAutosave(options()));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     unmount();
@@ -121,7 +132,7 @@ it("does not retry a conflicting save when its viewer closes", async () => {
 
 it("keeps failed and conflicting drafts open until saved or explicitly discarded", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("network"));
-    const { result, unmount } = renderHook(() => useDocxAutosave(options()));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(async () => { expect(await result.current.prepareClose()).toBe(false); });
     expect(result.current.hasUnsavedChanges()).toBe(true);
@@ -136,7 +147,7 @@ it("keeps failed and conflicting drafts open until saved or explicitly discarded
 
 it("treats the server's version-conflict code as a conflict and does not retry it", async () => {
     vi.mocked(saveDocxVersion).mockRejectedValueOnce(Object.assign(new Error("409"), { code: "document_version_conflict" }));
-    const { result, unmount } = renderHook(() => useDocxAutosave(options()));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     expect(result.current.error).toMatch(/changed elsewhere/);
@@ -146,7 +157,7 @@ it("treats the server's version-conflict code as a conflict and does not retry i
 });
 
 it("never rolls the editor back to a pinned version after saving a newer one", async () => {
-    const { result } = renderHook(() => useDocxAutosave(options()));
+    const { result } = renderHook(() => useDocxSave(options()));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     // The pinned version v1 is refetched later: its bytes predate the saved edits.
@@ -154,7 +165,7 @@ it("never rolls the editor back to a pinned version after saving a newer one", a
 });
 
 it("adopts a different snapshot of an unpinned document and saves on top of the latest version", async () => {
-    const { result } = renderHook(() => useDocxAutosave({ ...options(), versionId: null }));
+    const { result } = renderHook(() => useDocxSave({ ...options(), versionId: null }));
     act(() => result.current.markChanged());
     await act(() => result.current.save());
     expect(listDocumentVersions).toHaveBeenCalledOnce();
@@ -164,4 +175,20 @@ it("adopts a different snapshot of an unpinned document and saves on top of the 
     await act(() => result.current.save());
     // The base was re-resolved, not carried over from the save before the new snapshot.
     expect(listDocumentVersions).toHaveBeenCalledTimes(2);
+});
+
+it("tells the user when the save made on unmount fails, since no viewer is left to show it", async () => {
+    vi.mocked(saveDocxVersion).mockRejectedValueOnce(new Error("offline"));
+    const { result, unmount } = renderHook(() => useDocxSave(options()));
+    act(() => result.current.markChanged());
+    unmount();
+    await vi.waitFor(() => expect(notifyError).toHaveBeenCalledOnce());
+});
+
+it("ignores changes while editing is disabled", async () => {
+    const { result } = renderHook(() => useDocxSave({ ...options(), enabled: false }));
+    act(() => result.current.markChanged());
+    expect(result.current.dirty).toBe(false);
+    await act(() => result.current.save());
+    expect(saveDocxVersion).not.toHaveBeenCalled();
 });

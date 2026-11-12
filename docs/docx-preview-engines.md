@@ -16,7 +16,7 @@ the mounted editor, unsaved changes, and undo history. Each panel retains its
 choice when switching tabs or annotations. While Edit is active, EigenPal's
 native mode picker offers Viewing, Editing, and Suggesting modes.
 The assistant side panel and IDE viewer share a compact file title row with
-12px regular text, a 14px icon, Download, and plain-text autosave status. Both
+12px regular text, a 14px icon, Download, and a Save button for editors, and plain-text save status. Both
 surfaces share `DocumentContent`: the title row, citation quotes, edit cards,
 loading and error states, and the file-type viewer. Both retain each tab's
 citation/edit context until dismissed and support case-law sources and
@@ -35,7 +35,7 @@ Each document has one tab. The flat version-and-chevron control in its title
 row opens a version menu when multiple non-deleted versions exist; a single
 version stays a plain label. Choosing an entry replaces that tab's preview without
 changing the server's active version. Switching versions clears the previous
-version's citation/edit section. The control waits for pending DOCX autosaves
+version's citation/edit section. The control waits for pending DOCX saves
 before allowing a switch. The shared tab bar supports inline rename, context
 actions, keyboard navigation and reordering. DOCX retains its native formatting toolbar.
 The document side-panel canvas has no title bar. Tabs have a transparent strip and inactive tabs, with
@@ -54,8 +54,12 @@ Open **… → Navigation pane** to show or hide the document outline and search
 The action shares EigenPal's overflow menu; a More menu remains available when
 all formatting controls fit. The navigation pane has a 12px left inset.
 
-Edits autosave to the open stored version after a short pause (1.5 seconds).
-Closing a tab/panel or switching its version waits for pending saves. If saving
+Edits are not saved on a timer: they mark the document "Unsaved changes". The
+**Save** button in the title row (enabled only with unsaved changes; "Saving…"
+while it uploads) and **Ctrl/Cmd+S** each write one new version on top of the
+open one. The version picker is disabled while there are unsaved edits (save or
+discard first). Closing a tab/panel saves unsaved edits once; if that save fails
+after the viewer is gone (for example after navigating away), a notice says so. If saving
 fails, the viewer stays mounted and asks whether to keep editing or discard
 unsaved changes. Conflicts require downloading a copy or explicitly discarding;
 closing does not retry a known conflict. Browser unload still warns about dirty
@@ -64,16 +68,16 @@ or in-flight edits.
 Project file deletion asks for confirmation, including discarding unsaved edits,
 and checks the document's current delete permission again before the request.
 Cancellation or failure preserves the viewer and draft. Successful deletion
-disables that viewer's pending/unmount autosave before removing its tab.
+disables that viewer's unmount save before removing its tab.
 
 Tracked-change accept/reject uploads to a new storage object, then conditionally
 swaps the version's path, hash, size and PDF rendition in one database update.
 A competing editor save or review action receives a conflict instead of losing
 either writer's content. The lifecycle cleanup retires the old objects.
-Tracked edits and review decisions use that same save path. Autosave does not
+Tracked edits and review decisions use that same save path. A save does not
 generate a PDF; it invalidates the previous PDF rendition. Content hashes protect
 against overwriting another editor's newer file. **Download** exports the live
-document, and **Ctrl/Cmd+S** requests an immediate save. Standalone previews using
+document, and **Ctrl/Cmd+S** saves like the Save button. Standalone previews using
 `displayUrl`, including the catalog story, only export locally. Native mode
 switching preserves edits. A fresh server snapshot replaces a clean editor and
 resets its save baseline; pending edits, in-flight saves, and refreshes of the
@@ -123,7 +127,7 @@ the selection is not painted (a virtualized page), it opens beside the toolbar
 button instead. Mike retains that selection while the composer has focus and uses the signed-in
 author. The composer uses a flat grey field without a selected-text preview. **Add comment** (or
 Cmd/Ctrl+Enter) writes through the public core's `addComment`; its
-document-change event feeds the existing autosave pipeline without PDF
+document-change event feeds the existing save pipeline without PDF
 conversion. A failed write retains the draft, and changing the selection
 prevents posting to a different passage. Cancel or dismissing the popup releases
 the retained selection. Comment text is rendered as plain text. Viewing mode and
@@ -139,7 +143,7 @@ only opens the menu when the pointer lies on that active highlight. Right-click
 tracked text to accept or reject that exact revision decision; matching uses
 revision ID, author, date, and document part rather than the caret or text.
 These actions use the public core review commands, preserving undo and
-triggering the existing autosave. Unsupported or read-only actions are
+marking the document unsaved like any edit. Unsupported or read-only actions are
 disabled. Failed replies and edits retain the draft.
 
 The public core cannot change a comment's text, so **Edit** writes a replacement

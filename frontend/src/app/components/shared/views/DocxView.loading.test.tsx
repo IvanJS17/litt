@@ -88,7 +88,7 @@ async function editorReady(text?: string) {
 }
 
 it("toggles editing controls without replacing the editor or refetching bytes", async () => {
-    const view = (toolbarVisible: boolean) => <DocxView documentId="toolbar-toggle" cacheBytes={false} defaultMode="edit" toolbarVisible={toolbarVisible} />;
+    const view = (toolbarVisible: boolean) => <DocxView canEdit documentId="toolbar-toggle" cacheBytes={false} defaultMode="edit" toolbarVisible={toolbarVisible} />;
     const { rerender } = render(view(true));
     const editor = await editorReady();
     const toolbar = screen.getByRole("toolbar");
@@ -109,7 +109,7 @@ it("keeps the document visible during refresh, hides it on failure, and recovers
     let fileResponse = () => Promise.resolve(new Response(new Uint8Array([1])));
     vi.mocked(authenticatedFetch).mockImplementation(() => fileResponse());
     const view = (refetchKey: number) => (
-        <StrictMode><DocxView documentId="doc" cacheBytes={false} refetchKey={refetchKey} /></StrictMode>
+        <StrictMode><DocxView canEdit documentId="doc" cacheBytes={false} refetchKey={refetchKey} /></StrictMode>
     );
     const { rerender } = render(view(0));
     const original = await screen.findByText("Document revision 1");
@@ -130,7 +130,7 @@ it("keeps the document visible during refresh, hides it on failure, and recovers
 
 it("opens EigenPal without an engine selector and restores the document scroll position", async () => {
     const onScrollChange = vi.fn();
-    render(<DocxView documentId="scroll" cacheBytes={false} initialScrollTop={240} onScrollChange={onScrollChange} />);
+    render(<DocxView canEdit documentId="scroll" cacheBytes={false} initialScrollTop={240} onScrollChange={onScrollChange} />);
     await screen.findByText("EigenPal preview");
     expect(screen.queryByRole("group", { name: "DOCX rendering engine" })).toBeNull();
     const scroll = screen.getByTestId("renderer-scroll");
@@ -143,7 +143,7 @@ it("opens EigenPal without an engine selector and restores the document scroll p
 
 it("activates the native revision without painting word highlights", async () => {
     activateRevision.mockReturnValue(true);
-    const { container } = render(<DocxView documentId="quotes" cacheBytes={false}
+    const { container } = render(<DocxView canEdit documentId="quotes" cacheBytes={false}
         quotes={[{ quote: "Payment in thirty days." }, { quote: "Confidential information." }]}
         highlightEdit={{ key: "edit-8", ins_w_id: "8", inserted_text: "Repeated edit" }} />);
     await screen.findByText("EigenPal preview");
@@ -156,7 +156,7 @@ it("activates the native revision without painting word highlights", async () =>
 it("selects one native citation range and leaves selection alone during repaints and edits", async () => {
     selectText.mockImplementation((text: string) => text === "Payment in thirty days.");
     const quotes = [{ quote: "Missing segment…Payment in thirty days." }, { quote: "Confidential information." }];
-    const view = (quoteFocusKey: number) => <DocxView documentId="native-selection" cacheBytes={false}
+    const view = (quoteFocusKey: number) => <DocxView canEdit documentId="native-selection" cacheBytes={false}
         defaultMode="edit" quotes={quotes} quoteFocusKey={quoteFocusKey} />;
     const { container, rerender } = render(view(0));
     await editorReady("EigenPal preview");
@@ -175,31 +175,31 @@ it("selects one native citation range and leaves selection alone during repaints
     rerender(view(1));
     await waitFor(() => expect(selectText).toHaveBeenLastCalledWith("Payment in thirty days."));
     expect(clearTextSelection).not.toHaveBeenCalled();
-    rerender(<DocxView documentId="native-selection" cacheBytes={false} defaultMode="edit" quotes={[]} />);
+    rerender(<DocxView canEdit documentId="native-selection" cacheBytes={false} defaultMode="edit" quotes={[]} />);
     await waitFor(() => expect(clearTextSelection).toHaveBeenCalledOnce());
     expect(screen.getByText("EigenPal preview")).toBeVisible();
 });
 
 it("does not show old bytes while switching documents", async () => {
-    const { rerender } = render(<DocxView documentId="old" cacheBytes={false} />);
+    const { rerender } = render(<DocxView canEdit documentId="old" cacheBytes={false} />);
     await screen.findByText("Document revision 1");
     let finish!: (response: Response) => void;
     vi.mocked(authenticatedFetch).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
-    rerender(<DocxView documentId="new" cacheBytes={false} />);
+    rerender(<DocxView canEdit documentId="new" cacheBytes={false} />);
     expect(screen.queryByText("Document revision 1")).toBeNull();
     await act(async () => finish(new Response(new Uint8Array([2]))));
     expect(await screen.findByText("Document revision 2")).toBeVisible();
 });
 
 it.each(["edit", "view"] as const)("passes the initial %s mode to the native toolbar without a Mike mode toggle", async (mode) => {
-    const { rerender } = render(<DocxView documentId="modes" cacheBytes={false} defaultMode={mode} />);
+    const { rerender } = render(<DocxView canEdit documentId="modes" cacheBytes={false} defaultMode={mode} />);
     await screen.findByText("EigenPal preview");
     const surface = screen.getByTestId("renderer-scroll");
     expect(surface).toHaveAttribute("data-mode", mode);
     expect(screen.queryByRole("group", { name: "DOCX mode" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Download DOCX" })).toBeNull();
     // The native toolbar owns mode changes; parent updates must not reset it.
-    rerender(<DocxView documentId="modes" cacheBytes={false} defaultMode={mode === "edit" ? "view" : "edit"} />);
+    rerender(<DocxView canEdit documentId="modes" cacheBytes={false} defaultMode={mode === "edit" ? "view" : "edit"} />);
     expect(screen.getByTestId("renderer-scroll")).toBe(surface);
     expect(surface).toHaveAttribute("data-mode", mode);
     expect(authenticatedFetch).toHaveBeenCalledTimes(1);
@@ -212,7 +212,7 @@ it("keeps edits after a failed export and downloads the edited bytes on retry", 
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     exportDocx.mockRejectedValueOnce(new Error("internal serializer details"));
     let download: (() => Promise<void>) | null = null;
-    render(<DocxView documentId="export" filename="Agreement.docx" cacheBytes={false} defaultMode="edit"
+    render(<DocxView canEdit documentId="export" filename="Agreement.docx" cacheBytes={false} defaultMode="edit"
         onSaveStateChange={onSaveStateChange}
         onDownloadReady={(handler) => { download = handler; }} />);
     await screen.findByText("EigenPal preview");
@@ -245,7 +245,7 @@ it("keeps edits after a failed export and downloads the edited bytes on retry", 
 
 it("leaves native revision painting alone during page repaints and clears it on dismissal", async () => {
     activateRevision.mockReturnValue(true);
-    const { rerender } = render(<DocxView documentId="paint-settle" cacheBytes={false}
+    const { rerender } = render(<DocxView canEdit documentId="paint-settle" cacheBytes={false}
         highlightEdit={{ key: "edit-8", ins_w_id: "8" }} />);
     await editorReady("EigenPal preview");
     activateRevision.mockClear();
@@ -255,22 +255,22 @@ it("leaves native revision painting alone during page repaints and clears it on 
     screen.getByText("EigenPal preview").parentElement!.appendChild(page);
     await act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
     expect(activateRevision).not.toHaveBeenCalled();
-    rerender(<DocxView documentId="paint-settle" cacheBytes={false} />);
+    rerender(<DocxView canEdit documentId="paint-settle" cacheBytes={false} />);
     await waitFor(() => expect(clearRevisionHighlight).toHaveBeenCalledOnce());
 });
 
 it("reports rendering failure and recovers with new bytes", async () => {
     vi.mocked(authenticatedFetch).mockResolvedValue(new Response(new Uint8Array([99])));
-    const { rerender } = render(<DocxView documentId="bad" cacheBytes={false} />);
+    const { rerender } = render(<DocxView canEdit documentId="bad" cacheBytes={false} />);
     expect(await screen.findByRole("alert")).toHaveTextContent("This document could not be displayed.");
     vi.mocked(authenticatedFetch).mockResolvedValue(new Response(new Uint8Array([2])));
-    rerender(<DocxView documentId="bad" cacheBytes={false} refetchKey={1} />);
+    rerender(<DocxView canEdit documentId="bad" cacheBytes={false} refetchKey={1} />);
     expect(await screen.findByText("Document revision 2")).toBeVisible();
     expect(screen.queryByRole("alert")).toBeNull();
 });
 
 it("keeps the live editor through metadata refreshes after local editing begins", async () => {
-    const view = (refetchKey: number) => <DocxView documentId="live-edit" versionId="v1" cacheBytes={false} defaultMode="edit" refetchKey={refetchKey} />;
+    const view = (refetchKey: number) => <DocxView canEdit documentId="live-edit" versionId="v1" cacheBytes={false} defaultMode="edit" refetchKey={refetchKey} />;
     const { rerender } = render(view(0));
     const editor = await editorReady("Document revision 1");
     fireEvent.click(screen.getByRole("button", { name: "Change document" }));
@@ -286,7 +286,7 @@ it("keeps the live editor through metadata refreshes after local editing begins"
 it("reveals unpainted edits by revision ID before attempting a text fallback", async () => {
     activateRevision.mockReturnValue(true);
     const edit = { key: "later-edit", ins_w_id: "80", del_w_id: "70", inserted_text: "Repeated edit" };
-    const { rerender } = render(<DocxView documentId="later-revision" cacheBytes={false} highlightEdit={edit} />);
+    const { rerender } = render(<DocxView canEdit documentId="later-revision" cacheBytes={false} highlightEdit={edit} />);
     await screen.findByText("EigenPal preview");
     await waitFor(() => expect(activateRevision).toHaveBeenCalledWith({ ins: "80", del: "70" }));
     expect(clearRevisionHighlight).not.toHaveBeenCalled();
@@ -294,13 +294,13 @@ it("reveals unpainted edits by revision ID before attempting a text fallback", a
     // Legacy documents can still fall back to text when no ID is resolvable.
     activateRevision.mockReturnValue(false);
 
-    rerender(<DocxView documentId="later-revision" cacheBytes={false} highlightEdit={{ ...edit, key: "retry" }} />);
+    rerender(<DocxView canEdit documentId="later-revision" cacheBytes={false} highlightEdit={{ ...edit, key: "retry" }} />);
     await waitFor(() => expect(selectText).toHaveBeenCalledWith("Repeated edit"));
 });
 
 it("adopts a different snapshot after saving and resolves the base of the next save again", async () => {
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="clean-refresh" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView canEdit documentId="clean-refresh" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -322,7 +322,7 @@ it("adopts a different snapshot after saving and resolves the base of the next s
 
 it("retains the live editor and the saved version as base when a refresh contains its own saved bytes", async () => {
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="own-save-refresh" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView canEdit documentId="own-save-refresh" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -346,7 +346,7 @@ it("does not replay a snapshot received during a save after that save completes"
     let finish!: () => void;
     saveVersion.mockImplementationOnce(() => new Promise((resolve) => { finish = () => resolve({ id: "v1" }); }));
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="inflight-refresh" versionId="v1" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView canEdit documentId="inflight-refresh" versionId="v1" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -365,7 +365,7 @@ it("does not replay a snapshot received during a save after that save completes"
 
 it("ignores a server read started before a local save even if it arrives after the save", async () => {
     const saveState = vi.fn();
-    const view = (refetchKey: number) => <DocxView documentId="late-refresh" versionId="v1" cacheBytes={false}
+    const view = (refetchKey: number) => <DocxView canEdit documentId="late-refresh" versionId="v1" cacheBytes={false}
         defaultMode="edit" refetchKey={refetchKey} onSaveStateChange={saveState} />;
     const { rerender } = render(view(0));
     const originalEditor = await editorReady("Document revision 1");
@@ -386,7 +386,7 @@ function ClosableViewer() {
     const [open, setOpen] = useState(true);
     return <>
         <button onClick={() => viewers.requestClose(["draft"], () => setOpen(false))}>Close draft</button>
-        {open && <DocxView documentId="close-draft" versionId="v1" cacheBytes={false} defaultMode="edit"
+        {open && <DocxView canEdit documentId="close-draft" versionId="v1" cacheBytes={false} defaultMode="edit"
             onCloseGuardReady={(guard) => viewers.registerCloseGuard("draft", guard)} />}
         {viewers.confirmation}
     </>;

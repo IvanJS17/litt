@@ -3,7 +3,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useFetchDocxBytes } from "@/app/hooks/useFetchDocxBytes";
-import { useDocxAutosave } from "@/app/hooks/useDocxAutosave";
+import { useDocxSave } from "@/app/hooks/useDocxSave";
 import { DocxRenderBoundary } from "./DocxRenderBoundary";
 import { DocxSaveErrorPopup } from "./DocxSaveErrorPopup";
 import { downloadBlob } from "@/app/lib/downloadDocument";
@@ -93,13 +93,14 @@ function DocxViewContent(props: Props) {
         warning, onWarningDismiss, onDownloadReady, onSaveStateChange, rounded = true,
     } = props;
     // Whoever may write decides: callers pass `canEdit` from the document's
-    // permission. Every save creates a new version (useDocxAutosave).
-    const canEdit = props.canEdit !== false;
+    // permission; without it the document is read-only. Every explicit save
+    // creates a new version (useDocxSave).
+    const canEdit = props.canEdit ?? false;
     const [initialMode] = useState<DocxMode>(props.defaultMode ?? "view");
     const [downloading, setDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
     const fetched = useFetchDocxBytes(documentId, versionId, refetchKey, displayUrl, cacheBytes);
-    // Metadata refreshes after an autosave must not remount the editor, lose
+    // Metadata refreshes after a save must not remount the editor, lose
     // its undo stack, or discard edits typed while the upload was in flight.
     const [editedBytes, setEditedBytes] = useState<ArrayBuffer | null>(null);
     const bytes = editedBytes ?? fetched.bytes;
@@ -109,12 +110,12 @@ function DocxViewContent(props: Props) {
     const [readyKey, setReadyKey] = useState<string | null>(null);
     const [failedKey, setFailedKey] = useState<string | null>(null);
     const surfaceRef = useRef<DocxSurface | null>(null);
-    const autosave = useDocxAutosave({
+    const docxSave = useDocxSave({
         documentId, versionId, filename: props.filename, bytes,
         enabled: canEdit && !displayUrl,
         exportDocx: () => surfaceRef.current?.exportDocx?.(),
     });
-    const { markChanged, adoptSnapshot, captureSnapshotRevision } = autosave;
+    const { markChanged, adoptSnapshot, captureSnapshotRevision } = docxSave;
     const fetchRevision = useRef(0);
     useEffect(() => {
         // Match the fetch hook's request identity. A read that spans a local
@@ -130,7 +131,7 @@ function DocxViewContent(props: Props) {
             setEditedBytes(fetched.bytes);
         }
     }, [fetched.bytes, editedBytes, adoptSnapshot]);
-    const { dirty, status, error: saveError, hasUnsavedChanges, prepareClose, discard } = autosave;
+    const { dirty, status, error: saveError, save, hasUnsavedChanges, prepareClose, discard } = docxSave;
     const { onCloseGuardReady } = props;
     useEffect(() => {
         onCloseGuardReady?.({ hasUnsavedChanges, prepareClose, discard });
@@ -138,8 +139,8 @@ function DocxViewContent(props: Props) {
     }, [onCloseGuardReady, hasUnsavedChanges, prepareClose, discard]);
     const saveReady = !!bytes && !error && !displayUrl && readyKey === renderKey && failedKey !== renderKey;
     useEffect(() => {
-        onSaveStateChange?.(documentId, { ready: saveReady, dirty, status, error: saveError });
-    }, [onSaveStateChange, documentId, saveReady, dirty, status, saveError]);
+        onSaveStateChange?.(documentId, { ready: saveReady, dirty, status, error: saveError, editable: canEdit && !displayUrl, save });
+    }, [onSaveStateChange, documentId, saveReady, dirty, status, saveError, canEdit, displayUrl, save]);
     useEffect(() => () => onSaveStateChange?.(documentId, null), [onSaveStateChange, documentId]);
     const lastScrollTop = useRef(props.initialScrollTop ?? 0);
     const propsRef = useRef(props);
@@ -240,7 +241,7 @@ function DocxViewContent(props: Props) {
                     {bytes && (
                         <DocxRenderBoundary key={renderKey} onError={onError}>
                             <Suspense fallback={null}>
-                                <DocxRenderer bytes={bytes} mode={initialMode} toolbarVisible={canEdit ? props.toolbarVisible : false} filename={props.filename} author={props.author} onChange={onChange} onSave={displayUrl ? download : autosave.save} onReady={onReady} onError={onError} />
+                                <DocxRenderer bytes={bytes} mode={initialMode} toolbarVisible={canEdit ? props.toolbarVisible : false} filename={props.filename} author={props.author} onChange={onChange} onSave={displayUrl ? download : docxSave.save} onReady={onReady} onError={onError} />
                             </Suspense>
                         </DocxRenderBoundary>
                     )}
