@@ -88,22 +88,34 @@ describe("version text extraction", () => {
   });
   it("preserves successful empty extraction and OCR coverage", async () => {
     mocks.pdf.mockResolvedValue({ text: "", textlessPageCount: 4 });
-    const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: null }, { rpc: "publish_document_text", data: true }]);
+    const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: null }, { rpc: "publish_document_text", data: true }, { table: "document_version_ocr", data: null }]);
     await handleDocumentExtractText(fake.db, job);
     expect(fake.calls[3].args).toMatchObject({ p_text: "", p_textless_pages: 4 }); fake.done();
   });
   it("merges a saved scan reading of this exact revision into a PDF's text", async () => {
     mocks.pdf.mockResolvedValue({ text: "read", textlessPageCount: 0 });
     const reading = { version_id: "v1", source_revision: "r1", status: "ready", pages: [{ page: 2, text: "Texto leído" }], failed_pages: [3], credits: 1, page_count: 4, error_code: null };
-    const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: reading }, { rpc: "publish_document_text", data: true }]);
+    const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: reading }, { rpc: "publish_document_text", data: true }, { table: "document_version_ocr", data: reading }]);
     await handleDocumentExtractText(fake.db, job);
     expect(mocks.pdf).toHaveBeenCalledWith(expect.anything(), { pages: [{ page: 2, text: "Texto leído" }], failedPages: [3] });
     expect(fake.calls[3].args).toMatchObject({ p_text: "read", p_textless_pages: 0 }); fake.done();
   });
+  it("publishes again when the scan reading was saved while it extracted, so the last write includes it", async () => {
+    mocks.pdf.mockResolvedValueOnce({ text: "", textlessPageCount: 2 }).mockResolvedValueOnce({ text: "read", textlessPageCount: 0 });
+    const reading = { version_id: "v1", source_revision: "r1", status: "ready", pages: [{ page: 1, text: "Texto leído" }], failed_pages: [], credits: 1, page_count: 2, error_code: null };
+    const fake = scriptedDb([
+      { table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } },
+      { table: "document_version_ocr", data: null }, { rpc: "publish_document_text", data: true },
+      { table: "document_version_ocr", data: reading }, { rpc: "publish_document_text", data: true }, { table: "document_version_ocr", data: reading },
+    ]);
+    await handleDocumentExtractText(fake.db, job);
+    expect(mocks.pdf).toHaveBeenLastCalledWith(expect.anything(), { pages: [{ page: 1, text: "Texto leído" }], failedPages: [] });
+    expect(fake.calls[5].args).toMatchObject({ p_text: "read", p_textless_pages: 0 }); fake.done();
+  });
   it("ignores a reading made for other bytes or still running", async () => {
     mocks.pdf.mockResolvedValue({ text: "", textlessPageCount: 2 });
     for (const row of [{ status: "ready", source_revision: "old", pages: [{ page: 1, text: "x" }] }, { status: "processing", source_revision: "r1", pages: null }]) {
-      const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: row }, { rpc: "publish_document_text", data: true }]);
+      const fake = scriptedDb([{ table: "document_versions", data: { ...version, file_type: "pdf" } }, { table: "document_version_texts", op: "update", data: { version_id: "v1" } }, { table: "document_version_ocr", data: row }, { rpc: "publish_document_text", data: true }, { table: "document_version_ocr", data: row }]);
       await handleDocumentExtractText(fake.db, job);
       expect(mocks.pdf).toHaveBeenLastCalledWith(expect.anything(), undefined); fake.done();
     }
