@@ -919,6 +919,12 @@
       "member_data_action_disabled": "This organization's owners haven't allowed members to do this.",
       "memory_revision_conflict": "Memory changed since it was loaded. Review what is saved now and try again.",
       "mfa_verification_required": "Finish two-factor verification to continue.",
+      "ocr_key_invalid": "LandingAI did not accept the API key. Check it in Settings.",
+      "ocr_key_missing": "Add a LandingAI key in Settings to read scanned documents.",
+      "ocr_no_credits": "Your LandingAI account has no credits.",
+      "ocr_not_supported": "LandingAI could not read this document.",
+      "ocr_too_large": "This document is too large to read.",
+      "ocr_unavailable": "LandingAI isn’t available right now. Try again in a moment.",
       "org_creation_restricted": "Creating an organization needs an invitation.",
       "platform_admin_required": "Only platform administrators can do this.",
       "platform_invitation_pending": "This email already has a pending invitation.",
@@ -3101,6 +3107,23 @@
       "tieredPricing": "tiered pricing",
       "variesByProvider": "varies by provider"
     },
+    "scanReading": {
+      "couldNotUpdate": "turn scan reading on or off",
+      "disclaimer": "When it is on, every scanned PDF you upload is sent in full to LandingAI, in the United States, to extract its text with your key or your firm's, and that text is saved in LiTT. LandingAI charges your account directly, about USD 0.01 per page at its rates. If your plan has no zero data retention (offered only on the Team and Enterprise plans), LandingAI may keep your documents and use them to improve its products and train its models; with zero data retention, it deletes them when it finishes and does not use them for training. LandingAI is a third party that you choose and contract, so LiTT does not control and is not responsible for how it handles your documents: check its terms before you send it client documents. It is optional: if you leave it off, LiTT does not read scans, and you can upload a PDF that has already been through OCR, using your scanner's searchable-PDF option or a PDF program.",
+      "enable": "Turn on scan reading with LandingAI",
+      "getKey": "To use it, create an account and an API key with LandingAI:",
+      "keyDocsLink": "How to get an API key",
+      "keyLabel": "LandingAI API key",
+      "legalLink": "More details in the Terms and Conditions (clause 6.12) and the Privacy Notice (section 6).",
+      "pricingLink": "Plans and zero data retention",
+      "privacyLink": "Privacy Notice",
+      "saveToTurnOn": "Saving a key turns scan reading on.",
+      "siteLink": "LandingAI",
+      "termsLink": "Terms and Conditions",
+      "title": "Scan reading",
+      "turnedOff": "If you turn it off, the text already read is kept and LiTT stops reading new documents.",
+      "why": "Reading the images of scanned documents takes a specialized service that LiTT does not include."
+    },
     "searchIndex": {
       "accountDelete": {
         "description": "Permanently delete your account and everything you keep outside your firm's matters. You can download your data first.",
@@ -3768,6 +3791,16 @@
       "showAllVersions": "Show all versions",
       "uploadNewVersion": "Upload new version",
       "view": "View"
+    },
+    "scanReading": {
+      "confirmAction": "Read scan",
+      "confirmBody": "The whole PDF ({pages, plural, one {# page} other {# pages}}) will be sent to LandingAI, in the United States. Estimated cost: about USD {cost}, charged by LandingAI to your account. The text it returns is saved in LiTT.",
+      "confirmTitle": "Read scan with LandingAI",
+      "done": "Scan read",
+      "failed": "The scan could not be read.",
+      "readAction": "read the scan",
+      "readButton": "Read scan",
+      "reading": "Reading scan…"
     },
     "selectionActionsMenu": {
       "actions": "Actions"

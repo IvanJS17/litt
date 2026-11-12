@@ -36,6 +36,8 @@ import {
     previewDocumentConversion,
     convertDocument,
     compareDocuments,
+    getScanReading,
+    startScanReading,
     copyDocumentsToWorkflowAssets,
     createChat,
     createQuickAction,
@@ -2914,10 +2916,10 @@ describe("thin endpoint wrappers", () => {
         },
         {
             name: "acceptTerms",
-            call: () => acceptTerms("2026-11-09"),
+            call: () => acceptTerms("2026-11-12"),
             url: "/user/terms-acceptance",
             method: "POST",
-            body: { version: "2026-11-09" },
+            body: { version: "2026-11-12" },
         },
         {
             name: "syncUserPasswordSet",
@@ -3317,6 +3319,17 @@ describe("thin endpoint wrappers", () => {
             url: "/single-documents/d%201/convert",
             method: "POST",
             body: { target: "pdf" },
+        },
+        {
+            name: "getScanReading",
+            call: () => getScanReading("d 1"),
+            url: "/single-documents/d%201/ocr",
+        },
+        {
+            name: "startScanReading",
+            call: () => startScanReading("d 1"),
+            url: "/single-documents/d%201/ocr",
+            method: "POST",
         },
         {
             name: "compareDocuments",

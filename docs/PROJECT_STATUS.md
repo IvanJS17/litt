@@ -48,8 +48,8 @@
     modals and popups, playbooks, training, recovery).
   - #156 (follow-up notes, [`followups.md`](followups.md)) went out in the same
     deploy.
-- **Pending:** the minor reserves of phase 1 were closed in #165; the OCR choice (local or LandingAI) is still the
-  owner's decision. Technical follow-ups are in [`followups.md`](followups.md).
+- **Pending:** the minor reserves of phase 1 were closed in #165; the OCR choice (local or LandingAI) was taken: LandingAI, owner's own key
+  (branch `feat/capa6-ocr-landingai`, not integrated). Technical follow-ups are in [`followups.md`](followups.md).
 
 ### Branch not integrated: layer 4, document conversions
 
@@ -62,6 +62,17 @@
   it replaced the regex conversion of `extractDocxMarkdown` and serves the
   person's conversion. Tabular review and the assistant still read plain text
   with offsets (`documentText`, `extractDocxBodyText`), unchanged.
+
+### Branch not integrated: layer 6, scan reading (LandingAI)
+
+- **`feat/capa6-ocr-landingai`** (no pull request; base main `8ea7a073`; not
+  integrated, not in production): read the pages of scanned PDFs with the
+  owner's own LandingAI key (optional, off by default, personal or firm).
+  Details in [`document-ocr.md`](document-ocr.md). Migrations
+  `20261112_30_litt_landingai_key.sql` and `20261112_40_litt_document_ocr.sql`
+  are not applied anywhere. It raises `LEGAL_VERSION` to `2026-11-12` (Terms
+  and Privacy Notice name LandingAI), so every account would accept the new text
+  on the first deploy.
 
 ### Integrated: layer 5, document comparison (#171)
 

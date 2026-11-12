@@ -1,5 +1,6 @@
 import type { ProviderSettings } from "../llm";
 import type { WebSearchBackend } from "../webSearch";
+import type { OcrProvider } from "../ocr/provider";
 export type ApiKeyProvider =
     | "claude"
     | "gemini"
@@ -15,7 +16,8 @@ export type ApiKeyProvider =
     | "vertex"
     | "xai"
     | "custom"
-    | WebSearchBackend;
+    | WebSearchBackend
+    | OcrProvider;
 export type ApiKeySource = "user" | "org" | "env" | null;
 /**
  * Whose key a row is. A person's keys and an organization's keys have the

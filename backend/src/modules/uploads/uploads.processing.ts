@@ -1,6 +1,7 @@
 import {
   createDocumentVersion,
   isVersionConflict,
+  queueScanReadingOnUpload,
   updateDocumentVersion,
 } from "../documents/documents.service";
 // Background processing for sealed upload-session files.
@@ -559,6 +560,13 @@ async function processCreatedDocument(
     throw updateError ?? new Error("document_update_returned_no_data");
   }
 
+  await queueScanReadingOnUpload(db, {
+    documentId,
+    versionId,
+    userId: session.user_id,
+    userEmail: session.user_email ?? undefined,
+  });
+
   await recordAudit(db, {
     userId: session.user_id,
     userEmail: session.user_email,
@@ -655,6 +663,13 @@ async function processNewDocumentVersion(
     throw new DeletedDocumentError(documentId, [sourcePath, pdfPath]);
   if (error || !version)
     throw error ?? new Error("version_insert_returned_no_data");
+
+  await queueScanReadingOnUpload(db, {
+    documentId,
+    versionId,
+    userId: session.user_id,
+    userEmail: session.user_email ?? undefined,
+  });
 
   const {
     id,
@@ -777,6 +792,12 @@ async function processReplacementDocumentVersion(
   if (error || !updated)
     throw error ?? new Error("version_update_returned_no_data");
 
+  await queueScanReadingOnUpload(db, {
+    documentId,
+    versionId,
+    userId: session.user_id,
+    userEmail: session.user_email ?? undefined,
+  });
   return updated;
 }
 

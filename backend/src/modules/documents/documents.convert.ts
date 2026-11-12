@@ -38,7 +38,9 @@ import { failure, internalFailure, ok, type ServiceResult } from "../../lib/serv
 import { deleteFile, downloadFile, uploadFile, versionStorageKey } from "../../lib/storage";
 import { selectAllByKey, selectInBatches } from "../../lib/batchedQuery";
 import { assertVersionReleasable } from "../../lib/trainingRelease";
+import type { OcrFill } from "../../lib/ocr/pages";
 import { ensureDocumentAccess } from "./documents.access";
+import { loadReadScan } from "./documents.ocr.state";
 import { createDocumentVersion } from "./documents.lifecycle";
 import { deleteDocumentAndVersionFiles, type Db } from "./documents.shared";
 
@@ -332,6 +334,7 @@ async function produce(
     source: Source,
     bytes: ArrayBuffer,
     locale: MethodologyLocale,
+    ocr: OcrFill | null,
 ): Promise<ServiceResult<Converted>> {
     const { pair, version } = source;
     const buffer = Buffer.from(bytes);
@@ -343,7 +346,7 @@ async function produce(
             return ok({ bytes: Buffer.from(text, "utf8"), fileType: "md" });
         }
         case "pdf>md": {
-            const text = await runIsolatedExtraction("documentMarkdown", async () => bytes, { fileType: "pdf" });
+            const text = await runIsolatedExtraction("documentMarkdown", async () => bytes, ocr ? { fileType: "pdf", ocr } : { fileType: "pdf" });
             if (!text.trim())
                 return failure(
                     "validation",
@@ -418,7 +421,11 @@ export async function convertDocument(
 
     let converted: ServiceResult<Converted>;
     try {
-        converted = await produce(source, bytes.data, locale);
+        const ocr =
+            sourceType === "pdf" && version.text_revision
+                ? await loadReadScan(db, version.id, version.text_revision)
+                : null;
+        converted = await produce(source, bytes.data, locale, ocr);
     } catch (error) {
         logError("document-convert", safeError(error));
         return conversionFailure(error);

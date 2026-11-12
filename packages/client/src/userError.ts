@@ -225,6 +225,15 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     compare_source_too_large: "payload_too_large",
     compare_unreadable: "validation",
     compare_unavailable: "unavailable",
+    // Scan reading with the owner\'s own LandingAI key: a refused key, an empty
+    // account, a file it will not read or a missing key are fixed by the
+    // person, not by retrying; LandingAI being down is not.
+    ocr_key_missing: "validation",
+    ocr_key_invalid: "validation",
+    ocr_no_credits: "validation",
+    ocr_not_supported: "validation",
+    ocr_too_large: "payload_too_large",
+    ocr_unavailable: "unavailable",
     // A Markdown edit was made on a version that is no longer the current one.
     document_version_conflict: "conflict",
     access_inherited: "conflict",

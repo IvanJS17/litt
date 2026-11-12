@@ -919,6 +919,12 @@
       "member_data_action_disabled": "Los propietarios de esta organización no permiten que los miembros hagan esto.",
       "memory_revision_conflict": "La memoria cambió desde que se cargó. Revisa lo que está guardado ahora e inténtalo de nuevo.",
       "mfa_verification_required": "Completa la verificación en dos pasos para continuar.",
+      "ocr_key_invalid": "LandingAI no aceptó la llave de API. Revísala en Ajustes.",
+      "ocr_key_missing": "Agrega una llave de LandingAI en Ajustes para leer escaneados.",
+      "ocr_no_credits": "Tu cuenta de LandingAI no tiene créditos.",
+      "ocr_not_supported": "LandingAI no pudo leer este documento.",
+      "ocr_too_large": "Este documento es demasiado grande para leerlo.",
+      "ocr_unavailable": "LandingAI no está disponible por ahora. Inténtalo de nuevo en un momento.",
       "org_creation_restricted": "Crear un despacho requiere una invitación.",
       "platform_admin_required": "Solo los administradores de la plataforma pueden hacer esto.",
       "platform_invitation_pending": "Este correo ya tiene una invitación pendiente.",
@@ -3101,6 +3107,23 @@
       "tieredPricing": "precios por niveles",
       "variesByProvider": "varía según el proveedor"
     },
+    "scanReading": {
+      "couldNotUpdate": "activar o desactivar la lectura de escaneados",
+      "disclaimer": "Al activarla, cada PDF escaneado que subas se envía completo a LandingAI, en Estados Unidos, para extraer su texto con tu llave o la de tu despacho, y ese texto se guarda en LiTT. LandingAI cobra el servicio directamente a tu cuenta, alrededor de 0.01 USD por página según su tarifa. Si tu plan no tiene retención cero (solo existe en los planes Team y Enterprise), LandingAI puede conservar tus documentos y usarlos para mejorar sus productos y entrenar sus modelos; con retención cero, los borra al terminar y no los usa para entrenar. LandingAI es un tercero que tú eliges y contratas, así que LiTT no controla ni responde por cómo trata tus documentos: revisa sus condiciones antes de enviarle documentos de clientes. Es opcional: si no la activas, LiTT no lee escaneados, y puedes subir el PDF ya pasado por OCR con la función de PDF buscable de tu escáner o con un programa de PDF.",
+      "enable": "Activar la lectura de escaneados con LandingAI",
+      "getKey": "Para usarla, crea una cuenta y una llave de API en LandingAI:",
+      "keyDocsLink": "Cómo obtener la llave de API",
+      "keyLabel": "Llave de API de LandingAI",
+      "legalLink": "Más detalles en los Términos y Condiciones (cláusula 6.12) y en el Aviso de privacidad (sección 6).",
+      "pricingLink": "Planes y retención cero",
+      "privacyLink": "Aviso de privacidad",
+      "saveToTurnOn": "Al guardar una llave se activa la lectura de escaneados.",
+      "siteLink": "LandingAI",
+      "termsLink": "Términos y Condiciones",
+      "title": "Lectura de escaneados",
+      "turnedOff": "Si la desactivas, el texto ya leído se conserva y LiTT deja de leer los documentos nuevos.",
+      "why": "Leer las imágenes de documentos escaneados requiere un servicio especializado que LiTT no incluye."
+    },
     "searchIndex": {
       "accountDelete": {
         "description": "Elimina tu cuenta de forma permanente y todo lo que guardes fuera de los asuntos de tu despacho. Antes puedes descargar tus datos.",
@@ -3768,6 +3791,16 @@
       "showAllVersions": "Mostrar todas las versiones",
       "uploadNewVersion": "Subir nueva versión",
       "view": "Ver"
+    },
+    "scanReading": {
+      "confirmAction": "Leer escaneado",
+      "confirmBody": "El PDF completo ({pages, plural, one {# página} other {# páginas}}) se enviará a LandingAI, en Estados Unidos. Costo estimado: alrededor de {cost} USD, que LandingAI cobra a tu cuenta. El texto que devuelva se guarda en LiTT.",
+      "confirmTitle": "Leer escaneado con LandingAI",
+      "done": "Escaneado leído",
+      "failed": "No se pudo leer el escaneado.",
+      "readAction": "leer el escaneado",
+      "readButton": "Leer escaneado",
+      "reading": "Leyendo escaneado…"
     },
     "selectionActionsMenu": {
       "actions": "Acciones"

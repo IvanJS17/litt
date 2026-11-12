@@ -17,6 +17,9 @@ vi.mock("@/app/contexts/UserProfileContext", () => ({
     }),
 }));
 
+vi.mock("@/app/components/settings/ScanReadingSection", () => ({
+    ScanReadingSection: () => null,
+}));
 vi.mock("@/app/components/settings/WebSearchSection", () => ({
     WebSearchSection: () => null,
 }));

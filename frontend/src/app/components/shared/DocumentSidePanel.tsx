@@ -37,6 +37,7 @@ import { reportFault,
 import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 import { SUPPORTED_DOCUMENT_ACCEPT } from "@/app/lib/documentUploadValidation";
 import { textLayerWarning } from "@/app/lib/textLayerWarning";
+import { ScanReadingStatus } from "@/app/components/shared/ScanReadingStatus";
 import {
     LIQUID_FLOAT_PANEL_SURFACE_CLASS,
     LIQUID_GLASS_FLAT_CLASS,
@@ -97,6 +98,8 @@ interface DocumentSidePanelProps {
     addLabel?: string;
     /** LiTT training: a version was approved; reload what shows its status. */
     onTrainingApproved?: (docId: string) => void;
+    /** A scan reading that was running has finished; reload what shows the document's text state. */
+    onScanRead?: (docId: string) => void;
 }
 
 export function DocumentSidePanel({
@@ -122,6 +125,7 @@ export function DocumentSidePanel({
     onAdd,
     addLabel,
     onTrainingApproved,
+    onScanRead,
 }: DocumentSidePanelProps) {
     const t = useTranslations();
     const format = useFormatter();
@@ -135,6 +139,11 @@ export function DocumentSidePanel({
     const [deletingVersionId, setDeletingVersionId] = useState<string | null>(
         null,
     );
+    // Pages still without text after a reading that finished while this panel was open.
+    const [readTextless, setReadTextless] = useState<{
+        docId: string;
+        count: number | null;
+    } | null>(null);
     const [replaceTargetVersion, setReplaceTargetVersion] =
         useState<DocumentVersion | null>(null);
     const [replaceFile, setReplaceFile] = useState<File | null>(null);
@@ -300,11 +309,20 @@ export function DocumentSidePanel({
         selectedVersion?.page_count === undefined
             ? doc.page_count
             : selectedVersion.page_count;
+    const isSelectedCurrentPdf =
+        !readOnly &&
+        selectedFileType?.toLowerCase() === "pdf" &&
+        (selectedVersionId == null ||
+            selectedVersionId === (currentVersionId ?? selectedVersionId));
+    const selectedTextless =
+        readTextless?.docId === doc.id && isSelectedCurrentPdf
+            ? readTextless.count
+            : selectedVersion?.textless_page_count === undefined
+              ? doc.textless_page_count
+              : selectedVersion.textless_page_count;
     const selectedTextLayerWarning = textLayerWarning(
         selectedPageCount,
-        selectedVersion?.textless_page_count === undefined
-            ? doc.textless_page_count
-            : selectedVersion.textless_page_count,
+        selectedTextless,
     );
     const selectedVersionNumber =
         selectedVersion?.version_number ?? doc.active_version_number ?? null;
@@ -819,6 +837,18 @@ export function DocumentSidePanel({
                                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                                     {selectedTextLayerWarning}
                                 </p>
+                            )}
+                            {isSelectedCurrentPdf && (
+                                <ScanReadingStatus
+                                    documentId={doc.id}
+                                    onRead={(state) => {
+                                        setReadTextless({
+                                            docId: doc.id,
+                                            count: state.textless_page_count,
+                                        });
+                                        onScanRead?.(doc.id);
+                                    }}
+                                />
                             )}
                         </div>
                     </div>

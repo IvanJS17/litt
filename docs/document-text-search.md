@@ -11,7 +11,8 @@ The worker uses the existing PDF, accepted-view DOCX, spreadsheet, and presentat
 readers. Legacy DOC/PPT use LibreOffice. Text is complete, with existing page,
 slide, and spreadsheet markers. PostgreSQL cannot store NUL, so those characters
 are removed. Scanned pages are reported as incomplete OCR coverage; this feature
-does not add OCR. Extraction failures are distinct from successful empty text.
+does not add OCR; with a LandingAI key the reading is merged into this text
+([`document-ocr.md`](document-ocr.md)). Extraction failures are distinct from successful empty text.
 
 Each source mutation changes `document_versions.text_revision`. Publication locks
 and compares that revision, so late jobs cannot overwrite an edit, repopulate a

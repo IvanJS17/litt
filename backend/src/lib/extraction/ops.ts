@@ -12,6 +12,7 @@ import { spreadsheetToLLMText } from "../spreadsheet";
 import { decodeMarkdownBytes } from "../documentTypes";
 import { extractDocumentMarkdown } from "./documentMarkdown";
 import { extractDocumentText } from "./documentText";
+import type { OcrFill } from "../ocr/pages";
 
 async function mammothRawText(bytes: ArrayBuffer): Promise<string> {
   const mammoth = await import("mammoth");
@@ -20,11 +21,11 @@ async function mammothRawText(bytes: ArrayBuffer): Promise<string> {
 
 export const EXTRACTION_OPS = {
   /** Search index text (document.extract_text). */
-  documentText: (bytes: ArrayBuffer, fileType: string) =>
-    extractDocumentText(bytes, fileType),
+  documentText: (bytes: ArrayBuffer, fileType: string, ocr?: OcrFill) =>
+    extractDocumentText(bytes, fileType, ocr),
   /** Tabular review source markdown. */
-  documentMarkdown: (bytes: ArrayBuffer, fileType: string) =>
-    extractDocumentMarkdown(bytes, fileType),
+  documentMarkdown: (bytes: ArrayBuffer, fileType: string, ocr?: OcrFill) =>
+    extractDocumentMarkdown(bytes, fileType, ocr),
   /** A person's Word → Markdown conversion. Unlike documentMarkdown it throws on an unreadable file. */
   docxMarkdown: (bytes: ArrayBuffer) => docxToMarkdown(bytes),
   /** A person's comparison of two Word files: one packed buffer in (see packComparePair), the redlined .docx out. Loads the WASM engine, so it runs here, bounded by the parser's limits. */

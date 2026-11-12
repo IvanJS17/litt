@@ -3,7 +3,7 @@ import { handleChatTurnAudit } from "../modules/audit/audit.service";
 import { handleAccountDelete } from "../application/jobs/accountDelete";
 import { handleExportBuild } from "../application/jobs/exportBuild";
 import { handleMcpRefreshToken } from "../modules/user/user.service";
-import { handleDocumentCleanup, handleDocumentExtractText, markDocumentTextFailed, handleDocumentPrecomputeText, handleConversionConvert, markConversionFailed } from "../modules/documents/documents.service";
+import { handleDocumentCleanup, handleDocumentExtractText, markDocumentTextFailed, handleDocumentPrecomputeText, handleConversionConvert, markConversionFailed, handleDocumentOcr, markDocumentOcrFailed } from "../modules/documents/documents.service";
 import { handleExtractionExtract, markExtractionJobFailed } from "../modules/tabular/tabular.service";
 import { handleMemoryConsolidation, markMemoryConsolidationFailed } from "../modules/memory/memory.service";
 import { handlePlaybookDraft, handlePlaybookImport, handlePlaybookReview, markPlaybookDraftJobFailed, markPlaybookImportJobFailed, markPlaybookReviewJobFailed } from "../modules/playbooks/playbooks.service";
@@ -22,6 +22,7 @@ export const DB_JOB_HANDLERS: DbJobHandlers = {
   "mcp.refresh_token": handleMcpRefreshToken,
   "document.precompute_text": handleDocumentPrecomputeText,
   "document.extract_text": handleDocumentExtractText,
+  "document.ocr": handleDocumentOcr,
   "memory.consolidate": handleMemoryConsolidation,
   "playbook.review": handlePlaybookReview,
   "playbook.import": handlePlaybookImport,
@@ -30,6 +31,7 @@ export const DB_JOB_HANDLERS: DbJobHandlers = {
 export const DB_JOB_FAILURE_HOOKS: Record<string, DbJobFailureHook> = {
   "conversion.convert": markConversionFailed,
   "document.extract_text": markDocumentTextFailed,
+  "document.ocr": markDocumentOcrFailed,
   "extraction.extract": markExtractionJobFailed,
   "memory.consolidate": markMemoryConsolidationFailed,
   "playbook.review": markPlaybookReviewJobFailed,

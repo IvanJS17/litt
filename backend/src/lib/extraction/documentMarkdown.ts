@@ -13,6 +13,7 @@ import {
 import { extractPresentationText } from "../officeText";
 import { loadPdfjs } from "../pdfjs";
 import { spreadsheetToLLMText } from "../spreadsheet";
+import { ocrPageText, type OcrFill } from "../ocr/pages";
 
 /**
  * Route a document buffer to the right text extractor for its file type:
@@ -23,9 +24,10 @@ import { spreadsheetToLLMText } from "../spreadsheet";
 export async function extractDocumentMarkdown(
     buf: ArrayBuffer,
     fileType: string | null | undefined,
+    ocr?: OcrFill,
 ): Promise<string> {
     const normalizedType = (fileType ?? "").toLowerCase();
-    if (normalizedType === "pdf") return extractPdfMarkdown(buf);
+    if (normalizedType === "pdf") return extractPdfMarkdown(buf, ocr);
     if (isMarkdownDocumentType(normalizedType)) return decodeMarkdownBytes(buf);
     if (normalizedType === "docx") return extractDocxMarkdown(buf);
     if (isSpreadsheetDocumentType(normalizedType)) {
@@ -49,12 +51,14 @@ export async function extractDocumentMarkdown(
     return extractDocxMarkdown(buf);
 }
 
-export async function extractPdfMarkdown(buf: ArrayBuffer): Promise<string> {
+export async function extractPdfMarkdown(buf: ArrayBuffer, ocr?: OcrFill): Promise<string> {
     try {
         const pdfjsLib = await loadPdfjs();
         const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) })
             .promise;
         const pages: string[] = [];
+        // A scan reading stands in for the pages that have no text layer.
+        const failed = new Set(ocr?.failedPages ?? []);
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
             const tc = await page.getTextContent();
@@ -63,7 +67,8 @@ export async function extractPdfMarkdown(buf: ArrayBuffer): Promise<string> {
                 .map((it) => it.str)
                 .join(" ")
                 .trim();
-            if (text) pages.push(`## Page ${i}\n\n${text}`);
+            const scanned = !text && ocr && !failed.has(i) ? (ocrPageText(ocr, i) ?? "") : "";
+            if (text || scanned) pages.push(`## Page ${i}\n\n${text || scanned}`);
         }
         return pages.join("\n\n");
     } catch {

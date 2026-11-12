@@ -24,6 +24,7 @@ const keys: ApiKeyState = {
     brave: { configured: false, source: null },
     tavily: { configured: false, source: null },
     deepseek: { configured: false, source: null },
+    landingai: { configured: false, source: null },
 };
 
 const routerSelections = selectionsFromProfile({

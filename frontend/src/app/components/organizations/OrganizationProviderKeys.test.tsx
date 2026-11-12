@@ -169,7 +169,7 @@ describe("an owner or admin", () => {
     // The caller has a key of their own for every provider; the dialog is
     // about the organization's, which has none.
     await user.type(screen.getByLabelText("OpenAI API Key"), " sk-org ");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
       expect(mocks.saveOrgApiKey).toHaveBeenCalledExactlyOnceWith(
@@ -203,7 +203,7 @@ describe("an owner or admin", () => {
     expect(screen.getByLabelText("AWS region")).toHaveValue("");
     await user.type(screen.getByLabelText("Amazon Bedrock API Key"), "key");
     await user.type(screen.getByLabelText("AWS region"), "eu-west-2");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
       expect(mocks.saveOrgApiKey).toHaveBeenCalledWith(
@@ -541,5 +541,56 @@ describe("loading and failure", () => {
     expect(
       await screen.findByRole("switch", { name: "OpenAI provider" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("scan reading with LandingAI", () => {
+  const card = () => screen.getByRole("region", { name: "Scan reading" });
+
+  it("saves the organization's key, not the caller's own", async () => {
+    const user = userEvent.setup();
+    mocks.saveOrgApiKey.mockResolvedValue(orgSettings({ landingai: {} }));
+    renderTab();
+
+    await user.type(await screen.findByLabelText("LandingAI API key"), " synthetic-key ");
+    await user.click(within(card()).getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(mocks.saveOrgApiKey).toHaveBeenCalledExactlyOnceWith(
+        "org-1",
+        "landingai",
+        "synthetic-key",
+        undefined,
+      ),
+    );
+    expect(mocks.updateApiKey).not.toHaveBeenCalled();
+    expect(screen.getByText(/sent in full to LandingAI/)).toBeInTheDocument();
+  });
+
+  it("turns the organization's key off without deleting it", async () => {
+    const user = userEvent.setup();
+    mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ landingai: {} }));
+    mocks.setOrgApiKeyEnabled.mockResolvedValue(orgSettings({ landingai: { enabled: false } }));
+    renderTab();
+
+    const toggle = await within(card()).findByRole("switch", {
+      name: "Turn on scan reading with LandingAI",
+    });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+
+    await waitFor(() =>
+      expect(mocks.setOrgApiKeyEnabled).toHaveBeenCalledExactlyOnceWith("org-1", "landingai", false),
+    );
+    expect(mocks.saveOrgApiKey).not.toHaveBeenCalled();
+  });
+
+  it("is shown to a member, who can read but not change it", async () => {
+    mocks.getOrgApiKeys.mockResolvedValue(orgSettings({ landingai: {} }, { can_manage: false }));
+    renderTab();
+
+    expect(await within(card()).findByText("On")).toBeInTheDocument();
+    expect(within(card()).queryByRole("switch")).toBeNull();
+    expect(screen.queryByLabelText("LandingAI API key")).toBeNull();
   });
 });

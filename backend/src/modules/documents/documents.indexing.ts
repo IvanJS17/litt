@@ -3,6 +3,8 @@ import { downloadFile } from "../../lib/storage";
 import { EXTRACTION_MAX_BYTES, ExtractionLimitError, ExtractionBusyError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { DbJobDeferredError, type Db, type DbJob } from "../../lib/dbq/types";
 import { AppError } from "../../lib/appError";
+import type { ExtractInSlot } from "../../lib/extraction/isolated";
+import { loadReadScan } from "./documents.ocr.state";
 import { reportError, setOperation } from "../../lib/observability/report";
 
 export { extractDocumentText } from "../../lib/extraction/documentText";
@@ -31,25 +33,8 @@ export async function handleDocumentExtractText(db: Db, job: DbJob): Promise<voi
         .in("status", ["pending", "processing", "failed"]).select("version_id").maybeSingle();
       if (claimError) throw claimError;
       if (!claim) return; // already published, replaced, or deleted
-      const raw = await downloadFile(version.storage_path);
-      if (!raw) throw new Error("document_text_source_unavailable");
-      const hash = createHash("sha256").update(Buffer.from(raw)).digest("hex");
-      if (version.content_sha256 && version.content_sha256 !== hash) throw new Error("document_text_source_changed");
-      let extracted: { text: string; textlessPageCount: number | null };
-      try {
-        extracted = await extract("documentText", raw, { fileType });
-      } catch (err) {
-        if (!(err instanceof ExtractionLimitError)) throw err;
-        await markDocumentTextFailed(db, job, "too_large");
-        return;
-      }
-      const { text, textlessPageCount } = extracted;
-      const { error: publishError } = await db.rpc("publish_document_text", {
-        p_version_id: versionId, p_revision: revision,
-        // PostgreSQL text cannot contain NUL; do not truncate otherwise.
-        p_text: text.replaceAll("\0", ""), p_sha256: hash, p_textless_pages: textlessPageCount,
-      });
-      if (publishError) throw publishError;
+      const outcome = await extractAndPublishText(db, { ...version, versionId, revision, fileType }, extract);
+      if (outcome === "too_large") await markDocumentTextFailed(db, job, "too_large");
     });
   } catch (error) {
     if (error instanceof ExtractionBusyError) {
@@ -58,6 +43,44 @@ export async function handleDocumentExtractText(db: Db, job: DbJob): Promise<voi
     }
     throw error;
   }
+}
+
+type PublishableVersion = {
+  versionId: string; revision: string; fileType: string;
+  storage_path: string; content_sha256: string | null;
+};
+
+/**
+ * Read the stored file, extract its text and publish it for `revision`. A scan
+ * reading saved for this exact revision is merged into a PDF's own text (the
+ * pages with no text layer take the reading), which is how the assistant, the
+ * search and the Markdown conversion all see it. Shared by the extraction job
+ * and by the scan-reading job, so both produce identical text.
+ */
+export async function extractAndPublishText(
+  db: Db, version: PublishableVersion, extract: ExtractInSlot,
+): Promise<{ textlessPageCount: number | null } | "too_large"> {
+  const { versionId, revision, fileType } = version;
+  const raw = await downloadFile(version.storage_path);
+  if (!raw) throw new Error("document_text_source_unavailable");
+  const hash = createHash("sha256").update(Buffer.from(raw)).digest("hex");
+  if (version.content_sha256 && version.content_sha256 !== hash) throw new Error("document_text_source_changed");
+  const ocr = fileType.toLowerCase() === "pdf" ? await loadReadScan(db, versionId, revision) : null;
+  let extracted: { text: string; textlessPageCount: number | null };
+  try {
+    extracted = await extract("documentText", raw, ocr ? { fileType, ocr } : { fileType });
+  } catch (err) {
+    if (!(err instanceof ExtractionLimitError)) throw err;
+    return "too_large";
+  }
+  const { text, textlessPageCount } = extracted;
+  const { error: publishError } = await db.rpc("publish_document_text", {
+    p_version_id: versionId, p_revision: revision,
+    // PostgreSQL text cannot contain NUL; do not truncate otherwise.
+    p_text: text.replaceAll("\0", ""), p_sha256: hash, p_textless_pages: textlessPageCount,
+  });
+  if (publishError) throw publishError;
+  return { textlessPageCount };
 }
 
 /** Mark exhausted work failed without overwriting a newer revision or ready text. */

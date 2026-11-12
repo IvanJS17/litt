@@ -157,7 +157,7 @@ describe("OnboardingGate", () => {
             await user.click(box);
             await user.click(submit);
 
-            expect(state.acceptTerms).toHaveBeenCalledWith("2026-11-09");
+            expect(state.acceptTerms).toHaveBeenCalledWith("2026-11-12");
             await waitFor(() => expect(state.reloadProfile).toHaveBeenCalled());
         });
 

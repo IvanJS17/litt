@@ -5,7 +5,7 @@ export const MONTHLY_CREDIT_LIMIT = 999999;
 
 // The published Terms and Privacy Notice. Raising it makes every account accept
 // again (profile `termsRequired`). Keep in step with frontend/src/content/legal/version.ts.
-export const LEGAL_VERSION = "2026-11-09";
+export const LEGAL_VERSION = "2026-11-12";
 
 export type UserProfileRow = {
     display_name: string | null;

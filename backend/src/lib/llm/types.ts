@@ -123,6 +123,8 @@ export type UserApiKeys = {
     brave?: string | null;
     tavily?: string | null;
     deepseek?: string | null;
+    /** Scan-reading (OCR) key; see lib/ocr. Not an AI model provider. */
+    landingai?: string | null;
     /**
      * Non-secret settings that only make sense together with the key above
      * them: the AWS region a Bedrock key belongs to, the Azure resource an

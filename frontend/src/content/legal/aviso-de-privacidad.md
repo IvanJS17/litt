@@ -1,8 +1,8 @@
 # Aviso de Privacidad de LiTT
 
-**Última actualización:** 9 de noviembre de 2026
+**Última actualización:** 12 de noviembre de 2026
 
-**Entrada en vigor:** 9 de noviembre de 2026
+**Entrada en vigor:** 12 de noviembre de 2026
 
 ## 1. Quién es el responsable
 
@@ -53,8 +53,9 @@ Tratamos estos datos de las personas usuarias:
 - **Configuración:** idioma, preferencias, instrucciones personales, la memoria del asistente
   (notas que el asistente guarda para darte continuidad, y que puedes consultar y borrar) y las
   rutas de modelo que configuras.
-- **Llaves de proveedores de IA:** las llaves propias que das de alta. Las guardamos cifradas en
-  el servidor, no las mostramos de nuevo y solo las usamos para hacer las llamadas que tú pides.
+- **Llaves propias:** las llaves que das de alta para tu proveedor de IA y, si los activas, para
+  la búsqueda web o la lectura de escaneados. Las guardamos cifradas en el servidor, no las
+  mostramos de nuevo y solo las usamos para hacer las llamadas que tú pides.
 - **Conexiones opcionales:** si conectas tu cuenta de Google (Drive, Gmail o Calendar) u otro
   conector, guardamos la autorización necesaria para usarla y los datos de la cuenta conectada que
   la conexión requiera.
@@ -74,7 +75,9 @@ solicitas y, por eso, no requieren tu consentimiento:
    permisos.
 3. Prestar las funciones de LiTT: chat sobre documentos, revisión tabular, flujos de trabajo,
    playbooks, complemento de Word y formación de pasantes y juniors.
-4. Enviar tus solicitudes al proveedor de IA que tú elijas, con tu llave (ver la sección 6).
+4. Enviar tus solicitudes y documentos a los servicios que tú elijas y actives con tu llave: tu
+   proveedor de IA y, si los activas, la búsqueda web y la lectura de escaneados (ver la
+   sección 6).
 5. Personalizar las respuestas del asistente con tu perfil, tus instrucciones y tu memoria.
 6. Enviarte los correos del sistema: confirmación de cuenta, recuperación de contraseña,
    invitaciones y cambio de correo.
@@ -112,35 +115,63 @@ transferencia y no requiere tu consentimiento.
 **Transferencias.** No transferimos tus datos a terceros para que los usen por su cuenta. Solo
 los comunicaríamos sin tu consentimiento en los casos que permite el artículo 36 de la Ley, por
 ejemplo, cuando lo exija una ley o una autoridad competente, o cuando sea necesario para
-reconocer, ejercer o defender un derecho en un proceso judicial.
+reconocer, ejercer o defender un derecho en un proceso judicial. Los servicios que tú eliges y
+activas con tu llave no son encargados nuestros; la sección 6 explica qué reciben y en qué
+condiciones.
 
 **Sin telemetría de terceros.** LiTT no envía datos de uso a servicios externos de analítica,
 publicidad o monitoreo de errores.
 
-## 6. Servicios que tú eliges: proveedores de IA, Google y otros conectores
+## 6. Servicios que tú eliges: proveedores de IA, búsqueda web, lectura de escaneados, Google y otros conectores
 
-LiTT no tiene un proveedor de inteligencia artificial propio. Cada persona o despacho conecta la
-llave de su propio proveedor (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock,
-Azure o xAI).
+LiTT no tiene un proveedor de inteligencia artificial propio, ni servicios propios de búsqueda
+web o de lectura de escaneados. Cada persona o despacho conecta la llave de su propio proveedor
+y decide qué activa.
 
 Cuando usas el asistente, LiTT envía al proveedor y al modelo que **tú elegiste** lo necesario para
 responderte: tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la
 conversación. Ese contexto incluye los datos de tu perfil que hayas llenado (nombre,
 organización, entorno profesional, jurisdicción y áreas de práctica) y tus instrucciones y
-memoria. El proveedor recibe esa información bajo **sus propios términos y aviso de privacidad**,
-en virtud de la relación que tú o tu despacho tienen con él.
+memoria.
 
-Lo mismo ocurre con Google y con cualquier otro conector: solo intercambiamos datos con ellos si
-tú los conectas y en la medida en que los usas.
+**Búsqueda web.** Si activas la búsqueda web con un servicio de búsqueda, LiTT le envía, con tu
+llave, las consultas que formula el asistente a partir de tu conversación y las direcciones de
+las páginas que debe leer. Si eliges que busque tu proveedor de IA, la búsqueda forma parte de
+lo que recibe ese proveedor.
 
-Antes de usar un proveedor o un conector, revisa sus condiciones, sobre todo las de retención y
-uso de datos para entrenamiento.
+**Lectura de escaneados con LandingAI.** Es opcional y viene desactivada. Si la activas con tu
+llave o con la de tu despacho, cada vez que subes un PDF escaneado LiTT envía el PDF completo a
+LandingAI, en Estados Unidos, para extraer su texto, y guarda ese texto en LiTT. Si tu plan con
+LandingAI no incluye retención cero, LandingAI puede conservar el documento y usarlo para mejorar
+sus productos y entrenar sus modelos; con retención cero, lo borra al terminar y no lo usa para
+entrenar. Si la desactivas, dejamos de enviarle documentos nuevos, y el texto ya extraído se
+conserva en LiTT con su documento.
+
+Estos son los destinatarios, solo si tú los activas o los usas:
+
+| Destinatario | Cuándo | Qué recibe | Dónde |
+|---|---|---|---|
+| El proveedor de IA que elijas (por ejemplo, Anthropic, OpenAI, Google, Mistral, Amazon Bedrock, Azure o xAI) | Cuando usas el asistente | Tu mensaje, los documentos o fragmentos que seleccionas y el contexto de la conversación, incluido tu perfil | Donde opere ese proveedor, según su contrato y la región que elijas |
+| El servicio de búsqueda que elijas (por ejemplo, Brave Search, Tavily o DeepSeek) | Si activas la búsqueda web | Las consultas y las direcciones de las páginas que debe leer | Donde opere ese proveedor, según sus términos |
+| LandingAI, Inc. | Si activas la lectura de escaneados | El PDF escaneado completo | Estados Unidos |
+| Google u otro conector | Si lo conectas | Lo necesario para la función que usas | Según sus términos |
+
+Cada uno recibe la información bajo **sus propios términos y aviso de privacidad**, en virtud de
+la relación que tú o tu despacho tienen con él. No son encargados de LiTT: LiTT no los contrata
+ni los paga, y solo les envía información cuando tú los activas o los usas. Cuando ese envío
+incluye datos personales tuyos, ocurre a tu solicitud y es necesario para prestarte la función
+que pediste (artículo 36, fracción VII, de la Ley). Activarlos es tu decisión, y puedes
+revertirla en cualquier momento (sección 7).
+
+Antes de activar un proveedor o un conector, revisa sus condiciones, sobre todo las de retención
+y uso de datos para entrenamiento.
 
 ## 7. Cómo puedes limitar el uso o la divulgación de tus datos
 
 - Deja vacíos los campos opcionales del perfil; así no se usan ni se envían al proveedor de IA.
 - Consulta y borra la memoria del asistente y tus instrucciones personales en Ajustes.
-- Elimina tus llaves de IA o desconecta Google y los demás conectores cuando quieras.
+- Desactiva la búsqueda web o la lectura de escaneados, elimina tus llaves propias o desconecta
+  Google y los demás conectores cuando quieras.
 - Escríbenos a soporte@asteroitt.com para pedir que limitemos un uso concreto de tus datos.
   Te responderemos en los plazos de la sección 8.
 
@@ -214,7 +245,7 @@ navegador, no podrás iniciar sesión.
 ## 11. Seguridad
 
 Aplicamos medidas administrativas, técnicas y físicas para proteger tus datos. Entre ellas: acceso
-por despacho, espacio y asunto con membresía explícita, cifrado de las llaves de IA en el
+por despacho, espacio y asunto con membresía explícita, cifrado de las llaves propias en el
 servidor, verificación en dos pasos opcional, respaldos cifrados y registros de auditoría que no
 se pueden editar.
 
@@ -237,9 +268,12 @@ Esta sección aplica a los datos personales de terceros (clientes, contrapartes,
 personas) que un despacho o una persona usuaria sube o escribe en LiTT.
 
 - **Quién decide.** El despacho, o la persona que sube el contenido, es el responsable de esos
-  datos. Decide qué sube, quién lo ve, a qué proveedor de IA lo envía y cuándo lo borra. Le
-  corresponde contar con su propio aviso de privacidad y con el consentimiento o la base legal
-  necesaria, sobre todo si el contenido incluye datos sensibles o financieros.
+  datos. Decide qué sube, quién lo ve, a qué proveedores lo envía (de IA, de búsqueda web o de
+  lectura de escaneados) y cuándo lo borra. Le corresponde contar con su propio aviso de
+  privacidad y con el consentimiento o la base legal necesaria, sobre todo si el contenido
+  incluye datos sensibles o financieros. Si un proveedor que elige puede usar el contenido para
+  sus propios fines, como LandingAI sin retención cero, le corresponde también valorar si ese
+  envío es una transferencia y cumplir lo que la Ley exija para ella.
 - **Qué hace LiTT.** Trata ese contenido solo para prestar el servicio y conforme a las
   instrucciones del despacho, que se expresan en los Términos y Condiciones y en la configuración
   de la aplicación. LiTT no lo usa para fines propios, no lo vende y no lo usa para entrenar
@@ -250,7 +284,9 @@ personas) que un despacho o una persona usuaria sube o escribe en LiTT.
   de autoridad competente.
 - **Proveedores.** El contenido se almacena con los encargados de la sección 5. Cuando una persona
   usa el asistente, el contenido que ella selecciona se envía al proveedor de IA que ella o su
-  despacho eligió, con su llave y bajo los términos de ese proveedor (sección 6).
+  despacho eligió, con su llave y bajo los términos de ese proveedor. Si ella o su despacho
+  activan la búsqueda web o la lectura de escaneados, el contenido necesario se envía también a
+  esos servicios, en las mismas condiciones (sección 6).
 - **Derechos de los titulares.** Si recibimos una solicitud de un cliente o de un tercero sobre
   datos que un despacho subió, la remitiremos al despacho y le ayudaremos a atenderla.
 - **Fin del servicio.** Cuando el despacho borra contenido o su organización, LiTT lo suprime
