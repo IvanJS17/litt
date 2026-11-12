@@ -515,9 +515,8 @@ export const test = base.extend<{ addin: Addin }>({
         // the login gate or the authenticated floating shell.
         await expect(
           page
-            .getByRole("button", {
-              name: /^(Log in|Iniciar sesión|Open menu)$/,
-            })
+            .getByRole("button", { name: /^(Log in|Iniciar sesión)$/ })
+            .or(page.getByTestId("header-menu"))
             .first(),
         ).toBeVisible({
           timeout: 15_000,
@@ -526,7 +525,7 @@ export const test = base.extend<{ addin: Addin }>({
 
       async expectAuthedShell() {
         await expect(
-          page.getByRole("button", { name: "Open menu" }),
+          page.getByTestId("header-menu"),
         ).toBeVisible();
         await expect(
           page.getByRole("button", { name: "New chat" }),
@@ -552,9 +551,8 @@ export const test = base.extend<{ addin: Addin }>({
         await page.reload();
         await expect(
           page
-            .getByRole("button", {
-              name: /^(Log in|Iniciar sesión|Open menu)$/,
-            })
+            .getByRole("button", { name: /^(Log in|Iniciar sesión)$/ })
+            .or(page.getByTestId("header-menu"))
             .first(),
         ).toBeVisible({ timeout: 15_000 });
       },

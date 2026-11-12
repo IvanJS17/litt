@@ -106,12 +106,12 @@ export function ChatHistoryDropdown({
       onRetry={retry}
       notice={openError}
       emptyLabel={
-        search ? "No matches found" : "No chats saved for this document"
+        search ? t("word.noMatchesFound") : t("word.noChatsSavedForThisDocument")
       }
       onReachEnd={loadMore}
       loadingMore={loadingMore}
       footer={
-        !hasMore && chats.length > PAGE_SIZE ? "All chats loaded" : undefined
+        !hasMore && chats.length > PAGE_SIZE ? t("word.allChatsLoaded") : undefined
       }
     />
   );

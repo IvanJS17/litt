@@ -65,21 +65,23 @@ interface FloatingHeaderProps {
   currentChatId?: string | null;
 }
 
-const SECTIONS = [
-  { value: "chat" as const, label: "Assistant", icon: chatIcon },
+function sections(t: ReturnType<typeof useTranslations>) {
+  return [
+  { value: "chat" as const, label: t("word.sectionAssistant"), icon: chatIcon },
   {
     value: "history" as const,
-    label: "Chat History",
+    label: t("word.chatHistory2"),
     icon: chatHistoryIcon,
   },
   {
     value: "actions" as const,
-    label: "Quick Actions",
+    label: t("word.quickActions2"),
     icon: quickActionsIcon,
   },
-  { value: "workflows" as const, label: "Workflows", icon: workflowIcon },
-  { value: "settings" as const, label: "Settings", icon: settingsIcon },
+  { value: "workflows" as const, label: t("word.workflows"), icon: workflowIcon },
+  { value: "settings" as const, label: t("word.settings.title"), icon: settingsIcon },
 ];
+}
 
 export function FloatingHeader({
   section,
@@ -135,6 +137,7 @@ export function FloatingHeader({
           <LiquidActionRow className="pointer-events-auto">
             <DropdownTrigger asChild>
               <LiquidIconButton
+                data-testid="header-menu"
                 aria-label={menuOpen ? t("word.closeMenu") : t("word.openMenu")}
                 title={menuOpen ? t("word.closeMenu") : t("word.menu")}
               >
@@ -147,10 +150,11 @@ export function FloatingHeader({
             </DropdownTrigger>
           </LiquidActionRow>
           <DropdownContent align="start" sideOffset={8} className="min-w-44">
-            {SECTIONS.map((item) => {
+            {sections(t).map((item) => {
               return (
                 <DropdownItem
                   key={item.value}
+                  data-testid={`header-section-${item.value}`}
                   onSelect={() => onSectionChange(item.value)}
                   selected={section === item.value}
                 >

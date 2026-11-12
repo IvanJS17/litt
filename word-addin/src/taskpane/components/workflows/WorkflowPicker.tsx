@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Workflow } from "../../types";
 import { Spinner } from "../../../shared/ui/spinner";
@@ -99,7 +100,7 @@ export function WorkflowPicker({
         if (cancelled) return;
         setFetchFailed(true);
         notifyError(reason, {
-          action: "load your workflows",
+          action: clientTranslator()("word.actionLoadWorkflows"),
           dedupeKey: "workflow-list",
           page: "Workflows",
           operation: "workflows.run",
@@ -206,7 +207,7 @@ export function WorkflowPicker({
           setSaveError(
             reportFault(reason, {
               fallback:
-                "LiTT couldn't save these instructions. Try again.",
+                clientTranslator()("word.saveInstructionsFailed"),
               operation: "workflows.run",
             }).message
           );

@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { ToggleSwitchUI } from "@mike/ui";
@@ -67,12 +68,12 @@ export function DocumentActions({
         if (cancelled) return;
         setWorkflowsError(
           reportFault(reason, {
-            fallback: "LiTT couldn't load your quick actions. Try again.",
+            fallback: clientTranslator()("word.loadQuickActionsFailed"),
             operation: "quick_actions.run",
           }).message,
         );
         notifyError(reason, {
-          action: "load your quick actions",
+          action: clientTranslator()("word.actionLoadQuickActions"),
           dedupeKey: "quick-actions",
           page: "Quick actions",
           operation: "quick_actions.run",
@@ -142,7 +143,7 @@ export function DocumentActions({
     } catch (reason) {
       setSaveError(
         reportFault(reason, {
-          fallback: "Failed to save quick action",
+          fallback: clientTranslator()("word.saveQuickActionFailed"),
           operation: "quick_actions.run",
         }).message,
       );
@@ -170,7 +171,7 @@ export function DocumentActions({
     } catch (reason) {
       setCreateError(
         reportFault(reason, {
-          fallback: "Could not create quick action.",
+          fallback: clientTranslator()("word.createQuickActionFailed"),
           operation: "quick_actions.run",
         }).message,
       );
@@ -237,7 +238,7 @@ export function DocumentActions({
           setSelectedAction(null);
           setSaveError(null);
         }}
-        parentLabel="Quick Actions"
+        parentLabel={t("word.quickActions2")}
         title={
           selectedAction
             ? quickActionDisplayName(selectedAction)
@@ -298,7 +299,7 @@ export function DocumentActions({
         onClose={() => {
           if (!creating) onCreateClose();
         }}
-        parentLabel="Quick Actions"
+        parentLabel={t("word.quickActions2")}
         title={t("word.newQuickAction")}
         primaryAction={{
           label: creating ? t("word.creating") : t("word.create"),

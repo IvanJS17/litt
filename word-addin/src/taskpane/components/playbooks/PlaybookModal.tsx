@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useMemo, useState } from "react";
 import type { Playbook } from "../../types";
 import { listPlaybooks } from "../../api/mikeApi";
@@ -8,7 +9,7 @@ import { useTranslations } from "use-intl";
 
 /** What a playbook is called in the picker and on its pill. */
 export function playbookTitle(playbook: Pick<Playbook, "name">): string {
-  return playbook.name.trim() || "Untitled playbook";
+  return playbook.name.trim() || clientTranslator()("word.untitledPlaybook");
 }
 
 interface PlaybookModalProps {
@@ -54,7 +55,7 @@ export function PlaybookModal({
         setPlaybooks([]);
         setError(
           reportFault(reason, {
-            fallback: "LiTT couldn't load your playbooks. Try again.",
+            fallback: clientTranslator()("word.loadPlaybooksFailed"),
             operation: "playbooks.review",
           }).message,
         );

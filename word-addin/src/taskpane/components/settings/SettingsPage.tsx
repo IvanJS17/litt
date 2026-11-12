@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React from "react";
 import { useTranslations } from "use-intl";
 import type { Locale } from "@litt/i18n";
@@ -44,7 +45,7 @@ export function SettingsPage({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "LiTT couldn't save that setting. Try again.",
+          fallback: clientTranslator()("word.saveSettingFailed"),
           operation: "settings.keys",
         }).message,
       );
@@ -190,7 +191,7 @@ export function SettingsPage({
                 setError(
                   reportFault(reason, {
                     fallback:
-                      "LiTT couldn't delete the device-only chats. Try again.",
+                      clientTranslator()("word.deleteDeviceChatsFailed"),
                     operation: "settings.keys",
                   }).message,
                 ),

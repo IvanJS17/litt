@@ -17,6 +17,7 @@
  *   so re-sending the same submission is safe.
  * - `none`: a failed resume with nothing to re-attach to.
  */
+import { clientTranslator } from "@mike/client";
 export type FailedTurnRecovery =
   | { kind: "resume"; chatId: string; turnId: string }
   | { kind: "uncertain" }
@@ -24,8 +25,8 @@ export type FailedTurnRecovery =
   | { kind: "none" };
 
 /** Shown instead of the classified error when the turn's fate is unknown. */
-export const TURN_OUTCOME_UNKNOWN_MESSAGE =
-  "The answer may still be running. Check chat history and the document before sending the request again.";
+export const turnOutcomeUnknownMessage = (): string =>
+  clientTranslator()("word.turnOutcomeUnknown");
 
 export function failedTurnRecovery(args: {
   /** This run started by POSTing a new turn (not by resuming one). */

@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useRef, useState } from "react";
 import type { Document } from "../../types";
 import { isTrainingHeld, TrainingHeldNoteUI } from "@mike/ui";
@@ -47,7 +48,7 @@ export function WorkflowAssets({
           setFiles([]);
           setError(
             reportFault(reason, {
-              fallback: "LiTT couldn't load this workflow's files. Try again.",
+              fallback: clientTranslator()("word.loadWorkflowFilesFailed"),
               operation: "workflows.run",
             }).message,
           );
@@ -65,13 +66,13 @@ export function WorkflowAssets({
       await reload();
       setError(
         outcomes.some((outcome) => outcome.status === "error")
-          ? `${file.name} could not be uploaded. Please try again.`
+          ? clientTranslator()("word.fileUploadFailed", { name: file.name })
           : null,
       );
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "LiTT couldn't upload that file. Try again.",
+          fallback: clientTranslator()("word.uploadFileFailed"),
           operation: "workflows.run",
         }).message,
       );
@@ -90,7 +91,7 @@ export function WorkflowAssets({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "LiTT couldn't upload the new version. Try again.",
+          fallback: clientTranslator()("word.uploadVersionFailed"),
           operation: "workflows.run",
         }).message,
       );
@@ -165,7 +166,7 @@ export function WorkflowAssets({
                     .catch((reason: unknown) =>
                       setError(
                         reportFault(reason, {
-                          fallback: "LiTT couldn't open that file. Try again.",
+                          fallback: clientTranslator()("word.openFileFailed"),
                           operation: "workflows.run",
                         }).message,
                       ),
@@ -197,7 +198,7 @@ export function WorkflowAssets({
                           setError(
                             reportFault(reason, {
                               fallback:
-                                "LiTT couldn't delete that file. Try again.",
+                                clientTranslator()("word.deleteFileFailed"),
                               operation: "workflows.run",
                             }).message,
                           ),

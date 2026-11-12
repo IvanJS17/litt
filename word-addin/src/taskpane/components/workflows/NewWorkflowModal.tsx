@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { WorkflowSlashCommandUI } from "@mike/ui";
@@ -179,7 +180,7 @@ export function NewWorkflowModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "LiTT couldn't create that workflow. Try again.",
+          fallback: clientTranslator()("word.createWorkflowFailed"),
           operation: "workflows.run",
         }).message
       );
@@ -223,7 +224,7 @@ export function NewWorkflowModal({
         disabled: !title.trim() || creating,
       }}
       secondaryAction={{
-        label: importedFileName ?? "Upload markdown",
+        label: importedFileName ?? t("word.uploadMarkdown"),
         icon: <Upload className="h-3.5 w-3.5" />,
         onClick: () => markdownInputRef.current?.click(),
         disabled: creating,

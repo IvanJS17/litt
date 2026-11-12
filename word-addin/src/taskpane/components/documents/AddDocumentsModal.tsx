@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, Check, Loader2, Search, Upload, X } from "lucide-react";
 import type { Document, LibraryFolder, Project } from "../../types";
@@ -37,11 +38,15 @@ interface AddDocumentsModalProps {
   initialSelectedDocuments?: Document[];
 }
 
-const TABS: { value: DirectoryTab; label: string }[] = [
-  { value: "files", label: "Files" },
-  { value: "templates", label: "Templates" },
-  { value: "projects", label: "Projects" },
-];
+function directoryTabs(
+  t: ReturnType<typeof useTranslations>,
+): { value: DirectoryTab; label: string }[] {
+  return [
+    { value: "files", label: t("word.tabFiles") },
+    { value: "templates", label: t("word.tabTemplates") },
+    { value: "projects", label: t("word.tabProjects") },
+  ];
+}
 
 const DIRECTORY_GRID_CLASS =
   "grid grid-cols-[14px_14px_minmax(0,1fr)] items-center gap-1.5";
@@ -223,7 +228,7 @@ export function AddDocumentsModal({
         if (cancelled) return;
         setError(
           reportFault(reason, {
-            fallback: "Failed to load documents.",
+            fallback: clientTranslator()("word.loadDocumentsFailed"),
             operation: "documents.directory",
           }).message,
         );
@@ -314,7 +319,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load project documents.",
+          fallback: clientTranslator()("word.loadProjectDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -362,7 +367,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load projects.",
+          fallback: clientTranslator()("word.loadProjectsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -427,7 +432,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Documents could not be uploaded. Please try again.",
+          fallback: clientTranslator()("word.documentsUploadFailedPlease"),
           operation: "documents.upload",
         }).message,
       );
@@ -534,7 +539,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load folder documents.",
+          fallback: clientTranslator()("word.loadFolderDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -563,7 +568,7 @@ export function AddDocumentsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "Failed to load documents.",
+          fallback: clientTranslator()("word.loadDocumentsFailed"),
           operation: "documents.directory",
         }).message,
       );
@@ -858,7 +863,7 @@ export function AddDocumentsModal({
           data-modal-scroll="horizontal"
           className="flex min-w-0 items-center gap-1 overflow-x-auto"
         >
-          {TABS.map((tab) => (
+          {directoryTabs(t).map((tab) => (
             <TabPillButtonUI
               key={tab.value}
               active={activeTab === tab.value}

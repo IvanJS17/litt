@@ -22,7 +22,7 @@ interface WorkflowListProps {
 export function WorkflowList({
   workflows,
   onSelect,
-  emptyMessage = "No assistant workflows found",
+  emptyMessage,
   ...listProps
 }: WorkflowListProps): React.ReactElement {
   const t = useTranslations();
@@ -42,7 +42,7 @@ export function WorkflowList({
     <PickerList
       {...listProps}
       items={items}
-      emptyMessage={emptyMessage}
+      emptyMessage={emptyMessage ?? t("word.noAssistantWorkflowsFound")}
       searchPlaceholder={t("word.searchWorkflows")}
       loadingLabel={t("word.loadingWorkflows")}
       onSelect={(id) => {

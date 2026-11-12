@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { createRedlineStreamProjector } from "../lib/redline";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -55,10 +56,9 @@ import {
   notifyInfo,
 } from "../lib/notify";
 import {
-  TURN_OUTCOME_UNKNOWN_MESSAGE,
+  turnOutcomeUnknownMessage,
   failedTurnRecovery,
 } from "../lib/wordTurnRecovery";
-import { useTranslations } from "use-intl";
 
 /**
  * What one run of the turn pipeline was asked to do. Sending and resuming
@@ -191,7 +191,6 @@ export function useWordAssistantChat({
   editApplyMode,
   editController,
 }: UseWordAssistantChatOptions): WordAssistantChatController {
-  const t = useTranslations();
   const [messages, setMessages] = useState<WordChatMessage[]>([]);
   const [isResponseLoading, setIsResponseLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -330,7 +329,7 @@ export function useWordAssistantChat({
             console.error("Failed to read the current Word document", error);
             if (requestIsCurrent()) {
               setRequestError(
-                "LiTT couldn't read this Word document. Try again.",
+                clientTranslator()("word.littCouldnTReadThisWord"),
               );
             }
             return;
@@ -568,7 +567,7 @@ export function useWordAssistantChat({
             // even read) the document either.
             if (!sendIsCurrent()) {
               await respond({
-                error: t("word.theChatSessionChangedTheTool"),
+                error: "The chat session changed; the tool did not run.",
               });
               return;
             }
@@ -586,7 +585,7 @@ export function useWordAssistantChat({
               // here means a protocol mismatch — refuse the whole call rather
               // than applying a subset the two sides would count differently.
               if (edits.length === 0 || edits.some((edit) => edit === null)) {
-                await respond({ error: t("word.noValidEditsInToolInput") });
+                await respond({ error: "No valid edits in tool input." });
                 return;
               }
               // The backend assigns the ordinals because it also persists the
@@ -676,13 +675,13 @@ export function useWordAssistantChat({
                     : {
                         index,
                         status: "error" as const,
-                        error: t("word.wordDidNotReturnAnEdit"),
+                        error: "Word did not return an edit result.",
                       };
                 }),
               });
               return;
             }
-            await respond({ error: t("word.unknownClientToolName", { name: call.name }) });
+            await respond({ error: `Unknown client tool: ${call.name}` });
           } catch (error) {
             // This text goes back to the model as a tool result, not to the
             // screen, so the raw message is the useful thing to send.
@@ -690,7 +689,7 @@ export function useWordAssistantChat({
               error:
                 error instanceof Error
                   ? error.message
-                  : t("word.theWordAddInFailedTo"),
+                  : "The Word add-in failed to execute the tool.",
             });
           }
         };
@@ -884,7 +883,7 @@ export function useWordAssistantChat({
                   onStreamText,
                 );
               } else {
-                throw new Error("This response is no longer available.");
+                throw new Error(clientTranslator()("word.thisResponseIsNoLongerAvailable"));
               }
               break;
             } catch (error) {
@@ -971,7 +970,7 @@ export function useWordAssistantChat({
           if (
             !controller.signal.aborted &&
             isTrainingRefusalCode(
-              describeError(error, { action: "get a response" }).code,
+              describeError(error, { action: clientTranslator()("word.getAResponse") }).code,
             )
           ) {
             markTrainingStageStale();
@@ -1046,8 +1045,8 @@ export function useWordAssistantChat({
           // a stream failure carries provider and stack wording. The toast
           // carries what the bubble cannot: the actions on the failure.
           const failureCopy = {
-            action: "get a response",
-            fallback: "LiTT couldn't finish that answer. Try again.",
+            action: clientTranslator()("word.getAResponse"),
+            fallback: clientTranslator()("word.littCouldnTFinishThatAnswer"),
           };
           const recovery = failedTurnRecovery({
             wasSend: input.kind === "send",
@@ -1059,7 +1058,7 @@ export function useWordAssistantChat({
           });
           const failure =
             recovery.kind === "uncertain"
-              ? new UserVisibleError(TURN_OUTCOME_UNKNOWN_MESSAGE, {
+              ? new UserVisibleError(turnOutcomeUnknownMessage(), {
                   cause: error,
                 })
               : error;
@@ -1090,8 +1089,8 @@ export function useWordAssistantChat({
                       generation === sessionGenerationRef.current;
                     notifyInfo(
                       sameChat
-                        ? "A newer message was sent after this one, so Retry no longer applies to it."
-                        : "This chat has changed. Open the original chat to check its answer.",
+                        ? clientTranslator()("word.aNewerMessageWasSentAfter")
+                        : clientTranslator()("word.thisChatHasChangedOpenThe"),
                     );
                     return;
                   }

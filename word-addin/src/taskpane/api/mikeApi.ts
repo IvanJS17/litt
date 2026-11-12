@@ -9,6 +9,7 @@
  * directly) so that importing any of them runs the side-effecting
  * configureMikeApiClient() below before the first request leaves.
  */
+import { clientTranslator } from "@mike/client";
 import { configureMikeApiClient, responseError } from "./client";
 import {
   notifySessionCheckFailed,
@@ -55,7 +56,7 @@ async function recheckSession(): Promise<void> {
   if (outcome.kind === "refreshed") {
     // Screens that failed on the unchecked 401 load again by themselves.
     announceSessionRecovered();
-    notifySuccess("You're signed back in.");
+    notifySuccess(clientTranslator()("word.signedBackIn"));
     return;
   }
   if (outcome.kind === "expired") {
@@ -343,7 +344,7 @@ export async function listAiExecutions(
     throw new WordAddinApiError({
       status: 502,
       code: "invalid_response",
-      message: "Invalid API response.",
+      message: clientTranslator()("word.invalidApiResponse"),
     });
   }
   if (
@@ -353,7 +354,7 @@ export async function listAiExecutions(
     throw new WordAddinApiError({
       status: 502,
       code: "invalid_response",
-      message: "Invalid API response.",
+      message: clientTranslator()("word.invalidApiResponse"),
     });
   }
   return body;
@@ -381,14 +382,14 @@ export async function getAiReviewScope(
     throw new WordAddinApiError({
       status: 502,
       code: "invalid_response",
-      message: "Invalid API response.",
+      message: clientTranslator()("word.invalidApiResponse"),
     });
   }
   if (!isAiReviewResponse(body, projectId, executionId)) {
     throw new WordAddinApiError({
       status: 502,
       code: "invalid_response",
-      message: "Invalid API response.",
+      message: clientTranslator()("word.invalidApiResponse"),
     });
   }
   return {
@@ -433,7 +434,7 @@ export async function getApprovedRedlineBundle(
     throw new WordAddinApiError({
       status: 502,
       code: "invalid_response",
-      message: "Invalid API response.",
+      message: clientTranslator()("word.invalidApiResponse"),
     });
   }
 }

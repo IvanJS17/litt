@@ -9,13 +9,14 @@
  *
  * The notifier is injected so the decision can be asserted without a DOM.
  */
+import { clientTranslator } from "@mike/client";
 import { UserVisibleError } from "@mike/client";
 import { notifyError } from "./notify";
 import type { WordChatStorageMode } from "./wordChatTypes";
 
 /** What the user sees. The storage layer's own text is never shown. */
-export const LOCAL_SAVE_FAILED_MESSAGE =
-  "This message wasn't saved on this device, and device-only chats have no copy on the server. Try again.";
+export const localSaveFailedMessage = (): string =>
+  clientTranslator()("word.localSaveFailed");
 
 export type LocalSaveNotifier = typeof notifyError;
 
@@ -38,13 +39,13 @@ export async function saveWordMessageOrNotify(args: {
     // an IndexedDB/quota failure classifies as "unknown", which is not
     // retryable by default, yet re-saving the same message plainly is.
     notify(
-      new UserVisibleError(LOCAL_SAVE_FAILED_MESSAGE, {
+      new UserVisibleError(localSaveFailedMessage(), {
         kind: "unknown",
         retryable: true,
         cause: error,
       }),
       {
-        action: "save this conversation on this device",
+        action: clientTranslator()("word.actionSaveConversationOnDevice"),
         dedupeKey: `local-word-chat-save:${args.chatId}`,
         page: "Assistant",
         onRetry: () => saveWordMessageOrNotify(args),

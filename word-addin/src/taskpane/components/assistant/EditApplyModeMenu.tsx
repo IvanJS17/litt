@@ -16,19 +16,26 @@ interface ApplyModeOption {
   Icon: typeof Eye;
 }
 
-const REVIEW_OPTION: ApplyModeOption = {
-  mode: "approval",
-  label: "Review",
-  description: "Review proposed changes before applying them to the document",
-  Icon: Eye,
-};
-const DIRECT_OPTION: ApplyModeOption = {
-  mode: "direct",
-  label: "Edit",
-  description: "Apply streamed edits immediately as tracked changes",
-  Icon: Pen,
-};
-const OPTIONS = [REVIEW_OPTION, DIRECT_OPTION];
+/** The two modes, worded in the interface language. */
+function applyModeOptions(t: ReturnType<typeof useTranslations>): {
+  review: ApplyModeOption;
+  direct: ApplyModeOption;
+} {
+  return {
+    review: {
+      mode: "approval",
+      label: t("word.applyModeReview"),
+      description: t("word.applyModeReviewDescription"),
+      Icon: Eye,
+    },
+    direct: {
+      mode: "direct",
+      label: t("word.applyModeEdit"),
+      description: t("word.applyModeEditDescription"),
+      Icon: Pen,
+    },
+  };
+}
 
 /**
  * Composer control choosing how streamed edits reach the document: a compact
@@ -44,7 +51,8 @@ export function EditApplyModeMenu({
 }): React.ReactElement {
   const t = useTranslations();
   const [open, setOpen] = useState(false);
-  const active = mode === "direct" ? DIRECT_OPTION : REVIEW_OPTION;
+  const options = applyModeOptions(t);
+  const active = mode === "direct" ? options.direct : options.review;
 
   return (
     <Dropdown open={open} onOpenChange={setOpen}>
@@ -69,7 +77,7 @@ export function EditApplyModeMenu({
         collisionPadding={12}
         className="w-72 max-w-[calc(100vw-24px)]"
       >
-        {OPTIONS.map((option) => (
+        {[options.review, options.direct].map((option) => (
           <DropdownItem
             key={option.mode}
             onSelect={() => onModeChange(option.mode)}

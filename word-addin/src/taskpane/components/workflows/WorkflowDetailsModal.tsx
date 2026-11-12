@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useRef, useState } from "react";
 import { WorkflowSlashCommandUI } from "@mike/ui";
 import type { Workflow } from "../../types";
@@ -150,7 +151,7 @@ export function WorkflowDetailsModal({
     } catch (reason) {
       setError(
         reportFault(reason, {
-          fallback: "LiTT couldn't save this workflow. Try again.",
+          fallback: clientTranslator()("word.saveWorkflowFailed"),
           operation: "workflows.run",
         }).message,
       );
@@ -171,7 +172,7 @@ export function WorkflowDetailsModal({
     } catch (reason) {
       setDeleteError(
         reportFault(reason, {
-          fallback: "LiTT couldn't delete this workflow. Try again.",
+          fallback: clientTranslator()("word.deleteWorkflowFailed"),
           operation: "workflows.run",
         }).message,
       );

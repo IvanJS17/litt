@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useState } from "react";
 import type { Workflow } from "../../types";
 import { listWorkflows } from "../../api/mikeApi";
@@ -45,7 +46,7 @@ export function WorkflowModal({
         setWorkflows([]);
         setError(
           reportFault(reason, {
-            fallback: "LiTT couldn't load your workflows. Try again.",
+            fallback: clientTranslator()("word.loadWorkflowsFailed"),
             operation: "workflows.run",
           }).message
         );

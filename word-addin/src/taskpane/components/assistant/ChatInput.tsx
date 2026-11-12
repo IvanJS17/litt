@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, {
   forwardRef,
   useEffect,
@@ -90,7 +91,7 @@ import { useTranslations } from "use-intl";
 /** The approach field of the training composer; «Responder» focuses it. */
 const TRAINING_ATTEMPT_ID = "word-training-attempt";
 
-const SELECT_MODEL_MESSAGE = "Select a model before sending your message.";
+const selectModelMessage = (): string => clientTranslator()("word.selectModelBeforeSending");
 
 /** Where a model warning leads: the picker, or the web app's API keys. */
 type ModelErrorAction = "choose-model" | "api-keys";
@@ -397,7 +398,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
           // indistinguishable from "you have no workflows", so say so.
           setSlashWorkflows([]);
           notifyError(reason, {
-            action: "load your workflows",
+            action: clientTranslator()("word.actionLoadWorkflows"),
             dedupeKey: "slash-workflows",
             page: "Assistant",
             operation: "word_chat.turn",
@@ -435,7 +436,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
             // cannot serve), but the toggle will look wrong until this
             // succeeds, so the user is told rather than left guessing.
             notifyError(error, {
-              action: "load your models",
+              action: clientTranslator()("word.actionLoadModels"),
               dedupeKey: "model-preflight",
               page: "Assistant",
               operation: "word_chat.turn",
@@ -523,7 +524,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
 
       setUploadingLocalFiles(true);
       setDocumentUploadError(
-        unsupported.length > 0 ? "Unsupported files were skipped." : null,
+        unsupported.length > 0 ? clientTranslator()("word.unsupportedFilesSkipped") : null,
       );
       // Documents that finished are kept even when the batch as a whole did
       // not: attach them as they land, and again from whatever accounting the
@@ -579,7 +580,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
         } else {
           setDocumentUploadError(
             reportFault(reason, {
-              fallback: "Documents could not be uploaded. Try again.",
+              fallback: clientTranslator()("word.documentsUploadFailed"),
               operation: "documents.upload",
             }).message,
           );
@@ -635,8 +636,8 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(
       if (!model) {
         setModelError(
           hasModels === false
-            ? noModelsError(keyStatus, routerSelections, SELECT_MODEL_MESSAGE)
-            : { message: SELECT_MODEL_MESSAGE, action: "choose-model" },
+            ? noModelsError(keyStatus, routerSelections, selectModelMessage())
+            : { message: selectModelMessage(), action: "choose-model" },
         );
         return;
       }

@@ -1,3 +1,4 @@
+import { clientLocale, clientTranslator } from "@mike/client";
 import React, { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { Spinner } from "../../../shared/ui/spinner";
@@ -31,7 +32,8 @@ interface ChatHistoryListViewProps
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, {
+  return new Date(value).toLocaleDateString(clientLocale(), {
+    timeZone: "America/Mexico_City",
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -40,21 +42,22 @@ function formatDate(value: string): string {
 
 /** A stored chat's name, or the stand-in for one that was never titled. */
 export function chatTitle(chat: { title?: string | null }): string {
-  return chat.title?.trim() || "Untitled chat";
+  return chat.title?.trim() || clientTranslator()("word.untitledChat");
 }
 
 export function formatRelativeDate(value: string): string {
+  const t = clientTranslator();
   const elapsedMs = Math.max(0, Date.now() - new Date(value).getTime());
   const minutes = Math.floor(elapsedMs / 60_000);
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return t("word.relativeNow");
+  if (minutes < 60) return t("word.relativeMinutes", { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return t("word.relativeHours", { count: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d`;
+  if (days < 30) return t("word.relativeDays", { count: days });
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months}m`;
-  return `${Math.floor(months / 12)}y`;
+  if (months < 12) return t("word.relativeMonths", { count: months });
+  return t("word.relativeYears", { count: Math.floor(months / 12) });
 }
 
 export function ChatHistoryList({

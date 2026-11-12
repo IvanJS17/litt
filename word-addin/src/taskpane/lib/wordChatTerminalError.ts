@@ -19,6 +19,7 @@
  *   The backend's comment on that payload says exactly this: flattening it
  *   to "try again" sends the user to retry something that cannot succeed.
  */
+import { clientTranslator } from "@mike/client";
 import { UserVisibleError } from "@mike/client";
 
 export class WordChatTerminalError extends UserVisibleError {
@@ -52,7 +53,7 @@ export function terminalErrorFromFrame(
       ? frame.message
       : // Never a placeholder like "Stream error" on screen: an empty frame
         // still gets the backend's own generic sentence.
-        "The response could not be completed. Please try again.",
+        clientTranslator()("word.theResponseCouldNotBeCompleted"),
     {
       safeToDisplay: frame.safe_to_display === true,
       code: typeof frame.code === "string" ? frame.code : null,

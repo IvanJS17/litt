@@ -126,13 +126,7 @@
     "frontend/src/app/components/playbooks/PlaybookTable.tsx": 43,
     "frontend/src/app/components/playbooks/PlaybooksWorkspace.tsx": 52,
     "frontend/src/app/components/settings/McpConnectorForm.tsx": 1,
-    "word-addin/src/shared/chat/Markdown.tsx": 3,
-    "word-addin/src/taskpane/api/mikeApi.ts": 8,
-    "word-addin/src/taskpane/components/approved-redline/ApprovedRedlinePanel.tsx": 1,
-    "word-addin/src/taskpane/components/assistant/EditApplyModeMenu.tsx": 4,
-    "word-addin/src/taskpane/components/documents/AddDocumentsModal.tsx": 3,
-    "word-addin/src/taskpane/components/shell/FloatingHeader.tsx": 5,
-    "word-addin/src/taskpane/hooks/useWordDoc.ts": 4,
-    "word-addin/src/taskpane/hooks/useWordTrackedEdits.ts": 2
+    "word-addin/src/taskpane/api/mikeApi.ts": 2,
+    "word-addin/src/taskpane/hooks/useWordAssistantChat.ts": 5
   }
 }

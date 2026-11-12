@@ -1,5 +1,6 @@
 /// <reference types="office-js" />
 
+import { clientTranslator } from "@mike/client";
 import { useCallback, useMemo } from "react";
 import { createRevisionIndex, type RevisionIndex } from "../lib/revisionIndex";
 import { createSerialBatcher } from "../lib/serialBatcher";
@@ -25,18 +26,17 @@ import {
   removeWordEditAnchor,
 } from "../lib/wordEditAnchors";
 import {
-  ALREADY_APPLIED_MESSAGE,
+  alreadyAppliedMessage,
   classifyApplyFailure,
   isEditAlreadyApplied,
 } from "../lib/editApplyOutcome";
 import { userMessage } from "../lib/notify";
 import {
-  ANCHOR_CLEANUP_FAILURE,
-  BOOKMARK_CLEANUP_FAILURE,
-  PROXY_CLEANUP_FAILURE,
+  anchorCleanupFailure,
+  bookmarkCleanupFailure,
+  proxyCleanupFailure,
   cleanupSentence,
 } from "../lib/trackedEditCleanup";
-import { useTranslations } from "use-intl";
 
 interface PersistedRedlineEdit extends RedlineEdit {
   /** Stable `${assistantMessageId}:edit-${blockIndex}` identity. */
@@ -660,7 +660,7 @@ function logErrorMessage(error: unknown): string {
   ) {
     return error.message;
   }
-  return "Word operation failed.";
+  return clientTranslator()("word.wordOperationFailed");
 }
 
 /**
@@ -989,7 +989,7 @@ async function removePersistentAnchorForEntry(
         level: "warning",
       });
       console.warn("[tracked-edit/cleanup] bookmark removal failed", error);
-      failures.push(BOOKMARK_CLEANUP_FAILURE);
+      failures.push(bookmarkCleanupFailure());
     }
   }
   if (entry.stableEditId && removeSettings) {
@@ -1002,7 +1002,7 @@ async function removePersistentAnchorForEntry(
         level: "warning",
       });
       console.warn("[tracked-edit/cleanup] anchor removal failed", error);
-      failures.push(ANCHOR_CLEANUP_FAILURE);
+      failures.push(anchorCleanupFailure());
     }
   }
   return failures;
@@ -1044,7 +1044,7 @@ function groupByRequestContext<T>(
  *
  * If a group's batch fails (one stale proxy fails the whole sync), the
  * failure is reported once and every entry of the group gets
- * PROXY_CLEANUP_FAILURE. Retrying untrack per entry would prove nothing:
+ * proxyCleanupFailure(). Retrying untrack per entry would prove nothing:
  * untrack() clears the client-side tracking flag when it is queued, so a
  * second untrack is a local no-op that "succeeds" whatever the host did.
  * Bookmark deletion, a document command, is still retried per entry.
@@ -1074,7 +1074,7 @@ async function releaseEntryProxies(
       });
     } catch (error) {
       options.onUntrackFailure(error);
-      left.push(PROXY_CLEANUP_FAILURE);
+      left.push(proxyCleanupFailure());
     }
   };
   for (const group of groups) {
@@ -1095,7 +1095,7 @@ async function releaseEntryProxies(
         if (options.deleteBookmarks) {
           left.push(...(await removePersistentAnchorForEntry(entry, false)));
         }
-        left.push(PROXY_CLEANUP_FAILURE);
+        left.push(proxyCleanupFailure());
       }
     }
   }
@@ -1892,7 +1892,7 @@ async function resolveTrackedEditNow(
         level: "warning",
       });
       console.warn("[tracked-edit/resolve] anchor cleanup failed", error);
-      cleanupFailures.push(PROXY_CLEANUP_FAILURE);
+      cleanupFailures.push(proxyCleanupFailure());
     }
     const cleanupError = cleanupSentence(cleanupFailures);
     return {
@@ -1922,7 +1922,7 @@ async function resolveTrackedEditNow(
         handle,
         status: "not-found",
         error:
-          "Word no longer reports a revision for this change. Review it from Word’s Review tab.",
+          clientTranslator()("word.wordNoLongerReportsARevision"),
       };
     }
     if (error instanceof ChangedRevisionSetError) {
@@ -1931,7 +1931,7 @@ async function resolveTrackedEditNow(
         handle,
         status: "error",
         error:
-          "The revisions in this passage changed after LiTT applied the edit. Review them directly in Word.",
+          clientTranslator()("word.theRevisionsInThisPassageChanged"),
       };
     }
     if (entry.stableEditId && entry.bookmarkName) {
@@ -1946,7 +1946,7 @@ async function resolveTrackedEditNow(
           status: "error",
           error: describeWordFailure(
             error,
-            "Word refreshed this change. Please try the action again.",
+            clientTranslator()("word.wordRefreshedThisChangePleaseTry"),
           ),
         };
       }
@@ -1958,7 +1958,7 @@ async function resolveTrackedEditNow(
       status: "error",
       error: describeWordFailure(
         error,
-        "Word couldn’t update this change. Review it directly in Word before retrying.",
+        clientTranslator()("word.wordCouldnTUpdateThisChange"),
       ),
     };
   }
@@ -2007,7 +2007,7 @@ export function revealTrackedEdit(
       handle,
       status: "error" as const,
       error:
-        "Word couldn’t scroll to this change. Find it in Word’s Review tab.",
+        clientTranslator()("word.wordCouldnTScrollToThis"),
     };
   });
 }
@@ -2148,7 +2148,7 @@ async function restoreTrackedEditNow(
       status: "error",
       error: describeWordFailure(
         error,
-        "Word couldn’t restore this tracked change. Review it from Word’s Review tab.",
+        clientTranslator()("word.wordCouldnTRestoreThisTracked"),
       ),
     };
   }
@@ -2441,7 +2441,7 @@ async function restoreTrackedEditsNow(
         stableEditId,
         status: "error" as const,
         error:
-          "Word couldn’t restore this tracked change. Review it from Word’s Review tab.",
+          clientTranslator()("word.wordCouldnTRestoreThisTracked"),
       },
   );
 }
@@ -2506,7 +2506,7 @@ export function revealPersistedTrackedEdit(
         status: "error",
         error: describeWordFailure(
           error,
-          "Word couldn’t scroll to this tracked change.",
+          clientTranslator()("word.wordCouldnTScrollToThis2"),
         ),
       };
     }
@@ -2733,7 +2733,7 @@ async function validateTrackedEditNow(
       reason: "word-error",
       error: describeWordFailure(
         error,
-        "Word couldn’t check whether this change can be applied.",
+        clientTranslator()("word.wordCouldnTCheckWhetherThis"),
       ),
     };
   }
@@ -2794,7 +2794,7 @@ export function revealProposedEdit(
         status: "error",
         error: describeWordFailure(
           error,
-          "Word couldn’t scroll to this proposed change.",
+          clientTranslator()("word.wordCouldnTScrollToThis3"),
         ),
       };
     }
@@ -2979,7 +2979,7 @@ async function finishResolvedCleanup(
     });
     console.warn("[tracked-edit/cleanup] anchor removal failed", error);
     for (const { entry } of deferred) {
-      if (entry.stableEditId) failures.get(entry)!.push(ANCHOR_CLEANUP_FAILURE);
+      if (entry.stableEditId) failures.get(entry)!.push(anchorCleanupFailure());
     }
   }
   for (const { entry, result } of deferred) {
@@ -3057,7 +3057,7 @@ export function releaseTrackedEdits(
       rememberTerminalState(handle, "released");
       results.push(
         failures.get(entry)?.length
-          ? { handle, status: "error", error: PROXY_CLEANUP_FAILURE }
+          ? { handle, status: "error", error: proxyCleanupFailure() }
           : { handle, status: "released" },
       );
     }
@@ -3072,7 +3072,6 @@ export function releaseTrackedEdits(
  * where Office.js has already initialised (i.e. inside Office.onReady).
  */
 export function useWordDoc() {
-  const t = useTranslations();
   /** Read the plain text of the entire document body. */
   /**
    * Read the active document as structure-annotated markdown: heading
@@ -3149,7 +3148,7 @@ export function useWordDoc() {
             original.includes("^") ||
             original.length > MAX_SEARCH_CHARS
           ) {
-            return { error: t("word.thisPassageCannotBeSearchedIn") };
+            return { error: clientTranslator()("word.thisPassageCannotBeSearchedIn") };
           }
           const replaceAll = edit.occurrence === "all";
           // Same candidate order as the apply path: verbatim first, then
@@ -3171,11 +3170,11 @@ export function useWordDoc() {
             }
           }
           if (matches.items.length === 0) {
-            return { error: t("word.thePassageIsNoLongerIn") };
+            return { error: clientTranslator()("word.thePassageIsNoLongerIn") };
           }
           if (!replaceAll && matches.items.length > 1) {
             return {
-              error: t("word.foundLengthExactMatchesNothingWas", { length: matches.items.length }),
+              error: clientTranslator()("word.foundLengthExactMatchesNothingWas", { length: matches.items.length }),
             };
           }
           const collections = matches.items.map((match) => {
@@ -3199,7 +3198,7 @@ export function useWordDoc() {
         return {
           error: describeWordFailure(
             error,
-            "Word couldn’t accept the pending changes.",
+            clientTranslator()("word.wordCouldnTAcceptThePending"),
           ),
         };
       }),
@@ -3272,7 +3271,7 @@ export function useWordDoc() {
                 // first, which is what the user would have to clean up.
                 result.status = "skipped";
                 result.reason = "already-applied";
-                result.error = ALREADY_APPLIED_MESSAGE;
+                result.error = alreadyAppliedMessage();
                 report.edits.push(result);
                 continue;
               }
@@ -3342,7 +3341,7 @@ export function useWordDoc() {
                 if (matches.items.length > 1 && !replaceAll) {
                   result.status = "skipped";
                   result.reason = "ambiguous";
-                  result.error = `Found ${matches.items.length} exact matches; no edit was applied.`;
+                  result.error = clientTranslator()("word.foundExactMatchesNoEdit", { count: matches.items.length });
                   report.edits.push(result);
                   continue;
                 }
@@ -3714,7 +3713,7 @@ export function useWordDoc() {
                   });
                   result.error = describeWordFailure(
                     error,
-                    "The change is reviewable now, but its View link may not survive reopening the add-in.",
+                    clientTranslator()("word.theChangeIsReviewableNowBut"),
                   );
                 };
                 const queueBookmark = (): string | null => {
@@ -3815,7 +3814,7 @@ export function useWordDoc() {
                 result.reason = outcome.reason;
                 if (outcome.status === "applied-unmanaged") {
                   result.error =
-                    "Applied in Word, but LiTT couldn’t retain its review controls. Review it from Word’s Review tab.";
+                    clientTranslator()("word.appliedInWordButLittCouldn");
                   if (edit.stableEditId) {
                     newlyAppliedEditIds.push(edit.stableEditId);
                   appliedEditIds.add(edit.stableEditId);
@@ -3837,7 +3836,7 @@ export function useWordDoc() {
                   reportWordFailure(error, { operation: "word.edit_apply" });
                   result.error = describeWordFailure(
                     error,
-                    "Word couldn’t apply this change.",
+                    clientTranslator()("word.wordCouldnTApplyThisChange"),
                   );
                 }
                 report.edits.push(result);
@@ -3854,7 +3853,7 @@ export function useWordDoc() {
               });
               report.warning = describeWordFailure(
                 error,
-                "Word couldn’t restore the previous change-tracking mode.",
+                clientTranslator()("word.wordCouldnTRestoreThePrevious"),
               );
             }
           }
@@ -3873,7 +3872,7 @@ export function useWordDoc() {
             reportWordFailure(error, { operation: "word.edit_apply", level: "warning" });
             for (const anchor of stagedAnchors) {
               anchor.result.error = describeWordFailure(error,
-                "The change is reviewable now, but its View link may not survive reopening the document.");
+                clientTranslator()("word.theChangeIsReviewableNowBut2"));
             }
           }
           return report;

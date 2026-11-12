@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { Children, memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -42,8 +43,10 @@ const MARKDOWN_COMPONENTS: Components = {
           <CitationPillUI
             data-mike-citation=""
             data-citation-href={href}
-            title="Show in the document"
-            aria-label={`Citation ${numberedCitation[1]}`}
+            title={clientTranslator()("word.showInTheDocument")}
+            aria-label={clientTranslator()("word.citationNumber", {
+              number: numberedCitation[1] ?? "",
+            })}
             className="mx-0.5 align-super"
           >
             {numberedCitation[1]}
@@ -54,7 +57,7 @@ const MARKDOWN_COMPONENTS: Components = {
         <a
           href={href}
           data-mike-citation=""
-          title="Show in the document"
+          title={clientTranslator()("word.showInTheDocument")}
           className="mx-0.5 inline-flex max-w-full cursor-pointer items-baseline rounded-md border border-gray-200 bg-gray-50 px-1.5 py-0.5 align-baseline font-sans text-[0.85em] not-italic text-gray-600 no-underline transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900"
         >
           <span className="truncate">{children}</span>

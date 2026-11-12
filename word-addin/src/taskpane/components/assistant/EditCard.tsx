@@ -1,11 +1,12 @@
 import React from "react";
+import { useTranslations } from "use-intl";
 import { EditCardUI } from "@mike/ui";
 import type { RedlineEdit } from "../../lib/redline";
 import { EDIT_CARD_SURFACE } from "./message/messageStyles";
 import type { EditBusyAction, EditCardStatus } from "../../lib/wordChatTypes";
 import {
-  ALREADY_APPLIED_MESSAGE,
-  UNVERIFIED_APPLY_MESSAGE,
+  alreadyAppliedMessage,
+  unverifiedApplyMessage,
 } from "../../lib/editApplyOutcome";
 
 interface EditCardProps {
@@ -37,58 +38,92 @@ interface EditCardProps {
   busyAction?: EditBusyAction;
 }
 
-const STATUS_COPY: Record<
+type Translator = ReturnType<typeof useTranslations>;
+
+/** A format name as the card shows it. */
+function formatLabel(t: Translator, format: string): string {
+  if (format.startsWith("heading"))
+    return t("word.formatHeading", { level: format.slice("heading".length) });
+  if (format === "bold") return t("word.formatBold");
+  if (format === "italic") return t("word.formatItalic");
+  if (format === "underline") return t("word.formatUnderline");
+  return format;
+}
+
+function statusCopyTable(
+  t: Translator,
+): Record<
   Exclude<EditCardStatus, "pending" | "ready" | "applying-approved">,
   { copy: string; className: string }
-> = {
-  receiving: { copy: "Receiving change…", className: "text-gray-400" },
-  validating: { copy: "Checking the document…", className: "text-gray-400" },
-  applying: { copy: "Applying to the document…", className: "text-gray-500" },
-  restoring: { copy: "Checking the document…", className: "text-gray-400" },
-  "view-only": {
-    copy: "Tracked change found — review it in Word.",
-    className: "text-gray-500",
-  },
-  applied: { copy: "Applied to the document.", className: "text-green-700" },
-  accepted: { copy: "Accepted.", className: "text-green-700" },
-  rejected: { copy: "Rejected.", className: "text-gray-500" },
-  skipped: {
-    copy: "Skipped — this change could not be applied.",
-    className: "text-gray-500",
-  },
-  ambiguous: {
-    copy: "Skipped — source text appears more than once.",
-    className: "text-gray-500",
-  },
-  unsearchable: {
-    copy: "Skipped — this passage is too long for Word’s search or spans paragraphs.",
-    className: "text-gray-500",
-  },
-  conflicted: {
-    copy: "Skipped — the target text already has tracked changes. Accept & apply resolves them, then applies this change.",
-    className: "text-gray-500",
-  },
-  "already-applied": {
-    copy: ALREADY_APPLIED_MESSAGE,
-    className: "text-gray-500",
-  },
-  // No action is offered here on purpose: retrying an edit that DID land
-  // would put a second revision over the first.
-  unverified: {
-    copy: UNVERIFIED_APPLY_MESSAGE,
-    className: "text-orange-700",
-  },
-  incomplete: {
-    copy: "Incomplete change — not applied.",
-    className: "text-gray-500",
-  },
-  unmanaged: {
-    copy: "Applied in Word — review it from Word’s Review tab.",
-    className: "text-orange-700",
-  },
-  error: { copy: "Couldn’t apply this change.", className: "text-red-500" },
-  historical: { copy: "Historical change.", className: "text-gray-400" },
-};
+> {
+  return {
+    receiving: { copy: t("word.receivingChange"), className: "text-gray-400" },
+    validating: {
+      copy: t("word.checkingTheDocument"),
+      className: "text-gray-400",
+    },
+    applying: {
+      copy: t("word.applyingToTheDocument"),
+      className: "text-gray-500",
+    },
+    restoring: {
+      copy: t("word.checkingTheDocument"),
+      className: "text-gray-400",
+    },
+    "view-only": {
+      copy: t("word.trackedChangeFound"),
+      className: "text-gray-500",
+    },
+    applied: {
+      copy: t("word.appliedToTheDocument"),
+      className: "text-green-700",
+    },
+    accepted: { copy: t("word.accepted"), className: "text-green-700" },
+    rejected: { copy: t("word.rejected"), className: "text-gray-500" },
+    skipped: {
+      copy: t("word.skippedChangeNotApplied"),
+      className: "text-gray-500",
+    },
+    ambiguous: {
+      copy: t("word.skippedSourceTextAmbiguous"),
+      className: "text-gray-500",
+    },
+    unsearchable: {
+      copy: t("word.skippedPassageTooLong"),
+      className: "text-gray-500",
+    },
+    conflicted: {
+      copy: t("word.skippedTargetHasTrackedChanges"),
+      className: "text-gray-500",
+    },
+    "already-applied": {
+      copy: alreadyAppliedMessage(),
+      className: "text-gray-500",
+    },
+    // No action is offered here on purpose: retrying an edit that DID land
+    // would put a second revision over the first.
+    unverified: {
+      copy: unverifiedApplyMessage(),
+      className: "text-orange-700",
+    },
+    incomplete: {
+      copy: t("word.incompleteChange"),
+      className: "text-gray-500",
+    },
+    unmanaged: {
+      copy: t("word.appliedInWordReview"),
+      className: "text-orange-700",
+    },
+    error: {
+      copy: t("word.couldntApplyThisChange"),
+      className: "text-red-500",
+    },
+    historical: {
+      copy: t("word.historicalChange"),
+      className: "text-gray-400",
+    },
+  };
+}
 
 /**
  * A single proposed tracked change, rendered with the web app's EditCard
@@ -112,6 +147,7 @@ export function EditCard({
   disabled = false,
   busyAction,
 }: EditCardProps): React.ReactElement {
+  const t = useTranslations();
   const formats = edit.format ?? [];
   const isFormatCard = formats.length > 0;
   const formatPreviewClass = [
@@ -126,29 +162,25 @@ export function EditCard({
     .filter(Boolean)
     .join(" ");
   const formatLabels = formats
-    .map((format) =>
-      format.startsWith("heading")
-        ? `heading ${format.slice("heading".length)}`
-        : format,
-    )
+    .map((format) => formatLabel(t, format))
     .join(", ");
   const hasEditText =
     edit.replacement !== undefined || edit.original !== undefined;
   const statusCopy =
     status === "pending" || status === "ready" || status === "applying-approved"
       ? undefined
-      : STATUS_COPY[status];
+      : statusCopyTable(t)[status];
   // The generic ambiguous copy upgrades to an actionable one when Word
   // reported how many places the passage matched.
   const ambiguousCopy =
     status === "ambiguous" && matches !== undefined && matches > 1
-      ? `Skipped — this text appears ${matches} times in the document. Tell LiTT which one to change.`
+      ? t("word.skippedTextAppearsManyTimes", { matches })
       : undefined;
   // A replace-all edit names its breadth so "Applied" can't be misread as a
   // single change.
   const multiApplyCopy =
     status === "applied" && appliedMatches !== undefined && appliedMatches > 1
-      ? `Applied to the document in ${appliedMatches} places.`
+      ? t("word.appliedInPlaces", { count: appliedMatches })
       : undefined;
   // Most statuses already say something precise. These states may carry a
   // more useful message from Word or the edit-application pipeline.

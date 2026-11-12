@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import { createMessageEditStateSelector, EMPTY_MESSAGE_EDIT_STATE } from "../../lib/messageEditState";
 import React, {
     useCallback,
@@ -306,12 +307,12 @@ export function ChatView({
             notifyError(
                 new UserVisibleError(
                     status === "not-found"
-                        ? "LiTT couldn't find that passage in this document. It may have changed since the answer was written."
-                        : "Word couldn't scroll to that passage. Try finding it with Word's search.",
+                        ? clientTranslator()("word.passageNotFound")
+                        : clientTranslator()("word.passageScrollFailed"),
                     { kind: status === "not-found" ? "not_found" : "unknown" },
                 ),
                 {
-                    action: "go to that passage",
+                    action: clientTranslator()("word.actionGoToPassage"),
                     dedupeKey: "citation-locate",
                     page: "Assistant",
                     operation: "word.document_read",

@@ -56,7 +56,7 @@ export function ChatInput({
     onSubmit,
     isLoading = false,
     onCancel,
-    placeholder = "How can I help?",
+    placeholder,
     disabled = false,
     leftSlot,
     rightSlot,
@@ -163,7 +163,7 @@ export function ChatInput({
                     aria-controls={combobox?.controls}
                     aria-expanded={combobox?.expanded}
                     aria-activedescendant={combobox?.activeDescendant}
-                    placeholder={placeholder}
+                    placeholder={placeholder ?? t("word.howCanIHelp")}
                     disabled={disabled}
                     className="max-h-48 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:opacity-60"
                 />
@@ -180,6 +180,7 @@ export function ChatInput({
                             isLoading ? onCancel?.() : canSend && onSubmit()
                         }
                         disabled={!isLoading && !canSend}
+                        data-testid="chat-send"
                         aria-label={isLoading ? t("word.stopResponse") : t("word.sendMessage")}
                         className={cn(
                             COMPOSER_SEND_BUTTON_CLASS,

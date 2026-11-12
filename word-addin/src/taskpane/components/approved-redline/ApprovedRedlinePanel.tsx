@@ -1,3 +1,4 @@
+import { clientTranslator } from "@mike/client";
 import React, { useEffect, useRef, useState } from "react";
 import { GlassCardUI } from "@mike/ui";
 import { PillButtonUI } from "@mike/ui";
@@ -56,20 +57,20 @@ function safeMessage(error: unknown): string {
   if (error instanceof ApprovedRedlineValidationError) {
     switch (error.code) {
       case "document-identity":
-        return "Cannot apply: Word document identity changed or is unavailable. Reopen the original saved document and reload the approved review.";
+        return clientTranslator()("word.cannotApplyIdentity");
       case "superseded":
-        return "Cannot apply: the review or bundle is no longer the approved revision. Obtain the current approved review and reload.";
+        return clientTranslator()("word.cannotApplySuperseded");
       case "scope-mismatch":
-        return "Cannot apply: project, matter, execution, or document scope does not match. Select the correct project and review.";
+        return clientTranslator()("word.cannotApplyScope");
       case "source-mismatch":
-        return "Cannot apply: the document version or file hash does not match. Open the reviewed source document and reload.";
+        return clientTranslator()("word.cannotApplySource");
       case "tampered":
-        return "Cannot apply: the approved bundle failed its integrity check. Obtain a fresh approved bundle and reload.";
+        return clientTranslator()("word.cannotApplyTampered");
       default:
-        return "Cannot apply: redline targets are missing, ambiguous, overlapping, or invalid. Request a new review of the current document.";
+        return clientTranslator()("word.cannotApplyTargets");
     }
   }
-  return "Could not verify or apply approved redlines. Check access and the saved Word document, then reopen the panel to load a fresh review.";
+  return clientTranslator()("word.cannotVerifyRedlines");
 }
 
 type Loaded = {
@@ -268,7 +269,7 @@ export function ApprovedRedlinePanel({
     } catch (reason) {
       if (ticket === generation.current)
         setError(
-          `${safeMessage(reason)} Apply stopped; prior Word revisions remain reviewable. No retries are available in this session.`,
+          clientTranslator()("word.applyStopped", { message: safeMessage(reason) }),
         );
     } finally {
       applyLock.current = false;

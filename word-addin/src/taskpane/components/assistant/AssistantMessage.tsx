@@ -313,7 +313,7 @@ function AssistantMessageImpl({
     );
     return (
       <EditCardsSection
-        summary={`${rows.length} tracked ${rows.length === 1 ? "change" : "changes"}`}
+        summary={t("word.trackedChangeCount", { count: rows.length })}
         actions={
           pendingCount > 0 ? (
             <>
