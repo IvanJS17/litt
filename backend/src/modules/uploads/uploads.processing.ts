@@ -1,5 +1,6 @@
 import {
   createDocumentVersion,
+  isVersionConflict,
   updateDocumentVersion,
 } from "../documents/documents.service";
 // Background processing for sealed upload-session files.
@@ -605,15 +606,22 @@ async function processNewDocumentVersion(
     file.filename,
   );
   await copyFile(file.sealed_storage_path, sourcePath);
-  const pdfPath = await buildPdfRendition({
-    sourceFilePath: artifact.filePath,
-    workingDirectory: artifact.directory,
-    fileType: file.file_type,
-    userId: session.user_id,
-    documentId,
-    versionSlug,
-    sourceStoragePath: sourcePath,
-  });
+  // An editor save (base_version_id) only persists the source: no eager PDF.
+  const baseVersionId = session.destination.base_version_id as
+    | string
+    | undefined;
+  const pdfPath =
+    session.destination.generate_pdf === false && file.file_type !== "pdf"
+      ? null
+      : await buildPdfRendition({
+          sourceFilePath: artifact.filePath,
+          workingDirectory: artifact.directory,
+          fileType: file.file_type,
+          userId: session.user_id,
+          documentId,
+          versionSlug,
+          sourceStoragePath: sourcePath,
+        });
   const pageCount =
     file.file_type === "pdf" ? await countPdfPages(artifact.filePath) : null;
   const textlessPageCount =
@@ -627,7 +635,7 @@ async function processNewDocumentVersion(
     document_id: documentId,
     storage_path: sourcePath,
     pdf_storage_path: pdfPath,
-    source: "user_upload",
+    source: baseVersionId ? "user_edit" : "user_upload",
 
     filename: requestedFilename,
     file_type: file.file_type,
@@ -635,7 +643,12 @@ async function processNewDocumentVersion(
     page_count: pageCount,
     textless_page_count: textlessPageCount,
     content_sha256: artifact.sha256,
+    ...(baseVersionId ? { base_version_id: baseVersionId } : {}),
   });
+  // The document moved on while the upload was processed: the RPC refused the
+  // edit under the document lock. Nothing was written; drop these bytes.
+  if (baseVersionId && isVersionConflict(error))
+    throw new ChangedDocumentError([sourcePath, ...(pdfPath ? [pdfPath] : [])]);
   // Adding a version to a document that has been deleted is the same race as
   // the create path, with the same answer: stop, and clean up these bytes.
   if (error && isMissingDocumentError(error))

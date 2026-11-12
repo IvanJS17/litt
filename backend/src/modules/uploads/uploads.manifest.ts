@@ -93,6 +93,12 @@ const requestSchema = z.discriminatedUnion("purpose", [
         .object({
           document_id: z.string().uuid(),
           filename: z.string().trim().min(1).max(200).optional(),
+          // A person's edit made in the web editor: the version it was made
+          // on. The new version is a `user_edit` and is refused (409) if that
+          // version is no longer the current one.
+          base_version_id: z.string().uuid().optional(),
+          // Editor saves are frequent: skip the eager PDF rendition.
+          generate_pdf: z.boolean().optional(),
         })
         .strict(),
       files: z.tuple([clientFileSchema]),

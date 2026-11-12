@@ -3708,16 +3708,41 @@ export async function uploadDocumentVersion(
     );
 }
 
+/**
+ * Save an edit made in the web DOCX editor as a NEW `user_edit` version on top
+ * of `baseVersionId`. Nothing is replaced: the version the edit was made on,
+ * and anything that relies on it, is left exactly as it was. When the document
+ * has moved on, the server refuses with `document_version_conflict` (409 when
+ * the session is opened, outcome `document_changed` while it is processed).
+ */
+export async function saveDocxVersion(
+    documentId: string,
+    baseVersionId: string,
+    file: File,
+    options?: UploadRequestOptions<DocumentVersion>,
+): Promise<DocumentVersion> {
+    return firstUploadResult(
+        await uploadFilesWithSession<DocumentVersion>({
+            purpose: "document_version_create",
+            // Frequent saves: persist the source only, no eager PDF.
+            destination: {
+                document_id: documentId,
+                base_version_id: baseVersionId,
+                generate_pdf: false,
+            },
+            files: [{ file }],
+            onProgress: options?.onProgress,
+            signal: options?.signal,
+        }),
+    );
+}
+
 export async function replaceDocumentVersionFile(
     documentId: string,
     versionId: string,
     file: File,
     filename?: string,
-    options?: UploadRequestOptions<DocumentVersion> & {
-        expectedContentSha256?: string;
-        /** Skip eager PDF generation for frequent editor saves. */
-        generatePdf?: boolean;
-    },
+    options?: UploadRequestOptions<DocumentVersion>,
 ): Promise<DocumentVersion> {
     const uploadedFile = filename
         ? new File([file], filename, {
@@ -3728,16 +3753,7 @@ export async function replaceDocumentVersionFile(
     return firstUploadResult(
         await uploadFilesWithSession<DocumentVersion>({
             purpose: "document_version_replace",
-            destination: {
-                document_id: documentId,
-                version_id: versionId,
-                ...(options?.expectedContentSha256
-                    ? { expected_content_sha256: options.expectedContentSha256 }
-                    : {}),
-                ...(options?.generatePdf !== undefined
-                    ? { generate_pdf: options.generatePdf }
-                    : {}),
-            },
+            destination: { document_id: documentId, version_id: versionId },
             files: [{ file: uploadedFile }],
             onProgress: options?.onProgress,
             signal: options?.signal,

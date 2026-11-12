@@ -52,6 +52,8 @@ export {
 export {
     saveMarkdownEdit,
     compareVersionTexts,
+    isVersionConflict,
+    VERSION_CONFLICT_CODE,
 } from "./documents.markdown";
 
 export { renameDocument } from "./documents.rename";

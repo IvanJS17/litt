@@ -38,7 +38,7 @@ export type SavedMarkdownVersion = {
     size_bytes: number;
 };
 
-function isVersionConflict(error: unknown): boolean {
+export function isVersionConflict(error: unknown): boolean {
     const { message } = (error ?? {}) as { message?: unknown };
     return typeof message === "string" && message.includes(VERSION_CONFLICT_CODE);
 }

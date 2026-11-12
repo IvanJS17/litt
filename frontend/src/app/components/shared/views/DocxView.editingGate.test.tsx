@@ -8,12 +8,12 @@ import { DocxView } from "./DocxView";
 // LiTT ledger §16.3 "DOCX viewer and editor": the viewer is adopted, editing
 // and autosave stay off by default.
 
-const replaceVersion = vi.hoisted(() => vi.fn());
+const saveVersion = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/lib/authEvents", () => ({ authenticatedFetch: vi.fn() }));
 vi.mock("@/app/lib/mikeApi", () => ({
     getDocumentFileUrl: (id: string) => "/api/document/" + id,
-    replaceDocumentVersionFile: replaceVersion,
+    saveDocxVersion: saveVersion,
     listDocumentVersions: vi.fn().mockResolvedValue({ current_version_id: "v1", versions: [] }),
     MikeApiError: class extends Error {},
 }));
@@ -35,7 +35,7 @@ function MockRenderer({ mode, toolbarVisible = true, onReady }: DocxRendererProp
 }
 
 beforeEach(() => {
-    replaceVersion.mockReset();
+    saveVersion.mockReset();
     vi.mocked(authenticatedFetch).mockReset();
     vi.mocked(authenticatedFetch).mockResolvedValue(new Response(new Uint8Array([1])));
 });
@@ -49,7 +49,7 @@ it("opens a document read-only by default even for an editor", async () => {
     const renderer = await screen.findByTestId("renderer");
     expect(renderer.dataset.mode).toBe("view");
     expect(renderer.dataset.toolbar).toBe("false");
-    expect(replaceVersion).not.toHaveBeenCalled();
+    expect(saveVersion).not.toHaveBeenCalled();
 });
 
 it("offers editing only when the operator turned the gate on", async () => {
