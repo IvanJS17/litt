@@ -52,7 +52,7 @@ one row per version:
 |---|---|
 | `version_id` (pk) | The exact version. A new version has no row, so it needs its own reading. |
 | `source_revision` | The `text_revision` of the bytes that were read. A reading of other bytes is ignored. |
-| `status` | `processing`, `ready` or `failed`; `pages` is set exactly when `ready`. |
+| `status` | `processing`, `ready` or `failed`; `pages` is always set when `ready`, and is kept while a new reading runs or fails. |
 | `pages` | `[{page, text}]`: the text LandingAI read, by **real PDF page number** (from `structure` page nodes: `grounding.page` and `grounding.range` over the Markdown; the `<!-- PAGE BREAK -->` marker if `structure` is absent; a reading that cannot be placed on real pages is rejected, never guessed). No `structure` and no boxes are kept. |
 | `page_count`, `failed_pages` | LandingAI's page count and the pages it failed on. |
 | `provider`, `model`, `credits` | Provenance: `landingai`, the model snapshot, credits charged. |
@@ -80,8 +80,20 @@ what clears the warning in the list, the panel, conversion and comparison.
 1. Re-checks, as the request did: the authorization epoch of the firm
    (`assertAuthorizationStamp`), edit permission of the requester, and that the
    version is not held for training.
-2. Resolves the key, downloads the PDF, calls LandingAI, saves the reading.
+2. Resolves the key, downloads the PDF, finds its pages without a text layer
+   (`pdfTextlessPages` op, in the parser process), calls LandingAI for **only
+   those pages** (the file is still uploaded whole; `options.pages`, 1-indexed; a PDF scanned throughout goes
+   whole, without the option) and saves the reading.
 3. Re-extracts the text with the reading merged and publishes it.
+
+Reading again keeps the previous reading in force (text, search and conversion
+keep using it) until the new one is saved; a new one that fails leaves the previous
+one in place with the row `failed`. For that, `pages` may be set while `status` is
+`processing` or `failed` (migration `20261112_50_litt_ocr_keep_reading.sql`; the new
+code needs it applied before it can read again). If the job cannot be queued, the
+row is marked `failed` (`ocr_unavailable`) instead of staying `processing`. After
+publishing the text, the job (and the upload's extraction) reads the reading again
+and publishes once more if it changed, so the last write includes it.
 
 A retry after step 2 only does step 3: it never pays twice. 401, 402, 403,
 too-large and not-supported end the job as `failed` without retrying.
@@ -122,10 +134,11 @@ All are in `CODE_KINDS` and `errors.code` (en-US and es-MX).
 ## Cost, limits and privacy
 
 - About **US$0.01 per page** (measured: 5.5 credits for 7 pages and 36.9 credits for 34 pages, about
-  1.1 credits per page, at the standard tier; 1 credit = US$0.01). The whole PDF is sent (only the scanned pages are kept), so the estimate is
-  `page_count * 0.01`, shown before a manual reading.
+  1.1 credits per page, at the standard tier; 1 credit = US$0.01). Only the pages without a text layer are sent and billed
+  (`options.pages`, documented at https://docs.landing.ai/dpt3/parse-input.md), so
+  the estimate is `textless_page_count * 0.01`, shown before a manual reading.
 - Up to 50 pages is read on upload; more needs the button. 50 MiB per PDF.
-- The whole PDF goes to LandingAI in the United States. Without LandingAI's zero
+- The whole PDF file still goes to LandingAI in the United States (`options.pages` selects what is parsed and billed, not what is uploaded). Without LandingAI's zero
   data retention (Team and Enterprise plans only) it may keep documents and use
   them to improve and train its models. The user's account pays LandingAI
   directly. The wording shown in Settings, the Terms (clauses 2, 6.10-6.12) and
@@ -138,8 +151,6 @@ All are in `CODE_KINDS` and `errors.code` (en-US and es-MX).
 
 ## Not done
 
-- The whole PDF is sent and billed, not just the textless pages (`options.pages`
-  could cut the cost).
 - No EU region, no spreadsheet or image inputs, no per-page progress.
 - `read_document`'s fallback (index not ready) still extracts from the bytes
   without the reading.
