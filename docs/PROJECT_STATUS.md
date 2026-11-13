@@ -32,6 +32,18 @@
   3.7 s and cost 0.0948 credits. Still not done: a browser flow with a real case
   file.
 
+### Branch `feat/beta-stats-legal` (not merged)
+
+- **Beta statistics** for platform administrators, audited on every view, counts
+  only, no export. Design and the list of counts (and those left out) in
+  [`beta-stats.md`](beta-stats.md).
+- **Legal text** from socium-legal (t_9bb77c49): statistics (Aviso §3 to §8, §13,
+  simplified notice) and firm-managed accounts (Terms 5.5, Aviso §8), with the
+  owner's decision that turning the option off also returns the personal
+  workspace. `LEGAL_VERSION` is now `2026-11-13.2` (production already had
+  `2026-11-13`, so the same value would not have asked anyone to accept again).
+  The firm-managed accounts themselves are in `feat/invite-onboarding-workspace`.
+
 ### DOCX editing in LiTT (branch `feat/capa3-docx-editing`, not yet merged)
 
 - The Word editor (`@docx-editor.dev` 2.33.0 → 2.35.0, as upstream) is on for

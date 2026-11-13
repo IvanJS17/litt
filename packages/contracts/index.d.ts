@@ -2104,6 +2104,34 @@ export interface PlatformMe {
     can_create_org: boolean;
 }
 
+/** Uses of each feature, by count. */
+export type PlatformStatsUsage = Record<
+    "chats" | "documents" | "compared" | "converted" | "scans" | "split" | "tabular" | "training",
+    number
+>;
+
+/** `GET /platform/stats`, administrators only: counts, never content. */
+export interface PlatformStats {
+    generated_at: string;
+    legal_version: string;
+    totals: { users: number; deleted_users: number; organizations: number; awaiting_acceptance: number };
+    breakdowns: Record<"scope" | "title" | "jurisdiction" | "practice_area", { key: string | null; count: number }[]>;
+    usage: { last_7_days: PlatformStatsUsage; last_30_days: PlatformStatsUsage };
+    organizations: { name: string; members: number; usage: PlatformStatsUsage }[];
+    people: {
+        deleted: boolean;
+        name: string | null;
+        email: string | null;
+        organizations: string[];
+        scope: string | null;
+        title: string | null;
+        jurisdiction: string | null;
+        practice_areas: string[];
+        usage: PlatformStatsUsage;
+        last_activity: string | null;
+    }[];
+}
+
 /** A platform (beta) invitation; `/platform/invitations`, administrators only. */
 export interface PlatformInvitation {
     id: string;
