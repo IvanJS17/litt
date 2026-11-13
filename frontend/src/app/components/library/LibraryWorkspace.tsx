@@ -1110,7 +1110,11 @@ export function LibraryCollectionPage({
                     loading={loading}
                     search={search}
                     operations={operations}
-                    emptyStateTitle={title}
+                    emptyStateTitle={
+                        kind === "files"
+                            ? t("library.emptyDocuments")
+                            : t("library.emptyTemplates")
+                    }
                     emptyStateSecondaryAction={
                         kind === "templates"
                             ? presetsEmptyStateAction

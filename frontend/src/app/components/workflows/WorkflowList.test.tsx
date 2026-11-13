@@ -444,6 +444,12 @@ describe("WorkflowList pack toolbar", () => {
   it("filters Public and Private from the Access column header", async () => {
     const user = userEvent.setup();
     activeTab.current = "all";
+    workflowRows.current = [
+      {
+        id: "existing", user_id: "user-1", access_scope: "private", is_system: false,
+        metadata: { title: "Existing", type: "assistant", contributors: [], language: "English", practice: null, jurisdictions: null },
+      },
+    ];
     render(<WorkflowList />);
 
     await user.click(
@@ -464,6 +470,15 @@ describe("WorkflowList pack toolbar", () => {
       // Private is everything that is not public, shared or not.
       expect.objectContaining({ scope: "nonpublic" }),
     );
+  });
+
+  it("with no workflow at all: the explanation and New workflow, without the column header", () => {
+    activeTab.current = "all";
+    workflowRows.current = [];
+    render(<WorkflowList />);
+    expect(screen.getByText("You have no workflows yet")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Filter by access" })).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Select all deletable workflows")).not.toBeInTheDocument();
   });
 
   it("refetches when the new-workflow modal is dismissed after a partial create", async () => {
@@ -492,7 +507,7 @@ describe("WorkflowList pack toolbar", () => {
     render(<WorkflowList />);
 
     expect(screen.queryByText("Created workflow")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "New workflow" }));
+    await user.click(screen.getAllByRole("button", { name: "New workflow" })[0]);
     await user.click(
       screen.getByRole("button", { name: "Dismiss after partial create" }),
     );
@@ -506,7 +521,7 @@ describe("WorkflowList pack toolbar", () => {
     activeTab.current = "all";
     render(<WorkflowList />);
 
-    await user.click(screen.getByRole("button", { name: "New workflow" }));
+    await user.click(screen.getAllByRole("button", { name: "New workflow" })[0]);
     await user.click(
       screen.getByRole("button", { name: "Dismiss without creating" }),
     );

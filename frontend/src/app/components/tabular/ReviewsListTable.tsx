@@ -234,9 +234,15 @@ export function ReviewsListTable({
         />
     );
 
+    // No review at all (not "none match"): nothing to sort or select, so the
+    // toolbar and the column header give way to the explanation and the way to
+    // start.
+    const nothingYet =
+        !loading && !error && reviews.length === 0 && !hasActiveFilters;
+
     return (
         <>
-        {renderToolbar?.(selectedReviewIds.length > 0 ? (
+        {nothingYet ? null : renderToolbar?.(selectedReviewIds.length > 0 ? (
             <SelectionActionsMenu
                 renderItems={(close) => renderReviewActions(reviews.find((review) => review.id === selectedReviewIds[0]), close)}
             />
@@ -252,6 +258,7 @@ export function ReviewsListTable({
                 if (distanceToBottom < 200) onLoadMore();
             }}
             header={
+                nothingYet ? undefined : (
                 <TableHeaderRow className={rowClassName}>
                     <TableStickyCell header>
                         {loading ? (
@@ -339,6 +346,7 @@ export function ReviewsListTable({
                     </TableHeaderCell>
                     <TableHeaderCell className="w-8" />
                 </TableHeaderRow>
+                )
             }
         >
             {loading ? (
@@ -373,7 +381,7 @@ export function ReviewsListTable({
                     ) : (
                         <EmptyState
                             icon={<TabularReviewSkeuoIcon />}
-                            title={t("tabular.tabularReviews")}
+                            title={t("tabular.emptyTitle")}
                             description={emptyDescription}
                             action={
                                 <PillButtonUI
@@ -382,7 +390,7 @@ export function ReviewsListTable({
                                     onClick={onCreateReview}
                                     disabled={createDisabled}
                                 >
-                                    {t("tabular.create")}
+                                    {t("tabular.newTabularReview")}
                                 </PillButtonUI>
                             }
                         />

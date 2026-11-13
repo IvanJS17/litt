@@ -180,3 +180,27 @@ describe("ReviewsListTable creator filter", () => {
         expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ user_id: "u2" }));
     });
 });
+
+describe("ReviewsListTable with no review at all", () => {
+    it("shows one explanation and New tabular review, without the toolbar, header or select-all", () => {
+        const { container } = renderTable(review("owner"), { onOpenDetails: vi.fn(), onOwnerOnlyAction: vi.fn() }, {
+            reviews: [],
+            renderToolbar: () => <div data-testid="toolbar" />,
+        });
+        expect(screen.getByText("You have no tabular reviews yet")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "New Tabular Review" })).toBeInTheDocument();
+        expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
+        expect(screen.queryByRole("checkbox", { name: "Select all reviews" })).not.toBeInTheDocument();
+        expect(container.querySelector("[data-slot='table-header-row'], .table-sticky-header")).toBeNull();
+    });
+
+    it("keeps the toolbar and header when a search leaves nothing", () => {
+        renderTable(review("owner"), { onOpenDetails: vi.fn(), onOwnerOnlyAction: vi.fn() }, {
+            reviews: [],
+            hasActiveFilters: true,
+            renderToolbar: () => <div data-testid="toolbar" />,
+        });
+        expect(screen.getByTestId("toolbar")).toBeInTheDocument();
+        expect(screen.getByRole("checkbox", { name: "Select all reviews" })).toBeInTheDocument();
+    });
+});

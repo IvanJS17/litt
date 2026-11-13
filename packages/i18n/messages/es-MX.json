@@ -1480,6 +1480,8 @@
     "checkRequired": "Marca la casilla para continuar."
   },
   "library": {
+    "emptyDocuments": "Aún no tienes documentos",
+    "emptyTemplates": "Aún no tienes plantillas",
     "actions": {
       "loadFileTypeFilter": "cargar el filtro de tipo de archivo",
       "loadMoreFiles": "cargar más archivos",
@@ -2348,7 +2350,7 @@
     "noMatchingPlaybooks": "No hay playbooks que coincidan",
     "noMatchingRuns": "No hay ejecuciones que coincidan",
     "noPlaybooksFound": "No se encontraron playbooks",
-    "noPlaybooksYet": "Todavía no hay playbooks",
+    "noPlaybooksYet": "Aún no tienes playbooks",
     "noPublicPlaybooks": "No hay playbooks públicos",
     "noReferenceDocuments": "No hay documentos de referencia",
     "noRulesYet": "Todavía no hay reglas",
@@ -2762,6 +2764,8 @@
     "updating": "Actualizando…",
     "upload": "Subir",
     "uploadCount": "Subir ({count})",
+    "emptyDescription": "Un proyecto reúne los documentos, chats y revisiones tabulares de un asunto.",
+    "emptyTitle": "Aún no tienes proyectos",
     "uploadDocumentsIntoProjectsAndTo": "Sube documentos a los proyectos para empezar chats y revisiones tabulares con ellos.",
     "uploadDocumentsToThisProject": "subir documentos a este proyecto",
     "uploadingFilename": "Subiendo {filename}",
@@ -4178,6 +4182,7 @@
     "whatCanWeHelpYouWith": "¿En qué te podemos ayudar?"
   },
   "tabular": {
+    "emptyTitle": "Aún no tienes revisiones tabulares",
     "aNewerVersionIsAvailable": "Hay una versión más reciente disponible",
     "aResultArrivedThatLittCouldnt": "Llegó un resultado que LiTT no pudo mostrar. Recarga para verlo.",
     "access": "Acceso",
@@ -6096,6 +6101,7 @@
     "responseStopped": "Detuviste la respuesta."
   },
   "workflows": {
+    "emptyTitle": "Aún no tienes flujos de trabajo",
     "access": "Acceso",
     "acmeLlp": "Acme LLP",
     "addAnyAdditionalInstructions": "Agrega instrucciones adicionales…",

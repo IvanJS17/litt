@@ -1480,6 +1480,8 @@
     "checkRequired": "Tick the box to continue."
   },
   "library": {
+    "emptyDocuments": "You have no documents yet",
+    "emptyTemplates": "You have no templates yet",
     "actions": {
       "loadFileTypeFilter": "load the file type filter",
       "loadMoreFiles": "load more files",
@@ -2348,7 +2350,7 @@
     "noMatchingPlaybooks": "No matching playbooks",
     "noMatchingRuns": "No matching runs",
     "noPlaybooksFound": "No playbooks found",
-    "noPlaybooksYet": "No playbooks yet",
+    "noPlaybooksYet": "You have no playbooks yet",
     "noPublicPlaybooks": "No public playbooks",
     "noReferenceDocuments": "No reference documents",
     "noRulesYet": "No rules yet",
@@ -2762,6 +2764,8 @@
     "updating": "Updating...",
     "upload": "Upload",
     "uploadCount": "Upload ({count})",
+    "emptyDescription": "A project gathers the documents, chats and tabular reviews of one matter.",
+    "emptyTitle": "You have no projects yet",
     "uploadDocumentsIntoProjectsAndTo": "Upload documents into projects and to commence chats and tabular reviews with them.",
     "uploadDocumentsToThisProject": "upload documents to this project",
     "uploadingFilename": "Uploading {filename}",
@@ -4178,6 +4182,7 @@
     "whatCanWeHelpYouWith": "What can we help you with?"
   },
   "tabular": {
+    "emptyTitle": "You have no tabular reviews yet",
     "aNewerVersionIsAvailable": "A newer version is available",
     "aResultArrivedThatLittCouldnt": "A result arrived that LiTT couldn't display. Reload to see it.",
     "access": "Access",
@@ -6096,6 +6101,7 @@
     "responseStopped": "You stopped the response."
   },
   "workflows": {
+    "emptyTitle": "You have no workflows yet",
     "access": "Access",
     "acmeLlp": "Acme LLP",
     "addAnyAdditionalInstructions": "Add any additional instructions...",

@@ -358,6 +358,15 @@ export function PlaybookTable({
     );
   }
 
+  // No playbook at all (not "none match"): the column header gives way to the
+  // explanation and the way to start.
+  const nothingYet =
+    !loading &&
+    !error &&
+    !filtered &&
+    playbooks.length === 0 &&
+    newImports.length === 0;
+
   return (
     <TableScrollArea>
       <div
@@ -366,6 +375,7 @@ export function PlaybookTable({
         aria-busy={loading}
         className="flex min-h-full min-w-0 flex-col"
       >
+        {nothingYet ? null : (
         <div
           role="rowgroup"
           className={`table-sticky-header sticky top-0 z-[70] ${TABLE_MIN_WIDTH}`}
@@ -488,6 +498,7 @@ export function PlaybookTable({
             </TableHeaderCell>
           </TableHeaderRow>
         </div>
+        )}
         {loading ? (
           <TableBody role="rowgroup" className={TABLE_MIN_WIDTH}>
             {Array.from({ length: 6 }, (_, index) => (
