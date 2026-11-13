@@ -38,6 +38,9 @@ import { resolveDocumentViewType } from "@/app/lib/documentViewType";
 import { SUPPORTED_DOCUMENT_ACCEPT } from "@/app/lib/documentUploadValidation";
 import { textLayerWarning } from "@/app/lib/textLayerWarning";
 import { ScanReadingStatus } from "@/app/components/shared/ScanReadingStatus";
+import { SplitDocumentModal } from "@/app/components/modals/SplitDocumentModal";
+import { showToast } from "@/app/components/ui/toast";
+import type { DocumentSplitCreateResult } from "@mike/contracts";
 import {
     LIQUID_FLOAT_PANEL_SURFACE_CLASS,
     LIQUID_GLASS_FLAT_CLASS,
@@ -100,6 +103,8 @@ interface DocumentSidePanelProps {
     onTrainingApproved?: (docId: string) => void;
     /** A scan reading that was running has finished; reload what shows the document's text state. */
     onScanRead?: (docId: string) => void;
+    /** "Separar expediente" created new documents beside this one; reload the list that shows them. */
+    onSplitCreated?: (result: DocumentSplitCreateResult) => void;
 }
 
 /**
@@ -137,6 +142,7 @@ export function DocumentSidePanel({
     addLabel,
     onTrainingApproved,
     onScanRead,
+    onSplitCreated,
 }: DocumentSidePanelProps) {
     const t = useTranslations();
     const format = useFormatter();
@@ -163,6 +169,7 @@ export function DocumentSidePanel({
         null,
     );
     const [compareOpen, setCompareOpen] = useState(false);
+    const [splitOpen, setSplitOpen] = useState(false);
     const [deletingDocument, setDeletingDocument] = useState(false);
     const [confirmDeleteDocumentOpen, setConfirmDeleteDocumentOpen] =
         useState(false);
@@ -858,6 +865,7 @@ export function DocumentSidePanel({
                                         });
                                         onScanRead?.(doc.id);
                                     }}
+                                    onSplit={() => setSplitOpen(true)}
                                 />
                             )}
                         </div>
@@ -1194,6 +1202,18 @@ export function DocumentSidePanel({
                     </div>
                 </aside>
             </div>
+            <SplitDocumentModal
+                request={splitOpen ? { documentId, filename: activeDoc.filename } : null}
+                onClose={() => setSplitOpen(false)}
+                onCreated={(result) => {
+                    setSplitOpen(false);
+                    showToast({
+                        tone: "success",
+                        message: t("documents.split.created", { count: result.documents.length }),
+                    });
+                    onSplitCreated?.(result);
+                }}
+            />
             <VersionCompareModal
                 open={compareOpen}
                 onClose={() => setCompareOpen(false)}

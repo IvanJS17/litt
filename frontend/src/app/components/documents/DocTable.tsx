@@ -5114,6 +5114,7 @@ export function DocTable({
                 }}
                 onLoadVersions={(docId) => loadDocumentVersions(docId)}
                 onScanRead={refreshTrainingStatus}
+                onSplitCreated={() => void operations.refreshCollection().catch(() => undefined)}
                 onSelectVersion={(versionId, label) => setViewingDocVersion({ id: versionId, label })}
                 onDownloadDocument={downloadDoc}
                 onDownloadVersion={downloadDocVersion}
