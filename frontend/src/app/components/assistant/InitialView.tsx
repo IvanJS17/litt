@@ -4,12 +4,14 @@ import { useRef, type RefObject } from "react";
 import { SvgAssetIcon } from "@/app/components/ui/svg-asset-icon";
 import quickActionsIcon from "../../../../public/icons/features/quick-actions.svg";
 import { MoreHorizontal } from "lucide-react";
+import { cn } from "@/app/lib/utils";
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import {
     LittMonogramPixel,
     LIQUID_GLASS_HOVER_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
+    TOUCH_TARGET_CLASS,
 } from "@mike/ui";
 import { ChatInput, type ChatInputHandle } from "./ChatInput";
 import type { Document, Message, QuickAction } from "../shared/types";
@@ -66,18 +68,18 @@ export function InitialView({
     }
 
     return (
-        <div className="grid h-full w-full grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] px-6">
+        <div className="grid h-full w-full grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] px-6">
             <div className="flex min-h-0 items-end justify-center pb-6">
                 {/* The monogram stays still (Marca LiTT v1.0, prohibition
                     10: the square is never animated); only the greeting
                     fades in beside it once the profile has loaded. */}
                 <div
-                    className="flex h-10 w-full max-w-4xl items-center justify-center px-0 xl:px-8"
+                    className="flex min-h-10 w-full min-w-0 max-w-4xl items-center justify-center px-0 xl:px-8"
                     style={{ gap: GAP }}
                 >
                     <LittMonogramPixel size={ICON_SIZE} decorative />
                     <h1
-                        className="text-4xl font-serif font-light text-gray-900 whitespace-nowrap transition-opacity duration-700 ease-in-out motion-reduce:transition-none"
+                        className="min-w-0 text-balance break-words text-3xl font-serif font-light text-gray-900 transition-opacity duration-700 ease-in-out motion-reduce:transition-none sm:text-4xl"
                         style={{ opacity: loaded ? 1 : 0 }}
                     >
                         {t("assistant.initialView.hiUsername", { username })}
@@ -120,7 +122,11 @@ export function InitialView({
                                 type="button"
                                 onClick={onEditQuickActions}
                                 aria-label={t("assistant.initialView.configureQuickActions")}
-                                className="absolute left-full ml-1.5 flex h-5 w-5 items-center justify-center text-gray-400 opacity-0 transition-[opacity,color] hover:text-gray-700 group-hover:opacity-100 focus:opacity-100"
+                                className={cn(
+                                    TOUCH_TARGET_CLASS,
+                                    // A finger has no hover: always visible there.
+                                    "absolute left-full ml-1.5 flex h-5 w-5 items-center justify-center text-gray-400 opacity-0 transition-[opacity,color] hover:text-gray-700 group-hover:opacity-100 focus:opacity-100 pointer-coarse:opacity-100",
+                                )}
                             >
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
