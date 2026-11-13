@@ -368,7 +368,7 @@ export default function SettingsPage() {
               </SettingsDescription>
             </div>
             <PillButtonUI
-              tone="danger"
+              tone="whiteDanger"
               size="sm"
               onClick={() => setDeleteConfirm(true)}
               disabled={isDeleting}

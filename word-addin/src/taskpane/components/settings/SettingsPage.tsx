@@ -145,7 +145,7 @@ export function SettingsPage({
               </p>
             </div>
             <PillButton
-              tone="danger"
+              tone="whiteDanger"
               onClick={() => setClearConfirmOpen(true)}
               className="shrink-0"
             >

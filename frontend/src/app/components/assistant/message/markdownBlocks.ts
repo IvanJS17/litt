@@ -18,10 +18,10 @@ const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})/;
 // text after it: the test stays linear on streamed (model-written) text.
 const CROSS_BLOCK_SYNTAX = /^ {0,3}\[[^[\]]+\]:\s*\S|\[\^[^[\]\s]+\]/m;
 
-function safeBoundary(block: string[], next: string): boolean {
+function safeBoundary(blockHasList: boolean, next: string): boolean {
     if (next.length === 0 || /^\s/.test(next)) return false;
     if (/^[>|]/.test(next)) return false;
-    if (LIST_ITEM.test(next) && block.some((line) => LIST_ITEM.test(line))) {
+    if (LIST_ITEM.test(next) && blockHasList) {
         return false;
     }
     return true;
@@ -34,8 +34,12 @@ export function splitMarkdownBlocks(text: string): string[] {
     let start = 0;
     let fence: string | null = null;
     let inMath = false;
+    // Whether the block being built holds a list item, kept as lines go by so a
+    // boundary check never rescans the block (linear on long text).
+    let blockHasList = false;
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
+        if (LIST_ITEM.test(line)) blockHasList = true;
         if (fence !== null) {
             const close = new RegExp(`^ {0,3}${fence[0] === "`" ? "`" : "~"}{${fence.length},}\\s*$`);
             if (close.test(line)) fence = null;
@@ -51,11 +55,14 @@ export function splitMarkdownBlocks(text: string): string[] {
         let next = i + 1;
         while (next < lines.length && lines[next].trim() === "") next++;
         if (next >= lines.length) break;
-        if (safeBoundary(lines.slice(start, i), lines[next])) {
+        if (safeBoundary(blockHasList, lines[next])) {
             pieces.push(lines.slice(start, next).join("\n") + "\n");
             start = next;
-            i = next - 1;
+            blockHasList = false;
         }
+        // Every line up to `next` is blank and would reach the same verdict:
+        // skip them, or a long run of blank lines is scanned once per line.
+        i = next - 1;
     }
     pieces.push(lines.slice(start).join("\n"));
     return pieces;

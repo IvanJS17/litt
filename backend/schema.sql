@@ -441,6 +441,14 @@ create table if not exists public.organizations (
       and jsonb_array_length(split_classes) between 1 and 19
       and octet_length(split_classes::text) <= 20000
     )),
+  -- LiTT firm profile (docs/firm-profile.md): what the assistant is told about
+  -- the firm in every chat of its workspace; NULL for none. Backend-written.
+  firm_profile jsonb
+    constraint organizations_firm_profile_check
+    check (firm_profile is null or (
+      jsonb_typeof(firm_profile) = 'object'
+      and octet_length(firm_profile::text) <= 6000
+    )),
   -- Whether members other than its owners may export, and bulk-delete, their
   -- own work in this organization from Settings > Privacy & Data. Off until
   -- an owner allows it.
@@ -20686,5 +20694,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_40_litt_document_ocr.sql'),
   ('20261112_50_litt_ocr_keep_reading.sql'),
   ('20261112_60_litt_split_expediente.sql'),
-  ('20261113_10_litt_managed_accounts.sql')
+  ('20261113_10_litt_managed_accounts.sql'),
+  ('20261113_30_litt_firm_profile.sql')
 on conflict (filename) do nothing;

@@ -42,9 +42,6 @@ vi.mock("@/app/contexts/ChatHistoryContext", () => ({
     }),
 }));
 
-vi.mock("@/app/components/chat/mike-icon", () => ({
-    MikeIcon: () => <span aria-hidden="true" />,
-}));
 
 function renderSidebar() {
     return render(

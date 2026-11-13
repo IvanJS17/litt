@@ -2277,6 +2277,22 @@ export async function setOrgManagedAccounts(
     });
 }
 
+/** The firm's profile; any member reads it, owners and admins save it (null clears it). */
+export async function getOrgFirmProfile(orgId: string): Promise<import("@mike/contracts").FirmProfileSettings> {
+    return apiRequest("organizations.manage", `/orgs/${encodeURIComponent(orgId)}/profile`);
+}
+
+export async function saveOrgFirmProfile(
+    orgId: string,
+    profile: import("@mike/contracts").FirmProfile | null,
+): Promise<import("@mike/contracts").FirmProfileSettings> {
+    return apiRequest("organizations.manage", `/orgs/${encodeURIComponent(orgId)}/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile }),
+    });
+}
+
 /** Close the "your firm now manages your account" notice. */
 export async function dismissManagedNotice(): Promise<void> {
     await apiRequest<void>("settings.profile", "/user/managed-notice/dismiss", { method: "POST" });

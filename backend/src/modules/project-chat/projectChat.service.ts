@@ -16,11 +16,13 @@ import {
     type WebSearchPlan,
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
+import { loadFirmProfileFor } from "../../lib/firmProfileStore";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     buildProjectDocContext,
     buildMessages,
     buildUserPersonalisationPrompt,
+    buildFirmProfilePrompt,
     buildWorkflowStore,
     attachPriorReasoning,
     enrichWithPriorEvents,
@@ -672,10 +674,13 @@ export async function prepareProjectChatStream(
         );
         const titleModel = titleModelForRoute(route, modelSettings.title_model);
         const { personalisation } = modelSettings;
-        const personalisationPrompt = buildUserPersonalisationPrompt(
-            personalisation,
-            nonce,
-        );
+        // The firm's profile: only for a project of a firm's workspace.
+        const personalisationPrompt = [
+            buildFirmProfilePrompt(await loadFirmProfileFor(db, projectAccess.project.org_id ?? null), nonce),
+            buildUserPersonalisationPrompt(personalisation, nonce),
+        ]
+            .filter(Boolean)
+            .join("\n\n");
         if (personalisationPrompt) {
             systemPromptExtra += `\n\n${personalisationPrompt}`;
         }

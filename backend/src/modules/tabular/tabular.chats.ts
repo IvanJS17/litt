@@ -11,6 +11,8 @@ import {
 } from "../../lib/trainingTurn";
 import type { CreatedTurnNote } from "../../lib/trainingNotes";
 import {
+    buildFirmProfilePrompt,
+    generateSpotlightNonce,
     loadUserMessageSentTimes,
     parseOptionalModel,
     parseOptionalReasoning,
@@ -22,6 +24,7 @@ import {
 import { MESSAGE_TIME_PROMPT, resolveRequestTimeZone } from "../../lib/userTime";
 import { type ReasoningLevel, type UserApiKeys } from "../../lib/llm";
 import { randomUUID } from "node:crypto";
+import { loadFirmProfileFor } from "../../lib/firmProfileStore";
 import {
     checkProjectAccess,
     creatorScopedAllowed,
@@ -129,6 +132,8 @@ export function buildTabularMessages(
     tabularStore: TabularCellStore,
     reviewTitle: string,
     time?: MessageTimeContext,
+    /** The firm's profile block (buildFirmProfilePrompt); empty for a personal space. */
+    firmProfilePrompt?: string,
 ): unknown[] {
     const docList = tabularStore.documents
         .map((d, i) => `- ROW:${i} "${d.filename}"`)
@@ -168,7 +173,7 @@ Rules:
 - Do not fabricate cell content
 - Answer in clear, concise prose. You may use markdown formatting.${
         time ? `\n\n${MESSAGE_TIME_PROMPT}` : ""
-    }`;
+    }${firmProfilePrompt ? `\n\n${firmProfilePrompt}` : ""}`;
 
     const formatted: unknown[] = [{ role: "system", content: systemContent }];
     const stamp = userMessageStamper(messages, time);
@@ -954,6 +959,10 @@ export async function prepareTabularChat(
         tabularStore,
         review.title || "Untitled Review",
         { timeZone, now: new Date(), userSentAt },
+        buildFirmProfilePrompt(
+            await loadFirmProfileFor(db, (review.org_id as string | null) ?? null),
+            generateSpotlightNonce(chatId),
+        ),
     );
 
     return {

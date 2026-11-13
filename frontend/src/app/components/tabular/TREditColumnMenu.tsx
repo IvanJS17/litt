@@ -18,6 +18,7 @@ import {
     LIQUID_GLASS_FLOAT_CLASS,
     LIQUID_GLASS_SUBTLE_CLASS,
 } from "@mike/ui";
+import { ConfirmPopup } from "@/app/components/popups/ConfirmPopup";
 import { FieldLabel } from "@/app/components/ui/form-field";
 import { useTranslations } from "next-intl";
 
@@ -51,6 +52,8 @@ export function TREditColumnMenu({
     const [tagInput, setTagInput] = useState("");
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    // Deleting a column drops its results: ask first, like every other delete.
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
     const [generating, setGenerating] = useState(false);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -199,6 +202,7 @@ export function TREditColumnMenu({
             setOpen(false);
         } finally {
             setDeleting(false);
+            setConfirmDeleteOpen(false);
         }
     }
 
@@ -397,8 +401,8 @@ export function TREditColumnMenu({
 
                     <div className="mt-3 flex items-center justify-between gap-2">
                         <PillButtonUI
-                            tone="danger"
-                            onClick={handleDelete}
+                            tone="whiteDanger"
+                            onClick={() => setConfirmDeleteOpen(true)}
                             disabled={deleting || saving}
                         >
                             {t("tabular.delete")}
@@ -421,6 +425,19 @@ export function TREditColumnMenu({
                     </div>,
                     document.body,
                 )}
+            <ConfirmPopup
+                open={confirmDeleteOpen}
+                title={t("tabular.deleteColumnConfirmTitle")}
+                message={t("tabular.deleteColumnConfirmMessage", { name: column.name })}
+                confirmLabel={t("tabular.delete")}
+                confirmVariant="danger"
+                confirmStatus={deleting ? "loading" : "idle"}
+                cancelLabel={t("tabular.cancel")}
+                onCancel={() => {
+                    if (!deleting) setConfirmDeleteOpen(false);
+                }}
+                onConfirm={() => void handleDelete()}
+            />
         </div>
     );
 }

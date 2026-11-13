@@ -1173,7 +1173,7 @@ export function DocumentSidePanel({
                             onChange={handleReplaceFileInputChange}
                         />
                         <PillButtonUI
-                            tone="danger"
+                            tone="whiteDanger"
                             size="normal"
                             onClick={requestDeleteDocument}
                             disabled={deletingDocument}

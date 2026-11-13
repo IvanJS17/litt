@@ -42,6 +42,8 @@ import {
     cancelInvitation,
     resendInvitation,
     getOrgApiKeySettings,
+    getOrgFirmProfile,
+    saveOrgFirmProfileBody,
     getOrgSplitClasses,
     saveOrgSplitClassesList,
     saveOrgApiKey,
@@ -422,6 +424,37 @@ orgsRouter.get("/:orgId/api-keys", requireOrgAuth, asyncRoute(async (req, res) =
     if (!result.ok) return sendOrgFailure(res, result);
     res.json(result.settings);
 }));
+
+// GET /orgs/:orgId/profile — the firm's profile (any member); `profile` is null
+// until an owner or admin saves one.
+orgsRouter.get("/:orgId/profile", requireOrgAuth, asyncRoute(async (req, res) => {
+    const result = await getOrgFirmProfile(createServerSupabase(), {
+        userId: res.locals.userId as string,
+        orgId: req.params.orgId,
+    });
+    if (!result.ok) return sendOrgFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.settings);
+}));
+
+// PUT /orgs/:orgId/profile — body { profile: {...} } replaces it, { profile: null }
+// clears it (owner or admin, with MFA when enrolled, like the other firm settings).
+orgsRouter.put(
+    "/:orgId/profile",
+    requireOrgAuth,
+    requireMfaIfEnrolled,
+    asyncRoute(async (req, res) => {
+        const result = await saveOrgFirmProfileBody(createServerSupabase(), {
+            actorId: res.locals.userId as string,
+            actorEmail: res.locals.userEmail as string | undefined,
+            orgId: req.params.orgId,
+            body: req.body,
+        });
+        if (!result.ok) return sendOrgFailure(res, result);
+        res.setHeader("Cache-Control", "private, no-store");
+        res.json(result.settings);
+    }),
+);
 
 // GET /orgs/:orgId/split-classes — the firm's list of document types for
 // splitting a case file (any member); `custom` is false until an admin saves one.

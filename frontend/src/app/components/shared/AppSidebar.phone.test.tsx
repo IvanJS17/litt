@@ -27,9 +27,6 @@ vi.mock("@/app/contexts/ChatHistoryContext", () => ({
         setCurrentChatId: vi.fn(),
     }),
 }));
-vi.mock("@/app/components/chat/mike-icon", () => ({
-    MikeIcon: () => <span aria-hidden="true" />,
-}));
 
 function stubViewport(phone: boolean) {
     vi.stubGlobal("matchMedia", (query: string) => ({
