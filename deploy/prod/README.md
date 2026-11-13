@@ -295,6 +295,23 @@ prueba. Comprobar también «Olvidé mi contraseña» con la misma cuenta.
 curl -s -o /dev/null -w '%{http_code}\n' https://litt.asteroitt.com/auth/v1/signup   # 404 (auth-edge solo expone /verify)
 ```
 
+### Publicar el release de producción
+
+Solo después de una verificación final correcta (arriba), publica un release de
+GitHub. Cada despliegue a producción tiene su release, con la etiqueta
+`prod-YYYYMMDDx`, donde `x` es una letra que distingue despliegues del mismo día.
+Usa el `RELEASE_SHA` que quedó fijado en el VPS (el mismo que reporta `/api/health`):
+
+```bash
+SHA=<RELEASE_SHA desplegado>
+gh release create prod-YYYYMMDDx --repo IvanJS17/litt --target "$SHA" \
+  --title "prod-YYYYMMDDx" --notes "Despliegue de producción. Commit: $SHA"
+```
+
+Antes, revisa `gh release list --repo IvanJS17/litt` para no reutilizar una
+etiqueta. El release no sustituye a la verificación: no lo publiques si el
+despliegue falló o si `/api/health` no reporta ese SHA.
+
 ## 9. Complemento de Word (`word.litt.asteroitt.com`)
 
 Decisión de Iván (7-nov-2026): el complemento se publica en
