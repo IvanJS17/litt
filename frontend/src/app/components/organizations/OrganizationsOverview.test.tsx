@@ -41,6 +41,10 @@ vi.mock("@/app/contexts/WorkspaceContext", () => ({
 // Spread the real module: userFacingApiError resolves MikeApiError from this
 // same module, so a bare object mock leaves its `instanceof` check with an
 // undefined right-hand side.
+// The settings layout names its keys tab after the person's key scope.
+vi.mock("@/app/components/settings/KeyScope", () => ({
+    useKeyScope: () => ({ personalBlocked: false, firmName: null }),
+}));
 vi.mock("@/app/lib/mikeApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/mikeApi")>()),
   listOrgs: mocks.listOrgs,
