@@ -33,7 +33,10 @@ export function extractionCommand(entry: string): { command: string; args: strin
     const bytes = memoryMb * 1024 * 1024;
     // Writable heap/native allocations share the data limit. V8 also reserves
     // address space for code (and the TS loader in dev); bound that separately.
-    const addressBytes = bytes + 1024 ** 3;
+    // It is address space, not RAM: a comparison's WebAssembly reservations
+    // reach ~1.83 GB, so 1 GB of slack left 3-9% and aborted some runs. The real
+    // cap stays --data and the container's cgroup.
+    const addressBytes = bytes + 2 * 1024 ** 3;
     return { command: "prlimit", args: [`--data=${bytes}:${bytes}`, `--as=${addressBytes}:${addressBytes}`, "--core=0:0", "--", process.execPath, ...nodeArgs] };
   }
   return { command: process.execPath, args: nodeArgs };

@@ -202,8 +202,21 @@ describe("VersionCompareModal", () => {
         expect(within(diffTable()).queryByText(/puntualmente/)).toBeNull();
         expect(within(diffTable()).getByText(/45/)).toBeVisible();
         // Gaps stand in for what is hidden.
-        expect(within(diffTable()).getAllByText(/lines? not shown/).length).toBeGreaterThan(0);
+        expect(
+            within(diffTable()).getAllByRole("button", { name: /Show \d+ unchanged lines?/ }).length,
+        ).toBeGreaterThan(0);
         expect(screen.getAllByText("Contains numbers").length).toBeGreaterThan(0);
+    });
+
+    it("opens a gap of unchanged lines on request", async () => {
+        const user = userEvent.setup();
+        renderModal();
+        await screen.findByRole("table");
+        const gaps = () =>
+            within(diffTable()).getAllByRole("button", { name: /Show \d+ unchanged lines?/ });
+        const before = gaps().length;
+        await user.click(gaps()[0]);
+        expect(within(diffTable()).queryAllByRole("button", { name: /Show \d+ unchanged/ }).length).toBe(before - 1);
     });
 
     it("numbers a change in the list like the counter does when the filter is on", async () => {

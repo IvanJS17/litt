@@ -326,7 +326,7 @@ Linux requires `prlimit` (util-linux), installed by Docker and Nixpacks. Missing
 | --- | --- |
 | Parser time | `EXTRACTION_TIMEOUT_MS=180000`, capped at 300000 |
 | Writable data, including native buffers | `EXTRACTION_MAX_MEMORY_MB=1024` MiB |
-| Virtual address space | Data budget + 1024 MiB for runtime reservations |
+| Virtual address space | Data budget + 2048 MiB for runtime reservations (address space, not RAM; `--data` and the cgroup stay the real cap) |
 | Source / returned text | 150 MiB / 16 MiB |
 
 The JS heap keeps the configured memory budget (1024 MiB by default); glibc uses two malloc arenas to

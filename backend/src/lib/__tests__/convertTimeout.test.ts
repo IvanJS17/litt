@@ -1,4 +1,4 @@
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import fs, { existsSync } from "node:fs";
 import { diagnosticErrorTags } from "../observability/diagnostics";
 import { tmpdir } from "node:os";
@@ -123,5 +123,34 @@ describe("docxToPdf deadline", () => {
       failure_code: "conversion_timeout",
     });
     expect(Date.now() - startedAt).toBeLessThan(10_000);
+  });
+});
+
+describe("docxToPdf deadline when soffice mentions an error", () => {
+  it("is still a conversion.timeout, not conversion.failed", async () => {
+    // libreoffice-convert swallows execFile's timeout error when stderr has "error".
+    await writeFile(join(directory, "soffice"), '#!/bin/sh\necho "error: wedged" >&2\nexec sleep 30\n');
+    const { docxToPdf } = await import("../convert.js");
+    const failure = await docxToPdf(Buffer.from("not a real docx")).catch((error) => error);
+    expect(diagnosticErrorTags(failure)).toEqual({
+      error_kind: "conversion.timeout",
+      failure_code: "conversion_timeout",
+    });
+  });
+});
+
+describe("officeFileToPdf deadline", () => {
+  it("kills the whole process group, not only the direct child", async () => {
+    const pidFile = join(directory, "grandchild.pid");
+    await writeFile(join(directory, "soffice"), `#!/bin/sh\nsleep 30 &\necho $! > "${pidFile}"\nwait\n`);
+    const failure = await officeFileToPdf(join(directory, "source.docx"), join(directory, "work")).catch((e) => e);
+    expect(diagnosticErrorTags(failure).error_kind).toBe("conversion.timeout");
+    const pid = Number((await readFile(pidFile, "utf8")).trim());
+    let alive = true;
+    for (let i = 0; i < 20 && alive; i++) {
+      try { process.kill(pid, 0); await new Promise((r) => setTimeout(r, 50)); } catch { alive = false; }
+    }
+    if (alive) process.kill(pid, "SIGKILL");
+    expect(alive).toBe(false);
   });
 });

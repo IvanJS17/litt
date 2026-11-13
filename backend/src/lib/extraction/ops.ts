@@ -7,7 +7,7 @@ import { compareDocx } from "../docxCompare";
 import { docxToMarkdown } from "../docxMarkdown";
 import { inspectDocx } from "../docxInventory";
 import { extractPresentationText } from "../officeText";
-import { extractLegacyOfficeText, extractPdfTextForModel } from "../pdfText";
+import { extractLegacyOfficeText, extractPdfTextForModel, findTextlessPdfPages } from "../pdfText";
 import { spreadsheetToLLMText } from "../spreadsheet";
 import { decodeMarkdownBytes } from "../documentTypes";
 import { extractDocumentMarkdown } from "./documentMarkdown";
@@ -32,6 +32,8 @@ export const EXTRACTION_OPS = {
   docxCompare: (bytes: ArrayBuffer) => compareDocx(bytes),
   /** What a conversion would lose from a Word file. Unzips the package, so it runs here, bounded by the parser's size, time and memory limits. */
   docxInventory: (bytes: ArrayBuffer) => inspectDocx(bytes),
+  /** The pages of a PDF with no text layer: the only ones a scan reading sends. */
+  pdfTextlessPages: (bytes: ArrayBuffer) => findTextlessPdfPages(bytes),
   /** read_document views, one per file type. */
   pdfForModel: (bytes: ArrayBuffer) => extractPdfTextForModel(bytes),
   // The same accepted view the edit_document matcher anchors against, with

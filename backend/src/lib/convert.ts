@@ -136,6 +136,12 @@ async function getConvert() {
               sofficeBinaryPaths: resolveSofficeBinaryPaths(),
               // The library runs soffice with execFile: without these a
               // wedged soffice holds the caller forever.
+              // Not a process group kill: libreoffice-convert does not expose
+              // the child or let a launcher be put in front of soffice, and
+              // execFile's timeout signals only the direct child. A descendant
+              // that outlives it is reaped when the parser process group is
+              // killed (isolated.ts killParser) for the callers running there;
+              // officeFileToPdf, the upload-worker path, kills its group.
               execOptions: {
                 timeout: uploadConversionTimeoutMs(),
                 killSignal: "SIGKILL",
@@ -157,12 +163,54 @@ async function getConvert() {
   return _convert;
 }
 
+/** Inflated-size caps for the rewrite below. It runs in the caller's process. */
+const MAX_PART_BYTES = 64 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 160 * 1024 * 1024;
+
+type ByteStream = {
+  on(event: "data", cb: (chunk: Uint8Array) => void): ByteStream;
+  on(event: "end", cb: () => void): ByteStream;
+  on(event: "error", cb: (error: Error) => void): ByteStream;
+  pause(): ByteStream;
+  resume(): ByteStream;
+};
+
+/**
+ * Inflate one entry, stopping as soon as `limit` bytes come out. A zip header
+ * can declare any size, so the count is on the bytes that actually inflate;
+ * null means the entry went over and was abandoned.
+ */
+function inflateWithin(entry: JSZip.JSZipObject, limit: number): Promise<Buffer | null> {
+  return new Promise((resolve, reject) => {
+    const stream = (entry as unknown as { internalStream(type: "uint8array"): ByteStream })
+      .internalStream("uint8array");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    stream
+      .on("data", (chunk) => {
+        size += chunk.length;
+        if (size > limit) {
+          stream.pause();
+          chunks.length = 0;
+          resolve(null);
+        } else chunks.push(chunk);
+      })
+      .on("error", reject)
+      .on("end", () => resolve(Buffer.concat(chunks)))
+      .resume();
+  });
+}
+
 /**
  * Some older Windows/Word archives store .docx entries with backslash
- * separators (e.g. `word\document.xml`). Mammoth and LibreOffice both look
+ * separators (e.g. `word\\document.xml`). Mammoth and LibreOffice both look
  * up entries by exact string and miss those files, producing empty output
  * or conversion failures. Rewrite any such entries to the canonical
  * forward-slash form before handing the buffer off.
+ *
+ * The rewrite inflates every entry in this process, so it is capped per part
+ * and in total on the bytes that really inflate (a header can lie). Over a
+ * cap the original is returned untouched, as for an unreadable zip.
  */
 export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   let zip: JSZip;
@@ -171,21 +219,21 @@ export async function normalizeDocxZipPaths(buffer: Buffer): Promise<Buffer> {
   } catch {
     return buffer;
   }
-  const renames: [string, string][] = [];
-  zip.forEach((relativePath) => {
-    if (relativePath.includes("\\")) {
-      renames.push([relativePath, relativePath.replace(/\\/g, "/")]);
+  if (!Object.keys(zip.files).some((name) => name.includes("\\"))) return buffer;
+  const rebuilt = new JSZip();
+  let total = 0;
+  for (const [name, entry] of Object.entries(zip.files)) {
+    const target = name.replace(/\\/g, "/");
+    if (entry.dir) {
+      rebuilt.folder(target);
+      continue;
     }
-  });
-  if (renames.length === 0) return buffer;
-  for (const [oldPath, newPath] of renames) {
-    const entry = zip.file(oldPath);
-    if (!entry) continue;
-    const content = await entry.async("nodebuffer");
-    zip.remove(oldPath);
-    zip.file(newPath, content);
+    const content = await inflateWithin(entry, Math.min(MAX_PART_BYTES, MAX_TOTAL_BYTES - total));
+    if (!content) return buffer;
+    total += content.length;
+    rebuilt.file(target, content);
   }
-  return zip.generateAsync({ type: "nodebuffer" });
+  return rebuilt.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
 /**
@@ -198,6 +246,7 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
   }
   const convert = await getConvert();
   const normalized = await normalizeDocxZipPaths(buffer);
+  const startedAt = Date.now();
   try {
     return await convert(normalized, ".pdf", undefined);
   } catch (error) {
@@ -206,9 +255,13 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
     // missing or unexecutable, the same condition officeFileToPdf names.
     const code = (error as { code?: unknown } | null)?.code;
     if (code === "ENOENT" || code === "EACCES") throw converterUnavailable(error);
-    // execFile reports its own deadline as killed + SIGKILL.
+    // execFile reports its own deadline as killed + SIGKILL. libreoffice-convert
+    // 1.9.1 drops that error when stderr mentions "error" (which a killed
+    // soffice often prints) and throws a plain one, so a failure that came
+    // after the deadline is also the deadline.
     const killed = error as { killed?: unknown; signal?: unknown } | null;
-    if (killed?.killed === true && killed.signal === "SIGKILL") {
+    const pastDeadline = Date.now() - startedAt >= uploadConversionTimeoutMs();
+    if ((killed?.killed === true && killed.signal === "SIGKILL") || pastDeadline) {
       throw new ConversionError(
         "conversion.timeout",
         `LibreOffice conversion timed out after ${uploadConversionTimeoutMs()}ms`,
@@ -257,14 +310,21 @@ export async function officeFileToPdf(
           outputDirectory,
           inputPath,
         ],
-        { stdio: ["ignore", "ignore", "pipe"] },
+        // Its own process group, so the deadline reaches soffice.bin and any
+        // other descendant, not only this direct child.
+        { stdio: ["ignore", "ignore", "pipe"], detached: process.platform !== "win32" },
       );
       let timedOut = false;
       // LibreOffice can wedge on a malformed document and never exit, which
       // would hold this worker slot for the life of the process.
       const deadline = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        try {
+          if (child.pid && process.platform !== "win32") process.kill(-child.pid, "SIGKILL");
+          else child.kill("SIGKILL");
+        } catch {
+          child.kill("SIGKILL");
+        }
       }, timeoutMs);
       deadline.unref();
       child.stderr.on("data", (chunk) => {

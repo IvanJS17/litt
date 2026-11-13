@@ -148,11 +148,13 @@ export async function validateDestinationAccess(
     const documentId = destination.document_id as string;
     const { data: document, error } = await db
       .from("documents")
-      .select("id, user_id, project_id, org_id, workflow_id, current_version_id")
+      .select("id, user_id, project_id, org_id, workflow_id, current_version_id, archived_at")
       .eq("id", documentId)
       .maybeSingle();
     if (error) return internalFailure(error);
-    if (!document) return failure(404, { detail: "Document not found" });
+    // An archived document is not found, as in ensureDocumentAccess.
+    if (!document || document.archived_at)
+      return failure(404, { detail: "Document not found" });
     const access = await ensureDocAccess(document, userId, userEmail, db);
     const canEditContent =
       access.ok && can(access.projectRole, "content.edit");

@@ -22,7 +22,7 @@ export function ocrPageText(fill: OcrFill, page: number): string | null {
     return fill.pages.find((entry) => entry.page === page)?.text ?? null;
 }
 
-/** An estimate, in US dollars, for reading `pages` pages. */
+/** An estimate, in US dollars, for reading `pages` pages (only the scanned ones are sent and billed). */
 export function estimateOcrCostUsd(pages: number): number {
     return Math.round(Math.max(0, pages) * OCR_USD_PER_PAGE * 100) / 100;
 }
@@ -44,8 +44,10 @@ export function splitOcrPages(markdown: string, pageCount: number): string[] | n
  * `structure` (their `grounding.page` and `grounding.range`, in Unicode code
  * points over the Markdown) and, when those are absent, the page-break marker.
  * Null when neither lines up, so a passage is never put on a guessed page.
+ * When only some pages were requested (`only`, 1-indexed, ascending), the
+ * markers separate just those pages, in that order.
  */
-export function readOcrPages(markdown: string, structure: unknown, pageCount: number): OcrPage[] | null {
+export function readOcrPages(markdown: string, structure: unknown, pageCount: number, only?: readonly number[]): OcrPage[] | null {
     const clean = (text: string) => text.replaceAll(OCR_PAGE_BREAK, "").trim();
     const children = (structure as { children?: unknown } | null)?.children;
     if (Array.isArray(children)) {
@@ -62,6 +64,6 @@ export function readOcrPages(markdown: string, structure: unknown, pageCount: nu
         }
         if (pages.length > 0) return pages;
     }
-    const split = splitOcrPages(markdown, pageCount);
-    return split ? split.map((text, index) => ({ page: index + 1, text })) : null;
+    const split = splitOcrPages(markdown, only ? only.length : pageCount);
+    return split ? split.map((text, index) => ({ page: only ? only[index] : index + 1, text })) : null;
 }
