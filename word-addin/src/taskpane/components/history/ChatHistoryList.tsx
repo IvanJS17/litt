@@ -172,7 +172,7 @@ export function ChatHistoryListView({
               type="button"
               onClick={() => void openChat(chat.id)}
               disabled={loadingChatId !== null}
-              className="flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs text-gray-700 transition-all hover:bg-gray-100 disabled:opacity-50"
+              className="flex w-full min-w-0 items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
             >
               <span
                 className={cn(

@@ -1271,7 +1271,7 @@ export function AssistantChatColumn({
                                             type="button"
                                             aria-label={t("assistant.chatView.scrollToBottom")}
                                             onClick={scrollToBottom}
-                                            className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-all md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
+                                            className={`absolute bottom-full right-7 z-30 translate-y-1/2 cursor-pointer rounded-full p-2 transition-[opacity,transform,background-color,box-shadow] md:right-9 ${LIQUID_GLASS_TRANSLUCENT_ACTION_CLASS}`}
                                         >
                                             <ArrowDown className="h-6 w-6 text-gray-500" />
                                         </button>

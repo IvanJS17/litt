@@ -166,7 +166,7 @@ export function ModalSelect({
                             selected={option.value === value}
                             onSelect={() => handleSelect(option.value)}
                             className={cn(
-                                "w-full rounded-md py-2 text-left transition-all",
+                                "w-full rounded-md py-2 text-left transition-colors",
                                 option.value === value
                                     ? "text-gray-900"
                                     : "text-gray-700",

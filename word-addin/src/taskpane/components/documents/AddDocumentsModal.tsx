@@ -590,7 +590,7 @@ export function AddDocumentsModal({
         aria-pressed={selected}
         onClick={() => toggleDocument(document)}
         style={{ paddingLeft: 8 + depth * 16 }}
-        className={`w-full min-w-0 rounded-md py-2 pr-2 text-left text-xs transition-all ${DIRECTORY_GRID_CLASS} ${
+        className={`w-full min-w-0 rounded-md py-2 pr-2 text-left text-xs transition-colors ${DIRECTORY_GRID_CLASS} ${
           selected
             ? "bg-gray-200 text-gray-900"
             : "text-gray-700 hover:bg-gray-100"
@@ -631,7 +631,7 @@ export function AddDocumentsModal({
             type="button"
             onClick={() => void toggleLibraryFolder(folder.id)}
             style={{ paddingLeft: 8 + depth * 16 }}
-            className={`w-full rounded-md py-2 pr-2 text-left text-xs text-gray-700 transition-all hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
+            className={`w-full rounded-md py-2 pr-2 text-left text-xs text-gray-700 transition-colors hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
           >
             <span
               role="checkbox"
@@ -724,7 +724,7 @@ export function AddDocumentsModal({
             type="button"
             onClick={() => void toggleProjectFolder(projectId, folder.id)}
             style={{ paddingLeft: 8 + depth * 16 }}
-            className={`w-full rounded-md py-2 pr-2 text-left text-xs text-gray-700 transition-all hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
+            className={`w-full rounded-md py-2 pr-2 text-left text-xs text-gray-700 transition-colors hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
           >
             <span
               role="checkbox"
@@ -920,7 +920,7 @@ export function AddDocumentsModal({
                       <button
                         type="button"
                         onClick={() => void toggleProject(project.id)}
-                        className={`w-full rounded-md px-2 py-2.5 text-left text-xs text-gray-700 transition-all hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
+                        className={`w-full rounded-md px-2 py-2.5 text-left text-xs text-gray-700 transition-colors hover:bg-gray-100 ${DIRECTORY_GRID_CLASS}`}
                       >
                         <span
                           role="checkbox"

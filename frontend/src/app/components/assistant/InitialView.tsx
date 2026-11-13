@@ -120,7 +120,7 @@ export function InitialView({
                                 type="button"
                                 onClick={onEditQuickActions}
                                 aria-label={t("assistant.initialView.configureQuickActions")}
-                                className="absolute left-full ml-1.5 flex h-5 w-5 items-center justify-center text-gray-400 opacity-0 transition-all hover:text-gray-700 group-hover:opacity-100 focus:opacity-100"
+                                className="absolute left-full ml-1.5 flex h-5 w-5 items-center justify-center text-gray-400 opacity-0 transition-[opacity,color] hover:text-gray-700 group-hover:opacity-100 focus:opacity-100"
                             >
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </button>
@@ -131,7 +131,7 @@ export function InitialView({
                                     key={action.id}
                                     type="button"
                                     onClick={() => handleQuickAction(action)}
-                                    className={`inline-flex h-8 items-center justify-center rounded-full px-3 font-medium text-gray-600 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-all hover:text-gray-900 active:scale-[0.98] disabled:cursor-default disabled:opacity-45 disabled:active:scale-100`}
+                                    className={`inline-flex h-8 items-center justify-center rounded-full px-3 font-medium text-gray-600 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-[color,background-color,box-shadow,transform] hover:text-gray-900 active:scale-[0.98] disabled:cursor-default disabled:opacity-45 disabled:active:scale-100`}
                                 >
                                     {action.name?.trim() ||
                                         action.workflow.title}

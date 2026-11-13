@@ -17,6 +17,7 @@ const { push, replace, reloadProfile, updateUserProfile, listMyOrgInvitations, a
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ push, replace }),
     usePathname: () => "/onboarding/profile",
+    useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 vi.mock("@/app/contexts/AuthContext", () => ({

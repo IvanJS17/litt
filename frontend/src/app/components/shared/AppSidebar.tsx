@@ -508,7 +508,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     isOpen ? "rounded-2xl" : "rounded-[23px]",
                     "my-2 ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
                     LIQUID_GLASS_FLOAT_CLASS,
-                    "absolute z-[99] flex shrink-0 flex-col transition-all duration-300 motion-reduce:transition-none md:relative",
+                    "absolute z-[99] flex shrink-0 flex-col transition-[width,border-radius,transform] duration-300 motion-reduce:transition-none md:relative",
                 )}
             >
                 {/* Toggle + Logo */}
