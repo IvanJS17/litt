@@ -1,6 +1,7 @@
 // User profile, personal settings and connector operations.
 // Cross-domain account/export workflows live in application/.
 export { errorMessage } from "./user.shared";
+export { LEGAL_VERSION } from "./user.profile.storage";
 
 export {
     validateProfilePayload,

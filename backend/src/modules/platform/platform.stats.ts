@@ -22,7 +22,7 @@ import {
 } from "../../lib/batchedQuery";
 import { internalFailure, ok, type ServiceResult } from "../../lib/serviceResult";
 import type { Db } from "../../lib/supabase";
-import { LEGAL_VERSION } from "../user/user.profile.storage";
+import { LEGAL_VERSION } from "../user/user.service";
 
 export const STATS_FEATURES = [
   "chats",
