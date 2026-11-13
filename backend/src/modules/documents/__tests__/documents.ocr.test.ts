@@ -24,6 +24,7 @@ vi.mock("../../../lib/ocr/landingai", async (importOriginal) => ({
   parsePdfWithLandingAi: mocks.parse,
 }));
 import { OcrError } from "../../../lib/ocr/landingai";
+import { estimateOcrCostUsd } from "../../../lib/ocr/pages";
 import {
   getScanReadingState, handleDocumentOcr, markDocumentOcrFailed, queueScanReadingOnUpload, requestScanReading,
 } from "../documents.ocr";
@@ -53,6 +54,14 @@ describe("scan reading state", () => {
     const fake = scriptedDb([{ table: "document_version_ocr", data: null }]);
     const result = await getScanReadingState(fake.db, args);
     expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.03, auto_max_pages: 50, can_edit: true } });
+    fake.done();
+  });
+  it("after a partial reading estimates every scanned page that is sent again, not only the unread ones", async () => {
+    // 3 pages still unread, 7 already read: reading again sends 10.
+    const read = Array.from({ length: 7 }, (_, i) => ({ page: i + 1, text: "x" }));
+    const fake = scriptedDb([{ table: "document_version_ocr", data: row({ status: "ready", pages: read, failed_pages: [2, 5, 9] }) }]);
+    const result = await getScanReadingState(fake.db, args);
+    expect(result).toMatchObject({ ok: true, data: { textless_page_count: 3, needs_reading: true, estimated_cost_usd: estimateOcrCostUsd(10) } });
     fake.done();
   });
   it("reports a running reading and hides the button; a reading of other bytes counts as none", async () => {

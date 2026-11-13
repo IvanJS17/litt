@@ -99,8 +99,10 @@ async function describeState(db: Db, userId: string, target: Target): Promise<Sc
     page_count: pages,
     textless_page_count: textless,
     auto_max_pages: OCR_AUTO_MAX_PAGES,
-    // Only the pages without a text layer are sent and billed.
-    estimated_cost_usd: textless ? estimateOcrCostUsd(textless) : null,
+    // Only the pages without a text layer are sent and billed. After a partial reading
+    // `textless` counts just the pages still unread, but reading again sends every scanned
+    // page of the file again: the ones already read plus the ones still unread.
+    estimated_cost_usd: textless ? estimateOcrCostUsd(textless + (current?.pages?.length ?? 0)) : null,
     credits: credits !== null && Number.isFinite(credits) ? credits : null,
   };
 }
