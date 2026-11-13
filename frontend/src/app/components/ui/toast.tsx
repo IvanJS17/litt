@@ -9,13 +9,12 @@
 
 import { useEffect, useMemo } from "react";
 import {
-    NOTICE_EXIT_MS,
     ToastActionsUI,
     ToastViewportUI,
     dismissToast,
     showToast,
     toastHasActions,
-    useExitingList,
+    useExitingToasts,
     useToasts,
 } from "@mike/ui";
 import {
@@ -82,7 +81,7 @@ export function AppToasts() {
         () => toasts.filter((toast) => toast.tone === "error"),
         [toasts],
     );
-    const warnings = useExitingList(errors, NOTICE_EXIT_MS);
+    const warnings = useExitingToasts(errors);
 
     return (
         <>

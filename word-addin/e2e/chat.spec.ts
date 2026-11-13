@@ -735,9 +735,13 @@ test("the failed-answer Retry re-sends in its own chat, never in one opened sinc
   await page.getByRole("button", { name: "New chat" }).click();
   await expect(page.getByText("Prompt from chat A")).toHaveCount(0);
   await retry.click();
+  // The notice's text is on the card and, for screen readers, in the
+  // notifications' hidden polite region: check each in its own place.
+  const changed = "This chat has changed. Open the original chat to check its answer.";
+  await expect(page.getByTestId("toast").getByText(changed)).toBeVisible();
   await expect(
-    page.getByText("This chat has changed. Open the original chat to check its answer."),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Notifications" }).getByRole("status"),
+  ).toHaveText(changed);
   expect(posts).toBe(1);
   await expect(page.getByText("Prompt from chat A")).toHaveCount(0);
 });

@@ -43,7 +43,7 @@ import {
     type ToastRecord,
 } from "@mike/client";
 import { useTranslations } from "use-intl";
-import { useExitingList } from "./useExitingList";
+import { useExitingList, type ExitingListEntry } from "./useExitingList";
 export { useExitingList, type ExitingListEntry } from "./useExitingList";
 export {
     showToast,
@@ -153,6 +153,23 @@ export function useToasts(): readonly ToastRecord[] {
 
 /** How long a dismissed notice takes to fade out (see `.notice-card` in LiquidGlassUI.css). */
 export const NOTICE_EXIT_MS = 150;
+
+/**
+ * The toasts to draw, each dismissed one kept for its fade-out — unless a
+ * toast with its `dedupeKey` is up again (a Retry that failed again): that
+ * one replaces the old card at once, as fading the old one out beside it
+ * would show the same notice twice.
+ */
+export function useExitingToasts(
+    toasts: readonly ToastRecord[],
+): ExitingListEntry<ToastRecord>[] {
+    return useExitingList(toasts, NOTICE_EXIT_MS).filter(
+        ({ item, leaving }) =>
+            !leaving ||
+            !item.dedupeKey ||
+            !toasts.some((toast) => toast.dedupeKey === item.dedupeKey),
+    );
+}
 
 function ToastItemUI({
     toast,
@@ -316,7 +333,7 @@ export function ToastViewportUI({
                 : toasts.filter((toast) => toast.tone !== "error"),
         [showErrors, toasts],
     );
-    const entries = useExitingList(visible, NOTICE_EXIT_MS);
+    const entries = useExitingToasts(visible);
     const announcement = useAnnouncement(toasts);
 
     return (

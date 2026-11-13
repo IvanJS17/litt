@@ -377,10 +377,43 @@ describe("ToastUI", () => {
         });
         const leaving = screen.getByTestId("toast");
         expect(leaving).toHaveAttribute("data-leaving");
+        // Its buttons are out of reach while it fades: no second click.
+        expect(leaving).toHaveAttribute("inert");
+        expect(leaving).toHaveAttribute("aria-hidden", "true");
+        expect(screen.queryByRole("button", { name: /dismiss/i })).toBeNull();
         act(() => {
             vi.advanceTimersByTime(150);
         });
         expect(screen.queryByTestId("toast")).toBeNull();
+        vi.unstubAllGlobals();
+    });
+
+    it("replaces a fading toast at once when its key is raised again", () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({
+            matches: query === "(prefers-reduced-motion: no-preference)",
+            media: query,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            onchange: null,
+            dispatchEvent: () => false,
+        }));
+        render(<ToastViewportUI />);
+        let id = "";
+        act(() => {
+            id = showToast({ message: "Failed", dedupeKey: "turn", durationMs: null });
+        });
+        act(() => {
+            dismissToast(id);
+        });
+        expect(screen.getByTestId("toast")).toHaveAttribute("data-leaving");
+        act(() => {
+            showToast({ message: "Failed", dedupeKey: "turn", durationMs: null });
+        });
+        const cards = screen.getAllByTestId("toast");
+        expect(cards).toHaveLength(1);
+        expect(cards[0]).not.toHaveAttribute("data-leaving");
         vi.unstubAllGlobals();
     });
 });

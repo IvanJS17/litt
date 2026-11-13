@@ -242,6 +242,11 @@ export function NoticeCardUI({
             data-tone={tone}
             data-leaving={leaving ? "" : undefined}
             {...rest}
+            // A leaving card is only a picture of itself fading out: it takes
+            // no clicks or focus (a second Retry would send again) and is
+            // gone for assistive tech, which already has the newer card.
+            inert={leaving || undefined}
+            aria-hidden={leaving ? true : rest["aria-hidden"]}
             {...swipe}
             className={twMerge(
                 clsx(
