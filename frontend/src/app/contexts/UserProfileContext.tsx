@@ -283,8 +283,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 await new Promise((resolve) => setTimeout(resolve, 750));
                 profileData = await getUserProfile();
             }
-            setProfile(toProfile(profileData));
-            setApiKeysDegraded(false);
+            applyProfile(profileData);
             void syncUiLocale(profileData.uiLocale);
         } catch (error) {
             console.warn(

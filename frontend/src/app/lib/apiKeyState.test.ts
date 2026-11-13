@@ -57,8 +57,8 @@ describe("apiKeyStateFromStatus", () => {
 
     it("treats a missing or malformed status as no provider configured", () => {
         // A forked server, or a proxy or misrouted API URL answering 200
-        // with another body, sends a profile without `apiKeyStatus` (Sentry
-        // MIKE-FRONTEND-4H: this threw a TypeError on `status[provider]`).
+        // with another body, sends a profile without `apiKeyStatus` (this
+        // threw a TypeError on `status[provider]`).
         const none = { configured: false, enabled: true, source: null };
         for (const missing of [undefined, null, "<html>", ["claude"]]) {
             const state = apiKeyStateFromStatus(missing as ApiKeyStatus | undefined);

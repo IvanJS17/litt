@@ -45,9 +45,8 @@ describe("errorReporting (local only, no third-party telemetry)", () => {
     });
 });
 
-it("reports an unowned 503 even with a recognized code, preserving the original Error", () => {
-    state.enabled = true;
+it("marks an unowned 503 with a recognized code as handled, keeping the original Error", () => {
     const failure = new Error("private transport detail");
-    reportApiFailure({ path: "/chat", status: 503, code: "upstream_unavailable", error: failure });
-    expect(Sentry.captureException).toHaveBeenCalledWith(failure);
+    expect(reportApiFailure({ path: "/chat", status: 503, code: "upstream_unavailable", error: failure })).toBeNull();
+    expect(isReported(failure)).toBe(true);
 });

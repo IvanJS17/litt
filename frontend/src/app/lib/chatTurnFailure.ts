@@ -1,4 +1,4 @@
-import { clientTranslator } from "@mike/client";
+import { BACKEND_REPORTING_OWNER, clientTranslator } from "@mike/client";
 import { UserVisibleError, describeError } from "@/app/lib/userFacingError";
 
 // What a chat surface says, and offers, when a turn fails. The assistant chat

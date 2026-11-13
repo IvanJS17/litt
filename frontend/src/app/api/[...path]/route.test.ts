@@ -176,7 +176,6 @@ describe("same-origin API gateway", () => {
 
         await GET(request, context(["health"]));
 
-        expect(reportError).not.toHaveBeenCalled();
         expect(errorSpy).not.toHaveBeenCalled();
     });
 
@@ -208,7 +207,7 @@ describe("same-origin API gateway", () => {
 
         // An event stream errors too: the chat client resumes a turn only
         // when its read fails, so a clean end would leave the answer partial.
-        it("reports one pinned warning and errors an event stream so the client resumes", async () => {
+        it("logs one warning and errors an event stream so the client resumes", async () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
             const failure = socketClosed();
             fetchMock.mockResolvedValue(
@@ -221,19 +220,12 @@ describe("same-origin API gateway", () => {
             const reader = response.body!.getReader();
             expect(new TextDecoder().decode((await reader.read()).value)).toBe("data: first\n\n");
             await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
-            expect(reportError).toHaveBeenCalledTimes(1);
-            expect(reportError).toHaveBeenCalledWith(failure, {
-                level: "warning",
-                fingerprint: ["upstream-unavailable"],
-                tags: expect.objectContaining({
-                    component: "api-gateway",
-                    stage: "gateway-stream",
-                    http_route: "/chat",
-                    http_status: 200,
-                    failure_code: "UND_ERR_SOCKET",
-                }),
-            });
-            expect(warn).toHaveBeenCalledWith("[api-gateway] upstream response stream failed", failure, expect.any(Object));
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn).toHaveBeenCalledWith(
+                "[api-gateway] upstream response stream failed",
+                failure,
+                expect.objectContaining({ method: "POST", status: 200, unreachable: "UND_ERR_SOCKET" }),
+            );
         });
 
         it.each(["11111111-1111-4111-8111-111111111111", null, "private-customer-value"])(
@@ -250,18 +242,19 @@ describe("same-origin API gateway", () => {
                 expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
                 if (upstreamRequestId?.startsWith("11111111")) expect(requestId).toBe(upstreamRequestId);
                 await expect(readBody(response)).rejects.toMatchObject({ name: "AbortError" });
-                expect(reportError).toHaveBeenCalledWith(failure, expect.objectContaining({
-                    tags: expect.objectContaining({ request_id: requestId }),
-                }));
-                expect(warn).toHaveBeenCalledWith("[api-gateway] upstream response stream failed", failure, { requestId });
+                expect(warn).toHaveBeenCalledWith(
+                    "[api-gateway] upstream response stream failed",
+                    failure,
+                    expect.objectContaining({ requestId }),
+                );
             },
         );
 
         // A body timeout means the backend is up but held the stream silent
         // for 300 s: a hang, not an outage. Like an unrecognised code it keeps
-        // an error-level report with default grouping (MIKE-FRONTEND-2C).
-        it("keeps distinct unknown failures and body timeouts eligible for final transport sampling", async () => {
-            vi.spyOn(console, "warn").mockImplementation(() => {});
+        // a warning of its own.
+        it("logs every distinct unknown failure and body timeout, each with its own line", async () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
             const bodyTimeout = () =>
                 new TypeError("terminated", {
                     cause: Object.assign(new Error("Body Timeout Error"), {
@@ -280,19 +273,12 @@ describe("same-origin API gateway", () => {
                 await expect(readBody(response)).rejects.toMatchObject({ name: "AbortError" });
             }
 
-            expect(reportError).toHaveBeenCalledTimes(4);
-            for (const [, options] of vi.mocked(reportError).mock.calls) {
-                expect(options).not.toHaveProperty("level");
-                expect(options).not.toHaveProperty("fingerprint");
-                expect(options).toMatchObject({ tags: { component: "api-gateway", stage: "gateway-stream" } });
-            }
-            expect(vi.mocked(reportError).mock.calls[0][1]).toMatchObject({
-                tags: { failure_code: "UND_ERR_BODY_TIMEOUT" },
-            });
+            expect(warn).toHaveBeenCalledTimes(4);
+            expect(warn.mock.calls[0]?.[2]).toMatchObject({ unreachable: null });
         });
 
         it("aborts any other body so a truncated download never looks complete", async () => {
-            vi.spyOn(console, "warn").mockImplementation(() => {});
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
             fetchMock.mockResolvedValue(
                 new Response(failingBody(socketClosed()), { headers: { "content-type": "application/pdf" } }),
             );
@@ -303,7 +289,7 @@ describe("same-origin API gateway", () => {
             );
 
             await expect(readBody(response)).rejects.toMatchObject({ name: "AbortError" });
-            expect(reportError).toHaveBeenCalledTimes(1);
+            expect(warn).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -317,7 +303,7 @@ describe("same-origin API gateway", () => {
         expect(response.status).toBe(502);
         await expect(response.json()).resolves.toEqual({
             detail: "The API is temporarily unavailable.",
-                reporting_owner: "backend",
+            reporting_owner: "backend",
             request_id: response.headers.get("x-request-id"),
         });
     });
@@ -372,7 +358,7 @@ describe("same-origin API gateway", () => {
         expect(response.status).toBe(502);
         await expect(response.json()).resolves.toEqual({
             detail: "The API is temporarily unavailable.",
-                reporting_owner: "backend",
+            reporting_owner: "backend",
             request_id: response.headers.get("x-request-id"),
         });
         expect(errorSpy).toHaveBeenCalledWith(
@@ -454,6 +440,7 @@ it("generates its own request ID and never trusts a client-supplied one", async 
         const requestId = response.headers.get("x-request-id");
         expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
         expect(requestId).not.toBe("untrusted-private-value");
+        expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get('x-request-id')).toBe(requestId);
         expect((await response.json()).request_id).toBe(requestId);
     } finally {
         vi.unstubAllGlobals();

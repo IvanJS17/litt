@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { upstreamUnreachableCode } from "./upstreamFailure";
+import { describe, expect, it, vi } from "vitest";
+import { guardUpstreamBody, upstreamUnreachableCode } from "./upstreamFailure";
 
 describe("upstreamUnreachableCode", () => {
     it("finds the connect code under fetch's cause and AggregateError entries", () => {
@@ -39,6 +39,15 @@ describe("upstreamUnreachableCode", () => {
         });
         expect(upstreamUnreachableCode({ ...wrapped, cause: wrapped.cause })).toBe("ECONNRESET");
     });
+});
+
+// MIKE-FRONTEND-3B: the backend closing the socket while a request body is
+// still being written is the backend going away, not an application error.
+it("treats EPIPE as an unreachable backend", () => {
+    const failure = new TypeError("fetch failed", {
+        cause: Object.assign(new Error("write EPIPE"), { code: "EPIPE" }),
+    });
+    expect(upstreamUnreachableCode(failure)).toBe("EPIPE");
 });
 
 describe("guardUpstreamBody", () => {

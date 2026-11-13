@@ -29,6 +29,12 @@ const {
 }));
 
 const auth = vi.hoisted(() => ({ signedIn: true }));
+const reportError = vi.hoisted(() => vi.fn(() => null));
+vi.mock("@/app/lib/errorReporting", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/app/lib/errorReporting")>()),
+    reportError,
+}));
+
 vi.mock("@/app/contexts/AuthContext", () => ({
     useAuth: () => ({
         user: auth.signedIn ? { id: "u1" } : null,
@@ -601,7 +607,7 @@ function ProfileSummary() {
 }
 
 describe("UserProfileProvider when the server omits apiKeyStatus", () => {
-    // Sentry MIKE-FRONTEND-4H: a profile answered 200 without
+    // A profile answered 200 without
     // `apiKeyStatus`; normalising it threw, the throw was filed as a fault
     // and the user got the placeholder profile. Every Mike backend sends the
     // field, so the sender was a forked server or a proxy/misroute.
@@ -628,7 +634,7 @@ describe("UserProfileProvider when the server omits apiKeyStatus", () => {
     it.each([
         ["missing", withoutKeyStatus],
         ["malformed", () => ({ ...apiProfile(false), apiKeyStatus: "enabled" })],
-    ])("shows the real profile when the key status is %s, fails open and warns Sentry once", async (_case, body) => {
+    ])("shows the real profile when the key status is %s, fails open and reports once", async (_case, body) => {
         getUserProfile.mockResolvedValue(body());
         renderProfile();
 

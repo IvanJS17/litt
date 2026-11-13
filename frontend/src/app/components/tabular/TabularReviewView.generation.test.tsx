@@ -15,9 +15,7 @@ import type {
 } from "@/app/components/shared/types";
 import type { ReviewCellStore } from "./reviewCellStore";
 import { TRView } from "./TabularReviewView";
-import * as Sentry from "@sentry/react";
-import { clearToasts, privacyBoundaryIntegration } from "@mike/client";
-import { scrubEvent } from "@/app/lib/errorReporting";
+import { clearToasts } from "@mike/client";
 
 const { apiKeyState } = vi.hoisted(() => ({
     apiKeyState: {
@@ -211,17 +209,10 @@ describe("TabularReviewView server-owned generation", () => {
         }));
     });
 
-    it.each(["backend", undefined, "proxy"])("reports run-start failures only without explicit backend ownership (%s)", async owner => {
-        const events: Sentry.Event[] = [];
+    it.each(["backend", undefined, "proxy"])("keeps the backend detail off the screen and out of the log on a run-start failure (%s)", async owner => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         clearToasts();
-        Sentry.init({
-            dsn: "https://test@sentry.invalid/1", defaultIntegrations: false,
-            integrations: [privacyBoundaryIntegration()], beforeSend: scrubEvent,
-            transport: () => ({ send: async envelope => {
-                for (const [header, payload] of envelope[1]) if (header.type === "event") events.push(payload as Sentry.Event);
-                return { statusCode: 200 };
-            }, flush: async () => true }),
-        });
         try {
             mockDetail({});
             const requestId = "11111111-1111-4111-8111-111111111111";
@@ -232,12 +223,11 @@ describe("TabularReviewView server-owned generation", () => {
             fireEvent.click(await screen.findByTitle("Run review"));
             await waitFor(() => expect(streamTabularGeneration).toHaveBeenCalledOnce());
             await screen.findByTitle("Run review");
-            expect(await Sentry.flush(2000)).toBe(true);
-            expect(events).toHaveLength(owner === "backend" ? 0 : 1);
-            if (owner !== "backend") expect(events[0]?.tags).toMatchObject({ operation: "tabular.run", http_status: 503, request_id: requestId });
-            expect(JSON.stringify(events)).not.toContain("PRIVATE_BACKEND_DETAIL");
+            expect(screen.queryByText("PRIVATE_BACKEND_DETAIL")).not.toBeInTheDocument();
+            expect(JSON.stringify([...error.mock.calls, ...warn.mock.calls])).not.toContain("PRIVATE_BACKEND_DETAIL");
         } finally {
-            await Sentry.close();
+            error.mockRestore();
+            warn.mockRestore();
             clearToasts();
         }
     });

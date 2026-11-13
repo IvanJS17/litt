@@ -1,4 +1,4 @@
-import { clientTranslator } from "@mike/client";
+import { BACKEND_REPORTING_OWNER, clientTranslator } from "@mike/client";
 import { createRedlineStreamProjector } from "../lib/redline";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
@@ -10,7 +10,7 @@ import {
   type WordTurnHandlers,
 } from "../api/stream";
 import { postWordChatToolResult, stopWordChatTurn } from "../api/mikeApi";
-import { reportError } from "../lib/errorReporting";
+import { isReported, reportError } from "../lib/errorReporting";
 import { useWordDoc } from "./useWordDoc";
 import type {
   DocumentReadActivity,
@@ -976,7 +976,7 @@ export function useWordAssistantChat({
             markTrainingStageStale();
             options.onTrainingRefused?.();
           }
-          if (!controller.signal.aborted && !(error instanceof WordChatTerminalError && error.reportingOwner === "backend")) {
+          if (!controller.signal.aborted && !isReported(error) && !(error instanceof WordChatTerminalError && error.reportingOwner === BACKEND_REPORTING_OWNER)) {
             // The stream failed for a reason other than the user stopping
             // it. The 5xx/network layers already reported transport-level
             // failures; this is the only report for mid-stream `error`

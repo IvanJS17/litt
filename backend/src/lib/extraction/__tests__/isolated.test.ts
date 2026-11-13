@@ -85,7 +85,7 @@ describe("runIsolatedExtraction", () => {
   });
 
   // A thrown Error crosses IPC as data. The parent used to rebuild it as a
-  // bare Error(message), so every unreadable PDF reached Sentry kindless
+  // bare Error(message), so every unreadable PDF was reported kindless
   // and its job could not tell a corrupt file from a transient fault.
   it("rebuilds a parser's typed failure, with its kind, on the parent side", async () => {
     const corrupt = Uint8Array.from(Buffer.from("%PDF-1.7\nnot really a pdf")).buffer;

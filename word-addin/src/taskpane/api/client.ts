@@ -210,13 +210,7 @@ async function sendRequest(
   } catch (error) {
     // Preserve cancellation identity for callers: a user stop, including a
     // signal aborted with a custom reason, is not a transport failure.
-    if (
-      init.signal?.aborted ||
-      (typeof error === "object" &&
-        error !== null &&
-        "name" in error &&
-        error.name === "AbortError")
-    ) {
+    if (init.signal?.aborted) {
       throw error;
     }
     reportNetworkFailure(error, { method: init.method ?? "GET", url, operation });

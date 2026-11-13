@@ -2,7 +2,7 @@ import { afterAll, expect, it, vi } from "vitest";
 
 // MIK-91: the BullMQ consumer connection had no 'error' listener, so every
 // reconnect attempt against a down Redis printed "[ioredis] Unhandled error
-// event" and the Sentry console bridge filed it as an untyped "Failure in
+// event" and the console fallback printed it as an untyped "Failure in
 // application" (MIKE-BACKEND-47, -3M, -4B, ...). Nothing listens on this port.
 const mocks = vi.hoisted(() => {
     process.env.REDIS_URL = "redis://127.0.0.1:6399";

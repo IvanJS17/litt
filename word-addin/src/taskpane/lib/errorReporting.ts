@@ -62,6 +62,7 @@ export function reportApiFailure(failure: {
   method?: string;
   operation?: AddinOperation;
   error?: unknown;
+  reportingOwner?: typeof BACKEND_REPORTING_OWNER;
 }): string | null {
   markReported(failure.error);
   return null;

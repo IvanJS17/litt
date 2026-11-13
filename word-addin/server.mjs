@@ -153,7 +153,7 @@ async function serveStatic(req, res, distRoot) {
         "application/octet-stream",
       "x-content-type-options": "nosniff",
       // The pages only work inside Word, so a search result or a link
-      // preview of them leads nowhere (Sentry MIKE-WORD-ADDIN-6/7 were mostly
+      // preview of them leads nowhere (they were mostly
       // crawlers). Office ignores this header; it still needs the 200.
       ...(isHtml ? { "x-robots-tag": "noindex, nofollow" } : {}),
     });

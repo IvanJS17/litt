@@ -107,7 +107,7 @@ describe("createPollFailureGate", () => {
     const { g, log } = gate(now, 60_000, 15 * 60_000);
     expect(g.failure(coded("40P01")).report).toBe(true);
     // Fail once, succeed for a while, fail the same way again: 64 of these an
-    // hour were 64 Sentry events saying the same thing.
+    // hour were 64 reports saying the same thing.
     const reported: boolean[] = [];
     for (let flap = 0; flap < 64; flap++) {
       now.t += 10_000;

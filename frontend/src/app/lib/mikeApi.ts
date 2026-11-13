@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import type { Locale } from "@litt/i18n";
 import type { Operation } from "@/app/lib/errorReporting";
 import { settleWithConcurrency } from "@mike/client";
@@ -922,7 +923,8 @@ export interface UserProfile extends RouterProfileLists {
     responseDetailsVisible?: boolean;
     darkMode: boolean;
     projectMemoryDefault: boolean;
-    apiKeyStatus: ApiKeyStatus;
+    /** Absent only when a forked server or a proxy/misroute answers; see `hasApiKeyStatus`. */
+    apiKeyStatus?: ApiKeyStatus;
     /** The interface language saved on the profile; null follows the device. */
     uiLocale?: Locale | null;
 }

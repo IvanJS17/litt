@@ -10,6 +10,7 @@ import { clientTranslator } from "@mike/client";
 import { initialLocale } from "./i18n/locale";
 import { LocaleProvider } from "./i18n/LocaleProvider";
 import { loadLocale } from "./i18n/loadLocale";
+import { OutsideOfficeNotice } from "./components/shell/OutsideOfficeNotice";
 
 // A rejected promise nobody awaited used to vanish into the WebView console,
 // which a user in Word cannot open. This is the user's side of it — one
@@ -21,7 +22,13 @@ window.addEventListener("unhandledrejection", (event) => {
   });
 });
 
-Office.onReady(async () => {
+// `@container` makes the whole pane a query container so descendants can
+// adapt spacing/type to the (resizable, usually narrow) task-pane width via
+// `@sm:`/`@md:` variants — viewport breakpoints never fire in a pane.
+const PANE_CLASS =
+  "@container h-full w-full bg-background text-foreground font-sans antialiased";
+
+Office.onReady(async (info) => {
   const container = document.getElementById("root");
   if (!container) {
     throw new Error("Root element #root not found in DOM");
@@ -34,12 +41,25 @@ Office.onReady(async () => {
     // A catalog that cannot load must not leave the pane blank.
     loadLocale("en-US"),
   );
+  // Office.js resolves onReady outside Office too, with no host. There is no
+  // document to work on and no Office storage, so mounting the app there only
+  // produced a broken pane (crawlers, link previews and pasted URLs open it).
+  if (info.host == null) {
+    root.render(
+      <LocaleProvider initial={initial}>
+        <div className={PANE_CLASS}>
+          <OutsideOfficeNotice />
+        </div>
+      </LocaleProvider>,
+    );
+    return;
+  }
   root.render(
     // `@container` makes the whole pane a query container so descendants can
     // adapt spacing/type to the (resizable, usually narrow) task-pane width
     // via `@sm:`/`@md:` variants — viewport breakpoints never fire in a pane.
     <LocaleProvider initial={initial}>
-      <div className="@container h-full w-full bg-background text-foreground font-sans antialiased">
+      <div className={PANE_CLASS}>
         <PaneErrorBoundary
           fallback={({ resetError }) => (
             <PaneErrorFallback resetError={resetError} />
