@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MikeLayout from "./layout";
 
 const navigation = vi.hoisted(() => ({
@@ -233,5 +233,57 @@ describe("desktop sidebar persistence", () => {
 
         expect(sidebarState.isOpen).toBe(false);
         expect(localStorage.getItem("sidebarOpen")).toBe("false");
+    });
+});
+
+describe("sidebar overlay on a phone", () => {
+    const setWidth = (w: number) =>
+        Object.defineProperty(window, "innerWidth", {
+            configurable: true,
+            writable: true,
+            value: w,
+        });
+    const original = window.innerWidth;
+    afterEach(() => setWidth(original));
+
+    it("closes when navigating on a screen under 768 px", async () => {
+        setWidth(390);
+        const view = render(
+            <MikeLayout>
+                <div>Page</div>
+            </MikeLayout>,
+        );
+        await userEvent.click(
+            screen.getByRole("button", { name: "Open sidebar" }),
+        );
+        expect(sidebarState.isOpen).toBe(true);
+
+        navigation.pathname = "/projects";
+        view.rerender(
+            <MikeLayout>
+                <div>Projects</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.isOpen).toBe(false);
+    });
+
+    it("stays open when navigating on desktop", () => {
+        setWidth(1280);
+        const view = render(
+            <MikeLayout>
+                <div>Page</div>
+            </MikeLayout>,
+        );
+        expect(sidebarState.isOpen).toBe(true);
+
+        navigation.pathname = "/projects";
+        view.rerender(
+            <MikeLayout>
+                <div>Projects</div>
+            </MikeLayout>,
+        );
+
+        expect(sidebarState.isOpen).toBe(true);
     });
 });

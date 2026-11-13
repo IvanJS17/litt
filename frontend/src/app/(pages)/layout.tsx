@@ -74,6 +74,16 @@ export default function MikeLayout({
         if (isProjectWorkspace) setIsSidebarOpen(false);
     }
 
+    // On a phone the sidebar is an overlay: picking a section, project or
+    // chat in it navigates, and the menu must not stay over the new page.
+    const [lastPathname, setLastPathname] = useState(pathname);
+    if (lastPathname !== pathname) {
+        setLastPathname(pathname);
+        if (typeof window !== "undefined" && window.innerWidth < 768) {
+            setIsSidebarOpen(false);
+        }
+    }
+
     // Persist what is actually on screen. The mount initializer above reads
     // this key back, but `isSidebarOpen` ignores it: it starts open on
     // desktop everywhere except the project workspace, which starts (and on
