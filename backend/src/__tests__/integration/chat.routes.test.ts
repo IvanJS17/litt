@@ -87,6 +87,10 @@ const { trainingStage, trainingOrg, trainingProject, urgencyPasses } = vi.hoiste
         error: null as { message: string } | null,
     },
 }));
+// The firm's profile: the route passes the chat's own organization to this loader.
+const loadFirmProfileFor = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null as null | Record<string, unknown>));
+vi.mock("../../lib/firmProfileStore", () => ({ loadFirmProfileFor }));
+
 vi.mock("../../lib/access", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../lib/access")>();
     return {
@@ -532,6 +536,16 @@ describe("POST /chat — streaming endpoint", () => {
             events: [],
             citations: [],
         });
+    });
+
+    it("adds no firm profile where the loader answers none (a personal space)", async () => {
+        loadFirmProfileFor.mockResolvedValue(null);
+        const chatLib = await import("../../modules/chat/engine/index.js");
+        const res = await request(app).post("/chat").set("Authorization", "Bearer test").send(VALID_BODY);
+        expect(res.status).toBe(200);
+        const systemPromptExtra = vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] as string;
+        expect(systemPromptExtra).not.toContain("FIRM PROFILE");
+        expect(systemPromptExtra).toContain("USER PERSONALISATION");
     });
 
     it("streams SSE with a chat_id event on the happy path", async () => {
@@ -2420,6 +2434,39 @@ describe("chat writes are gated on content.edit (org RBAC)", () => {
         expect(
             vi.mocked(userSettings.getUserModelSettings).mock.calls.at(-1)?.[2],
         ).toMatchObject({ orgId: "org-1" });
+    });
+
+    it("gives the assistant the firm's profile, loaded for the chat's own organization, and no other", async () => {
+        await seedResolvableModel();
+        const db = makeRbacDb("member", "u1");
+        mockedCreate.mockImplementation(() => db as never);
+        loadFirmProfileFor.mockResolvedValue({ hq_state: "JAL", size: "2-5" });
+        const chatLib = await import("../../modules/chat/engine/index.js");
+
+        await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, model: "gpt-6-luna", org_id: "org-1" });
+
+        expect(loadFirmProfileFor).toHaveBeenCalledTimes(1);
+        expect(loadFirmProfileFor).toHaveBeenCalledWith(expect.anything(), "org-1");
+        const systemPromptExtra = vi.mocked(chatLib.buildMessages).mock.calls[0]?.[2] as string;
+        expect(systemPromptExtra).toContain("FIRM PROFILE");
+        expect(systemPromptExtra).toContain('"headquarters": "Jalisco"');
+        loadFirmProfileFor.mockResolvedValue(null);
+    });
+
+    it("asks for no firm at all in a chat that is personal", async () => {
+        await seedResolvableModel();
+        const db = makeRbacDb("member", "u1");
+        mockedCreate.mockImplementation(() => db as never);
+
+        await request(app)
+            .post("/chat")
+            .set("Authorization", "Bearer test")
+            .send({ ...VALID_BODY, model: "gpt-6-luna" });
+
+        expect(loadFirmProfileFor).toHaveBeenCalledWith(expect.anything(), null);
     });
 
     it("keeps a new standalone chat personal when no organization is named", async () => {

@@ -23,7 +23,8 @@ import {
     type WebSearchPlan,
 } from "../../lib/webSearch";
 import { resolveRequestTimeZone } from "../../lib/userTime";
-import { createAssistantHistoryLoader, attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
+import { loadFirmProfileFor } from "../../lib/firmProfileStore";
+import { createAssistantHistoryLoader, attachPriorReasoning, buildDocContext, buildMessages, buildUserPersonalisationPrompt, buildFirmProfilePrompt, devLog, enrichWithPriorEvents, loadUserMessageSentTimes, buildWorkflowStore, appendAskInputsResponseToAssistantMessage, runApprovedConnectorActions, generateSpotlightNonce, type AskInputsResponseRequest, type ChatMessage, type SubagentRoutePlan } from "./engine/index";
 import type { McpToolEvent } from "@mike/contracts";
 import {
     chatRouteColumns,
@@ -642,10 +643,14 @@ export async function prepareChatStream(
         );
         const { personalisation } = modelSettings;
         const titleModel = titleModelForRoute(route, modelSettings.title_model);
-        const personalisationPrompt = buildUserPersonalisationPrompt(
-            personalisation,
-            nonce,
-        );
+        // The firm's profile goes in only for a chat of a firm's workspace
+        // (contentOrgId is the chat's own organization, not a client value).
+        const personalisationPrompt = [
+            buildFirmProfilePrompt(await loadFirmProfileFor(db, contentOrgId), nonce),
+            buildUserPersonalisationPrompt(personalisation, nonce),
+        ]
+            .filter(Boolean)
+            .join("\n\n");
         const userSentAt = await loadUserMessageSentTimes(
             db,
             "chat_messages",

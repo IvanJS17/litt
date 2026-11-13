@@ -175,6 +175,9 @@ vi.mock("../../middleware/auth", () => ({
         next(),
 }));
 
+const loadFirmProfileFor = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => null as null | Record<string, unknown>));
+vi.mock("../../lib/firmProfileStore", () => ({ loadFirmProfileFor }));
+
 vi.mock("../../modules/chat/engine/index", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../modules/chat/engine/index")>();
     return {
@@ -371,6 +374,20 @@ describe("POST /projects/:projectId/chat", () => {
         expect(errorFrame.request_id).toBe(res.headers["x-request-id"]);
         expect(res.text).toContain("data: [DONE]");
         errorSpy.mockRestore();
+    });
+
+    it("adds the firm profile for the project's own organization, and none when the loader answers none", async () => {
+        loadFirmProfileFor.mockResolvedValue({ hq_state: "NLE" });
+        const res = await request(app).post("/projects/p1/chat").set("Authorization", "Bearer test").send(VALID_BODY);
+        expect(res.status).toBe(200);
+        expect(loadFirmProfileFor).toHaveBeenCalledTimes(1);
+        const withProfile = buildMessages.mock.calls[0]?.[2] as string;
+        expect(withProfile).toContain("FIRM PROFILE");
+        expect(withProfile).toContain('"headquarters": "Nuevo León"');
+        loadFirmProfileFor.mockResolvedValue(null);
+        buildMessages.mockClear();
+        await request(app).post("/projects/p1/chat").set("Authorization", "Bearer test").send(VALID_BODY);
+        expect(buildMessages.mock.calls[0]?.[2] as string).not.toContain("FIRM PROFILE");
     });
 
     it("streams SSE on the happy path with project access granted", async () => {
