@@ -119,12 +119,18 @@ const SKELETON_CONTENT_WIDTHS = ["w-1/2", "w-full", "w-5/6", "w-2/3", "w-full", 
  * a spinner. The sidebar around it is the app layout's. Change it with
  * `SettingsShell`.
  */
-export function SettingsShellSkeleton() {
+export function SettingsShellSkeleton({
+    insideStatus = false,
+}: {
+    /** Drawn inside a loading region that already announces itself. */
+    insideStatus?: boolean;
+}) {
     const t = useTranslations();
     return (
         <div
-            role="status"
-            aria-label={t("shared.appShellSkeleton.loading")}
+            {...(insideStatus
+                ? {}
+                : { role: "status", "aria-label": t("shared.appShellSkeleton.loading") })}
             data-slot="settings-shell-skeleton"
             className="flex h-full flex-col overflow-y-auto"
         >

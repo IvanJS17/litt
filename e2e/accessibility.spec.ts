@@ -123,7 +123,7 @@ test("projects page has no critical accessibility violations", async ({
 }) => {
     await page.goto("/projects");
     await expect(page).toHaveURL(/\/projects/);
-    /* The Plus icon button (aria-label="New project") renders with the list. */
+    /* "New project" renders with the list (header icon) or alone on the empty page. */
     await expect(
         page.getByRole("button", { name: "New project" }),
     ).toBeVisible({ timeout: 10_000 });

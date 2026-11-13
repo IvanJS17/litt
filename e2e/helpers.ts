@@ -79,7 +79,7 @@ export async function createProject(
     await page.goto("/projects");
     await expect(page).toHaveURL(/\/projects/, { timeout: 10_000 });
 
-    /* The Plus icon button in the header has aria-label="New project" */
+    /* "New project": the Plus icon button in the header, or the one button of the empty page */
     const createBtn = page.getByRole("button", { name: "New project" });
     await expect(createBtn).toBeVisible({ timeout: 10_000 });
     await createBtn.click();

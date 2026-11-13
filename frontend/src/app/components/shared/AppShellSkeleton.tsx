@@ -2,7 +2,9 @@ import { LIQUID_GLASS_FLOAT_CLASS } from "@mike/ui";
 import { SkeletonLine } from "@/app/components/shared/TablePrimitive";
 import { PAGE_HEADER_ROW_CLASS } from "@/app/components/shared/pageHeaderStyles";
 import { cn } from "@/app/lib/utils";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { SettingsShellSkeleton } from "@/app/components/settings/SettingsShell";
 
 /** One per entry in AppSidebar's NAV_ITEMS. */
 const NAV_ROW_WIDTHS = ["w-20", "w-10", "w-16", "w-14", "w-24", "w-20", "w-18"];
@@ -19,6 +21,9 @@ const ON_GLASS = "bg-gray-200";
  */
 export function AppShellSkeleton() {
     const t = useTranslations();
+    // Settings has its own frame (title, a column of sections, the page): draw
+    // that, with the sidebar around it, instead of generic lines.
+    const inSettings = usePathname()?.split("/")[1] === "settings";
     return (
         <div
             role="status"
@@ -59,19 +64,25 @@ export function AppShellSkeleton() {
                     <div className="flex shrink-0 items-center px-4 pb-2 pt-3 md:hidden">
                         <SkeletonLine className="h-8 w-8 rounded-full" />
                     </div>
-                    <div
-                        className={cn(
-                            "flex items-center mx-3 md:mx-6.5",
-                            PAGE_HEADER_ROW_CLASS,
-                        )}
-                    >
-                        <SkeletonLine className="h-5 w-40" />
-                    </div>
-                    <div className="mx-3 space-y-4 md:mx-6.5">
-                        {CONTENT_ROW_WIDTHS.map((width, index) => (
-                            <SkeletonLine key={index} className={width} />
-                        ))}
-                    </div>
+                    {inSettings ? (
+                        <SettingsShellSkeleton insideStatus />
+                    ) : (
+                        <>
+                            <div
+                                className={cn(
+                                    "flex items-center mx-3 md:mx-6.5",
+                                    PAGE_HEADER_ROW_CLASS,
+                                )}
+                            >
+                                <SkeletonLine className="h-5 w-40" />
+                            </div>
+                            <div className="mx-3 space-y-4 md:mx-6.5">
+                                {CONTENT_ROW_WIDTHS.map((width, index) => (
+                                    <SkeletonLine key={index} className={width} />
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>
