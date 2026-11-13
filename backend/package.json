@@ -53,6 +53,7 @@
     "linkedom": "^0.18.15",
     "mammoth": "^1.13.0",
     "marked": "^18.2.0",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.5.438",
     "turndown": "^7.2.5",
     "turndown-plugin-gfm": "^1.0.2",

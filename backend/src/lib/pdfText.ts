@@ -366,6 +366,27 @@ export async function findTextlessPdfPages(buf: ArrayBuffer): Promise<{ pages: n
   return { pages, total: read.pages.length };
 }
 
+/**
+ * The text of every page, in order (index 0 is page 1), with a scan reading
+ * merged in like the search index does, and the 1-indexed pages that remain
+ * unread. What "Separar expediente" sends to LandingAI Split (docs/document-split.md).
+ */
+export async function extractPdfPageTexts(
+  buf: ArrayBuffer,
+  ocr?: OcrFill,
+): Promise<{ pages: string[]; unread: number[] }> {
+  const read = await readPdfPages(buf);
+  if (!read.pages) {
+    throw new AppError("extraction.pdf_parse_failed", "document_text_pdf_unreadable", { cause: read.cause });
+  }
+  const pages = ocr ? fillPagesFromOcr(read.pages, ocr) : read.pages;
+  return {
+    // Drop the "[Page N]" heading this module adds to every page.
+    pages: pages.map((page) => page.text.replace(/^\[Page \d+\]\n?/, "")),
+    unread: pages.flatMap((page, index) => (page.empty ? [index + 1] : [])),
+  };
+}
+
 /** Strict extraction for persisted search: unreadable is not a successful blank. */
 export async function extractPdfTextForIndex(buf: ArrayBuffer, ocr?: OcrFill): Promise<{ text: string; textlessPageCount: number }> {
   const read = await readPdfPages(buf);

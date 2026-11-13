@@ -14,6 +14,7 @@ infrastructure, and development workflow, including optional local integrations.
 | [libreoffice-convert](https://github.com/elwerene/libreoffice-convert) | Node.js integration with LibreOffice's conversion tools. |
 | [PDF.js](https://github.com/mozilla/pdf.js) | PDF viewing in the browser and PDF text extraction on the backend through `pdfjs-dist`. |
 | [EigenPal DOCX Editor](https://github.com/eigenpal/docx-editor) | Browser-based Word document viewing and editing through `@docx-editor.dev/core`, `@docx-editor.dev/react`, and the packaged fonts. |
+| [pdf-lib](https://github.com/Hopding/pdf-lib) | Copying the original pages of a PDF into new PDFs when a case file is split (MIT). |
 | [Mammoth](https://github.com/mwilliamson/mammoth.js) | Extracting content from Word documents. |
 | [docx](https://github.com/dolanmiu/docx) | Creating Word documents. |
 | [FortuneSheet](https://github.com/ruilisi/fortune-sheet) | Interactive spreadsheet viewing and editing. |
