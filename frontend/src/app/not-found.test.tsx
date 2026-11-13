@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import NotFound from "./not-found";
+import NotFound, { generateMetadata } from "./not-found";
 
+vi.mock("next-intl/server", () => ({
+    getTranslations: async () => (key: string) => ({ notFound: "Page not found" })[key],
+}));
 vi.mock("@/app/components/site-logo", () => ({ SiteLogo: () => <div>LiTT logo</div> }));
 
 describe("not-found page", () => {
@@ -15,5 +18,9 @@ describe("not-found page", () => {
         expect(frame.className).toContain("bg-app-background");
         expect(frame.className).not.toContain("min-h-screen");
         expect(frame.className).not.toContain("bg-white");
+    });
+
+    it("names its tab «Page not found» (the root template adds « · LiTT»)", async () => {
+        expect(await generateMetadata()).toEqual({ title: "Page not found" });
     });
 });

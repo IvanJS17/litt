@@ -2,6 +2,9 @@ import Link from "next/link";
 import { authGlassCardUIClassName, pillButtonUIClassName } from "@mike/ui";
 import { AuthPageShell } from "@/app/components/auth/AuthPageShell";
 import { useTranslations } from "next-intl";
+import { pageTitle } from "@/app/lib/pageTitle";
+
+export const generateMetadata = pageTitle("notFound");
 
 export default function NotFound() {
     const t = useTranslations();
