@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
     DEFAULT_SPLIT_CLASSES,
+    SPLIT_CLASSES_MAX_BYTES,
+    SPLIT_CLASSES_TOO_LARGE_CODE,
     SPLIT_MAX_CLASSES,
+    splitClassesBytes,
     normalizeSplitClasses,
     parseSplitClassesBody,
     readStoredSplitClasses,
@@ -22,6 +25,28 @@ describe("the built-in list", () => {
             "Nombre del titular",
         ]);
         expect(normalizeSplitClasses(DEFAULT_SPLIT_CLASSES)).toEqual({ ok: true, classes: DEFAULT_SPLIT_CLASSES });
+    });
+});
+
+describe("the size the database allows", () => {
+    const big = (letter: string) =>
+        Array.from({ length: SPLIT_MAX_CLASSES }, (_, i) => ({
+            name: `${String(i).padStart(2, "0")}${letter.repeat(78)}`,
+            description: letter.repeat(800),
+            identifier: letter.repeat(80),
+        }));
+
+    it("takes the largest list of plain letters and the built-in list, both under the limit", () => {
+        const widest = normalizeSplitClasses(big("a"));
+        expect(widest.ok).toBe(true);
+        expect(splitClassesBytes(big("a"))).toBeLessThanOrEqual(SPLIT_CLASSES_MAX_BYTES);
+        expect(splitClassesBytes(DEFAULT_SPLIT_CLASSES)).toBeLessThanOrEqual(SPLIT_CLASSES_MAX_BYTES);
+    });
+
+    it("refuses, with its own code, a list whose accents push it over, before the database check could", () => {
+        const refused = normalizeSplitClasses(big("á"));
+        expect(refused).toMatchObject({ ok: false, code: SPLIT_CLASSES_TOO_LARGE_CODE });
+        expect(parseSplitClassesBody({ classes: big("á") })).toMatchObject({ ok: false, code: SPLIT_CLASSES_TOO_LARGE_CODE });
     });
 });
 

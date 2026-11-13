@@ -981,6 +981,7 @@
       "review_stale": "Hay una versión más reciente de esta revisión tabular.",
       "session_expired": "Tu sesión expiró. Vuelve a iniciar sesión para continuar.",
       "signup_invite_only": "LiTT está en beta cerrada: necesitas una invitación. Si ya te invitaron, revisa tu correo; si no, pídela al despacho y regístrate con ese mismo correo.",
+      "split_classes_too_large": "La lista de tipos de documento es demasiado larga para guardarla. Acorta algunas descripciones o quita un tipo.",
       "split_invalid_groups": "Los documentos que elegiste no son válidos. Revisa las páginas y los nombres e inténtalo de nuevo.",
       "split_needs_scan_reading": "Algunas páginas están escaneadas y aún no se leen. Lee primero el escaneado y luego separa el expediente.",
       "split_not_supported": "Solo se puede separar un PDF, y este no se pudo leer.",

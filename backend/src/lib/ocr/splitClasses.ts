@@ -10,6 +10,9 @@ export const SPLIT_MAX_CLASSES = 19;
 export const SPLIT_NAME_MAX = 80;
 export const SPLIT_DESCRIPTION_MAX = 800;
 export const SPLIT_IDENTIFIER_MAX = 80;
+/** The database refuses a list over this many bytes of jsonb text (octet_length <= 20000); we refuse it first. */
+export const SPLIT_CLASSES_MAX_BYTES = 20000;
+export const SPLIT_CLASSES_TOO_LARGE_CODE = "split_classes_too_large";
 
 /** The Mexican case-file list, tried on a real 34-page file (16 of 17 groups right). */
 export const DEFAULT_SPLIT_CLASSES: readonly SplitClass[] = [
@@ -73,7 +76,15 @@ export const DEFAULT_SPLIT_CLASSES: readonly SplitClass[] = [
     },
 ];
 
-export type SplitClassesCheck = { ok: true; classes: SplitClass[] } | { ok: false; detail: string };
+export type SplitClassesCheck = { ok: true; classes: SplitClass[] } | { ok: false; detail: string; code?: string };
+
+/** The size the database measures: Postgres writes jsonb text with a space after every `:` and `,`, and accents take 2 bytes or more. */
+export function splitClassesBytes(classes: readonly SplitClass[]): number {
+    const text = `[${classes
+        .map((c) => `{${Object.entries(c).map(([key, value]) => `${JSON.stringify(key)}: ${JSON.stringify(value)}`).join(", ")}}`)
+        .join(", ")}]`;
+    return Buffer.byteLength(text);
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === "object" && !Array.isArray(value);
@@ -105,6 +116,8 @@ export function normalizeSplitClasses(input: unknown): SplitClassesCheck {
         seen.add(key);
         classes.push(identifier ? { name, description, identifier } : { name, description });
     }
+    if (splitClassesBytes(classes) > SPLIT_CLASSES_MAX_BYTES)
+        return { ok: false, detail: "The list of types is too long to save.", code: SPLIT_CLASSES_TOO_LARGE_CODE };
     return { ok: true, classes };
 }
 
@@ -129,7 +142,7 @@ export function splitClassesSettings(stored: SplitClass[] | null): SplitClassesS
 }
 
 /** A PUT body: `{ classes: [...] }` saves a list, `{ classes: null }` restores the built-in one. */
-export function parseSplitClassesBody(body: unknown): { ok: true; classes: SplitClass[] | null } | { ok: false; detail: string } {
+export function parseSplitClassesBody(body: unknown): { ok: true; classes: SplitClass[] | null } | { ok: false; detail: string; code?: string } {
     if (!isRecord(body) || !("classes" in body)) return { ok: false, detail: "Expected { classes: [...] | null }" };
     if (body.classes === null) return { ok: true, classes: null };
     return normalizeSplitClasses(body.classes);
