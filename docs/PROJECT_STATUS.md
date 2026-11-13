@@ -9,6 +9,8 @@
 
 ## Executive status
 
+- **Firm profile (branch `feat/firm-profile`, not merged):** optional description of the firm that the assistant reads in the firm's workspace chats; owners and admins write it, members read it. See [`firm-profile.md`](firm-profile.md).
+
 ### Integrated, in production: layers 1 to 7 and upstream cycle 11 (#177, #182)
 
 - **Main and production:** `c10401f9` (merge of #182), deployed on 2026-11-13. It

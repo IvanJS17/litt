@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import esMX from "../../../../../packages/i18n/messages/es-MX.json";
+import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { OrganizationFirmProfile } from "./OrganizationFirmProfile";
 
 const mocks = vi.hoisted(() => ({
@@ -103,5 +105,19 @@ describe("OrganizationFirmProfile", () => {
     render(<OrganizationFirmProfile orgId="org-1" />);
     await userEvent.click(await screen.findByRole("button", { name: "Clear profile" }));
     expect(mocks.saveOrgFirmProfile).toHaveBeenCalledWith("org-1", null);
+  });
+
+  it("renders the section in es-MX with the privacy notes and no English left over", async () => {
+    mocks.getOrgFirmProfile.mockResolvedValue({ profile: null, can_manage: true });
+    render(
+      <IntlClientProvider locale="es-MX" messages={esMX}>
+        <OrganizationFirmProfile orgId="org-1" />
+      </IntlClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Perfil del despacho" })).toBeVisible();
+    expect(screen.getByText(/El asistente lee este perfil en cada chat del espacio del despacho/)).toBeVisible();
+    expect(screen.getByText(/Describe solo al despacho\. No escribas datos de clientes/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Guardar perfil" })).toBeEnabled();
+    expect(screen.queryByText(/Save profile|Firm profile|Only owners/)).toBeNull();
   });
 });
