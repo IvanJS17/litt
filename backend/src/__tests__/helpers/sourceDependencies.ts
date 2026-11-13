@@ -107,7 +107,7 @@ export function resolveDependency(file: string, spec: string, root: string, path
         if (found)
             return found;
     }
-    if (candidates.length && !/\.(css|svg|png|jpg|json)$/.test(spec))
+    if (candidates.length && !/\.(css|svg|png|jpg|json|woff2)$/.test(spec))
         throw new Error(`${file}: unresolved local dependency ${spec}`);
 }
 /** An application (or package) directory and the alias map its files resolve with. */
