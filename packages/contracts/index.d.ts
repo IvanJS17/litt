@@ -2122,6 +2122,12 @@ export interface DocumentSplitCreateResult {
  */
 export type UiLocale = "en-US" | "es-MX";
 
+/**
+ * The text size a person picks in Settings > Appearance: 100 %, 112.5 % and
+ * 125 % of the browser's base size. `normal` is the default.
+ */
+export type TextSize = "normal" | "large" | "xlarge";
+
 /** `GET /platform/me`: what the invite-only beta lets the caller do. */
 export interface PlatformMe {
     admin: boolean;
