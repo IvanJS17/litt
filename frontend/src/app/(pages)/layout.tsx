@@ -202,7 +202,7 @@ export default function MikeLayout({
                                         .getElementById(MAIN_CONTENT_ID)
                                         ?.focus();
                                 }}
-                                className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[300] focus:rounded-lg focus:bg-app-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-focus"
+                                className="skip-link"
                             >
                                 {t("common.skipToContent")}
                             </a>

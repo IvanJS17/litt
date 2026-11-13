@@ -547,3 +547,27 @@ body {
         opacity: 0;
     }
 }
+
+/* "Skip to content" (pages layout): out of sight until the keyboard lands on
+   it, then a small button at the top left, above everything. Plain CSS, not
+   utilities: the reset of `sr-only` is not reliable across the variants. */
+.skip-link {
+    position: fixed;
+    left: 0.75rem;
+    top: 0.75rem;
+    z-index: 300;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--app-background);
+    color: var(--litt-tinta);
+    font-size: 0.875rem;
+    font-weight: 500;
+    box-shadow: var(--liquid-glass-shadow-modal);
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 2px;
+}
