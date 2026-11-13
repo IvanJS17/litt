@@ -91,7 +91,9 @@ sent as the file `documento.md`: **the real file name is never sent**
   in one update, validated by the server on write and on read (a stale value falls
   back to the next). That is simpler than a table or a merge function: it is a small list
   that is always read and written as a whole, like the router-model lists, and
-  every client role is already revoked from both tables. **Resolution: the person's
+  the server is the only writer: client roles are revoked from `user_profiles`, and
+  on `organizations` `authenticated` keeps only `SELECT`, limited by RLS to the
+  firm's members (who may read the list anyway). **Resolution: the person's
   list, else the firm's, else the built-in one.** The firm's list is changed by
   whoever manages the firm's keys (owners and admins); any member reads it.
   API: `GET`/`PUT /user/split-classes` and `GET`/`PUT /orgs/:orgId/split-classes`
