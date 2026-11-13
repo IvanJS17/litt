@@ -6,3 +6,9 @@ declare module "*.svg" {
     const asset: import("next/image").StaticImageData;
     export default asset;
 }
+
+// Font files imported for their built URL (see layout.tsx).
+declare module "*.woff2" {
+    const url: string;
+    export default url;
+}

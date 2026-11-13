@@ -3,6 +3,9 @@ import { getLocale, getMessages, getTranslations } from "next-intl/server";
 // Self-hosted Inter and EB Garamond; sets --font-inter and --font-eb-garamond.
 import "./fonts/fonts.css";
 import "./globals.css";
+import { preload } from "react-dom";
+import interLatin from "./fonts/inter-latin.woff2";
+import ebGaramondLatin from "./fonts/eb-garamond-latin.woff2";
 import { Providers } from "@/app/components/providers";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
@@ -61,6 +64,12 @@ export default async function RootLayout({
 }>) {
     // The locale request.ts resolved (cookie, browser, es-MX) and its catalog.
     const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+    // The two files a Spanish or English page really draws (the latin subset of
+    // each family), fetched with the HTML so the text does not jump when the
+    // letters arrive. The other subsets stay lazy: fonts.css loads them only
+    // for a page that has such a character.
+    for (const href of [interLatin, ebGaramondLatin])
+        preload(href, { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
     return (
         // The boot script may add `dark` and color-scheme to <html> before
         // React hydrates it; that difference is intended.
