@@ -75,6 +75,21 @@ describe("mobile page header", () => {
         );
     });
 
+    it("keeps the header clear of the notch and the shell clear of the home indicator", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const header = document.querySelector('[data-slot="mobile-header"]');
+        expect(header?.className).toContain("env(safe-area-inset-top)");
+        expect(header?.className).toContain("env(safe-area-inset-left)");
+        expect(header?.className).toContain("env(safe-area-inset-right)");
+        const shell = header?.closest(".h-dvh");
+        expect(shell?.className).toContain("pb-[env(safe-area-inset-bottom)]");
+    });
+
     // Floating, the sidebar button covered the Explorer title on a phone.
     it.each([
         "/projects/project-1/assistant/chat/chat-1",

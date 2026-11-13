@@ -1060,7 +1060,7 @@ export function AssistantChatColumn({
                         {/* Scrollable messages */}
                         <div
                             ref={messagesContainerRef}
-                            className="flex-1 w-full overflow-y-auto"
+                            className="flex-1 w-full overflow-y-auto pt-[env(safe-area-inset-top)] md:pt-0"
                             style={{ scrollbarGutter: "stable both-edges" }}
                         >
                             <div

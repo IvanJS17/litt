@@ -162,21 +162,27 @@ export default function MikeLayout({
             <ChatHistoryProvider>
                 <PageChromeContext.Provider value={pageChromeValue}>
                     <SidebarContext.Provider value={sidebarValue}>
-                        <div className="h-dvh flex flex-col bg-app-background">
+                        {/* Safe areas: the sidebar, header and notices handle their own top and
+                            edges; this keeps the pane clear of the home indicator and of a
+                            notch in landscape. */}
+                        <div className="h-dvh flex flex-col bg-app-background pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
                             <div className="flex-1 flex min-w-0 overflow-visible">
                                 <AppSidebar
                                     isOpen={isSidebarOpen}
                                     onToggle={handleSidebarToggle}
                                 />
-                                <div className="flex-1 flex flex-col h-dvh md:overflow-hidden relative w-full">
+                                <div className="flex-1 flex flex-col h-[calc(100dvh-env(safe-area-inset-bottom))] md:overflow-hidden relative w-full">
                                     {/* Mobile header */}
                                     <div
                                         data-slot="mobile-header"
                                         className={cn(
-                                            "z-30 flex items-center gap-3 overflow-visible px-4 md:hidden",
+                                            "z-30 flex items-center gap-3 overflow-visible md:hidden",
+                                            // Clear of the notch. Floating, the
+                                            // bar is viewport-relative, so it
+                                            // also clears a landscape notch.
                                             isChatPage
-                                                ? "pointer-events-none fixed inset-x-0 top-0 bg-transparent pb-2 pt-3"
-                                                : "relative shrink-0 pb-2 pt-3",
+                                                ? "pointer-events-none fixed inset-x-0 top-0 bg-transparent pb-2 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]"
+                                                : "relative shrink-0 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]",
                                         )}
                                     >
                                         <HeaderButtonsUI

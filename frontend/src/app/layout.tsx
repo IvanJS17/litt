@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 // Self-hosted Inter and EB Garamond; sets --font-inter and --font-eb-garamond.
 import "./fonts/fonts.css";
@@ -10,6 +10,14 @@ import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
 // LiTT's public address (deploy/prod/README.md). MikeOSS, the upstream, is
 // credited in the README.
 const SITE_URL = "https://litt.asteroitt.com";
+
+// `cover` lets the page reach under the notch and the home indicator, so the
+// safe-area insets (env(safe-area-inset-*)) start to mean something: the
+// mobile header, chat composer, sidebar and notices keep clear of them. The
+// zoom stays available (no maximum-scale).
+export const viewport: Viewport = {
+    viewportFit: "cover",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
     const [t, locale] = await Promise.all([getTranslations("common.meta"), getLocale()]);

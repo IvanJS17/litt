@@ -33,7 +33,7 @@ import { PillButtonUI, NoticeCardUI, useNoticeStackSlot } from "@mike/ui";
  * viewport mounted uses it too.
  */
 export const NOTICE_STACK_POSITION_CLASS =
-    "notice-stack left-3 right-3 top-auto bottom-[max(0.75rem,env(safe-area-inset-bottom))] w-auto translate-x-0 px-0 sm:left-auto sm:right-5 sm:bottom-5 sm:w-[min(calc(100vw-2.5rem),400px)]";
+    "notice-stack left-[max(0.75rem,env(safe-area-inset-left))] right-[max(0.75rem,env(safe-area-inset-right))] top-auto bottom-[max(0.75rem,env(safe-area-inset-bottom))] w-auto translate-x-0 px-0 sm:left-auto sm:right-5 sm:bottom-5 sm:w-[min(calc(100vw-2.5rem),400px)]";
 
 interface WarningPopupAction {
     label: ReactNode;

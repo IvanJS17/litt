@@ -500,13 +500,15 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
             <div
                 className={cn(
                     isOpen
-                        ? "w-62 h-[calc(100dvh-1rem)] md:h-[calc(100dvh-1.5rem)]"
+                        ? "w-62 h-[calc(100dvh-max(0.5rem,env(safe-area-inset-top))-max(0.5rem,env(safe-area-inset-bottom)))] md:h-[calc(100dvh-1.5rem)]"
                         : "max-md:hidden w-[46px] md:h-[calc(100dvh-1.5rem)] h-auto pointer-events-none md:pointer-events-auto",
                     // Collapsed, the ends are full semicircles. The radii are
                     // lengths, not rounded-full, so the change animates with
                     // the width.
                     isOpen ? "rounded-2xl" : "rounded-[23px]",
-                    "my-2 ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
+                    // On a phone the sidebar is positioned against the screen, so
+                    // it keeps clear of the notch and the home indicator itself.
+                    "mt-[max(0.5rem,env(safe-area-inset-top))] mb-[max(0.5rem,env(safe-area-inset-bottom))] ml-[max(0.5rem,env(safe-area-inset-left))] mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
                     LIQUID_GLASS_FLOAT_CLASS,
                     "absolute z-[99] flex shrink-0 flex-col transition-all duration-300 motion-reduce:transition-none md:relative",
                 )}
