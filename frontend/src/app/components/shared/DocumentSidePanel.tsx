@@ -865,7 +865,13 @@ export function DocumentSidePanel({
                                         });
                                         onScanRead?.(doc.id);
                                     }}
-                                    onSplit={() => setSplitOpen(true)}
+                                    // The same condition as the server: a file of a project or the
+                                    // user's own, never a workflow's or a library template.
+                                    onSplit={
+                                        !doc.workflow_id && (doc.library_kind ?? "file") === "file"
+                                            ? () => setSplitOpen(true)
+                                            : undefined
+                                    }
                                 />
                             )}
                         </div>
