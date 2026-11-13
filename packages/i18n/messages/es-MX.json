@@ -531,7 +531,8 @@
       "tooManyAttempts": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos.",
-      "sessionCheckFailed": "No pudimos comprobar tu sesión. Inténtalo de nuevo."
+      "sessionCheckFailed": "No pudimos comprobar tu sesión. Inténtalo de nuevo.",
+      "enterBothPasswords": "Escribe la contraseña en los dos campos."
     },
     "forgotPassword": {
       "checkYourEmail": "Revisa tu correo",
@@ -1444,7 +1445,8 @@
     "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
     "simplifiedTitle": "Aviso de privacidad simplificado",
     "submit": "Aceptar y continuar",
-    "title": "Términos y Aviso de privacidad"
+    "title": "Términos y Aviso de privacidad",
+    "checkRequired": "Marca la casilla para continuar."
   },
   "library": {
     "actions": {

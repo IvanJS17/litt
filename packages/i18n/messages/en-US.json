@@ -531,7 +531,8 @@
       "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols.",
-      "sessionCheckFailed": "We could not check your session. Please try again."
+      "sessionCheckFailed": "We could not check your session. Please try again.",
+      "enterBothPasswords": "Enter the password in both fields."
     },
     "forgotPassword": {
       "checkYourEmail": "Check your email",
@@ -1444,7 +1445,8 @@
     "signupLine": "Al crear tu cuenta aceptas los <terms>Términos y Condiciones</terms>. Consulta cómo tratamos tus datos en el <privacy>Aviso de Privacidad</privacy>.",
     "simplifiedTitle": "Simplified privacy notice",
     "submit": "Accept and continue",
-    "title": "Terms and Privacy Notice"
+    "title": "Terms and Privacy Notice",
+    "checkRequired": "Tick the box to continue."
   },
   "library": {
     "actions": {
