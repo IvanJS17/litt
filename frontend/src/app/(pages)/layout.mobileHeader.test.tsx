@@ -335,7 +335,7 @@ describe("page shell accessibility", () => {
         );
         const skip = screen.getByRole("link", { name: "Skip to content" });
         expect(skip).toHaveAttribute("href", "#main-content");
-        expect(skip.className).toContain("sr-only");
+        expect(skip).toHaveClass("skip-link");
         await userEvent.click(skip);
         expect(document.activeElement).toBe(document.getElementById("main-content"));
         expect(document.getElementById("main-content")!.tagName).toBe("MAIN");

@@ -219,7 +219,7 @@ describe("playbook rule form", () => {
     expect(lastRule(changed).fallbacks.map((p) => p.name)).toEqual([
       "Mutual cap",
     ]);
-    expect(screen.getByText("Removed Fallback 1.")).toBeVisible();
+    expect(screen.getByTestId("toast")).toHaveTextContent("Removed Fallback 1.");
 
     await openTab("Overview");
     await userEvent.type(screen.getByLabelText("Additional guidance"), "Later");
