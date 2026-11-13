@@ -511,3 +511,44 @@ it.each([undefined, "chat-existing"])("does not repost an uncertain delivery bef
         expect(fetchMock.mock.calls.filter(c => c[1]?.method === "POST")).toHaveLength(1);
     }
 });
+
+
+describe("terminal transport ownership", () => {
+    it("reports a body network failure after fetch has resolved, before turn metadata", async () => {
+        fetchMock.mockReset();
+        const stream = new ReadableStream<Uint8Array>({
+            pull(controller) { controller.error(new TypeError("network error")); },
+        });
+        fetchMock.mockResolvedValueOnce(new Response(stream, {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+        }));
+        const { result } = renderHook(() => ({ chat: useAssistantChat({ chatId: "chat-1" }), toasts: useToasts() }));
+        await act(async () => { await result.current.chat.handleChat(userMessage()); });
+        expect(result.current.toasts.length).toBeGreaterThan(0);
+        expect(reportErrorMock).toHaveBeenCalledTimes(1);
+    });
+    it.each([502, 503, 504])("reports an unowned proxy %i without a Mike error code", async (status) => {
+        fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce(new Response("proxy failed", {
+            status, headers: { "Content-Type": "text/html" },
+        }));
+        const { result } = renderHook(() => useAssistantChat({ chatId: "chat-1" }));
+        await act(async () => { await result.current.handleChat(userMessage()); });
+        expect(reportErrorMock).toHaveBeenCalledTimes(1);
+    });
+});
+
+it("reports an unowned code and an unexpected abort name", async () => {
+    for (const response of [
+        new Response(JSON.stringify({ code: "upstream_unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } }),
+        new Response(new ReadableStream({ pull(controller) { controller.error(new DOMException("transport aborted", "AbortError")); } })),
+    ]) {
+        reportErrorMock.mockClear(); fetchMock.mockReset();
+        fetchMock.mockResolvedValueOnce(response);
+        const { result, unmount } = renderHook(() => useAssistantChat({ chatId: "chat-1" }));
+        await act(async () => { await result.current.handleChat(userMessage()); });
+        expect(reportErrorMock).toHaveBeenCalledTimes(1);
+        unmount();
+    }
+});

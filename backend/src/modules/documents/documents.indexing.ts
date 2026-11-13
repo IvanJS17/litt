@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { downloadFile } from "../../lib/storage";
-import { EXTRACTION_MAX_BYTES, ExtractionLimitError, ExtractionBusyError, withBackgroundExtraction } from "../../lib/extraction/isolated";
+import { EXTRACTION_MAX_BYTES, ExtractionLimitError, ExtractionBusyError, ExtractionParseError, withBackgroundExtraction } from "../../lib/extraction/isolated";
 import { DbJobDeferredError, type Db, type DbJob } from "../../lib/dbq/types";
+import { NonRetryableJobError } from "../../lib/dbq/runner";
 import { AppError } from "../../lib/appError";
 import type { ExtractInSlot } from "../../lib/extraction/isolated";
 import { loadReadScan } from "./documents.ocr.state";

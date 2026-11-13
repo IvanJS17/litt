@@ -36,8 +36,8 @@ it("keeps each request's identity in its own sanitized report line", async () =>
   };
   app.use(handleError);
   const [documents, workflow] = await Promise.all([
-    request(app).post(`/documents/${PRIVATE_FILE}?email=${PRIVATE_EMAIL}`).set("Authorization", "Bearer PRIVATE_TOKEN").send({ content: PRIVATE_FILE }),
-    request(app).get(`/workflows/${PRIVATE_FILE}?email=${PRIVATE_EMAIL}`),
+    request(app).post(`/documents/${PRIVATE_FILE}?email=${PRIVATE_EMAIL}`).set("x-request-id", "11111111-1111-4111-8111-111111111111").set("Authorization", "Bearer PRIVATE_TOKEN").send({ content: PRIVATE_FILE }),
+    request(app).get(`/workflows/${PRIVATE_FILE}?email=${PRIVATE_EMAIL}`).set("x-request-id", PRIVATE_EMAIL),
   ]);
   // Fails before a route is selected.
   const malformed = await request(app).post(`/documents/${PRIVATE_FILE}`).set("Content-Type", "application/json").send(`{"private":"${PRIVATE_EMAIL}"`);

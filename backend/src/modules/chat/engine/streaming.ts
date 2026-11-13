@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "../../../lib/reportedUpstreamCodes";
 import { AppError } from "../../../lib/appError";
 import { teamOrgIdOf } from "../../../lib/personalOrgs";
 import type { WebSearchAccount, WebSearchPlan } from "../../../lib/webSearch";
@@ -150,7 +151,7 @@ export function assistantStreamErrorPayload(
   safe_to_display?: true;
   code?: AssistantErrorCode;
   request_id?: string;
-  reporting_owner: "backend";
+  reporting_owner?: typeof BACKEND_REPORTING_OWNER;
 } {
   // The request id is the one handle a user can quote that finds the report
   // entry and the access-log line for this failure; it carries no content.
@@ -789,7 +790,7 @@ export async function runLLMStream(params: {
     // route before they arrive here, but this guard keeps every caller safe.
     const requestedModel = resolveModel(model, "");
     if (!requestedModel) {
-      throw new UserFacingError(
+      throw new ProviderConfigurationError(
         model
           ? `Model "${model}" is not available. Select another model.`
           : "Select a model before sending a message.",

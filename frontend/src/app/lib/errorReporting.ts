@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 /**
  * Failure reporting seam for the web app. LiTT sends no telemetry to third
  * parties, so nothing here leaves the browser: upstream's call sites keep
@@ -53,6 +54,7 @@ export function reportApiFailure(failure: {
     method?: string;
     operation?: Operation;
     error?: unknown;
+    reportingOwner?: typeof BACKEND_REPORTING_OWNER;
 }): string | null {
     markReported(failure.error);
     return null;

@@ -4,7 +4,11 @@
 # compiled dist/*.js; tsx is only loaded for *.ts entries in development.
 FROM node:22-slim AS build
 WORKDIR /app
-COPY backend/package*.json ./
+# .npmrc sets engine-strict: on a stale cached node:22-slim older than the
+# engines floor, `npm ci` fails here with "notsup" instead of building an
+# image that crashes at boot (MIKE-BACKEND-3R). `docker compose build --pull`
+# refreshes the base.
+COPY backend/package*.json backend/.npmrc ./
 RUN npm ci
 COPY backend/ ./
 COPY packages/contracts /packages/contracts

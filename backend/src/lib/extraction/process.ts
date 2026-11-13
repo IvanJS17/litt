@@ -21,10 +21,12 @@ process.on("message", (request: { op: ExtractionOp; bytes: ArrayBuffer; fileType
       process.send?.({ ok: true, result });
     } catch (error) {
       const limited = error instanceof ExtractionLimitError || isAllocationFailure(error);
-      process.send?.({
-        ok: false, limited,
-        message: limited ? "parser resource budget exceeded" : error instanceof Error ? error.message : "document extraction failed",
-      });
+      // A thrown Error does not survive IPC as itself; send its labels, and
+      // whether the parser rejected the bytes, so the parent can rebuild the
+      // same kind and code and a job knows whether to retry.
+      process.send?.(limited
+        ? { ok: false, limited, message: "parser resource budget exceeded" }
+        : { ok: false, limited, ...extractionFailureToWire(error) });
     }
   })();
 });

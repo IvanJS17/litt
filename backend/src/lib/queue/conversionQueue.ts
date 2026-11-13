@@ -56,6 +56,7 @@ export function getConversionQueue(): Queue<ConversionJobData> {
     }
     if (!queue) {
         queue = new Queue<ConversionJobData>(CONVERSION_QUEUE, { connection });
+        watchQueueErrors(queue, "producer", CONVERSION_QUEUE);
         queueConnection = connection;
     }
     return queue;

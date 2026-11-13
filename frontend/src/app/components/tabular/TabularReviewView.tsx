@@ -1,4 +1,5 @@
 "use client";
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 
 import { RowActionMenuItems } from "@/app/components/shared/RowActions";
 import { rowActionSelectionIds } from "@/app/components/shared/TablePrimitive";
@@ -785,7 +786,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     if (data.code !== "invalid_api_key") {
                         reportFlowFailure({
                             operation: "tabular.run",
-                            reportingOwner: data.reporting_owner === "backend" ? "backend" : undefined,
+                            reportingOwner: data.reporting_owner === BACKEND_REPORTING_OWNER ? BACKEND_REPORTING_OWNER : undefined,
                             code: typeof data.code === "string" ? data.code : null,
                             requestId:
                                 typeof data.request_id === "string"
@@ -947,6 +948,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     typeof payload?.request_id === "string"
                         ? payload.request_id
                         : response.headers.get("x-request-id");
+                const reportingOwner = payload?.reporting_owner === BACKEND_REPORTING_OWNER ? BACKEND_REPORTING_OWNER : undefined;
                 if (payload?.code === "review_running") {
                     setReview((current) =>
                         current ? { ...current, is_running: true } : current,
@@ -976,6 +978,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     ),
                     {
                         status: response.status,
+                        reportingOwner,
                         ...(code ? { code } : {}),
                         ...(requestId ? { requestId } : {}),
                     },
@@ -987,6 +990,7 @@ export function TRView({ reviewId, projectId }: Props) {
                     status: response.status,
                     code,
                     requestId,
+                    reportingOwner,
                     error: failure,
                 });
                 throw failure;

@@ -6,7 +6,10 @@ import path from "node:path";
 import { app } from "./app";
 import { enforceDocumentLifecycleMigration } from "./lib/dbq/lifecycleGuard";
 import { manifestPublicKey } from "./lib/manifestSigning";
-import { validateRuntimeConfiguration } from "./lib/runtimeConfig";
+import {
+  storagePublicEndpointWarnings,
+  validateRuntimeConfiguration,
+} from "./lib/runtimeConfig";
 import {
   startAllWorkers,
   stopAllWorkers,
@@ -35,6 +38,9 @@ async function validateBootConfiguration(): Promise<void> {
   let stage = "runtime-config";
   try {
     validateRuntimeConfiguration();
+    for (const warning of storagePublicEndpointWarnings()) {
+      console.warn(`[storage] ${warning}`);
+    }
     stage = "manifest-key";
     const signingKey = manifestPublicKey();
     if (signingKey) {

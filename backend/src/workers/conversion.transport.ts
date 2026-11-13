@@ -34,6 +34,7 @@ export function createConversionWorker(): Worker<ConversionJobData> {
             maxStalledCount: 2,
         },
     );
+    watchQueueErrors(worker, "worker");
     worker.on("stalled", (jobId) => {
         console.warn(
             "[conversion-worker] job stalled; will be re-queued",

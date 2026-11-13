@@ -1,5 +1,6 @@
+import { installProviderWarningLogger } from "./warnings";
 import { normalizeReasoningLevelForModel } from "./models";
-import type { LanguageModel, ToolSet } from "ai" with {
+import type { LanguageModel, LanguageModelMiddleware, ToolSet } from "ai" with {
   "resolution-mode": "import",
 };
 import type * as AiSdk from "ai" with { "resolution-mode": "import" };
@@ -15,8 +16,36 @@ import type {
 } from "./types";
 import type { WebSource } from "@mike/contracts";
 import { providerDeadlines } from "./providerDeadlines";
-import { asProviderStallError, streamErrorMessage, toProviderStreamError } from "./providerErrors";
+import {
+  asProviderStallError,
+  isDeterministicProviderQuota,
+  streamErrorMessage,
+  toProviderStreamError,
+  withKeySource,
+  type ProviderKeySource,
+} from "./providerErrors";
 import { createRawLlmStreamRecorder, logRawLlmStream } from "./rawStreamLog";
+
+installProviderWarningLogger();
+
+/** Keep SDK retry backoff for throttling, but don't repeat a proven account refusal. */
+function quotaRefusalRetries(): LanguageModelMiddleware {
+  const attempt = async <T>(call: () => PromiseLike<T>): Promise<T> => {
+    try { return await call(); }
+    catch (error) {
+      if (isDeterministicProviderQuota(error) && error instanceof Error) {
+        // APICallError exposes this flag to the SDK retry loop. Preserve the
+        // actual exception, provider response, stack and cause for its owner.
+        Object.defineProperty(error, "isRetryable", { value: false, configurable: true });
+      }
+      throw error;
+    }
+  };
+  return {
+    wrapGenerate: ({ doGenerate }) => attempt(doGenerate),
+    wrapStream: ({ doStream }) => attempt(doStream),
+  };
+}
 
 /**
  * Per-step output limit, or undefined to leave it to the provider.
@@ -203,6 +232,12 @@ export type AiSdkAdapterConfig = {
   label: string;
   model: Exclude<LanguageModel, string>;
   modelId: string;
+  /**
+   * Whose key this adapter sends: a user's own, or the deployment's
+   * environment key. Recorded on a failure so a refusal of the operator's
+   * key is reported and a user's is not (providerFailureLevel).
+   */
+  keySource?: ProviderKeySource;
   /** Some protocol-compatible gateways reject reasoning request fields. */
   supportsReasoning?: boolean;
   /** The provider's own web search tool. */
@@ -533,7 +568,7 @@ export async function streamAiSdk(
     const result = sdk.streamText({
       model: sdk.wrapLanguageModel({
         model: config.model,
-        middleware: providerDeadlines(params.callbacks?.onActivity),
+        middleware: [providerDeadlines(params.callbacks?.onActivity), quotaRefusalRetries()],
       }),
       system: params.systemPrompt,
       messages: cacheHints.messages,
@@ -761,7 +796,7 @@ export async function completeAiSdkText(
   },
   config: AiSdkAdapterConfig,
 ): Promise<string> {
-  const { generateText } = await import("ai");
+  const { generateText, wrapLanguageModel } = await import("ai");
   const reasoning =
     config.supportsReasoning === false
       ? undefined

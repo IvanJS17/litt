@@ -246,7 +246,7 @@ export async function runExtractionJob(
                     }),
             },
         });
-        if (error instanceof ExtractionLimitError) throw error;
+        if (error instanceof ExtractionLimitError || error instanceof ExtractionParseError) throw error;
         if (error) {
             const payload = assistantStreamErrorPayload(error);
             if (payload.code === "invalid_api_key") {

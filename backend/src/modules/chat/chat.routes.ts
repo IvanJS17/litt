@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 import { abortable } from "../../lib/abortable";
 import {
     attachAssistantTurnSse,
@@ -863,7 +864,7 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                             type: "error",
                             message:
                                 "The response was generated but could not be saved.",
-                            reporting_owner: "backend",
+                            reporting_owner: BACKEND_REPORTING_OWNER,
                             ...(requestId ? { request_id: requestId } : {}),
                         })}\n\n`,
                     );
@@ -1035,6 +1036,9 @@ chatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
                 write(stopOutcomeFrame(run));
                 write("data: [DONE]\n\n");
                 return;
+            }
+            if (!isReported(err)) {
+                reportError(err, { tags: { operation: "chat.turn", stage: "chat-stream" } });
             }
             console.error("[chat/stream] error:", err);
             const errorPayload = assistantStreamErrorPayload(err, requestId);

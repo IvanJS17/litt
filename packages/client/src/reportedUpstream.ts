@@ -1,3 +1,6 @@
+/** Ownership is explicit; a status or display code never establishes it. */
+export const BACKEND_REPORTING_OWNER = "backend";
+
 /**
  * 5xx codes the server side has already reported in its own log, and what
  * each tells the user.

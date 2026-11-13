@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 /**
  * Failure reporting seam for the Word add-in. LiTT sends no telemetry to
  * third parties, so nothing here leaves the pane: call sites keep naming the

@@ -17,7 +17,7 @@ import {
 import { guardedFetch } from "../mcp/client";
 import { isBlockedDestinationError } from "../blockedDestination";
 import { localModelToleranceMiddleware } from "./localModelMiddleware";
-import { providerFailureResponse } from "./providerErrors";
+import { ProviderConfigurationError, providerFailureResponse, type ProviderKeySource } from "./providerErrors";
 import {
   ACCOUNT_MODEL_LABELS,
   accountModelPrefix,
@@ -42,6 +42,7 @@ import {
   tolerateTextToolCalls,
 } from "./registry";
 import type {
+  ApiKeyName,
   ConfiguredModel,
   Provider,
   ReasoningLevel,
@@ -115,6 +116,19 @@ const ENVIRONMENT_KEY_ALIASES: Record<string, string[]> = {
   ANTHROPIC_API_KEY: ["CLAUDE_API_KEY"],
 };
 
+/**
+ * A provider with no key: neither the user's own nor the deployment's. The
+ * user is told where THEY can fix it; the environment variables that would
+ * fix it are the operator's configuration, so they go to the server log,
+ * never into a message every user of a hosted deployment can read.
+ */
+function keyNotConfigured(label: string, operatorHint: string): UserFacingError {
+  console.warn(`[llm] ${label} API key is not configured. ${operatorHint}`);
+  return new ProviderConfigurationError(
+    `The ${label} API key is not configured. Add your own key in Settings → Bring Your Own Keys or contact your administrator.`,
+  );
+}
+
 function requiredKey(
   label: string,
   environmentVariable: string,
@@ -128,11 +142,28 @@ function requiredKey(
       .find((value) => !!value) ||
     "";
   if (!key) {
-    throw new Error(
-      `${label} API key is not configured. Set ${environmentVariable} or add a user ${label} key.`,
-    );
+    throw keyNotConfigured(label, `Set ${environmentVariable}.`);
   }
   return key;
+}
+
+/**
+ * Whose key a call for `provider` sends. The credential store lays saved
+ * keys over the environment's, so `apiKeys[provider]` is often the
+ * deployment's own key, and keySources says which (see UserApiKeys). An
+ * empty entry means requiredKey, routerKey or the cloud credential helpers
+ * fall back to the environment: the deployment's key too. A key without a
+ * recorded origin (built outside the store) counts as the user's, the quiet
+ * default: a refusal is then logged, never reported.
+ */
+function keySourceFor(
+  apiKeys: UserApiKeys | undefined,
+  provider: ApiKeyName,
+): ProviderKeySource {
+  if (!apiKeys?.[provider]?.trim()) return "deployment";
+  const origin = apiKeys.keySources?.[provider];
+  if (origin === "env") return "deployment";
+  return origin === "org" ? "org" : "user";
 }
 
 function routerEnvironmentKey(provider: RouterProvider): string | undefined {
@@ -159,9 +190,7 @@ function routerKey(provider: RouterProvider, apiKeys?: UserApiKeys): string {
   const key =
     routerUserKey(provider, apiKeys)?.trim() || routerEnvironmentKey(provider);
   if (!key) {
-    throw new Error(
-      `${ROUTER_LABELS[provider]} API key is not configured. Set ${ROUTER_KEY_ENV_HINTS[provider]} or add a user ${ROUTER_LABELS[provider]} key.`,
-    );
+    throw keyNotConfigured(ROUTER_LABELS[provider], `Set ${ROUTER_KEY_ENV_HINTS[provider]}.`);
   }
   return key;
 }
@@ -171,6 +200,7 @@ async function createAnthropicAdapter(args: {
   label: string;
   model: string;
   apiKey: string;
+  keySource: ProviderKeySource;
   baseURL?: string;
   supportsReasoning: boolean;
 }): Promise<AiSdkAdapterConfig> {
@@ -186,6 +216,7 @@ async function createAnthropicAdapter(args: {
     label: args.label,
     model: anthropic(args.model),
     modelId: args.model,
+    keySource: args.keySource,
     supportsReasoning: args.supportsReasoning,
     // Only Anthropic itself runs the search; compatible gateways do not.
     ...(args.provider === "claude"
@@ -204,6 +235,7 @@ async function createRouterAdapter(
   conversationId?: string | null,
 ): Promise<AiSdkAdapterConfig> {
   const key = routerKey(provider, apiKeys);
+  const keySource = keySourceFor(apiKeys, provider);
 
   if (provider === "openrouter") {
     const { createOpenRouter } = await import("@openrouter/ai-sdk-provider");
@@ -267,6 +299,7 @@ async function createRouterAdapter(
     label: ROUTER_LABELS[provider],
     model: openCodeGo(openCodeGoModelId(model)),
     modelId: model,
+    keySource,
     supportsReasoning: false,
     defaultMaxOutputTokens: () => ROUTER_DEFAULT_MAX_OUTPUT_TOKENS,
     alwaysReasoningHeadroom: true,
@@ -289,8 +322,9 @@ async function createBedrockAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const credentials = bedrockCredentials(apiKeys);
   if (!credentials) {
-    throw new Error(
-      "Amazon Bedrock API key is not configured. Set AWS_BEARER_TOKEN_BEDROCK and BEDROCK_AWS_REGION or add a user Amazon Bedrock key and region.",
+    throw keyNotConfigured(
+      "Amazon Bedrock",
+      "Set AWS_BEARER_TOKEN_BEDROCK and BEDROCK_AWS_REGION, or the user adds a key and region.",
     );
   }
   const { createAmazonBedrock } = await import("@ai-sdk/amazon-bedrock");
@@ -311,6 +345,7 @@ async function createBedrockAdapter(
     label: "Amazon Bedrock",
     model: bedrock(upstreamId),
     modelId: model,
+    keySource: keySourceFor(apiKeys, "bedrock"),
     bedrockCachePoint: isClaude,
     ...(isClaude
       ? { defaultMaxOutputTokens: await bedrockClaudeMaxOutputTokens(upstreamId) }
@@ -348,8 +383,9 @@ async function createAzureAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const credentials = azureCredentials(apiKeys);
   if (!credentials) {
-    throw new Error(
-      "Azure OpenAI API key is not configured. Set AZURE_API_KEY and AZURE_OPENAI_ENDPOINT or add a user Azure OpenAI key and endpoint.",
+    throw keyNotConfigured(
+      "Azure OpenAI",
+      "Set AZURE_API_KEY and AZURE_OPENAI_ENDPOINT, or the user adds a key and endpoint.",
     );
   }
   const { createAzure } = await import("@ai-sdk/azure");
@@ -375,17 +411,20 @@ async function createAzureFoundryAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const credentials = azureFoundryCredentials(apiKeys);
   if (!credentials) {
-    throw new Error(
-      "Azure AI Foundry API key is not configured. Set AZURE_FOUNDRY_API_KEY and AZURE_FOUNDRY_ENDPOINT or add a user Azure AI Foundry key and endpoint.",
+    throw keyNotConfigured(
+      "Azure AI Foundry",
+      "Set AZURE_FOUNDRY_API_KEY and AZURE_FOUNDRY_ENDPOINT, or the user adds a key and endpoint.",
     );
   }
   const deployment = azureFoundryDeploymentName(model);
+  const keySource = keySourceFor(apiKeys, "azure-foundry");
   if (isAzureFoundryClaudeDeployment(model)) {
     return createAnthropicAdapter({
       provider: "azure-foundry",
       label: "Azure AI Foundry",
       model: deployment,
       apiKey: credentials.apiKey,
+      keySource,
       baseURL: `${credentials.endpoint}/anthropic/v1`,
       supportsReasoning: true,
     });
@@ -405,6 +444,7 @@ async function createAzureFoundryAdapter(
     label: "Azure AI Foundry",
     model: foundry(deployment),
     modelId: model,
+    keySource,
     supportsReasoning: false,
   };
 }
@@ -428,7 +468,12 @@ async function createVertexAdapter(
     fetch: aiSdkFetch,
   };
   const upstreamId = vertexModelId(model);
-  const base = { provider: "vertex" as const, label: "Google Vertex AI", modelId: model };
+  const base = {
+    provider: "vertex" as const,
+    label: "Google Vertex AI",
+    modelId: model,
+    keySource: keySourceFor(apiKeys, "vertex"),
+  };
   const protocol = vertexModelProtocol(model);
   if (protocol === "anthropic") {
     const { createVertexAnthropic } = await import(
@@ -487,7 +532,7 @@ async function createCustomEndpointAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const credentials = customEndpointCredentials(apiKeys);
   if (!credentials) {
-    throw new Error(
+    throw new ProviderConfigurationError(
       "OpenAI-compatible endpoint is not configured. Add an API key and base URL in Settings → Bring Your Own Keys.",
     );
   }
@@ -503,6 +548,8 @@ async function createCustomEndpointAdapter(
     label: "OpenAI-compatible endpoint",
     model: client(customEndpointModelId(model)),
     modelId: model,
+    // Custom endpoints may belong to the user or their organization.
+    keySource: keySourceFor(apiKeys, "custom"),
     supportsReasoning: false,
   };
 }
@@ -526,7 +573,7 @@ async function createConfiguredAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const configured = configuredModelOrThrow(id);
   if (configured.apiKeyProvider && apiKeys?.disabledProviders?.includes(configured.apiKeyProvider)) {
-    throw new UserFacingError("This model provider is turned off. Turn it on in Settings → Bring Your Own Keys or select another model.");
+    throw new ProviderConfigurationError("This model provider is turned off. Turn it on in Settings → Bring Your Own Keys or select another model.");
   }
   const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
   const apiKey = apiKeyForConfiguredModel(configured, apiKeys);
@@ -559,6 +606,7 @@ async function createConfiguredAdapter(
         })
       : base,
     modelId: configured.id,
+    keySource: configuredModelKeySource(configured, apiKeys),
     supportsReasoning: false,
     replayReasoning: configured.replayReasoning === true,
   };
@@ -587,7 +635,7 @@ async function createProviderAdapter(
 ): Promise<AiSdkAdapterConfig> {
   const provider = providerForModel(model);
   if (apiKeys?.disabledProviders?.includes(provider)) {
-    throw new UserFacingError("This model provider is turned off. Turn it on in Settings → Bring Your Own Keys or select another model.");
+    throw new ProviderConfigurationError("This model provider is turned off. Turn it on in Settings → Bring Your Own Keys or select another model.");
   }
 
   // Last line of defence behind resolveModel and the save-time check: some
@@ -595,7 +643,7 @@ async function createProviderAdapter(
   // malformed id must never reach an adapter, whatever path it came from.
   const accountPrefix = accountModelPrefix(model);
   if (accountPrefix === provider && !isSafeAccountModel(model)) {
-    throw new UserFacingError(
+    throw new ProviderConfigurationError(
       `This is not a valid ${ACCOUNT_MODEL_LABELS[accountPrefix]} model id. Choose a model saved in Model Providers.`,
     );
   }
@@ -606,6 +654,7 @@ async function createProviderAdapter(
       label: "Claude",
       model,
       apiKey: requiredKey("Anthropic", "ANTHROPIC_API_KEY", apiKeys?.claude),
+      keySource: keySourceFor(apiKeys, "claude"),
       supportsReasoning: true,
     });
   }
@@ -616,7 +665,13 @@ async function createProviderAdapter(
       apiKey: requiredKey("Gemini", "GEMINI_API_KEY", apiKeys?.gemini),
       fetch: aiSdkFetch,
     });
-    return { provider, label: "Gemini", model: google(model), modelId: model };
+    return {
+      provider,
+      label: "Gemini",
+      model: google(model),
+      modelId: model,
+      keySource: keySourceFor(apiKeys, "gemini"),
+    };
   }
 
   if (provider === "openai") {
@@ -640,7 +695,13 @@ async function createProviderAdapter(
       apiKey: requiredKey("Mistral", "MISTRAL_API_KEY", apiKeys?.mistral),
       fetch: aiSdkFetch,
     });
-    return { provider, label: "Mistral", model: mistral(model), modelId: model };
+    return {
+      provider,
+      label: "Mistral",
+      model: mistral(model),
+      modelId: model,
+      keySource: keySourceFor(apiKeys, "mistral"),
+    };
   }
 
   if (
@@ -670,6 +731,7 @@ async function createProviderAdapter(
       label: "xAI",
       model: xai(xaiModelId(model)),
       modelId: model,
+      keySource: keySourceFor(apiKeys, "xai"),
     };
   }
 
@@ -689,6 +751,8 @@ async function createProviderAdapter(
     label: "Ollama",
     model: ollama(ollamaModelName(model)),
     modelId: model,
+    // OLLAMA_API_KEY, when set, is the deployment's.
+    keySource: "deployment",
     supportsReasoning: false,
   };
 }

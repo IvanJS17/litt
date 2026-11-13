@@ -10,6 +10,8 @@ import crypto from "crypto";
 import { createServerSupabase } from "../supabase";
 import type { Db } from "../supabase";
 import { logError } from "../log";
+import { AppError } from "../appError";
+import { reportError } from "../observability/sentry";
 import type { ProviderSettings, UserApiKeys } from "../llm";
 import {
     envAzureCredentials,
@@ -185,7 +187,7 @@ const derivedKeys = new Map<string, Buffer>();
 function encryptionKey(): Buffer {
     const secret = process.env.USER_API_KEYS_ENCRYPTION_SECRET;
     if (!secret) {
-        throw new Error("USER_API_KEYS_ENCRYPTION_SECRET is not configured");
+        throw Object.assign(new AppError("configuration.encryption_secret_missing", "USER_API_KEYS_ENCRYPTION_SECRET is not configured"), { code: "configuration_invalid", configurationFields: ["USER_API_KEYS_ENCRYPTION_SECRET"] });
     }
     const cacheKey = `${KEY_SALT}:${secret}`;
     const cached = derivedKeys.get(cacheKey);
@@ -223,6 +225,7 @@ export function decrypt(row: EncryptedKeyRow): string | null {
         ]);
         return decrypted.toString("utf8");
     } catch (err) {
+        reportError(err, { tags: { operation: "credentials.decrypt", component: "provider-credentials" } });
         logError("user-api-keys", err, {
             detail: "failed to decrypt stored key",
             provider: row.provider,
@@ -428,6 +431,10 @@ export function envApiKeys(): UserApiKeys {
         vertex: envVertex ? { location: envVertex.location } : null,
         custom: null,
     };
+    apiKeys.keySources = {};
+    for (const provider of PROVIDERS) {
+        if (apiKeys[provider]) apiKeys.keySources[provider] = "env";
+    }
     return apiKeys;
 }
 
@@ -520,14 +527,20 @@ const without = <T,>(
  * Any earlier layer's verdict on the provider is cleared first: this owner's
  * row is the newer answer.
  */
-function overlayKeyRows(apiKeys: UserApiKeys, rows: EncryptedKeyRow[]): void {
+function overlayKeyRows(
+    apiKeys: UserApiKeys,
+    rows: EncryptedKeyRow[],
+    kind: ApiKeyOwner["kind"],
+): void {
     const providerSettings: ProviderSettings = (apiKeys.providerSettings ??=
         {});
+    const keySources = (apiKeys.keySources ??= {});
     for (const row of rows) {
         const provider = normalizeApiKeyProvider(row.provider);
         if (!provider) continue;
         if (row.enabled === false) {
             apiKeys[provider] = null;
+            delete keySources[provider];
             apiKeys.unusableProviders = without(
                 apiKeys.unusableProviders,
                 provider,
@@ -553,6 +566,7 @@ function overlayKeyRows(apiKeys: UserApiKeys, rows: EncryptedKeyRow[]): void {
                 // and mark the provider so cloudProviders.ts does not fall
                 // back to the deployment's credentials either.
                 apiKeys[provider] = null;
+                delete keySources[provider];
                 providerSettings[provider] = null;
                 apiKeys.unusableProviders = [
                     ...(apiKeys.unusableProviders ?? []),
@@ -563,6 +577,7 @@ function overlayKeyRows(apiKeys: UserApiKeys, rows: EncryptedKeyRow[]): void {
             Object.assign(providerSettings, settings);
         }
         apiKeys[provider] = savedKey;
+        keySources[provider] = kind;
     }
 }
 

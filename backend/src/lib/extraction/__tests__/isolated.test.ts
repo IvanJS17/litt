@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { existsSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { spawn } from "node:child_process";
 import { Document, Packer, Paragraph } from "docx";
 import JSZip from "jszip";
@@ -10,6 +12,8 @@ import {
   runIsolatedExtraction,
   stopExtractionProcess,
 } from "../isolated";
+import { ExtractionParseError } from "../failure";
+import { diagnosticErrorTags } from "../../observability/sentryPrivacy";
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
