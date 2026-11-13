@@ -428,6 +428,10 @@ create table if not exists public.organizations (
   -- Whether work in this organization may run on a member's own provider
   -- key when the organization has none for that provider (org_api_keys).
   allow_personal_api_keys boolean not null default true,
+  -- LiTT managed accounts (docs/managed-accounts.md): when on, the accounts
+  -- this organization invited and that were created by that invitation have
+  -- no personal space (user_profiles.created_by_org_id). Backend-only.
+  managed_accounts boolean not null default false,
   -- LiTT layer 7: the firm's list of document types for splitting a case file
   -- (same shape as user_profiles.split_classes), or NULL for the built-in list.
   split_classes jsonb
@@ -463,6 +467,16 @@ create unique index if not exists organizations_personal_user_key
   where personal_user_id is not null;
 
 alter table public.organizations enable row level security;
+
+-- The firm whose invitation created an account (managed accounts). Declared
+-- here because user_profiles comes before organizations in this file. Set once
+-- by the backend; NULL for an account that existed before its invitation.
+alter table public.user_profiles
+  add column if not exists created_by_org_id uuid
+  references public.organizations(id) on delete set null;
+create index if not exists idx_user_profiles_created_by_org
+  on public.user_profiles(created_by_org_id)
+  where created_by_org_id is not null;
 
 -- Three roles. `owner` is accountable for the org: it alone deletes it and
 -- appoints or removes admins and other owners, and several people may hold it.
@@ -20668,5 +20682,6 @@ insert into public.schema_migrations (filename) values
   ('20261112_30_litt_landingai_key.sql'),
   ('20261112_40_litt_document_ocr.sql'),
   ('20261112_50_litt_ocr_keep_reading.sql'),
-  ('20261112_60_litt_split_expediente.sql')
+  ('20261112_60_litt_split_expediente.sql'),
+  ('20261113_10_litt_managed_accounts.sql')
 on conflict (filename) do nothing;
