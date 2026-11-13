@@ -117,7 +117,7 @@ function SetPasswordContent() {
     }
 
     return (
-        <AuthPageShell align={ready && !linkInvalid ? "top" : "center"}>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {!ready ? (

@@ -93,7 +93,7 @@ export default function AccountDeletedPage() {
   // the receipt in an auth card under it. `top` keeps the card still while
   // the receipt grows from "Deleting…" to the full list.
   return (
-    <AuthPageShell align="top">
+    <AuthPageShell>
       <main className="w-full max-w-xl">
         <div className={authGlassCardUIClassName}>
           <div className="space-y-5">

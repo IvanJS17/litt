@@ -62,7 +62,6 @@ function ResetPasswordContent() {
         : error;
     const resetUnavailable =
         displayedReady && !!displayedError && !password && !confirmPassword;
-    const verticallyCentered = !displayedReady || success || resetUnavailable;
 
     useEffect(() => {
         if (isVerifyingPreview || isUnavailablePreview) return;
@@ -142,7 +141,7 @@ function ResetPasswordContent() {
     }
 
     return (
-        <AuthPageShell align={verticallyCentered ? "center" : "top"}>
+        <AuthPageShell>
             <div className="w-full max-w-md">
                 <div className={authGlassCardUIClassName}>
                     {!displayedReady ? (
