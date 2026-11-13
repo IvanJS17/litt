@@ -106,4 +106,10 @@ describe("NoticeCardUI", () => {
         expect(screen.getByRole("button", { name: "Open" }).parentElement)
             .toHaveClass("justify-end");
     });
+
+    it("gives every kind of action a 44 px touch target", () => {
+        for (const emphasis of ["primary", "secondary", "tertiary"] as const) {
+            expect(noticeActionClassName(emphasis)).toContain("pointer-coarse:after:size-11");
+        }
+    });
 });

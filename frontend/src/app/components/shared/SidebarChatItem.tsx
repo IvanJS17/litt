@@ -217,17 +217,17 @@ export function SidebarChatItem({
                             // Two chats need a wide page.
                             <DropdownItem
                                 onSelect={onOpenInSideChat}
-                                className="max-md:hidden"
+                                className="max-md:hidden pointer-coarse:min-h-11"
                             >
                                 <MessageSquare aria-hidden="true" className="mr-2 h-4 w-4" />
                                 {t("shared.sidebarChatItem.openInSideChat")}
                             </DropdownItem>
                         )}
-                        {canShare && <DropdownItem onSelect={() => setShareOpen(true)}>
+                        {canShare && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setShareOpen(true)}>
                             <Users className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.share")}
                         </DropdownItem>}
-                        {canRename && <DropdownItem onSelect={() => setRenameOpen(true)}>
+                        {canRename && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setRenameOpen(true)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.rename")}
                         </DropdownItem>}
@@ -238,12 +238,12 @@ export function SidebarChatItem({
                                         t("shared.sidebarChatItem.theChatCouldNotBeDeleted")));
                                 });
                             }}
-                            className="text-red-600 focus:text-red-600"
+                            className="text-red-600 focus:text-red-600 pointer-coarse:min-h-11"
                         >
                             <Trash2 className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.delete")}
                         </DropdownItem>}
-                        {canLeave && <DropdownItem onSelect={() => setLeaveOpen(true)}>
+                        {canLeave && <DropdownItem className="pointer-coarse:min-h-11" onSelect={() => setLeaveOpen(true)}>
                             <LogOut className="mr-2 h-4 w-4" />
                             {t("shared.sidebarChatItem.leave")}
                         </DropdownItem>}

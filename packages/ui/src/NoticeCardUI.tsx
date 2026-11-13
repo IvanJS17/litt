@@ -24,6 +24,7 @@ import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { LIQUID_GLASS_FLOAT_CLASS } from "./LiquidGlassUI";
 import { pillButtonUIClassName } from "./PillButtonUI.styles";
 import { textButtonUIClassName } from "./TextButtonUI.styles";
+import { TOUCH_TARGET_CLASS } from "./touchTargetUI.styles";
 import { CloseButton } from "./CloseButton";
 import type { ToastTone } from "@mike/client";
 
@@ -79,11 +80,15 @@ export function noticeActionClassName(
 ) {
     if (emphasis === "tertiary") {
         // `h-7` matches the small pills beside it.
-        return textButtonUIClassName({ size: "sm", className: "h-7" });
+        return textButtonUIClassName({
+            size: "sm",
+            className: `${TOUCH_TARGET_CLASS} h-7`,
+        });
     }
     return pillButtonUIClassName({
         tone: tone ?? (emphasis === "primary" ? "black" : "white"),
         size: "sm",
+        className: TOUCH_TARGET_CLASS,
     });
 }
 

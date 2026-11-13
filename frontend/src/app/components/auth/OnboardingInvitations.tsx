@@ -15,7 +15,7 @@ import {
 import { ManagedAccountNotice } from "@/app/components/organizations/ManagedAccountNotice";
 import { orgRoleLabel } from "@/app/components/organizations/orgRoleText";
 import { userFacingApiError } from "@/app/lib/userFacingError";
-import { GlassCardUI, PillButtonUI } from "@mike/ui";
+import { GlassCardUI, PillButtonUI, TOUCH_TARGET_CLASS } from "@mike/ui";
 import { useTranslations } from "next-intl";
 
 type Answer = "joined" | "declined";
@@ -169,10 +169,10 @@ export function OnboardingInvitations({
                             </span>
                         ) : (
                             <div className="flex items-center gap-2">
-                                <PillButtonUI type="button" tone="white" size="sm" aria-label={t("auth.onboarding.declineName", { name: orgName })}
+                                <PillButtonUI type="button" tone="white" size="sm" className={TOUCH_TARGET_CLASS} aria-label={t("auth.onboarding.declineName", { name: orgName })}
                                     disabled={answeringId !== null}
                                     onClick={() => void answer(invitation, "declined")}>{t("auth.onboarding.decline")}</PillButtonUI>
-                                <PillButtonUI type="button" tone="black" size="sm" aria-label={t("auth.onboarding.acceptName", { name: orgName })}
+                                <PillButtonUI type="button" tone="black" size="sm" className={TOUCH_TARGET_CLASS} aria-label={t("auth.onboarding.acceptName", { name: orgName })}
                                     disabled={answeringId !== null}
                                     loading={answeringId === invitation.id} onClick={() => void answer(invitation, "joined")}>{t("auth.onboarding.accept")}</PillButtonUI>
                             </div>

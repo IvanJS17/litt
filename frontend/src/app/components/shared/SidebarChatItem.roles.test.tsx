@@ -88,6 +88,22 @@ describe("SidebarChatItem actions on a touch screen", () => {
     });
 });
 
+describe("SidebarChatItem menu items on a touch screen", () => {
+    it("makes every item at least 44 px tall", async () => {
+        render(
+            <SidebarChatItem
+                chat={chat({ is_owner: true })}
+                isActive
+                onSelect={vi.fn()}
+            />,
+        );
+        openMenu();
+        const items = await screen.findAllByRole("menuitem");
+        expect(items.length).toBeGreaterThanOrEqual(3);
+        for (const item of items) expect(item).toHaveClass("pointer-coarse:min-h-11");
+    });
+});
+
 describe("SidebarChatItem role gates", () => {
     it("opens chat access from an owner's Share action", async () => {
         render(
