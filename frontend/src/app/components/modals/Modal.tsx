@@ -84,6 +84,7 @@ export function Modal({
         ) : undefined
       }
       keepMounted={keepMounted}
+      sheet
     >
       {children}
     </ModalUI>

@@ -124,6 +124,42 @@
     background-color: var(--liquid-glass-background-modal);
 }
 
+/* Lote 2 · móvil: the dialog as a bottom sheet (ModalUI `sheet`). Under
+   768 px it rises from the bottom edge in 250 ms and leaves in 180 ms on the
+   same curve; with "Reduce motion" it simply appears. */
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+    .modal-sheet-backdrop[data-state="open"] {
+        animation: modal-sheet-fade 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    }
+    .modal-sheet-backdrop[data-state="closed"] {
+        animation: modal-sheet-fade 180ms cubic-bezier(0.32, 0.72, 0, 1) reverse both;
+    }
+    .modal-sheet-backdrop[data-state="open"] > .modal-sheet {
+        animation: modal-sheet-rise 250ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    }
+    .modal-sheet-backdrop[data-state="closed"] > .modal-sheet {
+        animation: modal-sheet-rise 180ms cubic-bezier(0.32, 0.72, 0, 1) reverse both;
+    }
+}
+
+@keyframes modal-sheet-rise {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes modal-sheet-fade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 .liquid-glass-translucent {
     box-shadow: var(--liquid-glass-shadow-translucent);
     backdrop-filter: blur(40px);
