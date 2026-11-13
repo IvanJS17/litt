@@ -2927,6 +2927,11 @@
       "appearance": "Appearance",
       "couldNotUpdateTheAppearanceSetting": "Could not update the appearance setting.",
       "darkMode": "Dark mode",
+      "textSize": "Text size",
+      "textSizeHelp": "Changes the size of the text in LiTT. You can also use your browser's zoom.",
+      "textSizeLarge": "Large",
+      "textSizeNormal": "Normal",
+      "textSizeXLarge": "Very large",
       "useADarkerColorPaletteThroughout": "Use a darker color palette throughout LiTT."
     },
     "byokProviderModal": {
@@ -3477,6 +3482,11 @@
         "description": "Use a darker color palette throughout LiTT.",
         "keywords": "theme|dark|light mode|night mode|colour|color|palette|display|look|contrast|black background",
         "title": "Dark mode"
+      },
+      "appearanceTextSize": {
+        "description": "Change the size of the text in LiTT.",
+        "keywords": "text size|font size|letter size|bigger text|larger text|smaller text|zoom|scale|read|readable|accessibility|letra|tamano",
+        "title": "Text size"
       },
       "byok": {
         "description": "Add your own API keys for model providers such as Anthropic, OpenAI, Google and Azure.",

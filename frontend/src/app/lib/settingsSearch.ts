@@ -147,6 +147,15 @@ function buildEntries(t: Translate): SettingsSearchEntry[] {
             href: "/settings/appearance#appearance",
         },
         {
+            id: "appearance-text-size",
+            tabId: "appearance",
+            tab: t("settings.layout.tab.appearance"),
+            title: t("settings.searchIndex.appearanceTextSize.title"),
+            description: t("settings.searchIndex.appearanceTextSize.description"),
+            keywords: keywordList(t("settings.searchIndex.appearanceTextSize.keywords")),
+            href: "/settings/appearance#text-size",
+        },
+        {
             id: "features-quick-actions",
             tabId: "features",
             tab: t("settings.layout.tab.features"),

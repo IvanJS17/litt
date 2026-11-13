@@ -115,6 +115,20 @@ function ThemeControls() {
     );
 }
 
+function TextSizeControls({ onError }: { onError?: () => void }) {
+    const { profile, updateTextSize } = useUserProfile();
+    return (
+        <>
+            <span data-testid="size">{profile?.textSize ?? "none"}</span>
+            <button
+                onClick={() => void updateTextSize("large").catch(() => onError?.())}
+            >
+                Large
+            </button>
+        </>
+    );
+}
+
 function LastSelectedModel() {
     const { profile, persistChatModelSelection } = useUserProfile();
     return (
@@ -196,6 +210,7 @@ afterEach(() => {
     clearToasts();
     document.documentElement.classList.remove("dark");
     document.documentElement.style.colorScheme = "";
+    document.documentElement.removeAttribute("data-text-size");
     localStorage.clear();
     auth.signedIn = true;
     vi.clearAllMocks();
@@ -400,6 +415,87 @@ describe("UserProfileProvider dark mode", () => {
         await waitFor(() =>
             expect(document.documentElement).toHaveClass("dark"),
         );
+    });
+
+    it("applies the saved text size to <html> and remembers it for the next first paint", async () => {
+        getUserProfile.mockResolvedValue({ ...apiProfile(false), textSize: "xlarge" });
+        render(
+            <UserProfileProvider>
+                <TextSizeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() =>
+            expect(document.documentElement).toHaveAttribute("data-text-size", "xlarge"),
+        );
+        expect(localStorage.getItem("litt:text-size")).toBe("xlarge");
+    });
+
+    it("keeps the size painted at boot until the profile answers, and reads a profile without one as normal", async () => {
+        document.documentElement.setAttribute("data-text-size", "large");
+        let answer!: (profile: ReturnType<typeof apiProfile>) => void;
+        getUserProfile.mockReturnValue(
+            new Promise((resolve) => {
+                answer = resolve;
+            }),
+        );
+        render(
+            <UserProfileProvider>
+                <TextSizeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+        expect(document.documentElement).toHaveAttribute("data-text-size", "large");
+
+        answer(apiProfile(false));
+        await waitFor(() =>
+            expect(document.documentElement).not.toHaveAttribute("data-text-size"),
+        );
+    });
+
+    it("saves a new text size and applies it", async () => {
+        getUserProfile.mockResolvedValue(apiProfile(false));
+        render(
+            <UserProfileProvider>
+                <TextSizeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() => expect(getUserProfile).toHaveBeenCalled());
+        fireEvent.click(await screen.findByRole("button", { name: "Large" }));
+        await waitFor(() => expect(screen.getByTestId("size")).toHaveTextContent("large"));
+        expect(updateUserProfile).toHaveBeenCalledWith({ textSize: "large" });
+        expect(document.documentElement).toHaveAttribute("data-text-size", "large");
+    });
+
+    it("rolls the text size back when persistence fails", async () => {
+        getUserProfile.mockResolvedValue({ ...apiProfile(false), textSize: "xlarge" });
+        updateUserProfile.mockRejectedValueOnce(new Error("save failed"));
+        const onError = vi.fn();
+        render(
+            <UserProfileProvider>
+                <TextSizeControls onError={onError} />
+            </UserProfileProvider>,
+        );
+        await waitFor(() =>
+            expect(document.documentElement).toHaveAttribute("data-text-size", "xlarge"),
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Large" }));
+        await waitFor(() => expect(onError).toHaveBeenCalled());
+        expect(document.documentElement).toHaveAttribute("data-text-size", "xlarge");
+    });
+
+    it("goes back to 100 % when signed out", async () => {
+        auth.signedIn = false;
+        document.documentElement.setAttribute("data-text-size", "xlarge");
+        localStorage.setItem("litt:text-size", "xlarge");
+        render(
+            <UserProfileProvider>
+                <TextSizeControls />
+            </UserProfileProvider>,
+        );
+        await waitFor(() =>
+            expect(document.documentElement).not.toHaveAttribute("data-text-size"),
+        );
+        expect(localStorage.getItem("litt:text-size")).toBe("normal");
     });
 
     it("persists and updates the last-selected model immediately", async () => {

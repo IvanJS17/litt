@@ -2927,6 +2927,11 @@
       "appearance": "Apariencia",
       "couldNotUpdateTheAppearanceSetting": "No se pudo actualizar el ajuste de apariencia.",
       "darkMode": "Modo oscuro",
+      "textSize": "Tamaño de letra",
+      "textSizeHelp": "Cambia el tamaño del texto en LiTT. También puedes usar el zoom del navegador.",
+      "textSizeLarge": "Grande",
+      "textSizeNormal": "Normal",
+      "textSizeXLarge": "Muy grande",
       "useADarkerColorPaletteThroughout": "Usa una paleta de colores más oscura en toda LiTT."
     },
     "byokProviderModal": {
@@ -3477,6 +3482,11 @@
         "description": "Usa una paleta de colores más oscura en todo LiTT.",
         "keywords": "tema|oscuro|claro|modo oscuro|modo nocturno|color|colores|paleta|pantalla|aspecto|contraste|fondo negro",
         "title": "Modo oscuro"
+      },
+      "appearanceTextSize": {
+        "description": "Cambia el tamaño del texto en LiTT.",
+        "keywords": "tamaño de letra|tamaño del texto|letra grande|letra más grande|letra chica|texto grande|zoom|escala|leer|legible|accesibilidad|fuente|font",
+        "title": "Tamaño de letra"
       },
       "byok": {
         "description": "Agrega tus llaves de API de proveedores de modelos como Anthropic, OpenAI, Google y Azure.",

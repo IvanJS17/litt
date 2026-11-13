@@ -9,6 +9,7 @@ import ebGaramondLatin from "./fonts/eb-garamond-latin.woff2";
 import { Providers } from "@/app/components/providers";
 import { IntlClientProvider } from "@/i18n/IntlClientProvider";
 import { THEME_BOOT_SCRIPT } from "@/app/lib/theme";
+import { TEXT_SIZE_BOOT_SCRIPT } from "@/app/lib/textSize";
 import { TITLE_TEMPLATE } from "@/app/lib/documentTitle";
 import { SEARCH_INDEXING_ALLOWED } from "@/app/lib/searchIndexing";
 
@@ -94,7 +95,9 @@ export default async function RootLayout({
         <html lang={locale} suppressHydrationWarning>
             <head>
                 <script
-                    dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+                    dangerouslySetInnerHTML={{
+                        __html: `${TEXT_SIZE_BOOT_SCRIPT};${THEME_BOOT_SCRIPT}`,
+                    }}
                 />
             </head>
             <body
