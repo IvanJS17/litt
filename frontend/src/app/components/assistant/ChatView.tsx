@@ -626,8 +626,49 @@ export function AssistantChatColumn({
         // The container mounts when the initial screen becomes a conversation.
     }, [isInitialView]);
 
+    const cancelScrollSettleRef = useRef<(() => void) | null>(null);
+    useEffect(() => () => cancelScrollSettleRef.current?.(), []);
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        cancelScrollSettleRef.current?.();
+        const end = messagesEndRef.current;
+        const container = messagesContainerRef.current;
+        end?.scrollIntoView({ behavior: "smooth" });
+        if (!end || !container) return;
+        // A smooth scroll aims at where the end was when it started. Messages
+        // the page skipped while off screen (content-visibility) take their
+        // real height as they pass, so the end moves while the scroll runs
+        // and it stops short. Once it stops, aim again until it is at the
+        // end. Any wheel, touch or key press from the reader cancels it.
+        let frame = 0;
+        let attempts = 0;
+        let lastTop = container.scrollTop;
+        let stillFrames = 0;
+        const stop = () => {
+            cancelAnimationFrame(frame);
+            container.removeEventListener("wheel", stop);
+            container.removeEventListener("touchstart", stop);
+            container.removeEventListener("keydown", stop);
+            cancelScrollSettleRef.current = null;
+        };
+        const tick = () => {
+            const top = container.scrollTop;
+            stillFrames = top === lastTop ? stillFrames + 1 : 0;
+            lastTop = top;
+            if (stillFrames >= 6) {
+                const gap =
+                    container.scrollHeight - top - container.clientHeight;
+                if (gap <= 2 || attempts >= 5) return stop();
+                attempts += 1;
+                stillFrames = 0;
+                end.scrollIntoView({ behavior: "smooth" });
+            }
+            frame = requestAnimationFrame(tick);
+        };
+        container.addEventListener("wheel", stop, { passive: true });
+        container.addEventListener("touchstart", stop, { passive: true });
+        container.addEventListener("keydown", stop);
+        cancelScrollSettleRef.current = stop;
+        frame = requestAnimationFrame(tick);
     };
 
     const scrollLatestUserToTop = useCallback(
