@@ -117,7 +117,7 @@ export function SidebarChatItem({
     return (
         <div
             className={cn(
-                "group relative flex h-8 w-full items-center rounded-md transition-colors",
+                "group relative flex h-8 w-full items-center rounded-md transition-colors pointer-coarse:h-11",
                 // The ring for the row's own button (data-focus-fill).
                 SIDEBAR_ROW_FOCUS_RING_CLASS,
                 isActive

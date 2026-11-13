@@ -203,6 +203,7 @@
       "onlySomeoneWithEditAccess": "Only someone with edit access can add documents.",
       "openWorkflowTitle": "Open workflow {title}",
       "projects": "Projects",
+      "removeWorkflowTitle": "Remove workflow {title}",
       "selectAModel": "Select a model",
       "sendMessage": "Send message",
       "stopResponse": "Stop response",

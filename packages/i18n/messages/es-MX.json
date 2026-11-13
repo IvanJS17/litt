@@ -203,6 +203,7 @@
       "onlySomeoneWithEditAccess": "Solo quien tenga acceso de edición puede agregar documentos.",
       "openWorkflowTitle": "Abrir flujo de trabajo {title}",
       "projects": "Proyectos",
+      "removeWorkflowTitle": "Quitar flujo de trabajo {title}",
       "selectAModel": "Selecciona un modelo",
       "sendMessage": "Enviar mensaje",
       "stopResponse": "Detener respuesta",

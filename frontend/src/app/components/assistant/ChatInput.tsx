@@ -73,6 +73,7 @@ import {
 import type { Document, Message, Workflow } from "../shared/types";
 import type { DirectoryTab } from "../shared/useDirectoryData";
 import { cn } from "@/app/lib/utils";
+import { TOUCH_TARGET_CLASS } from "@mike/ui";
 import { LIQUID_GLASS_TRANSLUCENT_CLASS } from "@/app/components/ui/liquid-surface";
 import {
     UploadBatchError,
@@ -984,7 +985,11 @@ function ChatInputForChatImpl(
                                         onClick={() =>
                                             setSelectedWorkflow(null)
                                         }
-                                        className="rounded-full p-0.5 ml-0.5 text-white/60 hover:text-white hover:bg-white/20 transition-colors"
+                                        aria-label={t("assistant.chatInput.removeWorkflowTitle", { title: selectedWorkflow.title })}
+                                        className={cn(
+                                            TOUCH_TARGET_CLASS,
+                                            "rounded-full p-0.5 ml-0.5 text-white/60 hover:text-white hover:bg-white/20 transition-colors",
+                                        )}
                                     >
                                         <X className="h-2.5 w-2.5" />
                                     </button>
@@ -1176,8 +1181,9 @@ function ChatInputForChatImpl(
                                     routerSelections={savedRouterSelections}
                                     compact={compactControls}
                                     triggerClassName={cn(
-                                        "h-7.5",
-                                        compactControls && "w-7.5",
+                                        TOUCH_TARGET_CLASS,
+                                        "h-7.5 pointer-coarse:h-9",
+                                        compactControls && "w-7.5 pointer-coarse:w-9",
                                     )}
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}
@@ -1200,7 +1206,8 @@ function ChatInputForChatImpl(
                                 }
                                 className={cn(
                                     COMPOSER_SEND_BUTTON_CLASS,
-                                    "h-7.5 w-7.5 rounded-full",
+                                    // 40 px with the finger.
+                                    "h-7.5 w-7.5 rounded-full pointer-coarse:h-10 pointer-coarse:w-10",
                                 )}
                                 onClick={handleActionClick}
                                 disabled={

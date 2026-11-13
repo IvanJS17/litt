@@ -631,7 +631,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                         onClick={() => router.push(href)}
                                         title={!isOpen ? label : ""}
                                         className={cn(
-                                            "w-full h-8 flex items-center gap-2 px-2 py-2 rounded-md transition-colors text-left",
+                                            "w-full h-8 flex items-center gap-2 px-2 py-2 rounded-md transition-colors text-left pointer-coarse:h-11",
                                             isActive
                                                 ? `${LIQUID_GLASS_SELECTED_CLASS} text-gray-900`
                                                 : `text-gray-700 ${LIQUID_GLASS_HOVER_CLASS}`,
