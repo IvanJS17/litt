@@ -350,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setAuthError(null);
             broadcastAuthState("signed-out");
         } catch (error) {
-            setAuthError("Unable to sign out. Please try again.");
+            setAuthError(clientTranslator()("auth.errors.signOutFailed"));
             throw error;
         }
     }, [applySessionUser, broadcastAuthState]);

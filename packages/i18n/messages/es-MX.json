@@ -532,7 +532,11 @@
       "userBanned": "Esta cuenta está bloqueada. Contacta a soporte para desbloquearla.",
       "weakPassword": "Elige una contraseña más segura: al menos {min} caracteres, con letras, números y símbolos.",
       "sessionCheckFailed": "No pudimos comprobar tu sesión. Inténtalo de nuevo.",
-      "enterBothPasswords": "Escribe la contraseña en los dos campos."
+      "enterBothPasswords": "Escribe la contraseña en los dos campos.",
+      "confirmationLinkInvalid": "Este enlace de confirmación no es válido o expiró.",
+      "authCancelled": "Se canceló o se denegó la autenticación.",
+      "authIncomplete": "No se pudo completar la autenticación. Inténtalo de nuevo.",
+      "signOutFailed": "No se pudo cerrar la sesión. Inténtalo de nuevo."
     },
     "forgotPassword": {
       "checkYourEmail": "Revisa tu correo",

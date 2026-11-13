@@ -532,7 +532,11 @@
       "userBanned": "This account is locked. Contact support to have it unlocked.",
       "weakPassword": "Choose a stronger password: at least {min} characters, mixing letters, numbers, and symbols.",
       "sessionCheckFailed": "We could not check your session. Please try again.",
-      "enterBothPasswords": "Enter the password in both fields."
+      "enterBothPasswords": "Enter the password in both fields.",
+      "confirmationLinkInvalid": "This confirmation link is invalid or has expired.",
+      "authCancelled": "Authentication was cancelled or denied.",
+      "authIncomplete": "Authentication could not be completed. Please try again.",
+      "signOutFailed": "Unable to sign out. Please try again."
     },
     "forgotPassword": {
       "checkYourEmail": "Check your email",
