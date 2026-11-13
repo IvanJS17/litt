@@ -59,7 +59,7 @@ vi.mock("@/app/contexts/ChatHistoryContext", () => ({
 
 vi.mock("@mike/ui", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@mike/ui")>()),
-  MikeIcon: () => <span aria-hidden="true" />,
+  LittStatusMarkUI: () => <span aria-hidden="true" />,
 }));
 
 describe("AppSidebar account dropdown", () => {

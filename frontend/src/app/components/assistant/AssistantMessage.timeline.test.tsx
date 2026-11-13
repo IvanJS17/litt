@@ -446,11 +446,11 @@ describe("AssistantMessage timeline", () => {
             const icon = screen
                 .getByRole("button", { name: new RegExp(`^${title}`) })
                 .querySelector<HTMLElement>('[data-slot="subagent-icon"]');
-            const mark = icon?.firstElementChild as HTMLElement | null | undefined;
-            return { tint: icon?.dataset.tint, spinning: mark?.style.animationPlayState === "running" };
+            const mark = icon?.querySelector("svg.litt-status-mark");
+            return { tint: icon?.dataset.tint, state: mark?.getAttribute("data-state") };
         };
 
-        it("gives each subagent its own coloured mark, turning only while it works", () => {
+        it("gives each subagent its own coloured mark, blinking only while it works", () => {
             render(
                 <AssistantMessage
                     isStreaming
@@ -459,8 +459,8 @@ describe("AssistantMessage timeline", () => {
             );
             const running = laneIcon("Review the lease");
             const done = laneIcon("Check the guarantee");
-            expect(running).toEqual({ tint: "stone", spinning: true });
-            expect(done).toEqual({ tint: "teal", spinning: false });
+            expect(running).toEqual({ tint: "teal", state: "working" });
+            expect(done).toEqual({ tint: "pink", state: "idle" });
         });
 
         it("marks a subagent that couldn't finish with the error mark", () => {
@@ -468,8 +468,8 @@ describe("AssistantMessage timeline", () => {
                 <AssistantMessage events={[delegation({ status: "failed" }), { type: "content", text: "Done." }]} />,
             );
             openTimeline();
-            const fill = container.querySelector('[data-slot="subagent-icon"] linearGradient[id$="-m-glassFill"] stop');
-            expect((fill as SVGStopElement).style.stopColor.replace(/\s/g, "")).toBe("rgb(248,113,113)");
+            const mark = container.querySelector('[data-slot="subagent-icon"] svg.litt-status-mark');
+            expect(mark).toHaveAttribute("data-state", "error");
         });
 
         it("keeps a subagent's colour when LiTT resumes it later in the answer", () => {
@@ -485,8 +485,8 @@ describe("AssistantMessage timeline", () => {
                 />,
             );
             openTimeline("Completed in 3 steps · 3 subagents");
-            expect(laneIcon("Check the guarantee").tint).toBe("teal");
-            expect(laneIcon("Recheck the guarantee").tint).toBe("teal");
+            expect(laneIcon("Check the guarantee").tint).toBe("pink");
+            expect(laneIcon("Recheck the guarantee").tint).toBe("pink");
         });
 
     });
