@@ -28,3 +28,12 @@ describe("root viewport", () => {
         expect(viewport).not.toHaveProperty("userScalable");
     });
 });
+
+describe("root metadata", () => {
+    it("makes LiTT an installable web app", async () => {
+        const { generateMetadata } = await import("./layout");
+        const metadata = await generateMetadata();
+        expect(metadata.appleWebApp).toMatchObject({ capable: true, title: "LiTT" });
+        expect(metadata.other).toMatchObject({ "apple-mobile-web-app-capable": "yes" });
+    });
+});

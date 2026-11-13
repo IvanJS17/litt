@@ -33,6 +33,13 @@ export async function generateMetadata(): Promise<Metadata> {
         // One with no name of its own keeps the full product title.
         title: { default: title, template: TITLE_TEMPLATE },
         description,
+        // "Add to Home Screen" (app/manifest.ts): a full-screen app named
+        // LiTT. The status bar stays the system's ("default"), because the
+        // page is light or dark by the person's choice, not the system's.
+        appleWebApp: { capable: true, title: "LiTT", statusBarStyle: "default" },
+        // The older Safari name for "capable"; the metadata API writes only
+        // the standard `mobile-web-app-capable`.
+        other: { "apple-mobile-web-app-capable": "yes" },
         icons: {
             icon: [
                 { url: "/icon.svg", type: "image/svg+xml" },
