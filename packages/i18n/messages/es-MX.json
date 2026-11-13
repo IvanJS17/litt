@@ -181,7 +181,7 @@
     },
     "chatCredentialPicker": {
       "chooseAKey": "Elige una llave",
-      "deploymentKey": "Llave de LiTT",
+      "deploymentKey": "Llave de la plataforma",
       "key": "Llave",
       "keyForThisConversationLabel": "Llave de esta conversación: {label}",
       "noKey": "Sin llave",
@@ -4392,7 +4392,7 @@
     "agregarPupilo": "Agregar pupilo",
     "allPractices": "Todas las materias",
     "credentialSource": {
-      "deployment": "Llave de LiTT",
+      "deployment": "Llave de la plataforma",
       "operator": "Modelo propio de la plataforma",
       "organization": "Llave del despacho",
       "personal": "Tu llave"

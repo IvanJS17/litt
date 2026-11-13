@@ -10,7 +10,7 @@ type Tree = { [key: string]: string | Tree };
 const EXEMPT = ["managedAccount.", "legal."];
 // Aliases for search only: people may still type the old words.
 const SEARCH_KEYWORDS = /\.keywords$/;
-const OLD_NAMES = /organizaci[oó]n|organizaciones|BYOK|llaves propias \(|tus propias llaves|llave de la plataforma/i;
+const OLD_NAMES = /organizaci[oó]n|organizaciones|BYOK|llaves propias \(|tus propias llaves/i;
 
 function leaves(tree: Tree, prefix = ""): [string, string][] {
     return Object.entries(tree).flatMap(([key, value]) => {
