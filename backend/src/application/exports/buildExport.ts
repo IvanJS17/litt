@@ -18,6 +18,7 @@ import type { Db } from "../../lib/supabase";
 import type { ExportBuildRequest } from "./exportContracts";
 import { buildMemoryArchive } from "../../lib/memory/archive";
 import { NonRetryableJobError } from "../../lib/dbq/runner";
+import { uniqueArchiveFilename } from "../../lib/zipExport";
 import { memberDataActionAllowed } from "../../modules/orgs/orgs.service";
 import {
     JsonExportType,
@@ -144,6 +145,7 @@ async function buildDocumentsZipExport(db: Db, job: ExportBuildRequest, userId: 
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
     let added = 0;
+    const usedNames = new Set<string>();
     const omitted: string[] = [];
     for (const doc of readable) {
         if (!doc.storage_path || !doc.current_version_id) continue;
@@ -177,10 +179,10 @@ async function buildDocumentsZipExport(db: Db, job: ExportBuildRequest, userId: 
         // Sequential, unlike the sync route's Promise.all: this path exists
         // for selections large enough that fetching every file at once is
         // what would blow the memory ceiling.
-        zip.file(filename, Buffer.from(raw));
+        zip.file(uniqueArchiveFilename(filename, usedNames), Buffer.from(raw));
         added++;
     }
-    if (omitted.length > 0) zip.file(OMITTED_LIST_FILENAME, omittedList(omitted));
+    if (omitted.length > 0) zip.file(uniqueArchiveFilename(OMITTED_LIST_FILENAME, usedNames), omittedList(omitted));
     if (added === 0 && omitted.length === 0) {
         throw new Error(`[export.build] no accessible documents for job ${job.id}`);
     }
