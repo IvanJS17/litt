@@ -85,13 +85,19 @@ export const MODEL_API_KEY_FIELDS: readonly ModelApiKeyField[] = [
     },
 ];
 
+/** The provider as the interface names it. Most are brand names; the custom endpoint is a description, so it is translated. */
+export function providerName(t: Translate, field: ModelApiKeyField): string {
+    return field.provider === "custom" ? t("settings.modelProviders.customEndpoint") : field.name;
+}
+
 /** The provider as the key dialog labels it. */
 export function byokProvider(t: Translate, field: ModelApiKeyField): ByokProvider {
+    const name = providerName(t, field);
     const vertex = field.provider === "vertex";
     return {
         provider: field.provider,
-        name: field.name,
-        label: t(vertex ? "settings.modelProviders.serviceAccountKey" : "settings.modelProviders.apiKey", { name: field.name }),
+        name,
+        label: t(vertex ? "settings.modelProviders.serviceAccountKey" : "settings.modelProviders.apiKey", { name }),
         keyLabel: vertex ? t("settings.modelProviders.serviceAccountKeyJson") : undefined,
     };
 }

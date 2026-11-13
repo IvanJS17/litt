@@ -3034,6 +3034,7 @@
     },
     "modelProviders": {
       "apiKey": "{name} API Key",
+      "customEndpoint": "OpenAI-compatible endpoint",
       "serviceAccountKey": "{name} service-account key",
       "serviceAccountKeyJson": "Service-account key (JSON)"
     },

@@ -48,6 +48,7 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | organization key | Llave del despacho | En los textos de llaves (chip del chat, selector, Ajustes) se dice «despacho», igual que en Ajustes → Llaves del despacho. |
 | your own key | Mi llave | En el chip del chat y el selector: «Mi llave», «Llave del despacho», «Llave de la plataforma». |
 | operator endpoint | modelo propio de la plataforma | El modelo que la plataforma sirve por su cuenta. |
+| OpenAI-compatible endpoint | Endpoint compatible con OpenAI | En la lista de proveedores de llaves; «OpenAI» es la marca y se queda. |
 
 ## Lo que no se traduce
 

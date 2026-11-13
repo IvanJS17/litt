@@ -9,6 +9,7 @@ import {
     ModelProviderIcon,
     type ModelApiKeyField,
     byokProvider,
+    providerName,
 } from "@/app/components/settings/modelProviders";
 import { PillButtonUI } from "@mike/ui";
 import { ToggleSwitchUI } from "@mike/ui";
@@ -116,20 +117,20 @@ function PersonalProviderKeysList({
             <ConnectorCard
                 key={field.provider}
                 kind="provider"
-                name={field.name}
+                name={providerName(t, field)}
                 icon={<ModelProviderIcon field={field} loading={loading} />}
                 // Like connectors: a saved provider opens from anywhere on
                 // its card, an available one only from its Add button.
                 onOpen={hasSavedKey ? open : undefined}
                 action={
                     hasSavedKey ? (
-                        renderToggle(field, t("settings.personalProviderKeys.nameProvider", { name: field.name }))
+                        renderToggle(field, t("settings.personalProviderKeys.nameProvider", { name: providerName(t, field) }))
                     ) : (
                         <PillButtonUI
                             tone="blue"
                             size="sm"
                             disabled={blocked}
-                            aria-label={t("settings.personalProviderKeys.addName", { name: field.name })}
+                            aria-label={t("settings.personalProviderKeys.addName", { name: providerName(t, field) })}
                             aria-haspopup="dialog"
                             onClick={open}
                         >
@@ -187,7 +188,7 @@ function PersonalProviderKeysList({
                 enabledToggle={
                     selected &&
                     profile?.apiKeys[selected.provider]?.source === "user"
-                        ? renderToggle(selected, t("settings.personalProviderKeys.useName", { name: selected.name }))
+                        ? renderToggle(selected, t("settings.personalProviderKeys.useName", { name: providerName(t, selected) }))
                         : undefined
                 }
                 onClose={() => setSelectedProvider(null)}

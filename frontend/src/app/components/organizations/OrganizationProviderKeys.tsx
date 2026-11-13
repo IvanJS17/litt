@@ -16,6 +16,7 @@ import {
   MODEL_API_KEY_FIELDS,
   ModelProviderIcon,
   byokProvider,
+  providerName,
   type ModelApiKeyField,
 } from "@/app/components/settings/modelProviders";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
@@ -190,7 +191,7 @@ export function OrganizationProviderKeys({
       <ConnectorCard
         key={field.provider}
         kind="provider"
-        name={field.name}
+        name={providerName(t, field)}
         icon={<ModelProviderIcon field={field} loading={loading} />}
         onOpen={canManage && saved ? open : undefined}
         action={
@@ -204,13 +205,13 @@ export function OrganizationProviderKeys({
               {isEnabled(field.provider) ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
             </span>
           ) : saved ? (
-            renderToggle(field, t("organizations.organizationProviderKeys.nameProvider", { name: field.name }))
+            renderToggle(field, t("organizations.organizationProviderKeys.nameProvider", { name: providerName(t, field) }))
           ) : (
             <PillButtonUI
               tone="blue"
               size="sm"
               disabled={blocked}
-              aria-label={t("organizations.organizationProviderKeys.addName", { name: field.name })}
+              aria-label={t("organizations.organizationProviderKeys.addName", { name: providerName(t, field) })}
               aria-haspopup="dialog"
               onClick={open}
             >
@@ -385,7 +386,7 @@ export function OrganizationProviderKeys({
           }}
           enabledToggle={
             selected && hasOrgKey(selected.provider)
-              ? renderToggle(selected, t("organizations.organizationProviderKeys.useName", { name: selected.name }))
+              ? renderToggle(selected, t("organizations.organizationProviderKeys.useName", { name: providerName(t, selected) }))
               : undefined
           }
           onClose={() => setSelectedProvider(null)}
