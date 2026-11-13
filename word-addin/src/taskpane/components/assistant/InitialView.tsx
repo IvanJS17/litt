@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import quickActionsIcon from "@icons/features/quick-actions.svg";
 import { getUserProfile } from "../../api/mikeApi";
+import { ListChecks } from "lucide-react";
 import { LittMonogramPixel } from "@mike/ui";
 import type { QuickAction } from "../../types";
 import { useQuickActions } from "../../lib/quickActionStore";
@@ -74,13 +74,7 @@ export function InitialView({
       </div>
       <div className="flex h-5 items-center justify-center">
         <span className="flex items-center gap-1.5 text-xs font-medium text-gray-800">
-          <img
-            src={quickActionsIcon}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            className="h-3.5 w-3.5 shrink-0 object-contain"
-          />
+          <ListChecks aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
           {t("word.quickActions")}
         </span>
       </div>
