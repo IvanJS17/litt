@@ -376,7 +376,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="black"
+                tone="white"
                 size="sm"
                 onClick={handleExportChatData}
                 disabled={isExportingChats}
@@ -395,7 +395,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="black"
+                tone="white"
                 size="sm"
                 onClick={handleExportTabularReviewsData}
                 disabled={isExportingTabularReviews}
@@ -416,7 +416,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="black"
+                tone="white"
                 size="sm"
                 onClick={handleExportAccountData}
                 disabled={isExportingAccount}
@@ -435,7 +435,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="black"
+                tone="white"
                 size="sm"
                 aria-label={t("settings.privacyData.exportMemory")}
                 onClick={handleExportMemoryData}
@@ -468,7 +468,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 onClick={() => setPendingDeleteAction("chats")}
                 disabled={!!deletingAction}
@@ -487,7 +487,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 onClick={() => setPendingDeleteAction("tabular-reviews")}
                 disabled={!!deletingAction}
@@ -508,7 +508,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 onClick={() => setPendingDeleteAction("projects")}
                 disabled={!!deletingAction}
@@ -531,7 +531,7 @@ function PrivacyData({
                 </SettingsDescription>
               </div>
               <PillButtonUI
-                tone="danger"
+                tone="whiteDanger"
                 size="sm"
                 aria-label={t("settings.privacyData.deleteAllMemory")}
                 onClick={() => setPendingDeleteAction("memory")}

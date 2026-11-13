@@ -5,6 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 import { PillButtonUI } from "./PillButtonUI";
 
 describe("PillButtonUI", () => {
+    it("whiteDanger is a white secondary button with red text, never a red fill", () => {
+        render(<PillButtonUI tone="whiteDanger">Delete</PillButtonUI>);
+        const button = screen.getByRole("button", { name: "Delete" });
+        expect(button).toHaveClass("text-red-600");
+        expect(button.className).not.toMatch(/bg-red|bg-gray-950|bg-interactive/);
+    });
+
     it("renders its children as a button by default", () => {
         render(<PillButtonUI tone="black">Save</PillButtonUI>);
         expect(

@@ -9,6 +9,7 @@ export const Tones = () => (
         <PillButtonUI tone="black">Black</PillButtonUI>
         <PillButtonUI tone="white">White</PillButtonUI>
         <PillButtonUI tone="blue">Blue</PillButtonUI>
+        <PillButtonUI tone="whiteDanger">Delete</PillButtonUI>
         <PillButtonUI tone="danger">Danger</PillButtonUI>
     </div>
 );

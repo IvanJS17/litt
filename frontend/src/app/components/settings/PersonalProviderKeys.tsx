@@ -127,7 +127,7 @@ function PersonalProviderKeysList({
                         renderToggle(field, t("settings.personalProviderKeys.nameProvider", { name: providerName(t, field) }))
                     ) : (
                         <PillButtonUI
-                            tone="blue"
+                            tone="white"
                             size="sm"
                             disabled={blocked}
                             aria-label={t("settings.personalProviderKeys.addName", { name: providerName(t, field) })}
