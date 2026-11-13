@@ -16,7 +16,7 @@ export function OnboardingShell({
     width = "narrow",
     children,
 }: {
-    step: string;
+    step?: string;
     title: string;
     description?: string;
     width?: keyof typeof CARD_WIDTH_CLASS;
@@ -26,9 +26,11 @@ export function OnboardingShell({
         <AuthPageShell>
             <div className={`w-full ${CARD_WIDTH_CLASS[width]}`}>
                 <div className={authGlassCardUIClassName}>
-                    <p className="mb-2 text-xs font-medium text-gray-500">
-                        {step}
-                    </p>
+                    {step && (
+                        <p className="mb-2 text-xs font-medium text-gray-500">
+                            {step}
+                        </p>
+                    )}
                     <h1 className="font-serif text-2xl font-medium text-gray-950">
                         {title}
                     </h1>

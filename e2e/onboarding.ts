@@ -38,10 +38,8 @@ export async function completeOnboardingIfRequired(page: Page): Promise<void> {
                 timeout: 15_000,
             });
             await page.getByRole("button", { name: "Skip" }).click();
-            await page.waitForURL(/\/onboarding\/invitations/, {
-                timeout: 15_000,
-            });
-            await page.getByRole("button", { name: "Continue", exact: true }).click();
+            /* No invitation step in between: an invitation to a firm is the
+               first screen, and a user without one never sees it. */
             await page.waitForURL(/\/onboarding\/models/, {
                 timeout: 15_000,
             });
