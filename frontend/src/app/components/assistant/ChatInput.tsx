@@ -1183,7 +1183,6 @@ function ChatInputForChatImpl(
                                     triggerClassName={cn(
                                         TOUCH_TARGET_CLASS,
                                         "h-7.5 pointer-coarse:h-9",
-                                        compactControls && "w-7.5 pointer-coarse:w-9",
                                     )}
                                     onNoModelsClick={setNoModelsWarning}
                                     reasoningLevel={reasoningLevel}

@@ -6,7 +6,6 @@ import {
   Check,
   ChevronDown,
   LoaderCircle,
-  Settings2,
 } from "lucide-react";
 import { twMerge } from "tailwind-merge";
 import { TabPillButtonUI } from "./TabPillButtonUI";
@@ -160,6 +159,19 @@ export function orderedModelGroups(
   const present = new Set(models.map((model) => model.group));
   const known = MODEL_TOGGLE_GROUPS.filter((group) => present.delete(group));
   return [...known, ...[...present].sort((a, b) => a.localeCompare(b))];
+}
+
+/**
+ * The short name for a narrow trigger: "Claude Fable 5.2" → "Fable 5.2",
+ * "Mistral Large 4 (Preview)" → "Mistral Large 4". The full name stays in the
+ * list and in the trigger's title.
+ */
+export function shortModelLabel(label: string): string {
+  const short = label
+    .replace(/^Claude\s+/, "")
+    .replace(/\s*\((?:Preview|Vista previa)\)\s*$/i, "")
+    .trim();
+  return short || label;
 }
 
 export interface ModelToggleUIProps {
@@ -317,27 +329,24 @@ export function ModelToggleUI({
               : modalInput === "flat"
               ? FLAT_INPUT_CLASS
               : modalInput
-              ? `flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
+              ? `keyboard-focus-ring flex h-10 w-full items-center justify-between gap-2 rounded-xl px-3 text-sm text-gray-700 ${LIQUID_GLASS_SUBTLE_CLASS} ${LIQUID_GLASS_HOVER_CLASS} transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${open ? LIQUID_GLASS_SELECTED_CLASS : ""}`
               : twMerge(
-                  `flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? "w-8 justify-center px-0" : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
+                  `keyboard-focus-ring flex h-8 shrink-0 items-center rounded-lg text-sm ${tone === "default" || selected ? "text-gray-700 enabled:hover:text-gray-900 disabled:hover:text-gray-700" : "text-gray-400 enabled:hover:text-gray-700 disabled:hover:text-gray-400"} transition-colors enabled:cursor-pointer disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${compact ? "gap-1 px-2" : "gap-1.5 px-2"} ${open ? "text-gray-700" : ""}`,
                   triggerClassName,
                 )
           }
         >
-          {compact ? (
-            loading ? (
-              <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
-            ) : selectedAvailable ? (
-              <Settings2 className="h-4 w-4 shrink-0" />
-            ) : (
-              <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            )
+          {compact && loading ? (
+            <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
           ) : (
             <>
+              {compact && !selectedAvailable && (
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
+              )}
               <span
-                className={`${modalInput ? "min-w-0 flex-1 text-left" : "min-w-0 max-w-[200px]"} truncate`}
+                className={`${modalInput ? "min-w-0 flex-1 text-left" : compact ? "min-w-0 max-w-[7.5rem]" : "min-w-0 max-w-[200px]"} truncate`}
               >
-                {label}
+                {compact ? shortModelLabel(label) : label}
               </span>
               <ChevronDown
                 className={`h-3 w-3 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}

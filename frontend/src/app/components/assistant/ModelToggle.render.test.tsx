@@ -171,20 +171,37 @@ describe("ModelToggle responsive trigger", () => {
         expect(onReasoningChange).toHaveBeenLastCalledWith("xhigh");
     });
 
-    it("uses the Settings2 icon in a compact chat input", () => {
+    it("names the active model, shortened, in a compact chat input", () => {
         render(
             <ModelToggle
-                value="gemini-3.8-flash"
+                value="claude-fable-5-2"
                 onChange={vi.fn()}
+                apiKeys={keys({ claude: true })}
                 compact
             />,
         );
 
         const trigger = screen.getByRole("button", { name: "Choose model" });
-        expect(trigger).toHaveClass("w-8", "rounded-lg");
-        expect(trigger).not.toHaveClass("rounded-full");
-        expect(trigger).not.toHaveTextContent("No API Key");
-        expect(trigger.querySelector("svg")).toBeInTheDocument();
+        expect(trigger).toHaveClass("rounded-lg");
+        expect(trigger).not.toHaveClass("w-8");
+        expect(trigger).toHaveTextContent("Fable 5.2");
+        expect(trigger).not.toHaveTextContent("Claude");
+        // The full name is still the trigger's title.
+        expect(trigger).toHaveAttribute("title", "Choose model: Claude Fable 5.2");
+    });
+
+    it("shows a chosen model in dark grey, and keeps the light grey for the placeholder", () => {
+        const { rerender } = render(
+            <ModelToggle value="gemini-3.8-flash" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />,
+        );
+        expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("text-gray-700");
+        rerender(<ModelToggle value="" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />);
+        expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("text-gray-400");
+    });
+
+    it("rings the trigger for the keyboard only, not after a tap", () => {
+        render(<ModelToggle value="gemini-3.8-flash" onChange={vi.fn()} apiKeys={keys({ gemini: true })} />);
+        expect(screen.getByRole("button", { name: "Choose model" })).toHaveClass("keyboard-focus-ring");
     });
 
     it("allows a wider model label in the regular trigger", () => {
