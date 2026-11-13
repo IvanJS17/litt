@@ -60,13 +60,13 @@ const POWER = "Poder o documento de personalidad";
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const fetchMock = vi.fn();
 
-type Seed = { pages: (string | null)[]; extra?: Record<string, unknown>; projectRole?: string; ocr?: Record<string, unknown>; fileType?: string; others?: { id: string; filename: string }[]; user?: Record<string, unknown> };
+type Seed = { pages: (string | null)[]; extra?: Record<string, unknown>; projectRole?: string; ocr?: Record<string, unknown>; fileType?: string; others?: { id: string; filename: string }[]; user?: Record<string, unknown>; personal?: boolean };
 
-async function seed({ pages, extra = {}, projectRole = "editor", ocr, fileType = "pdf", others = [], user }: Seed) {
+async function seed({ pages, extra = {}, projectRole = "editor", ocr, fileType = "pdf", others = [], user, personal = false }: Seed) {
   const bytes = Buffer.from(await syntheticPdf(pages));
   const storage = `src/${VERSION}`;
   mocks.files.set(storage, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer);
-  const docRow = { id: DOC, user_id: USER, project_id: "proj", org_id: "org", folder_id: "folder", library_kind: "file", current_version_id: VERSION, archived_at: null };
+  const docRow = { id: DOC, user_id: USER, project_id: "proj", org_id: personal ? null : "org", folder_id: "folder", library_kind: "file", current_version_id: VERSION, archived_at: null };
   const fake = tableDb({
     documents: [docRow, ...others.map((o) => ({ id: o.id, project_id: "proj", folder_id: "folder", current_version_id: `v-${o.id}`, archived_at: null }))],
     document_versions: [
@@ -139,12 +139,21 @@ describe("what splitting would do (GET)", () => {
     expect(await getSplitState(fake.db, args)).toMatchObject({ ok: true, data: { unread_pages: 1, needs_scan_reading: true } });
   });
 
-  it("says there is no key and no right to edit, and uses the person's own list over the firm's", async () => {
+  it("says there is no key and no right to edit, and uses the firm's list over the person's own", async () => {
     mocks.key.mockResolvedValue(null);
     const mine = [{ name: "Mío", description: "Mi tipo." }];
+    const firm = [{ name: "Despacho", description: "Del despacho." }];
     const { fake } = await seed({ pages: ["Uno"], projectRole: "viewer", user: { split_classes: mine } });
-    fake.tables.organizations[0].split_classes = [{ name: "Despacho", description: "Del despacho." }];
-    expect(await getSplitState(fake.db, args)).toMatchObject({ ok: true, data: { key_available: false, can_edit: false, classes_source: "user", classes: mine } });
+    fake.tables.organizations[0].split_classes = firm;
+    expect(await getSplitState(fake.db, args)).toMatchObject({ ok: true, data: { key_available: false, can_edit: false, classes_source: "org", classes: firm } });
+  });
+
+  it("uses the built-in list, not the person's, when the firm has none", async () => {
+    const mine = [{ name: "Mío", description: "Mi tipo." }];
+    const { fake } = await seed({ pages: ["Uno"], user: { split_classes: mine } });
+    const state = await getSplitState(fake.db, args);
+    expect(state).toMatchObject({ ok: true, data: { classes_source: "default" } });
+    expect(JSON.stringify(state)).not.toContain("Mío");
   });
 
   it("uses the firm's list when the person has none", async () => {
@@ -223,9 +232,20 @@ describe("the proposal (POST /split)", () => {
     expect(JSON.stringify(mocks.audit.mock.calls)).not.toContain("Poder uno");
   });
 
-  it("sends the person's own list of types", async () => {
-    const mine = [{ name: "Mío", description: "Mi tipo.", identifier: "Nombre" }];
+  it("sends the firm's list of types in a firm's workspace, not the person's own", async () => {
+    const mine = [{ name: "Mío", description: "Mi tipo." }];
+    const firm = [{ name: "Despacho", description: "Del despacho.", identifier: "Nombre" }];
     const { fake } = await seed({ pages: ["Uno"], user: { split_classes: mine } });
+    fake.tables.organizations[0].split_classes = firm;
+    fetchMock.mockResolvedValueOnce(splitAnswer([{ classification: "Despacho", identifier: "Ana", pages: [0] }]));
+    const result = await proposeSplit(fake.db, args);
+    expect(JSON.parse(((fetchMock.mock.calls[0][1] as RequestInit).body as FormData).get("split_class") as string)).toEqual(firm);
+    expect(result).toMatchObject({ ok: true, data: { classes: firm, groups: [{ type: "Despacho" }] } });
+  });
+
+  it("sends the person's own list of types in the personal workspace", async () => {
+    const mine = [{ name: "Mío", description: "Mi tipo.", identifier: "Nombre" }];
+    const { fake } = await seed({ pages: ["Uno"], personal: true, user: { split_classes: mine } });
     fetchMock.mockResolvedValueOnce(splitAnswer([{ classification: "Mío", identifier: "Ana", pages: [0] }]));
     const result = await proposeSplit(fake.db, args);
     expect(JSON.parse(((fetchMock.mock.calls[0][1] as RequestInit).body as FormData).get("split_class") as string)).toEqual(mine);
@@ -386,10 +406,17 @@ describe("creating the documents (POST /split/create)", () => {
     expect(mocks.uploadFile).not.toHaveBeenCalled();
   });
 
-  it("checks the type against the list that applies to this person", async () => {
-    const { fake } = await seed({ pages: ["a"], user: { split_classes: [{ name: "Mío", description: "Mi tipo." }] } });
+  it("checks the type against the list of the workspace: the person's in the personal one", async () => {
+    const { fake } = await seed({ pages: ["a"], personal: true, user: { split_classes: [{ name: "Mío", description: "Mi tipo." }] } });
     expect(await create(fake.db, [{ pages: [1], name: "A", type: POWER }])).toMatchObject({ ok: false, code: "split_invalid_groups" });
     expect((await create(fake.db, [{ pages: [1], name: "A", type: "Mío" }])).ok).toBe(true);
+  });
+
+  it("checks the type against the firm's list in a firm, not the person's", async () => {
+    const { fake } = await seed({ pages: ["a"], user: { split_classes: [{ name: "Mío", description: "Mi tipo." }] } });
+    fake.tables.organizations[0].split_classes = [{ name: "Despacho", description: "Del despacho." }];
+    expect(await create(fake.db, [{ pages: [1], name: "A", type: "Mío" }])).toMatchObject({ ok: false, code: "split_invalid_groups" });
+    expect((await create(fake.db, [{ pages: [1], name: "A", type: "Despacho" }])).ok).toBe(true);
   });
 
   it("needs the right to edit and is a 404 without access; a version held for training is not copied", async () => {

@@ -12,6 +12,7 @@ import { ScanReadingSection } from "@/app/components/settings/ScanReadingSection
 import { SplitClassesCard } from "@/app/components/settings/SplitClassesCard";
 import { getUserSplitClasses, saveUserSplitClasses } from "@/app/lib/mikeApi";
 import { WebSearchSection } from "@/app/components/settings/WebSearchSection";
+import { useKeyScope } from "@/app/components/settings/KeyScope";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useTranslations } from "next-intl";
 
@@ -22,6 +23,11 @@ export default function FeaturesPage() {
     updateQuickActionsVisible,
     updateResponseDetailsVisible,
   } = useUserProfile();
+  // The personal list of document types governs the personal workspace only
+  // (a firm's workspace uses the firm's), and a firm-managed account has no
+  // personal workspace: the card is not offered in either case.
+  const { firmName, managed } = useKeyScope();
+  const showPersonalSplitClasses = firmName === null && !managed;
   const [savingQuickActions, setSavingQuickActions] = useState(false);
   const [savingResponseDetails, setSavingResponseDetails] = useState(false);
   const quickActionsVisible = profile?.quickActionsVisible ?? true;
@@ -87,12 +93,14 @@ export default function FeaturesPage() {
 
       <WebSearchSection />
       <ScanReadingSection />
-      <SplitClassesCard
-        title={t("settings.splitClasses.title")}
-        intro={t("settings.splitClasses.personalIntro")}
-        load={getUserSplitClasses}
-        save={saveUserSplitClasses}
-      />
+      {showPersonalSplitClasses ? (
+        <SplitClassesCard
+          title={t("settings.splitClasses.title")}
+          intro={t("settings.splitClasses.personalIntro")}
+          load={getUserSplitClasses}
+          save={saveUserSplitClasses}
+        />
+      ) : null}
     </div>
   );
 }

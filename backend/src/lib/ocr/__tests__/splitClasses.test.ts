@@ -136,11 +136,18 @@ describe("the store", () => {
     const own = [{ name: "Mía", description: "Mi tipo." }];
     const firm = [{ name: "Despacho", description: "Tipo del despacho." }];
 
-    it("resolves the person's list first, then the firm's, then the built-in one", async () => {
-        expect(await resolveSplitClasses(fakeDb({ user_profiles: own, organizations: firm }).db, "u", "o")).toEqual({ classes: own, source: "user" });
+    it("uses the firm's list in a firm's workspace, even when the person has their own", async () => {
+        expect(await resolveSplitClasses(fakeDb({ user_profiles: own, organizations: firm }).db, "u", "o")).toEqual({ classes: firm, source: "org" });
         expect(await resolveSplitClasses(fakeDb({ user_profiles: null, organizations: firm }).db, "u", "o")).toEqual({ classes: firm, source: "org" });
+    });
+
+    it("falls back to the built-in list, not the personal one, when the firm has none", async () => {
+        expect(await resolveSplitClasses(fakeDb({ user_profiles: own, organizations: null }).db, "u", "o")).toMatchObject({ source: "default" });
         expect(await resolveSplitClasses(fakeDb({ user_profiles: null, organizations: null }).db, "u", "o")).toMatchObject({ source: "default" });
-        // Outside a firm the firm's list is never read.
+    });
+
+    it("uses the person's list in the personal workspace, and never reads a firm's there", async () => {
+        expect(await resolveSplitClasses(fakeDb({ user_profiles: own, organizations: firm }).db, "u", null)).toEqual({ classes: own, source: "user" });
         expect(await resolveSplitClasses(fakeDb({ user_profiles: null, organizations: firm }).db, "u", null)).toMatchObject({ source: "default" });
     });
 

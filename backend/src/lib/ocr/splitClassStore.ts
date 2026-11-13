@@ -1,9 +1,11 @@
 // Where the list of Split types lives (layer 7, docs/document-split.md): one
 // jsonb value, user_profiles.split_classes for a person and
-// organizations.split_classes for a firm. NULL means "use the next one":
-// the person's list, then the firm's, then the built-in list. No table, no
-// merge function: the whole list is replaced in one update, like the router
-// model lists, and the server is the only reader and writer.
+// organizations.split_classes for a firm. NULL means "use the built-in list".
+// One rule per workspace: inside a firm's workspace the firm's list governs
+// (a member's personal list is not read there); in the personal workspace the
+// person's list does. No table, no merge function: the whole list is replaced
+// in one update, like the router model lists, and the server is the only
+// reader and writer.
 import type { Db } from "../supabase";
 import { DEFAULT_SPLIT_CLASSES, readStoredSplitClasses, type SplitClass } from "./splitClasses";
 
@@ -22,16 +24,24 @@ export async function readOrgSplitClasses(db: Db, orgId: string): Promise<SplitC
     return readStoredSplitClasses((data as { split_classes?: unknown } | null)?.split_classes);
 }
 
-/** The list that governs a split of content of `orgId`: personal, then the firm's, then the built-in one. */
+/**
+ * The list that governs a split of content of `orgId`: in a firm's workspace
+ * the firm's, else the built-in one; in the personal workspace (`orgId` null)
+ * the person's, else the built-in one. A personal list never reaches into a
+ * firm's workspace, and the firm's never into the personal one.
+ */
 export async function resolveSplitClasses(
     db: Db,
     userId: string,
     orgId: string | null | undefined,
 ): Promise<EffectiveSplitClasses> {
-    const own = await readUserSplitClasses(db, userId);
-    if (own) return { classes: own, source: "user" };
-    const firm = orgId ? await readOrgSplitClasses(db, orgId) : null;
-    if (firm) return { classes: firm, source: "org" };
+    if (orgId) {
+        const firm = await readOrgSplitClasses(db, orgId);
+        if (firm) return { classes: firm, source: "org" };
+    } else {
+        const own = await readUserSplitClasses(db, userId);
+        if (own) return { classes: own, source: "user" };
+    }
     return { classes: DEFAULT_SPLIT_CLASSES.map((c) => ({ ...c })), source: "default" };
 }
 
