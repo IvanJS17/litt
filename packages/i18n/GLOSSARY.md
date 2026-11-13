@@ -45,6 +45,7 @@ Reglas cortas, sacadas de lo que ya hace el catálogo:
 | tracked change (cada cambio) | cambio marcado | Plural: cambios marcados. Nunca «cambio de control de cambios». |
 | Personal (workspace) | Personal | Es el nombre del espacio de trabajo y se queda así. |
 | deployment key | llave de la plataforma | La llave que ofrece la plataforma, no la de la persona ni la de la organización. |
+| organization key (llave de la organización) | llave del despacho | En los textos de llaves (chip del chat, selector, Ajustes) se dice «despacho», igual que en Ajustes → Llaves del despacho. |
 | operator endpoint | modelo propio de la plataforma | El modelo que la plataforma sirve por su cuenta. |
 
 ## Lo que no se traduce

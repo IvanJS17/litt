@@ -158,4 +158,10 @@ describe("@litt/i18n catalog", () => {
         }
         expect(found).toEqual([]);
     });
+
+    it("the organization's key is called the firm's key (despacho), as in Settings", () => {
+        const es = flatten(esMX);
+        expect(es.get("assistant.chatCredentialPicker.organizationKey")).toBe("Llave del despacho");
+        expect(es.get("training.credentialSource.organization")).toBe("Llave del despacho");
+    });
 });

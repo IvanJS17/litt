@@ -186,7 +186,7 @@
       "noKey": "Sin llave",
       "noKeyIsAvailableForThis": "No hay ninguna llave disponible para este modelo. Agrega una en Ajustes o elige otro modelo.",
       "operatorEndpoint": "Modelo propio de la plataforma",
-      "organizationKey": "Llave de la organización",
+      "organizationKey": "Llave del despacho",
       "theConversationKeepsThisKeyAnd": "La conversación conserva esta llave y su modelo una vez que empieza.",
       "yourKey": "Tu llave"
     },
@@ -4327,7 +4327,7 @@
     "credentialSource": {
       "deployment": "Llave de la plataforma",
       "operator": "Modelo propio de la plataforma",
-      "organization": "Llave de la organización",
+      "organization": "Llave del despacho",
       "personal": "Tu llave"
     },
     "criterion": {
