@@ -172,19 +172,19 @@ export async function proposeSplit(db: Db, args: Args): Promise<ServiceResult<Do
         if (overLimits(text.data)) return tooLarge();
 
         const { classes } = await resolveSplitClasses(db, args.userId, doc.org_id);
+        // Which document and how much; never the text, the key or the file name.
+        const sent = { document_id: doc.id, version_id: version.id, org_id: doc.org_id ?? null, characters: text.data.markdown.length };
+        const audit = (detail: Record<string, unknown>) =>
+            recordAudit(db, { userId: args.userId, userEmail: args.userEmail ?? null, action: "document.split_sent", detail: { ...sent, ...detail } });
         let result;
         try {
             result = await splitWithLandingAi(key, text.data.markdown, text.data.pages.length, classes);
         } catch (error) {
+            // The text was on its way to LandingAI: a failed call is recorded too, with its code only.
+            if (error instanceof OcrError) await audit({ ok: false, error_code: error.code });
             return splitCallFailure(error);
         }
-        await recordAudit(db, {
-            userId: args.userId,
-            userEmail: args.userEmail ?? null,
-            action: "document.split_sent",
-            // Which document and how much; never the text, the key or the file name.
-            detail: { document_id: doc.id, version_id: version.id, org_id: doc.org_id ?? null, characters: text.data.markdown.length, credits: result.credits },
-        });
+        await audit({ ok: true, credits: result.credits });
         return ok({ version_id: version.id, page_count: text.data.pages.length, groups: result.groups, classes, credits: result.credits });
     } catch (error) {
         return internalFailure(error);
