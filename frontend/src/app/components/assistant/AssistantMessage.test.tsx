@@ -101,6 +101,16 @@ describe("AssistantMessage export", () => {
         expect(await blob.text()).toBe(text);
     });
 
+    it("marks a stopped answer's file with the translated note", async () => {
+        const user = userEvent.setup();
+        const spy = vi.spyOn(download, "downloadBlob").mockImplementation(() => {});
+        render(<AssistantMessage events={[{ type: "content", text: "Partial answer" }, { type: "stopped" }]} />);
+
+        await user.click(screen.getByRole("button", { name: "Download .md" }));
+
+        expect(await spy.mock.calls[0][0].text()).toBe("Partial answer\n\n_Response stopped_");
+    });
+
     it("offers no download while streaming or when the answer has no text", () => {
         const { rerender } = render(
             <AssistantMessage isStreaming events={[{ type: "content", text: "Partial" }]} />,

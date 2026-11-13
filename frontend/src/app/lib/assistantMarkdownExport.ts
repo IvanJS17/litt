@@ -3,13 +3,20 @@ import { downloadBlob } from "./downloadDocument";
 
 /**
  * The Markdown the answer already is: its text blocks as the model wrote
- * them, in order. Nothing is converted.
+ * them, in order. Nothing is converted. An answer the reader stopped ends in
+ * `stoppedNote`, the line the screen shows there, in the reader's language, so
+ * a file does not look like a complete answer. An answer with no text exports
+ * nothing, stopped or not.
  */
-export function responseMarkdown(events: AssistantEvent[] | undefined): string {
-    return (events ?? [])
+export function responseMarkdown(
+    events: AssistantEvent[] | undefined,
+    stoppedNote?: string,
+): string {
+    const text = (events ?? [])
         .flatMap((event) => (event.type === "content" ? [event.text] : []))
         .filter((text) => text.trim().length > 0)
         .join("\n\n");
+    return text && stoppedNote ? `${text}\n\n_${stoppedNote}_` : text;
 }
 
 const MAX_NAME_LENGTH = 60;

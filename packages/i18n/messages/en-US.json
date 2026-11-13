@@ -475,7 +475,8 @@
   },
   "assistantExport": {
     "defaultName": "response",
-    "downloadMarkdown": "Download .md"
+    "downloadMarkdown": "Download .md",
+    "stoppedNote": "Response stopped"
   },
   "auth": {
     "callback": {

@@ -475,7 +475,8 @@
   },
   "assistantExport": {
     "defaultName": "respuesta",
-    "downloadMarkdown": "Descargar .md"
+    "downloadMarkdown": "Descargar .md",
+    "stoppedNote": "Respuesta detenida"
   },
   "auth": {
     "callback": {

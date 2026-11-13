@@ -20,6 +20,14 @@ describe("responseMarkdown", () => {
         );
     });
 
+    it("ends a stopped answer in the translated note, and exports nothing when there is no text", () => {
+        const events = [{ type: "content", text: "# Resumen\n\nParcial" }] as unknown as AssistantEvent[];
+        expect(responseMarkdown(events, "Respuesta detenida")).toBe("# Resumen\n\nParcial\n\n_Respuesta detenida_");
+        expect(responseMarkdown([], "Respuesta detenida")).toBe("");
+        // The file name still comes from the answer's first line.
+        expect(markdownFilename(responseMarkdown(events, "Respuesta detenida"), "respuesta")).toBe("resumen.md");
+    });
+
     it("is empty when there is nothing to export", () => {
         expect(responseMarkdown(undefined)).toBe("");
         expect(responseMarkdown([])).toBe("");
