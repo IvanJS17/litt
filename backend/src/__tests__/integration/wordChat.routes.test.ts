@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
+import { isReported } from "../../lib/observability/report";
 
 type QueryError = { message: string } | null;
 type QueryResult = { data: unknown; error: QueryError };
@@ -658,7 +659,8 @@ describe("POST /word-chat — local storage", () => {
       data: { id: CHAT_ID, title: null, user_id: "u1" },
       error: null,
     };
-    runLLMStream.mockRejectedValueOnce(new Error("provider failed"));
+    const original = new Error("provider failed");
+    runLLMStream.mockRejectedValueOnce(original);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await request(app)
@@ -673,6 +675,8 @@ describe("POST /word-chat — local storage", () => {
       });
 
     expect(res.status).toBe(200);
+    expect(isReported(original)).toBe(true);
+    expect(res.text).toContain('"reporting_owner":"backend"');
     expect(releaseMemoryConversationTurn).toHaveBeenCalledWith({
       db: expect.anything(),
       surface: "word",

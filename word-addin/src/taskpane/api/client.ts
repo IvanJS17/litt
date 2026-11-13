@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 import type {
   ApiKeyStatus,
   Document,
@@ -80,22 +81,26 @@ export class MikeApiError extends Error {
   readonly status: number;
   readonly code: string | null;
   readonly requestId: string | null;
+  readonly reportingOwner?: typeof BACKEND_REPORTING_OWNER;
 
   constructor(args: {
     message: string;
     status: number;
     code?: string | null;
     requestId?: string | null;
+    reportingOwner?: typeof BACKEND_REPORTING_OWNER;
   }) {
     super(args.message);
     this.name = "MikeApiError";
     this.status = args.status;
     this.code = args.code ?? null;
     this.requestId = args.requestId ?? null;
+    this.reportingOwner = args.reportingOwner;
   }
 }
 
 export interface ParsedApiError {
+  reportingOwner?: typeof BACKEND_REPORTING_OWNER;
   message: string;
   code: string | null;
   requestId: string | null;
@@ -118,14 +123,17 @@ export function parseApiErrorBody(args: {
   let code: string | null = null;
   let requestId = args.requestId ?? null;
   let detail: string | null = null;
+  let reportingOwner: typeof BACKEND_REPORTING_OWNER | undefined;
 
   try {
     const parsed = JSON.parse(args.body) as {
+      reporting_owner?: unknown;
       detail?: unknown;
       code?: unknown;
       request_id?: unknown;
       error?: { code?: unknown; message?: unknown; request_id?: unknown };
     };
+    reportingOwner = parsed.reporting_owner === BACKEND_REPORTING_OWNER ? BACKEND_REPORTING_OWNER : undefined;
     code =
       typeof parsed.error?.code === "string"
         ? parsed.error.code
@@ -150,6 +158,7 @@ export function parseApiErrorBody(args: {
   }
 
   return {
+    ...(reportingOwner ? { reportingOwner } : {}),
     // 4xx detail is written for users by the backend. A 5xx body (a stack
     // trace, a proxy's HTML, a provider's complaint) never is: replace it,
     // with the fixed sentence for a code that has one (an outage to wait
@@ -201,13 +210,7 @@ async function sendRequest(
   } catch (error) {
     // Preserve cancellation identity for callers: a user stop, including a
     // signal aborted with a custom reason, is not a transport failure.
-    if (
-      init.signal?.aborted ||
-      (typeof error === "object" &&
-        error !== null &&
-        "name" in error &&
-        error.name === "AbortError")
-    ) {
+    if (init.signal?.aborted) {
       throw error;
     }
     reportNetworkFailure(error, { method: init.method ?? "GET", url, operation });
@@ -249,6 +252,7 @@ export async function responseError(
     code: handled?.code ?? parsed.code,
     requestId: parsed.requestId,
     message: handled?.message ?? parsed.message,
+    reportingOwner: parsed.reportingOwner,
   });
   // A 5xx is the server's fault and worth a report; 4xx are user-facing
   // outcomes (validation, permission) and stay out of failure reporting.
@@ -261,6 +265,7 @@ export async function responseError(
       code: parsed.code,
       requestId: parsed.requestId,
       error: apiError,
+      reportingOwner: apiError.reportingOwner,
     });
   }
   return apiError;
@@ -319,14 +324,12 @@ async function uploadSessionFiles<T>(args: {
     transport: {
       apiRequest: <R>(path: string, init?: RequestInit) => apiRequest<R>("upload_session.control", path, init),
       fetchStorage: (...fetchArgs) => clientConfig.fetchImpl(...fetchArgs),
-      onStorageFailure: ({ error, status, network }) => reportError(error, {
-        ...(network ? { level: "warning" as const } : {}),
-        tags: {
-          component: "mike-api", operation: "upload_session.storage", http_method: "PUT",
-          ...(status !== undefined ? { http_status: status } : {}),
-          ...(network ? { network: true } : {}),
-        },
-      }),
+      // Nothing leaves the browser: the fixed-vocabulary tags (status,
+      // storage_target) go to the console, where the operator can read them.
+      reportStorageFailure: (error, report) => {
+        console.warn("[upload] direct storage upload failed", report.tags);
+        reportError(error, report);
+      },
       shouldRetryControlRequest: createControlRequestRetryPolicy((error) =>
         error instanceof MikeApiError
           ? { status: error.status, code: error.code }

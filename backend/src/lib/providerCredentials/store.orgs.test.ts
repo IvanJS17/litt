@@ -411,3 +411,58 @@ describe("the scan-reading (LandingAI) key", () => {
         expect(status.landingai).toBe(false);
     });
 });
+
+// Whose key each provider runs on travels with the keys, so a refusal of the
+// deployment's own key can be told from a refusal of a saved one: the
+// environment's key sits in the same field a saved key would.
+describe("keySources", () => {
+    it("says which keys are the environment's, the person's and the organization's", async () => {
+        process.env.ANTHROPIC_API_KEY = "env-claude";
+        process.env.GEMINI_API_KEY = "env-gemini";
+        process.env.OPENAI_API_KEY = "env-openai";
+        const { db } = firm(true);
+        await saveApiKeyFor(userKeyOwner(USER), "gemini", "my-gemini", db);
+        await saveApiKeyFor(orgKeyOwner(ORG), "openai", "org-openai", db);
+
+        const personal = await getUserApiKeys(USER, db);
+        expect(personal).toMatchObject({ claude: "env-claude", gemini: "my-gemini" });
+        expect(personal.keySources).toMatchObject({
+            claude: "env",
+            gemini: "user",
+            openai: "env",
+        });
+
+        const orgWork = await getEffectiveApiKeys(USER, ORG, db);
+        // The firm allows personal keys (firm(true)), so the person's own
+        // Gemini key still runs in firm work, labelled as theirs.
+        expect(orgWork).toMatchObject({ claude: "env-claude", gemini: "my-gemini", openai: "org-openai" });
+        expect(orgWork.keySources).toMatchObject({
+            claude: "env",
+            gemini: "user",
+            openai: "org",
+        });
+    });
+
+    it("drops the origin of a key a disabled row removed", async () => {
+        process.env.ANTHROPIC_API_KEY = "env-claude";
+        const { db, tables } = firm(true);
+        await saveApiKeyFor(userKeyOwner(USER), "claude", "my-claude", db);
+        tables.user_api_keys[0]!.enabled = false;
+
+        const keys = await getUserApiKeys(USER, db);
+        expect(keys.claude).toBeNull();
+        expect(keys.keySources?.claude).toBeUndefined();
+    });
+
+    it("does not label a personal key as the firm's when the firm turned personal keys off", async () => {
+        process.env.ANTHROPIC_API_KEY = "env-claude";
+        const { db } = firm(false);
+        await saveApiKeyFor(userKeyOwner(USER), "claude", "my-claude", db);
+        await saveApiKeyFor(orgKeyOwner(ORG), "openai", "org-openai", db);
+
+        const orgWork = await getEffectiveApiKeys(USER, ORG, db);
+        expect(orgWork.claude).toBe("env-claude");
+        expect(orgWork.keySources).toMatchObject({ claude: "env", openai: "org" });
+        expect(Object.values(orgWork.keySources ?? {})).not.toContain("user");
+    });
+});

@@ -44,6 +44,7 @@ describe("sendInternalError", () => {
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({
+      reporting_owner: "backend",
       code: "internal_error",
       detail: "Something went wrong. Please try again.",
       request_id: "req-abc",
@@ -106,6 +107,7 @@ describe("sendInternalError", () => {
     expect(res.body).toEqual({
       code: "internal_error",
       detail: "Something went wrong. Please try again.",
+      reporting_owner: "backend",
       request_id: "req-abc",
     });
   });
@@ -129,6 +131,7 @@ describe("sendInternalError", () => {
 
       expect(res.status).toBe(503);
       expect(res.body).toEqual({
+        reporting_owner: "backend",
         code: "schema_out_of_date",
         detail: SCHEMA_OUT_OF_DATE_MESSAGE,
         request_id: "req-abc",
@@ -161,7 +164,7 @@ describe("sendInternalError", () => {
     for (const path of ["/omitted", "/undefined", "/false"]) {
       const res = await request(app).get(path);
       expect(res.status).toBe(502);
-      expect(res.body).toEqual(answer);
+      expect(res.body).toEqual({ ...answer, reporting_owner: "backend" });
     }
     expect(reportError).toHaveBeenCalledTimes(2);
   });

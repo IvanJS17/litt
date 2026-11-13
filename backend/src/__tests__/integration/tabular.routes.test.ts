@@ -2165,6 +2165,28 @@ describe("tabular.routes", () => {
             expect(extractRowColumns).not.toHaveBeenCalled();
         });
 
+        it("owns a terminal generation failure once in the report line and the error frame", async () => {
+            const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+            try {
+                const original = new TypeError("PRIVATE_SOURCE_DOCUMENT");
+                original.stack = "TypeError: PRIVATE_SOURCE_DOCUMENT\n    at extractRow (backend/src/modules/tabular/tabular.extractRow.ts:42:7)";
+                extractRowColumns.mockRejectedValueOnce(original);
+                const res = await startGeneration();
+                expect(res.status).toBe(200);
+                expect(res.text).toContain('"reporting_owner":"backend"');
+                expect(res.text).toContain("data: [DONE]");
+                expect(res.text).not.toContain("PRIVATE_SOURCE_DOCUMENT");
+                const reports = logged.mock.calls
+                    .filter((call) => call[0] === "[report]")
+                    .map((call) => JSON.parse(String(call[1])) as Record<string, unknown>);
+                expect(reports).toHaveLength(1);
+                expect(reports[0]).toMatchObject({ operation: "tabular.generate", stage: "generation-stream" });
+                expect(JSON.stringify(reports)).not.toContain("PRIVATE_SOURCE_DOCUMENT");
+            } finally {
+                logged.mockRestore();
+            }
+        });
+
         it("keeps extracting after the requesting socket closes, and a reload attaches from where it left off", async () => {
             const held = heldExtraction();
             const first = startGeneration();

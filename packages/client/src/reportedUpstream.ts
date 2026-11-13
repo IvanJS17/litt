@@ -1,18 +1,13 @@
-/**
- * 5xx codes the server side has already reported in its own log, and what
- * each tells the user.
- *
- * The backend (`schema_out_of_date`, and `upstream_unavailable` when GoTrue is
- * unreachable) and the Next gateway (`upstream_unavailable` when the backend
- * is unreachable) each log one report per failure, with detail a client
- * cannot see. A client copy would be one more report per endpoint per page
- * view for the same incident, so every client that reports 5xx answers (the
- * web app's mikeApi and authApi, the Word add-in's API client) checks this
- * table first: these codes are only marked handled, and show their own
- * sentence instead of the generic server-failure one.
- */
 import { SOURCE_MESSAGES } from "@litt/i18n";
 import { clientTranslator, sourceTranslator } from "./locale";
+
+/** Ownership is explicit; a status or display code never establishes it. */
+export const BACKEND_REPORTING_OWNER = "backend";
+
+/*
+ * Fixed public messages for upstream failure codes. Reporting ownership is
+ * carried separately by reporting_owner; a known code never proves handling.
+ */
 
 /**
  * The backend's answer when its database is missing a migration (PGRST202/
@@ -34,9 +29,9 @@ export const UPSTREAM_UNAVAILABLE_MESSAGE = sourceTranslator("errors.upstream.up
 type ReportedUpstreamCode = keyof typeof SOURCE_MESSAGES.errors.upstream;
 
 /**
- * The fixed user-facing message for a code the server side already
- * reported, in the configured locale, or null for any other code (report it
- * as usual). The codes are the keys of the catalog's `errors.upstream`.
+ * The fixed user-facing message for a known upstream failure code, in the
+ * configured locale, or null for any other code. The codes are the keys of
+ * the catalog's `errors.upstream`.
  */
 export function reportedUpstreamMessage(
     code: string | null | undefined,

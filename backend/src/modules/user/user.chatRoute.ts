@@ -28,7 +28,7 @@
 // 20261023_15), so "read, then bump" never happens in the application.
 
 import type { Db } from "../../lib/supabase";
-import type { Provider, UserApiKeys } from "../../lib/llm";
+import type { ApiKeyOrigin, Provider, UserApiKeys } from "../../lib/llm";
 import type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
 import { providerForModel, resolveModel } from "../../lib/llm/models";
 import { getConfiguredModel } from "../../lib/llm/registry";
@@ -131,6 +131,7 @@ function onlyBag(
     keyProvider: ApiKeyProvider | null,
     key: string | null,
     settings: UserApiKeys["providerSettings"],
+    origin?: ApiKeyOrigin,
 ): UserApiKeys {
     const bag: UserApiKeys = {
         disabledProviders: ALL_PROVIDERS.filter(
@@ -140,6 +141,9 @@ function onlyBag(
     };
     if (keyProvider && key) {
         (bag as Record<string, unknown>)[keyProvider] = key;
+        // Whose key the pinned route sends travels with it, so a refusal of
+        // the deployment's or the firm's key is told from a person's own.
+        if (origin) bag.keySources = { [keyProvider]: origin };
     } else if (keyProvider) {
         // The provider layer falls back to the deployment's key when the bag
         // has none; marking it unusable closes that path.
@@ -365,7 +369,7 @@ export async function pinChatRoute(
             return {
                 ok: true,
                 route: route(`user:${args.userId}:${own.ref}`),
-                apiKeys: onlyBag(provider, keyProvider, own.key, own.settings),
+                apiKeys: onlyBag(provider, keyProvider, own.key, own.settings, "user"),
             };
         }
     }
@@ -374,7 +378,7 @@ export async function pinChatRoute(
         return {
             ok: true,
             route: route(`env:${keyProvider}`),
-            apiKeys: onlyBag(provider, keyProvider, env.key, env.settings),
+            apiKeys: onlyBag(provider, keyProvider, env.key, env.settings, "env"),
         };
     }
     return {
@@ -427,7 +431,7 @@ export async function loadPinnedChatRoute(
         return {
             ok: true,
             route,
-            apiKeys: onlyBag(provider, keyProvider, env.key, env.settings),
+            apiKeys: onlyBag(provider, keyProvider, env.key, env.settings, "env"),
         };
     }
 
@@ -457,7 +461,7 @@ export async function loadPinnedChatRoute(
     return {
         ok: true,
         route,
-        apiKeys: onlyBag(provider, keyProvider, row.key, row.settings),
+        apiKeys: onlyBag(provider, keyProvider, row.key, row.settings, owner.kind),
     };
 }
 

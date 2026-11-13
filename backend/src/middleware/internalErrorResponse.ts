@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "../lib/reportedUpstreamCodes";
 import type {
   ErrorRequestHandler,
   NextFunction,
@@ -33,6 +34,7 @@ export function protectInternalErrorResponses(
     const publicBody = {
       code: INTERNAL_ERROR_CODE,
       detail: INTERNAL_ERROR_MESSAGE,
+      reporting_owner: BACKEND_REPORTING_OWNER,
       ...(requestId ? { request_id: requestId } : {}),
     };
     const errorBody =
@@ -42,7 +44,7 @@ export function protectInternalErrorResponses(
     const hasUnexpectedFields =
       errorBody &&
       Object.keys(errorBody).some(
-        (key) => !["code", "detail", "request_id"].includes(key),
+        (key) => !["code", "detail", "request_id", "reporting_owner"].includes(key),
       );
     // sendInternalError already reported this failure and wrote a fixed
     // public body (internal_error, or an intentional 503 such as
@@ -56,7 +58,7 @@ export function protectInternalErrorResponses(
       typeof errorBody.code === "string" &&
       typeof errorBody.detail === "string"
     ) {
-      return originalJson(body);
+      return originalJson({ ...errorBody, reporting_owner: BACKEND_REPORTING_OWNER });
     }
     if (
       errorBody?.code === INTERNAL_ERROR_CODE &&

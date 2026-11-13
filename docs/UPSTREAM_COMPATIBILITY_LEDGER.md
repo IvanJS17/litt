@@ -1867,3 +1867,106 @@ it is lost.
 | LiTT change | Files | What to keep on conflict | Test |
 |---|---|---|---|
 | Interface language per user (i18n I18N-0B, 2026-11-07): `user_profiles.ui_locale` (`en-US`, `es-MX` or null = automatic), migration `20261107_80_litt_user_ui_locale.sql` | `modules/user/user.profile.validation.ts` (`uiLocale` in `PATCH /user/profile`), `user.profile.serialization.ts` (`uiLocale` in the profile), `user.profile.storage.ts` (`ui_locale` in the newest select plus its own retry tier), `user.profile.operations.ts` (copy to GoTrue `user_metadata.locale`), `modules/auth/auth.service.ts` (`locale` in sign-up, sent as `data.locale`), `lib/uiLocale.ts`, `UiLocale` in `packages/contracts` | The `uiLocale` field and its validation, `ui_locale` at the end of `PROFILE_SELECT_NEWEST` with the `PROFILE_SELECT_NO_UI_LOCALE` tier, and the metadata copy after the profile update. If the copy to GoTrue fails, the profile keeps the saved value, the request still succeeds and a warning is logged; the emails use the previous metadata value until the next successful save. | `user.routes.test.ts` (`PATCH /user/profile uiLocale`); `auth.test.ts` (sign-up language); `buildJsonExport.access.test.ts` (profile export) |
+
+## 31. Cycle 2026-11-12 (cycle 11)
+
+Pin `54c2cb5943601d61016a1c37db6e15815c05ee09` (merge of #861), 54 commits from
+`366fa4e9` (the cycle 10 pin). Owner approval 2026-11-12: topics 1 to 9 come in,
+topic 10 (Sentry and the desktop app) is rejected whole. Branch
+`chore/upstream-cycle-11`, on `origin/main` `56224cb7` (#176 integrated).
+`ffe49226` and the commits after the pin go to the next intake.
+
+### 31.1 Resolution of the merge
+
+96 conflicts: 28 `modify/delete` (Sentry code, tests and docs; `desktop/`;
+`desktop.yml`, `docker-images.yml`, `docs/observability.md`) resolved by keeping
+the deletion, and 68 `content` conflicts resolved by hand. Files upstream added
+that only serve Sentry (`sentryVolume*`, envelope tests) or the desktop app were
+removed in separate commits.
+
+### 31.2 Disposition by capability
+
+| Capability | Disposition | What stays |
+|---|---|---|
+| Provider verdicts (T1) | adapt | Each provider's own "not this model" verdict, quota and plan verdicts, URL path no longer read as a model verdict. The pinned chat route now carries `keySources` (`user`, `org`, `env`), so a refused personal key is a warning shown to the user and a refused firm or deployment key is an error. Governed BYOK is unchanged: route fixed per conversation, no silent fallback, `allow_personal_api_keys`; CourtListener stays removed |
+| Unreadable document (T2), memory scopes (T3), DNS and blank-code failures (T4) | adapt | `ExtractionParseError` becomes `NonRetryableJobError` (also in LiTT's `extractAndPublishText`, with the scan-reading loop from #176), memory retries per scope, `diagnosticErrorTags` reads supabase-js `details` |
+| Request id and `reporting_owner` (T5) | adapt | `x-request-id` gateway to backend, explicit owner marker, local only |
+| Queue listeners (T6) | adapt | `consumerErrors.ts` reports to `observability/report` |
+| Storage endpoint warning (T7) | adapt | Boot warning; browser upload failures go to the console |
+| Outside Word notice (T8) | adapt | `word.openLittInWord`, `word.thisPageIsLittsWordAdd` in both catalogs, "LiTT" instead of "Mike" |
+| Node floor 22.19 (T9) | adapt | `engines`, `.npmrc` engine-strict, `check-node-version.cjs` as `predev`/`prestart`; the Dockerfile `COPY`s `.npmrc` |
+| Lean Supabase CLI stack, dev CORS, citation highlight, dependencies | adopt / adapt | `@sentry/*` lines taken out; lockfiles regenerated |
+| Sentry (SDK, DSN, tunnel, budgets, community keys, envelope tests) and `desktop/` | reject | No net change for the deleted files. Rejected (invariant 11): no third-party telemetry |
+
+15 new files imported `observability/sentry` or `sentryPrivacy`; they now import
+`observability/report` and `observability/diagnostics`. `report.ts` gained
+`markErrorHandled` and an `isReported` that walks the `cause` chain.
+
+### 31.3 Disposition by commit
+
+| Commit | PR | Subject | Disposition |
+|---|---|---|---|
+| `42be9204` | #776 | fix(sentry): name the network code behind a blank supabase-js failure | adapt |
+| `ac5bc5f7` | #776 | Merge origin/main (05d9aebcd) into fix/blank-supabase-failure-code | adopt |
+| `bc1e5250` | #776 | test(chat): pin find_documents' answer for a gateway supabase-js cannot reach | adapt |
+| `92c043bf` | #776 | fix(chat): tell find_documents users the search is unavailable on a DNS failure | adopt |
+| `02282929` | #776 | test(chat): keep the find_documents table's `code` column name so #777 merges clean | adopt |
+| `454e2449` | #816 | fix(desktop): use bundled libpq for PostgREST | reject |
+| `482a26aa` | #816 | test(desktop): preserve relative native fixture symlinks | reject |
+| `50643830` | #844 + Dependabot | chore(deps-dev): bump @playwright/test | adopt |
+| `f4b7f815` | #844 + Dependabot | chore(deps-dev): bump the priority-3-development group | adopt |
+| `4d2c0e48` | #844 + Dependabot | chore(deps-dev): bump the priority-3-development group | adapt |
+| `5551287b` | #844 + Dependabot | chore(deps): bump the priority-3-actions group with 3 updates | adopt |
+| `7ac77f09` | #844 + Dependabot | chore(deps-dev): bump the priority-3-development group | adapt |
+| `4b89d573` | #844 + Dependabot | chore(deps): bump the priority-2-production group | adapt |
+| `ab3d9b14` | #844 + Dependabot | chore(deps): bump the priority-2-production group | adapt |
+| `ceee765f` | #844 + Dependabot | chore(deps): bump the priority-2-production group | adapt |
+| `a5c147d6` | directo #840 | fix(docx): paint citation highlights instead of selecting the quote (#840) | adopt |
+| `5edea69e` | #816 | Merge pull request #816 from lawyered0/fix/bundle-macos-postgrest-libpq | reject |
+| `efcbab13` | #776 | Merge pull request #776 from open-legal-products/fix/blank-supabase-failure-code | adapt |
+| `e8df4400` | #844 + Dependabot | Merge Dependabot #835 (dependabot/github_actions/priority-3-actions-9bb51a497a) | adopt |
+| `e99f8977` | #844 + Dependabot | Merge Dependabot #832 (dependabot/npm_and_yarn/priority-3-development-43e562a727) | adopt |
+| `17da9540` | #844 + Dependabot | Merge Dependabot #839 (dependabot/npm_and_yarn/backend/priority-2-production-1a2162253b) | adapt |
+| `463fe229` | #844 + Dependabot | Merge Dependabot #833 (dependabot/npm_and_yarn/backend/priority-3-development-1405ea60f5) | adopt |
+| `d0e521c3` | #844 + Dependabot | Merge Dependabot #838 (dependabot/npm_and_yarn/frontend/priority-2-production-a07f5e6af5) | adapt |
+| `7aabde2b` | #844 + Dependabot | Merge Dependabot #836 (dependabot/npm_and_yarn/frontend/priority-3-development-3534a43e73) | adapt |
+| `c9659553` | #844 + Dependabot | Merge Dependabot #837 (dependabot/npm_and_yarn/word-addin/priority-2-production-7383fb9cc2 | adapt |
+| `71fe0ddf` | #844 + Dependabot | Merge Dependabot #834 (dependabot/npm_and_yarn/word-addin/priority-3-development-021d045ae | adapt |
+| `b8490837` | #842 | refactor: clarify error reporting ownership and separate repeat budgets | adapt |
+| `d1a59532` | #844 + Dependabot | test(frontend): update the WarningPopup markup for lucide-react 1.70 | adopt |
+| `4a731466` | #844 + Dependabot | test(frontend): expect jsdom 31's canonical transform values | adopt |
+| `bd719ea6` | #842 | Restore the shared-project 50-event ceiling by resolved destination | reject |
+| `f54487bf` | #842 | Match pinned Sentry grouping when budgeting repeated failures | reject |
+| `859b576c` | #842 | Merge pull request #842 from open-legal-products/codex/sentry-reporting-infrastructure | adapt |
+| `2292426b` | #845 | chore(dev): start only the Supabase services Mike uses in the CLI stack | adopt |
+| `15563b68` | #845 | chore(dev): drop the config guard test and shorten the CLI stack docs | adopt |
+| `3f1fbcb4` | #844 + Dependabot | Merge pull request #844 from open-legal-products/chore/deps-combined-2026-11-10 | adapt |
+| `86922d2f` | #845 | Merge pull request #845 from open-legal-products/chore/lean-supabase-cli-stack | adopt |
+| `2ada45fb` | #843 | Fix terminal failure ownership and consolidated Sentry error sources | adapt |
+| `69eb84bf` | #843 | Assert backend ownership in service failure responses | adapt |
+| `8b30b3d4` | #843 | Keep repeated unknown SDK warnings visible to the transport | adapt |
+| `fa15c661` | #843 | Carry auth reporting ownership and preserve distinct gateway stream defects | adapt |
+| `8fdeca12` | #843 | Assert reporting ownership on the diagnostic test endpoint | reject |
+| `8e599aea` | #843 | Verify explicit reporting ownership in Word browser envelopes | reject |
+| `8ee8eab9` | #843 | Preserve request correlation for gateway response failures | adapt |
+| `0be9184a` | #843 | Keep organization model credential failures visible | adapt |
+| `f0376fb0` | #843 | Preserve memory retries across independently failing scopes | adapt |
+| `91783e05` | #843 | fix: correct error ownership and deterministic failure handling | adapt |
+| `9f2bb86c` | #843 | fix(llm): recognize each provider's own "not this model" verdict | adapt |
+| `b98a5d08` | #843 | test(tabular): model who accounted for a rejected key in the worker frame | adapt |
+| `2e461ab2` | #843 | fix(tabular): stop retrying unreadable source documents on the Postgres queue | adapt |
+| `d91cc93f` | #843 | docs(observability): state the limits of the daily ceiling and Redis escalation | reject |
+| `94031e76` | #843 | fix(llm): do not read a URL path segment as a model-access verdict | adapt |
+| `2be013f3` | #843 | Merge pull request #843 from open-legal-products/codex/sentry-backlog-fixes | adapt |
+| `a67fe268` | #861 | chore(sentry): point default reporting at new community client keys | reject |
+| `54c2cb59` | #861 | Merge pull request #861 from mlx51/chore/rotate-community-sentry-keys | reject |
+
+### 31.4 Interface text
+
+Two new messages (`word.openLittInWord`, `word.thisPageIsLittsWordAdd`) in
+`en-US.json` and `es-MX.json`. No decision depends on a translated label.
+
+### 31.5 Dependabot
+
+The eight bumps of #844 are in; open LiTT Dependabot PRs for the same packages
+are closed after the merge.

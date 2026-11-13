@@ -87,6 +87,17 @@ test("caches only content-hashed files as immutable", async () => {
   );
 });
 
+test("asks crawlers not to index the add-in pages", async () => {
+  for (const pathname of ["/", "/taskpane.html"]) {
+    const page = await fetch(`${addinOrigin}${pathname}`);
+    assert.equal(page.status, 200);
+    assert.equal(page.headers.get("x-robots-tag"), "noindex, nofollow");
+  }
+  const asset = await fetch(`${addinOrigin}/taskpane.0123abcd.js`);
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get("x-robots-tag"), null);
+});
+
 test("streams the API while preserving auth headers and cookies", async () => {
   const response = await fetch(`${addinOrigin}/api/chat?mode=word`, {
     headers: {

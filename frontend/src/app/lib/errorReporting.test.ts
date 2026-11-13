@@ -44,3 +44,9 @@ describe("errorReporting (local only, no third-party telemetry)", () => {
         expect(isReported(new Error("unseen"))).toBe(false);
     });
 });
+
+it("marks an unowned 503 with a recognized code as handled, keeping the original Error", () => {
+    const failure = new Error("private transport detail");
+    expect(reportApiFailure({ path: "/chat", status: 503, code: "upstream_unavailable", error: failure })).toBeNull();
+    expect(isReported(failure)).toBe(true);
+});

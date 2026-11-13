@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 /**
  * Failure reporting seam for the Word add-in. LiTT sends no telemetry to
  * third parties, so nothing here leaves the pane: call sites keep naming the
@@ -61,6 +62,7 @@ export function reportApiFailure(failure: {
   method?: string;
   operation?: AddinOperation;
   error?: unknown;
+  reportingOwner?: typeof BACKEND_REPORTING_OWNER;
 }): string | null {
   markReported(failure.error);
   return null;

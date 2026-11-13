@@ -1,4 +1,5 @@
 "use client";
+import { BACKEND_REPORTING_OWNER } from "@mike/client";
 
 import {
   useCallback,
@@ -17,7 +18,6 @@ import {
   createTurnEventSink,
   readAssistantTurn,
 } from "@/app/lib/assistantTurnStream";
-import { isAbortError } from "@mike/client";
 import {
   beginAssistantTurn,
   cancelAssistantTurn,
@@ -30,7 +30,7 @@ import {
   type LiveAssistantTurn,
 } from "@/app/lib/assistantTurns";
 import { assistantHistoryContent } from "@/app/lib/assistantHistoryContent";
-import { reportError } from "@/app/lib/errorReporting";
+import { isReported, markErrorHandled, reportError } from "@/app/lib/errorReporting";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useWorkspaceIdentity } from "@/app/hooks/useWorkspaceIdentity";
 import { useWorkspaceOrgId } from "@/app/contexts/WorkspaceContext";
@@ -698,28 +698,38 @@ export function useAssistantChat({
       // renders the thread: a reader attached to the turn must see the
       // error, not a spinner.
       sink.finalizeStreamingContent();
-      if (controller.signal.aborted || isAbortError(error)) {
+      if (controller.signal.aborted) {
+        markErrorHandled(error);
         sink.finalizeStreamingReasoning();
         sink.appendCancellation();
       } else {
-        // The stream broke for a reason other than the user stopping it:
-        // end the turn and describe the failure instead of leaving a spinner,
-        // recording the real error while the user sees a generic message.
-        reportError(error, {
+        const displayError = error instanceof Error && error.name === "AbortError"
+          ? new UserVisibleError(turnFailedMessage(), { kind: "network", retryable: true, cause: error })
+          : error;
+        const described = describeError(displayError, {
+          action: t("assistant.useAssistantChat.getAResponse"),
+          fallback: turnFailedMessage(),
+        });
+        const owner = error && typeof error === "object" && "reportingOwner" in error ? error.reportingOwner : undefined;
+        // This boundary shows these refusals with their recovery actions. Other
+        // terminal failures, including body reads and unowned gateway 5xxs,
+        // remain visible after readAssistantTurn has exhausted recovery.
+        const handledRefusal = described.status !== null && described.status >= 400 && described.status < 500;
+        if (owner === BACKEND_REPORTING_OWNER || handledRefusal) markErrorHandled(error);
+        else if (!isReported(error)) reportError(error, {
+          ...(described.status !== null && described.status < 500 ? { level: "warning" as const } : {}),
           tags: {
-            component: "assistant-chat",
-            operation: turnOperation,
-            project: Boolean(projectId),
+            component: "assistant-chat", operation: turnOperation,
+            stage: "chat-stream", project: Boolean(projectId),
+            http_status: described.status ?? undefined,
+            error_code: described.code ?? undefined,
+            request_id: described.requestId ?? undefined,
           },
         });
         sink.endStreamingAfterFailure();
         if (cursor.chatId && cursor.turnId) {
           retrySnapshot.recoveryChatId = cursor.chatId;
         }
-        const described = describeError(error, {
-          action: t("assistant.useAssistantChat.getAResponse"),
-          fallback: turnFailedMessage(),
-        });
         // LiTT training: the composer's view of «Tu turno primero» was out of
         // date (an urgency pass ended mid-session); read it again.
         if (isTrainingRefusalCode(described.code)) markTrainingStageStale();
@@ -727,7 +737,7 @@ export function useAssistantChat({
           error,
           Boolean(retrySnapshot.recoveryChatId),
         );
-        const failure = uncertain ? uncertainDeliveryError(error) : error;
+        const failure = uncertain ? uncertainDeliveryError(error) : displayError;
         if (uncertain && retrySnapshot.chatId) {
           retrySnapshot.recoveryChatId = retrySnapshot.chatId;
         }

@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 // HTTP layer of the tabular-review module. Handlers parse and validate the
 // request, call the module's service files, and map their typed results onto
 // status codes. No handler queries the database.
@@ -32,7 +33,7 @@ import { createServerSupabase } from "../../lib/supabase";
 import { recordAudit } from "../../lib/audit";
 import { parseCredentialRef } from "../user/user.service";
 import { sendInternalError } from "../../lib/httpError";
-import { reportError, setOperation } from "../../lib/observability/report";
+import { isReported, reportError, setOperation } from "../../lib/observability/report";
 import { AppError } from "../../lib/appError";
 import { sendServiceFailure } from "../../lib/serviceResult";
 import {
@@ -678,11 +679,12 @@ tabularRouter.post("/:reviewId/generate", requireAuth, asyncRoute(async (req, re
         }
     } catch (err) {
         if (!generationSignal.aborted) {
+            if (!isReported(err)) reportError(err, { tags: { operation: "tabular.generate", stage: "generation-stream" } });
             console.error("[tabular/generate] stream error", err);
             if (res.headersSent) {
                 try {
                     write(
-                        `data: ${JSON.stringify({ type: "error", message: ASSISTANT_ERROR_MESSAGE })}\n\ndata: [DONE]\n\n`,
+                        `data: ${JSON.stringify({ type: "error", message: ASSISTANT_ERROR_MESSAGE, reporting_owner: BACKEND_REPORTING_OWNER })}\n\ndata: [DONE]\n\n`,
                     );
                 } catch {
                     /* ignore */
@@ -690,6 +692,7 @@ tabularRouter.post("/:reviewId/generate", requireAuth, asyncRoute(async (req, re
             } else if (!res.destroyed && !res.writableEnded) {
                 res.status(500).json({
                     detail: "Failed to prepare tabular review generation",
+                    reporting_owner: BACKEND_REPORTING_OWNER,
                 });
             }
         }
@@ -1247,6 +1250,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, asyncRoute(async (req, res) =
             write("data: [DONE]\n\n");
             return;
         }
+        if (!isReported(err)) reportError(err, { tags: { operation: "tabular.chat", stage: "chat-stream" } });
         console.error("[tabular/chat] error", err);
         const errorPayload = assistantStreamErrorPayload(err);
         const message = errorPayload.message;

@@ -15,6 +15,7 @@ import type {
 } from "@/app/components/shared/types";
 import type { ReviewCellStore } from "./reviewCellStore";
 import { TRView } from "./TabularReviewView";
+import { clearToasts } from "@mike/client";
 
 const { apiKeyState } = vi.hoisted(() => ({
     apiKeyState: {
@@ -35,7 +36,8 @@ vi.mock("next/navigation", () => ({
     useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
     useSearchParams: () => new URLSearchParams(),
 }));
-vi.mock("@/app/lib/mikeApi", () => ({
+vi.mock("@/app/lib/mikeApi", async () => ({
+    reportedUpstreamMessage: (await import("@mike/client")).reportedUpstreamMessage,
     MikeApiError: class MikeApiError extends Error {
         status: number;
         code: string | null;
@@ -205,6 +207,29 @@ describe("TabularReviewView server-owned generation", () => {
             removeEventListener: vi.fn(),
             dispatchEvent: vi.fn(),
         }));
+    });
+
+    it.each(["backend", undefined, "proxy"])("keeps the backend detail off the screen and out of the log on a run-start failure (%s)", async owner => {
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        clearToasts();
+        try {
+            mockDetail({});
+            const requestId = "11111111-1111-4111-8111-111111111111";
+            vi.mocked(streamTabularGeneration).mockResolvedValueOnce(Response.json({
+                detail: "PRIVATE_BACKEND_DETAIL", code: "internal_error", request_id: requestId, reporting_owner: owner,
+            }, { status: 503 }));
+            render(<TRView reviewId="r1" />);
+            fireEvent.click(await screen.findByTitle("Run review"));
+            await waitFor(() => expect(streamTabularGeneration).toHaveBeenCalledOnce());
+            await screen.findByTitle("Run review");
+            expect(screen.queryByText("PRIVATE_BACKEND_DETAIL")).not.toBeInTheDocument();
+            expect(JSON.stringify([...error.mock.calls, ...warn.mock.calls])).not.toContain("PRIVATE_BACKEND_DETAIL");
+        } finally {
+            error.mockRestore();
+            warn.mockRestore();
+            clearToasts();
+        }
     });
 
     it("uses the new review timestamp when running again after completion", async () => {

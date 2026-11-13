@@ -1141,11 +1141,13 @@ describe("mapTRMessages", () => {
 // ---------------------------------------------------------------------------
 
 describe("API transport cancellation", () => {
-    it("preserves AbortError", async () => {
+    it("reports an unexpected AbortError when no caller cancelled", async () => {
         const error = new DOMException("The operation was aborted", "AbortError");
         fetchMock.mockRejectedValueOnce(error);
 
         await expect(streamChat({ messages: [] })).rejects.toBe(error);
+
+        expect(reportNetworkFailure).toHaveBeenCalledWith(error, expect.objectContaining({ operation: "chat.turn" }));
     });
 
     it.each([new Error("User stopped the response"), "navigation", null])(

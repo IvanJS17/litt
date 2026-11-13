@@ -1,3 +1,4 @@
+import { BACKEND_REPORTING_OWNER } from "../../lib/reportedUpstreamCodes";
 import { sendInternalError } from "../../lib/httpError";
 import {
   finishTrainingTurn,
@@ -48,7 +49,7 @@ import {
 } from "../chat/chat.service";
 import { enqueueChatTurnAudit } from "../../lib/audit";
 import { parseCredentialRef } from "../user/user.service";
-import { setOperation } from "../../lib/observability/report";
+import { setOperation, isReported, reportError } from "../../lib/observability/report";
 import {
   persistWordDocumentEdits,
   WORD_EDIT_FORMATS,
@@ -901,7 +902,7 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
           type: "error",
           message:
             "The response was generated but could not be saved. Keep this document open and review its tracked changes in Word.",
-          reporting_owner: "backend",
+          reporting_owner: BACKEND_REPORTING_OWNER,
           ...(requestId ? { request_id: requestId } : {}),
         })}\n\n`,
       );
@@ -1021,6 +1022,9 @@ wordChatRouter.post("/", requireAuth, asyncRoute(async (req, res) => {
       write(stopOutcomeFrame(run));
       write("data: [DONE]\n\n");
       return;
+    }
+    if (!isReported(error)) {
+        reportError(error, { tags: { operation: "word_chat.turn", stage: "chat-stream" } });
     }
     console.error("[word-chat] stream error", error);
     const errorPayload = assistantStreamErrorPayload(error, requestId);

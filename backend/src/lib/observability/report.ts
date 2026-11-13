@@ -105,9 +105,37 @@ export function requestRoutePattern(
 
 const reportedErrors = new WeakSet<object>();
 
-/** True when `error` already went through reportError. */
-export function isReported(error: unknown): boolean {
-  return !!error && typeof error === "object" && reportedErrors.has(error);
+/** The owning boundary handled this outcome; suppress only its later copies. */
+export function markErrorHandled(error: unknown): void {
+  if (error && typeof error === "object") reportedErrors.add(error);
+}
+
+/** How far down an Error's `cause` chain isReported() looks. */
+const CAUSE_CHAIN_DEPTH = 8;
+
+/**
+ * True when `value`, or any error in its `cause` chain, already went through
+ * reportError (or was marked handled). Wrapping a reported failure for the
+ * caller is the same failure, not a new one. Bounded and cycle-safe: `cause`
+ * is arbitrary user-settable data.
+ */
+export function isReported(value: unknown): boolean {
+  const seen = new Set<object>();
+  let current = value;
+  for (let depth = 0; depth < CAUSE_CHAIN_DEPTH; depth++) {
+    if (!current || typeof current !== "object" || seen.has(current)) {
+      return false;
+    }
+    if (reportedErrors.has(current)) return true;
+    seen.add(current);
+    try {
+      current = (current as { cause?: unknown }).cause;
+    } catch {
+      // A throwing accessor carries no signal; reporting must not throw.
+      return false;
+    }
+  }
+  return false;
 }
 
 function writeReport(

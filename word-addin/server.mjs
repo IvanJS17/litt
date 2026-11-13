@@ -139,6 +139,7 @@ async function serveStatic(req, res, distRoot) {
   try {
     const info = await stat(filename);
     if (!info.isFile()) throw new Error("not a file");
+    const isHtml = relative.endsWith(".html");
     res.writeHead(200, {
       // Only webpack's content-hashed files never change under the same name.
       // HTML, manifest.xml and the ribbon icons keep fixed names that the
@@ -151,6 +152,10 @@ async function serveStatic(req, res, distRoot) {
         MIME_TYPES.get(path.extname(filename).toLowerCase()) ??
         "application/octet-stream",
       "x-content-type-options": "nosniff",
+      // The pages only work inside Word, so a search result or a link
+      // preview of them leads nowhere (they were mostly
+      // crawlers). Office ignores this header; it still needs the 200.
+      ...(isHtml ? { "x-robots-tag": "noindex, nofollow" } : {}),
     });
     if (req.method === "HEAD") {
       res.end();

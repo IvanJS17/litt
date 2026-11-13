@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { upstreamUnreachableCode } from "./upstreamFailure";
+import { describe, expect, it, vi } from "vitest";
+import { guardUpstreamBody, upstreamUnreachableCode } from "./upstreamFailure";
 
 describe("upstreamUnreachableCode", () => {
     it("finds the connect code under fetch's cause and AggregateError entries", () => {
@@ -38,5 +38,44 @@ describe("upstreamUnreachableCode", () => {
             cause: Object.assign(new Error("connect ECONNRESET"), { code: "ECONNRESET" }),
         });
         expect(upstreamUnreachableCode({ ...wrapped, cause: wrapped.cause })).toBe("ECONNRESET");
+    });
+});
+
+// MIKE-FRONTEND-3B: the backend closing the socket while a request body is
+// still being written is the backend going away, not an application error.
+it("treats EPIPE as an unreachable backend", () => {
+    const failure = new TypeError("fetch failed", {
+        cause: Object.assign(new Error("write EPIPE"), { code: "EPIPE" }),
+    });
+    expect(upstreamUnreachableCode(failure)).toBe("EPIPE");
+});
+
+describe("guardUpstreamBody", () => {
+    // The consumer (Next piping to a browser that went away) can cancel while
+    // a read is pending. cancel() resolves that read as done, and closing the
+    // already-cancelled controller throws "Invalid state". That is not an
+    // upstream failure and must not be reported as one.
+    it("does not report a consumer cancel during a pending read", async () => {
+        const onError = vi.fn();
+        const upstream = new ReadableStream<Uint8Array>({ pull: () => new Promise(() => {}) });
+        const reader = guardUpstreamBody(upstream, onError).getReader();
+
+        const pending = reader.read();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await reader.cancel(new Error("client went away"));
+
+        await expect(pending).resolves.toEqual({ done: true, value: undefined });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(onError).not.toHaveBeenCalled();
+    });
+
+    it("still reports an upstream read that fails", async () => {
+        const onError = vi.fn();
+        const failure = new TypeError("terminated");
+        const upstream = new ReadableStream<Uint8Array>({ pull: (controller) => controller.error(failure) });
+        const reader = guardUpstreamBody(upstream, onError).getReader();
+
+        await expect(reader.read()).rejects.toMatchObject({ name: "AbortError" });
+        expect(onError).toHaveBeenCalledWith(failure);
     });
 });
