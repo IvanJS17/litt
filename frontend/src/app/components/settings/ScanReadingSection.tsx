@@ -50,6 +50,7 @@ export function ScanReadingSection() {
       <ScanReadingCard
         loading={!profile || !orgApiKeys}
         canManage={false}
+        showKeyHelp={false}
         hasSavedKey={firmHasKey}
         enabled={firmKeyOn}
         keyNotice={
