@@ -506,9 +506,10 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     // lengths, not rounded-full, so the change animates with
                     // the width.
                     isOpen ? "rounded-2xl" : "rounded-[23px]",
-                    // On a phone the sidebar is positioned against the screen, so
-                    // it keeps clear of the notch and the home indicator itself.
-                    "mt-[max(0.5rem,env(safe-area-inset-top))] mb-[max(0.5rem,env(safe-area-inset-bottom))] ml-[max(0.5rem,env(safe-area-inset-left))] mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
+                    // On a phone the sidebar's top and bottom keep clear of the
+                    // notch and the home indicator. Its left already does: the
+                    // page shell pads the safe-area side insets.
+                    "mt-[max(0.5rem,env(safe-area-inset-top))] mb-[max(0.5rem,env(safe-area-inset-bottom))] ml-2 mr-0 md:my-3 md:ml-3 md:mr-0 overflow-visible",
                     LIQUID_GLASS_FLOAT_CLASS,
                     "absolute z-[99] flex shrink-0 flex-col transition-all duration-300 motion-reduce:transition-none md:relative",
                 )}
@@ -574,7 +575,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         onPointerLeave={() => setToggleHoverSuppressed(false)}
                         aria-label={isOpen ? t("shared.appSidebar.closeSidebar") : t("shared.appSidebar.openSidebar")}
                         className={cn(
-                            "group flex h-8 w-8 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
+                            "group flex h-8 w-8 pointer-coarse:h-10 pointer-coarse:w-10 shrink-0 items-center justify-center transition-[border-radius] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                             isOpen ? "rounded-md" : "rounded-[16px]",
                             !toggleHoverSuppressed && LIQUID_GLASS_HOVER_CLASS,
                         )}
@@ -670,7 +671,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             <div>
                                 <button
                                     onClick={() => setProjectsCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 pointer-coarse:min-h-11 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -780,7 +781,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     aria-expanded={!historyCollapsed}
                                     aria-controls="sidebar-history"
                                     onClick={() => setHistoryCollapsed((v) => !v)}
-                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
+                                    className={`mb-2 flex w-full items-center justify-between rounded-md px-3.5 pointer-coarse:min-h-11 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus ${
                                         shouldAnimate ? "sidebar-fade-in" : ""
                                     }`}
                                 >
@@ -987,7 +988,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 type="button"
                                 aria-label={t("shared.appSidebar.accountMenu")}
                                 className={cn(
-                                    "flex h-9 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
+                                    "flex h-9 pointer-coarse:h-11 w-full shrink-0 items-center px-[7px] outline-none [transition:border-radius_300ms_cubic-bezier(0.4,0,0.2,1),background-color_150ms,color_150ms] focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2",
                                     isOpen ? "rounded-xl" : "rounded-[18px]",
                                     !isOpen ? "hidden md:flex" : "",
                                     pathname.startsWith("/settings") ||

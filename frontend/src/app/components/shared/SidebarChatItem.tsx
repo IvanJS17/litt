@@ -154,7 +154,7 @@ export function SidebarChatItem({
                     // The row owns the hover fill, so it draws the ring.
                     data-focus-fill
                     className={cn(
-                        "min-w-0 flex-1 overflow-hidden whitespace-nowrap py-1 pl-2 text-left text-xs outline-none",
+                        "min-w-0 flex-1 overflow-hidden whitespace-nowrap py-1 pl-2 text-left text-xs outline-none pointer-coarse:h-full",
                         isActive
                             ? "pr-3 text-gray-900"
                             : menuOpen
