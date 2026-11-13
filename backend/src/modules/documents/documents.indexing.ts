@@ -66,26 +66,36 @@ export async function extractAndPublishText(
   if (!raw) throw new Error("document_text_source_unavailable");
   const hash = createHash("sha256").update(Buffer.from(raw)).digest("hex");
   if (version.content_sha256 && version.content_sha256 !== hash) throw new Error("document_text_source_changed");
-  const ocr = fileType.toLowerCase() === "pdf" ? await loadReadScan(db, versionId, revision) : null;
-  let extracted: { text: string; textlessPageCount: number | null };
-  try {
-    extracted = await extract("documentText", raw, ocr ? { fileType, ocr } : { fileType });
-  } catch (err) {
-    // The source hash matched, so the parser saw the same bytes it will
-    // see on every retry: an unreadable file fails once, not three times.
-    // The runner's failure hook marks the text failed.
-    if (err instanceof ExtractionParseError) throw new NonRetryableJobError("document_text_unreadable", { cause: err, reportLevel: "warning" });
-    if (!(err instanceof ExtractionLimitError)) throw err;
-    return "too_large";
+  const isPdf = fileType.toLowerCase() === "pdf";
+  // The scan reading can be saved while this runs (the upload's extraction and
+  // the reading's own publish race). So after publishing, read it again: if it
+  // changed, extract and publish once more, which makes the last write the one
+  // that includes it.
+  let ocr = isPdf ? await loadReadScan(db, versionId, revision) : null;
+  for (let attempt = 0; ; attempt++) {
+    let extracted: { text: string; textlessPageCount: number | null };
+    try {
+      extracted = await extract("documentText", raw, ocr ? { fileType, ocr } : { fileType });
+    } catch (err) {
+      // The source hash matched, so the parser saw the same bytes it will
+      // see on every retry: an unreadable file fails once, not three times.
+      // The runner's failure hook marks the text failed.
+      if (err instanceof ExtractionParseError) throw new NonRetryableJobError("document_text_unreadable", { cause: err, reportLevel: "warning" });
+      if (!(err instanceof ExtractionLimitError)) throw err;
+      return "too_large";
+    }
+    const { text, textlessPageCount } = extracted;
+    const { error: publishError } = await db.rpc("publish_document_text", {
+      p_version_id: versionId, p_revision: revision,
+      // PostgreSQL text cannot contain NUL; do not truncate otherwise.
+      p_text: text.replaceAll("\0", ""), p_sha256: hash, p_textless_pages: textlessPageCount,
+    });
+    if (publishError) throw publishError;
+    if (!isPdf) return { textlessPageCount };
+    const latest = await loadReadScan(db, versionId, revision);
+    if (attempt >= 2 || JSON.stringify(latest) === JSON.stringify(ocr)) return { textlessPageCount };
+    ocr = latest;
   }
-  const { text, textlessPageCount } = extracted;
-  const { error: publishError } = await db.rpc("publish_document_text", {
-    p_version_id: versionId, p_revision: revision,
-    // PostgreSQL text cannot contain NUL; do not truncate otherwise.
-    p_text: text.replaceAll("\0", ""), p_sha256: hash, p_textless_pages: textlessPageCount,
-  });
-  if (publishError) throw publishError;
-  return { textlessPageCount };
 }
 
 /** Mark exhausted work failed without overwriting a newer revision or ready text. */

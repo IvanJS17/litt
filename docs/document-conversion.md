@@ -22,9 +22,9 @@ used.
 **One Word → Markdown converter.** `backend/src/lib/docxMarkdown.ts`
 (`docxToMarkdown`) serves the person's conversion and `extractDocxMarkdown`
 (the `documentMarkdown` op), where it replaced a regex conversion. Tabular
-review and the assistant do not use it: they read plain text with offsets (the
-`documentText` op, `extractDocxBodyText`), which citations depend on, and that
-path is unchanged. The converter runs inside
+review and the assistant do not use it: they read plain text with offsets
+(tabular review the `documentText` op, the assistant the `docxText` op; both
+`extractDocxBodyText`), which citations depend on, and that path is unchanged. The converter runs inside
 the isolated extraction process (`docxMarkdown` op), so its imports stay
 parser-only: turndown needs only its DOM library (`@mixmark-io/domino`), which
 does no I/O. Its output never carries raw HTML, and a `<` typed in a document is

@@ -23,12 +23,13 @@ export async function loadScanRow(db: Db, versionId: string): Promise<ScanRow | 
 }
 
 /**
- * The finished reading of exactly this version and byte revision, or null.
- * It is merged into the PDF's own text whenever that is extracted, and it
- * stays after the key that paid for it is removed or turned off.
+ * The saved reading of exactly this version and byte revision, or null. It is
+ * merged into the PDF's own text whenever that is extracted, and it stays
+ * after the key that paid for it is removed or turned off. A new reading in
+ * progress, or one that failed, does not take the previous one out of force.
  */
 export async function loadReadScan(db: Db, versionId: string, revision: string): Promise<OcrFill | null> {
   const row = await loadScanRow(db, versionId);
-  if (!row || row.status !== "ready" || row.source_revision !== revision || row.pages === null) return null;
+  if (!row || row.source_revision !== revision || row.pages === null) return null;
   return { pages: row.pages, failedPages: row.failed_pages ?? [] };
 }

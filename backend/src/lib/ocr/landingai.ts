@@ -1,5 +1,5 @@
 // LandingAI Agentic Document Extraction, Parse Jobs (REST v2):
-//   POST /v2/parse/jobs            multipart: document, model, service_tier
+//   POST /v2/parse/jobs            multipart: document, model, service_tier, options
 //   GET  /v2/parse/jobs/{job_id}   status, then result.markdown / result.metadata
 // https://docs.landing.ai/dpt3/parse-async
 //
@@ -58,6 +58,11 @@ export type OcrDeps = {
     sleep?: (ms: number) => Promise<void>;
     totalTimeoutMs?: number;
     pollIntervalMs?: number;
+    /**
+     * 1-indexed pages to parse (`options.pages`, https://docs.landing.ai/dpt3/parse-input.md);
+     * only these are billed. Omitted: the whole document.
+     */
+    pages?: readonly number[];
 };
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -134,7 +139,7 @@ export async function parsePdfWithLandingAi(
     form.set("document", new Blob([new Uint8Array(pdf)], { type: "application/pdf" }), "document.pdf");
     form.set("model", LANDINGAI_MODEL);
     form.set("service_tier", LANDINGAI_SERVICE_TIER);
-    form.set("options", JSON.stringify({ atomic_grounding: false }));
+    form.set("options", JSON.stringify({ atomic_grounding: false, ...(deps.pages ? { pages: deps.pages } : {}) }));
 
     const created = await request(
         doFetch,
@@ -158,13 +163,13 @@ export async function parsePdfWithLandingAi(
         if (status === "failed") {
             throw failedJobError(isRecord(polled.body.error) ? polled.body.error.code : undefined);
         }
-        if (status === "completed") return readResult(polled.body);
+        if (status === "completed") return readResult(polled.body, deps.pages);
         if (status !== "pending" && status !== "processing") throw new OcrError("ocr_unavailable");
         await sleep(pollMs);
     }
 }
 
-function readResult(body: Record<string, unknown>): OcrResult {
+function readResult(body: Record<string, unknown>, only?: readonly number[]): OcrResult {
     const result = body.result;
     // A result delivered to a URL (output_url) is never requested, so a
     // completed job without an inline result is not one we can use.
@@ -173,7 +178,7 @@ function readResult(body: Record<string, unknown>): OcrResult {
     const billing = isRecord(metadata.billing) ? metadata.billing : {};
     const pageCount = Number(metadata.page_count);
     const credits = Number(billing.total_credits);
-    const pages = readOcrPages(result.markdown, result.structure, Number.isInteger(pageCount) ? pageCount : 0);
+    const pages = readOcrPages(result.markdown, result.structure, Number.isInteger(pageCount) ? pageCount : 0, only);
     // Without a reliable page for every passage the reading is not usable: the
     // assistant must be able to cite "page N" as it does with a text PDF.
     if (!pages) throw new OcrError("ocr_unavailable");

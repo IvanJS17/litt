@@ -5,7 +5,7 @@ import type { DbJob } from "../../../lib/dbq/types";
 // LandingAI is never called: its client is a mock. Nothing here touches a real key.
 const mocks = vi.hoisted(() => ({
   access: vi.fn(), active: vi.fn(), key: vi.fn(), released: vi.fn(), enqueue: vi.fn(),
-  stamp: vi.fn(), assertStamp: vi.fn(), download: vi.fn(), parse: vi.fn(), publish: vi.fn(),
+  stamp: vi.fn(), assertStamp: vi.fn(), download: vi.fn(), parse: vi.fn(), publish: vi.fn(), extract: vi.fn(),
 }));
 vi.mock("../documents.access", () => ({ ensureDocumentAccess: mocks.access }));
 vi.mock("../../../lib/documentVersions", () => ({ loadActiveVersion: mocks.active }));
@@ -17,7 +17,7 @@ vi.mock("../../../lib/storage", () => ({ downloadFile: mocks.download }));
 vi.mock("../documents.indexing", () => ({ extractAndPublishText: mocks.publish }));
 vi.mock("../../../lib/extraction/isolated", async () => {
   class ExtractionBusyError extends Error {}
-  return { ExtractionBusyError, withBackgroundExtraction: (_: unknown, work: (e: unknown) => unknown) => work(vi.fn()) };
+  return { ExtractionBusyError, withBackgroundExtraction: (_: unknown, work: (e: unknown) => unknown) => work(mocks.extract) };
 });
 vi.mock("../../../lib/ocr/landingai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/ocr/landingai")>()),
@@ -44,13 +44,15 @@ beforeEach(() => {
   mocks.stamp.mockResolvedValue({ orgId: "o1", epoch: 3 });
   mocks.download.mockResolvedValue(new ArrayBuffer(8));
   mocks.publish.mockResolvedValue({ textlessPageCount: 0 });
+  // Pages 2, 5 and 9 of a 10-page PDF have no text layer.
+  mocks.extract.mockResolvedValue({ pages: [2, 5, 9], total: 10 });
 });
 
 describe("scan reading state", () => {
-  it("offers the reading when pages lack text and a key is available, with the estimated cost", async () => {
+  it("offers the reading when pages lack text and a key is available, with the cost of the scanned pages only", async () => {
     const fake = scriptedDb([{ table: "document_version_ocr", data: null }]);
     const result = await getScanReadingState(fake.db, args);
-    expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.1, auto_max_pages: 50, can_edit: true } });
+    expect(result).toMatchObject({ ok: true, data: { applicable: true, status: "none", key_available: true, needs_reading: true, estimated_cost_usd: 0.03, auto_max_pages: 50, can_edit: true } });
     fake.done();
   });
   it("reports a running reading and hides the button; a reading of other bytes counts as none", async () => {
@@ -96,6 +98,31 @@ describe("requesting a reading", () => {
     expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true });
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });
+  it("reading again keeps the previous reading until the new one finishes", async () => {
+    const previous = row({ status: "ready", pages: [{ page: 2, text: "viejo" }], credits: 1, page_count: 10, failed_pages: [5] });
+    const fake = scriptedDb([
+      { table: "document_version_ocr", data: previous },
+      { table: "document_version_ocr", op: "update" },
+      { table: "document_version_ocr", data: row({ ...previous, status: "processing" }) },
+    ]);
+    expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: true, data: { status: "processing" } });
+    expect(fake.calls[1].payload).toMatchObject({ status: "processing", error_code: null });
+    expect(fake.calls[1].payload).not.toHaveProperty("pages");
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    fake.done();
+  });
+  it("does not leave the version processing when the job cannot be queued", async () => {
+    mocks.enqueue.mockRejectedValue(new Error("queue down"));
+    const fake = scriptedDb([
+      { table: "document_version_ocr", data: null },
+      { table: "document_version_ocr", op: "upsert" },
+      { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] },
+    ]);
+    expect(await requestScanReading(fake.db, args)).toMatchObject({ ok: false });
+    expect(fake.calls[2].payload).toMatchObject({ status: "failed", error_code: "ocr_unavailable" });
+    expect(fake.calls[2].filters).toContainEqual(["eq", "status", "processing"]);
+    fake.done();
+  });
   it.each([
     ["needs edit rights", () => mocks.access.mockResolvedValue({ ...allowed, projectRole: "viewer" }), "forbidden", undefined],
     ["is refused for a version held for training", () => mocks.released.mockResolvedValue({ ok: false, kind: "conflict", detail: "held", code: "training_approval_required" }), "conflict", "training_approval_required"],
@@ -114,6 +141,7 @@ describe("reading on upload", () => {
   const upload = { documentId: "d1", versionId: "v1", userId: "u1", userEmail: undefined };
   const steps = () => [
     { table: "documents", data: { id: "d1", org_id: null } },
+    { table: "document_version_ocr", data: null },
     { table: "document_version_ocr", op: "upsert" },
   ];
   it("starts by itself for 50 pages or fewer when a key is available", async () => {
@@ -158,10 +186,26 @@ describe("the job", () => {
     ]);
     await handleDocumentOcr(fake.db, job);
     expect(mocks.assertStamp).toHaveBeenCalledWith(fake.db, "o1", { orgId: "o1", epoch: 3 });
-    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything());
+    expect(mocks.extract).toHaveBeenCalledWith("pdfTextlessPages", expect.anything(), { fileType: "pdf" });
+    // Only the scanned pages are sent.
+    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), { pages: [2, 5, 9] });
     expect(fake.calls[3].payload).toMatchObject({ status: "ready", pages: [{ page: 1, text: "# Hola" }], credits: 1.5, page_count: 3, failed_pages: [2], model: "dpt-3-pro-20260710" });
     expect(fake.calls[4].payload).toEqual({ textless_page_count: 1 });
     fake.done();
+  });
+  it("sends a PDF scanned throughout whole, without a page selection", async () => {
+    mocks.extract.mockResolvedValue({ pages: [1, 2, 3], total: 3 });
+    mocks.parse.mockResolvedValue(read);
+    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }, { table: "document_versions", op: "update" }]);
+    await handleDocumentOcr(fake.db, job);
+    expect(mocks.parse).toHaveBeenCalledWith("synthetic-key", expect.anything(), {});
+  });
+  it("does not call LandingAI when no page lacks text", async () => {
+    mocks.extract.mockResolvedValue({ pages: [], total: 3 });
+    const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row() }, { table: "document_version_ocr", op: "update", data: [{ version_id: "v1" }] }]);
+    await handleDocumentOcr(fake.db, job);
+    expect(mocks.parse).not.toHaveBeenCalled();
+    expect(fake.calls[3].payload).toMatchObject({ status: "failed", error_code: "ocr_not_supported" });
   });
   it("on a retry after the reading was saved, only merges: it never pays twice", async () => {
     const fake = scriptedDb([...head(), { table: "document_version_ocr", data: row({ status: "ready", pages: [{ page: 1, text: "x" }] }) }, { table: "document_versions", op: "update" }]);

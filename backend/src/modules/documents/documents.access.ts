@@ -44,9 +44,12 @@ export async function ensureDocumentAccess(
     | { ok: false; kind: "not_found" | "forbidden" }
     | { ok: false; kind: "error"; error: unknown }
 > {
+    // The archived guard below reads archived_at, so a caller's own column
+    // list cannot leave it out.
+    const columns = opts.select ?? "id, user_id, project_id, org_id, workflow_id";
     const { data: doc, error } = await db
         .from("documents")
-        .select(opts.select ?? "id, user_id, project_id, org_id, workflow_id")
+        .select(/\*|\barchived_at\b/.test(columns) ? columns : `${columns}, archived_at`)
         .eq("id", documentId)
         .single();
     if (error && error.code !== "PGRST116")

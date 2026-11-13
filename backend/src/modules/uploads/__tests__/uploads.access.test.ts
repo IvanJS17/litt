@@ -114,6 +114,31 @@ describe("upload destination authorization", () => {
     expect(rejection(outcome).status).toBe(404);
   });
 
+  it("rejects a version upload to an archived document", async () => {
+    accessMocks.ensureDocAccess.mockResolvedValue({ ok: true, projectRole: "owner", isCreator: true });
+    accessMocks.can.mockReturnValue(true);
+    accessMocks.creatorScopedAllowed.mockReturnValue(true);
+    const outcome = await validateDestinationAccess(
+      {
+        purpose: "document_version_create",
+        destination: { document_id: "55555555-5555-4555-8555-555555555555" },
+        expected_total_bytes: 4,
+        files: [file],
+      },
+      "11111111-1111-4111-8111-111111111111",
+      "user@example.com",
+      dbWith({
+        documents: {
+          id: "55555555-5555-4555-8555-555555555555",
+          user_id: "11111111-1111-4111-8111-111111111111",
+          project_id: null,
+          archived_at: "2026-01-01T00:00:00Z",
+        },
+      }) as never,
+    );
+    expect(rejection(outcome).status).toBe(404);
+  });
+
   describe("an editor save (base_version_id)", () => {
     const documentId = "55555555-5555-4555-8555-555555555555";
     const baseVersionId = "77777777-7777-4777-8777-777777777777";
