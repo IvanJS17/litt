@@ -75,6 +75,19 @@ describe("mobile page header", () => {
         );
     });
 
+    it("backs the workspace label with the solid page colour and lets it shrink before the actions", () => {
+        render(
+            <MikeLayout>
+                <div>Chat</div>
+            </MikeLayout>,
+        );
+
+        const badge = document.querySelector('[data-slot="workspace-badge"]');
+        expect(badge).toHaveClass("bg-app-background", "min-w-0", "shrink");
+        expect(badge?.className).not.toMatch(/bg-app-background\//);
+        expect(badge?.nextElementSibling).toHaveClass("shrink-0");
+    });
+
     it("keeps the header clear of the notch and the shell clear of the home indicator", () => {
         render(
             <MikeLayout>

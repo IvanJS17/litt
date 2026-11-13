@@ -206,16 +206,16 @@ export default function MikeLayout({
                                             workspace stays named up here. */}
                                         <WorkspaceBadge
                                             className={cn(
-                                                "pointer-events-auto min-w-0 self-center",
+                                                "pointer-events-auto min-w-0 shrink self-center",
                                                 // Over scrolling chat text the
-                                                // words need a quiet backing.
+                                                // words need a solid backing.
                                                 isChatPage &&
-                                                    "rounded-md bg-app-background/80 px-1.5 py-0.5 backdrop-blur-2xl",
+                                                    "rounded-md bg-app-background px-1.5 py-0.5",
                                             )}
                                         />
                                         <div
                                             ref={handleMobileActionsContainerRef}
-                                            className="pointer-events-auto ml-auto flex min-w-0 flex-1 items-center justify-end"
+                                            className="pointer-events-auto ml-auto flex shrink-0 items-center justify-end"
                                         />
                                     </div>
                                     <main className="flex h-full w-full flex-1 flex-col overflow-y-auto md:overflow-hidden">
