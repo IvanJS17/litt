@@ -111,3 +111,25 @@ describe("MarkdownContent while streaming", () => {
         expect(parsed).toHaveBeenCalledWith(text);
     });
 });
+
+describe("splitMarkdownBlocks on pathological text", () => {
+    // A run of blank lines before a line that cannot start a block used to be
+    // scanned once per blank line: 2k lines took 26 ms, 16k took 1.4 s.
+    it.each([
+        ["a long run of blank lines before an indented line", `para\n${"\n".repeat(60_000)}  indented`],
+        ["a long run of blank lines before a quote", `para\n${"\n".repeat(60_000)}> quoted`],
+        ["many unsafe boundaries after a list", `- item\n${"\n  continued\n".repeat(20_000)}`],
+    ])("stays linear on %s, and gives the text back exactly", (_name, text) => {
+        const started = performance.now();
+        const pieces = splitMarkdownBlocks(text);
+        const elapsed = performance.now() - started;
+        expect(pieces.join("")).toBe(text);
+        // Linear is a few milliseconds; the quadratic version takes seconds at this size.
+        expect(elapsed).toBeLessThan(300);
+    });
+
+    it("still splits where it is safe after a long blank run", () => {
+        const text = `first\n${"\n".repeat(5000)}second`;
+        expect(splitMarkdownBlocks(text)).toEqual([`first\n${"\n".repeat(5000)}`, "second"]);
+    });
+});
