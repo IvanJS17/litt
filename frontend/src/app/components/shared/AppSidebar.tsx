@@ -594,10 +594,10 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 </div>
 
                 {/* Whose work is on screen, in words, whatever the heading
-                    above says. */}
+                    above says; a firm's name is already the heading. */}
                 {isOpen && (
                     <div className="px-2.5 pb-1">
-                        <WorkspaceBadge />
+                        <WorkspaceBadge showName={headedByWordmark} />
                     </div>
                 )}
 

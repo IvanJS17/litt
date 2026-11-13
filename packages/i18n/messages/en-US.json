@@ -4104,6 +4104,10 @@
       "loadMoreProjects": "load more projects",
       "openTheFolder": "open the folder",
       "openTheProjectFolder": "open the project folder"
+    },
+    "workspaceBadge": {
+      "firm": "Firm",
+      "firmLabel": "Firm:"
     }
   },
   "support": {
