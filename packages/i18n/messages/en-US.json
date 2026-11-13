@@ -2970,6 +2970,33 @@
       "yourBackground": "Your background"
     },
     "personalisationFields": {
+      "areas": {
+        "arbitration": "Arbitration",
+        "bankingAndFinance": "Banking and Finance",
+        "capitalMarkets": "Capital Markets",
+        "competitionAndAntitrust": "Competition and Antitrust",
+        "corporateAndMa": "Corporate and M&A",
+        "dataProtectionAndPrivacy": "Data Protection and Privacy",
+        "disputeResolution": "Dispute Resolution",
+        "employment": "Employment",
+        "energyAndNaturalResources": "Energy and Natural Resources",
+        "familyLaw": "Family Law",
+        "financialRegulation": "Financial Regulation",
+        "fundsAndAssetManagement": "Funds and Asset Management",
+        "immigration": "Immigration",
+        "insolvencyAndRestructuring": "Insolvency and Restructuring",
+        "insurance": "Insurance",
+        "intellectualProperty": "Intellectual Property",
+        "internationalTrade": "International Trade",
+        "litigation": "Litigation",
+        "privateClient": "Private Client",
+        "privateEquityAndVentureCapital": "Private Equity and Venture Capital",
+        "projectsAndInfrastructure": "Projects and Infrastructure",
+        "publicLawAndRegulatory": "Public Law and Regulatory",
+        "realEstate": "Real Estate",
+        "tax": "Tax",
+        "technologyAndTelecommunications": "Technology and Telecommunications"
+      },
       "enterYourJurisdiction": "Enter your jurisdiction",
       "enterYourJurisdictionOfPractice": "Enter your jurisdiction of practice",
       "enterYourOtherPracticeArea": "Enter your other practice area",
@@ -2992,7 +3019,17 @@
       "selectAProfessionalSetting": "Select a professional setting",
       "selectATitle": "Select a title",
       "selectPracticeAreas": "Select practice areas",
-      "title": "Title"
+      "title": "Title",
+      "titles": {
+        "partner": "Partner",
+        "seniorAssociate": "Senior Associate",
+        "associate": "Associate",
+        "lawClerk": "Law Clerk",
+        "counsel": "Counsel",
+        "generalCounsel": "General Counsel",
+        "legalCounsel": "Legal Counsel",
+        "other": "Other"
+      }
     },
     "privacyData": {
       "actions": {

@@ -2970,6 +2970,33 @@
       "yourBackground": "Tu perfil profesional"
     },
     "personalisationFields": {
+      "areas": {
+        "arbitration": "Arbitraje",
+        "bankingAndFinance": "Banca y finanzas",
+        "capitalMarkets": "Mercado de valores",
+        "competitionAndAntitrust": "Competencia económica",
+        "corporateAndMa": "Corporativo y fusiones y adquisiciones",
+        "dataProtectionAndPrivacy": "Protección de datos personales y privacidad",
+        "disputeResolution": "Solución de controversias",
+        "employment": "Laboral",
+        "energyAndNaturalResources": "Energía y recursos naturales",
+        "familyLaw": "Derecho familiar",
+        "financialRegulation": "Regulación financiera",
+        "fundsAndAssetManagement": "Fondos y administración de activos",
+        "immigration": "Migratorio",
+        "insolvencyAndRestructuring": "Concursos mercantiles y reestructuras",
+        "insurance": "Seguros y fianzas",
+        "intellectualProperty": "Propiedad intelectual",
+        "internationalTrade": "Comercio exterior",
+        "litigation": "Litigio",
+        "privateClient": "Patrimonial y sucesiones",
+        "privateEquityAndVentureCapital": "Capital privado y capital de riesgo",
+        "projectsAndInfrastructure": "Proyectos e infraestructura",
+        "publicLawAndRegulatory": "Derecho público y regulatorio",
+        "realEstate": "Inmobiliario",
+        "tax": "Fiscal",
+        "technologyAndTelecommunications": "Tecnología y telecomunicaciones"
+      },
       "enterYourJurisdiction": "Escribe tu jurisdicción",
       "enterYourJurisdictionOfPractice": "Escribe tu jurisdicción de práctica",
       "enterYourOtherPracticeArea": "Escribe tu otra área de práctica",
@@ -2992,7 +3019,17 @@
       "selectAProfessionalSetting": "Selecciona un ámbito profesional",
       "selectATitle": "Selecciona un título",
       "selectPracticeAreas": "Selecciona áreas de práctica",
-      "title": "Título"
+      "title": "Título",
+      "titles": {
+        "partner": "Socio",
+        "seniorAssociate": "Asociado sénior",
+        "associate": "Asociado",
+        "lawClerk": "Pasante",
+        "counsel": "Consejero legal",
+        "generalCounsel": "Director jurídico",
+        "legalCounsel": "Abogado interno",
+        "other": "Otro"
+      }
     },
     "privacyData": {
       "actions": {
