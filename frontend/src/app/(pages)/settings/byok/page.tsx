@@ -27,10 +27,10 @@ export default function ByokPage() {
             );
         return (
             <div className="space-y-6">
-                <PersonalKeysBlockedNotice />
                 <OrganizationProviderKeys
                     orgId={activeOrganization.id}
                     orgName={activeOrganization.name}
+                    notice={<PersonalKeysBlockedNotice />}
                 />
             </div>
         );

@@ -120,7 +120,7 @@ describe("WebSearchSection", () => {
     vi.mocked(getWebSearchSettings).mockResolvedValue({ ...OFF, enabled: true, claude: "brave" });
     render(<WebSearchSection />);
     expect(
-      await screen.findByText("Socium gives you the models; your firm does not allow your own keys."),
+      await screen.findByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
     ).toBeVisible();
     expect(screen.queryByLabelText("Brave Search API Key")).toBeNull();
   });

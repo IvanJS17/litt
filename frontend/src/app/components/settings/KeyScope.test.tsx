@@ -54,7 +54,7 @@ describe("key scope", () => {
         workspace.firm = { name: "Socium" };
         render(<PersonalKeysBlockedNotice />);
         expect(
-            screen.getByText("Socium gives you the models; your firm does not allow your own keys."),
+            screen.getByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
         ).toBeVisible();
     });
 
@@ -62,6 +62,6 @@ describe("key scope", () => {
         profile.managed = true;
         const { container } = render(<PersonalKeysBlockedNotice />);
         expect(container.textContent?.startsWith(" ")).toBe(false);
-        expect(screen.getByText("Your firm gives you the models and does not allow your own keys.")).toBeVisible();
+        expect(screen.getByText("You work with your firm's keys. Your firm does not allow adding your own keys.")).toBeVisible();
     });
 });

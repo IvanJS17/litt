@@ -1995,7 +1995,7 @@
       "allowMembersOwnKeys2": "Allow members' own keys",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
-      "firmScope": "These keys belong to the firm {name}. They are used when you work in its workspace, not in your personal workspace.",
+      "firmScope": "These keys belong to the firm and are used when you work in its workspace, not in your personal workspace.",
       "loadError": "The organization's model providers could not be loaded.",
       "membersOwnKeys": "Members’ Own Keys",
       "nameProvider": "{name} provider",
@@ -2965,8 +2965,8 @@
       "personalHeading": "My personal keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
-      "blocked": "{name} gives you the models; your firm does not allow your own keys.",
-      "blockedNoName": "Your firm gives you the models and does not allow your own keys."
+      "blocked": "You work with the keys of {name}. Your firm does not allow adding your own keys.",
+      "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
     },
     "layout": {
       "pendingInvitations": "{invitationCount, plural, one {pending invitation} other {pending invitations}}",

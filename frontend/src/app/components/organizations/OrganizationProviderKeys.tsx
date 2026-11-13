@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { MfaVerificationPopup } from "@/app/components/popups/MfaVerificationPopup";
 import { WarningPopup } from "@/app/components/popups/WarningPopup";
 import { ByokProviderModal } from "@/app/components/settings/ByokProviderModal";
@@ -57,9 +57,12 @@ type PendingMfa =
 export function OrganizationProviderKeys({
   orgId,
   orgName,
+  notice,
 }: {
   orgId: string;
   orgName: string;
+  /** Said under the title in place of the scope line, e.g. why a member cannot add their own. */
+  notice?: ReactNode;
 }) {
   const t = useTranslations();
   const { refreshOrgApiKeys } = useWorkspace();
@@ -247,9 +250,11 @@ export function OrganizationProviderKeys({
           <SettingsHeading id="org-providers-saved">
             {t("organizations.organizationProviderKeys.organizationProviders", { name: orgName })}
           </SettingsHeading>
-          <SettingsDescription>
-            {t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
-          </SettingsDescription>
+          {notice ?? (
+            <SettingsDescription>
+              {t("organizations.organizationProviderKeys.firmScope", { name: orgName })}
+            </SettingsDescription>
+          )}
           {loading ? (
             <span className="block h-5 w-56 max-w-full animate-pulse rounded bg-gray-200" />
           ) : savedFields.length === 0 ? (
@@ -259,7 +264,15 @@ export function OrganizationProviderKeys({
                 : t("organizations.organizationProviderKeys.thisOrganizationHasNotSetUp")}
             </SettingsDescription>
           ) : (
-            <div className="grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2">
+            // A member only reads these, one full-width row each; a
+            // manager's two columns match the list of providers to add.
+            <div
+              className={
+                canManage
+                  ? "grid grid-cols-1 gap-3 @min-[32rem]:grid-cols-2"
+                  : "grid grid-cols-1 gap-3"
+              }
+            >
               {savedFields.map(renderCard)}
             </div>
           )}
@@ -291,42 +304,46 @@ export function OrganizationProviderKeys({
           </section>
         ) : null}
 
-        <section aria-labelledby="org-providers-personal" className="space-y-3">
-          <SettingsHeading id="org-providers-personal">
-            {t("organizations.organizationProviderKeys.membersOwnKeys")}
-          </SettingsHeading>
-          <GlassCardUI>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
-              <div className="min-w-0 flex-[1_1_16rem] space-y-1">
-                <SettingsLabel>{t("organizations.organizationProviderKeys.allowMembersOwnKeys")}</SettingsLabel>
-                <SettingsDescription>
-                  {allowPersonal
-                    ? t("organizations.organizationProviderKeys.aMembersOwnKeyIsUsed")
-                    : t("organizations.organizationProviderKeys.aMembersOwnKeysAreNever")}
-                </SettingsDescription>
+        {/* The policy is the managers' to change; a member already reads
+            it in the notice above. */}
+        {loading || canManage ? (
+          <section aria-labelledby="org-providers-personal" className="space-y-3">
+            <SettingsHeading id="org-providers-personal">
+              {t("organizations.organizationProviderKeys.membersOwnKeys")}
+            </SettingsHeading>
+            <GlassCardUI>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-4">
+                <div className="min-w-0 flex-[1_1_16rem] space-y-1">
+                  <SettingsLabel>{t("organizations.organizationProviderKeys.allowMembersOwnKeys")}</SettingsLabel>
+                  <SettingsDescription>
+                    {allowPersonal
+                      ? t("organizations.organizationProviderKeys.aMembersOwnKeyIsUsed")
+                      : t("organizations.organizationProviderKeys.aMembersOwnKeysAreNever")}
+                  </SettingsDescription>
+                </div>
+                <div className="ml-auto flex shrink-0 items-center">
+                  {loading ? (
+                    <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
+                  ) : canManage ? (
+                    <ToggleSwitchUI
+                      checked={allowPersonal}
+                      disabled={busy !== null || pendingMfa !== null}
+                      aria-busy={busy === "policy"}
+                      aria-label={t("organizations.organizationProviderKeys.allowMembersOwnKeys2")}
+                      onCheckedChange={(allowed) =>
+                        void setPersonalKeysAllowed(allowed)
+                      }
+                    />
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      {allowPersonal ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="ml-auto flex shrink-0 items-center">
-                {loading ? (
-                  <span className="block h-5 w-9 animate-pulse rounded-full bg-gray-200" />
-                ) : canManage ? (
-                  <ToggleSwitchUI
-                    checked={allowPersonal}
-                    disabled={busy !== null || pendingMfa !== null}
-                    aria-busy={busy === "policy"}
-                    aria-label={t("organizations.organizationProviderKeys.allowMembersOwnKeys2")}
-                    onCheckedChange={(allowed) =>
-                      void setPersonalKeysAllowed(allowed)
-                    }
-                  />
-                ) : (
-                  <span className="text-sm text-gray-500">
-                    {allowPersonal ? t("organizations.organizationProviderKeys.on") : t("organizations.organizationProviderKeys.off")}
-                  </span>
-                )}
-              </div>
-            </div>
-          </GlassCardUI>
-        </section>
+            </GlassCardUI>
+          </section>
+        ) : null}
 
         <ScanReadingCard
           loading={loading}
