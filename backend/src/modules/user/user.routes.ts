@@ -85,6 +85,8 @@ import {
     saveCustomInstructions,
     validateResponseStylePayload,
     saveResponseStyle,
+    getSplitClasses,
+    saveSplitClasses,
     getWebSearchSettings,
     validateWebSearchPayload,
     saveWebSearchSettings,
@@ -433,6 +435,24 @@ userRouter.put("/response-style", requireAuth, asyncRoute(async (req, res) => {
         userId,
         parsed.update,
     );
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.data);
+}));
+
+// GET /user/split-classes — the person's own list of document types for
+// splitting a case file (Settings > Features); `custom` is false until they save one.
+userRouter.get("/split-classes", requireAuth, asyncRoute(async (_req, res) => {
+    const result = await getSplitClasses(createServerSupabase(), res.locals.userId as string);
+    if (!result.ok) return void sendServiceFailure(res, result);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json(result.data);
+}));
+
+// PUT /user/split-classes — body { classes: [{name, description, identifier?}] }
+// saves the list (1 to 19 types), { classes: null } restores the built-in one.
+userRouter.put("/split-classes", requireAuth, asyncRoute(async (req, res) => {
+    const result = await saveSplitClasses(createServerSupabase(), res.locals.userId as string, req.body);
     if (!result.ok) return void sendServiceFailure(res, result);
     res.setHeader("Cache-Control", "private, no-store");
     res.json(result.data);

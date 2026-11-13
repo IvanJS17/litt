@@ -39,6 +39,8 @@ export {
     validateWebSearchPayload,
 } from "./user.webSearch";
 
+export { getSplitClasses, saveSplitClasses } from "./user.splitClasses";
+
 export {
     getSubagentRoutes,
     loadSubagentRoutes,
