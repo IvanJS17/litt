@@ -574,7 +574,8 @@
       "retry": "Retry",
       "retrying": "Retrying...",
       "signUp": "Sign up",
-      "signupDisabled": "This account can't be used to log in."
+      "signupDisabled": "This account can't be used to log in.",
+      "inviteOnly": "Were you invited? Check your email."
     },
     "onboarding": {
       "accept": "Accept",

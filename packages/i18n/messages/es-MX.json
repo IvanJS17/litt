@@ -574,7 +574,8 @@
       "retry": "Reintentar",
       "retrying": "Reintentando…",
       "signUp": "Regístrate",
-      "signupDisabled": "Esta cuenta no se puede usar para iniciar sesión."
+      "signupDisabled": "Esta cuenta no se puede usar para iniciar sesión.",
+      "inviteOnly": "¿Te invitaron? Revisa tu correo."
     },
     "onboarding": {
       "accept": "Aceptar",

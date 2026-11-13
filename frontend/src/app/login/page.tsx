@@ -100,7 +100,7 @@ export default function LoginPage() {
         setSessionWarningDismissed(false);
     }
 
-    const { showSso, showGoogle } = useAuthProviders();
+    const { showSso, showGoogle, inviteOnly } = useAuthProviders();
 
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
@@ -261,15 +261,23 @@ export default function LoginPage() {
                     </form>
                 </div>
                 <LegalNotice />
-                <div className="text-center text-sm text-gray-500">
-                    {t("auth.login.noAccount")}{" "}
-                    <Link
-                        href="/signup"
-                        className="font-medium transition-colors hover:text-gray-950"
-                    >
-                        {t("auth.login.signUp")}
-                    </Link>
-                </div>
+                {inviteOnly === null ? null : (
+                    <div className="text-center text-sm text-gray-500">
+                        {inviteOnly ? (
+                            t("auth.login.inviteOnly")
+                        ) : (
+                            <>
+                                {t("auth.login.noAccount")}{" "}
+                                <Link
+                                    href="/signup"
+                                    className="font-medium transition-colors hover:text-gray-950"
+                                >
+                                    {t("auth.login.signUp")}
+                                </Link>
+                            </>
+                        )}
+                    </div>
+                )}
                 <footer className="mt-6 flex justify-center">
                     <SourceCodeLink />
                 </footer>

@@ -145,10 +145,11 @@ export async function getAuthSession(
 
 /**
  * Which optional sign-in routes the server has switched on; `google` is
- * `null` when the server couldn't ask GoTrue.
+ * `null` when the server couldn't ask GoTrue. `inviteOnly`: the closed beta,
+ * where signing up needs an invitation.
  */
 export function getAuthProviders() {
-    return authRequest<{ sso: boolean; google: boolean | null }>(
+    return authRequest<{ sso: boolean; google: boolean | null; inviteOnly?: boolean }>(
         "auth.signin",
         "/providers",
     );
