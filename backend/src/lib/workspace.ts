@@ -19,6 +19,7 @@ import { UUID_PATTERN } from "./uuid";
 import { type Response } from "express";
 import type { Db } from "./supabase";
 import { isPersonalOrg } from "./personalOrgs";
+import { assertPersonalWorkspaceAllowed } from "./managedAccounts";
 
 export const PERSONAL_WORKSPACE = "personal";
 
@@ -44,8 +45,11 @@ export async function resolveWorkspaceFilter(
     if (raw === undefined || raw === null || raw === "")
         return { ok: true, workspace: null };
     if (typeof raw !== "string") return { ok: false, kind: "validation" };
-    if (raw === PERSONAL_WORKSPACE)
+    if (raw === PERSONAL_WORKSPACE) {
+        // Closed to an account its firm manages (lib/managedAccounts.ts).
+        assertPersonalWorkspaceAllowed(userId);
         return { ok: true, workspace: PERSONAL_WORKSPACE };
+    }
     if (!UUID_PATTERN.test(raw)) return { ok: false, kind: "validation" };
 
     const orgId = raw.toLowerCase();

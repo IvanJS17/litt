@@ -35,6 +35,7 @@ import {
     type ContentGrantKind,
 } from "./contentAccess";
 import { isPersonalOrg, teamOrgIdOf } from "./personalOrgs";
+import { assertPersonalWorkspaceAllowed } from "./managedAccounts";
 import {
     can,
     isProjectRole,
@@ -350,7 +351,11 @@ export async function resolveContentOrgId(
     db: Db,
     params: { projectId?: string | null },
 ): Promise<{ ok: true; orgId: string | null } | { ok: false; detail: string }> {
-    if (!params.projectId) return { ok: true, orgId: null };
+    if (!params.projectId) {
+        // Filed under no project and no organization: personal.
+        assertPersonalWorkspaceAllowed(undefined);
+        return { ok: true, orgId: null };
+    }
     const { data, error } = await db
         .from("projects")
         .select("org_id")
@@ -367,10 +372,10 @@ export async function resolveContentOrgId(
             ok: false,
             detail: "Project not found",
         };
-    return {
-        ok: true,
-        orgId: (data as { org_id?: string | null }).org_id ?? null,
-    };
+    const orgId = (data as { org_id?: string | null }).org_id ?? null;
+    // Filed under a personal project: personal.
+    if (!orgId) assertPersonalWorkspaceAllowed(undefined);
+    return { ok: true, orgId };
 }
 
 /**
@@ -386,8 +391,11 @@ export async function resolveStandaloneOrgId(
     params: { userId: string; orgId: unknown },
 ): Promise<{ ok: true; orgId: string | null } | { ok: false; detail: string }> {
     const { orgId } = params;
-    if (orgId === undefined || orgId === null || orgId === "")
+    if (orgId === undefined || orgId === null || orgId === "") {
+        // Personal: refused for an account its firm manages.
+        assertPersonalWorkspaceAllowed(params.userId);
         return { ok: true, orgId: null };
+    }
     if (typeof orgId !== "string")
         return { ok: false, detail: "org_id must be a string" };
     const role = await getOrgRole(params.userId, orgId, db);
@@ -494,6 +502,8 @@ export async function checkProjectAccess(
     const grantRole = await getProjectGrantRole(proj.id, userEmail, db);
     const projectRole = isCreator ? "owner" : grantRole;
     if (!projectRole) return { ok: false };
+    // A personal project: closed to an account its firm manages.
+    assertPersonalWorkspaceAllowed(userId);
     return { ok: true, isCreator, orgRole: null, projectRole, project: proj };
 }
 
@@ -641,7 +651,9 @@ export async function checkWorkflowAccess(
             : { ok: false };
     }
 
-    if (isCreator)
+    if (isCreator) {
+        // A personal workflow: closed to an account its firm manages.
+        assertPersonalWorkspaceAllowed(userId);
         return {
             ok: true,
             isCreator: true,
@@ -649,6 +661,7 @@ export async function checkWorkflowAccess(
             projectRole: "owner",
             workflow,
         };
+    }
     const email = normalizeEmail(userEmail);
     if (!email) return { ok: false };
     // An exact match is correct because BOTH sides are canonical:
@@ -667,6 +680,7 @@ export async function checkWorkflowAccess(
     if (error) return { ok: false };
     const role = (share as { role?: unknown } | null)?.role;
     if (!isProjectRole(role)) return { ok: false };
+    assertPersonalWorkspaceAllowed(userId);
     return {
         ok: true,
         isCreator: false,
@@ -735,7 +749,11 @@ export async function ensureDocAccess(
     // LiTT C2: no administrative path reaches another member's document.
     if (!isCreator) return { ok: false };
     const teamOrgId = await teamOrgIdOf(db, doc.org_id);
-    if (!teamOrgId) return resourceAccessFor("owner", null, true);
+    if (!teamOrgId) {
+        // A personal document: closed to an account its firm manages.
+        assertPersonalWorkspaceAllowed(userId);
+        return resourceAccessFor("owner", null, true);
+    }
     const orgRole = await getOrgRole(userId, teamOrgId, db);
     return orgRole
         ? resourceAccessFor("owner", orgRole, true)
@@ -855,14 +873,20 @@ async function ensureSharedRowAccess(
             ? resourceAccessFor(granted, orgRole, false)
             : { ok: false };
     }
-    if (isCreator) return resourceAccessFor("owner", null, true);
+    // A personal review or chat: closed to an account its firm manages.
+    if (isCreator) {
+        assertPersonalWorkspaceAllowed(userId);
+        return resourceAccessFor("owner", null, true);
+    }
     const role = await getContentGrantRole(
         db,
         kind,
         row.id,
         userEmail,
     );
-    return role ? resourceAccessFor(role, null, false) : { ok: false };
+    if (!role) return { ok: false };
+    assertPersonalWorkspaceAllowed(userId);
+    return resourceAccessFor(role, null, false);
 }
 
 /**

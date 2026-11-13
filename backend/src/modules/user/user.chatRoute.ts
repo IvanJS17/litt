@@ -27,6 +27,7 @@
 // Versions are assigned by the database (assign_api_key_credential_ref,
 // 20261023_15), so "read, then bump" never happens in the application.
 
+import { isManagedAccount } from "../../lib/managedAccounts";
 import type { Db } from "../../lib/supabase";
 import type { ApiKeyOrigin, Provider, UserApiKeys } from "../../lib/llm";
 import type { SubagentRoute, SubagentRoutes } from "@mike/contracts";
@@ -244,7 +245,10 @@ export async function listChatCredentialOptions(
         : null;
     const options: ChatCredentialOption[] = [];
     let personal: string | null = null;
-    if (!args.orgId || !scope || scope.allowPersonal) {
+    if (
+        (!args.orgId || !scope || scope.allowPersonal) &&
+        !(await isManagedAccount(db, args.userId))
+    ) {
         const own = usableRow(
             await savedKey(db, { kind: "user", id: args.userId }, keyProvider),
             keyProvider,
@@ -359,7 +363,9 @@ export async function pinChatRoute(
     const scope = args.orgId
         ? await loadOrgKeyScope(args.userId, args.orgId, db)
         : null;
-    const personalAllowed = !args.orgId || !scope || scope.allowPersonal;
+    const personalAllowed =
+        (!args.orgId || !scope || scope.allowPersonal) &&
+        !(await isManagedAccount(db, args.userId));
     if (personalAllowed) {
         const own = usableRow(
             await savedKey(db, { kind: "user", id: args.userId }, keyProvider),
@@ -443,6 +449,8 @@ export async function loadPinnedChatRoute(
     if (kind === "user") {
         // A person's key serves only that person, even in a shared chat.
         if (ownerId !== args.userId) return unavailable();
+        // Managed by the firm: no personal key (managedAccounts.ts).
+        if (await isManagedAccount(db, args.userId)) return unavailable();
         if (args.orgId) {
             const scope = await loadOrgKeyScope(args.userId, args.orgId, db);
             if (scope && !scope.allowPersonal) return unavailable();

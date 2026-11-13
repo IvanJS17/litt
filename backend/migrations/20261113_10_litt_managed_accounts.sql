@@ -29,6 +29,13 @@ alter table public.user_profiles
   add column if not exists created_by_org_id uuid
   references public.organizations(id) on delete set null;
 
+-- The firm whose "your account is now managed" notice this person has
+-- dismissed (or saw in the invitation). The notice shows while it differs from
+-- created_by_org_id. Backend-only like the column above.
+alter table public.user_profiles
+  add column if not exists managed_notice_seen_org_id uuid
+  references public.organizations(id) on delete set null;
+
 create index if not exists idx_user_profiles_created_by_org
   on public.user_profiles(created_by_org_id)
   where created_by_org_id is not null;

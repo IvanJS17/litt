@@ -6,6 +6,7 @@ export type {
     SettingsApiKeyProvider,
     ApiKeyStatus,
 } from "./types";
+import { isManagedAccount } from "../managedAccounts";
 import crypto from "crypto";
 import { createServerSupabase } from "../supabase";
 import type { Db } from "../supabase";
@@ -242,10 +243,12 @@ export function normalizeApiKeyProvider(value: string): ApiKeyProvider | null {
     return isProvider(value) ? value : null;
 }
 
-export function getUserApiKeyStatus(
+export async function getUserApiKeyStatus(
     userId: string,
     db: Db = createServerSupabase(),
 ): Promise<ApiKeyStatus> {
+    // An account its firm manages has no personal keys (managedAccounts.ts).
+    if (await isManagedAccount(db, userId)) return envApiKeyStatus();
     return getApiKeyStatusFor(userKeyOwner(userId), db);
 }
 
@@ -277,7 +280,7 @@ export async function getEffectiveApiKeyStatus(
     const scope = await loadOrgKeyScope(userId, orgId, db);
     if (!scope) return getUserApiKeyStatus(userId, db);
     const status = envApiKeyStatus();
-    if (scope.allowPersonal)
+    if (scope.allowPersonal && !(await isManagedAccount(db, userId)))
         overlayStatusRows(
             status,
             await loadStatusRows(userKeyOwner(userId), db),
@@ -586,6 +589,9 @@ export async function getUserApiKeys(
     db: Db = createServerSupabase(),
 ): Promise<UserApiKeys> {
     const apiKeys = envApiKeys();
+    // An account its firm manages runs on the firm's keys, never its own,
+    // even where the firm lets members bring theirs (managedAccounts.ts).
+    if (await isManagedAccount(db, userId)) return apiKeys;
     overlayKeyRows(apiKeys, await loadKeyRows(userKeyOwner(userId), db), "user");
     return apiKeys;
 }

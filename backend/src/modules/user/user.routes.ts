@@ -1,4 +1,5 @@
 import { GoogleWorkspaceError, GoogleWorkspaceUnavailableError, assertWorkspaceProviderAvailable, startWorkspaceOAuth, completeWorkspaceOAuth, cancelWorkspaceOAuth, disconnectWorkspace, updateWorkspaceSettings, setWorkspaceToolEnabled } from "../../lib/integrations/googleWorkspaceAuth";
+import { dismissManagedNotice, ownDataRightsScope } from "../../lib/managedAccounts";
 import { workspaceConnectorStatus, workspaceToolList } from "../../lib/integrations/googleWorkspace";
 // HTTP layer for the user module. Handlers parse params/query/body, call the
 // service functions behind user.service.ts, and map their typed results onto
@@ -323,7 +324,10 @@ userRouter.get("/lookup", requireAuth, asyncRoute(async (req, res) => {
 userRouter.get("/invitations", requireAuth, asyncRoute(async (_req, res) => {
     const userEmail = res.locals.userEmail as string | undefined;
     const db = createServerSupabase();
-    const result = await listMyInvitations(db, { userEmail });
+    const result = await listMyInvitations(db, {
+        userEmail,
+        userId: res.locals.userId as string,
+    });
     if (!result.ok) return sendOrgFailure(res, result);
     res.json(result.invitations);
 }));
@@ -363,6 +367,13 @@ userRouter.post(
         res.status(204).send();
     }),
 );
+
+// POST /user/managed-notice/dismiss — close the "your firm now manages your
+// account" notice (it stays closed for that firm).
+userRouter.post("/managed-notice/dismiss", requireAuth, asyncRoute(async (_req, res) => {
+    await dismissManagedNotice(createServerSupabase(), res.locals.userId as string);
+    res.status(204).send();
+}));
 
 // GET /user/profile
 userRouter.get("/profile", requireAuth, asyncRoute(async (_req, res) => {
@@ -1622,6 +1633,7 @@ async function dataActionWorkspace(
 userRouter.delete(
     "/chats",
     requireAuth,
+    ownDataRightsScope,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
         const userId = res.locals.userId as string;
@@ -1638,6 +1650,7 @@ userRouter.delete(
 userRouter.delete(
     "/projects",
     requireAuth,
+    ownDataRightsScope,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
         const userId = res.locals.userId as string;
@@ -1659,6 +1672,7 @@ userRouter.delete(
 userRouter.delete(
     "/tabular-reviews",
     requireAuth,
+    ownDataRightsScope,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
         const userId = res.locals.userId as string;
@@ -1678,6 +1692,7 @@ userRouter.delete(
 userRouter.delete(
     "/memories",
     requireAuth,
+    ownDataRightsScope,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
         const userId = res.locals.userId as string;
@@ -1702,6 +1717,7 @@ userRouter.delete(
 userRouter.post(
     "/exports",
     requireAuth,
+    ownDataRightsScope,
     requireMfaIfEnrolled,
     asyncRoute(async (req, res) => {
         setOperation("export.build");

@@ -190,6 +190,8 @@ export const CODE_KINDS: Readonly<Record<string, UserErrorKind>> = {
     // organization; only platform administrators manage invitations.
     signup_invite_only: "forbidden",
     org_creation_restricted: "forbidden",
+    // A firm-managed account reached for personal content or keys.
+    personal_workspace_disabled: "forbidden",
     platform_admin_required: "forbidden",
     platform_invitation_pending: "conflict",
     terms_version_mismatch: "conflict",
