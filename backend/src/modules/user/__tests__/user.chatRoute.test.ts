@@ -410,7 +410,8 @@ describe("listChatCredentialOptions", () => {
         expect(JSON.stringify(listed)).not.toMatch(/sk-/);
     });
 
-    it("offers no personal key where the firm refuses them, and no default without one", async () => {
+    it("offers no personal key where the firm refuses them, and preselects the firm's key over the deployment's", async () => {
+        vi.stubEnv("ANTHROPIC_API_KEY", "sk-deploy");
         const { db } = fakeDb({
             org_members: [{ org_id: "o1", user_id: "u1" }],
             organizations: [{ id: "o1", allow_personal_api_keys: false }],
@@ -424,8 +425,25 @@ describe("listChatCredentialOptions", () => {
         });
         expect(listed?.options).toEqual([
             { credential_ref: "org:o1:claude:v1", source: "organization" },
+            { credential_ref: "env:claude", source: "deployment" },
         ]);
-        // The organization's key is offered, never chosen implicitly.
+        // Working in the firm, its key is what the selector preselects; the
+        // client sends it as an explicit credential_ref.
+        expect(listed?.default).toBe("org:o1:claude:v1");
+    });
+
+    it("has no default when the firm has no key, nor the person, nor the deployment", async () => {
+        vi.stubEnv("ANTHROPIC_API_KEY", "");
+        const { db } = fakeDb({
+            org_members: [{ org_id: "o1", user_id: "u1" }],
+            organizations: [{ id: "o1", allow_personal_api_keys: false }],
+        });
+        const listed = await listChatCredentialOptions(db, {
+            userId: "u1",
+            orgId: "o1",
+            model: "claude-sonnet-5-5",
+        });
+        expect(listed?.options).toEqual([]);
         expect(listed?.default).toBeNull();
     });
 

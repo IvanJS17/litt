@@ -213,8 +213,11 @@ export type ChatCredentialOption = {
  * pinChatRoute: a person's key only if the organization allows personal
  * keys, an organization's key only for its members (offered, never chosen
  * implicitly), the deployment's key when configured, and an operator route
- * for models that authenticate on the operator's side. `default` is what
- * pinChatRoute picks without an explicit choice (null: the user must choose).
+ * for models that authenticate on the operator's side. `default` is what the
+ * selector preselects (null: the user must choose): the person's own key, then
+ * the firm's when working in a firm, then the deployment's. The selection is
+ * sent as an explicit credential_ref, so the firm's key is chosen by the
+ * client, never substituted by the server (pinChatRoute stays explicit-only).
  * Returns null for a model the catalog does not know.
  */
 export async function listChatCredentialOptions(
@@ -272,7 +275,10 @@ export async function listChatCredentialOptions(
     }
     const env = envCredential(keyProvider) ? `env:${keyProvider}` : null;
     if (env) options.push({ credential_ref: env, source: "deployment" });
-    return { provider, options, default: personal ?? env };
+    // In a firm's workspace its key beats the deployment's; a person's own
+    // key (where the firm allows it) still comes first.
+    const firm = options.find((option) => option.source === "organization");
+    return { provider, options, default: personal ?? firm?.credential_ref ?? env };
 }
 
 /**
