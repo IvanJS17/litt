@@ -1257,6 +1257,7 @@
         "organizationRestored": "Organization restored",
         "personalKeysAllowed": "Personal keys allowed",
         "personalKeysBlocked": "Personal keys blocked",
+        "personalKeysPolicyChanged": "Personal keys permission changed",
         "playbookCreated": "Playbook created",
         "playbookDeleted": "Playbook deleted",
         "playbookImported": "Playbook imported",
@@ -1281,6 +1282,7 @@
       "deletedUser": "Deleted user",
       "field": {
         "access": "Access",
+        "allowed": "Allowed",
         "chatsExported": "Chats exported",
         "documentsExported": "Documents exported",
         "enabled": "Enabled",
@@ -1288,6 +1290,7 @@
         "invitedRole": "Invited role",
         "itemsArchived": "Items archived",
         "itemsTransferred": "Items transferred",
+        "keyKind": "Kind of key",
         "modelsAvailable": "Models available",
         "previousRole": "Previous role",
         "requestedRoleChange": "Requested role change",
@@ -1371,7 +1374,12 @@
         "workflows": "Workflows"
       },
       "unknownUser": "Unknown user",
-      "yes": "Yes"
+      "yes": "Yes",
+      "keyKind": {
+        "ai": "AI models",
+        "scan": "Scan reading (LandingAI)",
+        "webSearch": "Web search"
+      }
     },
     "auditLog": "Audit log",
     "back": "Back",
@@ -2103,17 +2111,18 @@
       "workLeftByDepartedMembers": "Work left by departed members"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "A member's own key is used for a provider the organization has not set up.",
-      "aMembersOwnKeysAreNever": "A member's own keys are never used for work in this organization.",
+      "aMembersOwnKeyIsUsed": "A member's own key is used when the organization has none for that service.",
+      "aMembersOwnKeysAreNever": "A member's own keys are never used for this in the organization.",
       "add": "Add",
       "addName": "Add {name}",
       "addTheModelsThisOrganizationsKey": "Add the models this organization's key may run. Members see them in model selectors.",
-      "allowMembersOwnKeys": "Allow members’ own keys",
-      "allowMembersOwnKeys2": "Allow members' own keys",
       "availableProviders": "Available Providers",
       "everyProviderHasAKeySaved": "Every provider has a key saved.",
       "firmScope": "These keys belong to the firm and are used when you work in its workspace, not in your personal workspace.",
       "loadError": "The organization's model providers could not be loaded.",
+      "memberKeysAi": "Members can use their own AI keys",
+      "memberKeysScan": "Members can use their own scan reading keys (LandingAI)",
+      "memberKeysWebSearch": "Members can use their own web search keys",
       "membersOwnKeys": "Members’ Own Keys",
       "nameProvider": "{name} provider",
       "noProvidersYetAddAnApi": "No providers yet. Add an API key to one of the providers below.",
@@ -2125,7 +2134,9 @@
       "thisOrganizationHasNotSetUp": "This organization has not set up a model provider yet.",
       "tryAgain": "Try again",
       "updateError": "The provider could not be updated. Please try again.",
-      "useName": "Use {name}"
+      "useName": "Use {name}",
+      "webSearchKeys": "Web search keys",
+      "webSearchKeysIntro": "When the firm saves a search key, web search in {name} uses it before a member's own."
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Back to General",
@@ -3086,8 +3097,8 @@
       "personalHeading": "My personal keys",
       "personal": "These keys are yours and apply to your personal workspace.",
       "inFirm": "These keys are yours. They are also used in the firm {name}, but only for providers the firm has not set up; the firm always uses its own first.",
-      "blocked": "You work with the keys of {name}. Your firm does not allow adding your own keys.",
-      "blockedNoName": "You work with your firm's keys. Your firm does not allow adding your own keys."
+      "blocked": "You work with the keys of {name}. Your firm does not allow using your own keys for this.",
+      "blockedNoName": "You work with your firm's keys. Your firm does not allow using your own keys for this."
     },
     "layout": {
       "group": {

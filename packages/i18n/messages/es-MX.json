@@ -1257,6 +1257,7 @@
         "organizationRestored": "Despacho restaurado",
         "personalKeysAllowed": "Llaves personales permitidas",
         "personalKeysBlocked": "Llaves personales bloqueadas",
+        "personalKeysPolicyChanged": "Permiso de llaves personales cambiado",
         "playbookCreated": "Playbook creado",
         "playbookDeleted": "Playbook borrado",
         "playbookImported": "Playbook importado",
@@ -1281,6 +1282,7 @@
       "deletedUser": "Usuario eliminado",
       "field": {
         "access": "Acceso",
+        "allowed": "Permitido",
         "chatsExported": "Chats exportados",
         "documentsExported": "Documentos exportados",
         "enabled": "Activado",
@@ -1288,6 +1290,7 @@
         "invitedRole": "Rol invitado",
         "itemsArchived": "Elementos archivados",
         "itemsTransferred": "Elementos transferidos",
+        "keyKind": "Tipo de llave",
         "modelsAvailable": "Modelos disponibles",
         "previousRole": "Rol anterior",
         "requestedRoleChange": "Cambio de rol solicitado",
@@ -1371,7 +1374,12 @@
         "workflows": "Flujos de trabajo"
       },
       "unknownUser": "Usuario desconocido",
-      "yes": "Sí"
+      "yes": "Sí",
+      "keyKind": {
+        "ai": "Modelos de IA",
+        "scan": "Lectura de escaneados (LandingAI)",
+        "webSearch": "Búsqueda web"
+      }
     },
     "auditLog": "Registro de auditoría",
     "back": "Atrás",
@@ -2103,17 +2111,18 @@
       "workLeftByDepartedMembers": "Trabajo que dejaron los miembros que salieron"
     },
     "organizationProviderKeys": {
-      "aMembersOwnKeyIsUsed": "Se usa la llave propia de un miembro para un proveedor que el despacho no configuró.",
-      "aMembersOwnKeysAreNever": "Las llaves propias de los miembros nunca se usan para trabajar en este despacho.",
+      "aMembersOwnKeyIsUsed": "Se usa la llave propia de un miembro cuando el despacho no tiene una para ese servicio.",
+      "aMembersOwnKeysAreNever": "Las llaves propias de los miembros nunca se usan para esto en el despacho.",
       "add": "Agregar",
       "addName": "Agregar {name}",
       "addTheModelsThisOrganizationsKey": "Agrega los modelos que puede ejecutar la llave de este despacho. Los miembros los ven en los selectores de modelos.",
-      "allowMembersOwnKeys": "Permitir que los miembros usen sus propias llaves",
-      "allowMembersOwnKeys2": "Permitir que los miembros usen sus propias llaves",
       "availableProviders": "Proveedores disponibles",
       "everyProviderHasAKeySaved": "Todos los proveedores tienen una llave guardada.",
       "firmScope": "Estas llaves son del despacho y se usan cuando trabajas en su espacio, no en tu espacio personal.",
       "loadError": "No se pudieron cargar los proveedores de modelos del despacho.",
+      "memberKeysAi": "Los miembros pueden usar sus propias llaves de IA",
+      "memberKeysScan": "Los miembros pueden usar sus propias llaves de lectura de escaneados (LandingAI)",
+      "memberKeysWebSearch": "Los miembros pueden usar sus propias llaves de búsqueda web",
       "membersOwnKeys": "Llaves de los miembros",
       "nameProvider": "Proveedor {name}",
       "noProvidersYetAddAnApi": "Aún no hay proveedores. Agrega una llave de API a uno de los proveedores de abajo.",
@@ -2125,7 +2134,9 @@
       "thisOrganizationHasNotSetUp": "Este despacho aún no configura un proveedor de modelos.",
       "tryAgain": "Inténtalo de nuevo",
       "updateError": "No se pudo actualizar el proveedor. Inténtalo de nuevo.",
-      "useName": "Usar {name}"
+      "useName": "Usar {name}",
+      "webSearchKeys": "Llaves de búsqueda web",
+      "webSearchKeysIntro": "Si el despacho guarda una llave de búsqueda, la búsqueda web en {name} la usa antes que la de un miembro."
     },
     "organizationProvidersSettings": {
       "backToGeneral": "Volver a General",
@@ -3086,8 +3097,8 @@
       "personalHeading": "Mis llaves",
       "personal": "Estas llaves son tuyas y aplican a tu espacio personal.",
       "inFirm": "Estas llaves son tuyas. También se usan en el despacho {name}, pero solo para los proveedores que el despacho no tiene configurados; el despacho siempre usa primero las suyas.",
-      "blocked": "Trabajas con las llaves de {name}. Tu despacho no permite agregar llaves propias.",
-      "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite agregar llaves propias."
+      "blocked": "Trabajas con las llaves de {name}. Tu despacho no permite usar llaves propias para esto.",
+      "blockedNoName": "Trabajas con las llaves de tu despacho. Tu despacho no permite usar llaves propias para esto."
     },
     "layout": {
       "group": {

@@ -123,7 +123,7 @@ describe("OnboardingModelsPage", () => {
         mocks.listOrgs.mockResolvedValue([{ id: "org-1", name: "Example LLP", role: "member" }]);
         mocks.getOrgApiKeys.mockResolvedValue({
             effective: { claude: true, sources: { claude: "org" } },
-            allow_personal_api_keys: true,
+            allow_personal_keys: { ai: true, web_search: true, scan: true },
         });
         const user = userEvent.setup();
         render(<OnboardingModelsPage />);

@@ -123,7 +123,7 @@ function orgSettings(
     effective: status,
     router_models: routerModels,
     effective_router_models: routerModels,
-    allow_personal_api_keys: true,
+    allow_personal_keys: { ai: true, web_search: true, scan: true },
     can_manage: true,
     ...overrides,
   } as OrgApiKeySettings;
@@ -381,26 +381,75 @@ describe("an owner or admin", () => {
   it("stops members' own keys being used", async () => {
     const user = userEvent.setup();
     mocks.setOrgPersonalApiKeysAllowed.mockResolvedValue(
-      orgSettings({}, { allow_personal_api_keys: false }),
+      orgSettings({}, { allow_personal_keys: { ai: false, web_search: true, scan: true } }),
     );
     renderTab();
 
     const toggle = await screen.findByRole("switch", {
-      name: "Allow members' own keys",
+      name: "Members can use their own AI keys",
     });
     expect(toggle).toBeChecked();
     await user.click(toggle);
 
     expect(mocks.setOrgPersonalApiKeysAllowed).toHaveBeenCalledExactlyOnceWith(
       "org-1",
+      "ai",
       false,
     );
     await waitFor(() => expect(toggle).not.toBeChecked());
+    // Blocking one kind leaves the other two switches where they were.
     expect(
-      screen.getByText(
-        "A member's own keys are never used for work in this organization.",
+      screen.getByRole("switch", { name: "Members can use their own web search keys" }),
+    ).toBeChecked();
+    expect(
+      screen.getByRole("switch", { name: /Members can use their own scan reading keys/ }),
+    ).toBeChecked();
+  });
+
+  it.each([
+    ["Members can use their own web search keys", "web_search"],
+    [
+      "Members can use their own scan reading keys (LandingAI)",
+      "scan",
+    ],
+  ])("changes only the capability of the switch it presses: %s", async (name, capability) => {
+    const user = userEvent.setup();
+    mocks.setOrgPersonalApiKeysAllowed.mockResolvedValue(orgSettings({}));
+    renderTab();
+
+    await user.click(await screen.findByRole("switch", { name }));
+
+    expect(mocks.setOrgPersonalApiKeysAllowed).toHaveBeenCalledExactlyOnceWith(
+      "org-1",
+      capability,
+      false,
+    );
+  });
+
+  it.each([
+    ["brave", "Brave Search API Key"],
+    ["tavily", "Tavily API Key"],
+    ["deepseek", "DeepSeek Search API Key"],
+  ])("saves the firm's %s search key for the firm, not for the caller", async (provider, label) => {
+    const user = userEvent.setup();
+    mocks.saveOrgApiKey.mockResolvedValue(orgSettings({ [provider]: {} }));
+    renderTab();
+
+    await user.type(await screen.findByLabelText(label), "synthetic-search");
+    // Only the field that was typed into has something to save.
+    const save = within(screen.getByRole("region", { name: "Web search keys" }))
+      .getAllByRole("button", { name: /^Save/ })
+      .find((button) => !(button as HTMLButtonElement).disabled);
+    await user.click(save!);
+
+    await waitFor(() =>
+      expect(mocks.saveOrgApiKey).toHaveBeenCalledWith(
+        "org-1",
+        provider,
+        "synthetic-search",
+        undefined,
       ),
-    ).toBeInTheDocument();
+    );
   });
 
   it("asks for MFA and then carries out the change", async () => {
@@ -414,12 +463,12 @@ describe("an owner or admin", () => {
         }),
       )
       .mockResolvedValueOnce(
-        orgSettings({}, { allow_personal_api_keys: false }),
+        orgSettings({}, { allow_personal_keys: { ai: false, web_search: true, scan: true } }),
       );
     renderTab();
 
     await user.click(
-      await screen.findByRole("switch", { name: "Allow members' own keys" }),
+      await screen.findByRole("switch", { name: "Members can use their own AI keys" }),
     );
     await user.click(await screen.findByRole("button", { name: "Verify MFA" }));
 
@@ -428,7 +477,7 @@ describe("an owner or admin", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("switch", { name: "Allow members' own keys" }),
+        screen.getByRole("switch", { name: "Members can use their own AI keys" }),
       ).not.toBeChecked(),
     );
   });
@@ -460,7 +509,7 @@ describe("a member who cannot manage the organization", () => {
     mocks.getOrgApiKeys.mockResolvedValue(
       orgSettings(saved, {
         can_manage: false,
-        allow_personal_api_keys: allowPersonal,
+        allow_personal_keys: { ai: allowPersonal, web_search: allowPersonal, scan: allowPersonal },
       }),
     );
 

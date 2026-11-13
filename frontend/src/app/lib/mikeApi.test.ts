@@ -3873,8 +3873,8 @@ describe("thin endpoint wrappers", () => {
             url: "/orgs/org-1/api-keys/openai", method: "PATCH", body: { enabled: false },
         },
         {
-            name: "setOrgPersonalApiKeysAllowed", call: () => setOrgPersonalApiKeysAllowed("org-1", false),
-            url: "/orgs/org-1/api-keys/policy", method: "PUT", body: { allow_personal_api_keys: false },
+            name: "setOrgPersonalApiKeysAllowed", call: () => setOrgPersonalApiKeysAllowed("org-1", "web_search", false),
+            url: "/orgs/org-1/api-keys/policy", method: "PUT", body: { capability: "web_search", allowed: false },
         },
         {
             name: "getOrgMemberHandover", call: () => getOrgMemberHandover("org-1", "user-2"),

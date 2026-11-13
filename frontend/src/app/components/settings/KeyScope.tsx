@@ -4,12 +4,13 @@ import { useTranslations } from "next-intl";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useWorkspace } from "@/app/contexts/WorkspaceContext";
 import { SettingsDescription } from "@/app/components/settings/SettingsText";
-import type { OrgApiKeySettings } from "@/app/lib/mikeApi";
+import type { KeyCapability, OrgApiKeySettings } from "@/app/lib/mikeApi";
 
 /**
  * Which workspace a person's own keys apply to, as the server decides it:
  * in a firm's workspace they only count when the firm lets members bring
- * their own (`allow_personal_api_keys`, on unless turned off); in Personal
+ * their own for that kind of key (AI models, web search or scan reading:
+ * `allow_personal_keys[capability]`, each on unless turned off); in Personal
  * they always do. A firm-managed account never has personal keys, wherever
  * it is. Unknown (still loading, or the read failed) is not
  * "blocked": the screen shows the keys and the server still decides.
@@ -20,7 +21,7 @@ import type { OrgApiKeySettings } from "@/app/lib/mikeApi";
  * personal key (provider keys, LandingAI, Brave) ask here and show the firm's
  * state when `personalBlocked`.
  */
-export function useKeyScope(): {
+export function useKeyScope(capability: KeyCapability = "ai"): {
     firmName: string | null;
     personalBlocked: boolean;
     /** A firm-managed account: no personal keys in any workspace. */
@@ -40,7 +41,7 @@ export function useKeyScope(): {
         orgApiKeys: firmName === null ? null : orgApiKeys,
         personalBlocked:
             managed ||
-            (firmName !== null && orgApiKeys?.allow_personal_api_keys === false),
+            (firmName !== null && orgApiKeys?.allow_personal_keys?.[capability] === false),
     };
 }
 

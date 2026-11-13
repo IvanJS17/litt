@@ -45,7 +45,7 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     useWorkspace: () => ({
         activeOrganization: workspace.firm && { id: "firm-1", ...workspace.firm },
         orgApiKeys: workspace.firm
-            ? { allow_personal_api_keys: workspace.allowPersonal }
+            ? { allow_personal_keys: { ai: workspace.allowPersonal, web_search: workspace.allowPersonal, scan: workspace.allowPersonal } }
             : null,
     }),
 }));
@@ -367,11 +367,11 @@ describe("BYOK page cloud-platform keys", () => {
         workspace.allowPersonal = false;
         render(<ByokPage />);
         expect(
-            screen.getByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
+            screen.getByText("You work with the keys of Socium. Your firm does not allow using your own keys for this."),
         ).toBeVisible();
         expect(screen.getByText("Firm keys (Socium) firm-1")).toBeVisible();
         // The restriction is said once, under the title, not repeated as a setting.
-        expect(screen.getAllByText(/does not allow adding your own keys/)).toHaveLength(1);
+        expect(screen.getAllByText(/does not allow using your own keys for this/)).toHaveLength(1);
         expect(screen.queryByRole("button", { name: /^Add / })).not.toBeInTheDocument();
         expect(screen.queryByRole("region", { name: "Saved Providers" })).not.toBeInTheDocument();
     });

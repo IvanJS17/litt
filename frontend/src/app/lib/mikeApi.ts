@@ -2161,6 +2161,11 @@ export async function deleteOrgLogo(orgId: string): Promise<void> {
     await apiRequest("organizations.manage", `/orgs/${orgId}/logo`, { method: "DELETE" });
 }
 
+/** What a saved key is for; an organization decides each separately. */
+export type KeyCapability = "ai" | "web_search" | "scan";
+
+export type PersonalKeyPolicy = Record<KeyCapability, boolean>;
+
 /**
  * An organization's model provider keys, as its members see them. Never a
  * key itself: only which providers are set up.
@@ -2183,8 +2188,11 @@ export interface OrgApiKeySettings {
      * each provider whose key it holds, their own for the rest.
      */
     effective_router_models: Record<string, string[]>;
-    /** Whether a member's own key is used where the organization has none. */
-    allow_personal_api_keys: boolean;
+    /**
+     * Per kind of key, whether a member's own key is used where the
+     * organization has none: AI models, web search, scan reading.
+     */
+    allow_personal_keys: PersonalKeyPolicy;
     /** Whether the caller may change any of this (owners and admins). */
     can_manage: boolean;
 }
@@ -2300,12 +2308,13 @@ export async function dismissManagedNotice(): Promise<void> {
 
 export async function setOrgPersonalApiKeysAllowed(
     orgId: string,
+    capability: KeyCapability,
     allowed: boolean,
 ): Promise<OrgApiKeySettings> {
     return apiRequest<OrgApiKeySettings>("organizations.manage", `/orgs/${orgId}/api-keys/policy`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allow_personal_api_keys: allowed }),
+        body: JSON.stringify({ capability, allowed }),
     });
 }
 

@@ -39,7 +39,7 @@ vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     activeOrganization: workspace.firm,
     orgApiKeys: workspace.firm
       ? {
-          allow_personal_api_keys: workspace.allowPersonal,
+          allow_personal_keys: { ai: workspace.allowPersonal, web_search: workspace.allowPersonal, scan: workspace.allowPersonal },
           keys: {
             sources: workspace.firmLandingai ? { landingai: "org" } : {},
             enabled: workspace.firmLandingai ? { landingai: workspace.firmLandingai.enabled } : {},

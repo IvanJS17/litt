@@ -4,7 +4,7 @@ import { PersonalKeysBlockedNotice, useKeyScope, usePersonalKeysScope } from "./
 
 const workspace = vi.hoisted(() => ({
     firm: null as null | { name: string },
-    orgApiKeys: null as null | { allow_personal_api_keys: boolean },
+    orgApiKeys: null as null | { allow_personal_keys: { ai: boolean, web_search: boolean, scan: boolean } },
 }));
 vi.mock("@/app/contexts/WorkspaceContext", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/app/contexts/WorkspaceContext")>()),
@@ -24,7 +24,7 @@ describe("key scope", () => {
     });
 
     it("is never blocked in the personal workspace", () => {
-        workspace.orgApiKeys = { allow_personal_api_keys: false };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: false, scan: false } };
         const { result } = renderHook(() => useKeyScope());
         expect(result.current).toEqual({ firmName: null, personalBlocked: false, managed: false, orgApiKeys: null });
     });
@@ -40,12 +40,33 @@ describe("key scope", () => {
         const { result, rerender } = renderHook(() => useKeyScope());
         // Still loading, or the read failed: not blocked; the server decides.
         expect(result.current).toEqual({ firmName: "Socium", personalBlocked: false, managed: false, orgApiKeys: null });
-        workspace.orgApiKeys = { allow_personal_api_keys: true };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: true, web_search: true, scan: true } };
         rerender();
         expect(result.current.personalBlocked).toBe(false);
-        workspace.orgApiKeys = { allow_personal_api_keys: false };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: false, scan: false } };
         rerender();
         expect(result.current.personalBlocked).toBe(true);
+    });
+
+    it("decides each capability on its own switch", () => {
+        workspace.firm = { name: "Socium" };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: true, web_search: false, scan: true } };
+        const blocked = (capability?: "ai" | "web_search" | "scan") =>
+            renderHook(() => useKeyScope(capability)).result.current.personalBlocked;
+        expect(blocked()).toBe(false);
+        expect(blocked("ai")).toBe(false);
+        expect(blocked("web_search")).toBe(true);
+        expect(blocked("scan")).toBe(false);
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: true, scan: false } };
+        expect(blocked("ai")).toBe(true);
+        expect(blocked("web_search")).toBe(false);
+        expect(blocked("scan")).toBe(true);
+    });
+
+    it("blocks every capability for a firm-managed account", () => {
+        profile.managed = true;
+        for (const capability of ["ai", "web_search", "scan"] as const)
+            expect(renderHook(() => useKeyScope(capability)).result.current.personalBlocked).toBe(true);
     });
 
     it("words where the keys apply, and the notice when they do not", () => {
@@ -54,7 +75,7 @@ describe("key scope", () => {
         workspace.firm = { name: "Socium" };
         render(<PersonalKeysBlockedNotice />);
         expect(
-            screen.getByText("You work with the keys of Socium. Your firm does not allow adding your own keys."),
+            screen.getByText("You work with the keys of Socium. Your firm does not allow using your own keys for this."),
         ).toBeVisible();
     });
 
@@ -62,6 +83,6 @@ describe("key scope", () => {
         profile.managed = true;
         const { container } = render(<PersonalKeysBlockedNotice />);
         expect(container.textContent?.startsWith(" ")).toBe(false);
-        expect(screen.getByText("You work with your firm's keys. Your firm does not allow adding your own keys.")).toBeVisible();
+        expect(screen.getByText("You work with your firm's keys. Your firm does not allow using your own keys for this.")).toBeVisible();
     });
 });

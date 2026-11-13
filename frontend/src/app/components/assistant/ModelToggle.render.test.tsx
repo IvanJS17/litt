@@ -13,7 +13,7 @@ const { configuredModels, workspace } = vi.hoisted(() => ({
     // Personal unless a test says otherwise.
     workspace: {
         workspaceId: "personal" as string | null,
-        orgApiKeys: null as { allow_personal_api_keys: boolean } | null,
+        orgApiKeys: null as { allow_personal_keys: { ai: boolean, web_search: boolean, scan: boolean } } | null,
     },
 }));
 
@@ -374,7 +374,7 @@ describe("ModelToggle availability states", () => {
         const user = userEvent.setup();
         const onNoModelsClick = vi.fn();
         workspace.workspaceId = "org-1";
-        workspace.orgApiKeys = { allow_personal_api_keys: false };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: false, scan: false } };
         const orgKeys = keys({ openrouter: true });
         orgKeys.openrouter = { configured: true, enabled: true, source: "org" };
         render(
@@ -397,7 +397,7 @@ describe("ModelToggle availability states", () => {
         const user = userEvent.setup();
         const onNoModelsClick = vi.fn();
         workspace.workspaceId = "org-1";
-        workspace.orgApiKeys = { allow_personal_api_keys: false };
+        workspace.orgApiKeys = { allow_personal_keys: { ai: false, web_search: false, scan: false } };
         render(
             <ModelToggle
                 value=""

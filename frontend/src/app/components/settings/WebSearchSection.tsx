@@ -16,6 +16,7 @@ import {
 import { PersonalKeysBlockedNotice, useKeyScope, usePersonalKeysScope } from "@/app/components/settings/KeyScope";
 import { useUserProfile } from "@/app/contexts/UserProfileContext";
 import { useAssignLatest } from "@/app/hooks/useLatestRef";
+import { useModelApiKeys } from "@/app/hooks/useModelApiKeys";
 import { isProviderAvailable } from "@/app/lib/modelAvailability";
 import {
   getWebSearchSettings,
@@ -122,7 +123,10 @@ export function WebSearchSection() {
   const SEARCH_SERVICE_OPTIONS = searchServiceOptions(t);
   const OFF_OPTION = offOption(t);
   const { profile, updateApiKey } = useUserProfile();
-  const { personalBlocked } = useKeyScope();
+  const { personalBlocked } = useKeyScope("web_search");
+  // The keys the person works on in the active workspace: the firm's included
+  // inside a firm, not only their own.
+  const effectiveKeys = useModelApiKeys();
   const scope = usePersonalKeysScope();
   const [settings, setSettings] = useState<WebSearchSettings | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -183,7 +187,8 @@ export function WebSearchSection() {
   };
 
   const providerFamilies = providerFamilyTable(t).filter(
-    ({ family }) => profile && isProviderAvailable(family, profile.apiKeys),
+    ({ family }) =>
+      profile && isProviderAvailable(family, effectiveKeys ?? profile.apiKeys),
   ).map(({ family, label, provider }) => ({
     family,
     label,

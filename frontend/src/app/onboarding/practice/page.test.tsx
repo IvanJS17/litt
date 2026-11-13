@@ -55,7 +55,7 @@ describe("OnboardingPracticePage", () => {
     updatePersonalisation.mockResolvedValue(true);
     completeOnboarding.mockReset().mockResolvedValue(true);
     listOrgs.mockReset().mockResolvedValue([{ id: "org-1", name: "Socium", role: "member" }]);
-    getOrgApiKeys.mockReset().mockResolvedValue({ effective: {}, allow_personal_api_keys: true });
+    getOrgApiKeys.mockReset().mockResolvedValue({ effective: {}, allow_personal_keys: { ai: true, web_search: true, scan: true } });
     window.localStorage.clear();
   });
 
@@ -169,7 +169,7 @@ describe("OnboardingPracticePage", () => {
     });
 
     it("ends here, in the firm's workspace, when the firm does not take their own keys", async () => {
-      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_keys: { ai: false, web_search: false, scan: false } });
       const user = userEvent.setup();
       render(<OnboardingPracticePage />);
       expect(await screen.findByText("Step 2 of 2")).toBeVisible();
@@ -183,7 +183,7 @@ describe("OnboardingPracticePage", () => {
     });
 
     it("can be skipped to the end, and reports a failed finish without leaving the form locked", async () => {
-      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_keys: { ai: false, web_search: false, scan: false } });
       completeOnboarding.mockResolvedValueOnce(false);
       const user = userEvent.setup();
       render(<OnboardingPracticePage />);
@@ -195,7 +195,7 @@ describe("OnboardingPracticePage", () => {
     });
 
     it("reports a failed finish after saving and lets the person try again", async () => {
-      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_api_keys: false });
+      getOrgApiKeys.mockResolvedValue({ effective: {}, allow_personal_keys: { ai: false, web_search: false, scan: false } });
       completeOnboarding.mockResolvedValueOnce(false);
       const user = userEvent.setup();
       render(<OnboardingPracticePage />);
